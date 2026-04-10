@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.com/schemas/prompt-manager/team-inbox.schema.json",
+  "title": "TeamInbox",
+  "description": "Inbox messages for a team member within a team",
+  "type": "object",
+  "required": ["kind", "schemaVersion", "teamId", "agentId", "messages"],
+  "properties": {
+    "kind": {
+      "type": "string",
+      "const": "team-inbox",
+      "description": "Entity type discriminator"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Schema version for forward compatibility"
+    },
+    "teamId": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "description": "Reference to parent team"
+    },
+    "agentId": {
+      "type": "string",
+      "description": "Agent ID for the inbox owner"
+    },
+    "messages": {
+      "type": "array",
+      "description": "Inbox messages",
+      "items": {
+        "type": "object",
+        "required": ["id", "teamId", "fromAgentId", "toAgentId", "content", "createdAt"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Message ID"
+          },
+          "teamId": {
+            "type": "string",
+            "description": "Team ID"
+          },
+          "fromAgentId": {
+            "type": "string",
+            "description": "Sender agent ID"
+          },
+          "toAgentId": {
+            "type": "string",
+            "description": "Recipient agent ID"
+          },
+          "content": {
+            "type": "string",
+            "description": "Message content"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "ISO timestamp when the message was created"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

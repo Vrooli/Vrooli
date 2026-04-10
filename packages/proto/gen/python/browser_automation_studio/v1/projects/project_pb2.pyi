@@ -10,7 +10,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Project(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "name", "description", "folder_path", "created_at", "updated_at")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -26,7 +26,7 @@ class Project(_message.Message):
     def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., folder_path: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ProjectStats(_message.Message):
-    __slots__ = ()
+    __slots__ = ("project_id", "workflow_count", "execution_count", "last_execution")
     PROJECT_ID_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_COUNT_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -38,7 +38,7 @@ class ProjectStats(_message.Message):
     def __init__(self, project_id: _Optional[str] = ..., workflow_count: _Optional[int] = ..., execution_count: _Optional[int] = ..., last_execution: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ProjectWithStats(_message.Message):
-    __slots__ = ()
+    __slots__ = ("project", "stats")
     PROJECT_FIELD_NUMBER: _ClassVar[int]
     STATS_FIELD_NUMBER: _ClassVar[int]
     project: Project
@@ -46,7 +46,7 @@ class ProjectWithStats(_message.Message):
     def __init__(self, project: _Optional[_Union[Project, _Mapping]] = ..., stats: _Optional[_Union[ProjectStats, _Mapping]] = ...) -> None: ...
 
 class ProjectList(_message.Message):
-    __slots__ = ()
+    __slots__ = ("projects",)
     PROJECTS_FIELD_NUMBER: _ClassVar[int]
     projects: _containers.RepeatedCompositeFieldContainer[ProjectWithStats]
     def __init__(self, projects: _Optional[_Iterable[_Union[ProjectWithStats, _Mapping]]] = ...) -> None: ...

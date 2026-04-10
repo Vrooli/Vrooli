@@ -223,6 +223,46 @@ func TestBuildSQLiteDSN(t *testing.T) {
 	}
 }
 
+func TestBuildDSNFromEnv_SupportsModernCSQLiteDriver(t *testing.T) {
+	t.Parallel()
+
+	dsn, err := buildDSNFromEnv(Config{
+		Driver: DriverSQLite,
+		EnvGetter: func(key string) string {
+			if key == "SQLITE_PATH" {
+				return "/data/test-genie.db"
+			}
+			return ""
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dsn != "/data/test-genie.db" {
+		t.Fatalf("expected sqlite path to round-trip, got %q", dsn)
+	}
+}
+
+func TestBuildDSNFromEnv_SupportsLegacySQLiteDriverAlias(t *testing.T) {
+	t.Parallel()
+
+	dsn, err := buildDSNFromEnv(Config{
+		Driver: DriverSQLiteLegacy,
+		EnvGetter: func(key string) string {
+			if key == "SQLITE_DB" {
+				return "/tmp/legacy.db"
+			}
+			return ""
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dsn != "/tmp/legacy.db" {
+		t.Fatalf("expected sqlite DB path to round-trip, got %q", dsn)
+	}
+}
+
 func TestBuildSQLiteDSN_Missing(t *testing.T) {
 	t.Parallel()
 

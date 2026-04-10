@@ -21,7 +21,17 @@
       "documents": [
         { "path": "safety/README.md", "title": "Safety Overview", "description": "Quick safety checklist" },
         { "path": "safety/GUIDELINES.md", "title": "Safety Guidelines", "description": "Complete safety rules and patterns" },
+        { "path": "safety/agent-spawning-security.md", "title": "Agent Spawning Security", "description": "Security constraints for delegated agents" },
         { "path": "safety/bats-teardown-bug.md", "title": "BATS Teardown Bug", "description": "Real incident case study" }
+      ]
+    },
+    {
+      "id": "configuration",
+      "title": "Configuration",
+      "icon": "sliders",
+      "description": "Operator-facing environment variables and tuning levers",
+      "documents": [
+        { "path": "configuration/tunable-levers.md", "title": "Tunable Levers", "description": "Runtime, queue, CLI, and playbooks controls" }
       ]
     },
     {
@@ -44,12 +54,25 @@
         { "path": "phases/integration/README.md", "title": "Integration Phase", "description": "API and CLI connectivity testing" },
         { "path": "phases/integration/cli-testing.md", "title": "CLI Testing", "description": "BATS testing for command-line tools" },
         { "path": "phases/playbooks/README.md", "title": "Playbooks Phase", "description": "BAS browser automation workflows" },
+        { "path": "phases/playbooks/directory-structure.md", "title": "Playbooks Directory Structure", "description": "Canonical bas/ layout and registry semantics" },
         { "path": "phases/playbooks/ui-automation-with-bas.md", "title": "UI Automation with BAS", "description": "Vrooli Ascension workflow testing" },
         { "path": "phases/business/README.md", "title": "Business Phase", "description": "Requirement coverage validation" },
         { "path": "phases/business/requirements-sync.md", "title": "Requirements Sync", "description": "Automatic requirement tracking from tests" },
         { "path": "phases/performance/README.md", "title": "Performance Phase", "description": "Benchmarks and performance testing" },
         { "path": "phases/performance/lighthouse.md", "title": "Lighthouse Integration", "description": "Performance and accessibility testing" },
         { "path": "phases/performance/performance-testing.md", "title": "Performance Testing", "description": "Build benchmarks and regression detection" }
+      ]
+    },
+    {
+      "id": "plans",
+      "title": "Implementation Plans",
+      "icon": "map",
+      "description": "Detailed implementation plans for features",
+      "documents": [
+        { "path": "plans/bidirectional-reference-validation.md", "title": "Bidirectional Reference Validation", "description": "Implementation plan for CODE:/DOC: reference validation" },
+        { "path": "plans/lint-phase-implementation.md", "title": "Lint Phase Implementation", "description": "Implementation plan for lint phase" },
+        { "path": "plans/standards-phase-implementation-plan.md", "title": "Standards Phase Implementation", "description": "Implementation plan for standards phase" },
+        { "path": "plans/ui-smoke-go-implementation.md", "title": "UI Smoke Go Implementation", "description": "Implementation plan for UI smoke testing in Go" }
       ]
     },
     {
@@ -78,6 +101,7 @@
       "documents": [
         { "path": "reference/api-endpoints.md", "title": "API Reference", "description": "REST API endpoint documentation" },
         { "path": "reference/cli-commands.md", "title": "CLI Commands", "description": "test-genie CLI reference" },
+        { "path": "reference/configuration.md", "title": "Execution Configuration", "description": "Execution planning, timeouts, and estimate behavior" },
         { "path": "reference/presets.md", "title": "Test Presets", "description": "Quick, Smoke, Comprehensive presets" },
         { "path": "reference/requirement-schema.md", "title": "Requirement Schema", "description": "JSON schema for requirement registry" },
         { "path": "reference/gaming-prevention.md", "title": "Gaming Prevention", "description": "Test integrity detection system" },
@@ -113,7 +137,7 @@
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "safety", "phases", "guides", "reference"],
-    "secondary": ["concepts", "standard"]
+    "primary": ["getting-started", "configuration", "safety", "phases", "guides", "reference"],
+    "secondary": ["concepts", "plans", "standard"]
   }
 }

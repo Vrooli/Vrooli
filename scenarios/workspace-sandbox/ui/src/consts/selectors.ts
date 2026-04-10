@@ -52,7 +52,7 @@ interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefine
 }
 
 type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
+  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<ParamSchema | undefined>;
 };
 
 type DynamicSelectorTree = DynamicSelectorBranch;
@@ -79,7 +79,7 @@ type SelectorTreeResult<
         Extract<L[K], LiteralSelectorTree>,
         K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree
       >;
-} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : {});
+} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : Record<string, unknown>);
 
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
@@ -93,11 +93,11 @@ const formatTemplate = (template: string, values: Record<string, string | number
 
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
+const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
   Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition).kind === "dynamic-selector");
 
 const normalizeParams = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   raw: Record<string, string | number>,
   path: string,
 ) => {
@@ -233,7 +233,7 @@ const mergeLiteralAndDynamicNodes = (
 };
 
 const createDynamicSelectorFn = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   path: string,
 ) => {
   return (params?: Record<string, string | number>) => {
@@ -333,6 +333,12 @@ const literalSelectors: LiteralSelectorTree = {
     cancelButton: "launch-cancel",
   },
 
+  // Mobile
+  mobileNav: "mobile-nav",
+  mobileHeader: "mobile-header",
+  mobileHeaderMore: "mobile-header-more",
+  bottomSheet: "bottom-sheet",
+
   // Error/loading states
   loading: "loading-spinner",
   errorToast: "error-toast",
@@ -363,6 +369,18 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
     description: "Diff file item by path",
     selectorPattern: '[data-testid="diff-file-item"][data-file-path="${path}"]',
     params: { path: { type: "string" } },
+  }),
+
+  // Mobile nav tab by panel
+  mobileNavTab: defineDynamicSelector({
+    description: "Mobile navigation tab by panel name",
+    testIdPattern: "mobile-nav-${panel}",
+    params: {
+      panel: {
+        type: "enum",
+        values: ["sandboxes", "details", "changes"],
+      },
+    },
   }),
 
   // Diff hunk by index
@@ -400,6 +418,7 @@ export const SELECTORS = {
   // Detail panel
   detailPanel: "detail-panel",
   detailEmpty: "detail-empty-state",
+  detailsCollapseToggle: "details-collapse-toggle",
 
   // Diff viewer
   diffViewer: "diff-viewer",
@@ -423,8 +442,16 @@ export const SELECTORS = {
   confirmReject: "confirm-reject",
   cancelAction: "cancel-action",
 
+  // Selection mode
+  selectionModeToggle: "selection-mode-toggle",
+  selectAllButton: "select-all-button",
+  approveSelectedButton: "approve-selected-button",
+  fileCheckbox: (fileId: string) => `file-checkbox-${fileId}`,
+  hunkCheckbox: (fileId: string, hunkIndex: number) => `hunk-checkbox-${fileId}-${hunkIndex}`,
+
   // Create dialog
   createDialog: "create-sandbox-dialog",
+  nameInput: "sandbox-name-input",
   scopePathInput: "scope-path-input",
   projectRootInput: "project-root-input",
   ownerInput: "owner-input",
@@ -440,6 +467,15 @@ export const SELECTORS = {
   launchSubmit: "launch-submit",
   launchCancel: "launch-cancel",
   launchAgentButton: "launch-agent-button",
+
+  // Mobile navigation
+  mobileNav: "mobile-nav",
+  mobileNavTab: (panel: string) => `mobile-nav-${panel}`,
+  mobileHeader: "mobile-header",
+  mobileHeaderMore: "mobile-header-more",
+
+  // Bottom sheet
+  bottomSheet: "bottom-sheet",
 
   // Error/loading
   loading: "loading-spinner",

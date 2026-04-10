@@ -7,6 +7,149 @@ source "${SCRIPT_DIR}/../utils/var.sh"
 source "${SCRIPT_DIR}/../utils/log.sh"
 source "${SCRIPT_DIR}/dependencies.sh"
 
+# =============================================================================
+# Sandbox-aware path resolution helpers
+#
+# When an AI agent runs inside an overlayfs sandbox (managed by workspace-sandbox),
+# its file changes are captured in the overlay's upper/ layer — the real repo is
+# untouched. The agent-manager injects three environment variables into the agent's
+# process so the Vrooli CLI can transparently redirect scenario paths to the sandbox:
+#
+#   VROOLI_SANDBOX_ID     - sandbox UUID (for logging/debugging)
+#   VROOLI_SANDBOX_MERGED - absolute path to the overlay's merged/ directory
+#   VROOLI_SANDBOX_SCOPE  - relative scope path within the project
+#                           (e.g. "scenarios/git-control-tower")
+#
+# This allows agents to run "vrooli scenario restart foo" and have the lifecycle
+# system build and run from the sandbox (where their changes live), without the
+# agent needing to pass any special flags or even know it's sandboxed.
+#
+# IMPORTANT — Scope vs Acceptance:
+#   The sandbox SCOPE should always cover the full scenario directory (e.g.,
+#   "scenarios/my-app"), because the lifecycle system needs Makefile, service.json,
+#   and all subdirectories to build and run. If the scope is too narrow (e.g.,
+#   just "scenarios/my-app/ui"), the lifecycle can't restart the scenario from
+#   the sandbox and falls back to the real repo — making changes invisible.
+#
+#   To restrict WHICH changes get approved (blast radius), use the acceptance
+#   config (allow/deny patterns) on the sandbox, not a narrower scope. See:
+#   scenarios/workspace-sandbox/docs/ARCHITECTURE.md ("Scope vs Acceptance")
+#
+# See also:
+#   - scenarios/agent-manager/api/internal/orchestration/run_executor.go
+#     (SandboxEnvVars method — where the env vars are injected)
+#   - scenarios/agent-manager/api/internal/domain/types.go
+#     (ScopePath and SandboxAcceptanceConfig — design rationale)
+#   - scenarios/workspace-sandbox/docs/ARCHITECTURE.md
+#     ("Scope vs Acceptance" section — full explanation with examples)
+# =============================================================================
+
+# sandbox::scenario_in_scope checks whether a scenario slug falls within the
+# sandbox's scoped path. This determines whether the CLI should redirect path
+# resolution to the sandbox's merged/ directory or use the real repo.
+#
+# An agent sandboxing scenario A should NOT affect scenario B's restarts —
+# only in-scope scenarios are redirected, everything else uses the real repo.
+#
+# Arguments:
+#   $1 - scenario slug (e.g. "git-control-tower")
+#   $2 - sandbox scope path, relative to project root
+#         (e.g. "scenarios/git-control-tower", "scenarios", "")
+#
+# Returns 0 (true) if the scenario is in scope, 1 (false) otherwise.
+#
+# Scope matching rules:
+#   ""  or "." or "/"        → whole repo is scoped, ALL scenarios match
+#   "scenarios"              → all scenarios are scoped
+#   "scenarios/foo"          → only scenario "foo" matches
+#   "scenarios/foo/api"      → still matches "foo" (scope is deeper but within it)
+#   "scenarios/other"        → does NOT match "foo"
+#   "packages/shared"        → no scenarios match (scope outside scenarios/)
+sandbox::scenario_in_scope() {
+    local scenario_name="$1"
+    local scope="$2"
+
+    # Empty scope or root scope means the overlay covers everything
+    if [[ -z "$scope" || "$scope" == "/" || "$scope" == "." ]]; then
+        return 0
+    fi
+
+    # Normalize: remove trailing slash
+    scope="${scope%/}"
+
+    # If scope IS "scenarios" or a parent of it, all scenarios are in scope.
+    # e.g. scope="scenarios" covers everything under scenarios/.
+    if [[ "$scope" == "scenarios" ]]; then
+        return 0
+    fi
+
+    # If scope starts with "scenarios/", check if this specific scenario matches.
+    # Extract the first path component after "scenarios/" and compare.
+    # e.g. scope="scenarios/foo/api" → scoped_name="foo" → matches scenario "foo"
+    if [[ "$scope" == scenarios/* ]]; then
+        local scoped_name="${scope#scenarios/}"
+        scoped_name="${scoped_name%%/*}"  # Take only the first path component
+        if [[ "$scenario_name" == "$scoped_name" ]]; then
+            return 0
+        fi
+    fi
+
+    # Scope is outside scenarios/ or targets a different scenario
+    return 1
+}
+
+# sandbox::resolve_merged_path computes the absolute path to a scenario within
+# the sandbox's merged directory.
+#
+# The overlay's merged/ dir maps to the scoped directory, NOT the project root.
+# This means the path to a scenario within merged/ depends on the scope:
+#
+#   scope="scenarios/agent-inbox"  → merged/ IS the scenario → return $merged
+#   scope="scenarios"              → merged/ has scenario dirs → return $merged/agent-inbox
+#   scope="" or "." or "/"         → merged/ is project root  → return $merged/scenarios/agent-inbox
+#
+# The algorithm: compute the scenario's full relative path ("scenarios/{name}"),
+# then strip the scope prefix to get the remaining path within the merged dir.
+#
+# Arguments:
+#   $1 - scenario slug (e.g. "agent-inbox")
+#   $2 - sandbox scope path (e.g. "scenarios/agent-inbox")
+#   $3 - merged directory absolute path
+#
+# Outputs the resolved absolute path to stdout.
+sandbox::resolve_merged_path() {
+    local scenario_name="$1"
+    local scope="$2"
+    local merged="$3"
+
+    # Normalize: remove trailing slash
+    scope="${scope%/}"
+
+    # The full canonical path to the scenario relative to project root
+    local scenario_rel="scenarios/${scenario_name}"
+
+    # If scope is empty/root, merged/ is the project root — use full relative path
+    if [[ -z "$scope" || "$scope" == "/" || "$scope" == "." ]]; then
+        echo "${merged}/${scenario_rel}"
+        return
+    fi
+
+    # Strip the scope prefix from the scenario's relative path.
+    # If scenario_rel starts with scope, remove it to get the path within merged/.
+    # If they're equal, the remaining path is empty — merged/ IS the scenario dir.
+    if [[ "$scenario_rel" == "$scope" ]]; then
+        # Scope exactly matches the scenario path — merged/ IS the scenario
+        echo "${merged}"
+    elif [[ "$scenario_rel" == "${scope}/"* ]]; then
+        # Scope is a parent dir — strip it to get the relative path within merged/
+        local relative="${scenario_rel#"${scope}/"}"
+        echo "${merged}/${relative}"
+    else
+        # Fallback: shouldn't happen if scenario_in_scope passed, but be safe
+        echo "${merged}/${scenario_rel}"
+    fi
+}
+
 scenario::run() {
     local scenario_name="$1"
     shift
@@ -16,6 +159,7 @@ scenario::run() {
     local clean_stale=false
     local allow_skip_missing_runtime=false
     local manage_runtime=false
+    local best_effort=false
     local had_prior_allow_var=false
     local prior_allow_value=""
     local had_prior_manage_var=false
@@ -62,6 +206,10 @@ scenario::run() {
                 manage_runtime=true
                 shift
                 ;;
+            --best-effort)
+                best_effort=true
+                shift
+                ;;
             *)
                 if [[ "$phase" == "test" && -z "$selection" && "$1" != "-"* ]]; then
                     selection="$1"
@@ -74,14 +222,59 @@ scenario::run() {
         esac
     done
 
-    # Resolve scenario path (support both default and custom paths)
+    # Resolve scenario path (support custom paths, sandbox redirection, and default)
     local scenario_path
+    local sandbox_redirected=false
     if [[ -n "$custom_path" ]]; then
-        # Custom path provided - make it absolute
+        # Explicit --path flag always takes priority over everything else
         if [[ "$custom_path" = /* ]]; then
             scenario_path="$custom_path"
         else
             scenario_path="$(cd "$(dirname "$custom_path")" 2>/dev/null && pwd)/$(basename "$custom_path")"
+        fi
+    elif [[ -n "${VROOLI_SANDBOX_MERGED:-}" && -n "${VROOLI_SANDBOX_SCOPE:-}" ]]; then
+        # Sandbox-aware path redirection.
+        #
+        # WHY: Agents running in overlayfs sandboxes make file changes that are
+        # invisible to the lifecycle system, because it reads from the real repo.
+        # Without this redirection, "vrooli scenario restart" would rebuild from
+        # unchanged source — the agent could never test its own changes.
+        #
+        # HOW: The agent-manager sets VROOLI_SANDBOX_MERGED (overlay merged path)
+        # and VROOLI_SANDBOX_SCOPE (which part of the repo the sandbox covers).
+        # When both are present and the requested scenario falls within scope,
+        # we redirect to the merged directory so the lifecycle builds/runs the
+        # agent's modified code.
+        #
+        # DESIGN CONSTRAINTS:
+        #   1. --path flag always wins (checked above in the first branch)
+        #   2. Only in-scope scenarios redirect — others use the real repo
+        #   3. If the merged directory doesn't exist (sandbox torn down), fall back
+        if sandbox::scenario_in_scope "$scenario_name" "${VROOLI_SANDBOX_SCOPE}"; then
+            # Compute the scenario path within the merged directory.
+            # The overlay's merged/ dir maps to the scope path, NOT the project root.
+            # We must strip the scope prefix from "scenarios/{name}" to get the
+            # correct relative path within the merged dir.
+            #
+            # Examples (scope → merged/ contains → path to scenario):
+            #   "scenarios/agent-inbox"  → agent-inbox files at root → $MERGED
+            #   "scenarios"              → all scenario dirs         → $MERGED/agent-inbox
+            #   "" (whole repo)          → full repo tree            → $MERGED/scenarios/agent-inbox
+            local sandbox_scenario_path
+            sandbox_scenario_path="$(sandbox::resolve_merged_path "$scenario_name" "${VROOLI_SANDBOX_SCOPE}" "${VROOLI_SANDBOX_MERGED}")"
+            if [[ -d "$sandbox_scenario_path" ]]; then
+                scenario_path="$sandbox_scenario_path"
+                sandbox_redirected=true
+                log::info "Sandbox redirect: using ${scenario_path} (sandbox=${VROOLI_SANDBOX_ID:-unknown})"
+            else
+                # Scope says this scenario should be here but merged dir is missing
+                # (sandbox may have been torn down). Fall back to real repo.
+                scenario_path="${var_ROOT_DIR}/scenarios/${scenario_name}"
+                log::debug "Sandbox: ${sandbox_scenario_path} not found in merged view, using real repo"
+            fi
+        else
+            # Scenario is outside sandbox scope — use real repo unchanged
+            scenario_path="${var_ROOT_DIR}/scenarios/${scenario_name}"
         fi
     else
         # Default: look in standard scenarios directory
@@ -97,9 +290,12 @@ scenario::run() {
         scenario::dependencies::ready_reset
     fi
 
+    # Clear prior degraded state (will be re-set if needed after startup)
+    rm -f "$HOME/.vrooli/processes/scenarios/$scenario_name/degraded.json" 2>/dev/null || true
+
     if scenario::dependencies::phase_requires_bootstrap "$phase"; then
         scenario::dependencies::stack_push "$scenario_name"
-        if ! scenario::dependencies::ensure_started "$scenario_name" "$phase"; then
+        if ! scenario::dependencies::ensure_started "$scenario_name" "$phase" "$best_effort"; then
             scenario::dependencies::stack_pop "$scenario_name"
             return 1
         fi
@@ -270,18 +466,44 @@ scenario::run() {
         scenario_did_disable_gowork=true
     fi
 
-    # Export custom path if provided, so lifecycle.sh can use it
-    if [[ -n "$custom_path" ]]; then
+    # Export custom path so lifecycle.sh uses the correct directory.
+    # SCENARIO_CUSTOM_PATH is the existing mechanism lifecycle.sh checks for
+    # non-default scenario paths (see lifecycle.sh lines 618, 943, 986).
+    # Sandbox redirection piggybacks on this same mechanism rather than
+    # introducing a parallel path — both --path and sandbox redirect result
+    # in the same downstream behavior.
+    if [[ -n "$custom_path" || "$sandbox_redirected" == "true" ]]; then
         export SCENARIO_CUSTOM_PATH="$scenario_path"
     fi
 
     # Use tee to show output on console AND write to log file
     # This preserves real-time output while capturing for later review
-    "${SCRIPT_DIR}/../utils/lifecycle.sh" "$scenario_name" "$phase" "${remaining_args[@]}" 2>&1 | tee -a "$lifecycle_log"
+    # IMPORTANT: Redirect stdin from /dev/null to prevent lifecycle commands from
+    # consuming stdin that belongs to the parent's process substitution loop
+    # (e.g., the dependency iteration loop in dependencies.sh)
+    bash "${SCRIPT_DIR}/../utils/lifecycle.sh" "$scenario_name" "$phase" "${remaining_args[@]}" < /dev/null 2>&1 | tee -a "$lifecycle_log"
     local run_exit="${PIPESTATUS[0]}"
 
-    # Clean up custom path export
-    if [[ -n "$custom_path" ]]; then
+    # If best-effort mode produced failed dependencies, mark scenario as degraded
+    if [[ "$run_exit" -eq 0 && ${#SCENARIO_FAILED_DEPS[@]} -gt 0 ]]; then
+        local process_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
+        if [[ -d "$process_dir" ]]; then
+            local failed_json
+            failed_json=$(printf '%s\n' "${SCENARIO_FAILED_DEPS[@]}" | jq -R . | jq -sc .)
+            cat > "$process_dir/degraded.json" <<EOF
+{
+    "status": "degraded",
+    "reason": "best-effort startup with failed dependencies",
+    "failed_dependencies": ${failed_json},
+    "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+            log::warning "⚠️  Scenario '$scenario_name' started in DEGRADED mode. Failed dependencies: ${SCENARIO_FAILED_DEPS[*]}"
+        fi
+    fi
+
+    # Clean up custom path export (whether from --path or sandbox redirection)
+    if [[ -n "$custom_path" || "$sandbox_redirected" == "true" ]]; then
         unset SCENARIO_CUSTOM_PATH
     fi
 

@@ -13,6 +13,26 @@ import { getConfig } from '../../config';
 import { logger } from '../../utils/logger';
 import { parseProject, parseProjectList, parseProjectWithStats } from '../../utils/projectProto';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isString = (value: unknown): value is string => typeof value === 'string';
+
+const isBulkExecutionResult = (value: unknown): value is BulkExecutionResult => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.message)) return false;
+  if (!Array.isArray(value.executions)) return false;
+  if (!value.executions.every((entry) => {
+    if (!isRecord(entry)) return false;
+    if (!isString(entry.workflow_id)) return false;
+    if (!isString(entry.workflow_name)) return false;
+    if (!isString(entry.status)) return false;
+    if (entry.execution_id !== undefined && !isString(entry.execution_id)) return false;
+    if (entry.error !== undefined && !isString(entry.error)) return false;
+    return true;
+  })) return false;
+  return true;
+};
 const PROJECTS_ROOT = 'scenarios/browser-automation-studio/data/projects';
 const normalizeFolderSegment = (value: string): string => value.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
 export const buildProjectFolderPath = (folderName: string): string => {
@@ -64,7 +84,7 @@ interface ProjectState {
     },
   ) => Promise<Project>;
   updateProject: (id: string, updates: Partial<Pick<Project, 'name' | 'description' | 'folder_path'>>) => Promise<Project>;
-  deleteProject: (id: string) => Promise<void>;
+  deleteProject: (id: string, deleteFiles?: boolean) => Promise<void>;
   setCurrentProject: (project: Project | null) => void;
   selectProject: (idOrNull: string | null) => void; // Alias/helper for setCurrentProject
   getProject: (id: string) => Promise<Project | null>;
@@ -113,7 +133,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       if (!response.ok) {
         throw new Error(`Failed to fetch projects: ${response.status}`);
       }
-      const data = await response.json();
+      const data: unknown = await response.json();
       const parsed = parseProjectList(data);
       set({ projects: parsed, isLoading: false, isConnected: true });
     } catch (error) {
@@ -143,7 +163,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         throw new Error(errorData || `Failed to create project: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
       const newProject = parseProject(data);
 
       if (!newProject) {
@@ -183,7 +203,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         throw new Error(errorData || `Failed to update project: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
       const updatedProject = parseProject(data);
 
       if (!updatedProject) {
@@ -208,11 +228,15 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
   },
 
-  deleteProject: async (id) => {
+  deleteProject: async (id, deleteFiles = false) => {
     set({ isLoading: true, error: null });
     try {
       const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/projects/${id}`, {
+      const url = new URL(`${config.API_URL}/projects/${id}`);
+      if (deleteFiles) {
+        url.searchParams.set('delete_files', 'true');
+      }
+      const response = await fetch(url.toString(), {
         method: 'DELETE',
       });
 
@@ -228,7 +252,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         isLoading: false
       }));
     } catch (error) {
-      logger.error('Failed to delete project', { component: 'ProjectStore', action: 'deleteProject' }, error);
+      logger.error('Failed to delete project', { component: 'ProjectStore', action: 'deleteProject', deleteFiles }, error);
       set({
         error: error instanceof Error ? error.message : 'Failed to delete project',
         isLoading: false
@@ -244,7 +268,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       if (!response.ok) {
         throw new Error(`Failed to fetch project: ${response.status}`);
       }
-      const project = parseProjectWithStats(await response.json());
+      const payload: unknown = await response.json();
+      const project = parseProjectWithStats(payload);
       return project;
     } catch (error) {
       logger.error('Failed to fetch project', { component: 'ProjectStore', action: 'getProject', projectId: id }, error);
@@ -288,7 +313,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         throw new Error(errorData || `Failed to execute workflows: ${response.status}`);
       }
 
-      const result = await response.json();
+      const payload: unknown = await response.json();
+      const result: BulkExecutionResult = isBulkExecutionResult(payload)
+        ? payload
+        : { message: 'Invalid response', executions: [] };
 
       set(state => ({
         bulkExecutionInProgress: { ...state.bulkExecutionInProgress, [projectId]: false }
@@ -349,7 +377,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     // If there's only one project, return it
     if (projects.length === 1) {
-      return projects[0];
+      return projects[0] ?? null;
     }
 
     // Try to find the last used project
@@ -364,7 +392,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const sortedByUpdate = [...projects].sort(
       (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
     );
-    return sortedByUpdate[0];
+    return sortedByUpdate[0] ?? null;
   },
 
   setLastUsedProject: (projectId: string) => {

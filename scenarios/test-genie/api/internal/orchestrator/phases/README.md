@@ -289,13 +289,12 @@ Common utilities in `phase_helpers.go`:
 | Function | Purpose |
 |----------|---------|
 | `logPhaseStep(w, fmt, args...)` | Write timestamped log entry |
-| `logPhaseWarn(w, fmt, args...)` | Write warning entry |
+| `logPhaseSuccess(w, fmt, args...)` | Write success entry |
 | `EnsureCommandAvailable(cmd)` | Check if command exists in PATH |
 | `phaseCommandExecutor(ctx, dir, w, cmd, args...)` | Run command with output to log |
 | `phaseCommandCapture(ctx, dir, w, cmd, args...)` | Run command and capture output |
-| `ensureDir(path)` | Verify directory exists |
-| `ensureFile(path)` | Verify file exists |
-| `fileExists(path)` | Check file existence (no error) |
+| `wrapLogSansANSI(w)` | Strip ANSI escapes before persisting logs |
+| `OverrideCommandLookup/Executor/Capture(...)` | Test seams for command-driven phases |
 
 ## Directory Structure
 

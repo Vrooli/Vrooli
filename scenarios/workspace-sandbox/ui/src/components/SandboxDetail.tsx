@@ -16,14 +16,19 @@ import {
   Check,
   Trash2,
   Terminal,
+  MousePointerClick,
+  ChevronDown,
+  ChevronRight,
+  Tag,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
-import { DiffViewer } from "./DiffViewer";
-import type { Sandbox, DiffResult, Status } from "../lib/api";
+import { DiffViewer, type HunkSelection } from "./DiffViewer";
+import type { Sandbox, DiffResult, Status, ViewMode } from "../lib/api";
 import { formatBytes, formatRelativeTime } from "../lib/api";
+import { cn, truncatePath, formatOwner, sandboxDisplayName } from "../lib/utils";
 import { SELECTORS } from "../consts/selectors";
 
 interface SandboxDetailProps {
@@ -39,12 +44,27 @@ interface SandboxDetailProps {
   onDelete: () => void;
   onDiscardFile?: (fileId: string) => void;
   onLaunchAgent?: () => void;
+  onApproveSelected?: (options: {
+    hunkRanges: Array<{ fileId: string; startLine: number; endLine: number }>;
+  }) => void;
   isApproving: boolean;
   isRejecting: boolean;
   isStopping: boolean;
   isStarting: boolean;
   isDeleting: boolean;
   isDiscarding?: boolean;
+  // Review mode state (lifted to parent)
+  isReviewMode: boolean;
+  onReviewModeChange: (enabled: boolean) => void;
+  selectedFileIds: string[];
+  onSelectedFileIdsChange: (ids: string[]) => void;
+  selectedHunks: HunkSelection[];
+  onSelectedHunksChange: (hunks: HunkSelection[]) => void;
+  // View mode props
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
+  /** When true, hide the DiffViewer section (used on mobile where diff has its own tab) */
+  hideDiffViewer?: boolean;
 }
 
 const STATUS_CONFIG: Record<Status, { icon: React.ReactNode; label: string; variant: Status }> = {
@@ -85,16 +105,20 @@ const STATUS_CONFIG: Record<Status, { icon: React.ReactNode; label: string; vari
   },
 };
 
+/** R9: MetadataRow with optional monospace font */
 function MetadataRow({
   icon,
   label,
   value,
   copyable = false,
+  mono = false,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   copyable?: boolean;
+  /** Use monospace font for the value (for paths, IDs) */
+  mono?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -105,13 +129,15 @@ function MetadataRow({
   };
 
   return (
-    <div className="flex items-start gap-3 py-2 border-b border-slate-800/50 last:border-b-0">
+    <div className="flex items-start gap-3 py-2 border-b border-slate-800/50 last:border-b-0" data-testid="metadata-row">
       <div className="flex items-center gap-2 text-slate-500 w-24 flex-shrink-0">
         {icon}
         <span className="text-xs">{label}</span>
       </div>
       <div className="flex-1 min-w-0 flex items-center gap-2">
-        <span className="text-sm text-slate-200 font-mono truncate">{value}</span>
+        <span className={cn("text-sm text-slate-200 truncate", mono && "font-mono")} title={value}>
+          {value}
+        </span>
         {copyable && (
           <button
             onClick={handleCopy}
@@ -130,6 +156,26 @@ function MetadataRow({
   );
 }
 
+/** Compute the reserved path display string */
+function reservedPathValue(sandbox: Sandbox): { display: string; copyable: boolean } {
+  if (
+    sandbox.noLock &&
+    (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
+    !sandbox.reservedPath
+  ) {
+    return { display: "No lock", copyable: false };
+  }
+  const reserved = sandbox.reservedPaths?.length
+    ? sandbox.reservedPaths
+    : sandbox.reservedPath
+    ? [sandbox.reservedPath]
+    : sandbox.scopePath
+    ? [sandbox.scopePath]
+    : [];
+  if (reserved.length === 0) return { display: "Not specified", copyable: false };
+  return { display: reserved.join(", "), copyable: true };
+}
+
 export function SandboxDetail({
   sandbox,
   diff,
@@ -143,17 +189,45 @@ export function SandboxDetail({
   onDelete,
   onDiscardFile,
   onLaunchAgent,
+  onApproveSelected,
   isApproving,
   isRejecting,
   isStopping,
   isStarting,
   isDeleting,
-  isDiscarding,
+  isDiscarding: _isDiscarding,
+  isReviewMode,
+  onReviewModeChange,
+  selectedFileIds,
+  onSelectedFileIdsChange,
+  selectedHunks,
+  onSelectedHunksChange,
+  viewMode,
+  onViewModeChange,
+  hideDiffViewer,
 }: SandboxDetailProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showApproveAllConfirm, setShowApproveAllConfirm] = useState(false);
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
+
+  // R4: Show more toggle for secondary metadata
+  const [showMore, setShowMore] = useState(false);
+
+  // Check if any hunks are selected (file selection is now derived from hunk selection)
+  const hasSelection = selectedHunks.length > 0;
+
+  // Collapsed state for details section (persisted in localStorage)
+  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("wsb.detailsCollapsed") === "true";
+  });
+
+  // Persist collapsed state to localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("wsb.detailsCollapsed", String(isDetailsCollapsed));
+  }, [isDetailsCollapsed]);
 
   // Header resize state
   const HEADER_MIN_HEIGHT = 200;
@@ -257,53 +331,62 @@ export function SandboxDetail({
   const canStop = sandbox.status === "active";
   const canStart = sandbox.status === "stopped";
   const canApproveReject = sandbox.status === "active" || sandbox.status === "stopped";
-  const isTerminal =
-    sandbox.status === "approved" ||
-    sandbox.status === "rejected" ||
-    sandbox.status === "deleted";
+  // When noLock is true, acceptance rules don't apply - show simplified "Approve All" button
+  const isNoLock = sandbox.noLock === true;
+  const reserved = reservedPathValue(sandbox);
+  const displayName = sandboxDisplayName(sandbox);
+
+  // R1: Determine if we need the visual divider between lifecycle and review groups
+  const hasLifecycleButtons = canStop || canStart || (sandbox.status === "active" && onLaunchAgent);
+  const hasReviewButtons = canApproveReject && onApproveSelected;
 
   return (
     <div className="h-full flex flex-col" data-testid={SELECTORS.detailPanel} ref={containerRef}>
       {/* Details Panel */}
       <div
-        className="flex-shrink-0"
-        style={{ height: headerHeight }}
+        className={hideDiffViewer ? "flex-1 min-h-0" : "flex-shrink-0"}
+        style={hideDiffViewer || isDetailsCollapsed ? undefined : { height: headerHeight }}
       >
-        <Card className="h-full flex flex-col">
-          <CardHeader className="flex-row items-center justify-between space-y-0 py-3">
+        <Card className={isDetailsCollapsed ? "" : "h-full flex flex-col"}>
+          <CardHeader
+            className="flex-row items-center justify-between space-y-0 py-3 cursor-pointer hover:bg-slate-800/30 transition-colors"
+            onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
+            data-testid={SELECTORS.detailsCollapseToggle}
+          >
             <CardTitle className="flex items-center gap-2">
+              {isDetailsCollapsed ? (
+                <ChevronRight className="h-4 w-4 text-slate-500" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-slate-500" />
+              )}
               <Box className="h-4 w-4 text-slate-500" />
               Details
             </CardTitle>
-            <Badge variant={statusConfig.variant}>
-              <span className="flex items-center gap-1.5">
-                {statusConfig.icon}
-                {statusConfig.label}
-              </span>
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant={statusConfig.variant}>
+                <span className="flex items-center gap-1.5">
+                  {statusConfig.icon}
+                  {statusConfig.label}
+                </span>
+              </Badge>
+              {/* Show sandbox name/path summary in header when collapsed */}
+              {isDetailsCollapsed && (
+                <span className="text-xs text-slate-500 font-mono truncate max-w-[200px]">
+                  {truncatePath(reserved.display, 30)}
+                </span>
+              )}
+            </div>
           </CardHeader>
 
+          {!isDetailsCollapsed && (
           <CardContent className="flex-1 p-0 overflow-hidden">
             <ScrollArea className="h-full px-3 py-3">
-              {/* Sandbox Path & ID */}
+              {/* Sandbox display name & ID */}
               <div className="mb-3 pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2 text-sm text-slate-200">
                   <FolderOpen className="h-4 w-4 text-slate-500" />
-                  <span className="font-medium truncate">
-                    {(() => {
-                      if (
-                        sandbox.noLock &&
-                        (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
-                        !sandbox.reservedPath
-                      ) {
-                        return "No lock";
-                      }
-                      const reserved = sandbox.reservedPaths?.length
-                        ? sandbox.reservedPaths
-                        : [sandbox.reservedPath || sandbox.scopePath || "/"];
-                      const head = reserved[0] || "/";
-                      return reserved.length > 1 ? `${head} (+${reserved.length - 1})` : head;
-                    })()}
+                  <span className="font-medium truncate" title={reserved.display}>
+                    {displayName}
                   </span>
                 </div>
                 <div className="mt-1 font-mono text-xs text-slate-500 pl-6">
@@ -311,115 +394,129 @@ export function SandboxDetail({
                 </div>
               </div>
 
-              {/* Metadata */}
+              {/* Primary metadata — always visible */}
               <div>
-            <MetadataRow
-              icon={<FolderOpen className="h-3.5 w-3.5" />}
-              label="Reserved"
-              value={(() => {
-                if (
-                  sandbox.noLock &&
-                  (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
-                  !sandbox.reservedPath
-                ) {
-                  return "No lock";
-                }
-                const reserved = sandbox.reservedPaths?.length
-                  ? sandbox.reservedPaths
-                  : sandbox.reservedPath
-                  ? [sandbox.reservedPath]
-                  : sandbox.scopePath
-                  ? [sandbox.scopePath]
-                  : [];
-                if (reserved.length === 0) return "Not specified";
-                return reserved.join(", ");
-              })()}
-              copyable={
-                !(
-                  sandbox.noLock &&
-                  (!sandbox.reservedPaths || sandbox.reservedPaths.length === 0) &&
-                  !sandbox.reservedPath
-                ) &&
-                !!(
-                  (sandbox.reservedPaths && sandbox.reservedPaths.length > 0) ||
-                  sandbox.reservedPath ||
-                  sandbox.scopePath
-                )
-              }
-            />
-            <MetadataRow
-              icon={<FolderOpen className="h-3.5 w-3.5" />}
-              label="Scope"
-              value={sandbox.scopePath || "Not specified"}
-              copyable={!!sandbox.scopePath}
-            />
-            <MetadataRow
-              icon={<FolderOpen className="h-3.5 w-3.5" />}
-              label="Project"
-              value={sandbox.projectRoot || "Not specified"}
-              copyable={!!sandbox.projectRoot}
-            />
-            <MetadataRow
-              icon={<User className="h-3.5 w-3.5" />}
-              label="Owner"
-              value={sandbox.owner || "Unknown"}
-            />
-            <MetadataRow
-              icon={<HardDrive className="h-3.5 w-3.5" />}
-              label="Size"
-              value={`${formatBytes(sandbox.sizeBytes)} (${sandbox.fileCount} files)`}
-            />
-            <MetadataRow
-              icon={<Clock className="h-3.5 w-3.5" />}
-              label="Created"
-              value={formatRelativeTime(sandbox.createdAt)}
-            />
-            <MetadataRow
-              icon={<Server className="h-3.5 w-3.5" />}
-              label="Driver"
-              value={`${sandbox.driver} v${sandbox.driverVersion}`}
-            />
-            {sandbox.mergedDir && sandbox.status === "active" && (
-              <MetadataRow
-                icon={<FolderOpen className="h-3.5 w-3.5" />}
-                label="Workspace"
-                value={sandbox.mergedDir}
-                copyable
-              />
-            )}
-          </div>
-
-          {/* Error message */}
-          {sandbox.errorMessage && (
-            <div className="mt-3 p-3 rounded-lg bg-red-950/30 border border-red-800/50">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-300">{sandbox.errorMessage}</p>
+                <MetadataRow
+                  icon={<FolderOpen className="h-3.5 w-3.5" />}
+                  label="Reserved"
+                  value={reserved.display}
+                  copyable={reserved.copyable}
+                  mono
+                />
+                {sandbox.name && (
+                  <MetadataRow
+                    icon={<Tag className="h-3.5 w-3.5" />}
+                    label="Name"
+                    value={sandbox.name}
+                  />
+                )}
+                <MetadataRow
+                  icon={<User className="h-3.5 w-3.5" />}
+                  label="Owner"
+                  value={formatOwner(sandbox.owner, sandbox.ownerType)}
+                />
+                <MetadataRow
+                  icon={<HardDrive className="h-3.5 w-3.5" />}
+                  label="Size"
+                  value={`${formatBytes(sandbox.sizeBytes)} (${sandbox.fileCount} files)`}
+                />
+                <MetadataRow
+                  icon={<Clock className="h-3.5 w-3.5" />}
+                  label="Created"
+                  value={formatRelativeTime(sandbox.createdAt)}
+                />
               </div>
-            </div>
-          )}
 
-          {/* Mount health warning */}
-          {sandbox.mountHealth && !sandbox.mountHealth.healthy && (
-            <div className="mt-3 p-3 rounded-lg bg-amber-950/30 border border-amber-800/50">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm text-amber-300 font-medium">Mount Unhealthy</p>
-                  {sandbox.mountHealth.error && (
-                    <p className="text-xs text-amber-400/80 mt-1">{sandbox.mountHealth.error}</p>
-                  )}
-                  {sandbox.mountHealth.hint && (
-                    <p className="text-xs text-amber-200 mt-1">{sandbox.mountHealth.hint}</p>
+              {/* R4: Show more toggle */}
+              <button
+                className="flex items-center gap-1 mt-2 mb-1 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMore(!showMore);
+                }}
+                data-testid="show-more-toggle"
+              >
+                {showMore ? (
+                  <ChevronDown className="h-3 w-3" />
+                ) : (
+                  <ChevronRight className="h-3 w-3" />
+                )}
+                {showMore ? "Show less" : "Show more"}
+              </button>
+
+              {/* Secondary metadata — behind toggle */}
+              {showMore && (
+                <div data-testid="secondary-metadata">
+                  <MetadataRow
+                    icon={<FolderOpen className="h-3.5 w-3.5" />}
+                    label="Scope"
+                    value={sandbox.scopePath || "Not specified"}
+                    copyable={!!sandbox.scopePath}
+                    mono
+                  />
+                  <MetadataRow
+                    icon={<FolderOpen className="h-3.5 w-3.5" />}
+                    label="Project"
+                    value={sandbox.projectRoot || "Not specified"}
+                    copyable={!!sandbox.projectRoot}
+                    mono
+                  />
+                  <MetadataRow
+                    icon={<Server className="h-3.5 w-3.5" />}
+                    label="Driver"
+                    value={`${sandbox.driver} v${sandbox.driverVersion}`}
+                  />
+                  {sandbox.mergedDir && sandbox.status === "active" && (
+                    <MetadataRow
+                      icon={<FolderOpen className="h-3.5 w-3.5" />}
+                      label="Workspace"
+                      value={sandbox.mergedDir}
+                      copyable
+                      mono
+                    />
                   )}
                 </div>
-              </div>
-            </div>
+              )}
+
+              {/* Error message */}
+              {sandbox.errorMessage && (
+                <div className="mt-3 p-3 rounded-lg bg-red-950/30 border border-red-800/50">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-red-300">{sandbox.errorMessage}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Mount health warning */}
+              {sandbox.mountHealth && !sandbox.mountHealth.healthy && (
+                <div className="mt-3 p-3 rounded-lg bg-amber-950/30 border border-amber-800/50">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-amber-300 font-medium">Mount Unhealthy</p>
+                      {sandbox.mountHealth.error && (
+                        <p className="text-xs text-amber-400/80 mt-1">{sandbox.mountHealth.error}</p>
+                      )}
+                      {sandbox.mountHealth.hint && (
+                        <p className="text-xs text-amber-200 mt-1">{sandbox.mountHealth.hint}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </ScrollArea>
+          </CardContent>
           )}
 
-          {/* Actions - show workflow actions for non-terminal, delete for non-deleted */}
+          {/* Actions - always visible, even when collapsed */}
           {(sandbox.status !== "deleted") && (
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div
+              className="px-3 py-3 border-t border-slate-800 flex flex-wrap items-center gap-2"
+              onClick={(e) => e.stopPropagation()}
+              data-testid="action-buttons"
+            >
+              {/* R1: Lifecycle group — Stop/Start, Launch Agent */}
               {canStop && (
                 <Button
                   variant="outline"
@@ -466,66 +563,78 @@ export function SandboxDetail({
                 </Button>
               )}
 
+              {/* R1: Visual divider between lifecycle and review/approval groups (desktop only) */}
+              {!hideDiffViewer && hasLifecycleButtons && hasReviewButtons && (
+                <div className="w-px h-6 bg-slate-700 self-center" data-testid="action-divider" />
+              )}
+
+              {/* R1: Review/approval group (desktop only — on mobile these live on the Changes tab) */}
+              {/* Review mode toggle */}
+              {!hideDiffViewer && canApproveReject && onApproveSelected && (
+                <Button
+                  variant={isReviewMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    const newMode = !isReviewMode;
+                    onReviewModeChange(newMode);
+                    if (!newMode) {
+                      // Clear selections when exiting review mode
+                      onSelectedFileIdsChange([]);
+                      onSelectedHunksChange([]);
+                    }
+                  }}
+                  data-testid="selection-mode-toggle"
+                >
+                  <MousePointerClick className="h-3.5 w-3.5 mr-1.5" />
+                  {isReviewMode ? "Exit Review" : "Review"}
+                </Button>
+              )}
+
+              {/* Approve Selected button - shows when hunks are selected (desktop only) */}
+              {!hideDiffViewer && canApproveReject && isReviewMode && hasSelection && onApproveSelected && (
+                <Button
+                  variant="success"
+                  size="sm"
+                  onClick={() => {
+                    onApproveSelected({
+                      hunkRanges: selectedHunks.map((h) => ({
+                        fileId: h.fileId,
+                        startLine: h.startLine,
+                        endLine: h.endLine,
+                      })),
+                    });
+                    // Clear selections after approval
+                    onSelectedFileIdsChange([]);
+                    onSelectedHunksChange([]);
+                  }}
+                  disabled={isApproving}
+                  data-testid="approve-selected-button"
+                >
+                  {isApproving ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  Approve Selected ({selectedHunks.length} {selectedHunks.length === 1 ? "hunk" : "hunks"})
+                </Button>
+              )}
+
               {canApproveReject && (
                 <>
-                  {/* Approve reserved changes (default) */}
-                  {showApproveConfirm ? (
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-slate-400 mr-1">Approve accepted changes?</span>
-                      <Button
-                        variant="success"
-                        size="sm"
-                        onClick={() => {
-                          onApprove();
-                          setShowApproveConfirm(false);
-                        }}
-                        disabled={isApproving}
-                        data-testid={SELECTORS.confirmApprove}
-                      >
-                        {isApproving ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          "Yes"
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowApproveConfirm(false)}
-                        data-testid={SELECTORS.cancelAction}
-                      >
-                        No
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="success"
-                      size="sm"
-                      onClick={() => {
-                        setShowApproveAllConfirm(false);
-                        setShowApproveConfirm(true);
-                      }}
-                      disabled={isApproving}
-                      data-testid={SELECTORS.approveButton}
-                    >
-                      <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
-                      Approve Accepted
-                    </Button>
-                  )}
-
-                  {/* Override acceptance rules */}
-                  {onOverrideAcceptance &&
-                    (showApproveAllConfirm ? (
+                  {/* When noLock is true, show single "Approve All" button */}
+                  {isNoLock ? (
+                    showApproveAllConfirm ? (
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-slate-400 mr-1">Override acceptance rules?</span>
+                        <span className="text-xs text-slate-400 mr-1">Approve all changes?</span>
                         <Button
                           variant="success"
                           size="sm"
                           onClick={() => {
-                            onOverrideAcceptance();
+                            (onOverrideAcceptance || onApprove)();
                             setShowApproveAllConfirm(false);
                           }}
                           disabled={isApproving}
+                          data-testid={SELECTORS.confirmApprove}
                         >
                           {isApproving ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -537,24 +646,114 @@ export function SandboxDetail({
                           variant="ghost"
                           size="sm"
                           onClick={() => setShowApproveAllConfirm(false)}
+                          data-testid={SELECTORS.cancelAction}
                         >
                           No
                         </Button>
                       </div>
                     ) : (
                       <Button
-                        variant="outline"
+                        variant="success"
                         size="sm"
-                        onClick={() => {
-                          setShowApproveConfirm(false);
-                          setShowApproveAllConfirm(true);
-                        }}
+                        onClick={() => setShowApproveAllConfirm(true)}
                         disabled={isApproving}
+                        data-testid={SELECTORS.approveButton}
                       >
                         <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
-                        Override Acceptance
+                        Approve All
                       </Button>
-                    ))}
+                    )
+                  ) : (
+                    <>
+                      {/* Approve reserved changes (default) */}
+                      {showApproveConfirm ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-slate-400 mr-1">Approve accepted changes?</span>
+                          <Button
+                            variant="success"
+                            size="sm"
+                            onClick={() => {
+                              onApprove();
+                              setShowApproveConfirm(false);
+                            }}
+                            disabled={isApproving}
+                            data-testid={SELECTORS.confirmApprove}
+                          >
+                            {isApproving ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              "Yes"
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowApproveConfirm(false)}
+                            data-testid={SELECTORS.cancelAction}
+                          >
+                            No
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="success"
+                          size="sm"
+                          onClick={() => {
+                            setShowApproveAllConfirm(false);
+                            setShowApproveConfirm(true);
+                          }}
+                          disabled={isApproving}
+                          data-testid={SELECTORS.approveButton}
+                        >
+                          <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                          Approve Accepted
+                        </Button>
+                      )}
+
+                      {/* Override acceptance rules */}
+                      {onOverrideAcceptance &&
+                        (showApproveAllConfirm ? (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-slate-400 mr-1">Override acceptance rules?</span>
+                            <Button
+                              variant="success"
+                              size="sm"
+                              onClick={() => {
+                                onOverrideAcceptance();
+                                setShowApproveAllConfirm(false);
+                              }}
+                              disabled={isApproving}
+                            >
+                              {isApproving ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                "Yes"
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setShowApproveAllConfirm(false)}
+                            >
+                              No
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setShowApproveConfirm(false);
+                              setShowApproveAllConfirm(true);
+                            }}
+                            disabled={isApproving}
+                          >
+                            <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                            Override Acceptance
+                          </Button>
+                        ))}
+                    </>
+                  )}
 
                   {/* Reject button with confirmation */}
                   {showRejectConfirm ? (
@@ -643,27 +842,40 @@ export function SandboxDetail({
               </div>
             </div>
           )}
-            </ScrollArea>
-          </CardContent>
         </Card>
       </div>
 
-      {/* Header/Diff Resize Handle */}
-      <div
-        className="h-1.5 bg-slate-900 hover:bg-slate-700 cursor-row-resize flex-shrink-0"
-        onMouseDown={handleHeaderResizeStart}
-      />
-
-      {/* Diff Viewer */}
-      <div className="flex-1 min-h-0">
-        <DiffViewer
-          diff={diff}
-          isLoading={isDiffLoading}
-          error={diffError}
-          showFileActions={canApproveReject && !!onDiscardFile}
-          onRejectFile={onDiscardFile}
+      {/* Header/Diff Resize Handle - only show when details expanded and diff visible */}
+      {!hideDiffViewer && !isDetailsCollapsed && (
+        <div
+          className="h-1.5 bg-slate-900 hover:bg-slate-700 cursor-row-resize flex-shrink-0"
+          onMouseDown={handleHeaderResizeStart}
         />
-      </div>
+      )}
+
+      {/* Diff Viewer - hidden on mobile (separate tab) */}
+      {!hideDiffViewer && (
+        <div className="flex-1 min-h-0">
+          <DiffViewer
+            diff={diff}
+            isLoading={isDiffLoading}
+            error={diffError}
+            showFileActions={canApproveReject && !!onDiscardFile}
+            onRejectFile={onDiscardFile}
+            // File selection props for partial approval
+            showFileSelection={isReviewMode && canApproveReject}
+            selectedFiles={selectedFileIds}
+            onFileSelectionChange={onSelectedFileIdsChange}
+            // Hunk selection props for partial approval
+            showHunkSelection={isReviewMode && canApproveReject}
+            selectedHunks={selectedHunks}
+            onHunkSelectionChange={onSelectedHunksChange}
+            // View mode props
+            viewMode={viewMode}
+            onViewModeChange={onViewModeChange}
+          />
+        </div>
+      )}
     </div>
   );
 }

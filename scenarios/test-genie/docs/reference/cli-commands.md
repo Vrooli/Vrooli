@@ -146,23 +146,43 @@ test-genie execute <scenario-name> [options]
 
 ### Presets
 
-| Preset | Phases | Timeout | Use Case |
-|--------|--------|---------|----------|
-| `quick` | structure, dependencies | ~45s | Fast iteration |
-| `smoke` | structure, dependencies, unit | ~2min | Pre-commit check |
-| `comprehensive` | All 7 phases | ~10min | CI/CD, releases |
+| Preset | Scope | Use Case |
+|--------|-------|----------|
+| `quick` | Fast structural and unit-oriented feedback | Local iteration |
+| `smoke` | Lightweight validation before broader suites | Pre-push / pre-commit |
+| `comprehensive` | Full enabled phase plan for the scenario | CI, release, audit runs |
 
 ### Phase Names
 
 | Phase | Description |
 |-------|-------------|
-| `structure` | Validates scenario layout and manifests |
-| `dependencies` | Confirms required commands/runtimes |
-| `unit` | Executes Go unit tests |
-| `integration` | Runs CLI/BATS tests |
-| `e2e` | Executes BAS browser automation workflows |
-| `business` | Audits requirements modules |
-| `performance` | Builds API and checks duration budgets (optional) |
+| `structure` | Validates scenario layout, manifests, and JSON health |
+| `standards` | Runs scenario-auditor standards enforcement |
+| `dependencies` | Confirms required commands, runtimes, and resources |
+| `lint` | Runs type checking and linting |
+| `docs` | Validates markdown, mermaid, and links |
+| `smoke` | Performs fast runtime / UI handshake checks |
+| `unit` | Executes language-specific unit tests |
+| `integration` | Runs CLI/BATS and scenario integration suites |
+| `playbooks` | Executes BAS browser automation workflows |
+| `business` | Audits requirement coverage and business validation |
+| `performance` | Builds binaries and checks performance budgets (optional) |
+
+### Timing Preview
+
+Before execution starts, the CLI asks the API to resolve the real phase plan for the scenario and prints:
+
+- `Estimate` — scenario-aware runtime guidance based on recent per-phase history
+- `Timeout budget` — the configured runtime ceiling after scenario overrides are applied
+
+Estimate selection is phase-based:
+
+- Scenario + phase history first when enough recent runs exist
+- Blended scenario/global phase history when local evidence is sparse
+- Global phase history as the fallback
+- Timeout budget only when no useful history exists
+
+This means the CLI no longer treats timeout budgets as runtime estimates.
 
 ### Examples
 
@@ -200,20 +220,32 @@ test-genie execute my-scenario --preset comprehensive --sync
 ```
 Executing test suite for: my-scenario
   Preset: comprehensive
-  Phases: structure, dependencies, unit, integration, e2e, business, performance
+  Estimate: 3m 12s
+  Timeout budget: 29m 0s
+  Planned phases: structure, standards, dependencies, lint, docs, smoke, unit, integration, playbooks, business, performance
 
-[1/7] structure     PASSED  (5s)
-[2/7] dependencies  PASSED  (12s)
-[3/7] unit          PASSED  (45s)  Coverage: 87%
-[4/7] integration   PASSED  (30s)
-[5/7] e2e           SKIPPED (no e2e workflows found)
-[6/7] business      PASSED  (8s)
-[7/7] performance   PASSED  (20s)
+Plan:
+  structure     estimate 4s    timeout 15m  high confidence from 12 runs
+  playbooks     estimate 15m   timeout 15m  timeout fallback
+
+[1/11] structure     PASSED  (5s)
+[2/11] standards     PASSED  (2s)
+[3/11] dependencies  PASSED  (12s)
+[4/11] lint          PASSED  (9s)
+[5/11] docs          PASSED  (3s)
+[6/11] smoke         PASSED  (6s)
+[7/11] unit          PASSED  (45s)
+[8/11] integration   PASSED  (30s)
+[9/11] playbooks     PASSED  (14s)
+[10/11] business     PASSED  (8s)
+[11/11] performance  PASSED  (20s)
 
 Summary:
   Status: PASSED
-  Duration: 2m 0s
-  Phases: 6 passed, 1 skipped
+  Duration: 2m 14s
+  Estimate: 3m 12s
+  Timeout budget: 29m 0s
+  Phases: 11 passed, 0 failed
   Execution ID: 660e8400-e29b-41d4-a716-446655440001
 
 Log: /tmp/test-genie/logs/my-scenario-comprehensive.log
@@ -257,6 +289,12 @@ test-genie coverage <scenario-name> [options]
 | `json` | Machine-readable JSON |
 | `markdown` | Markdown report |
 | `html` | Interactive HTML report |
+
+## See Also
+
+- [API Reference](api-endpoints.md)
+- [Execution Configuration](configuration.md)
+- [Test Presets](presets.md)
 
 ### Examples
 
@@ -555,13 +593,17 @@ Test Phases
 
 Name          Optional  Timeout  Description
 ----          --------  -------  -----------
-structure     No        15m      Validates scenario layout
-dependencies  No        15m      Confirms dependencies
-unit          No        15m      Go unit tests
-integration   No        15m      CLI/BATS tests
-e2e           No        15m      BAS browser automation workflows
-business      No        15m      Requirements audit
-performance   Yes       15m      Duration budgets
+structure     No        15m      Validates scenario layout and manifests
+standards     No        1m       Runs scenario-auditor standards checks
+dependencies  No        15m      Confirms commands, runtimes, and resources
+lint          No        30s      Runs linting and type checking
+docs          No        1m       Validates markdown, mermaid, and links
+smoke         No        90s      Performs fast runtime/UI handshake checks
+unit          No        15m      Executes language-specific unit suites
+integration   No        15m      Runs CLI/BATS and integration suites
+playbooks     Yes       15m      Executes BAS browser automation workflows
+business      No        3m       Audits requirements and business validation
+performance   Yes       1m       Checks performance and duration budgets
 ```
 
 ---

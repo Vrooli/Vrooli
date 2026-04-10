@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare, RefreshCcw, Bug, Lightbulb, Heart, Send, CheckCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
+import { Input, Textarea } from '../../../shared/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
+import { InlineAlert } from '../../../shared/ui/InlineAlert';
+import { isRecord, safeParseJson } from '../../../shared/lib/utils';
 
 type FeedbackType = 'refund' | 'bug' | 'feature' | 'general';
 
@@ -13,6 +16,14 @@ interface FeedbackFormData {
   message: string;
   orderId?: string;
 }
+
+type ClassifiedError = {
+  type: 'server' | 'validation' | 'unknown';
+  message: string;
+};
+
+const isClassifiedError = (value: unknown): value is ClassifiedError =>
+  isRecord(value) && typeof value.type === 'string' && typeof value.message === 'string';
 
 const feedbackTypes: { value: FeedbackType; label: string; icon: React.ReactNode; description: string }[] = [
   {
@@ -41,6 +52,12 @@ const feedbackTypes: { value: FeedbackType; label: string; icon: React.ReactNode
   },
 ];
 
+interface FeedbackError {
+  message: string;
+  type: 'network' | 'server' | 'validation' | 'unknown';
+  retryable: boolean;
+}
+
 export function FeedbackPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState<FeedbackFormData>({
@@ -52,34 +69,116 @@ export function FeedbackPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FeedbackError | null>(null);
+  const [lastFormSnapshot, setLastFormSnapshot] = useState<FeedbackFormData | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
+    setLastFormSnapshot({ ...form });
+
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to submit feedback');
+        const status = response.status;
+        let errorMessage: string | undefined;
+        try {
+          const raw = await response.text();
+          const parsed = safeParseJson(raw);
+          if (isRecord(parsed) && typeof parsed.error === 'string') {
+            errorMessage = parsed.error;
+          }
+        } catch {
+          // ignore invalid JSON
+        }
+
+        if (status >= 500) {
+          throw { type: 'server', message: errorMessage || 'Our servers are experiencing issues. Please try again later.' };
+        }
+        if (status === 400 || status === 422) {
+          throw { type: 'validation', message: errorMessage || 'Please check your input and try again.' };
+        }
+        throw { type: 'unknown', message: errorMessage || 'Failed to submit feedback' };
       }
 
       setSubmitted(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      clearTimeout(timeoutId);
+
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError({
+          message: 'The request took too long. Please try again.',
+          type: 'network',
+          retryable: true,
+        });
+      } else if (err instanceof TypeError) {
+        // Network error
+        setError({
+          message: 'Unable to reach the server. Please check your connection and try again.',
+          type: 'network',
+          retryable: true,
+        });
+      } else if (isClassifiedError(err)) {
+        // Classified error from above
+        setError({
+          message: err.message,
+          type: err.type as FeedbackError['type'],
+          retryable: err.type !== 'validation',
+        });
+      } else {
+        setError({
+          message: err instanceof Error ? err.message : 'Something went wrong. Please try again.',
+          type: 'unknown',
+          retryable: true,
+        });
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleRetry = () => {
+    if (lastFormSnapshot) {
+      setForm(lastFormSnapshot);
+    }
+    setError(null);
+    // Trigger form submission on next tick
+    setTimeout(() => {
+      const formElement = document.querySelector('form');
+      if (formElement) {
+        formElement.requestSubmit();
+      }
+    }, 0);
+  };
+
   const selectedType = feedbackTypes.find((t) => t.value === form.type);
+  const errorMeta = error
+    ? (() => {
+        switch (error.type) {
+          case 'network':
+            return { severity: 'warning' as const, title: 'Connection Issue' };
+          case 'server':
+            return { severity: 'error' as const, title: 'Server Error' };
+          case 'validation':
+            return { severity: 'error' as const, title: 'Submission Failed' };
+          default:
+            return { severity: 'error' as const, title: 'Submission Failed' };
+        }
+      })()
+    : null;
 
   if (submitted) {
     return (
@@ -113,14 +212,16 @@ export function FeedbackPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
       <div className="mx-auto max-w-3xl px-6 py-16 space-y-8">
         <div className="flex flex-col gap-3">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => navigate('/')}
-            className="self-start rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-slate-300 hover:border-white/30"
+            className="self-start rounded-full border-white/10 text-xs uppercase tracking-[0.25em] text-slate-300 hover:border-white/30"
           >
-            <ArrowLeft className="mr-1 inline h-3 w-3" />
+            <ArrowLeft className="mr-1 h-3 w-3" />
             Back to home
-          </button>
+          </Button>
           <h1 className="text-4xl font-semibold leading-tight">Feedback & Support</h1>
           <p className="text-lg text-slate-300">
             We're always looking to improve. Let us know how we can help.
@@ -168,13 +269,14 @@ export function FeedbackPage() {
                 <label className="block text-sm font-medium text-slate-300">
                   Email address <span className="text-rose-400">*</span>
                 </label>
-                <input
+                <Input
                   type="email"
+                  size="md"
                   required
                   value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   placeholder="you@example.com"
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-3 text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  className="mt-1 focus:border-orange-500 focus:ring-orange-500"
                 />
               </div>
 
@@ -184,12 +286,13 @@ export function FeedbackPage() {
                   <label className="block text-sm font-medium text-slate-300">
                     Order or Subscription ID <span className="text-slate-500">(optional)</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
+                    size="md"
                     value={form.orderId}
                     onChange={(e) => setForm((f) => ({ ...f, orderId: e.target.value }))}
                     placeholder="sub_xxxxx or cs_xxxxx"
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-3 text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    className="mt-1 focus:border-orange-500 focus:ring-orange-500"
                   />
                   <p className="mt-1 text-xs text-slate-500">
                     You can find this in your Stripe receipt email or billing portal.
@@ -202,8 +305,9 @@ export function FeedbackPage() {
                 <label className="block text-sm font-medium text-slate-300">
                   Subject <span className="text-rose-400">*</span>
                 </label>
-                <input
+                <Input
                   type="text"
+                  size="md"
                   required
                   value={form.subject}
                   onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
@@ -216,7 +320,7 @@ export function FeedbackPage() {
                           ? 'Feature idea: Your suggestion'
                           : 'How can we help?'
                   }
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-3 text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  className="mt-1 focus:border-orange-500 focus:ring-orange-500"
                 />
               </div>
 
@@ -225,8 +329,9 @@ export function FeedbackPage() {
                 <label className="block text-sm font-medium text-slate-300">
                   Message <span className="text-rose-400">*</span>
                 </label>
-                <textarea
+                <Textarea
                   required
+                  size="md"
                   rows={5}
                   value={form.message}
                   onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
@@ -239,14 +344,19 @@ export function FeedbackPage() {
                           ? 'Describe your feature idea and how it would help you.'
                           : 'Share your thoughts, questions, or suggestions.'
                   }
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-3 text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 resize-none"
+                  className="mt-1 focus:border-orange-500 focus:ring-orange-500"
                 />
               </div>
 
-              {error && (
-                <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">
-                  {error}
-                </div>
+              {error && errorMeta && (
+                <InlineAlert
+                  severity={errorMeta.severity}
+                  title={errorMeta.title}
+                  message={error.message}
+                  retryable={error.retryable}
+                  onRetry={error.retryable ? handleRetry : undefined}
+                  dismissible={false}
+                />
               )}
 
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

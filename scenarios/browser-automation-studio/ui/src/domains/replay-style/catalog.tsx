@@ -598,24 +598,31 @@ export const REPLAY_CURSOR_POSITIONS: CursorPositionOption[] = [
   },
 ];
 
+// Helper to get first element with type safety (arrays are constant and non-empty)
+const getFirstOption = <T,>(arr: readonly T[]): T => {
+  const first = arr[0];
+  if (!first) throw new Error('Option array must not be empty');
+  return first;
+};
+
 export const getReplayBackgroundOption = (id: ReplayBackgroundTheme): BackgroundOption =>
-  REPLAY_BACKGROUND_OPTIONS.find((option) => option.id === id) ?? REPLAY_BACKGROUND_OPTIONS[0];
+  REPLAY_BACKGROUND_OPTIONS.find((option) => option.id === id) ?? getFirstOption(REPLAY_BACKGROUND_OPTIONS);
 
 export const getReplayChromeOption = (id: ReplayChromeTheme): ChromeThemeOption =>
-  REPLAY_CHROME_OPTIONS.find((option) => option.id === id) ?? REPLAY_CHROME_OPTIONS[0];
+  REPLAY_CHROME_OPTIONS.find((option) => option.id === id) ?? getFirstOption(REPLAY_CHROME_OPTIONS);
 
 export const getReplayDeviceFrameOption = (id: ReplayDeviceFrameTheme): DeviceFrameOption =>
-  REPLAY_DEVICE_FRAME_OPTIONS.find((option) => option.id === id) ?? REPLAY_DEVICE_FRAME_OPTIONS[0];
+  REPLAY_DEVICE_FRAME_OPTIONS.find((option) => option.id === id) ?? getFirstOption(REPLAY_DEVICE_FRAME_OPTIONS);
 
 export const getReplayCursorOption = (id: ReplayCursorTheme): CursorOption =>
-  REPLAY_CURSOR_OPTIONS.find((option) => option.id === id) ?? REPLAY_CURSOR_OPTIONS[0];
+  REPLAY_CURSOR_OPTIONS.find((option) => option.id === id) ?? getFirstOption(REPLAY_CURSOR_OPTIONS);
 
 export const getReplayCursorPositionOption = (id: ReplayCursorInitialPosition): CursorPositionOption =>
-  REPLAY_CURSOR_POSITIONS.find((option) => option.id === id) ?? REPLAY_CURSOR_POSITIONS[0];
+  REPLAY_CURSOR_POSITIONS.find((option) => option.id === id) ?? getFirstOption(REPLAY_CURSOR_POSITIONS);
 
 export const getReplayCursorClickAnimationOption = (id: ReplayCursorClickAnimation): ClickAnimationOption =>
   REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS.find((option) => option.id === id) ??
-  REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS[0];
+  getFirstOption(REPLAY_CURSOR_CLICK_ANIMATION_OPTIONS);
 
 interface HaloConfig {
   wrapperClass?: string;
@@ -1266,7 +1273,7 @@ export function buildChromeDecor(theme: ReplayChromeTheme, title: string): Chrom
         headerHeight: 40,
       };
   }
-};
+}
 
 export const REPLAY_STYLE_REGISTRY = {
   chromeThemes: REPLAY_CHROME_OPTIONS,

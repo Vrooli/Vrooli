@@ -121,11 +121,11 @@ func generateNotarizeJS(config *codesigning.MacOSSigningConfig) ([]byte, error) 
 		apiIssuerEnv := "APPLE_API_ISSUER"
 
 		data = map[string]string{
-			"APIKeyID":      config.AppleAPIKeyID,
-			"APIKeyIDEnv":   apiKeyIDEnv,
-			"APIIssuer":     config.AppleAPIIssuerID,
-			"APIIssuerEnv":  apiIssuerEnv,
-			"TeamID":        config.TeamID,
+			"APIKeyID":     config.AppleAPIKeyID,
+			"APIKeyIDEnv":  apiKeyIDEnv,
+			"APIIssuer":    config.AppleAPIIssuerID,
+			"APIIssuerEnv": apiIssuerEnv,
+			"TeamID":       config.TeamID,
 		}
 	} else {
 		// App-Specific Password method

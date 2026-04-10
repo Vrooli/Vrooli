@@ -75,10 +75,24 @@ visited-tracker visit scenarios/prd-control-tower/ui/src/pages/orientation.tsx \
   --tag ux \
   --note "Improved Getting Started section and hero CTA. Need a Nudge component still needs work."
 
+# Record multiple files in one command (globs supported)
+visited-tracker visit \
+  --location scenarios/prd-control-tower/ui \
+  --tag ux \
+  --file-note "src/pages/**/*.tsx" "Updated headings + ARIA labels" \
+  --file-note "src/lib/error-utils.ts" "Replaced unsafe JSON.parse"
+
 # After completing file
 visited-tracker exclude scenarios/prd-control-tower/ui/src/pages/orientation.tsx \
   --tag ux \
   --reason "All major UX improvements complete"
+
+# Exclude multiple files with per-file reasons
+visited-tracker exclude \
+  --location scenarios/prd-control-tower/ui \
+  --tag ux \
+  --file-reason "src/pages/**/*.tsx" "Already clean" \
+  --file-reason "src/lib/error-utils.ts" "Non-UX utility"
 ```
 
 **Campaign handoff:**

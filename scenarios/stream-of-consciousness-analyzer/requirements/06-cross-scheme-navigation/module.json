@@ -1,0 +1,154 @@
+{
+  "description": "Enable seamless navigation between related thought schemes with visual distinction",
+  "module_id": "MOD-P2-006",
+  "prd_ref": "OT-P2-002",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "ui",
+      "children": ["REQ-P2-002a", "REQ-P2-002b"],
+      "description": "Enable navigation between related thought schemes with visual indicators for scheme boundaries",
+      "id": "REQ-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "passed",
+      "title": "Inter-Scheme Navigation"
+    },
+    {
+      "category": "api",
+      "children": ["REQ-P2-002a1", "REQ-P2-002a2"],
+      "description": "Thoughts support null scheme_id for cross-scheme existence",
+      "id": "REQ-P2-002a",
+      "prd_ref": "OT-P2-002",
+      "status": "passed",
+      "title": "Cross-Scheme Thought Model"
+    },
+    {
+      "category": "api",
+      "description": "Thought model serializes correctly with null scheme_id for cross-scheme thoughts",
+      "id": "REQ-P2-002a1",
+      "prd_ref": "OT-P2-002",
+      "status": "passed",
+      "title": "Null Scheme Serialization",
+      "validation": [
+        {
+          "notes": "Test cross-scheme thought creation (null scheme_id)",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestThoughtWithoutScheme",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Thought creation handler accepts and processes thoughts without scheme assignment",
+      "id": "REQ-P2-002a2",
+      "prd_ref": "OT-P2-002",
+      "status": "passed",
+      "title": "Schemeless Thought Creation",
+      "validation": [
+        {
+          "notes": "Cross-scheme thought handler creates thought without scheme",
+          "phase": "unit",
+          "ref": "api/thought_handlers_test.go:TestHandleCreateThought_CrossScheme",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "description": "UI renders scheme list with selection state for navigation between schemes",
+      "id": "REQ-P2-002b",
+      "prd_ref": "OT-P2-002",
+      "status": "passed",
+      "title": "Scheme Navigation UI",
+      "validation": [
+        {
+          "notes": "App renders scheme list with selection state",
+          "phase": "unit",
+          "ref": "ui/src/App.test.tsx",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "data",
+      "children": ["REQ-P2-004a", "REQ-P2-004b"],
+      "description": "Support directional edge connections between thoughts across different schemes via nullable scheme_id",
+      "id": "REQ-P2-004",
+      "prd_ref": "OT-P2-002",
+      "status": "passed",
+      "title": "Cross-Scheme Thought Linking"
+    },
+    {
+      "category": "data",
+      "children": ["REQ-P2-004a1", "REQ-P2-004a2"],
+      "description": "Edge model preserves directionality and validates source-target distinction",
+      "id": "REQ-P2-004a",
+      "prd_ref": "OT-P2-002",
+      "status": "passed",
+      "title": "Edge Directionality"
+    },
+    {
+      "category": "data",
+      "description": "Edge creation input deserializes target_id and label from JSON correctly",
+      "id": "REQ-P2-004a1",
+      "prd_ref": "OT-P2-002",
+      "status": "passed",
+      "title": "Edge Input Deserialization",
+      "validation": [
+        {
+          "notes": "Test edge creation input deserialization",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestCreateEdgeInputJSON",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "data",
+      "description": "Edge model enforces source-target distinction to prevent undirected edges",
+      "id": "REQ-P2-004a2",
+      "prd_ref": "OT-P2-002",
+      "status": "passed",
+      "title": "Source-Target Distinction",
+      "validation": [
+        {
+          "notes": "Test edge directionality (source != target)",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestThoughtEdgeDirectionality",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "data",
+      "description": "Thoughts with nil scheme_id can bridge across scheme boundaries for cross-scheme linking",
+      "id": "REQ-P2-004b",
+      "prd_ref": "OT-P2-002",
+      "status": "passed",
+      "title": "Nil Scheme Bridging",
+      "validation": [
+        {
+          "notes": "Test thoughts with nil vs set scheme_id for cross-scheme linking",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestThoughtNilSchemeForCrossScheme",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Thought scope filter handles mixed scheme assignments",
+          "phase": "unit",
+          "ref": "api/decision_boundaries_test.go:TestThoughtScopeFilter_MixedSchemes",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Cross-Scheme Navigation"
+}

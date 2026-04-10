@@ -22,6 +22,25 @@ interface GlobalSearchModalProps {
   onRunWorkflow: (workflowId: string) => void;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const pickString = (record: Record<string, unknown>, key: string): string | undefined => {
+  const value = record[key];
+  return typeof value === 'string' ? value : undefined;
+};
+
+const getRecordsArray = (value: unknown, key: string): Record<string, unknown>[] => {
+  if (!isRecord(value)) {
+    return [];
+  }
+  const raw = value[key];
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.filter(isRecord);
+};
+
 export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   isOpen,
   onClose,
@@ -68,10 +87,10 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
         fetch(`${config.API_URL}/executions?limit=20`),
       ]);
 
-      const [projectsData, workflowsData, executionsData] = await Promise.all([
-        projectsRes.json(),
-        workflowsRes.json(),
-        executionsRes.json(),
+      const [projectsData, workflowsData, executionsData]: [unknown, unknown, unknown] = await Promise.all([
+        projectsRes.json() as Promise<unknown>,
+        workflowsRes.json() as Promise<unknown>,
+        executionsRes.json() as Promise<unknown>,
       ]);
 
       const projectsMap = new Map<string, string>();
@@ -90,53 +109,60 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       });
 
       // Process workflows
-      if (Array.isArray(workflowsData.workflows)) {
-        workflowsData.workflows.forEach((w: { id: string; name: string; project_id?: string; projectId?: string; updated_at?: string; updatedAt?: string }) => {
-          const projectId = w.project_id ?? w.projectId ?? '';
-          if (w.name.toLowerCase().includes(searchLower)) {
-            searchResults.push({
-              id: w.id,
-              name: w.name,
-              type: 'workflow',
-              projectId,
-              projectName: projectsMap.get(projectId) ?? 'Unknown',
-              updatedAt: new Date(w.updated_at ?? w.updatedAt ?? new Date().toISOString()),
-            });
-          }
-        });
-      }
+      const workflows = getRecordsArray(workflowsData, 'workflows');
+      workflows.forEach((workflow) => {
+        const id = pickString(workflow, 'id');
+        const name = pickString(workflow, 'name');
+        if (!id || !name) return;
+        const projectId = pickString(workflow, 'project_id') ?? pickString(workflow, 'projectId') ?? '';
+        const updatedAtValue =
+          pickString(workflow, 'updated_at') ?? pickString(workflow, 'updatedAt') ?? new Date().toISOString();
+        if (name.toLowerCase().includes(searchLower)) {
+          searchResults.push({
+            id,
+            name,
+            type: 'workflow',
+            projectId,
+            projectName: projectsMap.get(projectId) ?? 'Unknown',
+            updatedAt: new Date(updatedAtValue),
+          });
+        }
+      });
 
       // Build workflow names map for executions
       const workflowNames = new Map<string, { name: string; projectId?: string; projectName?: string }>();
-      if (Array.isArray(workflowsData.workflows)) {
-        workflowsData.workflows.forEach((w: { id: string; name: string; project_id?: string; projectId?: string }) => {
-          const projectId = w.project_id ?? w.projectId ?? '';
-          workflowNames.set(w.id, {
-            name: w.name,
-            projectId,
-            projectName: projectsMap.get(projectId),
-          });
+      workflows.forEach((workflow) => {
+        const id = pickString(workflow, 'id');
+        const name = pickString(workflow, 'name');
+        if (!id || !name) return;
+        const projectId = pickString(workflow, 'project_id') ?? pickString(workflow, 'projectId') ?? '';
+        workflowNames.set(id, {
+          name,
+          projectId,
+          projectName: projectsMap.get(projectId),
         });
-      }
+      });
 
       // Process executions (only if query matches workflow name)
-      if (Array.isArray(executionsData.executions)) {
-        executionsData.executions.forEach((e: { id: string; workflow_id?: string; workflowId?: string; status: string }) => {
-          const workflowId = e.workflow_id ?? e.workflowId ?? '';
-          const workflowInfo = workflowNames.get(workflowId);
-          if (workflowInfo && workflowInfo.name.toLowerCase().includes(searchLower)) {
-            searchResults.push({
-              id: e.id,
-              name: workflowInfo.name,
-              type: 'execution',
-              workflowId,
-              projectId: workflowInfo.projectId,
-              projectName: workflowInfo.projectName,
-              status: e.status,
-            });
-          }
-        });
-      }
+      const executions = getRecordsArray(executionsData, 'executions');
+      executions.forEach((execution) => {
+        const id = pickString(execution, 'id');
+        const workflowId = pickString(execution, 'workflow_id') ?? pickString(execution, 'workflowId') ?? '';
+        const status = pickString(execution, 'status') ?? '';
+        if (!id || !workflowId) return;
+        const workflowInfo = workflowNames.get(workflowId);
+        if (workflowInfo && workflowInfo.name.toLowerCase().includes(searchLower)) {
+          searchResults.push({
+            id,
+            name: workflowInfo.name,
+            type: 'execution',
+            workflowId,
+            projectId: workflowInfo.projectId,
+            projectName: workflowInfo.projectName,
+            status,
+          });
+        }
+      });
 
       // Sort: workflows first, then projects, then executions
       searchResults.sort((a, b) => {
@@ -161,6 +187,28 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     }, 200);
     return () => clearTimeout(timer);
   }, [query, search]);
+
+  const handleSelect = useCallback(
+    (result: SearchResult) => {
+      onClose();
+      switch (result.type) {
+        case 'workflow':
+          if (result.projectId) {
+            onSelectWorkflow(result.projectId, result.id);
+          }
+          break;
+        case 'project':
+          onSelectProject(result.id);
+          break;
+        case 'execution':
+          if (result.workflowId) {
+            onSelectExecution(result.id, result.workflowId);
+          }
+          break;
+      }
+    },
+    [onClose, onSelectExecution, onSelectProject, onSelectWorkflow]
+  );
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -190,7 +238,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, results, selectedIndex, onClose]);
+  }, [isOpen, results, selectedIndex, onClose, handleSelect]);
 
   // Scroll selected item into view
   useEffect(() => {
@@ -202,24 +250,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     }
   }, [selectedIndex]);
 
-  const handleSelect = (result: SearchResult) => {
-    onClose();
-    switch (result.type) {
-      case 'workflow':
-        if (result.projectId) {
-          onSelectWorkflow(result.projectId, result.id);
-        }
-        break;
-      case 'project':
-        onSelectProject(result.id);
-        break;
-      case 'execution':
-        if (result.workflowId) {
-          onSelectExecution(result.id, result.workflowId);
-        }
-        break;
-    }
-  };
 
   const handleRun = (e: React.MouseEvent, result: SearchResult) => {
     e.stopPropagation();

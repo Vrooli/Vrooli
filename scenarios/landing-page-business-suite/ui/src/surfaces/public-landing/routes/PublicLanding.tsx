@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { SEOHead } from '../../../shared/ui/SEOHead';
-import { useLandingVariant, type VariantResolution } from '../../../app/providers/LandingVariantProvider';
+import { useLandingVariant, type VariantResolution } from '../../../app/providers/useLandingVariant';
 import type {
   DownloadApp,
   LandingBranding,
@@ -10,6 +10,7 @@ import type {
   LandingHeaderConfig,
   LandingSection,
 } from '../../../shared/api';
+import { parseDynamicSectionContent } from '../../../shared/api/sectionContentParser';
 import { HeroSection } from '../sections/HeroSection';
 import { FeaturesSection } from '../sections/FeaturesSection';
 import { PricingSection } from '../sections/PricingSection';
@@ -21,6 +22,12 @@ import { VideoSection } from '../sections/VideoSection';
 import { DownloadSection } from '../sections/DownloadSection';
 import { DOWNLOAD_ANCHOR_ID, getSectionAnchorId, getSectionKey } from '../../../shared/lib/sections';
 import { normalizeHeaderConfig } from '../../../shared/lib/headerConfig';
+import {
+  buildNavItems,
+  hasDownloadTargets,
+  getDownloadButtonLabel,
+  getSectionNavLabel,
+} from '../services/navigation.service';
 
 interface SectionRendererContext {
   section: LandingSection;
@@ -28,11 +35,6 @@ interface SectionRendererContext {
 }
 
 type SectionRenderer = (context: SectionRendererContext) => JSX.Element | null;
-
-interface NavItem {
-  id: string;
-  label: string;
-}
 
 interface HeaderNavRenderItem {
   id: string;
@@ -71,17 +73,6 @@ interface HeaderRuntimeMeta {
   statusNote: string | null;
 }
 
-const SECTION_NAV_ORDER = ['hero', 'video', 'features', 'pricing', 'testimonials', 'faq', 'cta', 'footer'] as const;
-const SECTION_NAV_LABELS: Record<string, string> = {
-  hero: 'Overview',
-  video: 'Demo',
-  features: 'Features',
-  pricing: 'Pricing',
-  testimonials: 'Proof',
-  faq: 'FAQ',
-  cta: 'Call to Action',
-  footer: 'More',
-};
 const RESOLUTION_LABELS: Record<VariantResolution, string> = {
   url_param: 'URL parameter',
   local_storage: 'Stored assignment',
@@ -89,56 +80,42 @@ const RESOLUTION_LABELS: Record<VariantResolution, string> = {
   fallback: 'Offline fallback',
   unknown: 'Unknown source',
 };
-const DOWNLOAD_PLATFORM_LABELS: Record<string, string> = {
-  windows: 'Windows',
-  mac: 'macOS',
-  linux: 'Linux',
-};
 
-function hasDownloadTargets(app: DownloadApp) {
-  return (app.platforms?.length ?? 0) > 0 || (app.storefronts?.length ?? 0) > 0;
-}
-
-function formatDownloadPlatform(platform?: string) {
-  if (!platform) {
-    return 'Download';
-  }
-  return DOWNLOAD_PLATFORM_LABELS[platform.toLowerCase()] ?? platform;
+/**
+ * Safely parse section content with fallback to original content.
+ * Since section schemas have optional fields, parsing rarely fails.
+ */
+function getSafeContent<T>(sectionType: string, content: Record<string, unknown>): T {
+  const result = parseDynamicSectionContent(sectionType, content);
+  return (result.success ? result.data : content) as T;
 }
 
 // Map section types declared in variant schemas to their React implementations.
 // Add new entries here when introducing a new section so renderers stay centralized.
 const SECTION_COMPONENTS: Record<string, SectionRenderer> = {
-  hero: ({ section }) => <HeroSection content={section.content} />, 
-  features: ({ section }) => <FeaturesSection content={section.content} />,
+  hero: ({ section }) => <HeroSection content={getSafeContent(section.section_type, section.content)} />,
+  features: ({ section }) => <FeaturesSection content={getSafeContent(section.section_type, section.content)} />,
   pricing: ({ section, config }) => {
     // Ensure we always have pricing data; fall back to section content tiers if needed
-    return <PricingSection content={section.content} pricingOverview={config?.pricing} />;
+    return (
+      <PricingSection
+        content={getSafeContent(section.section_type, section.content)}
+        pricingOverview={config?.pricing}
+        couponMappings={config?.coupon_mappings}
+        availableCoupons={config?.intro_offers}
+      />
+    );
   },
-  cta: ({ section }) => <CTASection content={section.content} />, 
-  testimonials: ({ section }) => <TestimonialsSection content={section.content} />,
-  faq: ({ section, config }) => <FAQSection content={section.content} supportChatUrl={config?.branding?.support_chat_url} />,
-  footer: ({ section }) => <FooterSection content={section.content} />,
-  video: ({ section }) => <VideoSection content={section.content} />,
+  cta: ({ section }) => <CTASection content={getSafeContent(section.section_type, section.content)} />,
+  testimonials: ({ section }) => <TestimonialsSection content={getSafeContent(section.section_type, section.content)} />,
+  faq: ({ section, config }) => <FAQSection content={getSafeContent(section.section_type, section.content)} supportChatUrl={config?.branding?.support_chat_url} />,
+  footer: ({ section }) => <FooterSection content={getSafeContent(section.section_type, section.content)} />,
+  video: ({ section }) => <VideoSection content={getSafeContent(section.section_type, section.content)} />,
   downloads: ({ section, config }) => (
-    <DownloadSection content={section.content as any} downloads={config?.downloads} />
+    <DownloadSection content={getSafeContent(section.section_type, section.content)} downloads={config?.downloads} />
   ),
 };
 
-function buildNavItems(sections: LandingSection[], includeDownloads: boolean, downloadAnchorId: string): NavItem[] {
-  const items: NavItem[] = [];
-  for (const type of SECTION_NAV_ORDER) {
-    const match = sections.find((section) => section.section_type === type);
-    if (!match) {
-      continue;
-    }
-    items.push({ id: getSectionAnchorId(match), label: SECTION_NAV_LABELS[type] ?? type });
-  }
-  if (includeDownloads) {
-    items.push({ id: downloadAnchorId, label: 'Downloads' });
-  }
-  return items;
-}
 
 /**
  * Public Landing Page
@@ -174,7 +151,7 @@ export function PublicLanding() {
       .filter((section) => section.enabled !== false)
       .sort((a, b) => a.order - b.order);
   }, [config]);
-  const debugSectionTypes: string[] | null = null;
+  const debugSectionTypes = useMemo<string[] | null>(() => null, []);
   const sectionsToRender = debugSectionTypes
     ? sections.filter((section) => debugSectionTypes.includes(section.section_type))
     : sections;
@@ -191,23 +168,10 @@ export function PublicLanding() {
   const heroCtaUrl = typeof heroCTAContent?.cta_url === 'string' ? heroCTAContent.cta_url : undefined;
   const variantLabel = variant?.name ?? variant?.slug ?? 'Variant not resolved';
   const resolutionLabel = RESOLUTION_LABELS[resolution] ?? RESOLUTION_LABELS.unknown;
-  const downloadButtonLabel = useMemo(() => {
-    if (!hasDownloads) {
-      return 'Downloads';
-    }
-    if (downloadApps.length === 1) {
-      const single = downloadApps[0];
-      const singleInstaller = single.platforms?.[0];
-      if ((single.platforms?.length ?? 0) === 1 && singleInstaller) {
-        return `Download ${formatDownloadPlatform(singleInstaller.platform)}`;
-      }
-      if ((single.storefronts?.length ?? 0) === 1 && (single.platforms?.length ?? 0) === 0) {
-        return `Open ${single.storefronts?.[0]?.label ?? 'store'}`;
-      }
-      return `View ${single.name}`;
-    }
-    return 'View downloads';
-  }, [downloadApps, hasDownloads]);
+  const downloadButtonLabel = useMemo(
+    () => getDownloadButtonLabel(downloadApps),
+    [downloadApps]
+  );
   const headerConfig = useMemo(
     () => normalizeHeaderConfig(config?.header, config?.branding?.site_name ?? variantLabel),
     [config?.branding?.site_name, config?.header, variantLabel],
@@ -308,7 +272,7 @@ export function PublicLanding() {
   };
 
   return (
-    <div className="min-h-screen bg-[#07090F] text-slate-50">
+    <div className="min-h-screen bg-bg-base text-slate-50">
       {/* Client-side SEO meta tag updates based on branding */}
       <SEOHead branding={config?.branding} />
 
@@ -321,13 +285,13 @@ export function PublicLanding() {
         showMeta={isDebugMode}
       />
       {variantPinnedViaParam && (
-        <div className="border border-[#38BDF8]/30 bg-[#38BDF8]/10 py-3 px-4 text-center text-sm text-[#d3f2ff]" data-testid="variant-source-banner">
+        <div className="border border-accent-secondary/30 bg-accent-secondary/10 py-3 px-4 text-center text-sm text-accent-secondary/80" data-testid="variant-source-banner">
           Variant <strong>{variant?.name ?? variant?.slug}</strong> is pinned via URL parameter. Remove the <code>?variant=</code> query to resume weighted traffic allocation.
         </div>
       )}
 
       {fallbackActive && (
-        <div className="border border-[#F97316]/30 bg-[#F97316]/10 py-3 px-4 text-center text-sm text-[#ffd3b5]" data-testid="fallback-signal-banner">
+        <div className="border border-accent/30 bg-accent/10 py-3 px-4 text-center text-sm text-accent/80" data-testid="fallback-signal-banner">
           Offline-safe fallback variant is active. {statusNote && <span>{statusNote}. </span>}
           Live analytics, pricing, and downloads may be outdated until the API recovers.
           {lastUpdated && (
@@ -405,7 +369,7 @@ function LandingExperienceHeader({
   const hasMobileNav = navLinks.some((link) => link.mobile);
   const containerClasses = [
     sticky ? 'sticky top-0' : 'relative',
-    'z-30 border-b border-white/10 bg-[#07090F]/95 backdrop-blur transition-transform duration-300',
+    'z-30 border-b border-white/10 bg-bg-base/95 backdrop-blur transition-transform duration-300',
     isHidden ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100',
   ].join(' ');
 
@@ -439,7 +403,7 @@ function LandingExperienceHeader({
                         <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </button>
-                    <div className="invisible absolute left-0 top-full z-40 mt-2 min-w-[180px] rounded-lg border border-white/10 bg-[#0B1020] py-2 opacity-0 shadow-xl transition-all duration-150 group-hover:visible group-hover:opacity-100">
+                    <div className="invisible absolute left-0 top-full z-40 mt-2 min-w-[180px] rounded-lg border border-white/10 bg-surface-deep py-2 opacity-0 shadow-xl transition-all duration-150 group-hover:visible group-hover:opacity-100">
                       {link.children
                         .filter((child) => child.desktop ?? true)
                         .map((child) => (
@@ -610,7 +574,7 @@ function RuntimeMeta({ runtime }: { runtime: HeaderRuntimeMeta }) {
   return (
     <div className="flex flex-wrap gap-2 text-xs text-slate-500">
       <span
-        className={`rounded-full border px-2 py-0.5 ${runtime.fallbackActive ? 'border-[#F97316]/40 bg-[#F97316]/10 text-[#ffd3b5]' : 'border-[#10B981]/40 bg-[#10B981]/10 text-[#c5f4df]'}`}
+        className={`rounded-full border px-2 py-0.5 ${runtime.fallbackActive ? 'border-accent/40 bg-accent/10 text-accent/80' : 'border-success/40 bg-success/10 text-success/80'}`}
       >
         {runtime.fallbackActive ? 'Fallback copy active' : runtime.resolutionLabel}
       </span>
@@ -673,7 +637,7 @@ function resolveNavLinks(
 
   return configuredLinks.flatMap<HeaderNavRenderItem>((link, index) => {
     const visibility = ensureVisibilityFlags(link.visible_on);
-    const label = link.label || SECTION_NAV_LABELS[link.section_type ?? ''] || 'Section';
+    const label = link.label || getSectionNavLabel(link.section_type ?? '') || 'Section';
 
     if (link.type === 'downloads') {
       if (!downloadsAvailable) {
@@ -708,7 +672,7 @@ function resolveNavLinks(
       const children: HeaderNavRenderChild[] = link.children.map((child, childIdx) => {
         const childVisibility = ensureVisibilityFlags(child.visible_on);
         // child visibility influences only child; parent visibility still used for desktop render
-        const childLabel = child.label || SECTION_NAV_LABELS[child.section_type ?? ''] || 'Item';
+        const childLabel = child.label || getSectionNavLabel(child.section_type ?? '') || 'Item';
         const childAnchor =
           child.anchor ||
           (typeof child.section_id === 'number'

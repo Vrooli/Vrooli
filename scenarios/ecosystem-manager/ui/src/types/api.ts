@@ -25,8 +25,15 @@ export type OperationType = 'generator' | 'improver';
 
 export type Priority = 'critical' | 'high' | 'medium' | 'low';
 
-// SteerMode is now dynamic - any phase name from prompts/phases/*.md files
-export type SteerMode = string;
+// Steering strategy types for unified steering configuration
+export type SteeringStrategy = 'profile' | 'queue' | 'manual' | 'none';
+
+export interface SteeringConfig {
+  strategy: SteeringStrategy;
+  profileId?: string; // Profile strategy - ID of the Auto Steer profile
+  queue?: string[][]; // Queue strategy - ordered list of skill sets
+  manualSet?: string[]; // Manual strategy - skill set that repeats
+}
 
 export interface Task {
   id: string;
@@ -37,10 +44,14 @@ export interface Task {
   status: TaskStatus;
   target?: string[];
   notes?: string;
-  steer_mode?: SteerMode;
+  steer_set?: string[];
   auto_steer_profile_id?: string;
-  auto_steer_mode?: string;
   auto_steer_phase_index?: number;
+  steering_queue?: string[][]; // Ordered list of skill sets for queue steering strategy
+  steering_queue_index?: number; // Current position in the queue (0-indexed)
+  steering_queue_set_label?: string; // Current set summary being executed from the queue
+  steering_queue_total?: number; // Total items in the queue
+  steering_queue_exhausted?: boolean; // Whether the queue has been fully processed
   auto_requeue?: boolean;
   created_at: string;
   updated_at: string;
@@ -71,18 +82,20 @@ export interface CreateTaskInput {
   type: TaskType;
   operation: OperationType;
   priority: Priority;
-  steer_mode?: SteerMode;
+  steer_set?: string[];
   target?: string[];
   notes?: string;
   auto_steer_profile_id?: string;
+  steering_queue?: string[][]; // Ordered list of skill sets for queue steering strategy
   auto_requeue?: boolean;
 }
 
 export interface UpdateTaskInput {
   priority?: Priority;
   notes?: string;
-  steer_mode?: SteerMode;
+  steer_set?: string[];
   auto_steer_profile_id?: string;
+  steering_queue?: string[][]; // Ordered list of skill sets for queue steering strategy
   auto_requeue?: boolean;
   target?: string[];
 }
@@ -99,6 +112,9 @@ export interface QueueStatus {
   rate_limited?: boolean;
   rate_limit_retry_after?: number;
   rate_limit_pause_until?: string;
+  executions_completed?: number;
+  execution_limit?: number;
+  execution_limit_reached?: boolean;
 }
 
 export interface RunningProcess {
@@ -109,6 +125,29 @@ export interface RunningProcess {
   agent_id: string;
   start_time: string;
   elapsed_seconds: number;
+}
+
+// ==================== Settings Constraints ====================
+
+export interface ConstraintRange {
+  min: number;
+  max: number;
+}
+
+export interface SettingsConstraints {
+  slots: ConstraintRange;
+  cooldown_seconds: ConstraintRange;
+  execution_limit: ConstraintRange;
+  max_turns: ConstraintRange;
+  task_timeout: ConstraintRange;
+  idle_timeout_cap: ConstraintRange;
+  recycler: {
+    interval_seconds: ConstraintRange;
+    max_retries: ConstraintRange;
+    retry_delay_seconds: ConstraintRange;
+    completion_threshold: ConstraintRange;
+    failure_threshold: ConstraintRange;
+  };
 }
 
 // ==================== Settings Types ====================
@@ -123,6 +162,7 @@ export interface Settings {
 export interface ProcessorSettings {
   concurrent_slots: number;
   cooldown_seconds: number;
+  execution_limit: number;
   active: boolean;
 }
 
@@ -165,7 +205,11 @@ export interface AutoSteerProfile {
 
 export interface AutoSteerPhase {
   id?: string;
-  mode: SteerMode;
+  skill_ids: string[];
+  skill_name?: string;
+  modes: string[];
+  with_scope?: boolean;
+  scope?: string;
   max_iterations: number;
   description?: string;
   stop_conditions?: StopCondition[];
@@ -200,7 +244,11 @@ export interface AutoSteerTemplate {
 
 export interface PhaseExecution {
   phase_id?: string;
-  mode?: string;
+  skill_ids?: string[];
+  skill_name?: string;
+  modes?: string[];
+  with_scope?: boolean;
+  scope?: string;
   iterations: number;
   stop_reason?: string;
   started_at?: string;
@@ -267,7 +315,9 @@ export interface MetricsSnapshot {
 }
 
 export interface PhasePerformance {
-  mode: string;
+  skill_ids: string[];
+  skill_name?: string;
+  modes?: string[];
   iterations: number;
   metric_deltas?: Record<string, number>;
   duration: number;
@@ -388,7 +438,8 @@ export interface ExecutionHistory {
   transcript_path?: string;
   auto_steer_profile_id?: string;
   auto_steer_iteration?: number;
-  steer_mode?: string;
+  steer_skill_ids?: string[];
+  steer_set_label?: string;
   steer_phase_index?: number;
   steer_phase_iteration?: number;
   steering_source?: string;
@@ -441,6 +492,7 @@ export type WebSocketMessageType =
   | 'rate_limit_resume'
   | 'rate_limit_manual_reset'
   | 'rate_limit_hit'
+  | 'execution_limit_reached'
   | 'log_entry'
   | string;
 
@@ -468,6 +520,8 @@ export interface PromptPreviewConfig {
   notes?: string;
   target?: string;
   targets?: string[];
+  steer_set?: string[];
+  steering_queue?: string[][];
   auto_steer_profile_id?: string;
   auto_steer_phase_index?: number;
 }
@@ -497,7 +551,38 @@ export interface PromptFile {
 }
 
 export interface PhaseInfo {
+  id: string;
   name: string;
+  description?: string;
+  modes?: string[];
+  source?: 'prompt-manager' | 'builtin';
+}
+
+// ==================== Skills Types (from prompt-manager) ====================
+
+export interface SkillResponse {
+  id: string;
+  name: string;
+  description: string;
+  content: string;
+  modes: string[];
+  tags: string[];
+  icon?: string;
+  targetToolId?: string;
+  draft: boolean;
+  folder: string;
+  createdAt: string;
+  updatedAt: string;
+  usageCount: number;
+  lastUsed?: string;
+  effectivenessRating?: number;
+}
+
+export interface SkillsSyncResult {
+  success: boolean;
+  available: boolean;
+  skillCount?: number;
+  error?: string;
 }
 
 // ==================== API Response Wrappers ====================

@@ -1,0 +1,23 @@
+{
+  "acceptance_allow": [
+    "packages/proto/schemas/vrooli-events/**",
+    "packages/proto/gen/**",
+    "packages/proto/buf.yaml",
+    "packages/proto/buf.gen.yaml"
+  ],
+  "archived_at": "2026-04-09T03:24:12Z",
+  "created": "2026-04-05T02:53:00Z",
+  "depends_on": [
+    "research/vrooli-events-architecture"
+  ],
+  "description": "Create packages/proto/schemas/vrooli-events/v1/ with three proto files following established buf patterns from agent-manager/v1/:\n\n1. **Event envelope** (envelope.proto): event_id (string), source_scenario (string), target_scenario (string), event_type (string, structured as {scenario}.{domain}.{action}.{version}), timestamp (google.protobuf.Timestamp), correlation_id (string), payload (google.protobuf.Any — first use of Any in the codebase, buf.yaml already has google/protobuf dep), metadata (map\u003cstring,string\u003e).\n\n2. **Typed policy rule protos** (policy.proto): AccessRule with source_pattern, target_pattern, action_pattern, effect enum (ALLOW/DENY), specificity scoring fields for segment-count evaluation (exact=3, prefix glob=2, wildcard=1, max 9); RateLimit with capacity (int64, max burst) and refill_rate (double, tokens/sec) for token bucket algorithm; CircuitBreaker with failure_threshold (int32), cooldown_seconds (int64), and state enum (CLOSED/OPEN/HALF_OPEN).\n\n3. **SSE message types** (sse.proto): SubscriptionRequest, EventNotification, PolicySnapshot (full ruleset push for atomic cache replacement on policy changes), HeartbeatMessage (with dropped_count field for backpressure notification).\n\nRun buf generate to produce Go/TS/Python/JS bindings. Validate generated code compiles.",
+  "effort": "M",
+  "initiative": "vrooli-events",
+  "kind": "execute",
+  "name": "vrooli-events-proto-schemas",
+  "priority": 1,
+  "status": "completed",
+  "tags": [],
+  "title": "Draft vrooli-events Proto Schemas (Envelope, Policy Rules, SSE Messages)",
+  "updated": "2026-04-09T03:24:12Z"
+}

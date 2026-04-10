@@ -18,11 +18,8 @@ export { ExecutionPreviewPanel } from './timeline/ExecutionPreviewPanel';
 export { TimelineFullView } from './timeline/TimelineFullView';
 export { TimelineSidebar } from './timeline/TimelineSidebar';
 export { WorkflowInfoCard, type ExecutionConfigSettings } from './timeline/WorkflowInfoCard';
-export {
-  ExecutionConfigPanel,
-  DEFAULT_EXECUTION_SETTINGS,
-  NAVIGATION_WAIT_OPTIONS,
-} from './timeline/ExecutionConfigPanel';
+export { ExecutionConfigPanel } from './timeline/ExecutionConfigPanel';
+export { DEFAULT_EXECUTION_SETTINGS, NAVIGATION_WAIT_OPTIONS } from './timeline/executionConfigConstants';
 export type { ExecutionConfigSettings as ExecutionConfigPanelSettings } from './timeline/ExecutionConfigPanel';
 
 // Capture components
@@ -129,8 +126,6 @@ export {
   recordedActionToTimelineItem,
   timelineEntryToTimelineItem,
   timelineEntryToRecordedAction,
-  hasTimelineEntry,
-  parseTimelineEntry,
 } from './types/timeline-unified';
 
 // Context providers

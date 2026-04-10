@@ -1,13 +1,9 @@
-type DraftRecord<T> = {
-  scenarioName: string;
-  version: number;
-  createdAt: string;
-  updatedAt: string;
-  expiresAt: string;
-  data: T;
-};
+/**
+ * Local storage for generator app state (UI preferences only).
+ * Form state and pipeline results are now stored server-side via useScenarioState.
+ */
 
-type GeneratorAppState = {
+export type GeneratorAppState = {
   version: number;
   updatedAt: string;
   viewMode: string;
@@ -21,12 +17,8 @@ type GeneratorAppState = {
   docPath: string | null;
 };
 
-const DRAFT_STORAGE_KEY = "std_generator_drafts_v1";
-const APP_STATE_KEY = "std_generator_app_state_v1";
-const DRAFT_VERSION = 1;
-const APP_STATE_VERSION = 1;
-const MAX_DRAFTS = 6;
-const DRAFT_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+const APP_STATE_KEY = "std_generator_app_state_v2";
+const APP_STATE_VERSION = 2;
 
 function nowISO(): string {
   return new Date().toISOString();
@@ -35,82 +27,6 @@ function nowISO(): string {
 function getWindowStorage(): Storage | null {
   if (typeof window === "undefined") return null;
   return window.localStorage;
-}
-
-function parseDrafts(raw: string | null): DraftRecord<unknown>[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed as DraftRecord<unknown>[];
-  } catch {
-    return [];
-  }
-}
-
-function readDrafts(): DraftRecord<unknown>[] {
-  const storage = getWindowStorage();
-  if (!storage) return [];
-  return parseDrafts(storage.getItem(DRAFT_STORAGE_KEY));
-}
-
-function writeDrafts(drafts: DraftRecord<unknown>[]) {
-  const storage = getWindowStorage();
-  if (!storage) return;
-  storage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(drafts));
-}
-
-function isExpired(record: DraftRecord<unknown>): boolean {
-  if (!record.expiresAt) return false;
-  return Date.parse(record.expiresAt) <= Date.now();
-}
-
-function cleanupDrafts(drafts: DraftRecord<unknown>[]): DraftRecord<unknown>[] {
-  return drafts.filter((draft) => !isExpired(draft));
-}
-
-export function loadGeneratorDraft<T>(scenarioName: string): DraftRecord<T> | null {
-  const drafts = cleanupDrafts(readDrafts());
-  const match = drafts.find((draft) => draft.scenarioName === scenarioName) as DraftRecord<T> | undefined;
-  if (drafts.length > 0) {
-    writeDrafts(drafts);
-  }
-  return match || null;
-}
-
-export function saveGeneratorDraft<T>(scenarioName: string, data: T): DraftRecord<T> {
-  const drafts = cleanupDrafts(readDrafts());
-  const now = nowISO();
-  const existingIndex = drafts.findIndex((draft) => draft.scenarioName === scenarioName);
-  const createdAt = existingIndex >= 0 ? drafts[existingIndex].createdAt : now;
-  const record: DraftRecord<T> = {
-    scenarioName,
-    version: DRAFT_VERSION,
-    createdAt,
-    updatedAt: now,
-    expiresAt: new Date(Date.now() + DRAFT_TTL_MS).toISOString(),
-    data
-  };
-
-  if (existingIndex >= 0) {
-    drafts[existingIndex] = record as DraftRecord<unknown>;
-  } else {
-    drafts.push(record as DraftRecord<unknown>);
-  }
-
-  drafts.sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
-  const trimmed = drafts.slice(0, MAX_DRAFTS);
-  writeDrafts(trimmed);
-  return record;
-}
-
-export function clearGeneratorDraft(scenarioName: string) {
-  const drafts = cleanupDrafts(readDrafts()).filter((draft) => draft.scenarioName !== scenarioName);
-  writeDrafts(drafts);
-}
-
-export function clearAllGeneratorDrafts() {
-  writeDrafts([]);
 }
 
 export function loadGeneratorAppState(): GeneratorAppState | null {
@@ -127,13 +43,27 @@ export function loadGeneratorAppState(): GeneratorAppState | null {
   }
 }
 
-export function saveGeneratorAppState(state: GeneratorAppState) {
+export function saveGeneratorAppState(state: Partial<GeneratorAppState>) {
   const storage = getWindowStorage();
   if (!storage) return;
-  const payload = {
+  const existing = loadGeneratorAppState() || {
+    version: APP_STATE_VERSION,
+    updatedAt: nowISO(),
+    viewMode: "wizard",
+    selectedScenarioName: "",
+    selectedTemplate: "basic",
+    selectionSource: null,
+    currentBuildId: null,
+    installerBuildId: null,
+    activeStep: 0,
+    userPinnedStep: false,
+    docPath: null,
+  };
+  const payload: GeneratorAppState = {
+    ...existing,
     ...state,
     version: APP_STATE_VERSION,
-    updatedAt: nowISO()
+    updatedAt: nowISO(),
   };
   storage.setItem(APP_STATE_KEY, JSON.stringify(payload));
 }
@@ -143,5 +73,3 @@ export function clearGeneratorAppState() {
   if (!storage) return;
   storage.removeItem(APP_STATE_KEY);
 }
-
-export type { DraftRecord, GeneratorAppState };

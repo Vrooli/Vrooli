@@ -8,94 +8,57 @@
  * ARCHITECTURE:
  * - Connects to /api/v1/chats/{id}/async-status via EventSource
  * - Receives real-time status updates (progress, phase, completion)
- * - Maintains a map of active operations with their current status
- * - Auto-cleans completed operations after a delay
+ * - Maintains a map of operations with their current status
+ * - Completed operations are NOT auto-removed (available for history view)
  *
  * USAGE:
  * ```tsx
- * const { operations, isConnected } = useAsyncStatus(chatId);
- * // operations is an array of AsyncStatusUpdate
+ * const { operations, activeOperations, completedOperations, isConnected } = useAsyncStatus(chatId);
  * ```
  */
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { resolveApiBase } from "@vrooli/api-base";
+import {
+  API_BASE,
+  EMPTY_OPERATIONS,
+  isAsyncStatusUpdate,
+  isAsyncHistoryResponse,
+  type AsyncStatusUpdate,
+  type UseAsyncStatusOptions,
+  type UseAsyncStatusReturn,
+} from "./useAsyncStatus.types";
 
-const API_BASE = resolveApiBase({ appendSuffix: true });
-
-/** Status update received via SSE */
-export interface AsyncStatusUpdate {
-  tool_call_id: string;
-  chat_id: string;
-  tool_name: string;
-  status: string;
-  progress?: number;
-  message?: string;
-  phase?: string;
-  result?: unknown;
-  error?: string;
-  is_terminal: boolean;
-  updated_at: string;
-}
-
-/** Options for the useAsyncStatus hook */
-export interface UseAsyncStatusOptions {
-  /** Delay in ms before removing completed operations from display (default: 3000) */
-  completedRemovalDelay?: number;
-  /** Whether to auto-connect when chatId is provided (default: true) */
-  autoConnect?: boolean;
-}
-
-// Stable empty array for when there are no operations
-// CRITICAL: Using inline [] creates new array on every render, causing infinite re-render loops
-const EMPTY_OPERATIONS: AsyncStatusUpdate[] = [];
+// Re-export all types for consumers
+export type {
+  AsyncStatusUpdate,
+  AsyncHistoryResponse,
+  UseAsyncStatusOptions,
+  UseAsyncStatusReturn,
+} from "./useAsyncStatus.types";
 
 /**
  * Hook for tracking async tool operations via Server-Sent Events.
  *
  * @param chatId - The chat ID to track operations for (null to disconnect)
  * @param options - Configuration options
- * @returns Object containing operations array and connection status
+ * @returns Object containing operations arrays and connection status
  */
 export function useAsyncStatus(
   chatId: string | null,
   options: UseAsyncStatusOptions = {}
-) {
-  const { completedRemovalDelay = 3000, autoConnect = true } = options;
+): UseAsyncStatusReturn {
+  const { autoConnect = true } = options;
 
   const [operations, setOperations] = useState<Map<string, AsyncStatusUpdate>>(
     new Map()
   );
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Track if we've loaded initial history to prevent duplicate fetches
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
-  // Use ref to track cleanup timers
-  const cleanupTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-
-  // Use ref for the removal delay to avoid re-creating callbacks
-  const completedRemovalDelayRef = useRef(completedRemovalDelay);
-  completedRemovalDelayRef.current = completedRemovalDelay;
-
-  // Schedule removal of a completed operation
-  // Using ref pattern to avoid dependency issues
-  const scheduleRemoval = useCallback((toolCallId: string) => {
-    // Clear any existing timer for this operation
-    const existingTimer = cleanupTimers.current.get(toolCallId);
-    if (existingTimer) {
-      clearTimeout(existingTimer);
-    }
-
-    // Schedule new removal
-    const timer = setTimeout(() => {
-      setOperations((prev) => {
-        const next = new Map(prev);
-        next.delete(toolCallId);
-        return next;
-      });
-      cleanupTimers.current.delete(toolCallId);
-    }, completedRemovalDelayRef.current);
-
-    cleanupTimers.current.set(toolCallId, timer);
-  }, []); // Empty deps - uses ref for delay
+  // Store chatId in ref for stable callbacks
+  const chatIdRef = useRef(chatId);
+  chatIdRef.current = chatId;
 
   // Handle incoming status update
   // Using ref pattern to keep callback stable
@@ -106,11 +69,6 @@ export function useAsyncStatus(
       next.set(update.tool_call_id, update);
       return next;
     });
-
-    // Schedule removal for terminal operations
-    if (update.is_terminal) {
-      scheduleRemoval(update.tool_call_id);
-    }
   };
 
   // Connect to SSE endpoint
@@ -119,6 +77,7 @@ export function useAsyncStatus(
       setOperations(new Map());
       setIsConnected(false);
       setError(null);
+      setHistoryLoaded(false);
       return;
     }
 
@@ -128,6 +87,37 @@ export function useAsyncStatus(
     eventSource.onopen = () => {
       setIsConnected(true);
       setError(null);
+
+      if (!historyLoaded) {
+        fetch(`${API_BASE}/chats/${chatId}/async-operations/history?limit=5&offset=0`)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to fetch history");
+            }
+            return response.json();
+          })
+          .then((raw: unknown) => {
+            if (!isAsyncHistoryResponse(raw)) {
+              console.warn("[useAsyncStatus] Unexpected history response shape");
+              return;
+            }
+            const data = raw;
+            setOperations((prev) => {
+              const next = new Map(prev);
+              for (const op of data.operations || []) {
+                if (!next.has(op.tool_call_id)) {
+                  next.set(op.tool_call_id, op);
+                }
+              }
+              return next;
+            });
+            setHistoryLoaded(true);
+          })
+          .catch((err) => {
+            console.warn("[useAsyncStatus] Failed to fetch initial history:", err);
+            setHistoryLoaded(true);
+          });
+      }
     };
 
     eventSource.onerror = (e) => {
@@ -136,50 +126,39 @@ export function useAsyncStatus(
       setError("Connection lost. Reconnecting...");
     };
 
-    // Handle 'connected' event
-    eventSource.addEventListener("connected", () => {
-      setIsConnected(true);
-      setError(null);
-    });
-
-    // Handle 'status' events
     eventSource.addEventListener("status", (event) => {
       try {
-        const update = JSON.parse(event.data) as AsyncStatusUpdate;
-        handleStatusUpdateRef.current?.(update);
+        const raw: unknown = JSON.parse(event.data as string) as unknown;
+        if (!isAsyncStatusUpdate(raw)) {
+          console.warn("[useAsyncStatus] Unexpected status update shape");
+          return;
+        }
+        handleStatusUpdateRef.current?.(raw);
       } catch (err) {
         console.error("[useAsyncStatus] Failed to parse status event:", err);
       }
     });
 
-    // Cleanup on unmount or chatId change
     return () => {
       eventSource.close();
       setIsConnected(false);
-
-      // Clear all cleanup timers
-      cleanupTimers.current.forEach((timer) => clearTimeout(timer));
-      cleanupTimers.current.clear();
     };
-  }, [chatId, autoConnect]); // Removed handleStatusUpdate from deps - using ref instead
+  }, [chatId, autoConnect, historyLoaded]);
 
-  // Manually cancel an operation
   const cancelOperation = useCallback(
     async (toolCallId: string) => {
-      if (!chatId) return;
+      const currentChatId = chatIdRef.current;
+      if (!currentChatId) return;
 
       try {
         const response = await fetch(
-          `${API_BASE}/chats/${chatId}/async-operations/${toolCallId}/cancel`,
+          `${API_BASE}/chats/${currentChatId}/async-operations/${toolCallId}/cancel`,
           { method: "POST" }
         );
-
         if (!response.ok) {
-          const data = await response.json();
+          const data = (await response.json()) as { error?: string };
           throw new Error(data.error || "Failed to cancel operation");
         }
-
-        // Remove from local state immediately
         setOperations((prev) => {
           const next = new Map(prev);
           next.delete(toolCallId);
@@ -190,27 +169,104 @@ export function useAsyncStatus(
         throw err;
       }
     },
-    [chatId]
+    []
   );
 
-  // Memoize the operations array to prevent creating new array references on every render
-  // This is critical to prevent infinite re-render loops in consuming components
-  // CRITICAL: When Map is empty, return stable EMPTY_OPERATIONS instead of new []
+  const refreshOperation = useCallback(
+    async (toolCallId: string): Promise<AsyncStatusUpdate> => {
+      const currentChatId = chatIdRef.current;
+      if (!currentChatId) {
+        throw new Error("No chat selected");
+      }
+
+      try {
+        const response = await fetch(
+          `${API_BASE}/chats/${currentChatId}/async-operations/${toolCallId}/refresh`,
+          { method: "POST" }
+        );
+        if (!response.ok) {
+          const data = (await response.json()) as { error?: string };
+          throw new Error(data.error || "Failed to refresh operation");
+        }
+        const raw: unknown = (await response.json()) as unknown;
+        if (!isAsyncStatusUpdate(raw)) {
+          throw new Error("Unexpected response shape from refresh");
+        }
+        setOperations((prev) => {
+          const next = new Map(prev);
+          next.set(raw.tool_call_id, raw);
+          return next;
+        });
+        return raw;
+      } catch (err) {
+        console.error("[useAsyncStatus] Failed to refresh operation:", err);
+        throw err;
+      }
+    },
+    []
+  );
+
+  const fetchHistory = useCallback(
+    async (limit = 20, offset = 0) => {
+      const currentChatId = chatIdRef.current;
+      if (!currentChatId) {
+        return { operations: [], total: 0, hasMore: false };
+      }
+
+      try {
+        const response = await fetch(
+          `${API_BASE}/chats/${currentChatId}/async-operations/history?limit=${limit}&offset=${offset}`
+        );
+        if (!response.ok) {
+          const data = (await response.json()) as { error?: string };
+          throw new Error(data.error || "Failed to fetch history");
+        }
+        const raw: unknown = (await response.json()) as unknown;
+        if (!isAsyncHistoryResponse(raw)) {
+          throw new Error("Unexpected response shape from history");
+        }
+        return {
+          operations: raw.operations || [],
+          total: raw.total,
+          hasMore: raw.has_more,
+        };
+      } catch (err) {
+        console.error("[useAsyncStatus] Failed to fetch history:", err);
+        throw err;
+      }
+    },
+    []
+  );
+
   const operationsArray = useMemo(
     () => operations.size === 0 ? EMPTY_OPERATIONS : Array.from(operations.values()),
     [operations]
   );
 
-  return {
-    /** Array of active async operations */
-    operations: operationsArray,
-    /** Whether SSE connection is established */
-    isConnected,
-    /** Connection error message, if any */
-    error,
-    /** Cancel a running operation */
-    cancelOperation,
-    /** Number of active operations */
-    activeCount: operations.size,
-  };
+  const activeOperations = useMemo(
+    () => operationsArray.filter((op) => !op.is_terminal),
+    [operationsArray]
+  );
+
+  const completedOperations = useMemo(
+    () => operationsArray.filter((op) => op.is_terminal),
+    [operationsArray]
+  );
+
+  const activeCount = activeOperations.length;
+
+  return useMemo(
+    () => ({
+      operations: operationsArray,
+      activeOperations: activeOperations.length === 0 ? EMPTY_OPERATIONS : activeOperations,
+      completedOperations: completedOperations.length === 0 ? EMPTY_OPERATIONS : completedOperations,
+      isConnected,
+      error,
+      cancelOperation,
+      refreshOperation,
+      fetchHistory,
+      activeCount,
+    }),
+    [operationsArray, activeOperations, completedOperations, isConnected, error, cancelOperation, refreshOperation, fetchHistory, activeCount]
+  );
 }

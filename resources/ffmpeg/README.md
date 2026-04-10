@@ -168,6 +168,39 @@ Metrics tracked:
 - Frames and bytes processed
 - Average FPS and bitrate
 
+### Screen Capture
+
+Record desktop or virtual display output to video. Linux only (requires Xvfb for headless recording).
+
+```bash
+# List available displays
+resource-ffmpeg screen-capture list-displays
+
+# Start recording on a virtual display
+resource-ffmpeg screen-capture start --display :99 --resolution 1920x1080 --framerate 30
+
+# Start recording with custom output path and codec
+resource-ffmpeg screen-capture start --display :99 --resolution 640x480 --framerate 10 --output ./recording.mp4
+
+# Check active recordings
+resource-ffmpeg screen-capture status
+
+# Stop a recording (by ID or most recent)
+resource-ffmpeg screen-capture stop rec-20260318120000-12345
+
+# Get display information
+resource-ffmpeg screen-capture info :99
+```
+
+The screen capture system automatically manages Xvfb lifecycle — if the target display is not active, it starts Xvfb and cleans it up on stop. Metadata is stored in `$FFMPEG_SCREEN_CAPTURES_DIR/metadata/` as JSON files.
+
+Configuration variables:
+- `FFMPEG_SCREEN_CAPTURES_DIR` — Output directory (default: `$FFMPEG_DATA_DIR/screen-captures`)
+- `FFMPEG_SCREEN_DEFAULT_FRAMERATE` — Default framerate (default: 30)
+- `FFMPEG_SCREEN_DEFAULT_RESOLUTION` — Default resolution (default: 1920x1080)
+- `FFMPEG_SCREEN_DEFAULT_COLOR_DEPTH` — Xvfb color depth (default: 24)
+- `FFMPEG_SCREEN_DEFAULT_CODEC` — Video codec (default: libx264)
+
 ## Configuration
 
 Configuration is stored in `config/defaults.sh` and can be customized via environment variables:

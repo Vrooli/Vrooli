@@ -25,6 +25,10 @@ type Session struct {
 	// ActualViewport is the viewport Playwright is actually using (may differ from requested)
 	// Includes source attribution for debugging (e.g., "fingerprint", "requested", "default")
 	actualViewport *driver.ActualViewport
+
+	// Recording callbacks for unified action capture.
+	// When set, all actions (manual, AI, or playback) are reported through these callbacks.
+	recording *RecordingCallbacks
 }
 
 // --- Execution Mode Operations ---
@@ -325,4 +329,29 @@ func (s *Session) isClosed() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.closed
+}
+
+// Recording returns the recording callbacks if configured.
+func (s *Session) Recording() *RecordingCallbacks { return s.recording }
+
+// ReportAction reports an action to the recording callbacks if configured.
+// This should be called for all browser actions regardless of source.
+func (s *Session) ReportAction(action *RecordedActionInfo) {
+	if s.recording != nil && s.recording.OnAction != nil {
+		s.recording.OnAction(s.id, action)
+	}
+}
+
+// ReportPageEvent reports a page event to the recording callbacks if configured.
+func (s *Session) ReportPageEvent(event *PageEventInfo) {
+	if s.recording != nil && s.recording.OnPageEvent != nil {
+		s.recording.OnPageEvent(s.id, event)
+	}
+}
+
+// ReportFrame reports a frame to the recording callbacks if configured.
+func (s *Session) ReportFrame(frame *FrameInfo) {
+	if s.recording != nil && s.recording.OnFrame != nil {
+		s.recording.OnFrame(s.id, frame)
+	}
 }

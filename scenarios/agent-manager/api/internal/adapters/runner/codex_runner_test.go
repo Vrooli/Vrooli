@@ -3,6 +3,8 @@ package runner
 import (
 	"context"
 	"encoding/json"
+	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -73,6 +75,7 @@ var codexSamples = map[string]string{
 	"data_prefix_tool_call":       `data: {"type":"item.started","item":{"id":"item_3","type":"tool_call","name":"bash","input":{"command":"ls -la"}}}`,
 	"command_execution_started":   `{"type":"item.started","item":{"id":"item_4","type":"command_execution","command":"/bin/bash -lc \"echo test\"","aggregated_output":"","exit_code":null,"status":"in_progress"}}`,
 	"command_execution_completed": `{"type":"item.completed","item":{"id":"item_4","type":"command_execution","command":"/bin/bash -lc \"echo test\"","aggregated_output":"test\n","exit_code":0,"status":"completed"}}`,
+	"command_execution_failed":    `{"type":"item.completed","item":{"id":"item_5","type":"command_execution","command":"/bin/bash -lc \"badcmd\"","aggregated_output":"bash: badcmd: command not found\n","exit_code":127,"status":"failed"}}`,
 }
 
 func newCodexRunnerWithPricing(runID uuid.UUID) *CodexRunner {
@@ -398,6 +401,41 @@ func TestCodexRunner_ParseStreamEvent_CommandExecutionCompleted(t *testing.T) {
 	}
 }
 
+func TestCodexRunner_ParseStreamEvent_CommandExecutionFailed_EmitsResultWithError(t *testing.T) {
+	runner := &CodexRunner{}
+	runID := uuid.New()
+
+	events := runner.parseCodexStreamEvents(runID, codexSamples["command_execution_failed"])
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(events))
+	}
+
+	if events[0].EventType != domain.EventTypeToolCall {
+		t.Fatalf("first event type = %s, want %s", events[0].EventType, domain.EventTypeToolCall)
+	}
+	callData, ok := events[0].Data.(*domain.ToolCallEventData)
+	if !ok {
+		t.Fatalf("expected ToolCallEventData, got %T", events[0].Data)
+	}
+	if status, ok := callData.Input["status"].(string); !ok || status != "failed" {
+		t.Fatalf("tool_call status = %v, want failed", callData.Input["status"])
+	}
+
+	if events[1].EventType != domain.EventTypeToolResult {
+		t.Fatalf("second event type = %s, want %s", events[1].EventType, domain.EventTypeToolResult)
+	}
+	resultData, ok := events[1].Data.(*domain.ToolResultEventData)
+	if !ok {
+		t.Fatalf("expected ToolResultEventData, got %T", events[1].Data)
+	}
+	if resultData.Error == "" {
+		t.Fatal("expected tool_result error to be populated for failed command")
+	}
+	if resultData.Output == "" {
+		t.Fatal("expected tool_result output to include aggregated command output")
+	}
+}
+
 func TestCodexRunner_ParseStreamEvent_Error(t *testing.T) {
 	runner := &CodexRunner{}
 	runID := uuid.New()
@@ -676,4 +714,300 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// =============================================================================
+// ANSI Sanitization Regression Tests
+// =============================================================================
+
+// TestCodexParseStreamEvents_ANSIStrippedFromMessage verifies ANSI escape
+// sequences are stripped from agent_message text in JSON streaming mode.
+func TestCodexParseStreamEvents_ANSIStrippedFromMessage(t *testing.T) {
+	runner := &CodexRunner{runs: make(map[uuid.UUID]*exec.Cmd)}
+	runID := uuid.New()
+
+	// agent_message with embedded ANSI color codes
+	line := `{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"\u001b[1mBold\u001b[0m and \u001b[32mgreen\u001b[0m text"}}`
+	events := runner.parseCodexStreamEvents(runID, line)
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+	msgData, ok := events[0].Data.(*domain.MessageEventData)
+	if !ok {
+		t.Fatalf("expected MessageEventData, got %T", events[0].Data)
+	}
+	if msgData.Content != "Bold and green text" {
+		t.Errorf("ANSI not stripped from message: got %q", msgData.Content)
+	}
+}
+
+// TestCodexParseStreamEvents_ANSIStrippedFromToolOutput verifies ANSI escape
+// sequences are stripped from tool_result output.
+func TestCodexParseStreamEvents_ANSIStrippedFromToolOutput(t *testing.T) {
+	runner := &CodexRunner{runs: make(map[uuid.UUID]*exec.Cmd)}
+	runID := uuid.New()
+
+	// tool_result with ANSI in output
+	line := `{"type":"item.completed","item":{"id":"item_2","type":"tool_result","name":"bash","output":"\u001b[32mSuccess\u001b[0m: file created"}}`
+	events := runner.parseCodexStreamEvents(runID, line)
+	if len(events) == 0 {
+		t.Fatal("expected at least 1 event")
+	}
+
+	// Find the tool result event
+	found := false
+	for _, event := range events {
+		if resultData, ok := event.Data.(*domain.ToolResultEventData); ok {
+			found = true
+			if resultData.Output != "Success: file created" {
+				t.Errorf("ANSI not stripped from tool result: got %q", resultData.Output)
+			}
+		}
+	}
+	if !found {
+		t.Error("no ToolResultEventData found in events")
+	}
+}
+
+// TestCodexParseStreamEvents_ANSIStrippedFromCommandExecution verifies ANSI
+// sequences are stripped from command_execution aggregated_output.
+func TestCodexParseStreamEvents_ANSIStrippedFromCommandExecution(t *testing.T) {
+	runner := &CodexRunner{runs: make(map[uuid.UUID]*exec.Cmd)}
+	runID := uuid.New()
+
+	exitZero := 0
+	item := &CodexItem{
+		Type:             "command_execution",
+		Command:          "ls --color",
+		AggregatedOutput: "\x1b[34mdir1\x1b[0m\n\x1b[32mfile.txt\x1b[0m\n",
+		ExitCode:         &exitZero,
+		Status:           "completed",
+	}
+	events := runner.parseCodexItemEvents(runID, item)
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+	resultData, ok := events[0].Data.(*domain.ToolResultEventData)
+	if !ok {
+		t.Fatalf("expected ToolResultEventData, got %T", events[0].Data)
+	}
+	if resultData.Output != "dir1\nfile.txt\n" {
+		t.Errorf("ANSI not stripped from aggregated output: got %q", resultData.Output)
+	}
+}
+
+// TestCodexParseStreamEvents_PureANSILineSkipped verifies that a pure ANSI
+// line (no valid JSON) is silently skipped and produces no events.
+func TestCodexParseStreamEvents_PureANSILineSkipped(t *testing.T) {
+	runner := &CodexRunner{runs: make(map[uuid.UUID]*exec.Cmd)}
+	runID := uuid.New()
+
+	// These are raw terminal formatting lines that should produce zero events
+	ansiLines := []string{
+		"\x1b[39;49m\x1b[K\x1b[2m\u2514\x1b[39m\x1b[49m\x1b[0m",
+		"\x1b[1m\x1b[34m>\x1b[0m \x1b[2m\x1b[0m",
+		"\x1b[?25h\x1b[?1049l",
+		"\x1b[H\x1b[2J",
+	}
+
+	for _, line := range ansiLines {
+		events := runner.parseCodexStreamEvents(runID, line)
+		if len(events) != 0 {
+			t.Errorf("expected 0 events for ANSI line %q, got %d", line, len(events))
+		}
+	}
+}
+
+// TestCodexParseStreamEvents_HighVolumeANSINoSpam verifies that a large
+// number of pure-ANSI lines produce zero events (regression for the 30k+ spam bug).
+func TestCodexParseStreamEvents_HighVolumeANSINoSpam(t *testing.T) {
+	runner := &CodexRunner{runs: make(map[uuid.UUID]*exec.Cmd)}
+	runID := uuid.New()
+
+	totalEvents := 0
+	for i := 0; i < 1000; i++ {
+		events := runner.parseCodexStreamEvents(runID, "\x1b[39;49m\x1b[K\x1b[2m\u2514\x1b[39m\x1b[49m\x1b[0m")
+		totalEvents += len(events)
+	}
+	if totalEvents != 0 {
+		t.Errorf("expected 0 events from 1000 ANSI lines, got %d", totalEvents)
+	}
+}
+
+// =============================================================================
+// CONTINUATION REGRESSION TESTS
+// =============================================================================
+
+// TestCodexRunner_ContinueArgs_UsesExecResumeJSON verifies that the Continue
+// method builds "codex exec resume --json" arguments (not "codex resume" which
+// requires a TTY and produces character-by-character terminal output).
+// This is a regression test for the bug where the old "codex resume" + script
+// PTY wrapper caused 30k+ per-character events.
+func TestCodexRunner_ContinueArgs_UsesExecResumeJSON(t *testing.T) {
+	// Without useJSONStream, continuation should be rejected
+	runner := &CodexRunner{
+		available:     true,
+		useJSONStream: false,
+		runs:          make(map[uuid.UUID]*exec.Cmd),
+		runModels:     make(map[uuid.UUID]string),
+		runThreadIDs:  make(map[uuid.UUID]string),
+	}
+	_, err := runner.Continue(context.Background(), ContinueRequest{
+		RunID:     uuid.New(),
+		SessionID: "test-session",
+		Prompt:    "hello",
+	})
+	if err != ErrContinuationNotSupported {
+		t.Errorf("expected ErrContinuationNotSupported without JSON stream, got %v", err)
+	}
+}
+
+// TestCodexRunner_ContinueRequiresSessionID verifies that Continue rejects
+// empty session IDs with ErrSessionExpired.
+func TestCodexRunner_ContinueRequiresSessionID(t *testing.T) {
+	runner := &CodexRunner{
+		available:     true,
+		useJSONStream: true,
+		codexCLIPath:  "/usr/bin/codex",
+		runs:          make(map[uuid.UUID]*exec.Cmd),
+		runModels:     make(map[uuid.UUID]string),
+		runThreadIDs:  make(map[uuid.UUID]string),
+	}
+	_, err := runner.Continue(context.Background(), ContinueRequest{
+		RunID:     uuid.New(),
+		SessionID: "",
+		Prompt:    "hello",
+	})
+	if err != ErrSessionExpired {
+		t.Errorf("expected ErrSessionExpired for empty session, got %v", err)
+	}
+}
+
+// TestCodexRunner_ContinueJSONParsing_NoCharacterSpam verifies that the
+// Continue path uses JSON parsing (not raw text), so that streaming text
+// like individual characters don't produce per-character events.
+// This is the core regression test for the character-by-character event bug.
+func TestCodexRunner_ContinueJSONParsing_NoCharacterSpam(t *testing.T) {
+	runner := &CodexRunner{
+		runs:         make(map[uuid.UUID]*exec.Cmd),
+		runModels:    make(map[uuid.UUID]string),
+		runThreadIDs: make(map[uuid.UUID]string),
+	}
+	runID := uuid.New()
+
+	// Simulate what the old PTY-based approach would have produced:
+	// individual characters as separate lines. With JSON parsing, these
+	// should all be silently dropped (not valid JSON).
+	charLines := []string{"A", "l", "l", " ", "d", "o", "n", "e", "."}
+	totalEvents := 0
+	for _, line := range charLines {
+		events := runner.parseCodexStreamEventsWithThreadID(runID, line)
+		totalEvents += len(events)
+	}
+	if totalEvents != 0 {
+		t.Errorf("individual characters should produce 0 events with JSON parser, got %d", totalEvents)
+	}
+
+	// Verify that valid JSON still works
+	events := runner.parseCodexStreamEventsWithThreadID(runID, codexSamples["agent_message"])
+	if len(events) != 1 {
+		t.Errorf("valid JSON should produce 1 event, got %d", len(events))
+	}
+}
+
+// TestCodexRunner_ContinueJSONParsing_CapThreadID verifies that the Continue
+// path (using parseCodexStreamEventsWithThreadID) properly captures thread IDs
+// from stream events, enabling chained continuations.
+func TestCodexRunner_ContinueJSONParsing_CapThreadID(t *testing.T) {
+	runner := &CodexRunner{
+		runs:         make(map[uuid.UUID]*exec.Cmd),
+		runModels:    make(map[uuid.UUID]string),
+		runThreadIDs: make(map[uuid.UUID]string),
+	}
+	runID := uuid.New()
+
+	// Parse a thread.started event (which contains thread_id)
+	_ = runner.parseCodexStreamEventsWithThreadID(runID, codexSamples["thread.started"])
+
+	// Thread ID should be captured
+	threadID := runner.threadIDForRun(runID)
+	if threadID != "019b3906-b365-7403-b3d1-70d60f6f06c4" {
+		t.Errorf("threadID = %q, want %q", threadID, "019b3906-b365-7403-b3d1-70d60f6f06c4")
+	}
+}
+
+// =============================================================================
+// ANSI SANITIZATION TESTS
+// =============================================================================
+
+// TestIsOnlyANSI verifies the helper that detects pure-ANSI lines.
+func TestIsOnlyANSI(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect bool
+	}{
+		{"pure ANSI only", "\x1b[39;49m\x1b[K\x1b[2m\x1b[39m\x1b[49m\x1b[0m", true},
+		{"ANSI with box drawing char", "\x1b[39;49m\x1b[K\x1b[2m\u2514\x1b[39m\x1b[49m\x1b[0m", false}, // └ is not an ANSI seq
+		{"ANSI with whitespace only", "\x1b[1m  \x1b[0m", true},
+		{"plain text", "hello world", false},
+		{"empty string", "", false},
+		{"mixed content and ANSI", "\x1b[32mhello\x1b[0m", false},
+		{"only whitespace", "   ", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isOnlyANSI(tt.input)
+			if got != tt.expect {
+				t.Errorf("isOnlyANSI(%q) = %v, want %v", tt.input, got, tt.expect)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// CODEX SYSTEM PROMPT FALLBACK TESTS
+// =============================================================================
+
+func TestCodexRunner_EffectivePrompt_InBuildArgs(t *testing.T) {
+	// Codex uses EffectivePrompt() when writing to stdin.
+	// Verify the fallback XML-tag wrapping works correctly.
+	r := NewTestCodexRunner()
+
+	t.Run("no system prompt passes prompt as-is", func(t *testing.T) {
+		req := ExecuteRequest{
+			RunID:  uuid.New(),
+			Prompt: "fix the bug",
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeCodex,
+			},
+		}
+		got := req.EffectivePrompt()
+		if got != "fix the bug" {
+			t.Errorf("EffectivePrompt() = %q, want %q", got, "fix the bug")
+		}
+		// Verify buildJSONArgs doesn't crash
+		_ = r.BuildJSONArgsForTest(req)
+	})
+
+	t.Run("system prompt is wrapped in tags", func(t *testing.T) {
+		req := ExecuteRequest{
+			RunID:        uuid.New(),
+			Prompt:       "context data here",
+			SystemPrompt: "you are a code reviewer",
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeCodex,
+			},
+		}
+		got := req.EffectivePrompt()
+		if !strings.Contains(got, "<system-instructions>") {
+			t.Error("expected <system-instructions> tag in effective prompt")
+		}
+		if !strings.Contains(got, "you are a code reviewer") {
+			t.Error("expected system prompt content in effective prompt")
+		}
+		if !strings.Contains(got, "context data here") {
+			t.Error("expected user prompt content in effective prompt")
+		}
+	})
 }

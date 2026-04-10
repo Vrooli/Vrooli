@@ -259,10 +259,11 @@ phases:
   setup:
     timeout: 300
     requirements:
-      - resource: postgres
-        check: connectivity
+      # Use the resource(s) declared by the target scenario.
+      # Embedded SQLite scenarios usually use file/config checks instead.
       - resource: redis
         check: connectivity
+      - file_exists: data/app.db
       - config:
           file: .vrooli/service.json
           check: valid_json
@@ -372,13 +373,12 @@ cat vault-report.json | jq '.phases[] | select(.status == "failed")'
 
 ```yaml
 requirements:
-  # Check resource is running
-  - resource: postgres
+  # Check a declared resource is running
+  - resource: redis
     check: running
 
-  # Check connectivity
-  - resource: redis
-    check: connectivity
+  # Check an embedded SQLite file exists
+  - file_exists: data/app.db
 
   # Check with custom timeout
   - resource: ollama
@@ -484,7 +484,7 @@ requirements:
 phases:
   setup:
     requirements:
-      - resource: postgres
+      - file_exists: data/app.db
 
   test:
     requirements:
@@ -519,7 +519,7 @@ requirements:
 ```yaml
 # Group checks logically
 database_checks:
-  - resource: postgres
+  - file_exists: data/app.db
   - migration: applied
   - seed_data: loaded
 
@@ -550,15 +550,16 @@ test-genie vault my-scenario --phases setup --criteria ./vault-config.yaml
 # Check resource status
 vrooli status --resources
 
-# Check specific resource
-vrooli resource status postgres
+# Check a specific declared resource when the target scenario uses one
+vrooli resource status redis
 
-# Check ports
-lsof -i :5432
+# Check SQLite file/path for embedded-database scenarios
+ls -la data/*.db
 ```
 
 **Solutions**:
-- Start missing resources: `vrooli resource start postgres`
+- Start missing resources declared by the target scenario, for example: `vrooli resource start redis`
+- Verify the embedded SQLite path exists and is writable
 - Fix port conflicts: kill conflicting process
 - Check configuration files for errors
 
@@ -631,13 +632,6 @@ on: [push]
 jobs:
   vault:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
 
     steps:
       - uses: actions/checkout@v4
@@ -653,6 +647,9 @@ jobs:
             --criteria ./vault-config.yaml \
             --report vault-report.json
 
+      # Add service containers here only if the target scenario requires
+      # networked resources such as Postgres or Redis.
+
       - name: Upload Report
         if: always()
         uses: actions/upload-artifact@v4
@@ -666,12 +663,11 @@ jobs:
 ```yaml
 vault-test:
   stage: test
-  services:
-    - postgres:15
   script:
     - vrooli scenario start test-genie
     - sleep 10
     - test-genie vault my-scenario --criteria ./vault-config.yaml
+    # Add CI services only when the target scenario requires them
   artifacts:
     when: always
     paths:

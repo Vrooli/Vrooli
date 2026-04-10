@@ -1,0 +1,142 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-04T18:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 2,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Update policy default values",
+      "context": "The plan adds an `update_policy` JSONB column to `download_apps` for per-app update behavior. We need to settle the default policy shape and values that ship out of the box. This policy will be embedded in the electron-updater config of generated desktop apps.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Conservative defaults (check every 4 hours, optional updates, no rollback window)",
+          "rationale": "Safest for commercial distribution — users are never forced to update, and the 4-hour interval is standard for electron-updater. No rollback window means simpler logic. Recommended because non-invasive auto-update is a stated goal, and conservative defaults minimize customer friction while still keeping apps current.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Aggressive defaults (check every 1 hour, mandatory after 7 days, 24h rollback window)",
+          "rationale": "Ensures users stay current quickly. Mandatory flag forces update after grace period. Rollback window adds safety but increases complexity. Better for security-critical apps but may feel invasive for general commercial use."
+        },
+        {
+          "key": "C",
+          "label": "Minimal defaults (check on app launch only, optional, no rollback)",
+          "rationale": "Simplest implementation — only check when the app starts, never in the background. Low resource usage but users on long-running sessions may stay on old versions for days."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own default policy shape and values."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Channel discovery endpoint visibility",
+      "context": "The plan adds `GET /api/v1/updates/{app_key}/channels` to list available channels with latest version per platform. This endpoint could be public (any client can discover channels) or gated behind the same per-app API key used by the update endpoint. Public discovery lets desktop apps auto-discover available channels (e.g., show a 'Switch to beta' option in settings). Gated discovery prevents information leakage about unpublished channels.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Same gating as update endpoint (public if no update_api_key, gated if set)",
+          "rationale": "Consistent with existing update endpoint behavior. If an app's updates are public, its channel list is too. If gated, the client must provide the same X-Update-Key header. No new auth mechanism needed. Recommended because it follows the principle of least surprise and reuses existing security model.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Always public (no gating regardless of update_api_key)",
+          "rationale": "Simplifies client implementation — discovery always works without credentials. Channel names are not sensitive (nightly/beta/stable are well-known). But may leak version numbers for unreleased channels."
+        },
+        {
+          "key": "C",
+          "label": "Admin-only (requireAdmin middleware)",
+          "rationale": "Maximum security — only admins can see available channels. But desktop apps cannot self-discover channels, which defeats the purpose of the endpoint for client UX."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own visibility model."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "is_current flag management strategy",
+      "context": "The plan adds `is_current` BOOLEAN to `download_assets` to distinguish the active release from historical ones. The question is who sets this flag and when. The research concluded that DM uses application-level 'superseded' status, but LPBS needs its own mechanism since it doesn't depend on DM being present. Currently, `UpsertAsset` does an upsert on (bundle_key, app_key, platform, variant_key) — there's only ever one asset row per slot, so there's no history. Adding `is_current` implies we want to keep old asset rows.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Keep single-row-per-slot model; add is_current to download_artifacts instead",
+          "rationale": "Assets remain a 1:1 binding (one per app/platform/variant). The artifact table already has multiple rows per app — adding `is_current` there lets us track which artifact is the active one. The asset always points to the current artifact via `artifact_id`. Simpler than changing the asset uniqueness model. Recommended because it preserves the existing asset semantics while enabling version history at the artifact level.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Remove unique constraint on assets; keep history rows with is_current flag",
+          "rationale": "Full asset-level history — every release creates a new asset row. Richer queryability (list all versions for a platform/channel). But breaks the existing upsert pattern, requires rewriting all asset queries to filter by is_current, and increases query complexity."
+        },
+        {
+          "key": "C",
+          "label": "No is_current flag; rely on created_at ordering",
+          "rationale": "Simplest change — 'current' is always the most recently created artifact for a given slot. No schema change needed beyond release_id. But temporal ordering is fragile (clock skew, out-of-order uploads) and doesn't support explicit rollback."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own current-version strategy."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Post-release verification endpoint scope",
+      "context": "The plan adds a verification endpoint so that after a release, the S2D pipeline (or an operator) can confirm the update endpoint serves the expected version. The question is what this endpoint checks and what it returns.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Lightweight version+sha512 check: GET /api/v1/updates/{app_key}/verify?channel=X\u0026platform=Y\u0026expected_version=Z",
+          "rationale": "Checks that the manifest for the given channel/platform reports the expected version and has a non-empty sha512. Returns {match: true/false, actual_version, actual_sha512}. Simple, fast, covers the primary use case of post-deploy smoke testing. Recommended because it's the minimum viable verification that catches the most common failure (wrong version served).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Deep verification: also validates artifact exists in S3 and presign works",
+          "rationale": "In addition to version matching, actually attempts to generate a presigned URL and HEAD the S3 object. Catches S3 misconfigurations and missing artifacts. More thorough but slower and introduces S3 latency into the verification call."
+        },
+        {
+          "key": "C",
+          "label": "Multi-platform batch: POST /api/v1/updates/{app_key}/verify with array of {channel, platform, expected_version}",
+          "rationale": "Verifies all platforms in one call. Better for cross-platform release coordination. But adds request body complexity for what's primarily a smoke test."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own verification approach."
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Whatever you think is the best long-term solution"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The dependency research (release-record-contract-and-history-model) is completed. It defines the canonical release record schema, channel model, and correlation strategy. This plan incorporates those findings — specifically: release_id as a TEXT correlation column on download_artifacts, parameterized variant_key in UpsertAsset, and channel ordering (nightly → beta → stable). DM-side schema changes (releases table, orchestrator integration) are tracked in separate backlog items under the same initiative."
+    }
+  ],
+  "plan_updates": "Created full plan.md scaffold with 13 sections: Purpose, Required Reading, Problem Statement, Scope, Current Technical Context, Target End State, Implementation Strategy (4 phases), Contract Decisions (settled from research + pending), Testing Plan (9 test areas), Rollout Checklist, Risks + Mitigations, Non-goals, and Definition of Done. Incorporated all findings from the completed research dependency."
+}

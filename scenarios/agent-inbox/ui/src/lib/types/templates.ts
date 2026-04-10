@@ -28,9 +28,19 @@ export interface Template {
   suggestedSkillIds?: string[]; // Skills that auto-attach when template selected
   suggestedToolIds?: string[]; // Tools suggested for this template (e.g., ["spawn_coding_agent"])
   modes?: string[]; // Hierarchical path: ["Research", "Codebase Structure"]
-  isBuiltIn?: boolean; // Distinguishes system vs user templates
+  isBuiltIn?: boolean; // Distinguishes system vs user templates (legacy, use source instead)
   createdAt?: string; // ISO timestamp (user templates)
   updatedAt?: string; // ISO timestamp (user templates)
+  draft?: boolean; // Indicates template may not be fully working
+}
+
+/** Template source type - indicates where the template came from */
+export type TemplateSource = "default" | "user" | "modified";
+
+/** Template with source metadata from API */
+export interface TemplateWithSource extends Template {
+  source: TemplateSource;
+  hasDefault: boolean;
 }
 
 /** Skill - Knowledge module injected into context */
@@ -39,9 +49,19 @@ export interface Skill {
   name: string;
   description: string;
   icon?: string; // Lucide icon name
-  category?: string;
+  modes?: string[]; // Hierarchical path like ["Architecture", "Audits"]
   content: string; // Full methodology/knowledge content
   tags?: string[];
+  targetToolId?: string; // Optional tool this skill targets
+  /** @deprecated Use modes instead. Kept for backwards compatibility during migration. */
+  category?: string;
+  draft?: boolean; // Indicates skill may not be fully working
+}
+
+/** Skill with metadata from API */
+export interface SkillWithSource extends Skill {
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /**

@@ -1,7 +1,12 @@
 {
   "startup_order": 520,
   "dependencies": [],
-  "optional_dependencies": ["minio", "qdrant", "questdb", "postgres"],
+  "optional_dependencies": [
+    "minio",
+    "qdrant",
+    "questdb",
+    "postgres"
+  ],
   "startup_timeout": 60,
   "startup_time_estimate": "30-45s",
   "recovery_attempts": 3,
@@ -19,10 +24,8 @@
     "telemetry_export"
   ],
   "integration_points": [
-    "openrocket",
     "blender",
     "gazebo",
-    "openmct",
     "questdb",
     "qdrant",
     "minio"

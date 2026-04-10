@@ -274,8 +274,12 @@ describe('Errors', () => {
 
         expect(details.zodIssues).toBeDefined();
         expect(details.zodIssues).toHaveLength(1);
-        expect(details.zodIssues?.[0].path).toEqual(['url']);
-        expect(details.zodIssues?.[0].code).toBe('invalid_string');
+        const firstIssue = details.zodIssues?.[0];
+        if (!firstIssue) {
+          throw new Error('Expected at least one Zod issue');
+        }
+        expect(firstIssue.path).toEqual(['url']);
+        expect(firstIssue.code).toBe('invalid_string');
       });
 
       it('should handle ZodError with empty issues', () => {

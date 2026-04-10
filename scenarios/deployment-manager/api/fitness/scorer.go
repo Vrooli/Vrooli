@@ -26,12 +26,5 @@ func CalculateScore(scenario string, tier int) Score {
 		}
 	}
 
-	return Score{
-		Overall:         policy.Overall,
-		Portability:     policy.Portability,
-		Resources:       policy.Resources,
-		Licensing:       policy.Licensing,
-		PlatformSupport: policy.PlatformSupport,
-		BlockerReason:   policy.BlockerReason,
-	}
+	return Score(policy)
 }

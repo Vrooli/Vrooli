@@ -1,0 +1,17 @@
+{
+  "acceptance_allow": [
+    "scenarios/brand-manager/api/**",
+    "scenarios/brand-manager/ui/**"
+  ],
+  "created": "2026-03-26T22:02:39Z",
+  "description": "## Problem\n\nThe `GET /api/v1/brands/generate/options` endpoint hardcodes `available: false` for Ollama and OpenRouter integrations instead of checking the actual configuration. Users always see \"Not configured\" in the UI even when providers are properly set up via environment variables.\n\n## Root Cause\n\nIn `handlers/generate.go` (or `scanner_plugin.go`), the `GenerateOptions` handler returns a static list of providers with `available: false` for all except \"Manual Entry\". It should check:\n- `h.cfg.OllamaURL != \"\"` → Ollama available\n- `h.cfg.OpenRouterAPIKey != \"\"` → OpenRouter available\n\nThe actual AI generation endpoints (`POST /api/v1/brands/{id}/generate`) correctly detect provider availability at request time via `h.aiChain()`, so the fix is just aligning the options endpoint with the same config checks.\n\n## Expected Fix\n\n1. Update `GenerateOptions` handler to read `h.cfg.OllamaURL` and `h.cfg.OpenRouterAPIKey`\n2. Set `available: true` for providers whose config is present\n3. Optionally do a lightweight health check (e.g., Ollama `/api/tags` endpoint) to confirm reachability, with a short timeout so the UI doesn't hang\n4. Add tests covering: both configured, one configured, neither configured\n\n## Key Files\n\n- Handler: `scenarios/brand-manager/api/handlers/generate.go` (GenerateOptions function)\n- Config: `scenarios/brand-manager/api/config/config.go` (OllamaURL, OpenRouterAPIKey fields)\n- AI chain: `scenarios/brand-manager/api/aigen/provider.go` (provider detection pattern)\n- UI component: `scenarios/brand-manager/ui/src/components/generate-options.tsx` (renders the status)",
+  "effort": "S",
+  "initiative": "brand-manager-readiness",
+  "kind": "fix",
+  "name": "brand-manager-integration-status",
+  "priority": 2,
+  "status": "completed",
+  "tags": [],
+  "title": "Fix GenerateOptions Endpoint to Report Actual Integration Availability",
+  "updated": "2026-04-04T01:12:32Z"
+}

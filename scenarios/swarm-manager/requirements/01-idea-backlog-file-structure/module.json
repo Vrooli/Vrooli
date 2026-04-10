@@ -1,0 +1,88 @@
+{
+  "description": "Git-tracked folder-per-item with spec.json + context files in scenarios/swarm-manager/{ideas,research,fix,execute}/",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Implement a Git-tracked directory structure where each backlog item has its own folder containing a spec.json file under scenarios/swarm-manager/{ideas,research,fix,execute}/",
+      "id": "REQ-P0-001-STRUCTURE",
+      "prd_ref": "OT-P0-001",
+      "status": "implemented",
+      "title": "Git-based Idea Folder Structure",
+      "validation": [
+        {
+          "notes": "Test Create successfully creates backlog folder with spec.json",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler_test.go::TestCreate_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test backlog data structure matches spec.json schema",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler.go::BacklogItem",
+          "status": "passing",
+          "type": "code"
+        },
+        {
+          "notes": "Name sanitization for folder-safe names",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler.go::sanitizeName",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test List loads backlog items from folder structure",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler_test.go::TestList_WithItems",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001-STRUCTURE"
+      ],
+      "description": "Validate spec.json schema requirements including name, title, description, status, priority, tags, kind, created, and updated fields",
+      "id": "REQ-P0-001-SCHEMA",
+      "prd_ref": "OT-P0-001",
+      "status": "implemented",
+      "title": "spec.json Schema Validation",
+      "validation": [
+        {
+          "notes": "Test Get loads single backlog item from folder with all fields",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler_test.go::TestGet_Found",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test Delete removes backlog folder",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler_test.go::TestDelete_Idempotent",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Create validates required fields",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler.go::validateCreateBacklogItemRequest",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Sanitization handles edge cases including unicode",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler.go::sanitizeName",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Backlog file structure"
+}

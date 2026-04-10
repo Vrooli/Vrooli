@@ -34,8 +34,7 @@ type App struct {
 
 func NewApp() (*App, error) {
 	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
-		ExtraAPIEnvVars:     []string{"API_BASE_URL", "VITE_API_BASE_URL"},
-		ExtraAPIPortEnvVars: []string{"API_PORT"},
+		ExtraAPIEnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL"},
 	})
 	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
 		Name:              appName,
@@ -215,18 +214,18 @@ func (a *App) resolveSandboxID(shortID string) (string, error) {
 
 // Sandbox types
 type sandboxResponse struct {
-	ID           string    `json:"id"`
-	ScopePath    string    `json:"scopePath"`
-	ReservedPath string    `json:"reservedPath"`
-	ReservedPaths []string `json:"reservedPaths,omitempty"`
-	ProjectRoot  string    `json:"projectRoot"`
-	Owner        string    `json:"owner,omitempty"`
-	Status       string    `json:"status"`
-	CreatedAt    time.Time `json:"createdAt"`
-	MergedDir    string    `json:"mergedDir,omitempty"`
-	SizeBytes    int64     `json:"sizeBytes"`
-	FileCount    int       `json:"fileCount"`
-	ErrorMsg     string    `json:"errorMessage,omitempty"`
+	ID            string    `json:"id"`
+	ScopePath     string    `json:"scopePath"`
+	ReservedPath  string    `json:"reservedPath"`
+	ReservedPaths []string  `json:"reservedPaths,omitempty"`
+	ProjectRoot   string    `json:"projectRoot"`
+	Owner         string    `json:"owner,omitempty"`
+	Status        string    `json:"status"`
+	CreatedAt     time.Time `json:"createdAt"`
+	MergedDir     string    `json:"mergedDir,omitempty"`
+	SizeBytes     int64     `json:"sizeBytes"`
+	FileCount     int       `json:"fileCount"`
+	ErrorMsg      string    `json:"errorMessage,omitempty"`
 }
 
 type listResponse struct {

@@ -1,0 +1,421 @@
+syntax = "proto3";
+
+package scenario_to_desktop.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scenario-to-desktop/v1/base/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1";
+
+// =============================================================================
+// DISTRIBUTION
+// =============================================================================
+//
+// @layer 2
+// @domain distribution
+// @imports base
+// @stability beta
+//
+// Types for distributing desktop application artifacts to cloud storage.
+// Supports S3, Cloudflare R2, and S3-compatible providers.
+//
+// USAGE CONTEXTS:
+//   - Pipeline: Distribution stage uploads artifacts
+//   - Config: DistributionConfig defines upload targets
+//   - Status: Track upload progress per platform/target
+//
+// =============================================================================
+
+// =============================================================================
+// DISTRIBUTION STATUS ENUM
+// =============================================================================
+
+// DistributionStatusValue enumerates distribution operation states.
+//
+// @usage DistributionStatus.status
+enum DistributionStatusValue {
+  // Default/unknown status. Should never appear in valid data.
+  DISTRIBUTION_STATUS_VALUE_UNSPECIFIED = 0;
+
+  // Distribution is pending, waiting to start.
+  DISTRIBUTION_STATUS_VALUE_PENDING = 1;
+
+  // Distribution is in progress (uploading artifacts).
+  DISTRIBUTION_STATUS_VALUE_RUNNING = 2;
+
+  // All uploads completed successfully.
+  DISTRIBUTION_STATUS_VALUE_COMPLETED = 3;
+
+  // Some uploads succeeded, others failed.
+  DISTRIBUTION_STATUS_VALUE_PARTIAL = 4;
+
+  // All uploads failed.
+  DISTRIBUTION_STATUS_VALUE_FAILED = 5;
+
+  // Distribution was cancelled.
+  DISTRIBUTION_STATUS_VALUE_CANCELLED = 6;
+}
+
+// ACL enumerates S3 access control list settings.
+//
+// @usage DistributionTarget.acl
+enum ACL {
+  // Default/unknown ACL. Treat as PRIVATE.
+  ACL_UNSPECIFIED = 0;
+
+  // Private access (bucket owner only).
+  ACL_PRIVATE = 1;
+
+  // Public read access.
+  ACL_PUBLIC_READ = 2;
+
+  // Authenticated users can read.
+  ACL_AUTHENTICATED_READ = 3;
+}
+
+// =============================================================================
+// RETRY CONFIGURATION
+// =============================================================================
+
+// RetryConfig defines upload retry behavior.
+//
+// Uses exponential backoff with jitter for resilient uploads.
+//
+// @usage DistributionTarget.retry
+message RetryConfig {
+  // Maximum number of retry attempts.
+  // @default 3
+  // @constraint 1-10
+  int32 max_attempts = 1;
+
+  // Initial backoff delay in milliseconds.
+  // @default 1000
+  // @unit milliseconds
+  int32 initial_backoff_ms = 2;
+
+  // Maximum backoff delay in milliseconds.
+  // @default 30000
+  // @unit milliseconds
+  int32 max_backoff_ms = 3;
+
+  // Backoff multiplier (for exponential backoff).
+  // @default 2.0
+  double backoff_multiplier = 4;
+}
+
+// =============================================================================
+// DISTRIBUTION TARGET
+// =============================================================================
+
+// DistributionTarget defines a single upload destination.
+//
+// Targets are configured in distribution.yaml and referenced by name
+// during distribution operations.
+//
+// @usage DistributionConfig.targets
+message DistributionTarget {
+  // Unique target name.
+  // @constraint alphanumeric with hyphens
+  // @example "production-s3", "staging-r2"
+  string name = 1;
+
+  // Whether this target is enabled.
+  // Disabled targets are skipped during distribution.
+  bool enabled = 2;
+
+  // Cloud storage provider.
+  DistributionProvider provider = 3;
+
+  // S3-compatible endpoint URL (for R2 and S3_COMPATIBLE).
+  // @format uri
+  // @example "https://your-account-id.r2.cloudflarestorage.com"
+  optional string endpoint = 4;
+
+  // AWS region (for S3) or region hint.
+  // @example "us-east-1", "auto"
+  optional string region = 5;
+
+  // Bucket name.
+  string bucket = 6;
+
+  // Path prefix for uploaded files.
+  // @example "releases/desktop"
+  optional string path_prefix = 7;
+
+  // Environment variable containing access key ID.
+  // @example "AWS_ACCESS_KEY_ID", "R2_ACCESS_KEY_ID"
+  string access_key_id_env = 8;
+
+  // Environment variable containing secret access key.
+  // @example "AWS_SECRET_ACCESS_KEY", "R2_SECRET_ACCESS_KEY"
+  string secret_access_key_env = 9;
+
+  // Access control setting for uploaded files.
+  ACL acl = 10;
+
+  // CDN URL for public access (replaces S3/R2 URLs in output).
+  // @format uri
+  // @example "https://releases.example.com"
+  optional string cdn_url = 11;
+
+  // Retry configuration for this target.
+  optional RetryConfig retry = 12;
+
+  // When this target was created.
+  optional google.protobuf.Timestamp created_at = 13;
+
+  // When this target was last updated.
+  optional google.protobuf.Timestamp updated_at = 14;
+}
+
+// DistributionConfig is the top-level distribution configuration.
+//
+// Loaded from distribution.yaml in the scenario directory.
+//
+// @usage Scenario distribution configuration
+message DistributionConfig {
+  // Schema version for compatibility checking.
+  // @example "1.0"
+  string schema_version = 1;
+
+  // Distribution targets.
+  // Key: Target name, Value: Target configuration
+  map<string, DistributionTarget> targets = 2;
+}
+
+// =============================================================================
+// UPLOAD TRACKING
+// =============================================================================
+
+// PlatformUpload tracks the upload of a single artifact.
+//
+// @usage TargetDistribution.uploads
+message PlatformUpload {
+  // Platform this artifact is for.
+  Platform platform = 1;
+
+  // Upload status.
+  UploadStatus status = 2;
+
+  // Local path to the artifact.
+  // @format path
+  string local_path = 3;
+
+  // Remote object key.
+  // @example "releases/desktop/v1.0.0/win/app-setup.exe"
+  optional string remote_key = 4;
+
+  // Public or signed URL to the uploaded artifact.
+  // @format uri
+  optional string url = 5;
+
+  // File size in bytes.
+  optional int64 size = 6;
+
+  // Bytes uploaded so far (for progress tracking).
+  optional int64 bytes_uploaded = 7;
+
+  // Error message if upload failed.
+  optional string error = 8;
+
+  // When the upload started.
+  optional google.protobuf.Timestamp started_at = 9;
+
+  // When the upload completed.
+  optional google.protobuf.Timestamp completed_at = 10;
+}
+
+// TargetDistribution tracks uploads to a single target.
+//
+// @usage DistributionStatus.targets
+message TargetDistribution {
+  // Target name.
+  string target_name = 1;
+
+  // Overall target status.
+  DistributionStatusValue status = 2;
+
+  // When uploads to this target started.
+  google.protobuf.Timestamp started_at = 3;
+
+  // When uploads to this target completed.
+  optional google.protobuf.Timestamp completed_at = 4;
+
+  // Per-platform uploads.
+  // Key: Platform name (win, mac, linux)
+  map<string, PlatformUpload> uploads = 5;
+
+  // Error message if target distribution failed.
+  optional string error = 6;
+}
+
+// DistributionStatus tracks the overall distribution operation.
+//
+// @usage GET /api/distribution/{id}/status response
+message DistributionStatus {
+  // Unique distribution operation identifier.
+  // @format uuid
+  string distribution_id = 1;
+
+  // Scenario being distributed.
+  string scenario_name = 2;
+
+  // Release version.
+  optional string version = 3;
+
+  // Overall distribution status.
+  DistributionStatusValue status = 4;
+
+  // When distribution started.
+  google.protobuf.Timestamp started_at = 5;
+
+  // When distribution completed.
+  optional google.protobuf.Timestamp completed_at = 6;
+
+  // Per-target distribution status.
+  // Key: Target name
+  map<string, TargetDistribution> targets = 7;
+
+  // Error message if distribution failed.
+  optional string error = 8;
+}
+
+// =============================================================================
+// API REQUEST/RESPONSE TYPES
+// =============================================================================
+
+// DistributeRequest initiates distribution.
+//
+// @usage POST /api/distribution request body
+message DistributeRequest {
+  // Scenario name to distribute.
+  string scenario_name = 1;
+
+  // Release version for path construction.
+  optional string version = 2;
+
+  // Artifacts to upload.
+  // Key: Platform name (win, mac, linux)
+  // Value: Local file path
+  map<string, string> artifacts = 3;
+
+  // Specific targets to upload to.
+  // Empty means all enabled targets.
+  repeated string target_names = 4;
+
+  // Whether to upload to targets in parallel.
+  // @default true
+  optional bool parallel = 5;
+
+  // Inline credentials (overrides env vars).
+  // Key: Target name + "_ACCESS_KEY_ID" or "_SECRET_ACCESS_KEY"
+  // Value: Credential value
+  map<string, string> inline_credentials = 6;
+}
+
+// DistributeResponse is returned when distribution starts.
+//
+// @usage POST /api/distribution response
+message DistributeResponse {
+  // Unique distribution operation identifier.
+  // @format uuid
+  string distribution_id = 1;
+
+  // Initial status.
+  DistributionStatusValue status = 2;
+
+  // URL to poll for status updates.
+  // @format uri
+  string status_url = 3;
+}
+
+// =============================================================================
+// CREDENTIAL CHECKING
+// =============================================================================
+
+// TargetCredentialStatus indicates credential availability for a target.
+//
+// @usage CheckCredentialsResponse.target_status
+message TargetCredentialStatus {
+  // Target name.
+  string target_name = 1;
+
+  // Whether all required credentials are present.
+  bool all_present = 2;
+
+  // List of missing credentials.
+  // @example ["R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"]
+  repeated string missing_credentials = 3;
+
+  // List of required credentials.
+  repeated string required_credentials = 4;
+}
+
+// CheckCredentialsRequest checks credential availability.
+//
+// @usage POST /api/distribution/check-credentials request body
+message CheckCredentialsRequest {
+  // Targets to check credentials for.
+  // Empty means all enabled targets.
+  repeated string target_names = 1;
+}
+
+// CheckCredentialsResponse indicates credential status.
+//
+// @usage POST /api/distribution/check-credentials response
+message CheckCredentialsResponse {
+  // Whether all required credentials are present.
+  bool all_present = 1;
+
+  // Per-target credential status.
+  // Key: Target name
+  map<string, TargetCredentialStatus> target_status = 2;
+}
+
+// =============================================================================
+// VALIDATION
+// =============================================================================
+
+// TargetValidation contains validation results for a single target.
+//
+// @usage ValidationResult.targets
+message TargetValidation {
+  // Target name.
+  string target_name = 1;
+
+  // Whether the target is valid and accessible.
+  bool valid = 2;
+
+  // Whether the target endpoint is reachable.
+  bool connected = 3;
+
+  // Whether required permissions are available.
+  bool permissions_ok = 4;
+
+  // Validation errors.
+  repeated ValidationError errors = 5;
+
+  // Validation warnings.
+  repeated ValidationWarning warnings = 6;
+}
+
+// DistributionValidationResult contains validation for all targets.
+//
+// @usage POST /api/distribution/validate response
+message DistributionValidationResult {
+  // Whether all targets are valid.
+  bool valid = 1;
+
+  // Per-target validation results.
+  // Key: Target name
+  map<string, TargetValidation> targets = 2;
+
+  // Global validation errors.
+  repeated ValidationError errors = 3;
+
+  // Global validation warnings.
+  repeated ValidationWarning warnings = 4;
+
+  // When validation was performed.
+  google.protobuf.Timestamp validated_at = 5;
+}

@@ -3,12 +3,17 @@
     "slug": "agency-marketing-visionary",
     "name": "Agency · Marketing · Visionary",
     "description": "Deliver client-ready demos and replays in hours.",
-    "weight": 20,
-    "status": "active",
     "axes": {
       "persona": "agency",
       "jtbd": "marketing",
       "conversionStyle": "visionary"
+    },
+    "seo_config": {
+      "title": "Silent Founder OS - Client-Ready Demos in Hours",
+      "description": "Record flows, export MP4s with fake browser frames, ship branded replays.",
+      "og_title": "Silent Founder OS",
+      "og_description": "Record flows, export MP4s with fake browser frames, ship branded replays.",
+      "twitter_card": "summary_large_image"
     },
     "header_config": {
       "branding": {

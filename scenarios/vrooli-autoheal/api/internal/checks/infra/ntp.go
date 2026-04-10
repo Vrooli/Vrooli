@@ -48,6 +48,7 @@ func (c *NTPCheck) Title() string { return "Time Synchronization" }
 func (c *NTPCheck) Description() string {
 	return "Verifies system clock is synchronized via NTP using timedatectl"
 }
+
 func (c *NTPCheck) Importance() string {
 	return "Required for TLS certificate validation, log correlation, and distributed system consistency"
 }

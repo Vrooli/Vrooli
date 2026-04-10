@@ -12,6 +12,8 @@
 
 set -euo pipefail
 
+trap 'true' EXIT
+
 # Configuration
 SCRIPT_NAME="service-health-monitor"
 OUTPUT_DIR="../results/$(date +%Y%m%d_%H%M%S)_${SCRIPT_NAME}"
@@ -80,8 +82,8 @@ echo "📋 Gathering service details..."
 DETAILS_JSON="[]"
 for service in $(jq -r '.failed_services[].service' "${RESULTS_FILE}"); do
     if [[ -n "$service" ]]; then
-        STATUS=$(systemctl status "$service" 2>&1 | head -20 | sed 's/"/\\"/g' | tr '\n' ' ' || true)
-        LOGS=$(journalctl -u "$service" --no-pager -n 10 2>&1 | sed 's/"/\\"/g' | tr '\n' ' ' || true)
+        STATUS=$(timeout 10 systemctl status "$service" 2>&1 | head -20 | sed 's/"/\\"/g' | tr '\n' ' ' || true)
+        LOGS=$(timeout 10 journalctl -u "$service" --no-pager -n 10 2>&1 | sed 's/"/\\"/g' | tr '\n' ' ' || true)
         DETAILS_JSON=$(echo "$DETAILS_JSON" | jq ". += [{\"service\": \"$service\", \"status\": \"$STATUS\", \"recent_logs\": \"$LOGS\"}]")
     fi
 done

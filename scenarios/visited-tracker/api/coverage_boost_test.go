@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
 )
 
 // TestGetAllowedOrigins tests CORS origin configuration [REQ:VT-REQ-001]
@@ -156,9 +157,9 @@ func TestSyncCampaignFilesExclusionPatterns(t *testing.T) {
 	for _, file := range testFiles {
 		dir := filepath.Dir(file)
 		if dir != "." {
-			os.MkdirAll(dir, 0755)
+			os.MkdirAll(dir, 0o755)
 		}
-		os.WriteFile(file, []byte("test"), 0644)
+		os.WriteFile(file, []byte("test"), 0o644)
 	}
 
 	campaign := &Campaign{
@@ -203,7 +204,7 @@ func TestSyncCampaignFilesMaxFilesLimit(t *testing.T) {
 	// Create 5 test files
 	for i := 0; i < 5; i++ {
 		filename := filepath.Join(tempDir, "file"+string(rune('0'+i))+".go")
-		os.WriteFile(filename, []byte("test"), 0644)
+		os.WriteFile(filename, []byte("test"), 0o644)
 	}
 
 	campaign := &Campaign{
@@ -249,7 +250,7 @@ func TestSyncCampaignFilesDeduplication(t *testing.T) {
 
 	// Create a test file
 	testFile := "duplicate.go"
-	os.WriteFile(testFile, []byte("test"), 0644)
+	os.WriteFile(testFile, []byte("test"), 0o644)
 
 	campaign := &Campaign{
 		ID:              uuid.New(),
@@ -285,8 +286,8 @@ func TestSyncCampaignFilesSkipsDirectories(t *testing.T) {
 	}
 
 	// Create a directory and a file with similar names
-	os.Mkdir("testdir", 0755)
-	os.WriteFile("testfile.go", []byte("test"), 0644)
+	os.Mkdir("testdir", 0o755)
+	os.WriteFile("testfile.go", []byte("test"), 0o644)
 
 	campaign := &Campaign{
 		ID:              uuid.New(),
@@ -321,7 +322,7 @@ func TestSyncCampaignFilesIdempotent(t *testing.T) {
 	}
 
 	testFile := "idempotent.go"
-	os.WriteFile(testFile, []byte("test"), 0644)
+	os.WriteFile(testFile, []byte("test"), 0o644)
 
 	campaign := &Campaign{
 		ID:              uuid.New(),
@@ -368,7 +369,7 @@ func TestSyncCampaignFilesMetadata(t *testing.T) {
 
 	testFile := "metadata.go"
 	content := []byte("package main\n")
-	if err := os.WriteFile(testFile, content, 0644); err != nil {
+	if err := os.WriteFile(testFile, content, 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -451,8 +452,8 @@ func TestLoadAllCampaignsWithReadOnlyFiles(t *testing.T) {
 
 	// Make the file read-only (but keep directory accessible)
 	campaignFile := getCampaignPath(testCampaign.ID)
-	os.Chmod(campaignFile, 0444)
-	defer os.Chmod(campaignFile, 0644)
+	os.Chmod(campaignFile, 0o444)
+	defer os.Chmod(campaignFile, 0o644)
 
 	// Should still be able to load campaigns from read-only files
 	campaigns, err := loadAllCampaigns()
@@ -668,8 +669,8 @@ func TestSaveCampaignWriteError(t *testing.T) {
 
 	// Make the data directory read-only
 	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	os.Chmod(dataPath, 0555)
-	defer os.Chmod(dataPath, 0755)
+	os.Chmod(dataPath, 0o555)
+	defer os.Chmod(dataPath, 0o755)
 
 	campaign := &Campaign{
 		ID:   uuid.New(),
@@ -796,7 +797,7 @@ func TestVisitHandlerEmptyFiles(t *testing.T) {
 
 	// Test with empty files array
 	reqBody := VisitRequest{
-		Files: []string{},
+		Files: VisitFiles{Paths: []string{}},
 	}
 
 	body, _ := json.Marshal(reqBody)
@@ -854,8 +855,8 @@ func TestSyncCampaignFilesPermissionError(t *testing.T) {
 	// Setup temporary test directory
 	tempDir := t.TempDir()
 	restrictedDir := filepath.Join(tempDir, "restricted")
-	os.MkdirAll(restrictedDir, 0000) // No permissions
-	defer os.Chmod(restrictedDir, 0755)
+	os.MkdirAll(restrictedDir, 0o000) // No permissions
+	defer os.Chmod(restrictedDir, 0o755)
 
 	location := restrictedDir
 	campaign := &Campaign{
@@ -958,8 +959,12 @@ func TestHealthHandlerDegradedStatus(t *testing.T) {
 	}
 
 	// Check status is degraded when storage is inaccessible
-	if resp["status"] != "degraded" && resp["status"] != "healthy" {
-		t.Errorf("Expected status 'degraded' or 'healthy', got %v", resp["status"])
+	status, ok := resp["status"].(string)
+	if !ok {
+		t.Fatalf("Expected status string, got %T", resp["status"])
+	}
+	if status != health.StatusDegraded {
+		t.Errorf("Expected status %s, got %v", health.StatusDegraded, status)
 	}
 
 	// Verify dependencies structure exists
@@ -967,8 +972,8 @@ func TestHealthHandlerDegradedStatus(t *testing.T) {
 		if storage, ok := deps["storage"].(map[string]interface{}); ok {
 			// Storage should report connectivity status
 			if connected, ok := storage["connected"].(bool); ok {
-				if !connected && resp["status"] != "degraded" {
-					t.Error("Expected degraded status when storage not connected")
+				if connected {
+					t.Error("Expected storage to be disconnected when data directory is missing")
 				}
 			}
 		}
@@ -994,7 +999,7 @@ func TestCreateCampaignHandlerAutoSyncError(t *testing.T) {
 	// First create many files
 	for i := 0; i < 15; i++ {
 		filename := fmt.Sprintf("file%d.go", i)
-		os.WriteFile(filename, []byte("test"), 0644)
+		os.WriteFile(filename, []byte("test"), 0o644)
 	}
 
 	location := tempDir
@@ -1035,7 +1040,7 @@ func TestVisitHandlerCampaignNotFound(t *testing.T) {
 
 	nonExistentID := uuid.New()
 	reqBody := VisitRequest{
-		Files: []string{"test.go"},
+		Files: VisitFiles{Paths: []string{"test.go"}},
 	}
 
 	body, _ := json.Marshal(reqBody)
@@ -1077,7 +1082,7 @@ func TestVisitHandlerFileNotInCampaign(t *testing.T) {
 
 	// Try to visit a file that isn't tracked
 	reqBody := VisitRequest{
-		Files: []string{"untracked.go"},
+		Files: VisitFiles{Paths: []string{"untracked.go"}},
 	}
 
 	body, _ := json.Marshal(reqBody)
@@ -1186,8 +1191,8 @@ func TestStructureSyncHandlerSuccess(t *testing.T) {
 	}
 
 	// Create test files
-	os.WriteFile("test1.go", []byte("test"), 0644)
-	os.WriteFile("test2.go", []byte("test"), 0644)
+	os.WriteFile("test1.go", []byte("test"), 0o644)
+	os.WriteFile("test2.go", []byte("test"), 0o644)
 
 	location := tempDir
 	campaign := &Campaign{
@@ -1249,8 +1254,8 @@ func TestLoadCampaignCorruptedJSON(t *testing.T) {
 	// Create a campaign file with invalid JSON
 	campaignID := uuid.New()
 	campaignPath := getCampaignPath(campaignID)
-	os.MkdirAll(filepath.Dir(campaignPath), 0755)
-	os.WriteFile(campaignPath, []byte("invalid json {"), 0644)
+	os.MkdirAll(filepath.Dir(campaignPath), 0o755)
+	os.WriteFile(campaignPath, []byte("invalid json {"), 0o644)
 
 	// Try to load the corrupted campaign
 	_, err := loadCampaign(campaignID)
@@ -1286,11 +1291,10 @@ func TestLoadAllCampaignsWithCorruptedFiles(t *testing.T) {
 	// Create a corrupted campaign file
 	corruptedID := uuid.New()
 	corruptedPath := getCampaignPath(corruptedID)
-	os.WriteFile(corruptedPath, []byte("corrupted"), 0644)
+	os.WriteFile(corruptedPath, []byte("corrupted"), 0o644)
 
 	// loadAllCampaigns should skip corrupted files and return valid ones
 	campaigns, err := loadAllCampaigns()
-
 	// Should succeed despite corrupted file
 	if err != nil {
 		t.Errorf("loadAllCampaigns should handle corrupted files gracefully, got error: %v", err)
@@ -1473,7 +1477,7 @@ func TestVisitHandlerInvalidCampaignID(t *testing.T) {
 	defer cleanup()
 
 	reqBody := VisitRequest{
-		Files: []string{"test.go"},
+		Files: VisitFiles{Paths: []string{"test.go"}},
 	}
 
 	body, _ := json.Marshal(reqBody)
@@ -1504,7 +1508,7 @@ func TestCreateCampaignHandlerWithMetadata(t *testing.T) {
 	}
 
 	// Create test file
-	os.WriteFile("test.go", []byte("test"), 0644)
+	os.WriteFile("test.go", []byte("test"), 0o644)
 
 	location := tempDir
 	metadata := map[string]interface{}{

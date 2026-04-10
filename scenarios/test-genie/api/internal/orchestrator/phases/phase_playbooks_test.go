@@ -115,6 +115,30 @@ func (h *playbooksTestHarness) writeTestingJSON(t *testing.T, content string) {
 	}
 }
 
+func newStubBASServer(t *testing.T) (*httptest.Server, string) {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/health":
+			w.WriteHeader(http.StatusOK)
+		case "/api/v1/workflows/validate-resolved":
+			_, _ = w.Write([]byte(`{"valid":true,"errors":[]}`))
+		case "/api/v1/workflows/execute-adhoc":
+			_, _ = w.Write([]byte(`{"execution_id":"exec-123"}`))
+		case "/api/v1/executions/exec-123":
+			_, _ = w.Write([]byte(`{"execution_id":"exec-123","status":"EXECUTION_STATUS_COMPLETED","progress":100}`))
+		case "/api/v1/executions/exec-123/timeline":
+			_, _ = w.Write([]byte(`{"execution_id":"exec-123","status":"EXECUTION_STATUS_COMPLETED","progress":100,"frames":[],"logs":[]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+
+	port := strings.TrimPrefix(server.URL, "http://127.0.0.1:")
+	port = strings.TrimPrefix(port, "http://localhost:")
+	return server, port
+}
+
 func (h *playbooksTestHarness) removeUI(t *testing.T) {
 	t.Helper()
 	if err := os.RemoveAll(filepath.Join(h.scenarioDir, "ui")); err != nil {
@@ -181,6 +205,60 @@ func TestRunPlaybooksPhaseSkipViaEnv(t *testing.T) {
 	}
 }
 
+func TestRunPlaybooksPhaseObserverModeSkipsIsolationAndRestart(t *testing.T) {
+	fakeIso := &fakeIsolation{
+		result: &isolation.Result{RunID: "test-run", Env: map[string]string{}, Cleanup: func(context.Context) error { return nil }},
+	}
+	restoreIso := overrideIsolationManager(fakeIso)
+	defer restoreIso()
+
+	h := newPlaybooksTestHarness(t)
+	h.writeRegistry(t, `{
+		"metadata": {"execution_mode": "observer"},
+		"playbooks": [
+			{"file":"bas/cases/01-basic/test.json","description":"test","order":"01.01","requirements":[],"fixtures":[],"reset":"none"}
+		]
+	}`)
+	h.writeWorkflow(t, "bas/cases/01-basic/test.json", `{
+  "metadata": {"description": "basic", "version": 1},
+  "nodes": [{"id":"n1","type":"navigate","data":{"destinationType":"url","url":"http://example.com"}}],
+  "edges": []
+}`)
+
+	basServer, basPort := newStubBASServer(t)
+	defer basServer.Close()
+
+	var restartCalls int
+	restoreExec := OverrideCommandExecutor(func(_ context.Context, _ string, _ io.Writer, name string, args ...string) error {
+		if name == "vrooli" && len(args) >= 4 && args[0] == "scenario" && args[1] == "restart" && args[2] == h.env.ScenarioName {
+			restartCalls++
+		}
+		return nil
+	})
+	defer restoreExec()
+
+	restoreCapture := OverrideCommandCapture(func(_ context.Context, _ string, _ io.Writer, name string, args ...string) (string, error) {
+		joined := strings.Join(append([]string{name}, args...), " ")
+		if strings.Contains(joined, "browser-automation-studio") && strings.Contains(joined, "port") {
+			return basPort, nil
+		}
+		return "", nil
+	})
+	defer restoreCapture()
+
+	report := runPlaybooksPhase(context.Background(), h.env, io.Discard)
+
+	if report.Err != nil {
+		t.Fatalf("expected success for observer mode, got error: %v", report.Err)
+	}
+	if fakeIso.called {
+		t.Fatalf("expected observer mode to skip isolation")
+	}
+	if restartCalls != 0 {
+		t.Fatalf("expected observer mode to skip scenario restarts, got %d", restartCalls)
+	}
+}
+
 func TestRunPlaybooksPhaseEmptyRegistry(t *testing.T) {
 	restoreIso := overrideIsolationManager(&fakeIsolation{
 		result: &isolation.Result{RunID: "test-run", Env: map[string]string{}, Cleanup: func(context.Context) error { return nil }},
@@ -217,6 +295,37 @@ func TestRunPlaybooksPhaseRegistryNotFound(t *testing.T) {
 	}
 	if report.FailureClassification != FailureClassMisconfiguration {
 		t.Errorf("expected misconfiguration, got: %s", report.FailureClassification)
+	}
+}
+
+func TestRunPlaybooksPhaseSelfTargetRequiresObserverMode(t *testing.T) {
+	fakeIso := &fakeIsolation{
+		result: &isolation.Result{RunID: "test-run", Env: map[string]string{}, Cleanup: func(context.Context) error { return nil }},
+	}
+	restoreIso := overrideIsolationManager(fakeIso)
+	defer restoreIso()
+
+	h := newPlaybooksTestHarness(t)
+	h.env.ScenarioName = "test-genie"
+	h.writeRegistry(t, `{
+		"playbooks": [
+			{"file":"bas/cases/01-basic/test.json","description":"test","order":"01.01","requirements":[],"fixtures":[],"reset":"none"}
+		]
+	}`)
+
+	report := runPlaybooksPhase(context.Background(), h.env, io.Discard)
+
+	if report.Err == nil {
+		t.Fatal("expected self-targeted non-observer playbooks to fail")
+	}
+	if report.FailureClassification != FailureClassMisconfiguration {
+		t.Fatalf("expected misconfiguration, got %s", report.FailureClassification)
+	}
+	if !strings.Contains(report.Err.Error(), "terminate the active test-genie API process") {
+		t.Fatalf("expected self-targeting error message, got %v", report.Err)
+	}
+	if fakeIso.called {
+		t.Fatalf("expected self-target guard to fail before isolation")
 	}
 }
 
@@ -292,25 +401,8 @@ func TestRunPlaybooksPhaseIsolationEnvRestoredBeforeBAS(t *testing.T) {
 }`)
 
 	// Stub BAS server to satisfy health/validate/execute/status/timeline calls.
-	basServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/v1/health":
-			w.WriteHeader(http.StatusOK)
-		case "/api/v1/workflows/validate-resolved":
-			_, _ = w.Write([]byte(`{"valid":true,"errors":[]}`))
-		case "/api/v1/workflows/execute-adhoc":
-			_, _ = w.Write([]byte(`{"execution_id":"exec-123"}`))
-		case "/api/v1/executions/exec-123":
-			_, _ = w.Write([]byte(`{"execution_id":"exec-123","status":"EXECUTION_STATUS_COMPLETED","progress":100}`))
-		case "/api/v1/executions/exec-123/timeline":
-			_, _ = w.Write([]byte(`{"execution_id":"exec-123","status":"EXECUTION_STATUS_COMPLETED","progress":100,"frames":[],"logs":[]}`))
-		default:
-			http.NotFound(w, r)
-		}
-	}))
+	basServer, basPort := newStubBASServer(t)
 	defer basServer.Close()
-	basPort := strings.TrimPrefix(basServer.URL, "http://127.0.0.1:")
-	basPort = strings.TrimPrefix(basPort, "http://localhost:")
 
 	var basEnvLeakDetected bool
 
@@ -520,9 +612,13 @@ func BenchmarkRunPlaybooksPhaseEmptyRegistryNoUI(b *testing.B) {
 	tempDir := b.TempDir()
 	scenarioDir := filepath.Join(tempDir, "scenarios", "bench-scenario")
 	basDir := filepath.Join(scenarioDir, "bas")
-	os.MkdirAll(basDir, 0o755)
+	if err := os.MkdirAll(basDir, 0o755); err != nil {
+		b.Fatalf("mkdir bas dir: %v", err)
+	}
 	// No ui/ directory, but provide empty registry
-	os.WriteFile(filepath.Join(basDir, "registry.json"), []byte(`{"playbooks":[]}`), 0o644)
+	if err := os.WriteFile(filepath.Join(basDir, "registry.json"), []byte(`{"playbooks":[]}`), 0o644); err != nil {
+		b.Fatalf("write registry: %v", err)
+	}
 
 	env := workspace.Environment{
 		ScenarioName: "bench-scenario",
@@ -540,10 +636,16 @@ func BenchmarkRunPlaybooksPhaseEmptyRegistryNoUI(b *testing.B) {
 func BenchmarkRunPlaybooksPhaseEmptyRegistry(b *testing.B) {
 	tempDir := b.TempDir()
 	scenarioDir := filepath.Join(tempDir, "scenarios", "bench-scenario")
-	os.MkdirAll(filepath.Join(scenarioDir, "ui"), 0o755)
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "ui"), 0o755); err != nil {
+		b.Fatalf("mkdir ui dir: %v", err)
+	}
 	basDir := filepath.Join(scenarioDir, "bas")
-	os.MkdirAll(basDir, 0o755)
-	os.WriteFile(filepath.Join(basDir, "registry.json"), []byte(`{"playbooks":[]}`), 0o644)
+	if err := os.MkdirAll(basDir, 0o755); err != nil {
+		b.Fatalf("mkdir bas dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(basDir, "registry.json"), []byte(`{"playbooks":[]}`), 0o644); err != nil {
+		b.Fatalf("write registry: %v", err)
+	}
 
 	env := workspace.Environment{
 		ScenarioName: "bench-scenario",

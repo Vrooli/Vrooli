@@ -40,9 +40,32 @@
 import type { Page, BrowserContext } from 'rebrowser-playwright';
 import type winston from 'winston';
 import { verifyScriptInjection, type InjectionVerification } from '../validation/verification';
-import type { RecordingContextInitializer, InjectionStats } from '../io/context-initializer';
+import type { RecordingContextInitializer, InjectionStrategyStats } from '../io/context-initializer';
 import { playwrightProvider } from '../../playwright';
 import { logger as defaultLogger, LogContext, scopedLog } from '../../utils';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const toBoolean = (value: unknown, fallback: boolean): boolean =>
+  typeof value === 'boolean' ? value : fallback;
+
+const toNumber = (value: unknown, fallback: number): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+const toNumberOrNull = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null;
+
+const toStringOrNull = (value: unknown): string | null =>
+  typeof value === 'string' ? value : null;
+
+const safeJsonParse = (value: string): unknown => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
 
 // =============================================================================
 // Types
@@ -133,7 +156,7 @@ export interface RecordingDiagnosticResult {
   /** Script injection verification result */
   scriptVerification?: InjectionVerification;
   /** Injection statistics from context initializer */
-  injectionStats?: InjectionStats;
+  injectionStats?: InjectionStrategyStats;
   /** Provider information */
   provider: {
     name: string;
@@ -157,6 +180,65 @@ export interface BrowserTelemetry {
   lastEventType: string | null;
   lastError: string | null;
 }
+
+type ScriptStatus = NonNullable<EventFlowTestResult['scriptStatus']>;
+type FetchTestResult = NonNullable<EventFlowTestResult['fetchTest']>;
+
+const parseBrowserTelemetry = (value: unknown): BrowserTelemetry | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  return {
+    eventsDetected: toNumber(value.eventsDetected, 0),
+    eventsCaptured: toNumber(value.eventsCaptured, 0),
+    eventsSent: toNumber(value.eventsSent, 0),
+    eventsSendSuccess: toNumber(value.eventsSendSuccess, 0),
+    eventsSendFailed: toNumber(value.eventsSendFailed, 0),
+    lastEventAt: toNumberOrNull(value.lastEventAt),
+    lastEventType: toStringOrNull(value.lastEventType),
+    lastError: toStringOrNull(value.lastError),
+  };
+};
+
+const parseScriptStatus = (value: unknown): ScriptStatus | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const loaded = value.loaded;
+  if (typeof loaded !== 'boolean') {
+    return null;
+  }
+
+  return {
+    loaded,
+    ready: toBoolean(value.ready, false),
+    inMainContext: toBoolean(value.inMainContext, false),
+    handlersCount: toNumber(value.handlersCount, 0),
+    version: toStringOrNull(value.version),
+  };
+};
+
+const parseFetchTestResult = (value: unknown): FetchTestResult | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const sent = value.sent;
+  if (typeof sent !== 'boolean') {
+    return null;
+  }
+
+  const status = value.status === null ? null : toNumberOrNull(value.status);
+  const error = toStringOrNull(value.error);
+
+  return {
+    sent,
+    status,
+    error,
+  };
+};
 
 /**
  * Result of real click simulation test.
@@ -291,7 +373,7 @@ export const DIAGNOSTIC_CODES = {
  */
 function buildChecksArray(
   scriptVerification: InjectionVerification | undefined,
-  injectionStats: InjectionStats | undefined,
+  injectionStats: InjectionStrategyStats | undefined,
   eventFlowTest: EventFlowTestResult | undefined,
   level: RecordingDiagnosticLevel
 ): DiagnosticCheck[] {
@@ -541,7 +623,7 @@ export async function runRecordingDiagnostics(
   };
 
   // Get injection stats if available
-  let injectionStats: InjectionStats | undefined;
+  let injectionStats: InjectionStrategyStats | undefined;
   if (contextInitializer) {
     injectionStats = contextInitializer.getInjectionStats();
     checkInjectionStats(injectionStats, issues);
@@ -601,7 +683,7 @@ export async function runRecordingDiagnostics(
 /**
  * Check injection statistics for issues.
  */
-function checkInjectionStats(stats: InjectionStats, issues: DiagnosticIssue[]): void {
+function checkInjectionStats(stats: InjectionStrategyStats, issues: DiagnosticIssue[]): void {
   if (stats.attempted === 0) {
     issues.push({
       code: DIAGNOSTIC_CODES.INJECTION_NO_ATTEMPTS,
@@ -712,8 +794,12 @@ async function queryBrowserTelemetry(page: Page): Promise<BrowserTelemetry | nul
         expression: `JSON.stringify(window.__vrooli_recording_telemetry || null)`,
         returnByValue: true,
       });
-      if (result.type === 'string' && result.value && result.value !== 'null') {
-        return JSON.parse(result.value);
+      if (result.type === 'string' && typeof result.value === 'string' && result.value !== 'null') {
+        const parsed = safeJsonParse(result.value);
+        const telemetry = parseBrowserTelemetry(parsed);
+        if (telemetry) {
+          return telemetry;
+        }
       }
     } finally {
       await client.detach().catch(() => {});
@@ -878,7 +964,7 @@ async function testEventFlow(
   let eventReceived = false;
   let receiveTime = 0;
 
-  const consoleHandler = (msg: import('rebrowser-playwright').ConsoleMessage) => {
+  const consoleHandler = (msg: import('rebrowser-playwright').ConsoleMessage): void => {
     const text = msg.text();
     capturedConsole.push({ type: msg.type(), text: text.slice(0, 200) });
     if (text.includes(testEventId)) {
@@ -910,9 +996,12 @@ async function testEventFlow(
         returnByValue: true,
       });
 
-      if (result.type === 'string' && result.value) {
-        scriptStatus = JSON.parse(result.value);
-        logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} CDP script status`), scriptStatus);
+      if (result.type === 'string' && typeof result.value === 'string' && result.value) {
+        const parsed = safeJsonParse(result.value);
+        scriptStatus = parseScriptStatus(parsed) ?? undefined;
+        if (scriptStatus) {
+          logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} CDP script status`), scriptStatus);
+        }
       }
     } finally {
       await client.detach().catch(() => {});
@@ -952,9 +1041,12 @@ async function testEventFlow(
         awaitPromise: true,
       });
 
-      if (result.type === 'string' && result.value) {
-        fetchTest = JSON.parse(result.value);
-        logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} fetch path test result`), fetchTest);
+      if (result.type === 'string' && typeof result.value === 'string' && result.value) {
+        const parsed = safeJsonParse(result.value);
+        fetchTest = parseFetchTestResult(parsed) ?? undefined;
+        if (fetchTest) {
+          logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} fetch path test result`), fetchTest);
+        }
       }
     } finally {
       await client.detach().catch(() => {});
@@ -1019,9 +1111,12 @@ async function testEventFlow(
         expression: `JSON.stringify(window.__vrooli_recording_telemetry || null)`,
         returnByValue: true,
       });
-      if (result.type === 'string' && result.value && result.value !== 'null') {
-        browserTelemetry = JSON.parse(result.value);
-        logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} browser telemetry`), browserTelemetry);
+      if (result.type === 'string' && typeof result.value === 'string' && result.value !== 'null') {
+        const parsed = safeJsonParse(result.value);
+        browserTelemetry = parseBrowserTelemetry(parsed) ?? undefined;
+        if (browserTelemetry) {
+          logger.debug(scopedLog(LogContext.RECORDING, `${logPrefix} browser telemetry`), browserTelemetry);
+        }
       }
     } finally {
       await client.detach().catch(() => {});
@@ -1341,12 +1436,18 @@ function logDiagnosticResult(result: RecordingDiagnosticResult, logger: winston.
   });
 
   for (const issue of result.issues) {
-    const logFn =
+    const logFn: (message: string, meta?: Record<string, unknown>) => void =
       issue.severity === DiagnosticSeverity.ERROR
-        ? logger.error.bind(logger)
+        ? (message: string, meta?: Record<string, unknown>): void => {
+            logger.error(message, meta);
+          }
         : issue.severity === DiagnosticSeverity.WARNING
-          ? logger.warn.bind(logger)
-          : logger.info.bind(logger);
+          ? (message: string, meta?: Record<string, unknown>): void => {
+              logger.warn(message, meta);
+            }
+          : (message: string, meta?: Record<string, unknown>): void => {
+              logger.info(message, meta);
+            };
 
     logFn(scopedLog(LogContext.RECORDING, `diagnostic issue: ${issue.code}`), {
       message: issue.message,
@@ -1501,7 +1602,8 @@ export function formatDiagnosticReport(result: RecordingDiagnosticResult): strin
     lines.push(`  Attempted: ${result.injectionStats.attempted}`);
     lines.push(`  Successful: ${result.injectionStats.successful}`);
     lines.push(`  Failed: ${result.injectionStats.failed}`);
-    lines.push(`  Skipped: ${result.injectionStats.skipped}`);
+    lines.push(`  Avg Time: ${result.injectionStats.avgInjectionTimeMs.toFixed(1)}ms`);
+    lines.push(`  Last Injection: ${result.injectionStats.lastInjectionAt || 'N/A'}`);
     lines.push('');
   }
 

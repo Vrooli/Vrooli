@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 //go:embed templates/modular/*
@@ -22,7 +24,7 @@ func runInit(args []string) error {
 	templateName := fs.String("template", "modular", "Template to use (only 'modular' supported)")
 	owner := fs.String("owner", "", "Owner contact (defaults to engineering@<scenario>.local)")
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

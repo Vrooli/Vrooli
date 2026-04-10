@@ -6,8 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { LoadingSpinner } from '@shared/ui';
 import { selectors } from '@constants/selectors';
 import { useExecutionStore } from '@/domains/executions';
-import { getConfig } from '@/config';
 import { logger } from '@utils/logger';
+import { fetchWorkflowProjectId } from '@/domains/workflows/services/workflowApi';
 import toast from 'react-hot-toast';
 
 const GlobalExecutionsView = lazy(() =>
@@ -36,16 +36,7 @@ export default function AllExecutionsView() {
         await loadExecution(executionId);
 
         // Find the workflow's project and navigate to the workflow view
-        const config = await getConfig();
-        const workflowsResponse = await fetch(`${config.API_URL}/workflows/${workflowId}`);
-        if (!workflowsResponse.ok) {
-          throw new Error(`Failed to fetch workflow: ${workflowsResponse.status}`);
-        }
-        const workflowData = await workflowsResponse.json();
-        const projectId = workflowData.project_id ?? workflowData.projectId;
-        if (!projectId) {
-          throw new Error('Workflow has no associated project');
-        }
+        const projectId = await fetchWorkflowProjectId(workflowId);
         navigate(`/projects/${projectId}/workflows/${workflowId}`);
       } catch (error) {
         logger.error('Failed to view execution', { executionId, workflowId }, error);

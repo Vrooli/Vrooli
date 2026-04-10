@@ -2,13 +2,13 @@ syntax = "proto3";
 
 package browser_automation_studio.v1;
 
-import "google/protobuf/timestamp.proto";
-import "google/api/annotations.proto";
-import "buf/validate/validate.proto";
-import "browser-automation-studio/v1/base/shared.proto";
 import "browser-automation-studio/v1/actions/action.proto";
-import "browser-automation-studio/v1/workflows/definition.proto";
+import "browser-automation-studio/v1/base/shared.proto";
 import "browser-automation-studio/v1/execution/execution.proto";
+import "browser-automation-studio/v1/workflows/definition.proto";
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api;api";
 
@@ -39,15 +39,11 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-auto
 service WorkflowService {
   // Lists workflows, optionally filtered by project.
   rpc ListWorkflows(ListWorkflowsRequest) returns (ListWorkflowsResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/workflows"
-    };
+    option (google.api.http) = {get: "/api/v1/workflows"};
   }
   // Gets a workflow by ID.
   rpc GetWorkflow(GetWorkflowRequest) returns (GetWorkflowResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/workflows/{workflow_id}"
-    };
+    option (google.api.http) = {get: "/api/v1/workflows/{workflow_id}"};
   }
   // Creates a new workflow in a project.
   rpc CreateWorkflow(CreateWorkflowRequest) returns (CreateWorkflowResponse) {
@@ -65,9 +61,7 @@ service WorkflowService {
   }
   // Deletes a workflow by ID.
   rpc DeleteWorkflow(DeleteWorkflowRequest) returns (DeleteWorkflowResponse) {
-    option (google.api.http) = {
-      delete: "/api/v1/workflows/{workflow_id}"
-    };
+    option (google.api.http) = {delete: "/api/v1/workflows/{workflow_id}"};
   }
   // Executes a workflow by ID/version with optional parameters.
   rpc ExecuteWorkflow(ExecuteWorkflowRequest) returns (ExecuteWorkflowResponse) {
@@ -85,15 +79,11 @@ service WorkflowService {
   }
   // Lists executions, optionally filtered by workflow.
   rpc ListExecutions(ListExecutionsRequest) returns (ListExecutionsResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/executions"
-    };
+    option (google.api.http) = {get: "/api/v1/executions"};
   }
   // Gets an execution by ID.
   rpc GetExecution(GetExecutionRequest) returns (GetExecutionResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/executions/{execution_id}"
-    };
+    option (google.api.http) = {get: "/api/v1/executions/{execution_id}"};
   }
 }
 
@@ -174,7 +164,10 @@ message ListWorkflowsRequest {
   // Filter by folder path.
   optional string folder_path = 2;
   // Pagination: maximum number of results (default: 50, max: 100).
-  optional int32 limit = 3 [(buf.validate.field).int32.gte = 1, (buf.validate.field).int32.lte = 100];
+  optional int32 limit = 3 [
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 100
+  ];
   // Pagination: offset for results (default: 0).
   optional int32 offset = 4 [(buf.validate.field).int32.gte = 0];
 }
@@ -316,7 +309,10 @@ message ListExecutionsRequest {
   // Filter by execution status.
   optional ExecutionStatus status = 2;
   // Pagination: maximum number of results (default: 50, max: 100).
-  optional int32 limit = 3 [(buf.validate.field).int32.gte = 1, (buf.validate.field).int32.lte = 100];
+  optional int32 limit = 3 [
+    (buf.validate.field).int32.gte = 1,
+    (buf.validate.field).int32.lte = 100
+  ];
   // Pagination: offset for results (default: 0).
   optional int32 offset = 4 [(buf.validate.field).int32.gte = 0];
 }

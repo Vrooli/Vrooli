@@ -24,6 +24,7 @@ import (
 	"deployment-manager/secrets"
 	"deployment-manager/swaps"
 	"deployment-manager/telemetry"
+	visualvalidation "deployment-manager/validation"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -38,18 +39,21 @@ type Server struct {
 	Router *mux.Router
 
 	// Domain handlers
-	HealthHandler       *health.Handler
-	FitnessHandler      *fitness.Handler
-	TelemetryHandler    *telemetry.Handler
-	SecretsHandler      *secrets.Handler
-	DependenciesHandler *dependencies.Handler
-	SwapsHandler        *swaps.Handler
-	DeploymentsHandler  *deployments.Handler
-	BundlesHandler      *bundles.Handler
-	ProfilesHandler     *profiles.Handler
-	SigningHandler      *codesigning.Handler
-	BuildHandler        *build.Handler
-	Orchestrator        *deployments.Orchestrator
+	HealthHandler            *health.Handler
+	FitnessHandler           *fitness.Handler
+	TelemetryHandler         *telemetry.Handler
+	SecretsHandler           *secrets.Handler
+	DependenciesHandler      *dependencies.Handler
+	SwapsHandler             *swaps.Handler
+	DeploymentsHandler       *deployments.Handler
+	BundlesHandler           *bundles.Handler
+	ProfilesHandler          *profiles.Handler
+	SigningHandler           *codesigning.Handler
+	BuildHandler             *build.Handler
+	ValidationHandler        *visualvalidation.Handler
+	ApprovalsHandler         *deployments.ApprovalsHandler
+	PublishedVersionsHandler *deployments.PublishedVersionsHandler
+	Orchestrator             *deployments.Orchestrator
 
 	// Repositories
 	ProfilesRepo profiles.Repository
@@ -102,24 +106,39 @@ func New() (*Server, error) {
 	signingChecker := validation.NewPrerequisiteChecker()
 	signingValidatorAdapter := deployments.NewSigningValidatorAdapter(signingRepo, signingValidator, signingChecker)
 
+	// Create approvals repository and ensure schema
+	approvalsRepo := deployments.NewSQLApprovalsRepository(db)
+	if err := approvalsRepo.EnsureSchema(context.Background()); err != nil {
+		LogStructured("warning: failed to ensure approvals schema", map[string]interface{}{"error": err.Error()})
+	}
+
+	// Create published versions repository and ensure schema
+	publishedVersionsRepo := deployments.NewSQLPublishedVersionsRepository(db)
+	if err := publishedVersionsRepo.EnsureSchema(context.Background()); err != nil {
+		LogStructured("warning: failed to ensure published versions schema", map[string]interface{}{"error": err.Error()})
+	}
+
 	srv := &Server{
-		Config:              cfg,
-		DB:                  db,
-		Router:              mux.NewRouter(),
-		ProfilesRepo:        profilesRepo,
-		SigningRepo:         signingRepo,
-		HealthHandler:       health.NewHandler(db),
-		FitnessHandler:      fitness.NewHandler(logFn),
-		TelemetryHandler:    telemetry.NewHandler(logFn),
-		SecretsHandler:      secrets.NewHandler(profilesRepo, logFn),
-		DependenciesHandler: dependencies.NewHandler(logFn),
-		SwapsHandler:        swaps.NewHandler(profilesRepo, logFn),
-		DeploymentsHandler:  deployments.NewHandlerWithSigning(logFn, signingValidatorAdapter),
-		BundlesHandler:      bundles.NewHandlerWithSigning(secrets.NewClient(), profilesRepo, signingRepo, logFn),
-		ProfilesHandler:     profiles.NewHandler(profilesRepo, logFn),
-		SigningHandler:      codesigning.NewHandler(signingRepo, signingValidator, signingChecker, logFn),
-		BuildHandler:        build.NewHandler(profilesRepo, logFn),
-		Orchestrator:        deployments.NewOrchestrator(profilesRepo, logFn),
+		Config:                   cfg,
+		DB:                       db,
+		Router:                   mux.NewRouter(),
+		ProfilesRepo:             profilesRepo,
+		SigningRepo:              signingRepo,
+		HealthHandler:            health.NewHandler(db),
+		FitnessHandler:           fitness.NewHandler(logFn),
+		TelemetryHandler:         telemetry.NewHandler(logFn),
+		SecretsHandler:           secrets.NewHandler(profilesRepo, logFn),
+		DependenciesHandler:      dependencies.NewHandler(logFn),
+		SwapsHandler:             swaps.NewHandler(profilesRepo, logFn),
+		DeploymentsHandler:       deployments.NewHandlerWithSigning(logFn, signingValidatorAdapter),
+		BundlesHandler:           bundles.NewHandlerWithSigning(secrets.NewClient(), profilesRepo, signingRepo, logFn),
+		ProfilesHandler:          profiles.NewHandler(profilesRepo, logFn),
+		SigningHandler:           codesigning.NewHandler(signingRepo, signingValidator, signingChecker, logFn),
+		BuildHandler:             build.NewHandler(profilesRepo, logFn),
+		ValidationHandler:        visualvalidation.NewHandler(visualvalidation.NewSQLRepository(db), approvalsRepo, db, validationVideoDir(), logFn),
+		ApprovalsHandler:         deployments.NewApprovalsHandler(approvalsRepo, logFn),
+		PublishedVersionsHandler: deployments.NewPublishedVersionsHandler(publishedVersionsRepo, logFn),
+		Orchestrator:             deployments.NewOrchestratorFull(profilesRepo, approvalsRepo, publishedVersionsRepo, logFn),
 	}
 
 	srv.setupRoutes()

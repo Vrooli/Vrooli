@@ -11,16 +11,23 @@ Core contract:
 - test-genie executes **only** workflows listed in `bas/registry.json` (which is generated from `bas/cases/**`)
 - workflows are executed **as-authored** (no placeholder substitution or scenario URL rewriting in test-genie)
 - test-genie provides BAS `project_root` (absolute path to `bas/`) and `initial_params` (seed-state.json) and handles isolation + cleanup
+- `bas/registry.json metadata.execution_mode = "observer"` tells the phase to skip playbooks-managed isolation and scenario restarts
+- registry generation prefers requirement refs from `requirements/*.json` and falls back to `metadata.labels.requirements_json` for legacy BAS packs
 
 ## Seed Lifecycle (Isolation + Seed State)
 
 Playbooks run in an isolated data environment. The playbooks phase:
-- provisions temporary Postgres/Redis when required
+- provisions temporary Postgres, Redis, and/or SQLite resources when required by the target scenario manifest
 - applies optional SQL migrations under `bas/seeds/migrations/`
 - restarts the scenario against the temporary resources
 - runs `bas/seeds/seed.go` (or `seed.sh`) to produce `coverage/runtime/seed-state.json`
 - injects seed values into BAS as `parameters.initial_params`
 - restarts the scenario back to normal resources and tears down isolation
+
+Migration directory conventions:
+- `bas/seeds/migrations/*.sql` applies as common migrations
+- `bas/seeds/migrations/postgres/*.sql` applies only for Postgres-backed scenarios
+- `bas/seeds/migrations/sqlite/*.sql` applies only for SQLite-backed scenarios
 
 Workflows that depend on seed data should declare it explicitly:
 - `metadata.labels.seed_required = "true"`
@@ -173,6 +180,8 @@ Regenerate after adding or moving playbooks:
 test-genie registry build
 ```
 
+If every playbook declares the same `metadata.execution_mode`, the registry builder lifts that mode to `bas/registry.json` so the playbooks phase can make one scenario-wide isolation decision before execution starts.
+
 ## Vrooli Ascension Integration
 
 The phase uses Vrooli Ascension (BAS) for workflow execution. BAS is a separate Vrooli scenario that provides a Playwright-based browser automation engine.
@@ -232,9 +241,9 @@ Configure the playbooks phase in `.vrooli/testing.json`:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `TEST_GENIE_PLAYBOOKS_RETAIN` | `0` | Set to `1` before running Playbooks to retain the temporary Postgres/Redis instances for inspection. Observations will include ready-to-run `psql`/`redis-cli` commands. |
+| `TEST_GENIE_PLAYBOOKS_RETAIN` | `0` | Set to `1` before running Playbooks to retain the temporary Postgres/Redis/SQLite resources for inspection. Observations will include ready-to-run `psql`/`redis-cli` commands and SQLite file paths when applicable. |
 
-Set `TEST_GENIE_PLAYBOOKS_RETAIN=1` before running the Playbooks phase to keep the temporary Postgres/Redis instances alive after execution. The phase logs will print `psql`/`redis-cli` commands targeting the retained resources. By default, isolation is torn down and the scenario is restarted against its normal resources after Playbooks completes.
+Set `TEST_GENIE_PLAYBOOKS_RETAIN=1` before running the Playbooks phase to keep the temporary Postgres/Redis/SQLite resources alive after execution. The phase logs will print `psql`/`redis-cli` commands targeting retained services and will report retained SQLite database paths when SQLite isolation is provisioned. By default, isolation is torn down and the scenario is restarted against its normal resources after Playbooks completes.
 
 ## Related Documentation
 

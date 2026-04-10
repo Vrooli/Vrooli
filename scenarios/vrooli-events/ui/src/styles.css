@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+
+  /* ── Surface tokens ── */
+  --surface-base: theme(colors.slate.950);
+  --surface-sidebar: theme(colors.slate.900 / 50%);
+  --surface-elevated: theme(colors.white / 5%);
+  --surface-overlay: theme(colors.slate.900 / 80%);
+  --surface-inset: theme(colors.black / 20%);
+  --surface-code: theme(colors.black / 40%);
+
+  /* ── Border tokens ── */
+  --border-default: theme(colors.white / 10%);
+  --border-subtle: theme(colors.white / 5%);
+
+  /* ── Text tokens ── */
+  --text-primary: theme(colors.slate.50);
+  --text-secondary: theme(colors.slate.200);
+  --text-muted: theme(colors.slate.400);
+  --text-faint: theme(colors.slate.500);
+  --text-accent: theme(colors.indigo.400);
+  --text-accent-light: theme(colors.indigo.300);
+
+  /* ── Status tokens ── */
+  --status-healthy: theme(colors.green.400);
+  --status-healthy-bright: theme(colors.green.500);
+  --status-degraded: theme(colors.amber.400);
+  --status-unhealthy: theme(colors.red.400);
+  --status-unhealthy-bright: theme(colors.red.500);
+  --status-unknown: theme(colors.slate.500);
+
+  /* ── Error tokens ── */
+  --error-text: theme(colors.red.300);
+  --error-icon: theme(colors.red.400);
+  --error-bg: theme(colors.red.500 / 5%);
+  --error-border: theme(colors.red.500 / 20%);
+  --error-link: theme(colors.red.400);
+  --error-link-hover: theme(colors.red.300);
+
+  /* ── Button tokens ── */
+  --btn-default-bg: theme(colors.slate.50);
+  --btn-default-text: theme(colors.slate.900);
+  --btn-default-hover-bg: theme(colors.white);
+  --btn-outline-border: theme(colors.white / 30%);
+  --btn-outline-text: theme(colors.white);
+  --btn-outline-hover-bg: theme(colors.white / 10%);
+  --btn-focus-ring: theme(colors.white / 50%);
+
+  /* ── Radius tokens ── */
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}

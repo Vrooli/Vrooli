@@ -11,6 +11,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
+	"github.com/vrooli/browser-automation-studio/middleware"
+	"github.com/vrooli/browser-automation-studio/services/credits"
+	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
 
 // DOMExtractor defines the interface for extracting DOM trees.
@@ -28,17 +31,19 @@ type ElementAnalyzer interface {
 // AIAnalysisHandler handles AI-powered element analysis using Ollama.
 // It focuses on HTTP concerns and delegates domain logic to an ElementAnalyzer.
 type AIAnalysisHandler struct {
-	log      *logrus.Logger
-	analyzer ElementAnalyzer
-	timeout  time.Duration
+	log           *logrus.Logger
+	analyzer      ElementAnalyzer
+	timeout       time.Duration
+	creditService credits.CreditService
 }
 
 type aiAnalysisConfig struct {
-	analyzer     ElementAnalyzer
-	domExtractor DOMExtractor
-	ollamaClient OllamaClient
-	model        string
-	timeout      time.Duration
+	analyzer      ElementAnalyzer
+	domExtractor  DOMExtractor
+	ollamaClient  OllamaClient
+	model         string
+	timeout       time.Duration
+	creditService credits.CreditService
 }
 
 // AIAnalysisOption configures the AIAnalysisHandler.
@@ -79,6 +84,13 @@ func WithAIAnalysisTimeout(timeout time.Duration) AIAnalysisOption {
 	}
 }
 
+// WithAIAnalysisCreditService sets the credit service for AI usage tracking.
+func WithAIAnalysisCreditService(svc credits.CreditService) AIAnalysisOption {
+	return func(cfg *aiAnalysisConfig) {
+		cfg.creditService = svc
+	}
+}
+
 // NewAIAnalysisHandler creates a new AI analysis handler with optional configuration.
 func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler, opts ...AIAnalysisOption) *AIAnalysisHandler {
 	cfg := aiAnalysisConfig{
@@ -110,14 +122,17 @@ func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler, opts ...AI
 	}
 
 	return &AIAnalysisHandler{
-		log:      log,
-		analyzer: analyzer,
-		timeout:  cfg.timeout,
+		log:           log,
+		analyzer:      analyzer,
+		timeout:       cfg.timeout,
+		creditService: cfg.creditService,
 	}
 }
 
 // AIAnalyzeElements handles POST /api/v1/ai-analyze-elements.
 func (h *AIAnalysisHandler) AIAnalyzeElements(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var req AIAnalyzeRequest
 	if err := httpjson.Decode(w, r, &req); err != nil {
 		h.log.WithError(err).Error("Failed to decode AI analyze request")
@@ -130,12 +145,39 @@ func (h *AIAnalysisHandler) AIAnalyzeElements(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Check AI operation permission (tier + credits)
+	var userID string
+	hasBYOK := middleware.HasBYOKKey(ctx)
+	if h.creditService != nil {
+		userID = entitlement.UserIdentityFromContext(ctx)
+		if userID == "" {
+			userID = "anonymous"
+		}
+
+		canProceed, errCode, errMsg, remaining, err := h.creditService.CanPerformAIOperation(ctx, userID, credits.OpAIElementAnalyze, hasBYOK)
+		if err != nil {
+			h.log.WithError(err).Warn("ai_analysis: failed to check AI operation permission")
+		} else if !canProceed {
+			status := http.StatusForbidden
+			if errCode == "INSUFFICIENT_CREDITS" {
+				status = http.StatusPaymentRequired
+			}
+			RespondError(w, &APIError{
+				Status:  status,
+				Code:    errCode,
+				Message: errMsg,
+				Details: map[string]string{"remaining": fmt.Sprintf("%d", remaining)},
+			})
+			return
+		}
+	}
+
 	h.log.WithFields(logrus.Fields{
 		"url":    req.URL,
 		"intent": req.Intent,
 	}).Info("AI analyzing elements")
 
-	ctx, cancel := context.WithTimeout(r.Context(), h.timeout)
+	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
 
 	suggestions, err := h.analyzeElementsWithAI(ctx, req.URL, req.Intent)
@@ -145,8 +187,21 @@ func (h *AIAnalysisHandler) AIAnalyzeElements(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Charge credits after successful AI operation (BYOK users get logged with 0 cost)
+	if h.creditService != nil && userID != "" {
+		if _, err := h.creditService.Charge(ctx, credits.ChargeRequest{
+			UserIdentity: userID,
+			Operation:    credits.OpAIElementAnalyze,
+			IsBYOK:       hasBYOK,
+		}); err != nil {
+			h.log.WithError(err).Warn("ai_analysis: failed to charge credits")
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(suggestions)
+	if err := json.NewEncoder(w).Encode(suggestions); err != nil {
+		h.log.WithError(err).Warn("Failed to encode AI analysis response")
+	}
 }
 
 // analyzeElementsWithAI delegates to the injected analyzer.

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   RefreshCw,
   Loader2,
@@ -10,12 +9,14 @@ import {
   Settings,
 } from "lucide-react";
 import { useLiveState, getTimeSince } from "../../../hooks/useLiveState";
+import { useDeploymentUrl } from "../../../hooks/useDeploymentUrl";
 import { ProcessCards } from "./ProcessCards";
 import { PortTable } from "./PortTable";
 import { SystemResources } from "./SystemResources";
 import { CaddyStatus } from "./CaddyStatus";
 import { VPSManagement } from "./VPSManagement";
 import { cn } from "../../../lib/utils";
+import type { LiveStateSubtab } from "../../../types/url";
 
 interface LiveStateTabProps {
   deploymentId: string;
@@ -24,7 +25,8 @@ interface LiveStateTabProps {
 
 export function LiveStateTab({ deploymentId, deploymentName }: LiveStateTabProps) {
   const { data: liveState, isLoading, error, refetch, isFetching } = useLiveState(deploymentId);
-  const [activeSection, setActiveSection] = useState<"processes" | "ports" | "system" | "caddy" | "management">("processes");
+  const { state: urlState, setSubtab } = useDeploymentUrl();
+  const activeSection = urlState.subtab;
 
   const handleRefresh = () => {
     refetch();
@@ -60,12 +62,12 @@ export function LiveStateTab({ deploymentId, deploymentName }: LiveStateTabProps
     );
   }
 
-  const sections = [
-    { id: "processes" as const, label: "Processes", icon: Activity },
-    { id: "ports" as const, label: "Network", icon: Network },
-    { id: "system" as const, label: "System", icon: HardDrive },
-    { id: "caddy" as const, label: "Edge/TLS", icon: Shield },
-    { id: "management" as const, label: "VPS Management", icon: Settings },
+  const sections: { id: LiveStateSubtab; label: string; icon: typeof Activity }[] = [
+    { id: "processes", label: "Processes", icon: Activity },
+    { id: "ports", label: "Network", icon: Network },
+    { id: "system", label: "System", icon: HardDrive },
+    { id: "caddy", label: "Edge/TLS", icon: Shield },
+    { id: "management", label: "VPS Management", icon: Settings },
   ];
 
   return (
@@ -100,7 +102,7 @@ export function LiveStateTab({ deploymentId, deploymentName }: LiveStateTabProps
         {sections.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
-            onClick={() => setActiveSection(id)}
+            onClick={() => setSubtab(id)}
             className={cn(
               "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg",
               activeSection === id

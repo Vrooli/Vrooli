@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -115,6 +116,13 @@ type Repository interface {
 
 	// MarkChangesCommitted updates applied_changes records with commit information.
 	MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error
+
+	// MarkChangesCommittedByPath marks pending applied_changes as committed for files
+	// matching the given paths. Used by external tools that commit outside WS's own flow.
+	MarkChangesCommittedByPath(ctx context.Context, projectRoot string, filePaths []string, commitHash, commitMessage string) (int, int, error)
+
+	// GetPendingChangesByRun returns pending applied changes grouped by agent_manager_run_id.
+	GetPendingChangesByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error)
 }
 
 // TxRepository is a Repository bound to a transaction.
@@ -154,13 +162,13 @@ func (r *SandboxRepository) Create(ctx context.Context, s *types.Sandbox) error 
 
 	query := `
 		INSERT INTO sandboxes (
-			id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status,
+			id, name, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status,
 			driver, driver_version, tags, metadata, behavior, idempotency_key, version, base_commit_hash
-		) VALUES ($1, $2, $3, NULLIF($4::text[], ARRAY[]::text[]), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NULLIF($15, ''), $16, NULLIF($17, ''))
+		) VALUES ($1, NULLIF($2, ''), $3, $4, NULLIF($5::text[], ARRAY[]::text[]), $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NULLIF($16, ''), $17, NULLIF($18, ''))
 		RETURNING created_at, last_used_at, updated_at`
 
 	return r.db.QueryRowContext(ctx, query,
-		s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
+		s.ID, s.Name, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
 		s.Driver, s.DriverVersion, pq.Array(s.Tags), metadataJSON, behaviorJSON, s.IdempotencyKey, s.Version, s.BaseCommitHash,
 	).Scan(&s.CreatedAt, &s.LastUsedAt, &s.UpdatedAt)
 }
@@ -168,7 +176,7 @@ func (r *SandboxRepository) Create(ctx context.Context, s *types.Sandbox) error 
 // Get retrieves a sandbox by ID.
 func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 	query := `
-		SELECT id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
+		SELECT id, COALESCE(name, ''), scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
@@ -185,7 +193,7 @@ func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandb
 	var reservedPath sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&s.ID, &s.ScopePath, &reservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+		&s.ID, &s.Name, &s.ScopePath, &reservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
@@ -343,6 +351,9 @@ func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) 
 	if filter.ScopePath != "" {
 		qb.addCondition("scope_path", "=", filter.ScopePath)
 	}
+	if filter.Name != "" {
+		qb.addCondition("name", "ILIKE", "%"+filter.Name+"%")
+	}
 	if !filter.CreatedFrom.IsZero() {
 		qb.addCondition("created_at", ">=", filter.CreatedFrom)
 	}
@@ -378,7 +389,7 @@ func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) 
 	limitArg := qb.nextArgNum()
 	offsetArg := limitArg + 1
 	query := `
-		SELECT id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
+		SELECT id, COALESCE(name, ''), scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
@@ -406,7 +417,7 @@ func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) 
 		var reservedPaths pq.StringArray
 
 		err := rows.Scan(
-			&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+			&s.ID, &s.Name, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 			&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 			&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 			&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
@@ -652,7 +663,7 @@ func (r *SandboxRepository) FindByIdempotencyKey(ctx context.Context, key string
 	}
 
 	query := `
-		SELECT id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
+		SELECT id, COALESCE(name, ''), scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
@@ -668,7 +679,7 @@ func (r *SandboxRepository) FindByIdempotencyKey(ctx context.Context, key string
 	var reservedPaths pq.StringArray
 
 	err := r.db.QueryRowContext(ctx, query, key).Scan(
-		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+		&s.ID, &s.Name, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
@@ -802,13 +813,13 @@ func (r *TxSandboxRepository) Create(ctx context.Context, s *types.Sandbox) erro
 
 	query := `
 		INSERT INTO sandboxes (
-			id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status,
+			id, name, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status,
 			driver, driver_version, tags, metadata, behavior, idempotency_key, version
-		) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4::text[], ARRAY[]::text[]), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NULLIF($15, ''), $16)
+		) VALUES ($1, NULLIF($2, ''), $3, NULLIF($4, ''), NULLIF($5::text[], ARRAY[]::text[]), $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NULLIF($16, ''), $17)
 		RETURNING created_at, last_used_at, updated_at`
 
 	return r.tx.QueryRowContext(ctx, query,
-		s.ID, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
+		s.ID, s.Name, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
 		s.Driver, s.DriverVersion, pq.Array(s.Tags), metadataJSON, behaviorJSON, s.IdempotencyKey, s.Version,
 	).Scan(&s.CreatedAt, &s.LastUsedAt, &s.UpdatedAt)
 }
@@ -816,7 +827,7 @@ func (r *TxSandboxRepository) Create(ctx context.Context, s *types.Sandbox) erro
 // Get retrieves a sandbox by ID within the transaction.
 func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
 	query := `
-		SELECT id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
+		SELECT id, COALESCE(name, ''), scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
@@ -832,7 +843,7 @@ func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.San
 	var reservedPaths pq.StringArray
 
 	err := r.tx.QueryRowContext(ctx, query, id).Scan(
-		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+		&s.ID, &s.Name, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
@@ -1049,7 +1060,7 @@ func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key stri
 	}
 
 	query := `
-		SELECT id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
+		SELECT id, COALESCE(name, ''), scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
@@ -1066,7 +1077,7 @@ func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key stri
 	var reservedPaths pq.StringArray
 
 	err := r.tx.QueryRowContext(ctx, query, key).Scan(
-		&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+		&s.ID, &s.Name, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
@@ -1240,7 +1251,7 @@ func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.G
 	limitArg := qb.nextArgNum()
 
 	query := `
-		SELECT id, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
+		SELECT id, COALESCE(name, ''), scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
 			created_at, last_used_at, stopped_at, approved_at, deleted_at,
 			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
 			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
@@ -1268,7 +1279,7 @@ func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.G
 		var reservedPaths pq.StringArray
 
 		err := rows.Scan(
-			&s.ID, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+			&s.ID, &s.Name, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
 			&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
 			&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
 			&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
@@ -1313,13 +1324,18 @@ func (r *SandboxRepository) RecordAppliedChanges(ctx context.Context, changes []
 	query := `
 		INSERT INTO applied_changes (
 			id, sandbox_id, sandbox_owner, sandbox_owner_type,
-			file_path, project_root, change_type, file_size
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+			file_path, project_root, change_type, file_size, agent_manager_run_id
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
 	for _, change := range changes {
+		var runID interface{}
+		if change.AgentManagerRunID != "" {
+			runID = change.AgentManagerRunID
+		}
 		_, err := r.db.ExecContext(ctx, query,
 			change.ID, change.SandboxID, change.SandboxOwner, change.SandboxOwnerType,
 			change.FilePath, change.ProjectRoot, change.ChangeType, change.FileSize,
+			runID,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to record applied change for %s: %w", change.FilePath, err)
@@ -1411,7 +1427,8 @@ func (r *SandboxRepository) GetPendingChangeFiles(ctx context.Context, projectRo
 
 	query := `
 		SELECT id, sandbox_id, sandbox_owner, sandbox_owner_type,
-			   file_path, project_root, change_type, file_size, applied_at
+			   file_path, project_root, change_type, file_size, applied_at,
+			   COALESCE(agent_manager_run_id, '')
 		FROM applied_changes
 		` + whereClause + `
 		ORDER BY applied_at ASC`
@@ -1428,6 +1445,7 @@ func (r *SandboxRepository) GetPendingChangeFiles(ctx context.Context, projectRo
 		err := rows.Scan(
 			&change.ID, &change.SandboxID, &change.SandboxOwner, &change.SandboxOwnerType,
 			&change.FilePath, &change.ProjectRoot, &change.ChangeType, &change.FileSize, &change.AppliedAt,
+			&change.AgentManagerRunID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan pending change file: %w", err)
@@ -1458,7 +1476,8 @@ func (r *SandboxRepository) GetFileProvenance(ctx context.Context, filePath, pro
 	query := `
 		SELECT id, sandbox_id, sandbox_owner, sandbox_owner_type,
 			   file_path, project_root, change_type, file_size, applied_at,
-			   committed_at, COALESCE(commit_hash, ''), COALESCE(commit_message, '')
+			   committed_at, COALESCE(commit_hash, ''), COALESCE(commit_message, ''),
+			   COALESCE(agent_manager_run_id, '')
 		FROM applied_changes
 		` + whereClause + `
 		ORDER BY applied_at DESC
@@ -1479,6 +1498,7 @@ func (r *SandboxRepository) GetFileProvenance(ctx context.Context, filePath, pro
 			&change.ID, &change.SandboxID, &change.SandboxOwner, &change.SandboxOwnerType,
 			&change.FilePath, &change.ProjectRoot, &change.ChangeType, &change.FileSize, &change.AppliedAt,
 			&change.CommittedAt, &change.CommitHash, &change.CommitMessage,
+			&change.AgentManagerRunID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan file provenance: %w", err)
@@ -1517,6 +1537,118 @@ func (r *SandboxRepository) MarkChangesCommitted(ctx context.Context, ids []uuid
 	return nil
 }
 
+// MarkChangesCommittedByPath marks pending applied_changes as committed for files
+// matching the given paths. This is called by external tools (e.g., git-control-tower)
+// that commit files outside workspace-sandbox's own commit flow.
+func (r *SandboxRepository) MarkChangesCommittedByPath(ctx context.Context, projectRoot string, filePaths []string, commitHash, commitMessage string) (int, int, error) {
+	if len(filePaths) == 0 {
+		return 0, 0, nil
+	}
+
+	// Build file path set for matching (support both absolute and relative paths)
+	placeholders := make([]string, len(filePaths))
+	args := make([]interface{}, 0, len(filePaths)+4)
+	args = append(args, time.Now(), commitHash, commitMessage, projectRoot)
+
+	for i, fp := range filePaths {
+		placeholders[i] = fmt.Sprintf("$%d", i+5)
+		// Normalize: if relative, join with project root
+		if !strings.HasPrefix(fp, "/") {
+			fp = filepath.Join(projectRoot, fp)
+		}
+		args = append(args, fp)
+	}
+
+	query := `
+		UPDATE applied_changes
+		SET committed_at = $1, commit_hash = $2, commit_message = $3
+		WHERE project_root = $4
+		  AND file_path IN (` + strings.Join(placeholders, ",") + `)
+		  AND committed_at IS NULL`
+
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to mark changes committed by path: %w", err)
+	}
+
+	marked, _ := result.RowsAffected()
+	notFound := len(filePaths) - int(marked)
+	if notFound < 0 {
+		notFound = 0
+	}
+
+	return int(marked), notFound, nil
+}
+
+// GetPendingChangesByRun returns pending applied changes grouped by agent_manager_run_id.
+// Changes without a run ID are grouped under an empty string key.
+func (r *SandboxRepository) GetPendingChangesByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error) {
+	var args []interface{}
+	whereClause := "WHERE committed_at IS NULL"
+	argNum := 1
+
+	if projectRoot != "" {
+		whereClause += fmt.Sprintf(" AND project_root = $%d", argNum)
+		args = append(args, projectRoot)
+	}
+
+	query := `
+		SELECT COALESCE(agent_manager_run_id, ''), sandbox_id, sandbox_owner,
+			   file_path, change_type, applied_at
+		FROM applied_changes
+		` + whereClause + `
+		ORDER BY COALESCE(agent_manager_run_id, ''), applied_at ASC`
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query pending changes by run: %w", err)
+	}
+	defer rows.Close()
+
+	groupMap := make(map[string]*types.ProvenanceRunGroup)
+	var groupOrder []string
+
+	for rows.Next() {
+		var runID, sandboxID, owner, filePath, changeType string
+		var appliedAt time.Time
+		if err := rows.Scan(&runID, &sandboxID, &owner, &filePath, &changeType, &appliedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan pending change by run: %w", err)
+		}
+
+		group, exists := groupMap[runID]
+		if !exists {
+			group = &types.ProvenanceRunGroup{
+				RunID:        runID,
+				SandboxID:    sandboxID,
+				SandboxOwner: owner,
+			}
+			groupMap[runID] = group
+			groupOrder = append(groupOrder, runID)
+		}
+
+		relPath := filePath
+		if projectRoot != "" {
+			relPath = strings.TrimPrefix(filePath, projectRoot+"/")
+		}
+
+		group.Files = append(group.Files, types.ProvenanceFile{
+			FilePath:     filePath,
+			RelativePath: relPath,
+			ChangeType:   changeType,
+			AppliedAt:    appliedAt,
+		})
+		if appliedAt.After(group.LatestAppliedAt) {
+			group.LatestAppliedAt = appliedAt
+		}
+	}
+
+	result := make([]types.ProvenanceRunGroup, 0, len(groupOrder))
+	for _, key := range groupOrder {
+		result = append(result, *groupMap[key])
+	}
+	return result, nil
+}
+
 // --- Provenance Tracking for TxSandboxRepository (stubs) ---
 
 // RecordAppliedChanges is not implemented for transactions.
@@ -1542,4 +1674,14 @@ func (r *TxSandboxRepository) GetFileProvenance(ctx context.Context, filePath, p
 // MarkChangesCommitted is not implemented for transactions.
 func (r *TxSandboxRepository) MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error {
 	return fmt.Errorf("MarkChangesCommitted not implemented for transactions")
+}
+
+// MarkChangesCommittedByPath is not implemented for transactions.
+func (r *TxSandboxRepository) MarkChangesCommittedByPath(ctx context.Context, projectRoot string, filePaths []string, commitHash, commitMessage string) (int, int, error) {
+	return 0, 0, fmt.Errorf("MarkChangesCommittedByPath not implemented for transactions")
+}
+
+// GetPendingChangesByRun is not implemented for transactions.
+func (r *TxSandboxRepository) GetPendingChangesByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error) {
+	return nil, fmt.Errorf("GetPendingChangesByRun not implemented for transactions")
 }

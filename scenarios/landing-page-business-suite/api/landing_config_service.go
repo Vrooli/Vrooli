@@ -1,3 +1,6 @@
+// DOC: docs/reference/api/landing.md - Public landing page configuration API
+// DOC: docs/concepts/CONCEPTS.md#data-flow-architecture - Data flow overview
+// DOC: PRD.md#OT-P0-031 - API-driven landing config + fallback requirement
 package main
 
 import (
@@ -542,8 +545,14 @@ var (
 type fallbackProvider func() LandingConfigPayload
 
 func init() {
-	path := filepath.Join("..", ".vrooli", "variants", "fallback.json")
+	primaryPath := filepath.Join("..", ".vrooli", "fallback", "fallback.json")
+	legacyPath := filepath.Join("..", ".vrooli", "variants", "fallback.json")
+	path := primaryPath
 	payload, err := loadFallbackLandingFromFile(path)
+	if err != nil {
+		path = legacyPath
+		payload, err = loadFallbackLandingFromFile(path)
+	}
 	if err != nil {
 		log.Printf("failed to read fallback config at %s: %v; using baked defaults", path, err)
 		payload, err = parseFallbackLandingConfig(defaultFallbackLandingJSON)
@@ -551,28 +560,32 @@ func init() {
 			panic(fmt.Sprintf("default fallback config invalid: %v", err))
 		}
 	}
+	//nolint:govet // fallback payload contains proto types with internal locks
 	fallbackLanding = payload
 }
 
 // LandingConfigService aggregates variant, section, pricing, and download data.
+// NOTE: Variants and branding are now stored in JSON files and accessed via ConfigStore.
+// The deprecated DB-backed services have been removed.
 type LandingConfigService struct {
-	variantService   *VariantService
-	contentService   *ContentService
 	planService      *PlanService
 	downloadService  *DownloadService
-	brandingService  *BrandingService
+	configStore      *ConfigStore
+	stripeService    *StripeService
 	fallbackProvider fallbackProvider
 }
 
 // LandingConfigResponse is returned by GET /landing-config.
 type LandingConfigResponse struct {
-	Variant   LandingVariantSummary `json:"variant"`
-	Sections  []LandingSection      `json:"sections"`
-	Pricing   *PricingOverview      `json:"pricing"`
-	Downloads []DownloadApp         `json:"downloads"`
-	Header    LandingHeaderConfig   `json:"header"`
-	Branding  *LandingBranding      `json:"branding,omitempty"`
-	Fallback  bool                  `json:"fallback"`
+	Variant        LandingVariantSummary `json:"variant"`
+	Sections       []LandingSection      `json:"sections"`
+	Pricing        *PricingOverview      `json:"pricing"`
+	Downloads      []DownloadApp         `json:"downloads"`
+	Header         LandingHeaderConfig   `json:"header"`
+	Branding       *LandingBranding      `json:"branding,omitempty"`
+	CouponMappings map[string]string     `json:"coupon_mappings,omitempty"`
+	IntroOffers    []StripeCoupon        `json:"intro_offers,omitempty"`
+	Fallback       bool                  `json:"fallback"`
 }
 
 // LandingBranding contains public branding fields for the frontend.
@@ -585,6 +598,8 @@ type LandingBranding struct {
 	ThemePrimaryColor    *string `json:"theme_primary_color,omitempty"`
 	ThemeBackgroundColor *string `json:"theme_background_color,omitempty"`
 	SupportChatURL       *string `json:"support_chat_url,omitempty"`
+	ComingSoonEnabled    *bool   `json:"coming_soon_enabled,omitempty"`
+	ComingSoonMessage    *string `json:"coming_soon_message,omitempty"`
 }
 
 type LandingVariantSummary struct {
@@ -610,19 +625,18 @@ type LandingConfigPayload struct {
 	Header    LandingHeaderConfig   `json:"header"`
 }
 
-func NewLandingConfigService(
-	variantService *VariantService,
-	contentService *ContentService,
+// NewLandingConfigServiceWithConfigStore creates a LandingConfigService using ConfigStore (JSON files as source of truth)
+func NewLandingConfigServiceWithConfigStore(
+	configStore *ConfigStore,
 	planService *PlanService,
 	downloadService *DownloadService,
-	brandingService *BrandingService,
+	stripeService *StripeService,
 ) *LandingConfigService {
 	return &LandingConfigService{
-		variantService:   variantService,
-		contentService:   contentService,
+		configStore:      configStore,
 		planService:      planService,
 		downloadService:  downloadService,
-		brandingService:  brandingService,
+		stripeService:    stripeService,
 		fallbackProvider: defaultFallbackProvider,
 	}
 }
@@ -633,6 +647,12 @@ func (s *LandingConfigService) UseFallbackProvider(provider fallbackProvider) {
 }
 
 func (s *LandingConfigService) GetLandingConfig(ctx context.Context, variantSlug string) (*LandingConfigResponse, error) {
+	// Use ConfigStore (JSON files as source of truth)
+	return s.getLandingConfigFromConfigStore(ctx, variantSlug)
+}
+
+// getLandingConfigFromConfigStore uses ConfigStore to fetch landing config
+func (s *LandingConfigService) getLandingConfigFromConfigStore(ctx context.Context, variantSlug string) (*LandingConfigResponse, error) {
 	pricing, err := s.planService.GetPricingOverview()
 	if err != nil {
 		return s.fallbackWithReason("pricing_fetch_failed", err, nil)
@@ -643,14 +663,20 @@ func (s *LandingConfigService) GetLandingConfig(ctx context.Context, variantSlug
 		return s.fallbackWithReason("download_list_failed", err, nil)
 	}
 
-	var variant *Variant
+	var variantSnapshot *VariantSnapshot
 	if variantSlug != "" {
-		variant, err = s.variantService.GetVariantBySlug(variantSlug)
+		variantSnapshot, err = s.configStore.GetVariant(variantSlug)
 	} else {
-		variant, err = s.variantService.SelectVariant()
+		// Use weighted random selection for A/B testing
+		variants := s.configStore.ListVariants()
+		if len(variants) > 0 {
+			variantSnapshot = selectWeightedRandomVariant(variants)
+		} else {
+			err = fmt.Errorf("no variants available")
+		}
 	}
-	if err != nil || variant == nil {
-		reason := "weighted_selection_failed"
+	if err != nil || variantSnapshot == nil {
+		reason := "variant_selection_failed"
 		meta := map[string]interface{}{}
 		if variantSlug != "" {
 			reason = "variant_lookup_failed"
@@ -659,64 +685,88 @@ func (s *LandingConfigService) GetLandingConfig(ctx context.Context, variantSlug
 		return s.fallbackWithReason(reason, err, meta)
 	}
 
-	sections, err := s.contentService.GetPublicSections(int64(variant.ID))
-	if err != nil {
-		return s.fallbackWithReason("section_fetch_failed", err, map[string]interface{}{
-			"variant_id":   variant.ID,
-			"variant_slug": variant.Slug,
-		})
+	// Fetch branding from ConfigStore
+	var branding *LandingBranding
+	siteBranding := s.configStore.GetBranding()
+	if siteBranding != nil {
+		branding = &LandingBranding{
+			SiteName:             siteBranding.SiteName,
+			Tagline:              siteBranding.Tagline,
+			LogoURL:              siteBranding.LogoURL,
+			LogoIconURL:          siteBranding.LogoIconURL,
+			FaviconURL:           siteBranding.FaviconURL,
+			ThemePrimaryColor:    siteBranding.ThemePrimaryColor,
+			ThemeBackgroundColor: siteBranding.ThemeBackgroundColor,
+			SupportChatURL:       siteBranding.SupportChatURL,
+			ComingSoonEnabled:    siteBranding.ComingSoonEnabled,
+			ComingSoonMessage:    siteBranding.ComingSoonMessage,
+		}
 	}
 
-	// Fetch branding (non-critical - don't fail on error)
-	var branding *LandingBranding
-	if s.brandingService != nil {
-		if siteBranding, err := s.brandingService.Get(); err == nil && siteBranding != nil {
-			branding = &LandingBranding{
-				SiteName:             siteBranding.SiteName,
-				Tagline:              siteBranding.Tagline,
-				LogoURL:              siteBranding.LogoURL,
-				LogoIconURL:          siteBranding.LogoIconURL,
-				FaviconURL:           siteBranding.FaviconURL,
-				ThemePrimaryColor:    siteBranding.ThemePrimaryColor,
-				ThemeBackgroundColor: siteBranding.ThemeBackgroundColor,
-				SupportChatURL:       siteBranding.SupportChatURL,
+	// Fetch coupon mappings and resolve intro offers for public display
+	couponMappings := s.planService.GetCouponMappings()
+	var introOffers []StripeCoupon
+	if len(couponMappings) > 0 && s.stripeService != nil {
+		seen := make(map[string]bool)
+		for _, couponID := range couponMappings {
+			if !seen[couponID] {
+				seen[couponID] = true
+				if coupon, err := s.stripeService.GetCoupon(ctx, couponID); err == nil && coupon != nil {
+					introOffers = append(introOffers, *coupon)
+				}
 			}
 		}
 	}
 
 	response := &LandingConfigResponse{
 		Variant: LandingVariantSummary{
-			ID:          variant.ID,
-			Slug:        variant.Slug,
-			Name:        variant.Name,
-			Description: variant.Description,
-			Axes:        variant.Axes,
+			Slug:        variantSnapshot.Variant.Slug,
+			Name:        variantSnapshot.Variant.Name,
+			Description: variantSnapshot.Variant.Description,
+			Axes:        variantSnapshot.Variant.Axes,
 		},
-		Header:    variant.HeaderConfig,
-		Pricing:   pricing,
-		Downloads: downloads,
-		Branding:  branding,
-		Fallback:  false,
+		Header:         variantSnapshot.Variant.HeaderConfig,
+		Pricing:        pricing,
+		Downloads:      downloads,
+		Branding:       branding,
+		CouponMappings: couponMappings,
+		IntroOffers:    introOffers,
+		Fallback:       false,
 	}
 
-	landingSections := make([]LandingSection, 0, len(sections))
-	for _, section := range sections {
-		landingSections = append(landingSections, LandingSection{
-			SectionType: section.SectionType,
-			Content:     section.Content,
-			Order:       section.Order,
-			Enabled:     section.Enabled,
-		})
+	// Convert sections from VariantSnapshot format to LandingSection
+	landingSections := make([]LandingSection, 0, len(variantSnapshot.Sections))
+	for _, section := range variantSnapshot.Sections {
+		if section.Enabled {
+			var content map[string]interface{}
+			if len(section.Content) > 0 {
+				if err := json.Unmarshal(section.Content, &content); err != nil {
+					logStructuredError("section_content_unmarshal_failed", map[string]interface{}{
+						"variant_slug": variantSnapshot.Variant.Slug,
+						"section_type": section.SectionType,
+						"error":        err.Error(),
+					})
+					content = make(map[string]interface{})
+				}
+			} else {
+				content = make(map[string]interface{})
+			}
+			landingSections = append(landingSections, LandingSection{
+				SectionType: section.SectionType,
+				Content:     content,
+				Order:       section.Order,
+				Enabled:     section.Enabled,
+			})
+		}
 	}
 	sort.SliceStable(landingSections, func(i, j int) bool {
 		return landingSections[i].Order < landingSections[j].Order
 	})
 
 	// ASSUMPTION: Every active variant must render at least one section and expose a hero.
-	// If admins disable the hero or all sections we treat it as a misconfiguration and fail closed.
 	if err := ensureRenderableSections(landingSections); err != nil {
 		return s.fallbackWithReason("section_renderability_failed", err, map[string]interface{}{
-			"variant_slug": variant.Slug,
+			"variant_slug": variantSnapshot.Variant.Slug,
 		})
 	}
 
@@ -746,8 +796,8 @@ func (s *LandingConfigService) fallbackResponse(mark bool) *LandingConfigRespons
 	}
 
 	// Try to include branding even in fallback
-	if s.brandingService != nil {
-		if siteBranding, err := s.brandingService.Get(); err == nil && siteBranding != nil {
+	if s.configStore != nil {
+		if siteBranding := s.configStore.GetBranding(); siteBranding != nil {
 			response.Branding = &LandingBranding{
 				SiteName:             siteBranding.SiteName,
 				Tagline:              siteBranding.Tagline,
@@ -757,6 +807,8 @@ func (s *LandingConfigService) fallbackResponse(mark bool) *LandingConfigRespons
 				ThemePrimaryColor:    siteBranding.ThemePrimaryColor,
 				ThemeBackgroundColor: siteBranding.ThemeBackgroundColor,
 				SupportChatURL:       siteBranding.SupportChatURL,
+				ComingSoonEnabled:    siteBranding.ComingSoonEnabled,
+				ComingSoonMessage:    siteBranding.ComingSoonMessage,
 			}
 		}
 	}
@@ -786,6 +838,7 @@ func (s *LandingConfigService) fallbackPayload() LandingConfigPayload {
 	return cloneLandingPayload(provider())
 }
 
+//nolint:govet // returns proto-backed payload by value for legacy callers
 func defaultFallbackProvider() LandingConfigPayload {
 	return fallbackLanding
 }
@@ -847,6 +900,7 @@ func parseFallbackLandingConfig(data []byte) (LandingConfigPayload, error) {
 		return LandingConfigPayload{}, fmt.Errorf("parse fallback downloads: %w", err)
 	}
 
+	//nolint:govet // payload contains proto-backed pricing object
 	payload := LandingConfigPayload{
 		Variant:   raw.Variant,
 		Sections:  sections,
@@ -860,6 +914,7 @@ func parseFallbackLandingConfig(data []byte) (LandingConfigPayload, error) {
 		payload.Variant.Axes = raw.Axes
 	}
 
+	//nolint:govet // returning cloned payload is acceptable for immutable fallback
 	return payload, nil
 }
 
@@ -999,6 +1054,7 @@ func ensureRenderableSections(sections []LandingSection) error {
 	return fmt.Errorf("hero section missing")
 }
 
+//nolint:govet // proto-backed pricing uses internal locks; we clone defensively
 func cloneLandingPayload(payload LandingConfigPayload) LandingConfigPayload {
 	cloned := LandingConfigPayload{
 		Variant: LandingVariantSummary{
@@ -1131,6 +1187,7 @@ func cloneHeaderConfig(cfg LandingHeaderConfig, variantName string) LandingHeade
 	return normalizeLandingHeaderConfig(&copy, variantName)
 }
 
+//nolint:govet // proto-backed pricing uses internal locks; cloning avoids shared mutation
 func clonePricing(pricing PricingOverview) *PricingOverview {
 	cloned := proto.Clone(&pricing)
 	if cloned == nil {

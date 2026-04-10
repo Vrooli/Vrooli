@@ -16,15 +16,15 @@ func (r *Repository) CreateDeployment(ctx context.Context, d *domain.Deployment)
 		INSERT INTO deployments (
 			id, name, scenario_id, status, manifest,
 			bundle_path, bundle_sha256, bundle_size_bytes,
-			preflight_result,
+			preflight_result, ssh_identity,
 			error_message, error_step,
 			created_at, updated_at
 		) VALUES (
 			$1, $2, $3, $4, $5,
 			$6, $7, $8,
-			$9,
-			$10, $11,
-			$12, $13
+			$9, $10,
+			$11, $12,
+			$13, $14
 		)
 	`
 	_, err := r.db.ExecContext(ctx, q,
@@ -37,6 +37,7 @@ func (r *Repository) CreateDeployment(ctx context.Context, d *domain.Deployment)
 		d.BundleSHA256,
 		d.BundleSizeBytes,
 		d.PreflightResult,
+		d.SSHIdentity,
 		d.ErrorMessage,
 		d.ErrorStep,
 		d.CreatedAt,
@@ -54,7 +55,7 @@ func (r *Repository) GetDeployment(ctx context.Context, id string) (*domain.Depl
 		SELECT
 			id, name, scenario_id, status, manifest,
 			bundle_path, bundle_sha256, bundle_size_bytes,
-			setup_result, deploy_result, preflight_result, last_inspect_result,
+			setup_result, deploy_result, preflight_result, last_inspect_result, ssh_identity,
 			error_message, error_step,
 			progress_step, progress_percent,
 			created_at, updated_at, last_deployed_at, last_inspected_at
@@ -75,6 +76,7 @@ func (r *Repository) GetDeployment(ctx context.Context, id string) (*domain.Depl
 		&d.DeployResult,
 		&d.PreflightResult,
 		&d.LastInspectResult,
+		&d.SSHIdentity,
 		&d.ErrorMessage,
 		&d.ErrorStep,
 		&d.ProgressStep,
@@ -99,7 +101,7 @@ func (r *Repository) GetDeploymentByHostAndScenario(ctx context.Context, host, s
 		SELECT
 			id, name, scenario_id, status, manifest,
 			bundle_path, bundle_sha256, bundle_size_bytes,
-			setup_result, deploy_result, preflight_result, last_inspect_result,
+			setup_result, deploy_result, preflight_result, last_inspect_result, ssh_identity,
 			error_message, error_step,
 			progress_step, progress_percent,
 			created_at, updated_at, last_deployed_at, last_inspected_at
@@ -123,6 +125,7 @@ func (r *Repository) GetDeploymentByHostAndScenario(ctx context.Context, host, s
 		&d.DeployResult,
 		&d.PreflightResult,
 		&d.LastInspectResult,
+		&d.SSHIdentity,
 		&d.ErrorMessage,
 		&d.ErrorStep,
 		&d.ProgressStep,
@@ -147,7 +150,7 @@ func (r *Repository) ListDeployments(ctx context.Context, filter domain.ListFilt
 		SELECT
 			id, name, scenario_id, status, manifest,
 			bundle_path, bundle_sha256, bundle_size_bytes,
-			setup_result, deploy_result, preflight_result, last_inspect_result,
+			setup_result, deploy_result, preflight_result, last_inspect_result, ssh_identity,
 			error_message, error_step,
 			progress_step, progress_percent,
 			created_at, updated_at, last_deployed_at, last_inspected_at
@@ -198,6 +201,7 @@ func (r *Repository) ListDeployments(ctx context.Context, filter domain.ListFilt
 			&d.DeployResult,
 			&d.PreflightResult,
 			&d.LastInspectResult,
+			&d.SSHIdentity,
 			&d.ErrorMessage,
 			&d.ErrorStep,
 			&d.ProgressStep,
@@ -234,11 +238,12 @@ func (r *Repository) UpdateDeployment(ctx context.Context, d *domain.Deployment)
 			deploy_result = $10,
 			preflight_result = $11,
 			last_inspect_result = $12,
-			error_message = $13,
-			error_step = $14,
-			updated_at = $15,
-			last_deployed_at = $16,
-			last_inspected_at = $17
+			ssh_identity = $13,
+			error_message = $14,
+			error_step = $15,
+			updated_at = $16,
+			last_deployed_at = $17,
+			last_inspected_at = $18
 		WHERE id = $1
 	`
 	result, err := r.db.ExecContext(ctx, q,
@@ -254,6 +259,7 @@ func (r *Repository) UpdateDeployment(ctx context.Context, d *domain.Deployment)
 		d.DeployResult,
 		d.PreflightResult,
 		d.LastInspectResult,
+		d.SSHIdentity,
 		d.ErrorMessage,
 		d.ErrorStep,
 		d.UpdatedAt,
@@ -387,6 +393,55 @@ func (r *Repository) UpdateDeploymentBundle(ctx context.Context, id, bundlePath,
 	_, err := r.db.ExecContext(ctx, q, id, bundlePath, bundleSHA256, sizeBytes, now)
 	if err != nil {
 		return fmt.Errorf("failed to update bundle info: %w", err)
+	}
+	return nil
+}
+
+// UpdateDeploymentManifest updates the manifest for a deployment.
+// Used when refreshing the manifest to reflect current scenario state.
+func (r *Repository) UpdateDeploymentManifest(ctx context.Context, id string, manifest json.RawMessage) error {
+	const q = `
+		UPDATE deployments SET
+			manifest = $2,
+			updated_at = $3
+		WHERE id = $1
+	`
+	now := time.Now()
+	result, err := r.db.ExecContext(ctx, q, id, manifest, now)
+	if err != nil {
+		return fmt.Errorf("failed to update manifest: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("deployment not found: %s", id)
+	}
+
+	return nil
+}
+
+// UpdateDeploymentSSHIdentity persists the canonical SSH identity model.
+func (r *Repository) UpdateDeploymentSSHIdentity(ctx context.Context, id string, identity json.RawMessage) error {
+	const q = `
+		UPDATE deployments SET
+			ssh_identity = $2,
+			updated_at = $3
+		WHERE id = $1
+	`
+	now := time.Now()
+	result, err := r.db.ExecContext(ctx, q, id, identity, now)
+	if err != nil {
+		return fmt.Errorf("failed to update ssh_identity: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("deployment not found: %s", id)
 	}
 	return nil
 }
@@ -530,6 +585,40 @@ func (r *Repository) StartDeploymentRun(ctx context.Context, id, runID string) e
 	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("deployment is already running or not found")
+	}
+
+	return nil
+}
+
+// StartDeploymentStart begins a start/resume operation for a stopped deployment.
+// Unlike StartDeploymentRun, this sets status to 'deploying' (skipping setup phase)
+// and only works for stopped or setup_complete deployments.
+func (r *Repository) StartDeploymentStart(ctx context.Context, id, runID string) error {
+	const q = `
+		UPDATE deployments SET
+			run_id = $2,
+			completed_steps = '[]'::jsonb,
+			status = 'deploying',
+			error_message = NULL,
+			error_step = NULL,
+			progress_step = NULL,
+			progress_percent = 0,
+			updated_at = $3
+		WHERE id = $1
+		  AND status IN ('stopped', 'setup_complete')
+	`
+	now := time.Now()
+	result, err := r.db.ExecContext(ctx, q, id, runID, now)
+	if err != nil {
+		return fmt.Errorf("failed to start deployment: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("deployment not found or not in stopped/setup_complete state")
 	}
 
 	return nil

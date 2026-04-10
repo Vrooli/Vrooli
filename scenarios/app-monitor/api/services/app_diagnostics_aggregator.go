@@ -87,9 +87,10 @@ type CompleteDiagnostics struct {
 	Issues *AppIssuesSummary `json:"issues,omitempty"`
 
 	// Compliance
-	BridgeRules    *BridgeDiagnosticsReport `json:"bridge_rules,omitempty"`
-	LocalhostUsage *LocalhostUsageReport    `json:"localhost_usage,omitempty"`
-	AuditorSummary *ScenarioAuditorSummary  `json:"auditor_summary,omitempty"`
+	BridgeRules       *BridgeDiagnosticsReport `json:"bridge_rules,omitempty"`
+	LocalhostUsage    *LocalhostUsageReport    `json:"localhost_usage,omitempty"`
+	AuditorSummary    *ScenarioAuditorSummary  `json:"auditor_summary,omitempty"`
+	InteropCompliance *InteropComplianceReport `json:"interop_compliance,omitempty"`
 
 	// Metadata
 	TechStack *TechStackInfo    `json:"tech_stack,omitempty"`
@@ -111,6 +112,7 @@ type DiagnosticOptions struct {
 	IncludeDocuments      bool `json:"include_documents"`
 	IncludeStatus         bool `json:"include_status"`
 	IncludeAuditorSummary bool `json:"include_auditor_summary"`
+	IncludeInteropScan    bool `json:"include_interop_scan"`
 }
 
 // DefaultDiagnosticOptions returns options with all diagnostics enabled
@@ -124,6 +126,7 @@ func DefaultDiagnosticOptions() DiagnosticOptions {
 		IncludeDocuments:      true,
 		IncludeStatus:         true,
 		IncludeAuditorSummary: true,
+		IncludeInteropScan:    true,
 	}
 }
 
@@ -280,6 +283,29 @@ func (s *AppService) GetCompleteDiagnostics(ctx context.Context, appID string, o
 			} else {
 				mu.Lock()
 				result.LocalhostUsage = localhost
+				mu.Unlock()
+			}
+		}()
+	}
+
+	// Fetch interop compliance (if requested)
+	if opts.IncludeInteropScan {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			interop, err := s.CheckInteropCompliance(ctx, id)
+			if err != nil {
+				logger.Warn(fmt.Sprintf("failed to scan interop compliance for %s", id), err)
+				mu.Lock()
+				result.Warnings = append(result.Warnings, DiagnosticWarning{
+					Source:   "interop",
+					Severity: "warn",
+					Message:  fmt.Sprintf("Failed to check interop compliance: %v", err),
+				})
+				mu.Unlock()
+			} else {
+				mu.Lock()
+				result.InteropCompliance = interop
 				mu.Unlock()
 			}
 		}()
@@ -504,6 +530,36 @@ func (s *AppService) aggregateWarnings(diag *CompleteDiagnostics) []DiagnosticWa
 		}
 	}
 
+	// Interop compliance failures
+	if diag.InteropCompliance != nil {
+		for _, r := range diag.InteropCompliance.Results {
+			if r.Passed || r.Skipped {
+				continue
+			}
+			if len(r.Violations) > 0 {
+				for _, v := range r.Violations {
+					severity := "warn"
+					if v.Severity == "critical" {
+						severity = "error"
+					}
+					warnings = append(warnings, DiagnosticWarning{
+						Source:   "interop",
+						Severity: severity,
+						Message:  v.Description,
+						FilePath: v.FilePath,
+						Line:     v.Line,
+					})
+				}
+			} else {
+				warnings = append(warnings, DiagnosticWarning{
+					Source:   "interop",
+					Severity: "warn",
+					Message:  r.Message,
+				})
+			}
+		}
+	}
+
 	// Scenario status recommendations
 	if diag.ScenarioStatus != nil {
 		for _, rec := range diag.ScenarioStatus.Recommendations {
@@ -650,6 +706,9 @@ func (s *AppService) generateDiagnosticSummary(diag *CompleteDiagnostics) string
 	}
 	if diag.AuditorSummary != nil {
 		violationCount += diag.AuditorSummary.Total
+	}
+	if diag.InteropCompliance != nil {
+		violationCount += diag.InteropCompliance.FailCount
 	}
 	if violationCount > 0 {
 		parts = append(parts, fmt.Sprintf("%d compliance finding%s", violationCount, plural(violationCount)))

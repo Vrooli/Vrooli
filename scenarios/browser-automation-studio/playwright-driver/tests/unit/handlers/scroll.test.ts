@@ -1,4 +1,9 @@
-import { createTypedInstruction, createMockPage, createTestConfig } from '../../helpers';
+import {
+  createTypedInstruction,
+  createMockPage,
+  createMockContext,
+  createTestConfig,
+} from '../../helpers';
 import { ScrollHandler } from '../../../src/handlers/scroll';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
@@ -13,7 +18,7 @@ describe('ScrollHandler', () => {
     mockPage = createMockPage();
     context = {
       page: mockPage,
-      context: {} as any,
+      browserContext: createMockContext(),
       config: createTestConfig(),
       logger,
       metrics,
@@ -28,7 +33,7 @@ describe('ScrollHandler', () => {
 
     const result = await handler.execute(instruction, context);
 
-    expect(mockPage.evaluate).toHaveBeenCalled();
+    expect(mockPage.evaluate.mock.calls.length).toBeGreaterThan(0);
     expect(result.success).toBe(true);
   });
 
@@ -39,7 +44,7 @@ describe('ScrollHandler', () => {
 
     const result = await handler.execute(instruction, context);
 
-    expect(mockPage.evaluate).toHaveBeenCalled();
+    expect(mockPage.evaluate.mock.calls.length).toBeGreaterThan(0);
     expect(result.success).toBe(true);
   });
 });

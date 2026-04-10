@@ -950,6 +950,23 @@ func decodeStepOutcome(r io.Reader) (contracts.StepOutcome, error) {
 		}
 	}
 
+	// Extract assertion outcome from ExtractedData if present.
+	// The playwright-driver returns assertion results in extracted_data.assertion,
+	// but the executor expects it in the top-level Assertion field.
+	if out.Assertion == nil && out.ExtractedData != nil {
+		logrus.WithFields(logrus.Fields{
+			"extracted_data": out.ExtractedData,
+			"step_type":      out.StepType,
+		}).Debug("Checking ExtractedData for assertion")
+		if assertionRaw, ok := out.ExtractedData["assertion"]; ok {
+			out.Assertion = typeconv.ToAssertionOutcome(assertionRaw)
+			logrus.WithFields(logrus.Fields{
+				"assertion_raw": assertionRaw,
+				"assertion":     out.Assertion,
+			}).Debug("Extracted assertion from ExtractedData")
+		}
+	}
+
 	return out, nil
 }
 

@@ -24,7 +24,6 @@ type SecretClassification struct {
 //   - Database (postgres, mysql, mongodb): user + password credentials
 //   - Cache (redis): password only
 //   - Object storage (minio, s3): access key + secret key
-//   - Automation (n8n, huginn, windmill): API key + webhook secret
 //   - AI APIs (claude-code, anthropic, openai): API key
 //   - Vector DB (qdrant): API key
 //   - Browser automation (browserless, playwright): auth token
@@ -44,17 +43,11 @@ func ClassifySecretRequirements(resourceName string) *SecretClassification {
 	case "minio", "s3":
 		return classifyObjectStorageSecrets(normalized)
 
-	case "n8n", "huginn", "windmill":
-		return classifyAutomationSecrets(normalized)
-
 	case "claude-code", "anthropic", "openai":
 		return classifyAIAPISecrets(normalized)
 
 	case "qdrant":
 		return classifyVectorDBSecrets()
-
-	case "browserless", "playwright":
-		return classifyBrowserAutomationSecrets(normalized)
 
 	case "ollama":
 		// Decision: Local Ollama typically doesn't need secrets

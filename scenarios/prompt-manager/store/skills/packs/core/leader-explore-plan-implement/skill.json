@@ -1,0 +1,24 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "leader-explore-plan-implement",
+  "name": "Leader: Explore-Plan-Implement Pipeline",
+  "description": "Leader-focused pipeline that orchestrates systematic exploration, implementation plan authoring, and coordinated implementation delegation. Defines phase transitions, coordination protocols, and convergence patterns for when to use the full pipeline vs partial entry.",
+  "modes": [
+    "practice"
+  ],
+  "tags": [
+    "practice",
+    "pipeline",
+    "leadership",
+    "delegation",
+    "coordination",
+    "methodology"
+  ],
+  "icon": "git-branch",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-02-10T00:00:00Z",
+  "updatedAt": "2026-02-10T00:00:00Z"
+}

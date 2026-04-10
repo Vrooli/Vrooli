@@ -153,9 +153,8 @@ func TestRunner_CLIValidationFails(t *testing.T) {
 	if result.FailureClass != FailureClassMisconfiguration {
 		t.Errorf("expected misconfiguration, got %s", result.FailureClass)
 	}
-	if !result.Summary.CLIValidated {
-		// CLIValidated should be false since it failed
-		// This is correct behavior
+	if result.Summary.CLIValidated {
+		t.Error("expected CLIValidated to remain false when CLI validation fails")
 	}
 }
 

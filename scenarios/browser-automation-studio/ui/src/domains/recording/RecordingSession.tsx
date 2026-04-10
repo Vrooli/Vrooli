@@ -24,8 +24,8 @@ import { useCallback, useEffect, useRef, useState, useMemo, useId, type ReactNod
 import { useNavigate } from 'react-router-dom';
 import { RecordingHeader } from './capture/RecordingHeader';
 import { TabBar } from './capture/TabBar';
-import { ErrorBanner, UnstableSelectorsBanner } from './capture/RecordModeBanners';
-import { ClearActionsModal } from './capture/RecordModeModals';
+import { ErrorBanner, UnstableSelectorsBanner, type ErrorDetails } from './capture/RecordModeBanners';
+import { ClearActionsModal, ErrorDetailsModal } from './capture/RecordModeModals';
 import { WorkflowCreationForm } from './conversion/WorkflowCreationForm';
 import { WorkflowPickerModal } from './conversion/WorkflowPickerModal';
 import { WorkflowInfoCard, type ExecutionConfigSettings } from './timeline/WorkflowInfoCard';
@@ -41,15 +41,16 @@ import type { InsertedAction } from './InsertNodeModal';
 import { useActionSelection } from './hooks/useActionSelection';
 import { useUnifiedTimeline } from './hooks/useUnifiedTimeline';
 import { usePages } from './hooks/usePages';
+import { useTimeline } from './hooks/useTimeline';
 import { RecordPreviewPanel } from './timeline/RecordPreviewPanel';
 import { ExecutionPreviewPanel } from './timeline/ExecutionPreviewPanel';
 import { PreviewContainer } from './shared';
 import { PreviewSettingsPanel } from '@/domains/preview-settings';
 import { ViewportProvider } from './context';
-import { mergeConsecutiveActions } from './utils/mergeActions';
-import { recordedActionToTimelineItem } from './types/timeline-unified';
+import { mergeConsecutiveActions, type MergedAction } from './utils/mergeActions';
 import { getConfig } from '@/config';
-import { useStreamSettings, type StreamSettingsValues } from './capture/StreamSettings';
+import { useStreamSettings } from './capture/streamSettingsState';
+import type { StreamSettingsValues } from './capture/StreamSettings';
 import type { StreamConnectionStatus, FrameStats } from './capture/PlaywrightView';
 import { DEFAULT_STREAM_FPS, DEFAULT_STREAM_QUALITY } from './constants';
 import type { TimelineMode } from './types/timeline-unified';
@@ -72,8 +73,64 @@ import { ConfirmDialog } from '@shared/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { extractConsoleLogs, extractNetworkEvents, extractDomSnapshots } from './utils/artifact-extraction';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseNavigationState = (
+  value: unknown
+): { url?: string; can_go_back?: boolean; can_go_forward?: boolean } => {
+  if (!isRecord(value)) return {};
+  const url = typeof value.url === 'string' ? value.url : undefined;
+  const canGoBack = typeof value.can_go_back === 'boolean' ? value.can_go_back : undefined;
+  const canGoForward = typeof value.can_go_forward === 'boolean' ? value.can_go_forward : undefined;
+  return { url, can_go_back: canGoBack, can_go_forward: canGoForward };
+};
+
+const parseWorkflowGenerationResult = (
+  value: unknown
+): { workflowId?: string; projectId?: string } => {
+  if (!isRecord(value)) return {};
+  const workflowId =
+    typeof value.workflow_id === 'string'
+      ? value.workflow_id
+      : typeof value.workflowId === 'string'
+        ? value.workflowId
+        : undefined;
+  const projectId =
+    typeof value.project_id === 'string'
+      ? value.project_id
+      : typeof value.projectId === 'string'
+        ? value.projectId
+        : undefined;
+  return { workflowId, projectId };
+};
+
 /** Workflow type being created (from AI modal or template) */
 export type WorkflowTypeParam = 'action' | 'flow' | 'case';
+
+type WorkflowNode = {
+  id: string;
+  type?: string;
+  data?: Record<string, unknown>;
+  action?: {
+    type: string;
+    metadata?: { label?: string };
+    navigate?: { url?: string };
+  };
+};
+
+type WorkflowEdge = { source: string; target: string };
+
+const PAGE_COLORS = [
+  'bg-blue-500',
+  'bg-green-500',
+  'bg-purple-500',
+  'bg-orange-500',
+  'bg-pink-500',
+  'bg-cyan-500',
+  'bg-yellow-500',
+  'bg-red-500',
+] as const;
 
 interface RecordModePageProps {
   /** Browser session ID */
@@ -229,8 +286,8 @@ export function RecordModePage({
   const [showWorkflowPicker, setShowWorkflowPicker] = useState(false);
 
   // Workflow nodes/edges for timeline pre-population
-  const [workflowNodes, setWorkflowNodes] = useState<Array<{ id: string; type?: string; data?: Record<string, unknown>; action?: { type: string; metadata?: { label?: string }; navigate?: { url?: string } } }>>([]);
-  const [workflowEdges, setWorkflowEdges] = useState<Array<{ source: string; target: string }>>([]);
+  const [workflowNodes, setWorkflowNodes] = useState<WorkflowNode[]>([]);
+  const [workflowEdges, setWorkflowEdges] = useState<WorkflowEdge[]>([]);
 
   // Execution sidebar state (screenshots and logs tabs)
   const [selectedScreenshotIndex, setSelectedScreenshotIndex] = useState(0);
@@ -249,6 +306,21 @@ export function RecordModePage({
 
   // Confirmation dialog for unsaved actions
   const { dialogState: confirmDialogState, confirm, close: closeConfirmDialog } = useConfirmDialog();
+
+  // Error management state for enhanced error banner
+  const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null);
+  const [showErrorDetailsModal, setShowErrorDetailsModal] = useState(false);
+  const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
+
+  // Show error details modal
+  const handleShowErrorDetails = useCallback(() => {
+    setShowErrorDetailsModal(true);
+  }, []);
+
+  // Close error details modal
+  const handleCloseErrorDetails = useCallback(() => {
+    setShowErrorDetailsModal(false);
+  }, []);
 
   // Execution store for status tracking
   const currentExecution = useExecutionStore(s => s.currentExecution);
@@ -369,13 +441,47 @@ export function RecordModePage({
     isReplaying,
     lowConfidenceCount,
     mediumConfidenceCount,
-  } = useRecordMode({
-    sessionId,
-    pollInterval: 500, // Poll every 500ms for faster feedback
-    onActionsReceived: (newActions) => {
-      console.log('New actions received:', newActions.length);
-    },
-  });
+  } = useRecordMode({ sessionId });
+
+  // Helper to create error details from session or recording errors
+  const createErrorDetails = useCallback((
+    message: string,
+    source: ErrorDetails['source'],
+    rawError?: unknown
+  ): ErrorDetails => ({
+    message,
+    timestamp: new Date(),
+    source,
+    sessionId: sessionId ?? undefined,
+    url: undefined,
+    code: typeof rawError === 'object' && rawError !== null && 'code' in rawError
+      ? String((rawError as { code: unknown }).code)
+      : undefined,
+    stackTrace: rawError instanceof Error ? rawError.stack : undefined,
+    rawError,
+  }), [sessionId]);
+
+  // Dismiss error handler - clear error details and add to dismissed set
+  const handleDismissError = useCallback(() => {
+    const errorMessage = sessionError ?? error;
+    if (errorMessage && errorDetails) {
+      const errorKey = `${errorDetails.source}-${errorMessage}`;
+      setDismissedErrors(prev => new Set(prev).add(errorKey));
+    }
+    setErrorDetails(null);
+  }, [sessionError, error, errorDetails]);
+
+  // Update error details when sessionError or error changes
+  useEffect(() => {
+    const errorMessage = sessionError ?? error;
+    if (errorMessage) {
+      const source: ErrorDetails['source'] = sessionError ? 'session' : 'recording';
+      const errorKey = `${source}-${errorMessage}`;
+      if (!dismissedErrors.has(errorKey)) {
+        setErrorDetails(createErrorDetails(errorMessage, source));
+      }
+    }
+  }, [sessionError, error, createErrorDetails, dismissedErrors]);
 
   // Handle Execute button click - opens workflow picker with optional confirmation
   const handleExecuteClick = useCallback(async () => {
@@ -488,20 +594,60 @@ export function RecordModePage({
           console.error('[RecordingSession] Failed to fetch workflow definition, status:', response.status);
           return;
         }
-        const data = await response.json();
+        const data: unknown = await response.json();
         console.log('[RecordingSession] Raw workflow data:', JSON.stringify(data, null, 2).slice(0, 1000));
 
-        // Extract nodes and edges from the workflow definition
-        // API returns { workflow: { flow_definition: { nodes, edges } } }
-        const workflow = data.workflow ?? data;
-        const flowDef = workflow.flow_definition ?? workflow.flowDefinition ?? {};
-        const nodes = flowDef.nodes ?? workflow.nodes ?? [];
-        const edges = flowDef.edges ?? workflow.edges ?? [];
+        const parseNodes = (value: unknown): WorkflowNode[] => {
+          if (!Array.isArray(value)) return [];
+          return value
+            .map((node) => {
+              if (!isRecord(node) || typeof node.id !== 'string') return null;
+              const parsedNode: WorkflowNode = { id: node.id };
+              if (typeof node.type === 'string') parsedNode.type = node.type;
+              if (isRecord(node.data)) parsedNode.data = node.data;
+              if (isRecord(node.action) && typeof node.action.type === 'string') {
+                const action: WorkflowNode['action'] = { type: node.action.type };
+                if (isRecord(node.action.metadata) && typeof node.action.metadata.label === 'string') {
+                  action.metadata = { label: node.action.metadata.label };
+                }
+                if (isRecord(node.action.navigate) && typeof node.action.navigate.url === 'string') {
+                  action.navigate = { url: node.action.navigate.url };
+                }
+                parsedNode.action = action;
+              }
+              return parsedNode;
+            })
+            .filter((node): node is WorkflowNode => node !== null);
+        };
 
-        console.log('[RecordingSession] Loaded workflow with', nodes.length, 'nodes and', edges.length, 'edges');
-        console.log('[RecordingSession] First node sample:', nodes[0]);
-        setWorkflowNodes(nodes);
-        setWorkflowEdges(edges);
+        const parseEdges = (value: unknown): WorkflowEdge[] => {
+          if (!Array.isArray(value)) return [];
+          return value
+            .map((edge) => {
+              if (!isRecord(edge)) return null;
+              if (typeof edge.source !== 'string' || typeof edge.target !== 'string') return null;
+              return { source: edge.source, target: edge.target };
+            })
+            .filter((edge): edge is WorkflowEdge => edge !== null);
+        };
+
+        const workflow = isRecord(data) && isRecord(data.workflow) ? data.workflow : data;
+        const flowDef =
+          isRecord(workflow) && isRecord(workflow.flow_definition)
+            ? workflow.flow_definition
+            : isRecord(workflow) && isRecord(workflow.flowDefinition)
+              ? workflow.flowDefinition
+              : null;
+
+        const nodes = flowDef && isRecord(flowDef) ? parseNodes(flowDef.nodes) : [];
+        const edges = flowDef && isRecord(flowDef) ? parseEdges(flowDef.edges) : [];
+        const fallbackNodes = nodes.length > 0 ? nodes : parseNodes(isRecord(workflow) ? workflow.nodes : []);
+        const fallbackEdges = edges.length > 0 ? edges : parseEdges(isRecord(workflow) ? workflow.edges : []);
+
+        console.log('[RecordingSession] Loaded workflow with', fallbackNodes.length, 'nodes and', fallbackEdges.length, 'edges');
+        console.log('[RecordingSession] First node sample:', fallbackNodes[0]);
+        setWorkflowNodes(fallbackNodes);
+        setWorkflowEdges(fallbackEdges);
       } catch (error) {
         console.error('[RecordingSession] Error fetching workflow definition:', error);
       }
@@ -509,22 +655,6 @@ export function RecordModePage({
 
     fetchWorkflowDefinition();
   }, [selectedWorkflowId, mode]);
-
-  // Unified timeline for both recording and execution modes
-  // TODO: Use clearTimelineItems, getRecordedActions, and timelineStats when fully integrated
-  const {
-    items: timelineItems,
-    isLive: isTimelineLive,
-    clearItems: _clearTimelineItems,
-    getRecordedActions: _getRecordedActions,
-    stats: _timelineStats,
-  } = useUnifiedTimeline({
-    mode,
-    executionId,
-    initialActions: actions,
-    workflowNodes: mode === 'execution' ? workflowNodes : undefined,
-    workflowEdges: mode === 'execution' ? workflowEdges : undefined,
-  });
 
   // Page tracking for multi-tab recording
   const [recentActivityPageId, setRecentActivityPageId] = useState<string | null>(null);
@@ -579,34 +709,51 @@ export function RecordModePage({
     },
   });
 
+  // Unified timeline data source for recording mode
+  // Fetches from /timeline endpoint which includes both actions AND page events
+  const {
+    entries: timelineEntries,
+    // isLoading and error are handled by useTimeline internally
+  } = useTimeline({
+    sessionId,
+    pages: openPages,
+  });
+
+  // Unified timeline for both recording and execution modes
+  // Uses timeline entries (preferred) or falls back to actions
+  const {
+    items: timelineItems,
+    isLive: isTimelineLive,
+  } = useUnifiedTimeline({
+    mode,
+    executionId,
+    initialActions: actions,
+    initialTimelineEntries: mode === 'recording' ? timelineEntries : undefined,
+    workflowNodes: mode === 'execution' ? workflowNodes : undefined,
+    workflowEdges: mode === 'execution' ? workflowEdges : undefined,
+  });
+
   const mergedActions = useMemo(() => mergeConsecutiveActions(actions), [actions]);
 
+  // Merge timeline items with AI steps for the final display
   const mergedTimelineItems = useMemo(() => {
     if (mode !== 'recording') return timelineItems;
     // If we have AI steps, merge them with the recorded actions
+    // Note: timelineItems already includes page events from useUnifiedTimeline
     if (aiSteps.length > 0) {
       return mergeActionsWithAISteps(mergedActions, aiSteps);
     }
-    return mergedActions.map((action) => recordedActionToTimelineItem(action));
+    // Use timeline items directly (already processed by useUnifiedTimeline)
+    return timelineItems;
   }, [mergedActions, mode, timelineItems, aiSteps]);
-
-  // Page color palette for visual distinction in multi-tab recording
-  const PAGE_COLORS = [
-    'bg-blue-500',
-    'bg-green-500',
-    'bg-purple-500',
-    'bg-orange-500',
-    'bg-pink-500',
-    'bg-cyan-500',
-    'bg-yellow-500',
-    'bg-red-500',
-  ] as const;
 
   // Create a stable color map for pages based on creation order
   const pageColorMap = useMemo(() => {
+    const defaultColor = PAGE_COLORS[0] ?? 'bg-blue-500';
     const map = new Map<string, typeof PAGE_COLORS[number]>();
     openPages.forEach((page, index) => {
-      map.set(page.id, PAGE_COLORS[index % PAGE_COLORS.length]);
+      const color = PAGE_COLORS[index % PAGE_COLORS.length];
+      map.set(page.id, color ?? defaultColor);
     });
     return map;
   }, [openPages]);
@@ -637,8 +784,9 @@ export function RecordModePage({
   const handleEditMergedSelector = useCallback(
     (index: number, newSelector: string) => {
       const originalIndices = mergedIndexMap.get(index) ?? [];
-      if (originalIndices.length > 0) {
-        updateSelector(originalIndices[0], newSelector);
+      const firstIndex = originalIndices[0];
+      if (firstIndex !== undefined) {
+        updateSelector(firstIndex, newSelector);
       }
     },
     [mergedIndexMap, updateSelector]
@@ -655,9 +803,10 @@ export function RecordModePage({
   );
 
   // Use unified timeline items count for selection
+  // Note: In recording mode, use mergedTimelineItems which may include page events
   const timelineItemCount = useMemo(() => {
-    return mode === 'recording' ? mergedActions.length : timelineItems.length;
-  }, [mergedActions.length, mode, timelineItems.length]);
+    return mode === 'recording' ? mergedTimelineItems.length : timelineItems.length;
+  }, [mergedTimelineItems.length, mode, timelineItems.length]);
 
   // Selection state for multi-step workflow creation
   const {
@@ -671,6 +820,33 @@ export function RecordModePage({
     exitSelectionMode,
   } = useActionSelection({ actionCount: timelineItemCount });
 
+  // Filter selected indices to exclude page events and map to action indices
+  // This is needed because mergedTimelineItems includes page events but workflows
+  // should only contain actions
+  const selectedActionIndices = useMemo(() => {
+    if (mode !== 'recording') return selectedIndicesArray;
+
+    const actionIndices: number[] = [];
+    let actionCounter = 0;
+
+    for (let i = 0; i < mergedTimelineItems.length; i++) {
+      const item = mergedTimelineItems[i];
+      if (!item) continue;
+      const isPageEvent = item.entryType === 'page_event';
+
+      if (!isPageEvent) {
+        // This is an action - check if it's selected
+        if (selectedIndices.has(i)) {
+          actionIndices.push(actionCounter);
+        }
+        actionCounter++;
+      }
+      // Page events are skipped (not added to actionIndices)
+    }
+
+    return actionIndices;
+  }, [mode, selectedIndicesArray, selectedIndices, mergedTimelineItems]);
+
   const lastActionUrl = actions.length > 0 ? actions[actions.length - 1]?.url ?? '' : '';
 
   // Set previewUrl from tab restoration when available
@@ -681,14 +857,14 @@ export function RecordModePage({
       // Also update lastNavigatedUrlRef to prevent duplicate navigation
       lastNavigatedUrlRef.current = initialRestoredUrl;
     }
-  }, [initialRestoredUrl, previewUrl]);
+  }, [initialRestoredUrl, previewUrl, setPreviewUrl]);
 
   // Update previewUrl from last action if needed
   useEffect(() => {
     if (!previewUrl && lastActionUrl) {
       setPreviewUrl(lastActionUrl);
     }
-  }, [lastActionUrl, previewUrl]);
+  }, [lastActionUrl, previewUrl, setPreviewUrl]);
 
   // Track whether initial URL navigation has been done to avoid double-navigation
   const initialUrlNavigatedRef = useRef(false);
@@ -700,11 +876,21 @@ export function RecordModePage({
   // Ref to avoid stale closure when setting completion state
   const isInitialNavigationCompleteRef = useRef(!initialUrl);
 
-  // Create session when we have a URL but no session yet
+  // Create session when we have a URL or when in recording mode with a profile
+  // (profile may have saved tabs to restore, which provides the initial URL)
   // This is separate from navigation to avoid race conditions
   useEffect(() => {
-    if (!previewUrl || sessionId) {
-      return; // No URL needed or session already exists
+    // Already have a session - nothing to do
+    if (sessionId) return;
+
+    // In recording mode with a profile, create session immediately
+    // (backend will restore tabs and provide initial URL via initialRestoredUrl)
+    const profileId = selectedProfileId ?? sessionProfileId;
+    const shouldCreateWithoutUrl = mode === 'recording' && profileId;
+
+    // Need either a URL or the ability to create without one
+    if (!previewUrl && !shouldCreateWithoutUrl) {
+      return;
     }
 
     let cancelled = false;
@@ -715,12 +901,13 @@ export function RecordModePage({
         const shouldRestoreTabs = mode === 'recording';
         const newSessionId = await ensureSession(
           previewViewport,
-          selectedProfileId ?? sessionProfileId ?? null,
+          profileId,
           streamSettingsRef.current,
           shouldRestoreTabs
         );
         if (cancelled || !newSessionId) return;
         // Session is now created, the navigation effect will handle navigation
+        // If tabs were restored, initialRestoredUrl will be set and trigger setPreviewUrl
       } catch (err) {
         if (cancelled) return;
         console.warn('Failed to create session for URL', err);
@@ -777,8 +964,8 @@ export function RecordModePage({
         // Update navigation state from response
         if (response.ok && !cancelled) {
           try {
-            const data = await response.json();
-            updateNavigationState(data);
+            const data: unknown = await response.json();
+            updateNavigationState(parseNavigationState(data));
           } catch {
             // Ignore JSON parse errors
           }
@@ -932,7 +1119,7 @@ export function RecordModePage({
   const handleTestSelectedActions = useCallback(
     async (actionIndices: number[]): Promise<ReplayPreviewResponse> => {
       const selected = mode === 'recording'
-        ? actionIndices.map((index) => mergedActions[index]).filter(Boolean)
+        ? actionIndices.map((index) => mergedActions[index]).filter((a): a is MergedAction => a !== undefined)
         : [];
       const actionsToReplay = selected.length > 0 ? selected : mergedActions;
       const results = await replayPreview(
@@ -994,35 +1181,46 @@ export function RecordModePage({
           });
 
           if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `Failed to create workflow: ${response.statusText}`);
+            const errorPayload: unknown = await response.json().catch(() => null);
+            const message =
+              isRecord(errorPayload) && typeof errorPayload.error === 'string'
+                ? errorPayload.error
+                : `Failed to create workflow: ${response.statusText}`;
+            throw new Error(message);
           }
 
-          const result = await response.json();
+          const resultPayload: unknown = await response.json();
+          const { workflowId } = parseWorkflowGenerationResult(resultPayload);
 
           // Reset state
           setRightPanelView('preview');
           exitSelectionMode();
 
-          if (onWorkflowGenerated && result.workflow_id) {
-            onWorkflowGenerated(result.workflow_id, params.projectId);
+          if (onWorkflowGenerated && workflowId) {
+            onWorkflowGenerated(workflowId, params.projectId);
           }
         } else {
           // Inline mode: use existing generate workflow API
           // TODO: API should support generating from subset of actions
           // For now, generate from all actions
           const selectedActions = mode === 'recording'
-            ? params.actionIndices.map((index) => mergedActions[index]).filter(Boolean)
+            ? params.actionIndices.map((index) => mergedActions[index]).filter((a): a is MergedAction => a !== undefined)
             : [];
           const actionsToGenerate = selectedActions.length > 0 ? selectedActions : mergedActions;
-          const result = await generateWorkflow(params.name, params.projectId, actionsToGenerate, params.settings);
+          const resultPayload: unknown = await generateWorkflow(
+            params.name,
+            params.projectId,
+            actionsToGenerate,
+            params.settings
+          );
+          const { workflowId, projectId } = parseWorkflowGenerationResult(resultPayload);
 
           // Reset state
           setRightPanelView('preview');
           exitSelectionMode();
 
-          if (onWorkflowGenerated) {
-            onWorkflowGenerated(result.workflow_id, result.project_id);
+          if (onWorkflowGenerated && workflowId && projectId) {
+            onWorkflowGenerated(workflowId, projectId);
           }
         }
       } finally {
@@ -1074,13 +1272,23 @@ export function RecordModePage({
       />
 
       {/* Error display - pass retry state for session errors */}
-      {displayError && (
+      {displayError && !dismissedErrors.has(`${errorDetails?.source ?? 'unknown'}-${displayError}`) && (
         <ErrorBanner
           message={displayError}
           retryState={sessionError ? retryState : undefined}
           onRetry={sessionError ? retrySession : undefined}
+          onDismiss={handleDismissError}
+          onShowDetails={handleShowErrorDetails}
+          hasDetails={!!errorDetails}
         />
       )}
+
+      {/* Error details modal */}
+      <ErrorDetailsModal
+        open={showErrorDetailsModal}
+        error={errorDetails}
+        onClose={handleCloseErrorDetails}
+      />
 
       {/* Unstable selectors warning banner */}
       {!isRecording && lowConfidenceCount > 0 && (
@@ -1269,7 +1477,7 @@ export function RecordModePage({
           {rightPanelView === 'create-workflow' && (
             <WorkflowCreationForm
               actions={actions}
-              selectedIndices={selectedIndicesArray}
+              selectedIndices={selectedActionIndices}
               sessionProfiles={sessionProfiles.profiles}
               sessionProfilesLoading={sessionProfiles.loading}
               isReplaying={isReplaying}

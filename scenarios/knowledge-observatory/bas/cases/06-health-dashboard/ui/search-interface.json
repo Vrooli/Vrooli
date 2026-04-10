@@ -3,7 +3,10 @@
     "description": "Verifies search interface is present on dashboard",
     "version": 1,
     "reset": "full",
-    "requirements": ["KO-HD-004"]
+    "requirements": [
+      "KO-HD-004"
+    ],
+    "execution_mode": "mutating"
   },
   "settings": {
     "executionViewport": {

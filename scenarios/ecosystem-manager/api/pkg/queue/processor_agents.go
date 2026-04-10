@@ -39,24 +39,14 @@ func (qp *Processor) getExternalActiveTaskIDs() map[string]struct{} {
 
 // getInternalRunningTaskIDs returns task IDs currently tracked as running internally.
 func (qp *Processor) getInternalRunningTaskIDs() map[string]struct{} {
-	qp.executionsMu.RLock()
-	defer qp.executionsMu.RUnlock()
-
-	result := make(map[string]struct{}, len(qp.executions))
-	for taskID := range qp.executions {
-		result[taskID] = struct{}{}
-	}
-	return result
+	return qp.registry.ListRunningTaskIDsAsMap()
 }
 
 // cleanupOrphanedProcesses clears stale internal tracking at startup.
 // With agent-manager integration, actual agent lifecycle is handled by agent-manager.
 // This function just ensures our internal state is clean on startup.
 func (qp *Processor) cleanupOrphanedProcesses() {
-	qp.executionsMu.Lock()
-	orphanCount := len(qp.executions)
-	qp.executions = make(map[string]*taskExecution)
-	qp.executionsMu.Unlock()
+	orphanCount := qp.registry.Clear()
 
 	if orphanCount > 0 {
 		log.Printf("Cleared %d stale execution records from previous run", orphanCount)

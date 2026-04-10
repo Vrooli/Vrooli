@@ -38,9 +38,14 @@ defaults::export_config() {
         readonly WHISPER_CPU_IMAGE="${WHISPER_CPU_IMAGE:-onerahmet/openai-whisper-asr-webservice:latest}"
     fi
 
+    # Engine configuration (only set if not already defined)
+    if [[ -z "${WHISPER_ENGINE:-}" ]]; then
+        readonly WHISPER_ENGINE="${WHISPER_ENGINE:-faster_whisper}"
+    fi
+
     # Model configuration (only set if not already defined)
     if [[ -z "${WHISPER_DEFAULT_MODEL:-}" ]]; then
-        readonly WHISPER_DEFAULT_MODEL="${WHISPER_DEFAULT_MODEL:-large}"
+        readonly WHISPER_DEFAULT_MODEL="${WHISPER_DEFAULT_MODEL:-medium}"
     fi
     if [[ -z "${WHISPER_MODEL_SIZES:-}" ]]; then
         readonly WHISPER_MODEL_SIZES=("tiny" "base" "small" "medium" "large" "large-v2" "large-v3")
@@ -87,13 +92,22 @@ defaults::export_config() {
 
     # GPU configuration (only set if not already defined)
     if [[ -z "${WHISPER_GPU_ENABLED:-}" ]]; then
-        readonly WHISPER_GPU_ENABLED="${GPU:-no}"
+        # Auto-detect: nvidia-smi present + functional + Docker nvidia runtime.
+        # Uses command -v (not system::is_command) because utility libs aren't
+        # sourced yet when defaults.sh loads.
+        if command -v nvidia-smi >/dev/null 2>&1 \
+            && nvidia-smi >/dev/null 2>&1 \
+            && docker info 2>/dev/null | grep -q nvidia; then
+            readonly WHISPER_GPU_ENABLED="yes"
+        else
+            readonly WHISPER_GPU_ENABLED="no"
+        fi
     fi
 
     # Export for global access
     export WHISPER_PORT WHISPER_BASE_URL WHISPER_CONTAINER_NAME
     export WHISPER_DATA_DIR WHISPER_MODELS_DIR WHISPER_UPLOADS_DIR
-    export WHISPER_IMAGE WHISPER_CPU_IMAGE WHISPER_DEFAULT_MODEL
+    export WHISPER_ENGINE WHISPER_IMAGE WHISPER_CPU_IMAGE WHISPER_DEFAULT_MODEL
     export WHISPER_HEALTH_CHECK_INTERVAL WHISPER_HEALTH_CHECK_MAX_ATTEMPTS
     export WHISPER_API_TIMEOUT WHISPER_STARTUP_MAX_WAIT
     export WHISPER_STARTUP_WAIT_INTERVAL WHISPER_INITIALIZATION_WAIT

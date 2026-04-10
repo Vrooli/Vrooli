@@ -81,6 +81,22 @@ export function cloneInjectionStats(stats: InjectionStats): InjectionStats {
 }
 
 /**
+ * Resets injection stats to initial values.
+ * Useful for clearing state between test runs to prevent cumulative stats.
+ */
+export function resetInjectionStats(stats: InjectionStats): void {
+  stats.attempted = 0;
+  stats.successful = 0;
+  stats.failed = 0;
+  stats.skipped = 0;
+  stats.total = 0;
+  stats.methods.head = 0;
+  stats.methods.HEAD = 0;
+  stats.methods.doctype = 0;
+  stats.methods.prepend = 0;
+}
+
+/**
  * Options for setting up HTML injection.
  */
 export interface HtmlInjectorOptions {
@@ -203,10 +219,15 @@ async function handleRouteForInjection(
   }
 
   try {
-    // IMPORTANT: Don't follow redirects! If we follow redirects, the browser's URL
-    // won't match the final content URL. JavaScript checking location.href would see
-    // the original URL, not the redirect destination, which can cause redirect loops.
-    // Let the browser handle redirects naturally - we'll inject on the final destination.
+    // Follow redirects to get the final content. With rebrowser-playwright, if we
+    // return a 3xx response via route.fulfill(), the browser follows the redirect
+    // but the new request does NOT go through our route handler again (anti-detection).
+    // By following redirects ourselves, we ensure we can inject into the final HTML.
+    //
+    // Note: The browser's URL bar will show the original URL (e.g., wikipedia.com)
+    // not the redirect destination (e.g., www.wikipedia.org). JavaScript on the page
+    // checking location.href will see the original URL. This is generally acceptable
+    // for recording purposes.
 
     // Step 1: Log before fetch
     logger.info(scopedLog(LogContext.INJECTION, 'fetching document for injection'), {
@@ -215,7 +236,7 @@ async function handleRouteForInjection(
     });
 
     const response = await route.fetch({
-      maxRedirects: 0,
+      maxRedirects: 10, // Follow redirects to get final content
       timeout: 30000, // 30s timeout to prevent hanging
     });
 
@@ -315,6 +336,7 @@ export async function setupHtmlInjectionRoute(
   options: HtmlInjectorOptions
 ): Promise<{
   getStats: () => InjectionStats;
+  resetStats: () => void;
 }> {
   const { bindingName, logger, diagnosticsEnabled = false, onFirstInjection } = options;
 
@@ -360,5 +382,6 @@ export async function setupHtmlInjectionRoute(
 
   return {
     getStats: () => cloneInjectionStats(stats),
+    resetStats: () => resetInjectionStats(stats),
   };
 }

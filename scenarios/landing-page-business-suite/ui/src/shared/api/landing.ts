@@ -1,12 +1,16 @@
-import { fromJson } from '@bufbuild/protobuf';
+import { fromJson, type JsonValue, type DescMessage } from '@bufbuild/protobuf';
 import {
   BillingInterval,
   GetPricingResponseSchema,
   IntroPricingType,
   PlanKind,
+  type GetPricingResponse,
 } from '@proto-lprv/pricing_pb';
 import { apiCall } from './common';
 import type { LandingConfigResponse, PlanOption, PricingOverview } from './types';
+import { normalizeTimestampOrNow } from '../lib/protobuf-utils';
+import { PlanOptionSchema, PricingOverviewSchema } from './schemas';
+import { parseOrNull, safeParse } from './safeParse';
 
 export function getLandingConfig(variantSlug?: string) {
   const params = new URLSearchParams();
@@ -19,11 +23,10 @@ export function getLandingConfig(variantSlug?: string) {
 
 export function getPlans() {
   return apiCall('/plans').then((resp) => {
-    const message = fromJson(GetPricingResponseSchema, resp, {
+    const message = fromJson(GetPricingResponseSchema as DescMessage, resp as JsonValue, {
       ignoreUnknownFields: true,
-      protoFieldName: true,
-    });
-    const toObjectMap = (input?: Record<string, { toJson: () => unknown }>) => {
+    }) as GetPricingResponse;
+    const toObjectMap = (input?: Record<string, { toJson?: () => unknown }>) => {
       if (!input) return undefined;
       return Object.fromEntries(
         Object.entries(input).map(([key, value]) => [key, value?.toJson?.() ?? null])
@@ -62,42 +65,73 @@ export function getPlans() {
       }
     };
 
-    const normalizePlan = (plan: any): PlanOption => ({
-      plan_name: plan.planName,
-      plan_tier: plan.planTier,
-      billing_interval: billingInterval(plan.billingInterval),
-      amount_cents: Number(plan.amountCents ?? 0),
-      currency: plan.currency,
-      intro_enabled: Boolean(plan.introEnabled),
-      intro_type: introType(plan.introType),
-      intro_amount_cents: plan.introAmountCents != null ? Number(plan.introAmountCents) : undefined,
-      intro_periods: plan.introPeriods != null ? Number(plan.introPeriods) : undefined,
-      intro_price_lookup_key: plan.introPriceLookupKey,
-      stripe_price_id: plan.stripePriceId,
-      monthly_included_credits: Number(plan.monthlyIncludedCredits ?? 0),
-      one_time_bonus_credits: Number(plan.oneTimeBonusCredits ?? 0),
-      plan_rank: plan.planRank != null ? Number(plan.planRank) : undefined,
-      bonus_type: plan.bonusType,
-      kind: planKind(plan.kind),
-      is_variable_amount: Boolean(plan.isVariableAmount),
-      display_enabled: Boolean(plan.displayEnabled),
-      bundle_key: plan.bundleKey,
-      display_weight: Number(plan.displayWeight ?? 0),
-      metadata: toObjectMap(plan.metadata),
-    });
+    // Define the shape of raw protobuf plan data
+    interface RawPlan {
+      planName?: string;
+      planTier?: string;
+      billingInterval?: BillingInterval;
+      amountCents?: string | number;
+      currency?: string;
+      introEnabled?: boolean;
+      introType?: IntroPricingType;
+      introAmountCents?: string | number;
+      introPeriods?: string | number;
+      introPriceLookupKey?: string;
+      stripePriceId?: string;
+      monthlyIncludedCredits?: string | number;
+      oneTimeBonusCredits?: string | number;
+      planRank?: string | number;
+      bonusType?: string;
+      kind?: PlanKind;
+      isVariableAmount?: boolean;
+      displayEnabled?: boolean;
+      bundleKey?: string;
+      displayWeight?: string | number;
+      metadata?: Record<string, { toJson?: () => unknown }>;
+    }
+
+    const normalizePlan = (plan: RawPlan): PlanOption | null => {
+      const normalized: PlanOption = {
+        plan_name: plan.planName ?? '',
+        plan_tier: plan.planTier ?? '',
+        billing_interval: billingInterval(plan.billingInterval),
+        amount_cents: Number(plan.amountCents ?? 0),
+        currency: plan.currency ?? 'usd',
+        intro_enabled: Boolean(plan.introEnabled),
+        intro_type: introType(plan.introType),
+        intro_amount_cents: plan.introAmountCents != null ? Number(plan.introAmountCents) : undefined,
+        intro_periods: plan.introPeriods != null ? Number(plan.introPeriods) : undefined,
+        intro_price_lookup_key: plan.introPriceLookupKey,
+        stripe_price_id: plan.stripePriceId ?? '',
+        monthly_included_credits: Number(plan.monthlyIncludedCredits ?? 0),
+        one_time_bonus_credits: Number(plan.oneTimeBonusCredits ?? 0),
+        plan_rank: plan.planRank != null ? Number(plan.planRank) : undefined,
+        bonus_type: plan.bonusType,
+        kind: planKind(plan.kind),
+        is_variable_amount: Boolean(plan.isVariableAmount),
+        display_enabled: Boolean(plan.displayEnabled),
+        bundle_key: plan.bundleKey,
+        display_weight: Number(plan.displayWeight ?? 0),
+        metadata: toObjectMap(plan.metadata),
+      };
+
+      // Validate the normalized plan against the schema
+      const validated = parseOrNull(PlanOptionSchema, normalized, 'PlanOption');
+      if (!validated) return null;
+      return normalized;
+    };
 
     const pricing = message.pricing;
-    // Some environments send updated_at as an ISO string instead of a proto Timestamp.
-    const updatedAt =
-      pricing?.updatedAt && typeof (pricing.updatedAt as any).toJsonString === 'function'
-        ? (pricing.updatedAt as any).toJsonString()
-        : pricing?.updatedAt && typeof (pricing.updatedAt as any) === 'object' && typeof (pricing.updatedAt as any).seconds === 'number'
-          ? new Date(
-              (pricing.updatedAt as any).seconds * 1000 + Math.floor(((pricing.updatedAt as any).nanos ?? 0) / 1_000_000),
-            ).toISOString()
-        : typeof pricing?.updatedAt === 'string'
-          ? (pricing.updatedAt as string)
-          : new Date().toISOString();
+    const updatedAt = normalizeTimestampOrNow(pricing?.updatedAt);
+
+    // Normalize and filter out invalid plans
+    const monthlyPlans = (pricing?.monthly ?? [])
+      .map((p) => normalizePlan(p as RawPlan))
+      .filter((p): p is PlanOption => p !== null);
+    const yearlyPlans = (pricing?.yearly ?? [])
+      .map((p) => normalizePlan(p as RawPlan))
+      .filter((p): p is PlanOption => p !== null);
+
     const overview: PricingOverview = {
       bundle: {
         bundle_key: pricing?.bundle?.bundleKey ?? '',
@@ -109,10 +143,17 @@ export function getPlans() {
         environment: pricing?.bundle?.environment ?? 'production',
         metadata: toObjectMap(pricing?.bundle?.metadata),
       },
-      monthly: (pricing?.monthly ?? []).map(normalizePlan),
-      yearly: (pricing?.yearly ?? []).map(normalizePlan),
+      monthly: monthlyPlans,
+      yearly: yearlyPlans,
       updated_at: updatedAt,
     };
+
+    // Validate the final overview
+    const validationResult = safeParse(PricingOverviewSchema, overview, 'PricingOverview');
+    if (!validationResult.success) {
+      console.warn('[getPlans] Pricing overview validation failed, returning as-is:', validationResult.error);
+    }
+
     return overview;
   });
 }

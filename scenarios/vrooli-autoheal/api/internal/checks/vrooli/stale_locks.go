@@ -58,6 +58,7 @@ func (c *StaleLockCheck) Title() string { return "Stale Port Locks" }
 func (c *StaleLockCheck) Description() string {
 	return "Detects stale port lock files that prevent scenario startup"
 }
+
 func (c *StaleLockCheck) Importance() string {
 	return "Stale locks block scenarios from binding to their ports, causing startup failures"
 }
@@ -319,31 +320,31 @@ var _ checks.HealableCheck = (*StaleLockCheck)(nil)
 
 // PortDiagnostics contains comprehensive information about a port conflict
 type PortDiagnostics struct {
-	Port          int               `json:"port"`
-	Scenario      string            `json:"scenario"`
-	LockExists    bool              `json:"lockExists"`
-	LockInfo      *PortLockInfo     `json:"lockInfo,omitempty"`
-	ProcessOnPort *ProcessOnPortInfo `json:"processOnPort,omitempty"`
-	Recommendation string           `json:"recommendation"`
-	IsRecoverable  bool             `json:"isRecoverable"`
+	Port           int                `json:"port"`
+	Scenario       string             `json:"scenario"`
+	LockExists     bool               `json:"lockExists"`
+	LockInfo       *PortLockInfo      `json:"lockInfo,omitempty"`
+	ProcessOnPort  *ProcessOnPortInfo `json:"processOnPort,omitempty"`
+	Recommendation string             `json:"recommendation"`
+	IsRecoverable  bool               `json:"isRecoverable"`
 }
 
 // PortLockInfo contains lock file information
 type PortLockInfo struct {
-	Scenario  string `json:"scenario"`
-	PID       int    `json:"pid"`
-	IsStale   bool   `json:"isStale"`
-	FilePath  string `json:"filePath"`
+	Scenario string `json:"scenario"`
+	PID      int    `json:"pid"`
+	IsStale  bool   `json:"isStale"`
+	FilePath string `json:"filePath"`
 }
 
 // ProcessOnPortInfo contains information about a process using a port
 type ProcessOnPortInfo struct {
-	PID            int    `json:"pid"`
-	Command        string `json:"command"`
-	IsVrooliManaged bool  `json:"isVrooliManaged"`
-	IsTracked      bool   `json:"isTracked"`
-	Scenario       string `json:"scenario,omitempty"`
-	Step           string `json:"step,omitempty"`
+	PID             int    `json:"pid"`
+	Command         string `json:"command"`
+	IsVrooliManaged bool   `json:"isVrooliManaged"`
+	IsTracked       bool   `json:"isTracked"`
+	Scenario        string `json:"scenario,omitempty"`
+	Step            string `json:"step,omitempty"`
 }
 
 // DiagnosePort provides comprehensive diagnostics for a port conflict.

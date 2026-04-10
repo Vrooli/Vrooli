@@ -14,6 +14,8 @@ import {
   Clock,
   Lightbulb,
   Activity,
+  Copy,
+  Check,
 } from 'lucide-react';
 import type { PipelineTestResponse, PipelineStepResult } from '@/domains/observability';
 
@@ -24,6 +26,29 @@ interface PipelineTestResultsProps {
 export function PipelineTestResults({ result }: PipelineTestResultsProps) {
   const [showDetails, setShowDetails] = useState(!result.success);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Build and copy JSON to clipboard
+  const handleCopyJson = async () => {
+    const exportData = {
+      copiedAt: new Date().toISOString(),
+      success: result.success,
+      durationMs: result.duration_ms,
+      failurePoint: result.failure_point ?? null,
+      failureMessage: result.failure_message ?? null,
+      suggestions: result.suggestions ?? [],
+      steps: result.steps,
+      diagnostics: result.diagnostics,
+    };
+
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(exportData, null, 2));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy pipeline test results:', err);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -42,16 +67,35 @@ export function PipelineTestResults({ result }: PipelineTestResultsProps) {
             <XCircle size={24} className="text-red-400 flex-shrink-0 mt-0.5" />
           )}
           <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <span
-                className={`font-semibold ${result.success ? 'text-emerald-300' : 'text-red-300'}`}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`font-semibold ${result.success ? 'text-emerald-300' : 'text-red-300'}`}
+                >
+                  {result.success ? 'Pipeline Test Passed' : 'Pipeline Test Failed'}
+                </span>
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <Clock size={12} />
+                  {result.duration_ms}ms
+                </span>
+              </div>
+              <button
+                onClick={handleCopyJson}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-400 hover:text-gray-200 bg-gray-700/50 hover:bg-gray-700 rounded-md transition-colors"
+                title="Copy pipeline test results as JSON"
               >
-                {result.success ? 'Pipeline Test Passed' : 'Pipeline Test Failed'}
-              </span>
-              <span className="text-xs text-gray-500 flex items-center gap-1">
-                <Clock size={12} />
-                {result.duration_ms}ms
-              </span>
+                {copied ? (
+                  <>
+                    <Check size={12} className="text-emerald-400" />
+                    <span className="text-emerald-400">Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={12} />
+                    <span>Copy JSON</span>
+                  </>
+                )}
+              </button>
             </div>
 
             {!result.success && result.failure_message && (

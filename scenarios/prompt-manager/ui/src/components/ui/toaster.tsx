@@ -1,0 +1,38 @@
+/**
+ * Toaster component - renders toast notifications.
+ * Add this to your app layout to enable toast notifications.
+ */
+
+import {
+  Toast,
+  ToastClose,
+  ToastDescription,
+  ToastProvider,
+  ToastTitle,
+  ToastViewport,
+} from '@/components/ui/toast'
+import { useToast } from '@/hooks/use-toast'
+
+export function Toaster() {
+  const { toasts } = useToast()
+
+  return (
+    <ToastProvider duration={4000}>
+      {toasts.map(function ({ id, title, description, action, ...props }) {
+        return (
+          <Toast key={id} {...props}>
+            <div className="grid gap-1">
+              {title && <ToastTitle>{title}</ToastTitle>}
+              {description && (
+                <ToastDescription>{description}</ToastDescription>
+              )}
+            </div>
+            {action}
+            <ToastClose />
+          </Toast>
+        )
+      })}
+      <ToastViewport />
+    </ToastProvider>
+  )
+}

@@ -1,0 +1,102 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-08T20:15:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "database.Connect migration strategy for eventlog_setup.go",
+      "context": "eventlog_setup.go currently builds a custom DSN with WAL pragmas (journal_mode=WAL, busy_timeout=10000, synchronous=NORMAL) and passes it to sql.Open. database.Connect supports explicit DSN passthrough but also has its own buildSQLiteDSN that reads SQLITE_PATH from env. The current code uses a storage.Resolver to find the DB path, not env vars. We need to decide whether to keep the custom DSN logic or adapt to the env-based approach.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Pass existing DSN directly to database.Connect",
+          "rationale": "Keep resolveEventDBPath() as-is. Pass its output as Config.DSN to database.Connect. This is the lowest-risk change — preserves all existing path resolution and pragma logic while satisfying the standards requirement to use the shared connection helper. Recommended because it minimizes behavioral changes while fixing the violation.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Refactor to use SQLITE_PATH env var",
+          "rationale": "Set SWARM_MANAGER_SQLITE_PATH in the lifecycle system and let database.Connect read it via buildSQLiteDSN. Cleaner long-term but requires lifecycle config changes and loses the storage.Resolver fallback chain and WAL pragmas."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": "Pre-selected because Option A is clearly the lowest-risk path that satisfies the standard."
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Test depth for dispatch and logging packages",
+      "context": "dispatch/ defines two interfaces (Invalidator, NodeDispatcher) with no concrete implementation — the graph package implements them. logging/ has 4 small functions (Init, WithLogger, FromContext, With). Standards require test files exist, but test depth matters for maintainability.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Minimal compile-check tests for dispatch; functional tests for logging",
+          "rationale": "dispatch/ only has interfaces — test that a mock type satisfies them (compile-time guarantee). logging/ has real behavior worth testing: context round-trip, Init() configures slog, With() returns child logger. Recommended because it matches the actual testable surface of each package.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Minimal placeholder tests for both",
+          "rationale": "Just enough to make standards pass (e.g., TestPackageImports). Fast to write but adds no real value."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "cli/go.mod workspace configuration fix",
+      "context": "cli/go.mod uses Go 1.22 while api/go.mod uses Go 1.24. The standards flag says 'Go CLI builds without workspace mode'. No go.work file exists anywhere in the swarm-manager scenario. The CLI module has replace directives pointing to ../api and packages/cli-core.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Create go.work at scenarios/swarm-manager/ with api and cli modules",
+          "rationale": "A go.work file at the scenario root listing both ./api and ./cli modules enables workspace mode. This is the standard Go approach for multi-module repos and eliminates the need for replace directives in cli/go.mod. Recommended because it directly addresses the 'without workspace mode' violation.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Just upgrade cli/go.mod to Go 1.24 and keep replace directives",
+          "rationale": "Fixes the Go version mismatch but may not fully resolve the 'workspace mode' warning if the standard specifically requires go.work."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "database.Connect in api-core fully supports SQLite: DriverSQLite constant exists (line 53), buildSQLiteDSN reads SQLITE_PATH/SQLITE_DB, and Config.DSN allows explicit passthrough. The migration to database.Connect is straightforward — the current resolveEventDBPath() output can be passed as Config.DSN directly."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "cli/cmd/migrate_workshop.go (626 lines) has rich testable surface: clarifyToRound, suggestToRound, computeReadiness, mapSuggestionStatus, answerString, and file helpers. These are all package-level functions that can be tested with table-driven tests using in-memory fixtures (no file I/O mocking needed for the conversion helpers)."
+    }
+  ],
+  "plan_updates": "Created initial plan.md scaffold with all 13 mandatory sections. Populated problem statement from GCT evidence, documented api-core database.Connect capabilities from source analysis, outlined 3-phase implementation strategy, and defined acceptance criteria matching the success target."
+}

@@ -59,6 +59,7 @@ type AIGenerateDraftRequest struct {
 	ReferencePRDs        []ReferencePRD `json:"reference_prds,omitempty"`           // Reference PRD examples
 	Model                string         `json:"model,omitempty"`                    // Override model (e.g., "openrouter/x-ai/grok-code-fast-1")
 	SaveGeneratedToDraft *bool          `json:"save_generated_to_draft,omitempty"`  // Default true
+	CustomPath           string         `json:"custom_path,omitempty"`              // Override base directory for reading existing PRD
 }
 
 type AIGenerateDraftResponse struct {
@@ -191,7 +192,7 @@ func executeAIGenerateDraft(store dbQueryExecutor, req AIGenerateDraftRequest) (
 		}, http.StatusInternalServerError
 	}
 
-	generatedText, model, err := generateAIContent(draft, req.Section, req.Context, req.Action, includeExisting, req.ReferencePRDs, req.Model)
+	generatedText, model, err := generateAIContent(draft, req.Section, req.Context, req.Action, includeExisting, req.ReferencePRDs, req.Model, req.CustomPath)
 	if err != nil {
 		return AIGenerateDraftResponse{
 			DraftID:        draft.ID,
@@ -342,7 +343,7 @@ func ensureDraftForAI(store dbQueryExecutor, entityType, entityName, content, ow
 	}
 }
 
-func generateAIContent(draft Draft, section string, context string, action string, includeExisting bool, referencePRDs []ReferencePRD, modelOverride string) (string, string, error) {
+func generateAIContent(draft Draft, section string, context string, action string, includeExisting bool, referencePRDs []ReferencePRD, modelOverride string, customPath ...string) (string, string, error) {
 	// Use OpenRouter API directly (resource-openrouter is just a thin wrapper)
 	openrouterURL := os.Getenv("RESOURCE_OPENROUTER_URL")
 	if openrouterURL == "" {
@@ -350,15 +351,24 @@ func generateAIContent(draft Draft, section string, context string, action strin
 		openrouterURL = "https://openrouter.ai/api/v1"
 	}
 
-	if isFullPRDSection(section) && action == "" {
-		return generateCompliantFullPRDHTTP(openrouterURL, draft, context, includeExisting, referencePRDs, modelOverride)
+	cp := ""
+	if len(customPath) > 0 {
+		cp = customPath[0]
 	}
-	return generateAIContentHTTP(openrouterURL, draft, section, context, action, includeExisting, referencePRDs, modelOverride)
+
+	if isFullPRDSection(section) && action == "" {
+		return generateCompliantFullPRDHTTP(openrouterURL, draft, context, includeExisting, referencePRDs, modelOverride, cp)
+	}
+	return generateAIContentHTTP(openrouterURL, draft, section, context, action, includeExisting, referencePRDs, modelOverride, cp)
 }
 
-func generateAIContentHTTP(baseURL string, draft Draft, section string, context string, action string, includeExisting bool, referencePRDs []ReferencePRD, modelOverride string) (string, string, error) {
+func generateAIContentHTTP(baseURL string, draft Draft, section string, context string, action string, includeExisting bool, referencePRDs []ReferencePRD, modelOverride string, customPath ...string) (string, string, error) {
 	// Construct prompt
-	prompt := buildPrompt(draft, section, context, action, includeExisting, referencePRDs)
+	cp := ""
+	if len(customPath) > 0 {
+		cp = customPath[0]
+	}
+	prompt := buildPrompt(draft, section, context, action, includeExisting, referencePRDs, cp)
 	maxTokens := 4000
 	if isFullPRDSection(section) && action == "" {
 		maxTokens = 6500
@@ -502,11 +512,15 @@ func generateAIContentCLI(draft Draft, section string, context string, action st
 	return stdout.String(), "anthropic/claude-3.5-sonnet", nil
 }
 
-func generateCompliantFullPRDHTTP(baseURL string, draft Draft, context string, includeExisting bool, referencePRDs []ReferencePRD, modelOverride string) (string, string, error) {
+func generateCompliantFullPRDHTTP(baseURL string, draft Draft, context string, includeExisting bool, referencePRDs []ReferencePRD, modelOverride string, customPath ...string) (string, string, error) {
 	const maxAttempts = 3
 	maxTokens := 6500
 
-	prompt := buildPrompt(draft, "🎯 Full PRD", context, "", includeExisting, referencePRDs)
+	cp := ""
+	if len(customPath) > 0 {
+		cp = customPath[0]
+	}
+	prompt := buildPrompt(draft, "🎯 Full PRD", context, "", includeExisting, referencePRDs, cp)
 	text, usedModel, err := openRouterChatCompletion(baseURL, prompt, modelOverride, maxTokens)
 	if err != nil {
 		return "", "", err
@@ -606,7 +620,7 @@ func summarizePRDTemplateIssues(result PRDValidationResultV2) string {
 	return strings.Join(parts, " | ")
 }
 
-func buildPrompt(draft Draft, section string, context string, action string, includeExisting bool, referencePRDs []ReferencePRD) string {
+func buildPrompt(draft Draft, section string, context string, action string, includeExisting bool, referencePRDs []ReferencePRD, customPath ...string) string {
 	// If action is specified, use action-based prompt
 	if action != "" {
 		return buildActionPrompt(action, context)
@@ -635,8 +649,12 @@ func buildPrompt(draft Draft, section string, context string, action string, inc
 
 	var publishedPRD string
 	if includeExisting {
-		if root, err := getVrooliRoot(); err == nil {
-			path := filepath.Join(root, draft.EntityType+"s", draft.EntityName, "PRD.md")
+		cp := ""
+		if len(customPath) > 0 {
+			cp = customPath[0]
+		}
+		if entityBaseDir, err := resolveEntityBaseDir(draft.EntityType, draft.EntityName, cp); err == nil {
+			path := filepath.Join(entityBaseDir, "PRD.md")
 			if data, err := os.ReadFile(path); err == nil {
 				publishedPRD = string(data)
 			}

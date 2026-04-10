@@ -36,6 +36,27 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const reconnectAttemptsRef = useRef(0);
   const reconnectDelayRef = useRef(INITIAL_RECONNECT_DELAY);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectRef = useRef<() => void>(() => {});
+
+  const attemptReconnect = useCallback(() => {
+    if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+      console.error('[WebSocket] Max reconnection attempts reached');
+      return;
+    }
+
+    reconnectAttemptsRef.current++;
+    const delay = reconnectDelayRef.current;
+
+    console.log(
+      `[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`
+    );
+
+    reconnectTimeoutRef.current = setTimeout(() => {
+      connectRef.current();
+      // Exponential backoff
+      reconnectDelayRef.current = Math.min(reconnectDelayRef.current * 2, MAX_RECONNECT_DELAY);
+    }, delay);
+  }, []);
 
   const connect = useCallback(() => {
     const wsUrl = buildWebSocketUrl();
@@ -80,26 +101,10 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       console.error('[WebSocket] Failed to create connection:', error);
       attemptReconnect();
     }
-  }, []);
+  }, [attemptReconnect]);
 
-  const attemptReconnect = useCallback(() => {
-    if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
-      console.error('[WebSocket] Max reconnection attempts reached');
-      return;
-    }
-
-    reconnectAttemptsRef.current++;
-    const delay = reconnectDelayRef.current;
-
-    console.log(
-      `[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`
-    );
-
-    reconnectTimeoutRef.current = setTimeout(() => {
-      connect();
-      // Exponential backoff
-      reconnectDelayRef.current = Math.min(reconnectDelayRef.current * 2, MAX_RECONNECT_DELAY);
-    }, delay);
+  useEffect(() => {
+    connectRef.current = connect;
   }, [connect]);
 
   const send = useCallback((message: unknown) => {

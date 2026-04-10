@@ -39,6 +39,8 @@ func Do(ctx *appctx.Context, method, path string, query url.Values, body []byte,
 	if len(body) > 0 {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	// Identify this request as coming from the CLI for client source restrictions
+	req.Header.Set("X-Client-Source", "cli")
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}

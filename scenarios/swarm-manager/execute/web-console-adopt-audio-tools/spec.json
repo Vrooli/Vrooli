@@ -1,0 +1,19 @@
+{
+  "acceptance_allow": [
+    "scenarios/web-console/**"
+  ],
+  "created": "2026-03-26T20:54:35Z",
+  "depends_on": [
+    "execute/audio-tools-greenfield-scenario"
+  ],
+  "description": "## Goal\n\nReplace web-console's built-in audio implementation with consumption of the shared audio-tools scenario. This should significantly reduce code in web-console while maintaining all current functionality.\n\n## Scope\n\n### Remove from web-console\n- Voice streaming backend: `voice_stream_ws.go`, `voice_transcribe.go`, `voice_config.go`\n- TTS backend: `tts_synthesize.go`, `tts_cache.go`, `tts_chunker.go`, `tts_normalizer.go`, `tts_summarizer.go`, `tts_summarize_config.go`, `tts_playback.go`, `tts_hook_handler.go`, `tts_config.go`, `tts_voices.go`\n- Audio transcoding: `audio_transcode.go`\n- Frontend hooks: `useVoiceInput.ts`, `useTextToSpeech.ts`, `voice/` subdirectory, `tts/` subdirectory\n- Frontend components: `VoiceMicButton.tsx`, `AudioPlayerBar.tsx`, `VoiceCommandSuggestion.tsx`\n- Settings components: `VoiceInputSection.tsx`, `TtsSettingsSection.tsx`\n\n### Replace with\n- API calls to audio-tools service endpoints\n- Adopted UI components from audio-tools\n- Thin integration layer in web-console for:\n  - Hook handler (`tts_hook_handler.go` equivalent) — routing agent responses to audio-tools TTS\n  - Conversation event updates with audio status\n  - Configuration pass-through to audio-tools\n\n### Preserve\n- Voice command system (may stay in web-console as it's app-specific)\n- Conversation event tracking and storage\n- Auto-TTS trigger logic on tab switch\n\n## Success Criteria\n\n- All existing audio features work identically from the user's perspective\n- Web-console audio code reduced by ~70%+\n- Audio-tools is the single source of truth for audio capabilities\n- Existing web-console audio tests pass (rewritten against audio-tools APIs)",
+  "effort": "L",
+  "initiative": "continuous-audio-platform",
+  "kind": "execute",
+  "name": "web-console-adopt-audio-tools",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [],
+  "title": "Rewrite Web-Console Audio to Consume the Shared Audio-Tools Scenario",
+  "updated": "2026-03-26T20:54:35Z"
+}

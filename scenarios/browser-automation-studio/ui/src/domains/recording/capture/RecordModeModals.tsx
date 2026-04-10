@@ -1,4 +1,222 @@
+import { useState } from 'react';
 import type { ReplayPreviewResponse } from '../types/types';
+import type { ErrorDetails } from './RecordModeBanners';
+
+/** Modal showing full error details with copy functionality */
+export function ErrorDetailsModal({
+  open,
+  error,
+  onClose,
+}: {
+  open: boolean;
+  error: ErrorDetails | null;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [showStackTrace, setShowStackTrace] = useState(false);
+
+  if (!open || !error) return null;
+
+  const formatTimestamp = (date: Date) => {
+    return date.toISOString();
+  };
+
+  const getSourceLabel = (source: ErrorDetails['source']) => {
+    const labels: Record<ErrorDetails['source'], string> = {
+      session: 'Session Management',
+      frame: 'Frame Streaming',
+      recording: 'Recording Engine',
+      api: 'API Request',
+      unknown: 'Unknown',
+    };
+    return labels[source] ?? 'Unknown';
+  };
+
+  const buildErrorJson = () => {
+    const errorData: Record<string, unknown> = {
+      message: error.message,
+      timestamp: formatTimestamp(error.timestamp),
+      source: error.source,
+    };
+
+    if (error.code) errorData.code = error.code;
+    if (error.sessionId) errorData.sessionId = error.sessionId;
+    if (error.url) errorData.url = error.url;
+    if (error.stackTrace) errorData.stackTrace = error.stackTrace;
+    if (error.rawError !== undefined) {
+      try {
+        errorData.rawError = typeof error.rawError === 'string'
+          ? error.rawError
+          : JSON.parse(JSON.stringify(error.rawError));
+      } catch {
+        errorData.rawError = String(error.rawError);
+      }
+    }
+
+    return JSON.stringify(errorData, null, 2);
+  };
+
+  const handleCopyAll = async () => {
+    try {
+      await navigator.clipboard.writeText(buildErrorJson());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy error details:', err);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30">
+              <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Error Details
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-md transition-colors"
+            aria-label="Close"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {/* Error Message */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+              Error Message
+            </label>
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-800 dark:text-red-200 break-words">{error.message}</p>
+            </div>
+          </div>
+
+          {/* Metadata Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                Timestamp
+              </label>
+              <p className="text-sm font-mono text-gray-900 dark:text-white">
+                {formatTimestamp(error.timestamp)}
+              </p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                Source
+              </label>
+              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                {getSourceLabel(error.source)}
+              </span>
+            </div>
+            {error.code && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                  Error Code
+                </label>
+                <span className="inline-flex items-center px-2 py-0.5 text-xs font-mono rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
+                  {error.code}
+                </span>
+              </div>
+            )}
+            {error.sessionId && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                  Session ID
+                </label>
+                <p className="text-sm font-mono text-gray-900 dark:text-white truncate" title={error.sessionId}>
+                  {error.sessionId}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* URL if present */}
+          {error.url && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                URL
+              </label>
+              <p className="text-sm font-mono text-gray-900 dark:text-white break-all">{error.url}</p>
+            </div>
+          )}
+
+          {/* Stack Trace (collapsible) */}
+          {error.stackTrace && (
+            <div>
+              <button
+                onClick={() => setShowStackTrace(!showStackTrace)}
+                className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+              >
+                <svg
+                  className={`w-4 h-4 transition-transform ${showStackTrace ? 'rotate-90' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                Stack Trace
+              </button>
+              {showStackTrace && (
+                <pre className="mt-2 p-3 bg-gray-900 rounded-lg text-xs text-gray-300 overflow-x-auto whitespace-pre-wrap break-words max-h-48">
+                  {error.stackTrace}
+                </pre>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 rounded-b-lg flex justify-between items-center">
+          <button
+            onClick={handleCopyAll}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+          >
+            {copied ? (
+              <>
+                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Copied!
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                </svg>
+                Copy as JSON
+              </>
+            )}
+          </button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function ClearActionsModal({
   open,

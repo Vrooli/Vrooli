@@ -1,0 +1,20 @@
+{
+  "created": "2026-04-08T19:33:46Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "All informational/status overlays on the graph (edge count warning, loading/refreshing indicator, graph-unavailable messages) should be visually centered in the graph area, matching the focus lens empty-state pattern. Additionally, the high edge count warning should include a 'Show anyway' button that lets users bypass the performance warning and render the graph regardless.",
+  "kind": "execute",
+  "name": "center-graph-informational-overlays-and-add-show-anyway-override-for-edge-warning",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [
+    "swarm-manager",
+    "graph",
+    "ux",
+    "topo-view",
+    "edge-warning"
+  ],
+  "title": "Center graph informational overlays and add 'Show anyway' override for edge warning",
+  "updated": "2026-04-08T19:33:46Z"
+}

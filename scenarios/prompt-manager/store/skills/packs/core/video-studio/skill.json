@@ -1,0 +1,22 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "video-studio",
+  "name": "Video Studio",
+  "description": "AI-driven video production combining browser recording, desktop recording, and compositing for marketing and demo content",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "skill",
+    "marketing",
+    "video",
+    "content-creation"
+  ],
+  "icon": "video",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-03-19T00:00:00Z",
+  "updatedAt": "2026-03-19T00:00:00Z"
+}

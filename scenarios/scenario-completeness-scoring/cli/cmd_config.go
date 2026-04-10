@@ -25,7 +25,7 @@ func (a *App) cmdConfigSet(args []string) error {
 	fs := flag.NewFlagSet("config set", flag.ContinueOnError)
 	filePath := fs.String("file", "", "Path to JSON config file")
 	inline := fs.String("json", "", "Inline JSON payload")
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	var payload map[string]interface{}

@@ -27,7 +27,7 @@ import { normalizeError, FrameNotFoundError, validateTimeout, logger, scopedLog,
  * Check if a frame reference is still valid (not detached).
  * Frame references can become stale after navigation or page reload.
  */
-async function isFrameValid(frame: Frame): Promise<boolean> {
+function isFrameValid(frame: Frame): boolean {
   try {
     // Attempt to access frame URL - will throw if frame is detached
     frame.url();
@@ -80,7 +80,7 @@ export class FrameHandler extends BaseHandler {
       if (frameStack.length > 0) {
         const validFrames: Frame[] = [];
         for (const frame of frameStack) {
-          if (await isFrameValid(frame)) {
+          if (isFrameValid(frame)) {
             validFrames.push(frame);
           }
         }
@@ -152,7 +152,8 @@ export class FrameHandler extends BaseHandler {
             }
           } else if (params.frameUrl) {
             // Find frame by URL (partial match)
-            targetFrame = page.frames().find(f => f.url().includes(params.frameUrl!)) ?? null;
+            const frameUrl = params.frameUrl;
+            targetFrame = page.frames().find((f) => f.url().includes(frameUrl)) ?? null;
           }
 
           if (!targetFrame) {
@@ -177,7 +178,7 @@ export class FrameHandler extends BaseHandler {
               success: true,
               extracted_data: {
                 frameUrl: targetFrame.url(),
-                frameName: await targetFrame.name(),
+                frameName: targetFrame.name(),
                 stackDepth: frameStack.length,
                 idempotent: true,
               },
@@ -199,7 +200,7 @@ export class FrameHandler extends BaseHandler {
             success: true,
             extracted_data: {
               frameUrl: targetFrame.url(),
-              frameName: await targetFrame.name(),
+              frameName: targetFrame.name(),
               stackDepth: frameStack.length,
             },
           };

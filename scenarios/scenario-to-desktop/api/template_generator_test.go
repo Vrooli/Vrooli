@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"scenario-to-desktop-api/generation"
 )
 
 func TestTemplateGeneratorInterpolatesPlaceholders(t *testing.T) {
@@ -16,7 +18,7 @@ func TestTemplateGeneratorInterpolatesPlaceholders(t *testing.T) {
 	tempDir := t.TempDir()
 	outputDir := filepath.Join(tempDir, "desktop-output")
 
-	config := &DesktopConfig{
+	config := &generation.DesktopConfig{
 		AppName:          "test-scenario",
 		AppDisplayName:   "Test Scenario",
 		AppDescription:   "Integration test",
@@ -86,7 +88,7 @@ func TestTemplateGeneratorInjectsBundledRuntimeConfig(t *testing.T) {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
 
-	config := &DesktopConfig{
+	config := &generation.DesktopConfig{
 		AppName:                  "bundled-scenario",
 		AppDisplayName:           "Bundled Scenario",
 		AppDescription:           "Bundled runtime test",
@@ -109,7 +111,7 @@ func TestTemplateGeneratorInjectsBundledRuntimeConfig(t *testing.T) {
 		Platforms:                []string{"win"},
 		BundleManifestPath:       manifestPath,
 		BundleRuntimeRoot:        "custom-bundle-root",
-		BundleIPC:                &BundleIPCConfig{Host: "10.0.0.5", Port: 49100, AuthTokenRel: "runtime/custom-token"},
+		BundleIPC:                &generation.BundleIPCConfig{Host: "10.0.0.5", Port: 49100, AuthTokenRel: "runtime/custom-token"},
 		BundleUISvcID:            "ui-service",
 		BundleUIPortName:         "ui-port",
 		BundleTelemetryUploadURL: "https://telemetry.example.com/upload",

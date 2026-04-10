@@ -1,0 +1,32 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "revenue-research",
+  "roles": [
+    {
+      "id": "lead",
+      "name": "Lead",
+      "description": "Orchestrates research, synthesizes findings into decision-ready briefs."
+    },
+    {
+      "id": "scout",
+      "name": "Scout",
+      "description": "Generates ideas from market trends and capability combinations."
+    },
+    {
+      "id": "analyst",
+      "name": "Analyst",
+      "description": "Evaluates ideas against existing Vrooli capabilities and effort."
+    },
+    {
+      "id": "validator",
+      "name": "Validator",
+      "description": "Grounds ideas in external market data and competitive analysis."
+    },
+    {
+      "id": "critic",
+      "name": "Critic",
+      "description": "Challenges assumptions and identifies failure modes."
+    }
+  ]
+}

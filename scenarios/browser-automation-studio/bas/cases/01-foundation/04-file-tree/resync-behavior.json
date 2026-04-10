@@ -84,7 +84,8 @@
     "labels": {
       "reset": "full"
     },
-    "version": "1"
+    "version": "1",
+    "execution_mode": "mutating"
   },
   "nodes": [
     {
@@ -132,7 +133,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]').length; const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]').length; return { initialFolderCount: folders, initialFileCount: files }; })()",
+          "expression": "(() => { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]').length; const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]').length; return { initialFolderCount: folders, initialFileCount: files }; })()",
           "store_result": "initialTreeState"
         },
         "metadata": {
@@ -263,7 +264,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]').length; const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]').length; const treeRoot = document.querySelector('[data-testid=\"project-file-tree\"]'); return { postResyncFolderCount: folders, postResyncFileCount: files, treeRootExists: !!treeRoot }; })()",
+          "expression": "(() => { const folders = document.querySelectorAll('[data-testid=\"file-tree-folder\"]').length; const files = document.querySelectorAll('[data-testid=\"file-tree-file\"]').length; const treeRoot = document.querySelector('[data-testid=\"project-file-tree\"]'); return { postResyncFolderCount: folders, postResyncFileCount: files, treeRootExists: !!treeRoot }; })()",
           "store_result": "postResyncTreeState"
         },
         "metadata": {
@@ -276,7 +277,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const errorToasts = document.querySelectorAll('[data-sonner-toast][data-type=\"error\"]'); return { hasErrors: errorToasts.length \u003e 0, errorCount: errorToasts.length }; })()",
+          "expression": "(() => { const errorToasts = document.querySelectorAll('[data-sonner-toast][data-type=\"error\"]'); return { hasErrors: errorToasts.length > 0, errorCount: errorToasts.length }; })()",
           "store_result": "errorCheck"
         },
         "metadata": {

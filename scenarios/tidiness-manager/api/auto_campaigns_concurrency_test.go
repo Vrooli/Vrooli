@@ -90,9 +90,9 @@ func TestAutoCampaign_ActiveCountAccuracy(t *testing.T) {
 	c3, _ := aco.CreateAutoCampaign("test-paused", 10, 5)
 
 	// Transition to different states
-	aco.StartCampaign(c2.ID)
-	aco.StartCampaign(c3.ID)
-	aco.PauseCampaign(c3.ID)
+	_ = aco.StartCampaign(c2.ID)
+	_ = aco.StartCampaign(c3.ID)
+	_ = aco.PauseCampaign(c3.ID)
 
 	// Count should include created, active, and paused
 	count, err := aco.GetActiveCampaignCount()
@@ -105,7 +105,7 @@ func TestAutoCampaign_ActiveCountAccuracy(t *testing.T) {
 	}
 
 	// Complete one
-	aco.TerminateCampaign(c1.ID)
+	_ = aco.TerminateCampaign(c1.ID)
 
 	// Count should decrease
 	count, err = aco.GetActiveCampaignCount()
@@ -185,7 +185,7 @@ func setupAutoCampaignConcurrencyTest(t *testing.T) (*sql.DB, *AutoCampaignOrche
 
 	cleanup := func() {
 		// Clean up test data
-		db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'test-%'")
+		_, _ = db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'test-%'")
 		db.Close()
 	}
 

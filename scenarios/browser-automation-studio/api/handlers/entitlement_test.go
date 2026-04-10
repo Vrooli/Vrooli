@@ -47,7 +47,6 @@ func createTestEntitlementHandler(t *testing.T) (*EntitlementHandler, *mockSetti
 	log.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.EntitlementConfig{
-		Enabled:        true,
 		RequestTimeout: 5,
 		DefaultTier:    "free",
 		AICreditsLimits: map[string]int{
@@ -59,27 +58,8 @@ func createTestEntitlementHandler(t *testing.T) (*EntitlementHandler, *mockSetti
 	service := entitlement.NewService(cfg, log)
 	settingsRepo := newMockSettingsRepo()
 
-	// Pass nil for usageTracker and aiCreditsTracker since we don't have a DB in tests
-	handler := NewEntitlementHandler(service, nil, nil, settingsRepo)
-	return handler, settingsRepo
-}
-
-func createTestEntitlementHandlerDisabled(t *testing.T) (*EntitlementHandler, *mockSettingsRepo) {
-	t.Helper()
-
-	log := logrus.New()
-	log.SetLevel(logrus.ErrorLevel)
-
-	cfg := config.EntitlementConfig{
-		Enabled:        false,
-		RequestTimeout: 5,
-	}
-
-	service := entitlement.NewService(cfg, log)
-	settingsRepo := newMockSettingsRepo()
-
-	// Pass nil for usageTracker and aiCreditsTracker since we don't have a DB in tests
-	handler := NewEntitlementHandler(service, nil, nil, settingsRepo)
+	// Pass nil for creditService since we don't have a DB in tests
+	handler := NewEntitlementHandler(service, nil, settingsRepo)
 	return handler, settingsRepo
 }
 
@@ -132,29 +112,6 @@ func TestGetEntitlementStatus_WithUserQuery(t *testing.T) {
 
 	if response.UserIdentity != "test@example.com" {
 		t.Fatalf("expected user identity 'test@example.com', got %q", response.UserIdentity)
-	}
-}
-
-func TestGetEntitlementStatus_EntitlementsDisabled(t *testing.T) {
-	handler, _ := createTestEntitlementHandlerDisabled(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/entitlement/status", nil)
-	rr := httptest.NewRecorder()
-
-	handler.GetEntitlementStatus(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var response EntitlementStatusResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
-
-	// When disabled, should return unlimited entitlement
-	if response.MonthlyLimit != -1 {
-		t.Fatalf("expected monthly_limit -1 (unlimited), got %d", response.MonthlyLimit)
 	}
 }
 
@@ -578,30 +535,6 @@ func TestGetEntitlementStatus_IncludesAICreditsFields(t *testing.T) {
 	}
 }
 
-func TestGetEntitlementStatus_AICreditsDisabledReturnsDefaults(t *testing.T) {
-	handler, _ := createTestEntitlementHandlerDisabled(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/entitlement/status", nil)
-	rr := httptest.NewRecorder()
-
-	handler.GetEntitlementStatus(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var response EntitlementStatusResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
-
-	// When entitlements are disabled, AI should be accessible
-	// and credits should show as unlimited (-1) or 0 depending on implementation
-	// The key check is that the response contains these fields
-	t.Logf("AICreditsLimit = %d, AICreditsUsed = %d, AICreditsRemaining = %d",
-		response.AICreditsLimit, response.AICreditsUsed, response.AICreditsRemaining)
-}
-
 func TestGetEntitlementStatus_ResponseIncludesAIResetDate(t *testing.T) {
 	handler, _ := createTestEntitlementHandler(t)
 
@@ -662,5 +595,348 @@ func TestGetEntitlementStatus_AICreditsRemainingCalculation(t *testing.T) {
 			t.Errorf("expected AICreditsRemaining = -1 for unlimited, got %d",
 				response.AICreditsRemaining)
 		}
+	}
+}
+
+// ============================================================================
+// GetApiSource Tests
+// ============================================================================
+
+func TestGetApiSource_DefaultValues(t *testing.T) {
+	handler, _ := createTestEntitlementHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/entitlement/api-source", nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetApiSource(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response ApiSourceResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if response.Source != "production" {
+		t.Errorf("expected source 'production', got %q", response.Source)
+	}
+	if response.LocalPort != 15000 {
+		t.Errorf("expected local_port 15000, got %d", response.LocalPort)
+	}
+}
+
+func TestGetApiSource_StoredValues(t *testing.T) {
+	handler, settingsRepo := createTestEntitlementHandler(t)
+
+	settingsRepo.settings[entitlement.ApiSourceSettingKey] = "local"
+	settingsRepo.settings[entitlement.LocalApiPortSettingKey] = "16000"
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/entitlement/api-source", nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetApiSource(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response ApiSourceResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if response.Source != "local" {
+		t.Errorf("expected source 'local', got %q", response.Source)
+	}
+	if response.LocalPort != 16000 {
+		t.Errorf("expected local_port 16000, got %d", response.LocalPort)
+	}
+}
+
+func TestGetApiSource_DisabledSource(t *testing.T) {
+	handler, settingsRepo := createTestEntitlementHandler(t)
+
+	settingsRepo.settings[entitlement.ApiSourceSettingKey] = "disabled"
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/entitlement/api-source", nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetApiSource(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response ApiSourceResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if response.Source != "disabled" {
+		t.Errorf("expected source 'disabled', got %q", response.Source)
+	}
+}
+
+// ============================================================================
+// SetApiSource Tests
+// ============================================================================
+
+func TestSetApiSource_ValidProduction(t *testing.T) {
+	handler, settingsRepo := createTestEntitlementHandler(t)
+
+	body := `{"source": "production"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/entitlement/api-source", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	handler.SetApiSource(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response ApiSourceResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if response.Source != "production" {
+		t.Errorf("expected source 'production', got %q", response.Source)
+	}
+
+	if settingsRepo.settings[entitlement.ApiSourceSettingKey] != "production" {
+		t.Errorf("expected setting to be 'production', got %q", settingsRepo.settings[entitlement.ApiSourceSettingKey])
+	}
+}
+
+func TestSetApiSource_ValidLocal(t *testing.T) {
+	handler, settingsRepo := createTestEntitlementHandler(t)
+
+	body := `{"source": "local", "local_port": 17000}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/entitlement/api-source", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	handler.SetApiSource(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response ApiSourceResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if response.Source != "local" {
+		t.Errorf("expected source 'local', got %q", response.Source)
+	}
+	if response.LocalPort != 17000 {
+		t.Errorf("expected local_port 17000, got %d", response.LocalPort)
+	}
+
+	if settingsRepo.settings[entitlement.ApiSourceSettingKey] != "local" {
+		t.Errorf("expected setting to be 'local', got %q", settingsRepo.settings[entitlement.ApiSourceSettingKey])
+	}
+	if settingsRepo.settings[entitlement.LocalApiPortSettingKey] != "17000" {
+		t.Errorf("expected local port setting to be '17000', got %q", settingsRepo.settings[entitlement.LocalApiPortSettingKey])
+	}
+}
+
+func TestSetApiSource_ValidDisabled(t *testing.T) {
+	handler, settingsRepo := createTestEntitlementHandler(t)
+
+	body := `{"source": "disabled"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/entitlement/api-source", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	handler.SetApiSource(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response ApiSourceResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if response.Source != "disabled" {
+		t.Errorf("expected source 'disabled', got %q", response.Source)
+	}
+
+	if settingsRepo.settings[entitlement.ApiSourceSettingKey] != "disabled" {
+		t.Errorf("expected setting to be 'disabled', got %q", settingsRepo.settings[entitlement.ApiSourceSettingKey])
+	}
+}
+
+func TestSetApiSource_InvalidSource(t *testing.T) {
+	handler, _ := createTestEntitlementHandler(t)
+
+	body := `{"source": "invalid_source"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/entitlement/api-source", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	handler.SetApiSource(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestSetApiSource_InvalidJSON(t *testing.T) {
+	handler, _ := createTestEntitlementHandler(t)
+
+	body := `{invalid`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/entitlement/api-source", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	handler.SetApiSource(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestSetApiSource_CaseInsensitive(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"PRODUCTION", "production"},
+		{"Production", "production"},
+		{"LOCAL", "local"},
+		{"Local", "local"},
+		{"DISABLED", "disabled"},
+		{"Disabled", "disabled"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			handler, _ := createTestEntitlementHandler(t)
+
+			body := `{"source": "` + tc.input + `"}`
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/entitlement/api-source", strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			rr := httptest.NewRecorder()
+
+			handler.SetApiSource(rr, req)
+
+			if rr.Code != http.StatusOK {
+				t.Fatalf("expected status 200 for input %q, got %d: %s", tc.input, rr.Code, rr.Body.String())
+			}
+
+			var response ApiSourceResponse
+			if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+				t.Fatalf("failed to parse response: %v", err)
+			}
+
+			if response.Source != tc.expected {
+				t.Errorf("expected source %q, got %q", tc.expected, response.Source)
+			}
+		})
+	}
+}
+
+func TestSetApiSource_WhitespaceHandling(t *testing.T) {
+	handler, _ := createTestEntitlementHandler(t)
+
+	body := `{"source": "  local  "}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/entitlement/api-source", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	handler.SetApiSource(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response ApiSourceResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if response.Source != "local" {
+		t.Errorf("expected source 'local' (trimmed), got %q", response.Source)
+	}
+}
+
+func TestSetApiSource_LocalPortDefaultWhenNotProvided(t *testing.T) {
+	handler, settingsRepo := createTestEntitlementHandler(t)
+
+	// Pre-set a local port in settings
+	settingsRepo.settings[entitlement.LocalApiPortSettingKey] = "18000"
+
+	body := `{"source": "local"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/entitlement/api-source", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	handler.SetApiSource(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var response ApiSourceResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	// Should use the existing stored port
+	if response.LocalPort != 18000 {
+		t.Errorf("expected local_port 18000 (from settings), got %d", response.LocalPort)
+	}
+}
+
+// ============================================================================
+// ClearApiSource Tests
+// ============================================================================
+
+func TestClearApiSource_Success(t *testing.T) {
+	handler, settingsRepo := createTestEntitlementHandler(t)
+
+	// Pre-set to local
+	settingsRepo.settings[entitlement.ApiSourceSettingKey] = "local"
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/entitlement/api-source", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ClearApiSource(rr, req)
+
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("expected status 204, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	// Should reset to production
+	if settingsRepo.settings[entitlement.ApiSourceSettingKey] != "production" {
+		t.Errorf("expected setting to be 'production', got %q", settingsRepo.settings[entitlement.ApiSourceSettingKey])
+	}
+}
+
+func TestClearApiSource_AlreadyProduction(t *testing.T) {
+	handler, settingsRepo := createTestEntitlementHandler(t)
+
+	// Already production
+	settingsRepo.settings[entitlement.ApiSourceSettingKey] = "production"
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/entitlement/api-source", nil)
+	rr := httptest.NewRecorder()
+
+	handler.ClearApiSource(rr, req)
+
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("expected status 204, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	// Should still be production
+	if settingsRepo.settings[entitlement.ApiSourceSettingKey] != "production" {
+		t.Errorf("expected setting to be 'production', got %q", settingsRepo.settings[entitlement.ApiSourceSettingKey])
 	}
 }

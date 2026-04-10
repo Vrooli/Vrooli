@@ -88,12 +88,6 @@ resource-gemini token-clear
 resource-gemini test
 ```
 
-### Inject into Other Resources
-```bash
-resource-gemini inject n8n
-resource-gemini inject huginn
-```
-
 ## Models
 
 - `gemini-pro` - Text generation

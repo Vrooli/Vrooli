@@ -12,7 +12,7 @@
 **Query**: Scenarios containing "deployment" or "deploy" keywords
 
 **Results**:
-- ✅ **No existing "deployment-manager" scenario** found in `/home/matthalloran8/Vrooli/scenarios/`
+- ✅ **No existing "deployment-manager" scenario** found in the `scenarios/` directory
 - 🔍 Found 2 related scenarios:
   - `scenario-to-extension`: Browser extension packager (P0 complete, production-ready)
   - `scenario-to-android`: Android app packager (exists but status unknown)

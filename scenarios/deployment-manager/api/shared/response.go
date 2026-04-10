@@ -10,7 +10,7 @@ import (
 func JSONError(w http.ResponseWriter, message string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
 // JSONSuccess writes a JSON success response with the given status code and data.
@@ -18,7 +18,7 @@ func JSONError(w http.ResponseWriter, message string, statusCode int) {
 func JSONSuccess(w http.ResponseWriter, data interface{}, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 // JSONOK writes a JSON success response with status 200 OK.

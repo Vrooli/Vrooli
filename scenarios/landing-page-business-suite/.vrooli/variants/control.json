@@ -4,11 +4,10 @@
     "name": "Silent Founder (Control)",
     "description": "Silent Founder OS default experience for introverted solo builders",
     "weight": 100,
-    "status": "active",
     "axes": {
-      "persona": "silentFounder",
+      "conversionStyle": "emotional",
       "jtbd": "entrepreneurship",
-      "conversionStyle": "emotional"
+      "persona": "silentFounder"
     },
     "header_config": {
       "branding": {
@@ -19,26 +18,64 @@
       },
       "nav": {
         "links": [
-          { "id": "nav-video", "type": "section", "label": "Demo", "section_type": "video", "visible_on": { "desktop": true, "mobile": true } },
-          { "id": "nav-features", "type": "section", "label": "Features", "section_type": "features", "visible_on": { "desktop": true, "mobile": true } },
-          { "id": "nav-pricing", "type": "section", "label": "Pricing", "section_type": "pricing", "visible_on": { "desktop": true, "mobile": true } }
+          {
+            "id": "nav-video",
+            "type": "section",
+            "label": "Demo",
+            "section_type": "video",
+            "visible_on": {
+              "desktop": true,
+              "mobile": true
+            }
+          },
+          {
+            "id": "nav-features",
+            "type": "section",
+            "label": "Features",
+            "section_type": "features",
+            "visible_on": {
+              "desktop": true,
+              "mobile": true
+            }
+          },
+          {
+            "id": "nav-pricing",
+            "type": "section",
+            "label": "Pricing",
+            "section_type": "pricing",
+            "visible_on": {
+              "desktop": true,
+              "mobile": true
+            }
+          }
         ]
       },
       "ctas": {
-        "primary": { "mode": "inherit_hero", "variant": "solid" },
-        "secondary": { "mode": "downloads", "variant": "ghost" }
+        "primary": {
+          "mode": "inherit_hero",
+          "variant": "solid"
+        },
+        "secondary": {
+          "mode": "downloads",
+          "variant": "ghost"
+        }
       },
       "behavior": {
         "sticky": true,
         "hide_on_scroll": true
       }
+    },
+    "seo_config": {
+      "title": "Silent Founder OS - Record Once, Automate Forever",
+      "description": "Automate browser workflows and turn recordings into polished demo videos. No sales calls, no per-seat pricing.",
+      "og_title": "Silent Founder OS",
+      "og_description": "Automate browser workflows and turn recordings into polished demo videos. No sales calls, no per-seat pricing.",
+      "twitter_card": "summary_large_image"
     }
   },
   "sections": [
     {
       "section_type": "hero",
-      "order": 1,
-      "enabled": true,
       "content": {
         "title": "Record once. Automate forever",
         "subtitle": "And turn every recording into a polished, professional demo video",
@@ -47,12 +84,12 @@
         "secondary_cta_text": "Watch video",
         "secondary_cta_url": "#video-2",
         "image_url": "/assets/hero/silent-founder.png"
-      }
+      },
+      "order": 1,
+      "enabled": true
     },
     {
       "section_type": "features",
-      "order": 2,
-      "enabled": true,
       "content": {
         "title": "Your quiet operating system for shipping products",
         "subtitle": "Vrooli Ascension is the first app in the Vrooli Business Suite. More tools will auto-appear in your subscription as we ship them.",
@@ -83,12 +120,12 @@
             "icon": "cpu"
           }
         ]
-      }
+      },
+      "order": 2,
+      "enabled": true
     },
     {
       "section_type": "pricing",
-      "order": 3,
-      "enabled": true,
       "content": {
         "title": "One subscription that keeps gaining tools",
         "subtitle": "Start free. Upgrade to remove watermarks, unlock MP4 exports, and get agent power as we ship it.",
@@ -161,12 +198,12 @@
             "cta_url": "/checkout?price_id=price_business_monthly"
           }
         ]
-      }
+      },
+      "order": 3,
+      "enabled": true
     },
     {
       "section_type": "testimonials",
-      "order": 4,
-      "enabled": true,
       "content": {
         "title": "Proof for people who prefer to ship quietly",
         "subtitle": "Operators and solo founders are already using Vrooli Ascension to run the business in the background.",
@@ -193,12 +230,12 @@
             "rating": 5
           }
         ]
-      }
+      },
+      "order": 4,
+      "enabled": true
     },
     {
       "section_type": "faq",
-      "order": 5,
-      "enabled": true,
       "content": {
         "title": "Quiet founder FAQs",
         "subtitle": "Everything you need to know before you start the Silent Founder OS journey.",
@@ -220,23 +257,23 @@
             "answer": "Yes. The same workflows can run in CI. Failures replay like a movie so you can debug in minutes."
           }
         ]
-      }
+      },
+      "order": 5,
+      "enabled": true
     },
     {
       "section_type": "cta",
-      "order": 6,
-      "enabled": true,
       "content": {
         "title": "Start as a silent founder today",
         "subtitle": "Vrooli Ascension ships now. The rest of the suite arrives automatically as we build it.",
         "cta_text": "Start free",
         "cta_url": "/checkout?price_id=price_free"
-      }
+      },
+      "order": 6,
+      "enabled": true
     },
     {
       "section_type": "footer",
-      "order": 7,
-      "enabled": true,
       "content": {
         "company_name": "Silent Founder OS · Vrooli Business Suite",
         "tagline": "Build the business quietly. Your tools and agents do the talking.",
@@ -244,22 +281,40 @@
           {
             "title": "Product",
             "links": [
-              { "label": "Features", "url": "#features" },
-              { "label": "Pricing", "url": "#pricing" },
-              { "label": "Downloads", "url": "#downloads-section" }
+              {
+                "label": "Features",
+                "url": "#features"
+              },
+              {
+                "label": "Pricing",
+                "url": "#pricing"
+              },
+              {
+                "label": "Downloads",
+                "url": "#downloads-section"
+              }
             ]
           },
           {
             "title": "Resources",
             "links": [
-              { "label": "Docs", "url": "/docs" }
+              {
+                "label": "Docs",
+                "url": "/docs"
+              }
             ]
           },
           {
             "title": "Support",
             "links": [
-              { "label": "Status", "url": "/status" },
-              { "label": "Security", "url": "/security" }
+              {
+                "label": "Status",
+                "url": "/status"
+              },
+              {
+                "label": "Security",
+                "url": "/security"
+              }
             ]
           }
         ],
@@ -267,7 +322,9 @@
           "github": "https://github.com/vrooli",
           "twitter": "https://x.com/vrooli"
         }
-      }
+      },
+      "order": 7,
+      "enabled": true
     }
   ]
 }

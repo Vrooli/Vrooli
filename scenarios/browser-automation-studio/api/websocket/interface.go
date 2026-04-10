@@ -32,12 +32,9 @@ type HubInterface interface {
 	// BroadcastEnvelope sends a normalized automation event envelope to all connected clients.
 	BroadcastEnvelope(event any)
 
-	// BroadcastRecordingAction sends a recording action to clients subscribed to a specific session.
-	BroadcastRecordingAction(sessionID string, action any)
-
-	// BroadcastRecordingActionWithTimeline sends a recording action with a TimelineEntry.
-	// The message includes both the action (for compatibility) and the timeline_entry field.
-	BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEntry map[string]any)
+	// BroadcastRecordingEntry sends a unified timeline entry to clients subscribed to a recording session.
+	// Returns BroadcastResult with metrics for observability.
+	BroadcastRecordingEntry(sessionID string, entry *UnifiedTimelineEntry) BroadcastResult
 
 	// BroadcastRecordingFrame sends a frame to clients subscribed to a specific recording session.
 	// This eliminates the need for clients to poll for frames.
@@ -70,6 +67,10 @@ type HubInterface interface {
 	// BroadcastExecutionFrame sends a frame to clients subscribed to execution frame streaming.
 	// This enables live preview of workflow execution.
 	BroadcastExecutionFrame(executionID string, frame *ExecutionFrame)
+
+	// BroadcastExportProgress sends export progress updates to subscribed clients.
+	// Clients can subscribe to either a specific export ID or an execution ID.
+	BroadcastExportProgress(progress *ExportProgress)
 
 	// GetClientCount returns the number of currently connected clients
 	GetClientCount() int

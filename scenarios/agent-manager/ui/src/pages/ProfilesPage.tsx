@@ -24,12 +24,13 @@ import { Label } from "../components/ui/label";
 import { ModelConfigSelector, type ModelSelectionMode } from "../components/ModelConfigSelector";
 import { Textarea } from "../components/ui/textarea";
 import { durationMs, type Duration } from "@bufbuild/protobuf/wkt";
-import { formatDate, runnerTypeLabel } from "../lib/utils";
+import { runnerTypeLabel } from "../lib/utils";
 import type { AgentProfile, ModelRegistry, ProfileFormData, RunnerStatus, RunnerType } from "../types";
-import { ModelPreset, RunnerType as RunnerTypeEnum } from "../types";
+import { ModelPreset, NetworkAccess, RunnerType as RunnerTypeEnum } from "../types";
 import { runnerTypeToSlug } from "../lib/utils";
 import { ProfileDetail } from "../components/ProfileDetail";
 import { useViewportSize } from "../hooks/useViewportSize";
+import { formatStandardDateTime } from "../lib/dateTime";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
@@ -138,8 +139,11 @@ export function ProfilesPage({
     maxTurns: 100,
     requiresSandbox: true,
     requiresApproval: true,
+    networkAccess: "localhost" as const,
     timeoutMinutes: 30,
     fallbackRunnerTypes: [],
+    features: { enableBrowser: false },
+    extraFlags: {},
   });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -179,8 +183,11 @@ export function ProfilesPage({
       maxTurns: 100,
       requiresSandbox: true,
       requiresApproval: true,
+      networkAccess: "localhost" as const,
       timeoutMinutes: 30,
       fallbackRunnerTypes: [],
+      features: { enableBrowser: false },
+      extraFlags: {},
     });
     setEditingProfile(null);
     setShowForm(false);
@@ -200,10 +207,19 @@ export function ProfilesPage({
       maxTurns: profile.maxTurns || 100,
       requiresSandbox: profile.requiresSandbox,
       requiresApproval: profile.requiresApproval,
+      networkAccess: profile.networkAccess === NetworkAccess.NONE ? "none"
+        : profile.networkAccess === NetworkAccess.FULL ? "full"
+        : "localhost",
       allowedTools: profile.allowedTools,
       deniedTools: profile.deniedTools,
       timeoutMinutes: durationToMinutes(profile.timeout),
       fallbackRunnerTypes: profile.fallbackRunnerTypes ?? [],
+      features: {
+        enableBrowser: profile.features?.enableBrowser ?? false,
+      },
+      extraFlags: Object.fromEntries(
+        Object.entries(profile.extraFlags ?? {}).map(([rt, list]) => [rt, list.flags ?? []])
+      ),
     });
     setShowForm(true);
   };
@@ -314,7 +330,8 @@ export function ProfilesPage({
       filteredAndSortedProfiles.some((profile) => profile.id === selectedProfileId);
 
     if (!hasSelection) {
-      setSelectedProfileId(filteredAndSortedProfiles[0].id);
+      const first = filteredAndSortedProfiles[0];
+      if (first) setSelectedProfileId(first.id);
     }
   }, [filteredAndSortedProfiles, isDesktop, selectedProfileId]);
 
@@ -392,7 +409,7 @@ export function ProfilesPage({
         >
           <ListItemTitle>{profile.name}</ListItemTitle>
           <ListItemSubtitle>
-            {profile.description || "No description"} | {formatDate(profile.createdAt)}
+            {profile.description || "No description"} | {formatStandardDateTime(profile.createdAt)}
           </ListItemSubtitle>
         </ListItem>
       ))}
@@ -443,8 +460,8 @@ export function ProfilesPage({
       />
 
       {/* Create/Edit Profile Modal */}
-      <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()}>
-        <DialogContent>
+      <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()} fullScreenMobile>
+        <DialogContent fullScreenMobile>
           <DialogHeader onClose={resetForm}>
             <DialogTitle>
               {editingProfile ? "Edit Profile" : "Create New Profile"}
@@ -455,7 +472,7 @@ export function ProfilesPage({
                 : "Define how the agent should execute tasks"}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <DialogBody className="space-y-4">
               {formError && (
                 <Card className="border-destructive/50 bg-destructive/10">
@@ -486,7 +503,7 @@ export function ProfilesPage({
                     onChange={(e) => {
                       const newRunnerType = Number(e.target.value) as RunnerType;
                       const availableModels = getModelsForRunner(newRunnerType);
-                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0]) : "";
+                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
                       setFormData({
                         ...formData,
                         runnerType: newRunnerType,
@@ -647,6 +664,57 @@ export function ProfilesPage({
                   />
                   <span className="text-sm">Require Approval</span>
                 </label>
+                <label className="flex items-center gap-2">
+                  <span className="text-sm">Network Access</span>
+                  <select
+                    value={formData.networkAccess ?? "localhost"}
+                    onChange={(e) =>
+                      setFormData({ ...formData, networkAccess: e.target.value as "none" | "localhost" | "full" })
+                    }
+                    className="h-8 rounded border border-input bg-background px-2 text-sm"
+                  >
+                    <option value="none">None</option>
+                    <option value="localhost">Localhost</option>
+                    <option value="full">Full</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="flex gap-6">
+                {formData.runnerType === RunnerTypeEnum.CLAUDE_CODE && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.features?.enableBrowser ?? false}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          features: { ...formData.features, enableBrowser: e.target.checked },
+                        })
+                      }
+                      className="h-4 w-4 rounded border-input"
+                    />
+                    <span className="text-sm">Browser automation (--chrome)</span>
+                  </label>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Extra CLI Flags</Label>
+                <Input
+                  placeholder="--verbose, --allowedTools"
+                  value={(formData.extraFlags?.[runnerTypeToSlug(formData.runnerType)] ?? []).join(", ")}
+                  onChange={(e) => {
+                    const flags = e.target.value.split(",").map(s => s.trim()).filter(Boolean);
+                    setFormData(prev => ({
+                      ...prev,
+                      extraFlags: { ...prev.extraFlags, [runnerTypeToSlug(prev.runnerType)]: flags },
+                    }));
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Flags validated against runner allowlist on save
+                </p>
               </div>
             </DialogBody>
             <DialogFooter>

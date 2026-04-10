@@ -1,21 +1,18 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "web-console",
     "displayName": "Web Console",
-    "description": "Remote-first terminal console with quick command shortcuts",
-    "version": "0.2.0",
+    "description": "Standalone browser terminal with pane-based workspaces, PTY-backed session durability, AI command generation, configurable launch shortcuts, and mobile-first floating toolbar",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
     "tags": [
-      "terminal",
-      "shortcuts",
-      "iframe",
-      "go-api",
-      "vanilla-js"
+      "react-ui",
+      "go-api"
     ],
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -38,101 +35,103 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "description": "Web Console API port",
+      "description": "Go API server",
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 36233,
-      "description": "Web Console UI port"
+      "description": "React UI",
+      "port": 36233
+    },
+    "websocket": {
+      "env_var": "WS_PORT",
+      "description": "WebSocket channel",
+      "range": "25000-29999"
     }
   },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Web Console health check",
+      "description": "Standard API/UI health checks",
       "endpoints": {
-        "api": "/healthz"
+        "api": "/health",
+        "ui": "/health"
       },
+      "startup_grace_period": 15000,
       "checks": [
         {
           "name": "api_endpoint",
           "type": "http",
-          "target": "http://localhost:${API_PORT}/healthz",
-          "critical": true,
-          "timeout": 8000,
-          "interval": 30000
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
         }
-      ],
-      "timeout": 8000,
-      "interval": 30000,
-      "startup_grace_period": 15000
+      ]
     },
     "setup": {
-      "description": "Initialize Web Console services and dependencies",
+      "description": "Build API & UI, install CLI",
       "condition": {
         "checks": [
           {
             "type": "binaries",
-            "targets": [
-              "api/web-console-api"
-            ]
+            "targets": ["api/web-console-api"]
+          },
+          {
+            "type": "cli",
+            "command": "web-console"
           },
           {
             "type": "ui-bundle",
             "bundle_path": "ui/dist/index.html",
             "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "web-console"
           }
         ]
       },
       "steps": [
         {
-          "name": "prepare-storage",
-          "run": "mkdir -p data/sessions",
-          "description": "Create storage directory for transcript archives"
-        },
-        {
           "name": "install-cli",
           "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
+          "description": "Install CLI into ~/.vrooli/bin"
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod tidy && go build -o web-console-api .",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o web-console-api .",
           "description": "Build Go API server"
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && pnpm install",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
+          "run": "cd ui && pnpm install --ignore-workspace",
+          "description": "Install UI dependencies"
         },
         {
           "name": "build-ui",
           "run": "cd ui && pnpm run build",
-          "description": "Build Vite bundle for the Web Console UI"
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
-          "run": "echo 'Web Console ready' && echo '  UI: http://localhost:${UI_PORT}' && echo '  API: http://localhost:${API_PORT}'",
-          "description": "Display service URLs"
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
+          "description": "Display access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Run Web Console API and UI servers with production bundles",
+      "description": "Launch API and Vite dev server",
       "steps": [
         {
           "name": "start-api",
           "run": "cd api && ./web-console-api",
-          "description": "Start Go API server",
           "background": true,
+          "description": "Start Go API server in background",
           "condition": {
             "file_exists": "api/web-console-api"
           }
@@ -140,54 +139,119 @@
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
-          "description": "Start UI server with production bundle",
           "background": true,
+          "description": "Serve production UI bundle",
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
         },
         {
+          "name": "register-tts-hook",
+          "run": "bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook'",
+          "description": "Register Claude Code Stop hook for auto-TTS"
+        },
+        {
           "name": "show-urls",
-          "run": "echo \"UI: http://localhost:${UI_PORT}  |  API: http://localhost:${API_PORT}\"",
-          "description": "Display local access URLs"
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
+          "description": "Display access URLs"
         }
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing for web-console",
+      "description": "Execute phased test suite via test-genie",
       "steps": [
         {
-          "name": "run-phased-tests",
+          "name": "run-tests",
           "run": "test-genie execute web-console --preset comprehensive",
-          "description": "Execute phased scenario test suite"
+          "description": "Run all test phases via test-genie"
+        },
+        {
+          "name": "sync-validation",
+          "run": "scripts/sync-validation-results.sh",
+          "description": "Sync requirement validations to phase-results for scoring"
+        }
+      ]
+    },
+    "production": {
+      "description": "Build and run production services",
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && GOWORK=off go build -o web-console-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && pnpm run build",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "start-api",
+          "run": "cd api && ./web-console-api",
+          "background": true,
+          "description": "Start Go API server"
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true,
+          "description": "Serve production UI bundle"
+        },
+        {
+          "name": "register-tts-hook",
+          "run": "bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook'",
+          "description": "Register Claude Code Stop hook for auto-TTS"
         }
       ]
     },
     "stop": {
-      "description": "Stop Web Console services",
+      "description": "Stop background processes",
       "steps": [
         {
+          "name": "deregister-tts-hook",
+          "run": "bash -c 'source lib/tts-hooks.sh && wc::deregister_tts_hook'",
+          "description": "Deregister Claude Code Stop hook before shutdown"
+        },
+        {
           "name": "stop-api",
-          "run": "pkill -f \"web-console-api\" || true; sleep 1; pkill -9 -f \"web-console-api\" 2>/dev/null || true",
-          "description": "Stop API process"
+          "run": "pkill -f 'web-console-api' || true",
+          "description": "Stop Go API"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/web-console/ui/server.js\" || true; sleep 1; pkill -9 -f \"scenarios/web-console/ui/server.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
         }
       ]
     }
   },
+  "capabilities": {
+    "offline_capable": false,
+    "offline_limitations": "AI features require Ollama (local) or OpenRouter (cloud); voice features require Whisper/Kokoro servers",
+    "ai_providers": ["ollama", "openrouter"],
+    "ai_fallback": "openrouter",
+    "ai_note": "Ollama preferred (free+local); OpenRouter used when Ollama unavailable"
+  },
   "dependencies": {
     "resources": {
-      "ollama": {
-        "type": "ollama",
+      "sqlite": {
+        "type": "sqlite",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Portable storage for workspace layout, shortcuts, and AI provider config"
+      },
+      "kokoro": {
+        "type": "kokoro",
+        "enabled": false,
+        "required": false,
+        "description": "Text-to-speech synthesis for voice output"
+      },
+      "whisper": {
+        "type": "whisper",
+        "enabled": false,
+        "required": false,
+        "description": "Speech-to-text transcription for voice input"
       }
-    },
-    "scenarios": {}
+    }
   }
 }

@@ -1,0 +1,80 @@
+{
+  "version": "1.0.0",
+  "title": "Agent Inbox Documentation",
+  "description": "Documentation for the Agent Inbox AI chat management scenario",
+  "defaultDocument": "../README.md",
+  "sections": [
+    {
+      "id": "overview",
+      "title": "Overview",
+      "icon": "inbox",
+      "documents": [
+        {
+          "path": "../README.md",
+          "title": "Agent Inbox",
+          "description": "Architecture overview, features, quick start, and API reference",
+          "audience": ["users", "developers"]
+        },
+        {
+          "path": "../PRD.md",
+          "title": "Product Requirements",
+          "description": "Operational targets (P0/P1/P2) and tech direction",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "tool-discovery-protocol.md",
+          "title": "Tool Discovery Protocol",
+          "description": "Standardized protocol for scenario tool exposure and discovery"
+        },
+        {
+          "path": "../api/domain/FAILURE_MODES.md",
+          "title": "Failure Modes",
+          "description": "Error categories, recovery paths, and graceful degradation strategies"
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "SEAMS.md",
+          "title": "Seams & Boundaries",
+          "description": "Architectural seams, responsibility zones, and async tracking architecture",
+          "internal": true
+        },
+        {
+          "path": "PROBLEMS.md",
+          "title": "Known Issues",
+          "description": "Open issues, deferred ideas, and resolved problems",
+          "internal": true
+        },
+        {
+          "path": "PROGRESS.md",
+          "title": "Progress Log",
+          "description": "Session-by-session development history",
+          "internal": true
+        },
+        {
+          "path": "RESEARCH.md",
+          "title": "Research Notes",
+          "description": "Uniqueness analysis, related scenarios, and technical decisions",
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["overview", "reference"],
+    "secondary": ["internal"]
+  }
+}

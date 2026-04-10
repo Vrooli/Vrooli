@@ -1,0 +1,227 @@
+import { useCallback, useMemo, useState } from 'react';
+import { Layers, Calendar, CalendarDays, Eye, EyeOff, Download, Plus } from 'lucide-react';
+import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
+import { PlanDisplayManager, ImportStripeModal, AddPlanModal } from '../components/plans';
+import { Button } from '../../../shared/ui/button';
+import { LAYOUT } from '../config/layout.constants';
+import { useBillingForm } from '../hooks/useBillingForm';
+import { useStripeImport } from '../hooks/useStripeImport';
+import { useCouponMappings } from '../hooks/useCouponMappings';
+import { normalizeInterval } from '../services/pricing.service';
+import { isDemoPlanOption } from '../../../shared/lib/pricingPlaceholders';
+
+const DEFAULT_BUNDLE_KEY = 'business_suite';
+
+export function TiersManagement() {
+  const {
+    // Bundles state
+    bundles,
+    priceForms,
+    bundleError,
+    loadingBundles,
+    loadBundles,
+    includeDemoPlaceholders,
+    toggleDemoPlaceholders,
+
+    // Price forms
+    handlePriceChange,
+    handleSavePrice,
+    handleVerifyPrice,
+    priceChecks,
+    removeDemoPlan,
+    handleDeletePlan,
+    handleReorderPlans,
+
+    // Tab state
+    pricingTab,
+    setPricingTab,
+  } = useBillingForm();
+
+  // Stripe import modal
+  const stripeImport = useStripeImport(loadBundles);
+
+  // Coupon mappings for plan-coupon assignment
+  const couponMappings = useCouponMappings();
+
+  // Add plan modal state
+  const [addPlanModalOpen, setAddPlanModalOpen] = useState(false);
+  const [addPlanBundleKey, setAddPlanBundleKey] = useState<string>('');
+
+  const handleOpenAddPlan = useCallback((bundleKey: string) => {
+    setAddPlanBundleKey(bundleKey);
+    setAddPlanModalOpen(true);
+  }, []);
+
+  const handleCloseAddPlan = useCallback(() => {
+    setAddPlanModalOpen(false);
+    setAddPlanBundleKey('');
+  }, []);
+
+  const handleAddPlanSuccess = useCallback(() => {
+    loadBundles();
+  }, [loadBundles]);
+
+  const defaultBundleKey = useMemo(
+    () => bundles[0]?.bundle.bundle_key ?? DEFAULT_BUNDLE_KEY,
+    [bundles]
+  );
+
+  // Compute stats from bundles (excluding demo placeholders)
+  const stats = useMemo(() => {
+    let total = 0;
+    let enabled = 0;
+    let monthly = 0;
+    let yearly = 0;
+
+    bundles.forEach((entry) => {
+      entry.prices.forEach((price) => {
+        if (isDemoPlanOption(price)) return;
+        total++;
+        if (price.display_enabled) enabled++;
+        const interval = normalizeInterval(price.billing_interval);
+        if (interval === 'month') monthly++;
+        if (interval === 'year') yearly++;
+      });
+    });
+
+    return { total, enabled, monthly, yearly };
+  }, [bundles]);
+
+  return (
+    <AdminLayout maxWidth="extraWide">
+      <div className={LAYOUT.pageSpacing}>
+        <div className="flex items-start justify-between gap-4">
+          <PageHeader
+            variant="icon-title"
+            title="Plan Management"
+            description="Configure pricing plans and control how subscription tiers appear to visitors."
+            icon={Layers}
+            iconBgClass="bg-purple-500/10"
+            iconColorClass="text-purple-400"
+            testId="tiers-management-header"
+          />
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button
+              size="sm"
+              onClick={() => handleOpenAddPlan(defaultBundleKey)}
+              className="gap-2"
+              disabled={loadingBundles}
+            >
+              <Plus className="h-4 w-4" />
+              Add plan
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={stripeImport.openModal}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Import from Stripe
+            </Button>
+          </div>
+        </div>
+
+        {/* Stats summary row */}
+        {!loadingBundles && stats.total > 0 && (
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4" data-testid="tiers-stats">
+            <StatCard
+              label="Total Plans"
+              value={stats.total}
+              icon={Layers}
+              iconColor="text-purple-300"
+              iconBg="bg-purple-500/20"
+            />
+            <StatCard
+              label="Enabled"
+              value={stats.enabled}
+              icon={stats.enabled > 0 ? Eye : EyeOff}
+              iconColor={stats.enabled > 0 ? 'text-emerald-300' : 'text-slate-400'}
+              iconBg={stats.enabled > 0 ? 'bg-emerald-500/20' : 'bg-slate-500/20'}
+            />
+            <StatCard
+              label="Monthly"
+              value={stats.monthly}
+              icon={Calendar}
+              iconColor="text-blue-300"
+              iconBg="bg-blue-500/20"
+            />
+            <StatCard
+              label="Yearly"
+              value={stats.yearly}
+              icon={CalendarDays}
+              iconColor="text-amber-300"
+              iconBg="bg-amber-500/20"
+            />
+          </div>
+        )}
+
+        {/* Plan Display Manager (edit mode) */}
+        <PlanDisplayManager
+          mode="edit"
+          bundles={bundles}
+          priceForms={priceForms}
+          activeTab={pricingTab}
+          onTabChange={setPricingTab}
+          showDemoPlaceholders={includeDemoPlaceholders}
+          onToggleDemoPlaceholders={toggleDemoPlaceholders}
+          onReload={loadBundles}
+          loading={loadingBundles}
+          error={bundleError}
+          onPriceChange={handlePriceChange}
+          onSavePrice={handleSavePrice}
+          onVerifyPrice={handleVerifyPrice}
+          onRemoveDemoPlan={removeDemoPlan}
+          onDeletePlan={handleDeletePlan}
+          onReorderPlans={handleReorderPlans}
+          priceChecks={priceChecks}
+          onAddPlan={handleOpenAddPlan}
+          defaultBundleKey={defaultBundleKey}
+          availableCoupons={couponMappings.availableCoupons}
+          couponMappings={couponMappings.mappings}
+          onAssignCoupon={couponMappings.assignCoupon}
+          onUnassignCoupon={couponMappings.unassignCoupon}
+          couponSaving={couponMappings.saving}
+        />
+      </div>
+
+      {/* Modals */}
+      <ImportStripeModal stripeImport={stripeImport} />
+      <AddPlanModal
+        bundleKey={addPlanBundleKey}
+        isOpen={addPlanModalOpen}
+        onClose={handleCloseAddPlan}
+        onSuccess={handleAddPlanSuccess}
+      />
+    </AdminLayout>
+  );
+}
+
+interface StatCardProps {
+  label: string;
+  value: number;
+  icon: React.ElementType;
+  iconColor: string;
+  iconBg: string;
+}
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  iconColor,
+  iconBg,
+}: StatCardProps) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-slate-900/40 p-4">
+      <div className="flex items-center gap-3 mb-3">
+        <div className={`p-2 rounded-lg ${iconBg}`}>
+          <Icon className={`h-5 w-5 ${iconColor}`} />
+        </div>
+        <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{label}</p>
+      </div>
+      <p className="text-3xl font-semibold text-white">{value}</p>
+    </div>
+  );
+}

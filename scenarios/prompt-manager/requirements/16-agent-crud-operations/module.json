@@ -1,0 +1,73 @@
+{
+  "description": "Full CRUD operations for agent entities including appearance, SOUL.md, capabilities, connectors, and heartbeat configuration.",
+  "module_id": "MOD-P0-016",
+  "prd_ref": "prompt-manager-must-have-agent-crud-operations-via-api",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": ["REQ-P0-006"],
+      "description": "Implement REST API endpoints for creating, reading, updating and deleting agents with JSON payload support",
+      "id": "REQ-P0-016",
+      "prd_ref": "prompt-manager-must-have-agent-crud-operations-via-api",
+      "status": "complete",
+      "title": "REST API for Agent CRUD",
+      "validation": [
+        {
+          "notes": "All agent CRUD endpoints return correct HTTP status codes",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Agent appearance, SOUL.md, capabilities validation",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Agent stored in file-based store (store/agents/)",
+          "phase": "integration",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Agent API response time under 100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": ["REQ-P0-016"],
+      "description": "Agent appearance configuration with body, head, and accent colors for 3D visualization",
+      "id": "REQ-P0-017",
+      "prd_ref": "prompt-manager-must-have-agent-crud-operations-via-api",
+      "status": "complete",
+      "title": "Agent Appearance Configuration",
+      "validation": [
+        {
+          "notes": "Appearance colors stored and retrieved correctly",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Hex color validation for appearance fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Agent CRUD operations via API"
+}

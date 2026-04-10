@@ -18,7 +18,7 @@ func TestDeployValidateOnlyShortCircuits(t *testing.T) {
 		if strings.HasSuffix(r.URL.Path, "/validate") {
 			validateCalled = true
 		}
-		io.WriteString(w, `{}`)
+		_, _ = io.WriteString(w, `{}`)
 	}))
 	defer server.Close()
 
@@ -42,7 +42,7 @@ func TestLogsAcceptsFilters(t *testing.T) {
 	var query string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		query = r.URL.RawQuery
-		io.WriteString(w, `{}`)
+		_, _ = io.WriteString(w, `{}`)
 	}))
 	defer server.Close()
 

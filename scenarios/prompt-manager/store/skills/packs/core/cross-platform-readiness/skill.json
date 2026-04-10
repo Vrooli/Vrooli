@@ -1,0 +1,29 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "cross-platform-readiness",
+  "name": "Cross-Platform Readiness",
+  "description": "Prepares scenarios for deployment beyond Tier 1 (local stack) by eliminating environment variable dependencies, replacing non-portable resources, adopting api-core/storage for runtime filesystem state, and ensuring build/runtime portability across desktop, mobile, cloud, and enterprise tiers.",
+  "modes": [
+    "steer"
+  ],
+  "tags": [
+    "portability",
+    "desktop",
+    "mobile",
+    "deployment",
+    "environment-variables",
+    "resources",
+    "filesystem",
+    "api-core-storage",
+    "sqlite",
+    "bundling",
+    "electron",
+    "cross-compilation"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 29,
+  "createdAt": "2026-02-03T14:00:00Z",
+  "updatedAt": "2026-02-05T00:50:04Z"
+}

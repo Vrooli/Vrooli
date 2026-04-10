@@ -1,9 +1,12 @@
 {
   "metadata": {
     "description": "Validates UI-based lifecycle management (start/stop/restart/logs) for generated scenarios without requiring terminal access",
-    "requirements": ["TMPL-LIFECYCLE"],
+    "requirements": [
+      "TMPL-LIFECYCLE"
+    ],
     "reset": "none",
-    "executionTimeoutMs": 180000
+    "executionTimeoutMs": 180000,
+    "execution_mode": "observer"
   },
   "settings": {
     "executionViewport": {
@@ -277,25 +280,125 @@
     }
   ],
   "edges": [
-    { "id": "edge-0-1", "source": "navigate-factory", "target": "wait-for-form", "type": "smoothstep" },
-    { "id": "edge-0-2", "source": "wait-for-form", "target": "fill-name", "type": "smoothstep" },
-    { "id": "edge-0-3", "source": "fill-name", "target": "wait-after-name", "type": "smoothstep" },
-    { "id": "edge-0-4", "source": "wait-after-name", "target": "click-generate", "type": "smoothstep" },
-    { "id": "edge-0-5", "source": "click-generate", "target": "wait-for-generation", "type": "smoothstep" },
-    { "id": "edge-1", "source": "wait-for-generation", "target": "wait-for-generated-list", "type": "smoothstep" },
-    { "id": "edge-2", "source": "wait-for-generated-list", "target": "assert-lifecycle-controls-exist", "type": "smoothstep" },
-    { "id": "edge-2a", "source": "assert-lifecycle-controls-exist", "target": "wait-for-status-loaded", "type": "smoothstep" },
-    { "id": "edge-3", "source": "wait-for-status-loaded", "target": "click-start", "type": "smoothstep" },
-    { "id": "edge-4", "source": "click-start", "target": "wait-for-status-change", "type": "smoothstep" },
-    { "id": "edge-5", "source": "wait-for-status-change", "target": "assert-running-status", "type": "smoothstep" },
-    { "id": "edge-6", "source": "assert-running-status", "target": "click-logs", "type": "smoothstep" },
-    { "id": "edge-7", "source": "click-logs", "target": "wait-for-logs", "type": "smoothstep" },
-    { "id": "edge-8", "source": "wait-for-logs", "target": "assert-logs-visible", "type": "smoothstep" },
-    { "id": "edge-9", "source": "assert-logs-visible", "target": "click-restart", "type": "smoothstep" },
-    { "id": "edge-10", "source": "click-restart", "target": "wait-for-restart", "type": "smoothstep" },
-    { "id": "edge-11", "source": "wait-for-restart", "target": "assert-still-running", "type": "smoothstep" },
-    { "id": "edge-12", "source": "assert-still-running", "target": "click-stop", "type": "smoothstep" },
-    { "id": "edge-13", "source": "click-stop", "target": "wait-for-stop", "type": "smoothstep" },
-    { "id": "edge-14", "source": "wait-for-stop", "target": "assert-stopped-status", "type": "smoothstep" }
+    {
+      "id": "edge-0-1",
+      "source": "navigate-factory",
+      "target": "wait-for-form",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-0-2",
+      "source": "wait-for-form",
+      "target": "fill-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-0-3",
+      "source": "fill-name",
+      "target": "wait-after-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-0-4",
+      "source": "wait-after-name",
+      "target": "click-generate",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-0-5",
+      "source": "click-generate",
+      "target": "wait-for-generation",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-1",
+      "source": "wait-for-generation",
+      "target": "wait-for-generated-list",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-2",
+      "source": "wait-for-generated-list",
+      "target": "assert-lifecycle-controls-exist",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-2a",
+      "source": "assert-lifecycle-controls-exist",
+      "target": "wait-for-status-loaded",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-3",
+      "source": "wait-for-status-loaded",
+      "target": "click-start",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-4",
+      "source": "click-start",
+      "target": "wait-for-status-change",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-5",
+      "source": "wait-for-status-change",
+      "target": "assert-running-status",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-6",
+      "source": "assert-running-status",
+      "target": "click-logs",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-7",
+      "source": "click-logs",
+      "target": "wait-for-logs",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-8",
+      "source": "wait-for-logs",
+      "target": "assert-logs-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-9",
+      "source": "assert-logs-visible",
+      "target": "click-restart",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-10",
+      "source": "click-restart",
+      "target": "wait-for-restart",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-11",
+      "source": "wait-for-restart",
+      "target": "assert-still-running",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-12",
+      "source": "assert-still-running",
+      "target": "click-stop",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-13",
+      "source": "click-stop",
+      "target": "wait-for-stop",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-14",
+      "source": "wait-for-stop",
+      "target": "assert-stopped-status",
+      "type": "smoothstep"
+    }
   ]
 }

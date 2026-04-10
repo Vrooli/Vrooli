@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md
+// DOC: docs/reference/api-endpoints.md
 package handlers
 
 import (
@@ -16,14 +18,14 @@ import (
 
 // QueueHandlers contains handlers for queue-related endpoints
 type QueueHandlers struct {
-	processor *queue.Processor
+	processor ProcessorAPI
 	wsManager *websocket.Manager
-	storage   *tasks.Storage
+	storage   tasks.StorageAPI
 	coord     *tasks.Coordinator
 }
 
 // NewQueueHandlers creates a new queue handlers instance
-func NewQueueHandlers(processor *queue.Processor, wsManager *websocket.Manager, storage *tasks.Storage, coord *tasks.Coordinator) *QueueHandlers {
+func NewQueueHandlers(processor ProcessorAPI, wsManager *websocket.Manager, storage tasks.StorageAPI, coord *tasks.Coordinator) *QueueHandlers {
 	return &QueueHandlers{
 		processor: processor,
 		wsManager: wsManager,
@@ -72,6 +74,27 @@ func (h *QueueHandlers) applyTransitionEffects(outcome *tasks.TransitionOutcome,
 func (h *QueueHandlers) GetQueueStatusHandler(w http.ResponseWriter, r *http.Request) {
 	status := h.processor.GetQueueStatus()
 
+	// Derive next_steps based on current state
+	var nextSteps []string
+	processorActive, _ := status["processor_active"].(bool)
+	if !processorActive {
+		nextSteps = append(nextSteps, "ecosystem-manager queue start")
+	} else {
+		pendingCount, _ := status["pending_count"].(int)
+		if pendingCount > 0 {
+			nextSteps = append(nextSteps, "ecosystem-manager task list --status in-progress")
+		}
+	}
+	if rateLimited, _ := status["is_rate_limit_paused"].(bool); rateLimited {
+		if resumeAt, ok := status["rate_limit_resume_at"].(string); ok && resumeAt != "" {
+			nextSteps = append(nextSteps, fmt.Sprintf("Rate-limited until %s; will auto-resume", resumeAt))
+		}
+	}
+
+	if len(nextSteps) > 0 {
+		status["next_steps"] = nextSteps
+	}
+
 	writeJSON(w, status, http.StatusOK)
 }
 
@@ -84,21 +107,30 @@ func (h *QueueHandlers) GetResumeDiagnosticsHandler(w http.ResponseWriter, r *ht
 
 	diagnostics := h.processor.GetResumeDiagnostics()
 
-	response := ResumeDiagnosticsResponse{
-		Success:     true,
-		Diagnostics: diagnostics,
-		GeneratedAt: timeutil.NowRFC3339(),
-	}
-
-	writeJSON(w, response, http.StatusOK)
+	// Using inline struct to avoid importing queue types in response
+	writeJSON(w, map[string]any{
+		"success":      true,
+		"diagnostics":  diagnostics,
+		"generated_at": timeutil.NowRFC3339(),
+	}, http.StatusOK)
 }
 
 // TriggerQueueProcessingHandler forces immediate queue processing
 func (h *QueueHandlers) TriggerQueueProcessingHandler(w http.ResponseWriter, r *http.Request) {
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"message": "Queue processing would be triggered",
+		}, http.StatusOK)
+		return
+	}
+
 	if h.processor == nil {
-		writeJSON(w, map[string]string{
-			"error":   "queue processor not available",
-			"message": "Queue processor is not initialized",
+		writeStructuredError(w, ErrorOpts{
+			Code:         "queue_unavailable",
+			Message:      "Queue processor is not initialized",
+			RecoveryHint: "Start queue: ecosystem-manager queue start",
 		}, http.StatusServiceUnavailable)
 		return
 	}
@@ -108,11 +140,10 @@ func (h *QueueHandlers) TriggerQueueProcessingHandler(w http.ResponseWriter, r *
 	processorActive, ok := status["processor_active"].(bool)
 
 	if !ok || !processorActive {
-		writeJSON(w, map[string]any{
-			"error":             "processor inactive",
-			"message":           "Queue processor is paused or not active",
-			"maintenance_state": status["maintenance_state"],
-			"processor_active":  processorActive,
+		writeStructuredError(w, ErrorOpts{
+			Code:         "queue_inactive",
+			Message:      "Queue processor is paused or not active",
+			RecoveryHint: "Resume: ecosystem-manager queue start",
 		}, http.StatusServiceUnavailable)
 		return
 	}
@@ -149,6 +180,16 @@ func (h *QueueHandlers) SetMaintenanceStateHandler(w http.ResponseWriter, r *htt
 		return
 	}
 
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"message": fmt.Sprintf("Maintenance state would be set to %s", request.State),
+			"state":   request.State,
+		}, http.StatusOK)
+		return
+	}
+
 	// Set maintenance state on processor
 	var resumeSummary *queue.ResumeResetSummary
 	if request.State == "active" {
@@ -180,13 +221,12 @@ func (h *QueueHandlers) SetMaintenanceStateHandler(w http.ResponseWriter, r *htt
 func (h *QueueHandlers) GetRunningProcessesHandler(w http.ResponseWriter, r *http.Request) {
 	processes := h.processor.GetRunningProcessesInfo()
 
-	response := ProcessesListResponse{
-		Processes: processes,
-		Count:     len(processes),
-		Timestamp: time.Now().Unix(),
-	}
-
-	writeJSON(w, response, http.StatusOK)
+	// Using inline map to avoid importing queue types in response
+	writeJSON(w, map[string]any{
+		"processes": processes,
+		"count":     len(processes),
+		"timestamp": time.Now().Unix(),
+	}, http.StatusOK)
 }
 
 // TerminateProcessHandler terminates a specific running process
@@ -211,10 +251,19 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	var outcome *tasks.TransitionOutcome
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"message": "Process would be terminated",
+			"task_id": request.TaskID,
+		}, http.StatusOK)
+		return
+	}
+
 	if h.coord != nil {
 		var err error
-		task, outcome, err = h.coord.ApplyTransition(tasks.TransitionRequest{
+		_, _, err = h.coord.ApplyTransition(tasks.TransitionRequest{
 			TaskID:   request.TaskID,
 			ToStatus: tasks.StatusPending,
 			TransitionContext: tasks.TransitionContext{
@@ -231,8 +280,7 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 	} else {
 		// Fallback to direct lifecycle if coordinator unavailable (should not happen in normal flow).
 		lc := tasks.Lifecycle{Store: h.storage}
-		var err error
-		outcome, err = lc.ApplyTransition(tasks.TransitionRequest{
+		outcome, err := lc.ApplyTransition(tasks.TransitionRequest{
 			TaskID:   request.TaskID,
 			ToStatus: tasks.StatusPending,
 			TransitionContext: tasks.TransitionContext{
@@ -270,6 +318,15 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 
 // StopQueueProcessorHandler stops the queue processor
 func (h *QueueHandlers) StopQueueProcessorHandler(w http.ResponseWriter, r *http.Request) {
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"message": "Queue processor would be stopped",
+		}, http.StatusOK)
+		return
+	}
+
 	h.processor.Stop()
 
 	// Keep settings in sync with the processor lifecycle so the play/pause button reflects reality.
@@ -284,6 +341,9 @@ func (h *QueueHandlers) StopQueueProcessorHandler(w http.ResponseWriter, r *http
 		"success": true,
 		"message": "Queue processor stopped",
 		"status":  h.processor.GetQueueStatus(),
+		"next_steps": []string{
+			"ecosystem-manager queue start",
+		},
 	}
 
 	writeJSON(w, response, http.StatusOK)
@@ -294,6 +354,15 @@ func (h *QueueHandlers) StopQueueProcessorHandler(w http.ResponseWriter, r *http
 
 // StartQueueProcessorHandler starts the queue processor
 func (h *QueueHandlers) StartQueueProcessorHandler(w http.ResponseWriter, r *http.Request) {
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"message": "Queue processor would be started",
+		}, http.StatusOK)
+		return
+	}
+
 	// Ensure settings are marked active so the processor actually runs
 	currentSettings := settings.GetSettings()
 	if !currentSettings.Active {
@@ -324,6 +393,10 @@ func (h *QueueHandlers) StartQueueProcessorHandler(w http.ResponseWriter, r *htt
 		"success": true,
 		"message": "Queue processor started",
 		"status":  status,
+		"next_steps": []string{
+			"ecosystem-manager queue status",
+			"ecosystem-manager task list --status pending",
+		},
 	}
 	if resumeSummary.ActionsTaken > 0 {
 		response["resume_reset_summary"] = resumeSummary

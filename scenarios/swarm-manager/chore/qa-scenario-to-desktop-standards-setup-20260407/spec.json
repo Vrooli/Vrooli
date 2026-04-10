@@ -1,0 +1,21 @@
+{
+  "acceptance_allow": [
+    "scenarios/scenario-to-desktop/**"
+  ],
+  "created": "2026-04-07T22:11:23Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "GCT standards warning: .vrooli/service.json should build UI before show-urls per production bundle guidance.",
+  "kind": "chore",
+  "name": "qa-scenario-to-desktop-standards-setup-20260407",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [
+    "preemptive-qa",
+    "scenario-to-desktop",
+    "standards"
+  ],
+  "title": "Align scenario-to-desktop setup steps with standards",
+  "updated": "2026-04-07T22:11:23Z"
+}

@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,19 +23,32 @@ import (
 	"github.com/vrooli/browser-automation-studio/handlers"
 	"github.com/vrooli/browser-automation-studio/middleware"
 	"github.com/vrooli/browser-automation-studio/performance"
+	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/credits"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/recovery"
 	"github.com/vrooli/browser-automation-studio/services/scheduler"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	uxanalyzer "github.com/vrooli/browser-automation-studio/services/uxmetrics/analyzer"
 	uxrepository "github.com/vrooli/browser-automation-studio/services/uxmetrics/repository"
+	"github.com/vrooli/browser-automation-studio/services/vision"
 	"github.com/vrooli/browser-automation-studio/sidecar"
 	"github.com/vrooli/browser-automation-studio/usecases/import/adapters"
 	importassets "github.com/vrooli/browser-automation-studio/usecases/import/assets"
 	importprojects "github.com/vrooli/browser-automation-studio/usecases/import/projects"
 	importroutines "github.com/vrooli/browser-automation-studio/usecases/import/routines"
+	importscan "github.com/vrooli/browser-automation-studio/usecases/import/scan"
 	"github.com/vrooli/browser-automation-studio/usecases/import/shared"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
+
+	// Unified recording service for timeline persistence
+	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
+	unifiedpersistence "github.com/vrooli/browser-automation-studio/services/recording/persistence"
+
+	// Tool Discovery Protocol
+	toolhandlers "github.com/vrooli/browser-automation-studio/internal/handlers"
+	"github.com/vrooli/browser-automation-studio/internal/toolexecution"
+	"github.com/vrooli/browser-automation-studio/internal/toolregistry"
 )
 
 const globalRequestTimeout = 15 * time.Minute
@@ -117,49 +132,117 @@ func main() {
 	fsScanner := shared.NewFilesystemScanner(log)
 	projectAdapter := adapters.NewProjectAdapter(repo)
 	workflowAdapter := adapters.NewWorkflowAdapter(repo)
+	assetAdapter := adapters.NewAssetAdapter(repo)
 	routineImportSvc := importroutines.NewService(fsScanner, workflowAdapter, projectAdapter, log)
 	routineImportHandler := importroutines.NewHandler(routineImportSvc, log)
-	assetImportSvc := importassets.NewService(fsScanner, projectAdapter, log)
+	assetImportSvc := importassets.NewService(fsScanner, projectAdapter, assetAdapter, log)
 	assetImportHandler := importassets.NewHandler(assetImportSvc, log)
+	scanImportSvc := importscan.NewService(fsScanner, projectAdapter, workflowAdapter, log)
+	scanImportHandler := importscan.NewHandler(scanImportSvc, log)
 
 	// Initialize WebSocket hub
 	hub := wsHub.NewHub(log)
 	go hub.Run()
 
+	// Initialize unified recording service for timeline persistence
+	// This service manages all recorded actions and page events across the application
+	unifiedRecordingRepo := unifiedpersistence.NewSQLiteRepository(db.RawDB(), log)
+	unifiedRecordingSvc := unifiedrecording.NewService(
+		unifiedRecordingRepo, hub, log, unifiedrecording.ServiceConfig{},
+	)
+	log.Info("✅ Unified recording service initialized")
+
 	// Load configuration
 	cfg := config.Load()
 
-	// Initialize entitlement services
+	// Initialize entitlement service
 	entitlementSvc := entitlement.NewService(cfg.Entitlement, log)
-	usageTracker := entitlement.NewUsageTracker(db.RawDB(), log)
-	aiCreditsTracker := entitlement.NewAICreditsTracker(db.RawDB(), log)
-	entitlementHandler := handlers.NewEntitlementHandler(entitlementSvc, usageTracker, aiCreditsTracker, repo)
 	entitlementMiddleware := middleware.NewEntitlementMiddleware(entitlementSvc, log, cfg.Entitlement, repo)
+	byokMiddleware := middleware.NewBYOKMiddleware()
 
-	if cfg.Entitlement.Enabled {
+	if cfg.Entitlement.ServiceURL != "" {
 		log.WithFields(logrus.Fields{
 			"service_url":     cfg.Entitlement.ServiceURL,
 			"cache_ttl":       cfg.Entitlement.CacheTTL,
 			"default_tier":    cfg.Entitlement.DefaultTier,
 			"watermark_tiers": cfg.Entitlement.WatermarkTiers,
-		}).Info("✅ Entitlement system enabled")
+		}).Info("✅ Entitlement service configured")
 	} else {
-		log.Info("⚠️  Entitlement system disabled - all features available without restrictions")
+		log.WithField("default_tier", cfg.Entitlement.DefaultTier).Info("ℹ️  No entitlement service URL - using default tier")
 	}
+
+	// Initialize unified credits service (always enabled for tracking)
+	creditService := credits.NewService(credits.ServiceOptions{
+		DB:             db.RawDB(),
+		Logger:         log,
+		EntitlementSvc: entitlementSvc,
+		Dialect:        string(db.Dialect()),
+		// LPBS integration for centralized usage reporting
+		LPBSURL:    cfg.Entitlement.ServiceURL,
+		LPBSSecret: cfg.Entitlement.ServiceSecret,
+	})
+	if cfg.Entitlement.ServiceURL != "" && cfg.Entitlement.ServiceSecret != "" {
+		log.Info("✅ Unified credits service initialized with LPBS reporting")
+	} else {
+		log.Info("✅ Unified credits service initialized (LPBS reporting disabled - no secret configured)")
+	}
+
+	// Initialize entitlement handler (uses unified credit service)
+	entitlementHandler := handlers.NewEntitlementHandler(entitlementSvc, creditService, repo)
+
+	// Initialize AI provider chain and factory
+	aiProviderChain := ai.NewAIProviderChain(ai.AIProviderChainOptions{
+		Logger:        log,
+		CreditService: creditService,
+		EnableBYOK:    cfg.AIProvider.EnableBYOK,
+		EnableVrooli:  cfg.AIProvider.EnableVrooliAPI,
+		EnableDevMode: cfg.AIProvider.EnableDevMode,
+		VrooliAPIURL:  cfg.AIProvider.VrooliAPIURL,
+		DefaultModel:  cfg.AIProvider.DefaultModel,
+	})
+	aiClientFactory := ai.NewAIClientFactory(ai.AIClientFactoryOptions{
+		Chain:  aiProviderChain,
+		Logger: log,
+	})
+	log.WithFields(logrus.Fields{
+		"byok_enabled":     cfg.AIProvider.EnableBYOK,
+		"vrooli_enabled":   cfg.AIProvider.EnableVrooliAPI,
+		"dev_mode_enabled": cfg.AIProvider.EnableDevMode,
+	}).Info("✅ AI provider chain initialized")
 
 	// Initialize UX metrics repository (used by both handler wiring and API endpoints)
 	uxRepo := uxrepository.NewPostgresRepository(db.DB)
+
+	// Initialize navigator registry for vision navigation
+	navigatorRegistry := vision.NewNavigatorRegistry()
+
+	// Create and register playwright navigator
+	playwrightNav := vision.NewPlaywrightVisionNavigator(log,
+		vision.WithPlaywrightHub(hub),
+		vision.WithPlaywrightCreditService(creditService),
+	)
+	navigatorRegistry.Register(playwrightNav)
+
+	// Create and register claude code navigator (stub for future use)
+	claudeCodeNav := vision.NewClaudeCodeVisionNavigator(log)
+	navigatorRegistry.Register(claudeCodeNav)
+
+	log.WithField("navigator_count", navigatorRegistry.Count()).Info("✅ Vision navigator registry initialized")
 
 	// Resolve allowed origins before constructing handlers
 	corsCfg := middleware.GetCachedCorsConfig()
 
 	// Initialize handlers with UX metrics integration and entitlement services
 	// The UX metrics collector wraps the event sink to passively capture interaction data
-	// The entitlement services enable tier-based feature gating and AI credits tracking
+	// The entitlement services enable tier-based feature gating and credit tracking
 	deps := handlers.InitDefaultDepsWithOptions(repo, hub, log, handlers.DepsOptions{
-		UXMetricsRepo:      uxRepo,
-		EntitlementService: entitlementSvc,
-		AICreditsTracker:   aiCreditsTracker,
+		UXMetricsRepo:           uxRepo,
+		EntitlementService:      entitlementSvc,
+		CreditService:           creditService,
+		AIClientFactory:         aiClientFactory,
+		NavigatorRegistry:       navigatorRegistry,
+		PlaywrightNavigator:     playwrightNav,
+		UnifiedRecordingService: unifiedRecordingSvc,
 	})
 	handler := handlers.NewHandlerWithDeps(repo, hub, log, corsCfg.AllowAll, corsCfg.AllowedOrigins, deps)
 
@@ -178,6 +261,27 @@ func main() {
 	// Wire up WebSocket input forwarding for low-latency input events
 	// This allows the UI to send input via WebSocket instead of HTTP POST
 	hub.SetInputForwarder(handler.CreateInputForwarder())
+
+	// Initialize Tool Discovery Protocol
+	// This enables AI agents (via agent-inbox) to discover and execute BAS tools
+	toolRegistry := toolregistry.NewRegistry(toolregistry.RegistryConfig{
+		ScenarioName:        "browser-automation-studio",
+		ScenarioVersion:     "1.0.0",
+		ScenarioDescription: "Browser automation and workflow execution engine for web testing and automation",
+	})
+	// Register all tool providers (Tiers 1-4)
+	toolRegistry.RegisterProvider(toolregistry.NewWorkflowToolProvider())  // Tier 1: Workflow execution
+	toolRegistry.RegisterProvider(toolregistry.NewProjectToolProvider())   // Tier 2: Project management
+	toolRegistry.RegisterProvider(toolregistry.NewRecordingToolProvider()) // Tier 3: Recording sessions
+	toolRegistry.RegisterProvider(toolregistry.NewAIToolProvider())        // Tier 4: AI capabilities
+
+	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
+		CatalogService:   deps.CatalogService,
+		ExecutionService: deps.ExecutionService,
+		Repository:       repo,
+	})
+	toolHandler := toolexecution.NewHandler(toolExecutor)
+	log.WithField("tool_count", len(toolRegistry.ListToolNames(context.Background()))).Info("✅ Tool Discovery Protocol initialized")
 
 	// Initialize playwright-driver sidecar management
 	// This enables automatic restart on crashes, health monitoring, and recording recovery
@@ -236,6 +340,13 @@ func main() {
 
 	// Entitlement middleware - injects user identity and entitlement into context
 	r.Use(entitlementMiddleware.InjectEntitlement)
+
+	// BYOK middleware - extracts OpenRouter API key from request header for AI requests
+	r.Use(byokMiddleware.InjectBYOKKey)
+
+	// Correlation ID middleware - generates and propagates correlation IDs for request tracing
+	correlationMiddleware := middleware.NewCorrelationMiddleware(log)
+	r.Use(correlationMiddleware.InjectCorrelationID)
 
 	// Routes
 	// Health endpoint using api-core/health for standardized response format
@@ -319,6 +430,23 @@ func main() {
 	r.Route("/api/v1", func(r chi.Router) {
 		// Health endpoint under /api/v1 for consistency
 		r.Get("/health", healthHandler)
+
+		// Tool Discovery Protocol endpoints
+		toolsHandler := toolhandlers.NewToolsHandler(toolRegistry)
+		r.Get("/tools", toolsHandler.GetTools)
+		r.Get("/tools/{name}", toolsHandler.GetTool)
+		r.Post("/tools/execute", toolHandler.Execute)
+
+		// Schema endpoints (for agents to reference workflow schema)
+		schemaHandler, err := handlers.NewSchemaHandler(log)
+		if err != nil {
+			log.WithError(err).Warn("⚠️  Failed to initialize schema handler")
+		} else {
+			r.Get("/schema/workflow", schemaHandler.GetWorkflowSchema)
+			r.Get("/schema/workflow/node-types", schemaHandler.GetAvailableNodeTypes)
+			r.Get("/schema/steps", schemaHandler.GetStepDefinitions)
+		}
+
 		// Project routes
 		r.Post("/projects", handler.CreateProject)
 		r.Get("/projects", handler.ListProjects)
@@ -335,11 +463,15 @@ func main() {
 		r.Post("/projects/{id}/files/move", handler.MoveProjectFile)
 		r.Post("/projects/{id}/files/delete", handler.DeleteProjectFile)
 		r.Post("/projects/{id}/files/resync", handler.ResyncProjectFiles)
+		r.Post("/projects/{id}/files/reveal", handler.RevealProjectPath)
+		r.Get("/projects/{id}/files/*", handler.ServeProjectFile) // Must be after specific /files/* routes
+		r.Post("/projects/{id}/open-folder", handler.OpenProjectFolder)
 
 		// Import usecase routes (project, routine/workflow, and asset import handlers)
 		projectImportHandler.RegisterRoutes(r)
 		routineImportHandler.RegisterRoutes(r)
 		assetImportHandler.RegisterRoutes(r)
+		scanImportHandler.RegisterRoutes(r)
 
 		// Workflow routes
 		r.Post("/workflows/create", handler.CreateWorkflow)
@@ -375,7 +507,10 @@ func main() {
 		r.Get("/exports/{id}", handler.GetExport)
 		r.Patch("/exports/{id}", handler.UpdateExport)
 		r.Delete("/exports/{id}", handler.DeleteExport)
+		r.Get("/exports/{id}/status", handler.GetExportStatus)
 		r.Post("/exports/{id}/generate-caption", handler.GenerateExportCaption)
+		r.Post("/exports/{id}/reveal", handler.RevealExport)
+		r.Post("/exports/{id}/open-folder", handler.OpenExportFolder)
 		r.Get("/replay-config", handler.GetReplayConfig)
 		r.Put("/replay-config", handler.PutReplayConfig)
 		r.Delete("/replay-config", handler.DeleteReplayConfig)
@@ -441,6 +576,7 @@ func main() {
 		r.Post("/ai-analyze-elements", handler.AIAnalyzeElements)
 
 		// AI Vision Navigation routes
+		r.Get("/ai-navigate/navigators", handler.AINavigateListNavigators)
 		r.Post("/ai-navigate", handler.AINavigate)
 		r.Get("/ai-navigate/{navigationId}/status", handler.AINavigateStatus)
 		r.Post("/ai-navigate/{navigationId}/abort", handler.AINavigateAbort)
@@ -490,20 +626,21 @@ func main() {
 		// DOM tree extraction for Browser Inspector tab
 		r.Post("/dom-tree", handler.GetDOMTree)
 
-		// Filesystem helper routes (UI support utilities)
-		// Note: /fs/scan-for-projects is now handled by projectImportHandler
-		r.Post("/fs/list-directories", handler.ListDirectories)
-
 		// Entitlement routes for subscription management
 		r.Get("/entitlement/status", entitlementHandler.GetEntitlementStatus)
 		r.Get("/entitlement/identity", entitlementHandler.GetUserIdentity)
 		r.Post("/entitlement/identity", entitlementHandler.SetUserIdentity)
 		r.Delete("/entitlement/identity", entitlementHandler.ClearUserIdentity)
 		r.Get("/entitlement/usage", entitlementHandler.GetUsageSummary)
+		r.Get("/entitlement/usage/history", entitlementHandler.GetUsageHistory)
+		r.Get("/entitlement/usage/operations", entitlementHandler.GetOperationLog)
 		r.Post("/entitlement/refresh", entitlementHandler.RefreshEntitlement)
 		r.Get("/entitlement/override", entitlementHandler.GetEntitlementOverride)
 		r.Post("/entitlement/override", entitlementHandler.SetEntitlementOverride)
 		r.Delete("/entitlement/override", entitlementHandler.ClearEntitlementOverride)
+		r.Get("/entitlement/api-source", entitlementHandler.GetApiSource)
+		r.Post("/entitlement/api-source", entitlementHandler.SetApiSource)
+		r.Delete("/entitlement/api-source", entitlementHandler.ClearApiSource)
 
 		// UX metrics routes (Pro tier and above)
 		r.Get("/executions/{id}/ux-metrics", uxHandler.GetExecutionMetrics)
@@ -540,13 +677,23 @@ func main() {
 			envVar := chi.URLParam(req, "envVar")
 			handler.ResetConfig(w, req, envVar)
 		})
+		// Debug mode management - enable verbose logging temporarily
+		r.Get("/observability/debug-mode", handler.GetDebugMode)
+		r.Post("/observability/debug-mode", handler.SetDebugMode)
 	})
 
 	// Initialize and start the workflow scheduler
 	// The scheduler loads active schedules from the database and triggers workflow executions
 	// at the configured cron times
 	scheduleNotifier := scheduler.NewWSNotifier(hub, log)
-	schedulerSvc := scheduler.New(repo, handler.GetExecutionService(), scheduleNotifier, log)
+	schedulerSvc := scheduler.New(scheduler.SchedulerOptions{
+		Repo:          repo,
+		Executor:      handler.GetExecutionService(),
+		Notifier:      scheduleNotifier,
+		Log:           log,
+		CreditService: creditService,
+		SettingsRepo:  repo,
+	})
 	if err := schedulerSvc.Start(); err != nil {
 		log.WithError(err).Warn("⚠️  Scheduler failed to start - scheduled workflows will not run")
 	} else {
@@ -567,7 +714,7 @@ func main() {
 		apiHost = "localhost"
 	}
 
-	corsPolicy := "restricted"
+	var corsPolicy string
 	if corsCfg.AllowAll {
 		corsPolicy = "allow_all"
 	} else {
@@ -657,5 +804,24 @@ func performStartupHealthCheck(log *logrus.Logger) error {
 		return fmt.Errorf("%d startup health check(s) failed", len(errors))
 	}
 
+	return nil
+}
+
+// checkPortAvailable checks if a TCP port is available for binding.
+// Returns nil if available, or an error with diagnostic hints if unavailable.
+func checkPortAvailable(port string) error {
+	portNum, err := strconv.Atoi(port)
+	if err != nil {
+		return fmt.Errorf("invalid port number: %s", port)
+	}
+	if portNum < 0 || portNum > 65535 {
+		return fmt.Errorf("port out of valid range (0-65535): %d", portNum)
+	}
+
+	listener, err := net.Listen("tcp", "127.0.0.1:"+port)
+	if err != nil {
+		return fmt.Errorf("port %s unavailable (hint: use 'lsof -i :%s' or 'ss -tlnp | grep %s' to find the process)", port, port, port)
+	}
+	listener.Close()
 	return nil
 }

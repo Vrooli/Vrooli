@@ -11,7 +11,7 @@
  *   - Works correctly with rebrowser-playwright's isolated context patches
  *
  * COMPOSITION:
- *   - html-injector.ts - Injects recording script into HTML documents
+ *   - Injection strategies (init-script, cdp-injection, route-injection)
  *   - event-route.ts - Sets up page-level routes for event interception
  *   - This file - Coordinates the above and handles sanity checks
  *
@@ -21,9 +21,12 @@
  *   - context.addInitScript() runs in MAIN context, so History wrapping works
  *   - Message-based activation allows dynamic start/stop without re-injection
  *
- * REFACTORED: Split from 881-line monolith into focused modules
+ * INJECTION STRATEGIES:
+ *   - init-script: RECOMMENDED for rebrowser-playwright (uses context.addInitScript)
+ *   - cdp-injection: Fallback using Chrome DevTools Protocol
+ *   - route-injection: Legacy HTML modification (BROKEN with rebrowser-playwright)
  *
- * @see html-injector.ts - HTML injection route setup
+ * @see injection/ - Injection strategy implementations
  * @see event-route.ts - Page event route setup
  * @see init-script-generator.ts - Generates the init script
  * @see pipeline-manager.ts - Uses this for recording sessions
@@ -39,23 +42,29 @@ import { playwrightProvider } from '../../playwright';
 
 // Import composed modules
 import {
-  setupHtmlInjectionRoute,
-  type InjectionStats,
-  createInjectionStats,
-} from './html-injector';
-import {
   createEventRouteManager,
   type EventRouteManager,
   type RouteHandlerStats,
   createRouteHandlerStats,
 } from './event-route';
 
+// Import injection strategy system
+import {
+  type InjectionStrategy,
+  type InjectionStrategyName,
+  type InjectionStrategyStats,
+  createInjectionStrategy,
+  createInitialStats as createInjectionStrategyStats,
+  getStrategyFromEnv,
+  isDiagnosticsEnabled as isInjectionDiagnosticsEnabled,
+} from '../injection';
+
 // =============================================================================
-// Types - Re-export from composed modules for backward compatibility
+// Types - Re-export from composed modules
 // =============================================================================
 
-export type { InjectionStats } from './html-injector';
 export type { RouteHandlerStats, RecordingEventHandler } from './event-route';
+export type { InjectionStrategyName, InjectionStrategyStats } from '../injection';
 
 /**
  * Options for initializing the recording context.
@@ -67,6 +76,19 @@ export interface RecordingContextOptions {
   logger?: winston.Logger;
   /** Enable verbose diagnostics (more logging) */
   diagnosticsEnabled?: boolean;
+  /**
+   * Injection strategy to use.
+   *
+   * - 'auto': Auto-detect working strategy based on provider (default)
+   * - 'init-script': RECOMMENDED for rebrowser-playwright (uses context.addInitScript)
+   * - 'cdp-injection': Fallback with full CDP control (Chromium only)
+   * - 'route-injection': Legacy HTML modification (BROKEN with rebrowser-playwright)
+   *
+   * Can be overridden by INJECTION_STRATEGY environment variable.
+   *
+   * @default 'auto'
+   */
+  injectionStrategy?: InjectionStrategyName | 'auto';
   /**
    * Run a sanity check on the first page load to verify recording is working.
    *
@@ -113,6 +135,8 @@ export interface SanityCheckResult {
   issues: string[];
   /** Provider being used */
   provider: string;
+  /** Injection strategy used */
+  injectionStrategy?: InjectionStrategyName;
 }
 
 // =============================================================================
@@ -148,32 +172,41 @@ export class RecordingContextInitializer {
   private readonly diagnosticsEnabled: boolean;
   private readonly runSanityCheck: boolean;
   private readonly onSanityCheckComplete?: (result: SanityCheckResult) => void;
+  private readonly requestedStrategy: InjectionStrategyName | 'auto';
   private sanityCheckRun = false;
   private context: BrowserContext | null = null;
 
   // Composed modules
   private eventRouteManager: EventRouteManager | null = null;
 
-  // Stats from injection module (updated after initialization)
-  private injectionStatsGetter: (() => InjectionStats) | null = null;
+  // Injection strategy (DI system)
+  private injectionStrategy: InjectionStrategy | null = null;
 
   constructor(options: RecordingContextOptions = {}) {
     this.bindingName = options.bindingName ?? DEFAULT_RECORDING_BINDING_NAME;
     this.logger = options.logger ?? defaultLogger;
-    this.diagnosticsEnabled = options.diagnosticsEnabled ?? false;
+    this.diagnosticsEnabled = options.diagnosticsEnabled ?? isInjectionDiagnosticsEnabled();
     this.runSanityCheck = options.runSanityCheck ?? false;
     this.onSanityCheckComplete = options.onSanityCheckComplete;
+    this.requestedStrategy = options.injectionStrategy ?? 'auto';
   }
 
   /**
    * Get current injection statistics.
    * Returns a copy to prevent external mutation.
    */
-  getInjectionStats(): InjectionStats {
-    if (this.injectionStatsGetter) {
-      return this.injectionStatsGetter();
+  getInjectionStats(): InjectionStrategyStats {
+    if (this.injectionStrategy) {
+      return this.injectionStrategy.getStats();
     }
-    return createInjectionStats();
+    return createInjectionStrategyStats();
+  }
+
+  /**
+   * Get the name of the injection strategy being used.
+   */
+  getInjectionStrategyName(): InjectionStrategyName | null {
+    return this.injectionStrategy?.name ?? null;
   }
 
   /**
@@ -185,6 +218,22 @@ export class RecordingContextInitializer {
       return this.eventRouteManager.getStats();
     }
     return createRouteHandlerStats();
+  }
+
+  /**
+   * Reset all stats (injection and route handler) to initial values.
+   * Useful for clearing state between test runs to prevent cumulative stats.
+   *
+   * This ensures consistent test results by starting from a clean slate.
+   */
+  resetStats(): void {
+    if (this.injectionStrategy) {
+      this.injectionStrategy.resetStats();
+    }
+    if (this.eventRouteManager) {
+      this.eventRouteManager.resetStats();
+    }
+    this.logger.debug(scopedLog(LogContext.RECORDING, 'stats reset to initial values'));
   }
 
   /**
@@ -214,7 +263,7 @@ export class RecordingContextInitializer {
    * Initialize recording capability on a browser context.
    *
    * This sets up:
-   * 1. The HTML injection route (injects recording script into pages)
+   * 1. Injection strategy (injects recording script into pages)
    * 2. The event route manager (handles events from pages)
    *
    * Safe to call multiple times (idempotent).
@@ -227,9 +276,16 @@ export class RecordingContextInitializer {
       return;
     }
 
+    // Determine which injection strategy to use
+    // Priority: env var > option > auto-detect
+    const envStrategy = getStrategyFromEnv();
+    const strategyToUse = envStrategy ?? this.requestedStrategy;
+
     this.logger.debug(scopedLog(LogContext.RECORDING, 'initializing recording context'), {
       bindingName: this.bindingName,
       runSanityCheck: this.runSanityCheck,
+      requestedStrategy: this.requestedStrategy,
+      strategyToUse,
     });
 
     // Store context for sanity check
@@ -241,8 +297,19 @@ export class RecordingContextInitializer {
       getEventHandler: () => this.eventHandler,
     });
 
-    // Set up HTML injection route
-    const injectionResult = await setupHtmlInjectionRoute(context, {
+    // Create and initialize injection strategy
+    this.injectionStrategy = createInjectionStrategy({
+      strategyName: strategyToUse,
+      providerName: playwrightProvider.name,
+      logger: this.logger,
+    });
+
+    this.logger.info(scopedLog(LogContext.INJECTION, 'using injection strategy'), {
+      strategy: this.injectionStrategy.name,
+      provider: playwrightProvider.name,
+    });
+
+    await this.injectionStrategy.initialize(context, {
       bindingName: this.bindingName,
       logger: this.logger,
       diagnosticsEnabled: this.diagnosticsEnabled,
@@ -256,8 +323,6 @@ export class RecordingContextInitializer {
         }
       },
     });
-
-    this.injectionStatsGetter = injectionResult.getStats;
 
     // Set up page-level event routes for all existing pages
     // NOTE: Navigation listeners are NOT set up here - they are handled by
@@ -280,8 +345,15 @@ export class RecordingContextInitializer {
       this.logger.debug(scopedLog(LogContext.RECORDING, 'new page created, setting up event route'), {
         url: page.url()?.slice(0, 50),
       });
+      const eventRouteManager = this.eventRouteManager;
+      if (!eventRouteManager) {
+        this.logger.warn(scopedLog(LogContext.RECORDING, 'event route manager unavailable for new page'), {
+          url: page.url()?.slice(0, 50),
+        });
+        return;
+      }
       try {
-        await this.eventRouteManager!.setupPageEventRoute(page);
+        await eventRouteManager.setupPageEventRoute(page);
       } catch (err) {
         this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to setup event route for new page'), {
           url: page.url()?.slice(0, 50),
@@ -293,6 +365,7 @@ export class RecordingContextInitializer {
     this.initialized = true;
     this.logger.info(scopedLog(LogContext.RECORDING, 'recording context initialized'), {
       bindingName: this.bindingName,
+      injectionStrategy: this.injectionStrategy?.name ?? 'unknown',
     });
   }
 
@@ -379,6 +452,7 @@ export class RecordingContextInitializer {
         },
         issues,
         provider: playwrightProvider.name,
+        injectionStrategy: this.injectionStrategy?.name,
       };
 
       // Check for issues
@@ -444,11 +518,13 @@ export class RecordingContextInitializer {
         durationMs: Date.now() - startTime,
         issues: [`Sanity check error: ${error instanceof Error ? error.message : String(error)}`],
         provider: playwrightProvider.name,
+        injectionStrategy: this.injectionStrategy?.name,
       };
 
       this.logger.error(scopedLog(LogContext.RECORDING, 'sanity check ERROR'), {
         url: url.slice(0, 80),
         error: error instanceof Error ? error.message : String(error),
+        injectionStrategy: this.injectionStrategy?.name,
       });
 
       return result;
@@ -474,6 +550,10 @@ export class RecordingContextInitializer {
     }
 
     const page = pages[0];
+    if (!page) {
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'no page available for sanity check'));
+      return;
+    }
 
     // Wait a bit for the page to finish loading and script to initialize
     await new Promise((resolve) => setTimeout(resolve, 500));

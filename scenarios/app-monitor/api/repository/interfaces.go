@@ -7,30 +7,30 @@ import (
 
 // App represents an application in the system
 type App struct {
-	ID           string                 `json:"id" db:"id"`
-	Name         string                 `json:"name" db:"name"`
-	ScenarioName string                 `json:"scenario_name" db:"scenario_name"`
-	Path         string                 `json:"path" db:"path"`
-	CreatedAt    time.Time              `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time              `json:"updated_at" db:"updated_at"`
-	Status       string                 `json:"status" db:"status"`
-	PortMappings map[string]interface{} `json:"port_mappings" db:"port_mappings"`
-	Environment  map[string]interface{} `json:"environment" db:"environment"`
-	Config       map[string]interface{} `json:"config" db:"config"`
-	Description  string                 `json:"description,omitempty"`
-	Tags         []string               `json:"tags,omitempty"`
-	Runtime      string                 `json:"runtime,omitempty"`
-	Uptime       string                 `json:"uptime,omitempty"`
-	Type         string                 `json:"type,omitempty"`
-	HealthStatus string                 `json:"health_status,omitempty"`
-	ViewCount    int64                  `json:"view_count" db:"view_count"`
-	FirstViewed  *time.Time             `json:"first_viewed_at,omitempty" db:"first_viewed_at"`
-	LastViewed   *time.Time             `json:"last_viewed_at,omitempty" db:"last_viewed_at"`
-	IsPartial                 bool            `json:"is_partial,omitempty" db:"-"`
-	TechStack                 []string        `json:"tech_stack,omitempty" db:"-"`
-	Dependencies              []AppDependency `json:"dependencies,omitempty" db:"-"`
-	CompletenessScore         *int            `json:"completeness_score,omitempty" db:"-"`
-	CompletenessClassification string         `json:"completeness_classification,omitempty" db:"-"`
+	ID                         string                 `json:"id" db:"id"`
+	Name                       string                 `json:"name" db:"name"`
+	ScenarioName               string                 `json:"scenario_name" db:"scenario_name"`
+	Path                       string                 `json:"path" db:"path"`
+	CreatedAt                  time.Time              `json:"created_at" db:"created_at"`
+	UpdatedAt                  time.Time              `json:"updated_at" db:"updated_at"`
+	Status                     string                 `json:"status" db:"status"`
+	PortMappings               map[string]interface{} `json:"port_mappings" db:"port_mappings"`
+	Environment                map[string]interface{} `json:"environment" db:"environment"`
+	Config                     map[string]interface{} `json:"config" db:"config"`
+	Description                string                 `json:"description,omitempty"`
+	Tags                       []string               `json:"tags,omitempty"`
+	Runtime                    string                 `json:"runtime,omitempty"`
+	Uptime                     string                 `json:"uptime,omitempty"`
+	Type                       string                 `json:"type,omitempty"`
+	HealthStatus               string                 `json:"health_status,omitempty"`
+	ViewCount                  int64                  `json:"view_count" db:"view_count"`
+	FirstViewed                *time.Time             `json:"first_viewed_at,omitempty" db:"first_viewed_at"`
+	LastViewed                 *time.Time             `json:"last_viewed_at,omitempty" db:"last_viewed_at"`
+	IsPartial                  bool                   `json:"is_partial,omitempty" db:"-"`
+	TechStack                  []string               `json:"tech_stack,omitempty" db:"-"`
+	Dependencies               []AppDependency        `json:"dependencies,omitempty" db:"-"`
+	CompletenessScore          *int                   `json:"completeness_score,omitempty" db:"-"`
+	CompletenessClassification string                 `json:"completeness_classification,omitempty" db:"-"`
 }
 
 // AppDependency represents a resource dependency for an application
@@ -115,4 +115,30 @@ type HealthRepository interface {
 	GetHealthStatus(ctx context.Context, appID string) (map[string]interface{}, error)
 	RecordHealthAlert(ctx context.Context, appID string, alertType string, severity string, message string) error
 	GetUnresolvedAlerts(ctx context.Context) ([]map[string]interface{}, error)
+}
+
+// WorkspacePreset represents a saved workspace layout preset
+type WorkspacePreset struct {
+	ID              string    `json:"id"`
+	Name            string    `json:"name"`
+	Color           string    `json:"color"`
+	InteractionMode string    `json:"interaction_mode"`
+	WorkspaceZoom   float64   `json:"workspace_zoom"`
+	PaneApps        []string  `json:"pane_apps"`
+	PanePreviewURLs []string  `json:"pane_preview_urls,omitempty"`
+	ColumnFractions []float64 `json:"column_fractions"`
+	RowFractions    []float64 `json:"row_fractions"`
+	PinnedPaneIndex *int      `json:"pinned_pane_index,omitempty"`
+	PinnedColumn    *string   `json:"pinned_column,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+// WorkspacePresetRepository defines the interface for workspace preset storage
+type WorkspacePresetRepository interface {
+	ListPresets(ctx context.Context) ([]WorkspacePreset, error)
+	GetPreset(ctx context.Context, id string) (*WorkspacePreset, error)
+	CreatePreset(ctx context.Context, preset *WorkspacePreset) error
+	UpdatePreset(ctx context.Context, preset *WorkspacePreset) error
+	DeletePreset(ctx context.Context, id string) error
 }

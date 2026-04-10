@@ -1,0 +1,328 @@
+-- Browser Automation Studio - Simplified Schema (PostgreSQL)
+--
+-- Design principle: Database is an INDEX, not the source of truth.
+-- - Workflows live on disk as JSON files
+-- - Execution results live on disk as JSON files
+-- - Database provides queryable indexes for:
+--   1. Active/recent executions (status filtering)
+--   2. Scheduled runs (next_run_at queries)
+--   3. Project/workflow lookups (by name/path)
+--   4. User settings (key-value store)
+--   5. Credit usage tracking
+
+-- ============================================================================
+-- PROJECTS: Top-level containers for workflows
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS projects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL UNIQUE,
+    folder_path VARCHAR(500) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_projects_name ON projects(name);
+CREATE INDEX IF NOT EXISTS idx_projects_folder_path ON projects(folder_path);
+
+-- ============================================================================
+-- WORKFLOWS: Index of workflow files on disk
+-- ============================================================================
+-- Note: flow_definition, inputs, outputs, etc. are NOT stored here.
+-- They live in JSON files on disk. This table is just for lookups.
+CREATE TABLE IF NOT EXISTS workflows (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    folder_path VARCHAR(500) NOT NULL,
+    file_path VARCHAR(1000),  -- Relative path to JSON file on disk
+    version INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(project_id, name, folder_path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflows_project_id ON workflows(project_id);
+CREATE INDEX IF NOT EXISTS idx_workflows_folder_path ON workflows(folder_path);
+CREATE INDEX IF NOT EXISTS idx_workflows_name ON workflows(name);
+
+-- ============================================================================
+-- PROJECT_ASSETS: Index of non-workflow files in a project
+-- ============================================================================
+-- Used for tracking assets (images, data files, etc.) that workflows can use.
+-- File content lives on disk; this table is just an index for lookups.
+CREATE TABLE IF NOT EXISTS project_assets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    file_path VARCHAR(1000) NOT NULL,  -- Relative path from project root
+    file_name VARCHAR(255) NOT NULL,
+    file_size BIGINT,
+    mime_type VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(project_id, file_path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_assets_project_id ON project_assets(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_assets_file_path ON project_assets(file_path);
+
+-- ============================================================================
+-- EXECUTIONS: Track workflow runs (queryable for status/recent)
+-- ============================================================================
+-- Note: Detailed step data, logs, and artifacts live in JSON files on disk.
+-- This table only stores what we need to query.
+CREATE TABLE IF NOT EXISTS executions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',  -- pending|running|completed|failed
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    error_message TEXT,  -- Brief error summary for display
+    result_path VARCHAR(1000),  -- Path to detailed results JSON on disk
+    resumed_from_id UUID REFERENCES executions(id),  -- Links to parent execution if this is a resume
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_executions_workflow_id ON executions(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_executions_status ON executions(status);
+CREATE INDEX IF NOT EXISTS idx_executions_started_at ON executions(started_at DESC);
+
+-- ============================================================================
+-- SCHEDULES: Cron-based workflow scheduling
+-- ============================================================================
+-- This MUST be in the database for efficient next-run queries.
+CREATE TABLE IF NOT EXISTS schedules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    cron_expression VARCHAR(100) NOT NULL,
+    timezone VARCHAR(50) DEFAULT 'UTC',
+    is_active BOOLEAN DEFAULT TRUE,
+    parameters_json TEXT DEFAULT '{}',  -- JSON string, not queried
+    next_run_at TIMESTAMP,
+    last_run_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_schedules_workflow_id ON schedules(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_schedules_active ON schedules(is_active);
+CREATE INDEX IF NOT EXISTS idx_schedules_next_run ON schedules(next_run_at) WHERE is_active = TRUE;
+
+-- ============================================================================
+-- EXPORTS: Metadata for exported artifacts (replays, videos, etc.)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS exports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+    workflow_id UUID REFERENCES workflows(id) ON DELETE SET NULL,
+    name VARCHAR(255) NOT NULL,
+    format VARCHAR(50) NOT NULL,
+    settings JSONB DEFAULT '{}'::jsonb,
+    storage_url TEXT,
+    thumbnail_url TEXT,
+    file_size_bytes BIGINT,
+    duration_ms INTEGER,
+    frame_count INTEGER,
+    ai_caption TEXT,
+    ai_caption_generated_at TIMESTAMP,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    error TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_exports_execution_id ON exports(execution_id);
+CREATE INDEX IF NOT EXISTS idx_exports_workflow_id ON exports(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_exports_created_at ON exports(created_at DESC);
+
+-- ============================================================================
+-- SETTINGS: Key-value store for user preferences
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS settings (
+    key VARCHAR(255) PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- RECORDING SESSIONS: Browser recording sessions
+-- ============================================================================
+-- Persists recording sessions with their associated actions.
+-- Sessions may optionally link to a SessionProfile for state restoration.
+-- DOC: docs/architecture/recording.md#recording-session
+CREATE TABLE IF NOT EXISTS recording_sessions (
+    id VARCHAR(255) PRIMARY KEY,
+    profile_id VARCHAR(255),  -- Optional link to session profile
+    status VARCHAR(50) NOT NULL DEFAULT 'active',  -- active | closed
+    viewport_width INTEGER,
+    viewport_height INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_recording_sessions_profile ON recording_sessions(profile_id);
+CREATE INDEX IF NOT EXISTS idx_recording_sessions_status ON recording_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_recording_sessions_created_at ON recording_sessions(created_at DESC);
+
+-- ============================================================================
+-- RECORDING ACTIONS: User actions captured during recording
+-- ============================================================================
+-- Each action belongs to a session and records user interactions.
+-- Complex fields (selector, element_meta, bounding_box, payload) are JSONB.
+-- DOC: docs/architecture/recording.md#recording-action
+CREATE TABLE IF NOT EXISTS recording_actions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id VARCHAR(255) NOT NULL REFERENCES recording_sessions(id) ON DELETE CASCADE,
+    page_id UUID NOT NULL,
+    sequence_num INTEGER NOT NULL,
+    action_type VARCHAR(100) NOT NULL,
+    timestamp TIMESTAMP NOT NULL,
+    duration_ms INTEGER,
+    selector JSONB,      -- SelectorSet with primary and candidates
+    element_meta JSONB,  -- ElementMeta with tag, class, aria info
+    bounding_box JSONB,  -- {x, y, width, height}
+    payload JSONB,       -- Action-specific data
+    url TEXT,
+    page_title TEXT,
+    confidence REAL DEFAULT 1.0,
+    source VARCHAR(50) DEFAULT 'auto',  -- auto | manual | ai_suggested
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(session_id, sequence_num)
+);
+
+CREATE INDEX IF NOT EXISTS idx_recording_actions_session ON recording_actions(session_id);
+CREATE INDEX IF NOT EXISTS idx_recording_actions_page ON recording_actions(page_id);
+CREATE INDEX IF NOT EXISTS idx_recording_actions_type ON recording_actions(action_type);
+CREATE INDEX IF NOT EXISTS idx_recording_actions_timestamp ON recording_actions(timestamp);
+
+-- ============================================================================
+-- TIMELINE_ENTRIES: Unified timeline for recording sessions
+-- ============================================================================
+-- Stores both actions and page events in a single timeline.
+-- This enables unified querying and WebSocket broadcasting.
+CREATE TABLE IF NOT EXISTS timeline_entries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    type VARCHAR(50) NOT NULL,  -- 'action' | 'page_event'
+    timestamp TIMESTAMP NOT NULL,
+    session_id VARCHAR(255) NOT NULL REFERENCES recording_sessions(id) ON DELETE CASCADE,
+    page_id UUID NOT NULL,
+    sequence INTEGER NOT NULL,
+    action_json JSONB,      -- JSON for action details (when type='action')
+    page_event_json JSONB,  -- JSON for page event details (when type='page_event')
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_timeline_entries_session ON timeline_entries(session_id);
+CREATE INDEX IF NOT EXISTS idx_timeline_entries_page ON timeline_entries(page_id);
+CREATE INDEX IF NOT EXISTS idx_timeline_entries_sequence ON timeline_entries(session_id, sequence);
+CREATE INDEX IF NOT EXISTS idx_timeline_entries_type ON timeline_entries(type);
+
+-- ============================================================================
+-- UNIFIED CREDIT SYSTEM TABLES
+-- Single credit pool model for all operations (AI, executions, exports).
+-- ============================================================================
+
+-- Unified Credit Usage Tracking
+-- Tracks credit usage per user per billing month with operation type breakdown
+CREATE TABLE IF NOT EXISTS credit_usage (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_identity VARCHAR(255) NOT NULL,
+    billing_month VARCHAR(7) NOT NULL,  -- Format: YYYY-MM
+
+    -- Single unified credit pool totals
+    total_credits_used INTEGER NOT NULL DEFAULT 0,
+    total_operations INTEGER NOT NULL DEFAULT 0,
+
+    -- Breakdown by operation type for analytics/UI display
+    -- Format: {"ai.workflow_generate": 15, "execution.run": 42}
+    credits_by_operation JSONB NOT NULL DEFAULT '{}',
+    operations_by_type JSONB NOT NULL DEFAULT '{}',
+
+    last_operation_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT unique_credit_user_month UNIQUE (user_identity, billing_month)
+);
+
+CREATE INDEX IF NOT EXISTS idx_credit_usage_user ON credit_usage(user_identity);
+CREATE INDEX IF NOT EXISTS idx_credit_usage_month ON credit_usage(billing_month);
+
+-- Unified Operation Log
+-- Detailed audit log for all credit-consuming operations
+CREATE TABLE IF NOT EXISTS operation_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_identity VARCHAR(255) NOT NULL,
+    operation_type VARCHAR(50) NOT NULL,  -- e.g., 'ai.workflow_generate', 'execution.run'
+    credits_charged INTEGER NOT NULL DEFAULT 0,
+    success BOOLEAN NOT NULL DEFAULT true,
+
+    -- Flexible metadata for operation-specific details
+    metadata JSONB DEFAULT '{}',
+
+    error_message TEXT,
+    duration_ms INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_operation_log_user ON operation_log(user_identity);
+CREATE INDEX IF NOT EXISTS idx_operation_log_type ON operation_log(operation_type);
+CREATE INDEX IF NOT EXISTS idx_operation_log_created ON operation_log(created_at);
+
+-- ============================================================================
+-- TRIGGERS: Auto-update timestamps
+-- ============================================================================
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+DROP TRIGGER IF EXISTS update_projects_updated_at ON projects;
+CREATE TRIGGER update_projects_updated_at
+    BEFORE UPDATE ON projects
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_workflows_updated_at ON workflows;
+CREATE TRIGGER update_workflows_updated_at
+    BEFORE UPDATE ON workflows
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_executions_updated_at ON executions;
+CREATE TRIGGER update_executions_updated_at
+    BEFORE UPDATE ON executions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_schedules_updated_at ON schedules;
+CREATE TRIGGER update_schedules_updated_at
+    BEFORE UPDATE ON schedules
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_exports_updated_at ON exports;
+CREATE TRIGGER update_exports_updated_at
+    BEFORE UPDATE ON exports
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_settings_updated_at ON settings;
+CREATE TRIGGER update_settings_updated_at
+    BEFORE UPDATE ON settings
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_credit_usage_updated_at ON credit_usage;
+CREATE TRIGGER update_credit_usage_updated_at
+    BEFORE UPDATE ON credit_usage
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_project_assets_updated_at ON project_assets;
+CREATE TRIGGER update_project_assets_updated_at
+    BEFORE UPDATE ON project_assets
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_recording_sessions_updated_at ON recording_sessions;
+CREATE TRIGGER update_recording_sessions_updated_at
+    BEFORE UPDATE ON recording_sessions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

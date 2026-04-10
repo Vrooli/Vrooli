@@ -55,7 +55,7 @@ app-issue-tracker investigate "Login button not working"
 ### AI Integration
 - **Automatic Investigation**: AI analyzes issues and suggests fixes
 - **Semantic Search**: Find similar issues using vector embeddings
-- **Codex Integration**: Leverages advanced AI for code-related issues
+- **Agent-Manager Runners**: Execute investigations via claude-code, codex, or opencode
 - **Workflow Automation**: Trigger investigations on issue creation/update
 
 ### Advanced Capabilities
@@ -84,7 +84,6 @@ app-issue-tracker/
 │       ├── completed/
 │       └── templates/          # YAML metadata templates
 ├── scripts/            # Utility scripts
-│   ├── claude-investigator.sh
 │   └── setup-vector-search.sh
 ├── test/               # Test suites
 │   └── phases/         # Standardized test phases
@@ -98,7 +97,7 @@ app-issue-tracker/
 - `API_PORT`: API server port (default: dynamically assigned)
 - `UI_PORT`: Web UI port (default: dynamically assigned)
 - `QDRANT_URL`: Vector database endpoint (optional)
-- `OPENAI_API_KEY`: For Codex-powered investigations (optional)
+- `OPENAI_API_KEY`: Required by agent-manager when using the codex runner (optional)
 
 ### Security Configuration
 For production deployments, configure security settings:
@@ -314,7 +313,7 @@ This project is licensed under the MIT License - see the [LICENSE](../LICENSE) f
 ## 🙏 Acknowledgments
 
 - Built with [Vrooli](https://vrooli.com) scenario framework
-- AI integration powered by [Codex](https://platform.openai.com/docs)
+- AI integration powered by agent-manager runners (claude-code, codex, opencode)
 - Thanks to the open-source community for tools like Go, Node.js, and Qdrant
 
 ---

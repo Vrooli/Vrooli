@@ -48,13 +48,18 @@ const (
 	// Also checks: POSTGRES_URL, DATABASE_URL (used directly if set)
 	DriverPostgres = "postgres"
 
-	// DriverSQLite reads SQLITE_PATH or SQLITE_DB environment variables.
-	DriverSQLite = "sqlite3"
+	// DriverSQLite reads SQLITE_PATH or SQLITE_DB environment variables and
+	// matches the modernc.org/sqlite driver name used by cross-platform scenarios.
+	DriverSQLite = "sqlite"
+
+	// DriverSQLiteLegacy remains supported for scenarios that still open the CGO
+	// sqlite3 driver explicitly.
+	DriverSQLiteLegacy = "sqlite3"
 )
 
 // Config controls database connection behavior.
 type Config struct {
-	// Driver specifies the database driver (e.g., "postgres", "sqlite3").
+	// Driver specifies the database driver (e.g., "postgres", "sqlite").
 	// For known drivers, connection parameters are auto-read from environment.
 	// Required.
 	Driver string
@@ -95,7 +100,7 @@ type Config struct {
 
 // Connect opens a database connection with retry and automatic configuration.
 //
-// For known drivers (postgres, sqlite3), connection parameters are automatically
+// For known drivers (postgres, sqlite, sqlite3), connection parameters are automatically
 // read from environment variables set by the Vrooli lifecycle system.
 //
 // The function retries failed connections using exponential backoff with jitter
@@ -185,13 +190,13 @@ func buildDSNFromEnv(cfg Config) (string, error) {
 	case DriverPostgres:
 		return buildPostgresDSN(getenv)
 
-	case DriverSQLite:
-		return buildSQLiteDSN(getenv)
+		case DriverSQLite, DriverSQLiteLegacy:
+			return buildSQLiteDSN(getenv)
 
 	default:
 		return "", fmt.Errorf(
-			"driver %q has no auto-configuration; provide DSN explicitly or use a supported driver (%s, %s)",
-			cfg.Driver, DriverPostgres, DriverSQLite,
+			"driver %q has no auto-configuration; provide DSN explicitly or use a supported driver (%s, %s, %s)",
+			cfg.Driver, DriverPostgres, DriverSQLite, DriverSQLiteLegacy,
 		)
 	}
 }
@@ -265,7 +270,7 @@ func buildSQLiteDSN(getenv func(string) string) (string, error) {
 		return path, nil
 	}
 	return "", fmt.Errorf(
-		"sqlite3 connection requires SQLITE_PATH or SQLITE_DB environment variable",
+			"sqlite connection requires SQLITE_PATH or SQLITE_DB environment variable",
 	)
 }
 

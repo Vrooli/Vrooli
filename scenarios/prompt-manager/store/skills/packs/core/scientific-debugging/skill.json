@@ -1,0 +1,22 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "scientific-debugging",
+  "name": "Scientific Debugging",
+  "description": "Hypothesis-driven debugging methodology: generate falsifiable hypotheses, design experiments to validate them, and systematically narrow to root cause. Produces regression tests and documented findings.",
+  "modes": [
+    "practice"
+  ],
+  "tags": [
+    "practice",
+    "debugging",
+    "testing",
+    "methodology"
+  ],
+  "icon": "bug",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 28,
+  "createdAt": "2026-02-03T02:40:00Z",
+  "updatedAt": "2026-02-04T13:13:54Z"
+}

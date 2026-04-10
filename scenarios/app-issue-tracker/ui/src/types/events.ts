@@ -40,8 +40,9 @@ export interface ApiIssue {
       agent_failure_time?: string;
       rate_limit_until?: string;
       rate_limit_agent?: string;
-      agent_transcript_path?: string;
-      agent_last_message_path?: string;
+      agent_run_id?: string;
+      agent_profile_key?: string;
+      agent_runner_type?: string;
       [key: string]: string | undefined;
     };
   };

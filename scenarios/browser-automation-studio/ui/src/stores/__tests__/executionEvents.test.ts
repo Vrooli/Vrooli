@@ -14,17 +14,16 @@ import {
   ExecutionEventsClient,
 } from '../../domains/executions/live/executionEvents';
 
-const baseTimestamp = { seconds: BigInt(1), nanos: 0 };
-
 describe('envelopeToExecutionEvent', () => {
   it('maps status updates into execution events', () => {
-    const event = envelopeToExecutionEvent({
+    const envelope = create(TimelineStreamMessageSchema, {
+      type: TimelineMessageType.TIMELINE_MESSAGE_TYPE_STATUS,
       payload: {
         case: 'status',
         value: { id: 'exec-123', status: ExecutionStatus.RUNNING, progress: 25, error: '' },
       },
-      type: TimelineMessageType.TIMELINE_MESSAGE_TYPE_STATUS,
-    } as any);
+    });
+    const event = envelopeToExecutionEvent(envelope);
 
     expect(event?.type).toBe('execution.started');
     expect(event?.execution_id).toBe('exec-123');
@@ -32,7 +31,8 @@ describe('envelopeToExecutionEvent', () => {
   });
 
   it('maps timeline frames into step events', () => {
-    const event = envelopeToExecutionEvent({
+    const envelope = create(TimelineStreamMessageSchema, {
+      type: TimelineMessageType.TIMELINE_MESSAGE_TYPE_ENTRY,
       payload: {
         case: 'entry',
         value: {
@@ -42,8 +42,8 @@ describe('envelopeToExecutionEvent', () => {
           aggregates: { status: StepStatus.COMPLETED, progress: 1 },
         },
       },
-      type: TimelineMessageType.TIMELINE_MESSAGE_TYPE_ENTRY,
-    } as any);
+    });
+    const event = envelopeToExecutionEvent(envelope);
 
     expect(event?.type).toBe('step.completed');
     expect(event?.step_index).toBe(1);
@@ -64,7 +64,7 @@ describe('ExecutionEventsClient', () => {
         case: 'status',
         value: { id: 'exec-1', status: ExecutionStatus.RUNNING, progress: 25 },
       },
-    } as any);
+    });
     const payload = JSON.stringify(toJson(TimelineStreamMessageSchema, envelope));
 
     listener({ data: payload } as unknown as MessageEvent);

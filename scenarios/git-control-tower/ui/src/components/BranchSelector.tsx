@@ -2,27 +2,33 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import {
   GitBranch,
   ChevronDown,
+  ChevronRight,
   Plus,
   Upload,
   AlertTriangle,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Info
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { BottomSheet } from "./ui/bottom-sheet";
+import { RepoSelector, type RepoActions } from "./RepoSelector";
 import type {
   RepoStatus,
   SyncStatusResponse,
   RepoBranchesResponse,
+  RepoRecord,
   CreateBranchRequest,
   BranchCreateResponse,
   SwitchBranchRequest,
   BranchSwitchResponse,
   PublishBranchRequest,
   BranchPublishResponse,
-  BranchWarning
+  BranchWarning,
 } from "../lib/api";
+
+export type { RepoActions };
 
 export interface BranchActions {
   branches?: RepoBranchesResponse;
@@ -39,7 +45,11 @@ interface BranchSelectorProps {
   status?: RepoStatus;
   syncStatus?: SyncStatusResponse;
   actions: BranchActions;
+  repoActions?: RepoActions;
+  onRepoChange?: (repoId: string | null) => void;
+  onOpenUpstreamInfo?: () => void;
   variant?: "desktop" | "mobile";
+  commitOid?: string;
 }
 
 type PendingAction =
@@ -51,10 +61,15 @@ export function BranchSelector({
   status,
   syncStatus,
   actions,
-  variant = "desktop"
+  repoActions,
+  onRepoChange,
+  onOpenUpstreamInfo,
+  variant = "desktop",
+  commitOid
 }: BranchSelectorProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"branches" | "repos">("branches");
   const [showCreate, setShowCreate] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createFrom, setCreateFrom] = useState("");
@@ -62,6 +77,7 @@ export function BranchSelector({
   const [warning, setWarning] = useState<BranchWarning | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const openStateRef = useRef(false);
 
   const isDirty = Boolean(
     status &&
@@ -78,6 +94,14 @@ export function BranchSelector({
   const behind = syncStatus?.behind ?? status?.branch.behind ?? 0;
   const showPublish = currentBranch !== "" && currentUpstream === "";
 
+  const activeRepoId = repoActions?.repos?.active_id;
+  const repoList = repoActions?.repos?.repos;
+  const activeRepo = useMemo(
+    () => (repoList ?? []).find((repo: RepoRecord) => repo.id === activeRepoId) ?? null,
+    [repoList, activeRepoId]
+  );
+  const hasActiveRepo = activeRepoId !== undefined && activeRepoId !== null;
+
   useEffect(() => {
     if (variant !== "desktop" || !open) return;
 
@@ -91,6 +115,20 @@ export function BranchSelector({
     window.addEventListener("mousedown", handleClickOutside);
     return () => window.removeEventListener("mousedown", handleClickOutside);
   }, [open, variant]);
+
+  useEffect(() => {
+    if (open && !openStateRef.current) {
+      if (repoActions && !hasActiveRepo) {
+        setView("repos");
+      }
+    }
+
+    if (!open) {
+      setView("branches");
+    }
+
+    openStateRef.current = open;
+  }, [open, repoActions, hasActiveRepo]);
 
   const { locals, remotes } = useMemo(() => {
     const branches = actions.branches;
@@ -204,7 +242,7 @@ export function BranchSelector({
         track_remote: warning.requires_tracking || pendingAction.request.track_remote
       } as SwitchBranchRequest;
       setPendingAction(null);
-      await handleSwitchWithRequest(request);
+      await handleActionWithRequest("switch", request);
       return;
     }
     if (pendingAction.type === "create") {
@@ -213,7 +251,7 @@ export function BranchSelector({
         allow_dirty: warning.requires_confirmation || undefined
       } as CreateBranchRequest;
       setPendingAction(null);
-      await handleCreateWithRequest(request);
+      await handleActionWithRequest("create", request);
       return;
     }
     if (pendingAction.type === "publish") {
@@ -222,82 +260,82 @@ export function BranchSelector({
         fetch: warning.requires_fetch || pendingAction.request.fetch
       } as PublishBranchRequest;
       setPendingAction(null);
-      await handlePublishWithRequest(request);
+      await handleActionWithRequest("publish", request);
     }
   };
 
-  const handleSwitchWithRequest = async (request: SwitchBranchRequest) => {
+  const handleActionWithRequest = async (
+    type: "switch" | "create" | "publish",
+    request: SwitchBranchRequest | CreateBranchRequest | PublishBranchRequest
+  ) => {
     resetWarning();
     try {
-      const result = await actions.switchBranch(request);
+      let result;
+      if (type === "switch") {
+        result = await actions.switchBranch(request as SwitchBranchRequest);
+      } else if (type === "create") {
+        result = await actions.createBranch(request as CreateBranchRequest);
+      } else {
+        result = await actions.publishBranch(request as PublishBranchRequest);
+      }
+
       if (result.success) {
+        if (type === "create") {
+          setCreateName("");
+          setCreateFrom("");
+          setShowCreate(false);
+        }
         setOpen(false);
         return;
       }
       if (result.warning) {
         setWarning(result.warning);
-        setPendingAction({ type: "switch", request });
+        setPendingAction({ type, request } as PendingAction);
         return;
+      }
+      if (type === "create") {
+        const createResult = result as BranchCreateResponse;
+        if (createResult.validation_errors?.length) {
+          setWarning({ message: createResult.validation_errors.join("; ") });
+          return;
+        }
       }
       if (result.error) {
         setWarning({ message: result.error });
       }
     } catch (error) {
-      setWarning({ message: error instanceof Error ? error.message : "Switch failed" });
+      setWarning({ message: error instanceof Error ? error.message : `${type} failed` });
     }
   };
 
-  const handleCreateWithRequest = async (request: CreateBranchRequest) => {
-    resetWarning();
-    try {
-      const result = await actions.createBranch(request);
-      if (result.success) {
-        setCreateName("");
-        setCreateFrom("");
-        setShowCreate(false);
-        setOpen(false);
-        return;
-      }
-      if (result.warning) {
-        setWarning(result.warning);
-        setPendingAction({ type: "create", request });
-        return;
-      }
-      if (result.validation_errors?.length) {
-        setWarning({ message: result.validation_errors.join("; ") });
-        return;
-      }
-      if (result.error) {
-        setWarning({ message: result.error });
-      }
-    } catch (error) {
-      setWarning({ message: error instanceof Error ? error.message : "Create failed" });
-    }
-  };
-
-  const handlePublishWithRequest = async (request: PublishBranchRequest) => {
-    resetWarning();
-    try {
-      const result = await actions.publishBranch(request);
-      if (result.success) {
-        setOpen(false);
-        return;
-      }
-      if (result.warning) {
-        setWarning(result.warning);
-        setPendingAction({ type: "publish", request });
-        return;
-      }
-      if (result.error) {
-        setWarning({ message: result.error });
-      }
-    } catch (error) {
-      setWarning({ message: error instanceof Error ? error.message : "Publish failed" });
-    }
-  };
-
-  const content = (
+  const branchContent = (
     <div className="space-y-3" data-testid="branch-selector-panel">
+      {repoActions && (
+        <div className="flex items-start justify-between gap-3 rounded-md border border-slate-800 bg-slate-900/40 p-3">
+          <div className="min-w-0">
+            <div className="text-[11px] uppercase tracking-wide text-slate-500">Repository</div>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-sm font-mono text-slate-200 truncate">
+                {activeRepo?.name || "Select a repository"}
+              </span>
+            </div>
+            {activeRepo?.path && (
+              <div className="text-[11px] text-slate-500 truncate" title={activeRepo.path}>
+                {activeRepo.path}
+              </div>
+            )}
+          </div>
+          <button
+            className="flex items-center gap-1 text-xs text-slate-300 hover:text-slate-100"
+            onClick={() => setView("repos")}
+            data-testid="repo-change-button"
+          >
+            Change
+            <ChevronRight className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <GitBranch className="h-4 w-4 text-slate-400" />
@@ -332,7 +370,22 @@ export function BranchSelector({
         )}
       </div>
       {currentUpstream && (
-        <div className="text-[11px] text-slate-500 font-mono">→ {currentUpstream}</div>
+        <div className="flex items-center justify-between">
+          <div className="text-[11px] text-slate-500 font-mono">→ {currentUpstream}</div>
+          {onOpenUpstreamInfo && (
+            <button
+              className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-200"
+              onClick={() => {
+                setOpen(false);
+                onOpenUpstreamInfo();
+              }}
+              data-testid="upstream-info-button"
+            >
+              <Info className="h-3 w-3" />
+              Details
+            </button>
+          )}
+        </div>
       )}
 
       <input
@@ -444,31 +497,40 @@ export function BranchSelector({
       </div>
 
       {warning && (
-        <div className="rounded-md border border-amber-700/60 bg-amber-950/40 p-3 text-xs text-amber-200" data-testid="branch-warning">
+        <div
+          className="rounded-md border border-amber-700/60 bg-amber-950/40 p-3 text-xs text-amber-200"
+          data-testid="branch-warning"
+        >
           <div className="flex items-start gap-2">
             <AlertTriangle className="h-4 w-4 mt-0.5 text-amber-400" />
             <div className="space-y-2">
               <p>{warning.message}</p>
               {warning.dirty_summary && (
                 <p className="text-[11px] text-amber-300">
-                  Dirty: {warning.dirty_summary.staged} staged, {warning.dirty_summary.unstaged} modified, {warning.dirty_summary.untracked} untracked, {warning.dirty_summary.conflicts} conflicts
+                  Dirty: {warning.dirty_summary.staged} staged,{" "}
+                  {warning.dirty_summary.unstaged} modified,{" "}
+                  {warning.dirty_summary.untracked} untracked,{" "}
+                  {warning.dirty_summary.conflicts} conflicts
                 </p>
               )}
-              {(warning.requires_confirmation || warning.requires_tracking || warning.requires_fetch) && pendingAction && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleConfirmWarning}
-                  className="border-amber-600/70 text-amber-100 hover:bg-amber-900/40"
-                  data-testid="branch-warning-confirm"
-                >
-                  {warning.requires_tracking
-                    ? "Track and switch"
-                    : warning.requires_fetch
-                    ? "Fetch and recheck"
-                    : "Proceed anyway"}
-                </Button>
-              )}
+              {(warning.requires_confirmation ||
+                warning.requires_tracking ||
+                warning.requires_fetch) &&
+                pendingAction && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleConfirmWarning}
+                    className="border-amber-600/70 text-amber-100 hover:bg-amber-900/40"
+                    data-testid="branch-warning-confirm"
+                  >
+                    {warning.requires_tracking
+                      ? "Track and switch"
+                      : warning.requires_fetch
+                      ? "Fetch and recheck"
+                      : "Proceed anyway"}
+                  </Button>
+                )}
             </div>
           </div>
         </div>
@@ -480,6 +542,16 @@ export function BranchSelector({
         </div>
       )}
     </div>
+  );
+
+  const content = view === "repos" && repoActions ? (
+    <RepoSelector
+      repoActions={repoActions}
+      onRepoChange={onRepoChange}
+      onBack={() => setView("branches")}
+    />
+  ) : (
+    branchContent
   );
 
   if (variant === "mobile") {
@@ -494,24 +566,17 @@ export function BranchSelector({
           <span className="font-mono text-sm text-slate-200 truncate">
             {currentBranch || "Detached"}
           </span>
-          {ahead > 0 && (
-            <Badge variant="info" className="gap-0.5 flex-shrink-0">
-              <ArrowUp className="h-3 w-3" />
-              {ahead}
-            </Badge>
-          )}
-          {behind > 0 && (
-            <Badge variant="warning" className="gap-0.5 flex-shrink-0">
-              <ArrowDown className="h-3 w-3" />
-              {behind}
-            </Badge>
+          {commitOid && (
+            <span className="font-mono text-xs text-slate-500">
+              · {commitOid.substring(0, 7)}
+            </span>
           )}
           <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
         </button>
         <BottomSheet
           isOpen={open}
           onClose={() => setOpen(false)}
-          title="Branches"
+          title={view === "repos" ? "Repositories" : "Branches"}
         >
           {content}
         </BottomSheet>
@@ -530,17 +595,10 @@ export function BranchSelector({
         <span className="font-mono text-sm text-slate-200">
           {currentBranch || "Detached"}
         </span>
-        {ahead > 0 && (
-          <Badge variant="info" className="gap-0.5">
-            <ArrowUp className="h-3 w-3" />
-            {ahead}
-          </Badge>
-        )}
-        {behind > 0 && (
-          <Badge variant="warning" className="gap-0.5">
-            <ArrowDown className="h-3 w-3" />
-            {behind}
-          </Badge>
+        {commitOid && (
+          <span className="font-mono text-xs text-slate-500">
+            · {commitOid.substring(0, 7)}
+          </span>
         )}
         <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
       </button>

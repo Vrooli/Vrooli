@@ -1,0 +1,106 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-07T23:15:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 1,
+    "problem_clarity": 2,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "CLI binary missing — standards gate expectation",
+      "context": "The standards gate flags `cli/prompt-manager` as a critical 'Scenario Required Structure' violation. The binary is a Go build artifact and shouldn't be committed to git. Either the standards config needs updating to expect a build step, or the binary should be built as part of the test pipeline.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add a pre-test build step",
+          "rationale": "Add `go build -o cli/prompt-manager ./cli/` to the Makefile test target so the binary exists when standards run. This is the expected pattern — scenarios should be buildable. Recommended because it ensures the binary is always fresh.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Exclude binary from standards check",
+          "rationale": "Update the scenario's standards config to skip the binary path. Faster but masks a real gap — if the binary can't build, we won't know until later."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "CLI unknown-command exit code — scope boundary",
+      "context": "The integration test expects `prompt-manager \u003cunknown-command\u003e` to return non-zero, but it returns 0. The CLI delegates to `cli-core` via `install.sh` and uses `cliapp.ScenarioApp` for command routing. The fix may need to be in `packages/cli-core/` which is outside `acceptance_allow` (scenarios/prompt-manager/**). We need to decide whether to: fix it in cli-core (requires scope expansion), add a prompt-manager-level shim, or defer.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Fix in cli-core and expand acceptance_allow",
+          "rationale": "Root-cause fix. Unknown-command handling belongs in the shared framework. Requires adding `packages/cli-core/**` to acceptance_allow.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add prompt-manager wrapper to catch unknown commands",
+          "rationale": "Keep scope narrow. Override the unknown-command path in prompt-manager's app.go. Downside: every scenario using cli-core has the same bug."
+        },
+        {
+          "key": "C",
+          "label": "Defer to a separate backlog item",
+          "rationale": "Keep this item focused on prompt-manager-only fixes. Create a new fix item for cli-core unknown-command handling. Test phase stays red for now."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Requirements linking — P0 targets missing requirements",
+      "context": "4 critical violations say 'P0 target missing requirements'. However, inspecting `requirements/01-crud-operations-for-skills/module.json` shows requirements DO exist with IDs like REQ-P0-001. The issue may be: (a) the auditor expects requirements linked at the `index.json` level, not just in module files, (b) some modules genuinely lack requirements in their module.json, or (c) a schema version mismatch. Need to run the auditor to get specific module IDs that are failing.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Run auditor, fix whatever modules are flagged",
+          "rationale": "Most direct approach. Run `scenario-auditor audit prompt-manager --standards-only` to identify which specific P0 modules lack requirements, then add/fix them. Recommended because we need the exact failure list before deciding on a fix.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add placeholder requirements to all P0 modules",
+          "rationale": "Blanket fix — ensure every P0 module.json has at least one requirement entry. Risk: may add meaningless requirements just to pass the gate."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The `bas/` directory has `actions/`, `cases/`, and `flows/` subdirectories but no `registry.json`. Other scenarios likely have examples of this file. Generation should be straightforward once we find the expected schema — likely a playbook-builder tool or Makefile target handles this."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "6 of 11 test phases already pass (code quality, visual, provenance, and 3 others). The 5 failures are independent — fixing them in any order works, though standards should go first since the binary build may be needed by other phases."
+    }
+  ],
+  "plan_updates": "Created initial plan.md with full problem statement covering all 5 failures, 5-phase approach, technical context from codebase exploration, risk matrix, and verification strategy."
+}

@@ -84,7 +84,8 @@
     "labels": {
       "reset": "none"
     },
-    "version": "1"
+    "version": "1",
+    "execution_mode": "observer"
   },
   "nodes": [
     {
@@ -176,7 +177,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"console\"]')).some(el =\u003e el.textContent?.includes('Console'))",
+          "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"console\"]')).some(el => el.textContent?.includes('Console'))",
           "store_result": "hasConsoleTab"
         },
         "metadata": {
@@ -192,7 +193,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"network\"]')).some(el =\u003e el.textContent?.includes('Network'))",
+          "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"network\"]')).some(el => el.textContent?.includes('Network'))",
           "store_result": "hasNetworkTab"
         },
         "metadata": {
@@ -232,7 +233,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "document.querySelectorAll('[class*=\"telemetry\"], [class*=\"event\"], [class*=\"log\"]').length \u003e 0",
+          "expression": "document.querySelectorAll('[class*=\"telemetry\"], [class*=\"event\"], [class*=\"log\"]').length > 0",
           "store_result": "hasTelemetryData"
         },
         "metadata": {

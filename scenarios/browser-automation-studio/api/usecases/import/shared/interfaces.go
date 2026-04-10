@@ -69,15 +69,15 @@ type WorkflowIndexer interface {
 
 // WorkflowIndexData represents workflow index information.
 type WorkflowIndexData struct {
-	ID          uuid.UUID
-	ProjectID   uuid.UUID
-	Name        string
-	Description string
-	FilePath    string // Relative path within project
-	Version     int
-	NodeCount   int
-	EdgeCount   int
-	Tags        []string
+	ID          uuid.UUID `json:"id"`
+	ProjectID   uuid.UUID `json:"project_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	FilePath    string    `json:"file_path"` // Relative path within project
+	Version     int       `json:"version"`
+	NodeCount   int       `json:"node_count"`
+	EdgeCount   int       `json:"edge_count"`
+	Tags        []string  `json:"tags"`
 }
 
 // ProjectIndexer abstracts database operations for project indexing.
@@ -97,10 +97,10 @@ type ProjectIndexer interface {
 
 // ProjectIndexData represents project index information.
 type ProjectIndexData struct {
-	ID          uuid.UUID
-	Name        string
-	Description string
-	FolderPath  string
+	ID          uuid.UUID `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	FolderPath  string    `json:"folder_path"`
 }
 
 // WorkflowSyncer abstracts workflow synchronization operations.
@@ -108,6 +108,41 @@ type ProjectIndexData struct {
 type WorkflowSyncer interface {
 	// SyncProjectWorkflows synchronizes the workflow DB index for a project from the filesystem
 	SyncProjectWorkflows(ctx context.Context, projectID uuid.UUID) error
+}
+
+// AssetIndexer abstracts database operations for asset indexing.
+// Assets are non-workflow files within a project that can be used by workflows.
+type AssetIndexer interface {
+	// CreateAsset creates a new asset index entry
+	CreateAsset(ctx context.Context, asset *AssetIndexData) error
+
+	// GetAsset retrieves an asset by project ID and file path
+	GetAsset(ctx context.Context, projectID uuid.UUID, filePath string) (*AssetIndexData, error)
+
+	// GetAssetByID retrieves an asset by ID
+	GetAssetByID(ctx context.Context, id uuid.UUID) (*AssetIndexData, error)
+
+	// UpdateAsset updates an existing asset index entry
+	UpdateAsset(ctx context.Context, asset *AssetIndexData) error
+
+	// DeleteAsset deletes an asset index entry by ID
+	DeleteAsset(ctx context.Context, id uuid.UUID) error
+
+	// DeleteAssetByPath deletes an asset by project ID and file path
+	DeleteAssetByPath(ctx context.Context, projectID uuid.UUID, filePath string) error
+
+	// ListAssetsByProject lists all assets for a project with pagination
+	ListAssetsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*AssetIndexData, error)
+}
+
+// AssetIndexData represents asset index information.
+type AssetIndexData struct {
+	ID        uuid.UUID `json:"id"`
+	ProjectID uuid.UUID `json:"project_id"`
+	FilePath  string    `json:"file_path"` // Relative path from project root
+	FileName  string    `json:"file_name"`
+	FileSize  int64     `json:"file_size"`
+	MimeType  string    `json:"mime_type"`
 }
 
 // WorkflowValidator abstracts workflow validation operations.

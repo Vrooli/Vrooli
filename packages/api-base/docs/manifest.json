@@ -1,0 +1,139 @@
+{
+  "version": "1.0.0",
+  "title": "@vrooli/api-base Documentation",
+  "description": "Universal API connectivity and proxy infrastructure for Vrooli scenarios",
+  "defaultDocument": "README.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "README.md",
+          "title": "Documentation Hub",
+          "description": "Overview and navigation for all api-base docs",
+          "audience": ["users", "developers"]
+        },
+        {
+          "path": "guides/quick-start.md",
+          "title": "Quick Start",
+          "description": "Get running in 5 minutes",
+          "audience": ["users", "developers"]
+        },
+        {
+          "path": "guides/migration.md",
+          "title": "Migration Guide",
+          "description": "Migrating from existing patterns to api-base"
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture Overview",
+          "description": "End-to-end proxy system with visual diagrams"
+        },
+        {
+          "path": "concepts/deployment-contexts.md",
+          "title": "Deployment Contexts",
+          "description": "The three environments where scenarios run"
+        },
+        {
+          "path": "concepts/proxy-resolution.md",
+          "title": "Proxy Resolution",
+          "description": "How API URLs are resolved across contexts"
+        },
+        {
+          "path": "concepts/runtime-config.md",
+          "title": "Runtime Configuration",
+          "description": "Dynamic configuration for production bundles"
+        },
+        {
+          "path": "concepts/websocket-support.md",
+          "title": "WebSocket Support",
+          "description": "WS/WSS endpoint resolution and troubleshooting"
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "guides/host-scenario-pattern.md",
+          "title": "Host Scenario Pattern",
+          "description": "Building scenarios that embed other scenarios"
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "API Reference",
+      "icon": "code",
+      "documents": [
+        {
+          "path": "api/server.md",
+          "title": "Server API",
+          "description": "createScenarioServer, createScenarioProxyHost, proxyToApi, etc."
+        },
+        {
+          "path": "api/client.md",
+          "title": "Client API",
+          "description": "resolveApiBase, buildApiUrl, isProxyContext, etc."
+        },
+        {
+          "path": "api/types.md",
+          "title": "Types Reference",
+          "description": "TypeScript interfaces and type definitions"
+        }
+      ]
+    },
+    {
+      "id": "examples",
+      "title": "Examples",
+      "icon": "terminal",
+      "documents": [
+        {
+          "path": "examples/basic-scenario.md",
+          "title": "Basic Scenario",
+          "description": "Standard Go API + React UI setup"
+        },
+        {
+          "path": "examples/embedded-scenario.md",
+          "title": "Embedded Scenario",
+          "description": "Being hosted by another scenario via iframe"
+        },
+        {
+          "path": "examples/custom-proxy.md",
+          "title": "Custom Proxy",
+          "description": "Custom proxy path patterns"
+        },
+        {
+          "path": "examples/websocket-scenario.md",
+          "title": "WebSocket Scenario",
+          "description": "End-to-end WebSocket example"
+        },
+        {
+          "path": "examples/vite-config.md",
+          "title": "Vite Configuration",
+          "description": "Development proxy setup with Vite"
+        },
+        {
+          "path": "examples/advanced-patterns.md",
+          "title": "Advanced Patterns",
+          "description": "Complex use cases and optimizations"
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "guides", "reference"],
+    "secondary": ["examples"]
+  }
+}

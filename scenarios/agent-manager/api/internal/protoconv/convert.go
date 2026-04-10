@@ -109,6 +109,38 @@ func ModelPresetFromProto(preset pb.ModelPreset) domain.ModelPreset {
 }
 
 // =============================================================================
+// NETWORK ACCESS
+// =============================================================================
+
+// NetworkAccessToProto converts domain NetworkAccess to proto NetworkAccess.
+func NetworkAccessToProto(n domain.NetworkAccess) pb.NetworkAccess {
+	switch n {
+	case domain.NetworkAccessNone:
+		return pb.NetworkAccess_NETWORK_ACCESS_NONE
+	case domain.NetworkAccessLocalhost:
+		return pb.NetworkAccess_NETWORK_ACCESS_LOCALHOST
+	case domain.NetworkAccessFull:
+		return pb.NetworkAccess_NETWORK_ACCESS_FULL
+	default:
+		return pb.NetworkAccess_NETWORK_ACCESS_UNSPECIFIED
+	}
+}
+
+// NetworkAccessFromProto converts proto NetworkAccess to domain NetworkAccess.
+func NetworkAccessFromProto(n pb.NetworkAccess) domain.NetworkAccess {
+	switch n {
+	case pb.NetworkAccess_NETWORK_ACCESS_NONE:
+		return domain.NetworkAccessNone
+	case pb.NetworkAccess_NETWORK_ACCESS_LOCALHOST:
+		return domain.NetworkAccessLocalhost
+	case pb.NetworkAccess_NETWORK_ACCESS_FULL:
+		return domain.NetworkAccessFull
+	default:
+		return domain.NetworkAccessLocalhost // sensible default
+	}
+}
+
+// =============================================================================
 // SANDBOX CONFIG
 // =============================================================================
 
@@ -173,7 +205,17 @@ func SandboxAcceptanceModeFromProto(mode pb.SandboxAcceptanceMode) string {
 }
 
 // SandboxFileCriteriaToProto converts domain SandboxFileCriteria to proto.
+//
+// Returns nil when both PathGlobs and Extensions are empty. This is important
+// because the proto JSON serializer would otherwise produce `"deny": {}` (or
+// `"allow": {}`), and workspace-sandbox's matchesCriteria() treats empty
+// criteria as "match everything" — meaning an empty deny would silently deny
+// ALL files. Returning nil causes the field to be omitted from JSON entirely,
+// which workspace-sandbox correctly interprets as "no criteria".
 func SandboxFileCriteriaToProto(criteria domain.SandboxFileCriteria) *pb.SandboxFileCriteria {
+	if len(criteria.PathGlobs) == 0 && len(criteria.Extensions) == 0 {
+		return nil
+	}
 	return &pb.SandboxFileCriteria{
 		PathGlobs:  criteria.PathGlobs,
 		Extensions: criteria.Extensions,
@@ -194,12 +236,13 @@ func SandboxFileCriteriaFromProto(criteria *pb.SandboxFileCriteria) domain.Sandb
 // SandboxAcceptanceConfigToProto converts domain SandboxAcceptanceConfig to proto.
 func SandboxAcceptanceConfigToProto(cfg domain.SandboxAcceptanceConfig) *pb.SandboxAcceptanceConfig {
 	return &pb.SandboxAcceptanceConfig{
-		Mode:         SandboxAcceptanceModeToProto(cfg.Mode),
-		Allow:        SandboxFileCriteriaToProto(cfg.Allow),
-		Deny:         SandboxFileCriteriaToProto(cfg.Deny),
-		IgnoreBinary: cfg.IgnoreBinary,
-		AutoApprove:  cfg.AutoApprove,
-		AutoReject:   cfg.AutoReject,
+		Mode:                      SandboxAcceptanceModeToProto(cfg.Mode),
+		Allow:                     SandboxFileCriteriaToProto(cfg.Allow),
+		Deny:                      SandboxFileCriteriaToProto(cfg.Deny),
+		IgnoreBinary:              cfg.IgnoreBinary,
+		AutoApprove:               cfg.AutoApprove,
+		AutoReject:                cfg.AutoReject,
+		DisableAutoApproveIfEmpty: cfg.DisableAutoApproveIfEmpty,
 	}
 }
 
@@ -209,12 +252,13 @@ func SandboxAcceptanceConfigFromProto(cfg *pb.SandboxAcceptanceConfig) domain.Sa
 		return domain.SandboxAcceptanceConfig{}
 	}
 	return domain.SandboxAcceptanceConfig{
-		Mode:         SandboxAcceptanceModeFromProto(cfg.Mode),
-		Allow:        SandboxFileCriteriaFromProto(cfg.Allow),
-		Deny:         SandboxFileCriteriaFromProto(cfg.Deny),
-		IgnoreBinary: cfg.IgnoreBinary,
-		AutoApprove:  cfg.AutoApprove,
-		AutoReject:   cfg.AutoReject,
+		Mode:                      SandboxAcceptanceModeFromProto(cfg.Mode),
+		Allow:                     SandboxFileCriteriaFromProto(cfg.Allow),
+		Deny:                      SandboxFileCriteriaFromProto(cfg.Deny),
+		IgnoreBinary:              cfg.IgnoreBinary,
+		AutoApprove:               cfg.AutoApprove,
+		AutoReject:                cfg.AutoReject,
+		DisableAutoApproveIfEmpty: cfg.DisableAutoApproveIfEmpty,
 	}
 }
 
@@ -520,6 +564,8 @@ func RunEventTypeToProto(t domain.RunEventType) pb.RunEventType {
 		return pb.RunEventType_RUN_EVENT_TYPE_LOG
 	case domain.EventTypeMessage:
 		return pb.RunEventType_RUN_EVENT_TYPE_MESSAGE
+	case domain.EventTypeMessageDeleted:
+		return pb.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED
 	case domain.EventTypeToolCall:
 		return pb.RunEventType_RUN_EVENT_TYPE_TOOL_CALL
 	case domain.EventTypeToolResult:
@@ -544,6 +590,8 @@ func RunEventTypeFromProto(t pb.RunEventType) domain.RunEventType {
 		return domain.EventTypeLog
 	case pb.RunEventType_RUN_EVENT_TYPE_MESSAGE:
 		return domain.EventTypeMessage
+	case pb.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED:
+		return domain.EventTypeMessageDeleted
 	case pb.RunEventType_RUN_EVENT_TYPE_TOOL_CALL:
 		return domain.EventTypeToolCall
 	case pb.RunEventType_RUN_EVENT_TYPE_TOOL_RESULT:

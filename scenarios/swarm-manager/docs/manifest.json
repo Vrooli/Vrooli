@@ -1,0 +1,198 @@
+{
+  "version": "1.3.1",
+  "title": "Swarm Manager Documentation",
+  "description": "Documentation for backlog-first scenario governance and execution control",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Run swarm-manager and understand the backlog-execution model",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "Mental model, boundaries, and backlog-to-execution flow",
+          "audience": ["developers", "operators"]
+        },
+        {
+          "path": "concepts/GLOSSARY.md",
+          "title": "Glossary",
+          "description": "Core terminology and lifecycle vocabulary",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "compass",
+      "documents": [
+        {
+          "path": "guides/workshop-workflow.md",
+          "title": "Workshop Refinement Workflow",
+          "description": "Universal iterative workshop loop with readiness scoring for all backlog kinds",
+          "audience": ["developers", "operators"]
+        },
+        {
+          "path": "guides/research-notes.md",
+          "title": "Research Notes",
+          "description": "Rationale and scenario relationship mapping",
+          "audience": ["developers", "operators"]
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "reference/configuration.md",
+          "title": "Configuration",
+          "description": "Tunable levers and environment variables",
+          "audience": ["developers", "operators"]
+        },
+        {
+          "path": "reference/api-endpoints.md",
+          "title": "API Endpoints",
+          "description": "Canonical backlog, initiative, and preview request/response contracts",
+          "audience": ["developers", "operators"]
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "title": "CLI Commands",
+          "description": "Canonical preview/create flows for backlog imports and initiatives",
+          "audience": ["developers", "operators"]
+        },
+        {
+          "path": "reference/operational-targets.md",
+          "title": "Operational Target Coverage",
+          "description": "Traceability map from PRD targets to docs and code",
+          "audience": ["developers", "operators"]
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/INTENT.md",
+          "title": "Intent",
+          "description": "Scenario purpose and modification guidance",
+          "internal": true
+        },
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Seams",
+          "description": "Boundaries, adapters, and architecture seams",
+          "internal": true
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "title": "Progress",
+          "description": "Development history and implementation milestones",
+          "internal": true
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Known Problems",
+          "description": "Known issues, deferred work, and technical debt",
+          "internal": true
+        },
+        {
+          "path": "internal/ASSUMPTIONS.md",
+          "title": "Assumptions",
+          "description": "Documented assumptions that guide behavior",
+          "internal": true
+        },
+        {
+          "path": "internal/INVARIANTS.md",
+          "title": "Invariants",
+          "description": "Contracts that must hold across flows",
+          "internal": true
+        },
+        {
+          "path": "internal/ERROR-SEMANTICS.md",
+          "title": "Error Semantics",
+          "description": "Error classes and recovery paths",
+          "internal": true
+        },
+        {
+          "path": "internal/SECURITY-POSTURE.md",
+          "title": "Security Posture",
+          "description": "Current controls, risks, and mitigations",
+          "internal": true
+        },
+        {
+          "path": "internal/TEMPORAL-FLOWS.md",
+          "title": "Temporal Flows",
+          "description": "Async timing and state transitions",
+          "internal": true
+        },
+        {
+          "path": "internal/INTEROP_AUDIT.md",
+          "title": "Interop Audit",
+          "description": "Proto and integration contract audit",
+          "internal": true
+        },
+        {
+          "path": "internal/COHERENCE-NOTES.md",
+          "title": "Coherence Notes",
+          "description": "React coherence audit history",
+          "internal": true
+        },
+        {
+          "path": "internal/EXPERIENCE-AUDIT.md",
+          "title": "Experience Audit",
+          "description": "UX flow/friction audit history",
+          "internal": true
+        },
+        {
+          "path": "internal/UTILS_UNIFICATION_NOTES.md",
+          "title": "Utils Unification Notes",
+          "description": "Utility consolidation notes",
+          "internal": true
+        },
+        {
+          "path": "internal/GREENFIELD_EXECUTION_CONTROL_PLAN.md",
+          "title": "Greenfield Execution Plan",
+          "description": "Backlog-first execution-control migration plan",
+          "internal": true
+        },
+        {
+          "path": "internal/EXECUTION_FINALIZATION_PLAN.md",
+          "title": "Execution Finalization Plan",
+          "description": "Multi-scenario restart, health, and review orchestration plan",
+          "internal": true
+        },
+        {
+          "path": "internal/AGENT_MANAGER_PLAN.md",
+          "title": "Agent Manager Plan (Superseded)",
+          "description": "Legacy recommendation-era integration plan",
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "guides", "reference"],
+    "secondary": ["internal"]
+  }
+}

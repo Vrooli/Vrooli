@@ -24,6 +24,13 @@ class ModelPreset(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MODEL_PRESET_CHEAP: _ClassVar[ModelPreset]
     MODEL_PRESET_SMART: _ClassVar[ModelPreset]
 
+class NetworkAccess(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    NETWORK_ACCESS_UNSPECIFIED: _ClassVar[NetworkAccess]
+    NETWORK_ACCESS_NONE: _ClassVar[NetworkAccess]
+    NETWORK_ACCESS_LOCALHOST: _ClassVar[NetworkAccess]
+    NETWORK_ACCESS_FULL: _ClassVar[NetworkAccess]
+
 class SandboxLifecycleEvent(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED: _ClassVar[SandboxLifecycleEvent]
@@ -101,6 +108,8 @@ class RunEventType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_EVENT_TYPE_METRIC: _ClassVar[RunEventType]
     RUN_EVENT_TYPE_ARTIFACT: _ClassVar[RunEventType]
     RUN_EVENT_TYPE_ERROR: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_MESSAGE_DELETED: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_COMPACTION: _ClassVar[RunEventType]
 
 class RecoveryAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -145,6 +154,10 @@ MODEL_PRESET_UNSPECIFIED: ModelPreset
 MODEL_PRESET_FAST: ModelPreset
 MODEL_PRESET_CHEAP: ModelPreset
 MODEL_PRESET_SMART: ModelPreset
+NETWORK_ACCESS_UNSPECIFIED: NetworkAccess
+NETWORK_ACCESS_NONE: NetworkAccess
+NETWORK_ACCESS_LOCALHOST: NetworkAccess
+NETWORK_ACCESS_FULL: NetworkAccess
 SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED: SandboxLifecycleEvent
 SANDBOX_LIFECYCLE_EVENT_RUN_COMPLETED: SandboxLifecycleEvent
 SANDBOX_LIFECYCLE_EVENT_RUN_FAILED: SandboxLifecycleEvent
@@ -199,6 +212,8 @@ RUN_EVENT_TYPE_STATUS: RunEventType
 RUN_EVENT_TYPE_METRIC: RunEventType
 RUN_EVENT_TYPE_ARTIFACT: RunEventType
 RUN_EVENT_TYPE_ERROR: RunEventType
+RUN_EVENT_TYPE_MESSAGE_DELETED: RunEventType
+RUN_EVENT_TYPE_COMPACTION: RunEventType
 RECOVERY_ACTION_UNSPECIFIED: RecoveryAction
 RECOVERY_ACTION_NONE: RecoveryAction
 RECOVERY_ACTION_RETRY: RecoveryAction
@@ -225,7 +240,7 @@ STALE_RUN_ACTION_FAIL: StaleRunAction
 STALE_RUN_ACTION_ALERT: StaleRunAction
 
 class SandboxFileCriteria(_message.Message):
-    __slots__ = ()
+    __slots__ = ("path_globs", "extensions")
     PATH_GLOBS_FIELD_NUMBER: _ClassVar[int]
     EXTENSIONS_FIELD_NUMBER: _ClassVar[int]
     path_globs: _containers.RepeatedScalarFieldContainer[str]
@@ -233,23 +248,25 @@ class SandboxFileCriteria(_message.Message):
     def __init__(self, path_globs: _Optional[_Iterable[str]] = ..., extensions: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SandboxAcceptanceConfig(_message.Message):
-    __slots__ = ()
+    __slots__ = ("mode", "allow", "deny", "ignore_binary", "auto_approve", "auto_reject", "disable_auto_approve_if_empty")
     MODE_FIELD_NUMBER: _ClassVar[int]
     ALLOW_FIELD_NUMBER: _ClassVar[int]
     DENY_FIELD_NUMBER: _ClassVar[int]
     IGNORE_BINARY_FIELD_NUMBER: _ClassVar[int]
     AUTO_APPROVE_FIELD_NUMBER: _ClassVar[int]
     AUTO_REJECT_FIELD_NUMBER: _ClassVar[int]
+    DISABLE_AUTO_APPROVE_IF_EMPTY_FIELD_NUMBER: _ClassVar[int]
     mode: SandboxAcceptanceMode
     allow: SandboxFileCriteria
     deny: SandboxFileCriteria
     ignore_binary: bool
     auto_approve: bool
     auto_reject: bool
-    def __init__(self, mode: _Optional[_Union[SandboxAcceptanceMode, str]] = ..., allow: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., deny: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., ignore_binary: _Optional[bool] = ..., auto_approve: _Optional[bool] = ..., auto_reject: _Optional[bool] = ...) -> None: ...
+    disable_auto_approve_if_empty: bool
+    def __init__(self, mode: _Optional[_Union[SandboxAcceptanceMode, str]] = ..., allow: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., deny: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., ignore_binary: _Optional[bool] = ..., auto_approve: _Optional[bool] = ..., auto_reject: _Optional[bool] = ..., disable_auto_approve_if_empty: _Optional[bool] = ...) -> None: ...
 
 class SandboxLifecycleConfig(_message.Message):
-    __slots__ = ()
+    __slots__ = ("stop_on", "delete_on", "ttl", "idle_timeout")
     STOP_ON_FIELD_NUMBER: _ClassVar[int]
     DELETE_ON_FIELD_NUMBER: _ClassVar[int]
     TTL_FIELD_NUMBER: _ClassVar[int]
@@ -261,9 +278,21 @@ class SandboxLifecycleConfig(_message.Message):
     def __init__(self, stop_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., delete_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., ttl: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., idle_timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ...) -> None: ...
 
 class SandboxConfig(_message.Message):
-    __slots__ = ()
+    __slots__ = ("lifecycle", "acceptance")
     LIFECYCLE_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_FIELD_NUMBER: _ClassVar[int]
     lifecycle: SandboxLifecycleConfig
     acceptance: SandboxAcceptanceConfig
     def __init__(self, lifecycle: _Optional[_Union[SandboxLifecycleConfig, _Mapping]] = ..., acceptance: _Optional[_Union[SandboxAcceptanceConfig, _Mapping]] = ...) -> None: ...
+
+class FeatureFlags(_message.Message):
+    __slots__ = ("enable_browser",)
+    ENABLE_BROWSER_FIELD_NUMBER: _ClassVar[int]
+    enable_browser: bool
+    def __init__(self, enable_browser: _Optional[bool] = ...) -> None: ...
+
+class ExtraFlagList(_message.Message):
+    __slots__ = ("flags",)
+    FLAGS_FIELD_NUMBER: _ClassVar[int]
+    flags: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, flags: _Optional[_Iterable[str]] = ...) -> None: ...

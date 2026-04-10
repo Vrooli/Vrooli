@@ -109,7 +109,6 @@ INTEGRATE SUBCOMMANDS:
     integrate export    Export all results
 
 VISUALIZE SUBCOMMANDS:
-    visualize openmct   Setup OpenMCT telemetry
     visualize superset  Setup Superset dashboard
     visualize vtk       Generate VTK visualization
     visualize animate   Create convergence animation
@@ -266,9 +265,6 @@ handle_visualize() {
     shift || true
     
     case "$subcommand" in
-        openmct)
-            setup_openmct_telemetry "$@"
-            ;;
         superset)
             setup_superset_dashboard "$@"
             ;;
@@ -283,7 +279,7 @@ handle_visualize() {
             ;;
         *)
             echo "Error: Unknown visualize subcommand: $subcommand" >&2
-            echo "Available: openmct, superset, vtk, animate, stream" >&2
+            echo "Available: superset, vtk, animate, stream" >&2
             exit 1
             ;;
     esac

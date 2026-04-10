@@ -167,6 +167,10 @@ CREATE TABLE IF NOT EXISTS file_metrics (
 	complexity_avg DOUBLE PRECISION,
 	complexity_max INTEGER,
 	duplication_pct DOUBLE PRECISION,
+	as_any_count INTEGER DEFAULT 0,
+	as_type_assertion_count INTEGER DEFAULT 0,
+	ts_ignore_count INTEGER DEFAULT 0,
+	non_null_assertion_count INTEGER DEFAULT 0,
 	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	UNIQUE (scenario, file_path)
 );

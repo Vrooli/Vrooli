@@ -3,12 +3,14 @@ package docs
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -25,12 +27,17 @@ type Config struct {
 	HTTPClient   *http.Client
 }
 
+// LinkIgnoreChecker determines if a URL should be skipped during external link validation.
+// This is a seam that allows tests to bypass the default localhost detection.
+type LinkIgnoreChecker func(url string) bool
+
 // Runner executes docs validations.
 type Runner struct {
-	config   Config
-	settings *Settings
-	log      io.Writer
-	client   *http.Client
+	config        Config
+	settings      *Settings
+	log           io.Writer
+	client        *http.Client
+	ignoreChecker LinkIgnoreChecker
 }
 
 // Option configures a Runner.
@@ -44,6 +51,13 @@ func WithLogger(w io.Writer) Option {
 // WithHTTPClient overrides the HTTP client used for external link checks.
 func WithHTTPClient(client *http.Client) Option {
 	return func(r *Runner) { r.client = client }
+}
+
+// WithLinkIgnoreChecker overrides the function that determines which URLs to skip.
+// This is primarily useful for testing external link validation without the
+// default localhost/127.0.0.1 bypass.
+func WithLinkIgnoreChecker(checker LinkIgnoreChecker) Option {
+	return func(r *Runner) { r.ignoreChecker = checker }
 }
 
 // New creates a Runner.
@@ -67,9 +81,27 @@ func New(config Config, opts ...Option) *Runner {
 	if r.client == nil {
 		r.client = &http.Client{Timeout: settings.linksTimeout()}
 	}
+	// Set default ignore checker after options so it can access settings
+	if r.ignoreChecker == nil {
+		r.ignoreChecker = r.shouldIgnoreLink
+	}
 	return r
 }
 
+// resolvePath resolves a target path relative to the scenario directory or a base file.
+// If base is empty, resolves relative to scenario root.
+// If base is a file path, resolves relative to that file's directory.
+func (r *Runner) resolvePath(target, base string) string {
+	if filepath.IsAbs(target) {
+		return target
+	}
+	if base == "" {
+		return filepath.Join(r.config.ScenarioDir, target)
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(base), target))
+}
+
+// DOC: docs/phases/docs/README.md#validation-flow
 // Run executes docs validation and returns the aggregated result.
 func (r *Runner) Run(ctx context.Context) *RunResult {
 	if err := ctx.Err(); err != nil {
@@ -136,19 +168,59 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	summary.ExternalWarnings += linkSummary.ExternalWarnings
 	summary.ExternalFailures += linkSummary.ExternalFailures
 
+	// Bidirectional reference validation
+	if r.settings.referencesEnabled() {
+		refObs, refSummary := r.validateBidirectionalRefs(ctx, files)
+		obs = append(obs, refObs...)
+		summary.CodeRefsFound = refSummary.CodeRefsFound
+		summary.CodeRefsBroken = refSummary.CodeRefsBroken
+		summary.DocRefsFound = refSummary.DocRefsFound
+		summary.DocRefsBroken = refSummary.DocRefsBroken
+		summary.CodeFilesScanned = refSummary.CodeFilesScanned
+	}
+
+	// Manifest coverage check
+	if r.settings.manifestEnabled() {
+		coverage, err := r.checkManifestCoverage(files)
+		if err != nil {
+			shared.LogInfo(r.log, "Warning: manifest check failed: %v", err)
+		} else {
+			summary.DocsInManifest = coverage.InManifest
+			summary.DocsNotInManifest = coverage.NotInManifest
+
+			for _, missing := range coverage.MissingDocs {
+				obs = append(obs, NewWarningObservation(fmt.Sprintf("manifest references missing doc: %s", missing)))
+			}
+			if r.settings.manifestRequireAll() {
+				for _, orphan := range coverage.OrphanedDocs {
+					obs = append(obs, NewWarningObservation(fmt.Sprintf("doc not in manifest: %s", orphan)))
+				}
+			}
+		}
+	}
+
+	// Calculate reference failures based on strict mode
+	referenceFailures := 0
+	if r.settings.referencesEnabled() && r.settings.referencesStrict() {
+		referenceFailures = summary.CodeRefsBroken + summary.DocRefsBroken
+	}
+
 	success := summary.MarkdownFailures == 0 &&
 		summary.MermaidFailures == 0 &&
 		summary.BrokenLinks == 0 &&
 		summary.AbsoluteFailures == 0 &&
+		referenceFailures == 0 &&
 		len(allErrors) == 0
 
 	summaryLine := fmt.Sprintf(
-		"Docs summary: files=%d mermaid=%d validated (%d failures) markdown(warn=%d, fail=%d) links(local=%d external=%d broken=%d) absolute(hits=%d blocked=%d)",
+		"Docs summary: files=%d mermaid=%d validated (%d failures) markdown(warn=%d, fail=%d) links(local=%d external=%d broken=%d) absolute(hits=%d blocked=%d) refs(code=%d/%d doc=%d/%d)",
 		summary.FilesChecked,
 		summary.MermaidValidated, summary.MermaidFailures,
 		summary.MarkdownWarnings, summary.MarkdownFailures,
 		summary.LocalLinks, summary.ExternalLinks, summary.BrokenLinks,
 		summary.AbsolutePathHits, summary.AbsoluteFailures,
+		summary.CodeRefsFound, summary.CodeRefsBroken,
+		summary.DocRefsFound, summary.DocRefsBroken,
 	)
 	shared.LogInfo(r.log, "%s", summaryLine)
 	fmt.Fprintln(r.log, summaryLine)
@@ -196,10 +268,33 @@ type linkTarget struct {
 var (
 	markdownLinkPattern   = regexp.MustCompile(`!?\[[^\]]*\]\(([^)]+)\)`)
 	codeFencePattern      = regexp.MustCompile("^(```|~~~)([a-zA-Z0-9_-]+)?")
+	inlineCodePattern     = regexp.MustCompile("`[^`]*`")
 	absUnixPathPattern    = regexp.MustCompile(`/(Users|home|var|etc|opt|srv|private|Volumes)/`)
 	absWindowsPathPattern = regexp.MustCompile(`^[A-Za-z]:\\`)
 	mermaidHeaderPattern  = regexp.MustCompile(`^(graph|flowchart|flowchart\s+(TB|TD|LR|RL)|sequenceDiagram|classDiagram|stateDiagram|stateDiagram-v2|gantt|journey|erDiagram|pie)\b`)
+
+	// Bidirectional reference patterns
+	// Matches [CODE: path/to/file.go] or [CODE: path/to/file.go#FunctionName] or [CODE: path/to/file.go:42]
+	codeRefPattern = regexp.MustCompile(`\[CODE:\s*([^\]]+)\]`)
+	// Matches standalone // DOC: path/to/doc.md or /* DOC: path/to/doc.md */ or # DOC: path/to/doc.md
+	docRefPattern = regexp.MustCompile(`^\s*(?://|/\*|#)\s*DOC:\s*([^\s\*\n]+)`)
 )
+
+// codeRefTarget represents a [CODE: ...] reference found in documentation.
+type codeRefTarget struct {
+	File     string // The markdown file containing the reference
+	Ref      string // The raw reference string
+	FilePath string // Extracted file path (without anchor/line number)
+	Line     int    // Line number in the markdown file
+}
+
+// docRefTarget represents a // DOC: comment found in code.
+type docRefTarget struct {
+	File    string // The code file containing the comment
+	Ref     string // The raw reference string
+	DocPath string // Extracted doc path (without anchor)
+	Line    int    // Line number in the code file
+}
 
 func (r *Runner) collectMarkdownFiles() ([]string, error) {
 	var files []string
@@ -210,6 +305,12 @@ func (r *Runner) collectMarkdownFiles() ([]string, error) {
 	err := filepath.WalkDir(r.config.ScenarioDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		if r.shouldExcludePath(path, d.IsDir()) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if d.IsDir() {
 			if _, skip := skipDirs[d.Name()]; skip {
@@ -479,16 +580,12 @@ func (r *Runner) validateLocalLink(link linkTarget, parsed *url.URL) bool {
 	if r.settings.pathsEnabled() && strings.HasPrefix(dest, "/") {
 		// Treat OS-rooted paths as failures unless explicitly allowed
 		if absUnixPathPattern.MatchString(dest) || absWindowsPathPattern.MatchString(dest) {
-			if allowedPrefix(dest, r.settings.Paths.Allow) {
-				return true
-			}
-			return false
+			return allowedPrefix(dest, r.settings.Paths.Allow)
 		}
 		// Root-relative site paths are treated as portable by default.
 		return true
 	}
 
-	base := filepath.Dir(link.File)
 	target := dest
 	if strings.HasPrefix(dest, "#") {
 		target = ""
@@ -496,7 +593,7 @@ func (r *Runner) validateLocalLink(link linkTarget, parsed *url.URL) bool {
 
 	if target != "" {
 		target = strings.TrimPrefix(target, "./")
-		target = filepath.Clean(filepath.Join(base, target))
+		target = r.resolvePath(target, link.File)
 		info, err := os.Stat(target)
 		if err != nil || info.IsDir() {
 			return false
@@ -506,7 +603,7 @@ func (r *Runner) validateLocalLink(link linkTarget, parsed *url.URL) bool {
 }
 
 func (r *Runner) checkExternalLink(ctx context.Context, target string) (string, error) {
-	if r.shouldIgnoreLink(target) {
+	if r.ignoreChecker(target) {
 		return "ok", nil
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, target, nil)
@@ -544,6 +641,70 @@ func (r *Runner) shouldIgnoreLink(target string) bool {
 	return strings.Contains(target, "localhost") || strings.Contains(target, "127.0.0.1")
 }
 
+// refSummary tracks bidirectional reference validation metrics.
+type refSummary struct {
+	CodeRefsFound    int
+	CodeRefsBroken   int
+	DocRefsFound     int
+	DocRefsBroken    int
+	CodeFilesScanned int
+}
+
+// DOC: docs/phases/docs/README.md#bidirectional-reference-validation
+// validateBidirectionalRefs validates both [CODE: ...] references in docs and // DOC: comments in code.
+func (r *Runner) validateBidirectionalRefs(ctx context.Context, markdownFiles []string) ([]Observation, refSummary) {
+	var obs []Observation
+	var summary refSummary
+
+	// Validate [CODE: ...] references in markdown files
+	if r.settings.codeRefsEnabled() {
+		for _, file := range markdownFiles {
+			content, err := os.ReadFile(file)
+			if err != nil {
+				continue
+			}
+			refs := extractCodeRefs(file, string(content))
+			summary.CodeRefsFound += len(refs)
+
+			for _, ref := range refs {
+				if err := r.validateCodeRef(ref); err != nil {
+					summary.CodeRefsBroken++
+					location := fmt.Sprintf("%s:%d", ref.File, ref.Line)
+					if r.settings.referencesStrict() {
+						obs = append(obs, NewErrorObservation(fmt.Sprintf("%s broken code reference [CODE: %s]: %v", location, ref.Ref, err)))
+					} else {
+						obs = append(obs, NewWarningObservation(fmt.Sprintf("%s broken code reference [CODE: %s]: %v", location, ref.Ref, err)))
+					}
+				}
+			}
+		}
+	}
+
+	// Validate // DOC: comments in code files
+	if r.settings.docRefsEnabled() {
+		docRefs, filesScanned, err := r.scanCodeFilesForDocRefs(ctx)
+		if err != nil && ctx.Err() == nil {
+			shared.LogInfo(r.log, "Warning: code file scan failed: %v", err)
+		}
+		summary.CodeFilesScanned = filesScanned
+		summary.DocRefsFound = len(docRefs)
+
+		for _, ref := range docRefs {
+			if err := r.validateDocRef(ref); err != nil {
+				summary.DocRefsBroken++
+				location := fmt.Sprintf("%s:%d", ref.File, ref.Line)
+				if r.settings.referencesStrict() {
+					obs = append(obs, NewErrorObservation(fmt.Sprintf("%s broken doc reference // DOC: %s: %v", location, ref.Ref, err)))
+				} else {
+					obs = append(obs, NewWarningObservation(fmt.Sprintf("%s broken doc reference // DOC: %s: %v", location, ref.Ref, err)))
+				}
+			}
+		}
+	}
+
+	return obs, summary
+}
+
 func allowedPrefix(path string, allow []string) bool {
 	if len(allow) == 0 {
 		return false
@@ -562,4 +723,366 @@ func matchPattern(pattern, value string) bool {
 		return ok
 	}
 	return strings.HasPrefix(value, pattern)
+}
+
+func (r *Runner) shouldExcludePath(targetPath string, isDir bool) bool {
+	rel, err := filepath.Rel(r.config.ScenarioDir, targetPath)
+	if err != nil {
+		return false
+	}
+	rel = filepath.ToSlash(rel)
+	if rel == "." || rel == "" {
+		return false
+	}
+
+	for _, excluded := range r.settings.scanExcludeDirs() {
+		excluded = filepath.ToSlash(strings.TrimSpace(excluded))
+		excluded = strings.Trim(excluded, "/")
+		if excluded == "" {
+			continue
+		}
+		// If the configured value looks like a path, apply prefix matching.
+		if strings.Contains(excluded, "/") {
+			if rel == excluded || strings.HasPrefix(rel, excluded+"/") {
+				return true
+			}
+			continue
+		}
+		// Otherwise treat it as a directory name match on any segment.
+		for _, seg := range strings.Split(rel, "/") {
+			if seg == excluded {
+				return true
+			}
+		}
+	}
+
+	for _, glob := range r.settings.scanExcludeGlobs() {
+		glob = filepath.ToSlash(strings.TrimSpace(glob))
+		if glob == "" {
+			continue
+		}
+		if doublestarMatch(glob, rel) {
+			return true
+		}
+		// For directory checks, also allow glob to match the directory prefix.
+		if isDir && doublestarMatch(glob, rel+"/") {
+			return true
+		}
+	}
+
+	return false
+}
+
+func doublestarMatch(glob, value string) bool {
+	quoted := regexp.QuoteMeta(glob)
+	quoted = strings.ReplaceAll(quoted, `\*\*`, "<<<DOUBLESTAR>>>")
+	quoted = strings.ReplaceAll(quoted, `\*`, `[^/]*`)
+	quoted = strings.ReplaceAll(quoted, `\?`, `[^/]`)
+	quoted = strings.ReplaceAll(quoted, "<<<DOUBLESTAR>>>", ".*")
+	re, err := regexp.Compile("^" + quoted + "$")
+	if err != nil {
+		ok, _ := path.Match(glob, value)
+		return ok
+	}
+	return re.MatchString(value)
+}
+
+// extractCodeRefs extracts [CODE: ...] references from markdown content.
+func extractCodeRefs(file, content string) []codeRefTarget {
+	var refs []codeRefTarget
+	lines := strings.Split(content, "\n")
+	inFence := false
+	fenceMarker := ""
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if fenceMatch := codeFencePattern.FindStringSubmatch(trimmed); fenceMatch != nil {
+			marker := fenceMatch[1]
+			if inFence && marker == fenceMarker {
+				inFence = false
+				fenceMarker = ""
+			} else if !inFence {
+				inFence = true
+				fenceMarker = marker
+			}
+			continue
+		}
+		if inFence {
+			continue
+		}
+
+		searchLine := inlineCodePattern.ReplaceAllString(line, "")
+		for _, match := range codeRefPattern.FindAllStringSubmatch(searchLine, -1) {
+			if len(match) < 2 {
+				continue
+			}
+			rawRef := strings.TrimSpace(match[1])
+			filePath := extractFilePath(rawRef)
+			refs = append(refs, codeRefTarget{
+				File:     file,
+				Ref:      rawRef,
+				FilePath: filePath,
+				Line:     i + 1,
+			})
+		}
+	}
+	return refs
+}
+
+// extractFilePath extracts the file path from a reference, handling path#func and path:line formats.
+func extractFilePath(ref string) string {
+	// Strip anchor (#section or #FunctionName)
+	if idx := strings.Index(ref, "#"); idx != -1 {
+		ref = ref[:idx]
+	}
+	// Strip line number (:42)
+	if idx := strings.LastIndex(ref, ":"); idx != -1 {
+		// Make sure it's actually a line number (digits after colon)
+		suffix := ref[idx+1:]
+		if len(suffix) > 0 && isDigits(suffix) {
+			ref = ref[:idx]
+		}
+	}
+	return strings.TrimSpace(ref)
+}
+
+func isDigits(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// extractDocRefsFromFile reads a code file and extracts DOC: comments.
+func extractDocRefsFromFile(path string) ([]docRefTarget, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var refs []docRefTarget
+	lines := strings.Split(string(content), "\n")
+	for i, line := range lines {
+		for _, match := range docRefPattern.FindAllStringSubmatch(line, -1) {
+			if len(match) < 2 {
+				continue
+			}
+			rawRef := strings.TrimSpace(match[1])
+			// Strip anchor if present
+			docPath := rawRef
+			if idx := strings.Index(docPath, "#"); idx != -1 {
+				docPath = docPath[:idx]
+			}
+			refs = append(refs, docRefTarget{
+				File:    path,
+				Ref:     rawRef,
+				DocPath: docPath,
+				Line:    i + 1,
+			})
+		}
+	}
+	return refs, nil
+}
+
+// validateCodeRef checks if the referenced code file exists.
+func (r *Runner) validateCodeRef(ref codeRefTarget) error {
+	target := r.resolvePath(ref.FilePath, "")
+
+	info, err := os.Stat(target)
+	if err != nil {
+		return fmt.Errorf("file not found: %s", ref.FilePath)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("reference points to directory, not file: %s", ref.FilePath)
+	}
+	return nil
+}
+
+// validateDocRef checks if the referenced documentation file exists.
+func (r *Runner) validateDocRef(ref docRefTarget) error {
+	target := r.resolvePath(ref.DocPath, "")
+
+	info, err := os.Stat(target)
+	if err != nil {
+		return fmt.Errorf("doc not found: %s", ref.DocPath)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("reference points to directory, not file: %s", ref.DocPath)
+	}
+	return nil
+}
+
+// Hard-coded directories to always skip when scanning for DOC: comments.
+var defaultSkipDirs = map[string]struct{}{
+	".git":         {},
+	"node_modules": {},
+	"dist":         {},
+	"build":        {},
+	".turbo":       {},
+	".next":        {},
+	".pnpm-store":  {},
+	"coverage":     {},
+	".cache":       {},
+	"tmp":          {},
+	"logs":         {},
+	"vendor":       {},
+	"__pycache__":  {},
+	".venv":        {},
+	"venv":         {},
+	"target":       {},
+}
+
+// scanCodeFilesForDocRefs walks the scenario directory and extracts DOC: references from code files.
+func (r *Runner) scanCodeFilesForDocRefs(ctx context.Context) ([]docRefTarget, int, error) {
+	var refs []docRefTarget
+	var filesScanned int
+
+	extensions := make(map[string]struct{})
+	for _, ext := range r.settings.codeExtensions() {
+		extensions[ext] = struct{}{}
+	}
+
+	customSkipDirs := make(map[string]struct{})
+	for _, dir := range r.settings.referencesSkipDirs() {
+		customSkipDirs[dir] = struct{}{}
+	}
+
+	err := filepath.WalkDir(r.config.ScenarioDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Check for context cancellation
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if r.shouldExcludePath(path, d.IsDir()) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		if d.IsDir() {
+			name := d.Name()
+			if _, skip := defaultSkipDirs[name]; skip {
+				return filepath.SkipDir
+			}
+			if _, skip := customSkipDirs[name]; skip {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		ext := filepath.Ext(d.Name())
+		if _, ok := extensions[ext]; !ok {
+			return nil
+		}
+
+		filesScanned++
+		fileRefs, err := extractDocRefsFromFile(path)
+		if err != nil {
+			// Log but don't fail on unreadable files
+			shared.LogInfo(r.log, "Warning: could not read %s: %v", path, err)
+			return nil
+		}
+		refs = append(refs, fileRefs...)
+		return nil
+	})
+
+	return refs, filesScanned, err
+}
+
+// manifestCoverage tracks which docs are in/out of the manifest.
+type manifestCoverage struct {
+	InManifest    int
+	NotInManifest int
+	MissingDocs   []string // docs in manifest but not on disk
+	OrphanedDocs  []string // docs on disk but not in manifest
+}
+
+// checkManifestCoverage reads the manifest and compares against found docs.
+func (r *Runner) checkManifestCoverage(foundDocs []string) (manifestCoverage, error) {
+	var coverage manifestCoverage
+
+	manifestPath := filepath.Join(r.config.ScenarioDir, r.settings.manifestPath())
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// No manifest file - nothing to check
+			return coverage, nil
+		}
+		return coverage, err
+	}
+
+	// Parse manifest - expect a JSON array of paths or an object with a "docs" array
+	var manifestDocs []string
+
+	// Try parsing as simple array first
+	if err := parseJSONArray(data, &manifestDocs); err != nil {
+		// Try parsing as object with "docs" key
+		if err := parseJSONDocsField(data, &manifestDocs); err != nil {
+			return coverage, fmt.Errorf("invalid manifest format: %v", err)
+		}
+	}
+
+	// Build set of manifest docs
+	manifestSet := make(map[string]struct{})
+	for _, doc := range manifestDocs {
+		manifestSet[doc] = struct{}{}
+	}
+
+	// Build set of found docs (relative to scenario dir)
+	foundSet := make(map[string]struct{})
+	for _, doc := range foundDocs {
+		rel, err := filepath.Rel(r.config.ScenarioDir, doc)
+		if err != nil {
+			rel = doc
+		}
+		foundSet[rel] = struct{}{}
+	}
+
+	// Check coverage
+	for doc := range manifestSet {
+		fullPath := filepath.Join(r.config.ScenarioDir, doc)
+		if _, err := os.Stat(fullPath); err != nil {
+			coverage.MissingDocs = append(coverage.MissingDocs, doc)
+		} else {
+			coverage.InManifest++
+		}
+	}
+
+	for doc := range foundSet {
+		if _, ok := manifestSet[doc]; !ok {
+			coverage.OrphanedDocs = append(coverage.OrphanedDocs, doc)
+			coverage.NotInManifest++
+		}
+	}
+
+	return coverage, nil
+}
+
+// parseJSONArray attempts to parse data as a JSON array of strings.
+func parseJSONArray(data []byte, out *[]string) error {
+	// Simple check - if it starts with [, try to parse as array
+	trimmed := strings.TrimSpace(string(data))
+	if !strings.HasPrefix(trimmed, "[") {
+		return fmt.Errorf("not a JSON array")
+	}
+
+	// Use encoding/json for proper parsing
+	return json.Unmarshal(data, out)
+}
+
+// parseJSONDocsField attempts to parse data as a JSON object with a "docs" field.
+func parseJSONDocsField(data []byte, out *[]string) error {
+	var obj struct {
+		Docs []string `json:"docs"`
+	}
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return err
+	}
+	*out = obj.Docs
+	return nil
 }

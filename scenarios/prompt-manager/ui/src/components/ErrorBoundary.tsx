@@ -1,4 +1,5 @@
 import React from 'react'
+import { copyToClipboard } from '@/lib/clipboard'
 import { motion } from 'framer-motion'
 import { AlertTriangle, RefreshCw, Bug, Copy, CheckCircle2 } from 'lucide-react'
 import { Button } from './ui/button'
@@ -75,7 +76,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       url: window.location.href
     }
 
-    navigator.clipboard.writeText(JSON.stringify(errorReport, null, 2))
+    void copyToClipboard(JSON.stringify(errorReport, null, 2))
       .then(() => {
         this.setState({ copied: true })
         if (this.copyTimeout) clearTimeout(this.copyTimeout)
@@ -83,7 +84,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           this.setState({ copied: false })
         }, 2000)
       })
-      .catch(err => {
+      .catch((err: unknown) => {
         console.error('Failed to copy error report:', err)
       })
   }
@@ -97,9 +98,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   render() {
     if (this.state.hasError) {
       // Use custom fallback if provided
-      if (this.props.fallback) {
+      if (this.props.fallback && this.state.error) {
         const FallbackComponent = this.props.fallback
-        return <FallbackComponent error={this.state.error!} resetError={this.handleReset} />
+        return <FallbackComponent error={this.state.error} resetError={this.handleReset} />
       }
 
       // Default error UI

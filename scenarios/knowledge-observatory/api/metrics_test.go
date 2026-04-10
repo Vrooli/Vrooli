@@ -17,21 +17,27 @@ type fakeMetricsVectorStore struct{}
 func (fakeMetricsVectorStore) EnsureCollection(ctx context.Context, collection string, vectorSize int) error {
 	return nil
 }
+
 func (fakeMetricsVectorStore) UpsertPoint(ctx context.Context, collection string, id string, vector []float64, payload map[string]interface{}) error {
 	return nil
 }
+
 func (fakeMetricsVectorStore) DeletePoint(ctx context.Context, collection string, id string) error {
 	return nil
 }
+
 func (fakeMetricsVectorStore) Search(ctx context.Context, collection string, vector []float64, limit int, threshold float64, filter *ports.VectorFilter) ([]ports.VectorSearchResult, error) {
 	return nil, nil
 }
+
 func (fakeMetricsVectorStore) ListCollections(ctx context.Context) ([]string, error) {
 	return []string{}, nil
 }
+
 func (fakeMetricsVectorStore) CountPoints(ctx context.Context, collection string) (int, error) {
 	return 0, nil
 }
+
 func (fakeMetricsVectorStore) SamplePoints(ctx context.Context, collection string, limit int) ([]ports.VectorPoint, error) {
 	return []ports.VectorPoint{}, nil
 }

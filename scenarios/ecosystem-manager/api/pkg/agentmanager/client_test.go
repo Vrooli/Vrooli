@@ -21,6 +21,15 @@ type testClient struct {
 	baseURL string
 }
 
+func writeJSONResponse(t *testing.T, w http.ResponseWriter, statusCode int, payload any) {
+	t.Helper()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		t.Fatalf("failed to encode response: %v", err)
+	}
+}
+
 // newTestClient creates a client that uses the test server.
 func newTestClient(server *httptest.Server) *testClient {
 	return &testClient{
@@ -276,9 +285,7 @@ func TestClient_EnsureProfile(t *testing.T) {
 				if r.Method != "POST" {
 					t.Errorf("expected POST, got %s", r.Method)
 				}
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(tt.statusCode)
-				json.NewEncoder(w).Encode(tt.response)
+				writeJSONResponse(t, w, tt.statusCode, tt.response)
 			}))
 			defer server.Close()
 
@@ -307,9 +314,7 @@ func TestClient_CreateTask(t *testing.T) {
 		if r.Method != "POST" {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]any{
+		writeJSONResponse(t, w, http.StatusCreated, map[string]any{
 			"task": map[string]any{
 				"id":    "created-task-id",
 				"title": "Test Task",
@@ -341,9 +346,7 @@ func TestClient_CreateRun(t *testing.T) {
 		if r.Method != "POST" {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]any{
+		writeJSONResponse(t, w, http.StatusCreated, map[string]any{
 			"run": map[string]any{
 				"id":     "created-run-id",
 				"taskId": "task-123",
@@ -411,11 +414,11 @@ func TestClient_GetRun(t *testing.T) {
 				if r.Method != "GET" {
 					t.Errorf("expected GET, got %s", r.Method)
 				}
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(tt.statusCode)
 				if tt.response != nil {
-					json.NewEncoder(w).Encode(tt.response)
+					writeJSONResponse(t, w, tt.statusCode, tt.response)
+					return
 				}
+				w.WriteHeader(tt.statusCode)
 			}))
 			defer server.Close()
 
@@ -481,9 +484,7 @@ func TestClient_GetRunEvents(t *testing.T) {
 			t.Errorf("expected path containing /events, got %s", r.URL.Path)
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]any{
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{
 			"events": []map[string]any{
 				{"sequence": 11, "type": "RUN_EVENT_TYPE_LOG"},
 				{"sequence": 12, "type": "RUN_EVENT_TYPE_TOOL_CALL"},
@@ -506,15 +507,12 @@ func TestWaitForRun_Completes(t *testing.T) {
 	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-
 		// Return running on first call, complete on second
 		status := "RUN_STATUS_RUNNING"
 		if callCount >= 2 {
 			status = "RUN_STATUS_COMPLETE"
 		}
-		json.NewEncoder(w).Encode(map[string]any{
+		writeJSONResponse(t, w, http.StatusOK, map[string]any{
 			"run": map[string]any{
 				"id":     "run-123",
 				"status": status,

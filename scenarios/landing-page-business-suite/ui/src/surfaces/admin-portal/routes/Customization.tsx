@@ -1,18 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Edit, Archive, Trash2, Sparkles, Eye, AlertTriangle, ArrowUpRight, ArrowDownRight, Minus, Search } from 'lucide-react';
+import { Plus, Edit, Archive, Trash2, Sparkles, Eye, AlertTriangle, ArrowUpRight, ArrowDownRight, Minus, Search, Palette } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
+import { RuntimeSignalStrip } from '../components/RuntimeSignalStrip';
+import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
-import { listVariants, archiveVariant, deleteVariant, updateVariant, type Variant, type AnalyticsSummary, type VariantStats } from '../../../shared/api';
-import { buildDateRange, fetchAnalyticsSummary } from '../controllers/analyticsController';
-import { loadVariantEditorData } from '../controllers/variantEditorController';
-
-const STALE_VARIANT_DAYS = 10;
-const SNAPSHOT_DAYS = 7;
-const DAY_MS = 24 * 60 * 60 * 1000;
-type WeightStatus = 'empty' | 'balanced' | 'under' | 'over';
-type TrafficShareMode = 'weighted' | 'even';
+import { ErrorBoundary } from '../../../shared/ui/ErrorBoundary';
+import { InlineAlert } from '../../../shared/ui/InlineAlert';
+import type { Variant, VariantStats } from '../../../shared/api';
+import { useCustomizationPage } from '../hooks/useCustomizationPage';
+import { STALE_VARIANT_DAYS, DAY_MS, type WeightStatus, type StaleVariantEntry } from '../controllers/customizationController';
 
 const getTrendGlyph = (trend?: VariantStats['trend']) => {
   if (trend === 'up') return <ArrowUpRight className="h-3 w-3 text-emerald-300" />;
@@ -27,330 +24,60 @@ const getTrendGlyph = (trend?: VariantStats['trend']) => {
  * [REQ:ADMIN-NAV] [REQ:VARIANT-MGMT]
  */
 export function Customization() {
-  const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [variants, setVariants] = useState<Variant[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
-  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(true);
-  const [variantQuery, setVariantQuery] = useState('');
-  const [attentionOnly, setAttentionOnly] = useState(false);
-  const [weightDrafts, setWeightDrafts] = useState<Record<string, number>>({});
-  const [savingWeights, setSavingWeights] = useState<Record<string, boolean>>({});
-  const variantListRef = useRef<HTMLDivElement | null>(null);
-  const [appliedFocusSlug, setAppliedFocusSlug] = useState<string | null>(null);
-  const [appliedSectionFocusSlug, setAppliedSectionFocusSlug] = useState<string | null>(null);
-  const focusSlug = searchParams.get('focus');
-  const focusSectionIdParam = searchParams.get('focusSectionId');
-  const focusSectionType = searchParams.get('focusSectionType');
-  const focusSectionId = focusSectionIdParam ? Number(focusSectionIdParam) : null;
+  const {
+    activeVariants,
+    archivedVariants,
+    filteredActiveVariants,
+    savingWeights,
+    totalAssignedWeight,
+    weightStatus,
+    staleVariants,
+    neverUpdatedVariants,
+    underperformingInfo,
+    attentionCandidateSlugs,
+    variantAttentionReasons,
+    statsBySlug,
+    variantQuery,
+    attentionOnly,
+    loading,
+    error,
+    analyticsLoading,
+    analyticsError,
+    operationAlert,
+    clearOperationAlert,
+    variantListRef,
+    snapshotDays,
+    fetchVariants,
+    handleArchive,
+    handleDelete,
+    persistWeight,
+    setWeightDraft,
+    setVariantQuery,
+    setAttentionOnly,
+    clearVariantFilters,
+    getWeight,
+    normalizeShare,
+    highlightVariantInList,
+    navigateToVariantEditor,
+    navigateToSectionEditor,
+    navigateToAgentCustomization,
+    navigateToNewVariant,
+    navigateToAnalytics,
+    openVariantPreview,
+  } = useCustomizationPage();
 
-  useEffect(() => {
-    fetchVariants();
-    fetchAnalyticsSnapshot();
-  }, []);
-
-  const fetchVariants = async () => {
-    try {
-      setLoading(true);
-      const data = await listVariants();
-      setVariants(data.variants);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load variants');
-      console.error('Variants fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleArchive = async (slug: string) => {
+  const onArchive = async (slug: string) => {
     if (!confirm('Archive this variant? It will no longer be shown to visitors but analytics will be preserved.')) {
       return;
     }
-
-    try {
-      await archiveVariant(slug);
-      await fetchVariants();
-    } catch (err) {
-      alert(`Failed to archive variant: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
+    await handleArchive(slug);
   };
 
-  const handleDelete = async (slug: string) => {
+  const onDelete = async (slug: string) => {
     if (!confirm('Permanently delete this variant? This action cannot be undone and all analytics data will be lost.')) {
       return;
     }
-
-    try {
-      await deleteVariant(slug);
-      await fetchVariants();
-    } catch (err) {
-      alert(`Failed to delete variant: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  };
-
-  const persistWeight = useCallback(
-    async (slug: string, nextWeight: number) => {
-      if (savingWeights[slug]) return;
-      const currentVariant = variants.find((v) => v.slug === slug);
-      if (!currentVariant) return;
-      if (currentVariant.weight === nextWeight) return;
-      setSavingWeights((prev) => ({ ...prev, [slug]: true }));
-      try {
-        await updateVariant(slug, { weight: nextWeight });
-        setVariants((prev) =>
-          prev.map((v) => (v.slug === slug ? { ...v, weight: nextWeight } : v))
-        );
-      } catch (err) {
-        alert(`Failed to update weight: ${err instanceof Error ? err.message : 'Unknown error'}`);
-        setWeightDrafts((prev) => ({
-          ...prev,
-          [slug]: currentVariant.weight ?? 0,
-        }));
-      } finally {
-        setSavingWeights((prev) => ({ ...prev, [slug]: false }));
-      }
-    },
-    [savingWeights, variants]
-  );
-
-  const fetchAnalyticsSnapshot = async () => {
-    try {
-      setAnalyticsLoading(true);
-      const range = buildDateRange(SNAPSHOT_DAYS);
-      const data = await fetchAnalyticsSummary(range);
-      setAnalytics(data);
-      setAnalyticsError(null);
-    } catch (err) {
-      setAnalyticsError(err instanceof Error ? err.message : 'Metrics not available');
-      console.error('Customization analytics error:', err);
-    } finally {
-      setAnalyticsLoading(false);
-    }
-  };
-
-  const activeVariants = variants.filter(v => v.status === 'active');
-  const archivedVariants = variants.filter(v => v.status === 'archived');
-  useEffect(() => {
-    const drafts: Record<string, number> = {};
-    activeVariants.forEach((v) => {
-      drafts[v.slug] = v.weight ?? 0;
-    });
-    setWeightDrafts(drafts);
-  }, [activeVariants.map((v) => `${v.slug}:${v.weight}`).join('|')]);
-
-  const getWeight = useCallback(
-    (variant: Variant) => weightDrafts[variant.slug] ?? variant.weight ?? 0,
-    [weightDrafts]
-  );
-  const statsBySlug = useMemo(() => {
-    const map = new Map<string, VariantStats>();
-    analytics?.variant_stats.forEach((stat) => map.set(stat.variant_slug, stat));
-    return map;
-  }, [analytics]);
-  const totalAssignedWeight = activeVariants.reduce((sum, variant) => sum + getWeight(variant), 0);
-  const weightStatus: WeightStatus = activeVariants.length === 0
-    ? 'empty'
-    : totalAssignedWeight === 100
-      ? 'balanced'
-      : totalAssignedWeight > 100
-        ? 'over'
-        : 'under';
-  const trafficShareMode: TrafficShareMode = totalAssignedWeight === 0 ? 'even' : 'weighted';
-  const normalizeShare = useCallback(
-    (weight: number) => {
-      if (activeVariants.length === 0) return 0;
-      if (trafficShareMode === 'even') {
-        return (1 / activeVariants.length) * 100;
-      }
-      if (totalAssignedWeight === 0) return 0;
-      return (weight / totalAssignedWeight) * 100;
-    },
-    [activeVariants.length, totalAssignedWeight, trafficShareMode]
-  );
-  const staleVariants = useMemo(() => {
-    const now = Date.now();
-    return activeVariants
-      .map((variant) => {
-        if (!variant.updated_at) {
-          return null;
-        }
-        const updatedAt = new Date(variant.updated_at);
-        if (Number.isNaN(updatedAt.getTime())) {
-          return null;
-        }
-        const daysSinceUpdate = Math.floor((now - updatedAt.getTime()) / DAY_MS);
-        if (daysSinceUpdate < STALE_VARIANT_DAYS) {
-          return null;
-        }
-        return { variant, daysSinceUpdate };
-      })
-      .filter((entry): entry is { variant: Variant; daysSinceUpdate: number } => Boolean(entry))
-      .sort((a, b) => b.daysSinceUpdate - a.daysSinceUpdate)
-      .slice(0, 3);
-  }, [activeVariants]);
-  const neverUpdatedVariants = useMemo(
-    () => activeVariants.filter((variant) => !variant.updated_at),
-    [activeVariants]
-  );
-  const underperformingStat = useMemo(() => {
-    if (!analytics?.variant_stats?.length || activeVariants.length === 0) {
-      return null;
-    }
-    const activeSlugs = new Set(activeVariants.map((variant) => variant.slug));
-    const relevant = analytics.variant_stats.filter((stat) => activeSlugs.has(stat.variant_slug));
-    if (relevant.length === 0) {
-      return null;
-    }
-    return relevant.reduce<VariantStats | null>((worst, stat) => {
-      if (!worst) {
-        return stat;
-      }
-      return stat.conversion_rate < worst.conversion_rate ? stat : worst;
-    }, null);
-  }, [analytics, activeVariants]);
-  const underperformingVariant = underperformingStat
-    ? activeVariants.find((variant) => variant.slug === underperformingStat.variant_slug)
-    : undefined;
-  const attentionCandidateSlugs = useMemo(() => {
-    const slugs = new Set<string>();
-    staleVariants.forEach(({ variant }) => slugs.add(variant.slug));
-    neverUpdatedVariants.forEach((variant) => slugs.add(variant.slug));
-    if (underperformingStat) {
-      slugs.add(underperformingStat.variant_slug);
-    }
-    return slugs;
-  }, [staleVariants, neverUpdatedVariants, underperformingStat]);
-  const variantAttentionReasons = useMemo(() => {
-    const map = new Map<string, string[]>();
-    const pushReason = (slug: string, reason: string) => {
-      map.set(slug, [...(map.get(slug) ?? []), reason]);
-    };
-    staleVariants.forEach(({ variant, daysSinceUpdate }) => {
-      pushReason(variant.slug, `Stale · ${daysSinceUpdate}d`);
-    });
-    neverUpdatedVariants.forEach((variant) => {
-      pushReason(variant.slug, 'Never customized');
-    });
-    if (underperformingStat?.variant_slug) {
-      pushReason(underperformingStat.variant_slug, 'Lowest conversion');
-    }
-    return map;
-  }, [staleVariants, neverUpdatedVariants, underperformingStat]);
-  const filteredActiveVariants = useMemo(() => {
-    const normalized = variantQuery.trim().toLowerCase();
-    return activeVariants.filter((variant) => {
-      const matchesQuery = !normalized
-        || variant.name?.toLowerCase().includes(normalized)
-        || variant.slug.toLowerCase().includes(normalized);
-      const matchesAttention = !attentionOnly || attentionCandidateSlugs.has(variant.slug);
-      return matchesQuery && matchesAttention;
-    });
-  }, [activeVariants, attentionOnly, attentionCandidateSlugs, variantQuery]);
-
-  const highlightVariantInList = useCallback((slug?: string) => {
-    if (!slug) return;
-    setAttentionOnly(true);
-    setVariantQuery(slug);
-    requestAnimationFrame(() => {
-      variantListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  }, []);
-
-  const clearSectionFocusParams = useCallback(() => {
-    const next = new URLSearchParams(searchParams);
-    next.delete('focusSectionId');
-    next.delete('focusSectionType');
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
-
-  const navigateToSectionEditor = useCallback(async (slug: string, options?: { sectionId?: number; sectionType?: string }) => {
-    try {
-      if (options?.sectionId) {
-        navigate(`/admin/customization/variants/${slug}/sections/${options.sectionId}`);
-        return true;
-      }
-
-      const desiredType = options?.sectionType;
-      const data = await loadVariantEditorData(slug);
-      const target = desiredType
-        ? data.sections.find((section) => section.section_type === desiredType)
-        : data.sections[0];
-
-      if (target?.id) {
-        navigate(`/admin/customization/variants/${slug}/sections/${target.id}`);
-        return true;
-      }
-
-      navigate(`/admin/customization/variants/${slug}`);
-      return false;
-    } catch (error) {
-      console.error('Failed to resolve section editor for variant', slug, error);
-      navigate(`/admin/customization/variants/${slug}`);
-      return false;
-    }
-  }, [navigate]);
-
-  useEffect(() => {
-    if (!focusSlug || variants.length === 0 || focusSlug === appliedFocusSlug) {
-      return;
-    }
-    highlightVariantInList(focusSlug);
-    setAppliedFocusSlug(focusSlug);
-    const next = new URLSearchParams(searchParams);
-    next.delete('focus');
-    setSearchParams(next, { replace: true });
-  }, [focusSlug, appliedFocusSlug, variants.length, highlightVariantInList, searchParams, setSearchParams]);
-
-  useEffect(() => {
-    if (!focusSlug || !variants.length) {
-      setAppliedFocusSlug(null);
-      setAppliedSectionFocusSlug(null);
-      return;
-    }
-
-    if ((!focusSectionId && !focusSectionType) || appliedSectionFocusSlug === focusSlug) {
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      const success = await navigateToSectionEditor(focusSlug, {
-        sectionId: focusSectionId ?? undefined,
-        sectionType: focusSectionType ?? undefined,
-      });
-      if (!cancelled && success) {
-        setAppliedSectionFocusSlug(focusSlug);
-        clearSectionFocusParams();
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    focusSlug,
-    focusSectionId,
-    focusSectionType,
-    appliedSectionFocusSlug,
-    variants.length,
-    navigateToSectionEditor,
-    clearSectionFocusParams,
-  ]);
-
-  useEffect(() => {
-    if (!focusSlug) {
-      setAppliedFocusSlug(null);
-      setAppliedSectionFocusSlug(null);
-    }
-  }, [focusSlug]);
-
-  const clearVariantFilters = () => {
-    setAttentionOnly(false);
-    setVariantQuery('');
+    await handleDelete(slug);
   };
 
   if (loading) {
@@ -377,59 +104,75 @@ export function Customization() {
   }
 
   return (
-    <AdminLayout>
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-semibold mb-2">Customization</h1>
-            <p className="text-slate-400">
-              Manage A/B test variants and customize landing page content. Weights are relative (0 disables; all-zero = even split).
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Button
-              onClick={() => navigate('/admin/customization/agent')}
-              variant="outline"
-              className="gap-2"
-              data-testid="trigger-agent-customization"
-            >
-              <Sparkles className="h-4 w-4" />
-              Agent Customization
-            </Button>
-            <Button
-              onClick={() => navigate('/admin/customization/variants/new')}
-              className="gap-2"
-              data-testid="create-variant"
-            >
-              <Plus className="h-4 w-4" />
-              New Variant
-            </Button>
-          </div>
-        </div>
+    <AdminLayout maxWidth="wide">
+      <div className={LAYOUT.pageSpacing}>
+        <RuntimeSignalStrip mode="compact" />
+
+        <PageHeader
+          variant="icon-title"
+          title="Customization"
+          description="Manage A/B test variants and customize landing page content. Weights are relative (0 disables; all-zero = even split)."
+          icon={Palette}
+          iconBgClass="bg-cyan-500/10"
+          iconColorClass="text-cyan-400"
+          testId="customization-header"
+          actions={
+            <div className="flex gap-3">
+              <Button
+                onClick={navigateToAgentCustomization}
+                variant="outline"
+                className="gap-2"
+                data-testid="trigger-agent-customization"
+              >
+                <Sparkles className="h-4 w-4" />
+                Agent Customization
+              </Button>
+              <Button
+                onClick={navigateToNewVariant}
+                className="gap-2"
+                data-testid="create-variant"
+              >
+                <Plus className="h-4 w-4" />
+                New Variant
+              </Button>
+            </div>
+          }
+        />
 
         <VariantFilterBar
           query={variantQuery}
           onQueryChange={setVariantQuery}
           attentionOnly={attentionOnly}
-          onAttentionToggle={() => setAttentionOnly((prev) => !prev)}
+          onAttentionToggle={() => setAttentionOnly(!attentionOnly)}
           hasFilters={Boolean(variantQuery) || attentionOnly}
           onClearFilters={clearVariantFilters}
         />
 
-      <ExperienceOpsPanel
-        totalWeight={totalAssignedWeight}
-        variantCount={activeVariants.length}
-        weightStatus={weightStatus}
-        staleVariants={staleVariants}
-        neverUpdatedVariants={neverUpdatedVariants}
-        underperforming={underperformingStat ? { stats: underperformingStat, variant: underperformingVariant } : null}
-        analyticsRangeDays={SNAPSHOT_DAYS}
-        onEditVariant={(slug) => navigate(`/admin/customization/variants/${slug}`)}
-        onViewAnalytics={(slug) => navigate(`/admin/analytics?variant=${slug}`)}
-        onHighlightVariant={highlightVariantInList}
-        onEditSection={(slug, options) => navigateToSectionEditor(slug, options)}
-      />
+        {/* [REQ:FAILURE-TOPOGRAPHY] Inline error alerts for variant operations */}
+        {operationAlert && (
+          <InlineAlert
+            {...operationAlert}
+            onDismiss={clearOperationAlert}
+            className="mb-6"
+            data-testid="customization-operation-alert"
+          />
+        )}
+
+      <ErrorBoundary level="section" name="ExperienceOpsPanel">
+        <ExperienceOpsPanel
+          totalWeight={totalAssignedWeight}
+          variantCount={activeVariants.length}
+          weightStatus={weightStatus}
+          staleVariants={staleVariants}
+          neverUpdatedVariants={neverUpdatedVariants}
+          underperforming={underperformingInfo}
+          analyticsRangeDays={snapshotDays}
+          onEditVariant={navigateToVariantEditor}
+          onViewAnalytics={navigateToAnalytics}
+          onHighlightVariant={highlightVariantInList}
+          onEditSection={navigateToSectionEditor}
+        />
+      </ErrorBoundary>
 
       <VariantListSummary
         activeCount={activeVariants.length}
@@ -446,7 +189,7 @@ export function Customization() {
           </div>
         )}
 
-        <Card className="mb-8 bg-white/5 border-white/10">
+        <Card className="mb-8 ${LAYOUT.card.base}">
           <CardHeader>
             <CardTitle>Live Traffic Split</CardTitle>
             <CardDescription className="text-slate-400">
@@ -488,7 +231,7 @@ export function Customization() {
                           value={weight}
                           disabled={saving}
                           className="w-36"
-                          onChange={(e) => setWeightDrafts((prev) => ({ ...prev, [variant.slug]: parseInt(e.target.value, 10) || 0 }))}
+                          onChange={(e) => setWeightDraft(variant.slug, parseInt(e.target.value, 10) || 0)}
                           onMouseUp={(e) => persistWeight(variant.slug, parseInt((e.target as HTMLInputElement).value, 10) || 0)}
                           onTouchEnd={(e) => {
                             const target = e.target as HTMLInputElement;
@@ -516,16 +259,16 @@ export function Customization() {
             )}
           </div>
           {activeVariants.length === 0 ? (
-            <Card className="bg-white/5 border-white/10">
+            <Card className="${LAYOUT.card.base}">
               <CardContent className="text-center py-12">
                 <p className="text-slate-400 mb-4">No active variants yet</p>
-                <Button onClick={() => navigate('/admin/customization/variants/new')}>
+                <Button onClick={navigateToNewVariant}>
                   Create Your First Variant
                 </Button>
               </CardContent>
             </Card>
           ) : filteredActiveVariants.length === 0 ? (
-            <Card className="bg-white/5 border-white/10">
+            <Card className="${LAYOUT.card.base}">
               <CardContent className="text-center py-12 space-y-3">
                 <p className="text-slate-400">No variants match your filters.</p>
                 <Button variant="outline" size="sm" onClick={clearVariantFilters} data-testid="clear-variant-filters">
@@ -541,7 +284,7 @@ export function Customization() {
                 return (
                   <Card
                     key={variant.id}
-                    className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors"
+                    className="${LAYOUT.card.base} hover:bg-white/10 transition-colors"
                     data-testid={`variant-card-${variant.slug}`}
                   >
                     <CardHeader>
@@ -585,7 +328,7 @@ export function Customization() {
                           variant="outline"
                           size="sm"
                           className="flex-1 gap-2"
-                          onClick={() => navigate(`/admin/customization/variants/${variant.slug}`)}
+                          onClick={() => navigateToVariantEditor(variant.slug)}
                           data-testid={`edit-variant-${variant.slug}`}
                         >
                           <Edit className="h-4 w-4" />
@@ -594,7 +337,7 @@ export function Customization() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => window.open(`/?variant=${variant.slug}`, '_blank')}
+                          onClick={() => openVariantPreview(variant.slug)}
                           data-testid={`preview-variant-${variant.slug}`}
                         >
                           <Eye className="h-4 w-4" />
@@ -602,7 +345,7 @@ export function Customization() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleArchive(variant.slug)}
+                          onClick={() => onArchive(variant.slug)}
                           data-testid={`archive-variant-${variant.slug}`}
                         >
                           <Archive className="h-4 w-4" />
@@ -610,7 +353,7 @@ export function Customization() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => navigate(`/admin/analytics?variant=${variant.slug}`)}
+                          onClick={() => navigateToAnalytics(variant.slug)}
                           data-testid={`variant-analytics-${variant.slug}`}
                         >
                           View Analytics
@@ -632,7 +375,7 @@ export function Customization() {
               {archivedVariants.map((variant) => (
                 <Card
                   key={variant.id}
-                  className="bg-white/5 border-white/10 opacity-60"
+                  className="${LAYOUT.card.base} opacity-60"
                   data-testid={`variant-card-archived-${variant.slug}`}
                 >
                   <CardHeader>
@@ -654,7 +397,7 @@ export function Customization() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDelete(variant.slug)}
+                      onClick={() => onDelete(variant.slug)}
                       className="w-full gap-2 text-red-400 hover:text-red-300"
                       data-testid={`delete-variant-${variant.slug}`}
                     >
@@ -773,7 +516,7 @@ interface ExperienceOpsPanelProps {
   totalWeight: number;
   variantCount: number;
   weightStatus: WeightStatus;
-  staleVariants: { variant: Variant; daysSinceUpdate: number }[];
+  staleVariants: StaleVariantEntry[];
   neverUpdatedVariants: Variant[];
   underperforming: { stats: VariantStats; variant?: Variant } | null;
   analyticsRangeDays: number;
@@ -815,7 +558,7 @@ function ExperienceOpsPanel({
   const underperformingName = underperforming?.variant?.name ?? underperformingSlug;
 
   return (
-    <Card className="mb-8 bg-white/5 border-white/10" data-testid="experience-ops-panel">
+    <Card className="mb-8 ${LAYOUT.card.base}" data-testid="experience-ops-panel">
       <CardHeader>
         <CardTitle>Experiment Ops Snapshot</CardTitle>
         <CardDescription className="text-slate-400">

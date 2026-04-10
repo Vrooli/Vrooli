@@ -332,7 +332,7 @@ function buildActionDefinition(
   });
 
   // Set type-specific params
-  const payload = (raw.payload || {}) as Record<string, unknown>;
+  const payload: Record<string, unknown> = raw.payload ?? {};
 
   switch (actionType) {
     case ActionType.NAVIGATE:

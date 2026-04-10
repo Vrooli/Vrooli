@@ -20,22 +20,11 @@ func assertCodeMetricsTechDebt(t *testing.T, metrics *CodeMetrics, todoCount, fi
 	}
 }
 
-// assertAvgImportsAndFunctions validates average imports and functions per file
-func assertAvgImportsAndFunctions(t *testing.T, metrics *CodeMetrics, avgImports, avgFunctions float64) {
-	t.Helper()
-	if metrics.AvgImportsPerFile != avgImports {
-		t.Errorf("Expected %.1f import(s) per file, got %f", avgImports, metrics.AvgImportsPerFile)
-	}
-	if metrics.AvgFunctionsPerFile != avgFunctions {
-		t.Errorf("Expected %.1f function(s) per file, got %f", avgFunctions, metrics.AvgFunctionsPerFile)
-	}
-}
-
 // writeCodeFile writes a test file with the given content to tmpDir/filename
 func writeCodeFile(t *testing.T, tmpDir, filename, content string) {
 	t.Helper()
 	filePath := filepath.Join(tmpDir, filename)
-	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -294,7 +283,7 @@ def process():
 		t.Run(tc.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			filePath := filepath.Join(tmpDir, tc.filename)
-			if err := os.WriteFile(filePath, []byte(tc.code), 0644); err != nil {
+			if err := os.WriteFile(filePath, []byte(tc.code), 0o644); err != nil {
 				t.Fatal(err)
 			}
 
@@ -343,7 +332,7 @@ func Add(a, b int) int {
 }
 `
 	sourcePath := filepath.Join(tmpDir, "math.go")
-	if err := os.WriteFile(sourcePath, []byte(sourceCode), 0644); err != nil {
+	if err := os.WriteFile(sourcePath, []byte(sourceCode), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -359,7 +348,7 @@ func TestAdd(t *testing.T) {
 }
 `
 	testPath := filepath.Join(tmpDir, "math_test.go")
-	if err := os.WriteFile(testPath, []byte(testCode), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte(testCode), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -390,7 +379,7 @@ func TestCodeMetricsAnalyzer_TestCoverage_TypeScript(t *testing.T) {
 }
 `
 	sourcePath := filepath.Join(tmpDir, "math.ts")
-	if err := os.WriteFile(sourcePath, []byte(sourceCode), 0644); err != nil {
+	if err := os.WriteFile(sourcePath, []byte(sourceCode), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -402,7 +391,7 @@ test('add function', () => {
 });
 `
 	testPath := filepath.Join(tmpDir, "math.test.ts")
-	if err := os.WriteFile(testPath, []byte(testCode), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte(testCode), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -429,13 +418,13 @@ func TestCodeMetricsAnalyzer_TestCoverage_TypeScript_TestsDir(t *testing.T) {
 }
 `
 	sourcePath := filepath.Join(tmpDir, "math.ts")
-	if err := os.WriteFile(sourcePath, []byte(sourceCode), 0644); err != nil {
+	if err := os.WriteFile(sourcePath, []byte(sourceCode), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create __tests__ directory
 	testsDir := filepath.Join(tmpDir, "__tests__")
-	if err := os.MkdirAll(testsDir, 0755); err != nil {
+	if err := os.MkdirAll(testsDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -447,7 +436,7 @@ test('multiply function', () => {
 });
 `
 	testPath := filepath.Join(testsDir, "math.test.ts")
-	if err := os.WriteFile(testPath, []byte(testCode), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte(testCode), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -473,7 +462,7 @@ func Untested() {
 }
 `
 	sourcePath := filepath.Join(tmpDir, "untested.go")
-	if err := os.WriteFile(sourcePath, []byte(sourceCode), 0644); err != nil {
+	if err := os.WriteFile(sourcePath, []byte(sourceCode), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -510,7 +499,7 @@ func TestCodeMetricsAnalyzer_TestCoverage_MixedCoverage(t *testing.T) {
 	var fileList []string
 	for _, f := range files {
 		sourcePath := filepath.Join(tmpDir, f.name)
-		if err := os.WriteFile(sourcePath, []byte("package main\nfunc dummy() {}\n"), 0644); err != nil {
+		if err := os.WriteFile(sourcePath, []byte("package main\nfunc dummy() {}\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		fileList = append(fileList, f.name)
@@ -518,7 +507,7 @@ func TestCodeMetricsAnalyzer_TestCoverage_MixedCoverage(t *testing.T) {
 		if f.hasTest {
 			testName := f.name[:len(f.name)-3] + "_test.go"
 			testPath := filepath.Join(tmpDir, testName)
-			if err := os.WriteFile(testPath, []byte("package main\nfunc TestDummy(t *testing.T) {}\n"), 0644); err != nil {
+			if err := os.WriteFile(testPath, []byte("package main\nfunc TestDummy(t *testing.T) {}\n"), 0o644); err != nil {
 				t.Fatal(err)
 			}
 			fileList = append(fileList, testName)
@@ -542,5 +531,144 @@ func TestCodeMetricsAnalyzer_TestCoverage_MixedCoverage(t *testing.T) {
 	// Test coverage should be ~0.67 (2 out of 3 files)
 	if metrics.TestCoverageRatio < 0.66 || metrics.TestCoverageRatio > 0.67 {
 		t.Errorf("Expected test coverage ~0.67, got %f", metrics.TestCoverageRatio)
+	}
+}
+
+// Tests for type safety pattern detection
+func TestCodeMetricsAnalyzer_TypeSafety_AsAny(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	code := `import { useState } from 'react';
+
+const value = response as any;
+const other = data as unknown as string;
+const safe = normalValue;
+`
+	writeCodeFile(t, tmpDir, "test.ts", code)
+
+	analyzer := NewCodeMetricsAnalyzer(tmpDir)
+	metrics, err := analyzer.AnalyzeFiles([]string{"test.ts"}, LanguageTypeScript)
+	if err != nil {
+		t.Fatalf("AnalyzeFiles failed: %v", err)
+	}
+
+	// "as any" matches once, "as unknown as" matches once = 2
+	if metrics.AsAnyCount != 2 {
+		t.Errorf("Expected 2 as-any patterns, got %d", metrics.AsAnyCount)
+	}
+}
+
+func TestCodeMetricsAnalyzer_TypeSafety_AsType(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	code := `const value = response as String;
+const other = data as MyType;
+// even after typeof check, still counted
+if (typeof x === 'string') { const y = x as String; }
+`
+	writeCodeFile(t, tmpDir, "test.ts", code)
+
+	analyzer := NewCodeMetricsAnalyzer(tmpDir)
+	metrics, err := analyzer.AnalyzeFiles([]string{"test.ts"}, LanguageTypeScript)
+	if err != nil {
+		t.Fatalf("AnalyzeFiles failed: %v", err)
+	}
+
+	if metrics.AsTypeAssertionCount < 3 {
+		t.Errorf("Expected at least 3 as-type assertions, got %d", metrics.AsTypeAssertionCount)
+	}
+}
+
+func TestCodeMetricsAnalyzer_TypeSafety_TsIgnore(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	code := `// @ts-ignore
+const x = badFunction();
+// @ts-expect-error
+const y = otherBad();
+const z = "normal code";
+`
+	writeCodeFile(t, tmpDir, "test.ts", code)
+
+	analyzer := NewCodeMetricsAnalyzer(tmpDir)
+	metrics, err := analyzer.AnalyzeFiles([]string{"test.ts"}, LanguageTypeScript)
+	if err != nil {
+		t.Fatalf("AnalyzeFiles failed: %v", err)
+	}
+
+	if metrics.TsIgnoreCount != 2 {
+		t.Errorf("Expected 2 ts-ignore patterns, got %d", metrics.TsIgnoreCount)
+	}
+}
+
+func TestCodeMetricsAnalyzer_TypeSafety_NonNull(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	code := `const x = foo!.bar;
+const y = arr[0]!.method();
+if (a !== b) { console.log("not equal"); }
+if (a != b) { console.log("also not equal"); }
+`
+	writeCodeFile(t, tmpDir, "test.ts", code)
+
+	analyzer := NewCodeMetricsAnalyzer(tmpDir)
+	metrics, err := analyzer.AnalyzeFiles([]string{"test.ts"}, LanguageTypeScript)
+	if err != nil {
+		t.Fatalf("AnalyzeFiles failed: %v", err)
+	}
+
+	if metrics.NonNullAssertionCount != 2 {
+		t.Errorf("Expected 2 non-null assertions (excluding !== and !=), got %d", metrics.NonNullAssertionCount)
+	}
+}
+
+func TestCodeMetricsAnalyzer_TypeSafety_GoFileZeroCounts(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	code := `package main
+
+func main() {
+	// Go doesn't have as any or ts-ignore
+}
+`
+	writeCodeFile(t, tmpDir, "test.go", code)
+
+	analyzer := NewCodeMetricsAnalyzer(tmpDir)
+	metrics, err := analyzer.AnalyzeFiles([]string{"test.go"}, LanguageGo)
+	if err != nil {
+		t.Fatalf("AnalyzeFiles failed: %v", err)
+	}
+
+	if metrics.AsAnyCount != 0 || metrics.AsTypeAssertionCount != 0 || metrics.TsIgnoreCount != 0 || metrics.NonNullAssertionCount != 0 {
+		t.Errorf("Expected all type-safety counts to be 0 for Go files, got as_any=%d as_type=%d ts_ignore=%d non_null=%d",
+			metrics.AsAnyCount, metrics.AsTypeAssertionCount, metrics.TsIgnoreCount, metrics.NonNullAssertionCount)
+	}
+}
+
+func TestIssueGenerator_TypeSafety(t *testing.T) {
+	metrics := []DetailedFileMetrics{
+		{
+			FilePath:              "src/bad.ts",
+			AsAnyCount:            2,
+			AsTypeAssertionCount:  1,
+			TsIgnoreCount:         1,
+			NonNullAssertionCount: 0,
+		},
+	}
+
+	config := DefaultIssueGeneratorConfig()
+	issues := GenerateIssuesFromMetrics("test-scenario", metrics, config)
+
+	foundTypeSafety := false
+	for _, issue := range issues {
+		if issue.Category == "type_safety" {
+			foundTypeSafety = true
+			if issue.Severity == "" {
+				t.Error("expected non-empty severity for type_safety issue")
+			}
+		}
+	}
+	if !foundTypeSafety {
+		t.Error("expected type_safety issue to be generated when threshold exceeded")
 	}
 }

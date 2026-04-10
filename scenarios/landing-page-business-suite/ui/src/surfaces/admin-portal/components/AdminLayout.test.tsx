@@ -9,10 +9,6 @@ vi.mock('../../../shared/api', () => ({
   adminLogout: vi.fn(),
 }));
 
-vi.mock('./RuntimeSignalStrip', () => ({
-  RuntimeSignalStrip: () => <div data-testid="runtime-signal-mock" />,
-}));
-
 const renderWithRouter = (ui: React.ReactElement, { route = '/admin' } = {}) => {
   return render(
     <MemoryRouter initialEntries={[route]}>
@@ -25,10 +21,25 @@ describe('AdminLayout [REQ:ADMIN-NAV,ADMIN-BREADCRUMB]', () => {
   it('[REQ:ADMIN-NAV] should render navigation links', () => {
     renderWithRouter(<AdminLayout><div>Content</div></AdminLayout>);
 
+    // Direct links always visible
     expect(screen.getByTestId('nav-home')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-logout')).toBeInTheDocument();
+
+    // Dropdown groups visible (Landing group contains analytics/customization)
+    expect(screen.getByTestId('nav-group-landing')).toBeInTheDocument();
+  });
+
+  it('[REQ:ADMIN-NAV] should reveal dropdown items when group clicked', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<AdminLayout><div>Content</div></AdminLayout>);
+
+    // Click the Landing Page dropdown
+    const landingPageDropdown = screen.getByTestId('nav-group-landing');
+    await user.click(landingPageDropdown);
+
+    // Nested items should now be visible
     expect(screen.getByTestId('nav-analytics')).toBeInTheDocument();
     expect(screen.getByTestId('nav-customization')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-logout')).toBeInTheDocument();
   });
 
   it('[REQ:ADMIN-BREADCRUMB] should render breadcrumb for admin home', () => {

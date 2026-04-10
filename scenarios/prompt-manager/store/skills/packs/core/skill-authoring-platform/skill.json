@@ -1,0 +1,23 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "skill-authoring-platform",
+  "name": "Platform Skill Authoring",
+  "description": "Authoring guide for Platform skills that govern shared packages and cross-scenario standards without breaking downstream consumers.",
+  "modes": [
+    "meta",
+    "platform"
+  ],
+  "tags": [
+    "skill",
+    "packages",
+    "platform"
+  ],
+  "icon": "package",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-02-10T00:00:00Z",
+  "updatedAt": "2026-02-10T00:00:00Z"
+}
+

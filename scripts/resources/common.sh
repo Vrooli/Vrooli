@@ -61,7 +61,6 @@ declare -A RESOURCE_TYPES=(
     ["unstructured-io"]="service"
     ["comfyui"]="service"
     ["node-red"]="service"
-    ["huginn"]="service"
     ["minio"]="service"
     ["vault"]="service"
     ["qdrant"]="service"
@@ -69,7 +68,6 @@ declare -A RESOURCE_TYPES=(
     ["postgres"]="service"
     ["redis"]="service"
     ["browserless"]="service"
-    ["agent-s2"]="service"
     ["searxng"]="service"
 )
 
@@ -301,14 +299,8 @@ resources::get_health_endpoint() {
         "browserless")
             echo "/pressure"
             ;;
-        "agent-s2")
-            echo "/health"
-            ;;
         "node-red")
             echo "/flows"
-            ;;
-        "huginn")
-            echo "/"
             ;;
         "comfyui")
             echo "/system_stats"
@@ -391,13 +383,6 @@ resources::validate_service_identity() {
             # Check MinIO health endpoint
             if curl -s "$base_url/minio/health/live" 2>/dev/null; then
                 echo "✅ Validated as MinIO"
-                return 0
-            fi
-            ;;
-        "agent-s2")
-            # Check Agent-S2 specific endpoints
-            if curl -s "$base_url/health" 2>/dev/null | grep -qi "agent.*s2\|healthy"; then
-                echo "✅ Validated as Agent-S2"
                 return 0
             fi
             ;;
@@ -547,9 +532,9 @@ resources::validate_port() {
         local category=""
         case "$resource" in
             ollama|whisper) category="AI" ;;
-            node-red|comfyui) category="automation" ;;
+            comfyui) category="automation" ;;
             minio) category="storage" ;;
-            browserless|claude-code|huginn) category="agents" ;;
+            claude-code) category="agents" ;;
         esac
         
         log::info "💡 Port conflict detected but continuing setup"

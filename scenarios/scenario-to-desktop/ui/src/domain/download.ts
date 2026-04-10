@@ -114,9 +114,11 @@ export function groupArtifactsByPlatform(
       });
     }
 
-    const group = groups.get(platformKey)!;
-    group.artifacts.push(artifact);
-    group.totalSizeBytes += artifact.size_bytes ?? 0;
+    const group = groups.get(platformKey);
+    if (group) {
+      group.artifacts.push(artifact);
+      group.totalSizeBytes += artifact.size_bytes ?? 0;
+    }
   }
 
   return groups;
@@ -134,7 +136,8 @@ export function getSortedPlatformGroups(
 
   return platformOrder
     .filter((platform) => groups.has(platform))
-    .map((platform) => groups.get(platform)!);
+    .map((platform) => groups.get(platform))
+    .filter((group): group is PlatformArtifactGroup => group !== undefined);
 }
 
 // ============================================================================

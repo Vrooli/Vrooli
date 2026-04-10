@@ -1,0 +1,126 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-30T19:45:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 1,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Version sync mechanism: pull vs push vs hybrid",
+      "context": "deployment-manager already polls scenario-to-desktop's pipeline status and has access to the full DeployResult (artifact IDs, platforms) and BuildProvenance (version, git commit hash). Meanwhile, scenario-to-desktop has a WebhookNotifier interface defined but not wired. The question is whether deployment-manager should extract version data from the pipeline response it already receives (pull), or scenario-to-desktop should push via callback (push), or both.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Pull: Orchestrator extracts from pipeline response",
+          "rationale": "Simplest approach. deployment-manager already has the data in hand after polling pipeline status. No new inter-service contract needed. Only changes in deployment-manager. Downside: only captures versions when deployment-manager initiates the pipeline.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Push: Wire WebhookNotifier in scenario-to-desktop",
+          "rationale": "Event-driven, works for any pipeline initiator (not just deployment-manager). But requires changes in both scenarios, a new callback endpoint, and handling webhook reliability (retries, idempotency). More complex for the same initial outcome."
+        },
+        {
+          "key": "C",
+          "label": "Hybrid: Pull now, add push later",
+          "rationale": "Get the pull mechanism working first (minimal scope), then add webhook as enhancement when lpbs-publish-webhook item is implemented. Best of both worlds but slightly over-engineered for round 1 planning."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Published version storage: latest-only vs full history",
+      "context": "The plan proposes a published_versions table with UNIQUE(profile_id, platform) — meaning only the latest version per platform is stored (upsert). Alternatively, we could store full publish history (append-only, no unique constraint), which would support rollback tracking and audit trail but adds complexity.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Latest-only with upsert (UNIQUE constraint)",
+          "rationale": "Answers the core question 'what's live right now?' with a simple query. Minimal storage, simple upsert logic. Rollback history can be derived from deployments table if needed.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Full history (append-only, query latest via window function)",
+          "rationale": "Enables 'what was live at time T?' queries and rollback audit trail. More complex queries for 'what's live now?' but richer data model. Aligns with desktop-rollback-api backlog item."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Error handling: should version persist failure affect deploy status?",
+      "context": "If the deploy succeeds (artifacts published to LPBS) but persisting the version record to deployment-manager's database fails, should the overall deployment be reported as failed? The version record is a convenience cache — LPBS is the source of truth for what's actually published.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Non-fatal: log error, report deploy as successful",
+          "rationale": "The actual publish succeeded. Version sync is a local bookkeeping step. Failing the deploy would be misleading and could trigger unnecessary retries of the entire pipeline. The data can be recovered from LPBS.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Fatal: report deploy as partially failed",
+          "rationale": "Ensures deployment-manager state is always consistent. Forces investigation of the persist failure. But risks unnecessary pipeline reruns."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Where to extract version string from",
+      "context": "BuildProvenance.Version comes from scenario config or service.json at pipeline start. The LPBS commit endpoint receives version info during the apply step. DeployResult contains artifact IDs but not the version string directly. We need to decide the canonical source for the version recorded in published_versions.",
+      "options": [
+        {
+          "key": "A",
+          "label": "BuildProvenance.Version from pipeline Status",
+          "rationale": "Already available in the pipeline status response that deployment-manager polls. Represents the version that was built and published. Simple extraction.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Extract from LPBS after publish (query LPBS API)",
+          "rationale": "Gets the actual version LPBS recorded, which is the ground truth. But requires an additional cross-service call and LPBS may not expose a convenient query for this."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "scenario-to-desktop already has a WebhookNotifier interface defined in pipeline/interfaces.go with events: 'started', 'stage_completed', 'completed', 'failed', 'cancelled'. Config has a WebhookURL field plumbed through the Manager. The interface is NOT wired into the orchestrator yet. This infrastructure can be leveraged in a future push-based approach without starting from scratch."
+    }
+  ],
+  "plan_updates": "Created initial plan scaffold with problem statement, scope, technical context, three implementation approach options (pull/push/hybrid), proposed schema for published_versions table, new GET endpoint design, testing outline, and risk matrix. Key gaps remaining: approach selection, history model decision, error handling strategy."
+}

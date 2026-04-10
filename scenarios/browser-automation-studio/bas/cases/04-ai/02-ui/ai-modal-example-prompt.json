@@ -48,7 +48,8 @@
     "labels": {
       "reset": "none"
     },
-    "version": "1"
+    "version": "1",
+    "execution_mode": "observer"
   },
   "nodes": [
     {
@@ -132,7 +133,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const textarea = document.querySelector('textarea[placeholder*=\"prompt\"], textarea[placeholder*=\"describe\"], textarea'); if (!textarea) return false; return textarea.value.length \u003e 10; })()",
+          "expression": "(() => { const textarea = document.querySelector('textarea[placeholder*=\"prompt\"], textarea[placeholder*=\"describe\"], textarea'); if (!textarea) return false; return textarea.value.length > 10; })()",
           "store_result": "promptHasContent"
         },
         "metadata": {
@@ -145,7 +146,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const input = document.querySelector('input[placeholder*=\"name\"], input[type=\"text\"]'); if (!input) return false; return input.value.length \u003e 0; })()",
+          "expression": "(() => { const input = document.querySelector('input[placeholder*=\"name\"], input[type=\"text\"]'); if (!input) return false; return input.value.length > 0; })()",
           "store_result": "nameHasContent"
         },
         "metadata": {
@@ -158,7 +159,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const button = document.querySelector('@selector/ai.modal.generateButton'); if (!button) return false; return !button.disabled \u0026\u0026 !button.hasAttribute('disabled'); })()",
+          "expression": "(() => { const button = document.querySelector('@selector/ai.modal.generateButton'); if (!button) return false; return !button.disabled && !button.hasAttribute('disabled'); })()",
           "store_result": "generateButtonEnabled"
         },
         "metadata": {

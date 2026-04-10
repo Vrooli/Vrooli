@@ -91,7 +91,7 @@ export function ImageUploader({
         fileInputRef.current.value = '';
       }
     }
-  }, [category, maxSize, onChange]);
+  }, [category, maxSize, onChange, onUploadComplete]);
 
   const handleUrlSubmit = useCallback(() => {
     const url = urlInputValue.trim();

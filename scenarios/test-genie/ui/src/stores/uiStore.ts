@@ -2,6 +2,8 @@ import { create } from "zustand";
 import type { DashboardTabKey, RunsSubtabKey, ScenarioDetailTabKey, QueueFormState, ExecutionFormState } from "../types";
 
 const DEFAULT_REQUEST_TYPES = ["unit", "integration"];
+const dashboardTabSet = new Set(["dashboard", "runs", "generate", "docs", "settings"]);
+const runsSubtabSet = new Set(["scenarios", "history"]);
 
 const initialQueueForm: QueueFormState = {
   scenarioName: "",
@@ -71,6 +73,14 @@ interface UIState {
   updateHash: () => void;
 }
 
+function isDashboardTabKey(value: string): value is DashboardTabKey {
+  return dashboardTabSet.has(value);
+}
+
+function isRunsSubtabKey(value: string): value is RunsSubtabKey {
+  return runsSubtabSet.has(value);
+}
+
 // Parse URL hash to extract state
 function parseHash(hash: string): Partial<Pick<UIState, "activeTab" | "runsSubtab" | "selectedScenario">> {
   const cleanHash = hash.replace(/^#/, "");
@@ -80,18 +90,19 @@ function parseHash(hash: string): Partial<Pick<UIState, "activeTab" | "runsSubta
 
   if (parts.length > 0) {
     const tab = parts[0];
-    if (["dashboard", "runs", "generate", "docs", "settings"].includes(tab)) {
-      result.activeTab = tab as DashboardTabKey;
+    if (tab && isDashboardTabKey(tab)) {
+      result.activeTab = tab;
     }
   }
 
   if (parts.length > 1 && parts[0] === "runs") {
     const subtab = parts[1];
-    if (["scenarios", "history"].includes(subtab)) {
-      result.runsSubtab = subtab as RunsSubtabKey;
+    if (subtab && isRunsSubtabKey(subtab)) {
+      result.runsSubtab = subtab;
     }
-    if (parts.length > 2) {
-      result.selectedScenario = decodeURIComponent(parts[2]);
+    const selectedScenario = parts[2];
+    if (selectedScenario) {
+      result.selectedScenario = decodeURIComponent(selectedScenario);
     }
   }
 

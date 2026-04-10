@@ -215,7 +215,9 @@ func walkDirForTests(ctx context.Context, reader Reader, dir string, testFiles *
 			if name == "node_modules" || name == "dist" || name == "build" {
 				continue
 			}
-			walkDirForTests(ctx, reader, path, testFiles)
+			if err := walkDirForTests(ctx, reader, path, testFiles); err != nil {
+				return err
+			}
 			continue
 		}
 

@@ -158,6 +158,7 @@ func (c *LoadCheck) Title() string { return "System Load Average" }
 func (c *LoadCheck) Description() string {
 	return "Monitors CPU load average to detect system overload conditions"
 }
+
 func (c *LoadCheck) Importance() string {
 	return "High load indicates CPU contention - processes wait longer, response times increase"
 }

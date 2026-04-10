@@ -108,8 +108,8 @@ export function createMockScreenshotCapture(
   const defaultBuffer = mockBuffer ?? Buffer.from('mock-screenshot-data');
 
   return {
-    async capture(_page: Page, _options?: ScreenshotOptions): Promise<Buffer> {
-      return defaultBuffer;
+    capture(_page: Page, _options?: ScreenshotOptions): Promise<Buffer> {
+      return Promise.resolve(defaultBuffer);
     },
   };
 }

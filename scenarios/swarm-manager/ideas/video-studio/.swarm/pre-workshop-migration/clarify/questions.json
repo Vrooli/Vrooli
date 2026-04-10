@@ -1,0 +1,66 @@
+{
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Should BAS integration be a runtime dependency (BAS runs as a sibling scenario and Video Studio calls its API) or a build-time dependency (Video Studio vendors/imports BAS's recording packages directly)?",
+      "category": "technical",
+      "importance": "critical",
+      "options": [
+        "Runtime dependency — Video Studio calls BAS's HTTP API (requires BAS running)",
+        "Build-time dependency — Import BAS's Go packages directly into Video Studio",
+        "Hybrid — Import core recording libs but use BAS API for session management"
+      ],
+      "answer": "Runtime dependency is the Vrooli pattern — scenarios depend on other scenarios via their APIs. The spec explicitly says 'Integrate Browser Automation Studio as a scenario dependency.' This keeps BAS as the single owner of Playwright lifecycle and recording logic, and Video Studio gets browser recording by calling BAS endpoints."
+    },
+    {
+      "id": "q2",
+      "question": "What is the expected video brief format that agents will submit — free-form text, structured JSON with scene definitions, or a hybrid (text brief that gets parsed into a structured script)?",
+      "category": "technical",
+      "importance": "critical",
+      "options": [
+        "Free-form text brief (AI agent interprets and scripts autonomously)",
+        "Structured JSON scene manifest (explicit scene list with actions/timings)",
+        "Hybrid — accept text brief, AI generates structured script, human reviews script before recording"
+      ],
+      "answer": ""
+    },
+    {
+      "id": "q3",
+      "question": "Where should the marketing crew's video opportunity logs be stored so Video Studio can consume them as demand signals?",
+      "category": "integration",
+      "importance": "important",
+      "options": [
+        "decisions.jsonl in marketing-crew shared folder (current pattern)",
+        "Dedicated video-requests queue in swarm-manager backlog",
+        "Video Studio API endpoint that marketing agents POST briefs to directly"
+      ],
+      "answer": "Currently logged as decisions in decisions.jsonl. For P0, Video Studio doesn't need to auto-consume these — a human or marketing-lead agent can manually invoke Video Studio with a brief derived from logged opportunities. For P1, a direct API endpoint makes more sense so the marketing workflow can invoke Video Studio programmatically."
+    },
+    {
+      "id": "q4",
+      "question": "Should P0 desktop recording reuse the `resource-ffmpeg screen-capture` CLI (same as S2D) or implement FFmpeg invocation directly within Video Studio?",
+      "category": "technical",
+      "importance": "important",
+      "options": [
+        "Reuse resource-ffmpeg CLI — consistent resource abstraction, less code to maintain",
+        "Direct FFmpeg invocation — more control over encoding params, scene-level start/stop",
+        "Resource-ffmpeg for capture, direct FFmpeg for compositing/post-processing"
+      ],
+      "answer": "Reuse resource-ffmpeg for capture (it already handles display binding, resolution, framerate) but use FFmpeg directly for compositing/post-processing since resource-ffmpeg's screen-capture commands are start/stop oriented and don't cover concat, transitions, or overlay operations."
+    },
+    {
+      "id": "q5",
+      "question": "Is P0 success defined as agent-only operation (no human in the loop during production), or is a human-review checkpoint between script generation and recording acceptable?",
+      "category": "scope",
+      "importance": "important",
+      "options": [
+        "Fully autonomous — brief in, video out, human reviews only the final output",
+        "Human-in-the-loop — human approves the generated recording script before execution",
+        "Configurable — default autonomous with optional human checkpoint"
+      ],
+      "answer": "The success criteria say 'human reviews output, not process' — so P0 targets fully autonomous with human review of the final video only. However, a configurable checkpoint makes sense as a safety valve for high-stakes content."
+    }
+  ],
+  "generatedAt": "2026-03-19T16:00:00Z",
+  "updatedAt": "2026-03-19T16:00:00Z"
+}

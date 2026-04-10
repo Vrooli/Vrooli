@@ -24,7 +24,7 @@ export async function parseJsonBody(
     // Allow callers that do not have full config (e.g., record-mode routes currently pass {})
     const maxRequestSize = config?.server?.maxRequestSize ?? 5 * 1024 * 1024; // 5MB default
 
-    const cleanup = () => {
+    const cleanup = (): void => {
       req.removeAllListeners('data');
       req.removeAllListeners('end');
       req.removeAllListeners('error');
@@ -32,7 +32,7 @@ export async function parseJsonBody(
       req.removeAllListeners('aborted');
     };
 
-    const rejectOnce = (error: Error) => {
+    const rejectOnce = (error: Error): void => {
       if (rejected) return;
       rejected = true;
       cleanup();

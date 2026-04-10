@@ -86,7 +86,7 @@ func TestDownloadHostingListArtifactsEmptyReturnsNonNilSlice(t *testing.T) {
 	defer db.Close()
 
 	hosting := NewDownloadHostingService(db, S3DownloadStorageProvider{})
-	result, err := hosting.ListArtifacts(context.Background(), "bundle_with_no_artifacts", "", "", 1, 50)
+	result, err := hosting.ListArtifacts(context.Background(), "bundle_with_no_artifacts", "", "", "", 1, 50)
 	if err != nil {
 		t.Fatalf("ListArtifacts returned error: %v", err)
 	}

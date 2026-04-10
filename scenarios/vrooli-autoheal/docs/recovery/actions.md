@@ -68,7 +68,7 @@ All resource checks support these actions:
 | Start | Yes | Start if stopped, verify running |
 | Stop | No | Stop if running (dangerous) |
 | Restart | Yes | Restart to recover, verify running |
-| Logs | No | View recent logs |
+| Status | No | Check current resource status |
 
 Resources monitored: postgres, redis, ollama, qdrant, searxng, browserless
 
@@ -107,10 +107,10 @@ curl -X POST http://localhost:PORT/api/v1/checks/{checkId}/actions/{actionId}
 ### Via CLI
 ```bash
 # Trigger a full health cycle (runs all checks)
-vrooli autoheal tick
+vrooli-autoheal tick
 
 # Force all checks regardless of interval
-vrooli autoheal tick --force
+vrooli-autoheal tick --force
 ```
 
 ## Action Logging

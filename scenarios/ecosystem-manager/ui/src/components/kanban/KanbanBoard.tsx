@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md
+// DOC: docs/reference/api-endpoints.md
 /**
  * KanbanBoard Component
  * Main Kanban board with 7 status columns and drag-and-drop functionality
@@ -21,7 +23,7 @@ import { SkeletonTaskCard } from './SkeletonTaskCard';
 import { useTasks } from '../../hooks/useTasks';
 import { useUpdateTaskStatus } from '../../hooks/useTaskMutations';
 import { useTaskUpdates } from '../../hooks/useTaskUpdates';
-import { useAutoSteerProfiles } from '../../hooks/useAutoSteer';
+import { useAllAutoSteerProfiles } from '../../hooks/useAutoSteer';
 import { useAppState } from '../../contexts/AppStateContext';
 import type { AutoSteerProfile, Task, TaskStatus } from '../../types/api';
 
@@ -49,7 +51,7 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
   const { columnVisibility, toggleColumnVisibility, filters } = useAppState();
   const { data: tasks = [], isLoading, error } = useTasks(filters);
   const updateTaskStatus = useUpdateTaskStatus();
-  const { data: autoSteerProfiles = [] } = useAutoSteerProfiles();
+  const { data: autoSteerProfiles = [] } = useAllAutoSteerProfiles();
 
   const autoSteerProfileMap = useMemo<Record<string, AutoSteerProfile>>(() => {
     const map: Record<string, AutoSteerProfile> = {};

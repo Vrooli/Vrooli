@@ -8,8 +8,8 @@
  * - Graceful shutdown
  */
 
-// Mock playwright before importing BrowserManager
-jest.mock('playwright', () => ({
+// Mock rebrowser-playwright before importing BrowserManager
+jest.mock('rebrowser-playwright', () => ({
   chromium: {
     launch: jest.fn(),
   },
@@ -30,31 +30,37 @@ jest.mock('../../../src/utils', () => ({
   },
 }));
 
-import { chromium } from 'playwright';
+import { chromium } from 'rebrowser-playwright';
+import type { Browser, BrowserContext, Page } from 'rebrowser-playwright';
 import { BrowserManager, createBrowserManager } from '../../../src/session/browser-manager';
 import type { Config } from '../../../src/config';
 
 // Helper to create mock browser
-function createMockBrowser(options: { connected?: boolean; version?: string } = {}) {
+function createMockBrowser(
+  options: { connected?: boolean; version?: string } = {}
+): jest.Mocked<Browser> {
   const { connected = true, version = '120.0.0.0' } = options;
   return {
     isConnected: jest.fn().mockReturnValue(connected),
     version: jest.fn().mockReturnValue(version),
     newContext: jest.fn(),
     close: jest.fn().mockResolvedValue(undefined),
-  };
+  } as unknown as jest.Mocked<Browser>;
 }
 
 // Helper to create mock context and page
-function createMockContextAndPage() {
+function createMockContextAndPage(): {
+  mockContext: jest.Mocked<BrowserContext>;
+  mockPage: jest.Mocked<Page>;
+} {
   const mockPage = {
     goto: jest.fn().mockResolvedValue(undefined),
     close: jest.fn().mockResolvedValue(undefined),
-  };
+  } as unknown as jest.Mocked<Page>;
   const mockContext = {
     newPage: jest.fn().mockResolvedValue(mockPage),
     close: jest.fn().mockResolvedValue(undefined),
-  };
+  } as unknown as jest.Mocked<BrowserContext>;
   return { mockContext, mockPage };
 }
 
@@ -76,7 +82,8 @@ describe('BrowserManager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockBrowser = createMockBrowser();
-    (chromium.launch as jest.Mock).mockResolvedValue(mockBrowser);
+    (chromium.launch as jest.MockedFunction<typeof chromium.launch>)
+      .mockResolvedValue(mockBrowser);
     manager = new BrowserManager(testConfig);
   });
 
@@ -100,20 +107,23 @@ describe('BrowserManager', () => {
       const error = await manager.verifyBrowserLaunch();
 
       expect(error).toBeNull();
-      expect(chromium.launch).toHaveBeenCalledWith({
+      const launchCalls = (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mock.calls;
+      expect(launchCalls[0]?.[0]).toEqual({
         headless: true,
         executablePath: undefined,
         args: [],
       });
-      expect(mockBrowser.newContext).toHaveBeenCalled();
-      expect(mockContext.newPage).toHaveBeenCalled();
-      expect(mockPage.goto).toHaveBeenCalledWith('about:blank');
-      expect(mockPage.close).toHaveBeenCalled();
-      expect(mockContext.close).toHaveBeenCalled();
+      expect(mockBrowser.newContext.mock.calls.length).toBeGreaterThan(0);
+      expect(mockContext.newPage.mock.calls.length).toBeGreaterThan(0);
+      const gotoCalls = mockPage.goto.mock.calls as Array<[string]>;
+      expect(gotoCalls[0]?.[0]).toBe('about:blank');
+      expect(mockPage.close.mock.calls.length).toBeGreaterThan(0);
+      expect(mockContext.close.mock.calls.length).toBeGreaterThan(0);
     });
 
     it('returns error message on launch failure', async () => {
-      (chromium.launch as jest.Mock).mockRejectedValue(new Error('Chromium not found'));
+      (chromium.launch as jest.MockedFunction<typeof chromium.launch>)
+        .mockRejectedValue(new Error('Chromium not found'));
 
       const error = await manager.verifyBrowserLaunch();
 
@@ -137,7 +147,7 @@ describe('BrowserManager', () => {
 
       // chromium.launch should only be called once due to caching,
       // and verification should only happen once
-      expect(mockBrowser.newContext).toHaveBeenCalledTimes(1);
+      expect(mockBrowser.newContext.mock.calls.length).toBe(1);
     });
 
     it('returns cached error on subsequent calls after failure', async () => {
@@ -201,7 +211,7 @@ describe('BrowserManager', () => {
       const browser = await manager.getBrowser();
 
       expect(browser).toBe(mockBrowser);
-      expect(chromium.launch).toHaveBeenCalledTimes(1);
+      expect((chromium.launch as jest.Mock).mock.calls.length).toBe(1);
     });
 
     it('returns cached browser on subsequent calls', async () => {
@@ -209,7 +219,7 @@ describe('BrowserManager', () => {
       const browser2 = await manager.getBrowser();
 
       expect(browser1).toBe(browser2);
-      expect(chromium.launch).toHaveBeenCalledTimes(1);
+      expect((chromium.launch as jest.Mock).mock.calls.length).toBe(1);
     });
 
     it('relaunches if browser disconnected', async () => {
@@ -224,16 +234,17 @@ describe('BrowserManager', () => {
       const browser = await manager.getBrowser();
 
       expect(browser).toBe(newMockBrowser);
-      expect(chromium.launch).toHaveBeenCalledTimes(2);
+      expect((chromium.launch as jest.Mock).mock.calls.length).toBe(2);
     });
 
     it('handles concurrent launch requests', async () => {
       // Slow down launch to simulate race condition
-      let resolveFirst!: (value: unknown) => void;
-      const slowLaunch = new Promise((resolve) => {
+      let resolveFirst!: (value: Browser | PromiseLike<Browser>) => void;
+      const slowLaunch: Promise<Browser> = new Promise((resolve) => {
         resolveFirst = resolve;
       });
-      (chromium.launch as jest.Mock).mockReturnValue(slowLaunch);
+      (chromium.launch as jest.MockedFunction<typeof chromium.launch>)
+        .mockReturnValue(slowLaunch);
 
       // Start two concurrent getBrowser calls
       const promise1 = manager.getBrowser();
@@ -247,20 +258,22 @@ describe('BrowserManager', () => {
       // Both should get the same browser
       expect(browser1).toBe(browser2);
       // Launch should only be called once
-      expect(chromium.launch).toHaveBeenCalledTimes(1);
+      expect((chromium.launch as jest.MockedFunction<typeof chromium.launch>).mock.calls.length).toBe(1);
     });
 
     it('retries if concurrent launch fails', async () => {
       // First launch fails
       let rejectFirst!: (reason: Error) => void;
-      const failingLaunch = new Promise((_, reject) => {
+      const failingLaunch: Promise<Browser> = new Promise((_, reject) => {
         rejectFirst = reject;
       });
-      (chromium.launch as jest.Mock).mockReturnValueOnce(failingLaunch);
+      (chromium.launch as jest.MockedFunction<typeof chromium.launch>)
+        .mockReturnValueOnce(failingLaunch);
 
       // Second launch succeeds
       const newMockBrowser = createMockBrowser();
-      (chromium.launch as jest.Mock).mockResolvedValueOnce(newMockBrowser);
+      (chromium.launch as jest.MockedFunction<typeof chromium.launch>)
+        .mockResolvedValueOnce(newMockBrowser);
 
       // Start first call that will fail
       const promise1 = manager.getBrowser();
@@ -288,7 +301,8 @@ describe('BrowserManager', () => {
 
       await customManager.getBrowser();
 
-      expect(chromium.launch).toHaveBeenCalledWith({
+      const launchCalls = (chromium.launch as jest.MockedFunction<typeof chromium.launch>).mock.calls;
+      expect(launchCalls[0]?.[0]).toEqual({
         headless: false,
         executablePath: '/custom/chromium',
         args: ['--no-sandbox', '--disable-gpu'],
@@ -301,7 +315,7 @@ describe('BrowserManager', () => {
       await manager.getBrowser();
       await manager.shutdown();
 
-      expect(mockBrowser.close).toHaveBeenCalled();
+      expect(mockBrowser.close.mock.calls.length).toBeGreaterThan(0);
     });
 
     it('handles close errors gracefully', async () => {
@@ -315,7 +329,7 @@ describe('BrowserManager', () => {
     it('does nothing if browser not launched', async () => {
       await manager.shutdown();
 
-      expect(mockBrowser.close).not.toHaveBeenCalled();
+      expect(mockBrowser.close.mock.calls.length).toBe(0);
     });
 
     it('allows new browser launch after shutdown', async () => {
@@ -328,7 +342,7 @@ describe('BrowserManager', () => {
       const browser = await manager.getBrowser();
 
       expect(browser).toBe(newMockBrowser);
-      expect(chromium.launch).toHaveBeenCalledTimes(2);
+      expect((chromium.launch as jest.Mock).mock.calls.length).toBe(2);
     });
   });
 

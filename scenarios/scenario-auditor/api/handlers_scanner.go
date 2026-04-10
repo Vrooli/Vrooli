@@ -567,7 +567,7 @@ func enhancedScanScenarioHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func buildSecurityScanTargets(scenarioName string) ([]securityScanTarget, error) {
-	standardsTargets, err := buildStandardsScanTargets(scenarioName)
+	standardsTargets, err := buildStandardsScanTargets(scenarioName, "" /* no sandbox path override */)
 	if err != nil {
 		return nil, err
 	}
@@ -800,7 +800,6 @@ func parseSummaryFilters(r *http.Request) (int, string, string) {
 
 // storeScanResults saves scan results to database
 func storeScanResults(result *scanners.AggregatedScanResult, scenarioName string) {
-
 	if db == nil {
 		return
 	}
@@ -815,7 +814,6 @@ func storeScanResults(result *scanners.AggregatedScanResult, scenarioName string
 			updated_at = NOW()
 		RETURNING id
 	`, uuid.New(), scenarioName, result.ScannedPath).Scan(&scenarioID)
-
 	if err != nil {
 		logger.Error("Failed to upsert scenario", err)
 		return
@@ -833,7 +831,6 @@ func storeScanResults(result *scanners.AggregatedScanResult, scenarioName string
 			finding.Category, finding.Title, finding.Description,
 			finding.FilePath, finding.LineNumber, finding.CodeSnippet,
 			finding.Recommendation, "open")
-
 		if err != nil {
 			logger.Error("Failed to store vulnerability", err)
 		}
@@ -854,7 +851,6 @@ func storeScanResults(result *scanners.AggregatedScanResult, scenarioName string
 	`, uuid.New(), scenarioID, result.ScanType, "completed",
 		string(resultsSummary), int(result.Duration.Milliseconds()),
 		"api", result.StartTime, result.EndTime)
-
 	if err != nil {
 		logger.Error("Failed to record scan history", err)
 	}

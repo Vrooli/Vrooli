@@ -290,7 +290,11 @@ func BuildPrompt(cfg PromptConfig) string {
 }
 
 // GetScenarioPath returns the full path to a scenario directory.
-func GetScenarioPath(scenarioName string) string {
+// See fix.GetScenarioPath for the canonical implementation and docs.
+func GetScenarioPath(scenarioName string, scenarioPathOverride string) string {
+	if scenarioPathOverride != "" {
+		return scenarioPathOverride
+	}
 	repoRoot := os.Getenv("VROOLI_ROOT")
 	if repoRoot == "" {
 		repoRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")

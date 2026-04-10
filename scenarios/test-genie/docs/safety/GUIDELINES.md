@@ -387,21 +387,18 @@ run_isolated_test() {
 ```bash
 # Each test gets its own database
 setup_test_database() {
-    local test_db="testdb_${TEST_ID}"
+    local test_db_dir="${TMPDIR:-/tmp}/test-genie-${TEST_ID}"
+    local test_db_path="${test_db_dir}/test.db"
 
-    # Create isolated database
-    createdb "$test_db"
-
-    # Run migrations
-    psql -d "$test_db" -f schema.sql
+    mkdir -p "$test_db_dir"
 
     # Export for test use
-    export DATABASE_URL="postgresql://localhost/$test_db"
+    export SQLITE_PATH="$test_db_path"
 }
 
 # Cleanup only test database
 cleanup_test_database() {
-    dropdb --if-exists "testdb_${TEST_ID}"
+    rm -rf "${TMPDIR:-/tmp}/test-genie-${TEST_ID}"
 }
 ```
 

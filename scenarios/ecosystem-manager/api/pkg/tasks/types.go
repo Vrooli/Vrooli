@@ -81,14 +81,30 @@ type TaskItem struct {
 	UpdatedAt                   string         `json:"updated_at" yaml:"updated_at"`
 	Tags                        []string       `json:"tags" yaml:"tags"`
 	Notes                       string         `json:"notes" yaml:"notes"`
+	Origin                      *TaskOrigin    `json:"origin,omitempty" yaml:"origin,omitempty"`
 	Results                     map[string]any `json:"results" yaml:"results"`
 	ConsecutiveCompletionClaims float64        `json:"consecutive_completion_claims" yaml:"consecutive_completion_claims"`
 	ConsecutiveFailures         int            `json:"consecutive_failures" yaml:"consecutive_failures"`
 	ProcessorAutoRequeue        bool           `json:"processor_auto_requeue" yaml:"processor_auto_requeue"`
-	SteerMode                   string         `json:"steer_mode,omitempty" yaml:"steer_mode,omitempty"`                       // Optional manual steering mode when Auto Steer profile is not set
+	SteerSet                    []string       `json:"steer_set,omitempty" yaml:"steer_set,omitempty"`                         // Optional manual steering skill set when Auto Steer profile is not set
 	AutoSteerProfileID          string         `json:"auto_steer_profile_id,omitempty" yaml:"auto_steer_profile_id,omitempty"` // Auto Steer profile to use
+	SteeringQueue               [][]string     `json:"steering_queue,omitempty" yaml:"steering_queue,omitempty"`               // Ordered list of steering skill sets for queue steering
 	// Ephemeral prompt context (not persisted)
 	LatestOutputPath string `json:"-" yaml:"-"`
+}
+
+// TaskOrigin stores durable upstream provenance for tasks created from another
+// system such as swarm-manager. It intentionally stays small: the full source
+// contract lives at the referenced handoff files, while this block preserves the
+// minimum metadata needed by prompts, task inspection, and future loops.
+type TaskOrigin struct {
+	Source                 string `json:"source,omitempty" yaml:"source,omitempty"`
+	BacklogItem            string `json:"backlog_item,omitempty" yaml:"backlog_item,omitempty"`
+	ItemFolder             string `json:"item_folder,omitempty" yaml:"item_folder,omitempty"`
+	HandoffDir             string `json:"handoff_dir,omitempty" yaml:"handoff_dir,omitempty"`
+	HandoffBriefPath       string `json:"handoff_brief_path,omitempty" yaml:"handoff_brief_path,omitempty"`
+	HandoffManifestPath    string `json:"handoff_manifest_path,omitempty" yaml:"handoff_manifest_path,omitempty"`
+	HandoffSourceIndexPath string `json:"handoff_source_index_path,omitempty" yaml:"handoff_source_index_path,omitempty"`
 }
 
 // OperationConfig represents configuration for each operation type

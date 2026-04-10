@@ -24,7 +24,7 @@ const SubflowNode: FC<NodeProps> = ({ selected, id }) => {
     if (!workflows || workflows.length === 0) {
       void loadWorkflows().catch(() => undefined);
     }
-  }, [workflows?.length, loadWorkflows]);
+  }, [workflows, workflows?.length, loadWorkflows]);
 
   const sortedWorkflows = useMemo(() => {
     if (!workflows || workflows.length === 0) {

@@ -12,6 +12,8 @@
 
 set -euo pipefail
 
+trap 'true' EXIT
+
 # Configuration
 SCRIPT_NAME="service-config-validator"
 OUTPUT_DIR="../results/$(date +%Y%m%d_%H%M%S)_${SCRIPT_NAME}"

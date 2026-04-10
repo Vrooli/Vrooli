@@ -10,7 +10,7 @@ import (
 func (a *App) cmdListDrafts(args []string) error {
 	fs := flag.NewFlagSet("list-drafts", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

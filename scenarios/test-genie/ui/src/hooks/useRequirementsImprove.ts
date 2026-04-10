@@ -113,7 +113,12 @@ export function useRequirementsImproveDetails(
 ) {
   return useQuery<RequirementsImproveRecord>({
     queryKey: ["requirements-improve", scenarioName, improveId],
-    queryFn: () => fetchRequirementsImprove(scenarioName, improveId!),
+    queryFn: () => {
+      if (!improveId) {
+        throw new Error("improveId is required");
+      }
+      return fetchRequirementsImprove(scenarioName, improveId);
+    },
     enabled: !!scenarioName && !!improveId,
     refetchInterval: (query) => {
       const data = query.state.data;

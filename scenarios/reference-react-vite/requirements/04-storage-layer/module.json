@@ -1,0 +1,130 @@
+{
+  "description": "PostgreSQL integration with repository pattern: clear separation between handlers (orchestrate) and data access (repository). Schema initialization via migration files. Environment-variable-driven connection configuration.",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "children": [
+        "REQ-P0-004a",
+        "REQ-P0-004b"
+      ],
+      "description": "Complete storage layer implementation with PostgreSQL and repository pattern.",
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "passed",
+      "title": "Storage Layer"
+    },
+    {
+      "category": "api",
+      "children": [
+        "REQ-P0-004a-1",
+        "REQ-P0-004a-2"
+      ],
+      "description": "Implement data access layer using repository pattern with clear separation from business logic handlers.",
+      "id": "REQ-P0-004a",
+      "prd_ref": "OT-P0-004",
+      "status": "passed",
+      "title": "PostgreSQL Repository Pattern"
+    },
+    {
+      "category": "api",
+      "description": "Repository interfaces define contracts for data access.",
+      "id": "REQ-P0-004a-1",
+      "prd_ref": "OT-P0-004",
+      "status": "passed",
+      "title": "Repository Interface Contracts",
+      "validation": [
+        {
+          "notes": "Test repository interface contracts and behavior in isolation",
+          "phase": "unit",
+          "ref": "api/repository/repository_test.go",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Verify handler-repository separation - handlers use repository interfaces",
+          "phase": "unit",
+          "ref": "api/repository/repository.go",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "PostgreSQL implementations for all repository interfaces.",
+      "id": "REQ-P0-004a-2",
+      "prd_ref": "OT-P0-004",
+      "status": "passed",
+      "title": "PostgreSQL Repository Implementations",
+      "validation": [
+        {
+          "notes": "Repository implementations for tasks domain",
+          "phase": "integration",
+          "ref": "api/repository/tasks_postgres.go",
+          "status": "passed",
+          "type": "structural"
+        },
+        {
+          "notes": "Repository implementations for projects domain",
+          "phase": "integration",
+          "ref": "api/repository/projects_postgres.go",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "children": [
+        "REQ-P0-004b-1",
+        "REQ-P0-004b-2"
+      ],
+      "dependencies": [
+        "REQ-P0-004a"
+      ],
+      "description": "Implement database schema management using versioned migration files with up/down migrations.",
+      "id": "REQ-P0-004b",
+      "prd_ref": "OT-P0-004",
+      "status": "passed",
+      "title": "Database Migration System"
+    },
+    {
+      "category": "api",
+      "description": "Idempotent schema with CREATE IF NOT EXISTS pattern.",
+      "id": "REQ-P0-004b-1",
+      "prd_ref": "OT-P0-004",
+      "status": "passed",
+      "title": "Idempotent Schema",
+      "validation": [
+        {
+          "notes": "Schema file with proper structure and CREATE IF NOT EXISTS for idempotency",
+          "phase": "unit",
+          "ref": "initialization/postgres/schema.sql",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Schema documentation and lifecycle integration.",
+      "id": "REQ-P0-004b-2",
+      "prd_ref": "OT-P0-004",
+      "status": "passed",
+      "title": "Schema Documentation",
+      "validation": [
+        {
+          "notes": "All schema changes tracked in initialization files",
+          "phase": "business",
+          "ref": "docs/reference/data-model.md",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    }
+  ],
+  "title": "Storage Layer"
+}

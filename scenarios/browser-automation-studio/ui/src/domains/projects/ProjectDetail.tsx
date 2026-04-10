@@ -6,9 +6,9 @@ import toast from "react-hot-toast";
 import { selectors } from "@constants/selectors";
 import type { Project } from "./store";
 import { useProjectStore } from "./store";
-import type { Workflow } from "@stores/workflowStore";
-import { useConfirmDialog } from "@hooks/useConfirmDialog";
-import { ConfirmDialog } from "@shared/ui";
+import type { WorkflowWithStats } from "./hooks/useProjectDetailStore";
+import { useDeleteProjectDialog } from "@hooks/useDeleteProjectDialog";
+import { DeleteProjectDialog } from "@shared/ui/DeleteProjectDialog";
 import ProjectModal from "./ProjectModal";
 
 // New decomposed components
@@ -19,10 +19,18 @@ import { WorkflowCardGrid } from "./WorkflowCardGrid";
 import { ProjectFileTree } from "./ProjectFileTree";
 import { useProjectDetailStore } from "./hooks/useProjectDetailStore";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const pickString = (record: Record<string, unknown>, key: string): string | undefined => {
+  const value = record[key];
+  return typeof value === "string" ? value : undefined;
+};
+
 interface ProjectDetailProps {
   project: Project;
   onBack: () => void;
-  onWorkflowSelect: (workflow: Workflow) => Promise<void>;
+  onWorkflowSelect: (workflow: WorkflowWithStats) => Promise<void>;
   onCreateWorkflow: () => void;
   onCreateWorkflowDirect?: () => void;
   onStartRecording?: () => void;
@@ -74,10 +82,11 @@ function ProjectDetail({
 
   // Dialog hook for delete project confirmation
   const {
-    dialogState: confirmDialogState,
-    confirm: requestConfirm,
-    close: closeConfirmDialog,
-  } = useConfirmDialog();
+    dialogState: deleteDialogState,
+    confirm: requestDeleteConfirm,
+    setDeleteFiles,
+    close: closeDeleteDialog,
+  } = useDeleteProjectDialog();
 
   // Initialize store when project changes
   useEffect(() => {
@@ -106,20 +115,18 @@ function ProjectDetail({
 
   // Handle delete project
   const handleDeleteProject = useCallback(async () => {
-    const confirmed = await requestConfirm({
-      title: "Delete project?",
-      message:
-        "Delete this project and all associated workflows? This cannot be undone.",
-      confirmLabel: "Delete Project",
-      cancelLabel: "Cancel",
-      danger: true,
+    const result = await requestDeleteConfirm({
+      projectName: project.name,
     });
-    if (!confirmed) return;
+    if (!result.confirmed) return;
 
     setIsDeletingProject(true);
     try {
-      await deleteProject(project.id);
-      toast.success("Project deleted successfully");
+      await deleteProject(project.id, result.deleteFiles);
+      const message = result.deleteFiles
+        ? "Project and files deleted successfully"
+        : "Project removed successfully";
+      toast.success(message);
       onBack();
     } catch (error) {
       logger.error(
@@ -128,6 +135,7 @@ function ProjectDetail({
           component: "ProjectDetail",
           action: "handleDeleteProject",
           projectId: project.id,
+          deleteFiles: result.deleteFiles,
         },
         error,
       );
@@ -135,7 +143,7 @@ function ProjectDetail({
     } finally {
       setIsDeletingProject(false);
     }
-  }, [project.id, deleteProject, onBack, requestConfirm, setIsDeletingProject]);
+  }, [project.id, project.name, deleteProject, onBack, requestDeleteConfirm, setIsDeletingProject]);
 
   // Handle recording import
   const handleImportRecording = useCallback(
@@ -159,17 +167,22 @@ function ProjectDetail({
         if (!response.ok) {
           const text = await response.text();
           try {
-            const payload = JSON.parse(text);
-            const message =
-              payload.message || payload.error || "Failed to import recording";
+            const payload: unknown = JSON.parse(text);
+            const message = isRecord(payload)
+              ? pickString(payload, "message")
+                ?? pickString(payload, "error")
+                ?? "Failed to import recording"
+              : "Failed to import recording";
             throw new Error(message);
           } catch {
             throw new Error(text || "Failed to import recording");
           }
         }
 
-        const payload = await response.json();
-        const executionId = payload.execution_id || payload.executionId;
+        const payload: unknown = await response.json();
+        const executionId = isRecord(payload)
+          ? pickString(payload, "execution_id") ?? pickString(payload, "executionId")
+          : undefined;
         toast.success(
           `Recording imported${executionId ? ` (execution ${executionId})` : ""}.`,
         );
@@ -280,7 +293,11 @@ function ProjectDetail({
       )}
 
       {/* Delete Project Confirmation Dialog */}
-      <ConfirmDialog state={confirmDialogState} onClose={closeConfirmDialog} />
+      <DeleteProjectDialog
+        state={deleteDialogState}
+        onDeleteFilesChange={setDeleteFiles}
+        onClose={closeDeleteDialog}
+      />
     </>
   );
 }

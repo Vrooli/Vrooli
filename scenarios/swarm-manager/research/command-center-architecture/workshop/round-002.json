@@ -1,0 +1,122 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-09T18:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 2,
+    "approach_solid": 2,
+    "testable": 1,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "LPBS already has a `requireAdminOrService` middleware (auth.go:404) that validates Bearer tokens via `usageService.ValidateServiceToken()`. This is the established inter-scenario auth pattern — used by scenario-to-desktop and other callers. The command-center API should use this same service token pattern to call new LPBS dashboard endpoints. No new auth infrastructure needed."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Prompt-manager's R3F setup (WorldCanvas.tsx) uses a single Canvas with tier-aware quality settings: adaptive DPR (1 to 2), shadow toggling, material quality tiers (basic/standard/physical), LOD system based on distance, and a PerformanceMonitor that auto-downgrades graphics tier on frame drops. Key patterns to reuse: asset disposal hooks (useAssetDisposal), shared geometry/material caching at module level, frameloop demand mode at low FPS. Post-processing (Bloom, Vignette) is currently disabled due to compatibility issues."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "LPBS MetricsService already provides GetAnalyticsSummary() and GetVariantStats() (metrics_service.go) returning visitor counts, download counts, CTA CTR, and per-variant conversion rates with time range filtering. These could back new dashboard-specific endpoints without rewriting query logic — wrap existing service methods with new handlers that shape data for command-center consumption."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "The gap-tracking execute item (command-center-gap-tracking-system) specifies a comprehensive initial gap inventory across all 6 dashboards. The file-based metric registry approach (per user's storage-steer reference) means gap definitions live in JSON config files loaded at startup, not hard-coded Go structs. This enables the Director Swarm to update gap status without recompiling the API."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "R3F Canvas architecture per dashboard page",
+      "context": "With R3F selected for visual effects and 6 completely different themed scenes, there's an architectural choice about WebGL context management. Prompt-manager uses a single persistent Canvas for its world. But the command-center has 6 distinct 3D environments (star fields, ocean bioluminescence, forge particles, nebula, etc.) that share nothing visually. WebGL contexts are limited resources — browsers cap at ~8-16 concurrent contexts.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Per-page Canvas with lazy mount/unmount",
+          "rationale": "Each page mounts its own R3F Canvas when navigated to, unmounts when leaving. Only 1 WebGL context active at a time. Simplest theme isolation — each scene is fully independent. Downside: brief flash/loading on page transition as new Canvas initializes (~100-200ms).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Single persistent Canvas with scene switching",
+          "rationale": "One Canvas stays mounted, scenes swap inside it. Smoother transitions possible (crossfade via render targets). But requires careful cleanup of materials/geometries between scenes, shared state management, and more complex code. Like prompt-manager but with 6 different worlds."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "LPBS new endpoint design pattern for command-center consumption",
+      "context": "User chose REST endpoints (option B from round 1) over direct DB access. LPBS needs new endpoints that the command-center API can call. The question is how to organize these: as a new route group specifically for inter-scenario consumption, or as additions to existing admin routes.",
+      "options": [
+        {
+          "key": "A",
+          "label": "New /api/v1/service/dashboard/* route group on LPBS",
+          "rationale": "Dedicated inter-scenario endpoints protected by requireAdminOrService. Clean separation from admin UI routes. Endpoints return pre-aggregated dashboard-ready payloads (subscriber counts by tier, revenue summary, analytics summary). Command-center calls these directly.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Reuse existing admin endpoints with service token",
+          "rationale": "Many admin endpoints already return the needed data (bundles, analytics summary, subscriptions). Just ensure they accept service bearer tokens. Less LPBS code to write, but command-center must make many small calls and aggregate itself."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Page transition strategy during auto-cycle with R3F",
+      "context": "The kiosk auto-cycle rotates between 6 themed dashboards every 30s-5min. Each page has both a 2D overlay (charts, KPIs via Recharts) and a 3D background (R3F particles/effects). The transition between pages needs to feel smooth on a TV display, not jarring. The kiosk UX spec calls for 'smooth animated transitions' and 'cross-fade respecting theme boundaries'.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Fade-through-black transition",
+          "rationale": "Current page fades to black (0.5s), unmount old scene, mount new scene, fade in from black (0.5s). Simple, reliable, hides any WebGL context initialization. Cinematic feel. Each theme gets a clean entrance.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Slide/wipe transition (2D overlay only)",
+          "rationale": "2D chart overlay slides while 3D background does a quick crossfade. More dynamic feel, but requires careful coordination between R3F and DOM layers."
+        },
+        {
+          "key": "C",
+          "label": "Portal/zoom transition",
+          "rationale": "Current scene zooms out/fades while new scene zooms in. Dramatic effect, but complex to implement and may cause frame drops during simultaneous render of two scenes."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    }
+  ],
+  "plan_updates": "Updated conclusion.md with settled decisions from round 1 (REST endpoints for LPBS, R3F + Recharts, API-side file-based metric registry, per-source TTLs). Added new findings on LPBS inter-scenario auth pattern, prompt-manager R3F patterns, existing LPBS analytics services, and gap registry file storage approach. Expanded Actions section with concrete next steps."
+}

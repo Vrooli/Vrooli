@@ -13,7 +13,17 @@ import (
 	"github.com/vrooli/api-core/preflight"
 )
 
-var logger *log.Logger
+var (
+	logger        *log.Logger
+	healthHandler = newHealthHandler()
+)
+
+func newHealthHandler() http.HandlerFunc {
+	return health.New(serviceName).
+		Version(apiVersion).
+		Check(health.Func("storage", storageHealthCheck), health.Optional).
+		Handler()
+}
 
 func main() {
 	// Preflight checks - must be first, before any initialization
@@ -82,7 +92,7 @@ func main() {
 
 	// Health endpoint using api-core/health for standardized response format
 	// No database check since visited-tracker uses file-based storage
-	r.HandleFunc("/health", health.Handler()).Methods("GET")
+	r.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// Campaign management endpoints
 	v1.HandleFunc("/campaigns", listCampaignsHandler).Methods("GET")

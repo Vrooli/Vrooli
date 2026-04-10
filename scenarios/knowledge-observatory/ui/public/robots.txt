@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://vrooli.com/knowledge-observatory/sitemap.xml

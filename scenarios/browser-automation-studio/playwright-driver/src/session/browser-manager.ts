@@ -214,8 +214,9 @@ export class BrowserManager {
    */
   async shutdown(): Promise<void> {
     if (this.browser) {
-      await this.browser.close().catch((err) => {
-        logger.warn('Failed to close browser', { error: err.message });
+      await this.browser.close().catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.warn('Failed to close browser', { error: message });
         metrics.cleanupFailures.inc({ operation: 'browser_close' });
       });
       this.browser = null;

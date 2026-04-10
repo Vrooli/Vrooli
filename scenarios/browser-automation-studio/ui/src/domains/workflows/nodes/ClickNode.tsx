@@ -238,6 +238,10 @@ const ClickNode: FC<NodeProps> = ({ selected, id }) => {
             ? payload.selectedIndex
             : 0;
         const chosen = candidates[preferredIndex] ?? candidates[0];
+        if (!chosen) {
+          toast.error('No selector found at that position');
+          return;
+        }
         const bestSelector = deriveSelector(chosen);
 
         if (!bestSelector) {

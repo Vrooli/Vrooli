@@ -29,57 +29,55 @@ func InjectSteeringSection(prompt string, steeringSection string) string {
 
 // PromptEnhancer generates mode-specific prompt enhancements for Auto Steer
 type PromptEnhancer struct {
-	modeInstructions *ModeInstructions
+	promptLoader *PromptLoader
 }
 
-// NewPromptEnhancer creates a new prompt enhancer
-func NewPromptEnhancer(phasesDir string) *PromptEnhancer {
+// NewPromptEnhancer creates a new prompt enhancer.
+// Does not fail if prompt-manager unavailable - operates in degraded mode.
+func NewPromptEnhancer() *PromptEnhancer {
 	return &PromptEnhancer{
-		modeInstructions: NewModeInstructions(phasesDir),
+		promptLoader: NewPromptLoader(nil),
 	}
 }
 
-// GenerateModeSection renders a standalone section for a specific mode (no Auto Steer framing).
-func (p *PromptEnhancer) GenerateModeSection(mode SteerMode) string {
+// IsAvailable returns whether prompt-manager is reachable.
+func (p *PromptEnhancer) IsAvailable() bool {
+	if p == nil || p.promptLoader == nil {
+		return false
+	}
+	return p.promptLoader.IsAvailable()
+}
+
+// GetPromptLoader returns the underlying prompt loader for external access.
+// This allows handlers to access cached skills and other prompt loader functionality.
+func (p *PromptEnhancer) GetPromptLoader() *PromptLoader {
+	if p == nil {
+		return nil
+	}
+	return p.promptLoader
+}
+
+// GenerateSkillSetSection renders a standalone section for a steering skill set.
+// XML content is sourced from prompt-manager via api-core discovery through PromptLoader.
+func (p *PromptEnhancer) GenerateSkillSetSection(skillIDs []string, withScope bool, scope string) string {
 	if p == nil {
 		return ""
 	}
-	return p.renderModeContent(mode)
-}
-
-// renderModeContent returns the markdown for a mode with success criteria and tools appended.
-func (p *PromptEnhancer) renderModeContent(mode SteerMode) string {
-	data, err := p.modeInstructions.loadPrompt(mode)
+	if len(skillIDs) == 0 {
+		return ""
+	}
+	combined, err := p.promptLoader.ReadSkillsWithScope(skillIDs, withScope, scope)
 	if err != nil {
-		return fmt.Sprintf("Auto Steer instructions unavailable for %s: %v", mode, err)
+		return ""
 	}
-
-	var b strings.Builder
-
-	b.WriteString(strings.TrimSpace(data.Instructions))
-
-	if len(data.SuccessCriteria) > 0 {
-		b.WriteString("\n\n**Success Criteria:**\n")
-		for _, criterion := range data.SuccessCriteria {
-			b.WriteString(fmt.Sprintf("- %s\n", criterion))
-		}
-	}
-
-	if len(data.ToolRecommendations) > 0 {
-		b.WriteString("\n**Recommended Tools:**\n")
-		for _, tool := range data.ToolRecommendations {
-			b.WriteString(fmt.Sprintf("- %s\n", tool))
-		}
-	}
-
-	return strings.TrimSpace(b.String())
+	return strings.TrimSpace(combined)
 }
 
 // GenerateAutoSteerSection generates the Auto Steer section for agent prompts
 func (p *PromptEnhancer) GenerateAutoSteerSection(
 	state *ProfileExecutionState,
 	profile *AutoSteerProfile,
-	evaluator *ConditionEvaluator,
+	evaluator ConditionEvaluatorAPI,
 ) string {
 	if state == nil || profile == nil {
 		return ""
@@ -90,14 +88,15 @@ func (p *PromptEnhancer) GenerateAutoSteerSection(
 	}
 
 	currentPhase := profile.Phases[state.CurrentPhaseIndex]
+	currentSkillIDs := currentPhase.SkillIDs
 
 	var output strings.Builder
 
-	// Mode-specific instructions first (phase markdown owns the heading)
-	modeContent := p.renderModeContent(currentPhase.Mode)
-	if strings.TrimSpace(modeContent) != "" {
+	// Skill-set instructions first.
+	skillContent := p.GenerateSkillSetSection(currentSkillIDs, currentPhase.WithScope, currentPhase.Scope)
+	if strings.TrimSpace(skillContent) != "" {
 		output.WriteString("\n")
-		output.WriteString(modeContent)
+		output.WriteString(skillContent)
 		output.WriteString("\n\n")
 	}
 
@@ -109,7 +108,7 @@ func (p *PromptEnhancer) GenerateAutoSteerSection(
 	// Stop conditions with progress
 	if len(currentPhase.StopConditions) > 0 {
 		output.WriteString("**Stop Conditions:**\n\n")
-		output.WriteString(p.modeInstructions.FormatConditionProgress(
+		output.WriteString(p.promptLoader.FormatConditionProgress(
 			currentPhase.StopConditions,
 			state.Metrics,
 			evaluator,
@@ -125,7 +124,7 @@ func (p *PromptEnhancer) GenerateAutoSteerSection(
 		for i, phaseExec := range state.PhaseHistory {
 			output.WriteString(fmt.Sprintf("**Phase %d: %s** (%d iterations)\n",
 				i+1,
-				strings.ToUpper(string(phaseExec.Mode)),
+				phaseExec.SkillName,
 				phaseExec.Iterations,
 			))
 
@@ -214,7 +213,7 @@ func (p *PromptEnhancer) getKeyImprovements(phaseExec PhaseExecution) []string {
 func (p *PromptEnhancer) formatImprovement(metric string, delta float64) string {
 	// Format metric name nicely
 	metricName := strings.ReplaceAll(metric, "_", " ")
-	metricName = strings.Title(metricName)
+	metricName = titleize(metricName)
 
 	// Format delta with sign and appropriate precision
 	sign := "+"
@@ -256,12 +255,12 @@ You have completed the **%s** phase and are now entering the **%s** phase.
 
 Continue building on the work from previous phases while focusing on the new objectives.
 `,
-		strings.ToUpper(string(oldPhase.Mode)),
-		strings.ToUpper(string(newPhase.Mode)),
+		oldPhase.SkillName,
+		newPhase.SkillName,
 		phaseNumber,
 		totalPhases,
-		strings.ToUpper(string(oldPhase.Mode)),
-		p.modeInstructions.GetInstructions(newPhase.Mode),
+		oldPhase.SkillName,
+		p.GenerateSkillSetSection(newPhase.SkillIDs, newPhase.WithScope, newPhase.Scope),
 	)
 }
 
@@ -279,7 +278,7 @@ func (p *PromptEnhancer) GenerateCompletionMessage(profile *AutoSteerProfile, st
 	for i, phaseExec := range state.PhaseHistory {
 		output.WriteString(fmt.Sprintf("**Phase %d: %s**\n",
 			i+1,
-			strings.ToUpper(string(phaseExec.Mode)),
+			phaseExec.SkillName,
 		))
 		output.WriteString(fmt.Sprintf("- Iterations: %d\n", phaseExec.Iterations))
 		output.WriteString(fmt.Sprintf("- Stop Reason: %s\n", phaseExec.StopReason))

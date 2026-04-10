@@ -1,0 +1,81 @@
+{
+  "round": 2,
+  "generated_at": "2026-03-30T21:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 3,
+    "problem_clarity": 3,
+    "risk_awareness": 3,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Verified current codebase state: FAB is z-30 with bottom calc(5rem + env(safe-area-inset-bottom)) in floating-action-button.tsx. Sidebar \u003caside\u003e is z-30 in Sidebar.tsx. Other z-40 consumers (FloatingPanel, detail overlay, GraphHelpPanel) are spatially separated from the sidebar on desktop, and on mobile the sidebar goes full-screen so overlap is irrelevant."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The sidebar already has a responsive right-offset on the FAB (md:right-[21.5rem]) when open on desktop. After raising sidebar to z-40, this offset becomes cosmetic rather than essential — the sidebar will cover the FAB regardless. The offset can be kept for visual polish or removed in a future cleanup."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Verification approach",
+      "context": "This is a pure CSS fix (2 lines across 2 files). The changes are visual and don't affect component logic. We need to decide how to verify correctness.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Manual visual verification only",
+          "rationale": "Since these are purely visual CSS changes (z-index and position), automated tests would just assert class names which is brittle and low-value. Manual check across desktop/mobile viewports is sufficient.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add snapshot/unit tests for z-index classes",
+          "rationale": "Would catch accidental regressions to z-index values, but is fragile — any Tailwind class reordering breaks the test. Maintenance cost likely exceeds value for a 2-line change."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own verification approach."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Keep or remove FAB right-offset when sidebar is open",
+      "context": "The FAB currently shifts right via md:right-[21.5rem] when sidebar is open (passed as className prop by the parent). After raising sidebar to z-40, the sidebar will cover the FAB anyway, making this offset unnecessary. However, if the sidebar is ever made semi-transparent or the z-index changes again, the offset provides a safety net.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Keep the right-offset as-is (no change)",
+          "rationale": "Don't touch what we don't need to. The offset is harmless and provides defense-in-depth. Keeps this fix minimal.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Remove the right-offset since sidebar now covers FAB",
+          "rationale": "Cleaner code — removes a now-unnecessary responsive class. But increases scope and removes a useful fallback."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach."
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "This plan appears ready for execution. All dimensions are at 2+ and the implementation is a straightforward 2-line CSS change with clear before/after states. Consider reviewing and queuing after resolving the two remaining decisions."
+    }
+  ],
+  "plan_updates": "Incorporated round 1 decisions into plan: sidebar raised to z-40, FAB bottom reduced from 5rem to 3rem. Added 'Accepted Decisions' section, detailed implementation steps, updated z-index hierarchy table to show target state, and expanded risk table with severity/mitigation columns."
+}

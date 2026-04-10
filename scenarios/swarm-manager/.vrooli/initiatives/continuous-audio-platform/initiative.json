@@ -1,0 +1,19 @@
+{
+  "name": "continuous-audio-platform",
+  "title": "Continuous Audio Platform",
+  "description": "Extract web-console audio into a shared audio-tools scenario with provider routing (local/API/LPBS), fix current reliability issues, and integrate into swarm-manager and agent-manager for hands-free mobile interaction.",
+  "status": "active",
+  "items": [
+    "research/audio-provider-routing-contract",
+    "research/audio-tools-shared-scenario-contract",
+    "fix/web-console-vad-false-silence",
+    "fix/web-console-tts-summarization-bug",
+    "execute/web-console-audio-test-hardening",
+    "execute/audio-tools-greenfield-scenario",
+    "execute/web-console-adopt-audio-tools",
+    "execute/swarm-manager-adopt-audio-tools",
+    "execute/agent-manager-adopt-audio-tools"
+  ],
+  "created": "2026-03-26T20:54:35Z",
+  "updated": "2026-03-26T20:54:35Z"
+}

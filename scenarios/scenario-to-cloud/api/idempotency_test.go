@@ -42,7 +42,7 @@ func TestCaddyConfigIdempotency(t *testing.T) {
 		},
 		{
 			name:                "skip when content matches",
-			currentCaddyContent: "example.com {\n  reverse_proxy 127.0.0.1:3000\n}",
+			currentCaddyContent: "{\n  acme_ca https://acme-v02.api.letsencrypt.org/directory\n}\nexample.com {\n  reverse_proxy 127.0.0.1:3000\n}",
 			desiredDomain:       "example.com",
 			desiredPort:         3000,
 			expectWrite:         false,
@@ -50,7 +50,7 @@ func TestCaddyConfigIdempotency(t *testing.T) {
 		},
 		{
 			name:                "write when domain differs",
-			currentCaddyContent: "old-domain.com {\n  reverse_proxy 127.0.0.1:3000\n}",
+			currentCaddyContent: "{\n  acme_ca https://acme-v02.api.letsencrypt.org/directory\n}\nold-domain.com {\n  reverse_proxy 127.0.0.1:3000\n}",
 			desiredDomain:       "example.com",
 			desiredPort:         3000,
 			expectWrite:         true,
@@ -58,7 +58,7 @@ func TestCaddyConfigIdempotency(t *testing.T) {
 		},
 		{
 			name:                "write when port differs",
-			currentCaddyContent: "example.com {\n  reverse_proxy 127.0.0.1:8080\n}",
+			currentCaddyContent: "{\n  acme_ca https://acme-v02.api.letsencrypt.org/directory\n}\nexample.com {\n  reverse_proxy 127.0.0.1:8080\n}",
 			desiredDomain:       "example.com",
 			desiredPort:         3000,
 			expectWrite:         true,
@@ -85,7 +85,7 @@ func TestCaddyConfigIdempotency(t *testing.T) {
 
 			// Simulate the idempotent Caddy config logic
 			currentContent := strings.TrimSpace(tt.currentCaddyContent)
-			desiredCaddyfile := vps.BuildCaddyfile(tt.desiredDomain, tt.desiredPort)
+			desiredCaddyfile := vps.BuildCaddyfile(tt.desiredDomain, tt.desiredPort, vps.CaddyTLSConfig{})
 			desiredContent := strings.TrimSpace(desiredCaddyfile)
 
 			needsWrite := currentContent != desiredContent
@@ -105,14 +105,14 @@ func TestBuildCaddyfileDeterministic(t *testing.T) {
 	domain := "example.com"
 	port := 3000
 
-	first := vps.BuildCaddyfile(domain, port)
-	second := vps.BuildCaddyfile(domain, port)
+	first := vps.BuildCaddyfile(domain, port, vps.CaddyTLSConfig{})
+	second := vps.BuildCaddyfile(domain, port, vps.CaddyTLSConfig{})
 
 	if first != second {
 		t.Errorf("buildCaddyfile not deterministic:\n  First: %q\n  Second: %q", first, second)
 	}
 
-	expected := "example.com {\n  reverse_proxy 127.0.0.1:3000\n}"
+	expected := "{\n  acme_ca https://acme-v02.api.letsencrypt.org/directory\n}\nexample.com {\n  reverse_proxy 127.0.0.1:3000\n}"
 	if first != expected {
 		t.Errorf("vps.BuildCaddyfile(%q, %d) = %q, want %q", domain, port, first, expected)
 	}

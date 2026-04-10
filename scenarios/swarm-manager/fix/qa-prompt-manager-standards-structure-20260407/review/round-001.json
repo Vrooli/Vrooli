@@ -1,0 +1,54 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-08T01:45:00Z",
+  "execution_id": "8eb1397de6fd4cee",
+  "status": "complete",
+  "agent_assessment": "All plan requirements are met. The CLI binary was successfully rebuilt as cli/prompt-manager (ELF 64-bit Go executable). The old cli/pm binary has been removed. Git shows the change staged as a rename (pm -> prompt-manager). The binary runs correctly (--help exits 0, prints expected usage). The scenario-auditor standards audit confirms zero 'required-structure' violations remain for prompt-manager. The remaining 161 violations (prd-linkage, stack-governance, type-safety) are pre-existing and explicitly out of scope for this backlog item.",
+  "classification": "ready",
+  "notes": [
+    "Git tracks the change as a rename (R scenarios/prompt-manager/cli/pm -> scenarios/prompt-manager/cli/prompt-manager), preserving history",
+    "install.sh already used --name 'prompt-manager', so no installer changes were needed",
+    "161 other standards violations remain but are all out-of-scope (prd-linkage, stack-governance, type-safety)"
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "type": "cli_output",
+      "title": "prompt-manager binary exists, is executable, and runs correctly",
+      "description": "Verified cli/prompt-manager is an ELF 64-bit Go executable that exits 0 on --help and prints expected CLI usage output",
+      "capture_path": "captures/cli-help-output.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "Binary exists and is executable", "passed": true, "output_summary": "test -x cli/prompt-manager → PASS"},
+        {"name": "Binary is correct file type", "passed": true, "output_summary": "ELF 64-bit LSB executable, x86-64, Go BuildID present"},
+        {"name": "--help exits 0 and prints usage", "passed": true, "output_summary": "Prints 'prompt-manager CLI' header with commands and options"}
+      ]
+    },
+    {
+      "id": "e2",
+      "type": "cli_output",
+      "title": "Old cli/pm binary removed",
+      "description": "Confirmed cli/pm no longer exists in the working tree. Git status shows staged rename from pm to prompt-manager.",
+      "verified": false,
+      "test_results": [
+        {"name": "Old binary does not exist", "passed": true, "output_summary": "test ! -f cli/pm → PASS"},
+        {"name": "Git tracks as rename", "passed": true, "output_summary": "git status shows: renamed: cli/pm -> cli/prompt-manager"}
+      ]
+    },
+    {
+      "id": "e3",
+      "type": "api_test",
+      "title": "scenario-auditor audit — no required-structure violations",
+      "description": "Ran scenario-auditor audit prompt-manager --standards-only. Filtered violations for rule_id 'required-structure' and got an empty array, confirming the specific violation this backlog item targeted is resolved.",
+      "verified": false,
+      "test_results": [
+        {"name": "Standards audit completes successfully", "passed": true, "output_summary": "Audit completed, found 161 violations (all pre-existing, none required-structure)"},
+        {"name": "No required-structure violations", "passed": true, "output_summary": "jq filter for rule_id=='required-structure' returns empty array []"},
+        {"name": "Remaining violations are out-of-scope", "passed": true, "output_summary": "All 161 violations are prd-linkage (critical/high), stack-governance (high), or type-safety (high) — explicitly excluded from this item's scope"}
+      ]
+    }
+  ],
+  "request_threads": [],
+  "improvement_suggestions": [],
+  "run_id": "78f35ce2-8e41-40b5-aaaa-95d3a11d0a6d"
+}

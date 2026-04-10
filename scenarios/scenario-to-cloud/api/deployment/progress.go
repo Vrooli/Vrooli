@@ -10,12 +10,15 @@ import (
 
 // Event represents a single progress update sent via SSE.
 type Event struct {
-	Type            string                    `json:"type"`                 // "step_started", "step_completed", "error", "completed", "progress_update"
-	Step            string                    `json:"step"`                 // Step ID (e.g., "upload", "setup")
-	StepTitle       string                    `json:"step_title,omitempty"` // Human-readable title
-	Progress        float64                   `json:"progress"`             // 0-100 percentage
-	Message         string                    `json:"message,omitempty"`    // Optional message
-	Error           string                    `json:"error,omitempty"`      // Error details if type is "error"
+	Type            string                    `json:"type"`                     // "step_started", "step_completed", "error", "completed", "progress_update"
+	Step            string                    `json:"step"`                     // Step ID (e.g., "upload", "setup")
+	StepTitle       string                    `json:"step_title,omitempty"`     // Human-readable title
+	Progress        float64                   `json:"progress"`                 // 0-100 percentage
+	Message         string                    `json:"message,omitempty"`        // Optional message
+	Error           string                    `json:"error,omitempty"`          // Error details if type is "error"
+	ErrorCategory   string                    `json:"error_category,omitempty"` // Machine-readable error category (e.g. "disk_full")
+	Retryable       bool                      `json:"retryable,omitempty"`      // Whether the error is retryable
+	Hint            string                    `json:"hint,omitempty"`           // Actionable recovery suggestion
 	PreflightResult *domain.PreflightResponse `json:"preflight_result,omitempty"`
 	Timestamp       string                    `json:"timestamp"` // ISO8601 timestamp
 }

@@ -24,6 +24,17 @@ export interface DocsManifest {
   sections: DocSection[];
 }
 
+function isDocsManifest(value: unknown): value is DocsManifest {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.version === "string" &&
+    typeof record.title === "string" &&
+    typeof record.defaultDocument === "string" &&
+    Array.isArray(record.sections)
+  );
+}
+
 async function fetchDocsManifest(): Promise<DocsManifest> {
   const url = buildApiUrl("/docs/manifest", { baseUrl: API_BASE });
   const res = await fetch(url, {
@@ -33,7 +44,11 @@ async function fetchDocsManifest(): Promise<DocsManifest> {
   if (!res.ok) {
     throw new Error(`Failed to fetch docs manifest: ${res.status}`);
   }
-  return res.json();
+  const data: unknown = await res.json();
+  if (!isDocsManifest(data)) {
+    throw new Error("Invalid docs manifest response");
+  }
+  return data;
 }
 
 async function fetchDocContent(path: string): Promise<string> {
@@ -45,8 +60,12 @@ async function fetchDocContent(path: string): Promise<string> {
   if (!res.ok) {
     throw new Error(`Failed to fetch doc content: ${res.status}`);
   }
-  const data = await res.json();
-  return data.content ?? "";
+  const data: unknown = await res.json();
+  if (!data || typeof data !== "object") {
+    return "";
+  }
+  const content = (data as Record<string, unknown>).content;
+  return typeof content === "string" ? content : "";
 }
 
 export function useDocsManifest() {

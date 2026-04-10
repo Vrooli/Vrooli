@@ -11,7 +11,7 @@
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start stop dev status test logs clean build fmt fmt-go fmt-ui lint lint-go lint-ui type check r s t l c b f
+.PHONY: help start stop dev status test logs clean build run fmt fmt-go fmt-ui lint lint-go lint-ui type check r s t l c b f
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -190,6 +190,7 @@ check: ## Format, lint, and test code (pre-commit workflow)
 	@$(MAKE) test
 
 # Development shortcuts
+run: start
 r: start
 s: stop
 t: test

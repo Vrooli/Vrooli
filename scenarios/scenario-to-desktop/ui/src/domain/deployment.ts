@@ -74,12 +74,27 @@ export const SERVER_TYPE_OPTIONS: ServerTypeOption[] = [
   }
 ];
 
+// Default options - always defined since arrays are not empty
+const DEFAULT_DEPLOYMENT_OPTION: DeploymentOption = DEPLOYMENT_OPTIONS[0] ?? {
+  value: "bundled",
+  label: "Unknown",
+  description: "Unknown deployment mode",
+  docs: "",
+};
+
+const DEFAULT_SERVER_TYPE_OPTION: ServerTypeOption = SERVER_TYPE_OPTIONS[0] ?? {
+  value: "external",
+  label: "Unknown",
+  description: "Unknown server type",
+  docs: "",
+};
+
 export function findDeploymentOption(mode?: string): DeploymentOption {
-  return DEPLOYMENT_OPTIONS.find((option) => option.value === mode) ?? DEPLOYMENT_OPTIONS[0];
+  return DEPLOYMENT_OPTIONS.find((option) => option.value === mode) ?? DEFAULT_DEPLOYMENT_OPTION;
 }
 
 export function findServerTypeOption(serverType?: string): ServerTypeOption {
-  return SERVER_TYPE_OPTIONS.find((option) => option.value === serverType) ?? SERVER_TYPE_OPTIONS[0];
+  return SERVER_TYPE_OPTIONS.find((option) => option.value === serverType) ?? DEFAULT_SERVER_TYPE_OPTION;
 }
 
 export function isBundledMode(mode?: string): mode is "bundled" {

@@ -6,6 +6,7 @@ import { SectionEditor } from './SectionEditor';
 import * as controller from '../controllers/sectionEditorController';
 import * as api from '../../../shared/api';
 import type { LandingConfigResponse } from '../../../shared/api';
+import { ToastProvider } from '../../../shared/ui/Toast';
 
 // Mock the controller module
 vi.mock('../controllers/sectionEditorController', () => ({
@@ -31,6 +32,25 @@ vi.mock('../../../app/providers/LandingVariantProvider', () => ({
     refresh: vi.fn(),
   }),
   LandingVariantProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+// Also mock the separate useLandingVariant hook file (used by RuntimeSignalStrip)
+vi.mock('../../../app/providers/useLandingVariant', () => ({
+  useLandingVariant: () => ({
+    variant: { slug: 'control', name: 'Control' },
+    config: { sections: [], downloads: [], fallback: false },
+    loading: false,
+    error: null,
+    resolution: 'api_select',
+    statusNote: null,
+    lastUpdated: Date.now(),
+    refresh: vi.fn(),
+  }),
+}));
+
+// Mock RuntimeSignalStrip to avoid context issues
+vi.mock('../components/RuntimeSignalStrip', () => ({
+  RuntimeSignalStrip: () => <div data-testid="runtime-signal-strip-mock">Runtime Signal Strip</div>,
 }));
 
 // Mock useParams
@@ -99,6 +119,15 @@ const mockLandingConfig: LandingConfigResponse = {
   },
   sections: [],
   downloads: [],
+  header: {
+    branding: { mode: 'logo_and_name', label: 'Test Variant', mobile_preference: 'auto' },
+    nav: { links: [] },
+    ctas: {
+      primary: { mode: 'inherit_hero', variant: 'solid' },
+      secondary: { mode: 'downloads', variant: 'ghost' },
+    },
+    behavior: { sticky: true, hide_on_scroll: false },
+  },
   fallback: false,
 };
 
@@ -113,13 +142,15 @@ describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
         { slug: 'test-variant', name: 'Test Variant', status: 'active' },
         { slug: 'compare-variant', name: 'Compare Variant', status: 'active' },
       ],
-    } as any);
+    });
   });
 
   const renderEditor = () => {
     return render(
       <BrowserRouter>
-        <SectionEditor />
+        <ToastProvider>
+          <SectionEditor />
+        </ToastProvider>
       </BrowserRouter>
     );
   };
@@ -196,10 +227,10 @@ describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
     });
 
     // Verify form fields are populated
-    const titleInput = screen.getByTestId('content-title-input') as HTMLInputElement;
+    const titleInput = (await screen.findByTestId('content-title-input')) as HTMLInputElement;
     expect(titleInput.value).toBe('Test Title');
 
-    const subtitleInput = screen.getByTestId('content-subtitle-input') as HTMLTextAreaElement;
+    const subtitleInput = (await screen.findByTestId('content-subtitle-input')) as HTMLTextAreaElement;
     expect(subtitleInput.value).toBe('Test Subtitle');
   });
 

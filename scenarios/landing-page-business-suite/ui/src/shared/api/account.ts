@@ -1,14 +1,19 @@
-import { fromJson } from '@bufbuild/protobuf';
-import { SubscriptionState, VerifySubscriptionResponseSchema } from '@proto-lprv/billing_pb';
+import { fromJson, type JsonValue, type DescMessage } from '@bufbuild/protobuf';
+import { SubscriptionState, VerifySubscriptionResponseSchema, type VerifySubscriptionResponse } from '@proto-lprv/billing_pb';
 import { apiCall } from './common';
+import { parseOrNull } from './safeParse';
+import {
+  SubscriptionInfoSchema,
+  CreditInfoSchema,
+  EntitlementPayloadSchema,
+} from './schemas/billing.schema';
 import type { CreditInfo, EntitlementPayload, SubscriptionInfo } from './types';
 
 export function getSubscriptionInfo() {
   return apiCall('/me/subscription').then((resp) => {
-    const message = fromJson(VerifySubscriptionResponseSchema, resp, {
+    const message = fromJson(VerifySubscriptionResponseSchema as DescMessage, resp as JsonValue, {
       ignoreUnknownFields: true,
-      protoFieldName: true,
-    });
+    }) as VerifySubscriptionResponse;
     const status = message.status;
     const mapState = (state?: SubscriptionState) => {
       switch (state) {
@@ -32,9 +37,13 @@ export function getSubscriptionInfo() {
       plan_tier: status?.planTier,
       price_id: status?.stripePriceId,
       bundle_key: status?.bundleKey,
-      updated_at: status?.cachedAt?.toJsonString(),
+      updated_at: status?.cachedAt?.toJsonString?.(),
     };
-    return subscription;
+    const validated = parseOrNull(SubscriptionInfoSchema, subscription, 'SubscriptionInfo');
+    if (!validated) {
+      throw new Error('Invalid subscription info response from API');
+    }
+    return validated;
   });
 }
 
@@ -59,7 +68,11 @@ export function getCreditInfo() {
       display_credits_label: resp?.display_credits_label ?? 'credits',
       display_credits_multiplier: resp?.display_credits_multiplier ?? 1,
     };
-    return credits;
+    const validated = parseOrNull(CreditInfoSchema, credits, 'CreditInfo');
+    if (!validated) {
+      throw new Error('Invalid credit info response from API');
+    }
+    return validated;
   });
 }
 
@@ -69,5 +82,11 @@ export function getEntitlements(userEmail?: string) {
     params.set('user', userEmail.trim());
   }
   const query = params.toString() ? `?${params.toString()}` : '';
-  return apiCall<EntitlementPayload>(`/entitlements${query}`);
+  return apiCall<EntitlementPayload>(`/entitlements${query}`).then((resp) => {
+    const validated = parseOrNull(EntitlementPayloadSchema, resp, 'EntitlementPayload');
+    if (!validated) {
+      throw new Error('Invalid entitlement payload response from API');
+    }
+    return validated;
+  });
 }

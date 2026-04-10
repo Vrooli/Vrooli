@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
-	"scenario-to-cloud/vps/preflight"
+	"scenario-to-cloud/vps/portparse"
 )
 
 // StopScenarioResult represents the result of stopping a scenario
@@ -37,10 +38,10 @@ func StopExistingScenario(
 	result := StopScenarioResult{OK: true}
 
 	// Step 1: Try vrooli scenario stop (if vrooli CLI exists)
-	checkCliResult, _ := sshRunner.Run(ctx, cfg, ssh.VrooliCommand(workdir, "which vrooli || echo notfound"))
+	checkCliResult, _ := sshRunner.Run(ctx, cfg, shellutil.VrooliCommand(workdir, "which vrooli || echo notfound"), ssh.DefaultRunOptions())
 	if !strings.Contains(checkCliResult.Stdout, "notfound") {
-		stopCmd := ssh.VrooliCommand(workdir, "vrooli scenario stop "+ssh.QuoteSingle(scenarioID))
-		stopResult, err := sshRunner.Run(ctx, cfg, stopCmd)
+		stopCmd := shellutil.VrooliCommand(workdir, "vrooli scenario stop "+shellutil.QuoteSingle(scenarioID))
+		stopResult, err := sshRunner.Run(ctx, cfg, stopCmd, ssh.DefaultRunOptions())
 		if err == nil && stopResult.ExitCode == 0 {
 			result.ScenarioStop = true
 		}
@@ -49,8 +50,8 @@ func StopExistingScenario(
 
 	// Step 2: Kill orphaned processes matching scenario ID
 	// This catches processes started outside the lifecycle (manual starts, debug sessions)
-	killOrphansCmd := fmt.Sprintf("pkill -f %s 2>/dev/null; true", ssh.QuoteSingle(scenarioID))
-	orphanResult, _ := sshRunner.Run(ctx, cfg, killOrphansCmd)
+	killOrphansCmd := fmt.Sprintf("pkill -f %s 2>/dev/null; true", shellutil.QuoteSingle(scenarioID))
+	orphanResult, _ := sshRunner.Run(ctx, cfg, killOrphansCmd, ssh.DefaultRunOptions())
 	if orphanResult.ExitCode == 0 {
 		result.OrphanKills++ // pkill returns 0 if it killed something
 	}
@@ -60,13 +61,13 @@ func StopExistingScenario(
 	for _, port := range targetPorts {
 		// Get PIDs on this port using ss
 		ssCmd := fmt.Sprintf("ss -tlnpH 'sport = :%d' 2>/dev/null || true", port)
-		ssResult, _ := sshRunner.Run(ctx, cfg, ssCmd)
-		pids := preflight.ExtractPIDsFromSS(ssResult.Stdout)
+		ssResult, _ := sshRunner.Run(ctx, cfg, ssCmd, ssh.DefaultRunOptions())
+		pids := portparse.ExtractPIDsFromSS(ssResult.Stdout)
 
 		for _, pid := range pids {
 			// Try graceful kill first, then SIGKILL as fallback
 			killCmd := fmt.Sprintf("kill %s 2>/dev/null && sleep 1 && ! kill -0 %s 2>/dev/null || kill -9 %s 2>/dev/null || true", pid, pid, pid)
-			if _, err := sshRunner.Run(ctx, cfg, killCmd); err != nil {
+			if _, err := sshRunner.Run(ctx, cfg, killCmd, ssh.DefaultRunOptions()); err != nil {
 				result.OK = false
 				if result.Error == "" {
 					result.Error = err.Error()

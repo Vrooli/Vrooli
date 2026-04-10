@@ -1,24 +1,32 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // IssueGeneratorConfig defines thresholds for issue generation
 type IssueGeneratorConfig struct {
-	LongFileThreshold     int     // Files with more lines than this generate issues (default: 500)
-	HighComplexityMax     int     // Max complexity above this generates issues (default: 15)
-	HighDuplicationPct    float64 // Duplication percentage above this generates issues (default: 10.0)
-	HighTechDebtThreshold int     // Total TODOs + FIXMEs + HACKs above this generates issues (default: 10)
-	HighImportThreshold   int     // Import count above this generates coupling issues (default: 20)
+	LongFileThreshold             int     // Files with more lines than this generate issues (default: 500)
+	LongFileThresholdTest         int     // Line count threshold for test files (default: 1250)
+	HighComplexityMax             int     // Max complexity above this generates issues (default: 15)
+	HighDuplicationPct            float64 // Duplication percentage above this generates issues (default: 10.0)
+	HighDuplicationPctTest        float64 // Duplication percentage threshold for test files (default: 30.0)
+	HighTechDebtThreshold         int     // Total TODOs + FIXMEs + HACKs above this generates issues (default: 10)
+	HighImportThreshold           int     // Import count above this generates coupling issues (default: 20)
+	HighDangerousPatternThreshold int     // Total as-any + as-type + ts-ignore + non-null above this generates issues (default: 3)
 }
 
 // DefaultIssueGeneratorConfig returns sensible defaults for issue generation
 func DefaultIssueGeneratorConfig() IssueGeneratorConfig {
 	return IssueGeneratorConfig{
-		LongFileThreshold:     500,
-		HighComplexityMax:     15,
-		HighDuplicationPct:    10.0,
-		HighTechDebtThreshold: 10,
-		HighImportThreshold:   20,
+		LongFileThreshold:             500,
+		LongFileThresholdTest:         1250,
+		HighComplexityMax:             15,
+		HighDuplicationPct:            10.0,
+		HighDuplicationPctTest:        30.0,
+		HighTechDebtThreshold:         10,
+		HighImportThreshold:           20,
+		HighDangerousPatternThreshold: 3,
 	}
 }
 
@@ -28,15 +36,20 @@ func GenerateIssuesFromMetrics(scenario string, metrics []DetailedFileMetrics, c
 	var issues []Issue
 
 	for _, m := range metrics {
-		// Length issues (long files)
-		if m.LineCount > config.LongFileThreshold {
+		// Length issues (long files) - use higher threshold for test files
+		isTestFile := IsTestFilePath(m.FilePath)
+		lengthThreshold := config.LongFileThreshold
+		if isTestFile && config.LongFileThresholdTest > 0 {
+			lengthThreshold = config.LongFileThresholdTest
+		}
+		if m.LineCount > lengthThreshold {
 			issues = append(issues, Issue{
 				Scenario: scenario,
 				File:     m.FilePath,
 				Line:     1,
 				Column:   1,
-				Message:  fmt.Sprintf("File has %d lines, exceeds threshold of %d lines", m.LineCount, config.LongFileThreshold),
-				Severity: severityForLineCount(m.LineCount, config.LongFileThreshold),
+				Message:  fmt.Sprintf("File has %d lines, exceeds threshold of %d lines", m.LineCount, lengthThreshold),
+				Severity: severityForLineCount(m.LineCount, lengthThreshold),
 				Tool:     "tidiness-manager",
 				Category: "length",
 			})
@@ -56,18 +69,24 @@ func GenerateIssuesFromMetrics(scenario string, metrics []DetailedFileMetrics, c
 			})
 		}
 
-		// Duplication issues
-		if m.DuplicationPct != nil && *m.DuplicationPct > config.HighDuplicationPct {
-			issues = append(issues, Issue{
-				Scenario: scenario,
-				File:     m.FilePath,
-				Line:     1,
-				Column:   1,
-				Message:  fmt.Sprintf("File has %.1f%% duplicated code, exceeds threshold of %.1f%%", *m.DuplicationPct, config.HighDuplicationPct),
-				Severity: severityForDuplication(*m.DuplicationPct, config.HighDuplicationPct),
-				Tool:     "dupl",
-				Category: "duplication",
-			})
+		// Duplication issues - use higher threshold for test files
+		if m.DuplicationPct != nil {
+			dupThreshold := config.HighDuplicationPct
+			if isTestFile && config.HighDuplicationPctTest > 0 {
+				dupThreshold = config.HighDuplicationPctTest
+			}
+			if *m.DuplicationPct > dupThreshold {
+				issues = append(issues, Issue{
+					Scenario: scenario,
+					File:     m.FilePath,
+					Line:     1,
+					Column:   1,
+					Message:  fmt.Sprintf("File has %.1f%% duplicated code, exceeds threshold of %.1f%%", *m.DuplicationPct, dupThreshold),
+					Severity: severityForDuplication(*m.DuplicationPct, dupThreshold),
+					Tool:     "dupl",
+					Category: "duplication",
+				})
+			}
 		}
 
 		// Technical debt issues (TODOs, FIXMEs, HACKs)
@@ -96,6 +115,21 @@ func GenerateIssuesFromMetrics(scenario string, metrics []DetailedFileMetrics, c
 				Severity: severityForCoupling(m.ImportCount, config.HighImportThreshold),
 				Tool:     "tidiness-manager",
 				Category: "coupling",
+			})
+		}
+
+		// Type safety issues (dangerous TS/JS patterns)
+		dangerousPatterns := m.AsAnyCount + m.AsTypeAssertionCount + m.TsIgnoreCount + m.NonNullAssertionCount
+		if dangerousPatterns > config.HighDangerousPatternThreshold {
+			issues = append(issues, Issue{
+				Scenario: scenario,
+				File:     m.FilePath,
+				Line:     1,
+				Column:   1,
+				Message:  fmt.Sprintf("File has %d dangerous type-safety patterns (%d as-any, %d as-type, %d ts-ignore, %d non-null assertions), exceeds threshold of %d", dangerousPatterns, m.AsAnyCount, m.AsTypeAssertionCount, m.TsIgnoreCount, m.NonNullAssertionCount, config.HighDangerousPatternThreshold),
+				Severity: severityForTypeSafety(dangerousPatterns, config.HighDangerousPatternThreshold),
+				Tool:     "tidiness-manager",
+				Category: "type_safety",
 			})
 		}
 	}
@@ -149,6 +183,16 @@ func severityForCoupling(imports, threshold int) string {
 	if imports > threshold*2 {
 		return "high"
 	} else if imports > threshold+10 {
+		return "medium"
+	}
+	return "low"
+}
+
+// severityForTypeSafety returns severity based on dangerous pattern count
+func severityForTypeSafety(count, threshold int) string {
+	if count > threshold*3 {
+		return "high"
+	} else if count > threshold*2 {
 		return "medium"
 	}
 	return "low"

@@ -1,0 +1,23 @@
+{
+  "acceptance_allow": [
+    "scenarios/prompt-manager/api/**",
+    "scenarios/prompt-manager/ui/**"
+  ],
+  "created": "2026-03-26T20:54:35Z",
+  "depends_on": [
+    "chore/qa-prompt-manager-tidiness-20260407",
+    "fix/qa-prompt-manager-standards-structure-20260407",
+    "fix/qa-prompt-manager-tests-20260407",
+    "research/prompt-manager-rapid-approval-ux"
+  ],
+  "description": "## Goal\n\nMake approving prompt-manager decisions as fast as possible. Support batch operations, keyboard navigation, focused pending-only views, and real-time updates.\n\n## Implementation\n\n### Batch Approval\n- \"Approve All Recommended\" button that accepts the agent-recommended option for all pending decisions in one action\n- Selective batch: checkbox per decision → \"Approve Selected\" button\n- Batch API endpoint: `POST /api/v1/decisions/batch-update` accepting an array of decision updates\n- Confirmation dialog showing what will be approved before executing\n\n### Keyboard Navigation\n- `j` / `k` — navigate between pending decisions\n- `Enter` — accept the recommended option (or first option if no recommendation)\n- `1-9` — select option by number\n- `r` — reject current decision\n- `n` — add notes to current decision\n- `a` — approve all recommended (with confirmation)\n- Visual focus indicator showing which decision is currently selected\n\n### Focused Pending View\n- Default filter to show only `pending` decisions (hide accepted/rejected)\n- Toggle to show all statuses\n- Counter badge: \"12 pending decisions\" with urgency indicator\n- Sort pending decisions by: age (oldest first), team, context tag\n\n### Real-Time Updates\n- Replace 10-second polling with WebSocket notifications for decision state changes\n- Instant UI update when agents submit new decisions\n- Toast notification for new pending decisions\n\n### Option Rationale Visibility\n- Show all option rationales inline by default (not hidden behind hover)\n- Collapsible if there are many options (\u003e4)\n- Highlight recommended option with visual distinction\n\n## Key Files\n\n- Decision handlers: `scenarios/prompt-manager/api/heartbeat/handlers.go` — add batch endpoint\n- Pending decisions: `scenarios/prompt-manager/api/heartbeat/handlers_pending.go` — WebSocket support\n- Decision log UI: `scenarios/prompt-manager/ui/src/components/editor/teamTabs/DecisionLogView.tsx` — keyboard nav + batch UX\n- Pending store: `scenarios/prompt-manager/ui/src/stores/pendingDecisionsStore.ts` — WebSocket sync\n- Polling hook: `scenarios/prompt-manager/ui/src/hooks/usePendingDecisions.ts` — replace with WebSocket",
+  "effort": "L",
+  "initiative": "rapid-approval-flow",
+  "kind": "execute",
+  "name": "prompt-manager-batch-approval-flow",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [],
+  "title": "Build Batch Approval, Keyboard Shortcuts, and Streamlined Decision Flow",
+  "updated": "2026-04-09T13:11:28Z"
+}

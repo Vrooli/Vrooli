@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/command-center/ui/**"
+  ],
+  "created": "2026-04-08T03:51:30Z",
+  "depends_on": [
+    "execute/command-center-theming-engine",
+    "execute/command-center-api-aggregator"
+  ],
+  "description": "Build \"The Forge\" dashboard — engineering velocity and execution metrics. This is the richest dashboard with ~90% of ideal data available today.\n\n**Theme: Foundry**\nWarm tones: deep charcoal background with amber, orange, and molten gold accents. Forge instrumentation aesthetic — temperature gauges, heat indicators, flowing metal animations. Velocity chart as rising sparks. Conveys intensity and productivity.\n\n**Metrics — Available Now (dataSource: live, ~90% coverage):**\n- Throughput: completed/created items (7-day, 30-day), net delta\n- Velocity: 8-week trailing chart with weekly completion counts\n- Timing: avg and median cycle time, lead time, queue wait (hours)\n- Blocking: currently blocked count, blocked ratio, top 10 reasons with frequency, avg block duration\n- Agent performance: total executions, success rate, failure rate, follow-up rate, avg execution minutes, avg workshop rounds\n- Review quality: rounds completed, avg evidence per round, verification rate, request-more rate, avg review duration\n- Initiative health: per-initiative total/completed/in-progress/blocked, scope creep ratio\n- Dependency graph: edges, blocked items, unblocked items (critical path)\n- Governance: active executions vs max concurrent, queue depth vs max, circuit-broken items, estimated queued cost\n- Backlog composition: items by status (backlog/researching/ready/queued/in_progress/completed/failed) and kind (idea/research/fix/execute/chore)\n- Estimated weeks remaining\n\n**Metrics — Ideal/Future (dataSource: gap):**\n- Cost per completed item (actual AI token spend per execution)\n- Contributor leaderboard (which agents/humans completed most)\n- Burndown chart per initiative (requires historical snapshots)\n- Predicted completion dates with confidence intervals\n- Flow efficiency — active work time vs total time ratio\n\n**Layout concept:** Central velocity chart (the forge's \"fire\"), flanked by gauge-style widgets for blocked ratio and success rate. Initiative progress bars below like ingots being forged. Blocking reasons as ranked list. Agent stats sidebar.",
+  "effort": "L",
+  "initiative": "command-center-dashboards",
+  "kind": "execute",
+  "name": "command-center-forge-page",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [],
+  "title": "Build The Forge dashboard — engineering velocity with Foundry theme",
+  "updated": "2026-04-09T03:36:07Z"
+}

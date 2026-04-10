@@ -22,19 +22,24 @@ func TestAutoSteerHandlers_ExecutionFlow(t *testing.T) {
 	defer cleanupScenario()
 
 	// Initialize services
-	profileService := NewProfileService(pg.db)
-	metricsCollector := NewMetricsCollector(vrooliRoot)
-	executionEngine := NewExecutionEngine(pg.db, profileService, metricsCollector, testPhasePromptsDir(t))
+	profilesRoot := t.TempDir()
+	writeMetadata(t, profilesRoot, ProfileMetadataIndex{Profiles: []ProfileMetadata{}})
+	profileRepo, err := NewFileProfileRepository(profilesRoot)
+	if err != nil {
+		t.Fatalf("failed to create profile repo: %v", err)
+	}
+	executionOrchestrator := NewExecutionOrchestratorDefault(profileRepo, pg.db, vrooliRoot)
 	historyService := NewHistoryService(pg.db)
 
 	// Create handlers
-	handlers := NewAutoSteerHandlers(profileService, executionEngine, historyService)
+	handlers := NewAutoSteerHandlers(profileRepo, executionOrchestrator, historyService)
 
 	// Create 2-phase test profile
 	phases := []SteerPhase{
 		{
 			ID:            uuid.New().String(),
-			Mode:          ModeProgress,
+			SkillIDs:      []string{"progress"},
+			SkillName:     "Progress",
 			MaxIterations: 3,
 			StopConditions: []StopCondition{
 				{
@@ -47,7 +52,8 @@ func TestAutoSteerHandlers_ExecutionFlow(t *testing.T) {
 		},
 		{
 			ID:            uuid.New().String(),
-			Mode:          ModeTest,
+			SkillIDs:      []string{"test"},
+			SkillName:     "Test",
 			MaxIterations: 3,
 			StopConditions: []StopCondition{
 				{
@@ -60,7 +66,7 @@ func TestAutoSteerHandlers_ExecutionFlow(t *testing.T) {
 		},
 	}
 	profile := CreateMultiPhaseProfile(t, "Handler Test", phases)
-	if err := profileService.CreateProfile(profile); err != nil {
+	if err := profileRepo.CreateProfile(profile); err != nil {
 		t.Fatalf("Failed to create profile: %v", err)
 	}
 

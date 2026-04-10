@@ -1,5 +1,7 @@
 package main
 
+// DOC: docs/reference/api-endpoints.md#health-metrics
+// DOC: docs/concepts/ARCHITECTURE.md#health-and-metrics-flow
 import (
 	"bytes"
 	"context"
@@ -19,7 +21,6 @@ const (
 	maxPairSamplesPerVector       = 100
 	freshnessHalfLife             = 30 * 24 * time.Hour
 	redundancySimilarityThreshold = 0.95
-	defaultCoverageScore          = 0.70
 )
 
 // QualityMetrics represents aggregated knowledge health scores
@@ -131,6 +132,63 @@ func detectRedundancy(vectors [][]float64, threshold float64) float64 {
 
 	redundancy := float64(duplicateCount) / float64(totalPairs)
 	return redundancy
+}
+
+// calculateCoverage approximates semantic breadth by measuring dispersion
+// of vectors around their centroid.
+func calculateCoverage(vectors [][]float64) float64 {
+	if len(vectors) == 0 {
+		return 0.0
+	}
+	if len(vectors) == 1 {
+		return 0.5
+	}
+
+	dim := len(vectors[0])
+	if dim == 0 {
+		return 0.0
+	}
+
+	centroid := make([]float64, dim)
+	valid := 0
+	for _, vec := range vectors {
+		if len(vec) != dim {
+			continue
+		}
+		for i := 0; i < dim; i++ {
+			centroid[i] += vec[i]
+		}
+		valid++
+	}
+	if valid == 0 {
+		return 0.0
+	}
+	for i := 0; i < dim; i++ {
+		centroid[i] /= float64(valid)
+	}
+
+	var totalDistance float64
+	var count int
+	for _, vec := range vectors {
+		if len(vec) != dim {
+			continue
+		}
+		similarity := cosineSimilarity(vec, centroid)
+		distance := (1.0 - similarity) / 2.0 // normalize to [0,1]
+		totalDistance += distance
+		count++
+	}
+	if count == 0 {
+		return 0.0
+	}
+	coverage := totalDistance / float64(count)
+	if coverage < 0 {
+		return 0
+	}
+	if coverage > 1 {
+		return 1
+	}
+	return coverage
 }
 
 // cosineSimilarity computes cosine similarity between two vectors
@@ -402,10 +460,7 @@ func calculateQualityMetrics(vectors [][]float64, timestamps []time.Time) Qualit
 	coherence := calculateCoherence(vectors)
 	freshness := calculateFreshness(timestamps)
 	redundancy := detectRedundancy(vectors, redundancySimilarityThreshold)
-
-	// Coverage would require domain analysis.
-	// In tests we keep a deterministic score to validate the metric wiring and ranges.
-	coverage := defaultCoverageScore
+	coverage := calculateCoverage(vectors)
 
 	return QualityMetrics{
 		Coherence:  &coherence,

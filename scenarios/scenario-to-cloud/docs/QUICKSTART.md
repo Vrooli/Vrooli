@@ -6,7 +6,7 @@ Get your first Vrooli scenario deployed to a VPS in minutes.
 
 Before you begin, ensure you have:
 
-- **A VPS** with SSH access (Ubuntu 22.04+ recommended)
+- **A VPS** with SSH access (Ubuntu 24.04 recommended; 22.04/20.04 compatible)
 - **A domain** pointing to your VPS IP address
 - **SSH key** configured for passwordless login
 - **Vrooli running** locally with your scenario
@@ -17,18 +17,43 @@ From the Dashboard, click **Start New Deployment** to launch the deployment wiza
 
 ## Step 2: Configure Your Manifest
 
-The manifest defines what gets deployed and where. At minimum, you need:
+Use `manifest init` to generate a starter manifest:
+
+```bash
+scenario-to-cloud manifest init \
+  --scenario your-scenario-name \
+  --host your-server.com \
+  --domain app.your-domain.com \
+  --out cloud-manifest.json
+```
+
+Equivalent minimal contract:
 
 ```json
 {
+  "version": "1.0.0",
   "scenario": {
     "id": "your-scenario-name"
   },
   "target": {
+    "type": "vps",
     "vps": {
       "host": "your-server.com",
       "user": "root"
     }
+  },
+  "dependencies": {
+    "scenarios": ["your-scenario-name"],
+    "resources": []
+  },
+  "bundle": {
+    "include_packages": true,
+    "include_autoheal": true
+  },
+  "ports": {
+    "ui": 3000,
+    "api": 3001,
+    "ws": 3002
   },
   "edge": {
     "domain": "app.your-domain.com"
@@ -51,6 +76,12 @@ Click **Validate** to check your manifest for errors. Common issues:
 - Invalid JSON syntax
 - Missing required fields
 - Unreachable host
+
+Optional: show canonical runtime policy:
+
+```bash
+scenario-to-cloud preflight requirements
+```
 
 ## Step 4: Generate Plan
 
@@ -78,9 +109,30 @@ Preflight verifies your VPS is ready:
 - Required tools
 - Port availability
 
-## Step 7: Deploy!
+Before deploy, validate SSH access path:
 
-Click **Deploy to VPS** to start the deployment. This typically takes 2-5 minutes.
+```bash
+scenario-to-cloud ssh bootstrap your-server.com --user root --non-interactive
+```
+
+## Step 7: Resolve + Deploy If Needed
+
+Check current state by selector (no manifest required). If deployment is missing, create and validate a persistent manifest, then deploy:
+
+```bash
+scenario-to-cloud deployment health --host your-server.com --scenario your-scenario-name --json
+
+scenario-to-cloud manifest init \
+  --scenario your-scenario-name \
+  --host your-server.com \
+  --domain app.your-domain.com \
+  --out scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
+
+scenario-to-cloud manifest validate scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
+scenario-to-cloud redeploy scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json --if-needed --preflight --wait
+```
+
+This typically takes 2-5 minutes when deployment is required.
 
 Once complete, your scenario will be live at `https://your-domain.com`!
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useShellOverlayStore } from '@/state/shellOverlayStore';
 
-export type OverlayView = 'tabs' | 'actions';
+export type OverlayView = 'tabs' | 'actions' | 'workspace';
 
 type OverlayOptions = {
   replace?: boolean;
@@ -13,7 +13,7 @@ type OverlayOptions = {
 const OVERLAY_PARAM = 'overlay';
 
 const isOverlayView = (value: string | null): value is OverlayView => (
-  value === 'tabs' || value === 'actions'
+  value === 'tabs' || value === 'actions' || value === 'workspace'
 );
 
 export function useOverlayRouter() {

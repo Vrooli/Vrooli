@@ -13,6 +13,22 @@ type MetricsResponse struct {
 	Timestamp      time.Time `json:"timestamp"`
 }
 
+// MetricTimelineSample represents a single sample in a metrics timeline.
+type MetricTimelineSample struct {
+	Timestamp      time.Time `json:"timestamp"`
+	CPUUsage       float64   `json:"cpu_usage"`
+	MemoryUsage    float64   `json:"memory_usage"`
+	TCPConnections int       `json:"tcp_connections"`
+	GPUUsage       *float64  `json:"gpu_usage,omitempty"`
+}
+
+// MetricsTimelineResponse contains a windowed series of metric samples.
+type MetricsTimelineResponse struct {
+	WindowSeconds         int                    `json:"window_seconds"`
+	SampleIntervalSeconds int                    `json:"sample_interval_seconds"`
+	Samples               []MetricTimelineSample `json:"samples"`
+}
+
 // DetailedMetrics contains comprehensive system metrics
 type DetailedMetrics struct {
 	CPUDetails     CPUMetrics     `json:"cpu_details"`

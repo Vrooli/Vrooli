@@ -19,9 +19,10 @@ import { Badge } from "../components/ui/badge";
 import { Tip } from "../components/ui/tip";
 import { TelemetryEntry } from "../components/TelemetryEntry";
 import { listTelemetry, uploadTelemetry, type TelemetrySummary } from "../lib/api";
+import { getErrorMessage } from "../lib/utils";
 
 /** Known failure event types from the desktop runtime */
-const FAILURE_EVENT_TYPES = [
+const _FAILURE_EVENT_TYPES = [
   "dependency_unreachable",
   "swap_missing_asset",
   "asset_missing",
@@ -255,7 +256,7 @@ export function BundleTelemetry() {
       {/* Error state */}
       {error && (
         <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-100">
-          Failed to load telemetry: {(error as Error).message}
+          Failed to load telemetry: {getErrorMessage(error)}
         </div>
       )}
 
@@ -367,7 +368,7 @@ export function BundleTelemetry() {
           </div>
           {uploadMutation.error && (
             <div className="rounded border border-red-500/30 bg-red-500/10 p-2 text-xs text-red-100">
-              {(uploadMutation.error as Error).message}
+              {getErrorMessage(uploadMutation.error)}
             </div>
           )}
           {uploadMutation.isSuccess && (

@@ -12,17 +12,8 @@
  * @module frame-streaming/websocket/server
  */
 
-/* eslint-disable @typescript-eslint/no-require-imports */
 import type { IncomingMessage } from 'http';
 import { logger, scopedLog, LogContext } from '../../utils';
-
-// ws module uses CommonJS exports that don't play well with ESM imports
-// Use require for proper runtime access to Server and WebSocket classes
-const WebSocket = require('ws');
-const WebSocketServer = WebSocket.Server;
-
-// WebSocket ready state constant
-const WS_OPEN = 1;
 
 // Type definitions for ws module
 interface WebSocketClient {
@@ -39,6 +30,18 @@ interface WebSocketServerInstance {
   on(event: 'error', listener: (error: Error) => void): void;
   close(callback?: () => void): void;
 }
+
+type WebSocketModule = {
+  Server: new (options: { port: number; path?: string }) => WebSocketServerInstance;
+  OPEN: number;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires -- ws exports are CommonJS
+const WebSocket = require('ws') as WebSocketModule;
+const WebSocketServer = WebSocket.Server;
+
+// WebSocket ready state constant
+const WS_OPEN = WebSocket.OPEN;
 
 interface DirectFrameClient {
   ws: WebSocketClient;
@@ -76,7 +79,7 @@ export class DirectFrameServer {
     this.wss = new WebSocketServer({
       port: this.port,
       path: '/frames',
-    }) as WebSocketServerInstance;
+    });
 
     this.wss.on('connection', (ws: WebSocketClient, req: IncomingMessage) => {
       this.handleConnection(ws, req);
@@ -219,7 +222,7 @@ export class DirectFrameServer {
    */
   hasSubscribers(sessionId: string): boolean {
     for (const client of this.clients) {
-      if (client.sessionId === sessionId && client.ws.readyState === WebSocket.OPEN) {
+      if (client.sessionId === sessionId && client.ws.readyState === WS_OPEN) {
         return true;
       }
     }

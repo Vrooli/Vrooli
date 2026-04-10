@@ -1,0 +1,10 @@
+{
+  "kind": "team-member",
+  "schemaVersion": 1,
+  "teamId": "director-swarm",
+  "agentId": "outcome-strategist",
+  "roles": [
+    "outcome-strategy"
+  ],
+  "status": "active"
+}

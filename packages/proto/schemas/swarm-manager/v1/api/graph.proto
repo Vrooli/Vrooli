@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "swarm-manager/v1/domain/graph.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// =============================================================================
+// GRAPH API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports graph
+// @stability beta
+//
+// HTTP API contracts for the Swarm Manager graph workspace.
+//
+// USAGE CONTEXTS:
+//   - UI services validating graph projection responses
+//   - API handlers writing graph-first transport payloads
+//
+// =============================================================================
+
+// GraphResponse returns the graph projection for a lens.
+message GraphResponse {
+  repeated GraphNode nodes = 1;
+  repeated GraphEdge edges = 2;
+  GraphMeta meta = 3;
+}

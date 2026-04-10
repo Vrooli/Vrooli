@@ -1,0 +1,29 @@
+{
+  "acceptance_allow": [
+    "scenarios/agent-manager/**",
+    "scenarios/git-control-tower/**",
+    "scenarios/swarm-manager/**",
+    "scenarios/ecosystem-manager/**"
+  ],
+  "created": "2026-04-09T17:33:13Z",
+  "depends_on": [
+    "execute/agent-manager-sandbox-auto-apply-defaults",
+    "execute/sandbox-runtime-e2e-verification",
+    "execute/gct-pending-ai-provenance-hardening"
+  ],
+  "description": "## Goal\n\nMake sandboxing the default path for the main agent-manager entry points once the auditability foundation and provenance surfaces are trustworthy.\n\n## Why this is a separate item\n\nDefault rollout should not happen until the platform can trust the execution semantics and operator-facing provenance story. This item is specifically about productizing the new default after the underlying lifecycle and review surfaces are ready.\n\n## Required outcomes\n\n- Main agent-manager creation flows default to sandboxed runs.\n- The default network mode is compatible with normal scenario CLI usage, which likely means `localhost` rather than unrestricted `full`.\n- Operators still have an intentional escape hatch for non-sandboxed runs if a workflow is not ready yet.\n- The UI and API copy explain the default clearly without making sandboxing sound like a burdensome extra step.\n- Adoption can be measured so the team knows whether default sandboxing is actually increasing run-to-change attribution.\n\n## Expected deliverables\n\n1. Default-setting changes in the main agent-manager spawn/config surfaces.\n2. Product copy and operator-facing messaging that explain sandboxing as the normal audit path, not an expert-only feature.\n3. Metrics or reporting that let the team see how many runs are sandboxed and how many applied changes are successfully attributed to runs.\n4. Rollout safeguards for scenarios or entry points that are not yet compatible.\n\n## Key references\n\n- `scenarios/agent-manager/**`\n- `scenarios/git-control-tower/**`\n- `scenarios/swarm-manager/**`\n- `scenarios/ecosystem-manager/**`",
+  "effort": "M",
+  "initiative": "agent-sandbox-audit-foundation",
+  "kind": "execute",
+  "name": "agent-manager-default-sandboxing-rollout",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "agent-manager",
+    "sandbox",
+    "rollout",
+    "defaults"
+  ],
+  "title": "Roll out sandboxing as the default path in major agent-manager spawn surfaces",
+  "updated": "2026-04-09T17:33:13Z"
+}

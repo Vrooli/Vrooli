@@ -1,0 +1,22 @@
+{
+  "acceptance_allow": [
+    "scenarios/deployment-manager/**"
+  ],
+  "archived_at": "2026-04-08T02:51:43Z",
+  "created": "2026-04-07T22:11:50Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "GCT code quality score 0 with 151 violations (complex_functions, long_files, lint_issues).",
+  "kind": "execute",
+  "name": "qa-deployment-manager-code-quality-20260407",
+  "priority": 2,
+  "status": "completed",
+  "tags": [
+    "preemptive-qa",
+    "deployment-manager",
+    "code-quality"
+  ],
+  "title": "Improve deployment-manager code quality",
+  "updated": "2026-04-08T02:51:43Z"
+}

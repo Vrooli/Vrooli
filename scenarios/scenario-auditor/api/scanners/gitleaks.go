@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/pathfilter"
 )
 
 // GitleaksScanner implements the Scanner interface for gitleaks
@@ -471,11 +473,8 @@ func (g *GitleaksScanner) countScannedFiles(path string) (int, int) {
 			return nil
 		}
 
-		// Skip vendor and other excluded directories
 		if info.IsDir() {
-			name := info.Name()
-			if name == "vendor" || name == "node_modules" || name == ".git" ||
-				name == "dist" || name == "build" {
+			if pathfilter.SkipDir(info.Name()) {
 				return filepath.SkipDir
 			}
 			return nil

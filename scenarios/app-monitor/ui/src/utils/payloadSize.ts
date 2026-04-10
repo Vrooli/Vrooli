@@ -36,7 +36,7 @@ export function estimateBase64Size(base64String: string): number {
 
   // Each base64 character represents 6 bits
   // 4 base64 chars = 3 bytes
-  const cleanedLength = base64Data.replace(/=/g, '').length;
+  const cleanedLength = (base64Data ?? '').replace(/=/g, '').length;
   return Math.ceil((cleanedLength * 3) / 4);
 }
 

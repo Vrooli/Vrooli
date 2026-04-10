@@ -1,0 +1,58 @@
+{
+  "description": "Not implemented. No custom metric ingestion endpoint exists. Only 6 built-in collectors (CPU, memory, disk, network, process, GPU).",
+  "module_id": "MOD-P1-015",
+  "prd_ref": "system-monitor-should-have-custom-metric-collection-via-api-no-custom-metric-ingestion-endpoint-only-built-in-collectors",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-004"
+      ],
+      "description": "Implement API endpoint for custom metric ingestion with validation, rate limiting, and storage integration.",
+      "id": "REQ-P1-005",
+      "prd_ref": "system-monitor-should-have-custom-metric-collection-via-api-no-custom-metric-ingestion-endpoint-only-built-in-collectors",
+      "status": "pending",
+      "title": "Custom Metric Collection API",
+      "validation": [
+        {
+          "notes": "Test metric validation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify storage integration",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate custom metric collection flow",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Ingestion latency \u003c 100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Custom metrics stored and queryable",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Custom metric collection via API (no custom metric ingestion endpoint; only built-in collectors)"
+}

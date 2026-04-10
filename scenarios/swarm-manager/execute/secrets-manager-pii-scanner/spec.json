@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/secrets-manager/api/**",
+    "scenarios/secrets-manager/ui/**"
+  ],
+  "created": "2026-04-06T18:43:38Z",
+  "depends_on": [
+    "research/secrets-manager-pii-detection-design"
+  ],
+  "description": "Extend Secrets Manager's security_scanner.go with PII detection patterns (emails, phone numbers, home directory paths, IP addresses, AWS keys, etc.). Add custom watchlist support where users can upload their specific personal values to flag. Add allowlist system for test files/fixtures using configurable path patterns. Implement a new file-list-based scan endpoint that accepts arbitrary file paths and returns findings per file, enabling Git Control Tower to scan staged files regardless of where they live in the repo.\n\n## Key Design Decisions (from research/secrets-manager-pii-detection-design)\n- Scan-run model with persistence (reuse existing security_scan_runs/security_vulnerabilities tables)\n- Built-in PII patterns in Go source + DB-stored custom watchlist with AES-256-GCM encryption (env-var key)\n- Path-glob × finding-type two-dimensional allowlist (scan_allowlist_rules table)\n- Synchronous-with-timeout endpoint: block and return inline, fall back to polling at 10s timeout\n- Tiered PII severity: SSN/CC=critical, email/phone=high, IP/path=medium, custom watchlist=high\n\n## API Contract\n### POST /api/v1/security/scan-files\nRequest: {files: [...paths], options: {pii: bool, secrets: bool, watchlist: bool}}\nResponse: {scan_id: string, status: \"complete\"|\"partial\", findings: [{file, line, type, severity, pattern, snippet}], metrics: {files_scanned, findings_count, duration_ms}}\n\n### GET /api/v1/security/scan-runs/{id}\nPolling endpoint for async/partial results (when scan exceeds 10s timeout)\n\n### CRUD /api/v1/security/watchlist\nEncrypted storage for user-provided personal values (AES-256-GCM at rest)\n\n### CRUD /api/v1/security/allowlist-rules\nPath-glob × finding-type exemption rules\n\n## New Tables\n- pii_watchlist: id (UUID PK), label (TEXT), encrypted_value (BYTEA), value_type (TEXT: email/phone/path/custom), created_at (TIMESTAMPTZ)\n- scan_allowlist_rules: id (UUID PK), path_pattern (TEXT glob), excluded_types (TEXT[]), description (TEXT), enabled (BOOLEAN DEFAULT true), created_at (TIMESTAMPTZ)\n\n## Implementation Notes\n- Add PII regex patterns to existing VulnerabilityPattern slice in security_scanner.go\n- Create scanFileList() function that iterates caller-provided paths, applies allowlist filtering, delegates to scanFileForVulnerabilities()\n- Reuse persistSecurityScan() for scan-run persistence with fingerprint deduplication\n- Custom watchlist values use literal/substring matching, not regex compilation",
+  "effort": "L",
+  "initiative": "gct-pre-commit-security",
+  "kind": "execute",
+  "name": "secrets-manager-pii-scanner",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Implement PII scanner, custom watchlist, and file-list scan endpoint",
+  "updated": "2026-04-06T18:43:38Z"
+}

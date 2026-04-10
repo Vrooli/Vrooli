@@ -2,11 +2,11 @@ syntax = "proto3";
 
 package agent_manager.v1;
 
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/duration.proto";
-import "buf/validate/validate.proto";
-import "agent-manager/v1/domain/types.proto";
 import "agent-manager/v1/domain/profile.proto";
+import "agent-manager/v1/domain/types.proto";
+import "buf/validate/validate.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
 
@@ -84,7 +84,10 @@ message Run {
   optional google.protobuf.Timestamp last_heartbeat = 12;
 
   // Progress percentage (0-100).
-  int32 progress_percent = 13 [(buf.validate.field).int32 = {gte: 0, lte: 100}];
+  int32 progress_percent = 13 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 100
+  }];
 
   // Idempotency key for replay safety.
   string idempotency_key = 14;
@@ -136,6 +139,34 @@ message Run {
 
   // When the run was last updated.
   google.protobuf.Timestamp updated_at = 27;
+
+  // Action availability for this run (computed).
+  RunActions actions = 29;
+
+  // First ~120 characters of the associated task description.
+  // Populated on list/get responses for display purposes.
+  string prompt_preview = 30;
+}
+
+// RunActions captures which operations are currently allowed for a run.
+//
+// @usage Run.actions
+message RunActions {
+  bool can_investigate = 1;
+  bool can_apply_investigation = 2;
+  bool can_delete = 3;
+  bool can_stop = 4;
+  bool can_retry = 5;
+  bool can_continue = 6;
+  bool can_approve = 7;
+  bool can_reject = 8;
+  bool can_review = 9;
+  bool can_extract_recommendations = 10;
+  bool can_regenerate_recommendations = 11;
+
+  // Human-readable reason why continuation is unavailable.
+  // Empty when can_continue is true.
+  string can_continue_reason = 12;
 }
 
 // =============================================================================
@@ -169,6 +200,9 @@ message RunSummary {
 
   // Estimated cost in USD.
   double cost_estimate = 7;
+
+  // Last-turn input tokens — approximates current context window usage.
+  int32 context_tokens = 8;
 }
 
 // =============================================================================
@@ -339,6 +373,12 @@ message RunnerCapabilities {
 
   // Supports session continuation (resume/continue conversation).
   bool supports_continuation = 7;
+
+  // Feature flags this runner supports (e.g., "EnableBrowser").
+  repeated string supported_features = 8;
+
+  // Extra CLI flags this runner allows (e.g., "--verbose").
+  repeated string allowed_extra_flags = 9;
 }
 
 // =============================================================================
@@ -406,6 +446,12 @@ message ApproveResult {
 
   // Message describing what was applied.
   string message = 4;
+
+  // Number of files remaining to be approved (for partial approve).
+  int32 remaining = 5;
+
+  // Whether this was a partial approval.
+  bool is_partial = 6;
 }
 
 // =============================================================================
@@ -449,6 +495,38 @@ message FileDiff {
 
   // Unified diff for this file.
   string patch = 6;
+
+  // File change ID (for partial approve).
+  // @format uuid
+  string id = 7;
+}
+
+// =============================================================================
+// ATTACHMENT
+// =============================================================================
+
+// Attachment represents an uploaded file (image, PDF, etc.) associated with a run.
+//
+// @usage POST /api/v1/attachments/upload response, ContinueRunRequest context
+message Attachment {
+  // Server-assigned unique identifier.
+  // @format uuid
+  string id = 1;
+
+  // Original sanitized filename.
+  string file_name = 2;
+
+  // MIME type (e.g., "image/png").
+  string content_type = 3;
+
+  // Size in bytes.
+  int64 file_size = 4;
+
+  // Internal storage path (not exposed to clients in all contexts).
+  string storage_path = 5;
+
+  // Serving URL relative to API base.
+  string url = 6;
 }
 
 // =============================================================================
@@ -468,6 +546,9 @@ message ContinueRunRequest {
 
   // Follow-up message to send to the agent.
   string message = 2 [(buf.validate.field).string.min_len = 1];
+
+  // IDs of uploaded attachments to include with this message.
+  repeated string attachment_ids = 3;
 }
 
 // ContinueRunResponse contains the result of continuing a run.
@@ -486,4 +567,31 @@ message ContinueRunResponse {
   // Error code for programmatic handling.
   // Codes: "session_expired", "continuation_not_supported", "run_not_found"
   string error_code = 4;
+}
+
+// =============================================================================
+// DELETE RUN MESSAGE REQUEST/RESPONSE
+// =============================================================================
+
+// DeleteRunMessageRequest marks a message event as deleted.
+//
+// This appends a message_deleted event instead of removing history.
+//
+// @usage POST /api/v1/runs/{id}/messages/{event_id}/delete
+message DeleteRunMessageRequest {
+  // Run ID containing the message event.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // Message event ID to delete.
+  // @format uuid
+  string event_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+// DeleteRunMessageResponse confirms deletion.
+//
+// @usage POST /api/v1/runs/{id}/messages/{event_id}/delete response
+message DeleteRunMessageResponse {
+  // Whether the delete event was created.
+  bool success = 1;
 }

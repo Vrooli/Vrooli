@@ -43,7 +43,11 @@ func setupTestProcessor(t *testing.T) (*Processor, string, func()) {
 	}
 
 	broadcast := make(chan any, 10)
-	processor := NewProcessor(storage, assembler, broadcast, nil)
+	processor := NewProcessor(ProcessorDeps{
+		Storage:   storage,
+		Assembler: assembler,
+		Broadcast: broadcast,
+	})
 
 	cleanup := func() {
 		processor.Stop()
@@ -62,12 +66,27 @@ func TestProcessor_GetQueueStatus(t *testing.T) {
 		t.Fatal("Expected non-nil status")
 	}
 
-	// Check required fields
+	// Check legacy fields (used by internal Go handlers)
 	requiredFields := []string{"processor_active", "pending_count", "executing_count", "completed_count", "failed_count", "available_slots"}
 	for _, field := range requiredFields {
 		if _, ok := status[field]; !ok {
 			t.Errorf("Expected %s field", field)
 		}
+	}
+
+	// Check proto-compatible fields (used by UI via proto schema parsing).
+	// These must match the QueueStatus proto message field names so the UI
+	// can parse the response without falling through to the lossy fallback.
+	protoFields := []string{"is_active", "is_paused", "is_rate_limit_paused", "max_slots", "running_processes"}
+	for _, field := range protoFields {
+		if _, ok := status[field]; !ok {
+			t.Errorf("Expected proto-compatible field %q", field)
+		}
+	}
+
+	// is_active and processor_active must always agree
+	if status["is_active"] != status["processor_active"] {
+		t.Errorf("is_active (%v) must equal processor_active (%v)", status["is_active"], status["processor_active"])
 	}
 }
 
@@ -128,7 +147,7 @@ func TestProcessor_StopAllowsRunningTasksToFinish(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	taskID := "test-running-on-stop"
-	processor.registerExecution(taskID, "ecosystem-"+taskID, nil, time.Now())
+	processor.reserveExecution(taskID, "ecosystem-"+taskID, time.Now())
 
 	processor.Stop()
 	time.Sleep(10 * time.Millisecond)
@@ -390,15 +409,16 @@ func TestProcessor_ReconcileInProgressTasks(t *testing.T) {
 			t.Fatalf("SaveQueueItem: %v", err)
 		}
 
-		// Mark as externally active
-		external := map[string]struct{}{
-			"active-task-1": {},
-		}
-		internal := make(map[string]struct{})
+		// Register as internally tracked (this is what the reconciliation checks now)
+		processor.reserveExecution("active-task-1", "test-agent", time.Now())
+		defer processor.unregisterExecution("active-task-1")
+
+		external := make(map[string]struct{})
+		internal := processor.getInternalRunningTaskIDs()
 
 		moved := processor.reconcileInProgressTasks(external, internal)
 
-		// Should not move active tasks
+		// Should not move internally tracked tasks
 		if len(moved) != 0 {
 			t.Errorf("Expected no tasks moved, got %d", len(moved))
 		}

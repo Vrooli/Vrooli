@@ -3,17 +3,110 @@
 // This file implements the AsyncTrackerService for tracking long-running tool
 // operations and providing status updates via Server-Sent Events (SSE).
 //
-// ARCHITECTURE:
-// - AsyncTrackerService: Manages background polling for async tools
-// - AsyncOperation: Represents a tracked async tool execution
-// - Subscribers receive updates via channels (for SSE endpoints)
+// # ARCHITECTURE OVERVIEW
 //
-// POLLING FLOW:
-// 1. Tool executor calls StartTracking() after executing an async tool
-// 2. Tracker extracts operation ID from result using AsyncBehavior config
-// 3. Background goroutine polls status tool at configured intervals
-// 4. Updates are pushed to all subscribers for the chat
-// 5. Polling stops on terminal status or timeout
+// The async tracking system enables tools to run asynchronously while keeping
+// the AI conversation loop informed of progress and results. This is essential
+// for long-running operations like code generation, browser automation, or
+// data processing.
+//
+// ## Key Components
+//
+//   - AsyncTrackerService: Central coordinator managing operation lifecycle
+//   - AsyncOperation: State container for a single tracked operation
+//   - Subscription: SSE channel for real-time UI updates
+//   - CompletionCallback: Channel for AI conversation loop notification
+//
+// ## Data Flow
+//
+//	┌─────────────────────────────────────────────────────────────────────┐
+//	│                    AI Requests Tool                                  │
+//	│                          │                                           │
+//	│                          ▼                                           │
+//	│            ┌─────────────────────────────┐                          │
+//	│            │   Tool Execution Returns    │                          │
+//	│            │   { run_id: "abc123" }      │                          │
+//	│            └─────────────┬───────────────┘                          │
+//	│                          │                                           │
+//	│                          ▼                                           │
+//	│            ┌─────────────────────────────┐                          │
+//	│            │    StartTracking() called   │                          │
+//	│            │    - Extracts run_id        │                          │
+//	│            │    - Starts poll goroutine  │                          │
+//	│            └─────────────┬───────────────┘                          │
+//	│                          │                                           │
+//	│           ┌──────────────┴──────────────┐                           │
+//	│           ▼                              ▼                           │
+//	│  ┌─────────────────┐          ┌─────────────────┐                   │
+//	│  │ SSE Subscribers │          │  Poll Loop      │                   │
+//	│  │ (UI updates)    │◀─────────│  (background)   │                   │
+//	│  └─────────────────┘  updates └────────┬────────┘                   │
+//	│                                        │                             │
+//	│                                        ▼                             │
+//	│                          ┌─────────────────────────┐                │
+//	│                          │ Calls status tool       │                │
+//	│                          │ repeatedly until done   │                │
+//	│                          └─────────────┬───────────┘                │
+//	│                                        │                             │
+//	│                                        ▼                             │
+//	│                          ┌─────────────────────────┐                │
+//	│                          │ On terminal status:     │                │
+//	│                          │ - Notify SSE subs       │                │
+//	│                          │ - Trigger completion CB │                │
+//	│                          │ - AI loop continues     │                │
+//	│                          └─────────────────────────┘                │
+//	└─────────────────────────────────────────────────────────────────────┘
+//
+// ## Subscription Systems
+//
+// There are two notification systems serving different consumers:
+//
+// 1. SSE Subscribers (SubscribeWithID/UnsubscribeByID):
+//   - Used by UI clients for real-time progress display
+//   - Buffered channels prevent blocking on slow consumers
+//   - ID-based tracking for safe unsubscription
+//
+// 2. Completion Callbacks (RegisterCompletionCallback/UnregisterCompletionCallback):
+//   - Used by AI conversation loop to wait for results
+//   - One callback per chat (multiple operations fan into same channel)
+//   - Enables auto-continuation after async tools complete
+//
+// Note: The deprecated Subscribe/Unsubscribe methods use pointer comparison
+// which is fragile. Use SubscribeWithID/UnsubscribeByID for new code.
+//
+// ## Concurrency Model
+//
+// Operations are accessed from multiple goroutines:
+//   - HTTP handlers (read operations, start tracking)
+//   - Poll goroutines (update status, trigger callbacks)
+//   - Cleanup routine (remove stale operations)
+//
+// Thread safety is ensured via:
+//   - sync.RWMutex for operation map access
+//   - OperationSnapshot for lock-free polling config access
+//   - Non-blocking channel sends (with logging on full channels)
+//
+// ## Configuration
+//
+// Tunable parameters are defined in async_config.go:
+//   - Poll intervals and timeouts
+//   - Channel buffer sizes
+//   - Cleanup intervals and retention
+//
+// ## File Organization
+//
+// The async tracker is split across several files:
+//   - async_tracker.go: Package documentation and recovery/lifecycle methods
+//   - async_tracker_types.go: Type definitions, constructor, and configuration
+//   - async_tracker_operations.go: Operation lifecycle (start, stop, cancel, query)
+//   - async_tracker_polling.go: Background polling loop and status processing
+//   - async_tracker_subscriptions.go: SSE subscriptions and completion callbacks
+//   - async_config.go: Configuration constants
+//
+// ## Testing
+//
+// The AsyncTrackerInterface in interfaces.go enables mocking for unit tests.
+// Integration tests can use AddTestOperation() to inject test data.
 package services
 
 import (
@@ -21,512 +114,141 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"sync"
-	"time"
-
-	"agent-inbox/domain"
-	"agent-inbox/integrations"
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
-// AsyncTrackerService manages background polling for async tool operations.
-type AsyncTrackerService struct {
-	mu sync.RWMutex
+// RecoverOperations loads active operations from the database and resumes polling.
+// Called during service initialization for crash recovery.
+// Uses fresh status check approach - queries current status before resuming polling.
+func (s *AsyncTrackerService) RecoverOperations(ctx context.Context) error {
+	s.mu.RLock()
+	repo := s.repo
+	s.mu.RUnlock()
 
-	// Active operations being tracked
-	operations map[string]*AsyncOperation // toolCallID -> operation
-
-	// Subscribers for status updates (chatID -> channels)
-	subscribers map[string][]chan<- AsyncStatusUpdate
-
-	// Cancellation for active pollers
-	cancelFuncs map[string]context.CancelFunc // toolCallID -> cancel
-
-	// Dependencies
-	toolRegistry *ToolRegistry
-	toolExecutor *integrations.ToolExecutor
-}
-
-// AsyncOperation represents a tracked async tool execution.
-type AsyncOperation struct {
-	ToolCallID    string                   `json:"tool_call_id"`
-	ChatID        string                   `json:"chat_id"`
-	ToolName      string                   `json:"tool_name"`
-	Scenario      string                   `json:"scenario"`
-	ExternalRunID string                   `json:"external_run_id"`
-	AsyncBehavior *toolspb.AsyncBehavior   `json:"-"`
-	Status        string                   `json:"status"`
-	Progress      *int                     `json:"progress,omitempty"`
-	Message       string                   `json:"message,omitempty"`
-	Phase         string                   `json:"phase,omitempty"`
-	Result        interface{}              `json:"result,omitempty"`
-	Error         string                   `json:"error,omitempty"`
-	StartedAt     time.Time                `json:"started_at"`
-	UpdatedAt     time.Time                `json:"updated_at"`
-	CompletedAt   *time.Time               `json:"completed_at,omitempty"`
-}
-
-// AsyncStatusUpdate represents a status update pushed to subscribers.
-type AsyncStatusUpdate struct {
-	ToolCallID  string      `json:"tool_call_id"`
-	ChatID      string      `json:"chat_id"`
-	ToolName    string      `json:"tool_name"`
-	Status      string      `json:"status"`
-	Progress    *int        `json:"progress,omitempty"`
-	Message     string      `json:"message,omitempty"`
-	Phase       string      `json:"phase,omitempty"`
-	Result      interface{} `json:"result,omitempty"`
-	Error       string      `json:"error,omitempty"`
-	IsTerminal  bool        `json:"is_terminal"`
-	UpdatedAt   time.Time   `json:"updated_at"`
-}
-
-// NewAsyncTrackerService creates a new AsyncTrackerService.
-func NewAsyncTrackerService(registry *ToolRegistry, executor *integrations.ToolExecutor) *AsyncTrackerService {
-	return &AsyncTrackerService{
-		operations:   make(map[string]*AsyncOperation),
-		subscribers:  make(map[string][]chan<- AsyncStatusUpdate),
-		cancelFuncs:  make(map[string]context.CancelFunc),
-		toolRegistry: registry,
-		toolExecutor: executor,
-	}
-}
-
-// StartTracking begins tracking an async tool operation.
-// This should be called after executing a tool that has AsyncBehavior defined.
-func (s *AsyncTrackerService) StartTracking(
-	ctx context.Context,
-	toolCallID string,
-	chatID string,
-	toolName string,
-	scenario string,
-	toolResult interface{},
-	asyncBehavior *toolspb.AsyncBehavior,
-) error {
-	if asyncBehavior == nil || asyncBehavior.StatusPolling == nil {
-		return fmt.Errorf("no async behavior configuration provided")
+	if repo == nil {
+		return nil // No repository configured, nothing to recover
 	}
 
-	// Extract the operation ID from the tool result
-	externalRunID, err := s.extractOperationID(toolResult, asyncBehavior.StatusPolling.OperationIdField)
+	records, err := repo.GetAllActiveAsyncOperations(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to extract operation ID: %w", err)
+		return fmt.Errorf("failed to get active operations for recovery: %w", err)
 	}
 
-	// Create the operation record
-	op := &AsyncOperation{
-		ToolCallID:    toolCallID,
-		ChatID:        chatID,
-		ToolName:      toolName,
-		Scenario:      scenario,
-		ExternalRunID: externalRunID,
-		AsyncBehavior: asyncBehavior,
-		Status:        "pending",
-		StartedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+	if len(records) == 0 {
+		log.Printf("[INFO] No async operations to recover")
+		return nil
 	}
 
-	// Store the operation
-	s.mu.Lock()
-	s.operations[toolCallID] = op
-	s.mu.Unlock()
+	log.Printf("[INFO] Recovering %d async operations", len(records))
 
-	// Push initial update to subscribers so UI shows the operation immediately
-	s.pushUpdate(op, false)
+	for _, record := range records {
+		// Reconstruct the AsyncOperation from the record
+		var asyncBehavior toolspb.AsyncBehavior
+		if err := json.Unmarshal(record.AsyncBehavior, &asyncBehavior); err != nil {
+			log.Printf("[WARN] Failed to unmarshal async behavior for %s: %v", record.ToolCallID, err)
+			continue
+		}
+
+		op := &AsyncOperation{
+			ToolCallID:    record.ToolCallID,
+			ChatID:        record.ChatID,
+			ToolName:      record.ToolName,
+			Scenario:      record.ScenarioName,
+			ExternalRunID: record.OperationID,
+			AsyncBehavior: &asyncBehavior,
+			Status:        record.Status,
+			Progress:      record.Progress,
+			Message:       record.Message,
+			Phase:         record.Phase,
+			Error:         record.Error,
+			StartedAt:     record.StartedAt,
+			UpdatedAt:     record.UpdatedAt,
+			CompletedAt:   record.CompletedAt,
+		}
+
+		// Parse result if present
+		if len(record.Result) > 0 {
+			var result interface{}
+			if err := json.Unmarshal(record.Result, &result); err == nil {
+				op.Result = result
+			}
+		}
+
+		// Store in memory
+		s.mu.Lock()
+		s.operations[record.ToolCallID] = op
+		s.mu.Unlock()
+
+		// Start recovery goroutine with fresh status check
+		go s.recoverOperation(ctx, op)
+	}
+
+	return nil
+}
+
+// recoverOperation performs a fresh status check and resumes polling if still active.
+// This is safer than resuming mid-poll as it gets the current state from the external service.
+func (s *AsyncTrackerService) recoverOperation(ctx context.Context, op *AsyncOperation) {
+	log.Printf("[INFO] Recovering operation %s (status=%s)", op.ToolCallID, op.Status)
+
+	// Create snapshot for the status check
+	snap, ok := s.snapshotOperation(op.ToolCallID)
+	if !ok {
+		log.Printf("[WARN] Recovery: operation %s disappeared before recovery", op.ToolCallID)
+		return
+	}
+
+	// Perform immediate fresh status check
+	statusResult, err := s.callStatusToolWithSnapshot(ctx, snap)
+	if err != nil {
+		log.Printf("[WARN] Recovery status check failed for %s: %v", op.ToolCallID, err)
+		// Continue to poll loop anyway - it will handle retries
+	} else {
+		// Process the result - this may mark as complete if operation finished while we were down
+		conditions := snap.AsyncBehavior.CompletionConditions
+		isTerminal, status := s.processStatusResult(op, statusResult, conditions)
+		if isTerminal {
+			log.Printf("[INFO] Recovery: operation %s already completed (status=%s)", op.ToolCallID, status)
+			return
+		}
+	}
 
 	// Create cancellable context for polling
 	pollCtx, cancel := context.WithCancel(ctx)
 	s.mu.Lock()
-	s.cancelFuncs[toolCallID] = cancel
+	s.cancelFuncs[op.ToolCallID] = cancel
 	s.mu.Unlock()
 
-	// Start background polling
-	go s.pollLoop(pollCtx, op)
-
-	log.Printf("Started async tracking for %s/%s (toolCallID=%s, runID=%s)",
-		scenario, toolName, toolCallID, externalRunID)
-
-	return nil
+	// Start polling loop
+	s.pollLoop(pollCtx, op)
 }
 
-// StopTracking cancels tracking for an operation.
-func (s *AsyncTrackerService) StopTracking(toolCallID string) {
+// Shutdown gracefully stops all active polling and persists state.
+// Should be called before server shutdown.
+func (s *AsyncTrackerService) Shutdown(ctx context.Context) error {
+	log.Printf("[INFO] AsyncTrackerService shutting down...")
+
 	s.mu.Lock()
-	if cancel, ok := s.cancelFuncs[toolCallID]; ok {
+	repo := s.repo
+	toolCallIDs := make([]string, 0, len(s.cancelFuncs))
+
+	// Cancel all polling goroutines
+	for toolCallID, cancel := range s.cancelFuncs {
+		toolCallIDs = append(toolCallIDs, toolCallID)
 		cancel()
-		delete(s.cancelFuncs, toolCallID)
 	}
 	s.mu.Unlock()
-}
 
-// GetOperation returns an operation by ID.
-func (s *AsyncTrackerService) GetOperation(toolCallID string) *AsyncOperation {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.operations[toolCallID]
-}
-
-// GetActiveOperations returns all active operations for a chat.
-func (s *AsyncTrackerService) GetActiveOperations(chatID string) []*AsyncOperation {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	var result []*AsyncOperation
-	for _, op := range s.operations {
-		if op.ChatID == chatID && op.CompletedAt == nil {
-			result = append(result, op)
-		}
-	}
-	return result
-}
-
-// Subscribe creates a channel for receiving updates for a chat.
-// The caller is responsible for calling Unsubscribe when done.
-func (s *AsyncTrackerService) Subscribe(chatID string) <-chan AsyncStatusUpdate {
-	ch := make(chan AsyncStatusUpdate, 100) // Buffer to prevent blocking
-
-	s.mu.Lock()
-	s.subscribers[chatID] = append(s.subscribers[chatID], ch)
-	s.mu.Unlock()
-
-	return ch
-}
-
-// Unsubscribe removes a subscriber channel.
-func (s *AsyncTrackerService) Unsubscribe(chatID string, ch <-chan AsyncStatusUpdate) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	subs := s.subscribers[chatID]
-	for i, sub := range subs {
-		// Compare channel addresses by converting to bidirectional channel type
-		// Note: This works because we know the channel was created as bidirectional
-		if fmt.Sprintf("%p", sub) == fmt.Sprintf("%p", ch) {
-			s.subscribers[chatID] = append(subs[:i], subs[i+1:]...)
-			close(sub)
-			break
-		}
-	}
-
-	// Clean up empty subscriber lists
-	if len(s.subscribers[chatID]) == 0 {
-		delete(s.subscribers, chatID)
-	}
-}
-
-// pollLoop runs the background polling for an operation.
-func (s *AsyncTrackerService) pollLoop(ctx context.Context, op *AsyncOperation) {
-	polling := op.AsyncBehavior.StatusPolling
-	conditions := op.AsyncBehavior.CompletionConditions
-
-	interval := time.Duration(polling.PollIntervalSeconds) * time.Second
-	if interval < time.Second {
-		interval = 5 * time.Second // Default to 5 seconds
-	}
-
-	maxDuration := time.Duration(polling.MaxPollDurationSeconds) * time.Second
-	if maxDuration <= 0 {
-		maxDuration = time.Hour // Default to 1 hour
-	}
-
-	deadline := op.StartedAt.Add(maxDuration)
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			log.Printf("Polling cancelled for %s", op.ToolCallID)
-			return
-		case <-ticker.C:
-			if time.Now().After(deadline) {
-				s.handleTimeout(op)
-				return
-			}
-
-			// Call the status tool
-			statusResult, err := s.callStatusTool(ctx, op)
-			if err != nil {
-				log.Printf("Error polling status for %s: %v", op.ToolCallID, err)
-				continue // Keep trying
-			}
-
-			// Process the status result
-			terminal := s.processStatusResult(op, statusResult, conditions)
-			if terminal {
-				log.Printf("Operation %s reached terminal status: %s", op.ToolCallID, op.Status)
-				return
+	// Mark interrupted operations in database (outside lock to avoid blocking)
+	if repo != nil {
+		for _, toolCallID := range toolCallIDs {
+			if err := repo.UpdateAsyncOperationStatus(ctx, toolCallID, "polling"); err != nil {
+				log.Printf("[WARN] Failed to update status for %s during shutdown: %v", toolCallID, err)
 			}
 		}
 	}
-}
 
-// callStatusTool invokes the status tool to check operation progress.
-func (s *AsyncTrackerService) callStatusTool(ctx context.Context, op *AsyncOperation) (interface{}, error) {
-	polling := op.AsyncBehavior.StatusPolling
-
-	// Build arguments for status tool
-	args := map[string]interface{}{
-		polling.StatusToolIdParam: op.ExternalRunID,
-	}
-	argsJSON, _ := json.Marshal(args)
-
-	// Execute the status tool
-	record, err := s.toolExecutor.ExecuteTool(ctx, op.ChatID, "", polling.StatusTool, string(argsJSON))
-	if err != nil {
-		return nil, err
-	}
-	if record.Status == domain.StatusFailed {
-		return nil, fmt.Errorf("status tool failed: %s", record.ErrorMessage)
-	}
-
-	// Parse the result
-	var result interface{}
-	if err := json.Unmarshal([]byte(record.Result), &result); err != nil {
-		return nil, fmt.Errorf("failed to parse status result: %w", err)
-	}
-
-	return result, nil
-}
-
-// processStatusResult updates the operation based on status tool response.
-// Returns true if the operation has reached a terminal status.
-func (s *AsyncTrackerService) processStatusResult(op *AsyncOperation, result interface{}, conditions *toolspb.CompletionConditions) bool {
-	resultMap, ok := result.(map[string]interface{})
-	if !ok {
-		return false
-	}
-
-	// Extract status
-	status := extractStringField(resultMap, conditions.StatusField)
-	if status == "" {
-		return false
-	}
-
-	// Update operation
-	s.mu.Lock()
-	op.Status = status
-	op.UpdatedAt = time.Now()
-
-	// Extract progress if configured
-	if op.AsyncBehavior.ProgressTracking != nil {
-		if progress := extractIntField(resultMap, op.AsyncBehavior.ProgressTracking.ProgressField); progress != nil {
-			op.Progress = progress
-		}
-		if message := extractStringField(resultMap, op.AsyncBehavior.ProgressTracking.MessageField); message != "" {
-			op.Message = message
-		}
-		if phase := extractStringField(resultMap, op.AsyncBehavior.ProgressTracking.PhaseField); phase != "" {
-			op.Phase = phase
-		}
-	}
-
-	// Check for error
-	if conditions.ErrorField != "" {
-		if errMsg := extractStringField(resultMap, conditions.ErrorField); errMsg != "" {
-			op.Error = errMsg
-		}
-	}
-
-	// Check for result
-	if conditions.ResultField != "" {
-		if resultVal := extractField(resultMap, conditions.ResultField); resultVal != nil {
-			op.Result = resultVal
-		}
-	}
-
-	// Check terminal conditions
-	isSuccess := contains(conditions.SuccessValues, status)
-	isFailure := contains(conditions.FailureValues, status)
-	isTerminal := isSuccess || isFailure
-
-	if isTerminal {
-		now := time.Now()
-		op.CompletedAt = &now
-	}
-	s.mu.Unlock()
-
-	// Push update to subscribers
-	s.pushUpdate(op, isTerminal)
-
-	return isTerminal
-}
-
-// handleTimeout marks an operation as timed out.
-func (s *AsyncTrackerService) handleTimeout(op *AsyncOperation) {
-	s.mu.Lock()
-	op.Status = "timeout"
-	op.Error = "Operation timed out"
-	now := time.Now()
-	op.CompletedAt = &now
-	op.UpdatedAt = now
-	s.mu.Unlock()
-
-	s.pushUpdate(op, true)
-
-	log.Printf("Operation %s timed out", op.ToolCallID)
-}
-
-// pushUpdate sends an update to all subscribers for the chat.
-func (s *AsyncTrackerService) pushUpdate(op *AsyncOperation, isTerminal bool) {
-	update := AsyncStatusUpdate{
-		ToolCallID: op.ToolCallID,
-		ChatID:     op.ChatID,
-		ToolName:   op.ToolName,
-		Status:     op.Status,
-		Progress:   op.Progress,
-		Message:    op.Message,
-		Phase:      op.Phase,
-		Result:     op.Result,
-		Error:      op.Error,
-		IsTerminal: isTerminal,
-		UpdatedAt:  op.UpdatedAt,
-	}
-
-	s.mu.RLock()
-	subs := s.subscribers[op.ChatID]
-	s.mu.RUnlock()
-
-	for _, ch := range subs {
-		select {
-		case ch <- update:
-		default:
-			// Channel full, skip this update
-			log.Printf("Warning: subscriber channel full for chat %s", op.ChatID)
-		}
-	}
-}
-
-// extractOperationID extracts the operation ID from the tool result.
-func (s *AsyncTrackerService) extractOperationID(result interface{}, fieldPath string) (string, error) {
-	resultMap, ok := result.(map[string]interface{})
-	if !ok {
-		return "", fmt.Errorf("result is not a map")
-	}
-
-	value := extractStringField(resultMap, fieldPath)
-	if value == "" {
-		return "", fmt.Errorf("field %s not found or empty", fieldPath)
-	}
-
-	return value, nil
-}
-
-// CancelOperation cancels a running async operation using the configured cancel tool.
-func (s *AsyncTrackerService) CancelOperation(ctx context.Context, toolCallID string) error {
-	s.mu.RLock()
-	op := s.operations[toolCallID]
-	s.mu.RUnlock()
-
-	if op == nil {
-		return fmt.Errorf("operation not found: %s", toolCallID)
-	}
-
-	if op.AsyncBehavior.Cancellation == nil {
-		return fmt.Errorf("no cancellation behavior configured for this tool")
-	}
-
-	cancel := op.AsyncBehavior.Cancellation
-
-	// Build arguments for cancel tool
-	args := map[string]interface{}{
-		cancel.CancelToolIdParam: op.ExternalRunID,
-	}
-	argsJSON, _ := json.Marshal(args)
-
-	// Execute the cancel tool
-	_, err := s.toolExecutor.ExecuteTool(ctx, op.ChatID, "", cancel.CancelTool, string(argsJSON))
-	if err != nil {
-		return fmt.Errorf("failed to cancel operation: %w", err)
-	}
-
-	// Stop tracking
-	s.StopTracking(toolCallID)
-
+	log.Printf("[INFO] AsyncTrackerService shutdown complete (%d operations paused)", len(toolCallIDs))
 	return nil
-}
-
-// -----------------------------------------------------------------------------
-// Helper Functions
-// -----------------------------------------------------------------------------
-
-// extractStringField extracts a string value from a nested map using dot notation.
-func extractStringField(m map[string]interface{}, path string) string {
-	val := extractField(m, path)
-	if val == nil {
-		return ""
-	}
-	if s, ok := val.(string); ok {
-		return s
-	}
-	return ""
-}
-
-// extractIntField extracts an int value from a nested map using dot notation.
-func extractIntField(m map[string]interface{}, path string) *int {
-	val := extractField(m, path)
-	if val == nil {
-		return nil
-	}
-	switch v := val.(type) {
-	case float64:
-		i := int(v)
-		return &i
-	case int:
-		return &v
-	case int64:
-		i := int(v)
-		return &i
-	}
-	return nil
-}
-
-// extractField extracts a value from a nested map using dot notation.
-func extractField(m map[string]interface{}, path string) interface{} {
-	parts := splitPath(path)
-	current := interface{}(m)
-
-	for _, part := range parts {
-		if currentMap, ok := current.(map[string]interface{}); ok {
-			current = currentMap[part]
-			if current == nil {
-				return nil
-			}
-		} else {
-			return nil
-		}
-	}
-
-	return current
-}
-
-// splitPath splits a dot-notation path into parts.
-func splitPath(path string) []string {
-	var parts []string
-	var current string
-	for _, c := range path {
-		if c == '.' {
-			if current != "" {
-				parts = append(parts, current)
-				current = ""
-			}
-		} else {
-			current += string(c)
-		}
-	}
-	if current != "" {
-		parts = append(parts, current)
-	}
-	return parts
-}
-
-// contains checks if a slice contains a string.
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }

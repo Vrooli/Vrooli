@@ -1,0 +1,15 @@
+{
+  "kind": "topic",
+  "schemaVersion": 1,
+  "id": "topic-1",
+  "name": "Development",
+  "skills": [
+    "documentation-health",
+    "test",
+    "seam-discovery-and-enforcement"
+  ],
+  "status": "active",
+  "revision": 4,
+  "createdAt": "2026-03-25T22:59:26Z",
+  "updatedAt": "2026-03-26T02:08:13Z"
+}

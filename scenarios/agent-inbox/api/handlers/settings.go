@@ -5,6 +5,8 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+
+	"agent-inbox/services"
 )
 
 // GetYoloMode returns the current YOLO mode setting.
@@ -42,4 +44,45 @@ func (h *Handlers) SetYoloMode(w http.ResponseWriter, r *http.Request) {
 		"enabled": req.Enabled,
 		"success": true,
 	}, http.StatusOK)
+}
+
+// GetSuggestionsSettings returns the current suggestions settings.
+// GET /api/v1/settings/suggestions
+func (h *Handlers) GetSuggestionsSettings(w http.ResponseWriter, r *http.Request) {
+	if h.SuggestionsSettings == nil {
+		defaults := services.DefaultSuggestionsSettings()
+		h.JSONResponse(w, defaults, http.StatusOK)
+		return
+	}
+
+	settings, err := h.SuggestionsSettings.Get()
+	if err != nil {
+		h.JSONError(w, "Failed to get suggestions settings", http.StatusInternalServerError)
+		return
+	}
+
+	h.JSONResponse(w, settings, http.StatusOK)
+}
+
+// SetSuggestionsSettings updates and persists suggestions settings.
+// POST /api/v1/settings/suggestions
+func (h *Handlers) SetSuggestionsSettings(w http.ResponseWriter, r *http.Request) {
+	var req services.SuggestionsSettings
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.JSONError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if h.SuggestionsSettings == nil {
+		h.JSONError(w, "Suggestions settings service unavailable", http.StatusInternalServerError)
+		return
+	}
+
+	settings, err := h.SuggestionsSettings.Set(req)
+	if err != nil {
+		h.JSONError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	h.JSONResponse(w, settings, http.StatusOK)
 }

@@ -52,7 +52,9 @@ function getAttachmentType(file: File): AttachmentType {
   return "pdf";
 }
 
-export function useAttachments(): UseAttachmentsReturn {
+export function useAttachments(
+  customUploadFn?: (file: File) => Promise<UploadResponse>
+): UseAttachmentsReturn {
   const [attachments, setAttachments] = useState<AttachmentState[]>([]);
 
   const addAttachment = useCallback((file: File, type?: AttachmentType) => {
@@ -96,7 +98,8 @@ export function useAttachments(): UseAttachmentsReturn {
     );
 
     try {
-      const response: UploadResponse = await uploadAttachment(file);
+      const uploadFn = customUploadFn || uploadAttachment;
+      const response: UploadResponse = await uploadFn(file);
 
       // Mark as uploaded with server data
       setAttachments((prev) =>
@@ -156,8 +159,9 @@ export function useAttachments(): UseAttachmentsReturn {
 
   const getUploadedIds = useCallback((): string[] => {
     return attachments
-      .filter((att) => att.uploadStatus === "uploaded" && att.serverId)
-      .map((att) => att.serverId!);
+      .filter((att): att is typeof att & { serverId: string } =>
+        att.uploadStatus === "uploaded" && !!att.serverId)
+      .map((att) => att.serverId);
   }, [attachments]);
 
   return {

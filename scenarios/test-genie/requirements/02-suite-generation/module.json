@@ -12,12 +12,12 @@
       "description": "Rebuild CLI/API endpoints that analyze codebases, call App Issue Tracker, and emit deterministic local suites when delegation is unavailable.",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
-      "status": "complete",
+      "status": "in_progress",
       "validation": [
         {
           "type": "test",
-          "ref": "cli/test/test-genie-generate.bats",
-          "phase": "business",
+          "ref": "cli/main_test.go",
+          "phase": "integration",
           "status": "implemented",
           "notes": "CLI acceptance tests exercise the suite generation workflow"
         },
@@ -30,7 +30,7 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/suite/suite_requests_test.go",
+          "ref": "api/internal/queue/request_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Covers suite request payload validation + persistence and query helpers"

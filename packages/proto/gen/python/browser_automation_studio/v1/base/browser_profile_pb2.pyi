@@ -7,9 +7,9 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class BrowserProfile(_message.Message):
-    __slots__ = ()
+    __slots__ = ("preset", "fingerprint", "behavior", "anti_detection", "proxy", "extra_headers")
     class ExtraHeadersEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -30,7 +30,7 @@ class BrowserProfile(_message.Message):
     def __init__(self, preset: _Optional[str] = ..., fingerprint: _Optional[_Union[FingerprintSettings, _Mapping]] = ..., behavior: _Optional[_Union[BehaviorSettings, _Mapping]] = ..., anti_detection: _Optional[_Union[AntiDetectionSettings, _Mapping]] = ..., proxy: _Optional[_Union[ProxySettings, _Mapping]] = ..., extra_headers: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class FingerprintSettings(_message.Message):
-    __slots__ = ()
+    __slots__ = ("viewport_width", "viewport_height", "device_scale_factor", "hardware_concurrency", "device_memory", "user_agent", "user_agent_preset", "locale", "timezone_id", "geolocation_enabled", "latitude", "longitude", "accuracy", "color_scheme")
     VIEWPORT_WIDTH_FIELD_NUMBER: _ClassVar[int]
     VIEWPORT_HEIGHT_FIELD_NUMBER: _ClassVar[int]
     DEVICE_SCALE_FACTOR_FIELD_NUMBER: _ClassVar[int]
@@ -62,7 +62,7 @@ class FingerprintSettings(_message.Message):
     def __init__(self, viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., device_scale_factor: _Optional[float] = ..., hardware_concurrency: _Optional[int] = ..., device_memory: _Optional[int] = ..., user_agent: _Optional[str] = ..., user_agent_preset: _Optional[str] = ..., locale: _Optional[str] = ..., timezone_id: _Optional[str] = ..., geolocation_enabled: _Optional[bool] = ..., latitude: _Optional[float] = ..., longitude: _Optional[float] = ..., accuracy: _Optional[float] = ..., color_scheme: _Optional[str] = ...) -> None: ...
 
 class BehaviorSettings(_message.Message):
-    __slots__ = ()
+    __slots__ = ("typing_delay_min", "typing_delay_max", "typing_start_delay_min", "typing_start_delay_max", "typing_paste_threshold", "typing_variance_enabled", "mouse_movement_style", "mouse_jitter_amount", "click_delay_min", "click_delay_max", "scroll_style", "scroll_speed_min", "scroll_speed_max", "micro_pause_enabled", "micro_pause_min_ms", "micro_pause_max_ms", "micro_pause_frequency")
     TYPING_DELAY_MIN_FIELD_NUMBER: _ClassVar[int]
     TYPING_DELAY_MAX_FIELD_NUMBER: _ClassVar[int]
     TYPING_START_DELAY_MIN_FIELD_NUMBER: _ClassVar[int]
@@ -100,7 +100,7 @@ class BehaviorSettings(_message.Message):
     def __init__(self, typing_delay_min: _Optional[int] = ..., typing_delay_max: _Optional[int] = ..., typing_start_delay_min: _Optional[int] = ..., typing_start_delay_max: _Optional[int] = ..., typing_paste_threshold: _Optional[int] = ..., typing_variance_enabled: _Optional[bool] = ..., mouse_movement_style: _Optional[str] = ..., mouse_jitter_amount: _Optional[float] = ..., click_delay_min: _Optional[int] = ..., click_delay_max: _Optional[int] = ..., scroll_style: _Optional[str] = ..., scroll_speed_min: _Optional[int] = ..., scroll_speed_max: _Optional[int] = ..., micro_pause_enabled: _Optional[bool] = ..., micro_pause_min_ms: _Optional[int] = ..., micro_pause_max_ms: _Optional[int] = ..., micro_pause_frequency: _Optional[float] = ...) -> None: ...
 
 class AntiDetectionSettings(_message.Message):
-    __slots__ = ()
+    __slots__ = ("disable_automation_controlled", "disable_webrtc", "patch_navigator_webdriver", "patch_navigator_plugins", "patch_navigator_languages", "patch_webgl", "patch_canvas", "patch_audio_context", "headless_detection_bypass", "patch_fonts", "patch_screen_properties", "patch_battery_api", "patch_connection_api", "ad_blocking_mode", "ad_blocking_whitelist")
     DISABLE_AUTOMATION_CONTROLLED_FIELD_NUMBER: _ClassVar[int]
     DISABLE_WEBRTC_FIELD_NUMBER: _ClassVar[int]
     PATCH_NAVIGATOR_WEBDRIVER_FIELD_NUMBER: _ClassVar[int]
@@ -134,7 +134,7 @@ class AntiDetectionSettings(_message.Message):
     def __init__(self, disable_automation_controlled: _Optional[bool] = ..., disable_webrtc: _Optional[bool] = ..., patch_navigator_webdriver: _Optional[bool] = ..., patch_navigator_plugins: _Optional[bool] = ..., patch_navigator_languages: _Optional[bool] = ..., patch_webgl: _Optional[bool] = ..., patch_canvas: _Optional[bool] = ..., patch_audio_context: _Optional[bool] = ..., headless_detection_bypass: _Optional[bool] = ..., patch_fonts: _Optional[bool] = ..., patch_screen_properties: _Optional[bool] = ..., patch_battery_api: _Optional[bool] = ..., patch_connection_api: _Optional[bool] = ..., ad_blocking_mode: _Optional[str] = ..., ad_blocking_whitelist: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ProxySettings(_message.Message):
-    __slots__ = ()
+    __slots__ = ("enabled", "server", "bypass", "username", "password")
     ENABLED_FIELD_NUMBER: _ClassVar[int]
     SERVER_FIELD_NUMBER: _ClassVar[int]
     BYPASS_FIELD_NUMBER: _ClassVar[int]

@@ -1,5 +1,5 @@
-from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1.base import geometry_pb2 as _geometry_pb2
+from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -9,7 +9,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class SelectorCandidate(_message.Message):
-    __slots__ = ()
+    __slots__ = ("type", "value", "confidence", "specificity")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
     CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
@@ -21,9 +21,9 @@ class SelectorCandidate(_message.Message):
     def __init__(self, type: _Optional[_Union[_shared_pb2.SelectorType, str]] = ..., value: _Optional[str] = ..., confidence: _Optional[float] = ..., specificity: _Optional[int] = ...) -> None: ...
 
 class ElementMeta(_message.Message):
-    __slots__ = ()
+    __slots__ = ("tag_name", "id", "class_name", "inner_text", "attributes", "is_visible", "is_enabled", "role", "aria_label")
     class AttributesEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -50,7 +50,7 @@ class ElementMeta(_message.Message):
     def __init__(self, tag_name: _Optional[str] = ..., id: _Optional[str] = ..., class_name: _Optional[str] = ..., inner_text: _Optional[str] = ..., attributes: _Optional[_Mapping[str, str]] = ..., is_visible: _Optional[bool] = ..., is_enabled: _Optional[bool] = ..., role: _Optional[str] = ..., aria_label: _Optional[str] = ...) -> None: ...
 
 class HighlightRegion(_message.Message):
-    __slots__ = ()
+    __slots__ = ("selector", "bounding_box", "padding", "highlight_color", "custom_rgba")
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     BOUNDING_BOX_FIELD_NUMBER: _ClassVar[int]
     PADDING_FIELD_NUMBER: _ClassVar[int]
@@ -64,7 +64,7 @@ class HighlightRegion(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ..., padding: _Optional[int] = ..., highlight_color: _Optional[_Union[_shared_pb2.HighlightColor, str]] = ..., custom_rgba: _Optional[str] = ...) -> None: ...
 
 class MaskRegion(_message.Message):
-    __slots__ = ()
+    __slots__ = ("selector", "bounding_box", "opacity")
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     BOUNDING_BOX_FIELD_NUMBER: _ClassVar[int]
     OPACITY_FIELD_NUMBER: _ClassVar[int]

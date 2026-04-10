@@ -3,8 +3,10 @@ package main
 import "time"
 
 type RepoStatusDeps struct {
-	Git     GitRunner
-	RepoDir string
+	Git             GitRunner
+	RepoDir         string
+	ConfigCache     *GitConfigCache // optional; falls back to direct git calls if nil
+	IncludeHotspots bool            // when false, skip the expensive LogFileFrequency call
 }
 
 type RepoHistoryDeps struct {
@@ -12,26 +14,29 @@ type RepoHistoryDeps struct {
 	RepoDir      string
 	Limit        int
 	IncludeFiles bool
+	GrepPattern  string // optional --grep filter for git log
 }
 
 type RepoStatus struct {
-	RepoDir   string                 `json:"repo_dir"`
-	Branch    RepoBranchStatus       `json:"branch"`
-	Files     RepoFilesStatus        `json:"files"`
-	FileStats RepoFileStats          `json:"file_stats,omitempty"`
-	Scopes    map[string][]string    `json:"scopes"`
-	Summary   RepoStatusSummary      `json:"summary"`
-	Author    RepoAuthorStatus       `json:"author"`
-	Timestamp time.Time              `json:"timestamp"`
-	Raw       map[string]interface{} `json:"raw,omitempty"`
+	RepoDir      string                 `json:"repo_dir"`
+	Branch       RepoBranchStatus       `json:"branch"`
+	Files        RepoFilesStatus        `json:"files"`
+	FileStats    RepoFileStats          `json:"file_stats,omitempty"`
+	FileHotspots map[string]int         `json:"file_hotspots,omitempty"`
+	Scopes       map[string][]string    `json:"scopes"`
+	Summary      RepoStatusSummary      `json:"summary"`
+	Author       RepoAuthorStatus       `json:"author"`
+	Timestamp    time.Time              `json:"timestamp"`
+	Raw          map[string]interface{} `json:"raw,omitempty"`
 }
 
 type RepoHistory struct {
-	RepoDir   string             `json:"repo_dir"`
-	Lines     []string           `json:"lines"`
-	Entries   []RepoHistoryEntry `json:"entries,omitempty"`
-	Limit     int                `json:"limit"`
-	Timestamp time.Time          `json:"timestamp"`
+	RepoDir     string             `json:"repo_dir"`
+	Lines       []string           `json:"lines"`
+	Entries     []RepoHistoryEntry `json:"entries,omitempty"`
+	Limit       int                `json:"limit"`
+	GrepPattern string             `json:"grep_pattern,omitempty"`
+	Timestamp   time.Time          `json:"timestamp"`
 }
 
 type RepoHistoryEntry struct {

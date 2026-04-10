@@ -79,7 +79,7 @@ func ParseArgs(args []string) (Args, error) {
 	fs.StringVar(&out.NotesFile, "notes-file", "", "Path to notes file")
 	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
 		return Args{}, err
 	}
 	out.JSON = *jsonOutput

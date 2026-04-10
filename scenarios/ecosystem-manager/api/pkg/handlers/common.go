@@ -12,6 +12,12 @@ import (
 
 const defaultMaxBodyBytes int64 = 1 << 20 // 1MB hard cap to prevent oversized payloads
 
+// isDryRun reports whether the request has the X-Dry-Run header set,
+// indicating the caller wants validation without mutation.
+func isDryRun(r *http.Request) bool {
+	return r.Header.Get("X-Dry-Run") == "true"
+}
+
 // maxBodyBytes is kept mutable for tests; production uses defaultMaxBodyBytes.
 var maxBodyBytes int64 = defaultMaxBodyBytes
 
@@ -36,6 +42,37 @@ func writeError(w http.ResponseWriter, message string, statusCode int) {
 		"success": false,
 		"error":   message,
 	}, statusCode)
+}
+
+// ErrorOpts describes a structured API error with recovery guidance.
+type ErrorOpts struct {
+	Code         string
+	Message      string
+	RecoveryHint string
+	Details      map[string]any
+	ManualSteps  []string
+}
+
+// writeStructuredError writes a JSON error response with optional structured fields
+// (code, recovery_hint, details, manual_steps) that cli-core's ParseAPIError can consume.
+func writeStructuredError(w http.ResponseWriter, opts ErrorOpts, statusCode int) {
+	payload := map[string]any{
+		"success": false,
+		"error":   opts.Message,
+	}
+	if opts.Code != "" {
+		payload["code"] = opts.Code
+	}
+	if opts.RecoveryHint != "" {
+		payload["recovery_hint"] = opts.RecoveryHint
+	}
+	if len(opts.Details) > 0 {
+		payload["details"] = opts.Details
+	}
+	if len(opts.ManualSteps) > 0 {
+		payload["manual_steps"] = opts.ManualSteps
+	}
+	writeJSON(w, payload, statusCode)
 }
 
 // decodeJSONBody decodes request body into type T with consistent error handling.

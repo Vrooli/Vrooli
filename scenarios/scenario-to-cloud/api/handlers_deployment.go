@@ -15,6 +15,7 @@ import (
 	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps"
@@ -89,8 +90,8 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Parse and validate the manifest
-	var m domain.CloudManifest
-	if err := json.Unmarshal(req.Manifest, &m); err != nil {
+	var rawManifest map[string]interface{}
+	if err := json.Unmarshal(req.Manifest, &rawManifest); err != nil {
 		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
 			Code:    "invalid_manifest",
 			Message: "Manifest is not valid JSON",
@@ -99,7 +100,15 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	normalized, issues := manifest.ValidateAndNormalize(m)
+	normalized, issues, err := manifest.ValidateRaw(rawManifest)
+	if err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
+			Code:    "manifest_validate_failed",
+			Message: "Failed to validate manifest",
+			Hint:    err.Error(),
+		})
+		return
+	}
 	if manifest.HasBlockingIssues(issues) {
 		httputil.WriteJSON(w, http.StatusUnprocessableEntity, domain.ManifestValidateResponse{
 			Valid:     false,
@@ -108,6 +117,12 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 			Timestamp: time.Now().UTC().Format(time.RFC3339),
 		})
 		return
+	}
+
+	if repoRoot, err := bundle.FindRepoRootFromCWD(); err == nil {
+		if version, _, versionErr := resolveScenarioVersion(repoRoot, normalized.Scenario.ID); versionErr == nil && version != "" {
+			normalized.Scenario.Ref = version
+		}
 	}
 
 	// Re-marshal the normalized manifest
@@ -327,13 +342,13 @@ func (s *Server) cleanupDeploymentBundles(ctx context.Context, deployment *domai
 		cfg := ssh.ConfigFromManifest(manifest)
 		workdir := manifest.Target.VPS.Workdir
 		bundleFilename := filepath.Base(*deployment.BundlePath)
-		remoteBundlePath := ssh.SafeRemoteJoin(workdir, ".vrooli/cloud/bundles", bundleFilename)
+		remoteBundlePath := shellutil.SafeRemoteJoin(workdir, ".vrooli/cloud/bundles", bundleFilename)
 
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
-		cmd := fmt.Sprintf("rm -f %s", ssh.QuoteSingle(remoteBundlePath))
-		if _, err := s.sshRunner.Run(ctx, cfg, cmd); err != nil {
+		cmd := fmt.Sprintf("rm -f %s", shellutil.QuoteSingle(remoteBundlePath))
+		if _, err := s.sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions()); err != nil {
 			s.log("failed to delete VPS bundle", map[string]interface{}{
 				"path":  remoteBundlePath,
 				"error": err.Error(),
@@ -392,6 +407,43 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 			Hint:    err.Error(),
 		})
 		return
+	}
+
+	// When ForceBundleBuild is requested, refresh the manifest BEFORE validation
+	// This ensures the manifest reflects current scenario state and passes validation
+	if req.ForceBundleBuild {
+		refreshed, err := s.orchestrator.RefreshManifest(r.Context(), m)
+		if err != nil {
+			s.log("manifest refresh failed in handler", map[string]interface{}{
+				"deployment_id": id,
+				"error":         err.Error(),
+			})
+			// Continue with original manifest - validation may still pass
+		} else {
+			m = refreshed
+			if repoRoot, repoErr := bundle.FindRepoRootFromCWD(); repoErr == nil {
+				if version, _, versionErr := resolveScenarioVersion(repoRoot, m.Scenario.ID); versionErr == nil && version != "" {
+					m.Scenario.Ref = version
+				}
+			}
+			// Persist refreshed manifest to database
+			manifestJSON, marshalErr := json.Marshal(m)
+			if marshalErr != nil {
+				s.log("failed to marshal refreshed manifest", map[string]interface{}{
+					"deployment_id": id,
+					"error":         marshalErr.Error(),
+				})
+			} else if updateErr := s.repo.UpdateDeploymentManifest(r.Context(), id, manifestJSON); updateErr != nil {
+				s.log("failed to persist refreshed manifest", map[string]interface{}{
+					"deployment_id": id,
+					"error":         updateErr.Error(),
+				})
+			} else {
+				s.log("manifest refreshed before validation", map[string]interface{}{
+					"deployment_id": id,
+				})
+			}
+		}
 	}
 
 	normalized, issues := manifest.ValidateAndNormalize(m)
@@ -504,6 +556,63 @@ func (s *Server) handleStopDeployment(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleStartDeployment starts/resumes a stopped deployment.
+// POST /deployments/{id}/start
+//
+// This restarts the scenario and its resources without re-running VPS setup.
+// Only works for deployments in 'stopped' or 'setup_complete' status.
+func (s *Server) handleStartDeployment(w http.ResponseWriter, r *http.Request) {
+	dctx := s.FetchDeploymentContext(w, r)
+	if dctx == nil {
+		return
+	}
+
+	// Parse optional request body for provided secrets
+	var req domain.ExecuteDeploymentRequest
+	if r.Body != nil && r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			s.log("failed to parse start request body", map[string]interface{}{"error": err.Error()})
+		}
+	}
+
+	// Validate status - only stopped or setup_complete can be started
+	if dctx.Deployment.Status != domain.StatusStopped && dctx.Deployment.Status != domain.StatusSetupComplete {
+		httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{
+			Code:    "invalid_status",
+			Message: fmt.Sprintf("Cannot start deployment with status '%s'. Must be 'stopped' or 'setup_complete'.", dctx.Deployment.Status),
+		})
+		return
+	}
+
+	// Generate run ID for this execution
+	runID := uuid.New().String()
+
+	// Atomic status transition
+	if err := s.repo.StartDeploymentStart(r.Context(), dctx.ID, runID); err != nil {
+		httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{
+			Code:    "start_failed",
+			Message: "Cannot start deployment",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	s.log("deployment start initiated", map[string]interface{}{
+		"deployment_id": dctx.ID,
+		"run_id":        runID,
+	})
+
+	// Start in background
+	go s.orchestrator.RunStartPipeline(dctx.ID, runID, dctx.Manifest, req.ProvidedSecrets)
+
+	httputil.WriteJSON(w, http.StatusAccepted, map[string]interface{}{
+		"deployment_id": dctx.ID,
+		"run_id":        runID,
+		"message":       "Start initiated. Subscribe to /deployments/{id}/progress for real-time updates.",
+		"timestamp":     time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
 // stopDeploymentOnVPS runs the stop command on the remote VPS.
 func (s *Server) stopDeploymentOnVPS(ctx context.Context, m domain.CloudManifest) domain.VPSDeployResult {
 	normalized, _ := manifest.ValidateAndNormalize(m)
@@ -513,9 +622,9 @@ func (s *Server) stopDeploymentOnVPS(ctx context.Context, m domain.CloudManifest
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
-	cmd := ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario stop %s", ssh.QuoteSingle(normalized.Scenario.ID)))
+	cmd := shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario stop %s", shellutil.QuoteSingle(normalized.Scenario.ID)))
 
-	_, err := s.sshRunner.Run(ctx, cfg, cmd)
+	_, err := s.sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		return domain.VPSDeployResult{OK: false, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}

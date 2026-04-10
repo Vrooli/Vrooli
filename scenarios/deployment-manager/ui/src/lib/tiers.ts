@@ -1,4 +1,4 @@
-import type { DependencyAnalysisResponse, DeploymentProfile } from "./api";
+import type { DeploymentProfile } from "./api";
 
 // ============================================================================
 // Tier Configuration

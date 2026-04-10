@@ -1,4 +1,4 @@
-import { fetchHealth, fetchBranches, createBranch } from "./api";
+import { fetchHealth, fetchBranches, createBranch, fetchGroupingRules } from "./api";
 
 // [REQ:GCT-OT-P0-001] Health check endpoint
 
@@ -67,6 +67,25 @@ test("createBranch returns parsed JSON on success", async () => {
     const result = await createBranch({ name: "feature/test" });
     expect(result.success).toBe(true);
     expect(result.branch?.name).toBe("feature/test");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("fetchGroupingRules uses cache: no-store to bypass proxy caching", async () => {
+  const originalFetch = globalThis.fetch;
+  let capturedInit: RequestInit | undefined;
+  globalThis.fetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+    capturedInit = init;
+    return new Response(
+      JSON.stringify({ enabled: true, rules: [] }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  }) as unknown as typeof fetch;
+
+  try {
+    await fetchGroupingRules("repo-1");
+    expect(capturedInit?.cache).toBe("no-store");
   } finally {
     globalThis.fetch = originalFetch;
   }

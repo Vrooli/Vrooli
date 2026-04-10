@@ -306,7 +306,10 @@ function ExecutionLogsView({
     const result: Record<string, number> = { all: logs.length, error: 0, warning: 0, info: 0, success: 0 };
     for (const log of logs) {
       if (log.level in result) {
-        result[log.level]++;
+        const current = result[log.level];
+        if (current !== undefined) {
+          result[log.level] = current + 1;
+        }
       }
     }
     return result;
@@ -367,9 +370,9 @@ function ExecutionLogsView({
             )}
           >
             {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
-            {counts[f] > 0 && (
+            {(counts[f] ?? 0) > 0 && (
               <span className={clsx('text-[10px] px-1 rounded', filter === f ? 'bg-flow-accent/30' : 'bg-gray-700')}>
-                {counts[f]}
+                {counts[f] ?? 0}
               </span>
             )}
           </button>

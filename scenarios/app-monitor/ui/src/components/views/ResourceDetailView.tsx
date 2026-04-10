@@ -15,6 +15,7 @@ import {
 import clsx from 'clsx';
 import { resourceService } from '@/services/api';
 import { useResourcesStore } from '@/state/resourcesStore';
+import ErrorBoundary, { SectionErrorFallback } from '@/components/ErrorBoundary';
 import type { ResourceDetail, ResourceStatusSummary } from '@/types';
 import './ResourceDetailView.css';
 
@@ -70,7 +71,7 @@ const formatKey = (key: string): string => {
     .trim();
   return spaced
     .split(' ')
-    .map(part => (part.length > 0 ? part[0].toUpperCase() + part.slice(1) : part))
+    .map(part => (part.length > 0 ? (part[0] ?? '').toUpperCase() + part.slice(1) : part))
     .join(' ');
 };
 
@@ -511,7 +512,7 @@ export default function ResourceDetailView(): JSX.Element {
         <div className="header-main">
           <div className="resource-title-group">
             <h1>{detail.name}</h1>
-            <span className={clsx('status-badge', statusClass)}>{summary.status.toUpperCase()}</span>
+            <span className={clsx('status-badge', statusClass)}>{(summary.status ?? 'unknown').toUpperCase()}</span>
           </div>
           <div className="resource-subtitle">
             <span className="resource-id">ID: {detail.id}</span>
@@ -628,37 +629,39 @@ export default function ResourceDetailView(): JSX.Element {
         </div>
       </section>
 
-      {renderKeyValueSection('Endpoints', endpoints)}
-      {renderKeyValueSection('Runtime Configuration', configuration)}
-      {renderKeyValueSection('Metrics', metrics)}
+      <ErrorBoundary fallback={SectionErrorFallback}>
+        {renderKeyValueSection('Endpoints', endpoints)}
+        {renderKeyValueSection('Runtime Configuration', configuration)}
+        {renderKeyValueSection('Metrics', metrics)}
 
-      {hasContainerSection && (
-        <section className="resource-detail-section">
-          <header>
-            <h3>Container</h3>
-          </header>
-          <div className="kv-grid">
-            {containerEntries.map(([key, value]) => (
-              <div className="kv-row" key={key}>
-                <div className="kv-label">{formatKey(key)}</div>
-                <div className="kv-value">{renderValue(value)}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+        {hasContainerSection && (
+          <section className="resource-detail-section">
+            <header>
+              <h3>Container</h3>
+            </header>
+            <div className="kv-grid">
+              {containerEntries.map(([key, value]) => (
+                <div className="kv-row" key={key}>
+                  <div className="kv-label">{formatKey(key)}</div>
+                  <div className="kv-value">{renderValue(value)}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
-      {renderKeyValueSection('Service Configuration', detail.serviceConfig)}
-      {renderKeyValueSection('Runtime Metadata', detail.runtimeConfig)}
-      {renderKeyValueSection('Capability Metadata', detail.capabilityMetadata)}
-      {detail.schema ? (
-        <section className="resource-detail-section">
-          <header>
-            <h3>Schema</h3>
-          </header>
-          {renderJsonBlock(detail.schema)}
-        </section>
-      ) : null}
+        {renderKeyValueSection('Service Configuration', detail.serviceConfig)}
+        {renderKeyValueSection('Runtime Metadata', detail.runtimeConfig)}
+        {renderKeyValueSection('Capability Metadata', detail.capabilityMetadata)}
+        {detail.schema ? (
+          <section className="resource-detail-section">
+            <header>
+              <h3>Schema</h3>
+            </header>
+            {renderJsonBlock(detail.schema)}
+          </section>
+        ) : null}
+      </ErrorBoundary>
 
       {detail.paths && Object.values(detail.paths).some(Boolean) && (
         <section className="resource-detail-section">

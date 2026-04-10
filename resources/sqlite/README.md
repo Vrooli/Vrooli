@@ -7,6 +7,80 @@ A portable, serverless SQLite resource implemented in Go for Vrooli scenarios. T
 - Replication, migrations, query helpers, stats implemented in Go. Web UI was intentionally removed from the port (serverless-only contract).
 - CLI follows the resource v2.0 shape (manage/content/replicate/migrate/query/stats/test) and uses `packages/cli-core` for fingerprinting and auto-rebuilds when Go is present.
 
+## Go SQLite Driver Selection for Scenarios
+
+When building Go scenarios that need SQLite, choosing the right driver is critical for portability:
+
+### Recommended: `modernc.org/sqlite` (Pure Go)
+
+**Use this driver for:**
+- Desktop apps (Electron, Tauri) built with `scenario-to-desktop`
+- Cross-compilation targets (e.g., building Linux binaries on macOS)
+- Static binaries (`CGO_ENABLED=0`)
+- Any scenario that may be packaged for distribution
+
+```go
+import (
+    "database/sql"
+    _ "modernc.org/sqlite" // Registers as "sqlite"
+)
+
+db, err := sql.Open("sqlite", "path/to/database.db")
+```
+
+**Key characteristics:**
+- Pure Go implementation—no C compiler or CGO required
+- Works with `CGO_ENABLED=0` static builds
+- Cross-compiles without toolchain complexity
+- Slightly larger binary size (~5MB overhead) but fully portable
+- Driver name: `"sqlite"` (not `"sqlite3"`)
+
+### Alternative: `github.com/mattn/go-sqlite3` (CGO)
+
+**Use only when:**
+- Running on servers with CGO available
+- Maximum SQLite performance is critical
+- No cross-compilation or static builds needed
+
+```go
+import (
+    "database/sql"
+    _ "github.com/mattn/go-sqlite3" // Registers as "sqlite3"
+)
+
+db, err := sql.Open("sqlite3", "path/to/database.db")
+```
+
+**Limitations:**
+- **Fails with `CGO_ENABLED=0`**: Returns stub error at runtime
+- Requires C compiler on build machine
+- Cross-compilation requires target-specific C toolchains
+- **Not compatible with `scenario-to-desktop`** or other packaging pipelines
+
+### Migration Guide
+
+If migrating from `go-sqlite3` to `modernc.org/sqlite`:
+
+1. Update `go.mod`:
+   ```diff
+   - github.com/mattn/go-sqlite3 v1.14.22
+   + modernc.org/sqlite v1.34.5
+   ```
+
+2. Update import:
+   ```diff
+   - _ "github.com/mattn/go-sqlite3"
+   + _ "modernc.org/sqlite"
+   ```
+
+3. Update driver name in `sql.Open()`:
+   ```diff
+   - db, err := sql.Open("sqlite3", dsn)
+   + db, err := sql.Open("sqlite", dsn)
+   ```
+
+4. Run `go mod tidy` and rebuild
+
 ## Building / Installing
 ```bash
 cd resources/sqlite

@@ -4,18 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/browser-automation-studio/constants"
+	"github.com/vrooli/browser-automation-studio/services/credits"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
 
 // EntitlementHandler provides HTTP handlers for entitlement operations.
 type EntitlementHandler struct {
-	service          *entitlement.Service
-	usageTracker     *entitlement.UsageTracker
-	aiCreditsTracker *entitlement.AICreditsTracker
-	settingsRepo     UserSettingsRepository
+	service       *entitlement.Service
+	creditService credits.CreditService
+	settingsRepo  UserSettingsRepository
 }
 
 // UserSettingsRepository defines the interface for user settings storage.
@@ -27,15 +28,13 @@ type UserSettingsRepository interface {
 // NewEntitlementHandler creates a new entitlement handler.
 func NewEntitlementHandler(
 	service *entitlement.Service,
-	usageTracker *entitlement.UsageTracker,
-	aiCreditsTracker *entitlement.AICreditsTracker,
+	creditService credits.CreditService,
 	settingsRepo UserSettingsRepository,
 ) *EntitlementHandler {
 	return &EntitlementHandler{
-		service:          service,
-		usageTracker:     usageTracker,
-		aiCreditsTracker: aiCreditsTracker,
-		settingsRepo:     settingsRepo,
+		service:       service,
+		creditService: creditService,
+		settingsRepo:  settingsRepo,
 	}
 }
 
@@ -92,6 +91,11 @@ func (h *EntitlementHandler) GetEntitlementStatus(w http.ResponseWriter, r *http
 		}
 	}
 
+	// Fall back to "anonymous" for consistent tracking with AI handlers
+	if userIdentity == "" {
+		userIdentity = "anonymous"
+	}
+
 	// Get entitlement
 	overrideTier := h.getOverrideTier(ctx)
 	overrideActive := overrideTier != ""
@@ -112,34 +116,45 @@ func (h *EntitlementHandler) GetEntitlementStatus(w http.ResponseWriter, r *http
 		}
 	}
 
-	// Get usage count
-	usedCount := 0
-	if h.usageTracker != nil && userIdentity != "" {
-		if count, err := h.usageTracker.GetMonthlyExecutionCount(ctx, userIdentity); err == nil {
-			usedCount = count
+	// Get unified usage from CreditService
+	var usage *credits.UsageSummary
+	if h.creditService != nil && userIdentity != "" {
+		var err error
+		usage, err = h.creditService.GetUsage(ctx, userIdentity)
+		if err != nil {
+			// Log but don't fail - use defaults
+			usage = nil
 		}
 	}
 
-	// Calculate limits
-	monthlyLimit := h.service.GetRemainingExecutions(ctx, userIdentity, 0)
-	if overrideActive {
-		monthlyLimit = h.service.TierLimit(ent.Tier)
-	}
-	if monthlyLimit == -1 {
-		monthlyLimit = -1 // Keep as unlimited
-	} else if !overrideActive {
-		monthlyLimit = h.service.GetRemainingExecutions(ctx, userIdentity, 0)
-		// Recalculate since GetRemainingExecutions returns remaining, not limit
-		monthlyLimit = usedCount + h.service.GetRemainingExecutions(ctx, userIdentity, usedCount)
-	}
-	if monthlyLimit < 0 {
-		monthlyLimit = -1 // Normalize to -1 for unlimited
+	// Extract usage values (unified credit pool)
+	usedCount := 0
+	monthlyLimit := h.service.GetAICreditsLimit(ent.Tier) // Use AI credits limit as the unified limit
+	remaining := monthlyLimit
+	aiCreditsUsed := 0
+	aiRequestsCount := 0
+	aiResetDate := ""
+
+	// Entitlements are always enabled - limits come from the tier
+	entitlementsEnabled := true
+	_ = entitlementsEnabled // Used in response below
+
+	if usage != nil {
+		usedCount = usage.TotalCreditsUsed
+		monthlyLimit = usage.CreditsLimit
+		remaining = usage.CreditsRemaining
+		aiCreditsUsed = usage.TotalCreditsUsed
+		aiRequestsCount = usage.TotalOperations
+		if !usage.ResetDate.IsZero() {
+			aiResetDate = usage.ResetDate.Format("2006-01-02")
+		}
 	}
 
-	remaining := h.service.GetRemainingExecutions(ctx, userIdentity, usedCount)
+	// Handle override tier - recalculate limits based on overridden tier
 	if overrideActive {
-		if monthlyLimit == -1 {
-			remaining = -1
+		monthlyLimit = h.service.GetAICreditsLimit(ent.Tier)
+		if monthlyLimit < 0 {
+			remaining = -1 // Unlimited
 		} else {
 			remaining = monthlyLimit - usedCount
 			if remaining < 0 {
@@ -148,24 +163,9 @@ func (h *EntitlementHandler) GetEntitlementStatus(w http.ResponseWriter, r *http
 		}
 	}
 
-	// Get AI credits usage
-	aiCreditsLimit := h.service.GetAICreditsLimit(ent.Tier)
-	aiCreditsUsed := 0
-	aiRequestsCount := 0
-	aiResetDate := ""
-	if h.aiCreditsTracker != nil {
-		if aiUsage, err := h.aiCreditsTracker.GetAICreditsUsage(ctx, userIdentity, aiCreditsLimit); err == nil {
-			aiCreditsUsed = aiUsage.CreditsUsed
-			aiRequestsCount = aiUsage.RequestsCount
-			aiResetDate = aiUsage.ResetDate.Format("2006-01-02")
-		}
-	}
-	aiCreditsRemaining := aiCreditsLimit - aiCreditsUsed
-	if aiCreditsLimit < 0 {
-		aiCreditsRemaining = -1 // Unlimited
-	} else if aiCreditsRemaining < 0 {
-		aiCreditsRemaining = 0
-	}
+	// For backward compatibility, AI credits are the same as the unified pool
+	aiCreditsLimit := monthlyLimit
+	aiCreditsRemaining := remaining
 
 	response := EntitlementStatusResponse{
 		UserIdentity:        userIdentity,
@@ -180,7 +180,7 @@ func (h *EntitlementHandler) GetEntitlementStatus(w http.ResponseWriter, r *http
 		RequiresWatermark:   h.resolveRequiresWatermark(ctx, userIdentity, ent, overrideActive),
 		CanUseAI:            h.resolveCanUseAI(ctx, userIdentity, ent, overrideActive),
 		CanUseRecording:     h.resolveCanUseRecording(ctx, userIdentity, ent, overrideActive),
-		EntitlementsEnabled: h.service.IsEnabled() || overrideActive,
+		EntitlementsEnabled: true,
 		AICreditsUsed:       aiCreditsUsed,
 		AICreditsLimit:      aiCreditsLimit,
 		AICreditsRemaining:  aiCreditsRemaining,
@@ -192,7 +192,7 @@ func (h *EntitlementHandler) GetEntitlementStatus(w http.ResponseWriter, r *http
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, response)
 }
 
 // SetUserIdentityRequest represents the request to set user identity.
@@ -251,7 +251,7 @@ func (h *EntitlementHandler) GetUserIdentity(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	writeJSONResponse(w, map[string]string{
 		"email": email,
 	})
 }
@@ -271,7 +271,9 @@ func (h *EntitlementHandler) ClearUserIdentity(w http.ResponseWriter, r *http.Re
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"cleared"}`))
+	if _, err := w.Write([]byte(`{"status":"cleared"}`)); err != nil {
+		return
+	}
 }
 
 // GetUsageSummary handles GET /api/v1/entitlement/usage
@@ -285,19 +287,140 @@ func (h *EntitlementHandler) GetUsageSummary(w http.ResponseWriter, r *http.Requ
 		userIdentity = strings.TrimSpace(r.URL.Query().Get("user"))
 	}
 
-	if h.usageTracker == nil {
+	if h.creditService == nil {
 		http.Error(w, `{"error":{"code":"USAGE_TRACKING_DISABLED","message":"Usage tracking is not available"}}`, http.StatusServiceUnavailable)
 		return
 	}
 
-	summary, err := h.usageTracker.GetUsageSummary(ctx, userIdentity)
+	summary, err := h.creditService.GetUsage(ctx, userIdentity)
 	if err != nil {
 		http.Error(w, `{"error":{"code":"USAGE_ERROR","message":"Failed to get usage summary"}}`, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(summary)
+	writeJSONResponse(w, summary)
+}
+
+// UsageHistoryResponse represents the response for usage history.
+type UsageHistoryResponse struct {
+	UserIdentity string                   `json:"user_identity"`
+	Periods      []credits.UsageSummary   `json:"periods"`
+	HasMore      bool                     `json:"has_more"`
+}
+
+// GetUsageHistory handles GET /api/v1/entitlement/usage/history
+// Returns usage summaries for multiple billing periods.
+func (h *EntitlementHandler) GetUsageHistory(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	userIdentity := entitlement.UserIdentityFromContext(r.Context())
+	if userIdentity == "" {
+		userIdentity = strings.TrimSpace(r.URL.Query().Get("user"))
+	}
+
+	// If still no user identity, try to load from settings
+	if userIdentity == "" && h.settingsRepo != nil {
+		if saved, err := h.settingsRepo.GetSetting(ctx, "user_identity"); err == nil {
+			userIdentity = saved
+		}
+	}
+
+	// Fall back to "anonymous" for consistent tracking with AI handlers
+	if userIdentity == "" {
+		userIdentity = "anonymous"
+	}
+
+	if h.creditService == nil {
+		http.Error(w, `{"error":{"code":"USAGE_TRACKING_DISABLED","message":"Usage tracking is not available"}}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	// Parse query params
+	months := 6
+	offset := 0
+
+	if m := r.URL.Query().Get("months"); m != "" {
+		if parsed, err := strconv.Atoi(m); err == nil && parsed > 0 {
+			months = parsed
+		}
+	}
+
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	periods, hasMore, err := h.creditService.GetUsageHistory(ctx, userIdentity, months, offset)
+	if err != nil {
+		http.Error(w, `{"error":{"code":"HISTORY_ERROR","message":"Failed to get usage history"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	writeJSONResponse(w, UsageHistoryResponse{
+		UserIdentity: userIdentity,
+		Periods:      periods,
+		HasMore:      hasMore,
+	})
+}
+
+// GetOperationLog handles GET /api/v1/entitlement/usage/operations
+// Returns paginated operation log entries for a billing period.
+func (h *EntitlementHandler) GetOperationLog(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	userIdentity := entitlement.UserIdentityFromContext(r.Context())
+	if userIdentity == "" {
+		userIdentity = strings.TrimSpace(r.URL.Query().Get("user"))
+	}
+
+	// If still no user identity, try to load from settings
+	if userIdentity == "" && h.settingsRepo != nil {
+		if saved, err := h.settingsRepo.GetSetting(ctx, "user_identity"); err == nil {
+			userIdentity = saved
+		}
+	}
+
+	// Fall back to "anonymous" for consistent tracking with AI handlers
+	if userIdentity == "" {
+		userIdentity = "anonymous"
+	}
+
+	if h.creditService == nil {
+		http.Error(w, `{"error":{"code":"USAGE_TRACKING_DISABLED","message":"Usage tracking is not available"}}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	// Parse query params
+	month := r.URL.Query().Get("month")
+	category := r.URL.Query().Get("category")
+	limit := 20
+	offset := 0
+
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	page, err := h.creditService.GetOperationLog(ctx, userIdentity, month, category, limit, offset)
+	if err != nil {
+		http.Error(w, `{"error":{"code":"OPERATIONS_ERROR","message":"Failed to get operations"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	writeJSONResponse(w, page)
 }
 
 // GetEntitlementOverride handles GET /api/v1/entitlement/override
@@ -307,7 +430,7 @@ func (h *EntitlementHandler) GetEntitlementOverride(w http.ResponseWriter, r *ht
 
 	overrideTier := h.getOverrideTier(ctx)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	writeJSONResponse(w, map[string]string{
 		"tier": string(overrideTier),
 	})
 }
@@ -352,7 +475,7 @@ func (h *EntitlementHandler) SetEntitlementOverride(w http.ResponseWriter, r *ht
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	writeJSONResponse(w, map[string]string{
 		"tier": string(tier),
 	})
 }
@@ -371,6 +494,128 @@ func (h *EntitlementHandler) ClearEntitlementOverride(w http.ResponseWriter, r *
 		http.Error(w, `{"error":{"code":"SAVE_FAILED","message":"Failed to clear override tier"}}`, http.StatusInternalServerError)
 		return
 	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ApiSourceResponse represents the API source configuration response.
+type ApiSourceResponse struct {
+	Source    string `json:"source"`     // "production", "local", or "disabled"
+	LocalPort int    `json:"local_port"` // Port for local LPBS API
+}
+
+// GetApiSource handles GET /api/v1/entitlement/api-source
+// Returns the current API source configuration.
+func (h *EntitlementHandler) GetApiSource(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	source := "production" // Default
+	localPort := 15000     // Default LPBS API port range start
+
+	if h.settingsRepo != nil {
+		if saved, err := h.settingsRepo.GetSetting(ctx, entitlement.ApiSourceSettingKey); err == nil && saved != "" {
+			source = saved
+		}
+		if saved, err := h.settingsRepo.GetSetting(ctx, entitlement.LocalApiPortSettingKey); err == nil && saved != "" {
+			if port, err := strconv.Atoi(saved); err == nil && port > 0 {
+				localPort = port
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	writeJSONResponse(w, ApiSourceResponse{
+		Source:    source,
+		LocalPort: localPort,
+	})
+}
+
+// SetApiSourceRequest represents the request to set API source.
+type SetApiSourceRequest struct {
+	Source    string `json:"source"`
+	LocalPort int    `json:"local_port,omitempty"`
+}
+
+// SetApiSource handles POST /api/v1/entitlement/api-source
+// Sets the API source for entitlement verification.
+func (h *EntitlementHandler) SetApiSource(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	if h.settingsRepo == nil {
+		http.Error(w, `{"error":{"code":"SETTINGS_UNAVAILABLE","message":"Settings storage unavailable"}}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	var req SetApiSourceRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":{"code":"INVALID_REQUEST","message":"Invalid JSON body"}}`, http.StatusBadRequest)
+		return
+	}
+
+	// Validate source
+	source := strings.TrimSpace(strings.ToLower(req.Source))
+	if source != "production" && source != "local" && source != "disabled" {
+		http.Error(w, `{"error":{"code":"INVALID_SOURCE","message":"Source must be 'production', 'local', or 'disabled'"}}`, http.StatusBadRequest)
+		return
+	}
+
+	// Save source
+	if err := h.settingsRepo.SetSetting(ctx, entitlement.ApiSourceSettingKey, source); err != nil {
+		http.Error(w, `{"error":{"code":"SAVE_FAILED","message":"Failed to save API source"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Save local port if provided
+	if req.LocalPort > 0 {
+		if err := h.settingsRepo.SetSetting(ctx, entitlement.LocalApiPortSettingKey, strconv.Itoa(req.LocalPort)); err != nil {
+			http.Error(w, `{"error":{"code":"SAVE_FAILED","message":"Failed to save local API port"}}`, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Update the entitlement service with the new source
+	h.service.SetApiSource(source, req.LocalPort)
+
+	// Get current local port for response
+	localPort := req.LocalPort
+	if localPort == 0 {
+		if saved, err := h.settingsRepo.GetSetting(ctx, entitlement.LocalApiPortSettingKey); err == nil && saved != "" {
+			if port, err := strconv.Atoi(saved); err == nil && port > 0 {
+				localPort = port
+			}
+		}
+		if localPort == 0 {
+			localPort = 15000
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	writeJSONResponse(w, ApiSourceResponse{
+		Source:    source,
+		LocalPort: localPort,
+	})
+}
+
+// ClearApiSource handles DELETE /api/v1/entitlement/api-source
+// Resets API source to production default.
+func (h *EntitlementHandler) ClearApiSource(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	if h.settingsRepo == nil {
+		http.Error(w, `{"error":{"code":"SETTINGS_UNAVAILABLE","message":"Settings storage unavailable"}}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	if err := h.settingsRepo.SetSetting(ctx, entitlement.ApiSourceSettingKey, "production"); err != nil {
+		http.Error(w, `{"error":{"code":"SAVE_FAILED","message":"Failed to reset API source"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Update the entitlement service
+	h.service.SetApiSource("production", 0)
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -462,4 +707,10 @@ func (h *EntitlementHandler) RefreshEntitlement(w http.ResponseWriter, r *http.R
 
 	// Fetch fresh entitlement
 	h.GetEntitlementStatus(w, r.WithContext(entitlement.WithUserIdentity(ctx, userIdentity)))
+}
+
+func writeJSONResponse(w http.ResponseWriter, data any) {
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		return
+	}
 }

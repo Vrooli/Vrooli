@@ -21,7 +21,7 @@ type:
 	@echo "src/app.tsx(25,10): error TS2322: Type 'string' is not assignable to type 'number'"
 	@exit 0
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -75,7 +75,7 @@ type:
 	@echo "src/error.ts(1,1): error TS1005: ';' expected"
 	@exit 1
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -120,7 +120,7 @@ type:
 	@invalidtypecommand --check
 	@echo "This should not run"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -159,7 +159,7 @@ type:
 	@sleep 10
 	@echo "Done"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -194,17 +194,17 @@ type:
 	@echo "type output for concurrent test"
 	@echo "file.ts(1,1): error TS2304: test issue"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api directory: %v", err)
 	}
 
 	testFile := filepath.Join(apiDir, "test.go")
-	if err := os.WriteFile(testFile, []byte("package main\n"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("package main\n"), 0o644); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -253,7 +253,7 @@ type:
 	@sleep 2
 	@echo "Done"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -295,7 +295,7 @@ type:
 	@# Silent command with no output
 	@true
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -336,7 +336,7 @@ type:
 	@echo "src/handler.go:18:2: cannot use x (type int) as type string in assignment"
 	@exit 0
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -377,7 +377,7 @@ type:
 	@echo "src/components/Button.tsx(22,10): error TS2554: Expected 2 arguments, but got 1"
 	@exit 0
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 

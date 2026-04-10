@@ -56,6 +56,14 @@ export const useReplaySpec = ({
   useEffect(() => {
     let isCancelled = false;
 
+    // Guard: Skip API calls if no valid execution ID
+    if (!executionId || executionId.trim() === '') {
+      setMovieSpec(null);
+      setMovieSpecError(null);
+      setIsMovieSpecLoading(false);
+      return;
+    }
+
     if (movieSpecAbortControllerRef.current) {
       movieSpecAbortControllerRef.current.abort();
       movieSpecAbortControllerRef.current = null;

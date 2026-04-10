@@ -179,6 +179,19 @@ type Setting struct {
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
+// AssetIndex is the database index for a project asset (non-workflow file).
+// The file content lives on disk; this table is just for lookups.
+type AssetIndex struct {
+	ID        uuid.UUID `json:"id" db:"id"`
+	ProjectID uuid.UUID `json:"project_id" db:"project_id"`
+	FilePath  string    `json:"file_path" db:"file_path"` // Relative path from project root
+	FileName  string    `json:"file_name" db:"file_name"`
+	FileSize  int64     `json:"file_size" db:"file_size"`
+	MimeType  string    `json:"mime_type" db:"mime_type"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+}
+
 // ExportIndex is a database record for exported artifacts (videos, gifs, HTML replays, etc.).
 // The exported binary content is stored in external storage; this table stores metadata.
 type ExportIndex struct {

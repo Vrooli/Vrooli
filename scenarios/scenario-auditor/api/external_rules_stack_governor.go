@@ -67,6 +67,33 @@ func (p *stackGovernorProvider) Rules() []rulespkg.Rule {
 			Enabled:     true,
 			Standard:    "stack-governance",
 		},
+		{
+			ID:          "MAKEFILE_STRUCTURE",
+			Name:        "Makefile follows canonical structure",
+			Description: "Enforces canonical Makefile structure with STRICT consistency for interoperability. All scenarios must follow identical structure.",
+			Category:    "makefile",
+			Severity:    "high",
+			Enabled:     true,
+			Standard:    "stack-governance",
+		},
+		{
+			ID:          "MAKEFILE_LIFECYCLE",
+			Name:        "Makefile lifecycle targets use Vrooli CLI",
+			Description: "Ensures lifecycle targets call the Vrooli CLI with canonical messaging to keep orchestration consistent.",
+			Category:    "makefile",
+			Severity:    "high",
+			Enabled:     true,
+			Standard:    "stack-governance",
+		},
+		{
+			ID:          "MAKEFILE_QUALITY",
+			Name:        "Makefile quality targets have proper guards",
+			Description: "Validates fmt/lint/check targets invoke canonical sub-commands and enforce strict Go formatting/linting logic.",
+			Category:    "makefile",
+			Severity:    "medium",
+			Enabled:     true,
+			Standard:    "stack-governance",
+		},
 	}
 }
 
@@ -190,6 +217,83 @@ func (p *stackGovernorProvider) Run(ctx context.Context, scenarioName string, ru
 	}
 
 	return violations, nil
+}
+
+type stackGovernorFixRequest struct {
+	ScenarioNames []string `json:"scenario_names"`
+	RuleIDs       []string `json:"rule_ids"`
+	DryRun        bool     `json:"dry_run"`
+}
+
+type stackGovernorFixResponse struct {
+	Results []stackGovernorFixResult `json:"results"`
+}
+
+type stackGovernorFixResult struct {
+	ScenarioName string                   `json:"scenario_name"`
+	RuleID       string                   `json:"rule_id"`
+	Fixed        bool                     `json:"fixed"`
+	FilePath     string                   `json:"file_path"`
+	Changes      []stackGovernorFixChange `json:"changes"`
+	Error        string                   `json:"error,omitempty"`
+}
+
+type stackGovernorFixChange struct {
+	Type   string `json:"type"`
+	Detail string `json:"detail"`
+}
+
+func (p *stackGovernorProvider) Fix(ctx context.Context, scenarioNames []string, ruleIDs []string, dryRun bool) ([]ExternalFixResult, error) {
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "scenario-stack-governor")
+	if err != nil {
+		return nil, err
+	}
+
+	payload, _ := json.Marshal(stackGovernorFixRequest{
+		ScenarioNames: scenarioNames,
+		RuleIDs:       ruleIDs,
+		DryRun:        dryRun,
+	})
+	endpoint := fmt.Sprintf("%s/api/v1/fix", baseURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		b, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("scenario-stack-governor fix responded with %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
+	}
+
+	var parsed stackGovernorFixResponse
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return nil, err
+	}
+
+	results := make([]ExternalFixResult, 0, len(parsed.Results))
+	for _, r := range parsed.Results {
+		changes := make([]ExternalFixChange, 0, len(r.Changes))
+		for _, c := range r.Changes {
+			changes = append(changes, ExternalFixChange(c))
+		}
+		results = append(results, ExternalFixResult{
+			ScenarioName: r.ScenarioName,
+			RuleID:       r.RuleID,
+			Fixed:        r.Fixed,
+			FilePath:     r.FilePath,
+			Changes:      changes,
+			Error:        r.Error,
+		})
+	}
+
+	return results, nil
 }
 
 func pathWithinDir(path, dir string) bool {

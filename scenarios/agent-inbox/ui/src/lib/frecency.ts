@@ -33,12 +33,10 @@ export function sortByFrecency<T extends { path: string }>(
   const historyMap = new Map(history.map((h) => [h.path, h]));
 
   return [...items].sort((a, b) => {
-    const scoreA = historyMap.has(a.path)
-      ? calculateFrecencyScore(historyMap.get(a.path)!)
-      : 0;
-    const scoreB = historyMap.has(b.path)
-      ? calculateFrecencyScore(historyMap.get(b.path)!)
-      : 0;
+    const historyA = historyMap.get(a.path);
+    const historyB = historyMap.get(b.path);
+    const scoreA = historyA ? calculateFrecencyScore(historyA) : 0;
+    const scoreB = historyB ? calculateFrecencyScore(historyB) : 0;
     return scoreB - scoreA;
   });
 }

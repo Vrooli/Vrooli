@@ -8,6 +8,23 @@ import {
 import { FailureKind } from '../../../src/proto';
 import { createMockHttpResponse } from '../../helpers';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const getErrorPayload = (
+  mockRes: ReturnType<typeof createMockHttpResponse>
+): Record<string, unknown> => {
+  const json = mockRes.getJSON();
+  if (!isRecord(json)) {
+    throw new Error('Expected JSON response to be an object');
+  }
+  const error = json.error;
+  if (!isRecord(error)) {
+    throw new Error('Expected JSON response to include an error object');
+  }
+  return error;
+};
+
 describe('Error Handler', () => {
   describe('sendJson', () => {
     it('should send JSON response', () => {
@@ -16,8 +33,9 @@ describe('Error Handler', () => {
       sendJson(mockRes, 200, { success: true });
 
       expect(mockRes.statusCode).toBe(200);
-      expect(mockRes.setHeader).toHaveBeenCalledWith('Content-Type', 'application/json');
-      expect((mockRes as any).getJSON()).toEqual({ success: true });
+      const setHeaderCalls = mockRes.setHeader.mock.calls;
+      expect(setHeaderCalls[0]).toEqual(['Content-Type', 'application/json']);
+      expect(mockRes.getJSON()).toEqual({ success: true });
     });
   });
 
@@ -28,9 +46,9 @@ describe('Error Handler', () => {
       send404(mockRes, 'Resource not found');
 
       expect(mockRes.statusCode).toBe(404);
-      const json = (mockRes as any).getJSON();
-      expect(json.error.code).toBe('NOT_FOUND');
-      expect(json.error.message).toBe('Resource not found');
+      const error = getErrorPayload(mockRes);
+      expect(error.code).toBe('NOT_FOUND');
+      expect(error.message).toBe('Resource not found');
     });
   });
 
@@ -41,9 +59,10 @@ describe('Error Handler', () => {
       send405(mockRes, ['GET', 'POST']);
 
       expect(mockRes.statusCode).toBe(405);
-      expect(mockRes.setHeader).toHaveBeenCalledWith('Allow', 'GET, POST');
-      const json = (mockRes as any).getJSON();
-      expect(json.error.code).toBe('METHOD_NOT_ALLOWED');
+      const setHeaderCalls = mockRes.setHeader.mock.calls;
+      expect(setHeaderCalls[0]).toEqual(['Allow', 'GET, POST']);
+      const error = getErrorPayload(mockRes);
+      expect(error.code).toBe('METHOD_NOT_ALLOWED');
     });
   });
 
@@ -55,10 +74,10 @@ describe('Error Handler', () => {
       sendError(mockRes, error);
 
       expect(mockRes.statusCode).toBe(404);
-      const json = (mockRes as any).getJSON();
-      expect(json.error.code).toBe('SESSION_NOT_FOUND');
-      expect(json.error.kind).toBe(FailureKind.ENGINE);
-      expect(json.error.retryable).toBe(false);
+      const errorPayload = getErrorPayload(mockRes);
+      expect(errorPayload.code).toBe('SESSION_NOT_FOUND');
+      expect(errorPayload.kind).toBe(FailureKind.ENGINE);
+      expect(errorPayload.retryable).toBe(false);
     });
 
     it('should handle SelectorNotFoundError', () => {
@@ -69,10 +88,10 @@ describe('Error Handler', () => {
 
       // SelectorNotFoundError is mapped to 500 (engine error), not 400
       expect(mockRes.statusCode).toBe(500);
-      const json = (mockRes as any).getJSON();
-      expect(json.error.code).toBe('SELECTOR_NOT_FOUND');
-      expect(json.error.kind).toBe(FailureKind.ENGINE);
-      expect(json.error.retryable).toBe(true);
+      const errorPayload = getErrorPayload(mockRes);
+      expect(errorPayload.code).toBe('SELECTOR_NOT_FOUND');
+      expect(errorPayload.kind).toBe(FailureKind.ENGINE);
+      expect(errorPayload.retryable).toBe(true);
     });
 
     it('should handle ResourceLimitError', () => {
@@ -83,10 +102,10 @@ describe('Error Handler', () => {
       sendError(mockRes, error);
 
       expect(mockRes.statusCode).toBe(429);
-      const json = (mockRes as any).getJSON();
-      expect(json.error.code).toBe('RESOURCE_LIMIT');
+      const errorPayload = getErrorPayload(mockRes);
+      expect(errorPayload.code).toBe('RESOURCE_LIMIT');
       // ResourceLimitError has retryable=false by default
-      expect(json.error.retryable).toBe(false);
+      expect(errorPayload.retryable).toBe(false);
     });
 
     it('should handle TimeoutError', () => {
@@ -97,9 +116,9 @@ describe('Error Handler', () => {
 
       // TimeoutError is mapped to 500 (engine error), not 408
       expect(mockRes.statusCode).toBe(500);
-      const json = (mockRes as any).getJSON();
-      expect(json.error.kind).toBe(FailureKind.TIMEOUT);
-      expect(json.error.retryable).toBe(true);
+      const errorPayload = getErrorPayload(mockRes);
+      expect(errorPayload.kind).toBe(FailureKind.TIMEOUT);
+      expect(errorPayload.retryable).toBe(true);
     });
 
     it('should handle generic Error', () => {
@@ -109,9 +128,9 @@ describe('Error Handler', () => {
       sendError(mockRes, error);
 
       expect(mockRes.statusCode).toBe(500);
-      const json = (mockRes as any).getJSON();
-      expect(json.error.code).toBe('INTERNAL_ERROR');
-      expect(json.error.message).toBe('Something went wrong');
+      const errorPayload = getErrorPayload(mockRes);
+      expect(errorPayload.code).toBe('INTERNAL_ERROR');
+      expect(errorPayload.message).toBe('Something went wrong');
     });
 
     it('should include request path in logging', () => {

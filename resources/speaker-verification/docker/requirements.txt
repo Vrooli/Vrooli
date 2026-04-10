@@ -1,0 +1,9 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.19
+pydantic==2.10.4
+numpy==1.26.4
+torch==2.5.1
+torchaudio==2.5.1
+nemo_toolkit[asr]==2.1.0
+speechbrain>=1.0.0

@@ -6,6 +6,17 @@ import (
 	"strings"
 )
 
+// SEOServicer defines the interface for SEO operations.
+// This interface allows for easy mocking in tests.
+type SEOServicer interface {
+	VariantSEO(slug string) (*SEOResponse, error)
+	SitemapXML(fallbackBase string) (string, error)
+	RobotsTXT(fallbackBase string) (string, error)
+}
+
+// Compile-time check that SEOService implements SEOServicer
+var _ SEOServicer = (*SEOService)(nil)
+
 // VariantSEOConfig represents per-variant SEO settings.
 // Lives alongside the SEO service to keep domain rules out of HTTP handlers.
 type VariantSEOConfig struct {
@@ -40,32 +51,34 @@ type SEOResponse struct {
 // SEOService owns domain logic for combining branding + variant SEO metadata.
 // Handlers should remain transport-only and delegate merging decisions here.
 type SEOService struct {
-	branding *BrandingService
-	variants *VariantService
+	configStore *ConfigStore
 }
 
-func NewSEOService(branding *BrandingService, variants *VariantService) *SEOService {
+// NewSEOService creates an SEOService using ConfigStore (JSON files as source of truth)
+func NewSEOService(cs *ConfigStore) *SEOService {
 	return &SEOService{
-		branding: branding,
-		variants: variants,
+		configStore: cs,
 	}
+}
+
+// NewSEOServiceWithConfigStore creates an SEOService using ConfigStore (JSON files as source of truth)
+// Deprecated: Use NewSEOService instead
+func NewSEOServiceWithConfigStore(cs *ConfigStore) *SEOService {
+	return NewSEOService(cs)
 }
 
 // VariantSEO merges site branding defaults with per-variant overrides.
 func (s *SEOService) VariantSEO(slug string) (*SEOResponse, error) {
-	branding, err := s.branding.Get()
-	if err != nil {
-		return nil, fmt.Errorf("branding: %w", err)
-	}
+	branding := s.configStore.GetBranding()
 
-	variant, err := s.variants.GetBySlug(slug)
+	variant, err := s.configStore.GetVariant(slug)
 	if err != nil {
 		return nil, err
 	}
 
 	var variantSEO VariantSEOConfig
-	if variant.SEOConfig != nil && len(*variant.SEOConfig) > 0 {
-		if err := json.Unmarshal(*variant.SEOConfig, &variantSEO); err != nil {
+	if len(variant.Variant.SEOConfig) > 0 {
+		if err := json.Unmarshal(variant.Variant.SEOConfig, &variantSEO); err != nil {
 			logStructuredError("parse_variant_seo_failed", map[string]interface{}{
 				"slug":  slug,
 				"error": err.Error(),
@@ -106,20 +119,14 @@ func (s *SEOService) VariantSEO(slug string) (*SEOResponse, error) {
 
 // SitemapXML generates the XML string for all SEO-visible variants.
 func (s *SEOService) SitemapXML(fallbackBase string) (string, error) {
-	branding, err := s.branding.Get()
-	if err != nil {
-		return "", fmt.Errorf("branding: %w", err)
-	}
+	branding := s.configStore.GetBranding()
 
 	baseURL := strings.TrimSpace(fallbackBase)
 	if branding.CanonicalBaseURL != nil && strings.TrimSpace(*branding.CanonicalBaseURL) != "" {
 		baseURL = strings.TrimSuffix(strings.TrimSpace(*branding.CanonicalBaseURL), "/")
 	}
 
-	variants, err := s.variants.List()
-	if err != nil {
-		return "", fmt.Errorf("variants: %w", err)
-	}
+	variants := s.configStore.ListVariants()
 
 	var sb strings.Builder
 	sb.WriteString(`<?xml version="1.0" encoding="UTF-8"?>`)
@@ -135,13 +142,14 @@ func (s *SEOService) SitemapXML(fallbackBase string) (string, error) {
 	sb.WriteString("  </url>\n")
 
 	for _, v := range variants {
-		if v.Status != "active" {
-			continue
-		}
-
 		var seoConfig VariantSEOConfig
-		if v.SEOConfig != nil {
-			json.Unmarshal(*v.SEOConfig, &seoConfig)
+		if len(v.Variant.SEOConfig) > 0 {
+			if err := json.Unmarshal(v.Variant.SEOConfig, &seoConfig); err != nil {
+				logStructuredError("seo_config_parse_failed", map[string]interface{}{
+					"slug":  v.Variant.Slug,
+					"error": err.Error(),
+				})
+			}
 		}
 		if seoConfig.NoIndex {
 			continue
@@ -161,10 +169,7 @@ func (s *SEOService) SitemapXML(fallbackBase string) (string, error) {
 
 // RobotsTXT returns the robots.txt content with optional sitemap hint.
 func (s *SEOService) RobotsTXT(fallbackBase string) (string, error) {
-	branding, err := s.branding.Get()
-	if err != nil {
-		return "", fmt.Errorf("branding: %w", err)
-	}
+	branding := s.configStore.GetBranding()
 
 	robotsTxt := "User-agent: *\nAllow: /\n"
 	if branding.RobotsTxt != nil && strings.TrimSpace(*branding.RobotsTxt) != "" {

@@ -33,6 +33,24 @@ export type ManifestValidateResponse = {
   schema_hint?: string;
 };
 
+export type ManifestInitRequest = {
+  scenario_id?: string;
+  host?: string;
+  domain?: string;
+  user?: string;
+  port?: number;
+  key_path?: string;
+  workdir?: string;
+  caddy_email?: string;
+};
+
+export type ManifestInitResponse = {
+  manifest: unknown;
+  issues?: ValidationIssue[];
+  source?: string;
+  timestamp: string;
+};
+
 export type BundleArtifact = { path: string; sha256: string; size_bytes: number };
 export type BundleBuildResponse = { artifact: BundleArtifact; timestamp: string };
 
@@ -145,6 +163,20 @@ export async function validateManifest(manifest: unknown) {
     throw new Error(`Manifest validation failed: ${res.status} ${text}`);
   }
   return res.json() as Promise<ManifestValidateResponse>;
+}
+
+export async function initManifest(request: ManifestInitRequest = {}) {
+  const url = buildApiUrl("/manifest/init", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Manifest init failed: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ManifestInitResponse>;
 }
 
 export async function buildBundle(manifest: unknown) {
@@ -496,6 +528,7 @@ export type DeploymentResponse = {
 // and the actual progress is tracked via SSE on /deployments/{id}/progress
 export type ExecuteDeploymentResponse = {
   deployment: Deployment;
+  run_id: string;
   message: string;
   timestamp: string;
 };
@@ -643,6 +676,19 @@ export async function stopDeployment(id: string): Promise<{ success: boolean; er
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Failed to stop deployment: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
+export async function startDeployment(id: string): Promise<{ deployment_id: string; run_id: string; message: string; timestamp: string }> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(id)}/start`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to start deployment: ${res.status} ${text}`);
   }
   return res.json();
 }
@@ -876,6 +922,14 @@ export interface DiskCleanupResponse {
   message: string;
   actions_run: string[];
   actions_failed?: string[];
+  action_results?: {
+    action: string;
+    ok: boolean;
+    exit_code: number;
+    summary?: string;
+    stderr?: string;
+    hint?: string;
+  }[];
   timestamp: string;
 }
 
@@ -1072,10 +1126,12 @@ export type PortBinding = {
 
 export type TLSInfo = {
   valid: boolean;
+  validation?: string;
   issuer?: string;
   expires?: string;
   days_remaining?: number;
   error?: string;
+  alpn?: ALPNCheck;
 };
 
 export type CaddyRoute = {
@@ -1101,6 +1157,9 @@ export type MemoryInfo = {
   total_mb: number;
   used_mb: number;
   free_mb: number;
+  total_bytes?: number;
+  used_bytes?: number;
+  free_bytes?: number;
   usage_percent: number;
 };
 
@@ -1108,6 +1167,9 @@ export type DiskInfo = {
   total_gb: number;
   used_gb: number;
   free_gb: number;
+  total_bytes?: number;
+  used_bytes?: number;
+  free_bytes?: number;
   usage_percent: number;
 };
 
@@ -1120,8 +1182,11 @@ export type SwapInfo = {
 export type SSHHealth = {
   connected: boolean;
   latency_ms: number;
-  key_in_auth: boolean;
-  key_path: string;
+  auth_mode: "explicit_key" | "agent" | "default_ssh" | "unknown";
+  verification_state: "authorized" | "unauthorized" | "unknown";
+  key_path?: string;
+  public_key_fingerprint?: string;
+  last_verified_at?: string;
   error?: string;
 };
 
@@ -1283,7 +1348,16 @@ export async function getLiveState(deploymentId: string): Promise<LiveStateRespo
     const text = await res.text();
     throw new Error(`Failed to get live state: ${res.status} ${text}`);
   }
-  return res.json() as Promise<LiveStateResponse>;
+  // Handle empty response body gracefully
+  const text = await res.text();
+  if (!text) {
+    throw new Error("Live state endpoint returned empty response");
+  }
+  try {
+    return JSON.parse(text) as LiveStateResponse;
+  } catch {
+    throw new Error(`Failed to parse live state response: ${text.slice(0, 100)}`);
+  }
 }
 
 /**
@@ -1586,10 +1660,19 @@ export type CaddyControlResponse = {
   timestamp: string;
 };
 
+export type ALPNCheck = {
+  status: "pass" | "warn";
+  message: string;
+  hint?: string;
+  protocol?: string;
+  error?: string;
+};
+
 export type TLSInfoResponse = {
   ok: boolean;
   domain: string;
   valid: boolean;
+  validation?: string;
   issuer?: string;
   subject?: string;
   not_before?: string;
@@ -1598,6 +1681,7 @@ export type TLSInfoResponse = {
   serial_number?: string;
   sans?: string[];
   error?: string;
+  alpn?: ALPNCheck;
   timestamp: string;
 };
 
@@ -1847,4 +1931,327 @@ export async function getAgentManagerStatus(): Promise<AgentManagerStatus> {
     throw new Error(`Failed to get agent-manager status: ${res.status} ${text}`);
   }
   return res.json() as Promise<AgentManagerStatus>;
+}
+
+// =============================================================================
+// Unified Task API (New)
+// =============================================================================
+
+import type { CreateTaskRequest } from "../types/investigation";
+
+export type CreateTaskResponse = {
+  task: Investigation;
+};
+
+export type ListTasksResponse = {
+  tasks: InvestigationSummary[];
+};
+
+export type GetTaskResponse = {
+  task: Investigation;
+};
+
+/**
+ * Create a new task (investigate or fix) for a deployment.
+ * The task runs in the background; use getTask to poll status.
+ */
+export async function createTask(
+  deploymentId: string,
+  options: CreateTaskRequest
+): Promise<CreateTaskResponse> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/tasks`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(options),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to create task: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<CreateTaskResponse>;
+}
+
+/**
+ * List all tasks for a deployment.
+ */
+export async function listTasks(
+  deploymentId: string,
+  limit?: number
+): Promise<ListTasksResponse> {
+  let url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/tasks`, { baseUrl: API_BASE });
+  if (limit) {
+    url += `?limit=${limit}`;
+  }
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to list tasks: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ListTasksResponse>;
+}
+
+/**
+ * Get a single task by ID.
+ */
+export async function getTask(
+  deploymentId: string,
+  taskId: string
+): Promise<GetTaskResponse> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/tasks/${encodeURIComponent(taskId)}`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get task: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<GetTaskResponse>;
+}
+
+/**
+ * Stop a running task.
+ */
+export async function stopTask(
+  deploymentId: string,
+  taskId: string
+): Promise<{ success: boolean; message: string }> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/tasks/${encodeURIComponent(taskId)}/stop`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to stop task: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<{ success: boolean; message: string }>;
+}
+
+// ============================================================================
+// VPS Secrets Management Types & Functions (Post-deployment CRUD)
+// ============================================================================
+
+export type VPSSecretEntry = {
+  key: string;
+  value?: string;
+  masked: boolean;
+  source: string;
+  last_updated?: string;
+};
+
+export type VPSSecretsMetadata = {
+  environment: string;
+  last_updated: string;
+  scenario_id: string;
+  generated_by?: string;
+  notes?: string;
+};
+
+export type ListVPSSecretsResponse = {
+  secrets: VPSSecretEntry[];
+  metadata: VPSSecretsMetadata;
+  timestamp: string;
+};
+
+export type GetVPSSecretResponse = {
+  secret: VPSSecretEntry;
+  timestamp: string;
+};
+
+export type SecretOperationResponse = {
+  ok: boolean;
+  key: string;
+  action: string;
+  message: string;
+  scenario_restart?: boolean;
+  timestamp: string;
+};
+
+/**
+ * List all secrets on a deployed VPS.
+ * Values are masked by default.
+ */
+export async function listVPSSecrets(
+  deploymentId: string
+): Promise<ListVPSSecretsResponse> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/secrets`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to list VPS secrets: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ListVPSSecretsResponse>;
+}
+
+/**
+ * Get a single secret from the VPS.
+ * Use reveal=true to get the actual value (otherwise masked).
+ */
+export async function getVPSSecret(
+  deploymentId: string,
+  key: string,
+  reveal = false
+): Promise<GetVPSSecretResponse> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/secrets/${encodeURIComponent(key)}${reveal ? "?reveal=true" : ""}`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get VPS secret: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<GetVPSSecretResponse>;
+}
+
+/**
+ * Create a new secret on the VPS.
+ */
+export async function createVPSSecret(
+  deploymentId: string,
+  key: string,
+  value: string,
+  restartScenario = false
+): Promise<SecretOperationResponse> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/secrets`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value, restart_scenario: restartScenario }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to create VPS secret: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<SecretOperationResponse>;
+}
+
+/**
+ * Update an existing secret on the VPS.
+ */
+export async function updateVPSSecret(
+  deploymentId: string,
+  key: string,
+  value: string,
+  restartScenario = false
+): Promise<SecretOperationResponse> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/secrets/${encodeURIComponent(key)}`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value, restart_scenario: restartScenario }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to update VPS secret: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<SecretOperationResponse>;
+}
+
+/**
+ * Delete a secret from the VPS.
+ * Requires confirmation string "DELETE".
+ */
+export async function deleteVPSSecret(
+  deploymentId: string,
+  key: string,
+  restartScenario = false
+): Promise<SecretOperationResponse> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/secrets/${encodeURIComponent(key)}`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirmation: "DELETE", restart_scenario: restartScenario }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to delete VPS secret: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<SecretOperationResponse>;
+}
+
+// ============================================================================
+// Expected Secrets Types & Functions (from scenario's service.json)
+// ============================================================================
+
+export type ExpectedSecret = {
+  secret_id: string;
+  classification?: "infrastructure" | "service" | "user";
+  label?: string;
+  description?: string;
+  required: boolean;
+  default_hint?: string;
+  configured: boolean; // Always false from API; UI computes actual status
+};
+
+export type ExpectedSecretsSummary = {
+  total: number;
+  configured: number;
+  missing: number;
+  required: number;
+};
+
+export type ExpectedSecretsResponse = {
+  scenario_id: string;
+  tier: string;
+  expected_secrets: ExpectedSecret[];
+  summary: ExpectedSecretsSummary;
+  timestamp: string;
+};
+
+/**
+ * Get expected secrets for a deployment based on the scenario's service.json.
+ * These are the secrets the scenario defines as needed for operation.
+ * The UI should compare with VPS secrets to determine actual configuration status.
+ */
+export async function getExpectedSecrets(
+  deploymentId: string,
+  tier?: string
+): Promise<ExpectedSecretsResponse> {
+  const params = new URLSearchParams();
+  if (tier) params.set("tier", tier);
+  const queryString = params.toString();
+
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/expected-secrets${queryString ? `?${queryString}` : ""}`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get expected secrets: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ExpectedSecretsResponse>;
 }

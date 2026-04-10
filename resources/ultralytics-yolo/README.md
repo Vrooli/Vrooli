@@ -154,8 +154,6 @@ minio.put_object('detections', f'{timestamp}.json', json.dumps(result))
 ## Related Resources
 
 - **segment-anything**: Advanced segmentation for complex scenes
-- **deepstack**: Alternative detection models and face recognition
-- **vocr**: Extract text from detected objects
 - **comfyui**: Generate synthetic training data
 - **browserless**: Capture screenshots for UI validation
 

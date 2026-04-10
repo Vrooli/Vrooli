@@ -1,0 +1,361 @@
+/**
+ * TreeNode - Recursive tree node component.
+ *
+ * Renders a single node in the skill tree, handling:
+ * - Category nodes (expandable)
+ * - Leaf nodes (selectable skills)
+ * - Dirty indicators
+ * - Checkbox selection for combine mode
+ */
+// AI_CHECK: SIDEBAR_TREE_RESELECT_RENDER=2 | LAST: 2026-02-18
+
+import { memo, type ReactNode } from 'react'
+import { ChevronRight, ChevronDown, FolderOpen, Check, Minus, Star, Activity } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import type { TreeNode as TreeNodeType } from '@/types/editor'
+import type { Skill } from '@/types'
+import type { DetailMode } from '@/types/filterSort'
+import { selectors } from '@/constants/selectors'
+
+const FOLDER_DOT_COLORS: Record<string, string> = {
+  core: 'bg-blue-400',
+  local: 'bg-green-400',
+  drafts: 'bg-amber-400',
+}
+
+function getHealthTextColor(score: number): string {
+  if (score < 0.3) return 'text-red-400'
+  if (score < 0.6) return 'text-yellow-400'
+  return 'text-emerald-400'
+}
+
+type SelectionState = 'none' | 'partial' | 'all'
+
+interface TreeNodeProps {
+  node: TreeNodeType
+  skillsById: Map<string, Skill>
+  editedNameById: Map<string, string>
+  selectedItemId: string | null
+  onSelectItem: (id: string) => void
+  dirtyItemIds: Set<string>
+  dirtyCountByNodeId: Map<string, number>
+  expandedNodes: Set<string>
+  onToggleNode: (nodeId: string) => void
+  renderItemIcon?: (skill: Skill) => ReactNode
+  // Skill selection mode props
+  showCheckbox?: boolean
+  selectionState?: SelectionState
+  onCheckboxChange?: (node: TreeNodeType) => void
+  selectionStateByNodeId?: Map<string, SelectionState>
+  // Display mode
+  detailMode?: DetailMode
+  healthScoreMap?: Map<string, number>
+  // Context menu props
+  onCategoryContextMenu?: (node: TreeNodeType, x: number, y: number) => void
+  onSkillContextMenu?: (skillId: string, skillName: string, x: number, y: number) => void
+}
+
+/**
+ * Checkbox component for skill selection.
+ */
+function SelectionCheckbox({
+  state,
+  onClick,
+  className,
+}: {
+  state: SelectionState
+  onClick: (e: React.MouseEvent) => void
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors',
+        state === 'all'
+          ? 'bg-primary border-primary'
+          : state === 'partial'
+            ? 'bg-primary/50 border-primary'
+            : 'border-muted-foreground/30 hover:border-primary/50',
+        className
+      )}
+    >
+      {state === 'all' && <Check className="h-3 w-3 text-primary-foreground" />}
+      {state === 'partial' && <Minus className="h-3 w-3 text-primary-foreground" />}
+    </button>
+  )
+}
+
+/**
+ * Recursive tree node component.
+ */
+function TreeNodeComponentImpl({
+  node,
+  skillsById,
+  editedNameById,
+  selectedItemId,
+  onSelectItem,
+  dirtyItemIds,
+  dirtyCountByNodeId,
+  expandedNodes,
+  onToggleNode,
+  renderItemIcon,
+  showCheckbox = false,
+  onCheckboxChange,
+  selectionStateByNodeId,
+  detailMode = 'full',
+  healthScoreMap,
+  onCategoryContextMenu,
+  onSkillContextMenu,
+}: TreeNodeProps) {
+  const isExpanded = expandedNodes.has(node.id)
+  const paddingLeft = `${node.depth * 12 + 8}px`
+  const selectionState = selectionStateByNodeId?.get(node.id) ?? 'none'
+
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onCheckboxChange?.(node)
+  }
+
+  if (node.isCategory) {
+    const dirtyCount = dirtyCountByNodeId.get(node.id) ?? 0
+
+    const handleContextMenu = (e: React.MouseEvent) => {
+      if (onCategoryContextMenu && !showCheckbox) {
+        e.preventDefault()
+        onCategoryContextMenu(node, e.clientX, e.clientY)
+      }
+    }
+
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => onToggleNode(node.id)}
+          onContextMenu={handleContextMenu}
+          className="w-full flex items-center gap-2 py-1.5 px-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-xs"
+          style={{ paddingLeft }}
+        >
+          {showCheckbox && (
+            <SelectionCheckbox
+              state={selectionState}
+              onClick={handleCheckboxClick}
+            />
+          )}
+          {isExpanded ? (
+            <ChevronDown className="h-3.5 w-3.5 flex-shrink-0" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" />
+          )}
+          <FolderOpen className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+          <span className="truncate flex-1 text-left">{node.label}</span>
+          {dirtyCount > 0 && !showCheckbox && (
+            <span
+              className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0"
+              title={`${dirtyCount} unsaved`}
+            />
+          )}
+        </button>
+        {isExpanded && (
+          <div>
+            {node.children.map((child) => (
+              <TreeNodeComponent
+                key={child.id}
+                node={child}
+                skillsById={skillsById}
+                editedNameById={editedNameById}
+                selectedItemId={selectedItemId}
+                onSelectItem={onSelectItem}
+                dirtyItemIds={dirtyItemIds}
+                dirtyCountByNodeId={dirtyCountByNodeId}
+                expandedNodes={expandedNodes}
+                onToggleNode={onToggleNode}
+                renderItemIcon={renderItemIcon}
+                showCheckbox={showCheckbox}
+                onCheckboxChange={onCheckboxChange}
+                selectionStateByNodeId={selectionStateByNodeId}
+                detailMode={detailMode}
+                healthScoreMap={healthScoreMap}
+                onCategoryContextMenu={onCategoryContextMenu}
+                onSkillContextMenu={onSkillContextMenu}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Leaf node (skill)
+  const skill = node.itemId ? skillsById.get(node.itemId) : undefined
+  const isSelected = selectedItemId === node.itemId
+  const isDirty = node.itemId ? dirtyItemIds.has(node.itemId) : false
+  const displayLabel = node.itemId ? (editedNameById.get(node.itemId) ?? node.label) : node.label
+
+  // In checkbox mode, clicking the row toggles the checkbox
+  const handleRowClick = () => {
+    if (showCheckbox) {
+      onCheckboxChange?.(node)
+    } else if (node.itemId) {
+      onSelectItem(node.itemId)
+    }
+  }
+
+  const handleSkillContextMenu = (e: React.MouseEvent) => {
+    if (onSkillContextMenu && !showCheckbox && node.itemId) {
+      e.preventDefault()
+      onSkillContextMenu(node.itemId, node.label, e.clientX, e.clientY)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleRowClick}
+      onContextMenu={handleSkillContextMenu}
+      className={cn(
+        'w-full flex items-start gap-2 py-1.5 px-2 text-left transition-colors text-xs relative',
+        showCheckbox
+          ? selectionState === 'all'
+            ? 'bg-primary/10 text-foreground'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          : isSelected
+            ? 'bg-primary/30 text-foreground'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+      )}
+      style={{ paddingLeft }}
+      data-testid={selectors.sidebar.skillRow}
+      data-skill-id={node.itemId ?? undefined}
+    >
+      {showCheckbox && (
+        <SelectionCheckbox
+          state={selectionState}
+          onClick={handleCheckboxClick}
+        />
+      )}
+      {renderItemIcon && skill ? (
+        <span className={cn('flex-shrink-0', detailMode === 'full' ? 'mt-0.5' : '')}>{renderItemIcon(skill)}</span>
+      ) : !showCheckbox ? (
+        <div className="w-3.5 h-3.5 flex-shrink-0" />
+      ) : null}
+      <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex items-center gap-1">
+          <span className="truncate flex-1">{displayLabel}</span>
+          {isDirty && (
+            <span
+              className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0"
+              title="Unsaved changes"
+            />
+          )}
+        </div>
+        {skill && detailMode === 'full' && (
+          <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground mt-0.5">
+            {(() => {
+              const hs = healthScoreMap?.get(skill.id)
+              return hs != null ? (
+                <span className={cn('flex items-center gap-0.5', getHealthTextColor(hs))}>
+                  <Activity className="h-2 w-2" />
+                  {Math.round(hs * 100)}%
+                </span>
+              ) : null
+            })()}
+            <span className="flex items-center gap-0.5">
+              <span className={cn('w-1.5 h-1.5 rounded-full', FOLDER_DOT_COLORS[skill.folder] ?? 'bg-muted')} />
+              {skill.folder}
+            </span>
+            {skill.draft && (
+              <span className="text-amber-400">draft</span>
+            )}
+            {skill.usageCount > 0 && (
+              <span>{skill.usageCount} use{skill.usageCount !== 1 ? 's' : ''}</span>
+            )}
+            {skill.effectivenessRating != null && (
+              <span className="flex items-center gap-0.5">
+                <Star className="h-2 w-2 fill-amber-400 text-amber-400" />
+                {skill.effectivenessRating.toFixed(1)}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </button>
+  )
+}
+
+function areEqual(prev: TreeNodeProps, next: TreeNodeProps): boolean {
+  if (prev.node !== next.node) return false
+  if (prev.showCheckbox !== next.showCheckbox) return false
+  if (prev.detailMode !== next.detailMode) return false
+  if (prev.healthScoreMap !== next.healthScoreMap) return false
+  if (prev.renderItemIcon !== next.renderItemIcon) return false
+  if (prev.onSelectItem !== next.onSelectItem) return false
+  if (prev.onToggleNode !== next.onToggleNode) return false
+  if (prev.onCheckboxChange !== next.onCheckboxChange) return false
+  if (prev.onCategoryContextMenu !== next.onCategoryContextMenu) return false
+  if (prev.onSkillContextMenu !== next.onSkillContextMenu) return false
+
+  const wasExpanded = prev.expandedNodes.has(prev.node.id)
+  const isExpanded = next.expandedNodes.has(next.node.id)
+  if (wasExpanded !== isExpanded) return false
+  if ((prev.dirtyCountByNodeId.get(prev.node.id) ?? 0) !== (next.dirtyCountByNodeId.get(next.node.id) ?? 0)) return false
+  if ((prev.selectionStateByNodeId?.get(prev.node.id) ?? 'none') !== (next.selectionStateByNodeId?.get(next.node.id) ?? 'none')) return false
+
+  if (prev.node.isCategory && isExpanded) {
+    if (prev.skillsById !== next.skillsById) return false
+    if (prev.editedNameById !== next.editedNameById) return false
+    if (prev.dirtyItemIds !== next.dirtyItemIds) return false
+
+    const hasItemInSubtree = (node: TreeNodeType, itemId: string): boolean => {
+      for (const child of node.children) {
+        if (child.isCategory) {
+          if (hasItemInSubtree(child, itemId)) return true
+        } else if (child.itemId === itemId) {
+          return true
+        }
+      }
+      return false
+    }
+
+    if (prev.selectedItemId !== next.selectedItemId) {
+      const prevSelectedInSubtree = prev.selectedItemId
+        ? hasItemInSubtree(prev.node, prev.selectedItemId)
+        : false
+      const nextSelectedInSubtree = next.selectedItemId
+        ? hasItemInSubtree(next.node, next.selectedItemId)
+        : false
+      if (prevSelectedInSubtree || nextSelectedInSubtree) return false
+    }
+
+    const hasExpandedDescendantDelta = (
+      node: TreeNodeType,
+      prevExpandedSet: Set<string>,
+      nextExpandedSet: Set<string>
+    ): boolean => {
+      for (const child of node.children) {
+        if (!child.isCategory) continue
+        if (prevExpandedSet.has(child.id) !== nextExpandedSet.has(child.id)) {
+          return true
+        }
+        if (hasExpandedDescendantDelta(child, prevExpandedSet, nextExpandedSet)) {
+          return true
+        }
+      }
+      return false
+    }
+
+    if (hasExpandedDescendantDelta(prev.node, prev.expandedNodes, next.expandedNodes)) return false
+  }
+
+  if (!prev.node.isCategory && prev.node.itemId) {
+    const id = prev.node.itemId
+    if ((prev.selectedItemId === id) !== (next.selectedItemId === id)) return false
+    if ((prev.dirtyItemIds.has(id)) !== (next.dirtyItemIds.has(id))) return false
+    if ((prev.editedNameById.get(id) ?? prev.node.label) !== (next.editedNameById.get(id) ?? next.node.label)) return false
+    if (prev.skillsById.get(id) !== next.skillsById.get(id)) return false
+  }
+
+  return true
+}
+
+export const TreeNodeComponent = memo(TreeNodeComponentImpl, areEqual)

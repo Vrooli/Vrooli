@@ -84,7 +84,7 @@ comfyui::status::collect_data() {
     local image="${COMFYUI_CUSTOM_IMAGE:-$COMFYUI_DEFAULT_IMAGE}"
     status_data+=("image" "$image")
     status_data+=("data_dir" "$COMFYUI_DATA_DIR")
-    status_data+=("jupyter_port" "$COMFYUI_JUPYTER_PORT")
+    status_data+=("_port" "$COMFYUI_JUPYTER_PORT")
     
     # GPU configuration
     local gpu_type
@@ -233,9 +233,6 @@ comfyui::status::display_text() {
     log::info "   🎨 UI: ${data[ui_url]:-unknown}"
     log::info "   🔌 API: ${data[api_url]:-unknown}"
     log::info "   📊 Health: ${data[health_url]:-unknown}"
-    if [[ -n "${data[jupyter_port]:-}" ]]; then
-        log::info "   📓 Jupyter: http://localhost:${data[jupyter_port]}"
-    fi
     echo
     
     # GPU Configuration

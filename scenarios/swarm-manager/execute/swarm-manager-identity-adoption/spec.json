@@ -1,0 +1,26 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/api/**",
+    "scenarios/swarm-manager/cli/**",
+    "scenarios/swarm-manager/ui/**"
+  ],
+  "created": "2026-03-28T19:32:20Z",
+  "depends_on": [
+    "execute/cli-core-identity-consumer"
+  ],
+  "description": "Integrate the agent identity standard into swarm-manager so that backlog mutations and execution attribution carry verified provenance.\n\n## Context\n\nSwarm-manager currently has unverified 'started_by'/'requested_by' strings on execution records and activity entries. When agents create or modify backlog items via the CLI, there's no way to distinguish agent-created items from human-created ones, or to trace which specific agent run produced a change.\n\n## Research Decisions Applied (from research/agent-identity-standard)\n\n- Import cli-core's `cliutil.DetectIdentity()` / `VerifyIdentity()` — no direct token parsing\n- Verify via `POST /api/v1/identity/verify` on agent-manager\n- Fail open with warning — fall back to anonymous attribution if token absent or verification fails\n\n## Expected Deliverables\n\n1. **CLI identity detection**: Swarm-manager CLI reads `VROOLI_AGENT_IDENTITY_TOKEN` via cli-core's `DetectIdentity()`. When present, includes the token in API requests as a header.\n\n2. **API token verification**: Swarm-manager API verifies tokens against agent-manager's verification endpoint using cli-core's `VerifyIdentity()`. On success, extracts provenance claims (run_id, task_id, profile_key).\n\n3. **Backlog item provenance**: Add a 'created_by' field to spec.json recording either 'operator' or verified agent identity claims. Set at creation time, immutable.\n\n4. **Execution record provenance**: Enhance existing execution/activity records to link verified agent identity beyond the current free-form strings.\n\n5. **UI provenance display**: Surface provenance in the UI with visual distinction between operator-created and agent-created items. Show originating run link for agent-created items.\n\n6. **Graceful fallback**: Missing token = 'operator' attribution. Never fail a request due to missing identity.\n\n7. **Tests**: Unit tests for token detection and verification. Integration tests for the full provenance flow.",
+  "effort": "S",
+  "initiative": "swarm-manager-feature-parity",
+  "kind": "execute",
+  "name": "swarm-manager-identity-adoption",
+  "priority": 3,
+  "status": "failed",
+  "tags": [
+    "swarm-manager",
+    "identity",
+    "provenance",
+    "adoption"
+  ],
+  "title": "Adopt Agent Identity Standard in Swarm-Manager for Provenance Tracking",
+  "updated": "2026-04-04T01:02:24Z"
+}

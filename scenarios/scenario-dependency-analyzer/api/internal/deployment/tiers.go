@@ -33,6 +33,9 @@ func ComputeTierAggregates(nodes []types.DeploymentDependencyNode) map[string]ty
 	accum := map[string]*tierAccumulator{}
 	var walk func(types.DeploymentDependencyNode)
 	walk = func(node types.DeploymentDependencyNode) {
+		if !isDeployIntentNode(node) {
+			return
+		}
 		for tier, support := range node.TierSupport {
 			acc := accum[tier]
 			if acc == nil {
@@ -79,6 +82,21 @@ func ComputeTierAggregates(nodes []types.DeploymentDependencyNode) map[string]ty
 		result[tier] = aggregate
 	}
 	return result
+}
+
+// isDeployIntentNode decides whether a node should count toward deployment totals.
+// Unknown intent (legacy nodes with unset flags) defaults to true.
+func isDeployIntentNode(node types.DeploymentDependencyNode) bool {
+	if node.Required != nil && *node.Required {
+		return true
+	}
+	if node.Enabled != nil && *node.Enabled {
+		return true
+	}
+	if node.Required != nil || node.Enabled != nil {
+		return false
+	}
+	return true
 }
 
 // selectRequirements chooses between base and override requirements,

@@ -1,0 +1,196 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-20T17:00:00Z",
+  "readiness": {
+    "problem_clarity": 0,
+    "scope_defined": 0,
+    "approach_solid": 0,
+    "testable": 0,
+    "risk_awareness": 0
+  },
+  "items": [
+    {
+      "id": "q1",
+      "type": "decision",
+      "topic": "Which OpenRouter models should be used for image generation (logos, favicons, icons)? OpenRouter primarily routes LLM traffic — its image generation model catalog is limited compared to dedicated services like Replicate or direct DALL-E/Stability APIs. Should Brand Manager use OpenRouter for text tasks (palette, copy, typography) and a different provider for image generation, or commit to OpenRouter-only with whatever image models it supports?",
+      "context": "The spec lists ComfyUI as explicitly out of scope. Currently no image generation exists anywhere in the Vrooli codebase. OpenRouter's image model support is evolving but not its primary strength.",
+      "options": [
+        {
+          "key": "A",
+          "label": "OpenRouter for everything (accept limited image model selection)",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "OpenRouter for text/LLM tasks, separate provider (e.g., Replicate, direct Stability API) for image generation",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "OpenRouter for text/LLM tasks, local Ollama + ComfyUI for image generation (contradicts out-of-scope list)",
+          "rationale": ""
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "q2",
+      "type": "decision",
+      "topic": "How should Brand Manager spawn agents for the 'agent-assisted application' tier? The spec says Brand Manager spawns an agent for complex/non-standard scenario integration. What is the mechanism — does it call agent-manager's API to create a Claude Code session, use a CLI tool invocation, or something else?",
+      "context": "Agent-manager already manages agent lifecycles with sandboxing, workspace isolation, and cost tracking. Prompt-manager has deployment skills. The choice affects architecture significantly — agent-manager integration means an API dependency; prompt-manager skill means a looser coupling.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Call agent-manager API to spawn a sandboxed Claude Code agent with brand application instructions",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Use vrooli CLI to invoke a prompt-manager skill that handles the integration",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "Direct subprocess execution of claude-code with a structured prompt",
+          "rationale": ""
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "q3",
+      "type": "decision",
+      "topic": "Where should generated asset files (logos, favicons, icons, og-images) be stored physically? The spec says SQLite for metadata, but binary assets need file storage. Should they live in Brand Manager's local data directory, or in a shared storage system?",
+      "context": "The deleted Brand Manager used MinIO for asset storage. The rewrite spec lists only SQLite as a resource dependency. Asset files can be multi-MB (especially rasterized logos at multiple sizes). The choice affects how assets are served to the UI and how they're applied to scenarios.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Local filesystem under ~/.vrooli/data/brand-manager/assets/ (simple, no extra dependencies)",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Scenario-local storage within each scenario's directory (assets live where they're used)",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "MinIO/object storage (scalable but adds a resource dependency)",
+          "rationale": ""
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Should be file system, but not sure exactly where. read this skill, and use your best judgment: scenarios/prompt-manager/store/skills/packs/core/storage-steer/SKILL.md",
+      "notes": null
+    },
+    {
+      "id": "q4",
+      "type": "decision",
+      "topic": "Should Brand Manager extend the service.json schema with branding fields, or keep all branding data exclusively in its own SQLite database? Currently service.json has no branding fields. Discovery needs to scan scenarios, and application needs to write brand artifacts — but it's unclear whether service.json itself should gain a 'branding' section.",
+      "context": "The service.json schema at .vrooli/schemas/service.schema.json currently has no branding fields. Scenario Auditor and deployment skills need to check branding status. Having at least an opt-out field in service.json makes validation simpler without querying Brand Manager's API.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add a 'branding' section to service.json schema (brand ID, version, opt-out flag) — Brand Manager DB is source of truth but service.json is the pointer",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Only add an opt-out field to service.json; everything else lives in Brand Manager DB with scenario name as the foreign key",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "No service.json changes — Brand Manager tracks everything internally by scenario name",
+          "rationale": ""
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "OK, so there’s a few approaches here and I don’t think fully adopting just one is as the best approach what I’m thinking is that we have a structured file in the scenarios docs that covers the design language and that essentially is for agents which are working with the scenario in the future and then for specific coloring and stuff, we would store that in the brand manager, and I’m guessing when the brand manager checks if these colors are applied, it would have a few supported on ways that it scans the code looking for certain theme declarations may be will have it set up so if a theme is a properly registered with brand manager, maybe it has a specific doctrine above it or is in a certain file or something like that, we’ll have to come up with a standard that works best and make sure that it’s extensible so that if there are other frameworks and languages that we have a scenarios for in the future that will be able to add support for the validating if if those also meet the branding configuration hopefully that all makes sense. So essentially, there would be the design language file which sort of access a skill for agents of working on the scenario to understand more abstract design things in like certain patterns we’re going forward and all that stuff and the actual like color, config, and other things that are like more structured branding stuff and I guess like the chosen images and stuff that would be stored in brand manager itself, and then we would have ways to attempt to scan what we can from the scenario to see what’s applied",
+      "notes": null
+    },
+    {
+      "id": "q5",
+      "type": "decision",
+      "topic": "What is the MVP milestone? The spec covers discovery, generation, storage, application (two-tier), and validation — plus UI, CLI, and API surfaces. Which capabilities are needed for v1 vs. deferred?",
+      "context": "Priority is 2 (not highest). The spec is comprehensive. A phased approach would let Scenario Auditor integration and validation rules ship first, with AI generation and agent-assisted application following.",
+      "options": [
+        {
+          "key": "A",
+          "label": "v1 = CLI + API + storage + manual brand creation (no AI generation, no agent-assisted application, no UI wizard)",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "v1 = Full pipeline but CLI-only (generation + application + validation, no UI)",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "v1 = Full spec as described (all surfaces, all tiers)",
+          "rationale": ""
+        }
+      ],
+      "selected": "C",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "q6",
+      "type": "decision",
+      "topic": "For Scenario Auditor integration, should Brand Manager register as an external HTTP provider (like app-monitor and tidiness-manager do), or should branding rules be built directly into scenario-auditor? The existing pattern has external scenarios implement a Go provider interface that calls back to their own API via HTTP.",
+      "context": "Current external providers (app-monitor, tidiness-manager, test-genie, prd-control-tower, stack-governor) all use the HTTP delegation pattern: they register rules in scenario-auditor's init() and implement Run() by calling their own API. This is the established pattern.",
+      "options": [
+        {
+          "key": "A",
+          "label": "HTTP provider pattern (Brand Manager exposes a standards endpoint, scenario-auditor calls it) — consistent with existing architecture",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Built-in rules in scenario-auditor that query Brand Manager API — simpler but couples auditor to brand-manager",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "Standalone CLI checks that scenario-auditor invokes as subprocess — loosest coupling",
+          "rationale": ""
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "q7",
+      "type": "decision",
+      "topic": "Who is the primary user during the generation workflow — a human designer making choices in the UI, or an autonomous agent running CLI commands as part of a deployment pipeline? This affects whether the UI wizard or the CLI is the critical path for v1.",
+      "context": "The spec describes a user-guided generation flow (pick from options, refine, iterate) which implies human interaction. But Vrooli's recursive improvement vision suggests agents should be able to brand new scenarios autonomously. The answer determines UX investment priorities.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Primarily human via UI — agents use CLI for validation/application only",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Primarily agents via CLI — UI is a nice-to-have for review/override",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "Both equally — the system must work well for human-in-the-loop and fully autonomous flows from day one",
+          "rationale": ""
+        }
+      ],
+      "selected": "C",
+      "freeform": null,
+      "notes": null
+    }
+  ],
+  "plan_updates": "Migrated from clarify/suggest workflow"
+}

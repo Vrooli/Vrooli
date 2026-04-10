@@ -1,0 +1,63 @@
+{
+  "description": "Run all structural expectations against a reference scenario and report pass/fail per expectation, per skill connection. Detect missing folders, missing files, and snippet mismatches.",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "OT-P0-006",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-005"
+      ],
+      "description": "Implement validation logic for folder existence checks and file pattern matching using glob patterns",
+      "id": "REQ-P0-007",
+      "prd_ref": "OT-P0-006",
+      "status": "implemented",
+      "title": "Folder and File Validation Logic",
+      "validation": [
+        {
+          "notes": "Folder checks accurate with required/optional handling, file pattern matching with glob patterns",
+          "phase": "unit",
+          "ref": "api/domain/validation/file_folder_checker_test.go",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-007"
+      ],
+      "description": "Implement content snippet validation and result aggregation per expectation and skill connection",
+      "id": "REQ-P0-007a",
+      "prd_ref": "OT-P0-006",
+      "status": "implemented",
+      "title": "Content Validation and Result Aggregation",
+      "validation": [
+        {
+          "notes": "Content validation checks for expected text in files, ValidateAll aggregates results",
+          "phase": "unit",
+          "ref": "api/domain/validation/content_checker_test.go",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Full validation pipeline succeeds",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validation completes < 5s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Structural Validation Engine"
+}

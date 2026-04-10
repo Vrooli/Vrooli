@@ -60,7 +60,8 @@
     "labels": {
       "reset": "full"
     },
-    "version": "1"
+    "version": "1",
+    "execution_mode": "mutating"
   },
   "nodes": [
     {
@@ -190,7 +191,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const initial = Number(${@store/initialNodeCount} || 0); const final = Number(${@store/finalNodeCount} || 0); return Number.isFinite(initial) \u0026\u0026 Number.isFinite(final) \u0026\u0026 final \u003c initial; })()",
+          "expression": "(() => { const initial = Number(${@store/initialNodeCount} || 0); const final = Number(${@store/finalNodeCount} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final < initial; })()",
           "store_result": "nodeWasDeleted"
         },
         "metadata": {

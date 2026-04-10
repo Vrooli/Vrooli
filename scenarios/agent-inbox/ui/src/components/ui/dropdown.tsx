@@ -60,13 +60,15 @@ interface DropdownItemProps {
   disabled?: boolean;
   destructive?: boolean;
   className?: string;
+  testId?: string;
 }
 
-export function DropdownItem({ children, onClick, disabled, destructive, className }: DropdownItemProps) {
+export function DropdownItem({ children, onClick, disabled, destructive, className, testId }: DropdownItemProps) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
+      data-testid={testId}
       className={cn(
         "w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors",
         "hover:bg-white/5 focus:bg-white/5 focus:outline-none",

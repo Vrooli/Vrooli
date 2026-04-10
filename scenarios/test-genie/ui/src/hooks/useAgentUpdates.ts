@@ -8,7 +8,7 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useWebSocket, type WebSocketMessage, type AgentUpdateData, type AgentOutputData } from '../contexts/WebSocketContext';
+import { useWebSocket, type AgentUpdateData, type AgentOutputData } from '../contexts/WebSocketContext.shared';
 
 interface AgentOutputBuffer {
   [agentId: string]: {
@@ -26,6 +26,26 @@ interface UseAgentUpdatesOptions {
   onAgentStopped?: (agentId: string) => void;
   /** Callback when all agents are stopped */
   onAllAgentsStopped?: (stoppedCount: number) => void;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isAgentUpdateData(value: unknown): value is AgentUpdateData {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.status === "string"
+  );
+}
+
+function isAgentOutputData(value: unknown): value is AgentOutputData {
+  return (
+    isRecord(value) &&
+    typeof value.agentId === "string" &&
+    typeof value.output === "string"
+  );
 }
 
 export function useAgentUpdates(options: UseAgentUpdatesOptions = {}) {
@@ -52,27 +72,25 @@ export function useAgentUpdates(options: UseAgentUpdatesOptions = {}) {
         queryClient.invalidateQueries({ queryKey: ['active-agents'] });
 
         // Call optional callback with agent data
-        if (onAgentUpdate && data) {
-          onAgentUpdate(data as unknown as AgentUpdateData);
+        if (onAgentUpdate && isAgentUpdateData(data)) {
+          onAgentUpdate(data);
         }
         break;
       }
 
       case 'agent_output': {
         // Real-time output streaming
-        if (data && onAgentOutput) {
-          const outputData = data as unknown as AgentOutputData;
-
+        if (onAgentOutput && isAgentOutputData(data)) {
           // Track sequence numbers to avoid duplicates
-          const buffer = outputBufferRef.current[outputData.agentId] || { output: '', lastSequence: -1 };
-          const sequence = outputData.sequence ?? Date.now(); // Use timestamp as fallback sequence
+          const buffer = outputBufferRef.current[data.agentId] || { output: '', lastSequence: -1 };
+          const sequence = data.sequence ?? Date.now(); // Use timestamp as fallback sequence
 
           if (sequence > buffer.lastSequence) {
-            buffer.output += outputData.output;
+            buffer.output += data.output;
             buffer.lastSequence = sequence;
-            outputBufferRef.current[outputData.agentId] = buffer;
+            outputBufferRef.current[data.agentId] = buffer;
 
-            onAgentOutput(outputData);
+            onAgentOutput(data);
           }
         }
         break;
@@ -82,12 +100,11 @@ export function useAgentUpdates(options: UseAgentUpdatesOptions = {}) {
         // Single agent stopped
         queryClient.invalidateQueries({ queryKey: ['active-agents'] });
 
-        if (onAgentStopped && data) {
-          const agentId = (data as { agentId: string }).agentId;
-          onAgentStopped(agentId);
+        if (onAgentStopped && isRecord(data) && typeof data.agentId === "string") {
+          onAgentStopped(data.agentId);
 
           // Clean up output buffer for this agent
-          delete outputBufferRef.current[agentId];
+          delete outputBufferRef.current[data.agentId];
         }
         break;
       }
@@ -96,9 +113,8 @@ export function useAgentUpdates(options: UseAgentUpdatesOptions = {}) {
         // All agents stopped
         queryClient.invalidateQueries({ queryKey: ['active-agents'] });
 
-        if (onAllAgentsStopped && data) {
-          const stoppedCount = (data as { stoppedCount: number }).stoppedCount;
-          onAllAgentsStopped(stoppedCount);
+        if (onAllAgentsStopped && isRecord(data) && typeof data.stoppedCount === "number") {
+          onAllAgentsStopped(data.stoppedCount);
 
           // Clear all output buffers
           outputBufferRef.current = {};

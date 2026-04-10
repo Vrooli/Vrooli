@@ -1,0 +1,26 @@
+{
+  "acceptance_allow": [
+    "scenarios/deployment-manager/**"
+  ],
+  "created": "2026-04-04T00:00:00Z",
+  "depends_on": [
+    "execute/dm-releases-and-release-platforms-tables",
+    "execute/qa-deployment-manager-code-quality-20260407",
+    "fix/qa-deployment-manager-tests-20260407"
+  ],
+  "description": "Add release history API endpoints to deployment-manager:\n\n1. **List releases by profile** — with channel and status filters, pagination.\n2. **Get release detail** — includes per-platform statuses from `release_platforms`.\n3. **Get promotion chain** — given a release ID, return the full promotion history (recursive CTE for `promoted_from_release_id` chain).\n\nUses the `releases` and `release_platforms` schema from the releases table migration.",
+  "effort": "M",
+  "initiative": "desktop-release-governance",
+  "kind": "execute",
+  "name": "dm-release-history-api",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "deployment-manager",
+    "release-history",
+    "api",
+    "desktop-release"
+  ],
+  "title": "Add Release History API Endpoints To Deployment Manager",
+  "updated": "2026-04-07T22:13:30Z"
+}

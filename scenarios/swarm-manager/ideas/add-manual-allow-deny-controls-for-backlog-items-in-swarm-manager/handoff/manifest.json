@@ -1,0 +1,115 @@
+{
+  "schema_version": "idea-handoff/v1",
+  "generated_at": "2026-03-30T17:50:04-04:00",
+  "source": "swarm-manager",
+  "backlog_kind": "idea",
+  "backlog_name": "add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager",
+  "backlog_title": "Add manual allow/deny controls for backlog items in swarm-manager",
+  "backlog_description": "Currently there is no way to manually set the allow/deny status for backlog items in swarm-manager. This would be useful as a fallback when workshop agents forget to set the status during their processing.",
+  "item_folder": "/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager",
+  "target_scenario": "add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager",
+  "operation": "generator",
+  "suggested_steer_profile_id": "rapid-mvp",
+  "deliverable_path": "/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/plan.md",
+  "manifest_path": "/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/handoff/manifest.json",
+  "brief_path": "/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/handoff/brief.md",
+  "source_index_path": "/home/matthalloran8/Vrooli/scenarios/swarm-manager/ideas/add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager/handoff/source-index.json",
+  "locked_decisions": [
+    {
+      "round": 1,
+      "id": "d3",
+      "topic": "Client-side glob validation approach",
+      "selected_key": "__other__",
+      "freeform": "Glob + api to check that it’s a real path within the project"
+    },
+    {
+      "round": 1,
+      "id": "d2",
+      "topic": "Interaction pattern for editing glob arrays",
+      "selected_key": "C",
+      "selected_label": "Modal/dialog editor"
+    },
+    {
+      "round": 1,
+      "id": "d4",
+      "topic": "Save behavior for glob changes",
+      "selected_key": "B",
+      "selected_label": "Explicit save button"
+    },
+    {
+      "round": 1,
+      "id": "d1",
+      "topic": "Scope clarification: what does 'allow/deny' mean?",
+      "selected_key": "A",
+      "selected_label": "Editable acceptance_allow/acceptance_deny globs"
+    },
+    {
+      "round": 1,
+      "id": "d5",
+      "topic": "Should locked items (queued/in_progress) allow glob editing?",
+      "selected_key": "A",
+      "selected_label": "Lock glob editing on queued/in_progress items"
+    },
+    {
+      "round": 2,
+      "id": "d2",
+      "topic": "API path validation: how to check that globs match real project paths?",
+      "selected_key": "A",
+      "selected_label": "New API endpoint: POST /backlog/validate-globs"
+    },
+    {
+      "round": 2,
+      "id": "d4",
+      "topic": "Error display format for invalid lines",
+      "selected_key": "A",
+      "selected_label": "Error summary below textarea with line numbers"
+    },
+    {
+      "round": 2,
+      "id": "d1",
+      "topic": "Modal layout: combined or separate dialogs for allow vs deny?",
+      "selected_key": "A",
+      "selected_label": "Single modal with two stacked textareas"
+    },
+    {
+      "round": 2,
+      "id": "d3",
+      "topic": "Validation UX: when to show errors?",
+      "selected_key": "B",
+      "selected_label": "Validate on blur + debounced typing (500ms)"
+    },
+    {
+      "round": 3,
+      "id": "d3",
+      "topic": "Empty state UX: what to show when no patterns are set",
+      "selected_key": "B",
+      "selected_label": "Add 'No patterns set — click to add' placeholder on detail page"
+    },
+    {
+      "round": 3,
+      "id": "d2",
+      "topic": "Testing approach: vitest component tests or Playwright E2E?",
+      "selected_key": "A",
+      "selected_label": "Vitest component tests only"
+    },
+    {
+      "round": 3,
+      "id": "d4",
+      "topic": "Textarea placeholder text and helper copy",
+      "selected_key": "A",
+      "selected_label": "Placeholder in textarea + helper text below label"
+    },
+    {
+      "round": 3,
+      "id": "d1",
+      "topic": "Validate-globs API: phasing strategy",
+      "selected_key": "B",
+      "selected_label": "Ship all phases together"
+    }
+  ],
+  "validation_commands": [
+    "vrooli scenario status add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager",
+    "scenario-completeness-scoring score add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager",
+    "scenario-auditor audit add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager --timeout 240"
+  ]
+}

@@ -14,7 +14,6 @@ export type PreviewOverlayState = {
  * Preview location state passed through router navigation
  */
 export interface PreviewLocationState {
-  autoSelected?: boolean;
   [key: string]: unknown;
 }
 
@@ -28,13 +27,6 @@ export const isPreviewLocationState = (state: unknown): state is PreviewLocation
   }
 
   if (typeof state !== 'object') {
-    return false;
-  }
-
-  const obj = state as Record<string, unknown>;
-
-  // If autoSelected exists, it must be a boolean
-  if ('autoSelected' in obj && typeof obj.autoSelected !== 'boolean') {
     return false;
   }
 

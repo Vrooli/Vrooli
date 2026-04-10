@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -109,6 +108,8 @@ func normalizeLandingHeaderConfig(input *LandingHeaderConfig, variantName string
 	}
 	if label := strings.TrimSpace(input.Branding.Label); label != "" {
 		cfg.Branding.Label = label
+	} else if cfg.Branding.Mode == "none" {
+		cfg.Branding.Label = ""
 	} else {
 		cfg.Branding.Label = def.Branding.Label
 	}
@@ -194,8 +195,4 @@ func normalizeHeaderCTA(input HeaderCTAConfig, fallback HeaderCTAConfig) HeaderC
 		cfg.Variant = variant
 	}
 	return cfg
-}
-
-func marshalHeaderConfig(cfg LandingHeaderConfig) ([]byte, error) {
-	return json.Marshal(cfg)
 }

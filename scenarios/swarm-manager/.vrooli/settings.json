@@ -1,0 +1,21 @@
+{
+  "theme": "dark",
+  "default_mode": "manual",
+  "default_delay_seconds": 300,
+  "auto_fixup": false,
+  "max_fixup_attempts": 2,
+  "max_auto_rounds": 3,
+  "auto_initialize_workshop": false,
+  "auto_advance_workshop": true,
+  "auto_cascade_workshop": false,
+  "agent_max_turns": 60,
+  "agent_timeout_seconds": 3600,
+  "agent_requires_approval": true,
+  "search_debounce_ms": 300,
+  "toast_duration_ms": 5000,
+  "delete_confirmation": {
+    "backlog": "simple",
+    "initiative": "strong",
+    "capture": "none"
+  }
+}

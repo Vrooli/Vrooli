@@ -1,0 +1,248 @@
+{
+  "metadata": {
+    "name": "environment-scene-switch",
+    "description": "Validate environment scene buttons toggle active state",
+    "labels": {
+      "reset": "none"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prompt-manager",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Prompt Manager"
+        }
+      }
+    },
+    {
+      "id": "wait-world-canvas",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/world.canvas",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for world canvas"
+        }
+      }
+    },
+    {
+      "id": "wait-world-render",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for world render"
+        }
+      }
+    },
+    {
+      "id": "screenshot-space",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture space scene"
+        }
+      }
+    },
+    {
+      "id": "click-park",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/environment.scenePark"
+        },
+        "metadata": {
+          "label": "Switch to Park scene"
+        }
+      }
+    },
+    {
+      "id": "wait-park-render",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for park render"
+        }
+      }
+    },
+    {
+      "id": "screenshot-park",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture park scene"
+        }
+      }
+    },
+    {
+      "id": "assert-park-active",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/environment.scenePark",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-active",
+          "expected": {
+            "string_value": "true"
+          },
+          "timeout_ms": 5000,
+          "failure_message": "Park scene button should be active"
+        },
+        "metadata": {
+          "label": "Park scene active"
+        }
+      }
+    },
+    {
+      "id": "click-office",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/environment.sceneOffice"
+        },
+        "metadata": {
+          "label": "Switch to Office scene"
+        }
+      }
+    },
+    {
+      "id": "wait-office-render",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for office render"
+        }
+      }
+    },
+    {
+      "id": "screenshot-office",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture office scene"
+        }
+      }
+    },
+    {
+      "id": "assert-office-active",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/environment.sceneOffice",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-active",
+          "expected": {
+            "string_value": "true"
+          },
+          "timeout_ms": 5000,
+          "failure_message": "Office scene button should be active"
+        },
+        "metadata": {
+          "label": "Office scene active"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-world-canvas",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-world-canvas",
+      "target": "wait-world-render",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "wait-world-render",
+      "target": "screenshot-space",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "screenshot-space",
+      "target": "click-park",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "click-park",
+      "target": "wait-park-render",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "wait-park-render",
+      "target": "screenshot-park",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "screenshot-park",
+      "target": "assert-park-active",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "assert-park-active",
+      "target": "click-office",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "click-office",
+      "target": "wait-office-render",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "wait-office-render",
+      "target": "screenshot-office",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11",
+      "source": "screenshot-office",
+      "target": "assert-office-active",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

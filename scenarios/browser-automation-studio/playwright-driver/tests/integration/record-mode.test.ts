@@ -91,6 +91,48 @@ function createMockResponse(): ServerResponse & {
   return res;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseResponse = (
+  res: ServerResponse & { _getData: () => string }
+): Record<string, unknown> => {
+  const parsed: unknown = JSON.parse(res._getData());
+  return isRecord(parsed) ? parsed : {};
+};
+
+const getStringField = (data: Record<string, unknown>, key: string): string | undefined =>
+  typeof data[key] === 'string' ? data[key] : undefined;
+
+const getNumberField = (data: Record<string, unknown>, key: string): number | undefined =>
+  typeof data[key] === 'number' ? data[key] : undefined;
+
+const getBooleanField = (data: Record<string, unknown>, key: string): boolean | undefined =>
+  typeof data[key] === 'boolean' ? data[key] : undefined;
+
+interface MockPipelineManager {
+  isRecording: jest.Mock<boolean, []>;
+  getRecordingId: jest.Mock<string | undefined, []>;
+  getRecordingData: jest.Mock<{ startedAt: string } | undefined, []>;
+  getState: jest.Mock<{
+    phase: string;
+    recording?: { recordingId?: string; actionCount: number; startedAt: string };
+  }, []>;
+  startRecording: jest.Mock<Promise<string>, []>;
+  stopRecording: jest.Mock<Promise<{ recordingId: string; actionCount: number }>, []>;
+  validateSelector: jest.Mock<
+    Promise<{ valid: boolean; matchCount: number; selector: string; error?: string }>,
+    []
+  >;
+  getVerification: jest.Mock<{
+    loaded: boolean;
+    ready: boolean;
+    handlersCount: number;
+    inMainContext: boolean;
+    version: string;
+  }, []>;
+}
+
 // Helper to create mock pipeline manager
 function createMockPipelineManager(overrides?: Partial<{
   isRecording: boolean;
@@ -98,7 +140,7 @@ function createMockPipelineManager(overrides?: Partial<{
   phase: string;
   actionCount: number;
   startedAt: string;
-}>) {
+}>): MockPipelineManager {
   const defaults = {
     isRecording: false,
     recordingId: undefined,
@@ -109,12 +151,15 @@ function createMockPipelineManager(overrides?: Partial<{
   const config = { ...defaults, ...overrides };
 
   return {
-    isRecording: jest.fn().mockReturnValue(config.isRecording),
-    getRecordingId: jest.fn().mockReturnValue(config.recordingId),
-    getRecordingData: jest.fn().mockReturnValue(
+    isRecording: jest.fn<boolean, []>().mockReturnValue(config.isRecording),
+    getRecordingId: jest.fn<string | undefined, []>().mockReturnValue(config.recordingId),
+    getRecordingData: jest.fn<{ startedAt: string } | undefined, []>().mockReturnValue(
       config.isRecording ? { startedAt: config.startedAt } : undefined
     ),
-    getState: jest.fn().mockReturnValue({
+    getState: jest.fn<{
+      phase: string;
+      recording?: { recordingId?: string; actionCount: number; startedAt: string };
+    }, []>().mockReturnValue({
       phase: config.isRecording ? 'capturing' : config.phase,
       recording: config.isRecording ? {
         recordingId: config.recordingId,
@@ -122,17 +167,26 @@ function createMockPipelineManager(overrides?: Partial<{
         startedAt: config.startedAt,
       } : undefined,
     }),
-    startRecording: jest.fn().mockResolvedValue(config.recordingId || 'recording-123'),
-    stopRecording: jest.fn().mockResolvedValue({
+    startRecording: jest.fn<Promise<string>, []>()
+      .mockResolvedValue(config.recordingId || 'recording-123'),
+    stopRecording: jest.fn<Promise<{ recordingId: string; actionCount: number }>, []>()
+      .mockResolvedValue({
       recordingId: config.recordingId || 'recording-123',
       actionCount: config.actionCount,
     }),
-    validateSelector: jest.fn().mockResolvedValue({
+    validateSelector: jest.fn<Promise<{ valid: boolean; matchCount: number; selector: string; error?: string }>, []>()
+      .mockResolvedValue({
       valid: true,
       matchCount: 1,
       selector: 'button#submit',
     }),
-    getVerification: jest.fn().mockReturnValue({
+    getVerification: jest.fn<{
+      loaded: boolean;
+      ready: boolean;
+      handlersCount: number;
+      inMainContext: boolean;
+      version: string;
+    }, []>().mockReturnValue({
       loaded: true,
       ready: true,
       handlersCount: 10,
@@ -194,10 +248,10 @@ describe('Record Mode Routes', () => {
       await handleRecordStart(req, res, sessionId, sessionManager, config);
 
       expect(res._getStatusCode()).toBe(200);
-      const data = JSON.parse(res._getData());
-      expect(data.recording_id).toBe('recording-123');
-      expect(data.session_id).toBe(sessionId);
-      expect(data.started_at).toBeDefined();
+      const data = parseResponse(res);
+      expect(getStringField(data, 'recording_id')).toBe('recording-123');
+      expect(getStringField(data, 'session_id')).toBe(sessionId);
+      expect(getStringField(data, 'started_at')).toBeDefined();
     });
 
     it('should return 409 if already recording', async () => {
@@ -217,8 +271,8 @@ describe('Record Mode Routes', () => {
       await handleRecordStart(req, res, sessionId, sessionManager, config);
 
       expect(res._getStatusCode()).toBe(409);
-      const data = JSON.parse(res._getData());
-      expect(data.error).toBe('RECORDING_IN_PROGRESS');
+      const data = parseResponse(res);
+      expect(getStringField(data, 'error')).toBe('RECORDING_IN_PROGRESS');
     });
 
     it('should use existing pipeline manager from session', async () => {
@@ -265,10 +319,10 @@ describe('Record Mode Routes', () => {
       await handleRecordStop(req, res, sessionId, sessionManager);
 
       expect(res._getStatusCode()).toBe(200);
-      const data = JSON.parse(res._getData());
-      expect(data.recording_id).toBe('recording-123');
-      expect(data.action_count).toBe(5);
-      expect(data.stopped_at).toBeDefined();
+      const data = parseResponse(res);
+      expect(getStringField(data, 'recording_id')).toBe('recording-123');
+      expect(getNumberField(data, 'action_count')).toBe(5);
+      expect(getStringField(data, 'stopped_at')).toBeDefined();
     });
 
     it('should return 200 (idempotent) if not recording', async () => {
@@ -293,15 +347,15 @@ describe('Record Mode Routes', () => {
 
       // Idempotent: Returns success with action_count: 0
       expect(res._getStatusCode()).toBe(200);
-      const data = JSON.parse(res._getData());
-      expect(data.recording_id).toBe('previous-recording');
-      expect(data.action_count).toBe(0);
-      expect(data.stopped_at).toBeDefined();
+      const data = parseResponse(res);
+      expect(getStringField(data, 'recording_id')).toBe('previous-recording');
+      expect(getNumberField(data, 'action_count')).toBe(0);
+      expect(getStringField(data, 'stopped_at')).toBeDefined();
     });
   });
 
   describe('GET /session/:id/record/status', () => {
-    it('should return recording status', async () => {
+    it('should return recording status', () => {
       const mockPipelineManager = createMockPipelineManager({
         isRecording: true,
         recordingId: 'recording-123',
@@ -317,17 +371,17 @@ describe('Record Mode Routes', () => {
       const req = createMockRequest({ method: 'GET' });
       const res = createMockResponse();
 
-      await handleRecordStatus(req, res, sessionId, sessionManager);
+      handleRecordStatus(req, res, sessionId, sessionManager);
 
       expect(res._getStatusCode()).toBe(200);
-      const data = JSON.parse(res._getData());
-      expect(data.session_id).toBe(sessionId);
-      expect(data.is_recording).toBe(true);
-      expect(data.recording_id).toBe('recording-123');
-      expect(data.action_count).toBe(3);
+      const data = parseResponse(res);
+      expect(getStringField(data, 'session_id')).toBe(sessionId);
+      expect(getBooleanField(data, 'is_recording')).toBe(true);
+      expect(getStringField(data, 'recording_id')).toBe('recording-123');
+      expect(getNumberField(data, 'action_count')).toBe(3);
     });
 
-    it('should handle no pipeline manager', async () => {
+    it('should handle no pipeline manager', () => {
       const mockSession = {
         pipelineManager: null,
       };
@@ -336,17 +390,17 @@ describe('Record Mode Routes', () => {
       const req = createMockRequest({ method: 'GET' });
       const res = createMockResponse();
 
-      await handleRecordStatus(req, res, sessionId, sessionManager);
+      handleRecordStatus(req, res, sessionId, sessionManager);
 
       expect(res._getStatusCode()).toBe(200);
-      const data = JSON.parse(res._getData());
-      expect(data.is_recording).toBe(false);
-      expect(data.action_count).toBe(0);
+      const data = parseResponse(res);
+      expect(getBooleanField(data, 'is_recording')).toBe(false);
+      expect(getNumberField(data, 'action_count')).toBe(0);
     });
   });
 
   describe('GET /session/:id/record/actions', () => {
-    it('should return buffered actions as TimelineEntry format', async () => {
+    it('should return buffered actions as TimelineEntry format', () => {
       const sessionManager = createMockSessionManager();
 
       // Manually add actions to buffer for this test
@@ -354,17 +408,19 @@ describe('Record Mode Routes', () => {
       const req = createMockRequest({ method: 'GET', url: '/session/test/record/actions' });
       const res = createMockResponse();
 
-      await handleRecordActions(req, res, sessionId, sessionManager);
+      handleRecordActions(req, res, sessionId, sessionManager);
 
       expect(res._getStatusCode()).toBe(200);
-      const data = JSON.parse(res._getData());
-      expect(data.session_id).toBe(sessionId);
+      const data = parseResponse(res);
+      expect(getStringField(data, 'session_id')).toBe(sessionId);
       // Now returns 'entries' (TimelineEntry format) instead of 'actions'
-      expect(Array.isArray(data.entries)).toBe(true);
-      expect(typeof data.count).toBe('number');
+      const entries = data.entries;
+      const count = getNumberField(data, 'count');
+      expect(Array.isArray(entries)).toBe(true);
+      expect(typeof count).toBe('number');
     });
 
-    it('should clear buffer when clear=true', async () => {
+    it('should clear buffer when clear=true', () => {
       const sessionManager = createMockSessionManager();
 
       const req = createMockRequest({
@@ -373,10 +429,10 @@ describe('Record Mode Routes', () => {
       });
       const res = createMockResponse();
 
-      await handleRecordActions(req, res, sessionId, sessionManager);
+      handleRecordActions(req, res, sessionId, sessionManager);
 
       expect(res._getStatusCode()).toBe(200);
-      const data = JSON.parse(res._getData());
+      const data = parseResponse(res);
       // Now returns 'entries' (TimelineEntry format) instead of 'actions'
       expect(data.entries).toEqual([]);
     });
@@ -403,9 +459,9 @@ describe('Record Mode Routes', () => {
       await handleValidateSelector(req, res, sessionId, sessionManager, config);
 
       expect(res._getStatusCode()).toBe(200);
-      const data = JSON.parse(res._getData());
-      expect(data.valid).toBe(true);
-      expect(data.match_count).toBe(1);
+      const data = parseResponse(res);
+      expect(getBooleanField(data, 'valid')).toBe(true);
+      expect(getNumberField(data, 'match_count')).toBe(1);
     });
 
     it('should return 400 if selector missing', async () => {
@@ -416,8 +472,8 @@ describe('Record Mode Routes', () => {
       await handleValidateSelector(req, res, sessionId, sessionManager, config);
 
       expect(res._getStatusCode()).toBe(400);
-      const data = JSON.parse(res._getData());
-      expect(data.error).toBe('MISSING_SELECTOR');
+      const data = parseResponse(res);
+      expect(getStringField(data, 'error')).toBe('MISSING_SELECTOR');
     });
 
     it('should report invalid selector', async () => {
@@ -441,9 +497,9 @@ describe('Record Mode Routes', () => {
       await handleValidateSelector(req, res, sessionId, sessionManager, config);
 
       expect(res._getStatusCode()).toBe(200);
-      const data = JSON.parse(res._getData());
-      expect(data.valid).toBe(false);
-      expect(data.match_count).toBe(0);
+      const data = parseResponse(res);
+      expect(getBooleanField(data, 'valid')).toBe(false);
+      expect(getNumberField(data, 'match_count')).toBe(0);
     });
   });
 

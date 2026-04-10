@@ -1,0 +1,151 @@
+{
+  "module": "port-compliance",
+  "description": "Audit scenario service.json files for fixed-port compliance with the route manifest",
+  "prd_refs": [
+    "OT-P0-002"
+  ],
+  "requirements": [
+    {
+      "id": "PORT-001",
+      "title": "Scan scenario service.json for port field",
+      "description": "For each route in the manifest, read the corresponding scenario's .vrooli/service.json and check that the UI port entry has a fixed 'port' field (not just a 'range')",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "children": [
+        "PORT-001A",
+        "PORT-001B"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "PORT-001A",
+      "title": "Service.json file discovery",
+      "description": "Locate and read .vrooli/service.json relative to the scenario's directory path",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "children": [
+        "PORT-001A1"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "PORT-001A1",
+      "title": "Missing service.json handling",
+      "description": "Report missing service.json as a distinct error category rather than a port mismatch",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/port_scan_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "PORT-001B",
+      "title": "Fixed port detection",
+      "description": "Distinguish between fixed 'port' values and dynamic 'range' values in the ports configuration",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/port_scan_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "PORT-002",
+      "title": "Port value match verification",
+      "description": "Verify that the fixed port in service.json matches the expected port in the route manifest. Report mismatches with both expected and actual values.",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/port_scan_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "PORT-003",
+      "title": "Missing scenario detection",
+      "description": "Report when a manifest route references a scenario that doesn't exist on disk (scenario directory not found)",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/port_report_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "PORT-004",
+      "title": "Audit result reporting",
+      "description": "Return structured audit results per route: compliant, non-compliant (reason), or missing. Include summary counts.",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "children": [
+        "PORT-004A",
+        "PORT-004B"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "PORT-004A",
+      "title": "Per-route audit status",
+      "description": "Each route gets a status: compliant, non-compliant (with expected vs actual), or missing",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "children": [
+        "PORT-004A1"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "PORT-004A1",
+      "title": "Non-compliance detail reporting",
+      "description": "Non-compliant entries include expected port, actual port, and reason for mismatch",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/port_report_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "PORT-004B",
+      "title": "Audit summary counts",
+      "description": "Include total, compliant, non-compliant, and missing counts in audit response",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/port_report_test.go"
+        }
+      ],
+      "status": "complete"
+    }
+  ]
+}

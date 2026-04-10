@@ -1,31 +1,40 @@
 import { useState, useEffect, useCallback } from "react";
+import { parseDeploymentHash, buildDeploymentHash } from "./useDeploymentUrl";
+import type { DeploymentUrlState } from "../types/url";
 
 export type View = "dashboard" | "wizard" | "deployments" | "docs";
 
 export interface RouterState {
   view: View;
   docPath: string | null;
+  /** Deployment URL state when view is "deployments" */
+  deploymentState: DeploymentUrlState | null;
 }
 
 const DEFAULT_STATE: RouterState = {
   view: "dashboard",
   docPath: null,
+  deploymentState: null,
 };
 
 /**
  * Parse URL hash to extract view and doc path
  * Examples:
- *   #dashboard -> { view: "dashboard", docPath: null }
- *   #deployments -> { view: "deployments", docPath: null }
- *   #docs -> { view: "docs", docPath: null }
- *   #docs/guides/vps-setup -> { view: "docs", docPath: "guides/vps-setup" }
- *   #wizard -> { view: "wizard", docPath: null }
+ *   #dashboard -> { view: "dashboard", docPath: null, deploymentState: null }
+ *   #deployments -> { view: "deployments", docPath: null, deploymentState: { deploymentId: null, ... } }
+ *   #deployments/abc123 -> { view: "deployments", docPath: null, deploymentState: { deploymentId: "abc123", ... } }
+ *   #deployments/abc123?tab=live-state -> { view: "deployments", docPath: null, deploymentState: { deploymentId: "abc123", tab: "live-state", ... } }
+ *   #docs -> { view: "docs", docPath: null, deploymentState: null }
+ *   #docs/guides/vps-setup -> { view: "docs", docPath: "guides/vps-setup", deploymentState: null }
+ *   #wizard -> { view: "wizard", docPath: null, deploymentState: null }
  */
 function parseHash(hash: string): RouterState {
   const cleanHash = hash.replace(/^#/, "");
   if (!cleanHash) return DEFAULT_STATE;
 
-  const parts = cleanHash.split("/");
+  // Split off query string for view detection
+  const [pathPart] = cleanHash.split("?");
+  const parts = pathPart.split("/");
   const firstPart = parts[0];
 
   // Check if first part is a valid view
@@ -35,10 +44,16 @@ function parseHash(hash: string): RouterState {
     // For docs view, extract the doc path
     if (view === "docs" && parts.length > 1) {
       const docPath = parts.slice(1).join("/");
-      return { view, docPath: docPath || null };
+      return { view, docPath: docPath || null, deploymentState: null };
     }
 
-    return { view, docPath: null };
+    // For deployments view, parse deployment URL state
+    if (view === "deployments") {
+      const deploymentState = parseDeploymentHash(hash);
+      return { view, docPath: null, deploymentState };
+    }
+
+    return { view, docPath: null, deploymentState: null };
   }
 
   return DEFAULT_STATE;
@@ -50,6 +65,10 @@ function parseHash(hash: string): RouterState {
 function buildHash(state: RouterState): string {
   if (state.view === "docs" && state.docPath) {
     return `${state.view}/${state.docPath}`;
+  }
+  if (state.view === "deployments" && state.deploymentState) {
+    // Remove the leading # since we add it elsewhere
+    return buildDeploymentHash(state.deploymentState).replace(/^#/, "");
   }
   return state.view;
 }
@@ -75,6 +94,7 @@ export function useHashRouter() {
     const newState: RouterState = {
       view,
       docPath: view === "docs" ? (docPath ?? null) : null,
+      deploymentState: view === "deployments" ? parseDeploymentHash("#deployments") : null,
     };
     setState(newState);
     updateHash(newState);
@@ -82,7 +102,7 @@ export function useHashRouter() {
 
   // Navigate to a specific doc
   const navigateToDoc = useCallback((docPath: string) => {
-    const newState: RouterState = { view: "docs", docPath };
+    const newState: RouterState = { view: "docs", docPath, deploymentState: null };
     setState(newState);
     updateHash(newState);
   }, [updateHash]);
@@ -103,6 +123,7 @@ export function useHashRouter() {
   return {
     view: state.view,
     docPath: state.docPath,
+    deploymentState: state.deploymentState,
     navigate,
     navigateToDoc,
   };

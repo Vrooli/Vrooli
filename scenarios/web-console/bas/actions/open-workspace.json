@@ -1,0 +1,88 @@
+{
+  "metadata": {
+    "name": "open-workspace",
+    "description": "Navigate to web-console workspace and wait for launch control",
+    "labels": {
+      "reset": "none"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-workspace",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "web-console",
+          "scenario_path": "/#/workspace",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open workspace route"
+        }
+      }
+    },
+    {
+      "id": "recover-health-gate",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const retry = document.querySelector('[data-testid=\"health-retry-button\"]'); if (retry instanceof HTMLButtonElement && !retry.disabled) { retry.click(); } })()"
+        },
+        "metadata": {
+          "label": "Recover from transient API gate"
+        }
+      }
+    },
+    {
+      "id": "wait-launch-control",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { const deadline = Date.now() + 90000; while (Date.now() < deadline) { const launch = document.querySelector('[data-testid=\"new-terminal-button\"]'); if (launch) return; const retry = document.querySelector('[data-testid=\"health-retry-button\"]'); if (retry instanceof HTMLButtonElement && !retry.disabled) { retry.click(); } await new Promise((resolve) => setTimeout(resolve, 500)); } throw new Error('New terminal button did not appear within timeout'); })()"
+        },
+        "metadata": {
+          "label": "Wait for New Terminal button"
+        }
+      }
+    },
+    {
+      "id": "install-ws-tracker",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { if (window.__bas_ws_tracker_installed) return; window.__bas_ws_tracker_installed = true; window.__bas_ws_instances = []; window.__bas_ws_output = {}; const NativeWebSocket = window.WebSocket; const sessionIdFromUrl = (value) => { try { const url = String(value || ''); const match = url.match(/\\/sessions\\/([^/]+)\\/ws/); return match ? match[1] : ''; } catch { return ''; } }; class TrackingWebSocket extends NativeWebSocket { constructor(...args) { super(...args); this.__bas_session_id = sessionIdFromUrl(args[0]); this.addEventListener('message', (event) => { try { const text = typeof event.data === 'string' ? event.data : ''; if (!text) return; const parsed = JSON.parse(text); if (parsed && parsed.type === 'stdout' && typeof parsed.data === 'string' && this.__bas_session_id) { const previous = window.__bas_ws_output[this.__bas_session_id] || ''; window.__bas_ws_output[this.__bas_session_id] = (previous + parsed.data).slice(-12000); } } catch {} }); window.__bas_ws_instances.push(this); } } window.WebSocket = TrackingWebSocket; })()"
+        },
+        "metadata": {
+          "label": "Install WebSocket tracker for reconnect tests"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-workspace",
+      "target": "recover-health-gate",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "recover-health-gate",
+      "target": "wait-launch-control",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "wait-launch-control",
+      "target": "install-ws-tracker",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

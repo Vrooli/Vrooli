@@ -207,7 +207,7 @@ func TestStaleLockCheckThresholds(t *testing.T) {
 func TestStaleLockCheckExecuteActionList(t *testing.T) {
 	mockReader := &MockVrooliStateReader{
 		PortLocks: []checks.PortLock{
-			{Port: 8080, Scenario: "test-app", PID: 1, FilePath: "/tmp/lock1"},          // Valid (PID 1 exists)
+			{Port: 8080, Scenario: "test-app", PID: 1, FilePath: "/tmp/lock1"},         // Valid (PID 1 exists)
 			{Port: 9000, Scenario: "other-app", PID: 99999999, FilePath: "/tmp/lock2"}, // Stale
 		},
 	}
@@ -237,7 +237,7 @@ func TestStaleLockCheckExecuteActionList(t *testing.T) {
 func TestStaleLockCheckExecuteActionClean(t *testing.T) {
 	mockReader := &MockVrooliStateReader{
 		PortLocks: []checks.PortLock{
-			{Port: 8080, Scenario: "test-app", PID: 1, FilePath: "/tmp/lock1"},          // Valid (PID 1 exists)
+			{Port: 8080, Scenario: "test-app", PID: 1, FilePath: "/tmp/lock1"},         // Valid (PID 1 exists)
 			{Port: 9000, Scenario: "other-app", PID: 99999999, FilePath: "/tmp/lock2"}, // Stale
 		},
 	}
@@ -384,9 +384,9 @@ func TestStaleLockCheckHealthMetrics(t *testing.T) {
 func TestStaleLockCheckDetails(t *testing.T) {
 	mockReader := &MockVrooliStateReader{
 		PortLocks: []checks.PortLock{
-			{Port: 8080, Scenario: "app1", PID: 1, FilePath: "/tmp/lock1"},          // Valid
-			{Port: 9000, Scenario: "app2", PID: 99999999, FilePath: "/tmp/lock2"},   // Stale
-			{Port: 9001, Scenario: "app3", PID: 99999998, FilePath: "/tmp/lock3"},   // Stale
+			{Port: 8080, Scenario: "app1", PID: 1, FilePath: "/tmp/lock1"},        // Valid
+			{Port: 9000, Scenario: "app2", PID: 99999999, FilePath: "/tmp/lock2"}, // Stale
+			{Port: 9001, Scenario: "app3", PID: 99999998, FilePath: "/tmp/lock3"}, // Stale
 		},
 	}
 

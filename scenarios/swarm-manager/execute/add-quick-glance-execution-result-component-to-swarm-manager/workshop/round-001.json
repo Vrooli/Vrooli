@@ -1,0 +1,129 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-31T12:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 2,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Badge information density",
+      "context": "The badge needs to communicate execution outcome at a glance. We can show just the status, or also include the review classification from finalization (e.g., 'Completed · Ready', 'Completed · Needs work'). More info is useful but takes more horizontal space on the backlog card status row which already has status dot, status label, scenario badge, and agent running badge.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Status + review classification",
+          "rationale": "Shows 'Completed · Ready' or 'Failed' — gives the most actionable info at a glance. Review classification is the key signal users want. Recommended because the whole point is quick-glance visibility.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Status only",
+          "rationale": "Simpler, smaller badge ('Completed', 'Failed'). Less horizontal space. Users click through for details."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach to what the badge should display."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Badge persistence and recency",
+      "context": "When a backlog item has had multiple executions, the badge shows only the most recent finished one. But how long should it persist? It could show indefinitely (until a new execution starts), or auto-hide after some time to reduce visual clutter on old items.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Always show most recent result",
+          "rationale": "Simple, predictable. Badge always reflects the last execution outcome. Users can see at a glance whether their last run succeeded or failed regardless of when it happened. Recommended for simplicity and because the badge slot is empty otherwise.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Time-limited display (e.g., hide after 24h)",
+          "rationale": "Reduces clutter on old items. But adds complexity and may surprise users when badges disappear."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Click behavior",
+      "context": "Clicking the badge should open execution details. The current detail system uses `selectExecution(executionId)` which opens the ExecutionDetailsPage as an overlay on the graph view. However, the badge appears on backlog cards which may be viewed on the backlog list page (not the graph). We need to decide how to handle navigation from non-graph contexts.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Navigate to graph view with execution detail open",
+          "rationale": "Consistent with how execution details work everywhere else. The graph view is the canonical location for execution details. Recommended because it reuses existing infrastructure without special-casing.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Open a modal/drawer with execution summary",
+          "rationale": "Keeps the user on the current page. But requires building new UI for inline execution details, which is out of scope."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Visual style: static vs. subtle animation",
+      "context": "The AgentRunningBadge uses a pulsing animation (animate-ping) to draw attention. The result badge is informational rather than attention-demanding. Should it use any animation (e.g., a brief entrance animation when status changes) or be purely static?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Static badge (no animation)",
+          "rationale": "Clean, unobtrusive. Result states are stable — no need for motion. Consistent with how other status indicators work in the card. Recommended to avoid visual noise.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Brief entrance animation on status change",
+          "rationale": "Draws eye when an execution just finished. Could help users notice outcomes. Adds minor complexity."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The AgentRunningBadge and ExecutionResultBadge are naturally mutually exclusive by status sets. AgentRunningBadge shows for {pending, starting, running, needs_review}. The result badge shows for {completed, failed, needs_fixup, canceled}. The only gap is 'validating' — which is a post-run state where finalization is in progress. The PostRunStatusBadge already handles this on the ExecutionCard, but on the backlog card neither badge would show during 'validating'. This is acceptable since validating is transient, or we could extend AgentRunningBadge to include it."
+    }
+  ],
+  "plan_updates": "Created initial plan.md with full scaffold: problem statement, scope, technical context (current architecture and data flow), phased approach (selector → component → integration → tests), risk assessment, and verification checklist."
+}

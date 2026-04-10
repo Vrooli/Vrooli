@@ -1,9 +1,6 @@
 package queue
 
-import (
-	"strings"
-	"time"
-)
+import "time"
 
 // Task execution timing constraints
 const (
@@ -114,14 +111,4 @@ const (
 // makeAgentTag creates an agent tag from a task ID
 func makeAgentTag(taskID string) string {
 	return AgentTagPrefix + taskID
-}
-
-// parseAgentTag extracts the task ID from an agent tag
-func parseAgentTag(agentTag string) string {
-	return strings.TrimPrefix(agentTag, AgentTagPrefix)
-}
-
-// isValidAgentTag checks if a tag has the correct agent prefix
-func isValidAgentTag(tag string) bool {
-	return strings.HasPrefix(tag, AgentTagPrefix)
 }

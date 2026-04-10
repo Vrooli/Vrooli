@@ -161,3 +161,40 @@ func TestScenarioAppHTTPTimeoutFromEnv(t *testing.T) {
 		t.Fatalf("expected http client timeout from env, got %v", app.HTTPClient.Timeout())
 	}
 }
+
+func TestIsScenarioLocalCLIExecutablePath(t *testing.T) {
+	tests := []struct {
+		name       string
+		appName    string
+		executable string
+		want       bool
+	}{
+		{
+			name:       "scenario-local path",
+			appName:    "swarm-manager",
+			executable: "/home/user/Vrooli/scenarios/swarm-manager/cli/swarm-manager",
+			want:       true,
+		},
+		{
+			name:       "installed bin path",
+			appName:    "swarm-manager",
+			executable: "/home/user/.vrooli/bin/swarm-manager",
+			want:       false,
+		},
+		{
+			name:       "different scenario local path",
+			appName:    "swarm-manager",
+			executable: "/home/user/Vrooli/scenarios/scenario-to-desktop/cli/scenario-to-desktop",
+			want:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isScenarioLocalCLIExecutablePath(tt.appName, tt.executable)
+			if got != tt.want {
+				t.Fatalf("isScenarioLocalCLIExecutablePath(%q, %q) = %t, want %t", tt.appName, tt.executable, got, tt.want)
+			}
+		})
+	}
+}

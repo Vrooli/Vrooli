@@ -505,7 +505,9 @@ func TestUXMetricsHandler_JsonOK(t *testing.T) {
 	}
 
 	var response map[string]string
-	json.Unmarshal(rr.Body.Bytes(), &response)
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if response["key"] != "value" {
 		t.Errorf("expected key=value, got %v", response)
 	}
@@ -527,7 +529,9 @@ func TestUXMetricsHandler_JsonError(t *testing.T) {
 	}
 
 	var response map[string]string
-	json.Unmarshal(rr.Body.Bytes(), &response)
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if response["error"] != "test error" {
 		t.Errorf("expected error='test error', got %v", response)
 	}

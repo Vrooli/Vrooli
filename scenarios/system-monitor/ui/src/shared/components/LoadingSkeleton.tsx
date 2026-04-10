@@ -8,8 +8,8 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
     <div 
       style={{
         padding: 'var(--spacing-md)',
-        borderBottom: '1px solid var(--color-accent)',
-        background: 'rgba(0, 0, 0, 0.2)'
+        borderBottom: '1px solid var(--color-primary)',
+        background: 'var(--overlay-light)'
       }}
     >
       {/* Header skeleton */}
@@ -97,8 +97,8 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
     <div 
       style={{
         padding: 'var(--spacing-md)',
-        background: 'rgba(0, 0, 0, 0.5)',
-        borderRadius: 'var(--border-radius-md)',
+        background: 'var(--overlay-medium)',
+        borderRadius: 'var(--radius-md)',
         marginBottom: 'var(--spacing-md)'
       }}
     >
@@ -133,7 +133,7 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
           style={{
             width: '60px',
             height: '20px',
-            borderRadius: 'var(--border-radius-sm)'
+            borderRadius: 'var(--radius-sm)'
           }}
         />
       </div>
@@ -216,14 +216,14 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
           width: '32px',
           height: '32px',
           borderRadius: '50%',
-          background: 'linear-gradient(90deg, var(--alpha-accent-10) 25%, var(--alpha-accent-30) 50%, var(--alpha-accent-10) 75%)',
+          background: 'linear-gradient(90deg, var(--color-primary-muted) 25%, var(--color-primary-muted) 50%, var(--color-primary-muted) 75%)',
           backgroundSize: '200% 100%',
           animation: 'skeleton-loading 1.5s infinite'
         }}
       />
       <div style={{
-        color: 'var(--color-text-dim)',
-        fontSize: 'var(--font-size-lg)',
+        color: 'var(--color-text-secondary)',
+        fontSize: 'var(--text-lg)',
         textTransform: 'uppercase',
         letterSpacing: '2px'
       }}>
@@ -246,7 +246,7 @@ export const LoadingSkeleton = ({ variant = 'list', count = 3 }: LoadingSkeleton
         }
         
         .skeleton-item {
-          background: linear-gradient(90deg, var(--alpha-accent-10) 25%, var(--alpha-accent-30) 50%, var(--alpha-accent-10) 75%);
+          background: linear-gradient(90deg, var(--color-primary-muted) 25%, var(--color-primary-muted) 50%, var(--color-primary-muted) 75%);
           background-size: 200% 100%;
           animation: skeleton-loading 1.5s infinite;
           border-radius: 2px;

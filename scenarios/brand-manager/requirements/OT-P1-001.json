@@ -1,0 +1,60 @@
+{
+  "_metadata": {
+    "description": "Agent-Assisted Application domain - spawning sandboxed agents for brand application",
+    "domain": "agent-assisted",
+    "last_updated": "2026-03-26"
+  },
+  "requirements": [
+    {
+      "id": "BM-REQ-AGENT-SPAWN",
+      "category": "agent-assisted",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Spawn sandboxed agents",
+      "description": "Spawn sandboxed agents via agent-manager API",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/agent_test.go",
+          "scenario": "brand-manager",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BM-REQ-AGENT-INSTRUCT",
+      "category": "agent-assisted",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Agent instructions mandate markers",
+      "description": "Agent instructions mandate inline marker usage",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/agent_test.go",
+          "scenario": "brand-manager",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BM-REQ-AGENT-VALIDATE",
+      "category": "agent-assisted",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Post-agent marker validation",
+      "description": "Post-agent validation that markers are present",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/agent_test.go",
+          "scenario": "brand-manager",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    }
+  ]
+}

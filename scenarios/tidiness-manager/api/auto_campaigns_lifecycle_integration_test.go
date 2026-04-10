@@ -23,8 +23,8 @@ func TestIntegration_CampaignPause(t *testing.T) {
 	defer srv.db.Close()
 
 	testScenario := "integration-test-pause"
-	srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
-	defer srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario) }()
 
 	// Create campaign
 	var campaignID int
@@ -89,8 +89,8 @@ func TestIntegration_CampaignResume(t *testing.T) {
 	defer srv.db.Close()
 
 	testScenario := "integration-test-resume"
-	srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
-	defer srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario) }()
 
 	// Create paused campaign
 	var campaignID int
@@ -154,8 +154,8 @@ func TestIntegration_CampaignTerminate(t *testing.T) {
 	defer srv.db.Close()
 
 	testScenario := "integration-test-terminate"
-	srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
-	defer srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario) }()
 
 	// Create active campaign
 	var campaignID int
@@ -174,14 +174,13 @@ func TestIntegration_CampaignTerminate(t *testing.T) {
 		SET status = 'terminated', completed_at = NOW()
 		WHERE id = $1
 	`, campaignID)
-
 	if err != nil {
 		t.Errorf("Failed to terminate campaign: %v", err)
 	}
 
 	// Verify terminated status persists
 	var status string
-	srv.db.QueryRow("SELECT status FROM campaigns WHERE id = $1", campaignID).Scan(&status)
+	_ = srv.db.QueryRow("SELECT status FROM campaigns WHERE id = $1", campaignID).Scan(&status)
 	if status != "terminated" {
 		t.Errorf("Expected status 'terminated', got '%s'", status)
 	}
@@ -202,8 +201,8 @@ func TestIntegration_CampaignInvalidActions(t *testing.T) {
 	defer srv.db.Close()
 
 	testScenario := "integration-test-invalid-actions"
-	srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
-	defer srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario) }()
 
 	// Create test campaign
 	var campaignID int

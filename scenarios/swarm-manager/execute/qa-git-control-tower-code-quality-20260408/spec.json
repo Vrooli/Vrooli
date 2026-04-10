@@ -1,0 +1,22 @@
+{
+  "acceptance_allow": [
+    "scenarios/git-control-tower/**"
+  ],
+  "archived_at": "2026-04-09T03:35:27Z",
+  "created": "2026-04-08T04:13:09Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Dimension: codeQuality (score 0/100, violations 88). Readiness: yellow.\nTop issues: complex_functions=45, long_files=43, tech_debt_markers=2.\n\nTop affected files (tidiness-manager recommend-refactors):\n- scenarios/git-control-tower/api/gitignore_health_service_test.go (line_count 392, complexity_max 8)\n- scenarios/git-control-tower/api/tidiness_manager_client.go (line_count 156, complexity_max 7)\n- scenarios/git-control-tower/api/test_genie_client.go (line_count 123, complexity_max 7)\n- scenarios/git-control-tower/api/ssh/service_test.go (line_count 137, complexity_max 5)\n- scenarios/git-control-tower/api/filerelations/languages/golang/scanner.go (line_count 49, complexity_max 4)\n\nWorst violation example: api/gitignore_health_service_test.go at 392 lines with complexity_max 8 (long file + complex functions).\n\nSuccess target: code quality score \u003e=70; complex_functions \u003c10; long_files \u003c10; tech_debt_markers=0.\n\nRepro: git-control-tower review-run git-control-tower --json\nTidiness detail: tidiness-manager recommend-refactors git-control-tower --limit 10 --format json\n\nContract:\ntargetScenario: git-control-tower\nproblemOrOpportunity: Code quality score is 0 with large counts of complex functions and long files.\nproposedAction: Refactor top priority files to reduce complexity/length and remove tech debt markers.\nevidence: GCT review job 0f98c32f-e0f5-445f-9bac-3738c96443b8 plus tidiness-manager recommendations for file-level metrics.\nriskLevel: medium\nexecutionModeHint: execute\ncreatedByTeam: scenario-qa\nsourceRunId: 0f98c32f-e0f5-445f-9bac-3738c96443b8",
+  "kind": "execute",
+  "name": "qa-git-control-tower-code-quality-20260408",
+  "priority": 2,
+  "status": "failed",
+  "tags": [
+    "preemptive-qa",
+    "git-control-tower",
+    "code-quality"
+  ],
+  "title": "Reduce code quality violations in git-control-tower",
+  "updated": "2026-04-09T03:35:27Z"
+}

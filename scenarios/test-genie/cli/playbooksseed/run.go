@@ -3,12 +3,15 @@ package playbooksseed
 import (
 	"fmt"
 	"strings"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // Run executes the playbooks seed lifecycle command.
 // Usage:
-//   test-genie playbooks-seed apply --scenario <name> [--retain]
-//   test-genie playbooks-seed cleanup --scenario <name> --token <token>
+//
+//	test-genie playbooks-seed apply --scenario <name> [--retain]
+//	test-genie playbooks-seed cleanup --scenario <name> --token <token>
 func Run(client *Client, args []string) error {
 	if client == nil {
 		return fmt.Errorf("client is required")
@@ -49,9 +52,13 @@ func Run(client *Client, args []string) error {
 		return fmt.Errorf("--scenario is required")
 	}
 
+	// Resolve the scenario path using sandbox-aware resolution.
+	// See packages/cli-core/cliutil/sandbox.go for the implementation.
+	scenarioPath := cliutil.ResolveScenarioPath(scenario)
+
 	switch action {
 	case "apply":
-		resp, _, err := client.Apply(scenario, ApplyRequest{Retain: retain})
+		resp, _, err := client.Apply(scenario, ApplyRequest{Retain: retain, ScenarioPath: scenarioPath})
 		if err != nil {
 			return err
 		}

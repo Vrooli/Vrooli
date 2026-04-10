@@ -11,7 +11,7 @@
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start run stop dev test logs logs-follow status clean build build-all build-linux build-macos build-windows deps fmt fmt-go fmt-ui vet lint lint-go lint-ui check docker-build docker-run health docs version validate runtime-validate
+.PHONY: help start run stop dev test logs logs-follow status clean build build-all build-linux build-macos build-windows deps fmt fmt-go fmt-ui vet lint lint-go lint-ui check docker-build docker-run health docs version validate runtime-validate lint-templates typecheck-templates test-templates check-templates templates-deps
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -50,22 +50,21 @@ BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 # ============================================================================
 
 start: ## Start scenario-to-desktop (via Vrooli lifecycle)
-	@echo "$(BLUE)🚀 Starting Scenario-to-Desktop Converter...$(RESET)"
-	@echo "$(BLUE)Converting scenarios to desktop applications$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario start $(SCENARIO_NAME)
 
 run: start ## Alias for 'make start'
 
 stop: ## Stop scenario-to-desktop
-	@echo "$(YELLOW)⏹️  Stopping Scenario-to-Desktop Converter...$(RESET)"
+	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario stop $(SCENARIO_NAME)
 
 dev: ## Start in development mode with hot reload
-	@echo "$(BLUE)🔧 Starting in development mode...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME) --dev
+	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
+	@vrooli scenario start $(SCENARIO_NAME) --dev
 
 logs: ## Show recent logs
-	@echo "$(BLUE)📜 Recent Scenario-to-Desktop logs:$(RESET)"
+	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
 logs-follow: ## Follow logs in real-time
@@ -73,7 +72,7 @@ logs-follow: ## Follow logs in real-time
 	@vrooli scenario logs $(SCENARIO_NAME) --follow
 
 status: ## Check if scenario is running
-	@echo "$(BLUE)📊 Scenario-to-Desktop Status:$(RESET)"
+	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status $(SCENARIO_NAME)
 
 # ============================================================================
@@ -86,7 +85,7 @@ build: deps ## Build for current platform
 	@cd api && CGO_ENABLED=0 go build \
 		-ldflags "-X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)" \
 		-o bin/$(BINARY_NAME) \
-		main.go
+		.
 	@echo "$(GREEN)✓ Built $(BUILD_DIR)/$(BINARY_NAME)$(RESET)"
 
 build-all: deps ## Build for all platforms (Linux, macOS, Windows)
@@ -139,6 +138,19 @@ test: ## Run tests for this scenario
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario test $(SCENARIO_NAME)
 
+test-unit: ## Run unit tests only (fast, no external dependencies)
+	@echo "$(BLUE)🧪 Running unit tests...$(RESET)"
+	@cd api && go test -v -race ./smoketest/...
+	@echo "$(GREEN)✓ Unit tests passed$(RESET)"
+
+test-integration: ## Run integration tests (requires test fixture build)
+	@echo "$(BLUE)🧪 Running integration tests...$(RESET)"
+	@cd api && go test -tags=integration -timeout=5m -v ./smoketest/...
+	@echo "$(GREEN)✓ Integration tests passed$(RESET)"
+
+test-all: test-unit test-integration ## Run all tests (unit + integration)
+	@echo "$(GREEN)✓ All tests passed$(RESET)"
+
 runtime-validate: ## Run supervisor dry-run validation loop (fixture bundle)
 	@echo "$(BLUE)🧪 Running runtime dry-run validation...$(RESET)"
 	@cd runtime && go run ./cmd/runtime --manifest testdata/fixture-bundle/bundle.json --app-data /tmp/vrooli-runtime-fixture --dry-run
@@ -153,7 +165,15 @@ fmt: fmt-go fmt-ui ## Format all code
 
 fmt-go: ## Format Go code
 	@echo "$(BLUE)🎨 Formatting Go code...$(RESET)"
-	@cd api && go fmt ./...
+	@if [ -d api ] && ls api/*.go &>/dev/null; then \
+		if command -v gofumpt >/dev/null 2>&1; then \
+			gofumpt -w api/; \
+		else \
+			cd api && go fmt ./...; \
+		fi; \
+	else \
+		echo "$(YELLOW)ℹ No Go sources found, skipping$(RESET)"; \
+	fi
 	@echo "$(GREEN)✓ Go format complete$(RESET)"
 
 fmt-ui: ## Format UI code (no-op if no UI formatting tool)
@@ -164,10 +184,14 @@ lint: lint-go lint-ui ## Lint all code
 
 lint-go: ## Lint Go code
 	@echo "$(BLUE)🔍 Linting Go code...$(RESET)"
-	@if command -v golangci-lint >/dev/null 2>&1; then \
-		cd api && golangci-lint run ./...; \
+	@if [ -d api ] && ls api/*.go &>/dev/null; then \
+		if command -v golangci-lint >/dev/null 2>&1; then \
+			cd api && golangci-lint run ./...; \
+		else \
+			echo "$(YELLOW)ℹ golangci-lint not installed, skipping$(RESET)"; \
+		fi; \
 	else \
-		echo "$(YELLOW)ℹ golangci-lint not installed, skipping$(RESET)"; \
+		echo "$(YELLOW)ℹ No Go sources found, skipping$(RESET)"; \
 	fi
 	@echo "$(GREEN)✓ Go lint complete$(RESET)"
 
@@ -180,7 +204,7 @@ vet: ## Vet code
 	@cd api && go vet ./...
 	@echo "$(GREEN)✓ Vet complete$(RESET)"
 
-check: fmt vet test ## Run fmt, vet, and test
+check: fmt lint vet test ## Run fmt, lint, vet, and test
 	@echo "$(GREEN)✓ All checks passed!$(RESET)"
 
 clean: ## Clean build artifacts
@@ -254,6 +278,32 @@ dev-deps: ## Install development dependencies
 	@echo "$(GREEN)✓ Development dependencies installed$(RESET)"
 
 # ============================================================================
+# TEMPLATE LINTING & TYPE-CHECKING
+# ============================================================================
+
+TEMPLATES_DIR := templates/vanilla
+
+lint-templates: ## Lint vanilla template TypeScript files
+	@echo "$(BLUE)🔍 Linting vanilla templates...$(RESET)"
+	@cd $(TEMPLATES_DIR) && npm run lint
+
+typecheck-templates: ## Type-check vanilla template TypeScript files
+	@echo "$(BLUE)🔍 Type-checking vanilla templates...$(RESET)"
+	@cd $(TEMPLATES_DIR) && npm run typecheck
+
+test-templates: ## Run vanilla template tests
+	@echo "$(BLUE)🧪 Testing vanilla templates...$(RESET)"
+	@cd $(TEMPLATES_DIR) && npm run test
+
+check-templates: typecheck-templates lint-templates test-templates ## Full template validation
+	@echo "$(GREEN)✓ All template checks passed$(RESET)"
+
+templates-deps: ## Install template development dependencies
+	@echo "$(BLUE)📦 Installing template dependencies...$(RESET)"
+	@cd $(TEMPLATES_DIR) && npm install
+	@echo "$(GREEN)✓ Template dependencies installed$(RESET)"
+
+# ============================================================================
 # SHORTCUTS
 # ============================================================================
 
@@ -261,7 +311,13 @@ r: run
 s: stop
 d: dev
 t: test
+tu: test-unit
+ti: test-integration
+ta: test-all
 l: logs
 c: clean
 b: build
 ba: build-all
+lt: lint-templates
+tt: typecheck-templates
+ct: check-templates

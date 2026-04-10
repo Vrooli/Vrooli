@@ -1181,10 +1181,14 @@ func TestGitApplyCheckIntegration(t *testing.T) {
 	// Configure git user for commits
 	cmd = exec.Command("git", "config", "user.email", "test@test.com")
 	cmd.Dir = repoDir
-	cmd.Run()
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to configure git email: %v", err)
+	}
 	cmd = exec.Command("git", "config", "user.name", "Test")
 	cmd.Dir = repoDir
-	cmd.Run()
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to configure git name: %v", err)
+	}
 
 	// Create initial commit so we have a HEAD
 	initialFile := filepath.Join(repoDir, "initial.txt")
@@ -1193,10 +1197,14 @@ func TestGitApplyCheckIntegration(t *testing.T) {
 	}
 	cmd = exec.Command("git", "add", ".")
 	cmd.Dir = repoDir
-	cmd.Run()
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to git add: %v", err)
+	}
 	cmd = exec.Command("git", "commit", "-m", "Initial commit")
 	cmd.Dir = repoDir
-	cmd.Run()
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to git commit: %v", err)
+	}
 
 	gen := NewGenerator()
 	ctx := context.Background()
@@ -1257,10 +1265,14 @@ func TestGitApplyCheckIntegration(t *testing.T) {
 		}
 		cmd := exec.Command("git", "add", "to_delete.txt")
 		cmd.Dir = repoDir
-		cmd.Run()
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("git add: %v", err)
+		}
 		cmd = exec.Command("git", "commit", "-m", "Add file to delete")
 		cmd.Dir = repoDir
-		cmd.Run()
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("git commit: %v", err)
+		}
 
 		// Generate delete diff
 		diff, err := gen.diffDeletedFile(ctx, repoDir, "to_delete.txt", "")
@@ -1285,8 +1297,12 @@ func TestGitApplyCheckIntegration(t *testing.T) {
 		lowerDir := repoDir
 
 		// Create new files in upper
-		os.WriteFile(filepath.Join(upperDir, "new1.txt"), []byte("new file 1\n"), 0o644)
-		os.WriteFile(filepath.Join(upperDir, "new2.txt"), []byte("new file 2\n"), 0o644)
+		if err := os.WriteFile(filepath.Join(upperDir, "new1.txt"), []byte("new file 1\n"), 0o644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(upperDir, "new2.txt"), []byte("new file 2\n"), 0o644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
 
 		// Generate combined diff
 		var diffBuilder strings.Builder
@@ -1313,15 +1329,25 @@ func TestGitApplyCheckIntegration(t *testing.T) {
 	t.Run("diff with path prefix is valid git patch", func(t *testing.T) {
 		// Create subdirectory in repo to match path prefix
 		scopeDir := filepath.Join(repoDir, "src", "app")
-		os.MkdirAll(scopeDir, 0o755)
+		if err := os.MkdirAll(scopeDir, 0o755); err != nil {
+			t.Fatalf("MkdirAll: %v", err)
+		}
 
 		upperDir := t.TempDir()
 
 		// Create files - these will have paths prefixed with "src/app/"
-		os.WriteFile(filepath.Join(upperDir, "component.ts"), []byte("export const X = 1;\n"), 0o644)
-		os.WriteFile(filepath.Join(upperDir, "util.ts"), []byte("export function util() {}\n"), 0o644)
-		os.MkdirAll(filepath.Join(upperDir, "nested"), 0o755)
-		os.WriteFile(filepath.Join(upperDir, "nested", "deep.ts"), []byte("// deep\n"), 0o644)
+		if err := os.WriteFile(filepath.Join(upperDir, "component.ts"), []byte("export const X = 1;\n"), 0o644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(upperDir, "util.ts"), []byte("export function util() {}\n"), 0o644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+		if err := os.MkdirAll(filepath.Join(upperDir, "nested"), 0o755); err != nil {
+			t.Fatalf("MkdirAll: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(upperDir, "nested", "deep.ts"), []byte("// deep\n"), 0o644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
 
 		// Generate combined diff with path prefix
 		var diffBuilder strings.Builder
@@ -1367,7 +1393,9 @@ func TestGitApplyCheckIntegration(t *testing.T) {
 
 		// Create a binary file
 		binaryContent := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00}
-		os.WriteFile(filepath.Join(upperDir, "image.png"), binaryContent, 0o644)
+		if err := os.WriteFile(filepath.Join(upperDir, "image.png"), binaryContent, 0o644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
 
 		diff, err := gen.diffNewFile(ctx, upperDir, "image.png", "")
 		if err != nil {

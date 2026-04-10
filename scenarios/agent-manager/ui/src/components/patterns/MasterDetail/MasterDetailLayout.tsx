@@ -2,6 +2,7 @@ import * as React from "react";
 import { cn } from "../../../lib/utils";
 import { useViewportSize } from "../../../hooks/useViewportSize";
 import { useResizablePanel } from "../../../hooks/useResizablePanel";
+import { useCollapsiblePanel } from "../../../hooks/useCollapsiblePanel";
 import { DetailModal } from "./DetailModal";
 import { ResizableDivider } from "./ResizableDivider";
 
@@ -29,6 +30,11 @@ interface MasterDetailLayoutProps {
   /** Minimum detail panel width in pixels (default: 320) */
   minDetailWidth?: number;
 
+  /** Content rendered before the title in the mobile detail modal header */
+  detailHeaderLeft?: React.ReactNode;
+  /** Content rendered after the title in the mobile detail modal header */
+  detailHeaderRight?: React.ReactNode;
+
   /** Additional CSS classes */
   className?: string;
 }
@@ -36,6 +42,7 @@ interface MasterDetailLayoutProps {
 const DEFAULT_LIST_WIDTH_PERCENT = 40;
 const DEFAULT_MIN_LIST_WIDTH = 280;
 const DEFAULT_MIN_DETAIL_WIDTH = 320;
+const COLLAPSED_LIST_WIDTH = 48;
 
 export function MasterDetailLayout({
   listPanel,
@@ -47,6 +54,8 @@ export function MasterDetailLayout({
   storageKey,
   defaultListWidthPercent = DEFAULT_LIST_WIDTH_PERCENT,
   minListWidth = DEFAULT_MIN_LIST_WIDTH,
+  detailHeaderLeft,
+  detailHeaderRight,
   minDetailWidth = DEFAULT_MIN_DETAIL_WIDTH,
   className,
 }: MasterDetailLayoutProps) {
@@ -62,6 +71,22 @@ export function MasterDetailLayout({
     minWidth: minListWidth,
     minOtherWidth: minDetailWidth,
   });
+
+  const { isCollapsed, toggle: toggleCollapse } = useCollapsiblePanel({
+    storageKey: `${storageKey}.list`,
+    defaultCollapsed: false,
+  });
+
+  // Clone listPanel to inject collapse props
+  const listPanelWithCollapse = React.isValidElement(listPanel)
+    ? React.cloneElement(listPanel as React.ReactElement<{ collapsed?: boolean; onToggleCollapse?: () => void }>, {
+        collapsed: isCollapsed,
+        onToggleCollapse: toggleCollapse,
+      })
+    : listPanel;
+
+  // Use collapsed width when collapsed, otherwise resizable width
+  const effectiveListWidth = isCollapsed ? COLLAPSED_LIST_WIDTH : listWidth;
 
   // Desktop layout
   if (isDesktop) {
@@ -81,17 +106,22 @@ export function MasterDetailLayout({
         >
           {/* List panel */}
           <div
-            style={{ width: listWidth }}
-            className="shrink-0 min-h-0 overflow-hidden border-r border-border"
+            style={{ width: effectiveListWidth }}
+            className={cn(
+              "shrink-0 min-h-0 overflow-hidden border-r border-border",
+              "transition-[width] duration-200 ease-in-out"
+            )}
           >
-            {listPanel}
+            {listPanelWithCollapse}
           </div>
 
-          {/* Resize divider */}
-          <ResizableDivider
-            onMouseDown={handleResizeStart}
-            isResizing={isResizing}
-          />
+          {/* Resize divider - hidden when collapsed */}
+          {!isCollapsed && (
+            <ResizableDivider
+              onMouseDown={handleResizeStart}
+              isResizing={isResizing}
+            />
+          )}
 
           {/* Detail panel */}
           <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
@@ -118,7 +148,7 @@ export function MasterDetailLayout({
       </div>
 
       {/* Mobile detail modal */}
-      <DetailModal open={!!selectedId} onClose={onDeselect} title={detailTitle}>
+      <DetailModal open={!!selectedId} onClose={onDeselect} title={detailTitle} headerLeft={detailHeaderLeft} headerRight={detailHeaderRight}>
         {detailPanel}
       </DetailModal>
     </div>

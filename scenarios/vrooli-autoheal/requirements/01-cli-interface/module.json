@@ -10,7 +10,7 @@
     {
       "id": "CLI-TICK-001",
       "title": "Tick command executes single health cycle",
-      "description": "vrooli autoheal tick runs platform detection, bootstrap, watchdog verification, and all health checks once",
+      "description": "vrooli-autoheal tick runs platform detection, bootstrap, watchdog verification, and all health checks once",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "validation": [
@@ -42,7 +42,7 @@
     {
       "id": "CLI-LOOP-001",
       "title": "Loop command runs continuously",
-      "description": "vrooli autoheal loop repeatedly calls tick logic at configurable interval",
+      "description": "vrooli-autoheal loop repeatedly calls tick logic at configurable interval",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "validation": [
@@ -91,7 +91,7 @@
     {
       "id": "CLI-STATUS-001",
       "title": "Status command shows health summary",
-      "description": "vrooli autoheal status displays last-known health results from persisted data",
+      "description": "vrooli-autoheal status displays last-known health results from persisted data",
       "prd_ref": "OT-P0-010",
       "criticality": "P0",
       "validation": [

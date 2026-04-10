@@ -31,6 +31,7 @@ type Repository interface {
 	CreateWorkflow(ctx context.Context, workflow *WorkflowIndex) error
 	GetWorkflow(ctx context.Context, id uuid.UUID) (*WorkflowIndex, error)
 	GetWorkflowByName(ctx context.Context, name, folderPath string) (*WorkflowIndex, error)
+	GetWorkflowByNameInProject(ctx context.Context, projectID uuid.UUID, name, folderPath string) (*WorkflowIndex, error)
 	UpdateWorkflow(ctx context.Context, workflow *WorkflowIndex) error
 	DeleteWorkflow(ctx context.Context, id uuid.UUID) error
 	ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*WorkflowIndex, error)
@@ -62,10 +63,22 @@ type Repository interface {
 	SetSetting(ctx context.Context, key, value string) error
 	DeleteSetting(ctx context.Context, key string) error
 
+	// Asset operations (project file index)
+	CreateAsset(ctx context.Context, asset *AssetIndex) error
+	GetAsset(ctx context.Context, projectID uuid.UUID, filePath string) (*AssetIndex, error)
+	GetAssetByID(ctx context.Context, id uuid.UUID) (*AssetIndex, error)
+	UpdateAsset(ctx context.Context, asset *AssetIndex) error
+	DeleteAsset(ctx context.Context, id uuid.UUID) error
+	DeleteAssetByPath(ctx context.Context, projectID uuid.UUID, filePath string) error
+	DeleteAssetsByProject(ctx context.Context, projectID uuid.UUID) error
+	ListAssetsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*AssetIndex, error)
+
 	// Export operations (exported artifacts metadata)
 	CreateExport(ctx context.Context, export *ExportIndex) error
 	GetExport(ctx context.Context, id uuid.UUID) (*ExportIndex, error)
 	UpdateExport(ctx context.Context, export *ExportIndex) error
+	UpdateExportStatus(ctx context.Context, id uuid.UUID, status string, errorMessage string) error
+	UpdateExportComplete(ctx context.Context, id uuid.UUID, storageURL string, fileSizeBytes int64) error
 	DeleteExport(ctx context.Context, id uuid.UUID) error
 	ListExports(ctx context.Context, limit, offset int) ([]*ExportIndex, error)
 	ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*ExportIndex, error)
@@ -94,6 +107,7 @@ const (
 	workflowSelectColumns  = "id, project_id, name, folder_path, file_path, version, created_at, updated_at"
 	executionSelectColumns = "id, workflow_id, status, started_at, completed_at, COALESCE(error_message, '') as error_message, COALESCE(result_path, '') as result_path, resumed_from_id, created_at, updated_at"
 	scheduleSelectColumns  = "id, workflow_id, name, cron_expression, timezone, is_active, parameters_json, next_run_at, last_run_at, created_at, updated_at"
+	assetSelectColumns     = "id, project_id, file_path, file_name, COALESCE(file_size, 0) as file_size, COALESCE(mime_type, '') as mime_type, created_at, updated_at"
 )
 
 func appendLimitOffset(query string, limit, offset int) (string, []any) {
@@ -287,6 +301,18 @@ func (r *repository) GetWorkflowByName(ctx context.Context, name, folderPath str
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("failed to get workflow by name: %w", err)
+	}
+	return &workflow, nil
+}
+
+func (r *repository) GetWorkflowByNameInProject(ctx context.Context, projectID uuid.UUID, name, folderPath string) (*WorkflowIndex, error) {
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM workflows WHERE project_id = ? AND name = ? AND folder_path = ?", workflowSelectColumns))
+	var workflow WorkflowIndex
+	if err := r.db.GetContext(ctx, &workflow, query, projectID, name, folderPath); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get workflow by name in project: %w", err)
 	}
 	return &workflow, nil
 }
@@ -564,7 +590,13 @@ func (r *repository) ListSchedules(ctx context.Context, workflowID *uuid.UUID, a
 		base += " WHERE is_active = true"
 	}
 
-	base += " ORDER BY next_run_at ASC NULLS LAST"
+	// Use dialect-aware NULL ordering
+	if r.db.Dialect().IsPostgres() {
+		base += " ORDER BY next_run_at ASC NULLS LAST"
+	} else {
+		// SQLite: Use CASE expression to push NULLs to end
+		base += " ORDER BY CASE WHEN next_run_at IS NULL THEN 1 ELSE 0 END, next_run_at ASC"
+	}
 	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
 	args = append(args, pagingArgs...)
 	query := r.db.Rebind(queryWithPaging)
@@ -677,6 +709,30 @@ func (r *repository) UpdateExport(ctx context.Context, export *ExportIndex) erro
 	return nil
 }
 
+func (r *repository) UpdateExportStatus(ctx context.Context, id uuid.UUID, status string, errorMessage string) error {
+	query := r.db.Rebind("UPDATE exports SET status = ?, error = ? WHERE id = ?")
+	res, err := r.db.ExecContext(ctx, query, status, errorMessage, id)
+	if err != nil {
+		return fmt.Errorf("failed to update export status: %w", err)
+	}
+	if rows, rowsErr := res.RowsAffected(); rowsErr == nil && rows == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *repository) UpdateExportComplete(ctx context.Context, id uuid.UUID, storageURL string, fileSizeBytes int64) error {
+	query := r.db.Rebind("UPDATE exports SET status = 'completed', storage_url = ?, file_size_bytes = ? WHERE id = ?")
+	res, err := r.db.ExecContext(ctx, query, storageURL, fileSizeBytes, id)
+	if err != nil {
+		return fmt.Errorf("failed to update export completion: %w", err)
+	}
+	if rows, rowsErr := res.RowsAffected(); rowsErr == nil && rows == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (r *repository) DeleteExport(ctx context.Context, id uuid.UUID) error {
 	query := r.db.Rebind(`DELETE FROM exports WHERE id = ?`)
 	_, err := r.db.ExecContext(ctx, query, id)
@@ -777,4 +833,96 @@ func (r *repository) DeleteSetting(ctx context.Context, key string) error {
 		return fmt.Errorf("failed to delete setting: %w", err)
 	}
 	return nil
+}
+
+// ============================================================================
+// Asset Operations
+// ============================================================================
+
+func (r *repository) CreateAsset(ctx context.Context, asset *AssetIndex) error {
+	if asset.ID == uuid.Nil {
+		asset.ID = uuid.New()
+	}
+
+	query := `INSERT INTO project_assets (id, project_id, file_path, file_name, file_size, mime_type)
+	          VALUES (:id, :project_id, :file_path, :file_name, :file_size, :mime_type)`
+	_, err := r.db.NamedExecContext(ctx, query, asset)
+	if err != nil {
+		r.log.WithError(err).Error("Failed to create asset")
+		return fmt.Errorf("failed to create asset: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) GetAsset(ctx context.Context, projectID uuid.UUID, filePath string) (*AssetIndex, error) {
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM project_assets WHERE project_id = ? AND file_path = ?", assetSelectColumns))
+	var asset AssetIndex
+	if err := r.db.GetContext(ctx, &asset, query, projectID, filePath); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get asset: %w", err)
+	}
+	return &asset, nil
+}
+
+func (r *repository) GetAssetByID(ctx context.Context, id uuid.UUID) (*AssetIndex, error) {
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM project_assets WHERE id = ?", assetSelectColumns))
+	var asset AssetIndex
+	if err := r.db.GetContext(ctx, &asset, query, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get asset by ID: %w", err)
+	}
+	return &asset, nil
+}
+
+func (r *repository) UpdateAsset(ctx context.Context, asset *AssetIndex) error {
+	query := `UPDATE project_assets SET file_path = :file_path, file_name = :file_name,
+	          file_size = :file_size, mime_type = :mime_type WHERE id = :id`
+	_, err := r.db.NamedExecContext(ctx, query, asset)
+	if err != nil {
+		return fmt.Errorf("failed to update asset: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) DeleteAsset(ctx context.Context, id uuid.UUID) error {
+	query := r.db.Rebind(`DELETE FROM project_assets WHERE id = ?`)
+	_, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete asset: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) DeleteAssetByPath(ctx context.Context, projectID uuid.UUID, filePath string) error {
+	query := r.db.Rebind(`DELETE FROM project_assets WHERE project_id = ? AND file_path = ?`)
+	_, err := r.db.ExecContext(ctx, query, projectID, filePath)
+	if err != nil {
+		return fmt.Errorf("failed to delete asset by path: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) DeleteAssetsByProject(ctx context.Context, projectID uuid.UUID) error {
+	query := r.db.Rebind(`DELETE FROM project_assets WHERE project_id = ?`)
+	_, err := r.db.ExecContext(ctx, query, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to delete assets by project: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) ListAssetsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*AssetIndex, error) {
+	base := fmt.Sprintf("SELECT %s FROM project_assets WHERE project_id = ? ORDER BY file_path ASC", assetSelectColumns)
+	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
+	args := append([]any{projectID}, pagingArgs...)
+	query := r.db.Rebind(queryWithPaging)
+	var assets []*AssetIndex
+	if err := r.db.SelectContext(ctx, &assets, query, args...); err != nil {
+		return nil, fmt.Errorf("failed to list assets by project: %w", err)
+	}
+	return assets, nil
 }

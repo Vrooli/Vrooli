@@ -18,8 +18,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
@@ -28,10 +30,14 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	"github.com/vrooli/browser-automation-studio/services/export/render"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
-	"github.com/vrooli/browser-automation-studio/services/replay"
+	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
+	unifiedpersistence "github.com/vrooli/browser-automation-studio/services/recording/persistence"
+	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
+	"github.com/vrooli/browser-automation-studio/services/vision"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
@@ -47,6 +53,15 @@ type Dependencies struct {
 	RecordModeService *livecapture.Service
 	RecordingImport   archiveingestion.IngestionServiceInterface
 
+	// Unified recording service
+	// DOC: docs/architecture/recording.md#unified-recording
+	UnifiedRecordingService *unifiedrecording.Service
+	UnifiedRecordingRepo    unifiedpersistence.Repository
+
+	// Vision navigation
+	PlaywrightNavigator *vision.PlaywrightVisionNavigator
+	NavigatorRegistry   *vision.NavigatorRegistry
+
 	// Validators
 	WorkflowValidator *workflowvalidator.Validator
 
@@ -56,7 +71,7 @@ type Dependencies struct {
 	ReplayRenderer ReplayRenderer
 
 	// Session management
-	SessionProfiles *archiveingestion.SessionProfileStore
+	SessionProfileService *sessionprofile.Service
 
 	// Optional integrations
 	UXMetricsRepo uxmetrics.Repository
@@ -64,7 +79,7 @@ type Dependencies struct {
 
 // ReplayRenderer is the interface for rendering replay videos.
 type ReplayRenderer interface {
-	Render(ctx context.Context, spec *replay.ReplayMovieSpec, format replay.RenderFormat, filename string) (*replay.RenderedMedia, error)
+	Render(ctx context.Context, spec *render.ReplayMovieSpec, format render.RenderFormat, filename string) (*render.RenderedMedia, error)
 }
 
 // Config holds configuration for dependency construction.
@@ -86,13 +101,13 @@ func DefaultConfig() Config {
 
 // BuildDependencies constructs all production dependencies.
 // This is the main entry point for dependency injection.
-func BuildDependencies(repo database.Repository, hub *wsHub.Hub, log *logrus.Logger, cfg Config) (*Dependencies, error) {
+func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub, log *logrus.Logger, cfg Config) (*Dependencies, error) {
 	// Initialize recordings infrastructure
 	recordingsRoot := paths.ResolveRecordingsRoot(log)
 	// Store screenshots alongside other execution artifacts under recordingsRoot.
 	storageClient := storage.NewScreenshotStorage(log, recordingsRoot)
 	recordingImportSvc := archiveingestion.NewIngestionService(repo, storageClient, hub, log, recordingsRoot)
-	sessionProfiles := archiveingestion.NewSessionProfileStore(paths.ResolveSessionProfilesRoot(log), log)
+	sessionProfileSvc := sessionprofile.NewServiceWithPath(paths.ResolveSessionProfilesRoot(log), log)
 
 	// Wire automation stack
 	autoExecutor := autoexecutor.NewSimpleExecutor(nil)
@@ -116,12 +131,12 @@ func BuildDependencies(repo database.Repository, hub *wsHub.Hub, log *logrus.Log
 
 	// Create workflow service with dependencies
 	workflowSvc := workflow.NewWorkflowServiceWithDeps(repo, hub, log, workflow.WorkflowServiceOptions{
-		Executor:          autoExecutor,
-		EngineFactory:     autoEngineFactory,
-		ArtifactRecorder:  autoRecorder,
-		EventSinkFactory:  eventSinkFactory,
-		ExecutionDataRoot: recordingsRoot,
-		SessionProfiles:   sessionProfiles,
+		Executor:              autoExecutor,
+		EngineFactory:         autoEngineFactory,
+		ArtifactRecorder:      autoRecorder,
+		EventSinkFactory:      eventSinkFactory,
+		ExecutionDataRoot:     recordingsRoot,
+		SessionProfileService: sessionProfileSvc,
 	})
 
 	// Ensure the demo project exists
@@ -139,19 +154,88 @@ func BuildDependencies(repo database.Repository, hub *wsHub.Hub, log *logrus.Log
 		return nil, err
 	}
 
-	// Create record mode service
-	recordModeSvc := livecapture.NewService(log)
+	// Create unified recording service first (needed by live-capture service)
+	// DOC: docs/architecture/recording.md#unified-recording
+	var unifiedRecordingRepo unifiedpersistence.Repository
+	var unifiedRecordingSvc *unifiedrecording.Service
+	if db != nil {
+		// Access underlying *sql.DB from *sqlx.DB embedded in database.DB
+		unifiedRecordingRepo = unifiedpersistence.NewSQLiteRepository(db.DB.DB, log)
+		unifiedRecordingSvc = unifiedrecording.NewService(
+			unifiedRecordingRepo,
+			hub,
+			log,
+			unifiedrecording.ServiceConfig{},
+		)
+		log.Info("✅ Unified recording service initialized")
+	}
+
+	// Create record mode service with unified recording service injected
+	// This ensures all browser actions flow through a single recording pipeline
+	recordModeSvc := livecapture.NewService(log, unifiedRecordingSvc)
+
+	// Create vision navigators with recording callbacks
+	playwrightNav := vision.NewPlaywrightVisionNavigator(
+		log,
+		vision.WithPlaywrightHub(hub),
+	)
+
+	// Connect vision navigator to live-capture service for unified AI action recording.
+	// AI actions flow through the same AddTimelineAction path as manual actions,
+	// with "source": "ai" in the payload to distinguish them.
+	// DOC: docs/architecture/recording.md#unified-recording
+	playwrightNav.SetActionRecordCallback(func(sessionID string, action *vision.RecordedNavigationAction) {
+		// Convert AI navigation action to driver.RecordedAction
+		driverAction := &driver.RecordedAction{
+			ID:          uuid.New().String(),
+			SessionID:   sessionID,
+			SequenceNum: action.StepNumber,
+			Timestamp:   action.Timestamp,
+			ActionType:  action.ActionType,
+			Confidence:  0.9, // AI actions have high confidence
+			URL:         action.URL,
+		}
+		if action.Selector != "" {
+			driverAction.Selector = &driver.SelectorSet{
+				Primary: action.Selector,
+			}
+		}
+		// Include AI-specific metadata and source marker
+		driverAction.Payload = map[string]interface{}{
+			"source": "ai",
+		}
+		if action.Reasoning != "" {
+			driverAction.Payload["reasoning"] = action.Reasoning
+		}
+
+		// Route through live-capture service's unified recording pipeline
+		// The source is determined from payload["source"] = "ai"
+		recordModeSvc.AddTimelineAction(sessionID, driverAction, uuid.Nil)
+	})
+	log.Info("✅ Vision navigator connected to unified recording via live-capture service")
+
+	// Create navigator registry - first registered navigator becomes the default
+	navigatorRegistry := vision.NewNavigatorRegistry()
+	navigatorRegistry.Register(playwrightNav)
+
+	// Register ClaudeCode navigator (stub)
+	claudeCodeNav := vision.NewClaudeCodeVisionNavigator(log)
+	navigatorRegistry.Register(claudeCodeNav)
 
 	return &Dependencies{
-		WorkflowService:   workflowSvc,
-		RecordModeService: recordModeSvc,
-		RecordingImport:   recordingImportSvc,
-		WorkflowValidator: validatorInstance,
-		Storage:           storageClient,
-		RecordingsRoot:    recordingsRoot,
-		ReplayRenderer:    replay.NewReplayRenderer(log, recordingsRoot),
-		SessionProfiles:   sessionProfiles,
-		UXMetricsRepo:     cfg.UXMetricsRepo,
+		WorkflowService:         workflowSvc,
+		RecordModeService:       recordModeSvc,
+		RecordingImport:         recordingImportSvc,
+		UnifiedRecordingService: unifiedRecordingSvc,
+		UnifiedRecordingRepo:    unifiedRecordingRepo,
+		PlaywrightNavigator:     playwrightNav,
+		NavigatorRegistry:       navigatorRegistry,
+		WorkflowValidator:       validatorInstance,
+		Storage:                 storageClient,
+		RecordingsRoot:          recordingsRoot,
+		ReplayRenderer:          render.NewReplayRenderer(log, recordingsRoot),
+		SessionProfileService:   sessionProfileSvc,
+		UXMetricsRepo:           cfg.UXMetricsRepo,
 	}, nil
 }
 
@@ -178,22 +262,33 @@ type HandlerDeps struct {
 	RecordingService  archiveingestion.IngestionServiceInterface
 	RecordingsRoot    string
 	ReplayRenderer    ReplayRenderer
-	SessionProfiles   *archiveingestion.SessionProfileStore
+	SessionProfileService *sessionprofile.Service
 	UXMetricsRepo     uxmetrics.Repository
+
+	// Unified recording service
+	// DOC: docs/architecture/recording.md#unified-recording
+	UnifiedRecordingService *unifiedrecording.Service
+
+	// Vision navigation
+	PlaywrightNavigator *vision.PlaywrightVisionNavigator
+	NavigatorRegistry   *vision.NavigatorRegistry
 }
 
 // ToHandlerDeps converts Dependencies to HandlerDeps for backward compatibility.
 func (d *Dependencies) ToHandlerDeps() HandlerDeps {
 	return HandlerDeps{
-		WorkflowCatalog:   d.WorkflowService,
-		ExecutionService:  d.WorkflowService,
-		ExportService:     d.WorkflowService,
-		WorkflowValidator: d.WorkflowValidator,
-		Storage:           d.Storage,
-		RecordingService:  d.RecordingImport,
-		RecordingsRoot:    d.RecordingsRoot,
-		ReplayRenderer:    d.ReplayRenderer,
-		SessionProfiles:   d.SessionProfiles,
-		UXMetricsRepo:     d.UXMetricsRepo,
+		WorkflowCatalog:         d.WorkflowService,
+		ExecutionService:        d.WorkflowService,
+		ExportService:           d.WorkflowService,
+		WorkflowValidator:       d.WorkflowValidator,
+		Storage:                 d.Storage,
+		RecordingService:        d.RecordingImport,
+		RecordingsRoot:          d.RecordingsRoot,
+		ReplayRenderer:          d.ReplayRenderer,
+		SessionProfileService:   d.SessionProfileService,
+		UXMetricsRepo:           d.UXMetricsRepo,
+		UnifiedRecordingService: d.UnifiedRecordingService,
+		PlaywrightNavigator:     d.PlaywrightNavigator,
+		NavigatorRegistry:       d.NavigatorRegistry,
 	}
 }

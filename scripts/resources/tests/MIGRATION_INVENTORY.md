@@ -28,9 +28,6 @@
 These orchestrate BATS tests which will be handled by `pnpm run test:shell`:
 
 - `resources/node-red/lib/run-tests.sh` - BATS orchestrator
-- `resources/huginn/lib/run-tests.sh` - BATS orchestrator  
-- `resources/agent-s2/tests/run_tests.sh` - Python/BATS orchestrator
-- `resources/huginn/lib/testing.sh` - Test utilities
 - `resources/node-red/lib/testing.sh` - Test utilities
 
 ## Resources with Integration Tests Already Working

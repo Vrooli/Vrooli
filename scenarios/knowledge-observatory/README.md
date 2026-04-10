@@ -11,6 +11,7 @@ This scenario adds permanent capability for:
 - **Quality Monitoring**: Real-time health metrics for knowledge coherence, freshness, and redundancy
 - **Knowledge Visualization**: Interactive graph showing concept relationships
 - **Intelligence Introspection**: Understanding how Vrooli's knowledge evolves over time
+- **Documentation Hub**: Discover, audit, and heal documentation across every scenario
 
 ## 💡 Why This Matters
 
@@ -25,10 +26,10 @@ Knowledge Observatory solves these problems by providing visibility into the sys
 ## 🚀 Features
 
 ### Dashboard
-- Real-time knowledge health metrics
-- Collection statistics and trends
-- Alert system for quality degradation
-- Activity timeline
+- Real-time knowledge + documentation health metrics
+- Scenario documentation coverage snapshots
+- Activity feed for searches and healing jobs
+- Quick search entrypoint for all modes
 
 ### Semantic Search
 - Natural language queries
@@ -48,19 +49,25 @@ Knowledge Observatory solves these problems by providing visibility into the sys
 - **Redundancy**: Detection of duplicate knowledge
 - **Coverage**: Breadth of knowledge domains
 
+### Documentation Hub
+- **File/Text Search**: Find docs by path, filename, or content
+- **Scenario Explorer**: Browse docs by scenario with health warnings
+- **Viewer**: Read markdown with syntax highlighting + Mermaid
+- **Deep Search**: Agent-powered contextual discovery
+- **Healing**: Spawn documentation-healing agents with diff review
+
 ## 🔧 Architecture
 
 ### Components
 - **Go API**: RESTful endpoints for all operations (dynamically allocated port 15000-19999)
 - **CLI**: Command-line interface for knowledge queries
-- **Web UI**: Mission control style dashboard (dynamically allocated port 35000-39999)
+- **Web UI**: Modern control-tower dashboard (dynamically allocated port 35000-39999)
 - **PostgreSQL**: Metadata and metrics storage
 - **Qdrant**: Vector database being monitored
-- **N8n Workflows**: Automated quality monitoring
 
 ### Resource Dependencies
 - **Required**: Qdrant, PostgreSQL
-- **Optional**: N8n, Ollama (for enhanced analysis)
+- **Optional**: Ollama (for embeddings and structured output), agent-manager + prompt-manager (for deep search and doc healing)
 
 ## 📖 Usage
 
@@ -92,7 +99,13 @@ knowledge-observatory job-status <job_id>
 knowledge-observatory graph --center "ecosystem-manager"
 
 # Get quality metrics
-knowledge-observatory metrics --collection vrooli_knowledge
+knowledge-observatory metrics
+
+# Documentation search & health
+knowledge-observatory docs search-files "**/README.md"
+knowledge-observatory docs search-text "health score"
+knowledge-observatory docs search-deep "How does deep search work?"
+knowledge-observatory docs health knowledge-observatory
 
 # Watch health in real-time
 knowledge-observatory health --watch
@@ -146,12 +159,12 @@ knowledge-observatory graph --center "your-scenario"
 
 ## 🎨 UI Style
 
-The dashboard follows a **technical mission control** aesthetic:
-- Dark theme with green accent (Matrix-inspired)
-- Real-time data streams
-- Graph visualizations with organic pulsing
-- Heat maps for knowledge density
-- Professional yet engaging interface
+The dashboard follows a **modern control-tower** aesthetic:
+- Clean dark surfaces with blue/slate semantic accents
+- Strong information hierarchy for fast scanning
+- Consistent card, tab, and input primitives across all pages
+- Focus-visible, keyboard-friendly interaction styling
+- Professional operator-console clarity without hacker-themed visuals
 
 ## 📊 Value Proposition
 

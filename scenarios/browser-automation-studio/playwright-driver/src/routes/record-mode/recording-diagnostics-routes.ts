@@ -20,6 +20,69 @@ import {
 import { runRecordingPipelineTest, runExternalUrlInjectionTest } from '../../recording';
 import type { StreamSettingsRequest, StreamSettingsResponse } from './types';
 
+interface BrowserScriptState {
+  loaded: boolean;
+  ready: boolean;
+  isActive: boolean | null;
+  inMainContext: boolean;
+  handlersCount: number;
+  version: string | null;
+  eventsDetected: number;
+  eventsCaptured: number;
+  eventsSent: number;
+  eventsSendFailed: number;
+  lastError: string | null;
+  serviceWorkerActive: boolean;
+  serviceWorkerUrl: string | null;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const toBoolean = (value: unknown, fallback: boolean): boolean =>
+  typeof value === 'boolean' ? value : fallback;
+
+const toNumber = (value: unknown, fallback: number): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+const toStringOrNull = (value: unknown): string | null =>
+  typeof value === 'string' ? value : null;
+
+const safeJsonParse = (value: string): unknown => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const parseBrowserScriptState = (value: unknown): BrowserScriptState | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const loaded = value.loaded;
+  if (typeof loaded !== 'boolean') {
+    return null;
+  }
+
+  return {
+    loaded,
+    ready: toBoolean(value.ready, false),
+    isActive: typeof value.isActive === 'boolean' ? value.isActive : null,
+    inMainContext: toBoolean(value.inMainContext, false),
+    handlersCount: toNumber(value.handlersCount, 0),
+    version: toStringOrNull(value.version),
+    eventsDetected: toNumber(value.eventsDetected, 0),
+    eventsCaptured: toNumber(value.eventsCaptured, 0),
+    eventsSent: toNumber(value.eventsSent, 0),
+    eventsSendFailed: toNumber(value.eventsSendFailed, 0),
+    lastError: toStringOrNull(value.lastError),
+    serviceWorkerActive: toBoolean(value.serviceWorkerActive, false),
+    serviceWorkerUrl: toStringOrNull(value.serviceWorkerUrl),
+  };
+};
+
 // =============================================================================
 // Stream Settings Handler
 // =============================================================================
@@ -151,21 +214,7 @@ export async function handleRecordDebug(
     const injectionStats = session.recordingInitializer?.getInjectionStats();
 
     // Query browser script state via CDP
-    let browserScriptState: {
-      loaded: boolean;
-      ready: boolean;
-      isActive: boolean;
-      inMainContext: boolean;
-      handlersCount: number;
-      version: string | null;
-      eventsDetected: number;
-      eventsCaptured: number;
-      eventsSent: number;
-      eventsSendFailed: number;
-      lastError: string | null;
-      serviceWorkerActive: boolean;
-      serviceWorkerUrl: string | null;
-    } | null = null;
+    let browserScriptState: BrowserScriptState | null = null;
 
     try {
       const client = await session.page.context().newCDPSession(session.page);
@@ -202,8 +251,12 @@ export async function handleRecordDebug(
           returnByValue: true,
         });
 
-        if (result.type === 'string' && result.value) {
-          browserScriptState = JSON.parse(result.value);
+        if (result.type === 'string' && typeof result.value === 'string' && result.value) {
+          const parsed = safeJsonParse(result.value);
+          const parsedState = parseBrowserScriptState(parsed);
+          if (parsedState) {
+            browserScriptState = parsedState;
+          }
         }
       } finally {
         await client.detach().catch(() => {});
@@ -256,7 +309,8 @@ export async function handleRecordDebug(
         attempted: injectionStats.attempted,
         successful: injectionStats.successful,
         failed: injectionStats.failed,
-        skipped: injectionStats.skipped,
+        avgInjectionTimeMs: injectionStats.avgInjectionTimeMs,
+        lastInjectionAt: injectionStats.lastInjectionAt,
       } : null,
       browser_script: browserScriptState,
       diagnostics: {

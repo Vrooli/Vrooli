@@ -32,7 +32,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${FFMPEG_CLI_DIR}/config/defaults.sh"
 
 # Source FFmpeg libraries
-for lib in core hardware install status inject start stop uninstall content test; do
+for lib in core hardware install status inject start stop uninstall content test screen; do
     lib_file="${FFMPEG_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -114,6 +114,14 @@ cli::register_subcommand "monitor" "start" "Start performance monitoring" "ffmpe
 cli::register_subcommand "monitor" "stop" "Stop performance monitoring" "ffmpeg::monitor::stop"
 cli::register_subcommand "monitor" "status" "Get current metrics" "ffmpeg::monitor::status"
 cli::register_subcommand "monitor" "report" "Generate performance report" "ffmpeg::monitor::report"
+
+# Screen capture commands group
+cli::register_command_group "screen-capture" "Desktop and window screen capture"
+cli::register_subcommand "screen-capture" "start" "Start screen recording" "ffmpeg::screen::start" "modifies-system"
+cli::register_subcommand "screen-capture" "stop" "Stop screen recording" "ffmpeg::screen::stop" "modifies-system"
+cli::register_subcommand "screen-capture" "list-displays" "List available displays" "ffmpeg::screen::list_displays"
+cli::register_subcommand "screen-capture" "status" "Show active recordings" "ffmpeg::screen::status"
+cli::register_subcommand "screen-capture" "info" "Get display information" "ffmpeg::screen::info"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

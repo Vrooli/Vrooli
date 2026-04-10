@@ -1,0 +1,6 @@
+{
+  "includeDrafts": false,
+  "excludeModes": [
+    "scope"
+  ]
+}

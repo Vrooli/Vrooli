@@ -30,7 +30,7 @@ function extractMermaidBlocks(markdown: string): { html: string; blocks: Mermaid
   const blocks: MermaidBlock[] = [];
   let counter = 0;
 
-  const html = markdown.replace(/```mermaid\n([\s\S]*?)```/g, (_, code) => {
+  const html = markdown.replace(/```mermaid\n([\s\S]*?)```/g, (_match: string, code: string) => {
     const id = `mermaid-${Date.now()}-${counter++}`;
     blocks.push({ id, code: code.trim() });
     return `<div class="mermaid-container my-4 p-4 bg-slate-900/50 rounded-lg border border-white/10 overflow-x-auto"><div id="${id}" class="mermaid-placeholder flex items-center justify-center py-8 text-slate-400">Loading diagram...</div></div>`;
@@ -48,7 +48,7 @@ function parseMarkdown(markdown: string): { html: string; mermaidBlocks: Mermaid
 
   let html = withoutMermaid
     // Other code blocks
-    .replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) =>
+    .replace(/```(\w+)?\n([\s\S]*?)```/g, (_match: string, lang: string | undefined, code: string) =>
       `<pre class="bg-black/50 rounded-lg p-4 overflow-x-auto text-sm"><code class="language-${lang || "text"}">${escapeHtml(code.trim())}</code></pre>`
     )
     // Inline code
@@ -63,10 +63,10 @@ function parseMarkdown(markdown: string): { html: string; mermaidBlocks: Mermaid
     // Links
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-cyan-400 hover:underline">$1</a>')
     // Lists
-    .replace(/^\- (.+)$/gm, '<li class="ml-4">$1</li>')
+    .replace(/^- (.+)$/gm, '<li class="ml-4">$1</li>')
     .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal">$1</li>')
     // Tables (basic support)
-    .replace(/^\|(.+)\|$/gm, (match, content) => {
+    .replace(/^\|(.+)\|$/gm, (match: string, content: string) => {
       const cells = content.split("|").map((c: string) => c.trim());
       const isHeader = cells.every((c: string) => c.startsWith("-"));
       if (isHeader) return "";
@@ -106,6 +106,10 @@ const darkTheme = {
   borderMedium: "#334155", // slate-700 - borders
 };
 
+function hasInlineStyle(element: Element): element is Element & ElementCSSInlineStyle {
+  return "style" in element;
+}
+
 // Post-process SVG to apply dark theme colors directly
 function applyDarkThemeToSvg(svg: string): string {
   // Parse SVG as DOM to modify it
@@ -119,12 +123,16 @@ function applyDarkThemeToSvg(svg: string): string {
 
   // Helper to set styles on elements
   const setFill = (el: Element, color: string) => {
-    (el as HTMLElement).style.fill = color;
+    if (hasInlineStyle(el)) {
+      el.style.fill = color;
+    }
     el.setAttribute("fill", color);
   };
 
   const setStroke = (el: Element, color: string) => {
-    (el as HTMLElement).style.stroke = color;
+    if (hasInlineStyle(el)) {
+      el.style.stroke = color;
+    }
     el.setAttribute("stroke", color);
   };
 
@@ -170,13 +178,17 @@ function applyDarkThemeToSvg(svg: string): string {
   // Fix all text elements
   doc.querySelectorAll("text, tspan").forEach((text) => {
     setFill(text, darkTheme.textLight);
-    (text as HTMLElement).style.color = darkTheme.textLight;
+    if (hasInlineStyle(text)) {
+      text.style.color = darkTheme.textLight;
+    }
   });
 
   // Fix foreignObject divs and spans (for HTML labels)
   doc.querySelectorAll("foreignObject div, foreignObject span, foreignObject p").forEach((el) => {
-    (el as HTMLElement).style.color = darkTheme.textLight;
-    (el as HTMLElement).style.fill = darkTheme.textLight;
+    if (hasInlineStyle(el)) {
+      el.style.color = darkTheme.textLight;
+      el.style.fill = darkTheme.textLight;
+    }
   });
 
   // Fix paths (edges/arrows) - but not marker paths

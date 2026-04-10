@@ -84,14 +84,102 @@ const (
 // Detector detects and manages OS watchdog status
 type Detector struct {
 	platform *platform.Capabilities
+	probe    detectorProbe
 	mu       sync.RWMutex
 	cached   *Status
+}
+
+type detectorProbe interface {
+	goos() string
+	commandOutput(name string, args ...string) ([]byte, error)
+	commandOutputInput(name, input string, args ...string) ([]byte, error)
+	commandRun(name string, args ...string) error
+	readDir(path string) ([]os.DirEntry, error)
+	readFile(path string) ([]byte, error)
+	stat(path string) error
+	mkdirAll(path string, perm os.FileMode) error
+	writeFile(path string, data []byte, perm os.FileMode) error
+	remove(path string) error
+	writeTempFile(pattern string, data []byte) (string, error)
+	currentUser() (*user.User, error)
+	userHomeDir() (string, error)
+	getenv(key string) string
+}
+
+type realDetectorProbe struct{}
+
+func (realDetectorProbe) goos() string {
+	return runtime.GOOS
+}
+
+func (realDetectorProbe) commandOutput(name string, args ...string) ([]byte, error) {
+	return exec.Command(name, args...).Output()
+}
+
+func (realDetectorProbe) commandOutputInput(name, input string, args ...string) ([]byte, error) {
+	cmd := exec.Command(name, args...)
+	cmd.Stdin = strings.NewReader(input)
+	return cmd.CombinedOutput()
+}
+
+func (realDetectorProbe) commandRun(name string, args ...string) error {
+	return exec.Command(name, args...).Run()
+}
+
+func (realDetectorProbe) readDir(path string) ([]os.DirEntry, error) {
+	return os.ReadDir(path)
+}
+
+func (realDetectorProbe) readFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
+func (realDetectorProbe) stat(path string) error {
+	_, err := os.Stat(path)
+	return err
+}
+
+func (realDetectorProbe) mkdirAll(path string, perm os.FileMode) error {
+	return os.MkdirAll(path, perm)
+}
+
+func (realDetectorProbe) writeFile(path string, data []byte, perm os.FileMode) error {
+	return os.WriteFile(path, data, perm)
+}
+
+func (realDetectorProbe) remove(path string) error {
+	return os.Remove(path)
+}
+
+func (realDetectorProbe) writeTempFile(pattern string, data []byte) (string, error) {
+	tmpFile, err := os.CreateTemp("", pattern)
+	if err != nil {
+		return "", err
+	}
+	defer tmpFile.Close()
+	if _, err := tmpFile.Write(data); err != nil {
+		return "", err
+	}
+	return tmpFile.Name(), nil
+}
+
+func (realDetectorProbe) currentUser() (*user.User, error) {
+	return user.Current()
+}
+
+func (realDetectorProbe) userHomeDir() (string, error) {
+	return os.UserHomeDir()
+}
+
+func (realDetectorProbe) getenv(key string) string {
+	return os.Getenv(key)
 }
 
 // NewDetector creates a new watchdog detector
 func NewDetector(plat *platform.Capabilities) *Detector {
 	return &Detector{
 		platform: plat,
+		probe:    realDetectorProbe{},
 	}
 }
 
@@ -144,11 +232,10 @@ func (d *Detector) isLoopRunning() bool {
 	// Look for vrooli-autoheal loop process
 	// This checks if the CLI loop is actually running (not just the API)
 
-	switch runtime.GOOS {
+	switch d.probe.goos() {
 	case "windows":
 		// On Windows, use tasklist
-		cmd := exec.Command("tasklist", "/FI", "IMAGENAME eq vrooli-autoheal*")
-		output, err := cmd.Output()
+		output, err := d.probe.commandOutput("tasklist", "/FI", "IMAGENAME eq vrooli-autoheal*")
 		if err != nil {
 			return false
 		}
@@ -157,14 +244,13 @@ func (d *Detector) isLoopRunning() bool {
 	default:
 		// On Unix-like systems, use pgrep
 		// Look for processes matching "vrooli-autoheal" with "loop" argument
-		cmd := exec.Command("pgrep", "-f", "vrooli-autoheal.*loop")
-		if err := cmd.Run(); err == nil {
+		if err := d.probe.commandRun("pgrep", "-f", "vrooli-autoheal.*loop"); err == nil {
 			return true
 		}
 
 		// Fallback: check /proc directly on Linux
-		if runtime.GOOS == "linux" {
-			entries, err := os.ReadDir("/proc")
+		if d.probe.goos() == "linux" {
+			entries, err := d.probe.readDir("/proc")
 			if err != nil {
 				return false
 			}
@@ -177,7 +263,7 @@ func (d *Detector) isLoopRunning() bool {
 				if len(pid) == 0 || pid[0] < '0' || pid[0] > '9' {
 					continue
 				}
-				cmdline, err := os.ReadFile(filepath.Join("/proc", pid, "cmdline"))
+				cmdline, err := d.probe.readFile(filepath.Join("/proc", pid, "cmdline"))
 				if err != nil {
 					continue
 				}
@@ -216,7 +302,7 @@ func (d *Detector) detectLinux(status *Status) {
 	status.WatchdogType = WatchdogTypeSystemd
 
 	// Get current user for lingering check and UI display
-	currentUser, err := user.Current()
+	currentUser, err := d.probe.currentUser()
 	if err == nil {
 		status.Username = currentUser.Username
 	}
@@ -225,11 +311,11 @@ func (d *Detector) detectLinux(status *Status) {
 	servicePaths := []string{
 		"/etc/systemd/system/vrooli-autoheal.service",
 		"/usr/lib/systemd/system/vrooli-autoheal.service",
-		filepath.Join(os.Getenv("HOME"), ".config/systemd/user/vrooli-autoheal.service"),
+		filepath.Join(d.probe.getenv("HOME"), ".config/systemd/user/vrooli-autoheal.service"),
 	}
 
 	for _, path := range servicePaths {
-		if _, err := os.Stat(path); err == nil {
+		if err := d.probe.stat(path); err == nil {
 			status.WatchdogInstalled = true
 			status.ServicePath = path
 			break
@@ -245,22 +331,22 @@ func (d *Detector) detectLinux(status *Status) {
 	status.IsUserService = isUserService
 
 	// Check if service is enabled
-	var cmd *exec.Cmd
+	var args []string
 	if isUserService {
-		cmd = exec.Command("systemctl", "--user", "is-enabled", "vrooli-autoheal")
+		args = []string{"--user", "is-enabled", "vrooli-autoheal"}
 	} else {
-		cmd = exec.Command("systemctl", "is-enabled", "vrooli-autoheal")
+		args = []string{"is-enabled", "vrooli-autoheal"}
 	}
-	output, _ := cmd.Output()
+	output, _ := d.probe.commandOutput("systemctl", args...)
 	status.WatchdogEnabled = strings.TrimSpace(string(output)) == "enabled"
 
 	// Check if service is running
 	if isUserService {
-		cmd = exec.Command("systemctl", "--user", "is-active", "vrooli-autoheal")
+		args = []string{"--user", "is-active", "vrooli-autoheal"}
 	} else {
-		cmd = exec.Command("systemctl", "is-active", "vrooli-autoheal")
+		args = []string{"is-active", "vrooli-autoheal"}
 	}
-	output, _ = cmd.Output()
+	output, _ = d.probe.commandOutput("systemctl", args...)
 	status.WatchdogRunning = strings.TrimSpace(string(output)) == "active"
 
 	// For user services, check if lingering is enabled
@@ -278,13 +364,12 @@ func (d *Detector) detectLinux(status *Status) {
 func (d *Detector) isLingeringEnabled(username string) bool {
 	// Method 1: Check for linger file (most reliable)
 	lingerPath := filepath.Join("/var/lib/systemd/linger", username)
-	if _, err := os.Stat(lingerPath); err == nil {
+	if err := d.probe.stat(lingerPath); err == nil {
 		return true
 	}
 
 	// Method 2: Use loginctl as fallback (in case linger directory differs)
-	cmd := exec.Command("loginctl", "show-user", username, "--property=Linger")
-	output, err := cmd.Output()
+	output, err := d.probe.commandOutput("loginctl", "show-user", username, "--property=Linger")
 	if err == nil {
 		return strings.TrimSpace(string(output)) == "Linger=yes"
 	}
@@ -303,14 +388,14 @@ func (d *Detector) detectMacOS(status *Status) {
 	status.WatchdogType = WatchdogTypeLaunchd
 
 	// Check plist locations
-	homeDir, _ := os.UserHomeDir()
+	homeDir, _ := d.probe.userHomeDir()
 	plistPaths := []string{
 		filepath.Join(homeDir, "Library/LaunchAgents/com.vrooli.autoheal.plist"),
 		"/Library/LaunchDaemons/com.vrooli.autoheal.plist",
 	}
 
 	for _, path := range plistPaths {
-		if _, err := os.Stat(path); err == nil {
+		if err := d.probe.stat(path); err == nil {
 			status.WatchdogInstalled = true
 			status.ServicePath = path
 			status.IsUserService = strings.Contains(path, "LaunchAgents")
@@ -324,8 +409,7 @@ func (d *Detector) detectMacOS(status *Status) {
 
 	// Check if loaded and running via launchctl list
 	// Output format: "PID\tStatus\tLabel" where PID is "-" if not running
-	cmd := exec.Command("launchctl", "list", "com.vrooli.autoheal")
-	output, err := cmd.Output()
+	output, err := d.probe.commandOutput("launchctl", "list", "com.vrooli.autoheal")
 	if err == nil {
 		// Service is loaded (enabled)
 		status.WatchdogEnabled = true
@@ -351,7 +435,7 @@ func (d *Detector) detectMacOS(status *Status) {
 // detectWindows checks Windows Task Scheduler
 // [REQ:WATCH-WIN-001]
 func (d *Detector) detectWindows(status *Status) {
-	if runtime.GOOS != "windows" {
+	if d.probe.goos() != "windows" {
 		// Can't detect Windows services from non-Windows
 		status.LastError = "Windows detection not available on this platform"
 		return
@@ -360,8 +444,7 @@ func (d *Detector) detectWindows(status *Status) {
 	status.WatchdogType = WatchdogTypeWindows
 
 	// Check for scheduled task
-	cmd := exec.Command("schtasks", "/Query", "/TN", "VrooliAutoheal")
-	output, err := cmd.Output()
+	output, err := d.probe.commandOutput("schtasks", "/Query", "/TN", "VrooliAutoheal")
 	if err == nil {
 		status.WatchdogInstalled = true
 		status.ServicePath = "Task Scheduler: VrooliAutoheal"
@@ -389,7 +472,7 @@ func (d *Detector) calculateProtectionLevel(status *Status) ProtectionLevel {
 func (d *Detector) GetServiceTemplate() (string, error) {
 	switch d.platform.Platform {
 	case "linux":
-		return d.getSystemdTemplate(), nil
+		return d.getSystemdTemplateForService(false), nil
 	case "macos":
 		return d.getLaunchdTemplate(), nil
 	case "windows":
@@ -399,22 +482,23 @@ func (d *Detector) GetServiceTemplate() (string, error) {
 	}
 }
 
-func (d *Detector) getSystemdTemplate() string {
+func (d *Detector) getSystemdTemplateForService(systemService bool) string {
 	// Resolve VROOLI_ROOT at runtime for a working template
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	vrooliRoot := d.probe.getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
-		homeDir, _ := os.UserHomeDir()
+		homeDir, _ := d.probe.userHomeDir()
 		vrooliRoot = filepath.Join(homeDir, "Vrooli")
 	}
 
 	// Use the Go loop binary for cross-platform consistency
 	loopBinaryPath := filepath.Join(vrooliRoot, "scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop")
 	workDir := filepath.Join(vrooliRoot, "scenarios/vrooli-autoheal")
-	homeDir, _ := os.UserHomeDir()
-	currentUser, _ := user.Current()
-	username := "root"
-	if currentUser != nil {
-		username = currentUser.Username
+	homeDir, _ := d.probe.userHomeDir()
+	userDirective := ""
+	wantedBy := "default.target"
+	if systemService {
+		userDirective = "User=root\n"
+		wantedBy = "multi-user.target"
 	}
 
 	return fmt.Sprintf(`[Unit]
@@ -435,28 +519,27 @@ ExecStart=%s
 Restart=always
 # Wait a bit before restarting to allow dependencies to recover
 RestartSec=15
-User=%s
-Environment=VROOLI_LIFECYCLE_MANAGED=true
+%sEnvironment=VROOLI_LIFECYCLE_MANAGED=true
 Environment=HOME=%s
 Environment=VROOLI_ROOT=%s
-Environment=PATH=/usr/local/bin:/usr/bin:/bin:%s/.vrooli/bin
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:%s/.local/bin:%s/.vrooli/bin
 WorkingDirectory=%s
 # Graceful shutdown timeout
 TimeoutStopSec=30
 
 [Install]
-WantedBy=default.target
-`, loopBinaryPath, username, homeDir, vrooliRoot, homeDir, workDir)
+WantedBy=%s
+`, loopBinaryPath, userDirective, homeDir, vrooliRoot, homeDir, homeDir, workDir, wantedBy)
 }
 
 func (d *Detector) getLaunchdTemplate() string {
 	// Resolve paths at runtime for a working template
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	vrooliRoot := d.probe.getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
-		homeDir, _ := os.UserHomeDir()
+		homeDir, _ := d.probe.userHomeDir()
 		vrooliRoot = filepath.Join(homeDir, "Vrooli")
 	}
-	homeDir, _ := os.UserHomeDir()
+	homeDir, _ := d.probe.userHomeDir()
 
 	// Use the Go loop binary for cross-platform consistency
 	loopBinaryPath := filepath.Join(vrooliRoot, "scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop")
@@ -486,7 +569,7 @@ func (d *Detector) getLaunchdTemplate() string {
         <key>HOME</key>
         <string>%s</string>
         <key>PATH</key>
-        <string>/usr/local/bin:/usr/bin:/bin:%s/.vrooli/bin</string>
+        <string>/usr/local/bin:/usr/bin:/bin:%s/.local/bin:%s/.vrooli/bin</string>
     </dict>
     <key>WorkingDirectory</key>
     <string>%s/scenarios/vrooli-autoheal</string>
@@ -498,15 +581,15 @@ func (d *Detector) getLaunchdTemplate() string {
     <integer>15</integer>
 </dict>
 </plist>
-`, loopBinaryPath, vrooliRoot, homeDir, homeDir, vrooliRoot, logPath, errPath)
+`, loopBinaryPath, vrooliRoot, homeDir, homeDir, homeDir, vrooliRoot, logPath, errPath)
 }
 
 func (d *Detector) getWindowsTaskTemplate() string {
 	// Resolve paths at runtime for a working template
 	// On Windows, VROOLI_ROOT would typically be in user's home directory
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	vrooliRoot := d.probe.getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
-		homeDir, _ := os.UserHomeDir()
+		homeDir, _ := d.probe.userHomeDir()
 		vrooliRoot = filepath.Join(homeDir, "Vrooli")
 	}
 
@@ -515,7 +598,7 @@ func (d *Detector) getWindowsTaskTemplate() string {
 	workDir := filepath.Join(vrooliRoot, "scenarios", "vrooli-autoheal")
 
 	// Get current user for the task principal
-	currentUser, _ := user.Current()
+	currentUser, _ := d.probe.currentUser()
 	username := ""
 	if currentUser != nil {
 		username = currentUser.Username

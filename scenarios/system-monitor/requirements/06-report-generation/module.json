@@ -1,0 +1,51 @@
+{
+  "description": "Report service in api/internal/services/report.go. Endpoints: POST /api/v1/reports/generate (daily/weekly), GET /api/v1/reports, GET /api/v1/reports/{id}. Generates EnhancedSystemReport with executive summary, performance data, trends, and recommendations.",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "system-monitor-must-have-report-generation-dailyweekly-via-api-endpoint",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-004"
+      ],
+      "description": "System must generate comprehensive daily and weekly reports via API endpoint",
+      "id": "REQ-P0-006",
+      "prd_ref": "system-monitor-must-have-report-generation-dailyweekly-via-api-endpoint",
+      "status": "implemented",
+      "title": "System Report Generation",
+      "validation": [
+        {
+          "notes": "Test report generation logic",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify scheduled report creation",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Report generation \u003c 30s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Reports downloadable from UI",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Report generation (daily/weekly via API endpoint)"
+}

@@ -146,7 +146,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && pnpm install --filter api-library-ui --config.lockfile-dir=./ --no-frozen-lockfile",
+          "run": "cd ui && pnpm install --ignore-workspace --filter api-library-ui --config.lockfile-dir=./ --no-frozen-lockfile",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"

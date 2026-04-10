@@ -1,0 +1,26 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/**"
+  ],
+  "created": "2026-04-08T02:46:03Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "depends_on": [
+    "fix/qa-swarm-manager-tests-20260408",
+    "fix/qa-swarm-manager-standards-20260408",
+    "execute/qa-swarm-manager-code-quality-20260408"
+  ],
+  "description": "The topology (topo) view in swarm-manager is not showing anything. Need to investigate why the view renders blank and fix the display issue.",
+  "kind": "fix",
+  "name": "fix-swarm-manager-topology-view-not-rendering",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [
+    "swarm-manager",
+    "topology",
+    "ui"
+  ],
+  "title": "Fix swarm-manager topology view not rendering",
+  "updated": "2026-04-08T04:14:19Z"
+}

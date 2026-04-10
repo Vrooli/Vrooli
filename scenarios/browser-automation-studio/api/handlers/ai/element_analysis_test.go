@@ -218,12 +218,6 @@ func TestGetElementAtCoordinate_DriverIntegration(t *testing.T) {
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles navigation failure", func(t *testing.T) {
-		// Check if Playwright driver is available
-		driverURL := os.Getenv("PLAYWRIGHT_DRIVER_URL")
-		if driverURL == "" {
-			driverURL = "http://127.0.0.1:39400"
-		}
-
 		ctx := context.Background()
 
 		// Use an invalid URL that will fail navigation
@@ -251,7 +245,6 @@ func TestExtractPageElements_Integration(t *testing.T) {
 		ctx := context.Background()
 
 		elements, pageContext, screenshot, err := handler.extractPageElements(ctx, "https://example.com")
-
 		if err != nil {
 			t.Skipf("Browserless not available: %v", err)
 		}
@@ -329,7 +322,6 @@ func TestGenerateAISuggestions_Integration(t *testing.T) {
 		}
 
 		suggestions, err := handler.generateAISuggestions(ctx, elements, pageContext)
-
 		if err != nil {
 			t.Skipf("Ollama integration failed: %v", err)
 		}
@@ -356,7 +348,6 @@ func TestGenerateAISuggestions_Integration(t *testing.T) {
 		}
 
 		suggestions, err := handler.generateAISuggestions(ctx, elements, pageContext)
-
 		if err != nil {
 			t.Skipf("Ollama integration failed: %v", err)
 		}

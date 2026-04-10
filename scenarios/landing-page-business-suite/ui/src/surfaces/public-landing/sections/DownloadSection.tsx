@@ -1,9 +1,17 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Button } from '../../../shared/ui/button';
-import { useMetrics } from '../../../shared/hooks/useMetrics';
+import { useMetrics } from '../../../shared/hooks/useMetricsHook';
 import type { DownloadApp, DownloadAsset } from '../../../shared/api';
 import { createBillingPortalSession, requestDownload, getAssetUrl } from '../../../shared/api'
 import { useEntitlements } from '../../../shared/hooks/useEntitlements';
+import {
+  detectPlatform,
+  getDownloadAssetKey,
+  sanitizeArtifactUrl,
+  openDownloadWindow,
+  getVariantLabel,
+  type DetectedPlatform,
+} from '../services/downloads.service';
 
 interface DownloadSectionProps {
   content?: {
@@ -19,8 +27,6 @@ type DownloadStatus = {
   success?: boolean;
   message?: string;
 };
-
-type DetectedPlatform = 'windows' | 'mac' | 'linux' | 'unknown';
 
 interface PlatformGroup {
   platform: DetectedPlatform | string;
@@ -54,81 +60,22 @@ const PLATFORM_DISPLAY: Record<string, { label: string; icon: JSX.Element }> = {
   },
 };
 
-function detectPlatform(): DetectedPlatform {
-  if (typeof navigator === 'undefined') return 'unknown';
-
-  const ua = navigator.userAgent.toLowerCase();
-  const platform = (navigator.platform || '').toLowerCase();
-
-  if (platform.includes('win') || ua.includes('windows')) return 'windows';
-  if (platform.includes('mac') || ua.includes('macintosh') || ua.includes('mac os')) return 'mac';
-  if (platform.includes('linux') || ua.includes('linux')) return 'linux';
-
-  return 'unknown';
-}
-
-export function getDownloadAssetKey(download: DownloadAsset): string {
-  if (typeof download.id === 'number') {
-    return `asset-${download.id}`;
-  }
-  const version = download.release_version || 'unknown';
-  const artifact = download.artifact_url || 'na';
-  return `app-${download.app_key}-${download.platform}-${version}-${artifact}`;
-}
-
-function sanitizeArtifactUrl(artifactUrl?: string) {
-  if (typeof artifactUrl !== 'string') return '';
-  const trimmed = artifactUrl.trim();
-  if (!trimmed) return '';
-  const lower = trimmed.toLowerCase();
-  if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) return '';
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  if (/^[./]/.test(trimmed) || !trimmed.includes(':')) return trimmed;
-  return '';
-}
-
-function openDownloadWindow(url: string) {
-  if (typeof window === 'undefined' || typeof window.open !== 'function') return false;
-  const target = window.open(url, '_blank', 'noopener,noreferrer');
-  return target !== null;
-}
+// Note: getDownloadAssetKey is available from '../services/downloads.service'
 
 function hasInstallTargets(app: DownloadApp) {
   return (app.platforms?.length ?? 0) > 0 || (app.storefronts?.length ?? 0) > 0;
 }
 
-/** Extract a human-readable variant label from artifact URL or release notes */
-function getVariantLabel(installer: DownloadAsset): string {
-  const url = installer.artifact_url?.toLowerCase() ?? '';
-  const notes = installer.release_notes?.toLowerCase() ?? '';
-
-  // Check for specific formats
-  if (url.includes('.appimage') || notes.includes('appimage')) return 'AppImage';
-  if (url.includes('.deb') || notes.includes('.deb')) return '.deb';
-  if (url.includes('.rpm') || notes.includes('.rpm')) return '.rpm';
-  if (url.includes('.tar.gz') || url.includes('.tgz')) return '.tar.gz';
-  if (url.includes('.dmg') || notes.includes('.dmg')) return '.dmg';
-  if (url.includes('.pkg') || notes.includes('.pkg')) return '.pkg';
-  if (url.includes('.exe') || notes.includes('.exe')) return 'Installer';
-  if (url.includes('.msi') || notes.includes('.msi')) return '.msi';
-  if (url.includes('.zip')) return '.zip';
-
-  // Check for architecture
-  if (url.includes('arm64') || url.includes('aarch64') || notes.includes('arm')) return 'ARM64';
-  if (url.includes('x64') || url.includes('x86_64') || url.includes('amd64')) return '64-bit';
-  if (url.includes('x86') || url.includes('i386') || url.includes('i686')) return '32-bit';
-
-  // Fallback to version
-  return installer.release_version ? `v${installer.release_version}` : 'Download';
-}
 
 export function DownloadSection({ content, downloads }: DownloadSectionProps) {
+  // Compute filtered apps before any hooks
   const filteredApps = (downloads ?? []).filter(hasInstallTargets);
-  if (filteredApps.length === 0) return null;
+  const hasApps = filteredApps.length > 0;
 
   const title = content?.title || 'Download Vrooli Ascension';
   const subtitle = content?.subtitle || 'Install now and start automating today.';
 
+  // All hooks must be called before any conditional returns
   const { trackDownload } = useMetrics();
   const [downloadStatus, setDownloadStatus] = useState<Record<string, DownloadStatus>>({});
   const { email, setEmail, entitlements, loading: entitlementsLoading, error: entitlementsError, refresh } = useEntitlements();
@@ -138,7 +85,8 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
   const [showSubscriptionInput, setShowSubscriptionInput] = useState(false);
 
   const detectedPlatform = useMemo(() => detectPlatform(), []);
-  const activeApp = filteredApps[0];
+  // Use first filtered app, or undefined if none
+  const activeApp = hasApps ? filteredApps[0] : undefined;
 
   // Group installers by platform
   const platformGroups = useMemo<PlatformGroup[]>(() => {
@@ -147,8 +95,12 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
 
     for (const installer of platforms) {
       const key = installer.platform.toLowerCase();
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(installer);
+      const existing = groups[key];
+      if (existing) {
+        existing.push(installer);
+      } else {
+        groups[key] = [installer];
+      }
     }
 
     // Sort: detected platform first, then alphabetically
@@ -160,7 +112,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
 
     return sortedKeys.map((key) => ({
       platform: key,
-      installers: groups[key],
+      installers: groups[key] ?? [],
     }));
   }, [activeApp?.platforms, detectedPlatform]);
 
@@ -169,10 +121,20 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
 
   const handleDownload = useCallback(
     async (download: DownloadAsset, assetKey: string) => {
+      // Guard against undefined activeApp (should not happen as early return prevents render)
+      const appKey = download.app_key || activeApp?.app_key;
+      if (!appKey) {
+        setDownloadStatus((prev) => ({
+          ...prev,
+          [assetKey]: { loading: false, message: 'App configuration error.' },
+        }));
+        return;
+      }
+
       setDownloadStatus((prev) => ({ ...prev, [assetKey]: { loading: true } }));
 
       try {
-        const asset = await requestDownload(download.app_key || activeApp.app_key, download.platform, email.trim() || undefined);
+        const asset = await requestDownload(appKey, download.platform, email.trim() || undefined);
         const artifactUrl = sanitizeArtifactUrl(asset?.artifact_url);
 
         if (!artifactUrl) {
@@ -193,7 +155,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
         }
 
         trackDownload({
-          app_key: activeApp.app_key,
+          app_key: appKey,
           platform: download.platform,
           release_version: download.release_version,
           requires_entitlement: download.requires_entitlement,
@@ -242,8 +204,15 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
     return { text: 'No active subscription', type: 'warning' as const };
   }, [email, entitlements, entitlementsError, entitlementsLoading]);
 
-  const platformInfo = PLATFORM_DISPLAY[recommendedGroup?.platform] ?? PLATFORM_DISPLAY.windows;
+  const platformKey = recommendedGroup?.platform ?? 'windows';
+  const windowsFallback = PLATFORM_DISPLAY.windows ?? { label: 'Windows', icon: <span className="h-8 w-8" /> };
+  const platformInfo = PLATFORM_DISPLAY[platformKey] ?? windowsFallback;
   const isRecommended = recommendedGroup?.platform === detectedPlatform;
+
+  // Early return after all hooks have been called
+  if (!hasApps || !activeApp) {
+    return null;
+  }
 
   const renderDownloadButton = (installer: DownloadAsset, isPrimary: boolean = false) => {
     const assetKey = getDownloadAssetKey(installer);
@@ -295,7 +264,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
 
   return (
     <section
-      className="relative overflow-hidden border-t border-white/5 bg-[#0B1020] py-20 text-white"
+      className="relative overflow-hidden border-t border-white/5 bg-surface-deep py-20 text-white"
       data-testid="downloads-section"
     >
       {/* Subtle gradient background */}
@@ -400,7 +369,9 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
             {showOtherPlatforms && (
               <div className="mt-4 space-y-3" data-testid="other-platforms-list">
                 {otherGroups.map((group) => {
-                  const info = PLATFORM_DISPLAY[group.platform] ?? PLATFORM_DISPLAY.windows;
+                  // Fallback to windows icon/label if platform not found
+                  const info = PLATFORM_DISPLAY[group.platform];
+                  if (!info) return null;
                   return (
                     <div
                       key={group.platform}
@@ -452,7 +423,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
                   onChange={(e) => setEmail(e.target.value)}
                   onBlur={() => refresh()}
                   placeholder="you@example.com"
-                  className="mt-2 w-full rounded-lg border border-white/10 bg-[#0B1020] px-3 py-2 text-white placeholder:text-slate-500 focus:border-[#F97316] focus:outline-none"
+                  className="mt-2 w-full rounded-lg border border-white/10 bg-surface-deep px-3 py-2 text-white placeholder:text-slate-500 focus:border-accent focus:outline-none"
                 />
               </label>
               <div className="mt-3 flex flex-wrap items-center gap-2">

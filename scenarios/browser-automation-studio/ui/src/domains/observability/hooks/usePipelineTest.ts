@@ -147,6 +147,70 @@ interface UsePipelineTestReturn {
   reset: () => void;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isString = (value: unknown): value is string => typeof value === 'string';
+const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
+const isNumber = (value: unknown): value is number => typeof value === 'number';
+
+const parseJson = async (response: Response): Promise<unknown> => {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
+
+const extractMessage = (payload: unknown, fallback: string): string => {
+  if (isRecord(payload) && typeof payload.message === 'string') {
+    return payload.message;
+  }
+  return fallback;
+};
+
+const isPipelineStepResult = (value: unknown): value is PipelineStepResult => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.name)) return false;
+  if (!isBoolean(value.passed)) return false;
+  if (!isNumber(value.duration_ms)) return false;
+  return true;
+};
+
+const isCapturedEvent = (value: unknown): value is CapturedEvent => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.actionType)) return false;
+  if (!isString(value.timestamp)) return false;
+  if (value.selector !== undefined && !isString(value.selector)) return false;
+  return true;
+};
+
+const isConsoleMessage = (value: unknown): value is ConsoleMessage => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.type)) return false;
+  if (!isString(value.text)) return false;
+  return true;
+};
+
+const isPipelineDiagnostics = (value: unknown): value is PipelineTestDiagnostics => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.test_page_url)) return false;
+  if (!isBoolean(value.test_page_injected)) return false;
+  if (!Array.isArray(value.events_captured) || !value.events_captured.every(isCapturedEvent)) return false;
+  if (!Array.isArray(value.console_messages) || !value.console_messages.every(isConsoleMessage)) return false;
+  return true;
+};
+
+const isPipelineTestResponse = (value: unknown): value is PipelineTestResponse => {
+  if (!isRecord(value)) return false;
+  if (!isBoolean(value.success)) return false;
+  if (!isString(value.timestamp)) return false;
+  if (!isNumber(value.duration_ms)) return false;
+  if (!Array.isArray(value.steps) || !value.steps.every(isPipelineStepResult)) return false;
+  if (!isPipelineDiagnostics(value.diagnostics)) return false;
+  return true;
+};
+
 export function usePipelineTest(): UsePipelineTestReturn {
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<PipelineTestResponse | null>(null);
@@ -170,15 +234,19 @@ export function usePipelineTest(): UsePipelineTestReturn {
         }),
       });
 
+      const payload = await parseJson(response);
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Pipeline test failed: ${response.statusText}`);
+        throw new Error(extractMessage(payload, `Pipeline test failed: ${response.statusText}`));
       }
 
-      const testResult = await response.json();
-      setResult(testResult);
-      return testResult;
-    } catch (err) {
+      if (!isPipelineTestResponse(payload)) {
+        throw new Error('Invalid pipeline test response');
+      }
+
+      setResult(payload);
+      return payload;
+    } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err));
       logger.error('Pipeline test failed', { component: 'usePipelineTest' }, error);
       setError(error);

@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package ecosystem_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/domain;domain";
+
+// =============================================================================
+// SETTINGS DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain settings
+// @imports none (external only: buf.validate)
+// @stability beta
+//
+// Application settings for the Ecosystem Manager. Maps from
+// pkg/settings/settings.go:Settings and RecyclerSettings.
+//
+// USAGE CONTEXTS:
+//   - API responses for settings endpoints
+//   - UI settings management
+//
+// =============================================================================
+
+// RecyclerSettings encapsulates configuration for the recycler daemon.
+message RecyclerSettings {
+  // Target scope for recycling.
+  // @constraint one of: off, resources, scenarios, both
+  string enabled_for = 1 [(buf.validate.field).string = { in: ["off", "resources", "scenarios", "both"] }];
+
+  // Interval between recycler runs in seconds.
+  int32 interval_seconds = 2 [(buf.validate.field).int32 = { gte: 30, lte: 86400 }];
+
+  // Model provider.
+  // @constraint one of: ollama, openrouter
+  string model_provider = 3 [(buf.validate.field).string = { in: ["ollama", "openrouter"] }];
+
+  // Model name/identifier.
+  string model_name = 4 [(buf.validate.field).string.min_len = 1];
+
+  // Consecutive completions before recycling.
+  int32 completion_threshold = 5 [(buf.validate.field).int32 = { gte: 1, lte: 100 }];
+
+  // Consecutive failures before recycling.
+  int32 failure_threshold = 6 [(buf.validate.field).int32 = { gte: 1, lte: 100 }];
+
+  // Maximum retry attempts.
+  int32 max_retries = 7 [(buf.validate.field).int32 = { gte: 0, lte: 50 }];
+
+  // Delay between retries in seconds.
+  int32 retry_delay_seconds = 8 [(buf.validate.field).int32 = { gte: 1, lte: 3600 }];
+}
+
+// Settings represents the application-wide configuration.
+message Settings {
+  // Display theme.
+  // @constraint one of: light, dark, system
+  string theme = 1 [(buf.validate.field).string = { in: ["light", "dark", "system"] }];
+
+  // Whether to use condensed display mode.
+  bool condensed_mode = 2;
+
+  // Number of concurrent execution slots.
+  int32 slots = 3 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+
+  // Cooldown between executions in seconds.
+  int32 cooldown_seconds = 4 [(buf.validate.field).int32 = { gte: 0, lte: 3600 }];
+
+  // Whether the queue processor is active.
+  bool active = 5;
+
+  // Maximum agent turns per execution.
+  int32 max_turns = 6 [(buf.validate.field).int32 = { gte: 1, lte: 1000 }];
+
+  // Comma-separated list of allowed agent tools.
+  string allowed_tools = 7;
+
+  // Whether to skip permission prompts.
+  bool skip_permissions = 8;
+
+  // Task execution timeout in minutes.
+  int32 task_timeout = 9 [(buf.validate.field).int32 = { gte: 1, lte: 1440 }];
+
+  // Max idle time allowed before watchdog cancellation (minutes).
+  int32 idle_timeout_cap = 10 [(buf.validate.field).int32 = { gte: 1, lte: 120 }];
+
+  // AI runner type.
+  // @constraint one of: claude-code, codex, opencode
+  string runner_type = 11 [(buf.validate.field).string = { in: ["claude-code", "codex", "opencode"] }];
+
+  // Recycler automation configuration.
+  RecyclerSettings recycler = 12;
+}

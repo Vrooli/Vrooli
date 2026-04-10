@@ -21,3 +21,5 @@
 node_modules/
 coverage/
 .DS_Store
+cli/cli
+api/prd-control-tower

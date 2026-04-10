@@ -67,8 +67,6 @@ func testService(t *testing.T, providers ...Provider) (Service, *MemoryRepositor
 	return svc, repo
 }
 
-func ptrFloat64(v float64) *float64 { return &v }
-
 func TestCalculateCost_NoProviderData(t *testing.T) {
 	svc, _ := testService(t)
 
@@ -112,12 +110,12 @@ func TestCalculateCost_WithProviderPricing(t *testing.T) {
 	svc, repo := testService(t, provider)
 
 	// Add alias to map model name
-	repo.UpsertAlias(context.Background(), &ModelAlias{
+	require.NoError(t, repo.UpsertAlias(context.Background(), &ModelAlias{
 		RunnerModel:    "claude-3-opus",
 		RunnerType:     "codex",
 		CanonicalModel: "anthropic/claude-3-opus",
 		Provider:       "openrouter",
-	})
+	}))
 
 	req := CostRequest{
 		Model:           "claude-3-opus",
@@ -169,11 +167,11 @@ func TestCalculateCost_ManualOverrideTakesPriority(t *testing.T) {
 
 	// Add manual override for input tokens only
 	manualInputPrice := 0.000005 // Higher than provider price
-	repo.UpsertOverride(context.Background(), &ManualPriceOverride{
+	require.NoError(t, repo.UpsertOverride(context.Background(), &ManualPriceOverride{
 		CanonicalModelName: "anthropic/claude-3-opus",
 		Component:          ComponentInputTokens,
 		PriceUSD:           manualInputPrice,
-	})
+	}))
 
 	req := CostRequest{
 		Model:        "anthropic/claude-3-opus",
@@ -304,12 +302,12 @@ func TestCalculateCost_ExpiredOverrideIgnored(t *testing.T) {
 
 	// Add expired override
 	expiredTime := time.Now().Add(-1 * time.Hour)
-	repo.UpsertOverride(context.Background(), &ManualPriceOverride{
+	require.NoError(t, repo.UpsertOverride(context.Background(), &ManualPriceOverride{
 		CanonicalModelName: "test/model",
 		Component:          ComponentInputTokens,
 		PriceUSD:           0.000010, // Higher price
 		ExpiresAt:          &expiredTime,
-	})
+	}))
 
 	req := CostRequest{
 		Model:       "test/model",
@@ -330,12 +328,12 @@ func TestResolveCanonicalModel_FromAlias(t *testing.T) {
 	svc, repo := testService(t)
 
 	// Add alias
-	repo.UpsertAlias(context.Background(), &ModelAlias{
+	require.NoError(t, repo.UpsertAlias(context.Background(), &ModelAlias{
 		RunnerModel:    "claude-opus-4-5",
 		RunnerType:     "claude-code",
 		CanonicalModel: "anthropic/claude-opus-4-5-20250514",
 		Provider:       "openrouter",
-	})
+	}))
 
 	canonical, provider, err := svc.ResolveCanonicalModel(context.Background(), "claude-opus-4-5", "claude-code")
 	require.NoError(t, err)
@@ -395,22 +393,22 @@ func TestGetOverrides_ReturnsAllForModel(t *testing.T) {
 	svc, repo := testService(t)
 
 	// Add multiple overrides for same model
-	repo.UpsertOverride(context.Background(), &ManualPriceOverride{
+	require.NoError(t, repo.UpsertOverride(context.Background(), &ManualPriceOverride{
 		CanonicalModelName: "test/model",
 		Component:          ComponentInputTokens,
 		PriceUSD:           0.000003,
-	})
-	repo.UpsertOverride(context.Background(), &ManualPriceOverride{
+	}))
+	require.NoError(t, repo.UpsertOverride(context.Background(), &ManualPriceOverride{
 		CanonicalModelName: "test/model",
 		Component:          ComponentOutputTokens,
 		PriceUSD:           0.000015,
-	})
+	}))
 	// Different model
-	repo.UpsertOverride(context.Background(), &ManualPriceOverride{
+	require.NoError(t, repo.UpsertOverride(context.Background(), &ManualPriceOverride{
 		CanonicalModelName: "other/model",
 		Component:          ComponentInputTokens,
 		PriceUSD:           0.000005,
-	})
+	}))
 
 	overrides, err := svc.GetOverrides(context.Background(), "test/model")
 	require.NoError(t, err)
@@ -442,11 +440,11 @@ func TestDeleteOverride_ClearsCache(t *testing.T) {
 
 	// Set override first
 	overridePrice := 0.000010
-	repo.UpsertOverride(context.Background(), &ManualPriceOverride{
+	require.NoError(t, repo.UpsertOverride(context.Background(), &ManualPriceOverride{
 		CanonicalModelName: "test/model",
 		Component:          ComponentInputTokens,
 		PriceUSD:           overridePrice,
-	})
+	}))
 
 	// Verify override is used
 	req := CostRequest{Model: "test/model", RunnerType: "codex", InputTokens: 1000}
@@ -496,24 +494,24 @@ func TestListAliases_FiltersByRunnerType(t *testing.T) {
 	svc, repo := testService(t)
 
 	// Add aliases for different runner types
-	repo.UpsertAlias(context.Background(), &ModelAlias{
+	require.NoError(t, repo.UpsertAlias(context.Background(), &ModelAlias{
 		RunnerModel:    "model-a",
 		RunnerType:     "codex",
 		CanonicalModel: "canonical-a",
 		Provider:       "openrouter",
-	})
-	repo.UpsertAlias(context.Background(), &ModelAlias{
+	}))
+	require.NoError(t, repo.UpsertAlias(context.Background(), &ModelAlias{
 		RunnerModel:    "model-b",
 		RunnerType:     "claude-code",
 		CanonicalModel: "canonical-b",
 		Provider:       "openrouter",
-	})
-	repo.UpsertAlias(context.Background(), &ModelAlias{
+	}))
+	require.NoError(t, repo.UpsertAlias(context.Background(), &ModelAlias{
 		RunnerModel:    "model-c",
 		RunnerType:     "codex",
 		CanonicalModel: "canonical-c",
 		Provider:       "openrouter",
-	})
+	}))
 
 	// Filter by codex
 	aliases, err := svc.ListAliases(context.Background(), "codex")

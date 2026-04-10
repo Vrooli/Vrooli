@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/api-core/health"
 )
 
 func TestCorsMiddleware(t *testing.T) {
@@ -89,7 +91,7 @@ func TestHealthHandler(t *testing.T) {
 
 	// Create the required directory structure
 	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
+	if err := os.MkdirAll(dataPath, 0o755); err != nil {
 		t.Fatalf("Failed to create data directory: %v", err)
 	}
 
@@ -113,11 +115,17 @@ func TestHealthHandler(t *testing.T) {
 	if response["status"] == nil {
 		t.Error("Response should have status field")
 	}
+	if response["status"] != health.StatusHealthy {
+		t.Errorf("Expected status %s, got %v", health.StatusHealthy, response["status"])
+	}
 	if response["service"] != serviceName {
 		t.Errorf("Expected service %s, got %v", serviceName, response["service"])
 	}
 	if response["version"] != apiVersion {
 		t.Errorf("Expected version %s, got %v", apiVersion, response["version"])
+	}
+	if readiness, ok := response["readiness"].(bool); !ok || !readiness {
+		t.Errorf("Expected readiness true, got %v", response["readiness"])
 	}
 
 	// Check dependencies structure
@@ -125,9 +133,6 @@ func TestHealthHandler(t *testing.T) {
 		if storage, ok := deps["storage"].(map[string]interface{}); ok {
 			if storage["connected"] != true {
 				t.Error("Storage should be connected when data directory exists")
-			}
-			if storage["type"] != "json-files" {
-				t.Error("Storage type should be json-files")
 			}
 		} else {
 			t.Error("Dependencies should have storage object")
@@ -153,7 +158,7 @@ func TestHealthEndpointComponents(t *testing.T) {
 	}
 
 	// Test directory creation
-	if err := os.MkdirAll(nonExistentPath, 0755); err != nil {
+	if err := os.MkdirAll(nonExistentPath, 0o755); err != nil {
 		t.Errorf("Should be able to create directory: %v", err)
 	}
 
@@ -178,21 +183,27 @@ func TestHealthHandlerErrorPaths(t *testing.T) {
 	}
 
 	// Verify response contains expected fields
-	var health map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &health); err != nil {
+	var healthResp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &healthResp); err != nil {
 		t.Fatalf("Failed to parse health JSON: %v", err)
 	}
 
-	if health["status"] != "ok" && health["status"] != "degraded" && health["status"] != "healthy" {
-		t.Errorf("Expected status 'ok', 'degraded', or 'healthy', got %v", health["status"])
+	status, ok := healthResp["status"].(string)
+	if !ok {
+		t.Fatalf("Expected status string, got %T", healthResp["status"])
+	}
+	switch status {
+	case health.StatusHealthy, health.StatusDegraded, health.StatusUnhealthy:
+	default:
+		t.Errorf("Expected status %q, %q, or %q, got %v", health.StatusHealthy, health.StatusDegraded, health.StatusUnhealthy, status)
 	}
 
-	if health["service"] != serviceName {
-		t.Errorf("Expected service name %s, got %v", serviceName, health["service"])
+	if healthResp["service"] != serviceName {
+		t.Errorf("Expected service name %s, got %v", serviceName, healthResp["service"])
 	}
 
-	if health["version"] != apiVersion {
-		t.Errorf("Expected version %s, got %v", apiVersion, health["version"])
+	if healthResp["version"] != apiVersion {
+		t.Errorf("Expected version %s, got %v", apiVersion, healthResp["version"])
 	}
 }
 

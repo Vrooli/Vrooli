@@ -1,83 +1,72 @@
 package handlers
+// DOC: docs/reference/api-endpoints.md#reports
 
 import (
-	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"system-monitor-api/internal/apierrors"
 	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/services"
+	"system-monitor-api/internal/convert"
+	"system-monitor-api/internal/httputil"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
 )
 
 // ReportHandler handles report-related HTTP requests
 type ReportHandler struct {
-	config *config.Config
-	reportService *services.ReportService
+	log           *slog.Logger
+	config        *config.Config
+	reportService ReportGenerator
 }
 
 // NewReportHandler creates a new report handler
-func NewReportHandler(cfg *config.Config, reportService *services.ReportService) *ReportHandler {
+func NewReportHandler(cfg *config.Config, reportService ReportGenerator, log *slog.Logger) *ReportHandler {
 	return &ReportHandler{
-		config: cfg,
+		log:           log,
+		config:        cfg,
 		reportService: reportService,
 	}
 }
 
-// ReportRequest represents the request structure for report generation
-type ReportRequest struct {
-	Type string `json:"type"`
-}
-
 // GenerateReport handles POST /api/reports/generate
 func (h *ReportHandler) GenerateReport(w http.ResponseWriter, r *http.Request) {
-	var req ReportRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	var pbReq apipb.GenerateReportRequest
+	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
+		httputil.HandleError(w, h.log, r, apierrors.Validation("body", "Invalid request body"))
 		return
 	}
 
 	// Validate report type
-	if req.Type != "daily" && req.Type != "weekly" {
-		http.Error(w, "Invalid report type. Must be 'daily' or 'weekly'", http.StatusBadRequest)
+	if pbReq.Type != "daily" && pbReq.Type != "weekly" {
+		httputil.HandleError(w, h.log, r, apierrors.Validation("type", "Must be 'daily' or 'weekly'"))
 		return
 	}
 
 	// Generate the report using real historical data
-	report, err := h.reportService.GenerateReport(r.Context(), req.Type)
+	report, err := h.reportService.GenerateReport(r.Context(), pbReq.Type)
 	if err != nil {
-		http.Error(w, "Failed to generate report: "+err.Error(), http.StatusInternalServerError)
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	// Return the complete report
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(report)
+	httputil.SafeProtoJSON(w, h.log, r, convert.EnhancedSystemReportToProto(report))
 }
 
 // ListReports handles GET /api/reports
 func (h *ReportHandler) ListReports(w http.ResponseWriter, r *http.Request) {
 	reports, err := h.reportService.ListReports(r.Context())
 	if err != nil {
-		http.Error(w, "Failed to list reports: "+err.Error(), http.StatusInternalServerError)
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	// Ensure reports is not nil
-	if reports == nil {
-		reports = []*models.EnhancedSystemReport{}
+	resp := &apipb.ListReportsResponse{
+		Reports: convert.EnhancedSystemReportsToProto(reports),
+		Count:   int32(len(reports)),
 	}
-
-	response := map[string]interface{}{
-		"reports": reports,
-		"count":   len(reports),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		// Log error but response is already partially written
-		return
-	}
+	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
 // GetReport handles GET /api/reports/{id}
@@ -85,18 +74,17 @@ func (h *ReportHandler) GetReport(w http.ResponseWriter, r *http.Request) {
 	// Extract report ID from URL parameters
 	vars := mux.Vars(r)
 	id := vars["id"]
-	
+
 	if id == "" {
-		http.Error(w, "Report ID is required", http.StatusBadRequest)
+		httputil.HandleError(w, h.log, r, apierrors.Validation("id", "Report ID is required"))
 		return
 	}
 
 	report, err := h.reportService.GetReport(r.Context(), id)
 	if err != nil {
-		http.Error(w, "Failed to get report: "+err.Error(), http.StatusNotFound)
+		httputil.HandleError(w, h.log, r, err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(report)
+	httputil.SafeProtoJSON(w, h.log, r, convert.EnhancedSystemReportToProto(report))
 }

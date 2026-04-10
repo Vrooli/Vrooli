@@ -24,14 +24,7 @@ export interface TerminalLine {
   type: 'info' | 'success' | 'warning' | 'error';
 }
 
-export interface ExpandableCardState {
-  isExpanded: boolean;
-  loading: boolean;
-  error?: string;
-}
-
 export interface DashboardState {
-  isOnline: boolean;
   lastUpdate: string;
   expandedCards: Set<CardType>;
   expandedPanels: Set<PanelType>;
@@ -59,14 +52,6 @@ export interface ModalState {
     scriptId?: string;
     execution?: ScriptExecution;
   };
-}
-
-export interface ScriptEditorData {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  code: string;
 }
 
 export interface ChartDataPoint {
@@ -98,35 +83,6 @@ export interface MetricHistory {
   diskWrite?: ChartDataPoint[];
 }
 
-export interface MetricThresholds {
-  cpu: {
-    warning: number;
-    critical: number;
-  };
-  memory: {
-    warning: number;
-    critical: number;
-  };
-  tcp: {
-    warning: number;
-    critical: number;
-  };
-  gpu?: {
-    warning: number;
-    critical: number;
-  };
-  fileDescriptors: {
-    warning: number;
-    critical: number;
-  };
-}
-
-export interface WebSocketMessage {
-  type: 'metrics' | 'alert' | 'investigation' | 'system_status';
-  data: unknown;
-  timestamp: string;
-}
-
 export interface InvestigationAgentState {
   id: string;
   status: string;
@@ -146,28 +102,3 @@ export interface InvestigationAgentState {
   error?: string;
 }
 
-// Theme-related types for Matrix/Cyberpunk styling
-export interface ThemeColors {
-  primary: string;
-  secondary: string;
-  accent: string;
-  background: string;
-  surface: string;
-  text: string;
-  success: string;
-  warning: string;
-  error: string;
-  info: string;
-}
-
-export type ComponentSize = 'small' | 'medium' | 'large';
-
-export type ComponentVariant = 'primary' | 'secondary' | 'success' | 'warning' | 'error';
-
-// Performance monitoring
-export interface PerformanceMetrics {
-  renderTime: number;
-  apiLatency: number;
-  memoryUsage: number;
-  componentCount: number;
-}

@@ -420,5 +420,5 @@ go version  # Should be 1.21+
 
 - [Desktop Deployment Guide](../DESKTOP-DEPLOYMENT-GUIDE.md) - Detailed reference
 - [Bundle Manifest Schema](../guides/bundle-manifest-schema.md) - Full schema docs
-- [Cross-Platform Builds](../../scenario-to-desktop/docs/CROSS_PLATFORM_BUILDS.md) - Installer formats
+- [Cross-Platform Builds](../../../scenario-to-desktop/docs/guides/cross-platform-builds.md) - Installer formats (available when scenario-to-desktop is implemented)
 - [Deployment Commands](../cli/deployment-commands.md) - CLI reference

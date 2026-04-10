@@ -1,0 +1,25 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "landing-page-desktop-upload",
+  "name": "Landing Page Desktop Upload",
+  "description": "Orchestrate desktop release delivery by sequencing scenario-to-cloud, landing-page-deploy-setup, and scenario-to-desktop with explicit gate checks",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "landing-page-business-suite",
+    "desktop",
+    "upload",
+    "deployment",
+    "orchestration",
+    "scenario-to-desktop",
+    "scenario-to-cloud"
+  ],
+  "icon": "upload",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 6,
+  "createdAt": "2026-02-04T23:30:00Z",
+  "updatedAt": "2026-02-08T00:20:00Z"
+}

@@ -16,7 +16,8 @@ func TestPromptEnhancer_GenerateAutoSteerSection(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-1",
-				Mode:          ModeProgress,
+				SkillIDs:      []string{"progress"},
+				SkillName:     "Progress",
 				MaxIterations: 10,
 				StopConditions: []StopCondition{
 					{
@@ -29,7 +30,8 @@ func TestPromptEnhancer_GenerateAutoSteerSection(t *testing.T) {
 			},
 			{
 				ID:            "phase-2",
-				Mode:          ModeUX,
+				SkillIDs:      []string{"ux"},
+				SkillName:     "UX",
 				MaxIterations: 5,
 				StopConditions: []StopCondition{
 					{
@@ -105,7 +107,8 @@ func TestPromptEnhancer_GenerateAutoSteerSection(t *testing.T) {
 		// Add completed phase to history
 		completedPhase := PhaseExecution{
 			PhaseID:    "phase-1",
-			Mode:       ModeProgress,
+			SkillIDs:   []string{"progress"},
+			SkillName:  "Progress",
 			Iterations: 10,
 			StartMetrics: MetricsSnapshot{
 				OperationalTargetsPercentage: 50.0,
@@ -177,9 +180,9 @@ func TestPromptEnhancer_GenerateAutoSteerSection(t *testing.T) {
 	})
 }
 
-func TestPromptEnhancer_GenerateModeSection(t *testing.T) {
+func TestPromptEnhancer_GenerateSkillSetSection(t *testing.T) {
 	enhancer := newTestPromptEnhancer(t)
-	content := enhancer.GenerateModeSection(ModeProgress)
+	content := enhancer.GenerateSkillSetSection([]string{"progress"}, false, "")
 
 	if content == "" {
 		t.Fatal("Expected mode section content")
@@ -345,13 +348,15 @@ func TestPromptEnhancer_GeneratePhaseTransitionMessage(t *testing.T) {
 
 	oldPhase := SteerPhase{
 		ID:            "phase-1",
-		Mode:          ModeProgress,
+		SkillIDs:      []string{"progress"},
+		SkillName:     "Progress",
 		MaxIterations: 10,
 	}
 
 	newPhase := SteerPhase{
 		ID:            "phase-2",
-		Mode:          ModeUX,
+		SkillIDs:      []string{"ux"},
+		SkillName:     "UX",
 		MaxIterations: 5,
 	}
 
@@ -361,8 +366,8 @@ func TestPromptEnhancer_GeneratePhaseTransitionMessage(t *testing.T) {
 	if !strings.Contains(message, "Phase Transition") {
 		t.Error("Expected 'Phase Transition' header")
 	}
-	if !strings.Contains(message, "PROGRESS") {
-		t.Error("Expected old phase mode (PROGRESS)")
+	if !strings.Contains(message, "Progress") {
+		t.Error("Expected old phase mode (Progress)")
 	}
 	if !strings.Contains(message, "UX") {
 		t.Error("Expected new phase mode (UX)")
@@ -382,8 +387,8 @@ func TestPromptEnhancer_GenerateCompletionMessage(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", Mode: ModeProgress, MaxIterations: 10},
-			{ID: "phase-2", Mode: ModeUX, MaxIterations: 5},
+			{ID: "phase-1", SkillIDs: []string{"progress"}, SkillName: "Progress", MaxIterations: 10},
+			{ID: "phase-2", SkillIDs: []string{"ux"}, SkillName: "UX", MaxIterations: 5},
 		},
 	}
 
@@ -393,7 +398,8 @@ func TestPromptEnhancer_GenerateCompletionMessage(t *testing.T) {
 		PhaseHistory: []PhaseExecution{
 			{
 				PhaseID:    "phase-1",
-				Mode:       ModeProgress,
+				SkillIDs:   []string{"progress"},
+				SkillName:  "Progress",
 				Iterations: 10,
 				StartMetrics: MetricsSnapshot{
 					OperationalTargetsPercentage: 50.0,
@@ -405,7 +411,8 @@ func TestPromptEnhancer_GenerateCompletionMessage(t *testing.T) {
 			},
 			{
 				PhaseID:    "phase-2",
-				Mode:       ModeUX,
+				SkillIDs:   []string{"ux"},
+				SkillName:  "UX",
 				Iterations: 5,
 				StartMetrics: MetricsSnapshot{
 					UX: &UXMetrics{
@@ -437,7 +444,7 @@ func TestPromptEnhancer_GenerateCompletionMessage(t *testing.T) {
 	if !strings.Contains(message, "Phase Summary") {
 		t.Error("Expected phase summary section")
 	}
-	if !strings.Contains(message, "PROGRESS") {
+	if !strings.Contains(message, "Progress") {
 		t.Error("Expected first phase mode")
 	}
 	if !strings.Contains(message, "UX") {
@@ -469,7 +476,8 @@ func TestPromptEnhancer_EdgeCases(t *testing.T) {
 			Phases: []SteerPhase{
 				{
 					ID:            "phase-1",
-					Mode:          ModeProgress,
+					SkillIDs:      []string{"progress"},
+					SkillName:     "Progress",
 					MaxIterations: 5,
 					StopConditions: []StopCondition{
 						{
@@ -510,7 +518,8 @@ func TestPromptEnhancer_EdgeCases(t *testing.T) {
 			Phases: []SteerPhase{
 				{
 					ID:            "phase-1",
-					Mode:          ModeProgress,
+					SkillIDs:      []string{"progress"},
+					SkillName:     "Progress",
 					MaxIterations: 5,
 					StopConditions: []StopCondition{
 						{
@@ -551,5 +560,9 @@ func TestPromptEnhancer_EdgeCases(t *testing.T) {
 
 func newTestPromptEnhancer(t *testing.T) *PromptEnhancer {
 	t.Helper()
-	return NewPromptEnhancer(testPhasePromptsDir(t))
+	enhancer := NewPromptEnhancer()
+	if !enhancer.IsAvailable() {
+		t.Skipf("Skipping test - prompt-manager not available")
+	}
+	return enhancer
 }

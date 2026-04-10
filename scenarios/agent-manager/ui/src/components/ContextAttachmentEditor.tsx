@@ -41,7 +41,9 @@ export function ContextAttachmentEditor({
 
   const updateAttachment = (index: number, updates: Partial<ContextAttachmentData>) => {
     const updated = [...attachments];
-    updated[index] = { ...updated[index], ...updates };
+    const current = updated[index];
+    if (!current) return;
+    updated[index] = { ...current, ...updates };
     onChange(updated);
   };
 
@@ -54,17 +56,19 @@ export function ContextAttachmentEditor({
     if (!trimmed) return;
 
     const current = attachments[index];
+    if (!current) return;
     if (current.tags?.includes(trimmed)) return;
 
     updateAttachment(index, {
-      tags: [...(current.tags || []), trimmed],
+      tags: [...(current.tags ?? []), trimmed],
     });
     setNewTagInput({ ...newTagInput, [index]: "" });
   };
 
   const removeTag = (attachmentIndex: number, tagIndex: number) => {
     const current = attachments[attachmentIndex];
-    const newTags = current.tags?.filter((_, i) => i !== tagIndex) || [];
+    if (!current) return;
+    const newTags = current.tags?.filter((_, i) => i !== tagIndex) ?? [];
     updateAttachment(attachmentIndex, { tags: newTags });
   };
 

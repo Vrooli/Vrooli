@@ -98,11 +98,22 @@ type CaddyState struct {
 
 // TLSInfo contains TLS certificate information.
 type TLSInfo struct {
-	Valid         bool   `json:"valid"`
-	Issuer        string `json:"issuer,omitempty"`
-	Expires       string `json:"expires,omitempty"`
-	DaysRemaining int    `json:"days_remaining,omitempty"`
-	Error         string `json:"error,omitempty"`
+	Valid         bool       `json:"valid"`
+	Validation    string     `json:"validation,omitempty"`
+	Issuer        string     `json:"issuer,omitempty"`
+	Expires       string     `json:"expires,omitempty"`
+	DaysRemaining int        `json:"days_remaining,omitempty"`
+	Error         string     `json:"error,omitempty"`
+	ALPN          *ALPNCheck `json:"alpn,omitempty"`
+}
+
+// ALPNCheck captures TLS-ALPN readiness details.
+type ALPNCheck struct {
+	Status   string `json:"status"`
+	Message  string `json:"message"`
+	Hint     string `json:"hint,omitempty"`
+	Protocol string `json:"protocol,omitempty"`
+	Error    string `json:"error,omitempty"`
 }
 
 // CaddyRoute represents a route in the Caddyfile.
@@ -121,13 +132,39 @@ type SystemState struct {
 	UptimeSeconds int64      `json:"uptime_seconds"`
 }
 
+// MetricsDebugCommand captures raw command execution details for system metrics.
+type MetricsDebugCommand struct {
+	ID         string `json:"id"`
+	Command    string `json:"command"`
+	Stdout     string `json:"stdout,omitempty"`
+	Stderr     string `json:"stderr,omitempty"`
+	ExitCode   int    `json:"exit_code"`
+	DurationMs int64  `json:"duration_ms"`
+	Error      string `json:"error,omitempty"`
+}
+
+// MetricsDebugResult exposes raw metric command outputs plus parsed SystemState.
+type MetricsDebugResult struct {
+	OK        bool                  `json:"ok"`
+	Collector string                `json:"collector"`
+	OSID      string                `json:"os_id,omitempty"`
+	OSVersion string                `json:"os_version,omitempty"`
+	Commands  []MetricsDebugCommand `json:"commands"`
+	System    SystemState           `json:"system"`
+	Error     string                `json:"error,omitempty"`
+	Timestamp string                `json:"timestamp"`
+}
+
 // SSHHealth contains SSH connectivity status.
 type SSHHealth struct {
-	Connected bool   `json:"connected"`
-	LatencyMs int64  `json:"latency_ms"`
-	KeyInAuth bool   `json:"key_in_auth"` // Is manifest key in authorized_keys?
-	KeyPath   string `json:"key_path"`    // Path to the key file used
-	Error     string `json:"error,omitempty"`
+	Connected            bool   `json:"connected"`
+	LatencyMs            int64  `json:"latency_ms"`
+	KeyPath              string `json:"key_path,omitempty"`               // Path to explicit key when auth_mode=explicit_key
+	AuthMode             string `json:"auth_mode"`                        // explicit_key, agent, default_ssh, unknown
+	VerificationState    string `json:"verification_state"`               // authorized, unauthorized, unknown
+	PublicKeyFingerprint string `json:"public_key_fingerprint,omitempty"` // Local fingerprint for explicit keys
+	LastVerifiedAt       string `json:"last_verified_at,omitempty"`       // RFC3339
+	Error                string `json:"error,omitempty"`
 }
 
 // CPUInfo contains CPU information.
@@ -143,6 +180,9 @@ type MemoryInfo struct {
 	TotalMB      int     `json:"total_mb"`
 	UsedMB       int     `json:"used_mb"`
 	FreeMB       int     `json:"free_mb"`
+	TotalBytes   int64   `json:"total_bytes"`
+	UsedBytes    int64   `json:"used_bytes"`
+	FreeBytes    int64   `json:"free_bytes"`
 	UsagePercent float64 `json:"usage_percent"`
 }
 
@@ -151,6 +191,9 @@ type DiskInfo struct {
 	TotalGB      int     `json:"total_gb"`
 	UsedGB       int     `json:"used_gb"`
 	FreeGB       int     `json:"free_gb"`
+	TotalBytes   int64   `json:"total_bytes"`
+	UsedBytes    int64   `json:"used_bytes"`
+	FreeBytes    int64   `json:"free_bytes"`
 	UsagePercent float64 `json:"usage_percent"`
 }
 

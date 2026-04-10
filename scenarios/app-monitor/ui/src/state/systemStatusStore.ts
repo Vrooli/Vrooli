@@ -50,7 +50,7 @@ export const useSystemStatusStore = create<SystemStatusState>((set, get) => ({
           lastChecked: new Date(),
         });
       }
-    } catch (error) {
+    } catch {
       set({
         error: 'Unable to refresh system status.',
         lastChecked: new Date(),
@@ -64,9 +64,11 @@ export const useSystemStatusStore = create<SystemStatusState>((set, get) => ({
 let subscriberCount = 0;
 let pollTimer: number | null = null;
 
+const selectRefresh = (state: SystemStatusState) => state.refresh;
+
 export const useSystemStatus = () => {
   const state = useSystemStatusStore();
-  const refresh = useSystemStatusStore(current => current.refresh);
+  const refresh = useSystemStatusStore(selectRefresh);
 
   useEffect(() => {
     subscriberCount += 1;

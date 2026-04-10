@@ -1,15 +1,19 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { Loader2, Power, RefreshCw } from 'lucide-react';
+import { Activity, Loader2, Power, RefreshCw, Shield } from 'lucide-react';
 import { useSystemStatus } from '@/state/systemStatusStore';
 import { useScenarioActions } from '@/hooks/useScenarioActions';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
+import RulesPanel from './RulesPanel';
+import { useRuleCount } from './useRuleCount';
 import './ActionsDialog.css';
 
 type ActionsDialogProps = {
   isConnected: boolean;
 };
+
+type TabId = 'status' | 'rules';
 
 const OFFLINE_STATES = new Set(['unhealthy', 'offline', 'critical']);
 
@@ -28,9 +32,11 @@ const formatDuration = (seconds: number): string => {
 };
 
 export default function ActionsDialog({ isConnected }: ActionsDialogProps) {
+  const [activeTab, setActiveTab] = useState<TabId>('status');
   const { closeOverlay } = useOverlayRouter();
   const { status, uptimeSeconds, appCount, resourceCount, loading, lastChecked, refresh } = useSystemStatus();
   const { restartAll, stopAll } = useScenarioActions();
+  const ruleCount = useRuleCount();
 
   const isSystemOnline = status ? !OFFLINE_STATES.has(status) : isConnected;
   const uptimeText = uptimeSeconds != null ? formatDuration(uptimeSeconds) : '—';
@@ -73,85 +79,135 @@ export default function ActionsDialog({ isConnected }: ActionsDialogProps) {
         </button>
       </header>
 
-      <section className="actions-dialog__status">
-        <div className="actions-dialog__status-indicator">
-          {loading ? (
-            <Loader2 className="actions-dialog__spinner" size={20} aria-hidden />
-          ) : (
-            <span className={clsx('actions-dialog__dot', isSystemOnline ? 'online' : 'offline')} aria-hidden />
-          )}
-          <div>
-            <strong>{statusLabel}</strong>
-            <p>{statusDescription}</p>
-          </div>
-        </div>
-        <div className="actions-dialog__status-meta">
-          <span className="actions-dialog__last-checked">
-            Checked {lastCheckedText}
-          </span>
-          <button
-            type="button"
-            className="actions-dialog__refresh-btn"
-            onClick={() => void refresh()}
-            disabled={loading}
-            aria-label="Refresh status"
-            title="Refresh status"
-          >
-            <RefreshCw size={14} aria-hidden />
-          </button>
-        </div>
-        <dl
-          className={clsx('actions-dialog__metrics', loading && 'actions-dialog__metrics--loading')}
-          aria-live="polite"
-          aria-busy={loading}
+      <div className="actions-dialog__tab-bar" role="tablist" aria-label="Command center sections">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'status'}
+          aria-controls="tabpanel-status"
+          id="tab-status"
+          className={clsx('actions-dialog__tab', activeTab === 'status' && 'actions-dialog__tab--active')}
+          onClick={() => setActiveTab('status')}
         >
-          <div>
-            <dt>Scenarios</dt>
-            <dd>
-              {loading && appCount === 0 ? <LoadingSkeleton width="60%" height="16px" /> : appCount}
-            </dd>
-          </div>
-          <div>
-            <dt>Resources</dt>
-            <dd>
-              {loading && resourceCount === 0 ? <LoadingSkeleton width="60%" height="16px" /> : resourceCount}
-            </dd>
-          </div>
-          <div>
-            <dt>Uptime</dt>
-            <dd>
-              {loading && !uptimeSeconds ? <LoadingSkeleton width="80%" height="16px" /> : uptimeText}
-            </dd>
-          </div>
-        </dl>
-      </section>
+          <Activity size={15} aria-hidden />
+          <span>Status</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'rules'}
+          aria-controls="tabpanel-rules"
+          id="tab-rules"
+          className={clsx('actions-dialog__tab', activeTab === 'rules' && 'actions-dialog__tab--active')}
+          onClick={() => setActiveTab('rules')}
+        >
+          <Shield size={15} aria-hidden />
+          <span>Rules</span>
+          {ruleCount > 0 && <span className="actions-dialog__tab-count">{ruleCount}</span>}
+        </button>
+      </div>
 
-      <section className="actions-dialog__actions" aria-label="Quick actions">
-        <button
-          type="button"
-          className="actions-dialog__action"
-          onClick={restartAll}
-          disabled={loading}
-        >
-          <RefreshCw size={18} aria-hidden />
-          <div>
-            <strong>Restart all apps</strong>
-            <span>Gracefully restart every managed scenario.</span>
+      <div className="actions-dialog__body">
+        {activeTab === 'status' && (
+          <div
+            role="tabpanel"
+            id="tabpanel-status"
+            aria-labelledby="tab-status"
+            className="actions-dialog__tab-content"
+          >
+            <section className="actions-dialog__status">
+              <div className="actions-dialog__status-indicator">
+                {loading ? (
+                  <Loader2 className="actions-dialog__spinner" size={20} aria-hidden />
+                ) : (
+                  <span className={clsx('actions-dialog__dot', isSystemOnline ? 'online' : 'offline')} aria-hidden />
+                )}
+                <div>
+                  <strong>{statusLabel}</strong>
+                  <p>{statusDescription}</p>
+                </div>
+              </div>
+              <div className="actions-dialog__status-meta">
+                <span className="actions-dialog__last-checked">
+                  Checked {lastCheckedText}
+                </span>
+                <button
+                  type="button"
+                  className="actions-dialog__refresh-btn"
+                  onClick={() => void refresh()}
+                  disabled={loading}
+                  aria-label="Refresh status"
+                  title="Refresh status"
+                >
+                  <RefreshCw size={14} aria-hidden />
+                </button>
+              </div>
+              <dl
+                className={clsx('actions-dialog__metrics', loading && 'actions-dialog__metrics--loading')}
+                aria-live="polite"
+                aria-busy={loading}
+              >
+                <div>
+                  <dt>Scenarios</dt>
+                  <dd>
+                    {loading && appCount === 0 ? <LoadingSkeleton width="60%" height="16px" /> : appCount}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Resources</dt>
+                  <dd>
+                    {loading && resourceCount === 0 ? <LoadingSkeleton width="60%" height="16px" /> : resourceCount}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Uptime</dt>
+                  <dd>
+                    {loading && !uptimeSeconds ? <LoadingSkeleton width="80%" height="16px" /> : uptimeText}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className="actions-dialog__actions" aria-label="Quick actions">
+              <button
+                type="button"
+                className="actions-dialog__action"
+                onClick={restartAll}
+                disabled={loading}
+              >
+                <RefreshCw size={18} aria-hidden />
+                <div>
+                  <strong>Restart all apps</strong>
+                  <span>Gracefully restart every managed scenario.</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                className="actions-dialog__action"
+                onClick={stopAll}
+                disabled={loading}
+              >
+                <Power size={18} aria-hidden />
+                <div>
+                  <strong>Stop all apps</strong>
+                  <span>Shut down active scenarios to free resources.</span>
+                </div>
+              </button>
+            </section>
           </div>
-        </button>
-        <button
-          type="button"
-          className="actions-dialog__action"
-          onClick={stopAll}
-          disabled={loading}
-        >
-          <Power size={18} aria-hidden />
-          <div>
-            <strong>Stop all apps</strong>
-            <span>Shut down active scenarios to free resources.</span>
+        )}
+
+        {activeTab === 'rules' && (
+          <div
+            role="tabpanel"
+            id="tabpanel-rules"
+            aria-labelledby="tab-rules"
+            className="actions-dialog__tab-content"
+          >
+            <RulesPanel />
           </div>
-        </button>
-      </section>
+        )}
+      </div>
     </div>
   );
 }

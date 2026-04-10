@@ -268,7 +268,7 @@ func (r *MemoryRepository) GetInvestigation(ctx context.Context, id string) (*mo
 	if inv, exists := r.investigations[id]; exists {
 		return inv, nil
 	}
-	return nil, fmt.Errorf("investigation not found: %s", id)
+	return nil, fmt.Errorf("investigation %s: %w", id, repository.ErrNotFound)
 }
 
 func (r *MemoryRepository) UpdateInvestigation(ctx context.Context, investigation *models.Investigation) error {
@@ -309,7 +309,7 @@ func (r *MemoryRepository) GetLatestInvestigation(ctx context.Context) (*models.
 	}
 
 	if latest == nil {
-		return nil, fmt.Errorf("no investigations found")
+		return nil, fmt.Errorf("no investigations: %w", repository.ErrNotFound)
 	}
 
 	return latest, nil
@@ -324,7 +324,7 @@ func (r *MemoryRepository) SaveInvestigationStep(ctx context.Context, investigat
 		return nil
 	}
 
-	return fmt.Errorf("investigation not found: %s", investigationID)
+	return fmt.Errorf("investigation %s: %w", investigationID, repository.ErrNotFound)
 }
 
 // ReportRepository implementation
@@ -344,7 +344,7 @@ func (r *MemoryRepository) GetReport(ctx context.Context, id string) (*models.Re
 	if report, exists := r.reports[id]; exists {
 		return report, nil
 	}
-	return nil, fmt.Errorf("report not found: %s", id)
+	return nil, fmt.Errorf("report %s: %w", id, repository.ErrNotFound)
 }
 
 func (r *MemoryRepository) ListReports(ctx context.Context, filter repository.ReportFilter) ([]*models.Report, error) {
@@ -385,7 +385,7 @@ func (r *MemoryRepository) GetDetailedReport(ctx context.Context, id string) (*m
 		return detailed, nil
 	}
 
-	return nil, fmt.Errorf("detailed report not found")
+	return nil, fmt.Errorf("detailed report: %w", repository.ErrNotFound)
 }
 
 func (r *MemoryRepository) SaveEnhancedReport(ctx context.Context, report *models.EnhancedSystemReport) error {
@@ -404,7 +404,7 @@ func (r *MemoryRepository) GetEnhancedReport(ctx context.Context, id string) (*m
 		return report, nil
 	}
 
-	return nil, fmt.Errorf("enhanced report not found")
+	return nil, fmt.Errorf("enhanced report: %w", repository.ErrNotFound)
 }
 
 func (r *MemoryRepository) ListEnhancedReports(ctx context.Context) ([]*models.EnhancedSystemReport, error) {
@@ -466,7 +466,7 @@ func (r *MemoryRepository) GetThreshold(ctx context.Context, metricName string) 
 	if threshold, exists := r.thresholds[metricName]; exists {
 		return threshold, nil
 	}
-	return nil, fmt.Errorf("threshold not found: %s", metricName)
+	return nil, fmt.Errorf("threshold %s: %w", metricName, repository.ErrNotFound)
 }
 
 func (r *MemoryRepository) SaveThreshold(ctx context.Context, threshold *models.Threshold) error {
@@ -531,7 +531,7 @@ func (r *MemoryRepository) GetAlert(ctx context.Context, id string) (*models.Ale
 	if alert, exists := r.alerts[id]; exists {
 		return alert, nil
 	}
-	return nil, fmt.Errorf("alert not found: %s", id)
+	return nil, fmt.Errorf("alert %s: %w", id, repository.ErrNotFound)
 }
 
 func (r *MemoryRepository) UpdateAlert(ctx context.Context, alert *models.Alert) error {
@@ -571,7 +571,7 @@ func (r *MemoryRepository) AcknowledgeAlert(ctx context.Context, id string, acke
 		return nil
 	}
 
-	return fmt.Errorf("alert not found: %s", id)
+	return fmt.Errorf("alert %s: %w", id, repository.ErrNotFound)
 }
 
 func (r *MemoryRepository) ResolveAlert(ctx context.Context, id string) error {
@@ -584,7 +584,7 @@ func (r *MemoryRepository) ResolveAlert(ctx context.Context, id string) error {
 		return nil
 	}
 
-	return fmt.Errorf("alert not found: %s", id)
+	return fmt.Errorf("alert %s: %w", id, repository.ErrNotFound)
 }
 
 func (r *MemoryRepository) GetActiveAlerts(ctx context.Context) ([]*models.Alert, error) {

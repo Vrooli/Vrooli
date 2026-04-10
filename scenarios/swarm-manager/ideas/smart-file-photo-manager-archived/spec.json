@@ -1,0 +1,29 @@
+{
+  "archived_at": "2026-02-05T20:48:42Z",
+  "created": "2026-02-05T20:48:42Z",
+  "description": "AI-powered semantic file organization and management system with intelligent photo categorization, document processing, and duplicate detection",
+  "name": "smart-file-photo-manager-archived",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "business-application",
+    "productivity",
+    "file-management",
+    "photo-organization",
+    "ai-tagging",
+    "semantic-search",
+    "duplicate-detection",
+    "document-processing",
+    "automation",
+    "go-api",
+    "postgres-storage",
+    "redis-cache",
+    "qdrant-vectors",
+    "minio-storage",
+    "ollama-ai",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] smart-file-photo-manager",
+  "updated": "2026-02-05T20:48:42Z"
+}

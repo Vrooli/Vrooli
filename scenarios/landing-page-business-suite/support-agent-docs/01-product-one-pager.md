@@ -136,15 +136,15 @@ All platforms have feature parity. The app bundles its own Chromium-based browse
 - **30-day money-back guarantee** if you're not satisfied
 - **Future apps included** at no additional cost
 
-Pricing details and plan tiers are available at [vrooli.com](https://vrooli.com).
+Pricing details and plan tiers are available at [Vrooli on GitHub](https://github.com/Vrooli/Vrooli).
 
 ---
 
 ## Resources
 
-- **Landing page:** [vrooli.com](https://vrooli.com)
+- **Landing page:** [Vrooli on GitHub](https://github.com/Vrooli/Vrooli)
 - **Source code:** [github.com/Vrooli/Vrooli](https://github.com/Vrooli/Vrooli)
 - **Vrooli Ascension docs:** [github.com/Vrooli/Vrooli/tree/master/scenarios/browser-automation-studio/docs](https://github.com/Vrooli/Vrooli/tree/master/scenarios/browser-automation-studio/docs)
 - **License:** [GNU AGPL v3](https://github.com/Vrooli/Vrooli/blob/master/LICENSE)
-- **Feedback:** [vrooli.com/feedback](https://vrooli.com/feedback)
+- **Feedback:** [GitHub issues](https://github.com/Vrooli/Vrooli/issues)
 - **X/Twitter:** [@vrooliofficial](https://x.com/vrooliofficial)

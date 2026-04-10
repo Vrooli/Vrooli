@@ -11,32 +11,20 @@ import { getApiBase } from '../../../config';
 import { logger } from '../../../utils/logger';
 import type { FolderEntry, ScanResult, ScanMode } from '../types';
 
-/** API response format for project scanning */
-interface ProjectScanResponse {
+interface ScanResponse {
   path: string;
   parent: string | null;
-  default_projects_root: string;
+  default_root?: string;
   entries: Array<{
     name: string;
     path: string;
-    is_project: boolean;
+    is_dir: boolean;
+    is_target: boolean;
     is_registered: boolean;
-    project_id?: string;
+    registered_id?: string;
     suggested_name?: string;
-  }>;
-}
-
-/** API response format for routine/workflow scanning */
-interface RoutineScanResponse {
-  path: string;
-  parent: string | null;
-  entries: Array<{
-    name: string;
-    path: string;
-    is_valid: boolean;
-    is_registered: boolean;
-    workflow_id?: string;
-    preview_name?: string;
+    mime_type?: string;
+    size_bytes?: number;
   }>;
 }
 
@@ -72,29 +60,45 @@ export interface UseFolderScannerReturn {
   reset: () => void;
 }
 
-/** Transform project scan response to generic FolderEntry */
-function transformProjectEntry(entry: ProjectScanResponse['entries'][0]): FolderEntry {
+function transformScanEntry(entry: ScanResponse['entries'][0]): FolderEntry {
   return {
     name: entry.name,
     path: entry.path,
-    isTarget: entry.is_project,
+    isDir: entry.is_dir,
+    isTarget: entry.is_target,
     isRegistered: entry.is_registered,
-    registeredId: entry.project_id,
+    registeredId: entry.registered_id,
     suggestedName: entry.suggested_name,
+    mimeType: entry.mime_type,
+    sizeBytes: entry.size_bytes,
   };
 }
 
-/** Transform routine scan response to generic FolderEntry */
-function transformRoutineEntry(entry: RoutineScanResponse['entries'][0]): FolderEntry {
-  return {
-    name: entry.name,
-    path: entry.path,
-    isTarget: entry.is_valid,
-    isRegistered: entry.is_registered,
-    registeredId: entry.workflow_id,
-    suggestedName: entry.preview_name,
-  };
-}
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseJson = async (response: Response): Promise<unknown> => {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
+
+const extractErrorMessage = (value: unknown): string | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const details = value.details;
+  if (details && typeof details === 'object') {
+    const detailMessage = (details as Record<string, unknown>).error;
+    if (typeof detailMessage === 'string') {
+      return detailMessage;
+    }
+  }
+  const message = value.message;
+  return typeof message === 'string' ? message : null;
+};
 
 export function useFolderScanner(options: UseFolderScannerOptions): UseFolderScannerReturn {
   const { mode, projectId, depth = 1, initialPath } = options;
@@ -125,35 +129,14 @@ export function useFolderScanner(options: UseFolderScannerOptions): UseFolderSca
 
       try {
         const apiBase = getApiBase();
-        let endpoint: string;
-        let body: Record<string, unknown>;
-
-        // Choose endpoint and transform based on mode
-        switch (mode) {
-          case 'projects':
-            endpoint = `${apiBase}/fs/scan-for-projects`;
-            body = { path, depth };
-            break;
-          case 'workflows':
-            if (!projectId) {
-              throw new Error('Project ID required for workflow scanning');
-            }
-            endpoint = `${apiBase}/projects/${projectId}/routines/scan`;
-            body = { path, depth };
-            break;
-          case 'assets':
-            if (!projectId) {
-              throw new Error('Project ID required for asset scanning');
-            }
-            // Assets use filesystem listing for now
-            endpoint = `${apiBase}/projects/${projectId}/files/list`;
-            body = { path };
-            break;
-          case 'files':
-          default:
-            endpoint = `${apiBase}/fs/list-directories`;
-            body = { path };
-            break;
+        const endpoint = `${apiBase}/fs/scan`;
+        const body: Record<string, unknown> = {
+          mode,
+          path,
+          depth,
+        };
+        if (projectId) {
+          body.project_id = projectId;
         }
 
         const response = await fetch(endpoint, {
@@ -163,56 +146,21 @@ export function useFolderScanner(options: UseFolderScannerOptions): UseFolderSca
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          const errorMsg =
-            errorData.details?.error || errorData.message || 'Failed to scan folder';
+          const errorData = await parseJson(response);
+          const errorMsg = extractErrorMessage(errorData) ?? 'Failed to scan folder';
           setError(errorMsg);
           return null;
         }
 
-        const data = await response.json();
+        const data: unknown = await response.json();
 
-        // Transform response based on mode
-        let result: ScanResult;
-        switch (mode) {
-          case 'projects': {
-            const projectData = data as ProjectScanResponse;
-            result = {
-              path: projectData.path,
-              parent: projectData.parent || null,
-              defaultRoot: projectData.default_projects_root,
-              entries: projectData.entries.map(transformProjectEntry),
-            };
-            break;
-          }
-          case 'workflows': {
-            const routineData = data as RoutineScanResponse;
-            result = {
-              path: routineData.path,
-              parent: routineData.parent || null,
-              defaultRoot: routineData.path, // Use current path as default
-              entries: routineData.entries.map(transformRoutineEntry),
-            };
-            break;
-          }
-          case 'assets':
-          case 'files':
-          default: {
-            // Generic directory listing
-            result = {
-              path: data.path,
-              parent: data.parent || null,
-              defaultRoot: data.path,
-              entries: (data.entries || []).map((e: { name: string; path: string }) => ({
-                name: e.name,
-                path: e.path,
-                isTarget: false,
-                isRegistered: false,
-              })),
-            };
-            break;
-          }
-        }
+        const responseData = data as ScanResponse;
+        const result: ScanResult = {
+          path: responseData.path,
+          parent: responseData.parent || null,
+          defaultRoot: responseData.default_root || responseData.path,
+          entries: (responseData.entries || []).map(transformScanEntry),
+        };
 
         // Cache result
         cacheRef.current.set(cacheKey, result);
@@ -224,7 +172,7 @@ export function useFolderScanner(options: UseFolderScannerOptions): UseFolderSca
 
         setScanResult(result);
         return result;
-      } catch (err) {
+      } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : 'Failed to scan folder';
         logger.error('Failed to scan folder', { error: err, path, mode });
         setError(errorMsg);

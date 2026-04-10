@@ -29,12 +29,15 @@ export {
   type ExportRenderSourceOption,
   type ExportStatus,
   type ExportStatusConfig,
+  type ExportStylization,
+  type ExportStylizationOption,
   // Constants
   DEFAULT_EXPORT_DIMENSIONS,
   DIMENSION_PRESET_CONFIG,
   EXPORT_EXTENSIONS,
   EXPORT_FORMAT_OPTIONS,
   EXPORT_RENDER_SOURCE_OPTIONS,
+  EXPORT_STYLIZATION_OPTIONS,
   // Format/status display config (re-exported from presentation module)
   EXPORT_STATUS_CONFIG,
   FORMAT_CONFIG,
@@ -80,29 +83,25 @@ export {
 export {
   // Types
   type BuildExportRequestOptions,
-  type ExecuteBinaryExportOptions,
-  type ExecuteBinaryExportResult,
   type ExportApiClient,
-  type ExportOverrides,
+  type ExportProgress,
   type ExportRequestPayload,
   type ExportResult,
-  type FileSystemFileHandle,
-  type FileSystemWritableFileStream,
+  type ExportStatusResponse,
   type RecordedVideo,
   type RecordedVideoStatus,
   type RenderSource,
-  type SaveFilePickerOptions,
+  type ServerExportResponse,
   // Pure functions
   buildExportOverrides,
   buildExportRequest,
-  createJsonBlob,
   // API functions
   createMockExportApiClient,
   defaultExportApiClient,
-  executeBinaryExport,
-  saveWithNativeFilePicker,
-  supportsFileSystemAccess,
-  triggerBlobDownload,
+  executeServerExport,
+  getExportStatus,
+  getLastOutputDir,
+  saveOutputDir,
 } from "./api";
 
 // Hooks (React state management)
@@ -116,6 +115,10 @@ export {
   useRecordedVideoStatus,
   type UseRecordedVideoStatusOptions,
   type UseRecordedVideoStatusResult,
+  // useExportProgress
+  useExportProgress,
+  type UseExportProgressOptions,
+  type UseExportProgressResult,
 } from "./hooks";
 
 // Context (for ExportDialog state management)
@@ -131,6 +134,7 @@ export {
   type ExportPreviewState,
   type ExportProgressState,
   type ExportRenderSourceState,
+  type ExportStylizationState,
   // Context & Provider
   ExportDialogProvider,
   // Hooks
@@ -143,6 +147,7 @@ export {
   useExportPreviewState,
   useExportProgressState,
   useExportRenderSourceState,
+  useExportStylizationState,
   // Builder
   buildExportDialogContextValue,
 } from "./context";

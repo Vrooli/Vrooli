@@ -10,6 +10,7 @@ package runner
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -79,11 +80,22 @@ type Capabilities struct {
 	// SupportsContinuation indicates the runner can resume previous sessions.
 	SupportsContinuation bool
 
+	// SupportsImageAttachments indicates the runner can accept image file attachments.
+	SupportsImageAttachments bool
+
 	// MaxTurns is the maximum number of turns this runner supports (0 = unlimited).
 	MaxTurns int
 
 	// SupportedModels lists the models this runner can use.
 	SupportedModels []string
+
+	// SupportedFeatures lists which typed FeatureFlags this runner supports.
+	// Unsupported features are silently ignored during arg building.
+	SupportedFeatures []string
+
+	// AllowedExtraFlags is the allowlist of extra CLI flags this runner accepts.
+	// Flags not in this list are rejected during validation.
+	AllowedExtraFlags []string
 }
 
 // ExecuteRequest contains everything needed to execute an agent.
@@ -110,14 +122,38 @@ type ExecuteRequest struct {
 	// For in-place runs, this is the actual project directory.
 	WorkingDir string
 
-	// Prompt is the initial prompt/instruction for the agent.
+	// Prompt is the user message for the agent (context data, task question).
+	// For runners that support system prompts, this contains only the user-facing
+	// content. For runners that don't, SystemPrompt is prepended to this.
 	Prompt string
+
+	// SystemPrompt contains stable instructions/methodology that should be
+	// delivered via the runner's system prompt mechanism when supported.
+	// Claude Code: passed via --append-system-prompt flag.
+	// Codex/OpenCode: prepended to Prompt with <system-instructions> tags.
+	SystemPrompt string
 
 	// EventSink receives events as they occur during execution.
 	EventSink EventSink
 
 	// Environment contains additional environment variables.
 	Environment map[string]string
+
+	// Attachments contains image/file attachments for this request.
+	Attachments []Attachment
+}
+
+// EffectivePrompt returns the prompt with the system prompt prepended using
+// XML tags, for runners that don't support a native system prompt mechanism.
+// If SystemPrompt is empty, returns Prompt unchanged.
+func (r *ExecuteRequest) EffectivePrompt() string {
+	if r.SystemPrompt == "" {
+		return r.Prompt
+	}
+	if r.Prompt == "" {
+		return r.SystemPrompt
+	}
+	return "<system-instructions>\n" + r.SystemPrompt + "\n</system-instructions>\n\n" + r.Prompt
 }
 
 // GetTag returns the tag for this request, defaulting to RunID if not set.
@@ -160,6 +196,17 @@ type ContinueRequest struct {
 
 	// Environment contains additional environment variables.
 	Environment map[string]string
+
+	// Attachments contains image/file attachments for this request.
+	Attachments []Attachment
+}
+
+// Attachment represents a file attachment to include in a request.
+type Attachment struct {
+	ID          string
+	FileName    string
+	ContentType string
+	FilePath    string // Absolute filesystem path
 }
 
 // ExecuteResult contains the outcome of an agent execution.
@@ -218,6 +265,77 @@ type EventSink interface {
 	// Close signals that no more events will be sent.
 	Close() error
 }
+
+// -----------------------------------------------------------------------------
+// FlagValidator - Validates runner-specific flags against allowlists
+// -----------------------------------------------------------------------------
+
+// FlagValidator validates runner-specific flags against runner allowlists.
+// This is a SEAM: testable without real runners, swappable in tests.
+type FlagValidator interface {
+	ValidateFlags(runnerType domain.RunnerType, flags []string) error
+	AllowedFlags(runnerType domain.RunnerType) []string
+	SupportedFeatures(runnerType domain.RunnerType) []string
+}
+
+// RegistryFlagValidator derives allowlists from runner Capabilities.
+type RegistryFlagValidator struct {
+	registry Registry
+}
+
+// NewRegistryFlagValidator creates a FlagValidator backed by a runner registry.
+func NewRegistryFlagValidator(registry Registry) *RegistryFlagValidator {
+	return &RegistryFlagValidator{registry: registry}
+}
+
+// ValidateFlags checks that all flags are in the runner's allowlist.
+func (v *RegistryFlagValidator) ValidateFlags(rt domain.RunnerType, flags []string) error {
+	r, err := v.registry.Get(rt)
+	if err != nil {
+		return err
+	}
+	allowed := make(map[string]bool)
+	for _, f := range r.Capabilities().AllowedExtraFlags {
+		allowed[f] = true
+	}
+	var invalid []string
+	for _, flag := range flags {
+		name := flag
+		if idx := strings.Index(flag, "="); idx > 0 {
+			name = flag[:idx]
+		}
+		if !allowed[name] {
+			invalid = append(invalid, flag)
+		}
+	}
+	if len(invalid) > 0 {
+		return domain.NewValidationError("extraFlags",
+			"runner "+string(rt)+" does not allow: "+strings.Join(invalid, ", ")+
+				" (allowed: "+strings.Join(r.Capabilities().AllowedExtraFlags, ", ")+")")
+	}
+	return nil
+}
+
+// AllowedFlags returns the allowlist for the given runner type.
+func (v *RegistryFlagValidator) AllowedFlags(rt domain.RunnerType) []string {
+	r, err := v.registry.Get(rt)
+	if err != nil {
+		return nil
+	}
+	return r.Capabilities().AllowedExtraFlags
+}
+
+// SupportedFeatures returns the supported features for the given runner type.
+func (v *RegistryFlagValidator) SupportedFeatures(rt domain.RunnerType) []string {
+	r, err := v.registry.Get(rt)
+	if err != nil {
+		return nil
+	}
+	return r.Capabilities().SupportedFeatures
+}
+
+// Verify interface compliance
+var _ FlagValidator = (*RegistryFlagValidator)(nil)
 
 // -----------------------------------------------------------------------------
 // Registry - Runner registration and lookup

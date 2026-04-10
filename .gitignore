@@ -81,6 +81,7 @@ scenarios/**/test/artifacts/
 
 # Generated bundles
 scenarios/**/platforms/
+.AppImage
 
 # Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
 .grunt
@@ -267,6 +268,7 @@ tests/helpers
 # Local configuration
 .vrooli/*.local.json
 .vrooli/secrets.json
+**/.vrooli/secrets.json
 .vrooli/resource-registry/
 .vrooli/app-identity.json
 
@@ -427,18 +429,11 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 /scenarios/scenario-completeness-scoring/cli/scenario-completeness-scoring
-scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop
-scenarios/test-scenario/api/test-scenario
-scenarios/text-tools/api/text-tools
-scenarios/vrooli-bridge/api/vrooli-bridge
-scenarios/time-tools/api/api
-scenarios/vrooli-assistant/api/vrooli-assistant
-scenarios/video-downloader/api/video-downloader
-scenarios/token-economy/api/api
-scenarios/tidiness-manager/api/tidiness-manager
-scenarios/browser-automation-studio/cli/cli
-scenarios/agent-manager/cli/agent-manager
-scenarios/git-control-tower/api/git-control-tower
-scenarios/scenario-to-cloud/cli/cli
-scenarios/test-scenario/signing/public-key.asc
-scenarios/tidiness-manager/api/report/jscpd-report.json
+api/api
+.claude/settings.json
+.vrooli/deployment/telemetry/git-control-tower.jsonl
+.vrooli/generated-service.json
+packages/cli-core/sandbox-resolve
+.codex
+scripts/scenarios/templates/landing-page-react-vite/api/landing-manager-api
+scripts/main/generated/test-genie

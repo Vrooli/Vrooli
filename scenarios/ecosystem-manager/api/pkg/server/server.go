@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md
+// DOC: docs/reference/api-endpoints.md
 package server
 
 import (
@@ -29,6 +31,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/queue"
 	"github.com/ecosystem-manager/api/pkg/recycler"
 	"github.com/ecosystem-manager/api/pkg/settings"
+	"github.com/ecosystem-manager/api/pkg/steering"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
@@ -51,8 +54,8 @@ type Application struct {
 	db           *sql.DB
 
 	// Auto Steer components
-	autoSteerProfileService   *autosteer.ProfileService
-	autoSteerExecutionEngine  *autosteer.ExecutionEngine
+	autoSteerProfileService   autosteer.ProfileServiceAPI
+	autoSteerExecutionEngine  *autosteer.ExecutionOrchestrator
 	autoSteerHistoryService   *autosteer.HistoryService
 	autoSteerMetricsCollector *autosteer.MetricsCollector
 
@@ -65,6 +68,7 @@ type Application struct {
 	promptsHandlers        *handlers.PromptsHandlers
 	insightHandlers        *handlers.InsightHandlers
 	autoSteerHandlers      *autosteer.AutoSteerHandlers
+	skillsSyncHandlers     *handlers.SkillsSyncHandlers
 	visitedTrackerHandlers *handlers.VisitedTrackerHandlers
 
 	// Paths
@@ -128,9 +132,9 @@ func (a *Application) Run(ctx context.Context) error {
 	router := a.setupRoutes()
 
 	log.Printf("✅ Ecosystem Manager API starting on port %s", a.port)
-	log.Printf("🔗 WebSocket endpoint: ws://localhost:%s/ws", a.port)
-	log.Printf("🏥 Health check: http://localhost:%s/health", a.port)
-	log.Printf("📋 Queue status: http://localhost:%s/api/queue/status", a.port)
+	log.Printf("🔗 WebSocket endpoint: ws://0.0.0.0:%s/ws", a.port)
+	log.Printf("🏥 Health check: http://0.0.0.0:%s/health", a.port)
+	log.Printf("📋 Queue status: http://0.0.0.0:%s/api/queue/status", a.port)
 	systemlog.Info(fmt.Sprintf("HTTP server listening on port %s", a.port))
 
 	server := &http.Server{
@@ -217,12 +221,11 @@ func (a *Application) initializeDatabase() error {
 func (a *Application) initializeComponents() error {
 	queueDir := filepath.Join(a.scenarioRoot, "queue")
 	promptsDir := filepath.Join(a.scenarioRoot, "prompts")
-	phasesDir := filepath.Join(promptsDir, "phases")
 
 	// Ensure queue directories exist (aligned with valid queue statuses)
 	for _, dir := range tasks.GetValidStatuses() {
 		fullPath := filepath.Join(queueDir, dir)
-		if err := os.MkdirAll(fullPath, 0755); err != nil {
+		if err := os.MkdirAll(fullPath, 0o755); err != nil {
 			return err
 		}
 	}
@@ -254,11 +257,6 @@ func (a *Application) initializeComponents() error {
 	log.Println("✅ Prompt assembler initialized")
 	systemlog.Info("Prompt assembler initialized")
 
-	if err := autosteer.RegisterSteerModesFromDir(phasesDir); err != nil {
-		log.Printf("Warning: could not register steer modes from %s: %v", phasesDir, err)
-		systemlog.Warnf("Could not register steer modes from %s: %v", phasesDir, err)
-	}
-
 	// Initialize WebSocket manager
 	a.wsManager = websocket.NewManager()
 	log.Println("✅ WebSocket manager initialized")
@@ -271,7 +269,7 @@ func (a *Application) initializeComponents() error {
 	systemlog.Info("Recycler daemon started")
 
 	// Initialize queue processor
-	a.processor = queue.NewProcessor(
+	a.processor = queue.NewProcessorWithDefaults(
 		a.storage,
 		a.assembler,
 		a.wsManager.GetBroadcastChannel(),
@@ -291,20 +289,19 @@ func (a *Application) initializeComponents() error {
 	if err != nil {
 		log.Printf("Warning: Could not get table counts: %v", err)
 	} else {
-		log.Printf("Auto Steer table counts: profiles=%d, executions=%d, active_states=%d",
-			counts["auto_steer_profiles"],
+		log.Printf("Auto Steer table counts: executions=%d, active_states=%d",
 			counts["profile_executions"],
 			counts["profile_execution_state"])
 	}
 
 	a.autoSteerMetricsCollector = autosteer.NewMetricsCollector(a.projectRoot)
-	a.autoSteerProfileService = autosteer.NewProfileService(a.db)
-	a.autoSteerExecutionEngine = autosteer.NewExecutionEngine(
-		a.db,
-		a.autoSteerProfileService,
-		a.autoSteerMetricsCollector,
-		phasesDir,
-	)
+	profilesDir := filepath.Join(a.scenarioRoot, "profiles")
+	profileRepo, err := autosteer.NewFileProfileRepository(profilesDir)
+	if err != nil {
+		return fmt.Errorf("auto steer profiles registry unavailable: %w", err)
+	}
+	a.autoSteerProfileService = profileRepo
+	a.autoSteerExecutionEngine = autosteer.NewExecutionOrchestratorDefault(profileRepo, a.db, a.projectRoot)
 	a.autoSteerHistoryService = autosteer.NewHistoryService(a.db)
 	log.Println("✅ Auto Steer components initialized")
 	systemlog.Info("Auto Steer components initialized")
@@ -313,19 +310,34 @@ func (a *Application) initializeComponents() error {
 	autoSteerIntegration := queue.NewAutoSteerIntegration(a.autoSteerExecutionEngine)
 	a.processor.SetAutoSteerIntegration(autoSteerIntegration)
 
+	// Initialize unified steering registry
+	promptEnhancer := autosteer.NewPromptEnhancer()
+	queueStateRepo := steering.NewPostgresQueueStateRepository(a.db)
+	steeringRegistry := steering.NewRegistry(map[steering.SteeringStrategy]steering.SteeringProvider{
+		steering.StrategyProfile: steering.NewProfileProvider(autoSteerIntegration),
+		steering.StrategyQueue:   steering.NewQueueProvider(queueStateRepo, promptEnhancer),
+		steering.StrategyManual:  steering.NewManualProvider(promptEnhancer),
+		steering.StrategyNone:    steering.NewNoneProvider(promptEnhancer),
+	})
+	a.processor.SetSteeringRegistry(steeringRegistry)
+	log.Println("✅ Unified steering registry initialized")
+	systemlog.Info("Unified steering registry initialized")
+
 	// Centralized coordinator for lifecycle + side effects.
 	lifecycle := &tasks.Lifecycle{Store: a.storage}
 	coord := &tasks.Coordinator{
-		LC:          lifecycle,
-		Store:       a.storage,
-		Runtime:     a.processor,
-		Broadcaster: a.wsManager,
+		LC:             lifecycle,
+		Store:          a.storage,
+		Runtime:        a.processor,
+		Broadcaster:    a.wsManager,
+		QueueStateRepo: queueStateRepo,
 	}
 	a.processor.SetCoordinator(coord)
 	a.taskRecycler.SetCoordinator(coord)
 
 	// Initialize handlers
-	a.taskHandlers = handlers.NewTaskHandlers(a.storage, a.assembler, a.processor, a.wsManager, a.autoSteerProfileService, coord)
+	targetValidator := handlers.NewFSTargetValidator(a.projectRoot)
+	a.taskHandlers = handlers.NewTaskHandlers(a.storage, a.assembler, a.processor, a.wsManager, a.autoSteerProfileService, coord, queueStateRepo, targetValidator)
 	a.queueHandlers = handlers.NewQueueHandlers(a.processor, a.wsManager, a.storage, coord)
 	a.discoveryHandlers = handlers.NewDiscoveryHandlers(a.assembler)
 	a.healthHandlers = handlers.NewHealthHandlers(a.processor, a.taskRecycler, queueDir, a.db, apiVersion)
@@ -334,6 +346,7 @@ func (a *Application) initializeComponents() error {
 	a.insightHandlers = handlers.NewInsightHandlers(a.processor, filepath.Dir(a.scenarioRoot))
 	a.visitedTrackerHandlers = handlers.NewVisitedTrackerHandlers(a.projectRoot)
 	a.autoSteerHandlers = autosteer.NewAutoSteerHandlers(a.autoSteerProfileService, a.autoSteerExecutionEngine, a.autoSteerHistoryService)
+	a.skillsSyncHandlers = handlers.NewSkillsSyncHandlers(promptEnhancer.GetPromptLoader())
 	log.Println("✅ HTTP handlers initialized")
 
 	return nil
@@ -363,6 +376,7 @@ func (a *Application) setupRoutes() http.Handler {
 	a.registerDiscoveryRoutes(api)
 	a.registerInsightRoutes(api)
 	a.registerAutoSteerRoutes(api)
+	a.registerSkillsRoutes(api)
 	a.registerVisitedTrackerRoutes(api)
 
 	origins := a.allowedOrigins
@@ -413,6 +427,7 @@ func (a *Application) registerTaskRoutes(api *mux.Router) {
 	api.HandleFunc("/tasks/{id}", a.taskHandlers.UpdateTaskHandler).Methods("PUT")
 	api.HandleFunc("/tasks/{id}", a.taskHandlers.DeleteTaskHandler).Methods("DELETE")
 	api.HandleFunc("/tasks/{id}/status", a.taskHandlers.UpdateTaskStatusHandler).Methods("PUT")
+	api.HandleFunc("/tasks/{id}/queue-position", a.taskHandlers.SetQueuePositionHandler).Methods("PUT")
 	api.HandleFunc("/tasks/{id}/logs", a.taskHandlers.GetTaskLogsHandler).Methods("GET")
 	api.HandleFunc("/tasks/{id}/executions", a.taskHandlers.GetExecutionHistoryHandler).Methods("GET")
 	api.HandleFunc("/tasks/{id}/executions/bulk-analysis", a.taskHandlers.GetExecutionBulkAnalysisHandler).Methods("GET")
@@ -428,7 +443,6 @@ func (a *Application) registerPromptRoutes(api *mux.Router) {
 	api.HandleFunc("/prompt-viewer", a.taskHandlers.PromptViewerHandler).Methods("POST")
 	api.HandleFunc("/prompts", a.promptsHandlers.ListPromptFilesHandler).Methods("GET")
 	api.HandleFunc("/prompts", a.promptsHandlers.CreatePromptFileHandler).Methods("POST")
-	api.HandleFunc("/prompts/phases/names", a.promptsHandlers.ListPhaseNamesHandler).Methods("GET")
 	api.HandleFunc("/prompts/{path:.*}", a.promptsHandlers.GetPromptFileHandler).Methods("GET")
 	api.HandleFunc("/prompts/{path:.*}", a.promptsHandlers.UpdatePromptFileHandler).Methods("PUT")
 }
@@ -502,6 +516,11 @@ func (a *Application) registerAutoSteerRoutes(api *mux.Router) {
 	api.HandleFunc("/auto-steer/analytics/{profileId}", a.autoSteerHandlers.GetProfileAnalytics).Methods("GET")
 }
 
+func (a *Application) registerSkillsRoutes(api *mux.Router) {
+	api.HandleFunc("/skills", a.skillsSyncHandlers.ListSkillsHandler).Methods("GET")
+	api.HandleFunc("/skills/sync", a.skillsSyncHandlers.SyncSkillsHandler).Methods("POST")
+}
+
 func (a *Application) registerVisitedTrackerRoutes(api *mux.Router) {
 	// Proxy endpoints to visited-tracker scenario
 	api.HandleFunc("/visited-tracker/ui-port", a.visitedTrackerHandlers.GetVisitedTrackerUIPortHandler).Methods("GET")
@@ -513,13 +532,6 @@ func (a *Application) registerVisitedTrackerRoutes(api *mux.Router) {
 }
 
 type requestIDContextKey struct{}
-
-func requestIDFromContext(ctx context.Context) string {
-	if v, ok := ctx.Value(requestIDContextKey{}).(string); ok {
-		return v
-	}
-	return ""
-}
 
 func requestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -418,3 +418,41 @@ export interface CompletenessScore {
   scenario: string;
   details: string[];
 }
+
+export interface LighthouseScore {
+  performance: number;
+  accessibility: number;
+  'best-practices': number;
+  seo?: number;
+}
+
+export interface LighthouseReport {
+  id: string;
+  timestamp: string;
+  page_id: string;
+  page_label: string;
+  url: string;
+  viewport: string;
+  status: string;
+  scores: LighthouseScore;
+  failures: Array<{ category: string; score: string; threshold: string; level: string }>;
+  warnings: Array<{ category: string; score: string; threshold: string; level: string }>;
+  report_url: string;
+}
+
+export interface LighthouseTrendPoint {
+  timestamp: string;
+  score: number;
+  page_id: string;
+}
+
+export interface LighthouseHistory {
+  scenario: string;
+  reports: LighthouseReport[];
+  trend: {
+    performance: LighthouseTrendPoint[];
+    accessibility: LighthouseTrendPoint[];
+    best_practices: LighthouseTrendPoint[];
+    seo: LighthouseTrendPoint[];
+  };
+}

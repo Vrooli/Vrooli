@@ -17,7 +17,7 @@ const badgeVariants = cva(
         running: "border-transparent bg-primary/20 text-primary",
         needs_review: "border-transparent bg-warning/20 text-warning",
         approved: "border-transparent bg-success/20 text-success",
-        rejected: "border-transparent bg-destructive/20 text-destructive",
+        rejected: "border-transparent bg-orange-500/20 text-orange-600 dark:text-orange-400",
         failed: "border-transparent bg-destructive/20 text-destructive",
         cancelled: "border-transparent bg-muted text-muted-foreground",
         complete: "border-transparent bg-success/20 text-success",

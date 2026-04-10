@@ -112,19 +112,6 @@ func decodeDimensions(data []byte) (int, int) {
 	return cfg.Width, cfg.Height
 }
 
-func extFromContentType(contentType string) string {
-	switch strings.ToLower(contentType) {
-	case "image/jpeg":
-		return ".jpg"
-	case "image/png":
-		return ".png"
-	case "image/gif":
-		return ".gif"
-	default:
-		return ""
-	}
-}
-
 func normalizeArchiveName(name string) string {
 	trimmed := strings.TrimSpace(name)
 	if trimmed == "" {

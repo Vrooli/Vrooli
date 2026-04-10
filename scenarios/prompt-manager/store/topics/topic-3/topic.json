@@ -1,0 +1,16 @@
+{
+  "kind": "topic",
+  "schemaVersion": 1,
+  "id": "topic-3",
+  "name": "Architecture",
+  "parentTopicId": "topic-1",
+  "skills": [
+    "screaming-architecture-audit",
+    "boundary-of-responsibility-enforcement",
+    "decision-boundary-extraction"
+  ],
+  "status": "active",
+  "revision": 2,
+  "createdAt": "2026-03-26T01:38:40Z",
+  "updatedAt": "2026-03-26T01:40:29Z"
+}

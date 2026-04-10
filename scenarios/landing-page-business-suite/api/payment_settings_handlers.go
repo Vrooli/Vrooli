@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -12,7 +11,7 @@ func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeServi
 	return func(w http.ResponseWriter, r *http.Request) {
 		record, err := paymentService.GetStripeSettings(r.Context())
 		if err != nil {
-			http.Error(w, "Failed to load Stripe settings", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to load Stripe settings", ApiErrorTypeServerError)
 			return
 		}
 		hasPublishable := record != nil && strings.TrimSpace(record.PublishableKey) != ""
@@ -46,6 +45,44 @@ func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeServi
 	}
 }
 
+// handleRevealStripeSecret returns the unredacted value of a specific Stripe secret field.
+// Requires admin authentication. Accepts a 'field' query parameter with values:
+// - secret_key
+// - webhook_secret
+// - publishable_key
+// Returns the value from the merged config (env vars + database).
+func handleRevealStripeSecret(stripeService *StripeService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		field := r.URL.Query().Get("field")
+		if field == "" {
+			writeJSONError(w, http.StatusBadRequest, "Missing 'field' query parameter", ApiErrorTypeValidation)
+			return
+		}
+
+		allowedFields := map[string]bool{
+			"secret_key":      true,
+			"webhook_secret":  true,
+			"publishable_key": true,
+		}
+		if !allowedFields[field] {
+			writeJSONError(w, http.StatusBadRequest, "Invalid field. Allowed: secret_key, webhook_secret, publishable_key", ApiErrorTypeValidation)
+			return
+		}
+
+		value, hasValue := stripeService.GetSecretValue(field)
+		if !hasValue {
+			writeJSONError(w, http.StatusNotFound, "No value set for this field", ApiErrorTypeNotFound)
+			return
+		}
+
+		resp := map[string]string{
+			"field": field,
+			"value": value,
+		}
+		writeJSON(w, resp)
+	}
+}
+
 func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeService *StripeService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
@@ -55,8 +92,7 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 			DashboardURL   *string `json:"dashboard_url"`
 		}
 
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, "Invalid payload", http.StatusBadRequest)
+		if !decodeJSONBody(w, r, &body) {
 			return
 		}
 
@@ -80,11 +116,41 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 		req.WebhookSecret = normalize(req.WebhookSecret)
 		req.DashboardUrl = normalize(req.DashboardUrl)
 
+		if req.PublishableKey != nil && *req.PublishableKey != "" {
+			if !strings.HasPrefix(*req.PublishableKey, "pk_") {
+				writeJSONError(w, http.StatusBadRequest, "Publishable key must start with pk_", ApiErrorTypeValidation)
+				return
+			}
+		}
+
+		if req.SecretKey != nil && *req.SecretKey != "" {
+			if !strings.HasPrefix(*req.SecretKey, "sk_") && !strings.HasPrefix(*req.SecretKey, "rk_") {
+				writeJSONError(w, http.StatusBadRequest, "Restricted key must start with sk_ or rk_", ApiErrorTypeValidation)
+				return
+			}
+		}
+
+		if req.WebhookSecret != nil && *req.WebhookSecret != "" {
+			if !strings.HasPrefix(*req.WebhookSecret, "whsec_") {
+				writeJSONError(w, http.StatusBadRequest, "Webhook secret must start with whsec_", ApiErrorTypeValidation)
+				return
+			}
+		}
+
+		if req.DashboardUrl != nil && *req.DashboardUrl != "" {
+			normalizedURL, err := ValidateURL(*req.DashboardUrl)
+			if err != nil {
+				writeJSONError(w, http.StatusBadRequest, "Invalid dashboard_url format", ApiErrorTypeValidation)
+				return
+			}
+			req.DashboardUrl = &normalizedURL
+		}
+
 		if (req.PublishableKey == nil || *req.PublishableKey == "") &&
 			(req.SecretKey == nil || *req.SecretKey == "") &&
 			(req.WebhookSecret == nil || *req.WebhookSecret == "") &&
 			(req.DashboardUrl == nil || *req.DashboardUrl == "") {
-			http.Error(w, "At least one field is required", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "At least one field is required", ApiErrorTypeValidation)
 			return
 		}
 
@@ -95,7 +161,7 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 			DashboardURL:   req.DashboardUrl,
 		})
 		if err != nil {
-			http.Error(w, "Failed to save Stripe settings", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to save Stripe settings", ApiErrorTypeServerError)
 			return
 		}
 		hasPublishable := record != nil && strings.TrimSpace(record.PublishableKey) != ""
@@ -109,7 +175,7 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 		}
 
 		if err := stripeService.RefreshConfig(r.Context()); err != nil {
-			http.Error(w, "Failed to refresh Stripe runtime config", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to refresh Stripe runtime config", ApiErrorTypeServerError)
 			return
 		}
 

@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,12 +12,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/gorilla/mux"
 
+	"app-issue-tracker-api/internal/agentmanager"
 	"app-issue-tracker-api/internal/logging"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // setupTestLogger initializes the global logger for testing
@@ -30,6 +35,7 @@ type TestEnvironment struct {
 	TempDir   string
 	IssuesDir string
 	Server    *Server
+	AgentMock *testAgentManager
 	Cleanup   func()
 }
 
@@ -46,22 +52,12 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 
 	settingsPath := filepath.Join(configDir, "agent-settings.json")
 	settingsPayload := []byte(`{
-		"agent_backend": {
-			"provider": "claude-code",
+		"agent_manager": {
+			"runner_type": "claude-code",
+			"max_turns": 10,
+			"allowed_tools": "Read,Write",
+			"timeout_seconds": 60,
 			"skip_permissions": true
-		},
-		"providers": {
-			"claude-code": {
-				"cli_command": "resource-claude-code",
-				"operations": {
-					"investigate": {
-						"max_turns": 10,
-						"allowed_tools": "Read,Write",
-						"timeout_seconds": 60,
-						"command": "run --tag {{TAG}} -"
-					}
-				}
-			}
 		}
 	}`)
 	if err := os.WriteFile(settingsPath, settingsPayload, 0o644); err != nil {
@@ -71,7 +67,7 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 	// Create folder structure
 	folders := append(ValidIssueStatuses(), "templates")
 	for _, folder := range folders {
-		if err := os.MkdirAll(filepath.Join(issuesDir, folder), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Join(issuesDir, folder), 0o755); err != nil {
 			t.Fatalf("Failed to create test folder %s: %v", folder, err)
 		}
 	}
@@ -86,7 +82,8 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 		WebsocketAllowedOrigins: []string{"*"},
 	}
 
-	server, _, err := NewServer(cfg)
+	agentMock := newTestAgentManager()
+	server, _, err := NewServer(cfg, WithAgentManager(agentMock))
 	if err != nil {
 		t.Fatalf("failed to initialize server: %v", err)
 	}
@@ -97,10 +94,84 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 		TempDir:   tempDir,
 		IssuesDir: issuesDir,
 		Server:    server,
+		AgentMock: agentMock,
 		Cleanup: func() {
 			server.Stop()
 		},
 	}
+}
+
+type testAgentManager struct {
+	mu          sync.Mutex
+	run         *domainpb.Run
+	events      []*domainpb.RunEvent
+	createError error
+	waitError   error
+}
+
+func newTestAgentManager() *testAgentManager {
+	return &testAgentManager{
+		run: &domainpb.Run{
+			Id:     "run-test",
+			Status: domainpb.RunStatus_RUN_STATUS_COMPLETE,
+			Summary: &domainpb.RunSummary{
+				Description:  "Test run completed",
+				TokensUsed:   12,
+				CostEstimate: 0.01,
+			},
+		},
+	}
+}
+
+func (t *testAgentManager) IsAvailable(ctx context.Context) bool {
+	return true
+}
+
+func (t *testAgentManager) Initialize(ctx context.Context, cfg agentmanager.ProfileConfig) error {
+	return nil
+}
+
+func (t *testAgentManager) UpdateProfile(ctx context.Context, cfg agentmanager.ProfileConfig) error {
+	return nil
+}
+
+func (t *testAgentManager) CreateRun(ctx context.Context, req agentmanager.RunRequest, cfg agentmanager.ProfileConfig) (string, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.createError != nil {
+		return "", t.createError
+	}
+	if t.run == nil {
+		t.run = &domainpb.Run{Id: "run-test", Status: domainpb.RunStatus_RUN_STATUS_COMPLETE}
+	}
+	t.run.Id = "run-test"
+	t.run.Tag = req.Tag
+	return t.run.Id, nil
+}
+
+func (t *testAgentManager) WaitForRun(ctx context.Context, runID string, pollInterval time.Duration) (*domainpb.Run, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.waitError != nil {
+		return nil, t.waitError
+	}
+	return t.run, nil
+}
+
+func (t *testAgentManager) GetRun(ctx context.Context, runID string) (*domainpb.Run, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.run, nil
+}
+
+func (t *testAgentManager) GetRunEvents(ctx context.Context, runID string, afterSequence int64) ([]*domainpb.RunEvent, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.events, nil
+}
+
+func (t *testAgentManager) StopRun(ctx context.Context, runID string) error {
+	return nil
 }
 
 // HTTPTestRequest represents an HTTP test request

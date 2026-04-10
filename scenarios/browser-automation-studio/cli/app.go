@@ -6,10 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"browser-automation-studio/cli/ai"
 	"browser-automation-studio/cli/executions"
 	"browser-automation-studio/cli/internal/appctx"
 	"browser-automation-studio/cli/playbooks"
 	"browser-automation-studio/cli/recordings"
+	"browser-automation-studio/cli/schema"
+	"browser-automation-studio/cli/sessions"
 	"browser-automation-studio/cli/status"
 	"browser-automation-studio/cli/workflows"
 
@@ -37,8 +40,7 @@ type App struct {
 func NewApp() (*App, error) {
 	applyLegacyAPIEnv()
 	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
-		ExtraAPIEnvVars:     []string{"BROWSER_AUTOMATION_API_URL", "API_BASE_URL", "VITE_API_BASE_URL"},
-		ExtraAPIPortEnvVars: []string{"API_PORT"},
+		ExtraAPIEnvVars: []string{"BROWSER_AUTOMATION_API_URL", "API_BASE_URL", "VITE_API_BASE_URL"},
 	})
 	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
 		Name:              appName,
@@ -87,6 +89,9 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		workflows.Commands(a.ctx),
 		executions.Commands(a.ctx),
 		recordings.Commands(a.ctx),
+		sessions.Commands(a.ctx),
+		ai.Commands(a.ctx),
+		schema.Commands(a.ctx),
 		{
 			Title: "Configuration",
 			Commands: []cliapp.Command{

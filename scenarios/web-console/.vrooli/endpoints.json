@@ -1,0 +1,122 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "readiness": "boolean",
+          "dependencies": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "web-console status"
+      }
+    },
+    {
+      "id": "create-session",
+      "path": "/api/v1/sessions",
+      "method": "POST",
+      "summary": "Create a new terminal session",
+      "description": "Starts a new PTY-backed shell session and returns session metadata",
+      "category": "sessions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "shell": "string (optional, defaults to user shell)",
+          "cols": "integer (optional, default 80)",
+          "rows": "integer (optional, default 24)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "string",
+          "shell": "string",
+          "created_at": "string",
+          "cols": "integer",
+          "rows": "integer"
+        }
+      },
+      "examples": [
+        {
+          "name": "Create session",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/sessions -H 'Content-Type: application/json' -d '{\"cols\":80,\"rows\":24}'"
+        }
+      ]
+    },
+    {
+      "id": "list-sessions",
+      "path": "/api/v1/sessions",
+      "method": "GET",
+      "summary": "List all active terminal sessions",
+      "description": "Returns metadata for all live PTY sessions",
+      "category": "sessions",
+      "examples": [
+        {
+          "name": "List sessions",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/sessions"
+        }
+      ]
+    },
+    {
+      "id": "get-session",
+      "path": "/api/v1/sessions/{id}",
+      "method": "GET",
+      "summary": "Get a specific session",
+      "description": "Returns metadata for a single session by ID",
+      "category": "sessions"
+    },
+    {
+      "id": "delete-session",
+      "path": "/api/v1/sessions/{id}",
+      "method": "DELETE",
+      "summary": "Terminate a session",
+      "description": "Kills the PTY process and removes the session",
+      "category": "sessions"
+    },
+    {
+      "id": "terminal-ws",
+      "path": "/api/v1/sessions/{id}/ws",
+      "method": "GET",
+      "summary": "WebSocket terminal I/O",
+      "description": "Upgrades to WebSocket for bidirectional terminal streaming. JSON message protocol with stdin/stdout/resize/exit types.",
+      "category": "terminal"
+    },
+    {
+      "id": "get-events",
+      "path": "/api/v1/events",
+      "method": "GET",
+      "summary": "Recent structured events",
+      "description": "Returns recent lifecycle events from the in-memory ring buffer. Query param: limit (default 50, max 1000).",
+      "category": "observability",
+      "examples": [
+        {
+          "name": "Get recent events",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/events?limit=20"
+        }
+      ]
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    }
+  ]
+}

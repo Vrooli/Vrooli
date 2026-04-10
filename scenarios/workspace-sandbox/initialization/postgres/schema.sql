@@ -18,6 +18,7 @@ CREATE TYPE sandbox_status AS ENUM (
 -- Main sandboxes table
 CREATE TABLE sandboxes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT,                          -- Optional human-readable name for organization
 
     -- Scope configuration
     scope_path TEXT NOT NULL,           -- Normalized absolute path within project

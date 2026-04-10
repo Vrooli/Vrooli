@@ -106,5 +106,5 @@ export function getStatusColor(status: string): string {
 
 // Helper to get nth series color
 export function getSeriesColor(index: number): string {
-  return CHART_COLORS.series[index % CHART_COLORS.series.length];
+  return CHART_COLORS.series[index % CHART_COLORS.series.length] ?? CHART_COLORS.muted;
 }

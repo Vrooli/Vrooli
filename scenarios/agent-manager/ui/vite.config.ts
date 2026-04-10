@@ -5,6 +5,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
   return {
+    // INTEROP-CRITICAL: Keep relative base so proxied deployments resolve assets
+    // under nested /apps/<scenario>/proxy paths.
     base: "./",
     plugins: [react()],
     server: {
@@ -14,6 +16,10 @@ export default defineConfig(({ mode }) => {
     preview: {
       port: env.VITE_PREVIEW_PORT ? Number(env.VITE_PREVIEW_PORT) : 4173,
       host: true
+    },
+    test: {
+      // tests/ directory uses node:test runner — exclude from vitest
+      exclude: ["tests/**", "node_modules/**"]
     }
   };
 });

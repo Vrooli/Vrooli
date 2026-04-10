@@ -102,13 +102,14 @@ func (r *OpenCodeRunner) Type() domain.RunnerType {
 // Capabilities returns what this runner supports.
 func (r *OpenCodeRunner) Capabilities() Capabilities {
 	return Capabilities{
-		SupportsMessages:     true,
-		SupportsToolEvents:   true,
-		SupportsCostTracking: false, // OpenCode may not track costs the same way
-		SupportsStreaming:    false,
-		SupportsCancellation: true,
-		SupportsContinuation: true, // OpenCode supports --session for session continuation
-		MaxTurns:             0,    // unlimited
+		SupportsMessages:         true,
+		SupportsToolEvents:       true,
+		SupportsCostTracking:     false, // OpenCode may not track costs the same way
+		SupportsStreaming:        false,
+		SupportsCancellation:     true,
+		SupportsContinuation:     true, // OpenCode supports --session for session continuation
+		SupportsImageAttachments: false,
+		MaxTurns:                 0, // unlimited
 		SupportedModels: []string{
 			"anthropic/claude-sonnet-4-5",
 			"anthropic/claude-opus-4-5",
@@ -117,6 +118,8 @@ func (r *OpenCodeRunner) Capabilities() Capabilities {
 			"google/gemini-2.0-flash",
 			"deepseek/deepseek-chat",
 		},
+		SupportedFeatures: []string{},
+		AllowedExtraFlags: []string{"--verbose"},
 	}
 }
 
@@ -160,16 +163,7 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		r.mu.Unlock()
 	}()
 
-	// Create pipes for stdout/stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeOpenCode,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-
+	// Create stderr pipe before starting the managed process.
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, &domain.RunnerError{
@@ -190,14 +184,18 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		}
 	}
 
-	// Start command
-	if err := cmd.Start(); err != nil {
+	// Start command with managed process lifecycle.
+	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
+	if err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeOpenCode,
 			Operation:  "execute",
 			Cause:      err,
 		}
 	}
+	defer func() {
+		_ = mp.Wait()
+	}()
 
 	// Close stdin immediately - we pass prompt via command line args
 	stdin.Close()
@@ -228,10 +226,11 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		}
 	}()
 
-	// Parse streaming JSON output
-	scanner := bufio.NewScanner(stdout)
+	// Parse streaming JSON output with managed process lifecycle.
+	scanner := bufio.NewScanner(mp.Stdout())
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
+		mp.ResetTimer()
 		line := scanner.Text()
 		if line == "" {
 			continue
@@ -248,14 +247,14 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		}
 
 		// Parse the streaming event(s) and capture session ID
-		events, sessionID, err := r.parseStreamEventsWithSessionID(req.RunID, line)
-		if err != nil {
+		events, sessionID, parseErr := r.parseStreamEventsWithSessionID(req.RunID, line)
+		if parseErr != nil {
 			// Log parsing error but continue
 			if req.EventSink != nil {
 				_ = req.EventSink.Emit(domain.NewLogEvent(
 					req.RunID,
 					"warn",
-					fmt.Sprintf("Failed to parse event: %v", err),
+					fmt.Sprintf("Failed to parse event: %v", parseErr),
 				))
 			}
 			continue
@@ -286,6 +285,12 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		}
 	}
 
+	if mp.TimedOut() && req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewLogEvent(
+			req.RunID, "warn",
+			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
+		))
+	}
 	if scanErr := scanner.Err(); scanErr != nil && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID,
@@ -294,29 +299,18 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 		))
 	}
 
-	// If step finished but process is still running, terminate it gracefully
-	if stepFinished && cmd.Process != nil {
-		// Give a brief moment for cleanup, then terminate
-		time.Sleep(100 * time.Millisecond)
-		_ = cmd.Process.Signal(os.Interrupt)
-		// Wait briefly for graceful shutdown
-		done := make(chan error, 1)
-		go func() { done <- cmd.Wait() }()
-		select {
-		case <-done:
-			// Process exited gracefully
-		case <-time.After(2 * time.Second):
-			// Force kill if it doesn't exit gracefully
-			_ = cmd.Process.Kill()
-			<-done
-		}
+	// If step finished, kill process group immediately for early exit.
+	// The managed process background goroutine handles cleanup.
+	if stepFinished {
+		mp.Kill()
 	}
 
-	// Wait for command to complete (if not already done above)
-	if !stepFinished {
-		err = cmd.Wait()
-	} else {
+	// Wait for process cleanup (grandchildren killed, exit status collected).
+	waitErr := mp.Wait()
+	if stepFinished {
 		err = nil // Step finished successfully
+	} else {
+		err = waitErr
 	}
 	duration := time.Since(startTime)
 
@@ -380,10 +374,11 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 			}
 		}
 		result.Summary = &domain.RunSummary{
-			Description:  lastAssistantMessage,
-			TurnsUsed:    metrics.TurnsUsed,
-			TokensUsed:   TotalTokens(metrics),
-			CostEstimate: metrics.CostEstimateUSD,
+			Description:   lastAssistantMessage,
+			TurnsUsed:     metrics.TurnsUsed,
+			TokensUsed:    TotalTokens(metrics),
+			CostEstimate:  metrics.CostEstimateUSD,
+			ContextTokens: metrics.TokensInput,
 		}
 	}
 
@@ -563,28 +558,16 @@ func (r *OpenCodeRunner) trackSessionID(runID uuid.UUID, sessionID string) {
 	r.runSessionIDs[runID] = sessionID
 }
 
-// clearSessionID removes the session ID tracking for a run.
-func (r *OpenCodeRunner) clearSessionID(runID uuid.UUID) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	delete(r.runSessionIDs, runID)
-}
-
-// sessionIDForRun returns the session ID for a run, if tracked.
-func (r *OpenCodeRunner) sessionIDForRun(runID uuid.UUID) string {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.runSessionIDs[runID]
-}
-
 // buildArgs constructs command-line arguments for resource-opencode run.
 func (r *OpenCodeRunner) buildArgs(req ExecuteRequest) []string {
 	// resource-opencode run passes through to opencode CLI
 	// Syntax: resource-opencode run run <message> [options]
+	// OpenCode has no native system prompt mechanism, so EffectivePrompt()
+	// prepends SystemPrompt with <system-instructions> tags if present.
 	args := []string{
 		"run", // resource-opencode subcommand
 		"run", // opencode subcommand
-		req.Prompt,
+		req.EffectivePrompt(),
 		"--format", "json", // Enable JSON output for event parsing
 	}
 
@@ -596,12 +579,17 @@ func (r *OpenCodeRunner) buildArgs(req ExecuteRequest) []string {
 		args = append(args, "--model", cfg.Model)
 	}
 
+	// Validated extra flags for this runner
+	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeOpenCode]; ok {
+		args = append(args, extras...)
+	}
+
 	return args
 }
 
 // buildEnv constructs environment variables for resource-opencode run.
 func (r *OpenCodeRunner) buildEnv(req ExecuteRequest) []string {
-	env := os.Environ()
+	env := sanitizedBaseEnv()
 
 	// Non-interactive mode
 	env = append(env, "OPENCODE_NON_INTERACTIVE=true")
@@ -630,11 +618,7 @@ func (r *OpenCodeRunner) buildEnv(req ExecuteRequest) []string {
 	}
 
 	// Add any custom environment from the request
-	for key, value := range req.Environment {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
-	}
-
-	return env
+	return appendEnvMap(env, req.Environment)
 }
 
 // =============================================================================
@@ -811,7 +795,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 		if code == "" {
 			code = "execution_error"
 		}
-		return []*domain.RunEvent{domain.NewErrorEvent(runID, code, streamEvent.Error.Message, false)}, nil
+		return []*domain.RunEvent{domain.NewErrorEvent(runID, code, stripANSI(streamEvent.Error.Message), false)}, nil
 	}
 
 	// Handle events based on top-level type
@@ -823,7 +807,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 	case "text":
 		// Text response from assistant
 		if streamEvent.Part != nil && streamEvent.Part.Text != "" {
-			return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", streamEvent.Part.Text)}, nil
+			return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", stripANSI(streamEvent.Part.Text))}, nil
 		}
 
 	case "tool_call", "tool_use", "tool-call":
@@ -849,10 +833,10 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 
 			// Check if this is a completed tool call (OpenCode sometimes bundles result in same event)
 			if streamEvent.Part.State != nil && streamEvent.Part.State.Status == "completed" {
-				events := []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, input)}
-				output := streamEvent.Part.State.Output
+				events := []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, "", input)}
+				output := stripANSI(streamEvent.Part.State.Output)
 				if output == "" {
-					output = streamEvent.Part.Output
+					output = stripANSI(streamEvent.Part.Output)
 				}
 				toolCallID := streamEvent.Part.CallID
 				var errMsg error
@@ -863,7 +847,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 				return events, nil
 			}
 
-			return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, input)}, nil
+			return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, "", input)}, nil
 		}
 
 	case "tool_result", "tool-result":
@@ -876,16 +860,16 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 			}
 
 			// Get output - prefer part.state.output (actual OpenCode format)
-			output := streamEvent.Part.Output
+			output := stripANSI(streamEvent.Part.Output)
 			if output == "" && streamEvent.Part.State != nil {
-				output = streamEvent.Part.State.Output
+				output = stripANSI(streamEvent.Part.State.Output)
 			}
 
 			toolCallID := streamEvent.Part.CallID
 			var errMsg error
 			events := []*domain.RunEvent{}
 			if streamEvent.Part.State != nil && streamEvent.Part.State.Input != nil {
-				events = append(events, domain.NewToolCallEvent(runID, toolName, streamEvent.Part.State.Input))
+				events = append(events, domain.NewToolCallEvent(runID, toolName, "", streamEvent.Part.State.Input))
 			}
 			if streamEvent.Part.IsError {
 				errMsg = fmt.Errorf("%s", output)
@@ -919,27 +903,27 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 	case "error":
 		// Error event
 		if streamEvent.Part != nil && streamEvent.Part.IsError {
-			return []*domain.RunEvent{domain.NewErrorEvent(runID, "execution_error", streamEvent.Part.Output, false)}, nil
+			return []*domain.RunEvent{domain.NewErrorEvent(runID, "execution_error", stripANSI(streamEvent.Part.Output), false)}, nil
 		}
 
 	case "user_message":
 		// User message echo
 		if streamEvent.Part != nil && streamEvent.Part.Text != "" {
-			return []*domain.RunEvent{domain.NewMessageEvent(runID, "user", streamEvent.Part.Text)}, nil
+			return []*domain.RunEvent{domain.NewMessageEvent(runID, "user", stripANSI(streamEvent.Part.Text))}, nil
 		}
 
 	case "thinking":
 		// Model reasoning/thinking
 		if streamEvent.Part != nil && streamEvent.Part.Text != "" {
-			return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", fmt.Sprintf("Thinking: %s", streamEvent.Part.Text))}, nil
+			return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", fmt.Sprintf("Thinking: %s", stripANSI(streamEvent.Part.Text)))}, nil
 		}
 
 	case "assistant", "response", "message", "assistant_message":
 		// Alternative event types for assistant messages (OpenCode may vary)
 		if streamEvent.Part != nil {
-			text := streamEvent.Part.Text
+			text := stripANSI(streamEvent.Part.Text)
 			if text == "" {
-				text = streamEvent.Part.Output // Fallback to output field
+				text = stripANSI(streamEvent.Part.Output) // Fallback to output field
 			}
 			if text != "" {
 				return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", text)}, nil
@@ -954,7 +938,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 			if streamEvent.Part.Type == "user" {
 				role = "user"
 			}
-			return []*domain.RunEvent{domain.NewMessageEvent(runID, role, streamEvent.Part.Text)}, nil
+			return []*domain.RunEvent{domain.NewMessageEvent(runID, role, stripANSI(streamEvent.Part.Text))}, nil
 		}
 	}
 
@@ -965,7 +949,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 		switch streamEvent.Part.Type {
 		case "text", "assistant":
 			if streamEvent.Part.Text != "" {
-				return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", streamEvent.Part.Text)}, nil
+				return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", stripANSI(streamEvent.Part.Text))}, nil
 			}
 		case "tool", "tool-call", "tool_call", "tool_use":
 			// OpenCode uses part.type="tool" with part.tool for the tool name
@@ -981,11 +965,11 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 			if streamEvent.Part.State != nil && streamEvent.Part.State.Status == "completed" {
 				events := []*domain.RunEvent{}
 				if streamEvent.Part.State.Input != nil {
-					events = append(events, domain.NewToolCallEvent(runID, toolName, streamEvent.Part.State.Input))
+					events = append(events, domain.NewToolCallEvent(runID, toolName, "", streamEvent.Part.State.Input))
 				}
-				output := streamEvent.Part.State.Output
+				output := stripANSI(streamEvent.Part.State.Output)
 				if output == "" {
-					output = streamEvent.Part.Output
+					output = stripANSI(streamEvent.Part.Output)
 				}
 				toolCallID := streamEvent.Part.CallID
 				var errMsg error
@@ -1003,15 +987,15 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 			} else if streamEvent.Part.Input != nil {
 				_ = json.Unmarshal(streamEvent.Part.Input, &input)
 			}
-			return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, input)}, nil
+			return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, "", input)}, nil
 		case "tool-result", "tool_result":
 			toolName := streamEvent.Part.Tool
 			if toolName == "" {
 				toolName = streamEvent.Part.Name
 			}
-			output := streamEvent.Part.Output
+			output := stripANSI(streamEvent.Part.Output)
 			if output == "" && streamEvent.Part.State != nil {
-				output = streamEvent.Part.State.Output
+				output = stripANSI(streamEvent.Part.State.Output)
 			}
 			toolCallID := streamEvent.Part.CallID
 			var errMsg error
@@ -1020,7 +1004,7 @@ func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent O
 			}
 			events := []*domain.RunEvent{}
 			if streamEvent.Part.State != nil && streamEvent.Part.State.Input != nil {
-				events = append(events, domain.NewToolCallEvent(runID, toolName, streamEvent.Part.State.Input))
+				events = append(events, domain.NewToolCallEvent(runID, toolName, "", streamEvent.Part.State.Input))
 			}
 			events = append(events, domain.NewToolResultEvent(runID, toolName, toolCallID, output, errMsg))
 			return events, nil
@@ -1073,15 +1057,15 @@ func (r *OpenCodeRunner) parseStepFinishEvent(runID uuid.UUID, part *OpenCodePar
 func (r *OpenCodeRunner) extractAssistantMessage(runID uuid.UUID, part *OpenCodePart) *domain.RunEvent {
 	// Prefer text or output if available.
 	if part.Text != "" {
-		return domain.NewMessageEvent(runID, "assistant", part.Text)
+		return domain.NewMessageEvent(runID, "assistant", stripANSI(part.Text))
 	}
 	if part.Output != "" {
-		return domain.NewMessageEvent(runID, "assistant", part.Output)
+		return domain.NewMessageEvent(runID, "assistant", stripANSI(part.Output))
 	}
 
 	// Snapshot sometimes contains a hash instead of content.
 	if part.Snapshot != "" && !isLikelyHash(part.Snapshot) {
-		return domain.NewMessageEvent(runID, "assistant", part.Snapshot)
+		return domain.NewMessageEvent(runID, "assistant", stripANSI(part.Snapshot))
 	}
 	return nil
 }
@@ -1223,12 +1207,9 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 	}
 
 	// Set environment
-	env := os.Environ()
+	env := sanitizedBaseEnv()
 	env = append(env, "OPENCODE_NON_INTERACTIVE=true")
-	for key, value := range req.Environment {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
-	}
-	cmd.Env = env
+	cmd.Env = appendEnvMap(env, req.Environment)
 
 	// Track the running command for cancellation
 	r.mu.Lock()
@@ -1240,16 +1221,7 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 		r.mu.Unlock()
 	}()
 
-	// Create pipes for stdout/stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeOpenCode,
-			Operation:  "continue",
-			Cause:      err,
-		}
-	}
-
+	// Create stderr pipe before starting the managed process.
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, &domain.RunnerError{
@@ -1269,14 +1241,18 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 		}
 	}
 
-	// Start command
-	if err := cmd.Start(); err != nil {
+	// Start command with managed process lifecycle.
+	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
+	if err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeOpenCode,
 			Operation:  "continue",
 			Cause:      err,
 		}
 	}
+	defer func() {
+		_ = mp.Wait()
+	}()
 
 	// Close stdin immediately - we pass prompt via command line args
 	stdin.Close()
@@ -1307,11 +1283,12 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 		}
 	}()
 
-	// Parse streaming JSON output
-	scanner := bufio.NewScanner(stdout)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		line := scanner.Text()
+	// Parse streaming JSON output with managed process lifecycle.
+	contScanner := bufio.NewScanner(mp.Stdout())
+	contScanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for contScanner.Scan() {
+		mp.ResetTimer()
+		line := contScanner.Text()
 		if line == "" {
 			continue
 		}
@@ -1358,7 +1335,13 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 		}
 	}
 
-	if scanErr := scanner.Err(); scanErr != nil && req.EventSink != nil {
+	if mp.TimedOut() && req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewLogEvent(
+			req.RunID, "warn",
+			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
+		))
+	}
+	if scanErr := contScanner.Err(); scanErr != nil && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID,
 			"warn",
@@ -1366,25 +1349,17 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 		))
 	}
 
-	// If step finished but process is still running, terminate it gracefully
-	if stepFinished && cmd.Process != nil {
-		time.Sleep(100 * time.Millisecond)
-		_ = cmd.Process.Signal(os.Interrupt)
-		done := make(chan error, 1)
-		go func() { done <- cmd.Wait() }()
-		select {
-		case <-done:
-		case <-time.After(2 * time.Second):
-			_ = cmd.Process.Kill()
-			<-done
-		}
+	// If step finished, kill process group immediately for early exit.
+	if stepFinished {
+		mp.Kill()
 	}
 
-	// Wait for command to complete (if not already done above)
-	if !stepFinished {
-		err = cmd.Wait()
-	} else {
+	// Wait for process cleanup.
+	waitErr := mp.Wait()
+	if stepFinished {
 		err = nil
+	} else {
+		err = waitErr
 	}
 	duration := time.Since(startTime)
 
@@ -1443,10 +1418,11 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 			}
 		}
 		result.Summary = &domain.RunSummary{
-			Description:  lastAssistantMessage,
-			TurnsUsed:    metrics.TurnsUsed,
-			TokensUsed:   TotalTokens(metrics),
-			CostEstimate: metrics.CostEstimateUSD,
+			Description:   lastAssistantMessage,
+			TurnsUsed:     metrics.TurnsUsed,
+			TokensUsed:    TotalTokens(metrics),
+			CostEstimate:  metrics.CostEstimateUSD,
+			ContextTokens: metrics.TokensInput,
 		}
 	}
 

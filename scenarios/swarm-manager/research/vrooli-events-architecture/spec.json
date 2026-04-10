@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "packages/api-core/discovery/**",
+    "packages/proto/schemas/vrooli-events/**",
+    "scenarios/vrooli-events/**",
+    "scenarios/prompt-manager/**"
+  ],
+  "archived_at": "2026-04-09T03:24:45Z",
+  "created": "2026-04-04T22:36:30Z",
+  "description": "Audit current discovery package (packages/api-core/discovery/resolve.go) and design the vrooli-events architecture. Covers: structured event ID scheme ({scenario}.{domain}.{action}.{version}), event envelope proto contract, policy model (access control, rate limiting, circuit breaking), dual-end policy cache strategy (sender-side in discovery package, receiver-side middleware), SSE pub/sub protocol for event subscriptions and policy push, SQLite event store schema with configurable retention window and size-based pruning, fire-and-forget emission pattern that adds zero latency to inter-scenario calls. Deliverable: architecture doc + proto schema draft in packages/proto/schemas/vrooli-events/v1/.",
+  "effort": "M",
+  "initiative": "vrooli-events",
+  "kind": "research",
+  "name": "vrooli-events-architecture",
+  "priority": 1,
+  "status": "completed",
+  "tags": [],
+  "title": "Design The Event Bus Architecture And Policy Model",
+  "updated": "2026-04-09T03:24:45Z"
+}

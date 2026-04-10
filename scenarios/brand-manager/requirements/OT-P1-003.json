@@ -1,0 +1,81 @@
+{
+  "_metadata": {
+    "description": "UI Wizard domain - brand creation wizard, generation UI, and application preview",
+    "domain": "ui-wizard",
+    "last_updated": "2026-03-26"
+  },
+  "requirements": [
+    {
+      "id": "BM-REQ-UI-CREATE",
+      "category": "ui-wizard",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Brand creation/editing wizard",
+      "description": "Brand creation/editing wizard with live preview",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/brands_test.go:TestCreateBrandEndpoint",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests brand creation API that the wizard form submits to"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/brands_test.go:TestUpdateBrandEndpoint",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests brand update API for edit mode of wizard"
+        }
+      ]
+    },
+    {
+      "id": "BM-REQ-UI-GENERATE",
+      "category": "ui-wizard",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Generation option selection UI",
+      "description": "Generation option selection and refinement UI",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/scanner_plugin_test.go:TestGenerateOptions",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests GET /brands/generate/options returns providers and elements"
+        },
+        {
+          "type": "component",
+          "ref": "ui/src/components/generate-options.tsx",
+          "phase": "ui",
+          "status": "implemented",
+          "notes": "GenerateOptions component shows available providers with capabilities"
+        }
+      ]
+    },
+    {
+      "id": "BM-REQ-UI-APPLY",
+      "category": "ui-wizard",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Application preview before committing",
+      "description": "Application preview before committing changes",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/scanner_plugin_test.go:TestApplyPreview",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests POST /brands/{id}/apply/preview returns dry-run results"
+        },
+        {
+          "type": "component",
+          "ref": "ui/src/components/apply-preview.tsx",
+          "phase": "ui",
+          "status": "implemented",
+          "notes": "ApplyPreview component shows what files will change before committing"
+        }
+      ]
+    }
+  ]
+}

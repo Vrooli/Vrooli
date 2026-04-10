@@ -1,0 +1,48 @@
+:root {
+  color-scheme: dark;
+
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --color-text-primary: 248 250 252;
+  --color-text-muted: 148 163 184;
+  --color-text-inverse: 15 23 42;
+  --color-text-danger: 248 113 113;
+
+  --color-surface-base: 2 6 23;
+  --color-surface-elevated: 15 23 42;
+  --color-surface-overlay: 30 41 59;
+
+  --color-border-default: 51 65 85;
+  --color-border-subtle: 255 255 255;
+  --color-border-strong: 71 85 105;
+
+  --color-accent-primary: 59 130 246;
+  --color-accent-success: 16 185 129;
+  --color-accent-warning: 245 158 11;
+  --color-accent-danger: 239 68 68;
+
+  --color-status-ok: 16 185 129;
+  --color-status-warning: 245 158 11;
+  --color-status-critical: 239 68 68;
+
+  --color-mermaid-node-bg: 30 41 59;
+  --color-mermaid-cluster-bg: 15 23 42;
+  --color-mermaid-line: 148 163 184;
+  --color-mermaid-border: 51 65 85;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-pill: 9999px;
+
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+
+  --shadow-panel: 0 12px 40px rgba(2, 6, 23, 0.4);
+
+  --motion-fast: 150ms;
+  --motion-normal: 250ms;
+  --motion-slow: 350ms;
+}

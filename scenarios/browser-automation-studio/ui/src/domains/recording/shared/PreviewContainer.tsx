@@ -251,6 +251,7 @@ export function PreviewContainer({
 
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
+      if (!entry) return;
       const width = entry.contentRect.width;
       const height = entry.contentRect.height;
       if (width <= 0 || height <= 0) return;

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"io/fs"
-	"os"
 	"time"
 
 	"test-genie/internal/requirements/enrichment"
@@ -13,27 +12,15 @@ import (
 	"test-genie/internal/requirements/types"
 )
 
-// Writer abstracts file writing operations.
-type Writer interface {
-	WriteFile(path string, data []byte, perm fs.FileMode) error
-	MkdirAll(path string, perm fs.FileMode) error
-}
-
-// osWriter implements Writer using the os package.
-type osWriter struct{}
-
-func (w *osWriter) WriteFile(path string, data []byte, perm fs.FileMode) error {
-	return os.WriteFile(path, data, perm)
-}
-
-func (w *osWriter) MkdirAll(path string, perm fs.FileMode) error {
-	return os.MkdirAll(path, perm)
-}
-
 // Builder builds requirement snapshots.
 type Builder interface {
 	// Build creates a snapshot from the current state.
 	Build(ctx context.Context, index *parsing.ModuleIndex, summary enrichment.Summary) (*Snapshot, error)
+}
+
+// Writer is the minimal file-writing surface needed to persist snapshots.
+type Writer interface {
+	WriteFile(path string, data []byte, perm fs.FileMode) error
 }
 
 // Snapshot represents a point-in-time view of requirements.

@@ -1,0 +1,109 @@
+{
+  "description": "Register existing scenarios as references, storing which template they are based on. Support CRUD operations via API and CLI. Persist to PostgreSQL.",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Design and implement PostgreSQL schema for storing reference scenarios with template associations and metadata",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "implemented",
+      "title": "Reference Scenario Database Schema",
+      "validation": [
+        {
+          "notes": "Schema migrations execute successfully",
+          "phase": "unit",
+          "ref": "api/infrastructure/postgres/reference_repo_test.go",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "CRUD operations validate data constraints",
+          "phase": "unit",
+          "ref": "api/domain/reference/service_test.go",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Database connections handle concurrent operations",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Query execution time <100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Schema validation tests verify all required tables, columns, indexes, and constraints",
+          "phase": "unit",
+          "ref": "api/infrastructure/postgres/schema_test.go",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Implement REST API endpoints for CRUD operations on reference scenarios",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-001",
+      "status": "implemented",
+      "title": "Reference Scenario API Endpoints",
+      "validation": [
+        {
+          "notes": "All endpoints return correct status codes",
+          "phase": "unit",
+          "ref": "api/handlers/reference_test.go",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Input validation handles edge cases",
+          "phase": "unit",
+          "ref": "api/domain/reference/service_test.go",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "API authentication works correctly",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Database operations succeed",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "API response time <200ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All CRUD operations available via API",
+          "phase": "business",
+          "ref": "api/handlers/reference_test.go",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Reference Scenario Registry"
+}

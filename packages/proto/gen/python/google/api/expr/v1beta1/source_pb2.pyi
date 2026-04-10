@@ -7,9 +7,9 @@ from typing import ClassVar as _ClassVar, Optional as _Optional
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class SourceInfo(_message.Message):
-    __slots__ = ()
+    __slots__ = ("location", "line_offsets", "positions")
     class PositionsEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: int
@@ -24,7 +24,7 @@ class SourceInfo(_message.Message):
     def __init__(self, location: _Optional[str] = ..., line_offsets: _Optional[_Iterable[int]] = ..., positions: _Optional[_Mapping[int, int]] = ...) -> None: ...
 
 class SourcePosition(_message.Message):
-    __slots__ = ()
+    __slots__ = ("location", "offset", "line", "column")
     LOCATION_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
     LINE_FIELD_NUMBER: _ClassVar[int]

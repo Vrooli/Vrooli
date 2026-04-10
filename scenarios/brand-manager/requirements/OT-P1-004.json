@@ -1,0 +1,47 @@
+{
+  "_metadata": {
+    "description": "Dark/Light Theme Preview domain - theme mode preview support",
+    "domain": "theme-preview",
+    "last_updated": "2026-03-26"
+  },
+  "requirements": [
+    {
+      "id": "BM-REQ-UI-THEME",
+      "category": "theme-preview",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Dark and light theme preview",
+      "description": "Preview brand in both dark and light theme modes",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/scanner_plugin_test.go:TestThemePreview_LightMode",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests GET /brands/{id}/theme-preview returns CSS tokens for light mode"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/scanner_plugin_test.go:TestThemePreview_DarkMode",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests dark mode inverts background/text colors"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/scanner_plugin_test.go:TestThemePreview_BrandNotFound",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests 404 for nonexistent brand"
+        },
+        {
+          "type": "component",
+          "ref": "ui/src/components/theme-preview.tsx",
+          "phase": "ui",
+          "status": "implemented",
+          "notes": "ThemePreview component with light/dark toggle and live CSS preview"
+        }
+      ]
+    }
+  ]
+}

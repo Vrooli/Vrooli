@@ -1,4 +1,9 @@
-import { createTypedInstruction, createMockPage, createTestConfig } from '../../helpers';
+import {
+  createTypedInstruction,
+  createMockPage,
+  createMockContext,
+  createTestConfig,
+} from '../../helpers';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
 
@@ -10,7 +15,7 @@ describe('UploadHandler', () => {
 
   beforeEach(async () => {
     jest.resetModules();
-    (jest as any).unstable_mockModule('fs/promises', () => ({
+    jest.doMock('fs/promises', () => ({
       access: jest.fn().mockResolvedValue(undefined),
     }));
 
@@ -20,7 +25,7 @@ describe('UploadHandler', () => {
     mockPage = createMockPage();
     context = {
       page: mockPage,
-      context: {} as any,
+      browserContext: createMockContext(),
       config: createTestConfig(),
       logger,
       metrics,
@@ -36,7 +41,10 @@ describe('UploadHandler', () => {
 
     const result = await handler.execute(instruction, context);
 
-    expect(mockPage.setInputFiles).toHaveBeenCalledWith('#file-input', '/path/to/file.txt', { timeout: 30000 });
+    const [selector, files, options] = mockPage.setInputFiles.mock.calls[0] ?? [];
+    expect(selector).toBe('#file-input');
+    expect(files).toBe('/path/to/file.txt');
+    expect(options).toEqual({ timeout: 30000 });
     expect(result.success).toBe(true);
   });
 
@@ -48,7 +56,10 @@ describe('UploadHandler', () => {
 
     const result = await handler.execute(instruction, context);
 
-    expect(mockPage.setInputFiles).toHaveBeenCalledWith('#file-input', ['/file1.txt', '/file2.txt'], { timeout: 30000 });
+    const [selector, files, options] = mockPage.setInputFiles.mock.calls[0] ?? [];
+    expect(selector).toBe('#file-input');
+    expect(files).toEqual(['/file1.txt', '/file2.txt']);
+    expect(options).toEqual({ timeout: 30000 });
     expect(result.success).toBe(true);
   });
 });

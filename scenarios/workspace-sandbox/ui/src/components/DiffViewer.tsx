@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   FileDiff,
   FilePlus,
@@ -15,9 +15,16 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
-import { Button } from "./ui/button";
-import type { DiffResult, FileChange, ChangeType } from "../lib/api";
+import { ViewModeSelector } from "./ViewModeSelector";
+import type { DiffResult, FileChange, ChangeType, ViewMode, AnnotatedLine } from "../lib/api";
+import { splitPath } from "../lib/utils";
 import { SELECTORS } from "../consts/selectors";
+import {
+  highlightCode,
+  getLanguageFromPath,
+  type HighlightToken,
+  type HighlightedLine,
+} from "../lib/highlighter";
 
 // Hunk selection type for approval workflow
 export interface HunkSelection {
@@ -35,10 +42,21 @@ interface DiffViewerProps {
   onApproveFile?: (fileId: string) => void;
   onRejectFile?: (fileId: string) => void;
   showFileActions?: boolean;
+  // File-level selection props for partial approval
+  showFileSelection?: boolean;
+  selectedFiles?: string[];
+  onFileSelectionChange?: (fileIds: string[]) => void;
   // Hunk-level selection props [OT-P1-001]
   showHunkSelection?: boolean;
   selectedHunks?: HunkSelection[];
   onHunkSelectionChange?: (hunks: HunkSelection[]) => void;
+  // View mode props
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
+  /** Callback for empty-state CTA (e.g. navigate to sandbox list on mobile) */
+  onEmptyAction?: () => void;
+  /** Label for the empty-state CTA button */
+  emptyActionLabel?: string;
 }
 
 interface ParsedHunk {
@@ -149,7 +167,6 @@ function parseUnifiedDiff(diff: string): ParsedFileDiff[] {
 function DiffLine({ line }: { line: string }) {
   const isAddition = line.startsWith("+");
   const isDeletion = line.startsWith("-");
-  const isContext = !isAddition && !isDeletion;
 
   let bgColor = "";
   let textColor = "text-slate-300";
@@ -170,6 +187,173 @@ function DiffLine({ line }: { line: string }) {
       <pre className={`flex-1 px-2 py-0.5 whitespace-pre overflow-x-auto ${textColor}`}>
         {line.slice(1) || " "}
       </pre>
+    </div>
+  );
+}
+
+// Hook for async syntax highlighting
+function useHighlighting(content: string | undefined, filePath: string | undefined) {
+  const [highlightedLines, setHighlightedLines] = useState<HighlightedLine[] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!content || !filePath) {
+      setHighlightedLines(null);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoading(true);
+
+    const language = getLanguageFromPath(filePath);
+    highlightCode(content, language)
+      .then((lines) => {
+        if (!cancelled) {
+          setHighlightedLines(lines);
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHighlightedLines(null);
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [content, filePath]);
+
+  return { highlightedLines, isLoading };
+}
+
+// Renders syntax-highlighted tokens
+function HighlightedTokens({ tokens }: { tokens: HighlightToken[] }) {
+  return (
+    <>
+      {tokens.map((token, i) => (
+        <span
+          key={i}
+          style={{ color: token.color }}
+          className={token.fontStyle === "italic" ? "italic" : token.fontStyle === "bold" ? "font-bold" : ""}
+        >
+          {token.content}
+        </span>
+      ))}
+    </>
+  );
+}
+
+// Renders a single line with syntax highlighting and optional change marker
+interface HighlightedCodeLineProps {
+  lineNumber: number;
+  tokens?: HighlightToken[];
+  content: string;
+  change?: "" | "added" | "deleted";
+  showChangeMarker?: boolean;
+}
+
+function HighlightedCodeLine({
+  lineNumber,
+  tokens,
+  content,
+  change,
+  showChangeMarker = false,
+}: HighlightedCodeLineProps) {
+  let bgColor = "";
+  let markerColor = "text-slate-600";
+
+  if (change === "added") {
+    bgColor = "bg-emerald-950/30";
+    markerColor = "text-emerald-400";
+  } else if (change === "deleted") {
+    bgColor = "bg-red-950/30";
+    markerColor = "text-red-400";
+  }
+
+  return (
+    <div className={`flex font-mono text-xs ${bgColor}`} data-testid={SELECTORS.diffLine}>
+      {showChangeMarker && (
+        <span className={`w-6 flex-shrink-0 text-center select-none ${markerColor}`}>
+          {change === "added" ? "+" : change === "deleted" ? "-" : " "}
+        </span>
+      )}
+      <span className="w-10 flex-shrink-0 text-right pr-2 text-slate-600 select-none">
+        {lineNumber > 0 ? lineNumber : ""}
+      </span>
+      <pre className="flex-1 px-2 py-0.5 whitespace-pre overflow-x-auto text-slate-300">
+        {tokens ? <HighlightedTokens tokens={tokens} /> : content || " "}
+      </pre>
+    </div>
+  );
+}
+
+// Full file view with change annotations (full_diff mode)
+interface FullFileViewProps {
+  annotatedLines: AnnotatedLine[];
+  highlightedLines: HighlightedLine[] | null;
+  filePath: string;
+}
+
+function FullFileView({ annotatedLines, highlightedLines, filePath: _filePath }: FullFileViewProps) {
+  // Create a map from line number to highlighted tokens
+  const highlightMap = useMemo(() => {
+    if (!highlightedLines) return new Map<number, HighlightToken[]>();
+    const map = new Map<number, HighlightToken[]>();
+    highlightedLines.forEach((line) => {
+      map.set(line.lineNumber, line.tokens);
+    });
+    return map;
+  }, [highlightedLines]);
+
+  return (
+    <div data-testid="full-file-content">
+      {annotatedLines.map((line, index) => (
+        <HighlightedCodeLine
+          key={index}
+          lineNumber={line.number}
+          tokens={line.number > 0 ? highlightMap.get(line.number) : undefined}
+          content={line.content}
+          change={line.change || ""}
+          showChangeMarker={true}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Source view - clean file content without change markers (source mode)
+interface SourceViewProps {
+  content: string;
+  highlightedLines: HighlightedLine[] | null;
+  filePath: string;
+}
+
+function SourceView({ content, highlightedLines, filePath: _filePath }: SourceViewProps) {
+  const lines = useMemo(() => content.split("\n"), [content]);
+
+  // Create a map from line number to highlighted tokens
+  const highlightMap = useMemo(() => {
+    if (!highlightedLines) return new Map<number, HighlightToken[]>();
+    const map = new Map<number, HighlightToken[]>();
+    highlightedLines.forEach((line) => {
+      map.set(line.lineNumber, line.tokens);
+    });
+    return map;
+  }, [highlightedLines]);
+
+  return (
+    <div data-testid="source-content">
+      {lines.map((line, index) => (
+        <HighlightedCodeLine
+          key={index}
+          lineNumber={index + 1}
+          tokens={highlightMap.get(index + 1)}
+          content={line}
+          showChangeMarker={false}
+        />
+      ))}
     </div>
   );
 }
@@ -223,10 +407,19 @@ interface FileDiffSectionProps {
   onApprove?: () => void;
   onReject?: () => void;
   showActions?: boolean;
+  // File-level selection props
+  showFileSelection?: boolean;
+  isFileSelected?: boolean;
+  isFileIndeterminate?: boolean;
+  onToggleFileSelection?: () => void;
   // Hunk selection props [OT-P1-001]
   showHunkSelection?: boolean;
   selectedHunkIndices?: Set<number>;
   onToggleHunkSelection?: (hunkIndex: number, hunk: ParsedHunk) => void;
+  // View mode props
+  viewMode?: ViewMode;
+  fullContent?: string;
+  annotatedLines?: AnnotatedLine[];
 }
 
 function FileDiffSection({
@@ -235,11 +428,32 @@ function FileDiffSection({
   onApprove,
   onReject,
   showActions,
+  showFileSelection,
+  isFileSelected,
+  isFileIndeterminate,
+  onToggleFileSelection,
   showHunkSelection,
   selectedHunkIndices,
   onToggleHunkSelection,
+  viewMode = "diff",
+  fullContent,
+  annotatedLines,
 }: FileDiffSectionProps) {
   const [expanded, setExpanded] = useState(true);
+  const fileCheckboxRef = useRef<HTMLInputElement>(null);
+
+  // Get syntax highlighting for full_diff and source modes
+  const { highlightedLines } = useHighlighting(
+    viewMode !== "diff" ? fullContent : undefined,
+    viewMode !== "diff" ? file.path : undefined
+  );
+
+  // Set indeterminate state on checkbox (can't be set via attribute)
+  useEffect(() => {
+    if (fileCheckboxRef.current) {
+      fileCheckboxRef.current.indeterminate = isFileIndeterminate ?? false;
+    }
+  }, [isFileIndeterminate]);
 
   const changeIcon = {
     added: <FilePlus className="h-4 w-4 text-emerald-400" />,
@@ -285,15 +499,36 @@ function FileDiffSection({
         className="flex items-center gap-2 px-3 py-2 bg-slate-800/30 cursor-pointer hover:bg-slate-800/50 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
+        {/* File-level selection checkbox */}
+        {showFileSelection && (
+          <label
+            className="flex items-center cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+            data-testid={`file-checkbox-${fileChange?.id || file.path}`}
+          >
+            <input
+              ref={fileCheckboxRef}
+              type="checkbox"
+              checked={isFileSelected}
+              onChange={onToggleFileSelection}
+              className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
+            />
+          </label>
+        )}
         {expanded ? (
           <ChevronDown className="h-4 w-4 text-slate-500" />
         ) : (
           <ChevronRight className="h-4 w-4 text-slate-500" />
         )}
         {changeIcon[file.changeType]}
-        <span className="font-mono text-xs text-slate-200 flex-1 truncate">
-          {file.path}
-        </span>
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="font-mono text-xs text-slate-200 truncate" data-testid="diff-file-name">
+            {splitPath(file.path).file}
+          </span>
+          <span className="font-mono text-[10px] text-slate-500 truncate" data-testid="diff-file-dir">
+            {splitPath(file.path).dir}
+          </span>
+        </div>
 
         {/* Show hunk selection count when in selection mode */}
         {showHunkSelection && totalHunks > 0 && (
@@ -347,27 +582,59 @@ function FileDiffSection({
       {/* File content */}
       {expanded && (
         <div data-testid={SELECTORS.diffContent}>
-          {file.hunks.map((hunk, index) => (
-            <HunkDisplay
-              key={index}
-              hunk={hunk}
-              index={index}
-              showSelection={showHunkSelection}
-              isSelected={selectedHunkIndices?.has(index)}
-              onToggleSelection={
-                onToggleHunkSelection
-                  ? () => onToggleHunkSelection(index, hunk)
-                  : undefined
-              }
+          {/* Diff mode - show hunks */}
+          {viewMode === "diff" && (
+            <>
+              {file.hunks.map((hunk, index) => (
+                <HunkDisplay
+                  key={index}
+                  hunk={hunk}
+                  index={index}
+                  showSelection={showHunkSelection}
+                  isSelected={selectedHunkIndices?.has(index)}
+                  onToggleSelection={
+                    onToggleHunkSelection
+                      ? () => onToggleHunkSelection(index, hunk)
+                      : undefined
+                  }
+                />
+              ))}
+              {file.hunks.length === 0 && (
+                <div className="px-3 py-4 text-xs text-slate-500 text-center">
+                  {file.changeType === "added"
+                    ? "New empty file"
+                    : file.changeType === "deleted"
+                    ? "File deleted"
+                    : "No changes in this file"}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Full diff mode - show full file with change annotations */}
+          {viewMode === "full_diff" && annotatedLines && (
+            <FullFileView
+              annotatedLines={annotatedLines}
+              highlightedLines={highlightedLines}
+              filePath={file.path}
             />
-          ))}
-          {file.hunks.length === 0 && (
+          )}
+
+          {/* Source mode - show clean file content */}
+          {viewMode === "source" && fullContent && (
+            <SourceView
+              content={fullContent}
+              highlightedLines={highlightedLines}
+              filePath={file.path}
+            />
+          )}
+
+          {/* No content available for non-diff modes */}
+          {viewMode !== "diff" && !fullContent && !annotatedLines && (
             <div className="px-3 py-4 text-xs text-slate-500 text-center">
-              {file.changeType === "added"
-                ? "New empty file"
-                : file.changeType === "deleted"
-                ? "File deleted"
-                : "No changes in this file"}
+              {file.changeType === "deleted"
+                ? "File was deleted"
+                : "Content not available (binary file?)"}
             </div>
           )}
         </div>
@@ -383,9 +650,16 @@ export function DiffViewer({
   onApproveFile,
   onRejectFile,
   showFileActions = false,
+  showFileSelection = false,
+  selectedFiles = [],
+  onFileSelectionChange,
   showHunkSelection = false,
   selectedHunks = [],
   onHunkSelectionChange,
+  viewMode = "diff",
+  onViewModeChange,
+  onEmptyAction,
+  emptyActionLabel,
 }: DiffViewerProps) {
   // Parse the unified diff
   const parsedFiles = useMemo(() => {
@@ -404,6 +678,9 @@ export function DiffViewer({
     return map;
   }, [diff?.files]);
 
+  // Build a set of selected file IDs for quick lookup
+  const selectedFileSet = useMemo(() => new Set(selectedFiles), [selectedFiles]);
+
   // Build a map of file path -> set of selected hunk indices [OT-P1-001]
   const selectedHunksByFile = useMemo(() => {
     const map = new Map<string, Set<number>>();
@@ -415,9 +692,45 @@ export function DiffViewer({
     return map;
   }, [selectedHunks]);
 
-  // Handle toggling hunk selection
-  const handleToggleHunk = (filePath: string, fileId: string, hunkIndex: number, hunk: ParsedHunk) => {
-    if (!onHunkSelectionChange) return;
+  // Handle toggling file selection - also selects/deselects all hunks
+  const handleToggleFile = (filePath: string, fileId: string, hunks: ParsedHunk[]) => {
+    if (!onFileSelectionChange || !onHunkSelectionChange) return;
+
+    const currentHunkSelection = selectedHunksByFile.get(filePath);
+    const selectedCount = currentHunkSelection?.size ?? 0;
+    const totalHunks = hunks.length;
+
+    // If all hunks selected (or file is selected), deselect all
+    // If no hunks or partial, select all
+    const shouldSelectAll = selectedCount < totalHunks;
+
+    if (shouldSelectAll) {
+      // Add file to selection
+      if (!selectedFileSet.has(fileId)) {
+        onFileSelectionChange([...selectedFiles, fileId]);
+      }
+      // Add all hunks that aren't already selected
+      const hunksToAdd = hunks
+        .map((hunk, index) => ({
+          fileId,
+          filePath,
+          startLine: hunk.newStart,
+          endLine: hunk.newStart + hunk.newCount - 1,
+          hunkIndex: index,
+        }))
+        .filter((h) => !currentHunkSelection?.has(h.hunkIndex));
+      onHunkSelectionChange([...selectedHunks, ...hunksToAdd]);
+    } else {
+      // Remove file from selection
+      onFileSelectionChange(selectedFiles.filter((id) => id !== fileId));
+      // Remove all hunks for this file
+      onHunkSelectionChange(selectedHunks.filter((h) => h.filePath !== filePath));
+    }
+  };
+
+  // Handle toggling hunk selection - also updates file selection when all hunks selected/deselected
+  const handleToggleHunk = (filePath: string, fileId: string, hunkIndex: number, hunk: ParsedHunk, totalHunks: number) => {
+    if (!onHunkSelectionChange || !onFileSelectionChange) return;
 
     const isCurrentlySelected = selectedHunks.some(
       (s) => s.filePath === filePath && s.hunkIndex === hunkIndex
@@ -425,14 +738,19 @@ export function DiffViewer({
 
     if (isCurrentlySelected) {
       // Remove this hunk from selection
-      onHunkSelectionChange(
-        selectedHunks.filter(
-          (s) => !(s.filePath === filePath && s.hunkIndex === hunkIndex)
-        )
+      const newHunkSelection = selectedHunks.filter(
+        (s) => !(s.filePath === filePath && s.hunkIndex === hunkIndex)
       );
+      onHunkSelectionChange(newHunkSelection);
+
+      // If no more hunks selected for this file, also remove file from selection
+      const remainingHunksForFile = newHunkSelection.filter((h) => h.filePath === filePath);
+      if (remainingHunksForFile.length === 0 && selectedFileSet.has(fileId)) {
+        onFileSelectionChange(selectedFiles.filter((id) => id !== fileId));
+      }
     } else {
       // Add this hunk to selection
-      onHunkSelectionChange([
+      const newHunkSelection = [
         ...selectedHunks,
         {
           fileId,
@@ -441,7 +759,14 @@ export function DiffViewer({
           endLine: hunk.newStart + hunk.newCount - 1,
           hunkIndex,
         },
-      ]);
+      ];
+      onHunkSelectionChange(newHunkSelection);
+
+      // If all hunks now selected, also add file to selection
+      const newHunksForFile = newHunkSelection.filter((h) => h.filePath === filePath);
+      if (newHunksForFile.length === totalHunks && !selectedFileSet.has(fileId)) {
+        onFileSelectionChange([...selectedFiles, fileId]);
+      }
     }
   };
 
@@ -455,21 +780,87 @@ export function DiffViewer({
           Changes
         </CardTitle>
 
+        <div className="flex items-center gap-3">
+          {/* View mode selector */}
+          {onViewModeChange && diff && hasChanges && (
+            <ViewModeSelector
+              mode={viewMode}
+              onChange={onViewModeChange}
+              disabled={showHunkSelection}
+              compact={true}
+            />
+          )}
+
         {diff && hasChanges && (
-          <div className="flex items-center gap-3" data-testid={SELECTORS.diffStats}>
-            <span className="flex items-center gap-1 text-xs text-emerald-500">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3" data-testid={SELECTORS.diffStats}>
+            {/* Bulk select controls */}
+            {showFileSelection && diff.files && diff.files.length > 0 && (
+              <>
+                <button
+                  className="text-xs text-slate-400 hover:text-slate-200 transition-colors px-2 py-1 rounded hover:bg-slate-800"
+                  onClick={() => {
+                    if (!onFileSelectionChange || !onHunkSelectionChange || !diff.files) return;
+                    const allFileIds = diff.files.map((f) => f.id);
+                    // Check if all hunks are selected (fully selected state)
+                    const totalHunks = parsedFiles.reduce((sum, f) => sum + f.hunks.length, 0);
+                    const isAllSelected = selectedHunks.length === totalHunks && totalHunks > 0;
+
+                    if (isAllSelected) {
+                      // Deselect all files and hunks
+                      onFileSelectionChange([]);
+                      onHunkSelectionChange([]);
+                    } else {
+                      // Select all files and all hunks
+                      onFileSelectionChange(allFileIds);
+                      const allHunks: HunkSelection[] = [];
+                      parsedFiles.forEach((file) => {
+                        const fileChange = fileChangeMap.get(file.path);
+                        const fileId = fileChange?.id ?? "";
+                        file.hunks.forEach((hunk, index) => {
+                          allHunks.push({
+                            fileId,
+                            filePath: file.path,
+                            startLine: hunk.newStart,
+                            endLine: hunk.newStart + hunk.newCount - 1,
+                            hunkIndex: index,
+                          });
+                        });
+                      });
+                      onHunkSelectionChange(allHunks);
+                    }
+                  }}
+                  data-testid="select-all-button"
+                >
+                  {(() => {
+                    const totalHunks = parsedFiles.reduce((sum, f) => sum + f.hunks.length, 0);
+                    return selectedHunks.length === totalHunks && totalHunks > 0
+                      ? "Deselect All"
+                      : "Select All";
+                  })()}
+                </button>
+                {selectedHunks.length > 0 && (
+                  <span className="text-xs text-emerald-500">
+                    {selectedHunks.length} hunks selected
+                  </span>
+                )}
+                <span className="text-slate-700">|</span>
+              </>
+            )}
+            {/* R5: Compact stats that don't clip on narrow screens */}
+            <span className="flex items-center gap-1 text-xs text-emerald-500 whitespace-nowrap">
               <Plus className="h-3 w-3" />
               {diff.totalAdded}
             </span>
-            <span className="flex items-center gap-1 text-xs text-red-500">
+            <span className="flex items-center gap-1 text-xs text-red-500 whitespace-nowrap">
               <Minus className="h-3 w-3" />
               {diff.totalDeleted}
             </span>
-            <span className="text-xs text-slate-500">
-              {diff.files?.length || parsedFiles.length} file(s)
+            <span className="text-xs text-slate-500 whitespace-nowrap">
+              {diff.files?.length || parsedFiles.length} files
             </span>
           </div>
         )}
+        </div>
       </CardHeader>
 
       <CardContent className="flex-1 p-0 overflow-hidden">
@@ -507,6 +898,16 @@ export function DiffViewer({
               <p className="text-xs text-slate-500 mt-1">
                 Click on a sandbox from the list
               </p>
+              {onEmptyAction && (
+                <button
+                  type="button"
+                  onClick={onEmptyAction}
+                  className="mt-4 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+                  data-testid="diff-empty-action"
+                >
+                  {emptyActionLabel ?? "Go to Sandboxes"}
+                </button>
+              )}
             </div>
           )}
 
@@ -516,6 +917,14 @@ export function DiffViewer({
               {parsedFiles.map((file) => {
                 const fileChange = fileChangeMap.get(file.path);
                 const fileId = fileChange?.id ?? "";
+                const totalHunks = file.hunks.length;
+                const selectedHunkCount = selectedHunksByFile.get(file.path)?.size ?? 0;
+                // File is fully selected if all hunks are selected
+                const isFileFullySelected = totalHunks > 0 && selectedHunkCount === totalHunks;
+                // File is indeterminate if some (but not all) hunks are selected
+                const isFileIndeterminate = selectedHunkCount > 0 && selectedHunkCount < totalHunks;
+                // Get file content for non-diff view modes
+                const fileViewData = diff.fileContents?.[file.path];
                 return (
                   <FileDiffSection
                     key={file.path}
@@ -532,14 +941,27 @@ export function DiffViewer({
                         ? () => onRejectFile(fileChange.id)
                         : undefined
                     }
+                    // File selection props
+                    showFileSelection={showFileSelection}
+                    isFileSelected={isFileFullySelected}
+                    isFileIndeterminate={isFileIndeterminate}
+                    onToggleFileSelection={
+                      onFileSelectionChange && onHunkSelectionChange
+                        ? () => handleToggleFile(file.path, fileId, file.hunks)
+                        : undefined
+                    }
                     // Hunk selection props [OT-P1-001]
                     showHunkSelection={showHunkSelection}
                     selectedHunkIndices={selectedHunksByFile.get(file.path)}
                     onToggleHunkSelection={
-                      onHunkSelectionChange
-                        ? (hunkIndex, hunk) => handleToggleHunk(file.path, fileId, hunkIndex, hunk)
+                      onHunkSelectionChange && onFileSelectionChange
+                        ? (hunkIndex, hunk) => handleToggleHunk(file.path, fileId, hunkIndex, hunk, totalHunks)
                         : undefined
                     }
+                    // View mode props
+                    viewMode={viewMode}
+                    fullContent={fileViewData?.fullContent}
+                    annotatedLines={fileViewData?.annotatedLines}
                   />
                 );
               })}

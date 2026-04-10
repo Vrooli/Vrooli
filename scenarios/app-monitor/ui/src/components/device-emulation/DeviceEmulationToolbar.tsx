@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import type { ChangeEvent } from 'react';
+import clsx from 'clsx';
 import { Eye, MonitorSmartphone, Palette, RotateCcw, Undo2, ZoomIn } from 'lucide-react';
 import type {
   DeviceEmulationToolbarBindings,
@@ -8,6 +9,7 @@ import type {
   DeviceColorScheme,
   DeviceZoomLevel,
 } from '@/hooks/useDeviceEmulation';
+import './deviceEmulation.css';
 
 const DeviceEmulationToolbar = ({
   presets,
@@ -19,8 +21,10 @@ const DeviceEmulationToolbar = ({
   colorScheme,
   vision,
   isResponsive,
+  isViewportActive,
   maxResponsiveWidth,
   maxResponsiveHeight,
+  onToggleViewportActive,
   onPresetChange,
   onDimensionChange,
   onZoomChange,
@@ -72,13 +76,25 @@ const DeviceEmulationToolbar = ({
 
   return (
     <div className="device-emulation-toolbar" role="group" aria-label="Device emulation controls">
-      <label className="device-emulation-toolbar__control" htmlFor={presetSelectId}>
+      <button
+        type="button"
+        className={clsx(
+          'device-emulation-toolbar__icon-btn',
+          isViewportActive && 'device-emulation-toolbar__icon-btn--active',
+        )}
+        onClick={onToggleViewportActive}
+        aria-label={isViewportActive ? 'Disable device viewport' : 'Enable device viewport'}
+        title={isViewportActive ? 'Disable device viewport' : 'Enable device viewport'}
+      >
         <MonitorSmartphone aria-hidden size={14} />
+      </button>
+      {isViewportActive && (
         <select
           id={presetSelectId}
           value={selectedPresetId}
           onChange={handlePresetChange}
           className="device-emulation-toolbar__select"
+          aria-label="Device preset"
         >
           {presets.map(preset => (
             <option key={preset.id} value={preset.id}>
@@ -86,7 +102,7 @@ const DeviceEmulationToolbar = ({
             </option>
           ))}
         </select>
-      </label>
+      )}
       <div className="device-emulation-toolbar__dimensions" aria-live="polite">
         <label className="device-emulation-toolbar__dimensions-input" htmlFor={widthInputId}>
           <input

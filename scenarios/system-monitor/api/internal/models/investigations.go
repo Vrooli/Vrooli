@@ -4,6 +4,26 @@ import (
 	"time"
 )
 
+// Investigation status constants — canonical lowercase values sent over the API.
+const (
+	StatusQueued     = "queued"
+	StatusInProgress = "in_progress"
+	StatusCompleted  = "completed"
+	StatusFailed     = "failed"
+	StatusStopped    = "stopped"
+	StatusCancelled  = "cancelled"
+)
+
+// IsTerminalStatus returns true if the status represents a finished investigation.
+func IsTerminalStatus(status string) bool {
+	switch status {
+	case StatusCompleted, StatusFailed, StatusStopped, StatusCancelled:
+		return true
+	default:
+		return false
+	}
+}
+
 // Investigation represents an anomaly investigation
 type Investigation struct {
 	ID        string                 `json:"id"`
@@ -12,7 +32,7 @@ type Investigation struct {
 	StartTime time.Time              `json:"start_time"`
 	EndTime   *time.Time             `json:"end_time,omitempty"`
 	Findings  string                 `json:"findings,omitempty"`
-	Progress  int                    `json:"progress"`          // 0-100
+	Progress  int                    `json:"progress"` // 0-100
 	Details   map[string]interface{} `json:"details,omitempty"`
 	Steps     []InvestigationStep    `json:"steps,omitempty"`
 }

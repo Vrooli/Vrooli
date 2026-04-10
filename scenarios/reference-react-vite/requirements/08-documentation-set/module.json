@@ -1,0 +1,113 @@
+{
+  "description": "Complete docs/ directory following documentation-health steer: manifest.json, QUICKSTART.md, concepts/ARCHITECTURE.md, reference/api-endpoints.md, reference/cli-commands.md, internal/SEAMS.md, internal/PROBLEMS.md, internal/PROGRESS.md. Bidirectional DOC:/[CODE:] references.",
+  "module_id": "MOD-P0-008",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "children": [
+        "REQ-P0-008a",
+        "REQ-P0-008b"
+      ],
+      "description": "Complete documentation set with bidirectional traceability.",
+      "id": "REQ-P0-008",
+      "prd_ref": "OT-P0-008",
+      "status": "passed",
+      "title": "Documentation Set"
+    },
+    {
+      "category": "core",
+      "children": [
+        "REQ-P0-008a-1",
+        "REQ-P0-008a-2"
+      ],
+      "description": "Complete docs/ directory with all required documentation files.",
+      "id": "REQ-P0-008a",
+      "prd_ref": "OT-P0-008",
+      "status": "passed",
+      "title": "Documentation Structure"
+    },
+    {
+      "category": "core",
+      "description": "Documentation manifest with navigation structure.",
+      "id": "REQ-P0-008a-1",
+      "prd_ref": "OT-P0-008",
+      "status": "passed",
+      "title": "Documentation Manifest",
+      "validation": [
+        {
+          "notes": "Verify manifest.json present",
+          "phase": "unit",
+          "ref": "docs/manifest.json",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "Quick start guide for new users.",
+      "id": "REQ-P0-008a-2",
+      "prd_ref": "OT-P0-008",
+      "status": "passed",
+      "title": "Quick Start Guide",
+      "validation": [
+        {
+          "notes": "Verify QUICKSTART.md present",
+          "phase": "business",
+          "ref": "docs/QUICKSTART.md",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "children": [
+        "REQ-P0-008b-1",
+        "REQ-P0-008b-2"
+      ],
+      "description": "Bidirectional DOC:/[CODE:] references linking documentation to code and code to documentation.",
+      "id": "REQ-P0-008b",
+      "prd_ref": "OT-P0-008",
+      "status": "passed",
+      "title": "Bidirectional Traceability"
+    },
+    {
+      "category": "core",
+      "description": "DOC: comments in code files linking to documentation.",
+      "id": "REQ-P0-008b-1",
+      "prd_ref": "OT-P0-008",
+      "status": "passed",
+      "title": "Code-to-Doc References",
+      "validation": [
+        {
+          "notes": "DOC: references in handler files",
+          "phase": "integration",
+          "ref": "api/handlers/tasks.go",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "[CODE:] references in documentation linking to source files.",
+      "id": "REQ-P0-008b-2",
+      "prd_ref": "OT-P0-008",
+      "status": "passed",
+      "title": "Doc-to-Code References",
+      "validation": [
+        {
+          "notes": "[CODE:] references in documentation",
+          "phase": "integration",
+          "ref": "docs/concepts/ARCHITECTURE.md",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    }
+  ],
+  "title": "Documentation Set"
+}

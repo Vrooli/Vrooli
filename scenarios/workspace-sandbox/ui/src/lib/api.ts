@@ -8,6 +8,20 @@ export type Status = "creating" | "active" | "stopped" | "approved" | "rejected"
 export type OwnerType = "agent" | "user" | "task" | "system";
 export type ChangeType = "added" | "modified" | "deleted";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
+export type ViewMode = "diff" | "full_diff" | "source";
+export type LineChange = "" | "added" | "deleted";
+
+export interface AnnotatedLine {
+  number: number;
+  content: string;
+  change?: LineChange;
+  oldNumber?: number;
+}
+
+export interface FileViewData {
+  fullContent?: string;
+  annotatedLines?: AnnotatedLine[];
+}
 
 export interface MountHealth {
   healthy: boolean;
@@ -18,6 +32,7 @@ export interface MountHealth {
 
 export interface Sandbox {
   id: string;
+  name?: string;
   scopePath: string;
   reservedPath: string;
   reservedPaths?: string[];
@@ -73,6 +88,9 @@ export interface DiffResult {
   totalAdded: number;
   totalDeleted: number;
   totalModified: number;
+  // View mode support
+  mode?: ViewMode;
+  fileContents?: Record<string, FileViewData>;
 }
 
 export interface HealthResponse {
@@ -162,6 +180,7 @@ export interface DiscardResult {
 }
 
 export interface CreateRequest {
+  name?: string;
   scopePath: string;
   reservedPath?: string;
   reservedPaths?: string[];
@@ -188,6 +207,7 @@ export interface ApprovalRequest {
 }
 
 export interface ListFilter {
+  name?: string;
   status?: Status[];
   owner?: string;
   projectRoot?: string;
@@ -276,6 +296,7 @@ export async function listSandboxes(filter?: ListFilter): Promise<ListResult> {
   if (filter?.status) {
     filter.status.forEach((s) => params.append("status", s));
   }
+  if (filter?.name) params.set("name", filter.name);
   if (filter?.owner) params.set("owner", filter.owner);
   if (filter?.projectRoot) params.set("projectRoot", filter.projectRoot);
   if (filter?.scopePath) params.set("scopePath", filter.scopePath);
@@ -315,8 +336,13 @@ export async function startSandbox(id: string): Promise<Sandbox> {
 }
 
 // Get diff
-export async function getDiff(id: string): Promise<DiffResult> {
-  return apiRequest<DiffResult>(`/sandboxes/${id}/diff`);
+export async function getDiff(id: string, mode: ViewMode = "diff"): Promise<DiffResult> {
+  const params = new URLSearchParams();
+  if (mode !== "diff") {
+    params.set("mode", mode);
+  }
+  const query = params.toString();
+  return apiRequest<DiffResult>(`/sandboxes/${id}/diff${query ? `?${query}` : ""}`);
 }
 
 // Approve changes
@@ -627,6 +653,7 @@ export interface ExecutionConfig {
   defaultResourceLimits: ResourceLimitsConfig;
   maxResourceLimits: ResourceLimitsConfig;
   defaultIsolationProfile: string;
+  defaultNoLock: boolean;
 }
 
 export type NetworkAccess = "none" | "localhost" | "full";

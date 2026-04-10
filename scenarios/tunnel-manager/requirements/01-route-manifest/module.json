@@ -1,0 +1,241 @@
+{
+  "module": "route-manifest",
+  "description": "Declarative route manifest as single source of truth for published tunnel routes",
+  "prd_refs": [
+    "OT-P0-001"
+  ],
+  "requirements": [
+    {
+      "id": "ROUTE-001",
+      "title": "Route manifest schema",
+      "description": "routes.json defines an array of route entries, each with: subdomain, scenario name, expected UI port, enabled flag, and optional health endpoint path",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "children": [
+        "ROUTE-001A",
+        "ROUTE-001B"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "ROUTE-001A",
+      "title": "Required route entry fields",
+      "description": "Each route entry must include subdomain, scenario name, and expected UI port as required fields",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "children": [
+        "ROUTE-001A1",
+        "ROUTE-001A2"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "ROUTE-001A1",
+      "title": "Subdomain field validation",
+      "description": "Subdomain must be a valid DNS label (lowercase alphanumeric with hyphens, max 63 chars)",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/route_manifest_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "ROUTE-001A2",
+      "title": "Port number range check",
+      "description": "Expected port must be in valid range (1-65535) and within scenario allocation ranges",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/route_validation_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "ROUTE-001B",
+      "title": "Optional route entry fields",
+      "description": "Route entries may include enabled flag (default true) and custom health endpoint path",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/route_manifest_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "ROUTE-002",
+      "title": "Route manifest CRUD via API",
+      "description": "API endpoints to list, add, update, and remove routes from the manifest. Changes are persisted to the database.",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "children": [
+        "ROUTE-002A",
+        "ROUTE-002B"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "ROUTE-002A",
+      "title": "Route creation and listing",
+      "description": "POST /api/v1/routes creates a new route entry; GET /api/v1/routes lists all routes",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "children": [
+        "ROUTE-002A1",
+        "ROUTE-002A2"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "ROUTE-002A1",
+      "title": "Route creation persists to database",
+      "description": "New route entries are stored in PostgreSQL and survive server restarts",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/route_crud_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "ROUTE-002A2",
+      "title": "Route listing returns all entries",
+      "description": "GET /api/v1/routes returns the full route manifest including enabled and disabled routes",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/route_crud_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "ROUTE-002B",
+      "title": "Route update and deletion",
+      "description": "PUT /api/v1/routes/{id} updates a route; DELETE /api/v1/routes/{id} removes it",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/route_crud_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "ROUTE-003",
+      "title": "Route manifest seeded from existing config",
+      "description": "On first run, if no manifest exists, seed it from the current cloudflared config (local mode) or Cloudflare API (remote mode) to avoid blank-slate starts",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "children": [
+        "ROUTE-003A",
+        "ROUTE-003B"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "ROUTE-003A",
+      "title": "Local config seeding",
+      "description": "In local mode, parse existing config.yml ingress rules and create route entries for each",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/route_seed_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "ROUTE-003B",
+      "title": "Remote API seeding",
+      "description": "In remote mode, fetch ingress rules from Cloudflare API and create route entries",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/route_seed_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "ROUTE-004",
+      "title": "Route manifest validation",
+      "description": "Validate manifest entries: no duplicate subdomains, no duplicate ports, all ports in valid range, scenario names are valid kebab-case identifiers",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "children": [
+        "ROUTE-004A",
+        "ROUTE-004B"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "ROUTE-004A",
+      "title": "Uniqueness constraints",
+      "description": "Reject duplicate subdomains and duplicate ports across route entries",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/route_validation_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "ROUTE-004B",
+      "title": "Format constraints",
+      "description": "Scenario names must be valid kebab-case identifiers matching existing scenario directories",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "complete",
+          "ref": "api/route_validation_test.go"
+        }
+      ],
+      "status": "complete"
+    }
+  ]
+}

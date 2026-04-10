@@ -78,3 +78,31 @@ func TestResolveURLReadsRegistryFile(t *testing.T) {
 		t.Fatalf("expected port 5005 from URL, got %+v", info)
 	}
 }
+
+func TestResolvePortRetriesTransientLookupFailure(t *testing.T) {
+	resetRegistryCacheForTests()
+
+	attempts := 0
+	restore := SetPortLookupFuncForTests(func(ctx context.Context, scenario, port string) (int, error) {
+		attempts++
+		if attempts < 3 {
+			return 0, errors.New("transient cli failure")
+		}
+		if scenario != "web-console" || port != "UI_PORT" {
+			t.Fatalf("unexpected lookup args: scenario=%s port=%s", scenario, port)
+		}
+		return 36233, nil
+	})
+	defer restore()
+
+	info, err := ResolvePort(context.Background(), "web-console", "UI_PORT")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if info == nil || info.Port != 36233 || info.Name != "UI_PORT" {
+		t.Fatalf("unexpected port info: %+v", info)
+	}
+	if attempts < 3 {
+		t.Fatalf("expected retries before success, attempts=%d", attempts)
+	}
+}

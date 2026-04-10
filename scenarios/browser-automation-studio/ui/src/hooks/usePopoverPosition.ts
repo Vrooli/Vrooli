@@ -117,7 +117,8 @@ export function usePopoverPosition(
     }
 
     if (chosenTop === undefined || chosenLeft === undefined) {
-      const fallback = computePlacement(placementPriorityRef.current[0]);
+      const firstPlacement = placementPriorityRef.current[0] ?? 'bottom-start';
+      const fallback = computePlacement(firstPlacement);
       chosenTop = fallback.top;
       chosenLeft = fallback.left;
 

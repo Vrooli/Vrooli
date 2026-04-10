@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/pathfilter"
 )
 
 type StandardsViolation struct {
@@ -132,8 +133,8 @@ func newStandardsScanManager() *StandardsScanManager {
 	}
 }
 
-func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standards []string, forceDisabled bool) (StandardsScanStatus, error) {
-	targets, err := buildStandardsScanTargets(scenarioName)
+func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standards []string, forceDisabled bool, scenarioPath string) (StandardsScanStatus, error) {
+	targets, err := buildStandardsScanTargets(scenarioName, scenarioPath)
 	if err != nil {
 		return StandardsScanStatus{}, err
 	}
@@ -488,7 +489,13 @@ func getScenariosRoot() string {
 	return filepath.Join(vrooliRoot, "scenarios")
 }
 
-func buildStandardsScanTargets(scenarioName string) ([]standardsScanTarget, error) {
+// buildStandardsScanTargets resolves the scenario(s) to scan.
+// When scenarioPathOverride is non-empty (set by a CLI running inside a
+// sandboxed agent), it is used as the scan path for the target scenario
+// instead of resolving via VROOLI_ROOT. This allows the auditor to check
+// files within the sandbox overlay.
+// See packages/cli-core/cliutil/sandbox.go for sandbox path resolution.
+func buildStandardsScanTargets(scenarioName string, scenarioPathOverride string) ([]standardsScanTarget, error) {
 	root := getScenariosRoot()
 
 	if scenarioName == "" {
@@ -516,7 +523,11 @@ func buildStandardsScanTargets(scenarioName string) ([]standardsScanTarget, erro
 		return targets, nil
 	}
 
-	scenarioPath := filepath.Join(root, scenarioName)
+	// Use the sandbox-provided path if available, otherwise resolve from root.
+	scenarioPath := scenarioPathOverride
+	if scenarioPath == "" {
+		scenarioPath = filepath.Join(root, scenarioName)
+	}
 	info, err := os.Stat(scenarioPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -600,6 +611,12 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		Type          string   `json:"type"`
 		Standards     []string `json:"standards"`
 		ForceDisabled bool     `json:"force_disabled"`
+		// ScenarioPath overrides the scenario directory path. Set by the CLI
+		// when running inside a sandboxed agent, pointing to the overlay's
+		// merged directory for the target scenario. When empty, the API
+		// resolves the path using VROOLI_ROOT + scenario name.
+		// See packages/cli-core/cliutil/sandbox.go.
+		ScenarioPath string `json:"scenario_path"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&checkRequest); err != nil {
 		checkRequest.Type = "full"
@@ -621,7 +638,7 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	status, err := standardsScanManager.StartScan(scenarioName, checkRequest.Type, checkRequest.Standards, checkRequest.ForceDisabled)
+	status, err := standardsScanManager.StartScan(scenarioName, checkRequest.Type, checkRequest.Standards, checkRequest.ForceDisabled, strings.TrimSpace(checkRequest.ScenarioPath))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			HTTPError(w, "Scenario not found", http.StatusNotFound, err)
@@ -642,7 +659,6 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, specificStandards []string, forceDisabled bool, onFile func(string, string)) ([]StandardsViolation, int, error) {
-
 	internalRules, err := LoadRulesFromFiles()
 	if err != nil {
 		return nil, 0, err
@@ -712,7 +728,7 @@ func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, s
 		}
 
 		if info.IsDir() {
-			if shouldSkipDirectory(path) {
+			if pathfilter.SkipDir(filepath.Base(path)) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -852,7 +868,6 @@ func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, s
 }
 
 func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViolation, int, []string, error) {
-
 	if strings.TrimSpace(scenarioName) == "" {
 		return nil, 0, nil, fmt.Errorf("scenario name is required")
 	}
@@ -904,7 +919,7 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 		}
 
 		if entry.IsDir() {
-			if shouldSkipDirectory(path) {
+			if pathfilter.SkipDir(filepath.Base(path)) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -980,7 +995,6 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 
 		return nil
 	})
-
 	if err != nil {
 		return violations, filesScanned, targets, err
 	}
@@ -1343,15 +1357,6 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-func shouldSkipDirectory(path string) bool {
-	switch filepath.Base(path) {
-	case "vendor", "node_modules", ".git", "dist", "build", ".next", ".nuxt", "target", "bin", "obj":
-		return true
-	default:
-		return false
-	}
-}
-
 func extractScenarioName(path string) string {
 	name, _ := scenarioNameAndRelative(path)
 	if name == "" {
@@ -1434,4 +1439,75 @@ func getStandardsViolationsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(response)
+}
+
+type deterministicFixRequest struct {
+	ScenarioNames []string `json:"scenario_names"`
+	RuleIDs       []string `json:"rule_ids"`
+	DryRun        bool     `json:"dry_run"`
+}
+
+func handleDeterministicFix(w http.ResponseWriter, r *http.Request) {
+	var req deterministicFixRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		HTTPError(w, "Invalid request body", http.StatusBadRequest, err)
+		return
+	}
+
+	if len(req.RuleIDs) == 0 {
+		HTTPError(w, "rule_ids is required", http.StatusBadRequest, nil)
+		return
+	}
+	if len(req.ScenarioNames) == 0 {
+		HTTPError(w, "scenario_names is required", http.StatusBadRequest, nil)
+		return
+	}
+
+	// Group rule IDs by their fixer provider
+	type fixerGroup struct {
+		fixer   externalRuleFixer
+		ruleIDs []string
+	}
+	groups := make(map[externalRuleFixer]*fixerGroup)
+	var unfixable []string
+
+	for _, ruleID := range req.RuleIDs {
+		fixer, ok := externalFixerForRule(ruleID)
+		if !ok {
+			unfixable = append(unfixable, ruleID)
+			continue
+		}
+		g, exists := groups[fixer]
+		if !exists {
+			g = &fixerGroup{fixer: fixer}
+			groups[fixer] = g
+		}
+		g.ruleIDs = append(g.ruleIDs, ruleID)
+	}
+
+	var allResults []ExternalFixResult
+	var errs []string
+
+	for _, g := range groups {
+		results, err := g.fixer.Fix(r.Context(), req.ScenarioNames, g.ruleIDs, req.DryRun)
+		if err != nil {
+			errs = append(errs, err.Error())
+			continue
+		}
+		allResults = append(allResults, results...)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]any{
+		"results": allResults,
+		"count":   len(allResults),
+	}
+	if len(unfixable) > 0 {
+		response["unfixable_rules"] = unfixable
+	}
+	if len(errs) > 0 {
+		response["errors"] = errs
+	}
+
+	_ = json.NewEncoder(w).Encode(response)
 }

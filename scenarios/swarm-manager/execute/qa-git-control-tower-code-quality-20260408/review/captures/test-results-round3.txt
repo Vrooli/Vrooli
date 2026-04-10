@@ -1,0 +1,15 @@
+$ go test ./... -timeout 300s
+ok  	git-control-tower	2.503s
+?   	git-control-tower/filerelations	[no test files]
+?   	git-control-tower/filerelations/languages/golang	[no test files]
+?   	git-control-tower/filerelations/languages/python	[no test files]
+?   	git-control-tower/filerelations/languages/typescript	[no test files]
+?   	git-control-tower/filerelations/resolver	[no test files]
+?   	git-control-tower/filerelations/scanner	[no test files]
+ok  	git-control-tower/ssh	0.003s
+
+$ go build ./...
+(clean, no errors)
+
+$ golangci-lint run
+repo_status_service.go:218:5: ineffectual assignment to err (ineffassign)

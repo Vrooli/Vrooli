@@ -2,7 +2,5 @@
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-CLI_DIR="${APP_ROOT}/scenarios/stream-of-consciousness-analyzer/cli"
-source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-install_cli "$CLI_DIR/stream-of-consciousness-analyzer" "stream-of-consciousness-analyzer"
+"${APP_ROOT}/packages/cli-core/install.sh" "scenarios/stream-of-consciousness-analyzer/cli" --name "stream-of-consciousness-analyzer"

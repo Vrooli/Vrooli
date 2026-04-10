@@ -4,6 +4,19 @@ import { Monitor, Search, ChevronRight, ChevronDown, Code, Loader, X } from 'luc
 import { getConfig } from '@/config';
 import toast from 'react-hot-toast';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const safeJson = async (response: Response): Promise<unknown> => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
 interface DOMNode {
   tagName: string;
   id: string | null;
@@ -17,6 +30,29 @@ interface DOMNode {
   selector: string;
   children?: DOMNode[];
 }
+
+const parseDOMNode = (value: unknown): DOMNode | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.selector !== 'string') return null;
+  const node: DOMNode = {
+    tagName: typeof value.tagName === 'string' ? value.tagName : '',
+    id: typeof value.id === 'string' ? value.id : null,
+    className: typeof value.className === 'string' ? value.className : null,
+    text: typeof value.text === 'string' ? value.text : null,
+    type: typeof value.type === 'string' ? value.type : null,
+    href: typeof value.href === 'string' ? value.href : null,
+    ariaLabel: typeof value.ariaLabel === 'string' ? value.ariaLabel : null,
+    placeholder: typeof value.placeholder === 'string' ? value.placeholder : null,
+    value: typeof value.value === 'string' ? value.value : null,
+    selector: value.selector,
+  };
+  if (Array.isArray(value.children)) {
+    node.children = value.children
+      .map(parseDOMNode)
+      .filter((child): child is DOMNode => child !== null);
+  }
+  return node;
+};
 
 interface ElementInfo {
   text: string;
@@ -69,7 +105,8 @@ const BrowserInspectorTab: React.FC<BrowserInspectorTabProps> = ({ url, onSelect
         throw new Error(`Failed to fetch DOM tree: ${response.status}`);
       }
 
-      const data = await response.json();
+      const payload = await safeJson(response);
+      const data = parseDOMNode(payload);
       setDomTree(data);
       
       // Auto-expand first few levels
@@ -196,7 +233,7 @@ const BrowserInspectorTab: React.FC<BrowserInspectorTabProps> = ({ url, onSelect
         
         {hasChildren && isExpanded && (
           <div>
-            {node.children!.map(child => renderNode(child, depth + 1))}
+            {(node.children ?? []).map(child => renderNode(child, depth + 1))}
           </div>
         )}
       </div>

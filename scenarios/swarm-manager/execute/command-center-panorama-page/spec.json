@@ -1,0 +1,23 @@
+{
+  "acceptance_allow": [
+    "scenarios/command-center/ui/**"
+  ],
+  "created": "2026-04-08T03:51:30Z",
+  "depends_on": [
+    "execute/command-center-mission-control-page",
+    "execute/command-center-hive-page",
+    "execute/command-center-forge-page",
+    "execute/command-center-ledger-page",
+    "execute/command-center-broadcast-page"
+  ],
+  "description": "Build the \"Panorama\" dashboard — the aggregate \"state of the world\" view. This is THE page you leave up on the TV.\n\n**Theme: Cosmos**\nDeep black with subtle animated nebula gradient (purple/blue). Each metric domain represented as a planet/celestial body sized proportionally to importance. Sparklines as orbital paths. Central \"sun\" represents overall system health — brightness/color reflects composite state. Planets orbit at distances proportional to how much attention each area needs (troubled areas orbit closer). Slow, meditative animation. Calming yet informative.\n\n**Content — curated best-of from each domain:**\n- From Mission Control: system health (scenarios running/total), items completed this week\n- From The Hive: scenario count with running/stopped ratio, average completeness score\n- From The Forge: velocity this week, estimated weeks remaining, backlog size\n- From Ledger: subscriber count (or MRR when available), churn indicator\n- From Broadcast: visitor count (last 7d), conversion rate\n\n**Gap metrics:**\n- \"System pulse\" — animated heartbeat that speeds up with overall activity level\n- Alert/anomaly indicators (churn spike, blocked ratio threshold, scenario down) — planets flash or change color\n- Per-domain 30-day trend sparklines\n\n**Layout concept:** Solar system visualization in center. Sun = system health. Five planets orbiting = one per dashboard domain. Each planet shows its hero metric. Orbital distance = attention needed (closer = more urgent). Clicking/focusing a planet navigates to that dashboard. Ambient star field with occasional shooting stars when milestones hit (new subscriber, item completed, scenario deployed).\n\n**Depends on all other pages** because its data payload is a curated subset of the other five — should reuse same API structures and metric definitions.",
+  "effort": "M",
+  "initiative": "command-center-dashboards",
+  "kind": "execute",
+  "name": "command-center-panorama-page",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [],
+  "title": "Build Panorama dashboard — aggregate overview with Cosmos theme",
+  "updated": "2026-04-09T03:36:07Z"
+}

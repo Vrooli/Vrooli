@@ -100,7 +100,7 @@ func (h *Handler) Analyze(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // Cascade detects cascading impacts of a dependency swap.
@@ -136,7 +136,7 @@ func (h *Handler) Cascade(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // CLISwapSuggestion matches the CLI's expected format
@@ -191,7 +191,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(suggestions)
+	_ = json.NewEncoder(w).Encode(suggestions)
 }
 
 // ApplyRequest represents a request to apply a swap to a profile.
@@ -249,14 +249,14 @@ func (h *Handler) Apply(w http.ResponseWriter, r *http.Request) {
 
 	response := map[string]interface{}{
 		"status":        "applied",
-		"profile_id":   req.ProfileID,
-		"swap":         selectedSwap,
+		"profile_id":    req.ProfileID,
+		"swap":          selectedSwap,
 		"fitness_delta": selectedSwap.FitnessDelta,
-		"message":      "Swap recorded. Regenerate bundle manifest to apply changes.",
+		"message":       "Swap recorded. Regenerate bundle manifest to apply changes.",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // ApplyToProfile applies a swap to a profile (profile ID from URL path).
@@ -336,12 +336,12 @@ func (h *Handler) ApplyToProfile(w http.ResponseWriter, r *http.Request) {
 
 	response := map[string]interface{}{
 		"status":        "applied",
-		"profile_id":   profileID,
-		"swap":         swap,
+		"profile_id":    profileID,
+		"swap":          swap,
 		"fitness_delta": selectedSwap.FitnessDelta,
-		"message":      "Swap persisted. Regenerate bundle manifest to apply changes.",
+		"message":       "Swap persisted. Regenerate bundle manifest to apply changes.",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }

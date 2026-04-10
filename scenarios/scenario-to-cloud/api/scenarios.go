@@ -7,14 +7,13 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
 
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
@@ -51,6 +50,26 @@ type ServiceJSON struct {
 		Resources map[string]ResourceDependency     `json:"resources"`
 		Scenarios map[string]ScenarioDependencySpec `json:"scenarios"`
 	} `json:"dependencies"`
+	Deployment struct {
+		Tiers map[string]DeploymentTier `json:"tiers"`
+	} `json:"deployment"`
+}
+
+// DeploymentTier represents a deployment tier configuration
+type DeploymentTier struct {
+	Status  string             `json:"status,omitempty"`
+	Secrets []DeploymentSecret `json:"secrets,omitempty"`
+}
+
+// DeploymentSecret represents a secret expected by a scenario
+type DeploymentSecret struct {
+	SecretID       string `json:"secret_id"`
+	Classification string `json:"classification,omitempty"`
+	Label          string `json:"label,omitempty"`
+	Description    string `json:"description,omitempty"`
+	Required       *bool  `json:"required,omitempty"` // Pointer to distinguish unset from false
+	DefaultHint    string `json:"default_hint,omitempty"`
+	Notes          string `json:"notes,omitempty"`
 }
 
 // ResourceDependency represents a resource dependency from service.json
@@ -374,14 +393,13 @@ func (s *Server) handleScenarioDependencies(w http.ResponseWriter, r *http.Reque
 
 // fetchDependenciesFromAnalyzer tries to fetch dependencies from scenario-dependency-analyzer.
 func (s *Server) fetchDependenciesFromAnalyzer(ctx context.Context, scenarioID string) (*ScenarioDependenciesResponse, error) {
-	// Discover analyzer port via vrooli scenario port command
-	analyzerPort, err := discoverScenarioPort("scenario-dependency-analyzer", "api")
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "scenario-dependency-analyzer")
 	if err != nil {
-		return nil, fmt.Errorf("failed to discover analyzer port: %w", err)
+		return nil, fmt.Errorf("failed to discover analyzer URL: %w", err)
 	}
 
 	// Call the analyzer API
-	url := fmt.Sprintf("http://localhost:%d/api/v1/analyze/%s", analyzerPort, scenarioID)
+	url := fmt.Sprintf("%s/api/v1/analyze/%s", strings.TrimSuffix(baseURL, "/"), scenarioID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -511,19 +529,154 @@ func (s *Server) extractDependenciesFromServiceJSON(scenarioID string) (*Scenari
 	}, nil
 }
 
-// discoverScenarioPort uses vrooli CLI to discover a scenario's port.
-func discoverScenarioPort(scenarioName, portType string) (int, error) {
-	cmd := exec.Command("vrooli", "scenario", "port", scenarioName, portType)
-	output, err := cmd.Output()
-	if err != nil {
-		return 0, fmt.Errorf("vrooli scenario port failed: %w", err)
+// ExpectedSecret represents a secret expected by a scenario with its configuration status
+type ExpectedSecret struct {
+	SecretID       string `json:"secret_id"`
+	Classification string `json:"classification,omitempty"`
+	Label          string `json:"label,omitempty"`
+	Description    string `json:"description,omitempty"`
+	Required       bool   `json:"required"`
+	DefaultHint    string `json:"default_hint,omitempty"`
+	Configured     bool   `json:"configured"`
+}
+
+// ExpectedSecretsSummary provides counts of expected secrets
+type ExpectedSecretsSummary struct {
+	Total      int `json:"total"`
+	Configured int `json:"configured"`
+	Missing    int `json:"missing"`
+	Required   int `json:"required"`
+}
+
+// ExpectedSecretsResponse is the response for GET /deployments/{id}/expected-secrets
+type ExpectedSecretsResponse struct {
+	ScenarioID      string                 `json:"scenario_id"`
+	Tier            string                 `json:"tier"`
+	ExpectedSecrets []ExpectedSecret       `json:"expected_secrets"`
+	Summary         ExpectedSecretsSummary `json:"summary"`
+	Timestamp       string                 `json:"timestamp"`
+}
+
+// handleGetExpectedSecrets returns secrets expected by a scenario based on its service.json.
+// The UI handles comparison with VPS secrets since it already fetches those separately.
+func (s *Server) handleGetExpectedSecrets(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	deploymentID := vars["id"]
+
+	if deploymentID == "" {
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
+			Code:    "missing_deployment_id",
+			Message: "Deployment ID is required",
+		})
+		return
 	}
 
-	portStr := strings.TrimSpace(string(output))
-	port, err := strconv.Atoi(portStr)
+	// Get deployment to find scenario ID
+	deployment, err := s.repo.GetDeployment(r.Context(), deploymentID)
 	if err != nil {
-		return 0, fmt.Errorf("invalid port number: %s", portStr)
+		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
+			Code:    "deployment_not_found",
+			Message: "Deployment not found",
+			Hint:    err.Error(),
+		})
+		return
 	}
 
-	return port, nil
+	// Get scenario ID from deployment
+	scenarioID := deployment.ScenarioID
+	if scenarioID == "" {
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
+			Code:    "no_scenario_id",
+			Message: "Deployment does not have a scenario ID",
+		})
+		return
+	}
+
+	// Read service.json for the scenario
+	repoRoot, err := bundle.FindRepoRootFromCWD()
+	if err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
+			Code:    "repo_root_not_found",
+			Message: "Unable to locate Vrooli repo root",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	serviceJSONPath := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+	data, err := os.ReadFile(serviceJSONPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
+				Code:    "service_json_not_found",
+				Message: "Scenario service.json not found",
+				Hint:    "Ensure the scenario exists and has a .vrooli/service.json file.",
+			})
+		} else {
+			httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
+				Code:    "service_json_read_failed",
+				Message: "Unable to read service.json",
+				Hint:    err.Error(),
+			})
+		}
+		return
+	}
+
+	var svc ServiceJSON
+	if err := json.Unmarshal(data, &svc); err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
+			Code:    "service_json_parse_failed",
+			Message: "Unable to parse service.json",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	// Determine tier - use query param or default to tier-1-local
+	tier := r.URL.Query().Get("tier")
+	if tier == "" {
+		tier = "tier-1-local"
+	}
+
+	// Get secrets for the tier
+	tierConfig, hasTier := svc.Deployment.Tiers[tier]
+	var expectedSecrets []ExpectedSecret
+
+	if hasTier && len(tierConfig.Secrets) > 0 {
+		for _, secret := range tierConfig.Secrets {
+			// Determine if required (default to true if not specified)
+			required := true
+			if secret.Required != nil {
+				required = *secret.Required
+			}
+
+			expectedSecrets = append(expectedSecrets, ExpectedSecret{
+				SecretID:       secret.SecretID,
+				Classification: secret.Classification,
+				Label:          secret.Label,
+				Description:    secret.Description,
+				Required:       required,
+				DefaultHint:    secret.DefaultHint,
+				Configured:     false, // UI will compute this by comparing with VPS secrets
+			})
+		}
+	}
+
+	// Calculate summary (without configuration status - UI handles that)
+	summary := ExpectedSecretsSummary{
+		Total: len(expectedSecrets),
+	}
+	for _, secret := range expectedSecrets {
+		if secret.Required {
+			summary.Required++
+		}
+	}
+
+	httputil.WriteJSON(w, http.StatusOK, ExpectedSecretsResponse{
+		ScenarioID:      scenarioID,
+		Tier:            tier,
+		ExpectedSecrets: expectedSecrets,
+		Summary:         summary,
+		Timestamp:       time.Now().UTC().Format(time.RFC3339),
+	})
 }

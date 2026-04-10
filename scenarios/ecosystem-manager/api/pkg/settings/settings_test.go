@@ -381,8 +381,7 @@ func TestValidateAndNormalize(t *testing.T) {
 
 	input := Settings{
 		Slots:           2,
-		CooldownSeconds: 0,
-		RefreshInterval: 45, // legacy field should migrate
+		CooldownSeconds: 45,
 		MaxTurns:        60,
 		TaskTimeout:     90,
 		IdleTimeoutCap:  0, // should fall back to previous
@@ -416,7 +415,33 @@ func TestValidateAndNormalize(t *testing.T) {
 		t.Fatalf("unexpected Slots value %d", result.Slots)
 	}
 	if result.CooldownSeconds != 45 {
-		t.Fatalf("expected CooldownSeconds to migrate from legacy refresh interval, got %d", result.CooldownSeconds)
+		t.Fatalf("expected CooldownSeconds to be 45, got %d", result.CooldownSeconds)
+	}
+}
+
+// TestMaxTurnsAcceptsUIRange ensures the API accepts the full range of max_turns
+// values that the UI slider allows (up to 500).
+func TestMaxTurnsAcceptsUIRange(t *testing.T) {
+	previous := newDefaultSettings()
+
+	for _, turns := range []int{MinMaxTurns, 100, 200, 500, MaxMaxTurns} {
+		input := previous
+		input.MaxTurns = turns
+		result, err := ValidateAndNormalize(input, previous)
+		if err != nil {
+			t.Errorf("expected MaxTurns=%d to be valid, got error: %v", turns, err)
+			continue
+		}
+		if result.MaxTurns != turns {
+			t.Errorf("expected MaxTurns=%d, got %d", turns, result.MaxTurns)
+		}
+	}
+
+	// Values above 500 should still be rejected
+	input := previous
+	input.MaxTurns = 501
+	if _, err := ValidateAndNormalize(input, previous); err == nil {
+		t.Error("expected MaxTurns=501 to be rejected")
 	}
 }
 

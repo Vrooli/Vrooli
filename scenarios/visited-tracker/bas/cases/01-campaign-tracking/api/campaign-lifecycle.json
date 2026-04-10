@@ -7,7 +7,8 @@
       "requirements_json": "[\"VT-REQ-001\", \"VT-REQ-002\", \"VT-REQ-003\"]",
       "priority": "P0",
       "test_type": "api"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,

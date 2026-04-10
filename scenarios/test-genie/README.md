@@ -93,6 +93,11 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/executions" \
   -H "Content-Type: application/json" \
   -d '{"scenarioName": "my-scenario", "preset": "comprehensive"}'
 
+# Preview selected phases, estimate, and timeout budget
+curl -X POST "http://localhost:${API_PORT}/api/v1/executions/plan" \
+  -H "Content-Type: application/json" \
+  -d '{"scenarioName": "my-scenario", "preset": "comprehensive"}'
+
 # List executions
 curl "http://localhost:${API_PORT}/api/v1/executions?scenario=my-scenario&limit=10"
 
@@ -118,7 +123,7 @@ describe('projectStore [REQ:PROJECT-CRUD]', () => { ... })
 
 After running comprehensive tests, requirements are synced to `requirements/*.json`.
 
-See [docs/guides/requirements-sync.md](docs/guides/requirements-sync.md) for details.
+See [docs/phases/business/requirements-sync.md](docs/phases/business/requirements-sync.md) for details.
 
 ## Configuration
 
@@ -140,8 +145,8 @@ See [docs/guides/requirements-sync.md](docs/guides/requirements-sync.md) for det
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | API server port | `8200` |
-| `POSTGRES_HOST` | Database host | `localhost` |
-| `POSTGRES_DB` | Database name | `test_genie` |
+| `TEST_GENIE_SQLITE_PATH` | Embedded SQLite database path | `${SCENARIO_DATA_DIR}/test-genie.db` |
+| `SCENARIO_DATA_DIR` | Scenario-local persistent data root | Lifecycle-managed |
 
 ## Development
 
@@ -162,9 +167,10 @@ Comprehensive docs are in `docs/`:
 
 - [QUICKSTART.md](docs/QUICKSTART.md) - Get started in 5 minutes
 - [Phased Testing Guide](docs/guides/phased-testing.md) - 11-phase architecture
-- [Requirements Sync](docs/guides/requirements-sync.md) - Auto-tracking from tests
+- [Requirements Sync](docs/phases/business/requirements-sync.md) - Auto-tracking from tests
 - [API Reference](docs/reference/api-endpoints.md) - REST API documentation
 - [CLI Reference](docs/reference/cli-commands.md) - CLI command reference
+- [Execution Configuration](docs/reference/configuration.md) - Timeouts, planning, and estimate behavior
 - [Safety Guidelines](docs/safety/GUIDELINES.md) - Critical safety rules for test scripts
 
 See [docs/manifest.json](docs/manifest.json) for complete documentation index.

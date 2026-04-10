@@ -1,0 +1,96 @@
+{
+  "scenario_name": "landing-page-business-suite",
+  "health_score": 0.88,
+  "total_docs": 35,
+  "misplaced_docs": [
+    {
+      "actual_path": "docs/plans/EXPERIENCE_AUDIT.md",
+      "expected_path": "docs/internal/EXPERIENCE-AUDIT.md",
+      "doc_type": "experience-audit",
+      "severity": "warning"
+    },
+    {
+      "actual_path": "docs/reference/api/README.md",
+      "expected_path": "README.md",
+      "doc_type": "readme",
+      "severity": "error"
+    }
+  ],
+  "missing_docs": [
+    "assumptions",
+    "coherence-notes",
+    "error-semantics",
+    "invariants",
+    "security-posture",
+    "temporal-flows"
+  ],
+  "extra_docs": [
+    "docs/FAQ.md"
+  ],
+  "temporary_docs": [
+    "docs/plans/IMPLEMENTATION_PLAN.md",
+    "support-agent-docs/06-email-templates.md"
+  ],
+  "warnings": [
+    {
+      "type": "misplaced",
+      "message": "Documentation file is in the wrong location",
+      "expected_path": "docs/internal/EXPERIENCE-AUDIT.md",
+      "severity": "warning"
+    },
+    {
+      "type": "misplaced",
+      "message": "Documentation file is in the wrong location",
+      "expected_path": "README.md",
+      "severity": "error"
+    },
+    {
+      "type": "missing",
+      "message": "Documentation file is missing",
+      "severity": "warning"
+    },
+    {
+      "type": "missing",
+      "message": "Documentation file is missing",
+      "severity": "warning"
+    },
+    {
+      "type": "missing",
+      "message": "Documentation file is missing",
+      "severity": "warning"
+    },
+    {
+      "type": "missing",
+      "message": "Documentation file is missing",
+      "severity": "warning"
+    },
+    {
+      "type": "missing",
+      "message": "Documentation file is missing",
+      "severity": "warning"
+    },
+    {
+      "type": "missing",
+      "message": "Documentation file is missing",
+      "severity": "warning"
+    },
+    {
+      "type": "extra",
+      "message": "Documentation file is outside the standard layout: docs/FAQ.md",
+      "severity": "info"
+    },
+    {
+      "type": "temporary",
+      "message": "Temporary documentation artifact should be cleaned up: docs/plans/IMPLEMENTATION_PLAN.md",
+      "severity": "warning"
+    },
+    {
+      "type": "temporary",
+      "message": "Temporary documentation artifact should be cleaned up: support-agent-docs/06-email-templates.md",
+      "severity": "warning"
+    }
+  ],
+  "can_auto_fix": true,
+  "fix_category": "mixed"
+}
+

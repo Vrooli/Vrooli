@@ -13,6 +13,7 @@ import {
   XCircle,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   Clock,
   Zap,
 } from "lucide-react";
@@ -60,10 +61,21 @@ function getStatusDisplay(status: string, isTerminal: boolean) {
     }
   }
 
-  // Running/pending states
-  if (status === "pending" || status === "starting") {
+  // Queued state (waiting to start)
+  if (status === "pending") {
     return {
       icon: Clock,
+      color: "text-slate-400",
+      bgColor: "bg-slate-500/20",
+      borderColor: "border-slate-500/30",
+      label: "Queued",
+    };
+  }
+
+  // Starting state (actively initializing)
+  if (status === "starting") {
+    return {
+      icon: Loader2,
       color: "text-blue-400",
       bgColor: "bg-blue-500/20",
       borderColor: "border-blue-500/30",
@@ -204,8 +216,16 @@ export function AsyncOperationCard({
         </p>
       )}
 
-      {/* Error Message */}
-      {operation.error && (
+      {/* Poll Error Warning (non-terminal - amber color) */}
+      {!operation.is_terminal && operation.error && (
+        <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-sm text-amber-300 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <span>{typeof operation.error === "string" ? operation.error : JSON.stringify(operation.error)}</span>
+        </div>
+      )}
+
+      {/* Operation Error (terminal - red color) */}
+      {operation.is_terminal && operation.error && (
         <div className="mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded text-sm text-red-300">
           {typeof operation.error === "string" ? operation.error : JSON.stringify(operation.error)}
         </div>

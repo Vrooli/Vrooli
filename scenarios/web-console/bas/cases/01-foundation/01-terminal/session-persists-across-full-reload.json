@@ -1,0 +1,378 @@
+{
+  "metadata": {
+    "name": "session-persists-across-full-reload",
+    "description": "Reload workspace after interactive stdin and verify the same session + output are restored",
+    "labels": {
+      "reset": "full",
+      "requirements_json": "[\"REQ-P0-003a\"]"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-workspace-root",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "web-console",
+          "scenario_path": "/#/workspace",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open workspace route"
+        }
+      }
+    },
+    {
+      "id": "open-workspace",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/open-workspace.json"
+        },
+        "metadata": {
+          "label": "Open workspace"
+        }
+      }
+    },
+    {
+      "id": "reset-sessions",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/reset-sessions-best-effort.json"
+        },
+        "metadata": {
+          "label": "Reset sessions (best effort)"
+        }
+      }
+    },
+    {
+      "id": "click-new-terminal",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.newTerminalButton"
+        },
+        "metadata": {
+          "label": "Open launcher"
+        }
+      }
+    },
+    {
+      "id": "wait-launcher",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/launcher.dialog",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for launcher"
+        }
+      }
+    },
+    {
+      "id": "launch-empty-shell",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/launcher.emptyShell"
+        },
+        "metadata": {
+          "label": "Launch empty shell"
+        }
+      }
+    },
+    {
+      "id": "wait-terminal-pane",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/terminal.pane",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for terminal pane"
+        }
+      }
+    },
+    {
+      "id": "click-terminal-pane",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid='terminal-pane-container'].border-wc-accent [data-testid='terminal-pane']"
+        },
+        "metadata": {
+          "label": "Activate terminal pane"
+        }
+      }
+    },
+    {
+      "id": "focus-xterm-textarea",
+      "action": {
+        "type": "ACTION_TYPE_FOCUS",
+        "focus": {
+          "selector": "[data-testid='terminal-pane-container'].border-wc-accent [data-testid='terminal-pane'] .xterm-helper-textarea",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Focus xterm input"
+        }
+      }
+    },
+    {
+      "id": "send-marker-command",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "keys": [
+            "e",
+            "c",
+            "h",
+            "o",
+            "Space",
+            "b",
+            "a",
+            "s",
+            "s",
+            "t",
+            "d",
+            "i",
+            "n",
+            "l",
+            "i",
+            "v",
+            "e",
+            "o",
+            "k",
+            "Enter"
+          ]
+        },
+        "metadata": {
+          "label": "Emit reload marker via stdin"
+        }
+      }
+    },
+    {
+      "id": "wait-marker-output",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1200
+        },
+        "metadata": {
+          "label": "Wait for marker output"
+        }
+      }
+    },
+    {
+      "id": "capture-session-before-reload",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const activePane = document.querySelector('[data-testid=\"terminal-pane-container\"].border-wc-accent [data-testid=\"terminal-pane\"][data-session-id]'); const fallbackPane = document.querySelector('[data-testid=\"terminal-pane\"][data-session-id]'); const pane = activePane || fallbackPane; const sessionId = pane ? (pane.getAttribute('data-session-id') || '') : ''; const text = pane ? (pane.textContent || '') : ''; if (sessionId) localStorage.setItem('bas.reload.sessionId', sessionId); document.body.setAttribute('data-reload-session-id', sessionId); document.body.setAttribute('data-reload-marker-before', text.includes('basstdinliveok') ? 'true' : 'false'); })()"
+        },
+        "metadata": {
+          "label": "Capture session id and marker before reload"
+        }
+      }
+    },
+    {
+      "id": "assert-marker-before-reload",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-reload-marker-before='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected pre-reload marker output"
+        },
+        "metadata": {
+          "label": "Verify marker before reload"
+        }
+      }
+    },
+    {
+      "id": "trigger-full-reload",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { window.location.reload(); })()"
+        },
+        "metadata": {
+          "label": "Reload workspace"
+        }
+      }
+    },
+    {
+      "id": "wait-workspace-after-reload",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.newTerminalButton",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": {
+          "label": "Wait for workspace after reload"
+        }
+      }
+    },
+    {
+      "id": "evaluate-session-after-reload",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => { const sessionId = localStorage.getItem('bas.reload.sessionId') || ''; let panePresent = false; let markerSeen = false; const deadline = Date.now() + 8000; while (Date.now() < deadline) { const pane = sessionId ? document.querySelector(`[data-testid=\"terminal-pane\"][data-session-id=\"${sessionId}\"]`) : document.querySelector('[data-testid=\"terminal-pane\"][data-session-id]'); const text = pane ? (pane.textContent || '') : ''; if (pane) panePresent = true; if (pane && text.includes('basstdinliveok')) { markerSeen = true; break; } await new Promise((resolve) => setTimeout(resolve, 100)); } document.body.setAttribute('data-reload-session-present', panePresent ? 'true' : 'false'); document.body.setAttribute('data-reload-marker-after', markerSeen ? 'true' : 'false'); })()"
+        },
+        "metadata": {
+          "label": "Check session and marker after reload"
+        }
+      }
+    },
+    {
+      "id": "assert-session-after-reload",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-reload-session-present='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected same terminal session after reload"
+        },
+        "metadata": {
+          "label": "Verify session continuity"
+        }
+      }
+    },
+    {
+      "id": "assert-marker-after-reload",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body[data-reload-marker-after='true']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected marker output after reload"
+        },
+        "metadata": {
+          "label": "Verify output continuity"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-workspace-root",
+      "target": "open-workspace",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "open-workspace",
+      "target": "reset-sessions",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "reset-sessions",
+      "target": "click-new-terminal",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "click-new-terminal",
+      "target": "wait-launcher",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "wait-launcher",
+      "target": "launch-empty-shell",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "launch-empty-shell",
+      "target": "wait-terminal-pane",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "wait-terminal-pane",
+      "target": "click-terminal-pane",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "click-terminal-pane",
+      "target": "focus-xterm-textarea",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "focus-xterm-textarea",
+      "target": "send-marker-command",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "send-marker-command",
+      "target": "wait-marker-output",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11",
+      "source": "wait-marker-output",
+      "target": "capture-session-before-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e12",
+      "source": "capture-session-before-reload",
+      "target": "assert-marker-before-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e13",
+      "source": "assert-marker-before-reload",
+      "target": "trigger-full-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e14",
+      "source": "trigger-full-reload",
+      "target": "wait-workspace-after-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e15",
+      "source": "wait-workspace-after-reload",
+      "target": "evaluate-session-after-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e16",
+      "source": "evaluate-session-after-reload",
+      "target": "assert-session-after-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e17",
+      "source": "assert-session-after-reload",
+      "target": "assert-marker-after-reload",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

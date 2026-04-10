@@ -1,0 +1,152 @@
+{
+  "round": 4,
+  "generated_at": "2026-04-04T03:58:00Z",
+  "execution_id": "d46733b9e63c748b",
+  "status": "complete",
+  "agent_assessment": "Implementation matches the plan across all 6 phases. CLI: all 7 approval subcommands implemented (list, get, create, decide, gate, platforms set/get) following cli-core pattern with Commands struct, New constructor, Run dispatcher, and ParseInterspersed flag parsing. 20/20 CLI approval tests pass covering flag validation, API request correctness, human/JSON output formats, and error cases. Full CLI suite passes (all packages). UI: TypeScript types for all approval models defined in api.ts, 7 API client functions cover all endpoints, standalone /approvals page with profile selector + status filtering + inline approve/reject + detail panel, ProfileDetail integrates gate status badge with commit selector and required platforms checkboxes. 14/14 UI approval tests pass. Full UI suite passes (85/85 tests across 15 files). GCT test failures (5/11) are all pre-existing and unrelated to this work: bundle tests fail on missing sample scenarios/manifests, health endpoint test has response format mismatch. Standards violations (48 warnings, 16 high) are also pre-existing (BrowserRouter basename, ESLint config, tsconfig strict mode) and affect the broader scenario, not approval-specific code. One minor DOM nesting warning in Approvals.test.tsx (Badge div inside p tag) is cosmetic.",
+  "classification": "ready_with_notes",
+  "notes": [
+    "GCT shows 5/11 test failures — all are pre-existing bundle/health tests unrelated to approval work (missing sample manifests, missing demo scenarios, health response format)",
+    "GCT 48 standards warnings (16 high) are pre-existing infrastructure issues: BrowserRouter basename prop missing across all test files, ESLint config not found, tsconfig strict mode not enabled — none introduced by this work",
+    "Minor DOM nesting warning: Badge component renders <div> inside <p> in Approvals detail view — cosmetic, does not affect functionality",
+    "GCT visual dimension is red (0 screenshots) — no visual captures exist for deployment-manager UI at all, not specific to this change",
+    "Approvals.tsx has 3 'as-type' patterns flagged by standards — matches existing codebase style (ProfileDetail.tsx, Deployments.tsx also have 3 each)"
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "type": "cli_output",
+      "title": "CLI approvals tests — all 20 pass",
+      "description": "Ran go test ./approvals/ -v covering all 7 subcommands: list (4 tests), get (2), create (2), decide (2), gate (3), platforms set (2), platforms get (2), dispatch errors (3). All pass in 0.006s.",
+      "capture_path": "captures/cli-approvals-tests-r4.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "TestListRequiresProfileID", "passed": true, "output_summary": "Validates missing profile ID produces error"},
+        {"name": "TestListSendsCommitQueryParam", "passed": true, "output_summary": "Verifies ?commit= query param forwarding"},
+        {"name": "TestListTableOutput", "passed": true, "output_summary": "Human-readable table output with approval summary"},
+        {"name": "TestListJSONOutput", "passed": true, "output_summary": "JSON output produces valid structured data"},
+        {"name": "TestGetRequiresApprovalID", "passed": true, "output_summary": "Validates missing approval ID produces error"},
+        {"name": "TestGetHumanOutput", "passed": true, "output_summary": "Human-friendly detail output with all fields"},
+        {"name": "TestCreateRequiresFlags", "passed": true, "output_summary": "Validates required --commit and --platform flags"},
+        {"name": "TestCreateSendsCorrectPayload", "passed": true, "output_summary": "POST body marshaling verified"},
+        {"name": "TestDecideRequiresFlags", "passed": true, "output_summary": "Validates required --decision and --reviewer flags"},
+        {"name": "TestDecideSendsCorrectPayload", "passed": true, "output_summary": "Decision payload with optional --notes verified"},
+        {"name": "TestGateRequiresFlags", "passed": true, "output_summary": "Validates required profile ID and --commit flag"},
+        {"name": "TestGateReadyOutput", "passed": true, "output_summary": "Operational output: Ready status with all platforms approved"},
+        {"name": "TestGateBlockedOutput", "passed": true, "output_summary": "Operational output: Blocked status with triage and next steps"},
+        {"name": "TestPlatformsSetRequiresFlags", "passed": true, "output_summary": "Validates required --platforms flag"},
+        {"name": "TestPlatformsSetParsesCSV", "passed": true, "output_summary": "CSV parsing for win,mac,linux verified"},
+        {"name": "TestPlatformsGetRequiresProfileID", "passed": true, "output_summary": "Validates missing profile ID produces error"},
+        {"name": "TestPlatformsGetOutput", "passed": true, "output_summary": "Platform list output formatting verified"},
+        {"name": "TestRunRequiresSubcommand", "passed": true, "output_summary": "No subcommand produces usage error"},
+        {"name": "TestRunUnknownSubcommand", "passed": true, "output_summary": "Unknown subcommand produces error"},
+        {"name": "TestPlatformsUnknownSubcommand", "passed": true, "output_summary": "Unknown platforms subcommand produces error"}
+      ]
+    },
+    {
+      "id": "e2",
+      "type": "cli_output",
+      "title": "Full CLI test suite — all packages pass",
+      "description": "Ran go test ./... across entire CLI codebase. All test packages pass: approvals, deployments, overview, profiles, swaps. No regressions introduced.",
+      "capture_path": "captures/cli-full-suite-r4.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "cli (root)", "passed": true, "output_summary": "cached — pass"},
+        {"name": "cli/approvals", "passed": true, "output_summary": "cached — pass"},
+        {"name": "cli/deployments", "passed": true, "output_summary": "cached — pass"},
+        {"name": "cli/overview", "passed": true, "output_summary": "cached — pass"},
+        {"name": "cli/profiles", "passed": true, "output_summary": "cached — pass"},
+        {"name": "cli/swaps", "passed": true, "output_summary": "cached — pass"}
+      ]
+    },
+    {
+      "id": "e3",
+      "type": "cli_output",
+      "title": "UI approval tests — all 14 pass",
+      "description": "Ran vitest on Approvals.test.tsx (8 tests) and ProfileDetail.test.tsx (6 tests). Covers page rendering, profile selection, approval list, status filtering, empty/error states, detail view, approve action, gate badges (ready/blocked), required platforms checkboxes, and save mutation.",
+      "capture_path": "captures/ui-approvals-tests-r4.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "Approvals > renders page title", "passed": true, "output_summary": "Page title renders correctly"},
+        {"name": "Approvals > shows select prompt when no profile selected", "passed": true, "output_summary": "Initial state guidance shown"},
+        {"name": "Approvals > renders approval list after selecting profile", "passed": true, "output_summary": "Approval data renders in list"},
+        {"name": "Approvals > filters approvals by status", "passed": true, "output_summary": "Status filter works correctly"},
+        {"name": "Approvals > shows empty state when no approvals", "passed": true, "output_summary": "Empty state message displayed"},
+        {"name": "Approvals > shows error state on API failure", "passed": true, "output_summary": "Error message displayed on failure"},
+        {"name": "Approvals > opens detail view on row click", "passed": true, "output_summary": "Detail panel opens with full info"},
+        {"name": "Approvals > calls decideApproval on approve action", "passed": true, "output_summary": "Approve action triggers correct API call"},
+        {"name": "ProfileDetail - Release Gate > renders release gate card", "passed": true, "output_summary": "Gate card with commit input renders"},
+        {"name": "ProfileDetail - Release Gate > shows Ready badge when gate is ready", "passed": true, "output_summary": "Green Ready badge with platform breakdown"},
+        {"name": "ProfileDetail - Release Gate > shows Blocked badge with platform breakdown when not ready", "passed": true, "output_summary": "Red Blocked badge with per-platform status"},
+        {"name": "ProfileDetail - Required Platforms > renders required platforms checkboxes", "passed": true, "output_summary": "Win/Mac/Linux checkboxes render"},
+        {"name": "ProfileDetail - Required Platforms > shows save button after changing selection", "passed": true, "output_summary": "Save button activates on change"},
+        {"name": "ProfileDetail - Required Platforms > calls setRequiredPlatforms on save", "passed": true, "output_summary": "Mutation fires with correct platform array"}
+      ]
+    },
+    {
+      "id": "e4",
+      "type": "cli_output",
+      "title": "Full UI test suite — all 85 tests pass across 15 files",
+      "description": "Ran full vitest suite for deployment-manager UI. All 85 tests pass across 15 test files. No regressions from approval feature additions.",
+      "capture_path": "captures/ui-full-suite-r4.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "Full UI suite", "passed": true, "output_summary": "15 test files, 85 tests, all passing in 1.29s"}
+      ]
+    },
+    {
+      "id": "e5",
+      "type": "custom",
+      "title": "CLI structure verification — follows cli-core pattern",
+      "description": "Verified cli/approvals/commands.go implements Commands struct with api *cliutil.APIClient field, New(api) constructor, Run(args) dispatcher with switch on subcommand, nested 'platforms' sub-dispatch for set/get. Uses flag.NewFlagSet + cliutil.ParseInterspersed for flag parsing and cmdutil.ResolveFormat/PrintByFormat for output formatting. Registered in app.go as new CommandGroup. Matches existing patterns in cli/deployments/, cli/validations/.",
+      "verified": false
+    },
+    {
+      "id": "e6",
+      "type": "custom",
+      "title": "UI structure verification — types, API client, routing, navigation",
+      "description": "Verified: (1) TypeScript types in ui/src/lib/api.ts lines 188-234 match Go types exactly (DeploymentApproval, ApprovalDecisionRequest, CreateApprovalRequest, ReleaseGateStatus, PlatformGateStatus, RequiredPlatformsResponse). (2) 7 API client functions (listApprovals, getApproval, createApproval, decideApproval, checkReleaseGate, getRequiredPlatforms, setRequiredPlatforms) at lines 320-350. (3) /approvals route registered in App.tsx line 25. (4) Navigation item with Shield icon in Layout.tsx lines 24-31. (5) ProfileDetail integrates gate status badge with commit selector and required platforms checkboxes with save button. (6) Approvals page has profile selector, status filter, inline approve/reject buttons, and detail panel.",
+      "verified": false
+    },
+    {
+      "id": "e7",
+      "type": "custom",
+      "title": "GCT failure analysis — all failures are pre-existing",
+      "description": "GCT reports 5/11 API test failures, all pre-existing and unrelated to approval work: (1) 9 bundle assembly/export tests fail because they reference scenarios (demo-app, test-app, export-test-app) that don't exist — this is a test fixture issue in api/bundles/. (2) 9 mapper tests fail because sample manifest file (docs/deployment/examples/manifests/desktop-happy.json) doesn't exist. (3) 2 health endpoint tests fail due to response format mismatch (test expects string status, API returns object with connected/latency fields). The approval-related packages (deployments, codesigning, fitness) all pass. Standards violations (48 total, 16 high) are also pre-existing: BrowserRouter basename (9 files), ESLint config missing, tsconfig strict mode, Go workspace mode — none introduced by this change.",
+      "verified": false
+    }
+  ],
+  "request_threads": [],
+  "improvement_suggestions": [
+    {
+      "category": "visual_capture",
+      "description": "Add deployment-manager UI routes (/approvals, /profiles/:id) to browser-automation-studio capture config so GCT's visual dimension covers the new Approvals page and ProfileDetail gate badge integration",
+      "evidence_id": "e6",
+      "priority": "medium"
+    },
+    {
+      "category": "test_coverage",
+      "description": "Fix pre-existing bundle test fixtures: create mock scenario directories or refactor tests to not depend on real scenario filesystem paths. This would turn 9 GCT failures green.",
+      "evidence_id": "e7",
+      "priority": "high"
+    },
+    {
+      "category": "test_coverage",
+      "description": "Fix pre-existing mapper tests: create or relocate sample manifest file (docs/deployment/examples/manifests/desktop-happy.json) so 9 mapper tests pass",
+      "evidence_id": "e7",
+      "priority": "high"
+    },
+    {
+      "category": "test_coverage",
+      "description": "Fix health endpoint test assertions to match actual response format (object with connected/latency_ms fields vs expected string status)",
+      "evidence_id": "e7",
+      "priority": "medium"
+    },
+    {
+      "category": "standards_rule",
+      "description": "Add BrowserRouter basename prop using getProxyInfo() from @vrooli/api-base across all UI test files and App.tsx to resolve 9 of 16 high-severity standards violations",
+      "evidence_id": "e7",
+      "priority": "medium"
+    }
+  ]
+}

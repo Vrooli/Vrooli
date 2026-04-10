@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	apierrors "vrooli-autoheal/internal/errors"
 )
 
 // DocsManifest represents the structure of the docs manifest.json file
@@ -48,22 +50,16 @@ func (h *Handlers) DocsManifest(w http.ResponseWriter, r *http.Request) {
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			writeJSON(w, http.StatusNotFound, map[string]string{
-				"error": "docs manifest not found",
-			})
+			apierrors.LogAndRespond(w, apierrors.NewNotFoundError("docs", "docs manifest", "manifest.json"))
 			return
 		}
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "failed to read docs manifest",
-		})
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("docs", "Failed to read docs manifest", err))
 		return
 	}
 
 	var manifest DocsManifest
 	if err := json.Unmarshal(data, &manifest); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "invalid docs manifest format",
-		})
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("docs", "Invalid docs manifest format", err))
 		return
 	}
 
@@ -74,18 +70,14 @@ func (h *Handlers) DocsManifest(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) DocsContent(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Query().Get("path")
 	if path == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "path parameter is required",
-		})
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("docs", "path parameter is required", nil))
 		return
 	}
 
 	// Prevent directory traversal attacks
 	cleanPath := filepath.Clean(path)
 	if filepath.IsAbs(cleanPath) || containsParentRef(cleanPath) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "invalid path",
-		})
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("docs", "path contains invalid characters", nil))
 		return
 	}
 
@@ -95,38 +87,28 @@ func (h *Handlers) DocsContent(w http.ResponseWriter, r *http.Request) {
 	// Verify the path is still within docs directory
 	absDocsDir, err := filepath.Abs(docsDir)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "failed to resolve docs directory",
-		})
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("docs", "Failed to resolve docs directory", err))
 		return
 	}
 
 	absFullPath, err := filepath.Abs(fullPath)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "failed to resolve document path",
-		})
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("docs", "Failed to resolve document path", err))
 		return
 	}
 
 	if !strings.HasPrefix(absFullPath, absDocsDir) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "invalid path",
-		})
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("docs", "path contains invalid characters", nil))
 		return
 	}
 
 	data, err := os.ReadFile(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			writeJSON(w, http.StatusNotFound, map[string]string{
-				"error": "document not found",
-			})
+			apierrors.LogAndRespond(w, apierrors.NewNotFoundError("docs", "document", cleanPath))
 			return
 		}
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "failed to read document",
-		})
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("docs", "Failed to read document", err))
 		return
 	}
 
@@ -183,9 +165,12 @@ func containsParentRef(path string) bool {
 	return false
 }
 
-// writeJSON is a helper to write JSON responses with proper headers and status
+// writeJSON is a helper to write JSON responses with proper headers and status.
+// Only used for success responses; errors go through apierrors.LogAndRespond.
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		apierrors.LogError("docs", "encode_response", err)
+	}
 }

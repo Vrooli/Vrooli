@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import { cn } from "../lib/utils";
 import type { ViewMode } from "../lib/api";
+import { getFileTypeInfo } from "../lib/fileTypes";
 
 interface ViewModeSelectorProps {
   mode: ViewMode;
@@ -7,6 +9,10 @@ interface ViewModeSelectorProps {
   disabled?: boolean;
   className?: string;
   compact?: boolean;
+  /** File path to determine if preview is available */
+  filePath?: string;
+  /** Whether the file has git changes (shows Diff/Full+Diff buttons) */
+  hasDiff?: boolean;
 }
 
 interface ModeOption {
@@ -16,7 +22,7 @@ interface ModeOption {
   description: string;
 }
 
-const modes: ModeOption[] = [
+const baseModes: ModeOption[] = [
   {
     value: "diff",
     label: "Diff",
@@ -37,13 +43,39 @@ const modes: ModeOption[] = [
   }
 ];
 
+const previewMode: ModeOption = {
+  value: "preview",
+  label: "Preview",
+  shortLabel: "View",
+  description: "Preview rendered content"
+};
+
 export function ViewModeSelector({
   mode,
   onChange,
   disabled = false,
   className,
-  compact = false
+  compact = false,
+  filePath,
+  hasDiff = true
 }: ViewModeSelectorProps) {
+  const modes = useMemo(() => {
+    // Start with base modes, filtering out diff modes if no changes
+    let availableModes = hasDiff
+      ? baseModes
+      : baseModes.filter((m) => m.value !== "diff" && m.value !== "full_diff");
+
+    // Add preview mode if file type supports it
+    if (filePath) {
+      const fileType = getFileTypeInfo(filePath);
+      if (fileType.canPreview) {
+        availableModes = [...availableModes, previewMode];
+      }
+    }
+
+    return availableModes;
+  }, [filePath, hasDiff]);
+
   return (
     <div
       className={cn(

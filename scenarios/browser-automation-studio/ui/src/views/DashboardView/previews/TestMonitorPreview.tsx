@@ -66,7 +66,7 @@ export const TestMonitorPreview: React.FC<{ isActive: boolean }> = ({ isActive }
     };
   }, [isActive]);
 
-  const getStatusIcon = (status: ExecutionStep['status']) => {
+  const getStatusIcon = (status: ExecutionStep['status'] | undefined) => {
     switch (status) {
       case 'passed':
         return <CheckCircle size={12} className="text-green-400" />;

@@ -6,7 +6,7 @@ Go-based REST API that orchestrates test suite execution across Vrooli scenarios
 
 ```mermaid
 flowchart TB
-    subgraph Entry["cmd/test-genie-api"]
+    subgraph Entry["api/"]
         main["main.go"]
     end
 
@@ -114,8 +114,7 @@ flowchart TB
 
 ```
 api/
-├── cmd/test-genie-api/
-│   └── main.go                 # Entry point (lifecycle-managed)
+├── main.go                     # Entry point (lifecycle-managed)
 │
 ├── internal/
 │   ├── app/
@@ -212,16 +211,18 @@ vrooli scenario start test-genie
 vrooli scenario stop test-genie
 ```
 
-Direct execution (`go run ./cmd/test-genie-api`) is blocked—the binary validates `VROOLI_LIFECYCLE_MANAGED=true`.
+Direct execution (`go run .`) is blocked—the binary validates `VROOLI_LIFECYCLE_MANAGED=true`.
 
 ### Required Environment Variables
 
 | Variable | Description | Source |
 |----------|-------------|--------|
 | `API_PORT` | HTTP listen port | Lifecycle |
-| `DATABASE_URL` | PostgreSQL connection string | Lifecycle |
-| `POSTGRES_*` | Fallback DB config (HOST, PORT, USER, PASSWORD, DB) | Lifecycle |
+| `TEST_GENIE_SQLITE_PATH` | Embedded SQLite file path override | Lifecycle / operator override |
+| `SCENARIO_DATA_DIR` | Default root used to derive `test-genie.db` when present | Lifecycle |
 | `SCENARIOS_ROOT` | Path to scenarios directory | Lifecycle |
+
+If lifecycle does not export `SCENARIO_DATA_DIR`, the API falls back to `scenarios/test-genie/data/test-genie.db`.
 
 ## Key Concepts
 
@@ -269,6 +270,7 @@ Suite requests queue generation intents. When executed with a `suiteRequestId`, 
 | `GET` | `/api/v1/suite-requests` | List queued requests |
 | `GET` | `/api/v1/suite-requests/{id}` | Get request by ID |
 | `GET` | `/api/v1/phases` | List registered phases |
+| `POST` | `/api/v1/executions/plan` | Preview the selected phase plan, estimate, and timeout budget |
 | `POST` | `/api/v1/executions` | Execute a test suite |
 | `GET` | `/api/v1/executions` | List execution history |
 | `GET` | `/api/v1/executions/{id}` | Get execution by ID |
@@ -304,3 +306,12 @@ go test -cover ./...             # With coverage
 - [Phases README](internal/orchestrator/phases/README.md) — Phase contracts & implementations
 - [HTTP Server README](internal/app/httpserver/README.md) — Handler patterns
 - [Execution README](internal/execution/README.md) — State management
+
+## Execution Planning
+
+Execution planning is a first-class API surface:
+
+- `POST /api/v1/executions/plan` resolves the actual phase list for a request before execution.
+- Runtime estimates are based on recent per-phase history, not timeout budgets.
+- Timeout budgets still come from phase configuration and are returned alongside the estimate.
+- Execution history persists requested preset/phases/skip, actual planned phases, and fail-fast so future estimates can distinguish full plans from partial runs.

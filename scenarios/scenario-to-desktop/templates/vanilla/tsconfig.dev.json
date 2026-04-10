@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2020", "DOM"],
+    "types": ["vitest/globals"],
+    "outDir": "./dist-dev",
+    "rootDir": ".",
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "noEmit": true
+  },
+  // Only include pure TypeScript modules that don't contain template placeholders
+  // Files like main.ts and preload.ts contain {{...}} placeholders that are replaced
+  // by the template generator - they can't be type-checked until after generation
+  "include": [
+    "splash/**/*.ts",
+    "window-state/**/*.ts",
+    "test-utils/**/*.ts",
+    "telemetry/**/*.ts",
+    "runtime/**/*.ts",
+    "storage/**/*.ts",
+    "ipc/**/*.ts",
+    "auth/**/*.ts",
+    "bundle/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", "dist-dev", "dist-electron", "scripts", "examples"]
+}

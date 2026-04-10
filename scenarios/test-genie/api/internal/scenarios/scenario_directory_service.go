@@ -229,7 +229,10 @@ func (s *ScenarioDirectoryService) decorateScenario(summary *ScenarioSummary) {
 }
 
 // RunScenarioTests executes the preferred testing command for the provided scenario.
-func (s *ScenarioDirectoryService) RunScenarioTests(ctx context.Context, scenario string, preferred string, extraArgs []string) (*TestingCommand, *TestingRunnerResult, error) {
+// When scenarioDirOverride is non-empty, it is used as the scenario directory instead
+// of resolving via scenariosRoot. This supports sandboxed agents whose files live
+// in an overlay filesystem. See packages/cli-core/cliutil/sandbox.go.
+func (s *ScenarioDirectoryService) RunScenarioTests(ctx context.Context, scenario string, preferred string, extraArgs []string, scenarioDirOverride string) (*TestingCommand, *TestingRunnerResult, error) {
 	if s == nil || s.runTests == nil {
 		return nil, nil, sql.ErrConnDone
 	}
@@ -237,10 +240,13 @@ func (s *ScenarioDirectoryService) RunScenarioTests(ctx context.Context, scenari
 	if scenario == "" {
 		return nil, nil, shared.NewValidationError("scenario name is required")
 	}
-	if s.scenariosRoot == "" {
-		return nil, nil, fmt.Errorf("scenarios root is not configured")
+	dir := strings.TrimSpace(scenarioDirOverride)
+	if dir == "" {
+		if s.scenariosRoot == "" {
+			return nil, nil, fmt.Errorf("scenarios root is not configured")
+		}
+		dir = filepath.Join(s.scenariosRoot, scenario)
 	}
-	dir := filepath.Join(s.scenariosRoot, scenario)
 	info, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -287,15 +293,20 @@ type UISmokeResult struct {
 // If uiURL is provided, it overrides the auto-detected URL.
 // If browserlessURL is provided, it overrides the default Browserless endpoint.
 // If timeoutMs is > 0, it overrides the default timeout.
-func (s *ScenarioDirectoryService) RunUISmoke(ctx context.Context, scenario string, uiURL string, browserlessURL string, timeoutMs int64) (*UISmokeResult, error) {
+// When scenarioDirOverride is non-empty, it is used instead of resolving via
+// scenariosRoot. See packages/cli-core/cliutil/sandbox.go.
+func (s *ScenarioDirectoryService) RunUISmoke(ctx context.Context, scenario string, uiURL string, browserlessURL string, timeoutMs int64, scenarioDirOverride string) (*UISmokeResult, error) {
 	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
 		return nil, shared.NewValidationError("scenario name is required")
 	}
-	if s.scenariosRoot == "" {
-		return nil, fmt.Errorf("scenarios root is not configured")
+	dir := strings.TrimSpace(scenarioDirOverride)
+	if dir == "" {
+		if s.scenariosRoot == "" {
+			return nil, fmt.Errorf("scenarios root is not configured")
+		}
+		dir = filepath.Join(s.scenariosRoot, scenario)
 	}
-	dir := filepath.Join(s.scenariosRoot, scenario)
 	info, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -337,6 +348,9 @@ type UISmokeOptions struct {
 	NoRecovery     bool
 	SharedMode     bool
 	AutoStart      bool
+	// ScenarioDirOverride overrides the scenario directory path for sandboxed agents.
+	// See packages/cli-core/cliutil/sandbox.go.
+	ScenarioDirOverride string
 }
 
 // RunUISmokeWithOpts executes a UI smoke test with full options support.
@@ -345,10 +359,13 @@ func (s *ScenarioDirectoryService) RunUISmokeWithOpts(ctx context.Context, scena
 	if scenario == "" {
 		return nil, shared.NewValidationError("scenario name is required")
 	}
-	if s.scenariosRoot == "" {
-		return nil, fmt.Errorf("scenarios root is not configured")
+	dir := strings.TrimSpace(opts.ScenarioDirOverride)
+	if dir == "" {
+		if s.scenariosRoot == "" {
+			return nil, fmt.Errorf("scenarios root is not configured")
+		}
+		dir = filepath.Join(s.scenariosRoot, scenario)
 	}
-	dir := filepath.Join(s.scenariosRoot, scenario)
 	info, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {

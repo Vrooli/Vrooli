@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { ArrowLeft, Rocket, Loader2, Focus, Package, AlertCircle } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Rocket, Loader2, Focus, Package, AlertCircle, Shield, CheckCircle2, XCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { getProfile, deployProfile } from "../lib/api";
+import { getProfile, deployProfile, checkReleaseGate, getRequiredPlatforms, setRequiredPlatforms } from "../lib/api";
+import type { ReleaseGateStatus } from "../lib/api";
+import { getErrorMessage } from "../lib/utils";
 
 const TIER_NAMES: Record<number, string> = {
   1: "Local/Dev",
@@ -22,9 +25,24 @@ const TIER_KEYS: Record<number, string> = {
   5: "enterprise",
 };
 
+const ALL_PLATFORMS = ["windows", "macos", "linux"];
+
+function statusVariant(status: string): "success" | "warning" | "destructive" | "secondary" {
+  switch (status) {
+    case "approved": return "success";
+    case "pending": return "warning";
+    case "rejected": return "destructive";
+    default: return "secondary";
+  }
+}
+
 export function ProfileDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [gateCommit, setGateCommit] = useState("");
+  const [platformEditing, setPlatformEditing] = useState(false);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
 
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ["profile", id],
@@ -36,6 +54,29 @@ export function ProfileDetail() {
     mutationFn: deployProfile,
     onSuccess: (data) => {
       navigate(`/deployments/${data.deployment_id}`);
+    },
+  });
+
+  // Release gate query — uses gateCommit if set, otherwise disabled until user enters one
+  const { data: gateStatus, isLoading: gateLoading, error: gateError } = useQuery({
+    queryKey: ["release-gate", id, gateCommit],
+    queryFn: () => checkReleaseGate(id!, gateCommit),
+    enabled: !!id && gateCommit.length > 0,
+  });
+
+  // Required platforms
+  const { data: requiredPlatforms } = useQuery({
+    queryKey: ["required-platforms", id],
+    queryFn: () => getRequiredPlatforms(id!),
+    enabled: !!id,
+  });
+
+  const savePlatformsMutation = useMutation({
+    mutationFn: () => setRequiredPlatforms(id!, selectedPlatforms),
+    onSuccess: () => {
+      setPlatformEditing(false);
+      queryClient.invalidateQueries({ queryKey: ["required-platforms", id] });
+      queryClient.invalidateQueries({ queryKey: ["release-gate", id] });
     },
   });
 
@@ -57,7 +98,7 @@ export function ProfileDetail() {
           <h1 className="text-3xl font-bold">Profile Not Found</h1>
         </div>
         <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-200">
-          <p className="text-sm">Failed to load profile: {(error as Error).message}</p>
+          <p className="text-sm">Failed to load profile: {getErrorMessage(error)}</p>
         </div>
       </div>
     );
@@ -65,6 +106,11 @@ export function ProfileDetail() {
 
   if (!profile) {
     return null;
+  }
+
+  // Initialize selectedPlatforms from server data on first load
+  if (requiredPlatforms && selectedPlatforms.length === 0 && requiredPlatforms.platforms.length > 0 && !platformEditing) {
+    setSelectedPlatforms(requiredPlatforms.platforms);
   }
 
   return (
@@ -114,7 +160,7 @@ export function ProfileDetail() {
       {deployMutation.isError && (
         <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-200">
           <p className="text-sm">
-            Failed to deploy: {(deployMutation.error as Error).message}
+            Failed to deploy: {getErrorMessage(deployMutation.error)}
           </p>
         </div>
       )}
@@ -131,6 +177,98 @@ export function ProfileDetail() {
           </p>
         </div>
       </div>
+
+      {/* Release Gate Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Release Gate
+          </CardTitle>
+          <CardDescription>
+            Check approval status for a specific commit
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Enter git commit hash..."
+              value={gateCommit}
+              onChange={(e) => setGateCommit(e.target.value)}
+              className="flex-1 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            />
+          </div>
+
+          {gateLoading && (
+            <div className="flex items-center gap-2 text-slate-400">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Checking gate status...
+            </div>
+          )}
+
+          {gateError && (
+            <div className="text-sm text-red-300">
+              Failed to check gate: {getErrorMessage(gateError)}
+            </div>
+          )}
+
+          {gateStatus && <GateStatusDisplay gate={gateStatus} />}
+
+          {!gateCommit && (
+            <p className="text-sm text-slate-500">
+              Enter a commit hash to check release gate status.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Required Platforms */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Required Platforms</CardTitle>
+          <CardDescription>
+            Platforms that must be approved before deployment can proceed
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-4">
+            {ALL_PLATFORMS.map((plat) => (
+              <label key={plat} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedPlatforms.includes(plat)}
+                  onChange={(e) => {
+                    setPlatformEditing(true);
+                    setSelectedPlatforms(
+                      e.target.checked
+                        ? [...selectedPlatforms, plat]
+                        : selectedPlatforms.filter((p) => p !== plat)
+                    );
+                  }}
+                  className="rounded border-white/20 bg-white/5 text-cyan-500 focus:ring-cyan-500"
+                />
+                <span className="text-sm capitalize">{plat}</span>
+              </label>
+            ))}
+          </div>
+          {platformEditing && (
+            <Button
+              size="sm"
+              onClick={() => savePlatformsMutation.mutate()}
+              disabled={savePlatformsMutation.isPending}
+            >
+              {savePlatformsMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Save Platforms
+            </Button>
+          )}
+          {savePlatformsMutation.isSuccess && !platformEditing && (
+            <p className="text-sm text-green-400">Platforms saved.</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Basic Info */}
       <Card>
@@ -226,6 +364,48 @@ export function ProfileDetail() {
             </pre>
           </CardContent>
         </Card>
+      )}
+    </div>
+  );
+}
+
+function GateStatusDisplay({ gate }: { gate: ReleaseGateStatus }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        {gate.ready ? (
+          <>
+            <CheckCircle2 className="h-5 w-5 text-green-400" />
+            <Badge variant="success">Ready</Badge>
+          </>
+        ) : (
+          <>
+            <XCircle className="h-5 w-5 text-red-400" />
+            <Badge variant="destructive">Blocked</Badge>
+          </>
+        )}
+        <span className="text-sm text-slate-400 ml-2">
+          Commit: {gate.git_commit_hash.substring(0, 12)}...
+        </span>
+      </div>
+
+      {gate.platforms.length > 0 && (
+        <div className="space-y-2">
+          {gate.platforms.map((p) => (
+            <div
+              key={p.platform}
+              className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2"
+            >
+              <span className="text-sm font-medium capitalize">{p.platform}</span>
+              <div className="flex items-center gap-2">
+                {p.required && (
+                  <span className="text-xs text-slate-500">required</span>
+                )}
+                <Badge variant={statusVariant(p.status)}>{p.status}</Badge>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

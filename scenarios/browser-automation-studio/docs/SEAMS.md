@@ -312,6 +312,473 @@ type WorkflowResolver interface {
 
 ---
 
+### 24. Credit Service Seam (Strong)
+
+**Location:** `api/services/credits/`
+
+**Interface:** `api/services/credits/interface.go`
+```go
+type CreditService interface {
+    CanCharge(ctx context.Context, userIdentity string, op OperationType) (bool, int, error)
+    Charge(ctx context.Context, req ChargeRequest) (*ChargeResult, error)
+    ChargeIfAllowed(ctx context.Context, req ChargeRequest) (*ChargeResult, error)
+    GetUsage(ctx context.Context, userIdentity string) (*UsageSummary, error)
+    GetOperationCost(op OperationType) int
+    LogFailedOperation(ctx context.Context, req ChargeRequest, opErr error) error
+    GetUsageHistory(ctx context.Context, userIdentity string, months, offset int) ([]UsageSummary, bool, error)
+    GetOperationLog(ctx context.Context, userIdentity, month, category string, limit, offset int) (*OperationLogPage, error)
+    CanPerformAIOperation(ctx context.Context, userIdentity string, op OperationType, hasBYOK bool) (bool, string, string, int, error)
+}
+```
+
+**Test Doubles:**
+- `services/credits/mock.go`: `MockService` - Full interface mock with configurable responses
+- `services/credits/entitlement_provider.go`: `MockEntitlementProvider` - Controls tier/limit behavior
+
+**Status:** Strong
+- Clean interface separating credit checking from charging
+- Multiple testing seams: `EntitlementProvider`, `LPBSReporter`, `Dialect` flag
+- Comprehensive test coverage with SQLite in-memory database
+- Compile-time enforcement via `var _ CreditService = (*Service)(nil)`
+
+**Architecture:**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                      CreditService                               │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ EntitlementProvider │───▶ GetAICreditsLimit()             │   │
+│  │ (testing seam)      │    CanUseAIWithEntitlement()        │   │
+│  └──────────────────┘    GetEntitlement()                    │   │
+│                          └─────────────────────────────────┘   │
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ LPBSReporter     │───▶ ReportUsage()                      │   │
+│  │ (testing seam)   │    (async to central LPBS)             │   │
+│  └──────────────────┘    └─────────────────────────────────┘   │
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ Database Dialect │───▶ PostgreSQL (production)            │   │
+│  │ (testing seam)   │    SQLite (unit tests)                 │   │
+│  └──────────────────┘    └─────────────────────────────────┘   │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Testing Example:**
+```go
+// Unit test setup with all seams mocked
+svc := credits.NewService(credits.ServiceOptions{
+    DB:      sqliteInMemoryDB,
+    Logger:  logrus.New(),
+    Dialect: "sqlite",
+    EntitlementProvider: &credits.MockEntitlementProvider{
+        Entitlement: &entitlement.Entitlement{Tier: entitlement.TierPro},
+        AICreditsLimit: 500,
+        CanUseAI: true,
+    },
+    LPBSReporter: &mockLPBSReporter{}, // Captures reports for verification
+})
+```
+
+---
+
+### 25. Entitlement Service Seam (Strong)
+
+**Location:** `api/services/entitlement/`
+
+**Key Types:** `api/services/entitlement/types.go`
+```go
+type Entitlement struct {
+    UserIdentity      string    `json:"user_identity"`
+    Status            Status    `json:"status"`
+    Tier              Tier      `json:"tier"`
+    Features          []string  `json:"features,omitempty"`
+    BillingCycleStart int       `json:"billing_cycle_start,omitempty"`
+    // ...
+}
+
+type Tier string // TierFree, TierSolo, TierPro, TierStudio, TierBusiness
+```
+
+**Interface:** `api/services/credits/entitlement_provider.go`
+```go
+type EntitlementProvider interface {
+    GetEntitlement(ctx context.Context, userIdentity string) (*entitlement.Entitlement, error)
+    GetAICreditsLimit(tier entitlement.Tier) int
+    CanUseAIWithEntitlement(ent *entitlement.Entitlement) bool
+}
+```
+
+**Test Doubles:**
+- `services/credits/entitlement_provider.go`: `MockEntitlementProvider`
+- `services/entitlement/context.go`: Context injection for tier overrides
+
+**Status:** Strong
+- `EntitlementProvider` interface enables testing credit logic without real entitlement service
+- Context-based override allows middleware tier injection for testing
+- Cache with configurable TTL (5 min default)
+- Offline grace period (5 hours) for resilience
+
+**Testing Patterns:**
+
+1. **Mock Provider (preferred for unit tests):**
+```go
+mock := &credits.MockEntitlementProvider{
+    Entitlement: &entitlement.Entitlement{
+        Tier: entitlement.TierPro,
+        Status: entitlement.StatusActive,
+    },
+    AICreditsLimit: 500,
+    CanUseAI: true,
+}
+```
+
+2. **Context Override (for integration/handler tests):**
+```go
+ctx := entitlement.WithEntitlement(ctx, &entitlement.Entitlement{
+    Tier: entitlement.TierBusiness,
+})
+// Credits service will use this entitlement instead of fetching
+```
+
+---
+
+### 26. LPBS Reporter Seam (Strong)
+
+**Location:** `api/services/credits/service.go`
+
+**Interface:**
+```go
+type LPBSReporter interface {
+    ReportUsage(ctx context.Context, report LPBSUsageReport) error
+}
+
+type LPBSUsageReport struct {
+    UserIdentity string                  `json:"user_identity"`
+    LimitKey     string                  `json:"limit_key"`
+    UsageAmount  int64                   `json:"usage_amount"`
+    AppBundleKey string                  `json:"app_bundle_key"`
+    Metadata     LPBSUsageReportMetadata `json:"metadata,omitempty"`
+}
+```
+
+**Status:** Strong
+- Enables capturing and verifying usage reports in tests
+- Async reporting (goroutine with retry) doesn't block local operations
+- Reports include operation type, model, tokens, and BYOK flag
+
+**Test Example:**
+```go
+type mockLPBSReporter struct {
+    reports []credits.LPBSUsageReport
+    mu      sync.Mutex
+}
+
+func (m *mockLPBSReporter) ReportUsage(ctx context.Context, report credits.LPBSUsageReport) error {
+    m.mu.Lock()
+    defer m.mu.Unlock()
+    m.reports = append(m.reports, report)
+    return nil
+}
+
+// In test
+reporter := &mockLPBSReporter{}
+svc := credits.NewService(credits.ServiceOptions{
+    LPBSReporter: reporter,
+    // ...
+})
+// After operations, verify: reporter.reports
+```
+
+---
+
+### 27. Recording Bounded Context Seam (Strong)
+
+**Location:** `api/recording/`
+
+**Purpose:** Persistent action recording with dual-write strategy (hot cache + database).
+
+**DOC Reference:** [DOC: docs/architecture/recording.md#action-persistence]
+
+**Interfaces:**
+
+```go
+// api/recording/persistence/repository.go
+type ActionRepository interface {
+    // Session lifecycle
+    CreateSession(ctx context.Context, session *domain.RecordingSession) error
+    GetSession(ctx context.Context, sessionID string) (*domain.RecordingSession, error)
+    CloseSession(ctx context.Context, sessionID string, closedAt time.Time) error
+    ListSessions(ctx context.Context, profileID *string, limit, offset int) ([]*domain.RecordingSession, error)
+    DeleteSession(ctx context.Context, sessionID string) error
+
+    // Action persistence
+    SaveAction(ctx context.Context, action *domain.RecordingAction) error
+    SaveActions(ctx context.Context, actions []*domain.RecordingAction) error
+    GetAction(ctx context.Context, actionID uuid.UUID) (*domain.RecordingAction, error)
+
+    // Queries
+    ListActions(ctx context.Context, query ActionQuery) ([]*domain.RecordingAction, error)
+    CountActions(ctx context.Context, sessionID string) (int, error)
+
+    // Cleanup
+    DeleteSessionActions(ctx context.Context, sessionID string) error
+    PruneOldSessions(ctx context.Context, olderThan time.Time) (int, error)
+}
+```
+
+**Test Doubles:**
+- `recording/persistence/mock_repository.go`: `MockRepository` - Full in-memory implementation
+- Test helpers: `Reset()`, `SessionCount()`, `ActionCount()`
+
+**Status:** Strong
+- Clean interface separation (ActionRepository)
+- In-memory mock enables hermetic testing
+- Compile-time enforcement via `var _ ActionRepository = (*MockRepository)(nil)`
+- Driver-agnostic normalization in capture layer
+- Hot cache + DB dual-write for performance and durability
+
+**Architecture:**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                    Recording Bounded Context                      │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ Capture Layer    │───▶ normalizer.go (driver → domain)   │   │
+│  │ (testing seam)   │    deduplicator.go (500ms window)     │   │
+│  └──────────────────┘    └─────────────────────────────────┘   │
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ Service Layer    │───▶ service.go (orchestrator)         │   │
+│  │ (testing seam)   │    Hot cache + WebSocket broadcast    │   │
+│  └──────────────────┘    └─────────────────────────────────┘   │
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ Persistence Layer│───▶ SQLiteRepository (production)     │   │
+│  │ (testing seam)   │    MockRepository (unit tests)        │   │
+│  └──────────────────┘    └─────────────────────────────────┘   │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Integration Seams:**
+- **ActionRepository**: Substitutable persistence layer for testing
+  - Location: `api/recording/persistence/repository.go`
+  - Testability: `MockRepository` provided in same package
+
+- **Normalizer**: Driver-agnostic action conversion
+  - Location: `api/recording/capture/normalizer.go`
+  - Testability: Pure function, no external dependencies
+
+- **Deduplicator**: Navigate action deduplication
+  - Location: `api/recording/capture/deduplicator.go`
+  - Testability: In-memory state, `ClearSession()` for test isolation
+
+**Responsibility Zones:**
+- **Capture Layer** (`api/recording/capture/`):
+  - Receives driver callbacks, normalizes, deduplicates
+- **Service Layer** (`api/recording/service.go`):
+  - Orchestrates persistence + WebSocket broadcast
+- **Persistence Layer** (`api/recording/persistence/`):
+  - Database access, query execution
+
+**Change Axes:**
+- Adding new driver: Only `normalizer.go` changes
+- Adding new action type: Domain + normalizer
+- Changing storage backend: Only repository implementation
+- Changing deduplication rules: Only `deduplicator.go`
+
+**Testing Example:**
+```go
+// Unit test setup with mock repository
+repo := persistence.NewMockRepository()
+svc := recording.NewService(repo, logger, recording.DefaultServiceConfig())
+
+// Create session and record action
+session, _ := svc.CreateSession(ctx, recording.SessionConfig{ProfileID: "test"})
+action := &domain.RecordingAction{
+    ID:         uuid.New(),
+    SessionID:  session.ID,
+    ActionType: "click",
+    Timestamp:  time.Now(),
+}
+svc.RecordDomainAction(ctx, action)
+
+// Verify persistence
+assert.Equal(t, 1, repo.ActionCount())
+```
+
+---
+
+### 28. ActionRecorder Seam (Strong)
+
+**Location:** `api/services/recording/recorder.go`
+
+**Purpose:** Unified recording pipeline that combines persistence and WebSocket broadcast with full observability.
+
+**DOC Reference:** [Plan: Recording Pipeline Domain Boundaries, Testing Seams & Observability]
+
+**Problem Solved:**
+The recording pipeline previously had a **dual-write anti-pattern** where persistence and WebSocket broadcast happened independently:
+
+```go
+// BEFORE (dual-write, silent failures)
+h.recordModeService.AddTimelineAction(sessionID, &action, pageIDForTimeline)  // Write 1
+h.wsHub.BroadcastRecordingEntry(sessionID, h.createUnifiedEntry(&action))     // Write 2
+// Either could fail silently with no visibility
+```
+
+**Interfaces:**
+
+```go
+// api/services/recording/recorder.go
+type ActionRecorder interface {
+    RecordActionUnified(ctx context.Context, req RecordActionRequest) (*ActionRecordResult, error)
+    RecordPageEventUnified(ctx context.Context, req RecordPageEventRequest) (*ActionRecordResult, error)
+}
+
+type RecordActionRequest struct {
+    SessionID     string
+    Action        *driver.RecordedAction
+    PageID        uuid.UUID
+    Source        ActionSource      // ActionSourceManual, ActionSourceAuto, ActionSourceAI
+    CorrelationID string            // For tracing through pipeline
+}
+
+type ActionRecordResult struct {
+    ActionID        uuid.UUID
+    CorrelationID   string
+    SequenceNum     int
+    Persisted       bool              // Did persistence succeed?
+    BroadcastSent   bool              // Did broadcast reach any clients?
+    SubscriberCount int               // How many clients were subscribed?
+    SentCount       int               // How many clients received the message?
+    DroppedCount    int               // How many clients had full buffers?
+    Errors          []ActionRecordError
+}
+
+func (r *ActionRecordResult) HasErrors() bool
+```
+
+**WebSocket Observability:**
+
+```go
+// api/websocket/hub.go
+type BroadcastResult struct {
+    SubscriberCount int   // Number of subscribed clients
+    SentCount       int   // Successfully sent
+    DroppedCount    int   // Dropped due to full buffers
+}
+
+func (h *Hub) BroadcastRecordingEntry(sessionID string, entry *UnifiedTimelineEntry) BroadcastResult
+```
+
+**Test Doubles:**
+- `handlers/record_mode_integration_test.go`: `TestRecordingHub` - Full HubInterface mock with broadcast tracking
+- `handlers/testutil_mock_services.go`: `MockHub` - General-purpose mock
+- `services/recording/persistence/mock_repository.go`: `MockRepository` - In-memory persistence
+
+**Status:** Strong
+- Unified interface eliminates dual-write anti-pattern
+- Full observability: correlation IDs, persistence status, broadcast metrics
+- Compile-time enforcement via `var _ ActionRecorder = (*Service)(nil)`
+- Comprehensive integration tests
+
+**Architecture:**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                    ActionRecorder Pipeline                        │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────────┐                                           │
+│  │ HTTP Entry Point │───▶ generateCorrelationID()               │
+│  │ (record_mode.go) │    Format: rec-{session[:8]}-{timestamp}  │
+│  └──────────────────┘                                           │
+│           │                                                      │
+│           ▼                                                      │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ RecordActionUnified │───▶ 1. Validate request              │   │
+│  │ (Service method)    │    2. Normalize action               │   │
+│  └──────────────────┘    3. Check deduplication              │   │
+│           │              4. Persist to hot cache + DB        │   │
+│           │              5. Broadcast to WebSocket           │   │
+│           ▼              6. Return unified result            │   │
+│  ┌──────────────────┐    └─────────────────────────────────┘   │
+│  │ ActionRecordResult │                                         │
+│  │ - Persisted: bool  │                                         │
+│  │ - BroadcastSent    │                                         │
+│  │ - SubscriberCount  │                                         │
+│  │ - Errors[]         │                                         │
+│  └──────────────────┘                                           │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Observability Benefits:**
+
+| Pipeline Step | Old Visibility | New Visibility |
+|---------------|----------------|----------------|
+| HTTP entry | Debug log | Debug log + correlation ID |
+| Validation | None | Error in result.Errors |
+| DB persistence | Warn on error | result.Persisted + error details |
+| WebSocket broadcast | **None** | result.BroadcastSent, SubscriberCount |
+| Client delivery | **None** | result.SentCount, DroppedCount |
+
+**Testing Example:**
+
+```go
+// Integration test with full pipeline visibility
+func TestRecordingPipeline_EndToEnd(t *testing.T) {
+    repo := persistence.NewMockRepository()
+    hub := NewTestRecordingHub(logger)
+    recordingSvc := recording.NewService(repo, hub, logger, recording.ServiceConfig{})
+
+    // Subscribe test client
+    clientCh := hub.Subscribe(sessionID)
+    defer hub.Unsubscribe(sessionID)
+
+    // Record action
+    result, err := recordingSvc.RecordActionUnified(ctx, recording.RecordActionRequest{
+        SessionID:     sessionID,
+        Action:        action,
+        PageID:        pageID,
+        Source:        recording.ActionSourceManual,
+        CorrelationID: "test-corr-123",
+    })
+
+    // Verify full observability
+    assert.True(t, result.Persisted)
+    assert.True(t, result.BroadcastSent)
+    assert.Equal(t, 1, result.SubscriberCount)
+    assert.Equal(t, 1, result.SentCount)
+    assert.False(t, result.HasErrors())
+
+    // Verify WebSocket delivery
+    select {
+    case entry := <-clientCh:
+        assert.Equal(t, "click", entry.Action.ActionType)
+    case <-time.After(time.Second):
+        t.Fatal("Action did not appear in WebSocket")
+    }
+}
+```
+
+**Integration with Existing Seams:**
+
+| Seam | Integration |
+|------|-------------|
+| Recording Bounded Context (#27) | ActionRecorder uses ActionRepository for persistence |
+| WebSocket Hub (#8) | BroadcastRecordingEntry returns BroadcastResult |
+| EventBroadcaster (#22) | ActionRecorder unifies the broadcast path |
+
+---
+
 ## TypeScript Playwright-Driver Seams
 
 ### 12. InstructionHandler Seam (Strong)
@@ -477,6 +944,163 @@ function closeMetricsServer(server: Server): Promise<void>
 
 ---
 
+## Recording Reconciliation Seams
+
+The recording reconciliation system consists of three interconnected seams that transform raw browser events into a clean, user-friendly timeline. See `docs/architecture/reconciliation.md` for the full architecture.
+
+### 19. Recording Reconciliation - Action Merge Seam (Strong)
+
+**Location:** `ui/src/domains/recording/services/ActionMergeService.ts`
+
+**Interface:**
+```typescript
+interface ActionMergeService {
+    mergeConsecutiveActions(actions: RecordedAction[]): MergedAction[];
+    getMergeDescription(meta?: MergedActionMeta): string | null;
+}
+```
+
+**Test File:** `ui/src/domains/recording/utils/mergeActions.test.ts`
+
+**Status:** Strong
+- Pure functions, no side effects
+- Comprehensive unit tests
+- No external dependencies
+- Mirrors backend logic in `api/handlers/record_mode.go`
+
+**Design Rationale:**
+- Client-side merging enables instant preview as users record (WYSIWYG)
+- Single-pass greedy algorithm for O(n) complexity
+- Tracks original action IDs in `_merged` metadata for undo capability
+
+---
+
+### 20. Recording Reconciliation - AI Correlation Seam (Strong)
+
+**Location:** `ui/src/domains/recording/types/timeline-unified.ts`
+
+**Interface:**
+```typescript
+interface AIReconciliationService {
+    mergeActionsWithAISteps(actions: RecordedAction[], aiSteps: AIStep[]): TimelineItem[];
+    recordedActionToTimelineItem(action: RecordedAction, aiMetadata?: AIMetadata): TimelineItem;
+    workflowNodesToTimelineItems(nodes: WorkflowNode[], edges: Edge[]): TimelineItem[];
+    updateTimelineItemStatus(items: TimelineItem[], nodeId: string, status: ExecutionStatus): TimelineItem[];
+}
+```
+
+**Test File:** `ui/src/domains/recording/types/timeline-unified.test.ts`
+
+**Status:** Strong
+- Pure functions for timeline transformation
+- Timestamp-based matching with 5s proximity window
+- Action type normalization (e.g., "type" → "input")
+- Consumes matched AI steps to prevent duplicate attribution
+
+**Design Rationale:**
+- Enables users to see both what happened AND why the AI did it
+- Immutable transformations (returns new objects, never mutates)
+- Supports both recording mode (live) and execution mode (workflow playback)
+
+---
+
+### 21. Recording Reconciliation - Workflow Sync Seam (Strong)
+
+**Location:** `api/services/workflow/sync.go`, `api/services/workflow/sync_interfaces.go`
+
+**Interface:**
+```go
+type WorkflowSyncRepository interface {
+    GetProject(ctx context.Context, id uuid.UUID) (*database.ProjectIndex, error)
+    ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.WorkflowIndex, error)
+    CreateWorkflow(ctx context.Context, workflow *database.WorkflowIndex) error
+    UpdateWorkflow(ctx context.Context, workflow *database.WorkflowIndex) error
+    DeleteWorkflow(ctx context.Context, id uuid.UUID) error
+    ListAssetsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.AssetIndex, error)
+    CreateAsset(ctx context.Context, asset *database.AssetIndex) error
+    UpdateAsset(ctx context.Context, asset *database.AssetIndex) error
+    DeleteAsset(ctx context.Context, id uuid.UUID) error
+}
+```
+
+**Test Doubles:**
+- `api/services/workflow/sync_interfaces.go`: `MockWorkflowSyncRepository`
+
+**Test File:** `api/services/workflow/sync_test.go`
+
+**Status:** Strong
+- Interface enables testing sync logic without real database
+- DBState/SeenState intermediate types for O(1) lookups
+- Decomposed into small functions (loadDBState, scanAndReconcile, garbageCollect)
+- Per-project locking prevents concurrent sync corruption
+
+**Design Rationale:**
+- Filesystem is source of truth (enables git version control)
+- File limits (1000 files, depth 4) prevent runaway operations
+- In-place format conversion normalizes external workflows
+
+---
+
+### 22. EventBroadcaster Seam (Strong)
+
+**Location:** `api/websocket/interface.go`
+
+**Interface:**
+```go
+type HubInterface interface {
+    // Recording-related methods (EventBroadcaster subset)
+    BroadcastRecordingAction(sessionID string, action any)
+    BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEntry map[string]any)
+    BroadcastRecordingFrame(sessionID string, frame *RecordingFrame)
+    BroadcastPageEvent(sessionID string, event any)
+    HasRecordingSubscribers(sessionID string) bool
+    // ... other methods
+}
+```
+
+**Test Doubles:**
+- `api/handlers/testutil_mock_services.go`: `MockHub`
+
+**Status:** Strong (Updated 2026-01-20)
+- HubInterface serves as the EventBroadcaster for recording features
+- MockHub already implements all required methods
+- Enables isolated testing of recording handlers without real WebSockets
+
+---
+
+### 23. RetryService Seam (Strong)
+
+**Location:** `ui/src/domains/recording/services/RetryService.ts`
+
+**Interface:**
+```typescript
+interface RetryService {
+    createInitialRetryState(): RetryState;
+    calculateRetryDelay(attempt: number, config: RetryConfig): number;
+    getNextRetryState(currentAttempts: number, config: RetryConfig): RetryState;
+    canRetry(state: RetryState): boolean;
+    getRemainingCooldown(state: RetryState): number;
+    createSuccessState(): RetryState;
+    createManualRetryState(): RetryState;
+}
+```
+
+**Test File:** `ui/src/domains/recording/services/RetryService.test.ts`
+
+**Status:** Strong
+- Pure functions, no side effects
+- Comprehensive unit tests (35 test cases)
+- No external dependencies
+- Used by `hooks/useRecordingSession.ts` for session creation retry logic
+
+**Design Rationale:**
+- Pure functions extracted from hook for testability
+- Configurable via `RetryConfig` for different retry behaviors
+- State includes UI-friendly fields (`nextRetryAt`, `inCooldown`) for countdown display
+- Exponential backoff with cap prevents server hammering
+
+---
+
 ## Seam Enforcement Matrix
 
 | Seam | Interface | Test Double | Compile Check | Priority |
@@ -488,7 +1112,7 @@ function closeMetricsServer(server: Server): Promise<void>
 | Repository | Yes | Yes | Yes | Medium |
 | Database Backend | Env flags `BAS_DB_BACKEND`/`BAS_TEST_BACKEND` + `database.Dialect` (tests default to `BAS_TEST_BACKEND` else `BAS_DB_BACKEND`) | Postgres testcontainer handle, SQLite temp DB in tests | N/A | Medium |
 | Storage | Yes | Yes (MemoryStorage) | Yes | - |
-| WebSocket Hub | Yes | **Partial** | **Missing** | Medium |
+| WebSocket Hub | Yes | Yes (MockHub) | Yes | - |
 | WorkflowService | Yes (CatalogService, ExecutionService) | Yes | Yes | - |
 | AI Client | Yes | Yes | Yes | - |
 | HTTP Client (Engine) | Yes | Injectable HTTPDoer | Yes | Medium |
@@ -498,6 +1122,16 @@ function closeMetricsServer(server: Server): Promise<void>
 | Router (TS) | Yes | N/A (coordination) | N/A | - |
 | OutcomeBuilder (TS) | Yes | N/A (pure functions) | N/A | - |
 | MetricsServer (TS) | Yes | N/A (infrastructure) | N/A | - |
+| ActionMergeService (TS) | Yes | N/A (pure functions) | N/A | - |
+| AIReconciliationService (TS) | Yes | N/A (pure functions) | N/A | - |
+| WorkflowSyncRepository | Yes | Yes (Mock) | Yes | - |
+| EventBroadcaster | Yes (via HubInterface) | Yes (MockHub) | Yes | - |
+| RetryService (TS) | Yes | N/A (pure functions) | N/A | - |
+| CreditService | Yes | Yes (MockService, MockEntitlementProvider) | Yes | - |
+| EntitlementProvider | Yes | Yes (MockEntitlementProvider) | Yes | - |
+| LPBSReporter | Yes | Yes (mockLPBSReporter in tests) | Yes | - |
+| Recording (ActionRepository) | Yes | Yes (MockRepository) | Yes | - |
+| ActionRecorder | Yes | Yes (TestRecordingHub, MockHub) | Yes | - |
 
 ---
 
@@ -509,9 +1143,10 @@ function closeMetricsServer(server: Server): Promise<void>
 
 ### High Priority
 
-1. **WebSocket Mock Hub**
-   - Create `MockHub` implementing `HubInterface`
-   - Use in handler/service tests to avoid goroutines and sockets
+1. ~~**WebSocket Mock Hub**~~ (COMPLETED 2026-01-20)
+   - ~~Create `MockHub` implementing `HubInterface`~~
+   - MockHub exists in `handlers/testutil_mock_services.go`
+   - Used for recording handler tests and WebSocket isolation
 
 ### Medium Priority
 
@@ -589,6 +1224,11 @@ When adding new dependencies:
 
 | Date | Author | Changes |
 |------|--------|---------|
+| 2026-01-31 | Claude | ActionRecorder Seam: Added seam #28 (ActionRecorder interface); unified recording pipeline with observability; BroadcastResult for WebSocket metrics; correlation IDs for tracing; comprehensive integration tests; updated enforcement matrix |
+| 2026-01-30 | Claude | Recording Bounded Context: Added seam #27 (ActionRepository, Normalizer, Deduplicator); documented capture/service/persistence layers; added integration seams and responsibility zones; updated enforcement matrix |
+| 2026-01-21 | Claude | Credits System Seams: Added seams #24-26 (CreditService, EntitlementProvider, LPBSReporter); created EntitlementProvider interface with MockEntitlementProvider test double; documented testing patterns for credit/entitlement logic; updated enforcement matrix |
+| 2026-01-20 | Claude | Recording Reconciliation Completion: Added RetryService seam (#23) with 35 test cases; completed services/index.ts exports; refactored useRecordingSession.ts to use RetryService (removed duplicate retry logic); updated enforcement matrix |
+| 2026-01-20 | Claude | Recording Reconciliation Seams: Added seams #19-22 (ActionMergeService, AIReconciliationService, WorkflowSyncRepository, EventBroadcaster); created comprehensive test suites; decomposed sync.go into smaller functions; extracted frontend services to services/ directory |
 | 2025-12-17 | Claude | Export package consolidation: Deleted duplicate handlers/export/presets.go (identical to services/export/presets.go); documented remaining export package duplication for future cleanup |
 | 2025-12-17 | Claude | Action type mapping clarification: Completed typeconv.ActionTypeToString with all action types; documented intentional separation from flow_utils.actionTypeToString (legacy compatibility) |
 | 2025-12-17 | Claude | WorkflowService decomposition Phase 1: Created CatalogService, ExecutionService, WorkflowResolver interfaces; refactored Handler to use interface types instead of concrete *WorkflowService; updated HandlerDeps for clean dependency injection |
@@ -1009,3 +1649,45 @@ The `handlers/ai/` package currently contains both HTTP handling AND domain logi
    - Falls back to global logger if not provided (backward compatible)
    - Replaced 8 console.log/warn/error calls with `scopedLog()` structured logging
    - `action-executor.ts` uses structured logging for executor registration warnings
+
+---
+
+## Future Work
+
+### API Client Abstraction (Medium Priority)
+
+**Current State:** The recording domain has 33+ direct `fetch` calls scattered across 16+ files.
+
+**Affected Files:**
+- `hooks/usePages.ts`, `hooks/useRecordMode.ts`, `hooks/useTimeline.ts`
+- `hooks/useBrowserNavigation.ts` (5 calls), `hooks/useSessionProfiles.ts` (5 calls)
+- `components/RecordingSession.tsx` (3 calls), `ViewportSyncManager.ts`
+- And 9+ other files
+
+**Recommended Approach:**
+1. Create `recording/api/client.ts` with typed methods
+2. Centralize error handling and authentication
+3. Migrate fetch calls incrementally
+
+**Benefits:**
+- Testable API layer with easy mocking
+- Consistent error handling across all API calls
+- Single point for auth token injection
+- Better TypeScript types for request/response
+
+### WebSocket Protocol Handler (Low Priority)
+
+**Current State:** WebSocket message handling is spread across multiple components.
+
+**Recommended Approach:**
+- Extract protocol handling to dedicated service
+- Centralize message type dispatching
+- Enable unit testing of message handlers
+
+### Workflow Sync Algorithm Tests (Low Priority)
+
+**Current State:** `sync_test.go` tests detection functions only.
+
+**Recommended Approach:**
+- Core `SyncProjectWorkflows` algorithm tests require filesystem mocking infrastructure
+- Consider using `afero` or similar for testable filesystem operations

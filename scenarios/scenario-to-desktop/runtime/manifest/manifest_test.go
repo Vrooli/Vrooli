@@ -27,7 +27,7 @@ func TestLoadManifest_Success(t *testing.T) {
 			"readiness": {"type": "tcp"}
 		}]
 	}`
-	if err := os.WriteFile(manifestPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(manifestPath, []byte(content), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
@@ -58,7 +58,7 @@ func TestLoadManifest_InvalidJSON(t *testing.T) {
 	tmp := t.TempDir()
 	manifestPath := filepath.Join(tmp, "bundle.json")
 
-	if err := os.WriteFile(manifestPath, []byte("{ invalid json }"), 0644); err != nil {
+	if err := os.WriteFile(manifestPath, []byte("{ invalid json }"), 0o644); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 

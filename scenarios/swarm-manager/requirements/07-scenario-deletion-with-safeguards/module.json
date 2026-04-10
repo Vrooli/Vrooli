@@ -1,0 +1,100 @@
+{
+  "description": "Strong confirmation dialog + archive-to-backlog option",
+  "module_id": "MOD-P0-007",
+  "prd_ref": "OT-P0-007",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "Implement DELETE API endpoint with optional archive-to-backlog (idea) functionality",
+      "id": "REQ-P0-008-API",
+      "prd_ref": "OT-P0-007",
+      "status": "implemented",
+      "title": "Scenario Deletion API",
+      "validation": [
+        {
+          "notes": "Test successful scenario deletion",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestDelete_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test deletion of non-existent scenario returns 404",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestDelete_NotFound",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test deletion with archive to backlog (idea)",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestDelete_WithArchive",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test deletion idempotency (second delete returns 404)",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestDelete_Idempotent",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test DeleteResponse structure serialization",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestDeleteResponse_Structure",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": ["REQ-P0-008-API"],
+      "description": "Implement deletion safeguards including confirmation dialog and option to archive scenarios to backlog",
+      "id": "REQ-P0-008-UI",
+      "prd_ref": "OT-P0-007",
+      "status": "implemented",
+      "title": "Scenario Deletion UI Workflow",
+      "validation": [
+        {
+          "notes": "UI service delete method interface",
+          "phase": "unit",
+          "ref": "ui/src/services/scenarios-service.ts::IScenariosService.delete",
+          "status": "passing",
+          "type": "code"
+        },
+        {
+          "notes": "Delete button in ScenarioDetailsPage",
+          "phase": "unit",
+          "ref": "ui/src/pages/ScenarioDetailsPage.tsx::deleteMutation",
+          "status": "passing",
+          "type": "code"
+        },
+        {
+          "notes": "Confirmation dialog component",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/confirm-dialog.tsx::ConfirmDialog",
+          "status": "passing",
+          "type": "code"
+        },
+        {
+          "notes": "Delete dialog selectors defined",
+          "phase": "unit",
+          "ref": "ui/src/consts/selectors.ts::scenarioDetails.deleteButton",
+          "status": "passing",
+          "type": "code"
+        },
+        {
+          "notes": "DeleteScenarioResponse type",
+          "phase": "unit",
+          "ref": "ui/src/types/domain.ts::DeleteScenarioResponse",
+          "status": "passing",
+          "type": "code"
+        }
+      ]
+    }
+  ],
+  "title": "Scenario deletion with safeguards"
+}

@@ -106,6 +106,6 @@ Use YAML for more human-readable manifests.
 
 ## References
 
-- [Example Manifests](../examples/manifests/)
+- [Example Manifests](../examples/manifests/README.md)
 - [Bundle API Documentation](../api/bundles.md)
 - [Bundled Runtime Plan](/docs/plans/bundled-desktop-runtime-plan.md)

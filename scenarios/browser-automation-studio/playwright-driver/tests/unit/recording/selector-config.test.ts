@@ -22,6 +22,58 @@ import {
 } from '../../../src/recording';
 
 describe('Selector Configuration', () => {
+  type SerializedConfig = {
+    TEST_ID_ATTRIBUTES: string[];
+    UNSTABLE_CLASS_PATTERNS: RegExp[];
+    DYNAMIC_ID_PATTERNS: RegExp[];
+    CONFIDENCE_SCORES: Record<string, number>;
+  };
+
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null;
+
+  const isRegExpArray = (value: unknown): value is RegExp[] =>
+    Array.isArray(value) && value.every((entry) => entry instanceof RegExp);
+
+  const isStringArray = (value: unknown): value is string[] =>
+    Array.isArray(value) && value.every((entry) => typeof entry === 'string');
+
+  const isNumberRecord = (value: unknown): value is Record<string, number> =>
+    isRecord(value) && Object.values(value).every((entry) => typeof entry === 'number');
+
+  const parseSerializedConfig = (): SerializedConfig => {
+    const serialized = serializeConfigForBrowser();
+    // eslint-disable-next-line no-eval
+    const evaluated: unknown = eval(`(${serialized})`);
+    if (!isRecord(evaluated)) {
+      throw new Error('Expected serialized config to evaluate to an object');
+    }
+
+    const testIdAttributes = evaluated.TEST_ID_ATTRIBUTES;
+    const unstableClassPatterns = evaluated.UNSTABLE_CLASS_PATTERNS;
+    const dynamicIdPatterns = evaluated.DYNAMIC_ID_PATTERNS;
+    const confidenceScores = evaluated.CONFIDENCE_SCORES;
+
+    if (!isStringArray(testIdAttributes)) {
+      throw new Error('Expected TEST_ID_ATTRIBUTES to be a string array');
+    }
+    if (!isRegExpArray(unstableClassPatterns)) {
+      throw new Error('Expected UNSTABLE_CLASS_PATTERNS to be a RegExp array');
+    }
+    if (!isRegExpArray(dynamicIdPatterns)) {
+      throw new Error('Expected DYNAMIC_ID_PATTERNS to be a RegExp array');
+    }
+    if (!isNumberRecord(confidenceScores)) {
+      throw new Error('Expected CONFIDENCE_SCORES to be a number map');
+    }
+
+    return {
+      TEST_ID_ATTRIBUTES: testIdAttributes,
+      UNSTABLE_CLASS_PATTERNS: unstableClassPatterns,
+      DYNAMIC_ID_PATTERNS: dynamicIdPatterns,
+      CONFIDENCE_SCORES: confidenceScores,
+    };
+  };
   describe('SELECTOR_STRATEGIES', () => {
     it('should contain all selector strategy types in order', () => {
       expect(SELECTOR_STRATEGIES).toEqual([
@@ -219,10 +271,7 @@ describe('Selector Configuration', () => {
     });
 
     it('should produce evaluable JavaScript', () => {
-      const serialized = serializeConfigForBrowser();
-
-      // eslint-disable-next-line no-eval
-      const config = eval(`(${serialized})`);
+      const config = parseSerializedConfig();
 
       expect(config.TEST_ID_ATTRIBUTES).toBeDefined();
       expect(config.UNSTABLE_CLASS_PATTERNS).toBeDefined();
@@ -234,18 +283,15 @@ describe('Selector Configuration', () => {
     });
 
     it('should preserve pattern matching behavior after serialization', () => {
-      const serialized = serializeConfigForBrowser();
-
-      // eslint-disable-next-line no-eval
-      const config = eval(`(${serialized})`);
+      const config = parseSerializedConfig();
 
       // Test unstable class patterns
       const cssInJsClass = 'css-1abc23';
-      expect(config.UNSTABLE_CLASS_PATTERNS.some((p: RegExp) => p.test(cssInJsClass))).toBe(true);
+      expect(config.UNSTABLE_CLASS_PATTERNS.some((p) => p.test(cssInJsClass))).toBe(true);
 
       // Test dynamic ID patterns
       const dynamicId = 'ember123';
-      expect(config.DYNAMIC_ID_PATTERNS.some((p: RegExp) => p.test(dynamicId))).toBe(true);
+      expect(config.DYNAMIC_ID_PATTERNS.some((p) => p.test(dynamicId))).toBe(true);
     });
   });
 });

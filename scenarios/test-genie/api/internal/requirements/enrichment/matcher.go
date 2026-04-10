@@ -289,9 +289,5 @@ func pathContains(fullPath, pattern string) bool {
 	// Check just the filename
 	pathBase := filepath.Base(normalizedPath)
 	patternBase := filepath.Base(normalizedPattern)
-	if pathBase == patternBase {
-		return true
-	}
-
-	return false
+	return pathBase == patternBase
 }

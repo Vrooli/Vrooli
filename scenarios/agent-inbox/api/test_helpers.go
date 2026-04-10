@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"agent-inbox/config"
@@ -19,7 +18,7 @@ import (
 	"agent-inbox/services"
 
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
+	_ "modernc.org/sqlite"
 )
 
 // TestServer provides a test harness for the API.
@@ -29,22 +28,13 @@ type TestServer struct {
 	handlers *handlers.Handlers
 }
 
-// setupTestServer creates a test server with a real test database.
+// setupTestServer creates a test server with an in-memory SQLite database.
 func setupTestServer(t *testing.T) *TestServer {
-	// Skip if DATABASE_URL is not set (unit tests without DB)
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		t.Skip("DATABASE_URL not set, skipping database tests")
-	}
-
-	db, err := sql.Open("postgres", dbURL)
+	db, err := sql.Open("sqlite", ":memory:?_pragma=foreign_keys(ON)")
 	if err != nil {
-		t.Fatalf("Failed to connect to database: %v", err)
+		t.Fatalf("Failed to open in-memory SQLite: %v", err)
 	}
-
-	if err := db.Ping(); err != nil {
-		t.Fatalf("Failed to ping database: %v", err)
-	}
+	db.SetMaxOpenConns(1)
 
 	repo := persistence.NewRepository(db)
 
@@ -56,7 +46,12 @@ func setupTestServer(t *testing.T) *TestServer {
 	storageCfg := config.GetStorageConfig()
 	storage := services.NewLocalStorageService(storageCfg)
 
-	h := handlers.New(repo, integrations.NewOllamaClient(), storage)
+	// Create shared dependencies explicitly (no nil fallbacks)
+	toolExecutor := integrations.NewToolExecutor()
+	toolRegistry := services.NewToolRegistry(repo, toolExecutor)
+	asyncTracker := services.NewAsyncTrackerService(toolRegistry, toolExecutor, nil)
+
+	h := handlers.New(repo, integrations.NewOllamaClient(), storage, asyncTracker, toolExecutor, toolRegistry)
 	router := mux.NewRouter()
 	router.Use(middleware.Logging)
 	router.Use(middleware.CORS)

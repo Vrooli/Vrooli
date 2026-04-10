@@ -369,16 +369,6 @@ func TestPortCheck_ExecuteAction(t *testing.T) {
 
 // --- Mock-based Tests for Better Coverage ---
 
-// mockFSReader implements checks.FileSystemReader for testing.
-type mockFSReader struct {
-	statfsResult *checks.StatfsResult
-	statfsErr    error
-}
-
-func (m *mockFSReader) Statfs(path string) (*checks.StatfsResult, error) {
-	return m.statfsResult, m.statfsErr
-}
-
 func TestDiskCheck_WithMockReader(t *testing.T) {
 	t.Run("healthy disk", func(t *testing.T) {
 		reader := &mockFSReader{
@@ -495,28 +485,6 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 	})
 }
 
-// multiCallFSReader returns different results per path
-type multiCallFSReader struct {
-	results map[string]*checks.StatfsResult
-}
-
-func (m *multiCallFSReader) Statfs(path string) (*checks.StatfsResult, error) {
-	if result, ok := m.results[path]; ok {
-		return result, nil
-	}
-	return nil, context.DeadlineExceeded
-}
-
-// mockPortReader implements checks.PortReader for testing.
-type mockPortReader struct {
-	portInfo *checks.PortInfo
-	err      error
-}
-
-func (m *mockPortReader) ReadPortStats() (*checks.PortInfo, error) {
-	return m.portInfo, m.err
-}
-
 func TestPortCheck_WithMockReader(t *testing.T) {
 	t.Run("healthy port usage", func(t *testing.T) {
 		reader := &mockPortReader{
@@ -588,27 +556,6 @@ func TestPortCheck_WithMockReader(t *testing.T) {
 	})
 }
 
-// mockExecutor implements checks.CommandExecutor for testing.
-type mockExecutor struct {
-	combinedOutput []byte
-	combinedErr    error
-	output         []byte
-	outputErr      error
-	runErr         error
-}
-
-func (m *mockExecutor) CombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return m.combinedOutput, m.combinedErr
-}
-
-func (m *mockExecutor) Output(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return m.output, m.outputErr
-}
-
-func (m *mockExecutor) Run(ctx context.Context, name string, args ...string) error {
-	return m.runErr
-}
-
 func TestPortCheck_ExecuteAction_WithMock(t *testing.T) {
 	t.Run("analyze success", func(t *testing.T) {
 		exec := &mockExecutor{
@@ -641,10 +588,10 @@ func TestPortCheck_ExecuteAction_WithMock(t *testing.T) {
 // TestZombieCheck_WithMock tests zombie check with mock executor
 func TestZombieCheck_WithMock(t *testing.T) {
 	t.Run("no zombies", func(t *testing.T) {
-		exec := &mockExecutor{
-			combinedOutput: []byte(""),
+		reader := &mockProcReader{
+			processes: []checks.ProcessInfo{},
 		}
-		c := NewZombieCheck(WithZombieExecutor(exec))
+		c := NewZombieCheck(WithZombieProcReader(reader))
 
 		result := c.Run(context.Background())
 		if result.Status != checks.StatusOK {
@@ -807,22 +754,6 @@ func TestInodeCheck_WithMockReader(t *testing.T) {
 // =============================================================================
 // Swap Check Mock Tests
 // =============================================================================
-
-// mockProcReader implements checks.ProcReader for testing.
-type mockProcReader struct {
-	memInfo      *checks.MemInfo
-	memInfoErr   error
-	processes    []checks.ProcessInfo
-	processesErr error
-}
-
-func (m *mockProcReader) ReadMeminfo() (*checks.MemInfo, error) {
-	return m.memInfo, m.memInfoErr
-}
-
-func (m *mockProcReader) ListProcesses() ([]checks.ProcessInfo, error) {
-	return m.processes, m.processesErr
-}
 
 func TestSwapCheck_WithMockReader(t *testing.T) {
 	t.Run("healthy swap usage", func(t *testing.T) {

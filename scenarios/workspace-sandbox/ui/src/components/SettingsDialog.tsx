@@ -30,6 +30,7 @@ import {
   MemoryStick,
   Hash,
   File,
+  LockOpen,
 } from "lucide-react";
 import {
   Dialog,
@@ -728,6 +729,41 @@ function ExecutionTab() {
             </option>
           ))}
         </select>
+      </section>
+
+      {/* Scope Locking */}
+      <section>
+        <h3 className="text-sm font-medium text-slate-300 mb-2 flex items-center gap-1.5">
+          <LockOpen className="h-4 w-4 text-slate-500" />
+          Scope Locking
+        </h3>
+        <label className="flex items-start gap-3 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={localConfig.defaultNoLock}
+            onChange={() => {
+              setLocalConfig({
+                ...localConfig,
+                defaultNoLock: !localConfig.defaultNoLock,
+              });
+              setHasChanges(true);
+            }}
+            className="mt-0.5 w-4 h-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 accent-emerald-500"
+          />
+          <div>
+            <span className="text-sm text-slate-300 group-hover:text-slate-200">
+              Disable scope locking by default
+            </span>
+            <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+              Scope locking prevents two sandboxes from working on overlapping directories.
+              This is useful when many agents run simultaneously, to avoid merge conflicts.
+              <br />
+              <strong className="text-slate-400">Off:</strong> Sandboxes lock their scope &mdash; creating a second sandbox on an overlapping path will fail.
+              <br />
+              <strong className="text-slate-400">On:</strong> Sandboxes don&apos;t lock &mdash; multiple sandboxes can overlap freely. Best for solo use or testing.
+            </p>
+          </div>
+        </label>
       </section>
 
       {/* Save Button */}

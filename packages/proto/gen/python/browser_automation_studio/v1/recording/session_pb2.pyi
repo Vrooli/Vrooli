@@ -1,8 +1,8 @@
 import datetime
 
-from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from browser_automation_studio.v1.actions import action_pb2 as _action_pb2
 from browser_automation_studio.v1.timeline import entry_pb2 as _entry_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -12,7 +12,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class RecordingState(_message.Message):
-    __slots__ = ()
+    __slots__ = ("is_recording", "recording_id", "session_id", "action_count", "started_at")
     IS_RECORDING_FIELD_NUMBER: _ClassVar[int]
     RECORDING_ID_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
@@ -26,7 +26,7 @@ class RecordingState(_message.Message):
     def __init__(self, is_recording: _Optional[bool] = ..., recording_id: _Optional[str] = ..., session_id: _Optional[str] = ..., action_count: _Optional[int] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class CreateRecordingSessionRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("viewport_width", "viewport_height", "initial_url")
     VIEWPORT_WIDTH_FIELD_NUMBER: _ClassVar[int]
     VIEWPORT_HEIGHT_FIELD_NUMBER: _ClassVar[int]
     INITIAL_URL_FIELD_NUMBER: _ClassVar[int]
@@ -36,7 +36,7 @@ class CreateRecordingSessionRequest(_message.Message):
     def __init__(self, viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., initial_url: _Optional[str] = ...) -> None: ...
 
 class CreateRecordingSessionResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("session_id", "created_at")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     session_id: str
@@ -44,7 +44,7 @@ class CreateRecordingSessionResponse(_message.Message):
     def __init__(self, session_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class StartRecordingRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("session_id", "callback_url")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     CALLBACK_URL_FIELD_NUMBER: _ClassVar[int]
     session_id: str
@@ -52,7 +52,7 @@ class StartRecordingRequest(_message.Message):
     def __init__(self, session_id: _Optional[str] = ..., callback_url: _Optional[str] = ...) -> None: ...
 
 class StartRecordingResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("recording_id", "session_id", "started_at")
     RECORDING_ID_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -62,7 +62,7 @@ class StartRecordingResponse(_message.Message):
     def __init__(self, recording_id: _Optional[str] = ..., session_id: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class StopRecordingResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("recording_id", "session_id", "action_count", "completed_at")
     RECORDING_ID_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     ACTION_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -74,7 +74,7 @@ class StopRecordingResponse(_message.Message):
     def __init__(self, recording_id: _Optional[str] = ..., session_id: _Optional[str] = ..., action_count: _Optional[int] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class RecordingStatusResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("session_id", "is_recording", "recording_id", "action_count", "started_at")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     IS_RECORDING_FIELD_NUMBER: _ClassVar[int]
     RECORDING_ID_FIELD_NUMBER: _ClassVar[int]
@@ -88,7 +88,7 @@ class RecordingStatusResponse(_message.Message):
     def __init__(self, session_id: _Optional[str] = ..., is_recording: _Optional[bool] = ..., recording_id: _Optional[str] = ..., action_count: _Optional[int] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class GetActionsResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("session_id", "entries", "count")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
     COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -98,9 +98,9 @@ class GetActionsResponse(_message.Message):
     def __init__(self, session_id: _Optional[str] = ..., entries: _Optional[_Iterable[_Union[_entry_pb2.TimelineEntry, _Mapping]]] = ..., count: _Optional[int] = ...) -> None: ...
 
 class GenerateWorkflowRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("session_id", "name", "project_id", "project_name", "entry_range", "entries")
     class EntryRange(_message.Message):
-        __slots__ = ()
+        __slots__ = ("start", "end")
         START_FIELD_NUMBER: _ClassVar[int]
         END_FIELD_NUMBER: _ClassVar[int]
         start: int
@@ -121,7 +121,7 @@ class GenerateWorkflowRequest(_message.Message):
     def __init__(self, session_id: _Optional[str] = ..., name: _Optional[str] = ..., project_id: _Optional[str] = ..., project_name: _Optional[str] = ..., entry_range: _Optional[_Union[GenerateWorkflowRequest.EntryRange, _Mapping]] = ..., entries: _Optional[_Iterable[_Union[_entry_pb2.TimelineEntry, _Mapping]]] = ...) -> None: ...
 
 class GenerateWorkflowResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("workflow_id", "project_id", "name", "node_count", "entry_count")
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     PROJECT_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -135,7 +135,7 @@ class GenerateWorkflowResponse(_message.Message):
     def __init__(self, workflow_id: _Optional[str] = ..., project_id: _Optional[str] = ..., name: _Optional[str] = ..., node_count: _Optional[int] = ..., entry_count: _Optional[int] = ...) -> None: ...
 
 class ReplayPreviewRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("session_id", "entries", "limit", "stop_on_failure", "action_timeout_ms")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
@@ -149,7 +149,7 @@ class ReplayPreviewRequest(_message.Message):
     def __init__(self, session_id: _Optional[str] = ..., entries: _Optional[_Iterable[_Union[_entry_pb2.TimelineEntry, _Mapping]]] = ..., limit: _Optional[int] = ..., stop_on_failure: _Optional[bool] = ..., action_timeout_ms: _Optional[int] = ...) -> None: ...
 
 class ReplayEventError(_message.Message):
-    __slots__ = ()
+    __slots__ = ("message", "code", "match_count", "selector")
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
     MATCH_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -161,7 +161,7 @@ class ReplayEventError(_message.Message):
     def __init__(self, message: _Optional[str] = ..., code: _Optional[str] = ..., match_count: _Optional[int] = ..., selector: _Optional[str] = ...) -> None: ...
 
 class ReplayEntryResult(_message.Message):
-    __slots__ = ()
+    __slots__ = ("entry_id", "sequence_num", "success", "duration_ms", "error", "screenshot_on_error", "action")
     ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
     SEQUENCE_NUM_FIELD_NUMBER: _ClassVar[int]
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
@@ -179,7 +179,7 @@ class ReplayEntryResult(_message.Message):
     def __init__(self, entry_id: _Optional[str] = ..., sequence_num: _Optional[int] = ..., success: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., error: _Optional[_Union[ReplayEventError, _Mapping]] = ..., screenshot_on_error: _Optional[str] = ..., action: _Optional[_Union[_action_pb2.ActionDefinition, _Mapping]] = ...) -> None: ...
 
 class ReplayPreviewResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("success", "total_entries", "passed_entries", "failed_entries", "results", "total_duration_ms", "stopped_early")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_ENTRIES_FIELD_NUMBER: _ClassVar[int]
     PASSED_ENTRIES_FIELD_NUMBER: _ClassVar[int]
@@ -197,7 +197,7 @@ class ReplayPreviewResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., total_entries: _Optional[int] = ..., passed_entries: _Optional[int] = ..., failed_entries: _Optional[int] = ..., results: _Optional[_Iterable[_Union[ReplayEntryResult, _Mapping]]] = ..., total_duration_ms: _Optional[int] = ..., stopped_early: _Optional[bool] = ...) -> None: ...
 
 class SelectorValidation(_message.Message):
-    __slots__ = ()
+    __slots__ = ("valid", "match_count", "selector", "error")
     VALID_FIELD_NUMBER: _ClassVar[int]
     MATCH_COUNT_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_FIELD_NUMBER: _ClassVar[int]

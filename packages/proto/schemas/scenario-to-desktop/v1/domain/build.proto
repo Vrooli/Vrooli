@@ -1,0 +1,307 @@
+syntax = "proto3";
+
+package scenario_to_desktop.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scenario-to-desktop/v1/base/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1";
+
+// =============================================================================
+// BUILD AND SMOKE TEST RESULTS
+// =============================================================================
+//
+// @layer 1
+// @domain build
+// @imports base
+// @stability beta
+//
+// Types for tracking build operations and smoke test results. Supports
+// multi-platform builds where each platform has independent status.
+//
+// USAGE CONTEXTS:
+//   - Pipeline: Build and smoke test stages populate these types
+//   - Status API: Poll endpoints return BuildStatusResponse
+//   - UI: Display build progress per platform
+//
+// =============================================================================
+
+// =============================================================================
+// PLATFORM BUILD RESULT
+// =============================================================================
+
+// PlatformBuildStatus enumerates the status of a single platform build.
+//
+// @usage PlatformBuildResult.status
+enum PlatformBuildStatus {
+  // Default/unknown status. Should never appear in valid data.
+  PLATFORM_BUILD_STATUS_UNSPECIFIED = 0;
+
+  // Build is in progress for this platform.
+  PLATFORM_BUILD_STATUS_BUILDING = 1;
+
+  // Build completed successfully. Artifact is available.
+  PLATFORM_BUILD_STATUS_READY = 2;
+
+  // Build failed. Check error_log for details.
+  PLATFORM_BUILD_STATUS_FAILED = 3;
+
+  // Build was skipped (platform not requested or not available).
+  PLATFORM_BUILD_STATUS_SKIPPED = 4;
+}
+
+// PlatformBuildResult contains the build result for a single platform.
+//
+// Each platform builds independently and may have different status.
+//
+// @usage BuildStatusResponse.platform_results
+message PlatformBuildResult {
+  // Target platform.
+  Platform platform = 1;
+
+  // Build status for this platform.
+  PlatformBuildStatus status = 2;
+
+  // When the platform build started.
+  google.protobuf.Timestamp started_at = 3;
+
+  // When the platform build completed (success or failure).
+  optional google.protobuf.Timestamp completed_at = 4;
+
+  // Error log if build failed.
+  repeated string error_log = 5;
+
+  // Path to the built artifact.
+  // @format path
+  optional string artifact = 6;
+
+  // Artifact file size in bytes.
+  optional int64 file_size = 7;
+
+  // Reason for skipping (if status is SKIPPED).
+  optional string skip_reason = 8;
+}
+
+// =============================================================================
+// BUILD STATUS RESPONSE
+// =============================================================================
+
+// BuildStatusResponse is the overall build operation status.
+//
+// Contains aggregate status plus per-platform details.
+//
+// @usage GET /api/build/{id}/status response
+message BuildStatusResponse {
+  // Unique build operation identifier.
+  // @format uuid
+  string build_id = 1;
+
+  // Scenario being built.
+  string scenario_name = 2;
+
+  // Overall build status.
+  BuildStatus status = 3;
+
+  // Target framework.
+  Framework framework = 4;
+
+  // Application template type.
+  TemplateType template_type = 5;
+
+  // Platforms that were requested.
+  repeated Platform requested_platforms = 6;
+
+  // Per-platform build results.
+  // Key: Platform name (win, mac, linux)
+  map<string, PlatformBuildResult> platform_results = 7;
+
+  // Output directory for build artifacts.
+  // @format path
+  optional string output_path = 8;
+
+  // When the build operation started.
+  google.protobuf.Timestamp created_at = 9;
+
+  // When the build operation completed.
+  optional google.protobuf.Timestamp completed_at = 10;
+
+  // Combined error log from all platforms.
+  repeated string error_log = 11;
+
+  // Combined build log.
+  repeated string build_log = 12;
+
+  // Map of artifact names to paths.
+  // Key: Artifact identifier, Value: File path
+  map<string, string> artifacts = 13;
+
+  // Additional build metadata.
+  // Key: Metadata key, Value: Metadata value
+  map<string, string> metadata = 14;
+}
+
+// =============================================================================
+// BUILD REQUESTS AND RESPONSES
+// =============================================================================
+
+// BuildRequest initiates a build operation.
+//
+// @usage POST /api/build request body
+message BuildRequest {
+  // Path to the generated desktop wrapper.
+  // @format path
+  string desktop_path = 1;
+
+  // Target platforms to build.
+  // Empty means current platform only.
+  repeated Platform platforms = 2;
+
+  // Whether to sign the built artifacts.
+  optional bool sign = 3;
+
+  // Whether to publish after building.
+  optional bool publish = 4;
+}
+
+// ScenarioBuildRequest initiates a scenario-specific build.
+//
+// @usage POST /api/build/scenario request body
+message ScenarioBuildRequest {
+  // Scenario name to build.
+  string scenario_name = 1;
+
+  // Path to the generated desktop wrapper.
+  // @format path
+  string desktop_path = 2;
+
+  // Target platforms to build.
+  repeated Platform platforms = 3;
+
+  // Whether to clean existing build output first.
+  optional bool clean = 4;
+}
+
+// BuildResponse is returned when a build is started.
+//
+// @usage POST /api/build response
+message BuildResponse {
+  // Unique build operation identifier.
+  // @format uuid
+  string build_id = 1;
+
+  // Initial build status.
+  string status = 2;
+
+  // URL to poll for status updates.
+  // @format uri
+  string status_url = 3;
+}
+
+// =============================================================================
+// SMOKE TEST TYPES
+// =============================================================================
+
+// SmokeTestStatus enumerates smoke test lifecycle states.
+//
+// @usage SmokeTestStatusResponse.status
+enum SmokeTestStatus {
+  // Default/unknown status. Should never appear in valid data.
+  SMOKE_TEST_STATUS_UNSPECIFIED = 0;
+
+  // Smoke test is running.
+  SMOKE_TEST_STATUS_RUNNING = 1;
+
+  // Smoke test passed successfully.
+  SMOKE_TEST_STATUS_PASSED = 2;
+
+  // Smoke test failed. Check logs and error for details.
+  SMOKE_TEST_STATUS_FAILED = 3;
+}
+
+// SmokeTestStatusResponse contains the smoke test operation status.
+//
+// @usage GET /api/smoketest/{id}/status response
+message SmokeTestStatusResponse {
+  // Unique smoke test identifier.
+  // @format uuid
+  string smoke_test_id = 1;
+
+  // Scenario being tested.
+  string scenario_name = 2;
+
+  // Platform being tested.
+  Platform platform = 3;
+
+  // Smoke test status.
+  SmokeTestStatus status = 4;
+
+  // Path to the artifact being tested.
+  // @format path
+  optional string artifact_path = 5;
+
+  // When the smoke test started.
+  google.protobuf.Timestamp started_at = 6;
+
+  // When the smoke test completed.
+  optional google.protobuf.Timestamp completed_at = 7;
+
+  // Test execution logs.
+  repeated string logs = 8;
+
+  // Error message if test failed.
+  optional string error = 9;
+
+  // Whether telemetry was uploaded.
+  bool telemetry_uploaded = 10;
+
+  // Error from telemetry upload (if any).
+  optional string telemetry_upload_error = 11;
+}
+
+// SmokeTestStartRequest initiates a smoke test.
+//
+// @usage POST /api/smoketest request body
+message SmokeTestStartRequest {
+  // Scenario name to test.
+  string scenario_name = 1;
+
+  // Target platform to test.
+  // Optional - defaults to current platform.
+  optional Platform platform = 2;
+}
+
+// SmokeTestStartResponse is returned when a smoke test is started.
+//
+// @usage POST /api/smoketest response
+message SmokeTestStartResponse {
+  // Unique smoke test identifier.
+  // @format uuid
+  string smoke_test_id = 1;
+
+  // Scenario being tested.
+  string scenario_name = 2;
+
+  // Platform being tested.
+  Platform platform = 3;
+
+  // Initial status.
+  SmokeTestStatus status = 4;
+
+  // Artifact being tested.
+  // @format path
+  optional string artifact_path = 5;
+
+  // When the test started.
+  google.protobuf.Timestamp started_at = 6;
+
+  // Initial logs.
+  repeated string logs = 7;
+}
+
+// SmokeTestCancelResponse is returned when a smoke test is cancelled.
+//
+// @usage POST /api/smoketest/{id}/cancel response
+message SmokeTestCancelResponse {
+  // Resulting status after cancellation.
+  string status = 1;
+}

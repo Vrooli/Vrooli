@@ -1,0 +1,33 @@
+{
+  "id": "refactor-code-quality",
+  "name": "Improve Code Quality",
+  "description": "Refactor code for better readability and maintainability",
+  "icon": "Wand2",
+  "modes": ["Refactor", "Code Quality"],
+  "content": "Please review and refactor the code in {{location}} for better quality.\n\n**Current issues I've noticed:**\n{{issues}}\n\n**Goals:**\n{{goals}}\n\nPlease:\n1. Identify code smells and anti-patterns\n2. Suggest specific refactoring steps\n3. Provide refactored code examples\n4. Explain the benefits of each change\n5. Ensure no behavior changes (pure refactor)",
+  "variables": [
+    {
+      "name": "location",
+      "label": "File/Location",
+      "type": "text",
+      "placeholder": "e.g., src/components/Dashboard.tsx",
+      "required": true
+    },
+    {
+      "name": "issues",
+      "label": "Known Issues",
+      "type": "textarea",
+      "placeholder": "What problems have you noticed with the current code?",
+      "required": false
+    },
+    {
+      "name": "goals",
+      "label": "Refactoring Goals",
+      "type": "select",
+      "options": ["Improve readability", "Reduce complexity", "Extract reusable code", "Improve testability", "All of the above"],
+      "defaultValue": "All of the above",
+      "required": true
+    }
+  ],
+  "suggestedToolIds": ["spawn_coding_agent"]
+}

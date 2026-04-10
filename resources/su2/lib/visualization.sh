@@ -5,67 +5,6 @@
 # Source defaults if not loaded
 [[ -z "$SU2_PORT" ]] && source "${SCRIPT_DIR}/config/defaults.sh"
 
-# OpenMCT telemetry adapter
-setup_openmct_telemetry() {
-    local openmct_host="${1:-localhost}"
-    local openmct_port="${2:-8080}"
-    
-    echo "Setting up OpenMCT telemetry for SU2..."
-    
-    # Create telemetry configuration
-    cat > "${SU2_DATA_DIR}/openmct_config.json" << EOF
-{
-    "name": "SU2 CFD Telemetry",
-    "key": "su2.telemetry",
-    "measurements": [
-        {
-            "key": "su2.cl",
-            "name": "Lift Coefficient",
-            "unit": "dimensionless",
-            "format": "float",
-            "min": -2,
-            "max": 2
-        },
-        {
-            "key": "su2.cd",
-            "name": "Drag Coefficient", 
-            "unit": "dimensionless",
-            "format": "float",
-            "min": 0,
-            "max": 1
-        },
-        {
-            "key": "su2.cm",
-            "name": "Moment Coefficient",
-            "unit": "dimensionless",
-            "format": "float",
-            "min": -1,
-            "max": 1
-        },
-        {
-            "key": "su2.residual",
-            "name": "Convergence Residual",
-            "unit": "log10",
-            "format": "float",
-            "min": -10,
-            "max": 0
-        },
-        {
-            "key": "su2.iterations",
-            "name": "Iteration Count",
-            "unit": "count",
-            "format": "integer",
-            "min": 0,
-            "max": 10000
-        }
-    ]
-}
-EOF
-    
-    echo "OpenMCT configuration created"
-    return 0
-}
-
 # Stream live telemetry during simulation
 stream_telemetry() {
     local sim_id="${1:-}"

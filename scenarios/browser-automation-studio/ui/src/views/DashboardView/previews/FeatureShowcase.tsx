@@ -1,72 +1,24 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  Sparkles,
-  Video,
-  LayoutGrid,
-  BarChart3,
-  ArrowDownToLine,
-  Pause,
-} from 'lucide-react';
+import { Pause, Sparkles } from 'lucide-react';
 import { PREVIEW_RENDERERS } from './FeaturePreviews';
+import { FEATURE_CONFIGS, type FeatureConfig } from './featureConfigs';
 
 // ============================================
 // TYPES & CONSTANTS
 // ============================================
 
-export interface FeatureConfig {
-  id: string;
-  title: string;
-  label: string;
-  icon: React.ReactNode;
-  gradient: string;
-  accentColor: string;
-}
-
-export const FEATURE_CONFIGS: FeatureConfig[] = [
-  {
-    id: 'ai-powered',
-    title: 'AI-Powered',
-    label: 'AI generates your workflow',
-    icon: <Sparkles size={16} />,
-    gradient: 'from-purple-500/20 to-pink-500/20',
-    accentColor: 'purple',
-  },
-  {
-    id: 'record-mode',
-    title: 'Record Mode',
-    label: 'Record your browser actions',
-    icon: <Video size={16} />,
-    gradient: 'from-red-500/20 to-orange-500/20',
-    accentColor: 'red',
-  },
-  {
-    id: 'visual-builder',
-    title: 'Visual Builder',
-    label: 'Build with drag-and-drop',
-    icon: <LayoutGrid size={16} />,
-    gradient: 'from-blue-500/20 to-cyan-500/20',
-    accentColor: 'blue',
-  },
-  {
-    id: 'test-monitor',
-    title: 'Test & Monitor',
-    label: 'Watch executions live',
-    icon: <BarChart3 size={16} />,
-    gradient: 'from-green-500/20 to-emerald-500/20',
-    accentColor: 'green',
-  },
-  {
-    id: 'exports',
-    title: 'Exports',
-    label: 'Style & share replays',
-    icon: <ArrowDownToLine size={16} />,
-    gradient: 'from-amber-500/20 to-orange-500/20',
-    accentColor: 'amber',
-  },
-];
-
 const CYCLE_DURATION = 6000; // 6 seconds per preview
 const ANIMATION_DURATION = 500; // Transition duration in ms
+
+// Default feature for type safety (used when array index returns undefined)
+const DEFAULT_FEATURE: FeatureConfig = FEATURE_CONFIGS[0] ?? {
+  id: 'ai-powered',
+  title: 'AI-Powered',
+  label: 'AI generates your workflow',
+  icon: <Sparkles size={16} />,
+  gradient: 'from-purple-500/20 to-pink-500/20',
+  accentColor: 'purple',
+};
 
 // ============================================
 // NAVIGATION DOTS
@@ -193,7 +145,7 @@ export const FeatureShowcase: React.FC<FeatureShowcaseProps> = ({
     setIsPaused(false);
   }, []);
 
-  const activeFeature = FEATURE_CONFIGS[activeIndex];
+  const activeFeature = FEATURE_CONFIGS[activeIndex] ?? DEFAULT_FEATURE;
   const previews = PREVIEW_RENDERERS.map((render, index) =>
     render(activeIndex === index && !isTransitioning)
   );
@@ -255,7 +207,7 @@ function getAccentClasses(color: string): string {
     green: 'text-green-400 bg-green-500/10 border border-green-500/20',
     amber: 'text-amber-400 bg-amber-500/10 border border-amber-500/20',
   };
-  return classes[color] || classes.blue;
+  return classes[color] ?? 'text-blue-400 bg-blue-500/10 border border-blue-500/20';
 }
 
 function getAccentDotClass(color: string): string {
@@ -266,7 +218,7 @@ function getAccentDotClass(color: string): string {
     green: 'bg-green-400',
     amber: 'bg-amber-400',
   };
-  return classes[color] || classes.blue;
+  return classes[color] ?? 'bg-blue-400';
 }
 
 function getGlowClass(color: string): string {
@@ -277,7 +229,7 @@ function getGlowClass(color: string): string {
     green: 'bg-gradient-to-r from-green-500/20 via-emerald-500/20 to-green-500/20',
     amber: 'bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20',
   };
-  return classes[color] || classes.blue;
+  return classes[color] ?? 'bg-gradient-to-r from-blue-500/20 via-cyan-500/20 to-blue-500/20';
 }
 
 export default FeatureShowcase;

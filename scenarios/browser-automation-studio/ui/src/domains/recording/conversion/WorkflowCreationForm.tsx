@@ -22,13 +22,7 @@ import type { RecordedAction, RecordingSessionProfile, ReplayPreviewResponse } f
 import type { NavigationWaitUntil, WorkflowSettingsTyped } from '@/types/workflow';
 import { ProjectSelector } from './ProjectSelector';
 import { ViewportPicker } from '@shared/ui';
-
-/** Describes a contiguous range of selected steps */
-export interface SelectionRange {
-  start: number;
-  end: number;
-  count: number;
-}
+import { computeSelectionRanges, type SelectionRange } from './workflowCreationUtils';
 
 /** Advanced workflow settings from the form */
 export interface WorkflowAdvancedSettings {
@@ -87,43 +81,17 @@ const NAVIGATION_WAIT_OPTIONS: { value: NavigationWaitUntil; label: string; desc
 ];
 
 /**
- * Compute contiguous ranges from sorted indices.
- * E.g., [0, 1, 2, 5, 6, 10] -> [{start: 0, end: 2}, {start: 5, end: 6}, {start: 10, end: 10}]
- */
-export function computeSelectionRanges(indices: number[]): SelectionRange[] {
-  if (indices.length === 0) return [];
-
-  const sorted = [...indices].sort((a, b) => a - b);
-  const ranges: SelectionRange[] = [];
-  let rangeStart = sorted[0];
-  let rangeEnd = sorted[0];
-
-  for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i] === rangeEnd + 1) {
-      rangeEnd = sorted[i];
-    } else {
-      ranges.push({ start: rangeStart, end: rangeEnd, count: rangeEnd - rangeStart + 1 });
-      rangeStart = sorted[i];
-      rangeEnd = sorted[i];
-    }
-  }
-  ranges.push({ start: rangeStart, end: rangeEnd, count: rangeEnd - rangeStart + 1 });
-
-  return ranges;
-}
-
-/**
  * Format ranges for display.
  * E.g., [{start: 0, end: 2}, {start: 5, end: 6}] -> "Steps 1-3, 6-7"
  */
 function formatRanges(ranges: SelectionRange[]): string {
   if (ranges.length === 0) return 'No steps selected';
-  if (ranges.length === 1) {
-    const r = ranges[0];
-    if (r.start === r.end) {
-      return `Step ${r.start + 1}`;
+  const firstRange = ranges[0];
+  if (ranges.length === 1 && firstRange) {
+    if (firstRange.start === firstRange.end) {
+      return `Step ${firstRange.start + 1}`;
     }
-    return `Steps ${r.start + 1}-${r.end + 1}`;
+    return `Steps ${firstRange.start + 1}-${firstRange.end + 1}`;
   }
   return ranges
     .map((r) => (r.start === r.end ? `${r.start + 1}` : `${r.start + 1}-${r.end + 1}`))

@@ -71,15 +71,9 @@ export const RecentExecutionsWidget: React.FC<RecentExecutionsWidgetProps> = ({ 
   const isLoading = useDashboardStore((state) => state.isLoadingExecutions);
   const fetchRecentExecutions = useDashboardStore((state) => state.fetchRecentExecutions);
 
+  // Fetch once on mount - WebSocket events trigger refreshDashboard() in useExecutionUpdates
   useEffect(() => {
     fetchRecentExecutions();
-
-    // Poll for updates every 10 seconds when there are running executions
-    const interval = setInterval(() => {
-      fetchRecentExecutions();
-    }, 10000);
-
-    return () => clearInterval(interval);
   }, [fetchRecentExecutions]);
 
   // Combine running and recent, with running first

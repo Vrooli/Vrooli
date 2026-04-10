@@ -1,0 +1,11 @@
+{
+  "kind": "heartbeat-config",
+  "schemaVersion": 1,
+  "teamId": "director-swarm",
+  "agentId": "vision-walk-prep",
+  "enabled": true,
+  "schedule": "0 5 * * *",
+  "revision": 1,
+  "createdAt": "2026-04-09T19:00:00Z",
+  "updatedAt": "2026-04-09T19:00:00Z"
+}

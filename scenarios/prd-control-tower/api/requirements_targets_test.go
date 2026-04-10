@@ -13,7 +13,7 @@ func TestExtractOperationalTargets(t *testing.T) {
 	vrooliRoot := filepath.Join(tmpDir, "vrooli")
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", "test-scenario")
 
-	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
 		t.Fatalf("failed to create scenario dir: %v", err)
 	}
 
@@ -29,7 +29,7 @@ func TestExtractOperationalTargets(t *testing.T) {
 `
 
 	prdPath := filepath.Join(scenarioDir, "PRD.md")
-	if err := os.WriteFile(prdPath, []byte(prdContent), 0644); err != nil {
+	if err := os.WriteFile(prdPath, []byte(prdContent), 0o644); err != nil {
 		t.Fatalf("failed to write PRD: %v", err)
 	}
 

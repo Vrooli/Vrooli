@@ -171,7 +171,7 @@ start_api() {
     # Use vrooli scenario start to properly start with all dependencies
     # This handles database connections, port allocation, etc.
     local start_output
-    start_output=$(vrooli scenario start "$SCENARIO_ID" 2>&1) || {
+    start_output=$(vrooli scenario start "$SCENARIO_ID" --best-effort 2>&1) || {
         echo -e "${RED}Failed to start scenario: $start_output${NC}" >&2
         echo "$start_output" >> "$CONFIG_DIR/api.log"
         return 1
@@ -792,7 +792,7 @@ RestartSec=15
 Environment=VROOLI_LIFECYCLE_MANAGED=true
 Environment=HOME=$HOME
 Environment=VROOLI_ROOT=$vrooli_root
-Environment=PATH=/usr/local/bin:/usr/bin:/bin:$HOME/.vrooli/bin
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:$HOME/.local/bin:$HOME/.vrooli/bin
 WorkingDirectory=$vrooli_root/scenarios/vrooli-autoheal
 User=$USER
 TimeoutStopSec=30
@@ -823,7 +823,7 @@ RestartSec=15
 Environment=VROOLI_LIFECYCLE_MANAGED=true
 Environment=HOME=$HOME
 Environment=VROOLI_ROOT=$vrooli_root
-Environment=PATH=/usr/local/bin:/usr/bin:/bin:$HOME/.vrooli/bin
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:$HOME/.local/bin:$HOME/.vrooli/bin
 WorkingDirectory=$vrooli_root/scenarios/vrooli-autoheal
 TimeoutStopSec=30
 

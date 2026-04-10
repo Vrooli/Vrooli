@@ -15,6 +15,7 @@
 //   - ApprovalPolicy: Decides whether changes can be auto-approved
 //   - AttributionPolicy: Controls commit authorship and message format
 //   - ValidationPolicy: Runs pre-commit validation hooks
+//   - TeardownPolicy: Runs pre-teardown hooks before sandbox unmount/delete
 //
 // # Usage
 //
@@ -24,6 +25,7 @@ package policy
 
 import (
 	"context"
+	"time"
 
 	"workspace-sandbox/internal/types"
 )
@@ -74,6 +76,47 @@ type ValidationHook struct {
 
 // ValidationResult captures the outcome of a validation run.
 type ValidationResult struct {
+	HookName string
+	Success  bool
+	Output   string
+	Error    error
+}
+
+// TeardownPolicy runs pre-teardown hooks before sandbox unmount/delete.
+//
+// When a sandbox is stopped or deleted, its overlayfs mount disappears. External
+// systems (e.g., scenario lifecycle managers) may have processes running from the
+// sandbox's merged directory. Without pre-teardown coordination, those processes
+// become orphaned — still alive but unable to access their filesystem.
+//
+// TeardownPolicy provides a hook point for external systems to gracefully evacuate
+// processes before the filesystem disappears. Unlike ValidationPolicy, teardown
+// hooks are always best-effort: failures are logged but never block teardown.
+// A sandbox must always be cleanable regardless of hook outcomes.
+type TeardownPolicy interface {
+	// RunPreTeardownHooks executes hooks before sandbox teardown.
+	//
+	// The reason parameter indicates why teardown is happening:
+	//   - "stop": explicit Stop() call — overlay will be unmounted
+	//   - "delete": explicit Delete() call — overlay will be unmounted and removed
+	//
+	// Returns results for each hook. Failures are informational only.
+	RunPreTeardownHooks(ctx context.Context, sandbox *types.Sandbox, reason string) []TeardownHookResult
+}
+
+// TeardownHook represents a pre-teardown shell command.
+// Unlike ValidationHook, there is no Required field — all teardown hooks
+// are best-effort because teardown must never be blocked.
+type TeardownHook struct {
+	Name        string
+	Description string
+	Command     string   // Shell command to run
+	Args        []string // Arguments for the command
+	Timeout     time.Duration
+}
+
+// TeardownHookResult captures the outcome of a teardown hook execution.
+type TeardownHookResult struct {
 	HookName string
 	Success  bool
 	Output   string

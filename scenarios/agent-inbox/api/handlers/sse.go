@@ -128,63 +128,6 @@ func (sw *StreamWriter) WriteImageGenerated(imageURL string) {
 	})
 }
 
-// WriteToolCallStart sends a tool call start event.
-func (sw *StreamWriter) WriteToolCallStart(tc domain.ToolCall) {
-	sw.WriteEvent(map[string]interface{}{
-		"type":          "tool_call_start",
-		"tool_name":     tc.Function.Name,
-		"tool_id":       tc.ID,
-		"arguments":     tc.Function.Arguments,
-		"completion_id": sw.completionID,
-	})
-}
-
-// WriteToolCallResult sends a tool call result event.
-func (sw *StreamWriter) WriteToolCallResult(result domain.ToolExecutionResult) {
-	event := map[string]interface{}{
-		"type":          "tool_call_result",
-		"tool_name":     result.ToolName,
-		"tool_id":       result.ToolCallID,
-		"status":        result.Status,
-		"completion_id": sw.completionID,
-	}
-	if result.Error != "" {
-		event["error"] = result.Error
-	} else {
-		event["result"] = result.Result
-	}
-	sw.WriteEvent(event)
-}
-
-// WriteToolCallsComplete signals that all tool calls finished.
-func (sw *StreamWriter) WriteToolCallsComplete() {
-	sw.WriteEvent(map[string]interface{}{
-		"type":          "tool_calls_complete",
-		"continuing":    true,
-		"completion_id": sw.completionID,
-	})
-}
-
-// WriteToolCallPendingApproval sends an event indicating a tool requires approval.
-func (sw *StreamWriter) WriteToolCallPendingApproval(record *domain.ToolCallRecord) {
-	sw.WriteEvent(map[string]interface{}{
-		"type":          "tool_pending_approval",
-		"tool_call_id":  record.ID,
-		"tool_name":     record.ToolName,
-		"arguments":     record.Arguments,
-		"completion_id": sw.completionID,
-	})
-}
-
-// WriteAwaitingApprovals signals that tool calls are waiting for user approval.
-func (sw *StreamWriter) WriteAwaitingApprovals() {
-	sw.WriteEvent(map[string]interface{}{
-		"type":          "awaiting_approvals",
-		"continuing":    false,
-		"completion_id": sw.completionID,
-	})
-}
-
 // WriteError sends a structured error event.
 // For backwards compatibility, also includes the error string.
 func (sw *StreamWriter) WriteError(err error) {

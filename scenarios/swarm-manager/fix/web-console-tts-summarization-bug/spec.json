@@ -1,0 +1,18 @@
+{
+  "acceptance_allow": [
+    "scenarios/web-console/api/tts_summariz*",
+    "scenarios/web-console/api/conversation_router.go"
+  ],
+  "archived_at": "2026-03-31T12:46:06Z",
+  "created": "2026-03-26T20:54:35Z",
+  "description": "## Problem\n\nThe TTS summarization feature almost never triggers for long assistant messages, even when it should be summarizing them. The user hears the full verbose output instead of a concise summary.\n\n## Current Implementation\n\nSummarization pipeline in `scenarios/web-console/api/`:\n1. `conversation_router.go`: `asyncSummarizeAndNotify()` runs as async goroutine after event broadcast\n2. `tts_summarizer.go`: Calls Ollama `/api/chat` with level-appropriate system prompt\n3. `tts_summarize_config.go`: Settings — `enabled` (default: **false**), `charThreshold` (default: 500), `level` (default: moderate), `model` (default: qwen3:1.7b), `timeoutSeconds` (default: 30)\n\n## Likely Root Causes\n\n1. **Summarization disabled by default:** The `enabled` flag defaults to `false` — if the user's config was reset or never explicitly enabled, summarization won't trigger\n2. **Ollama model timeout:** The qwen3:1.7b model may not be loaded/available, causing the 30s timeout to silently expire\n3. **Silent failure in async goroutine:** If `asyncSummarizeAndNotify()` errors, it may log but not surface the failure to the user\n4. **charThreshold too high or text measurement mismatch:** The raw markdown text length may differ from what the user perceives as \"long\"\n\n## Expected Fix\n\n- Diagnose which of the above causes is primary (likely the enabled flag + silent failures)\n- Ensure summarization failures are surfaced visibly (not just logged)\n- Add health check for the summarization model availability\n- Consider defaulting `enabled` to `true` when a compatible model is available\n- Add integration tests that verify the full pipeline: event → summarize → update event → broadcast\n\n## Key Files\n\n- `scenarios/web-console/api/tts_summarizer.go` — Ollama summarization call\n- `scenarios/web-console/api/tts_summarize_config.go` — Config with enabled flag\n- `scenarios/web-console/api/conversation_router.go` — Async summarization trigger\n- `scenarios/web-console/api/tts_summarizer_test.go` — Summarizer tests",
+  "effort": "S",
+  "initiative": "continuous-audio-platform",
+  "kind": "fix",
+  "name": "web-console-tts-summarization-bug",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [],
+  "title": "Fix TTS Summarization Not Triggering for Long Messages",
+  "updated": "2026-03-30T20:22:11Z"
+}

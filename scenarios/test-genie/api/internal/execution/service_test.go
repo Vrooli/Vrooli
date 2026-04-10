@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 
 	"test-genie/internal/orchestrator"
@@ -17,36 +16,25 @@ import (
 
 func TestSuiteExecutionService_ExecuteWithoutLinkedRequest(t *testing.T) {
 	ctx := context.Background()
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("failed to create sqlmock: %v", err)
-	}
-	defer db.Close()
-
-	mock.ExpectExec("INSERT INTO suite_executions").
-		WithArgs(
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-			sqlmock.AnyArg(),
-		).WillReturnResult(sqlmock.NewResult(1, 1))
-
+	recorder := &fakeExecutionRecorder{}
 	engine := &stubExecutionEngine{
 		result: &orchestrator.SuiteExecutionResult{
-			ScenarioName: "demo",
-			StartedAt:    time.Now().Add(-time.Minute),
-			CompletedAt:  time.Now(),
-			Success:      true,
+			ScenarioName:        "demo",
+			StartedAt:           time.Now().Add(-time.Minute),
+			CompletedAt:         time.Now(),
+			Success:             true,
+			PresetUsed:          "quick",
+			RequestedPreset:     "quick",
+			RequestedPhases:     []string{"structure", "unit"},
+			RequestedSkipPhases: []string{"performance"},
+			PlannedPhases:       []string{"structure", "unit"},
+			FailFast:            true,
 		},
 	}
 
 	service := NewSuiteExecutionService(
 		engine,
-		NewSuiteExecutionRepository(db),
+		recorder,
 		&fakeSuiteRequestManager{},
 	)
 
@@ -62,20 +50,16 @@ func TestSuiteExecutionService_ExecuteWithoutLinkedRequest(t *testing.T) {
 	if output.ExecutionID == uuid.Nil {
 		t.Fatalf("execution id was not assigned")
 	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatalf("unmet expectations: %v", err)
+	if output.RequestedPreset != "quick" || !output.FailFast {
+		t.Fatalf("expected execution metadata to be preserved: %#v", output)
+	}
+	if len(recorder.records) != 1 {
+		t.Fatalf("expected execution to be persisted, got %#v", recorder.records)
 	}
 }
 
 func TestSuiteExecutionService_RejectsMismatchedSuiteRequest(t *testing.T) {
 	ctx := context.Background()
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("failed to create sqlmock: %v", err)
-	}
-	defer db.Close()
-
 	suiteID := uuid.New()
 	mgr := &fakeSuiteRequestManager{
 		suites: map[uuid.UUID]*queue.SuiteRequest{
@@ -88,11 +72,11 @@ func TestSuiteExecutionService_RejectsMismatchedSuiteRequest(t *testing.T) {
 
 	service := NewSuiteExecutionService(
 		&stubExecutionEngine{},
-		NewSuiteExecutionRepository(db),
+		&fakeExecutionRecorder{},
 		mgr,
 	)
 
-	_, err = service.Execute(ctx, SuiteExecutionInput{
+	_, err := service.Execute(ctx, SuiteExecutionInput{
 		Request:        orchestrator.SuiteExecutionRequest{ScenarioName: "test-genie"},
 		SuiteRequestID: &suiteID,
 	})
@@ -106,20 +90,10 @@ func TestSuiteExecutionService_RejectsMismatchedSuiteRequest(t *testing.T) {
 	if len(mgr.updates) != 0 {
 		t.Fatalf("expected no status updates, got %v", mgr.updates)
 	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatalf("unmet expectations: %v", err)
-	}
 }
 
 func TestSuiteExecutionService_MarksSuiteRequestFailedOnRunnerError(t *testing.T) {
 	ctx := context.Background()
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("failed to create sqlmock: %v", err)
-	}
-	defer db.Close()
-
 	suiteID := uuid.New()
 	mgr := &fakeSuiteRequestManager{
 		suites: map[uuid.UUID]*queue.SuiteRequest{
@@ -132,11 +106,11 @@ func TestSuiteExecutionService_MarksSuiteRequestFailedOnRunnerError(t *testing.T
 
 	service := NewSuiteExecutionService(
 		&stubExecutionEngine{err: errors.New("runner failed")},
-		NewSuiteExecutionRepository(db),
+		&fakeExecutionRecorder{},
 		mgr,
 	)
 
-	_, err = service.Execute(ctx, SuiteExecutionInput{
+	_, err := service.Execute(ctx, SuiteExecutionInput{
 		Request:        orchestrator.SuiteExecutionRequest{ScenarioName: "demo"},
 		SuiteRequestID: &suiteID,
 	})
@@ -152,10 +126,6 @@ func TestSuiteExecutionService_MarksSuiteRequestFailedOnRunnerError(t *testing.T
 	if mgr.updates[1].status != queue.StatusFailed {
 		t.Fatalf("second status should be failed, got %s", mgr.updates[1].status)
 	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatalf("unmet expectations: %v", err)
-	}
 }
 
 type stubExecutionEngine struct {
@@ -169,6 +139,23 @@ func (s *stubExecutionEngine) Execute(ctx context.Context, req orchestrator.Suit
 
 func (s *stubExecutionEngine) ExecuteWithEvents(ctx context.Context, req orchestrator.SuiteExecutionRequest, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
 	return s.result, s.err
+}
+
+type fakeExecutionRecorder struct {
+	records []*SuiteExecutionRecord
+	err     error
+}
+
+func (f *fakeExecutionRecorder) Create(ctx context.Context, record *SuiteExecutionRecord) error {
+	if f.err != nil {
+		return f.err
+	}
+	clone := *record
+	if record.Phases != nil {
+		clone.Phases = append([]orchestrator.PhaseExecutionResult(nil), record.Phases...)
+	}
+	f.records = append(f.records, &clone)
+	return nil
 }
 
 type statusChange struct {

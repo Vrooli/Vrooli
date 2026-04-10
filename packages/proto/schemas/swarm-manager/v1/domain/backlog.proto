@@ -1,0 +1,209 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+// =============================================================================
+// BACKLOG DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain backlog
+// @imports none (external only: buf.validate)
+// @stability beta
+//
+// Backlog items capture all work types for Swarm Manager:
+// ideas, research, fixes, and execution tasks. Items are stored as
+// git-tracked folders under their kind-specific directories.
+//
+// USAGE CONTEXTS:
+//   - API responses for backlog CRUD endpoints
+//   - UI data models (backlog list and details)
+//
+// =============================================================================
+
+// BacklogItem represents a tracked unit of work for the swarm.
+message BacklogItem {
+  // Unique identifier (folder name).
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable title.
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Detailed description of the work item.
+  string description = 3;
+
+  // Lifecycle state for the backlog item.
+  // @constraint one of: backlog, researching, ready, queued, in_progress, completed, failed
+  string status = 4 [(buf.validate.field).string = { in: [
+    "backlog",
+    "researching",
+    "ready",
+    "queued",
+    "in_progress",
+    "completed",
+    "failed"
+  ] }];
+
+  // Priority level (1 = highest, 10 = lowest).
+  // @constraint 1-10
+  int32 priority = 5 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+
+  // Categorization tags.
+  repeated string tags = 6 [(buf.validate.field).repeated = { unique: true }];
+
+  // RFC3339 timestamp of creation.
+  // @format rfc3339
+  string created = 7 [(buf.validate.field).string.min_len = 1];
+
+  // RFC3339 timestamp of last update.
+  // @format rfc3339
+  string updated = 8 [(buf.validate.field).string.min_len = 1];
+
+  // Backlog kind: idea, research, fix, execute.
+  string kind = 9 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore"] }];
+
+  reserved 10; // research_target — removed; research items execute directly.
+
+  // Dependencies as "kind/name" references. Item won't process until all deps complete.
+  repeated string depends_on = 11;
+
+  // Initiative this item belongs to.
+  optional string initiative = 12;
+
+  // Effort estimate: XS, S, M, L, XL.
+  optional string effort = 13 [(buf.validate.field).string = { in: ["XS", "S", "M", "L", "XL"] }];
+
+  reserved 14; // scope — removed; acceptance_allow/deny are the sole boundary definitions.
+
+  // Glob patterns for file paths expected to be modified (e.g., ["scenarios/web-console/api/**"]).
+  // Used as sandbox acceptance allowlist, post-execution review targeting, and scenario identification.
+  repeated string acceptance_allow = 15;
+
+  // Glob patterns for file paths that must NOT be modified (e.g., ["api/internal/auth/**"]).
+  // Used as sandbox acceptance denylist.
+  repeated string acceptance_deny = 16;
+
+  // Origin reference in "kind/name" format, tracking which item spawned this one.
+  optional string spawned_from = 17;
+
+  // Personal annotation — a user note for tracking context (e.g., why the item is paused).
+  optional string note = 18;
+
+  // RFC3339 timestamp when the item was archived. Null/unset means not archived.
+  // Archiving is orthogonal to status — items retain their terminal status when archived.
+  // @format rfc3339
+  optional string archived_at = 19;
+
+  // Raw JSON string containing the plan validation report (PlanValidationResult).
+  // Ephemeral data — regenerated on read when plan.md is newer than the report.
+  optional string plan_validation_json = 20;
+
+  // Skill IDs recommended by the creating agent. Workshop and execution agents
+  // should read these skills before proceeding.
+  repeated string suggested_skills = 21;
+}
+
+// BacklogFile represents a file or directory within a backlog item folder.
+message BacklogFile {
+  // File or directory name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Relative path from the backlog item root.
+  string path = 2 [(buf.validate.field).string.min_len = 1];
+
+  // File type: "file" or "directory".
+  // @constraint one of: file, directory
+  string type = 3 [(buf.validate.field).string = { in: ["file", "directory"] }];
+
+  // File size in bytes (files only).
+  optional int64 size = 4 [(buf.validate.field).int64 = { gte: 0 }];
+
+  // Child nodes (directories only).
+  repeated BacklogFile children = 5;
+}
+
+// =============================================================================
+// CLARIFICATION DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain backlog.clarification
+// @imports none (external only: buf.validate)
+// @stability beta
+//
+// Clarification threads capture multi-turn conversations between operators and
+// agents about individual workshop decision items. Each thread is scoped to a
+// single decision within a single workshop round.
+//
+// =============================================================================
+
+// ClarificationMessage is a single turn in a clarification conversation.
+message ClarificationMessage {
+  // Who sent this message.
+  // @constraint one of: user, assistant
+  string role = 1 [(buf.validate.field).string = { in: ["user", "assistant"] }];
+
+  // Message content (markdown text).
+  string content = 2;
+
+  // RFC3339 timestamp.
+  // @format rfc3339
+  string created_at = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Optional attachment IDs (uploaded via agent-manager).
+  repeated string attachment_ids = 4;
+}
+
+// ClarificationImpact is the structured impact assessment parsed from an
+// assistant's clarification response.
+message ClarificationImpact {
+  // Impact level of the clarification on the workshop.
+  // @constraint one of: none, decision, round
+  string level = 1 [(buf.validate.field).string = { in: ["none", "decision", "round"] }];
+
+  // Why this impact level was chosen.
+  string reasoning = 2;
+
+  // Distilled learning about the user's intent, carried forward to future rounds.
+  string context_note = 3;
+
+  // Suggested rewrite of the decision item (topic/context/options) if applicable.
+  string suggested_update = 4;
+}
+
+// ClarificationThread stores the full conversation for a single decision item.
+message ClarificationThread {
+  // Unique thread identifier.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Workshop round this clarification belongs to.
+  int32 round_number = 2 [(buf.validate.field).int32.gte = 1];
+
+  // Decision item ID within the round.
+  string item_id = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Agent-manager run ID for continue-run support.
+  string run_id = 4;
+
+  // Ordered conversation messages.
+  repeated ClarificationMessage messages = 5;
+
+  // Parsed impact from the latest assistant response (nil if unparseable).
+  optional ClarificationImpact latest_impact = 6;
+
+  // Thread lifecycle state.
+  // @constraint one of: active, resolved, dismissed
+  string status = 7 [(buf.validate.field).string = { in: ["active", "resolved", "dismissed"] }];
+
+  // RFC3339 timestamp of thread creation.
+  // @format rfc3339
+  string created_at = 8 [(buf.validate.field).string.min_len = 1];
+
+  // RFC3339 timestamp of last update.
+  // @format rfc3339
+  string updated_at = 9 [(buf.validate.field).string.min_len = 1];
+}

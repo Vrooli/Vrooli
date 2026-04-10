@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -12,10 +11,44 @@ import (
 // IgnoreDeps contains dependencies for ignore operations.
 type IgnoreDeps struct {
 	Git     GitRunner
+	FS      FileIO
 	RepoDir string
 }
 
-// IgnorePath adds the path to the nearest .gitignore and removes it from the index if tracked.
+func ignoreFailure(path string, errMsg string) *IgnoreResponse {
+	return &IgnoreResponse{
+		Success:   false,
+		Failed:    []string{path},
+		Errors:    []string{errMsg},
+		Timestamp: time.Now().UTC(),
+	}
+}
+
+// resolveGroupIgnore resolves the gitignore path and entry for group-level ignores.
+func resolveGroupIgnore(repoDir, cleanPath, groupDirRaw string) (string, string, *IgnoreResponse) {
+	groupDir := strings.TrimSpace(groupDirRaw)
+	if groupDir == "" {
+		return "", "", ignoreFailure(cleanPath, "group_dir is required when level is group")
+	}
+	if !isCleanSubpath(groupDir) {
+		return "", "", ignoreFailure(cleanPath, "invalid group_dir")
+	}
+
+	gitignorePath := filepath.Join(repoDir, groupDir, ".gitignore")
+	normalizedGroup := normalizePrefix(groupDir)
+	entry := cleanPath
+	if strings.HasPrefix(cleanPath, normalizedGroup) {
+		entry = cleanPath[len(normalizedGroup):]
+	}
+	if entry == "" {
+		return "", "", ignoreFailure(cleanPath, "path does not fall under group_dir")
+	}
+	return gitignorePath, entry, nil
+}
+
+// IgnorePath adds the path to the appropriate .gitignore and removes it from the index if tracked.
+// When Level is "group", the entry is written to <RepoDir>/<GroupDir>/.gitignore.
+// Otherwise it writes to the root .gitignore.
 func IgnorePath(ctx context.Context, deps IgnoreDeps, req IgnoreRequest) (*IgnoreResponse, error) {
 	if deps.Git == nil {
 		return nil, fmt.Errorf("git runner is required")
@@ -27,50 +60,32 @@ func IgnorePath(ctx context.Context, deps IgnoreDeps, req IgnoreRequest) (*Ignor
 
 	cleanPath := cleanFilePath(req.Path)
 	if cleanPath == "" || strings.HasPrefix(cleanPath, "..") {
-		return &IgnoreResponse{
-			Success:   false,
-			Failed:    []string{req.Path},
-			Errors:    []string{"no valid path provided"},
-			Timestamp: time.Now().UTC(),
-		}, nil
+		return ignoreFailure(req.Path, "no valid path provided"), nil
 	}
 
-	gitignorePath, gitignoreDir, err := findNearestGitignore(repoDir, cleanPath)
-	if err != nil {
-		return &IgnoreResponse{
-			Success:   false,
-			Failed:    []string{cleanPath},
-			Errors:    []string{err.Error()},
-			Timestamp: time.Now().UTC(),
-		}, nil
+	var gitignorePath, entry string
+	if req.Level == "group" {
+		var fail *IgnoreResponse
+		gitignorePath, entry, fail = resolveGroupIgnore(repoDir, cleanPath, req.GroupDir)
+		if fail != nil {
+			return fail, nil
+		}
+	} else {
+		gitignorePath = filepath.Join(repoDir, ".gitignore")
+		entry = cleanPath
 	}
 
-	entry, err := ignoreEntryForPath(repoDir, gitignoreDir, cleanPath)
-	if err != nil {
-		return &IgnoreResponse{
-			Success:   false,
-			Failed:    []string{cleanPath},
-			Errors:    []string{err.Error()},
-			Timestamp: time.Now().UTC(),
-		}, nil
+	fs := deps.FS
+	if fs == nil {
+		fs = OSFileIO{}
 	}
 
-	if err := ensureIgnoreEntries(gitignorePath, []string{entry}); err != nil {
-		return &IgnoreResponse{
-			Success:   false,
-			Failed:    []string{cleanPath},
-			Errors:    []string{err.Error()},
-			Timestamp: time.Now().UTC(),
-		}, nil
+	if err := ensureIgnoreEntriesFS(fs, gitignorePath, []string{entry}); err != nil {
+		return ignoreFailure(cleanPath, err.Error()), nil
 	}
 
 	if err := deps.Git.RemoveFromIndex(ctx, repoDir, []string{cleanPath}); err != nil {
-		return &IgnoreResponse{
-			Success:   false,
-			Failed:    []string{cleanPath},
-			Errors:    []string{err.Error()},
-			Timestamp: time.Now().UTC(),
-		}, nil
+		return ignoreFailure(cleanPath, err.Error()), nil
 	}
 
 	return &IgnoreResponse{
@@ -79,100 +94,4 @@ func IgnorePath(ctx context.Context, deps IgnoreDeps, req IgnoreRequest) (*Ignor
 		GitignorePath: gitignorePath,
 		Timestamp:     time.Now().UTC(),
 	}, nil
-}
-
-func findNearestGitignore(repoDir string, path string) (string, string, error) {
-	repoRoot := filepath.Clean(repoDir)
-	absPath := filepath.Join(repoRoot, path)
-	dir := filepath.Dir(absPath)
-
-	for {
-		gitignorePath := filepath.Join(dir, ".gitignore")
-		if _, err := os.Stat(gitignorePath); err == nil {
-			return gitignorePath, dir, nil
-		} else if !os.IsNotExist(err) {
-			return "", "", fmt.Errorf("stat .gitignore: %w", err)
-		}
-
-		if dir == repoRoot {
-			return gitignorePath, dir, nil
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-
-	return "", "", fmt.Errorf("gitignore resolution failed")
-}
-
-func ignoreEntryForPath(repoDir string, gitignoreDir string, path string) (string, error) {
-	repoRoot := filepath.Clean(repoDir)
-	absPath := filepath.Join(repoRoot, path)
-	rel, err := filepath.Rel(gitignoreDir, absPath)
-	if err != nil {
-		return "", fmt.Errorf("resolve ignore entry: %w", err)
-	}
-	rel = filepath.ToSlash(rel)
-	rel = strings.TrimPrefix(rel, "./")
-	if rel == "" || strings.HasPrefix(rel, "..") {
-		return "", fmt.Errorf("invalid ignore entry for %q", path)
-	}
-	return rel, nil
-}
-
-func ensureIgnoreEntries(gitignorePath string, entries []string) error {
-	var content string
-	raw, err := os.ReadFile(gitignorePath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("read .gitignore: %w", err)
-		}
-	} else {
-		content = string(raw)
-	}
-
-	existing := map[string]bool{}
-	for _, line := range strings.Split(content, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		normalized := strings.TrimPrefix(trimmed, "/")
-		existing[normalized] = true
-	}
-
-	var toAdd []string
-	for _, entry := range entries {
-		normalized := strings.TrimPrefix(strings.TrimSpace(entry), "/")
-		if normalized == "" {
-			continue
-		}
-		if existing[normalized] {
-			continue
-		}
-		existing[normalized] = true
-		toAdd = append(toAdd, normalized)
-	}
-
-	if len(toAdd) == 0 {
-		return nil
-	}
-
-	var builder strings.Builder
-	builder.WriteString(content)
-	if content != "" && !strings.HasSuffix(content, "\n") {
-		builder.WriteString("\n")
-	}
-	for _, entry := range toAdd {
-		builder.WriteString(entry)
-		builder.WriteString("\n")
-	}
-
-	if err := os.WriteFile(gitignorePath, []byte(builder.String()), 0644); err != nil {
-		return fmt.Errorf("write .gitignore: %w", err)
-	}
-	return nil
 }

@@ -21,43 +21,15 @@ import {
   ArrowRight,
   RotateCcw,
 } from "lucide-react";
-
-const TOUR_STORAGE_KEY = "browser-automation-studio-tour-completed";
-const TOUR_STEP_KEY = "browser-automation-studio-tour-step";
-const TOUR_ACTIVE_KEY = "browser-automation-studio-tour-active";
-const TOUR_PAUSED_KEY = "browser-automation-studio-tour-paused";
-const TOUR_VERSION = "4"; // Bump to show tour again after major updates
-
-// Custom events for controlling the tour from anywhere
-const TOUR_RESET_EVENT = "guided-tour-reset";
-const TOUR_OPEN_EVENT = "guided-tour-open";
-
-export interface TourStep {
-  id: string;
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  /** CSS selector for the element to anchor to */
-  anchorSelector?: string;
-  /** Which side of the anchor element to position on */
-  anchorPosition?: "top" | "bottom" | "left" | "right";
-  /** Action hint shown at the bottom of the step */
-  actionHint?: string;
-  /** If true, wait for user to interact with the target before auto-advancing */
-  waitForInteraction?: boolean;
-  /** Selector to watch for click to advance */
-  advanceOnClick?: string;
-  /** Called when this step becomes active */
-  onEnter?: () => void;
-  /** Called when leaving this step (for cleanup like closing modals) */
-  onExit?: () => void;
-  /** Action to auto-perform if user presses Next without completing the required interaction */
-  autoAction?: () => Promise<void>;
-  /** URL pattern this step requires (string for startsWith, RegExp for pattern match) */
-  requiredUrl?: string | RegExp;
-  /** Auto-navigate to this URL on step entry if not already there */
-  navigateTo?: string;
-}
+import type { TourStep } from "./guidedTourTypes";
+import {
+  TOUR_STORAGE_KEY,
+  TOUR_STEP_KEY,
+  TOUR_ACTIVE_KEY,
+  TOUR_PAUSED_KEY,
+  TOUR_VERSION,
+  TOUR_RESET_EVENT,
+} from "./guidedTourConstants";
 
 // ============================================================================
 // Default Tour Steps (17 steps focused on recording workflow)
@@ -65,7 +37,7 @@ export interface TourStep {
 
 let cachedDefaultTourSteps: TourStep[] | null = null;
 
-export function getDefaultTourSteps(): TourStep[] {
+function getDefaultTourSteps(): TourStep[] {
   if (cachedDefaultTourSteps) {
     return cachedDefaultTourSteps;
   }
@@ -600,8 +572,8 @@ export function GuidedTour({
   const hasInitializedRef = useRef(false);
   const previousStepRef = useRef<number | null>(null);
 
-  // Derived state
-  const currentStep = resolvedSteps[currentStepIndex];
+  // Derived state (currentStep can be undefined if index is out of range)
+  const currentStep = resolvedSteps[currentStepIndex] ?? null;
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === resolvedSteps.length - 1;
   const isOffTrack =
@@ -672,7 +644,9 @@ export function GuidedTour({
     }
 
     const findAnchor = () => {
-      const el = document.querySelector(currentStep.anchorSelector!);
+      const selector = currentStep.anchorSelector;
+      if (!selector) return;
+      const el = document.querySelector(selector);
       if (el) {
         setAnchorRect(el.getBoundingClientRect());
       } else {
@@ -716,50 +690,6 @@ export function GuidedTour({
 
     setPosition(newPos);
   }, [anchorRect, isDragging, currentStep?.anchorPosition]);
-
-  // ============================================================================
-  // Advance on Click
-  // ============================================================================
-
-  useEffect(() => {
-    if (!isOpen || !currentStep?.advanceOnClick || isPaused) return;
-
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as Element;
-      const selectors = currentStep
-        .advanceOnClick!.split(",")
-        .map((s) => s.trim());
-
-      for (const selector of selectors) {
-        if (target.closest(selector)) {
-          const nextStep = currentStepIndex + 1;
-
-          // Persist immediately before navigation
-          if (!isLastStep) {
-            try {
-              sessionStorage.setItem(TOUR_STEP_KEY, nextStep.toString());
-              sessionStorage.setItem(TOUR_ACTIVE_KEY, "true");
-            } catch {
-              // sessionStorage unavailable
-            }
-          }
-
-          // Delay to let action complete
-          setTimeout(() => {
-            if (isLastStep) {
-              handleComplete();
-            } else {
-              setCurrentStepIndex(nextStep);
-            }
-          }, 300);
-          break;
-        }
-      }
-    };
-
-    document.addEventListener("click", handleClick, true);
-    return () => document.removeEventListener("click", handleClick, true);
-  }, [isOpen, currentStep?.advanceOnClick, isLastStep, currentStepIndex, isPaused]);
 
   // ============================================================================
   // Dragging
@@ -817,27 +747,6 @@ export function GuidedTour({
   }, [isDragging, dragOffset]);
 
   // ============================================================================
-  // Keyboard Navigation
-  // ============================================================================
-
-  useEffect(() => {
-    if (!isOpen || isPaused) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        handleSkip();
-      } else if (e.key === "ArrowRight") {
-        handleNext();
-      } else if (e.key === "ArrowLeft") {
-        handlePrevious();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, currentStepIndex, isPaused]);
-
-  // ============================================================================
   // Initialization
   // ============================================================================
 
@@ -869,60 +778,6 @@ export function GuidedTour({
   // Navigation Handlers
   // ============================================================================
 
-  const handleNext = useCallback(async () => {
-    if (pendingAutoAction) return;
-
-    const step = resolvedSteps[currentStepIndex];
-
-    // If step requires interaction and has autoAction, perform it
-    if (step.waitForInteraction && step.autoAction) {
-      setPendingAutoAction(true);
-      await new Promise((r) => setTimeout(r, 500)); // Visual delay
-      await step.autoAction();
-      setPendingAutoAction(false);
-
-      // If step has advanceOnClick, wait for that to trigger advancement
-      // Otherwise, advance now since autoAction completed
-      if (step.advanceOnClick) {
-        return;
-      }
-      // Fall through to advance logic below
-    }
-
-    // Call onExit before advancing
-    step?.onExit?.();
-
-    if (isLastStep) {
-      handleComplete();
-    } else {
-      const nextStep = resolvedSteps[currentStepIndex + 1];
-
-      // Handle navigation if needed
-      if (
-        nextStep.navigateTo &&
-        !location.pathname.startsWith(nextStep.navigateTo)
-      ) {
-        navigate(nextStep.navigateTo);
-      }
-
-      setCurrentStepIndex((prev) => prev + 1);
-    }
-  }, [
-    isLastStep,
-    currentStepIndex,
-    resolvedSteps,
-    pendingAutoAction,
-    location.pathname,
-    navigate,
-  ]);
-
-  const handlePrevious = useCallback(() => {
-    if (!isFirstStep && !pendingAutoAction) {
-      currentStep?.onExit?.();
-      setCurrentStepIndex((prev) => prev - 1);
-    }
-  }, [isFirstStep, pendingAutoAction, currentStep]);
-
   const handleComplete = useCallback(() => {
     currentStep?.onExit?.();
     try {
@@ -951,6 +806,62 @@ export function GuidedTour({
     hasInitializedRef.current = false;
     onClose();
   }, [onClose, currentStep]);
+
+  const handleNext = useCallback(async () => {
+    if (pendingAutoAction) return;
+
+    const step = resolvedSteps[currentStepIndex];
+    if (!step) return;
+
+    // If step requires interaction and has autoAction, perform it
+    if (step.waitForInteraction && step.autoAction) {
+      setPendingAutoAction(true);
+      await new Promise((r) => setTimeout(r, 500)); // Visual delay
+      await step.autoAction();
+      setPendingAutoAction(false);
+
+      // If step has advanceOnClick, wait for that to trigger advancement
+      // Otherwise, advance now since autoAction completed
+      if (step.advanceOnClick) {
+        return;
+      }
+      // Fall through to advance logic below
+    }
+
+    // Call onExit before advancing
+    step.onExit?.();
+
+    if (isLastStep) {
+      handleComplete();
+    } else {
+      const nextStep = resolvedSteps[currentStepIndex + 1];
+
+      // Handle navigation if needed
+      if (
+        nextStep?.navigateTo &&
+        !location.pathname.startsWith(nextStep.navigateTo)
+      ) {
+        navigate(nextStep.navigateTo);
+      }
+
+      setCurrentStepIndex((prev) => prev + 1);
+    }
+  }, [
+    isLastStep,
+    currentStepIndex,
+    resolvedSteps,
+    pendingAutoAction,
+    location.pathname,
+    navigate,
+    handleComplete,
+  ]);
+
+  const handlePrevious = useCallback(() => {
+    if (!isFirstStep && !pendingAutoAction) {
+      currentStep?.onExit?.();
+      setCurrentStepIndex((prev) => prev - 1);
+    }
+  }, [isFirstStep, pendingAutoAction, currentStep]);
 
   const handlePause = useCallback(() => {
     try {
@@ -1015,6 +926,71 @@ export function GuidedTour({
   }, [resolvedSteps, navigate]);
 
   // ============================================================================
+  // Advance on Click
+  // ============================================================================
+
+  useEffect(() => {
+    if (!isOpen || !currentStep?.advanceOnClick || isPaused) return;
+
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as Element;
+      const selectors = (currentStep.advanceOnClick ?? '')
+        .split(",")
+        .map((s) => s.trim());
+
+      for (const selector of selectors) {
+        if (target.closest(selector)) {
+          const nextStep = currentStepIndex + 1;
+
+          // Persist immediately before navigation
+          if (!isLastStep) {
+            try {
+              sessionStorage.setItem(TOUR_STEP_KEY, nextStep.toString());
+              sessionStorage.setItem(TOUR_ACTIVE_KEY, "true");
+            } catch {
+              // sessionStorage unavailable
+            }
+          }
+
+          // Delay to let action complete
+          setTimeout(() => {
+            if (isLastStep) {
+              handleComplete();
+            } else {
+              setCurrentStepIndex(nextStep);
+            }
+          }, 300);
+          break;
+        }
+      }
+    };
+
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
+  }, [isOpen, currentStep?.advanceOnClick, isLastStep, currentStepIndex, isPaused, handleComplete]);
+
+  // ============================================================================
+  // Keyboard Navigation
+  // ============================================================================
+
+  useEffect(() => {
+    if (!isOpen || isPaused) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        handleSkip();
+      } else if (e.key === "ArrowRight") {
+        handleNext();
+      } else if (e.key === "ArrowLeft") {
+        handlePrevious();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, isPaused, handleSkip, handleNext, handlePrevious]);
+
+  // ============================================================================
   // Highlight Styles (with pulsing glow effect)
   // ============================================================================
 
@@ -1076,7 +1052,7 @@ export function GuidedTour({
             <div className="flex-1">
               <p className="text-sm font-medium text-white">Continue tutorial?</p>
               <p className="text-xs text-gray-400 mt-0.5">
-                Step {currentStepIndex + 1}: {currentStep.title}
+                Step {currentStepIndex + 1}: {currentStep?.title ?? 'Loading...'}
               </p>
             </div>
           </div>
@@ -1181,11 +1157,11 @@ export function GuidedTour({
           {/* Icon and title */}
           <div className="flex items-start gap-3 mb-3">
             <div className="flex-shrink-0 p-2.5 bg-gray-800 rounded-lg border border-gray-700">
-              {currentStep.icon}
+              {currentStep?.icon}
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="text-base font-semibold text-white leading-tight">
-                {currentStep.title}
+                {currentStep?.title}
               </h3>
               <p className="text-xs text-gray-400 mt-0.5">
                 Step {currentStepIndex + 1} of {resolvedSteps.length}
@@ -1195,11 +1171,11 @@ export function GuidedTour({
 
           {/* Description */}
           <p className="text-sm text-gray-300 leading-relaxed mb-4">
-            {currentStep.description}
+            {currentStep?.description}
           </p>
 
           {/* Action hint */}
-          {currentStep.actionHint && (
+          {currentStep?.actionHint && (
             <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg mb-4">
               <Circle size={10} className="text-blue-400 fill-blue-400 flex-shrink-0" />
               <span className="text-xs text-blue-300">{currentStep.actionHint}</span>
@@ -1280,84 +1256,6 @@ export function GuidedTour({
       </div>
     </>
   );
-}
-
-// ============================================================================
-// Hook: useGuidedTour
-// ============================================================================
-
-export function useGuidedTour() {
-  const [showTour, setShowTour] = useState(false);
-  const [hasCheckedStorage, setHasCheckedStorage] = useState(false);
-  // Key that changes when resetTour is called, forcing GuidedTour to remount
-  const [tourKey, setTourKey] = useState(0);
-
-  useEffect(() => {
-    try {
-      // Suppress auto-opening during automated runs
-      const isAutomatedRun =
-        typeof navigator !== "undefined" &&
-        (navigator.webdriver === true ||
-          /lighthouse/i.test(navigator.userAgent) ||
-          /HeadlessChrome/i.test(navigator.userAgent));
-      if (isAutomatedRun) {
-        setHasCheckedStorage(true);
-        return;
-      }
-
-      const completed = localStorage.getItem(TOUR_STORAGE_KEY);
-      const wasActive = sessionStorage.getItem(TOUR_ACTIVE_KEY);
-
-      if (completed !== TOUR_VERSION || wasActive === "true") {
-        setShowTour(true);
-      }
-    } catch {
-      // storage unavailable
-    }
-    setHasCheckedStorage(true);
-  }, []);
-
-  // Listen for global open event (allows opening from any component)
-  useEffect(() => {
-    const handleOpen = () => {
-      setShowTour(true);
-      setTourKey((k) => k + 1);
-    };
-
-    window.addEventListener(TOUR_OPEN_EVENT, handleOpen);
-    return () => window.removeEventListener(TOUR_OPEN_EVENT, handleOpen);
-  }, []);
-
-  const openTour = useCallback(() => {
-    setShowTour(true);
-  }, []);
-
-  const closeTour = useCallback(() => {
-    setShowTour(false);
-  }, []);
-
-  const resetTour = useCallback(() => {
-    try {
-      localStorage.removeItem(TOUR_STORAGE_KEY);
-      sessionStorage.removeItem(TOUR_STEP_KEY);
-      sessionStorage.removeItem(TOUR_ACTIVE_KEY);
-      sessionStorage.removeItem(TOUR_PAUSED_KEY);
-    } catch {
-      // storage unavailable
-    }
-    // Dispatch events to reset and open the tour from any hook instance
-    window.dispatchEvent(new CustomEvent(TOUR_RESET_EVENT));
-    window.dispatchEvent(new CustomEvent(TOUR_OPEN_EVENT));
-  }, []);
-
-  return {
-    showTour,
-    hasCheckedStorage,
-    openTour,
-    closeTour,
-    resetTour,
-    tourKey,
-  };
 }
 
 export default GuidedTour;

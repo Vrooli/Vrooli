@@ -426,7 +426,7 @@ cd scenarios/test-genie && make restart
 
 ### Related Guides
 - [Phased Testing](phased-testing.md) - Understanding phases
-- [Requirements Sync](requirements-sync.md) - How requirements track
+- [Requirements Sync](../phases/business/requirements-sync.md) - How requirements track
 - [Sync Execution](sync-execution.md) - API-based execution
 
 ### Reference

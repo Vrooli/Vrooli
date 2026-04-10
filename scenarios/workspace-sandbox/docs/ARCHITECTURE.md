@@ -551,6 +551,102 @@ curl -X POST http://localhost:15427/api/v1/gc \
 
 ---
 
+## Scope vs Acceptance: Two Separate Concerns
+
+This is one of the most important architectural distinctions in the sandbox system.
+Getting it wrong leads to agents that can't test their own changes.
+
+### The Problem
+
+When an agent works on a scenario, you want two things:
+1. **The agent can restart the scenario** and see its changes take effect
+2. **The agent's blast radius is limited** — only certain changes are approved
+
+These seem like one concern ("limit what the agent can do"), but they require
+two separate mechanisms because the Vrooli lifecycle system needs access to the
+full scenario directory to build and run it.
+
+### Scope = Filesystem Coverage
+
+`ScopePath` determines what directory the overlayfs overlay covers. The overlay's
+`merged/` directory contains ONLY the contents of this path:
+
+```
+ScopePath: "scenarios/agent-inbox"
+
+merged/                        ← Contains agent-inbox's files at root
+├── api/
+├── ui/
+├── Makefile
+└── .vrooli/service.json
+```
+
+When the agent runs `vrooli scenario restart agent-inbox`, the Vrooli CLI detects
+`VROOLI_SANDBOX_*` environment variables (injected by the agent-manager) and
+redirects the lifecycle to build from the sandbox's merged/ directory instead of
+the real repo. This is how agents can test their own changes while sandboxed.
+
+**If the scope is too narrow** (e.g., `scenarios/agent-inbox/ui`), the merged
+directory only contains UI files — no Makefile, no service.json, no API code.
+The lifecycle system can't restart the scenario from this, so it falls back to
+the real repo, and the agent's changes become invisible on restart.
+
+### Acceptance = Approval Blast Radius
+
+`AcceptanceConfig` (Allow/Deny patterns) controls which file changes survive
+the approval process. This is evaluated AFTER the agent finishes, when the diff
+is reviewed — not during the agent's execution.
+
+The overlay allows the agent to write to ANY file within the scope. Acceptance
+filtering happens later.
+
+### How to Configure Both
+
+For an agent making UI styling changes:
+
+```json
+{
+  "scopePath": "scenarios/agent-inbox",
+  "behavior": {
+    "acceptance": {
+      "mode": "allowlist",
+      "allow": { "pathGlobs": ["ui/**"] },
+      "deny": { "pathGlobs": ["api/**", "cli/**"] }
+    }
+  }
+}
+```
+
+This gives you:
+- **Full scenario in the overlay** — restarts work, agent sees its changes
+- **Narrow approval gate** — only `ui/` changes can be approved
+- **Safety net** — accidental `api/` changes are flagged during review
+
+### Decision Tree
+
+```
+What do you want to control?
+│
+├─ What the agent CAN SEE and what the lifecycle can BUILD from?
+│  └─ Set ScopePath (always use the full scenario directory)
+│
+├─ What changes get APPROVED to the real repo?
+│  └─ Set AcceptanceConfig.Allow/Deny patterns
+│
+└─ What changes are LOCKED for mutual exclusion?
+   └─ Set ReservedPath(s) (defaults to ScopePath)
+```
+
+### Common Mistakes
+
+| Mistake | Symptom | Fix |
+|---------|---------|-----|
+| Scope too narrow (`ui/` only) | Agent restarts scenario but sees old code | Scope to full scenario, use acceptance Allow for `ui/**` |
+| No acceptance config | All changes approved, even accidental ones | Add Allow/Deny patterns matching the intended work |
+| Scope too broad (project root) | Large overlay, slow creation | Scope to the specific scenario being worked on |
+
+---
+
 ## Further Reading
 
 - [README.md](../README.md) - Quick start and usage

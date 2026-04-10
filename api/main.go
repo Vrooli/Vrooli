@@ -4,9 +4,11 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -33,6 +35,10 @@ type Response struct {
 // === Vrooli Configuration ===
 var (
 	vrooliRoot = getVrooliRoot()
+	lookPathFn = exec.LookPath
+	commandFn  = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		return exec.CommandContext(ctx, name, args...).Output()
+	}
 )
 
 // === Native Scenario Management (Replaces Python Orchestrator) ===
@@ -515,7 +521,6 @@ func isPidRunning(pid int) bool {
 
 // Discover all running scenarios using PID-based tracking
 func discoverRunningScenarios() ([]RunningScenario, error) {
-
 	scenarios := make(map[string]*RunningScenario)
 	processesDir := filepath.Join(os.Getenv("HOME"), ".vrooli/processes/scenarios")
 
@@ -837,9 +842,86 @@ func performHealthCheck(check HealthCheckConfig, scenarioName string, ports map[
 		}
 
 		return nil
+	case "postgres":
+		timeout := time.Duration(check.Timeout) * time.Millisecond
+		if timeout == 0 {
+			timeout = 3 * time.Second
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+
+		// Prefer canonical resource status when the CLI is available.
+		if _, err := lookPathFn("vrooli"); err == nil {
+			if output, cmdErr := commandFn(ctx, "vrooli", "resource", "status", "postgres", "--json"); cmdErr == nil {
+				var status struct {
+					Running   bool  `json:"running"`
+					Healthy   *bool `json:"healthy"`
+					Installed bool  `json:"installed"`
+				}
+				if err := json.Unmarshal(output, &status); err == nil {
+					if !status.Installed {
+						return fmt.Errorf("postgres resource not installed")
+					}
+					if !status.Running {
+						return fmt.Errorf("postgres resource not running")
+					}
+					if status.Healthy != nil && !*status.Healthy {
+						return fmt.Errorf("postgres resource unhealthy")
+					}
+					return nil
+				}
+			}
+		}
+
+		// Fallback: if postgres port is reachable, treat the check as passed.
+		address := "127.0.0.1:5432"
+		if parsed, err := parsePostgresAddress(check.Target); err == nil && parsed != "" {
+			address = parsed
+		}
+		conn, err := net.DialTimeout("tcp", address, timeout)
+		if err != nil {
+			return fmt.Errorf("postgres health check failed for %q: %w", address, err)
+		}
+		_ = conn.Close()
+		return nil
 	default:
 		return fmt.Errorf("unsupported health check type: %s", check.Type)
 	}
+}
+
+func parsePostgresAddress(target string) (string, error) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return "", nil
+	}
+
+	if strings.HasPrefix(target, "postgres://") || strings.HasPrefix(target, "postgresql://") {
+		u, err := url.Parse(target)
+		if err != nil {
+			return "", err
+		}
+		host := u.Hostname()
+		if host == "" {
+			return "", nil
+		}
+		port := u.Port()
+		if port == "" {
+			port = "5432"
+		}
+		return net.JoinHostPort(host, port), nil
+	}
+
+	if strings.Contains(target, ":") {
+		host, port, err := net.SplitHostPort(target)
+		if err == nil && host != "" && port != "" {
+			return net.JoinHostPort(host, port), nil
+		}
+		return "", err
+	}
+
+	// A database name (e.g., "vrooli") is not a dial target.
+	return "", nil
 }
 
 // Wait for scenario to become healthy
@@ -1228,10 +1310,10 @@ func protectApp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	protectDir := filepath.Join(appPath, ".vrooli")
-	os.MkdirAll(protectDir, 0755)
+	os.MkdirAll(protectDir, 0o755)
 	protectFile := filepath.Join(protectDir, ".protected")
 	content := fmt.Sprintf("Protected on %s\n", time.Now().UTC().Format(time.RFC3339))
-	os.WriteFile(protectFile, []byte(content), 0644)
+	os.WriteFile(protectFile, []byte(content), 0o644)
 
 	json.NewEncoder(w).Encode(Response{Success: true})
 }
@@ -1652,6 +1734,13 @@ func getScenarioStatusNative(w http.ResponseWriter, r *http.Request) {
 					"started_at":      scenario.StartedAt,
 					"runtime":         scenario.Runtime,
 					"allocated_ports": scenario.Ports,
+					"health_status": func() interface{} {
+						healthStatus := "running"
+						if healthConfig, err := loadHealthConfig(name); err == nil && healthConfig != nil && len(healthConfig.Checks) > 0 {
+							healthStatus = checkScenarioHealth(name, healthConfig, scenario.Ports)
+						}
+						return healthStatus
+					}(),
 				},
 			})
 			return
@@ -1669,6 +1758,7 @@ func getScenarioStatusNative(w http.ResponseWriter, r *http.Request) {
 			"started_at":      nil,
 			"runtime":         "N/A",
 			"allocated_ports": map[string]int{},
+			"health_status":   nil,
 		},
 	})
 }

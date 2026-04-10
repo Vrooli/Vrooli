@@ -459,7 +459,7 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
 
       // Autosave actually saves
       const state = useWorkflowStore.getState();
-      expect(state.isSaving || global.fetch).toHaveBeenCalled;
+      expect(state.isSaving || global.fetch).toHaveBeenCalled();
 
       vi.useRealTimers();
     });
@@ -543,7 +543,7 @@ describe('workflowStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
       await act(async () => {
         try {
           await useWorkflowStore.getState().saveWorkflow();
-        } catch (error) {
+        } catch (_error) {
           // Expected to handle conflict internally
         }
       });

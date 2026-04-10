@@ -51,8 +51,12 @@ whisper::docker::is_gpu_available() {
 whisper::docker::pull_image() {
     local gpu_enabled="${1:-$WHISPER_GPU_ENABLED}"
     local image
-    
-    image=$(WHISPER_GPU_ENABLED="$gpu_enabled" whisper::docker::get_docker_image)
+
+    if [[ "$gpu_enabled" == "yes" ]] && whisper::docker::is_gpu_available; then
+        image="$WHISPER_IMAGE"
+    else
+        image="$WHISPER_CPU_IMAGE"
+    fi
     docker::pull_image "$image"
 }
 
@@ -69,7 +73,11 @@ whisper::docker::start_container() {
     # Ensure directories exist
     whisper::create_directories || return 1
     
-    image=$(WHISPER_GPU_ENABLED="$gpu_enabled" whisper::docker::get_docker_image)
+    if [[ "$gpu_enabled" == "yes" ]] && whisper::docker::is_gpu_available; then
+        image="$WHISPER_IMAGE"
+    else
+        image="$WHISPER_CPU_IMAGE"
+    fi
     
     log::info "Starting Whisper container..."
     
@@ -79,7 +87,7 @@ whisper::docker::start_container() {
     # Prepare environment variables
     local env_vars=(
         "ASR_MODEL=$model"
-        "ASR_ENGINE=openai_whisper"
+        "ASR_ENGINE=${WHISPER_ENGINE:-faster_whisper}"
     )
     
     # Prepare Docker options

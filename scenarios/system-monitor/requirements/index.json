@@ -1,0 +1,138 @@
+{
+  "_metadata": {
+    "entity": "system-monitor",
+    "generated_at": "2026-02-16T21:24:14-05:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-real-time-cpu-memory-disk-network-gpu-mo/module.json",
+    "02-threshold-based-anomaly-detection-with-c/module.json",
+    "03-automated-investigation-of-system-anomal/module.json",
+    "04-time-series-data-storage-in-questdb/module.json",
+    "05-configurable-warning-critical-thresholds/module.json",
+    "06-report-generation/module.json",
+    "07-dark-cyberpunk-monitoring-dashboard/module.json",
+    "08-investigation-script-execution/module.json",
+    "09-process-monitoring-and-management/module.json",
+    "10-infrastructure-monitoring/module.json",
+    "11-historical-trend-analysis/module.json",
+    "12-alert-webhook-support/module.json",
+    "13-investigation-cooldown-management/module.json",
+    "14-agent-configuration-management/module.json",
+    "15-custom-metric-collection-via-api/module.json",
+    "16-alert-routing-to-multiple-channels/module.json",
+    "17-resource-prediction-models/module.json",
+    "18-correlation-analysis-between-metrics/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-real-time-cpu-memory-disk-network-gpu-mo",
+      "priority": "P0",
+      "title": "Real-time CPU, memory, disk, network, GPU monitoring"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-threshold-based-anomaly-detection-with-c",
+      "priority": "P0",
+      "title": "Threshold-based anomaly detection with configurable triggers"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-automated-investigation-of-system-anomal",
+      "priority": "P0",
+      "title": "Automated investigation of system anomalies via agent-manager"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-time-series-data-storage-in-questdb",
+      "priority": "P0",
+      "title": "Time-series data storage in QuestDB (configured; API defaults to in-memory with PostgreSQL fallback)"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-configurable-warning-critical-thresholds",
+      "priority": "P0",
+      "title": "Configurable warning/critical thresholds (via API settings endpoints)"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-report-generation",
+      "priority": "P0",
+      "title": "Report generation (daily/weekly via API endpoint)"
+    },
+    {
+      "id": "MOD-P0-007",
+      "path": "07-dark-cyberpunk-monitoring-dashboard",
+      "priority": "P0",
+      "title": "Dark cyberpunk monitoring dashboard (Matrix-themed React UI)"
+    },
+    {
+      "id": "MOD-P0-008",
+      "path": "08-investigation-script-execution",
+      "priority": "P0",
+      "title": "Investigation script execution (30 scripts in investigations/active/; API script endpoints are placeholders)"
+    },
+    {
+      "id": "MOD-P0-009",
+      "path": "09-process-monitoring-and-management",
+      "priority": "P0",
+      "title": "Process monitoring and management (zombie detection, process kill)"
+    },
+    {
+      "id": "MOD-P0-010",
+      "path": "10-infrastructure-monitoring",
+      "priority": "P0",
+      "title": "Infrastructure monitoring (database pools, HTTP pools, message queues, storage I/O)"
+    },
+    {
+      "id": "MOD-P1-011",
+      "path": "11-historical-trend-analysis",
+      "priority": "P1",
+      "title": "Historical trend analysis (no timeline endpoint exists; trend analysis implemented only within report generation)"
+    },
+    {
+      "id": "MOD-P1-012",
+      "path": "12-alert-webhook-support",
+      "priority": "P1",
+      "title": "Alert webhook support (configured, cooldown-based)"
+    },
+    {
+      "id": "MOD-P1-013",
+      "path": "13-investigation-cooldown-management",
+      "priority": "P1",
+      "title": "Investigation cooldown management (configurable period, reset capability)"
+    },
+    {
+      "id": "MOD-P1-014",
+      "path": "14-agent-configuration-management",
+      "priority": "P1",
+      "title": "Agent configuration management (runner type, model, max turns, timeout)"
+    },
+    {
+      "id": "MOD-P1-015",
+      "path": "15-custom-metric-collection-via-api",
+      "priority": "P1",
+      "title": "Custom metric collection via API (no custom metric ingestion endpoint; only built-in collectors)"
+    },
+    {
+      "id": "MOD-P1-016",
+      "path": "16-alert-routing-to-multiple-channels",
+      "priority": "P1",
+      "title": "Alert routing to multiple channels (webhook and email configured but email not implemented)"
+    },
+    {
+      "id": "MOD-P1-017",
+      "path": "17-resource-prediction-models",
+      "priority": "P1",
+      "title": "Resource prediction models (not implemented)"
+    },
+    {
+      "id": "MOD-P1-018",
+      "path": "18-correlation-analysis-between-metrics",
+      "priority": "P1",
+      "title": "Correlation analysis between metrics (not implemented)"
+    }
+  ]
+}

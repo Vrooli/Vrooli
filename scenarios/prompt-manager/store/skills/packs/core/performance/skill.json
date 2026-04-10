@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "performance",
+  "name": "Performance",
+  "description": "Profiling and optimization - bundle size, load times, caching",
+  "modes": [
+    "steer",
+    "performance"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "zap",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 46,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2026-02-05T01:01:48Z"
+}

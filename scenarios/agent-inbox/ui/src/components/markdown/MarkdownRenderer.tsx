@@ -1,9 +1,50 @@
-import { memo, useMemo, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { Component, memo, useMemo, type ComponentPropsWithoutRef, type ReactNode, type ErrorInfo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CodeBlock } from "./components/CodeBlock";
 import { InlineCode } from "./components/InlineCode";
 import { LinkWithPreview } from "./components/LinkWithPreview";
+import { MermaidDiagram } from "./components/MermaidDiagram";
+
+/**
+ * Lightweight error boundary specifically for markdown rendering.
+ * Shows a graceful fallback when markdown parsing fails instead of crashing.
+ */
+interface MarkdownErrorBoundaryProps {
+  children: ReactNode;
+  content: string;
+}
+
+interface MarkdownErrorBoundaryState {
+  hasError: boolean;
+}
+
+class MarkdownErrorBoundary extends Component<MarkdownErrorBoundaryProps, MarkdownErrorBoundaryState> {
+  constructor(props: MarkdownErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): MarkdownErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    console.error("[MarkdownRenderer] Failed to render content:", error, errorInfo);
+  }
+
+  render(): ReactNode {
+    if (this.state.hasError) {
+      // Fallback: render as plain text with preserved whitespace
+      return (
+        <pre className="whitespace-pre-wrap text-sm text-slate-300 font-mono">
+          {this.props.content}
+        </pre>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface MarkdownRendererProps {
   /** The markdown content to render */
@@ -21,7 +62,7 @@ interface MarkdownRendererProps {
 export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
   className,
-  isStreaming = false,
+  isStreaming: _isStreaming = false,
 }: MarkdownRendererProps) {
   // Memoize the components object to prevent recreation
   const components = useMemo(
@@ -41,6 +82,11 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
         // Inline code
         if (isInline) {
           return <InlineCode>{children}</InlineCode>;
+        }
+
+        // Mermaid diagram
+        if (codeClassName === "language-mermaid") {
+          return <MermaidDiagram code={codeContent} />;
         }
 
         // Fenced code block
@@ -75,7 +121,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
 
       // Paragraphs
       p: ({ children }: { children?: ReactNode }) => (
-        <p className="my-2 leading-relaxed">{children}</p>
+        <p className="my-2 leading-relaxed break-words [overflow-wrap:anywhere]">{children}</p>
       ),
 
       // Lists
@@ -86,7 +132,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
         <ol className="list-decimal list-inside my-2 space-y-1">{children}</ol>
       ),
       li: ({ children }: { children?: ReactNode }) => (
-        <li className="leading-relaxed">{children}</li>
+        <li className="leading-relaxed break-words [overflow-wrap:anywhere]">{children}</li>
       ),
 
       // Blockquotes
@@ -144,11 +190,13 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
   const safeContent = typeof content === "string" ? content : String(content);
 
   return (
-    <div className={`markdown-content ${className || ""}`}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {safeContent}
-      </ReactMarkdown>
-    </div>
+    <MarkdownErrorBoundary content={safeContent}>
+      <div className={`markdown-content min-w-0 max-w-full break-words [overflow-wrap:anywhere] ${className || ""}`}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+          {safeContent}
+        </ReactMarkdown>
+      </div>
+    </MarkdownErrorBoundary>
   );
 }, (prevProps, nextProps) => {
   // Custom comparison for memoization

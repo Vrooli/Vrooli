@@ -15,7 +15,7 @@ RESOURCE_FIELD_NUMBER: _ClassVar[int]
 resource: _descriptor.FieldDescriptor
 
 class ResourceDescriptor(_message.Message):
-    __slots__ = ()
+    __slots__ = ("type", "pattern", "name_field", "history", "plural", "singular", "style")
     class History(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = ()
         HISTORY_UNSPECIFIED: _ClassVar[ResourceDescriptor.History]
@@ -47,7 +47,7 @@ class ResourceDescriptor(_message.Message):
     def __init__(self, type: _Optional[str] = ..., pattern: _Optional[_Iterable[str]] = ..., name_field: _Optional[str] = ..., history: _Optional[_Union[ResourceDescriptor.History, str]] = ..., plural: _Optional[str] = ..., singular: _Optional[str] = ..., style: _Optional[_Iterable[_Union[ResourceDescriptor.Style, str]]] = ...) -> None: ...
 
 class ResourceReference(_message.Message):
-    __slots__ = ()
+    __slots__ = ("type", "child_type")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     CHILD_TYPE_FIELD_NUMBER: _ClassVar[int]
     type: str

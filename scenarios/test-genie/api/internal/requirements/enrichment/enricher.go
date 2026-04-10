@@ -81,7 +81,9 @@ func (e *enricher) Enrich(ctx context.Context, index *parsing.ModuleIndex, evide
 	}
 
 	// Phase 3: Resolve parent/child hierarchy status
-	e.hierarchy.ResolveHierarchy(ctx, index)
+	if err := e.hierarchy.ResolveHierarchy(ctx, index); err != nil {
+		return err
+	}
 
 	return nil
 }

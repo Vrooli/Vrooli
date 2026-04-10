@@ -26,7 +26,7 @@ func TestFitnessPostsPayload(t *testing.T) {
 		method = r.Method
 		data, _ := io.ReadAll(r.Body)
 		body = string(data)
-		w.Write([]byte(`{"ok":true}`))
+		_, _ = w.Write([]byte(`{"ok":true}`))
 	}))
 	defer server.Close()
 

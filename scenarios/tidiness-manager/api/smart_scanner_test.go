@@ -35,7 +35,7 @@ func setupTempVrooliRoot(t *testing.T, scenarioName string) (vrooliRoot, scenari
 	vrooliRoot = t.TempDir()
 	scenarioDir = filepath.Join(vrooliRoot, "scenarios", scenarioName)
 
-	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
 		t.Fatalf("Failed to create scenario dir: %v", err)
 	}
 
@@ -258,10 +258,10 @@ func TestReadFileContent(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test file
 			fullPath := filepath.Join(scenarioDir, tt.filePath)
-			if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
 				t.Fatalf("Failed to create dir: %v", err)
 			}
-			if err := os.WriteFile(fullPath, []byte(tt.content), 0644); err != nil {
+			if err := os.WriteFile(fullPath, []byte(tt.content), 0o644); err != nil {
 				t.Fatalf("Failed to create test file: %v", err)
 			}
 
@@ -332,13 +332,13 @@ func TestSmartScanner_UsesScenarioLocator(t *testing.T) {
 
 	scenarioName := "locator-scenario"
 	scenarioDir := filepath.Join(locator.scenariosDir, scenarioName)
-	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
 		t.Fatalf("Failed to create scenario dir: %v", err)
 	}
 
 	filePath := filepath.Join(scenarioDir, "main.go")
 	const fileContents = "package main\n"
-	if err := os.WriteFile(filePath, []byte(fileContents), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte(fileContents), 0o644); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 

@@ -1,0 +1,56 @@
+{
+  "id": "rapid-mvp",
+  "name": "Rapid MVP",
+  "description": "Fast iteration to minimum viable product. Focuses on getting features working quickly with basic testing.",
+  "phases": [
+    {
+      "id": "rapid-mvp-progress",
+      "skill_ids": ["progress"],
+      "skill_name": "Progress",
+      "modes": [],
+      "stop_conditions": [
+        {
+          "type": "simple",
+          "metric": "operational_targets_percentage",
+          "compare_operator": ">=",
+          "value": 70
+        }
+      ],
+      "max_iterations": 20
+    },
+    {
+      "id": "rapid-mvp-test",
+      "skill_ids": ["test"],
+      "skill_name": "Test",
+      "modes": [],
+      "stop_conditions": [
+        {
+          "type": "simple",
+          "metric": "unit_test_coverage",
+          "compare_operator": ">",
+          "value": 60
+        }
+      ],
+      "max_iterations": 5
+    },
+    {
+      "id": "rapid-mvp-polish",
+      "skill_ids": ["polish"],
+      "skill_name": "Polish",
+      "modes": [],
+      "stop_conditions": [
+        {
+          "type": "simple",
+          "metric": "loops",
+          "compare_operator": ">=",
+          "value": 3
+        }
+      ],
+      "max_iterations": 3
+    }
+  ],
+  "quality_gates": [],
+  "created_at": "2026-01-27T00:00:00Z",
+  "updated_at": "2026-01-27T00:00:00Z",
+  "tags": ["rapid", "mvp", "quick"]
+}

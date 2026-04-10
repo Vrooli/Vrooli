@@ -16,14 +16,12 @@ import (
 func TestHealthEndpoint(t *testing.T) {
 	// Set required environment variables for testing
 	os.Setenv("API_PORT", "8080")
-	os.Setenv("DATABASE_URL", "postgres://test:test@localhost:5432/test?sslmode=disable")
 
 	// Create a mock server with a nil database for unit testing
 	// The health endpoint should handle nil gracefully
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+			Port: "8080",
 		},
 		db:     nil, // Explicitly set to nil for unit testing
 		router: mux.NewRouter(),
@@ -80,8 +78,7 @@ func TestHealthEndpointWithDB(t *testing.T) {
 
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: dbURL,
+			Port: "8080",
 		},
 		db:     db,
 		router: mux.NewRouter(),
@@ -108,34 +105,24 @@ func TestHealthEndpointWithDB(t *testing.T) {
 
 func TestConfigValidation(t *testing.T) {
 	tests := []struct {
-		name        string
-		apiPort     string
-		databaseURL string
-		wantError   bool
+		name      string
+		apiPort   string
+		wantError bool
 	}{
 		{
-			name:        "valid config",
-			apiPort:     "8080",
-			databaseURL: "postgres://user:pass@localhost:5432/db?sslmode=disable",
-			wantError:   false,
+			name:      "valid config",
+			apiPort:   "8080",
+			wantError: false,
 		},
 		{
-			name:        "missing api port",
-			apiPort:     "",
-			databaseURL: "postgres://user:pass@localhost:5432/db?sslmode=disable",
-			wantError:   true,
+			name:      "missing api port",
+			apiPort:   "",
+			wantError: true,
 		},
 		{
-			name:        "missing database URL",
-			apiPort:     "8080",
-			databaseURL: "",
-			wantError:   true,
-		},
-		{
-			name:        "invalid port format",
-			apiPort:     "not-a-number",
-			databaseURL: "postgres://user:pass@localhost:5432/db?sslmode=disable",
-			wantError:   false, // Port validation is minimal in current implementation
+			name:      "invalid port format",
+			apiPort:   "not-a-number",
+			wantError: false, // Port validation is minimal in current implementation
 		},
 	}
 
@@ -143,10 +130,8 @@ func TestConfigValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Save original env
 			origPort := os.Getenv("API_PORT")
-			origDB := os.Getenv("DATABASE_URL")
 			defer func() {
 				os.Setenv("API_PORT", origPort)
-				os.Setenv("DATABASE_URL", origDB)
 			}()
 
 			// Set test env
@@ -155,20 +140,14 @@ func TestConfigValidation(t *testing.T) {
 			} else {
 				os.Unsetenv("API_PORT")
 			}
-			if tt.databaseURL != "" {
-				os.Setenv("DATABASE_URL", tt.databaseURL)
-			} else {
-				os.Unsetenv("DATABASE_URL")
-			}
 
 			// Create config and validate
 			cfg := &Config{
-				Port:        os.Getenv("API_PORT"),
-				DatabaseURL: os.Getenv("DATABASE_URL"),
+				Port: os.Getenv("API_PORT"),
 			}
 
 			// Check if config has required fields
-			hasError := (cfg.Port == "" || cfg.DatabaseURL == "")
+			hasError := cfg.Port == ""
 			if hasError != tt.wantError {
 				t.Errorf("Config validation: got error=%v, want error=%v", hasError, tt.wantError)
 			}
@@ -177,9 +156,6 @@ func TestConfigValidation(t *testing.T) {
 			if tt.apiPort != "" && cfg.Port != tt.apiPort {
 				t.Errorf("Expected Port=%s, got %s", tt.apiPort, cfg.Port)
 			}
-			if tt.databaseURL != "" && cfg.DatabaseURL != tt.databaseURL {
-				t.Errorf("Expected DatabaseURL=%s, got %s", tt.databaseURL, cfg.DatabaseURL)
-			}
 		})
 	}
 }
@@ -187,8 +163,7 @@ func TestConfigValidation(t *testing.T) {
 func TestRoutingMiddleware(t *testing.T) {
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+			Port: "8080",
 		},
 		db:     nil,
 		router: mux.NewRouter(),
@@ -219,8 +194,7 @@ func contains(s, substr string) bool {
 func TestHealthEndpointJSONFormat(t *testing.T) {
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+			Port: "8080",
 		},
 		db:     nil,
 		router: mux.NewRouter(),
@@ -278,8 +252,7 @@ func TestHealthEndpointJSONFormat(t *testing.T) {
 func TestHealthEndpointCORS(t *testing.T) {
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+			Port: "8080",
 		},
 		db:     nil,
 		router: mux.NewRouter(),
@@ -301,8 +274,7 @@ func TestHealthEndpointCORS(t *testing.T) {
 func TestHealthV1Endpoint(t *testing.T) {
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+			Port: "8080",
 		},
 		db:     nil,
 		router: mux.NewRouter(),
@@ -326,8 +298,7 @@ func TestHealthV1Endpoint(t *testing.T) {
 func TestInvalidRoute(t *testing.T) {
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+			Port: "8080",
 		},
 		db:     nil,
 		router: mux.NewRouter(),
@@ -347,8 +318,7 @@ func TestInvalidRoute(t *testing.T) {
 func TestHealthEndpointMethods(t *testing.T) {
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+			Port: "8080",
 		},
 		db:     nil,
 		router: mux.NewRouter(),
@@ -370,15 +340,11 @@ func TestHealthEndpointMethods(t *testing.T) {
 // TestServerInitialization validates server can be initialized with valid config
 func TestServerInitialization(t *testing.T) {
 	cfg := &Config{
-		Port:        "8080",
-		DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+		Port: "8080",
 	}
 
 	if cfg.Port != "8080" {
 		t.Errorf("Expected port 8080, got %s", cfg.Port)
-	}
-	if cfg.DatabaseURL != "postgres://test:test@localhost:5432/test?sslmode=disable" {
-		t.Errorf("Unexpected database URL: %s", cfg.DatabaseURL)
 	}
 
 	// Verify we can create a server with this config
@@ -395,8 +361,7 @@ func TestServerInitialization(t *testing.T) {
 func TestHealthEndpointConcurrency(t *testing.T) {
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+			Port: "8080",
 		},
 		db:     nil,
 		router: mux.NewRouter(),
@@ -436,8 +401,7 @@ func TestHealthEndpointDatabaseError(t *testing.T) {
 
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://invalid:invalid@localhost:9999/invalid?sslmode=disable",
+			Port: "8080",
 		},
 		db:     invalidDB,
 		router: mux.NewRouter(),
@@ -480,8 +444,7 @@ func TestHealthEndpointDatabaseError(t *testing.T) {
 func TestHealthEndpointMaliciousHeaders(t *testing.T) {
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+			Port: "8080",
 		},
 		db:     nil,
 		router: mux.NewRouter(),
@@ -518,8 +481,7 @@ func TestHealthEndpointMaliciousHeaders(t *testing.T) {
 func TestHealthEndpointResponseConsistency(t *testing.T) {
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+			Port: "8080",
 		},
 		db:     nil,
 		router: mux.NewRouter(),
@@ -552,31 +514,11 @@ func TestHealthEndpointResponseConsistency(t *testing.T) {
 	}
 }
 
-// TestConfigValidationMissingDatabase validates error handling for missing DATABASE_URL
-func TestConfigValidationMissingDatabase(t *testing.T) {
-	// Save and restore environment
-	origDB := os.Getenv("DATABASE_URL")
-	defer os.Setenv("DATABASE_URL", origDB)
-
-	os.Unsetenv("DATABASE_URL")
-
-	// Config creation should handle missing DATABASE_URL
-	cfg := &Config{
-		Port:        "8080",
-		DatabaseURL: "",
-	}
-
-	if cfg.DatabaseURL != "" {
-		t.Error("Expected empty DatabaseURL when environment variable not set")
-	}
-}
-
 // TestInvalidRouteWithBody validates 404 handling with request body
 func TestInvalidRouteWithBody(t *testing.T) {
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+			Port: "8080",
 		},
 		db:     nil,
 		router: mux.NewRouter(),
@@ -598,8 +540,7 @@ func TestInvalidRouteWithBody(t *testing.T) {
 func TestHealthEndpointQueryParameters(t *testing.T) {
 	srv := &Server{
 		config: &Config{
-			Port:        "8080",
-			DatabaseURL: "postgres://test:test@localhost:5432/test?sslmode=disable",
+			Port: "8080",
 		},
 		db:     nil,
 		router: mux.NewRouter(),

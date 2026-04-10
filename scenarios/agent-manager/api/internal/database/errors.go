@@ -1,17 +1,25 @@
-// Package database provides PostgreSQL persistence for agent-manager entities.
+// Package database provides SQLite persistence for agent-manager entities.
 package database
 
 import (
 	"database/sql"
 	"errors"
+	"strings"
 
 	"agent-manager/internal/domain"
-	"github.com/lib/pq"
 )
 
 func wrapDBError(operation, entityType, entityID string, err error) error {
 	if err == nil {
 		return nil
+	}
+	if isUniqueConstraintViolation(err) {
+		return domain.NewStateError(
+			entityType,
+			"exists",
+			operation,
+			entityType+" already exists with that name or key",
+		)
 	}
 	return &domain.DatabaseError{
 		Operation:   operation,
@@ -22,19 +30,18 @@ func wrapDBError(operation, entityType, entityID string, err error) error {
 	}
 }
 
+// isUniqueConstraintViolation detects SQLite UNIQUE constraint failures.
+// modernc.org/sqlite reports these with "UNIQUE constraint failed" in the message.
+func isUniqueConstraintViolation(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
+}
+
 func isTransientDBError(err error) bool {
 	if err == nil {
 		return false
 	}
 	if errors.Is(err, sql.ErrConnDone) {
 		return true
-	}
-	var pqErr *pq.Error
-	if errors.As(err, &pqErr) {
-		switch pqErr.Code.Class() {
-		case "08": // connection exception
-			return true
-		}
 	}
 	return false
 }

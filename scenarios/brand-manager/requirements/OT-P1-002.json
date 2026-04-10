@@ -1,0 +1,57 @@
+{
+  "_metadata": {
+    "description": "UI Dashboard domain - scenario-centric status view and brand library",
+    "domain": "ui-dashboard",
+    "last_updated": "2026-03-26"
+  },
+  "requirements": [
+    {
+      "id": "BM-REQ-UI-DASHBOARD",
+      "category": "ui-dashboard",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Scenario-centric branding status view",
+      "description": "Scenario-centric branding status view across all scenarios",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/brands_test.go:TestScenarioStatusEndpoint",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests the scenario status API backing the dashboard view"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/assignments_test.go:TestScenarioStatusWithAssignment",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests status API with assigned brand showing correct version and elements"
+        }
+      ]
+    },
+    {
+      "id": "BM-REQ-UI-LIBRARY",
+      "category": "ui-dashboard",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Brand library browsing and search",
+      "description": "Brand library browsing and search",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/brands_test.go:TestListBrandsEndpoint",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests the brands list API backing the library UI with pagination"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/assignments_test.go:TestListBrandsWithFilter",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests brand list with name filter for search functionality"
+        }
+      ]
+    }
+  ]
+}

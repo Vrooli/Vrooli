@@ -56,6 +56,7 @@ export const computeTotalDuration = (
     return 0;
   }
   const last = timeline[timeline.length - 1];
+  if (!last) return 0;
   return last.startMs + Math.max(1, last.durationMs);
 };
 
@@ -72,6 +73,7 @@ export const findFrameForTime = (
   const clamped = Math.max(0, ms);
   for (let i = timeline.length - 1; i >= 0; i -= 1) {
     const entry = timeline[i];
+    if (!entry) continue;
     if (clamped >= entry.startMs || i === 0) {
       const elapsed = clamped - entry.startMs;
       const progress =
@@ -82,6 +84,7 @@ export const findFrameForTime = (
     }
   }
   const last = timeline[timeline.length - 1];
+  if (!last) return { index: 0, progress: 1 };
   return { index: last.index, progress: 1 };
 };
 

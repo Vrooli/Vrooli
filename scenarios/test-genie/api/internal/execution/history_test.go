@@ -56,13 +56,18 @@ func TestExecutionHistoryService_GetProps(t *testing.T) {
 	suiteID := uuid.New()
 	store := &stubExecutionRecordStore{
 		record: &SuiteExecutionRecord{
-			ID:             id,
-			SuiteRequestID: &suiteID,
-			ScenarioName:   "demo",
-			PresetUsed:     "quick",
-			Success:        false,
-			StartedAt:      now.Add(-time.Minute),
-			CompletedAt:    now,
+			ID:                  id,
+			SuiteRequestID:      &suiteID,
+			ScenarioName:        "demo",
+			PresetUsed:          "quick",
+			RequestedPreset:     "quick",
+			RequestedPhases:     []string{"structure"},
+			RequestedSkipPhases: []string{"performance"},
+			PlannedPhases:       []string{"structure", "integration"},
+			FailFast:            true,
+			Success:             false,
+			StartedAt:           now.Add(-time.Minute),
+			CompletedAt:         now,
 		},
 	}
 
@@ -75,6 +80,12 @@ func TestExecutionHistoryService_GetProps(t *testing.T) {
 	}
 	if result.PresetUsed != "quick" {
 		t.Fatalf("expected preset to round-trip, got %s", result.PresetUsed)
+	}
+	if result.RequestedPreset != "quick" || !result.FailFast {
+		t.Fatalf("expected execution request metadata to round-trip: %#v", result)
+	}
+	if len(result.PlannedPhases) != 2 || result.PlannedPhases[1] != "integration" {
+		t.Fatalf("expected planned phases to round-trip: %#v", result)
 	}
 }
 

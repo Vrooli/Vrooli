@@ -17,12 +17,16 @@ import (
 // VisitedTrackerHandlers provides proxy endpoints to the visited-tracker scenario
 type VisitedTrackerHandlers struct {
 	projectRoot string
+	client      *http.Client
 }
 
 // NewVisitedTrackerHandlers creates a new instance
 func NewVisitedTrackerHandlers(projectRoot string) *VisitedTrackerHandlers {
 	return &VisitedTrackerHandlers{
 		projectRoot: projectRoot,
+		client: &http.Client{
+			Timeout: 30 * time.Second,
+		},
 	}
 }
 
@@ -63,11 +67,8 @@ func (h *VisitedTrackerHandlers) proxyToVisitedTracker(w http.ResponseWriter, r 
 		}
 	}
 
-	// Execute request with timeout
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-	resp, err := client.Do(proxyReq)
+	// Execute request using shared client (with timeout)
+	resp, err := h.client.Do(proxyReq)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to proxy request to visited-tracker: %v", err), http.StatusBadGateway)
 		return
@@ -85,7 +86,10 @@ func (h *VisitedTrackerHandlers) proxyToVisitedTracker(w http.ResponseWriter, r 
 	w.WriteHeader(resp.StatusCode)
 
 	// Stream response body
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to stream visited-tracker response: %v", err), http.StatusBadGateway)
+		return
+	}
 }
 
 // ListCampaignsHandler proxies GET /api/v1/campaigns?target=<path>
@@ -114,7 +118,7 @@ func (h *VisitedTrackerHandlers) ResetCampaignHandler(w http.ResponseWriter, r *
 	h.proxyToVisitedTracker(w, r, fmt.Sprintf("/api/v1/campaigns/%s/reset", url.PathEscape(id)))
 }
 
-// GetVisitedTrackerUIPortHandler returns the UI port for visited-tracker
+// GetVisitedTrackerUIPortHandler returns the UI port and URL for visited-tracker
 func (h *VisitedTrackerHandlers) GetVisitedTrackerUIPortHandler(w http.ResponseWriter, r *http.Request) {
 	port, err := discovery.ResolveScenarioPort(r.Context(), "visited-tracker", "UI_PORT")
 	if err != nil {
@@ -122,13 +126,22 @@ func (h *VisitedTrackerHandlers) GetVisitedTrackerUIPortHandler(w http.ResponseW
 		return
 	}
 
+	uiURL, err := discovery.ResolveScenarioURL(r.Context(), "visited-tracker", "UI_PORT")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to resolve visited-tracker UI URL: %v", err), http.StatusServiceUnavailable)
+		return
+	}
+
 	response := map[string]any{
 		"port": port,
-		"url":  fmt.Sprintf("http://localhost:%d", port),
+		"url":  uiURL,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to encode response: %v", err), http.StatusInternalServerError)
+		return
+	}
 }
 
 // GetCampaignsForTargetHandler returns campaigns filtered by target location
@@ -147,7 +160,7 @@ func (h *VisitedTrackerHandlers) GetCampaignsForTargetHandler(w http.ResponseWri
 
 	// Query campaigns from visited-tracker
 	targetURL := baseURL + "/api/v1/campaigns"
-	resp, err := http.Get(targetURL)
+	resp, err := h.client.Get(targetURL)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to fetch campaigns from visited-tracker: %v", err), http.StatusBadGateway)
 		return
@@ -206,5 +219,8 @@ func (h *VisitedTrackerHandlers) GetCampaignsForTargetHandler(w http.ResponseWri
 	if filtered == nil {
 		filtered = make([]map[string]interface{}, 0)
 	}
-	json.NewEncoder(w).Encode(filtered)
+	if err := json.NewEncoder(w).Encode(filtered); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to encode response: %v", err), http.StatusInternalServerError)
+		return
+	}
 }

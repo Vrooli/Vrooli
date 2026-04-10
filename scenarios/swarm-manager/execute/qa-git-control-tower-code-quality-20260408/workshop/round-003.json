@@ -1,0 +1,112 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-08T18:45:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Test helper organization strategy",
+      "context": "Phase 2 refactors 9+ test files into table-driven tests with shared helpers. The question is where to place shared test setup code. Go's test infrastructure allows _test.go files to share within a package, but too many helpers in one file can itself become a long_files violation.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Per-domain helper files alongside their test files",
+          "rationale": "e.g., gitignore_health_test_helpers_test.go next to gitignore_health_service_test.go. Keeps helpers co-located with the tests that use them, avoids creating a giant shared file. Recommended because it keeps each helper file small and relevant, and avoids creating a new long_files violation.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Single shared test_helpers_test.go for the api package",
+          "rationale": "One file with all shared helpers (HTTP test server setup, assertion helpers, etc.). Simpler discovery but risks becoming another long file. Cross-domain helpers like HTTP mocking could go here while domain-specific setup stays inline."
+        },
+        {
+          "key": "C",
+          "label": "Hybrid: shared test_helpers_test.go for cross-cutting concerns + per-domain helpers",
+          "rationale": "Common utilities (mock HTTP server, assertion helpers) in a shared file; domain-specific setup (test fixtures, fake builders) co-located with tests. More files but clean separation."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "C",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "How to handle long_files target risk",
+      "context": "R2-d2 scoped Phase 4 to only files touched by other phases. The plan has 43 long_files violations and many large non-test/non-client files (main.go at 1363 lines, git_runner.go at 1149, diff_service.go at 763) that won't be touched. Even with aggressive test refactoring, hitting long_files <10 is unlikely without splitting those files. The plan should be explicit about how to handle this gap.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Accept best-effort on long_files; file a follow-up item for remaining violations",
+          "rationale": "Focus this item on the scoped work (HTTP clients, tests, scanners, TODOs). After completion, if long_files is still >10, create a separate backlog item for the remaining large files. This keeps the current item manageable and avoids scope creep. Recommended because R2-d2 already chose limited scope.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Expand scope to include splitting the top 5 largest non-client/non-test files",
+          "rationale": "Add main.go, git_runner.go, diff_service.go, visual_capture_storage.go, agent_manager_model.go to the refactoring scope. Would likely hit the <10 target but significantly increases risk and effort."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "B",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Phase execution order and incremental verification",
+      "context": "The plan has 4 implementation phases plus Phase 0 (metrics). Some phases are independent (Phase 1 HTTP clients vs Phase 3 scanners), while others may interact (Phase 1 client changes affect Phase 2 client test refactoring). The question is whether to verify metrics incrementally or only at the end.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Sequential phases with metrics check after Phase 1 and after Phase 2",
+          "rationale": "Run Phase 0 → Phase 1 → metrics check → Phase 2 → metrics check → Phase 3 → Phase 4 → final verification. Two mid-point metrics checks let the executor know if the approach is working and adjust if needed. Recommended because the HTTP client dedup (Phase 1) should show a large drop in complex_functions, validating the approach.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "All phases then single final verification",
+          "rationale": "Just execute all phases and check metrics at the end. Faster execution, less overhead, but no early warning if the approach isn't working."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Plan validation warnings from round 2 have been resolved: added Greenfield Constraint section and `vrooli scenario restart git-control-tower` as the final validation step. All 13 mandatory plan sections are now present. Round 2 decisions (R2-d1 through R2-d4) have been incorporated as settled decisions in the plan and reflected in the implementation strategy."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "This plan appears ready for execution once round 3 decisions are resolved. All readiness dimensions are at 3. The problem is well-understood, scope is clearly defined with explicit in/out designations per file, the approach is concrete with settled architectural decisions, the testing plan covers per-file, per-phase, and final verification, and risks are identified with mitigations. Consider reviewing and queuing after this round."
+    }
+  ],
+  "plan_updates": "Incorporated all Round 2 decisions as settled. Added Greenfield Constraint section. Added `vrooli scenario restart git-control-tower` to testing plan and rollout checklist. Expanded Settled Decisions table with all 8 decisions from both rounds. Added in-scope/out-of-scope annotations to the file inventory. Added Risk R1 for long_files target gap. Refined implementation phases with concrete expected impact notes."
+}

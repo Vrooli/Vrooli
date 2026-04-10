@@ -5,18 +5,20 @@ export type { ContextAttachment } from "@vrooli/proto-types/agent-manager/v1/dom
 
 // Plain object interface for form editing (no proto Message metadata required)
 export interface ContextAttachmentData {
-  type: string;      // "file" | "link" | "note"
-  key?: string;      // Unique identifier
-  tags?: string[];   // Categorization tags
-  path?: string;     // For "file" type
-  url?: string;      // For "link" type
-  content?: string;  // For "note" type, or descriptions
-  label?: string;    // Optional human-readable label
+  type: string;           // "file" | "link" | "note" | "image"
+  key?: string;           // Unique identifier
+  tags?: string[];        // Categorization tags
+  path?: string;          // For "file" type
+  url?: string;           // For "link" type
+  content?: string;       // For "note" type, or descriptions
+  label?: string;         // Optional human-readable label
+  attachment_id?: string; // For "image" type - reference to uploaded Attachment
 }
 
 export {
   RunnerType,
   ModelPreset,
+  NetworkAccess,
   TaskStatus,
   RunStatus,
   ApprovalState,
@@ -37,6 +39,7 @@ export type {
 
 export type {
   Run,
+  RunActions,
   RunSummary,
   RunnerStatus,
   ProbeResult,
@@ -86,8 +89,13 @@ export interface ProfileFormData {
   skipPermissionPrompt?: boolean;
   requiresSandbox?: boolean;
   requiresApproval?: boolean;
+  networkAccess?: "none" | "localhost" | "full";
   allowedPaths?: string[];
   deniedPaths?: string[];
+  features?: {
+    enableBrowser?: boolean;
+  };
+  extraFlags?: Record<string, string[]>;
 }
 
 export interface TaskFormData {
@@ -114,8 +122,13 @@ export interface RunFormData {
   skipPermissionPrompt?: boolean;
   requiresSandbox?: boolean;
   requiresApproval?: boolean;
+  networkAccess?: "none" | "localhost" | "full";
   allowedPaths?: string[];
   deniedPaths?: string[];
+  features?: {
+    enableBrowser?: boolean;
+  };
+  extraFlags?: Record<string, string[]>;
   prompt?: string;
   runMode?: RunMode;
   idempotencyKey?: string;
@@ -140,6 +153,10 @@ export interface CreateInvestigationRunRequest {
   customContext?: string;
   /** Investigation depth: quick (fast analysis), standard (balanced), or deep (thorough) */
   depth?: InvestigationDepth;
+  /** Project root - where the agent can look at code (explicit, no guessing) */
+  projectRoot?: string;
+  /** Scope paths - where the agent can make changes */
+  scopePaths?: string[];
 }
 
 export interface ApplyInvestigationRunRequest {
@@ -159,42 +176,38 @@ export interface InvestigationContextFlags {
   runEvents: boolean;
   /** Include code changes made during runs */
   runDiffs: boolean;
-  /** Include scenario documentation (CLAUDE.md, README) */
-  scenarioDocs: boolean;
   /** Include full run logs (can be very large) */
   fullLogs: boolean;
 }
 
 /** Investigation settings - configuration for investigation agents */
 export interface InvestigationSettings {
-  /** Plain text prompt template - no variables/templating */
+  /** Plain text prompt template for Investigation agents - no variables/templating */
   promptTemplate: string;
+  /** Plain text prompt template for Apply Investigation agents - no variables/templating */
+  applyPromptTemplate: string;
   /** Default investigation depth */
   defaultDepth: InvestigationDepth;
   /** Default context flags */
   defaultContext: InvestigationContextFlags;
+  /** Allowlist for which run tags are eligible for Apply Fixes and recommendation extraction */
+  investigationTagAllowlist: InvestigationTagRule[];
   /** When settings were last modified */
   updatedAt: string;
 }
 
-/** Detected scenario from run analysis */
-export interface DetectedScenario {
-  /** Scenario name (e.g., "agent-manager") */
-  name: string;
-  /** Full path to the scenario */
-  projectRoot: string;
-  /** Important files found (CLAUDE.md, README.md, etc.) */
-  keyFiles: string[];
-  /** Number of selected runs from this scenario */
-  runCount: number;
+export interface InvestigationTagRule {
+  pattern: string;
+  isRegex: boolean;
+  caseSensitive: boolean;
 }
+
 
 /** Default context flags */
 export const DEFAULT_INVESTIGATION_CONTEXT: InvestigationContextFlags = {
   runSummaries: true,
   runEvents: true,
   runDiffs: true,
-  scenarioDocs: true,
   fullLogs: false,
 };
 
@@ -302,4 +315,60 @@ export interface CacheStatusResponse {
   totalModels: number;
   expiredCount: number;
   providers: ProviderCacheStatus[];
+}
+
+// =============================================================================
+// Recommendation Extraction Types
+// =============================================================================
+
+/** Status of recommendation extraction for investigation runs */
+export type RecommendationStatus =
+  | "none"       // Not applicable (non-investigation run or not yet complete)
+  | "pending"    // Awaiting extraction (queued for background processing)
+  | "extracting" // Extraction in progress
+  | "complete"   // Successfully extracted and cached
+  | "failed";    // Extraction failed after max retries
+
+/** A single recommendation extracted from an investigation */
+export interface Recommendation {
+  id: string;
+  text: string;
+  selected: boolean;
+  /** User-added note (appended inline when serializing) */
+  note?: string;
+  /** Indicates this is a newly added item */
+  isNew?: boolean;
+  /** Indicates text was edited */
+  isEdited?: boolean;
+}
+
+/** A category grouping related recommendations */
+export interface RecommendationCategory {
+  id: string;
+  name: string;
+  recommendations: Recommendation[];
+  /** Indicates this is a newly added category */
+  isNew?: boolean;
+}
+
+/** Result of extracting recommendations from an investigation run */
+export interface ExtractionResult {
+  success: boolean;
+  categories: RecommendationCategory[];
+  rawText: string;
+  extractedFrom: "summary" | "events" | "pending"; // "pending" indicates in-progress
+  error?: string;
+}
+
+/**
+ * Extended Run type with recommendation extraction fields.
+ * The base Run type comes from proto-types, but these fields are added
+ * by the backend when returning run data.
+ */
+export interface RunWithRecommendations {
+  recommendationStatus?: RecommendationStatus;
+  recommendationResult?: ExtractionResult;
+  recommendationError?: string;
+  recommendationAttempts?: number;
+  recommendationQueuedAt?: string;
 }

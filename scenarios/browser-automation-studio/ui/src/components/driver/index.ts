@@ -5,5 +5,6 @@
  */
 
 export { DriverStatusIndicator } from './DriverStatusIndicator';
-export { RecoveryDialog, useRecoveryCheck } from './RecoveryDialog';
-export type { RecoveryCheckpoint } from './RecoveryDialog';
+export { RecoveryDialog } from './RecoveryDialog';
+export { useRecoveryCheck } from './useRecoveryCheck';
+export type { RecoveryCheckpoint } from '@/shared/api';

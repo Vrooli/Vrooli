@@ -16,7 +16,7 @@
 // Console statements are used for test reporting output.
 
 import { test, expect, Page } from '@playwright/test';
-import { generateRecordingInitScript } from './init-script-generator';
+import { generateRecordingInitScript } from '../capture/init-script-generator';
 
 /**
  * Get the recording script for test injection.
@@ -37,6 +37,13 @@ interface SelectorCandidate {
 interface SelectorSet {
   primary: string;
   candidates: SelectorCandidate[];
+}
+
+function assertSelectorSet(value: SelectorSet | null): asserts value is SelectorSet {
+  expect(value).not.toBeNull();
+  if (!value) {
+    throw new Error('Expected selector set to be generated');
+  }
 }
 
 interface TestElement {
@@ -202,14 +209,12 @@ test.describe('Selector Generation - Phase 0 Validation', () => {
     // Verify the script initialized (starts in dormant mode, not active)
     // The script sets __recordingInitialized to prevent double-init
     const isInitialized = await page.evaluate(() => {
-      // @ts-expect-error - __recordingInitialized is set by the script
       return window.__recordingInitialized === true;
     });
     expect(isInitialized).toBe(true);
 
     // Verify generateSelectors is exposed
     const hasGenerateSelectors = await page.evaluate(() => {
-      // @ts-expect-error - __generateSelectors is exposed by the recording script
       return typeof window.__generateSelectors === 'function';
     });
     expect(hasGenerateSelectors).toBe(true);
@@ -272,16 +277,19 @@ test.describe('Injected Selector Generator - Algorithm Validation', () => {
     const selectorSet = await page.evaluate(() => {
       const element = document.querySelector('input[name="login"]');
       if (!element) return null;
-      // @ts-expect-error - __generateSelectors is exposed by the recording script
-      return window.__generateSelectors(element);
+      const generator = window.__generateSelectors;
+      if (!generator) {
+        throw new Error('Recording script did not expose __generateSelectors');
+      }
+      return generator(element);
     }) as SelectorSet | null;
 
-    expect(selectorSet).not.toBeNull();
-    expect(selectorSet!.primary).toBeTruthy();
-    expect(selectorSet!.candidates.length).toBeGreaterThan(0);
+    assertSelectorSet(selectorSet);
+    expect(selectorSet.primary).toBeTruthy();
+    expect(selectorSet.candidates.length).toBeGreaterThan(0);
 
     // Verify the primary selector works
-    const countBefore = await page.locator(selectorSet!.primary).count();
+    const countBefore = await page.locator(selectorSet.primary).count();
     expect(countBefore).toBe(1);
 
     // Refresh the page
@@ -289,7 +297,7 @@ test.describe('Injected Selector Generator - Algorithm Validation', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Verify selector still works after refresh
-    const countAfter = await page.locator(selectorSet!.primary).count();
+    const countAfter = await page.locator(selectorSet.primary).count();
     expect(countAfter).toBe(1);
   });
 
@@ -302,19 +310,25 @@ test.describe('Injected Selector Generator - Algorithm Validation', () => {
     const selectorSet = await page.evaluate(() => {
       const element = document.querySelector('input[name="q"]');
       if (!element) return null;
-      // @ts-expect-error - __generateSelectors is exposed by the recording script
-      return window.__generateSelectors(element);
+      const generator = window.__generateSelectors;
+      if (!generator) {
+        throw new Error('Recording script did not expose __generateSelectors');
+      }
+      return generator(element);
     }) as SelectorSet | null;
 
-    expect(selectorSet).not.toBeNull();
+    assertSelectorSet(selectorSet);
     // Should have multiple candidates (name attr, maybe ID, CSS path, XPath)
-    expect(selectorSet!.candidates.length).toBeGreaterThanOrEqual(2);
+    expect(selectorSet.candidates.length).toBeGreaterThanOrEqual(2);
 
     // Verify candidates are sorted by confidence (descending)
-    for (let i = 1; i < selectorSet!.candidates.length; i++) {
-      expect(selectorSet!.candidates[i - 1].confidence).toBeGreaterThanOrEqual(
-        selectorSet!.candidates[i].confidence
-      );
+    for (let i = 1; i < selectorSet.candidates.length; i++) {
+      const previous = selectorSet.candidates[i - 1];
+      const current = selectorSet.candidates[i];
+      if (!previous || !current) {
+        throw new Error('Missing selector candidate during confidence comparison');
+      }
+      expect(previous.confidence).toBeGreaterThanOrEqual(current.confidence);
     }
   });
 
@@ -333,15 +347,22 @@ test.describe('Injected Selector Generator - Algorithm Validation', () => {
     const selectorSet = await page.evaluate(() => {
       const element = document.querySelector('button');
       if (!element) return null;
-      // @ts-expect-error - __generateSelectors is exposed by the recording script
-      return window.__generateSelectors(element);
+      const generator = window.__generateSelectors;
+      if (!generator) {
+        throw new Error('Recording script did not expose __generateSelectors');
+      }
+      return generator(element);
     }) as SelectorSet | null;
 
-    expect(selectorSet).not.toBeNull();
+    assertSelectorSet(selectorSet);
     // Primary should be the data-testid selector (highest confidence)
-    expect(selectorSet!.primary).toBe('[data-testid="submit-button"]');
-    expect(selectorSet!.candidates[0].type).toBe('data-testid');
-    expect(selectorSet!.candidates[0].confidence).toBe(0.98);
+    expect(selectorSet.primary).toBe('[data-testid="submit-button"]');
+    const primaryCandidate = selectorSet.candidates[0];
+    if (!primaryCandidate) {
+      throw new Error('Expected at least one selector candidate');
+    }
+    expect(primaryCandidate.type).toBe('data-testid');
+    expect(primaryCandidate.confidence).toBe(0.98);
   });
 
   test('generateSelectors filters unstable CSS-in-JS classes', async ({ page }) => {
@@ -359,14 +380,17 @@ test.describe('Injected Selector Generator - Algorithm Validation', () => {
     const selectorSet = await page.evaluate(() => {
       const element = document.querySelector('button');
       if (!element) return null;
-      // @ts-expect-error - __generateSelectors is exposed by the recording script
-      return window.__generateSelectors(element);
+      const generator = window.__generateSelectors;
+      if (!generator) {
+        throw new Error('Recording script did not expose __generateSelectors');
+      }
+      return generator(element);
     }) as SelectorSet | null;
 
-    expect(selectorSet).not.toBeNull();
+    assertSelectorSet(selectorSet);
 
     // Find the CSS candidate
-    const cssCandidate = selectorSet!.candidates.find(c => c.type === 'css');
+    const cssCandidate = selectorSet.candidates.find(c => c.type === 'css');
 
     // If there's a CSS selector, it should NOT contain unstable class patterns
     if (cssCandidate) {
@@ -392,14 +416,17 @@ test.describe('Injected Selector Generator - Algorithm Validation', () => {
     const selectorSet = await page.evaluate(() => {
       const element = document.querySelector('input');
       if (!element) return null;
-      // @ts-expect-error - __generateSelectors is exposed by the recording script
-      return window.__generateSelectors(element);
+      const generator = window.__generateSelectors;
+      if (!generator) {
+        throw new Error('Recording script did not expose __generateSelectors');
+      }
+      return generator(element);
     }) as SelectorSet | null;
 
-    expect(selectorSet).not.toBeNull();
+    assertSelectorSet(selectorSet);
 
     // Find the ID candidate
-    const idCandidate = selectorSet!.candidates.find(c => c.type === 'id');
+    const idCandidate = selectorSet.candidates.find(c => c.type === 'id');
 
     // Should have lower confidence for dynamic-looking ID
     if (idCandidate) {

@@ -5117,7 +5117,7 @@ var File_browser_automation_studio_v1_actions_action_proto protoreflect.FileDesc
 
 const file_browser_automation_studio_v1_actions_action_proto_rawDesc = "" +
 	"\n" +
-	"1browser-automation-studio/v1/actions/action.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a0browser-automation-studio/v1/base/geometry.proto\x1a3browser-automation-studio/v1/domain/selectors.proto\"\xfc\x03\n" +
+	"1browser-automation-studio/v1/actions/action.proto\x12\x1cbrowser_automation_studio.v1\x1a0browser-automation-studio/v1/base/geometry.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a3browser-automation-studio/v1/domain/selectors.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfc\x03\n" +
 	"\x0eNavigateParams\x12\x19\n" +
 	"\x03url\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\x12/\n" +
 	"\x11wait_for_selector\x18\x02 \x01(\tH\x00R\x0fwaitForSelector\x88\x01\x01\x12/\n" +

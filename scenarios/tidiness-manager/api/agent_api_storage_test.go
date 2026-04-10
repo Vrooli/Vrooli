@@ -35,7 +35,6 @@ func TestIssueStorage_RequiredFields(t *testing.T) {
 		"Consider breaking into smaller functions",
 		"1. Extract validation logic\n2. Extract business logic",
 		"open", time.Now())
-
 	if err != nil {
 		t.Fatalf("Failed to insert issue: %v", err)
 	}
@@ -213,7 +212,6 @@ func TestIssueStorage_NilOptionalFields(t *testing.T) {
 			scenario, file_path, category, severity, title, description, status, created_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`, "test-scenario", "api/test.go", "length", "medium", "Test Issue", "Test Description", "open", time.Now())
-
 	if err != nil {
 		t.Fatalf("Failed to insert issue: %v", err)
 	}
@@ -406,7 +404,6 @@ func TestIssueStorage_CampaignMetadata(t *testing.T) {
 			WHERE table_name = 'issues' AND column_name = 'campaign_id'
 		)
 	`).Scan(&columnExists)
-
 	if err != nil {
 		t.Fatalf("Failed to check campaign_id column: %v", err)
 	}
@@ -425,7 +422,6 @@ func TestIssueStorage_CampaignMetadata(t *testing.T) {
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`, "test-scenario", "api/test.go", "length", "high", "Long file",
 		"File exceeds threshold", "open", time.Now(), 1, "session-123")
-
 	if err != nil {
 		t.Errorf("Failed to insert issue with campaign metadata: %v", err)
 	}

@@ -8,20 +8,23 @@ interface DialogProps {
   onClose: () => void;
   children: ReactNode;
   className?: string;
+  /** Disable Escape key handling (useful when a sub-modal is open) */
+  disableEscape?: boolean;
 }
 
-export function Dialog({ open, onClose, children, className }: DialogProps) {
+export function Dialog({ open, onClose, children, className, disableEscape = false }: DialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
+      if (disableEscape) return;
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
         onClose();
       }
     },
-    [onClose]
+    [onClose, disableEscape]
   );
 
   const handleOverlayClick = useCallback(

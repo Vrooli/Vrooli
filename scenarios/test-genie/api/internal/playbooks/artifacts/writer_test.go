@@ -38,8 +38,8 @@ func TestWriterWriteTimeline(t *testing.T) {
 	}
 
 	// Path should be relative
-	if filepath.IsAbs(path) && strings.HasPrefix(path, tempDir) {
-		// Relative path returned
+	if filepath.IsAbs(path) || strings.HasPrefix(path, tempDir) {
+		t.Fatalf("expected relative timeline path, got %q", path)
 	}
 }
 

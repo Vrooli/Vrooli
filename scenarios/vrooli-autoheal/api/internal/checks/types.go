@@ -180,6 +180,9 @@ type ConfigProvider interface {
 	IsCheckEnabled(checkID string) bool
 	// IsAutoHealEnabled returns whether auto-healing is enabled for a check
 	IsAutoHealEnabled(checkID string) bool
+	// GetAutoHealOn returns when auto-heal should trigger for this check.
+	// Valid values: "critical", "warning+critical".
+	GetAutoHealOn(checkID string) string
 }
 
 // PollConfig configures the polling behavior for recovery verification.

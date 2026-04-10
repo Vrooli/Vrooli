@@ -1,0 +1,135 @@
+{
+  "metadata": {
+    "name": "dry-run-validation",
+    "description": "Tests dry-run mode for mutating operations on the Reference Scenario Registry API",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"REQ-P0-001\", \"REQ-P0-002\"]"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "dry-run-create-valid",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "{{API_URL}}/api/v1/references",
+          "headers": {
+            "Content-Type": "application/json",
+            "X-Dry-Run": "true"
+          },
+          "body": "{\"slug\": \"dry-run-test\", \"name\": \"Dry Run Test\", \"template\": \"react-vite\", \"path\": \"scenarios/reference-react-vite\"}",
+          "expected_status": 200,
+          "assertions": [
+            {
+              "json_path": "$.dry_run",
+              "operator": "eq",
+              "expected_value": true
+            },
+            {
+              "json_path": "$.reference.slug",
+              "operator": "eq",
+              "expected_value": "dry-run-test"
+            }
+          ]
+        },
+        "metadata": {
+          "label": "Dry-run create with valid data"
+        }
+      }
+    },
+    {
+      "id": "verify-not-persisted",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "GET",
+          "url": "{{API_URL}}/api/v1/references/by-slug/dry-run-test",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "expected_status": 404
+        },
+        "metadata": {
+          "label": "Verify dry-run did not persist"
+        }
+      }
+    },
+    {
+      "id": "dry-run-create-invalid-slug",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "{{API_URL}}/api/v1/references",
+          "headers": {
+            "Content-Type": "application/json",
+            "X-Dry-Run": "true"
+          },
+          "body": "{\"slug\": \"Invalid Slug!\", \"name\": \"Test\", \"template\": \"react-vite\", \"path\": \"scenarios/test\"}",
+          "expected_status": 400,
+          "assertions": [
+            {
+              "json_path": "$.error",
+              "operator": "exists"
+            }
+          ]
+        },
+        "metadata": {
+          "label": "Dry-run catches validation errors"
+        }
+      }
+    },
+    {
+      "id": "dry-run-create-missing-fields",
+      "action": {
+        "type": "ACTION_TYPE_HTTP_REQUEST",
+        "http_request": {
+          "method": "POST",
+          "url": "{{API_URL}}/api/v1/references",
+          "headers": {
+            "Content-Type": "application/json",
+            "X-Dry-Run": "true"
+          },
+          "body": "{\"slug\": \"test\"}",
+          "expected_status": 400,
+          "assertions": [
+            {
+              "json_path": "$.error",
+              "operator": "exists"
+            }
+          ]
+        },
+        "metadata": {
+          "label": "Dry-run catches missing required fields"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "dry-run-create-valid",
+      "target": "verify-not-persisted",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "verify-not-persisted",
+      "target": "dry-run-create-invalid-slug",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "dry-run-create-invalid-slug",
+      "target": "dry-run-create-missing-fields",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

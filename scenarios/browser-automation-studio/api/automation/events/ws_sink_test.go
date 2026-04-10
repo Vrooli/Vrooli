@@ -51,9 +51,8 @@ func (s *stubHub) CloseExecution(executionID uuid.UUID) {
 	_ = executionID
 }
 
-func (s *stubHub) BroadcastRecordingAction(sessionID string, action any) {}
-
-func (s *stubHub) BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEvent map[string]any) {
+func (s *stubHub) BroadcastRecordingEntry(sessionID string, entry *wsHub.UnifiedTimelineEntry) wsHub.BroadcastResult {
+	return wsHub.BroadcastResult{}
 }
 
 func (s *stubHub) BroadcastBinaryFrame(executionID string, data []byte) {}
@@ -67,6 +66,12 @@ func (s *stubHub) BroadcastPerfStats(sessionID string, stats any) {}
 func (s *stubHub) HasExecutionFrameSubscribers(executionID string) bool { return false }
 
 func (s *stubHub) BroadcastExecutionFrame(executionID string, frame *wsHub.ExecutionFrame) {}
+
+func (s *stubHub) BroadcastPageEvent(sessionID string, event any) {}
+
+func (s *stubHub) BroadcastPageSwitch(sessionID, activePageID string) {}
+
+func (s *stubHub) BroadcastExportProgress(progress *wsHub.ExportProgress) {}
 
 func (c *closingHub) CloseExecution(executionID uuid.UUID) {
 	c.stubHub.mu.Lock()
@@ -292,9 +297,8 @@ func (b *blockingHub) CloseExecution(executionID uuid.UUID) {
 	_ = executionID
 }
 
-func (b *blockingHub) BroadcastRecordingAction(sessionID string, action any) {}
-
-func (b *blockingHub) BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEvent map[string]any) {
+func (b *blockingHub) BroadcastRecordingEntry(sessionID string, entry *wsHub.UnifiedTimelineEntry) wsHub.BroadcastResult {
+	return wsHub.BroadcastResult{}
 }
 
 func (b *blockingHub) BroadcastBinaryFrame(executionID string, data []byte) {}
@@ -308,6 +312,12 @@ func (b *blockingHub) BroadcastPerfStats(sessionID string, stats any) {}
 func (b *blockingHub) HasExecutionFrameSubscribers(executionID string) bool { return false }
 
 func (b *blockingHub) BroadcastExecutionFrame(executionID string, frame *wsHub.ExecutionFrame) {}
+
+func (b *blockingHub) BroadcastPageEvent(sessionID string, event any) {}
+
+func (b *blockingHub) BroadcastPageSwitch(sessionID, activePageID string) {}
+
+func (b *blockingHub) BroadcastExportProgress(progress *wsHub.ExportProgress) {}
 
 func (b *blockingHub) BroadcastEnvelope(event any) {
 	<-b.unblock

@@ -1,0 +1,11 @@
+{
+  "created": "2026-02-19T02:06:06Z",
+  "description": "Clean, beginner-friendly, guided onboarding and configuration flows for Vrooli as a whole. This is meant to become a guide for first-time users and non-technical people. It should guide you through setting up resources (starting with coding agents) and adding secrets, opening vrooli-autoheal to configure autoheal settings, opening prompt-manager to configure skills and teams, and things like that (not actually sure what else, or how the UX should be exactly)",
+  "kind": "idea",
+  "name": "vrooli-onboarding",
+  "priority": 5,
+  "status": "completed",
+  "tags": null,
+  "title": "Vrooli Onboarding",
+  "updated": "2026-03-21T15:29:13Z"
+}

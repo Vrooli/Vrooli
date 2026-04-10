@@ -34,7 +34,7 @@ vrooli-autoheal watchdog status
 
 ### Linux (systemd)
 
-The installer creates `/etc/systemd/system/vrooli-autoheal.service`:
+The installer creates `<systemd-service-dir>/vrooli-autoheal.service`:
 
 ```ini
 [Unit]

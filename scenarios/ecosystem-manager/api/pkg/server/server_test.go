@@ -18,6 +18,22 @@ import (
 	"github.com/ecosystem-manager/api/pkg/websocket"
 )
 
+type stubProfileService struct{}
+
+func (s stubProfileService) CreateProfile(profile *autosteer.AutoSteerProfile) error { return nil }
+func (s stubProfileService) ListProfiles(tags []string) ([]*autosteer.AutoSteerProfile, error) {
+	return []*autosteer.AutoSteerProfile{}, nil
+}
+
+func (s stubProfileService) GetProfile(id string) (*autosteer.AutoSteerProfile, error) {
+	return nil, nil
+}
+func (s stubProfileService) UpdateProfile(id string, updates *autosteer.AutoSteerProfile) error {
+	return nil
+}
+func (s stubProfileService) DeleteProfile(id string) error               { return nil }
+func (s stubProfileService) GetTemplates() []*autosteer.AutoSteerProfile { return nil }
+
 func setupTestServer(t *testing.T) (http.Handler, string, func()) {
 	t.Helper()
 
@@ -49,7 +65,12 @@ func setupTestServer(t *testing.T) (http.Handler, string, func()) {
 	wsManager := websocket.NewManager()
 	recyclerSvc := recycler.New(storage, wsManager)
 	broadcast := make(chan any, 1)
-	processor := queue.NewProcessor(storage, assembler, broadcast, recyclerSvc)
+	processor := queue.NewProcessor(queue.ProcessorDeps{
+		Storage:   storage,
+		Assembler: assembler,
+		Broadcast: broadcast,
+		Recycler:  recyclerSvc,
+	})
 
 	coord := &tasks.Coordinator{
 		LC:          &tasks.Lifecycle{Store: storage},
@@ -60,13 +81,13 @@ func setupTestServer(t *testing.T) (http.Handler, string, func()) {
 	processor.SetCoordinator(coord)
 	recyclerSvc.SetCoordinator(coord)
 
-	taskHandlers := handlers.NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord)
+	taskHandlers := handlers.NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord, nil, nil)
 	queueHandlers := handlers.NewQueueHandlers(processor, wsManager, storage, coord)
 	discoveryHandlers := handlers.NewDiscoveryHandlers(assembler)
 	healthHandlers := handlers.NewHealthHandlers(processor, recyclerSvc, queueDir, nil, "test-version")
 	settingsHandlers := handlers.NewSettingsHandlers(processor, wsManager, recyclerSvc)
 	promptsHandlers := handlers.NewPromptsHandlers(assembler)
-	autoSteerHandlers := autosteer.NewAutoSteerHandlers(&autosteer.ProfileService{}, &autosteer.ExecutionEngine{}, &autosteer.HistoryService{})
+	autoSteerHandlers := autosteer.NewAutoSteerHandlers(stubProfileService{}, nil, &autosteer.HistoryService{})
 
 	app := &Application{
 		storage:           storage,
@@ -98,7 +119,7 @@ func setupTestServer(t *testing.T) (http.Handler, string, func()) {
 }
 
 func TestSetupRoutesHealthUsesDynamicPath(t *testing.T) {
-	router, queueDir, cleanup := setupTestServer(t)
+	router, _, cleanup := setupTestServer(t)
 	defer cleanup()
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -106,8 +127,8 @@ func TestSetupRoutesHealthUsesDynamicPath(t *testing.T) {
 
 	router.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d: %s", rr.Code, rr.Body.String())
 	}
 
 	var response map[string]any
@@ -115,20 +136,19 @@ func TestSetupRoutesHealthUsesDynamicPath(t *testing.T) {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if response["version"] != "test-version" {
-		t.Fatalf("expected version test-version, got %v", response["version"])
+	if response["version"] != apiVersion {
+		t.Fatalf("expected version %s, got %v", apiVersion, response["version"])
 	}
-
 	deps, ok := response["dependencies"].(map[string]any)
 	if !ok {
 		t.Fatalf("dependencies missing")
 	}
-	storageDep, ok := deps["storage"].(map[string]any)
+	dbDep, ok := deps["database"].(map[string]any)
 	if !ok {
-		t.Fatalf("storage dependency missing")
+		t.Fatalf("database dependency missing")
 	}
-	if storageDep["path"] != queueDir {
-		t.Fatalf("expected storage path %s, got %v", queueDir, storageDep["path"])
+	if connected, ok := dbDep["connected"].(bool); !ok || connected {
+		t.Fatalf("expected database connected=false, got %v", dbDep["connected"])
 	}
 }
 

@@ -58,6 +58,10 @@ func StringToActionType(actionType string) basactions.ActionType {
 		return basactions.ActionType_ACTION_TYPE_LOOP
 	case "conditional":
 		return basactions.ActionType_ACTION_TYPE_CONDITIONAL
+	case "extract":
+		return basactions.ActionType_ACTION_TYPE_EXTRACT
+	case "shortcut":
+		return basactions.ActionType_ACTION_TYPE_SHORTCUT
 	default:
 		return basactions.ActionType_ACTION_TYPE_UNSPECIFIED
 	}
@@ -236,9 +240,7 @@ func ExecutionStatusToString(status basbase.ExecutionStatus) string {
 // StringToAssertionMode converts an assertion mode string to the proto AssertionMode enum.
 func StringToAssertionMode(s string) basbase.AssertionMode {
 	normalized := strings.ToLower(strings.TrimSpace(s))
-	if strings.HasPrefix(normalized, "assertion_mode_") {
-		normalized = strings.TrimPrefix(normalized, "assertion_mode_")
-	}
+	normalized = strings.TrimPrefix(normalized, "assertion_mode_")
 	switch normalized {
 	case "exists":
 		return basbase.AssertionMode_ASSERTION_MODE_EXISTS

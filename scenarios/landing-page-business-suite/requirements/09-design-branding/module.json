@@ -14,8 +14,8 @@
           "type": "code",
           "phase": "business",
           "status": "implemented",
-          "notes": "Frontend aesthetics block implemented in catalog/saas/landing-page.json with style, colors, typography, layout, components, and animations guidelines",
-          "ref": "scenarios/landing-manager/api/templates/catalog/saas/landing-page.json"
+          "notes": "Frontend aesthetics block implemented in api/templates/saas-landing-page.json with style, colors, typography, layout, components, and animations guidelines",
+          "ref": "api/templates/saas-landing-page.json"
         }
       ],
       "status": "complete",
@@ -86,7 +86,7 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "VideoSection component with YouTube/Vimeo embed support, thumbnail overlay, and responsive layout",
-          "ref": "ui/src/components/sections/VideoSection.test.tsx"
+          "ref": "ui/src/surfaces/public-landing/sections/VideoSection.test.tsx"
         }
       ],
       "status": "complete",

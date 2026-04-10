@@ -63,6 +63,47 @@ const toNumber = (value?: number | bigint | null): number | undefined => {
   return typeof value === 'bigint' ? Number(value) : value;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseJson = async (response: Response): Promise<unknown> => {
+  try {
+    const data: unknown = await response.json();
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+const extractErrorMessage = (value: unknown): string | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const message = value.message;
+  if (typeof message === 'string') {
+    return message;
+  }
+  const errorValue = value.error;
+  if (typeof errorValue === 'string') {
+    return errorValue;
+  }
+  if (errorValue != null) {
+    try {
+      return JSON.stringify(errorValue);
+    } catch {
+      return String(errorValue);
+    }
+  }
+  const details = value.details;
+  if (details && typeof details === 'object') {
+    const detailError = (details as Record<string, unknown>).error;
+    if (typeof detailError === 'string') {
+      return detailError;
+    }
+  }
+  return null;
+};
+
 /**
  * Unwrap a proto JsonValue to a plain JavaScript value.
  * JsonValue is a oneof with different typed cases that need to be extracted.
@@ -444,7 +485,9 @@ export const mapTimelineEntryToFrame = (entry: ProtoTimelineEntry): TimelineFram
   const telemetry = entry.telemetry;
 
   // Map artifacts from aggregates
-  const artifacts = aggregates?.artifacts?.map((a) => mapTimelineArtifactFromProto(a)!).filter(Boolean) ?? [];
+  const artifacts = (aggregates?.artifacts ?? [])
+    .map((a) => mapTimelineArtifactFromProto(a))
+    .filter((a): a is TimelineArtifact => a !== undefined);
   const telemetryArtifacts = [
     mapTelemetryArtifactFromProto('dom_snapshot', telemetry?.domSnapshot),
     mapTelemetryArtifactFromProto('console_log', telemetry?.consoleLogArtifact),
@@ -563,7 +606,12 @@ const mapScreenshotsFromProto = (raw: unknown): Screenshot[] => {
   }
   return proto.screenshots
     .map((shot) => {
-      const ts = timestampToDate(shot.timestamp) ?? coerceDate(shot.timestamp) ?? parseTimestamp(shot.timestamp as any);
+      // Timestamp may be proto Timestamp, Date, string, or number - try multiple parsers
+      const rawTs = shot.timestamp;
+      const ts = timestampToDate(rawTs)
+        ?? coerceDate(rawTs)
+        ?? (typeof rawTs === 'string' || typeof rawTs === 'number' ? parseTimestamp(rawTs) : undefined)
+        ?? new Date(); // Fallback to now if all parsing fails
       const url = shot.screenshot?.url || shot.screenshot?.thumbnailUrl || '';
       if (!url) {
         return null;
@@ -722,13 +770,10 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         // Try to extract error message from response body
         let errorMessage = `Failed to start execution: ${response.status}`;
         try {
-          const errorData = await response.json();
-          if (errorData.message) {
-            errorMessage = errorData.message;
-          } else if (errorData.error) {
-            errorMessage = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
-          } else if (errorData.details?.error) {
-            errorMessage = errorData.details.error;
+          const errorData = await parseJson(response);
+          const parsedMessage = extractErrorMessage(errorData);
+          if (parsedMessage) {
+            errorMessage = parsedMessage;
           }
         } catch {
           // Response wasn't JSON, use default message
@@ -736,7 +781,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         throw new Error(errorMessage);
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
       const protoPayload = parseExecuteWorkflowResponse(data);
 
       const execution: Execution = {
@@ -810,8 +855,9 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         throw new Error(`Failed to load executions: ${response.status}`);
       }
 
-      const data = await response.json();
-      const executions = Array.isArray(data?.executions) ? data.executions : [];
+      const data: unknown = await response.json();
+      const dataRecord = isRecord(data) ? data : null;
+      const executions = Array.isArray(dataRecord?.executions) ? dataRecord?.executions : [];
       const normalizedExecutions = executions
         .map((item: unknown) => {
           try {
@@ -846,9 +892,12 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         throw new Error(`Failed to load executions with exportability: ${response.status}`);
       }
 
-      const data = await response.json();
-      const executions = Array.isArray(data?.executions) ? data.executions : [];
-      const exportabilityMap = (data?.exportability ?? {}) as Record<
+      const data: unknown = await response.json();
+      const dataRecord = isRecord(data) ? data : null;
+      const executions = Array.isArray(dataRecord?.executions) ? dataRecord?.executions : [];
+      const exportabilityMap = (dataRecord?.exportability && typeof dataRecord.exportability === 'object'
+        ? (dataRecord.exportability as Record<string, unknown>)
+        : {}) as Record<
         string,
         { has_timeline: boolean; has_screenshots: boolean; has_recorded_video: boolean; is_exportable: boolean }
       >;
@@ -887,13 +936,13 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         throw new Error(`Failed to load execution: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
       const execution = parseExecutionProto(data);
       let screenshots: Screenshot[] = [];
       try {
         const shotsResponse = await fetch(`${config.API_URL}/executions/${executionId}/screenshots`);
         if (shotsResponse.ok) {
-          const shotsJson = await shotsResponse.json();
+          const shotsJson: unknown = await shotsResponse.json();
           screenshots = mapScreenshotsFromProto(shotsJson);
         }
       } catch (shotsErr) {
@@ -922,7 +971,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         throw new Error(`Failed to load execution timeline: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
 
       // Strict proto parsing; bubble errors so contract drift is visible.
       // Preserve raw error for UI since the proto contract omits it.

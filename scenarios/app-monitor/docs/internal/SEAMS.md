@@ -1,0 +1,83 @@
+# SEAMS
+
+## Stable Seams
+- Preview navigation + bridge boundary:
+  - `ui/src/hooks/usePreviewNavigationSession.ts`
+  - `ui/src/components/views/usePreviewNavigation.ts`
+  - `ui/src/components/views/previewNavigationStateMachine.ts`
+  - Transition contract is enforced through `previewNavigationActions` so hooks/components dispatch typed actions instead of ad-hoc payloads.
+  - Pane reassignment resets call `previewNavigationActions.reset(true)` through `usePreviewNavigationSession.clearNavigationSession`.
+  - Bridge `sync-from-bridge` transitions update persisted navigation state (`previewUrlInput/history/initialPreviewUrl`) and mark navigation as custom without replacing live iframe `src`; refresh/reload paths intentionally apply the latest committed route.
+- Preview URL orchestration:
+  - `ui/src/hooks/usePreviewUrlOrchestration.ts`
+- Pane assignment reset seam:
+  - `ui/src/features/preview-workspace/components/PreviewPane.tsx`
+  - Resets pane-local custom URL/bridge state when `appId` assignment changes, preventing stale proxy targets from persisting across scenario swaps.
+- Lifecycle command seam:
+  - `ui/src/hooks/usePreviewAppLifecycle.ts`
+- Preview report/session seam (shared by single + pane preview):
+  - `ui/src/hooks/usePreviewReportSession.ts`
+- Workspace state seam:
+  - `ui/src/features/preview-workspace/state/previewWorkspaceStore.ts`
+- Workspace minimap seam:
+  - Pure mapping seam:
+    - `ui/src/features/preview-workspace/utils/layout.ts`
+    - `buildWorkspaceMinimapPaneMarkers(...)`
+    - `scrollTopFromWorkspaceMinimapPointer(...)`
+    - `workspaceViewportFromScrollMetrics(...)`
+  - Imperative seam:
+    - `ui/src/features/preview-workspace/components/PreviewWorkspaceView.tsx`
+    - Owns scroll-container binding (`.preview-workspace__panes-scroll` or pinned `.preview-workspace__scroll-column`) and minimap pointer/keyboard interactions.
+  - Preference seam:
+    - `ui/src/features/preview-workspace/state/previewWorkspaceStore.ts`
+    - `isWorkspaceMinimapVisible` is persisted and toggled by workspace controls.
+- Pane fullscreen visibility seam:
+  - `ui/src/features/preview-workspace/components/PreviewPane.tsx`
+  - `ui/src/components/Shell.css`
+  - Pane full view sets `body.preview-pane-fullscreen-active`; shell bottom navigation visibility now keys off that body-level contract so pane fullscreen can hide workspace-level bottom actions without coupling shell logic to pane internals.
+- Preview toolbar compact/mobile seam:
+  - `ui/src/components/AppPreviewToolbar.tsx`
+  - `ui/src/components/AppPreviewToolbar.css`
+  - Toolbar now owns compact-nav mode switching (`isFullView || max-width: 640px`) and small-screen suppression of lifecycle actions while preserving URL input visibility.
+
+- Recursive self-embedding prevention:
+  - **Layer 1 — Server-side** (`packages/api-base/src/server/host.ts`):
+    - `handleScenarioProxyRequest` / `handlePortProxyRequest`: Direct `appId === hostScenario` check returns 403 with `code: 'SELF_PROXY_BLOCKED'`.
+    - `handleUpgrade`: Same check destroys the WebSocket socket.
+    - `getProxyContext`: After `fetchAppMetadata`, checks if resolved `scenario_name` matches hostScenario (catches alias-based recursion).
+    - `streamProxiedHtml` / cached HTML path: `hostHtmlFingerprint` option detects when upstream accidentally serves the host's own content; evicts cache entry on detection.
+  - **Layer 2 — Client-side depth** (`ui/src/main.tsx`):
+    - `getIframeDepth()` reads `window.parent.__appMonitorDepth` to compute nesting level.
+    - Blocks React render when `depth > 1`, showing a static error message instead.
+  - **Layer 3 — Preview guards** (`ui/src/utils/previewUrl.ts`, `ui/src/features/preview-workspace/components/PreviewPane.tsx`):
+    - `isBlockedHostEmbedPreviewTarget`: Now blocks `/apps/app-monitor/proxy/` paths instead of allowing all proxy paths.
+    - `PreviewPane.onIframeLoad`: Checks loaded iframe's `contentDocument` for `[data-app-monitor-self]` attribute; resets iframe to `about:blank` if detected.
+  - **Tests**: `packages/api-base/src/__tests__/server/host-self-proxy.test.ts`, E2E in `error-scenarios.test.ts`, `ui/src/utils/previewUrl.test.ts`.
+
+- Performance memoization seams:
+  - `ui/src/components/AppPreviewToolbar.tsx`
+    - `useDeferredValue(previewUrlInput)` defers URL suggestion computation so keystrokes render instantly while fuzzy search runs at lower priority.
+    - Wrapped in `React.memo` to prevent re-renders from unrelated parent updates; all callback props are `useCallback`-wrapped in PreviewPane.
+  - `ui/src/features/preview-workspace/components/PreviewPane.tsx`
+    - Wrapped in `React.memo`; reads `apps` from Zustand store directly instead of receiving as prop, avoiding new-array-reference cascading re-renders across all panes.
+  - `ui/src/components/tabSwitcher/TabSwitcherDialog.tsx`
+    - Zustand selectors use atomic scalar reads instead of object-creating selectors to leverage Zustand's built-in shallow equality.
+  - `ui/src/components/tabSwitcher/TabSwitcherCards.tsx`
+    - `AppTabCard` and `ResourceTabCard` wrapped in `React.memo` to prevent list item re-renders when sibling data changes.
+  - `ui/src/features/preview-workspace/components/PreviewPane.tsx`
+    - Six inline callbacks (`onOpenDetails`, `onToggleApp`, `onRestartApp`, `onToggleLogs`, `onToggleFullView`, `paneActions`) wrapped in `useCallback`/`useMemo` to stabilize references passed to memoized `AppPreviewToolbar`.
+    - `lifecycleToggleLabels` memoized to prevent new-object-reference breaking `usePreviewAppLifecycle` return memo.
+  - `ui/src/utils/workspaceDiscovery.ts`
+    - `buildPreviewSuggestionSections` ranks all apps in a single pass then partitions into running vs non-running, eliminating the previous double `rankAppsByDiscoveryQuery` call.
+  - `ui/src/state/systemStatusStore.ts`
+    - `selectRefresh` selector extracted to module scope so `useSystemStatus` effect dependency is stable across renders.
+  - `ui/src/hooks/useDeviceEmulation.ts`
+    - `toolbarBindings`, `viewportBindings`, and the hook's return object wrapped in `useMemo` to prevent new-object-reference cascading re-renders.
+  - `ui/src/hooks/usePreviewAppLifecycle.ts`
+    - Return object wrapped in `useMemo`; `toggleLabels`/`restartLabel` read via refs so the memo depends only on derived values.
+  - `ui/src/hooks/useToolbarMenu.ts`
+    - `useMenuCoordinator.handleMenuOpenChange` uses a ref for `openMenuId` to eliminate state from its `useCallback` dependency array, keeping the callback reference stable across menu open/close cycles.
+
+## Weak Seams To Improve
+- `AppPreviewView` still owns route-specific and feature orchestration in a single large file.
+- Workspace layout type (`grid|split`) exists in store but UI only exposes interaction mode toggle.

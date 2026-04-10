@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+// =============================================================================
+// SCENARIOS DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain scenarios
+// @imports none (external only: buf.validate)
+// @stability beta
+//
+// Core scenario catalog types for Swarm Manager.
+// These types describe deployed scenarios and their editable metadata.
+//
+// USAGE CONTEXTS:
+//   - API responses for scenario catalog endpoints
+//   - UI data models (scenario list and details)
+//
+// =============================================================================
+
+// Scenario represents a deployed application in the Vrooli ecosystem.
+message Scenario {
+  // Unique identifier (folder name).
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable display name.
+  string display_name = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Scenario description.
+  string description = 3;
+
+  // Runtime state.
+  // @constraint one of: running, stopped, error, unknown
+  string status = 4 [(buf.validate.field).string = { in: [
+    "running",
+    "stopped",
+    "error",
+    "unknown"
+  ] }];
+
+  // Priority level (1 = highest, 10 = lowest).
+  int32 priority = 5 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+
+  // Completeness score (0-100) if available.
+  optional int32 completeness_score = 6 [(buf.validate.field).int32 = { gte: 0, lte: 100 }];
+
+  // Whether this scenario is greenfield.
+  bool is_greenfield = 7;
+
+  // Categorization tags.
+  repeated string tags = 8 [(buf.validate.field).repeated = { unique: true }];
+
+  // Classification from the most recent GCT review.
+  // One of: ready, ready_with_notes, needs_work, not_assessable.
+  optional string last_review_classification = 9;
+
+  // RFC3339 timestamp of the most recent GCT review.
+  optional string last_review_at = 10;
+}
+
+// ScenarioMetadata stores editable metadata for a scenario.
+message ScenarioMetadata {
+  // Whether this scenario is greenfield.
+  bool is_greenfield = 1;
+}
+
+// UpdateScenarioMetadataRequest is defined in the API layer.
+// DeleteScenarioResponse is defined in the API layer.

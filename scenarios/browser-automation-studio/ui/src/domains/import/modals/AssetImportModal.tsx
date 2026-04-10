@@ -19,6 +19,9 @@ import { getApiBase } from '../../../config';
 
 type Step = 'select' | 'preview';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 export function AssetImportModal({
   isOpen,
   onClose,
@@ -33,7 +36,6 @@ export function AssetImportModal({
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [assetName, setAssetName] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-  const [isLoadingFile, setIsLoadingFile] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [currentBrowsePath, setCurrentBrowsePath] = useState('');
 
@@ -53,18 +55,17 @@ export function AssetImportModal({
       setAssetName('');
       setValidationError(null);
       setIsUploading(false);
-      setIsLoadingFile(false);
       setCurrentBrowsePath('');
     }
   }, [isOpen, selectedFile?.previewUrl]);
 
   // Handle files selected from drop zone
   const handleFilesSelected = useCallback((files: SelectedFile[]) => {
-    if (files.length === 0) return;
-
     const file = files[0];
+    if (!file) return;
+
     if (!file.validation?.isValid) {
-      setValidationError(file.validation?.error || 'Invalid file');
+      setValidationError(file.validation?.error ?? 'Invalid file');
       return;
     }
 
@@ -80,41 +81,20 @@ export function AssetImportModal({
 
   // Handle file selected from folder browser
   const handleFolderSelect = useCallback(async (entry: FolderEntry) => {
-    // Entry is a file from the file system
     setSelectedPath(entry.path);
     setValidationError(null);
-    setIsLoadingFile(true);
 
-    try {
-      // Fetch file info from server
-      const response = await fetch(`${getApiBase()}/fs/file-info`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: entry.path }),
-      });
+    // Auto-generate asset name from filename
+    const nameWithoutExt = entry.name.replace(/\.[^/.]+$/, '');
+    setAssetName(nameWithoutExt);
 
-      if (!response.ok) {
-        throw new Error('Failed to get file info');
-      }
+    // Create a mock SelectedFile for display purposes
+    setSelectedFile({
+      file: new File([], entry.name, { type: entry.mimeType || '' }),
+      validation: { isValid: true },
+    });
 
-      const fileInfo = await response.json();
-
-      // Auto-generate asset name from filename
-      const nameWithoutExt = entry.name.replace(/\.[^/.]+$/, '');
-      setAssetName(nameWithoutExt);
-
-      // Create a mock SelectedFile for display purposes
-      setSelectedFile({
-        file: new File([], entry.name, { type: fileInfo.mime_type || '' }),
-        validation: { isValid: true },
-      });
-
-      setStep('preview');
-    } catch {
-      setValidationError('Failed to load file information');
-    } finally {
-      setIsLoadingFile(false);
-    }
+    setStep('preview');
   }, []);
 
   const handleUpload = useCallback(async () => {
@@ -146,8 +126,12 @@ export function AssetImportModal({
         });
 
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Copy failed');
+          const errorData: unknown = await response.json().catch(() => null);
+          const message =
+            isRecord(errorData) && typeof errorData.message === 'string'
+              ? errorData.message
+              : 'Copy failed';
+          throw new Error(message);
         }
       } else if (selectedFile) {
         // Upload the file via FormData
@@ -162,8 +146,12 @@ export function AssetImportModal({
         });
 
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Upload failed');
+          const errorData: unknown = await response.json().catch(() => null);
+          const message =
+            isRecord(errorData) && typeof errorData.message === 'string'
+              ? errorData.message
+              : 'Upload failed';
+          throw new Error(message);
         }
       }
 
@@ -268,7 +256,6 @@ export function AssetImportModal({
             <SelectStep
               projectId={projectId}
               currentBrowsePath={currentBrowsePath}
-              isLoadingFile={isLoadingFile}
               onFilesSelected={handleFilesSelected}
               onFolderSelect={handleFolderSelect}
               onNavigate={setCurrentBrowsePath}
@@ -297,7 +284,6 @@ export function AssetImportModal({
 interface SelectStepProps {
   projectId: string;
   currentBrowsePath: string;
-  isLoadingFile: boolean;
   onFilesSelected: (files: SelectedFile[]) => void;
   onFolderSelect: (entry: FolderEntry) => void;
   onNavigate: (path: string) => void;
@@ -307,7 +293,6 @@ interface SelectStepProps {
 function SelectStep({
   projectId,
   currentBrowsePath,
-  isLoadingFile,
   onFilesSelected,
   onFolderSelect,
   onNavigate,
@@ -324,7 +309,7 @@ function SelectStep({
         onFilesSelected={onFilesSelected}
 
         // FolderBrowser props
-        folderBrowserMode="files"
+        folderBrowserMode="assets"
         projectId={projectId}
         onFolderSelect={onFolderSelect}
         onNavigate={onNavigate}
@@ -337,9 +322,6 @@ function SelectStep({
         pathPlaceholder="Browse to select a file..."
         onPathChange={onNavigate}
 
-        // State
-        disabled={isLoadingFile}
-        isLoading={isLoadingFile}
       />
 
       {/* Actions */}
@@ -348,7 +330,6 @@ function SelectStep({
           type="button"
           onClick={onClose}
           className="px-5 py-2.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors"
-          disabled={isLoadingFile}
         >
           Cancel
         </button>

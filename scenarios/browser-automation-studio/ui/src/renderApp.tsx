@@ -1,16 +1,14 @@
 import * as React from 'react';
 import type { ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import * as ReactQuery from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster } from 'react-hot-toast';
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
-import AppRouter from './AppRouter';
-import { WebSocketProvider } from './contexts/WebSocketContext';
-import { useExecutionUpdates } from './hooks/useExecutionUpdates';
+import { AppWithUpdates, ReadyMarker } from './AppShell';
+import { WebSocketProvider } from './contexts/WebSocketProvider';
 import './index.css';
 import { logger } from './utils/logger';
-import { ensureReadyMarker, markAppReady } from './ready';
 
 declare global {
   interface Window {
@@ -22,7 +20,7 @@ interface MountOptions {
   strictMode?: boolean;
 }
 
-const queryClient = new (ReactQuery as any).QueryClient({
+const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
@@ -66,25 +64,9 @@ function ensureBridge() {
   bridgeInitialized = true;
 }
 
-function ReadyMarker(): null {
-  React.useEffect(() => {
-    ensureReadyMarker();
-    // Slightly defer setting the ready flag until after first paint.
-    requestAnimationFrame(() => markAppReady());
-  }, []);
-  return null;
-}
-
-// Wrapper component that enables WebSocket-based real-time updates
-function AppWithUpdates(): React.ReactElement {
-  // Listen to WebSocket messages and update stores accordingly
-  useExecutionUpdates();
-  return <AppRouter />;
-}
-
 function renderTree(): ReactNode {
   const content = (
-    <ReactQuery.QueryClientProvider client={queryClient as any}>
+    <QueryClientProvider client={queryClient}>
       <WebSocketProvider>
         <ReadyMarker />
         <AppWithUpdates />
@@ -102,7 +84,7 @@ function renderTree(): ReactNode {
         />
         {/* <ReactQueryDevtools initialIsOpen={false} /> */}
       </WebSocketProvider>
-    </ReactQuery.QueryClientProvider>
+    </QueryClientProvider>
   );
 
   return content;

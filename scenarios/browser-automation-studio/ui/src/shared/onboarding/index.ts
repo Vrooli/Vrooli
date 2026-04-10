@@ -1,2 +1,3 @@
-export { GuidedTour, useGuidedTour, getDefaultTourSteps } from "./GuidedTour";
-export type { TourStep } from "./GuidedTour";
+export { GuidedTour } from "./GuidedTour";
+export { useGuidedTour } from "./useGuidedTour";
+export type { TourStep } from "./guidedTourTypes";

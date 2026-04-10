@@ -3,12 +3,16 @@ package ai
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
+	"github.com/vrooli/browser-automation-studio/middleware"
+	"github.com/vrooli/browser-automation-studio/services/credits"
+	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
 
 // ElementAnalysisHandler handles element analysis and coordinate-based operations.
@@ -17,6 +21,7 @@ type ElementAnalysisHandler struct {
 	log                 *logrus.Logger
 	runner              AutomationRunner
 	suggestionGenerator *ollamaSuggestionGenerator
+	creditService       credits.CreditService
 }
 
 // ElementAnalysisOption configures the ElementAnalysisHandler.
@@ -33,6 +38,13 @@ func WithElementRunner(runner AutomationRunner) ElementAnalysisOption {
 func WithSuggestionGenerator(gen *ollamaSuggestionGenerator) ElementAnalysisOption {
 	return func(h *ElementAnalysisHandler) {
 		h.suggestionGenerator = gen
+	}
+}
+
+// WithElementAnalysisCreditService sets the credit service for AI usage tracking.
+func WithElementAnalysisCreditService(svc credits.CreditService) ElementAnalysisOption {
+	return func(h *ElementAnalysisHandler) {
+		h.creditService = svc
 	}
 }
 
@@ -64,6 +76,8 @@ func NewElementAnalysisHandler(log *logrus.Logger, opts ...ElementAnalysisOption
 
 // AnalyzeElements handles POST /api/v1/analyze-elements
 func (h *ElementAnalysisHandler) AnalyzeElements(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var req ElementAnalysisRequest
 	if err := httpjson.Decode(w, r, &req); err != nil {
 		h.log.WithError(err).Error("Failed to decode element analysis request")
@@ -76,6 +90,33 @@ func (h *ElementAnalysisHandler) AnalyzeElements(w http.ResponseWriter, r *http.
 		return
 	}
 
+	// Check AI operation permission (tier + credits)
+	var userID string
+	hasBYOK := middleware.HasBYOKKey(ctx)
+	if h.creditService != nil {
+		userID = entitlement.UserIdentityFromContext(ctx)
+		if userID == "" {
+			userID = "anonymous"
+		}
+
+		canProceed, errCode, errMsg, remaining, err := h.creditService.CanPerformAIOperation(ctx, userID, credits.OpAIElementAnalyze, hasBYOK)
+		if err != nil {
+			h.log.WithError(err).Warn("element_analysis: failed to check AI operation permission")
+		} else if !canProceed {
+			status := http.StatusForbidden
+			if errCode == "INSUFFICIENT_CREDITS" {
+				status = http.StatusPaymentRequired
+			}
+			RespondError(w, &APIError{
+				Status:  status,
+				Code:    errCode,
+				Message: errMsg,
+				Details: map[string]string{"remaining": fmt.Sprintf("%d", remaining)},
+			})
+			return
+		}
+	}
+
 	// Normalize URL - add protocol if missing
 	url := req.URL
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
@@ -84,7 +125,7 @@ func (h *ElementAnalysisHandler) AnalyzeElements(w http.ResponseWriter, r *http.
 
 	h.log.WithField("url", url).Info("Analyzing page elements")
 
-	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second) // Extended timeout for analysis
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second) // Extended timeout for analysis
 	defer cancel()
 
 	// Step 1: Extract elements and take screenshot
@@ -100,6 +141,18 @@ func (h *ElementAnalysisHandler) AnalyzeElements(w http.ResponseWriter, r *http.
 	if err != nil {
 		h.log.WithError(err).Warn("Failed to generate AI suggestions, continuing without them")
 		aiSuggestions = []AISuggestion{} // Continue without AI suggestions
+	}
+
+	// Charge credits after successful AI operation (if AI suggestions were generated)
+	// BYOK users get logged with 0 cost for analytics
+	if h.creditService != nil && userID != "" && len(aiSuggestions) > 0 {
+		if _, err := h.creditService.Charge(ctx, credits.ChargeRequest{
+			UserIdentity: userID,
+			Operation:    credits.OpAIElementAnalyze,
+			IsBYOK:       hasBYOK,
+		}); err != nil {
+			h.log.WithError(err).Warn("element_analysis: failed to charge credits")
+		}
 	}
 
 	response := ElementAnalysisResponse{
@@ -156,7 +209,9 @@ func (h *ElementAnalysisHandler) GetElementAtCoordinate(w http.ResponseWriter, r
 // respondJSON is a helper function to write JSON responses.
 func respondJSON(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		logrus.WithError(err).Warn("Failed to encode element analysis response")
+	}
 }
 
 // Test helpers - these delegate to the internal components for testing

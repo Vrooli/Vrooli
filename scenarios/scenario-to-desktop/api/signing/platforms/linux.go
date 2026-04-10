@@ -200,7 +200,9 @@ func calculateDaysToExpiry(dateStr string) int {
 	}
 
 	var year, month, day int
-	fmt.Sscanf(dateStr, "%d-%d-%d", &year, &month, &day)
+	if _, err := fmt.Sscanf(dateStr, "%d-%d-%d", &year, &month, &day); err != nil {
+		return -1
+	}
 
 	return -1 // Return -1 to indicate we couldn't calculate precisely
 }

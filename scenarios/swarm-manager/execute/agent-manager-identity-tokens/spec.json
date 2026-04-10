@@ -1,0 +1,25 @@
+{
+  "acceptance_allow": [
+    "scenarios/agent-manager/api/**"
+  ],
+  "created": "2026-03-28T19:32:20Z",
+  "depends_on": [
+    "research/agent-identity-standard"
+  ],
+  "description": "Implement the agent identity standard (designed in research/agent-identity-standard) within the agent-manager scenario.\n\n## Context\n\nAgent-manager already has the infrastructure for env var injection (SandboxEnvVars() in run_executor.go, sanitizedBaseEnv() and appendEnvMap() in env_utils.go) and the profile/task/run domain model with CreatedBy metadata. This item extends that with cryptographic identity tokens.\n\n## Research Decisions (from research/agent-identity-standard)\n\n- **Token format**: Custom HMAC-SHA256 — wire format is `base64url(json_claims).base64url(hmac_sha256(claims, secret))`\n- **Verification model**: Server-side only — HMAC secret never leaves agent-manager, tokens are opaque to consumers\n- **Protocol**: REST (`POST /api/v1/identity/verify`) — no gRPC, consistent with existing HTTP API\n- **Claims**: `run_id`, `task_id`, `profile_key`, `scope_path`, `iat`, `exp`, extensible `meta` map\n- **TTL**: 24-hour default (86400s) — generous to accommodate increasingly long-running agents\n- **Failure handling**: Fail open with warning — consumers fall back to anonymous attribution when unreachable\n\n## Expected Deliverables\n\n1. **Token generation**: When a run is created, generate an HMAC-SHA256 signed identity token with the claims above. Implement `IdentityEnvVars()` on RunExecutor (mirroring `SandboxEnvVars()`) to inject `VROOLI_AGENT_IDENTITY_TOKEN` for ALL runs (sandboxed and in-place).\n\n2. **Signing infrastructure**: Server-side HMAC secret management. Generate secret on first startup if not present, store in agent-manager's data directory.\n\n3. **Verification endpoint**: `POST /api/v1/identity/verify` REST endpoint. Accepts `{\"token\": \"...\"}`, validates HMAC signature, checks expiry and revocation, returns 200 with full claims JSON on success or 401 on invalid/expired/revoked.\n\n4. **Revocation tracking**: Mark tokens invalid on run cancellation/completion. Track revoked tokens (in-memory set or DB column on runs table).\n\n5. **Backward compatibility**: Runs created without identity tokens continue working. The env var injection is additive. Missing tokens = anonymous attribution.\n\n6. **Tests**: Unit tests for token generation/signing/verification. Integration tests for the full flow (create run → check env var → verify token → get claims).",
+  "effort": "M",
+  "initiative": "swarm-manager-feature-parity",
+  "kind": "execute",
+  "name": "agent-manager-identity-tokens",
+  "priority": 2,
+  "status": "completed",
+  "tags": [
+    "agent-manager",
+    "identity",
+    "authentication",
+    "tokens",
+    "implementation"
+  ],
+  "title": "Implement Identity Token Injection and Verification in Agent-Manager",
+  "updated": "2026-04-03T20:43:02Z"
+}

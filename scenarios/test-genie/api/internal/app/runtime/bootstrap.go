@@ -17,8 +17,11 @@ import (
 	"test-genie/internal/requirements"
 	"test-genie/internal/requirementsimprove"
 	"test-genie/internal/scenarios"
+	"test-genie/internal/toolexecution"
+	"test-genie/internal/toolregistry"
 
 	"github.com/vrooli/api-core/database"
+	_ "modernc.org/sqlite"
 )
 
 // Bootstrapped holds the concrete dependencies needed by the HTTP server.
@@ -28,12 +31,16 @@ type Bootstrapped struct {
 	ExecutionRepo              *execution.SuiteExecutionRepository
 	ExecutionHistory           execution.ExecutionHistory
 	ExecutionService           *execution.SuiteExecutionService
+	ExecutionPlanner           execution.ExecutionPlanner
 	ScenarioService            *scenarios.ScenarioDirectoryService
 	PhaseCatalog               phaseCatalogProvider
 	AgentService               *agentmanager.AgentService
 	FixService                 *fix.Service
 	RequirementsImproveService *requirementsimprove.Service
 	RequirementsSyncer         *RequirementsSyncerAdapter
+	// Tool Discovery Protocol support
+	ToolRegistry *toolregistry.Registry
+	ToolHandler  *toolexecution.Handler
 }
 
 // RequirementsSyncerAdapter adapts the requirements.Service to a simple Sync interface.
@@ -60,8 +67,10 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		return nil, fmt.Errorf("config is required")
 	}
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
-		DSN:    cfg.DatabaseURL,
+		Driver:       database.DriverSQLite,
+		DSN:          cfg.DatabaseDSN,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
@@ -75,10 +84,11 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		return nil, fmt.Errorf("failed to initialize orchestrator: %w", err)
 	}
 
-	suiteRequestRepo := queue.NewPostgresSuiteRequestRepository(db)
+	suiteRequestRepo := queue.NewSQLiteSuiteRequestRepository(db)
 	suiteRequestService := queue.NewSuiteRequestService(suiteRequestRepo)
 	executionRepo := execution.NewSuiteExecutionRepository(db)
 	executionHistory := execution.NewExecutionHistoryService(executionRepo)
+	executionPlanner := execution.NewExecutionPlanService(runner, executionRepo)
 	scenarioRepo := scenarios.NewScenarioDirectoryRepository(db)
 	scenarioLister := scenarios.NewVrooliScenarioLister()
 	scenarioService := scenarios.NewScenarioDirectoryService(scenarioRepo, scenarioLister, cfg.ScenariosRoot)
@@ -121,17 +131,46 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		svc: requirements.NewService(),
 	}
 
+	// Create tool registry for Tool Discovery Protocol
+	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
+		ScenarioName:        "test-genie",
+		ScenarioVersion:     "1.0.0",
+		ScenarioDescription: "Automated testing and quality assurance for Vrooli scenarios",
+	})
+
+	// Register all tool providers
+	toolReg.RegisterProvider(toolregistry.NewTestingToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewFixToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewRequirementsToolProvider())
+
+	// Create tool executor with all required dependencies
+	toolExec := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
+		ExecutionHistory:    executionHistory,
+		SuiteExecutor:       executionSvc,
+		ScenarioDirectory:   scenarioService,
+		PhaseCatalog:        runner,
+		FixService:          fixService,
+		RequirementsImprove: reqImproveService,
+		RequirementsSyncer:  reqSyncer,
+	})
+	toolHandler := toolexecution.NewHandler(toolExec)
+
+	log.Printf("[test-genie] Tool Discovery Protocol enabled with %d tools", len(toolReg.ListToolNames(context.Background())))
+
 	return &Bootstrapped{
 		DB:                         db,
 		SuiteRequests:              suiteRequestService,
 		ExecutionRepo:              executionRepo,
 		ExecutionHistory:           executionHistory,
 		ExecutionService:           executionSvc,
+		ExecutionPlanner:           executionPlanner,
 		ScenarioService:            scenarioService,
 		PhaseCatalog:               runner,
 		AgentService:               agentService,
 		FixService:                 fixService,
 		RequirementsImproveService: reqImproveService,
 		RequirementsSyncer:         reqSyncer,
+		ToolRegistry:               toolReg,
+		ToolHandler:                toolHandler,
 	}, nil
 }

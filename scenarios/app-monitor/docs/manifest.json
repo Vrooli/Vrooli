@@ -1,0 +1,104 @@
+{
+  "version": "1.0.0",
+  "title": "App Monitor Documentation",
+  "description": "Architecture, operations, and maintenance guidance for app-monitor.",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Run app-monitor locally and execute tests.",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "layers",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "Preview and workspace architecture seams."
+        },
+        {
+          "path": "concepts/GLOSSARY.md",
+          "title": "Glossary",
+          "description": "Domain terms used in app-monitor."
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "book-open",
+      "documents": [
+        {
+          "path": "preview-workspace.md",
+          "title": "Preview Workspace",
+          "description": "Workspace panes and routing intents."
+        },
+        {
+          "path": "LESSONS_LEARNED.md",
+          "title": "Lessons Learned",
+          "description": "Known browser-specific and routing lessons."
+        }
+      ]
+    },
+    {
+      "id": "plans",
+      "title": "Plans",
+      "icon": "map",
+      "documents": [
+        {
+          "path": "ux-revamp-plan.md",
+          "title": "UX Revamp Plan",
+          "description": "Planned UI simplifications and workflow upgrades."
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Seams",
+          "internal": true
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Problems",
+          "internal": true
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "title": "Progress",
+          "internal": true
+        },
+        {
+          "path": "internal/COHERENCE-NOTES.md",
+          "title": "Coherence Notes",
+          "internal": true
+        },
+        {
+          "path": "internal/ASSUMPTIONS.md",
+          "title": "Assumptions",
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "guides"],
+    "secondary": ["plans", "internal"]
+  }
+}

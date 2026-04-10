@@ -144,7 +144,7 @@ func TestChatCompleteRequiresMessages(t *testing.T) {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
 
-	if result["error"] != "No messages in chat" {
+	if result["error"] != "no messages in chat" {
 		t.Errorf("Expected error about no messages, got: %s", result["error"])
 	}
 }

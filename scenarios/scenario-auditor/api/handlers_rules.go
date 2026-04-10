@@ -44,7 +44,6 @@ func initRuleStateStore() *RuleStateStore {
 }
 
 func (rs *RuleStateStore) enablePersistence() {
-
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
 		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
@@ -52,7 +51,7 @@ func (rs *RuleStateStore) enablePersistence() {
 
 	parentDir := filepath.Join(vrooliRoot, ".vrooli", "data")
 	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(parentDir, 0755); err != nil {
+		if err := os.MkdirAll(parentDir, 0o755); err != nil {
 			logger.Error(fmt.Sprintf("Failed to create parent data directory %s", parentDir), err)
 			logger.Info("Rule state store will operate in memory-only mode (no persistence)")
 			return
@@ -60,7 +59,7 @@ func (rs *RuleStateStore) enablePersistence() {
 	}
 
 	dataDir := filepath.Join(parentDir, "scenario-auditor")
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		logger.Error(fmt.Sprintf("Failed to create scenario-auditor data directory %s", dataDir), err)
 		logger.Info("Rule state store will operate in memory-only mode (no persistence)")
 		return
@@ -127,7 +126,7 @@ func (rs *RuleStateStore) saveToFileLocked() error {
 	}
 
 	tmpPath := rs.filePath + ".tmp"
-	if err := os.WriteFile(tmpPath, bytes, 0644); err != nil {
+	if err := os.WriteFile(tmpPath, bytes, 0o644); err != nil {
 		return err
 	}
 
@@ -342,7 +341,6 @@ func computeRuleTestStatuses(svc *re.Service, ruleInfos map[string]re.Info) map[
 
 // createRuleHandler creates an issue in app-issue-tracker for rule creation
 func createRuleHandler(w http.ResponseWriter, r *http.Request) {
-
 	var req createRuleRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -429,7 +427,6 @@ func deleteRuleHandler(w http.ResponseWriter, r *http.Request) {
 
 // toggleRuleHandler enables/disables a rule
 func toggleRuleHandler(w http.ResponseWriter, r *http.Request) {
-
 	// Extract rule ID from URL
 	vars := mux.Vars(r)
 	ruleID := vars["ruleId"]
@@ -439,7 +436,6 @@ func toggleRuleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// External rules CAN be toggled, so we don't check ensureRuleIsInternal here
-
 
 	// Parse request body
 	var toggleReq struct {
@@ -476,7 +472,6 @@ func toggleRuleHandler(w http.ResponseWriter, r *http.Request) {
 
 // getRuleHandler gets a single rule by ID including file content
 func getRuleHandler(w http.ResponseWriter, r *http.Request) {
-
 	// Extract rule ID from URL
 	vars := mux.Vars(r)
 	ruleID := vars["ruleId"]
@@ -576,7 +571,6 @@ func getRuleCategoriesHandler(w http.ResponseWriter, r *http.Request) {
 
 // createRuleWithAIHandler creates a rule using AI assistance
 func createRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
-
 	var req struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
@@ -659,7 +653,6 @@ func createRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
 
 // editRuleWithAIHandler edits a rule using AI assistance
 func editRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
-
 	// Extract rule ID from URL
 	vars := mux.Vars(r)
 	ruleID := vars["ruleId"]
@@ -753,7 +746,6 @@ func editRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
 
 // testRuleHandler runs all test cases for a specific rule
 func testRuleHandler(w http.ResponseWriter, r *http.Request) {
-
 	// Extract rule ID from URL
 	vars := mux.Vars(r)
 	ruleID := vars["ruleId"]
@@ -834,7 +826,6 @@ func testRuleHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
-
 	vars := mux.Vars(r)
 	ruleID := strings.TrimSpace(vars["ruleId"])
 	if ruleID == "" {
@@ -1047,7 +1038,6 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 
 // validateRuleHandler validates custom input against a rule
 func validateRuleHandler(w http.ResponseWriter, r *http.Request) {
-
 	// Extract rule ID from URL
 	vars := mux.Vars(r)
 	ruleID := vars["ruleId"]
@@ -1119,7 +1109,6 @@ func validateRuleHandler(w http.ResponseWriter, r *http.Request) {
 
 // clearTestCacheHandler clears test cache for a specific rule or all rules
 func clearTestCacheHandler(w http.ResponseWriter, r *http.Request) {
-
 	// Extract rule ID from URL (optional)
 	vars := mux.Vars(r)
 	ruleID := vars["ruleId"]

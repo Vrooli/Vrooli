@@ -17,6 +17,11 @@ interface SystemResourcesProps {
 }
 
 export function SystemResources({ system }: SystemResourcesProps) {
+  const keyAuthState = system.ssh.verification_state;
+  const authMode = system.ssh.auth_mode;
+  const isKeyAuthUnknown = keyAuthState === "unknown";
+  const isKeyAuthorized = keyAuthState === "authorized";
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* CPU */}
@@ -155,18 +160,28 @@ export function SystemResources({ system }: SystemResourcesProps) {
 
           {/* Key Authorization Status */}
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500">Key in authorized_keys:</span>
-            {system.ssh.key_in_auth ? (
+            <span className="text-xs text-slate-500">Key authorization:</span>
+            {isKeyAuthorized ? (
               <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
                 <CheckCircle2 className="h-3 w-3" />
-                Yes
+                Authorized
+              </span>
+            ) : isKeyAuthUnknown ? (
+              <span className="inline-flex items-center gap-1 text-xs text-slate-300">
+                <AlertTriangle className="h-3 w-3" />
+                Unknown
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-xs text-amber-400">
                 <AlertTriangle className="h-3 w-3" />
-                No
+                Unauthorized
               </span>
             )}
+          </div>
+
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-500">Auth mode:</span>
+            <span className="text-slate-300 font-mono">{authMode}</span>
           </div>
 
           {/* Key Path */}
@@ -186,12 +201,19 @@ export function SystemResources({ system }: SystemResourcesProps) {
             </div>
           )}
 
-          {/* Warning if key not in authorized_keys */}
-          {system.ssh.connected && !system.ssh.key_in_auth && (
+          {/* Key auth guidance */}
+          {system.ssh.connected && keyAuthState === "unauthorized" && (
             <div className="mt-2 p-2 rounded bg-amber-500/10 border border-amber-500/20">
               <p className="text-xs text-amber-400">
                 The configured SSH key is not in the VPS authorized_keys.
                 SSH may fail if the current session uses SSH agent.
+              </p>
+            </div>
+          )}
+          {system.ssh.connected && keyAuthState === "unknown" && (
+            <div className="mt-2 p-2 rounded bg-slate-500/10 border border-slate-500/20">
+              <p className="text-xs text-slate-300">
+                Authorization is unknown because SSH auth is not pinned to an explicit deployment key.
               </p>
             </div>
           )}

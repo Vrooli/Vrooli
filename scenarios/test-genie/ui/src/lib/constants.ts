@@ -54,6 +54,16 @@ export const PHASE_LABELS: Record<string, string> = {
 };
 
 export const PHASES_FOR_GENERATION: PhaseForGeneration[] = [
-  { key: "unit", label: "Unit Tests", docsPath: "/docs/phases/unit.md" },
-  { key: "playbooks", label: "E2E Playbooks", docsPath: "/docs/phases/playbooks.md" }
+  {
+    key: "unit",
+    label: "Unit Tests",
+    description: "Unit tests for individual functions and modules",
+    docsPath: "/docs/phases/unit.md"
+  },
+  {
+    key: "playbooks",
+    label: "E2E Playbooks",
+    description: "End-to-end browser automation workflows",
+    docsPath: "/docs/phases/playbooks.md"
+  }
 ];

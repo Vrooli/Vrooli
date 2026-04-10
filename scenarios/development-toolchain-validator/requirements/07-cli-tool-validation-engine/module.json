@@ -1,0 +1,77 @@
+{
+  "description": "Execute configured CLI tool commands against a reference scenario, parse JSON output, evaluate assertions, and report pass/fail per assertion, per skill connection.",
+  "module_id": "MOD-P0-007",
+  "prd_ref": "OT-P0-007",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-006"
+      ],
+      "description": "Build secure execution environment for CLI tool commands with sandboxing and timeout controls",
+      "id": "REQ-P0-008",
+      "prd_ref": "OT-P0-007",
+      "status": "implemented",
+      "title": "Secure CLI Command Execution",
+      "validation": [
+        {
+          "notes": "Command execution safe",
+          "phase": "unit",
+          "ref": "api/domain/validation/cli_command_test.go:TestCLIExecutor_CommandExecution",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Commands timeout after 30s",
+          "phase": "unit",
+          "ref": "api/domain/validation/cli_command_test.go:TestCLIExecutor_CommandTimeout",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Dangerous commands blocked",
+          "phase": "unit",
+          "ref": "api/domain/validation/cli_command_test.go:TestCLIExecutor_DangerousCommandBlocking",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-008"
+      ],
+      "description": "Implement JSON output parsing with JSONPath evaluation and assertion operator support",
+      "id": "REQ-P0-008a",
+      "prd_ref": "OT-P0-007",
+      "status": "implemented",
+      "title": "JSON Parsing and Assertion Evaluation",
+      "validation": [
+        {
+          "notes": "JSON parsing robust",
+          "phase": "unit",
+          "ref": "api/domain/validation/cli_assertion_test.go:TestExtractJSONPath",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Tool integration works",
+          "phase": "unit",
+          "ref": "api/domain/validation/cli_assertion_test.go:TestCLIExecutor_IntegrationWithJSONPath",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "All assertion types supported",
+          "phase": "unit",
+          "ref": "api/domain/validation/cli_assertion_test.go:TestEvaluateAssertion_Equality,TestEvaluateAssertion_Comparison,TestEvaluateAssertion_Exists,TestEvaluateAssertion_Contains,TestEvaluateAssertion_Matches,TestEvaluateAssertion_Between",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "CLI Tool Validation Engine"
+}

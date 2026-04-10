@@ -1,7 +1,8 @@
 import { X, Settings } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { BrowserProfile } from '@/domains/recording/types/types';
-import { SessionSidebar, isSettingsSection, type SectionId } from './SessionSidebar';
+import { SessionSidebar } from './SessionSidebar';
+import { isSettingsSection, type SectionId } from './sessionSidebarConfig';
 import { useProfileSettings } from './hooks/settings';
 import { useSessionPersistence } from './hooks/persistence';
 import { useProfileBoundResources, type UseProfileBoundResourcesReturn } from './hooks/resources';

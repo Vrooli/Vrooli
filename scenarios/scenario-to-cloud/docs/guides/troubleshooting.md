@@ -15,8 +15,8 @@ Common issues and how to resolve them.
 - Wrong SSH user
 
 **Solutions**:
-1. Verify you can connect manually: `ssh user@host`
-2. Check SSH key is in `~/.ssh/authorized_keys` on VPS
+1. Run agent-safe check first: `scenario-to-cloud ssh bootstrap <host> --user root --non-interactive`
+2. If instructed, ask a human to run interactive bootstrap: `scenario-to-cloud ssh bootstrap <host> --user root`
 3. Verify port 22 is open: `nc -zv host 22`
 4. Try with verbose output: `ssh -v user@host`
 
@@ -65,6 +65,19 @@ Common issues and how to resolve them.
 2. Verify sudo/root permissions
 3. Check for conflicting services
 4. Review setup logs in Deployment Details
+
+### Unsupported OS
+
+**Symptoms**: Preflight fails on "Ubuntu version".
+
+**Current behavior**:
+- Ubuntu is required.
+- Ubuntu 24.04 is the recommended target.
+- Ubuntu 22.04 and 20.04 run in compatibility mode with warnings.
+
+**Solutions**:
+1. Provision Ubuntu 24.04 for new deployments.
+2. For existing 22.04/20.04 hosts, continue with caution and monitor health output.
 
 ### Deploy Failed
 

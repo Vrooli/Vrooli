@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ReplayMovieSpec } from "@/types/export";
+import type { ReplayMovieFrame, ReplayMovieSpec } from "@/types/export";
 import {
   isScalingNeeded,
   scaleFrames,
@@ -8,6 +8,22 @@ import {
 } from "./scaleMovieSpec";
 
 describe("scaleMovieSpec", () => {
+  const createFrame = (index: number, viewport: { width: number; height: number }): ReplayMovieFrame => ({
+    index,
+    step_index: index,
+    node_id: `node-${index}`,
+    step_type: "navigate",
+    title: `Step ${index}`,
+    status: "completed",
+    start_offset_ms: 0,
+    duration_ms: 1000,
+    hold_ms: 0,
+    enter: { type: "none", duration_ms: 0, easing: "linear" },
+    exit: { type: "none", duration_ms: 0, easing: "linear" },
+    viewport,
+    resilience: { attempt: 1, max_attempts: 1, configured_retries: 0, delay_ms: 0, backoff_factor: 1 },
+  });
+
   const createMockSpec = (
     canvasWidth = 1280,
     canvasHeight = 720,
@@ -128,10 +144,10 @@ describe("scaleMovieSpec", () => {
 
   describe("scaleFrames", () => {
     it("scales all frame viewports", () => {
-      const frames = [
-        { index: 0, viewport: { width: 1280, height: 720 } },
-        { index: 1, viewport: { width: 1280, height: 720 } },
-      ] as any[];
+      const frames: ReplayMovieFrame[] = [
+        createFrame(0, { width: 1280, height: 720 }),
+        createFrame(1, { width: 1280, height: 720 }),
+      ];
 
       const result = scaleFrames(
         frames,

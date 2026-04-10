@@ -1,0 +1,12 @@
+# Dependencies - templates should never include node_modules
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+dist-dev/
+dist-electron/
+
+# Caches
+*.tsbuildinfo
+.eslintcache

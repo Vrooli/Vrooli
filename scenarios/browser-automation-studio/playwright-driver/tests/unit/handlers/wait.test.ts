@@ -1,4 +1,9 @@
-import { createTypedInstruction, createMockPage, createTestConfig } from '../../helpers';
+import {
+  createTypedInstruction,
+  createMockPage,
+  createMockContext,
+  createTestConfig,
+} from '../../helpers';
 import { WaitHandler } from '../../../src/handlers/wait';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
@@ -13,7 +18,7 @@ describe('WaitHandler', () => {
     mockPage = createMockPage();
     context = {
       page: mockPage,
-      context: {} as any,
+      browserContext: createMockContext(),
       config: createTestConfig(),
       logger,
       metrics,
@@ -26,7 +31,9 @@ describe('WaitHandler', () => {
 
     const result = await handler.execute(instruction, context);
 
-    expect(mockPage.waitForSelector).toHaveBeenCalledWith('#element', expect.any(Object));
+    const [selector, options] = mockPage.waitForSelector.mock.calls[0] ?? [];
+    expect(selector).toBe('#element');
+    expect(options).toEqual(expect.any(Object));
     expect(result.success).toBe(true);
   });
 
@@ -35,7 +42,8 @@ describe('WaitHandler', () => {
 
     const result = await handler.execute(instruction, context);
 
-    expect(mockPage.waitForTimeout).toHaveBeenCalledWith(1000);
+    const [ms] = mockPage.waitForTimeout.mock.calls[0] ?? [];
+    expect(ms).toBe(1000);
     expect(result.success).toBe(true);
   });
 });

@@ -1,0 +1,214 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-23T17:45:56Z",
+  "readiness": {
+    "problem_clarity": 2,
+    "scope_defined": 2,
+    "approach_solid": 2,
+    "testable": 1,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "q1",
+      "type": "decision",
+      "topic": "For the offline-first architecture, should the local database (IndexedDB) be the sole source of truth with the server acting as a sync target, or should the server be authoritative with local acting as a cache that syncs up when online?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Local-first (IndexedDB authoritative, server syncs)",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Server-first (server authoritative, local caches)",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "CRDT-based (no single authority, conflict-free merge)",
+          "rationale": ""
+        }
+      ],
+      "selected": "B",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "q2",
+      "type": "decision",
+      "topic": "Is this app single-user only (one person per Vrooli server), or should multiple users be able to have their own schemes with optional sharing/collaboration?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Single-user only",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Multi-user with isolated schemes",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "Multi-user with optional scheme sharing/collaboration",
+          "rationale": ""
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "q3",
+      "type": "decision",
+      "topic": "For Whisper voice transcription, should it run locally via a Vrooli resource (e.g., whisper.cpp or faster-whisper), or use an external API (e.g., OpenAI Whisper API), or both with fallback?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Local Whisper resource only",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "OpenAI Whisper API only",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "Local primary with API fallback",
+          "rationale": ""
+        },
+        {
+          "key": "D",
+          "label": "User-configurable choice",
+          "rationale": ""
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Use the same approach adopted by the web-console scenario",
+      "notes": null
+    },
+    {
+      "id": "q4",
+      "type": "decision",
+      "topic": "What is the MVP scope? Should v1 include all five toolbar features (mic, plus, graph, agent chat, export), or should some be deferred? For example, agent chat and export require agent-manager integration which adds significant complexity.",
+      "options": [
+        {
+          "key": "A",
+          "label": "All five toolbar features in v1",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Core only (mic, plus, graph toggle) — defer agent chat and export",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "Core plus agent chat — defer export",
+          "rationale": ""
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": ""
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "q5",
+      "type": "decision",
+      "topic": "How should the canvas handle large schemes with 100+ information items? Should there be viewport-based rendering (virtualization), pagination/lazy-loading, or is a simpler approach acceptable for the expected scale?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Virtualized canvas (only render visible items)",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Simple DOM rendering (acceptable if schemes stay under ~200 items)",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "Hierarchical grouping to manage visual complexity",
+          "rationale": ""
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": ""
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "q6",
+      "type": "decision",
+      "topic": "For the passive thought suggestions (ghost nodes), what should trigger LLM suggestion generation: on every canvas change, on a timer/idle interval, only on explicit user request, or when the agent chat is open?",
+      "options": [
+        {
+          "key": "A",
+          "label": "On idle (debounced after user stops interacting)",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Periodic background generation (e.g., every 30s)",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "On explicit user request only",
+          "rationale": ""
+        },
+        {
+          "key": "D",
+          "label": "Triggered by significant changes (new information added, thought linked)",
+          "rationale": ""
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Periodic if there are changes and the previous generation is not still going",
+      "notes": null
+    },
+    {
+      "id": "q7",
+      "type": "decision",
+      "topic": "Should the app be delivered as a PWA (installable from browser), a native mobile app (React Native or similar), or a scenario-to-desktop Electron app with mobile browser support?",
+      "options": [
+        {
+          "key": "A",
+          "label": "PWA (browser-based, installable)",
+          "rationale": ""
+        },
+        {
+          "key": "B",
+          "label": "Electron desktop + PWA mobile",
+          "rationale": ""
+        },
+        {
+          "key": "C",
+          "label": "React Native mobile + web UI desktop",
+          "rationale": ""
+        },
+        {
+          "key": "D",
+          "label": "Web-only (responsive, no native install)",
+          "rationale": ""
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Same approach as other apps like web-console. To ensure that it’ll be portable to mobile , make sure to avoid postgres and other non-portable databases as explained in scenarios/prompt-manager/store/skills/packs/core/storage-steer/SKILL.md",
+      "notes": null
+    }
+  ],
+  "plan_updates": "Migrated from clarify/suggest workflow"
+}

@@ -111,7 +111,7 @@ This ensures the CLI works correctly even when multiple scenarios are running wi
 scenario-auditor scan
 
 # Target a specific rule and wait for completion (recommended for fixes)
-scenario-auditor scan ecosystem-manager --rule iframe_bridge_quality --wait --timeout 600
+scenario-auditor scan ecosystem-manager --rule interop_iframe_guard --wait --timeout 600
 
 # Run a full scan only if you need the complete violation list
 scenario-auditor scan ecosystem-manager
@@ -126,7 +126,7 @@ scenario-auditor health
 scenario-auditor version
 
 # List a scenario's violations after the scan job completes
-scenario-auditor rules --category ui | grep iframe_bridge_quality
+scenario-auditor rules --category interop
 
 ```
 

@@ -15,10 +15,18 @@ import {
 import { ChevronLeft } from "lucide-react";
 import { Badge } from "../../../../components/ui/badge";
 import { Button } from "../../../../components/ui/button";
-import { formatRelativeTime } from "../../../../lib/utils";
+import { formatStatusLabel, formatUnknownLabel, statusBadgeVariant } from "../../../../lib/display";
+import { formatStandardRelativeTime } from "../../../../lib/dateTime";
 import { useToolUsage, useToolUsageModels, useToolUsageRuns } from "../../hooks/useToolUsage";
 import { formatNumber, formatPercent } from "../../utils/formatters";
 import { CHART_COLORS, TOOLTIP_STYLE, getSeriesColor } from "../../utils/chartConfig";
+
+interface ToolChartDatum {
+  name: string;
+  calls: number;
+  successRate: number;
+  failedCount: number;
+}
 
 export function ToolUsageAnalytics() {
   const { data, isLoading, error } = useToolUsage({ limit: 10 });
@@ -28,7 +36,7 @@ export function ToolUsageAnalytics() {
   const tools = data?.tools ?? [];
 
   // Prepare data for chart - already sorted by API
-  const chartData = tools.map((tool) => ({
+  const chartData: ToolChartDatum[] = tools.map((tool) => ({
     name: tool.toolName || "unknown",
     calls: tool.callCount,
     successRate: tool.callCount > 0 ? tool.successCount / tool.callCount : 0,
@@ -61,16 +69,16 @@ export function ToolUsageAnalytics() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card/50 p-6">
-        <div className="mb-4 h-5 w-32 animate-pulse rounded bg-muted/30" />
-        <div className="h-[250px] animate-pulse rounded bg-muted/20" />
+      <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
+        <div className="mb-2 sm:mb-4 h-5 w-32 animate-pulse rounded bg-muted/30" />
+        <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-6">
+      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 sm:p-6">
         <h3 className="text-sm font-semibold">Tool Usage</h3>
         <p className="mt-2 text-sm text-red-500">Failed to load: {error.message}</p>
       </div>
@@ -78,10 +86,10 @@ export function ToolUsageAnalytics() {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card/50 p-6">
+    <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
       {selectedTool && selectedStats ? (
         <>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="mb-2 sm:mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
@@ -93,11 +101,11 @@ export function ToolUsageAnalytics() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                <h3 className="text-sm font-semibold text-muted-foreground">
                   Tool Usage
                 </h3>
                 <p className="text-sm font-medium text-foreground">
-                  {formatToolName(selectedStats.name)}
+                  {formatUnknownLabel(selectedStats.name)}
                 </p>
               </div>
             </div>
@@ -139,17 +147,17 @@ export function ToolUsageAnalytics() {
           </div>
           {activeTab === "runs" ? (
             runsLoading ? (
-              <div className="h-[250px] animate-pulse rounded bg-muted/20" />
+              <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
             ) : runsError ? (
               <div className="rounded border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-500">
                 Failed to load runs: {runsError.message}
               </div>
             ) : (toolRuns?.runs?.length ?? 0) === 0 ? (
-              <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
+              <div className="flex h-[200px] sm:h-[250px] items-center justify-center text-sm text-muted-foreground">
                 No runs found for this tool in the selected window
               </div>
             ) : (
-              <div className="max-h-[260px] overflow-y-auto pr-2 divide-y divide-border/60">
+              <div className="max-h-[200px] sm:max-h-[260px] overflow-y-auto pr-2 divide-y divide-border/60">
                 {toolRuns?.runs.map((run) => (
                   <div key={run.runId} className="flex flex-wrap items-center justify-between gap-4 py-3">
                     <div>
@@ -160,11 +168,11 @@ export function ToolUsageAnalytics() {
                         {run.taskTitle || "Untitled Task"}
                       </Link>
                       <div className="text-xs text-muted-foreground">
-                        {run.profileName} • {formatRelativeTime(run.createdAt)} • {run.runId.slice(0, 8)}
+                        {run.profileName} • {formatStandardRelativeTime(run.createdAt)} • {run.runId.slice(0, 8)}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Badge variant={statusVariant(run.status)}>{statusLabel(run.status)}</Badge>
+                      <Badge variant={statusBadgeVariant(run.status)}>{formatStatusLabel(run.status)}</Badge>
                       <div className="text-right text-xs text-muted-foreground">
                         <div>{formatNumber(run.callCount)} calls</div>
                         <div className="text-muted-foreground">
@@ -177,22 +185,22 @@ export function ToolUsageAnalytics() {
               </div>
             )
           ) : modelsLoading ? (
-            <div className="h-[250px] animate-pulse rounded bg-muted/20" />
+            <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
           ) : modelsError ? (
             <div className="rounded border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-500">
               Failed to load models: {modelsError.message}
             </div>
           ) : (toolModels?.models?.length ?? 0) === 0 ? (
-            <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-[200px] sm:h-[250px] items-center justify-center text-sm text-muted-foreground">
               No model usage found for this tool in the selected window
             </div>
           ) : (
-            <div className="max-h-[260px] overflow-y-auto pr-2 divide-y divide-border/60">
+            <div className="max-h-[200px] sm:max-h-[260px] overflow-y-auto pr-2 divide-y divide-border/60">
               {toolModels?.models.map((model) => (
                 <div key={model.model} className="flex flex-wrap items-center justify-between gap-4 py-3">
                   <div>
                     <div className="text-sm font-medium text-foreground">
-                      {formatToolModelName(model.model)}
+                      {formatUnknownLabel(model.model)}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {formatNumber(model.runCount)} runs • {formatNumber(model.callCount)} calls
@@ -209,18 +217,18 @@ export function ToolUsageAnalytics() {
         </>
       ) : (
         <>
-          <div className="mb-4 flex items-baseline justify-between">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="mb-2 sm:mb-4 flex items-baseline justify-between">
+            <h3 className="text-sm font-semibold text-muted-foreground">
               Tool Usage
             </h3>
             <span className="text-xs text-muted-foreground">Click a bar to view runs</span>
           </div>
           {chartData.length === 0 ? (
-            <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-[200px] sm:h-[250px] items-center justify-center text-sm text-muted-foreground">
               No tool usage data available
             </div>
           ) : (
-            <div className="h-[250px]">
+            <div className="h-[200px] sm:h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={chartData}
@@ -241,8 +249,8 @@ export function ToolUsageAnalytics() {
                     tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
                     tickLine={{ stroke: CHART_COLORS.axis }}
                     width={75}
-                    tickFormatter={(value) => {
-                      const label = formatToolName(value);
+                    tickFormatter={(value: string) => {
+                      const label = formatUnknownLabel(value);
                       return label.length > 12 ? `${label.slice(0, 12)}...` : label;
                     }}
                   />
@@ -250,10 +258,10 @@ export function ToolUsageAnalytics() {
                     contentStyle={TOOLTIP_STYLE}
                     content={({ active, payload }) => {
                       if (!active || !payload?.[0]) return null;
-                      const item = payload[0].payload;
+                      const item = payload[0].payload as ToolChartDatum;
                       return (
                         <div className="rounded border border-border bg-card p-3 text-xs shadow-lg">
-                          <div className="mb-2 font-medium">{formatToolName(item.name)}</div>
+                          <div className="mb-2 font-medium">{formatUnknownLabel(item.name)}</div>
                           <div className="space-y-1 text-muted-foreground">
                             <div className="flex justify-between gap-4">
                               <span>Calls:</span>
@@ -318,36 +326,4 @@ export function ToolUsageAnalytics() {
       )}
     </div>
   );
-}
-
-function statusVariant(status: string) {
-  switch (status) {
-    case "pending":
-    case "starting":
-    case "running":
-    case "needs_review":
-    case "complete":
-    case "failed":
-    case "cancelled":
-      return status;
-    default:
-      return "secondary";
-  }
-}
-
-function statusLabel(status: string) {
-  return status
-    .split("_")
-    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
-    .join(" ");
-}
-
-function formatToolName(value: string) {
-  if (!value || value === "unknown") return "Unknown";
-  return value;
-}
-
-function formatToolModelName(value: string) {
-  if (!value || value === "unknown") return "Unknown";
-  return value;
 }

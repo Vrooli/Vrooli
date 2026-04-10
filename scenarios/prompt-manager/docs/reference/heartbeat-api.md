@@ -1,0 +1,721 @@
+# Heartbeat API Reference
+
+API endpoints for managing heartbeat configurations and member documents.
+
+## Base URL
+
+All endpoints are prefixed with `/api/v1`.
+
+**Membership requirement:** Endpoints scoped to a specific team member require that
+the agent is currently a member of the team. Requests for non-members return `404`.
+
+---
+
+## Heartbeat Configuration
+
+### List Heartbeats
+
+List all heartbeat configurations for a team.
+
+```
+GET /teams/{teamId}/heartbeats
+```
+
+**Response:**
+```json
+[
+  {
+    "teamId": "my-team",
+    "agentId": "agent-1",
+    "enabled": true,
+    "schedule": "0 */6 * * *",
+    "profileKey": "prompt-manager-heartbeat",
+    "lastExecution": {
+      "startedAt": "2026-02-01T10:00:00Z",
+      "endedAt": "2026-02-01T10:05:32Z",
+      "status": "completed",
+      "runId": "abc123",
+      "logPath": "2026-02-01T10-00-00Z.log"
+    },
+    "nextExecution": "2026-02-01T16:00:00Z",
+    "createdAt": "2026-01-15T00:00:00Z",
+    "updatedAt": "2026-02-01T10:05:32Z"
+  }
+]
+```
+
+---
+
+### Get Heartbeat
+
+Get heartbeat configuration for a specific member.
+
+```
+GET /teams/{teamId}/heartbeats/{agentId}
+```
+
+**Response:**
+```json
+{
+  "teamId": "my-team",
+  "agentId": "agent-1",
+  "enabled": true,
+  "schedule": "0 */6 * * *",
+  "profileKey": "prompt-manager-heartbeat",
+  "lastExecution": null,
+  "nextExecution": "2026-02-01T16:00:00Z",
+  "createdAt": "2026-01-15T00:00:00Z",
+  "updatedAt": "2026-01-15T00:00:00Z"
+}
+```
+
+**Errors:**
+- `404 Not Found` - Team or heartbeat config not found
+
+---
+
+### Create Heartbeat
+
+Create a new heartbeat configuration for a member.
+
+```
+POST /teams/{teamId}/heartbeats/{agentId}
+```
+
+**Request Body:**
+```json
+{
+  "schedule": "0 */6 * * *",
+  "profileKey": "my-custom-profile",
+  "enabled": false
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schedule` | string | Yes | Cron expression |
+| `profileKey` | string | No | Agent-manager profile key |
+| `enabled` | boolean | No | Defaults to `false` |
+
+**Response:** `201 Created` with heartbeat config
+
+**Errors:**
+- `400 Bad Request` - Invalid schedule or missing required fields
+- `404 Not Found` - Team not found
+- `409 Conflict` - Heartbeat config already exists
+
+---
+
+### Update Heartbeat
+
+Update an existing heartbeat configuration.
+
+```
+PUT /teams/{teamId}/heartbeats/{agentId}
+```
+
+**Request Body:**
+```json
+{
+  "schedule": "0 0 * * *",
+  "enabled": true
+}
+```
+
+All fields are optional. Only provided fields are updated.
+
+**Response:** Updated heartbeat config
+
+**Errors:**
+- `400 Bad Request` - Invalid schedule
+- `404 Not Found` - Team or config not found
+
+---
+
+### Delete Heartbeat
+
+Delete a heartbeat configuration.
+
+```
+DELETE /teams/{teamId}/heartbeats/{agentId}
+```
+
+**Response:** `204 No Content`
+
+---
+
+### Trigger Heartbeat
+
+Manually trigger a heartbeat execution.
+
+```
+POST /teams/{teamId}/heartbeats/{agentId}/trigger
+```
+
+**Response:** `202 Accepted`
+```json
+{
+  "teamId": "my-team",
+  "agentId": "agent-1",
+  "runId": "run-xyz789",
+  "status": "running",
+  "logPath": "2026-02-01T15-30-00Z.log"
+}
+```
+
+**Errors:**
+- `404 Not Found` - Team, member, or heartbeat config not found
+- `409 Conflict` - Team is disabled, or member is already queued/running
+
+---
+
+### Trigger Team
+
+Trigger heartbeats for an entire team. Behavior depends on the team's resolved runtime and coordination policy.
+
+```
+POST /teams/{teamId}/trigger
+```
+
+- **`single-process` + `leader-led`**: Triggers only the configured lead agent.
+- **All other team policies**: Triggers all members that have heartbeat configs.
+
+**Response:** `202 Accepted`
+```json
+{
+  "teamId": "my-team",
+  "runtimeMode": "multi-process",
+  "coordinationPattern": "independent",
+  "queuePolicy": "bounded-parallel",
+  "triggers": [
+    {
+      "teamId": "my-team",
+      "agentId": "agent-1",
+      "runId": "run-xyz",
+      "status": "running",
+      "logPath": "2026-02-01T10-00-00Z.log"
+    }
+  ]
+}
+```
+
+**Errors:**
+- `400 Bad Request` - Invalid leader-led single-process configuration, inactive/missing lead member, or missing lead heartbeat config
+- `404 Not Found` - Team not found
+- `409 Conflict` - Team is disabled, or the requested member is already queued/running
+- `503 Service Unavailable` - Executor not configured
+
+---
+
+### Get Team Execution Status
+
+Get the current execution queue status for a team.
+
+```
+GET /teams/{teamId}/execution-status
+```
+
+**Response:**
+```json
+{
+  "teamId": "my-team",
+  "state": "active",
+  "runningAgentIds": ["agent-1", "agent-2"],
+  "queue": ["agent-3"],
+  "queuePolicy": "bounded-parallel",
+  "maxConcurrentRuns": 2
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `state` | string | `"idle"` or `"active"` |
+| `runningAgentIds` | string[] | Agent IDs currently executing |
+| `queue` | string[] | Agent IDs waiting to execute (FIFO order) |
+| `queuePolicy` | string | `serialized` or `bounded-parallel` |
+| `maxConcurrentRuns` | integer | Concurrency cap for the team execution context |
+
+---
+
+### Get Member Context
+
+Get the full context prompt for a team member (excludes HEARTBEAT.md task instructions). Used by leader-led single-process teams for teammate bootstrapping and by operators who want to inspect the resolved prompt context.
+
+```
+GET /teams/{teamId}/members/{agentId}/context
+```
+
+**Response:**
+```json
+{
+  "teamId": "my-team",
+  "agentId": "agent-1",
+  "prompt": "# Agent Files (Markdown)\n\n## SOUL.md\n\n..."
+}
+```
+
+**Errors:**
+- `404 Not Found` - Team or member not found
+- `503 Service Unavailable` - Executor not configured
+
+---
+
+## Execution Logs
+
+## Run Operations
+
+### List Runs
+
+List runs proxied from agent-manager, with optional filtering.
+
+```
+GET /runs
+```
+
+Supported query parameters:
+
+- `status`
+- `tag_prefix`
+- `task_id`
+- `limit`
+- `offset`
+- `investigates_run_id` - list investigation runs linked to a specific source run
+- `applies_investigation_run_id` - list apply runs linked to a specific investigation run
+
+### Create Investigation Run
+
+Create a new investigation run for one or more source runs.
+
+```
+POST /runs/investigate
+```
+
+Request body:
+
+```json
+{
+  "run_ids": ["<source-run-id>"],
+  "depth": "standard",
+  "custom_context": "Optional extra context"
+}
+```
+
+### Create Investigation Apply Run
+
+Create a run that applies recommendations from an investigation run.
+
+```
+POST /runs/investigation-apply
+```
+
+Request body:
+
+```json
+{
+  "investigation_run_id": "<investigation-run-id>",
+  "custom_context": "Optional extra context"
+}
+```
+
+### List Logs
+
+List execution logs for a member.
+
+```
+GET /teams/{teamId}/heartbeats/{agentId}/logs
+```
+
+**Response:**
+```json
+{
+  "teamId": "my-team",
+  "agentId": "agent-1",
+  "logs": [
+    {
+      "filename": "2026-02-01T10-00-00Z.log",
+      "timestamp": "2026-02-01T10-00-00Z"
+    },
+    {
+      "filename": "2026-02-01T04-00-00Z.log",
+      "timestamp": "2026-02-01T04-00-00Z"
+    }
+  ]
+}
+```
+
+---
+
+### Get Log Content
+
+Get the content of a specific log file.
+
+```
+GET /teams/{teamId}/heartbeats/{agentId}/logs/{logId}
+```
+
+**Response:**
+```json
+{
+  "teamId": "my-team",
+  "agentId": "agent-1",
+  "filename": "2026-02-01T10-00-00Z.log",
+  "content": "Heartbeat execution for my-team/agent-1\nStarted: 2026-02-01T10:00:00Z\n..."
+}
+```
+
+---
+
+## Member Documents
+
+### Get Responsibilities
+
+Get RESPONSIBILITIES.md content for a team member.
+
+```
+GET /teams/{teamId}/members/{agentId}/responsibilities
+```
+
+**Response:**
+```json
+{
+  "teamId": "my-team",
+  "agentId": "agent-1",
+  "content": "# Responsibilities\n\nThis agent is responsible for..."
+}
+```
+
+---
+
+### Set Responsibilities
+
+Set RESPONSIBILITIES.md content for a team member.
+
+```
+PUT /teams/{teamId}/members/{agentId}/responsibilities
+```
+
+**Request Body:**
+```json
+{
+  "content": "# Responsibilities\n\nUpdated content..."
+}
+```
+
+**Response:** Updated document response
+
+---
+
+### Get Heartbeat Instructions
+
+Get HEARTBEAT.md content for a team member.
+
+```
+GET /teams/{teamId}/members/{agentId}/heartbeat-instructions
+```
+
+**Response:**
+```json
+{
+  "teamId": "my-team",
+  "agentId": "agent-1",
+  "content": "# Heartbeat Task\n\nOn each heartbeat, review..."
+}
+```
+
+---
+
+### Set Heartbeat Instructions
+
+Set HEARTBEAT.md content for a team member.
+
+```
+PUT /teams/{teamId}/members/{agentId}/heartbeat-instructions
+```
+
+**Request Body:**
+```json
+{
+  "content": "# Heartbeat Task\n\nUpdated instructions..."
+}
+```
+
+**Response:** Updated document response
+
+---
+
+## Agent Soul API
+
+### Get Soul
+
+Get SOUL.md content for an agent.
+
+```
+GET /agents/{agentId}/soul
+```
+
+**Response:**
+```json
+{
+  "agentId": "agent-1",
+  "content": "# Agent Personality\n\nI am a helpful assistant..."
+}
+```
+
+---
+
+### Set Soul
+
+Set SOUL.md content for an agent.
+
+```
+PUT /agents/{agentId}/soul
+```
+
+**Request Body:**
+```json
+{
+  "content": "# Agent Personality\n\nUpdated personality..."
+}
+```
+
+**Response:** Updated soul response
+
+---
+
+## Handoff
+
+### Get Latest Handoff
+`GET /teams/{teamId}/members/{agentId}/handoff`
+
+Returns the most recent handoff for a team member.
+
+**Response**: `200 OK`
+```json
+{
+  "teamId": "string",
+  "agentId": "string",
+  "content": "string (markdown)"
+}
+```
+
+**Errors**: `404 Not Found` if no handoff exists.
+
+### Get Handoff History
+`GET /teams/{teamId}/handoff-history`
+
+Returns handoff history entries for the team.
+
+**Query Parameters**:
+- `agent` (optional) — filter by agent ID
+- `last` (optional, default: 20) — number of entries to return
+
+**Response**: `200 OK`
+```json
+{
+  "teamId": "string",
+  "entries": [
+    {
+      "agentId": "string",
+      "runId": "string",
+      "timestamp": "string (RFC3339)",
+      "content": "string"
+    }
+  ]
+}
+```
+
+## Task Board
+
+### Get Task Board
+`GET /teams/{teamId}/tasks`
+
+Returns all tasks on the team's task board.
+
+**Response**: `200 OK`
+```json
+{
+  "teamId": "string",
+  "tasks": [
+    {
+      "id": "string",
+      "title": "string",
+      "status": "todo|in-progress|blocked|done",
+      "assignee": "string",
+      "priority": "P1-P5",
+      "createdBy": "string",
+      "createdAt": "string (RFC3339)",
+      "updatedAt": "string (RFC3339)",
+      "notes": [{"at": "string", "by": "string", "text": "string"}]
+    }
+  ]
+}
+```
+
+### Add Task
+`POST /teams/{teamId}/tasks`
+
+Creates a new task on the board.
+
+**Request Body**:
+```json
+{
+  "title": "string (required)",
+  "assignee": "string (optional)",
+  "priority": "string (optional, default: P3)",
+  "from": "string (creator agent ID)"
+}
+```
+
+**Response**: `201 Created` — returns the created task.
+
+### Update Task
+`PATCH /teams/{teamId}/tasks/{taskId}`
+
+Updates a task (partial update).
+
+**Request Body**:
+```json
+{
+  "status": "string (optional)",
+  "assignee": "string (optional)",
+  "priority": "string (optional)",
+  "note": "string (optional — appends a note)"
+}
+```
+
+**Response**: `200 OK` — returns the updated task.
+
+### Delete Task
+`DELETE /teams/{teamId}/tasks/{taskId}`
+
+Deletes a task from the board.
+
+**Response**: `204 No Content`
+
+## Decision Log
+
+### Decision Statuses
+
+Decisions follow a lifecycle with these statuses:
+- `pending` — awaiting review (set automatically on creation)
+- `accepted` — approved by a human reviewer
+- `rejected` — declined by a human reviewer
+- `running` — agent is actively working on an accepted decision
+- `completed` — agent has finished the work
+
+### Decision Approval Modes
+
+Teams can be configured with a `decisionMode` field in `team.json`:
+
+- `yolo` (default) — agents can set any status, no restrictions
+- `approval` — agents are restricted:
+  - Can set: `pending`, `running` (only if current is `accepted`), `completed` (only if current is `running`)
+  - Cannot set: `accepted`, `rejected` — these require human action
+  - Blocked transitions return `403` with an instructive JSON error body
+
+Caller identification uses the `X-Caller-ID` request header. Agents should send their agent ID; the UI sends nothing or `"ui-user"`. The handler checks if the caller ID matches a team member agent ID to determine if it's an agent call.
+
+### Add Decision
+`POST /teams/{teamId}/decisions`
+
+Records a decision in the team's decision log. Status is always set to `pending` regardless of request body.
+
+**Request Body**:
+```json
+{
+  "by": "string (agent ID, required)",
+  "decision": "string (required)",
+  "rationale": "string (required)",
+  "context": "string (optional — tag for grouping)",
+  "supersedes": "string (optional — ID of decision this replaces)"
+}
+```
+
+**Response**: `201 Created` — returns the created decision entry with `status: "pending"`.
+
+### Get Decisions
+`GET /teams/{teamId}/decisions`
+
+Returns decision log entries.
+
+**Query Parameters**:
+- `context` (optional) — filter by context tag
+- `status` (optional) — filter by status (e.g., `pending`, `accepted`, `running`)
+- `last` (optional, default: 20) — number of entries to return
+
+**Response**: `200 OK`
+```json
+{
+  "teamId": "string",
+  "entries": [
+    {
+      "id": "string",
+      "at": "string (RFC3339)",
+      "by": "string",
+      "decision": "string",
+      "rationale": "string",
+      "context": "string",
+      "supersedes": "string",
+      "status": "string"
+    }
+  ]
+}
+```
+
+### Get All Pending Decisions
+`GET /v1/decisions/pending`
+
+Returns all pending decisions across all teams in a single request. Used by the UI sidebar to show a global pending count.
+
+**Response**: `200 OK`
+```json
+{
+  "teams": [
+    {
+      "teamId": "string",
+      "teamName": "string",
+      "entries": [ /* DecisionEntry[] */ ]
+    }
+  ],
+  "totalCount": 3
+}
+```
+
+### Update Decision
+`PATCH /teams/{teamId}/decisions/{decisionId}`
+
+Updates a decision entry. In `approval` mode, agent callers (identified via `X-Caller-ID` header) are restricted from setting `accepted` or `rejected`, and must follow the status transition rules.
+
+**Request Headers**:
+- `X-Caller-ID` (optional) — agent ID for approval enforcement
+
+**Request Body**: Partial update — only include fields to change.
+```json
+{
+  "decision": "string",
+  "rationale": "string",
+  "context": "string",
+  "status": "string",
+  "supersedes": "string"
+}
+```
+
+**Response**: `200 OK` — returns the updated decision entry.
+**Error**: `403 Forbidden` — when approval mode blocks the transition:
+```json
+{
+  "error": "decision_approval_required",
+  "message": "This team requires human approval. Do not proceed with this decision until a human sets the status to 'accepted'.",
+  "currentStatus": "pending"
+}
+```
+
+---
+
+## Implementation Reference
+
+- [CODE: api/heartbeat/handlers.go] - HTTP handlers
+- [CODE: api/heartbeat/handlers_pending.go] - Aggregate pending decisions handler
+- [CODE: api/heartbeat/scheduler.go] - Cron scheduler
+- [CODE: api/heartbeat/executor.go] - Execution logic
+- [CODE: api/heartbeat/client.go] - Agent-manager client

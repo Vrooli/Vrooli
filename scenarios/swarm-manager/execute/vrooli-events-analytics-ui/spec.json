@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-events/ui/**",
+    "scenarios/vrooli-events/api/**"
+  ],
+  "created": "2026-04-04T22:36:30Z",
+  "depends_on": [
+    "execute/vrooli-events-core-runtime"
+  ],
+  "description": "Web dashboard for vrooli-events showing: real-time event stream viewer, per-scenario call volume and error rate charts, policy violation logs and audit trail, subscription management UI (create/edit/delete event subscriptions with glob patterns), retention and storage settings management, circuit breaker status overview. Standard Vrooli UI pattern (api-base).",
+  "effort": "L",
+  "initiative": "vrooli-events",
+  "kind": "execute",
+  "name": "vrooli-events-analytics-ui",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [],
+  "title": "Build The vrooli-events Analytics And Compliance Dashboard",
+  "updated": "2026-04-04T22:36:30Z"
+}

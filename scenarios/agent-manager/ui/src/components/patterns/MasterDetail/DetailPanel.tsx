@@ -18,6 +18,8 @@ interface DetailPanelProps {
   collapsed?: boolean;
   /** Toggle collapse callback */
   onToggleCollapse?: () => void;
+  /** Hide the built-in header (for custom headers in children) */
+  hideHeader?: boolean;
   /** Additional CSS classes */
   className?: string;
 }
@@ -30,6 +32,7 @@ export function DetailPanel({
   hasSelection = true,
   collapsed = false,
   onToggleCollapse,
+  hideHeader = false,
   className,
 }: DetailPanelProps) {
   return (
@@ -40,30 +43,32 @@ export function DetailPanel({
       )}
     >
       {/* Header */}
-      <div className="shrink-0 px-4 py-3 border-b border-border">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {onToggleCollapse && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={onToggleCollapse}
-                aria-label={collapsed ? "Expand panel" : "Collapse panel"}
-              >
-                <ChevronRight
-                  className={cn(
-                    "h-4 w-4 transition-transform",
-                    collapsed && "rotate-180"
-                  )}
-                />
-              </Button>
-            )}
-            <span className="font-semibold text-sm">{title}</span>
+      {!hideHeader && (
+        <div className="shrink-0 px-4 py-3 border-b border-border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {onToggleCollapse && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={onToggleCollapse}
+                  aria-label={collapsed ? "Expand panel" : "Collapse panel"}
+                >
+                  <ChevronRight
+                    className={cn(
+                      "h-4 w-4 transition-transform",
+                      collapsed && "rotate-180"
+                    )}
+                  />
+                </Button>
+              )}
+              <span className="font-semibold text-sm">{title}</span>
+            </div>
+            {!collapsed && hasSelection && headerActions}
           </div>
-          {!collapsed && hasSelection && headerActions}
         </div>
-      </div>
+      )}
 
       {/* Content */}
       {!collapsed && (
@@ -75,7 +80,11 @@ export function DetailPanel({
               </div>
             )
           ) : (
-            <div className="p-4">{children}</div>
+            hideHeader ? (
+              <div className="h-full">{children}</div>
+            ) : (
+              <div className="p-4">{children}</div>
+            )
           )}
         </div>
       )}

@@ -4,7 +4,6 @@
  * Tests the diagnostic system that helps identify recording issues.
  */
 
-import { describe, beforeEach, it, expect, jest } from '@jest/globals';
 import {
   runRecordingDiagnostics,
   isRecordingReady,
@@ -13,7 +12,11 @@ import {
   DiagnosticSeverity,
   DIAGNOSTIC_CODES,
 } from '../../../src/recording';
-import type { InjectionStats, InjectionVerification } from '../../../src/recording';
+import type {
+  InjectionStrategyStats,
+  InjectionVerification,
+  RecordingContextInitializer,
+} from '../../../src/recording';
 import type { Page, BrowserContext } from 'rebrowser-playwright';
 
 // Mock the verification module
@@ -45,12 +48,14 @@ function createMockPage(): jest.Mocked<Page> {
   return {
     evaluate: jest.fn().mockResolvedValue(undefined),
     on: jest.fn(),
+    off: jest.fn(),
     context: jest.fn().mockReturnValue({
       newCDPSession: jest.fn().mockResolvedValue({
         send: jest.fn().mockResolvedValue({ result: { type: 'string', value: '{}' } }),
         detach: jest.fn().mockResolvedValue(undefined),
       }),
     }),
+    url: jest.fn().mockReturnValue('https://example.com'),
   } as unknown as jest.Mocked<Page>;
 }
 
@@ -60,17 +65,24 @@ function createMockContext(): jest.Mocked<BrowserContext> {
 }
 
 // Helper to create mock context initializer
-function createMockContextInitializer(stats: Partial<InjectionStats> = {}) {
+type MockContextInitializer = {
+  getInjectionStats: jest.Mock<InjectionStrategyStats, []>;
+  isInitialized: jest.Mock<boolean, []>;
+};
+
+function createMockContextInitializer(
+  stats: Partial<InjectionStrategyStats> = {}
+): MockContextInitializer {
   return {
-    getInjectionStats: jest.fn().mockReturnValue({
+    getInjectionStats: jest.fn<InjectionStrategyStats, []>().mockReturnValue({
       attempted: 1,
       successful: 1,
       failed: 0,
-      skipped: 0,
-      methods: { head: 1 },
+      avgInjectionTimeMs: 0,
+      lastInjectionAt: new Date().toISOString(),
       ...stats,
     }),
-    isInitialized: jest.fn().mockReturnValue(true),
+    isInitialized: jest.fn<boolean, []>().mockReturnValue(true),
   };
 }
 
@@ -229,7 +241,7 @@ describe('Recording Diagnostics', () => {
       mockVerifyScriptInjection.mockResolvedValue(createGoodVerification());
 
       const result = await runRecordingDiagnostics(page, context, {
-        contextInitializer: initializer as any,
+        contextInitializer: initializer as unknown as RecordingContextInitializer,
       });
 
       expect(result.injectionStats).toBeDefined();
@@ -248,7 +260,7 @@ describe('Recording Diagnostics', () => {
       mockVerifyScriptInjection.mockResolvedValue(createGoodVerification());
 
       const result = await runRecordingDiagnostics(page, context, {
-        contextInitializer: initializer as any,
+        contextInitializer: initializer as unknown as RecordingContextInitializer,
       });
 
       expect(
@@ -268,7 +280,7 @@ describe('Recording Diagnostics', () => {
       mockVerifyScriptInjection.mockResolvedValue(createGoodVerification());
 
       const result = await runRecordingDiagnostics(page, context, {
-        contextInitializer: initializer as any,
+        contextInitializer: initializer as unknown as RecordingContextInitializer,
       });
 
       expect(result.issues.some((i) => i.code === DIAGNOSTIC_CODES.INJECTION_ALL_FAILED)).toBe(
@@ -277,6 +289,85 @@ describe('Recording Diagnostics', () => {
       expect(
         result.issues.find((i) => i.code === DIAGNOSTIC_CODES.INJECTION_ALL_FAILED)?.severity
       ).toBe(DiagnosticSeverity.ERROR);
+    });
+
+    it('should flag invalid page types in FULL diagnostics', async () => {
+      const page = {
+        ...createMockPage(),
+        url: jest.fn().mockReturnValue('about:blank'),
+      } as unknown as jest.Mocked<Page>;
+      const context = createMockContext();
+
+      mockVerifyScriptInjection.mockResolvedValue(createGoodVerification());
+
+      const result = await runRecordingDiagnostics(page, context, {
+        level: RecordingDiagnosticLevel.FULL,
+      });
+
+      expect(result.ready).toBe(false);
+      expect(result.issues.some((i) => i.code === DIAGNOSTIC_CODES.EVENT_SEND_FAILED)).toBe(true);
+      expect(result.eventFlowTest?.pageValid).toBe(false);
+    });
+
+    it('should surface script-not-ready issues from event flow test', async () => {
+      const sessionSequence = [
+        {
+          send: jest.fn().mockResolvedValue({
+            result: {
+              type: 'string',
+              value: JSON.stringify({
+                loaded: true,
+                ready: false,
+                inMainContext: true,
+                handlersCount: 2,
+                version: '1.0.0',
+              }),
+            },
+          }),
+          detach: jest.fn().mockResolvedValue(undefined),
+        },
+        {
+          send: jest.fn().mockResolvedValue({
+            result: { type: 'string', value: JSON.stringify({ sent: false, status: null, error: 'blocked' }) },
+          }),
+          detach: jest.fn().mockResolvedValue(undefined),
+        },
+        {
+          send: jest.fn().mockRejectedValue(new Error('console failed')),
+          detach: jest.fn().mockResolvedValue(undefined),
+        },
+        {
+          send: jest.fn().mockResolvedValue({ result: { type: 'string', value: 'null' } }),
+          detach: jest.fn().mockResolvedValue(undefined),
+        },
+      ];
+
+      const page = {
+        url: jest.fn().mockReturnValue('https://example.com'),
+        on: jest.fn(),
+        off: jest.fn(),
+        context: jest.fn().mockReturnValue({
+          newCDPSession: jest
+            .fn()
+            .mockResolvedValueOnce(sessionSequence[0])
+            .mockResolvedValueOnce(sessionSequence[1])
+            .mockResolvedValueOnce(sessionSequence[2])
+            .mockResolvedValueOnce(sessionSequence[3]),
+        }),
+      } as unknown as jest.Mocked<Page>;
+
+      const context = createMockContext();
+
+      mockVerifyScriptInjection.mockResolvedValue(createGoodVerification());
+
+      const result = await runRecordingDiagnostics(page, context, {
+        level: RecordingDiagnosticLevel.FULL,
+        timeoutMs: 10,
+      });
+
+      expect(result.ready).toBe(false);
+      expect(result.issues.some((i) => i.code === DIAGNOSTIC_CODES.SCRIPT_NOT_READY)).toBe(true);
+      expect(result.eventFlowTest?.passed).toBe(false);
     });
   });
 
@@ -343,6 +434,7 @@ describe('Recording Diagnostics', () => {
         timestamp: '2024-01-01T00:00:00.000Z',
         durationMs: 50,
         level: RecordingDiagnosticLevel.STANDARD,
+        checks: [],
         issues: [],
         provider: {
           name: 'rebrowser-playwright',
@@ -372,6 +464,7 @@ describe('Recording Diagnostics', () => {
         timestamp: '2024-01-01T00:00:00.000Z',
         durationMs: 50,
         level: RecordingDiagnosticLevel.STANDARD,
+        checks: [],
         issues: [
           {
             code: DIAGNOSTIC_CODES.SCRIPT_NOT_LOADED,

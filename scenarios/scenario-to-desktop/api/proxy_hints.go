@@ -11,6 +11,10 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+
+	"scenario-to-desktop-api/generation"
+	httputil "scenario-to-desktop-api/shared/http"
+	sharedpath "scenario-to-desktop-api/shared/path"
 )
 
 type ProxyHint struct {
@@ -29,8 +33,7 @@ func (s *Server) proxyHintsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hints := s.collectProxyHints(scenario)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{
 		"scenario": scenario,
 		"hints":    hints,
 	})
@@ -83,7 +86,7 @@ func (s *Server) loadSavedProxyHint(scenario string) *ProxyHint {
 	if scenarioRoot == "" {
 		return nil
 	}
-	cfg, err := loadDesktopConnectionConfig(scenarioRoot)
+	cfg, err := loadConnectionConfigFromScenario(scenarioRoot)
 	if err != nil || cfg == nil {
 		return nil
 	}
@@ -98,8 +101,22 @@ func (s *Server) loadSavedProxyHint(scenario string) *ProxyHint {
 	}
 }
 
+// loadConnectionConfigFromScenario loads the desktop connection config from a scenario directory.
+func loadConnectionConfigFromScenario(scenarioPath string) (*generation.ConnectionConfig, error) {
+	configPath := filepath.Join(scenarioPath, ".vrooli", "desktop-config.json")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+	var cfg generation.ConnectionConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
 func (s *Server) loadTelemetryProxyHint(scenario string) *ProxyHint {
-	telemetryPath := filepath.Join(s.getVrooliRoot(), ".vrooli", "deployment", "telemetry", fmt.Sprintf("%s.jsonl", scenario))
+	telemetryPath := s.telemetryFilePath(scenario)
 	file, err := os.Open(telemetryPath)
 	if err != nil {
 		return nil
@@ -139,19 +156,20 @@ func (s *Server) loadTelemetryProxyHint(scenario string) *ProxyHint {
 }
 
 func (s *Server) buildLocalProxyHint(scenario string) *ProxyHint {
-	analyzer := NewScenarioAnalyzer(s.getVrooliRoot())
+	analyzer := generation.NewAnalyzer(s.getVrooliRoot())
 	metadata, err := analyzer.AnalyzeScenario(scenario)
 	if err != nil {
 		return nil
 	}
-	port := metadata.UIPort
-	if port == 0 {
-		port = 3000
+	// Extract UI port from the Ports map
+	port := 3000
+	if portCfg, ok := metadata.Ports["ui"]; ok && portCfg.Port > 0 {
+		port = portCfg.Port
 	}
-	url := fmt.Sprintf("http://localhost:%d/", port)
-	normalized, err := normalizeProxyURL(url)
+	proxyURL := fmt.Sprintf("http://localhost:%d/", port)
+	normalized, err := normalizeProxyURL(proxyURL)
 	if err != nil {
-		normalized = url
+		normalized = proxyURL
 	}
 	return &ProxyHint{
 		URL:        normalized,
@@ -218,12 +236,8 @@ func buildProxyURLFromHost(host, scenario string) string {
 }
 
 func (s *Server) getVrooliRoot() string {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		currentDir, _ := os.Getwd()
-		vrooliRoot = filepath.Join(currentDir, "../../..")
-	}
-	return vrooliRoot
+	// Use the centralized path detection from shared/path
+	return sharedpath.DetectVrooliRoot()
 }
 
 func (s *Server) resolveScenarioRoot(scenario string) string {
@@ -236,4 +250,10 @@ func (s *Server) resolveScenarioRoot(scenario string) string {
 		return ""
 	}
 	return path
+}
+
+// telemetryFilePath returns the path to the telemetry file for a scenario.
+func (s *Server) telemetryFilePath(scenario string) string {
+	vrooliRoot := s.getVrooliRoot()
+	return filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry", fmt.Sprintf("%s.jsonl", scenario))
 }

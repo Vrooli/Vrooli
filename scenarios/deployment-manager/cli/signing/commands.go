@@ -1,4 +1,3 @@
-// Package signing provides CLI commands for managing code signing configurations.
 package signing
 
 import (
@@ -12,57 +11,6 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 )
-
-// SigningConfig matches the API response structure.
-type SigningConfig struct {
-	Enabled bool                  `json:"enabled"`
-	Windows *WindowsSigningConfig `json:"windows,omitempty"`
-	MacOS   *MacOSSigningConfig   `json:"macos,omitempty"`
-	Linux   *LinuxSigningConfig   `json:"linux,omitempty"`
-}
-
-// WindowsSigningConfig contains Windows Authenticode settings.
-type WindowsSigningConfig struct {
-	CertificateSource      string `json:"certificate_source"`
-	CertificateFile        string `json:"certificate_file,omitempty"`
-	CertificatePasswordEnv string `json:"certificate_password_env,omitempty"`
-	CertificateThumbprint  string `json:"certificate_thumbprint,omitempty"`
-	TimestampServer        string `json:"timestamp_server,omitempty"`
-	SignAlgorithm          string `json:"sign_algorithm,omitempty"`
-	DualSign               bool   `json:"dual_sign,omitempty"`
-}
-
-// MacOSSigningConfig contains Apple code signing settings.
-type MacOSSigningConfig struct {
-	Identity            string `json:"identity"`
-	TeamID              string `json:"team_id"`
-	HardenedRuntime     bool   `json:"hardened_runtime"`
-	Notarize            bool   `json:"notarize"`
-	EntitlementsFile    string `json:"entitlements_file,omitempty"`
-	ProvisioningProfile string `json:"provisioning_profile,omitempty"`
-	AppleIDEnv          string `json:"apple_id_env,omitempty"`
-	AppleIDPasswordEnv  string `json:"apple_id_password_env,omitempty"`
-	AppleAPIKeyID       string `json:"apple_api_key_id,omitempty"`
-	AppleAPIKeyFile     string `json:"apple_api_key_file,omitempty"`
-	AppleAPIIssuerID    string `json:"apple_api_issuer_id,omitempty"`
-}
-
-// LinuxSigningConfig contains Linux GPG signing settings.
-type LinuxSigningConfig struct {
-	GPGKeyID         string `json:"gpg_key_id,omitempty"`
-	GPGPassphraseEnv string `json:"gpg_passphrase_env,omitempty"`
-	GPGHomedir       string `json:"gpg_homedir,omitempty"`
-}
-
-// Commands provides signing CLI commands.
-type Commands struct {
-	api *cliutil.APIClient
-}
-
-// New creates a new signing Commands instance.
-func New(api *cliutil.APIClient) *Commands {
-	return &Commands{api: api}
-}
 
 // Run dispatches to the appropriate signing subcommand.
 func (c *Commands) Run(args []string) error {
@@ -149,10 +97,10 @@ func (c *Commands) Show(args []string) error {
 	fs := flag.NewFlagSet("signing show", flag.ContinueOnError)
 	platform := fs.String("platform", "", "show only specific platform (windows|macos|linux)")
 	format := fs.String("format", "", "output format (json|table)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 
 	if len(remaining) < 1 {
 		return errors.New("usage: signing show <profile> [--platform <platform>]")
@@ -206,48 +154,6 @@ func (c *Commands) Show(args []string) error {
 }
 
 // printSigningTable prints signing config in table format.
-func (c *Commands) printSigningTable(config *SigningConfig) {
-	fmt.Printf("Signing Enabled: %v\n\n", config.Enabled)
-
-	if config.Windows != nil {
-		fmt.Println("Windows Configuration:")
-		rows := [][]string{
-			{"Certificate Source", config.Windows.CertificateSource},
-			{"Certificate File", config.Windows.CertificateFile},
-			{"Password Env", config.Windows.CertificatePasswordEnv},
-			{"Timestamp Server", config.Windows.TimestampServer},
-			{"Algorithm", config.Windows.SignAlgorithm},
-		}
-		cmdutil.PrintTable([]string{"Setting", "Value"}, rows)
-		fmt.Println()
-	}
-
-	if config.MacOS != nil {
-		fmt.Println("macOS Configuration:")
-		rows := [][]string{
-			{"Identity", config.MacOS.Identity},
-			{"Team ID", config.MacOS.TeamID},
-			{"Hardened Runtime", fmt.Sprintf("%v", config.MacOS.HardenedRuntime)},
-			{"Notarize", fmt.Sprintf("%v", config.MacOS.Notarize)},
-		}
-		cmdutil.PrintTable([]string{"Setting", "Value"}, rows)
-		fmt.Println()
-	}
-
-	if config.Linux != nil {
-		fmt.Println("Linux Configuration:")
-		rows := [][]string{
-			{"GPG Key ID", config.Linux.GPGKeyID},
-			{"Passphrase Env", config.Linux.GPGPassphraseEnv},
-		}
-		cmdutil.PrintTable([]string{"Setting", "Value"}, rows)
-	}
-
-	if config.Windows == nil && config.MacOS == nil && config.Linux == nil {
-		fmt.Println("No platform signing configurations")
-	}
-}
-
 // Set configures signing for a profile.
 func (c *Commands) Set(args []string) error {
 	fs := flag.NewFlagSet("signing set", flag.ContinueOnError)
@@ -280,10 +186,10 @@ func (c *Commands) Set(args []string) error {
 	gpgPassphraseEnv := fs.String("gpg-passphrase-env", "", "env var containing GPG passphrase")
 	gpgHomedir := fs.String("gpg-homedir", "", "GPG home directory override")
 
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 
 	if len(remaining) < 1 {
 		return errors.New("usage: signing set <profile> --platform <platform> [options]")
@@ -316,16 +222,16 @@ func (c *Commands) Set(args []string) error {
 			return errors.New("macOS signing requires --identity and --team-id")
 		}
 		payload = MacOSSigningConfig{
-			Identity:            *identity,
-			TeamID:              *teamID,
-			HardenedRuntime:     *hardenedRuntime,
-			Notarize:            *notarize,
-			EntitlementsFile:    *entitlements,
-			AppleIDEnv:          *appleIDEnv,
-			AppleIDPasswordEnv:  *applePasswordEnv,
-			AppleAPIKeyID:       *apiKeyID,
-			AppleAPIKeyFile:     *apiKeyFile,
-			AppleAPIIssuerID:    *apiIssuer,
+			Identity:           *identity,
+			TeamID:             *teamID,
+			HardenedRuntime:    *hardenedRuntime,
+			Notarize:           *notarize,
+			EntitlementsFile:   *entitlements,
+			AppleIDEnv:         *appleIDEnv,
+			AppleIDPasswordEnv: *applePasswordEnv,
+			AppleAPIKeyID:      *apiKeyID,
+			AppleAPIKeyFile:    *apiKeyFile,
+			AppleAPIIssuerID:   *apiIssuer,
 		}
 	case "linux":
 		payload = LinuxSigningConfig{
@@ -350,10 +256,10 @@ func (c *Commands) Set(args []string) error {
 func (c *Commands) Remove(args []string) error {
 	fs := flag.NewFlagSet("signing remove", flag.ContinueOnError)
 	platform := fs.String("platform", "", "remove only specific platform (windows|macos|linux)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 
 	if len(remaining) < 1 {
 		return errors.New("usage: signing remove <profile> [--platform <platform>]")
@@ -380,10 +286,10 @@ func (c *Commands) Remove(args []string) error {
 func (c *Commands) Validate(args []string) error {
 	fs := flag.NewFlagSet("signing validate", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json|table)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 
 	if len(remaining) < 1 {
 		return errors.New("usage: signing validate <profile>")
@@ -396,10 +302,10 @@ func (c *Commands) Validate(args []string) error {
 	}
 
 	var result struct {
-		Valid    bool                            `json:"valid"`
-		Message  string                          `json:"message,omitempty"`
-		Errors   []map[string]string             `json:"errors,omitempty"`
-		Warnings []map[string]string             `json:"warnings,omitempty"`
+		Valid     bool                              `json:"valid"`
+		Message   string                            `json:"message,omitempty"`
+		Errors    []map[string]string               `json:"errors,omitempty"`
+		Warnings  []map[string]string               `json:"warnings,omitempty"`
 		Platforms map[string]map[string]interface{} `json:"platforms,omitempty"`
 	}
 
@@ -448,8 +354,7 @@ func (c *Commands) Validate(args []string) error {
 func (c *Commands) Prerequisites(args []string) error {
 	fs := flag.NewFlagSet("signing prerequisites", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json|table)")
-	_, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -482,7 +387,8 @@ func (c *Commands) Prerequisites(args []string) error {
 	}
 
 	// Table format
-	fmt.Println("Signing Tool Prerequisites:\n")
+	fmt.Println("Signing Tool Prerequisites:")
+	fmt.Println()
 
 	rows := [][]string{}
 	for _, t := range result.Tools {
@@ -529,8 +435,7 @@ func (c *Commands) Discover(args []string) error {
 	fs := flag.NewFlagSet("signing discover", flag.ContinueOnError)
 	platform := fs.String("platform", "", "platform to discover (windows|macos|linux) [required]")
 	format := fs.String("format", "", "output format (json|table)")
-	_, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
@@ -566,7 +471,7 @@ func (c *Commands) Discover(args []string) error {
 	}
 
 	// Table format
-	platformName := strings.Title(platformLower)
+	platformName := strings.ToUpper(platformLower[:1]) + platformLower[1:]
 	if platformLower == "macos" {
 		platformName = "macOS"
 	}

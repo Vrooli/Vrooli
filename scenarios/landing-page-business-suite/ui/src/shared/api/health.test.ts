@@ -1,23 +1,25 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { fetchHealth } from "./health";
+import { createFetchMock, mockResponses, installFetchMock, getFetchCall } from "../test-utils/api-mocks";
 
 describe("API utilities", () => {
+  let fetchMock: ReturnType<typeof createFetchMock>;
+
   beforeEach(() => {
     // Clear all mocks before each test
     vi.clearAllMocks();
+    fetchMock = createFetchMock();
+    installFetchMock(fetchMock);
   });
 
   describe("fetchHealth", () => {
     it("should successfully fetch health status", async () => {
       // Mock successful response
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          status: "healthy",
-          service: "landing-manager",
-          timestamp: "2025-11-21T00:00:00Z",
-        }),
-      });
+      fetchMock.mockResolvedValue(mockResponses.success({
+        status: "healthy",
+        service: "landing-manager",
+        timestamp: "2025-11-21T00:00:00Z",
+      }));
 
       const result = await fetchHealth();
 
@@ -26,32 +28,30 @@ describe("API utilities", () => {
         service: "landing-manager",
         timestamp: "2025-11-21T00:00:00Z",
       });
-      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     });
 
     it("should throw error when API returns non-ok status", async () => {
       // Mock failed response
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 500,
-        text: async () => "Internal Server Error",
-      });
+      fetchMock.mockResolvedValue(mockResponses.error(500, "Internal Server Error"));
 
-      await expect(fetchHealth()).rejects.toThrow("API call failed (500): Internal Server Error");
-      expect(global.fetch).toHaveBeenCalledTimes(1);
+      await expect(fetchHealth()).rejects.toThrow('API call failed (500): {"error":"Internal Server Error"}');
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     });
 
     it("should include correct headers", async () => {
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ status: "healthy", service: "landing-manager", timestamp: "" }),
-      });
+      fetchMock.mockResolvedValue(mockResponses.success({
+        status: "healthy",
+        service: "landing-manager",
+        timestamp: "",
+      }));
 
       await fetchHealth();
 
-      const callArgs = (global.fetch as any).mock.calls[0];
-      expect(callArgs[1].headers["Content-Type"]).toBe("application/json");
-      expect(callArgs[1].credentials).toBe("include");
+      const [, options] = getFetchCall(fetchMock);
+      const headers = new Headers(options.headers);
+      expect(headers.get("Content-Type")).toBe("application/json");
+      expect(options.credentials).toBe("include");
     });
   });
 });

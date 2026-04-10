@@ -31,12 +31,14 @@ func TestGetCheckDefaults(t *testing.T) {
 		checkID          string
 		expectedEnabled  bool
 		expectedAutoHeal bool
+		expectedPolicy   string
 	}{
-		{"infra-network", true, false},
-		{"infra-dns", true, true},
-		{"resource-postgres", true, true},
-		{"infra-display", true, true},
-		{"unknown-check", true, false}, // Generic defaults
+		{"infra-network", true, false, "critical"},
+		{"infra-dns", true, true, "critical"},
+		{"resource-postgres", true, true, "critical"},
+		{"infra-display", true, true, "critical"},
+		{"os-watchdog", true, true, "critical"},
+		{"unknown-check", true, false, "critical"}, // Generic defaults
 	}
 
 	for _, tc := range tests {
@@ -47,6 +49,9 @@ func TestGetCheckDefaults(t *testing.T) {
 			}
 			if defaults.AutoHeal != tc.expectedAutoHeal {
 				t.Errorf("check %s: expected autoHeal=%v, got %v", tc.checkID, tc.expectedAutoHeal, defaults.AutoHeal)
+			}
+			if defaults.AutoHealOn != tc.expectedPolicy {
+				t.Errorf("check %s: expected autoHealOn=%q, got %q", tc.checkID, tc.expectedPolicy, defaults.AutoHealOn)
 			}
 		})
 	}
@@ -59,7 +64,9 @@ func TestManagerLoadSave(t *testing.T) {
 	schemaPath := filepath.Join(tmpDir, "schema.json")
 
 	// Create a minimal schema file
-	os.WriteFile(schemaPath, []byte(`{"type":"object"}`), 0644)
+	if err := os.WriteFile(schemaPath, []byte(`{"type":"object"}`), 0o644); err != nil {
+		t.Fatalf("failed to write schema file: %v", err)
+	}
 
 	mgr := NewManager(configPath, schemaPath)
 
@@ -122,6 +129,20 @@ func TestManagerValidation(t *testing.T) {
 			valid: true,
 		},
 		{
+			name: "invalid autoHealOn",
+			config: Config{
+				Version: "1.0",
+				Global:  DefaultGlobal(),
+				UI:      DefaultUI(),
+				Checks: map[string]Check{
+					"scenario-app-monitor": {
+						Settings: &CheckSettings{AutoHealOn: "invalid"},
+					},
+				},
+			},
+			valid: false,
+		},
+		{
 			name: "invalid version",
 			config: Config{
 				Version: "2.0",
@@ -171,13 +192,47 @@ func TestManagerValidation(t *testing.T) {
 	}
 }
 
+func TestManagerGetAutoHealOn(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+	schemaPath := filepath.Join(tmpDir, "schema.json")
+
+	mgr := NewManager(configPath, schemaPath)
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if got := mgr.GetAutoHealOn("scenario-app-monitor"); got != "critical" {
+		t.Fatalf("default autoHealOn = %q, want critical", got)
+	}
+
+	cfg := mgr.Get()
+	if cfg.Checks == nil {
+		cfg.Checks = make(map[string]Check)
+	}
+	cfg.Checks["scenario-app-monitor"] = Check{
+		Settings: &CheckSettings{
+			AutoHealOn: "warning+critical",
+		},
+	}
+	if err := mgr.Update(cfg); err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+
+	if got := mgr.GetAutoHealOn("scenario-app-monitor"); got != "warning+critical" {
+		t.Fatalf("configured autoHealOn = %q, want warning+critical", got)
+	}
+}
+
 func TestManagerGetCheck(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 	schemaPath := filepath.Join(tmpDir, "schema.json")
 
 	mgr := NewManager(configPath, schemaPath)
-	mgr.Load()
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
 
 	// Get default check config
 	cfg := mgr.GetCheck("resource-postgres")
@@ -187,9 +242,14 @@ func TestManagerGetCheck(t *testing.T) {
 	if !cfg.AutoHeal {
 		t.Error("postgres should have autoHeal enabled by default")
 	}
+	if cfg.Settings.AutoHealOn != "critical" {
+		t.Errorf("postgres autoHealOn = %q, want critical", cfg.Settings.AutoHealOn)
+	}
 
 	// Override via config
-	mgr.SetCheckEnabled("resource-postgres", false)
+	if err := mgr.SetCheckEnabled("resource-postgres", false); err != nil {
+		t.Fatalf("SetCheckEnabled failed: %v", err)
+	}
 
 	cfg = mgr.GetCheck("resource-postgres")
 	if cfg.Enabled {
@@ -203,7 +263,9 @@ func TestManagerSetCheckAutoHeal(t *testing.T) {
 	schemaPath := filepath.Join(tmpDir, "schema.json")
 
 	mgr := NewManager(configPath, schemaPath)
-	mgr.Load()
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
 
 	// Initially should be default (true for postgres)
 	if !mgr.IsAutoHealEnabled("resource-postgres") {
@@ -232,10 +294,14 @@ func TestManagerSetCheckAutoHeal(t *testing.T) {
 func TestManagerExportImport(t *testing.T) {
 	tmpDir := t.TempDir()
 	mgr := NewManager(filepath.Join(tmpDir, "config.json"), filepath.Join(tmpDir, "schema.json"))
-	mgr.Load()
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
 
 	// Modify config
-	mgr.SetCheckEnabled("infra-network", false)
+	if err := mgr.SetCheckEnabled("infra-network", false); err != nil {
+		t.Fatalf("SetCheckEnabled failed: %v", err)
+	}
 
 	// Export
 	data, err := mgr.Export()
@@ -245,7 +311,9 @@ func TestManagerExportImport(t *testing.T) {
 
 	// Import into new manager
 	mgr2 := NewManager(filepath.Join(tmpDir, "config2.json"), filepath.Join(tmpDir, "schema.json"))
-	mgr2.Load()
+	if err := mgr2.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
 
 	imported, err := mgr2.Import(data)
 	if err != nil {

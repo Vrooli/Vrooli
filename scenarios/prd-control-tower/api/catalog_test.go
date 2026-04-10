@@ -74,7 +74,7 @@ This is the description after blank lines.
 			// Create temporary file
 			tmpDir := t.TempDir()
 			tmpFile := filepath.Join(tmpDir, "test.md")
-			if err := os.WriteFile(tmpFile, []byte(tt.content), 0644); err != nil {
+			if err := os.WriteFile(tmpFile, []byte(tt.content), 0o644); err != nil {
 				t.Fatalf("Failed to create temp file: %v", err)
 			}
 
@@ -102,16 +102,16 @@ func TestHasDraft(t *testing.T) {
 	scenarioDir := filepath.Join(tmpDir, "scenario")
 	resourceDir := filepath.Join(tmpDir, "resource")
 
-	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
 		t.Fatalf("Failed to create scenario dir: %v", err)
 	}
-	if err := os.MkdirAll(resourceDir, 0755); err != nil {
+	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
 		t.Fatalf("Failed to create resource dir: %v", err)
 	}
 
 	// Create a test draft file
 	testDraftPath := filepath.Join(scenarioDir, "test-scenario.md")
-	if err := os.WriteFile(testDraftPath, []byte("# Test Draft"), 0644); err != nil {
+	if err := os.WriteFile(testDraftPath, []byte("# Test Draft"), 0o644); err != nil {
 		t.Fatalf("Failed to create test draft: %v", err)
 	}
 
@@ -176,11 +176,11 @@ func TestEnumerateEntities(t *testing.T) {
 				// Create test scenarios
 				for _, name := range []string{"scenario-one", "scenario-two", "scenario-three"} {
 					dir := filepath.Join(scenariosDir, name)
-					if err := os.MkdirAll(dir, 0755); err != nil {
+					if err := os.MkdirAll(dir, 0o755); err != nil {
 						t.Fatalf("Failed to create scenario dir: %v", err)
 					}
 					prdPath := filepath.Join(dir, "PRD.md")
-					if err := os.WriteFile(prdPath, []byte("# Test PRD"), 0644); err != nil {
+					if err := os.WriteFile(prdPath, []byte("# Test PRD"), 0o644); err != nil {
 						t.Fatalf("Failed to create PRD: %v", err)
 					}
 				}
@@ -197,7 +197,7 @@ func TestEnumerateEntities(t *testing.T) {
 				// Create test resources without PRDs
 				for _, name := range []string{"resource-one", "resource-two"} {
 					dir := filepath.Join(resourcesDir, name)
-					if err := os.MkdirAll(dir, 0755); err != nil {
+					if err := os.MkdirAll(dir, 0o755); err != nil {
 						t.Fatalf("Failed to create resource dir: %v", err)
 					}
 				}
@@ -447,18 +447,18 @@ func TestEnumerateEntitiesWithMixedContent(t *testing.T) {
 	// Test that enumerateEntities only processes directories, not files
 	tmpDir := t.TempDir()
 	baseDir := filepath.Join(tmpDir, "mixed")
-	if err := os.MkdirAll(baseDir, 0755); err != nil {
+	if err := os.MkdirAll(baseDir, 0o755); err != nil {
 		t.Fatalf("Failed to create base dir: %v", err)
 	}
 
 	// Create a directory (should be included)
 	validDir := filepath.Join(baseDir, "valid-scenario")
-	if err := os.MkdirAll(validDir, 0755); err != nil {
+	if err := os.MkdirAll(validDir, 0o755); err != nil {
 		t.Fatalf("Failed to create valid dir: %v", err)
 	}
 
 	// Create a file at root level (should be ignored)
-	if err := os.WriteFile(filepath.Join(baseDir, "README.md"), []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(baseDir, "README.md"), []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 

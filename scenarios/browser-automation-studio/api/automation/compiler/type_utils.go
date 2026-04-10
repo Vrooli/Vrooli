@@ -1,9 +1,6 @@
 package compiler
 
-import (
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-)
+import "github.com/vrooli/browser-automation-studio/internal/typeconv"
 
 // Utility wrappers for type conversion used across the compiler package.
 // Delegates to internal/typeconv for actual implementation.
@@ -16,14 +13,4 @@ func toInt32(v any) (int32, bool) {
 // toFloat64 delegates to typeconv.ToFloat64 for numeric conversion.
 func toFloat64(v any) (float64, bool) {
 	return typeconv.ToFloat64(v)
-}
-
-// anyToJsonValue delegates to typeconv.AnyToJsonValue for proto conversion.
-func anyToJsonValue(v any) *commonv1.JsonValue {
-	return typeconv.AnyToJsonValue(v)
-}
-
-// jsonValueToAny delegates to typeconv.JsonValueToAny for proto conversion.
-func jsonValueToAny(v *commonv1.JsonValue) any {
-	return typeconv.JsonValueToAny(v)
 }

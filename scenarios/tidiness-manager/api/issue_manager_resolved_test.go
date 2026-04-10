@@ -33,7 +33,7 @@ func TestIssueManager_MarkAsResolved(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to insert test issue: %v", err)
 	}
-	defer srv.db.Exec("DELETE FROM issues WHERE id = $1", issueID)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM issues WHERE id = $1", issueID) }()
 
 	// Update issue to resolved
 	reqBody := map[string]string{
@@ -114,7 +114,7 @@ func TestIssueManager_InvalidStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to insert test issue: %v", err)
 	}
-	defer srv.db.Exec("DELETE FROM issues WHERE id = $1", issueID)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM issues WHERE id = $1", issueID) }()
 
 	// Try to set invalid status
 	reqBody := map[string]string{
@@ -130,7 +130,7 @@ func TestIssueManager_InvalidStatus(t *testing.T) {
 	// Should reject invalid status
 	if w.Code == http.StatusOK {
 		var status string
-		srv.db.QueryRow("SELECT status FROM issues WHERE id = $1", issueID).Scan(&status)
+		_ = srv.db.QueryRow("SELECT status FROM issues WHERE id = $1", issueID).Scan(&status)
 		if status == "invalid-status" {
 			t.Error("Invalid status was accepted - should be rejected")
 		}

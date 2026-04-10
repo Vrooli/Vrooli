@@ -8,62 +8,31 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useWebSocket } from '@/contexts/WebSocketContext';
-import { getApiBase } from '@/config';
+import { recordingApi } from '../api';
+import type {
+  TimelineEntry,
+  TimelineAction,
+  TimelinePageEvent,
+} from '../api/schemas';
 import type { Page } from './usePages';
+import { useSessionStore } from '../stores';
 
-/** Timeline entry types */
+// Re-export types for backward compatibility
+export type { TimelineEntry, TimelineAction, TimelinePageEvent } from '../api/schemas';
+export type { PageEventType } from '../api/schemas';
 export type TimelineEntryType = 'action' | 'page_event';
-
-/** Page event types */
-export type PageEventType = 'page_created' | 'page_navigated' | 'page_closed';
-
-/** Recorded action from timeline */
-export interface TimelineAction {
-  id: string;
-  actionType: string;
-  url?: string;
-  sequenceNum: number;
-  timestamp: string;
-  selector?: { primary: string };
-  payload?: Record<string, unknown>;
-  confidence: number;
-  pageTitle?: string;
-}
-
-/** Page event from timeline */
-export interface TimelinePageEvent {
-  id: string;
-  type: PageEventType;
-  pageId: string;
-  url?: string;
-  title?: string;
-  openerId?: string;
-  timestamp: string;
-}
-
-/** Unified timeline entry */
-export interface TimelineEntry {
-  id: string;
-  type: TimelineEntryType;
-  timestamp: string;
-  pageId: string;
-  action?: TimelineAction;
-  pageEvent?: TimelinePageEvent;
-}
-
-/** API response for timeline */
-interface TimelineResponse {
-  entries: TimelineEntry[];
-  hasMore: boolean;
-  totalEntries: number;
-}
 
 /** WebSocket message for recording action */
 interface RecordingActionMessage {
   type: 'recording_action';
   session_id: string;
-  page_id?: string;
-  action: TimelineAction;
+  entry: {
+    id: string;
+    type: 'action';
+    timestamp: string;
+    pageId: string;
+    action: TimelineAction;
+  };
   timestamp: string;
 }
 
@@ -129,7 +98,7 @@ interface UseTimelineReturn {
 }
 
 export function useTimeline({
-  sessionId,
+  sessionId: propSessionId,
   pages,
   filterPageId = null,
   limit = 100,
@@ -141,16 +110,43 @@ export function useTimeline({
   const [totalEntries, setTotalEntries] = useState(0);
   const [hasMore, setHasMore] = useState(false);
 
-  const { lastMessage } = useWebSocket();
-  const apiUrl = getApiBase();
+  // Read session validation state from store
+  // This ensures we only subscribe to WebSocket when session is validated
+  const storeSessionId = useSessionStore((s) => s.sessionId);
+  const isValidated = useSessionStore((s) => s.isValidated);
+
+  // Use store session ID if validated, otherwise fall back to prop
+  // This handles the case where prop is stale but store has the current session
+  const sessionId = isValidated ? storeSessionId : propSessionId;
+
+  const { lastMessage, send, isConnected } = useWebSocket();
   const onEntryReceivedRef = useRef(onEntryReceived);
   onEntryReceivedRef.current = onEntryReceived;
+  const subscribedSessionRef = useRef<string | null>(null);
+
+  // AbortController for request cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
+  // Reset abort controller when session changes
+  useEffect(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+  }, [sessionId]);
 
   // Assign colors to pages based on creation order
   const pageColorMap = useMemo(() => {
+    const defaultColor = PAGE_COLORS[0] ?? 'bg-gray-500';
     const map = new Map<string, PageColor>();
     pages.forEach((page, index) => {
-      map.set(page.id, PAGE_COLORS[index % PAGE_COLORS.length]);
+      const color = PAGE_COLORS[index % PAGE_COLORS.length];
+      map.set(page.id, color ?? defaultColor);
     });
     return map;
   }, [pages]);
@@ -167,40 +163,88 @@ export function useTimeline({
     setIsLoading(true);
     setError(null);
 
-    try {
-      const params = new URLSearchParams({ limit: limit.toString() });
-      if (filterPageId) {
-        params.set('pageId', filterPageId);
-      }
+    const result = await recordingApi.getTimeline(
+      sessionId,
+      { limit, pageId: filterPageId ?? undefined },
+      { signal: abortControllerRef.current?.signal }
+    );
 
-      const response = await fetch(`${apiUrl}/recordings/live/${sessionId}/timeline?${params}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch timeline: ${response.statusText}`);
-      }
+    setIsLoading(false);
 
-      const data: TimelineResponse = await response.json();
-      setEntries(data.entries || []);
-      setTotalEntries(data.totalEntries || 0);
-      setHasMore(data.hasMore || false);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch timeline';
-      setError(message);
-      console.error('[useTimeline] Error fetching timeline:', err);
-    } finally {
-      setIsLoading(false);
+    if (!result.success) {
+      // Don't set error for aborted requests
+      if (result.error !== 'Request cancelled') {
+        setError(result.error);
+        console.error('[useTimeline] Error fetching timeline:', result.error);
+      }
+      return;
     }
-  }, [apiUrl, sessionId, filterPageId, limit]);
 
-  // Fetch timeline when session changes
+    setEntries(result.data.entries);
+    setTotalEntries(result.data.totalEntries);
+    setHasMore(result.data.hasMore);
+  }, [sessionId, filterPageId, limit]);
+
+  // Fetch timeline when session changes and is validated
   useEffect(() => {
-    if (sessionId) {
+    if (sessionId && isValidated) {
       void refreshTimeline();
     } else {
       setEntries([]);
       setTotalEntries(0);
       setHasMore(false);
     }
-  }, [sessionId, refreshTimeline]);
+  }, [sessionId, isValidated, refreshTimeline]);
+
+  // Subscribe to recording session for real-time timeline updates
+  // CRITICAL: Only subscribe when session is validated (confirmed to exist on server)
+  // This prevents subscribing to stale session IDs from URL after driver restart
+  //
+  // NOTE: We use a separate effect for subscription management to avoid flapping.
+  // The subscription should only change when:
+  // 1. We connect/disconnect from WebSocket
+  // 2. The actual validated session ID changes
+  // 3. Component unmounts
+  useEffect(() => {
+    // Determine the target session to subscribe to
+    // Only subscribe if we have a valid, validated session and are connected
+    const targetSession = isConnected && sessionId && isValidated ? sessionId : null;
+    const currentSub = subscribedSessionRef.current;
+
+    console.log('[useTimeline] Subscription check:', {
+      isConnected,
+      sessionId,
+      isValidated,
+      targetSession,
+      currentSub,
+    });
+
+    // Case 1: We need to unsubscribe (was subscribed, now shouldn't be)
+    if (currentSub && currentSub !== targetSession) {
+      console.log('[useTimeline] Unsubscribing from session:', currentSub);
+      send({ type: 'unsubscribe_recording', session_id: currentSub });
+      subscribedSessionRef.current = null;
+    }
+
+    // Case 2: We need to subscribe (target exists and we're not subscribed to it)
+    if (targetSession && subscribedSessionRef.current !== targetSession) {
+      console.log('[useTimeline] Subscribing to session:', targetSession);
+      send({ type: 'subscribe_recording', session_id: targetSession });
+      subscribedSessionRef.current = targetSession;
+    }
+
+    // Cleanup: only unsubscribe on unmount, not on every re-render
+    // This prevents the subscribe/unsubscribe/subscribe flapping pattern
+    return () => {
+      // Only cleanup on actual unmount by checking if we still have a subscription
+      // that matches what we set in this effect run
+      if (subscribedSessionRef.current === targetSession && targetSession) {
+        console.log('[useTimeline] Cleanup (unmount): unsubscribing from session:', targetSession);
+        send({ type: 'unsubscribe_recording', session_id: targetSession });
+        subscribedSessionRef.current = null;
+      }
+    };
+  }, [isConnected, sessionId, isValidated, send]);
 
   // Handle WebSocket messages for real-time updates
   useEffect(() => {
@@ -208,18 +252,22 @@ export function useTimeline({
 
     const msg = lastMessage as unknown as WebSocketTimelineMessage;
 
+    // Debug: Log all received messages
+    console.log('[useTimeline] Received WebSocket message:', {
+      type: msg.type,
+      session_id: 'session_id' in msg ? (msg as { session_id?: string }).session_id : undefined,
+      currentSessionId: sessionId,
+      isValidated,
+    });
+
     // Handle recording action
     if (msg.type === 'recording_action' && msg.session_id === sessionId) {
-      const action = msg.action;
-      const pageId = msg.page_id || '';
-
-      // Create timeline entry from action
       const entry: TimelineEntry = {
-        id: action.id,
+        id: msg.entry.id,
         type: 'action',
-        timestamp: action.timestamp,
-        pageId,
-        action,
+        timestamp: msg.entry.timestamp,
+        pageId: msg.entry.pageId,
+        action: msg.entry.action,
       };
 
       setEntries((prev) => {

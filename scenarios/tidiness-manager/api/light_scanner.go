@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/pathfilter"
 )
 
 // LightScanner performs fast static analysis using Makefile integration
@@ -345,7 +347,7 @@ func (ls *LightScanner) collectFileMetrics() ([]FileMetric, error) {
 			}
 
 			if info.IsDir() {
-				if shouldSkipDirectory(info) {
+				if pathfilter.SkipDir(info.Name()) {
 					return filepath.SkipDir
 				}
 				return nil
@@ -370,7 +372,6 @@ func (ls *LightScanner) collectFileMetrics() ([]FileMetric, error) {
 
 			return nil
 		})
-
 		if err != nil {
 			return nil, err
 		}
@@ -432,21 +433,9 @@ func (ls *LightScanner) getSourceDirs() []string {
 	return []string{ls.scenarioPath}
 }
 
-// getSupportedExtensions returns the map of file extensions to scan
+// getSupportedExtensions returns the map of file extensions to scan.
 func (ls *LightScanner) getSupportedExtensions() map[string]bool {
-	return map[string]bool{
-		".go":  true,
-		".ts":  true,
-		".tsx": true,
-		".js":  true,
-		".jsx": true,
-		".py":  true,
-	}
-}
-
-// shouldSkipDirectory checks if a directory should be skipped during scanning
-func shouldSkipDirectory(info os.FileInfo) bool {
-	return info.Name() == "node_modules" || strings.HasPrefix(info.Name(), ".")
+	return pathfilter.SourceExts()
 }
 
 // needsRescan checks if a file needs to be rescanned based on modification time
@@ -468,13 +457,13 @@ func (ls *LightScanner) scanSourceDirs(previousScans map[string]time.Time) ([]Fi
 			continue
 		}
 
-		filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return nil
 			}
 
 			if info.IsDir() {
-				if shouldSkipDirectory(info) {
+				if pathfilter.SkipDir(info.Name()) {
 					return filepath.SkipDir
 				}
 				return nil

@@ -25,12 +25,15 @@ type fakeGraphVectorStore struct {
 func (f *fakeGraphVectorStore) EnsureCollection(ctx context.Context, collection string, vectorSize int) error {
 	return nil
 }
+
 func (f *fakeGraphVectorStore) UpsertPoint(ctx context.Context, collection string, id string, vector []float64, payload map[string]interface{}) error {
 	return nil
 }
+
 func (f *fakeGraphVectorStore) DeletePoint(ctx context.Context, collection string, id string) error {
 	return nil
 }
+
 func (f *fakeGraphVectorStore) Search(ctx context.Context, collection string, vector []float64, limit int, threshold float64, filter *ports.VectorFilter) ([]ports.VectorSearchResult, error) {
 	f.lastFilter = filter
 	return []ports.VectorSearchResult{
@@ -38,12 +41,15 @@ func (f *fakeGraphVectorStore) Search(ctx context.Context, collection string, ve
 		{ID: "n2", Score: 0.8, Payload: map[string]interface{}{"content": "beta", "namespace": "ns1"}},
 	}, nil
 }
+
 func (f *fakeGraphVectorStore) ListCollections(ctx context.Context) ([]string, error) {
 	return []string{"knowledge_chunks_v1"}, nil
 }
+
 func (f *fakeGraphVectorStore) CountPoints(ctx context.Context, collection string) (int, error) {
 	return 0, nil
 }
+
 func (f *fakeGraphVectorStore) SamplePoints(ctx context.Context, collection string, limit int) ([]ports.VectorPoint, error) {
 	return nil, nil
 }

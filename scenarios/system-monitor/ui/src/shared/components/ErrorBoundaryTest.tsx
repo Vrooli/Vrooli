@@ -24,16 +24,16 @@ export const ErrorBoundaryTest = () => {
       bottom: '20px',
       right: '20px',
       zIndex: 9999,
-      background: 'rgba(255, 0, 0, 0.1)',
+      background: 'var(--color-error-muted)',
       border: '1px solid var(--color-error)',
-      borderRadius: 'var(--border-radius-md)',
+      borderRadius: 'var(--radius-md)',
       padding: 'var(--spacing-md)',
       maxWidth: '300px'
     }}>
       <h4 style={{
         margin: '0 0 var(--spacing-sm) 0',
         color: 'var(--color-error)',
-        fontSize: 'var(--font-size-sm)',
+        fontSize: 'var(--text-sm)',
         display: 'flex',
         alignItems: 'center',
         gap: 'var(--spacing-xs)'
@@ -44,8 +44,8 @@ export const ErrorBoundaryTest = () => {
       
       <p style={{
         margin: '0 0 var(--spacing-sm) 0',
-        color: 'var(--color-text-dim)',
-        fontSize: 'var(--font-size-xs)',
+        color: 'var(--color-text-secondary)',
+        fontSize: 'var(--text-xs)',
         lineHeight: '1.4'
       }}>
         Click to test error boundary functionality (development only)
@@ -61,18 +61,12 @@ export const ErrorBoundaryTest = () => {
           background: 'var(--color-error)',
           color: 'var(--color-background)',
           border: 'none',
-          borderRadius: 'var(--border-radius-sm)',
-          fontSize: 'var(--font-size-xs)',
+          borderRadius: 'var(--radius-sm)',
+          fontSize: 'var(--text-xs)',
           fontWeight: 'bold',
           textTransform: 'uppercase',
           cursor: 'pointer',
           transition: 'all 0.2s'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.05)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1)';
         }}
       >
         <Bug size={12} />

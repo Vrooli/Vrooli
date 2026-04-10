@@ -15,5 +15,7 @@ var (
 	ErrInternalServer       = apierror.ErrInternalServer
 )
 
-var RespondError = apierror.RespondError
-var RespondSuccess = apierror.RespondSuccess
+var (
+	RespondError   = apierror.RespondError
+	RespondSuccess = apierror.RespondSuccess
+)

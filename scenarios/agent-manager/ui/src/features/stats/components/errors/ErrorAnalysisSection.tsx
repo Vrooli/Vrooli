@@ -1,9 +1,10 @@
 // Error Analysis Section - displays error patterns with links to affected runs
 
 import { useErrorAnalysis } from "../../hooks/useErrorAnalysis";
-import { formatNumber, formatRelativeTime } from "../../utils/formatters";
+import { formatNumber } from "../../utils/formatters";
 import { AlertTriangle, ExternalLink } from "lucide-react";
 import type { ErrorPattern } from "../../api/types";
+import { formatStatsRelativeTime } from "../../../../lib/dateTime";
 
 interface ErrorItemProps {
   error: ErrorPattern;
@@ -27,7 +28,7 @@ function ErrorItem({ error }: ErrorItemProps) {
               {formatNumber(error.count)} occurrence{error.count !== 1 ? "s" : ""}
             </span>
             <span className="text-xs text-muted-foreground">
-              Last: {formatRelativeTime(error.lastSeen)}
+              Last: {formatStatsRelativeTime(error.lastSeen)}
             </span>
           </div>
           <p className="text-sm text-foreground font-mono break-all" title={errorDisplay}>
@@ -55,8 +56,8 @@ export function ErrorAnalysisSection() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card/50 p-6">
-        <div className="mb-4 h-5 w-36 animate-pulse rounded bg-muted/30" />
+      <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
+        <div className="mb-2 sm:mb-4 h-5 w-36 animate-pulse rounded bg-muted/30" />
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-20 animate-pulse rounded bg-muted/20" />
@@ -68,7 +69,7 @@ export function ErrorAnalysisSection() {
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-6">
+      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 sm:p-6">
         <h3 className="text-sm font-semibold">Error Analysis</h3>
         <p className="mt-2 text-sm text-red-500">Failed to load: {error.message}</p>
       </div>
@@ -78,9 +79,9 @@ export function ErrorAnalysisSection() {
   const errors = data?.errors ?? [];
 
   return (
-    <div className="rounded-lg border border-border bg-card/50 p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
+      <div className="mb-2 sm:mb-4 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-muted-foreground">
           Error Analysis
         </h3>
         {errors.length > 0 && (

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/api-core/pathfilter"
 )
 
 // FileNode represents a file or directory within a scenario.
@@ -40,34 +42,13 @@ const (
 )
 
 var allowedScenarioRoots = []string{"api", "ui"}
-var ignoredNames = []string{
-	"node_modules",
-	".git",
-	".husky",
-	".turbo",
-	"dist",
-	"build",
-	".next",
-	".vite",
-	"coverage",
-	".cache",
-	".pnpm-store",
-	"docs",
-	"doc",
-	"storybook-static",
-	"tmp",
-	"temp",
-	".idea",
-	".vscode",
-	".DS_Store",
-	".venv",
-	"venv",
-	".pytest_cache",
-	"logs",
-	"artifacts",
-	"bin",
-	"obj",
-	"vendor",
+
+// localSkipNames lists directory names that test-genie specifically hides from
+// its file listings beyond the universal set in pathfilter. These are
+// scenario-specific policy decisions (e.g., hiding docs from the test-genie UI).
+var localSkipNames = map[string]bool{
+	"docs": true,
+	"doc":  true,
 }
 
 // ListFiles returns a shallow listing or search results for a scenario's api/ui directories.
@@ -201,7 +182,7 @@ func (s *ScenarioDirectoryService) listScenarioPath(ctx context.Context, root, r
 			hidden++
 			continue
 		}
-		if !includeHidden && (isIgnoredName(name) || hasIgnoredExtension(name)) {
+		if !includeHidden && isHiddenEntry(name) {
 			hidden++
 			continue
 		}
@@ -282,7 +263,7 @@ func (s *ScenarioDirectoryService) searchScenarioFiles(ctx context.Context, root
 				}
 				return nil
 			}
-			if !includeHidden && (isIgnoredName(d.Name()) || hasIgnoredExtension(d.Name())) {
+			if !includeHidden && isHiddenEntry(d.Name()) {
 				hidden++
 				if d.IsDir() {
 					return filepath.SkipDir
@@ -468,35 +449,28 @@ func isAllowedScenarioPath(path string) bool {
 	return false
 }
 
-func isIgnoredName(name string) bool {
-	lower := strings.ToLower(strings.TrimSpace(name))
-	for _, ig := range ignoredNames {
-		if lower == strings.ToLower(ig) {
-			return true
-		}
+// isHiddenEntry reports whether a file or directory should be hidden from
+// test-genie's file listing. It combines the universal pathfilter rules with
+// test-genie-specific local policy.
+func isHiddenEntry(name string) bool {
+	if pathfilter.SkipDir(name) {
+		return true
 	}
-	return false
+	if localSkipNames[name] {
+		return true
+	}
+	if pathfilter.IsGeneratedFile(name) {
+		return true
+	}
+	return isIgnoredConfigFile(name)
 }
 
-func hasIgnoredExtension(name string) bool {
+// isIgnoredConfigFile checks for config/build-tool files that test-genie
+// hides from its listing. These are scenario-specific policy, not universal.
+func isIgnoredConfigFile(name string) bool {
 	lower := strings.ToLower(name)
 	switch {
-	case strings.HasSuffix(lower, ".json"),
-		strings.HasSuffix(lower, ".yaml"),
-		strings.HasSuffix(lower, ".yml"),
-		strings.HasSuffix(lower, ".d.ts"),
-		strings.HasSuffix(lower, ".mod"),
-		strings.HasSuffix(lower, ".sum"),
-		strings.HasSuffix(lower, ".exe"),
-		strings.HasSuffix(lower, ".dll"),
-		strings.HasSuffix(lower, ".so"),
-		strings.HasSuffix(lower, ".dylib"),
-		strings.HasSuffix(lower, ".bin"),
-		strings.HasSuffix(lower, ".dat"),
-		strings.HasSuffix(lower, ".wasm"),
-		strings.HasSuffix(lower, ".o"),
-		strings.HasSuffix(lower, ".a"),
-		strings.HasSuffix(lower, "tsconfig.json"),
+	case strings.HasSuffix(lower, "tsconfig.json"),
 		strings.HasSuffix(lower, "tsconfig.app.json"),
 		strings.HasSuffix(lower, "tsconfig.base.json"),
 		strings.HasSuffix(lower, "tsconfig.build.json"),

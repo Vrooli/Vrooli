@@ -174,7 +174,7 @@ The health score is calculated as `100 - usedPercent`.
 
 ## Kernel Tuning for High Traffic
 
-Add to `/etc/sysctl.conf`:
+Add to your system `sysctl.conf`:
 
 ```bash
 # Expand ephemeral port range

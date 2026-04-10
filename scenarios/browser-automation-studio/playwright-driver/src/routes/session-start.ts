@@ -96,14 +96,15 @@ export async function handleSessionStart(
 
     // Start frame streaming if requested (for record mode live preview)
     // Wait for pipeline to be ready first to ensure recording infrastructure is initialized
-    if (request.frame_streaming?.callback_url) {
+    const frameStreaming = request.frame_streaming;
+    if (frameStreaming?.callback_url) {
       // Wait for pipeline readiness (async, but don't block response)
       // Frame streaming will start after pipeline is verified
       void sessionManager.waitForPipelineReady(sessionId, 5000).then(() => {
         startFrameStreaming(sessionId, sessionManager, {
-          callbackUrl: request.frame_streaming!.callback_url,
-          quality: request.frame_streaming!.quality,
-          fps: request.frame_streaming!.fps,
+          callbackUrl: frameStreaming.callback_url,
+          quality: frameStreaming.quality,
+          fps: frameStreaming.fps,
         });
       });
     }

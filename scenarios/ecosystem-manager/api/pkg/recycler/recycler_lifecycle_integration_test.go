@@ -156,7 +156,7 @@ func TestRecyclerRespectsCooldownThenRecycles(t *testing.T) {
 	// First pass should respect cooldown and schedule later.
 	r.handleWork(task.ID)
 
-	stored, status, err := storage.GetTaskByID(task.ID)
+	_, status, err := storage.GetTaskByID(task.ID)
 	if err != nil {
 		t.Fatalf("reload task: %v", err)
 	}
@@ -176,7 +176,7 @@ func TestRecyclerRespectsCooldownThenRecycles(t *testing.T) {
 		t.Fatalf("expected task enqueued after cooldown")
 	}
 
-	stored, status, err = storage.GetTaskByID(task.ID)
+	stored, status, err := storage.GetTaskByID(task.ID)
 	if err != nil {
 		t.Fatalf("reload task after recycle: %v", err)
 	}

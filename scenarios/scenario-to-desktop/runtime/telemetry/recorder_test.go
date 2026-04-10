@@ -103,7 +103,7 @@ func TestFileRecorder_NoServiceID(t *testing.T) {
 
 	data, _ := mockFS.ReadFile(telemetryPath)
 	var rec Record
-	json.Unmarshal(data[:len(data)-1], &rec)
+	_ = json.Unmarshal(data[:len(data)-1], &rec)
 
 	if rec.ServiceID != "" {
 		t.Errorf("rec.ServiceID = %q, want empty", rec.ServiceID)
@@ -169,7 +169,7 @@ func TestFileRecorder_TimestampIsUTC(t *testing.T) {
 
 	data, _ := mockFS.ReadFile(telemetryPath)
 	var rec Record
-	json.Unmarshal(data[:len(data)-1], &rec)
+	_ = json.Unmarshal(data[:len(data)-1], &rec)
 
 	if rec.Timestamp.Location().String() != "UTC" {
 		t.Errorf("Timestamp location = %q, want UTC", rec.Timestamp.Location().String())

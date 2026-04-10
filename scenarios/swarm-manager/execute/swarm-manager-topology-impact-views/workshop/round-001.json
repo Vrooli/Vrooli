@@ -1,0 +1,126 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-28T13:10:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 1,
+    "problem_clarity": 2,
+    "risk_awareness": 1,
+    "scope_defined": 2,
+    "testable": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Initiative clustering implementation approach",
+      "context": "React Flow v12 supports 'sub-flows' (parent nodes with child nodes rendered inside) and also allows custom grouping via absolute-positioned boundary rectangles. The spec calls for initiative-based clustering with collapsed/expanded states showing rollup counts. The key tradeoff is between using React Flow's native parent-child hierarchy (which handles edge routing and containment automatically but is less flexible for custom collapse UX) vs a custom overlay approach (more control, but we own all the edge aggregation logic). A third option uses Dagre's cluster support to compute grouped positions, then renders visual group boundaries as background rectangles without React Flow parent-child relationships.",
+      "options": [
+        {
+          "key": "A",
+          "label": "React Flow sub-flows (parent-child nodes)",
+          "rationale": "Use React Flow v12's native parent node support. Initiative nodes become parent nodes; member backlog items are children with `parentId` set. React Flow handles containment, dragging, and edge routing automatically. Collapse/expand toggles child node visibility. Recommended because it leverages the framework's built-in grouping, reduces custom code, and ensures edges route correctly to/from grouped nodes without manual aggregation.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Custom visual boundary overlays",
+          "rationale": "Render initiative groups as absolutely-positioned background rectangles calculated from member node bounding boxes. No React Flow parent-child — all nodes are flat. Collapse replaces member nodes with a single cluster summary node. More flexible for custom animations and layout, but we must handle edge aggregation (rerouting edges from hidden member nodes to cluster boundary) and containment manually."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Edge type visual differentiation strategy",
+      "context": "The topology lens has 4 edge types (depends_on, member_of, classified_as, targets) that currently all render identically. Users need to distinguish relationship types at a glance. Options range from color-only differentiation to using dash patterns, labels, and animated edges.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Color + dash pattern (no labels)",
+          "rationale": "Each edge type gets a distinct color matching its target node type and a dash pattern (solid for depends_on/targets, dashed for member_of, dotted for classified_as). A small legend in the canvas corner explains the mapping. Recommended because it's visually clear without adding text clutter that becomes unreadable at zoom-out levels. Keeps edge rendering lightweight for the 300-edge straight-line threshold.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Color + dash pattern + edge labels",
+          "rationale": "Same as A but also renders a text label on each edge ('depends on', 'member of', etc.). More explicit but adds significant visual noise, especially with many edges. Labels disappear at low zoom levels in React Flow, partially mitigating this."
+        },
+        {
+          "key": "C",
+          "label": "Color only with interactive hover labels",
+          "rationale": "All edges rendered as solid lines with distinct colors. Edge type label appears only on hover. Cleanest default view but requires interaction to identify edge types, which is slower for scanning."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Inspector action implementation scope for round 1",
+      "context": "The spec defines 15+ inspector actions across 4 node types in topology. Some require existing API endpoints (queue, delete, classify), some may need new UI flows (assign initiative, add dependency), and some are navigations (view files, edit). The question is whether to implement all actions in a single pass or to ship a core set first and iterate.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Full action set in one pass",
+          "rationale": "Implement all 15+ actions across all 4 node types. This completes the spec in one execution. Recommended because the action registry pattern is already established (flow and operations lenses have full action sets), each action is a small factory function, and most actions map to existing API endpoints or navigation. The risk of incomplete topology actions is worse than the effort of building them all.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Core actions first, advanced actions follow-up",
+          "rationale": "Ship navigation actions (view files, edit, view details) and simple API actions (queue, delete, archive) first. Defer complex UI flows (assign initiative, add dependency, create item from suggestion) to a follow-up. Reduces initial scope but leaves the topology inspector feeling incomplete."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Collapsed cluster interaction model",
+      "context": "When initiative clusters are collapsed, the cluster node shows rollup counts. The question is what happens when a user interacts with a collapsed cluster — specifically how expand/collapse works and whether collapsed clusters participate in BFS selection.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Click to expand, double-click to select (BFS includes cluster as unit)",
+          "rationale": "Single click expands the cluster to show member nodes. Double-click selects the cluster and triggers BFS neighborhood highlighting treating the cluster as a single unit (all edges to/from any member are highlighted). This matches file-explorer expand semantics. Recommended because expand is the most common intent when clicking a cluster, and BFS at the cluster level provides a useful 'what does this initiative connect to' view.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Click to select (opens inspector), expand via button/icon",
+          "rationale": "Single click selects the cluster and opens the inspector with initiative details and rollup. An expand icon/button in the node or inspector triggers expansion. More consistent with how other nodes work (click = select), but adds an extra step to expand."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The graph API's topology projection (projection.go) currently builds initiative nodes with only name/title/status — it does NOT include rollup counts (total/completed/in_progress/failed/pending) even though InitiativeWithRollup has this data. A small API change is needed: add the rollup struct to the initiative node's Data map. This is a ~5 line change in projection.go."
+    }
+  ],
+  "plan_updates": "Created initial plan scaffold with all 13 mandatory sections. Filled: Purpose, Required Reading, Problem Statement, Scope, Current Technical Context, Target End State, Rollout Checklist, Risks, Non-goals, Definition of Done. Left as TBD pending decisions: Implementation Strategy, Contract Decisions, Testing Plan."
+}

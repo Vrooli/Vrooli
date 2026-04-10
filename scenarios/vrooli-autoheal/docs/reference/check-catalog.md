@@ -58,7 +58,7 @@ Complete reference of all available health checks.
 | Critical | Resolution failed |
 
 **Troubleshooting:**
-- Check /etc/resolv.conf (Linux)
+- Check resolver configuration (`resolv.conf`) on Linux
 - Verify DNS server is reachable
 - Test manually: `nslookup google.com`
 

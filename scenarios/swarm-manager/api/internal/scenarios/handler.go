@@ -1,0 +1,438 @@
+// Package scenarios provides HTTP handlers for scenario catalog management.
+//
+// Scenarios are sourced from the Vrooli CLI (vrooli scenario list), then enriched
+// with local metadata (priority, greenfield toggle).
+// This handler provides read and update access to the scenario catalog with optional
+// filtering, search, and metadata management.
+//
+// DOC: docs/concepts/ARCHITECTURE.md#key-flows
+// DOC: docs/reference/operational-targets.md
+// DOC: docs/internal/SEAMS.md
+//
+// Related PRD targets: OT-P0-005, OT-P0-006
+package scenarios
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"os"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/gorilla/mux"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/dispatch"
+	"swarm-manager/internal/execution"
+	"swarm-manager/internal/httputil"
+)
+
+// ScenarioStatus represents the runtime state of a scenario.
+type ScenarioStatus string
+
+const (
+	StatusRunning ScenarioStatus = "running"
+	StatusStopped ScenarioStatus = "stopped"
+	StatusError   ScenarioStatus = "error"
+	StatusUnknown ScenarioStatus = "unknown"
+)
+
+var errScenarioNameRequired = errors.New("scenario name is required")
+
+// Scenario represents a deployed application in the Vrooli ecosystem.
+// [REQ:REQ-P0-006] Scenario data structure for catalog listing
+// [REQ:REQ-P0-007] Includes metadata for greenfield toggle
+type Scenario struct {
+	Name              string         `json:"name"`
+	DisplayName       string         `json:"displayName"`
+	Description       string         `json:"description"`
+	Status            ScenarioStatus `json:"status"`
+	Priority          int            `json:"priority"`
+	CompletenessScore *int           `json:"completenessScore,omitempty"`
+	IsGreenfield      bool           `json:"isGreenfield"`
+	Tags              []string       `json:"tags"`
+}
+
+// ScenarioMetadata stores editable scenario settings in a local JSON file.
+// [REQ:REQ-P0-007] Persistent metadata for scenario management
+type ScenarioMetadata struct {
+	IsGreenfield bool `json:"isGreenfield"`
+}
+
+// Handler provides HTTP handlers for scenario operations.
+type Handler struct {
+	scenariosDir    string
+	source          Source
+	lifecycle       Lifecycle
+	completeness    CompletenessSource
+	executionQueuer ExecutionQueuer
+	eventDispatcher dispatch.NodeDispatcher
+	backlogLister   BacklogLister
+	executionLister ExecutionLister
+}
+
+// NewHandler creates a new scenarios handler.
+// If scenariosDir is empty, it defaults to the Vrooli scenarios directory.
+func NewHandler(scenariosDir string) *Handler {
+	if scenariosDir == "" {
+		scenariosDir = "scenarios"
+	}
+	return NewHandlerWithDeps(
+		scenariosDir,
+		NewCLIProvider(defaultCLITimeout),
+		NewCLILifecycle(),
+		NewCLICompletenessSource(defaultCompletenessTimeout),
+	)
+}
+
+// NewHandlerWithSource creates a scenarios handler with a custom source.
+func NewHandlerWithSource(scenariosDir string, source Source) *Handler {
+	return NewHandlerWithDeps(
+		scenariosDir,
+		source,
+		NewCLILifecycle(),
+		NewCLICompletenessSource(defaultCompletenessTimeout),
+	)
+}
+
+// NewHandlerWithDeps creates a scenarios handler with injected dependencies.
+func NewHandlerWithDeps(scenariosDir string, source Source, lifecycle Lifecycle, completeness CompletenessSource) *Handler {
+	if scenariosDir == "" {
+		scenariosDir = "scenarios"
+	}
+	if source == nil {
+		source = NewCLIProvider(defaultCLITimeout)
+	}
+	if lifecycle == nil {
+		lifecycle = NewCLILifecycle()
+	}
+	if completeness == nil {
+		completeness = NewCLICompletenessSource(defaultCompletenessTimeout)
+	}
+	return &Handler{
+		scenariosDir: scenariosDir,
+		source:       source,
+		lifecycle:    lifecycle,
+		completeness: completeness,
+	}
+}
+
+// SetExecutionQueuer sets the execution queuer for spec-sync-archive support.
+func (h *Handler) SetExecutionQueuer(eq ExecutionQueuer) {
+	h.executionQueuer = eq
+}
+
+// SetEventDispatcher sets an optional event dispatcher for real-time graph updates.
+func (h *Handler) SetEventDispatcher(d dispatch.NodeDispatcher) {
+	h.eventDispatcher = d
+}
+
+// SetBacklogLister sets the backlog lister for review queue computation.
+func (h *Handler) SetBacklogLister(bl BacklogLister) {
+	h.backlogLister = bl
+}
+
+// SetExecutionLister sets the execution lister for review queue computation.
+func (h *Handler) SetExecutionLister(el ExecutionLister) {
+	h.executionLister = el
+}
+
+// LoadAll exposes scenario listing for non-HTTP consumers.
+// This keeps data access centralized in the scenarios package.
+func (h *Handler) LoadAll() ([]Scenario, error) {
+	return h.loadAllScenarios(context.Background())
+}
+
+// Load exposes scenario retrieval for non-HTTP consumers.
+func (h *Handler) Load(name string) (Scenario, error) {
+	return h.loadScenario(context.Background(), name)
+}
+
+// getReviewSummaries loads execution records and computes per-scenario review summaries.
+// Returns nil if executionLister is not configured (graceful degradation).
+func (h *Handler) getReviewSummaries(ctx context.Context) map[string]ScenarioReviewSummary {
+	if h.executionLister == nil {
+		return nil
+	}
+	records, err := h.executionLister.List(ctx, execution.ListFilters{})
+	if err != nil {
+		slog.Warn("failed to load executions for review summaries", "error", err)
+		return nil
+	}
+	return ComputeReviewSummaries(records)
+}
+
+// reviewSummaryFor returns a pointer to the review summary for a scenario, or nil.
+func reviewSummaryFor(summaries map[string]ScenarioReviewSummary, name string) *ScenarioReviewSummary {
+	if summaries == nil {
+		return nil
+	}
+	s, ok := summaries[name]
+	if !ok {
+		return nil
+	}
+	return &s
+}
+
+func scenarioToProto(s Scenario, review *ScenarioReviewSummary) *domainpb.Scenario {
+	var completeness *int32
+	if s.CompletenessScore != nil {
+		value := int32(*s.CompletenessScore)
+		completeness = &value
+	}
+	proto := &domainpb.Scenario{
+		Name:              s.Name,
+		DisplayName:       s.DisplayName,
+		Description:       s.Description,
+		Status:            string(s.Status),
+		Priority:          int32(s.Priority),
+		CompletenessScore: completeness,
+		IsGreenfield:      s.IsGreenfield,
+		Tags:              s.Tags,
+	}
+	if review != nil && review.LastReviewClassification != "" {
+		proto.LastReviewClassification = &review.LastReviewClassification
+		ts := review.LastReviewAt.Format(time.RFC3339)
+		proto.LastReviewAt = &ts
+	}
+	return proto
+}
+
+// RegisterRoutes registers the scenarios API routes.
+func (h *Handler) RegisterRoutes(r *mux.Router) {
+	// review-queue must be registered before the {name} wildcard to avoid capture.
+	r.HandleFunc("/api/v1/scenarios/review-queue", h.ReviewQueue).Methods("GET")
+	r.HandleFunc("/api/v1/scenarios", h.List).Methods("GET")
+	r.HandleFunc("/api/v1/scenarios/{name}", h.Get).Methods("GET")
+	r.HandleFunc("/api/v1/scenarios/{name}", h.UpdateMetadata).Methods("PATCH")
+	r.HandleFunc("/api/v1/scenarios/{name}", h.Delete).Methods("DELETE")
+	r.HandleFunc("/api/v1/scenarios/{name}/files", h.ListFiles).Methods("GET")
+	r.HandleFunc("/api/v1/scenarios/{name}/spec-sync-archive", h.SpecSyncArchive).Methods("POST")
+	r.HandleFunc("/api/v1/scenarios/{name}/start", h.Start).Methods("POST")
+	r.HandleFunc("/api/v1/scenarios/{name}/stop", h.Stop).Methods("POST")
+	r.HandleFunc("/api/v1/scenarios/{name}/restart", h.Restart).Methods("POST")
+}
+
+// List returns all scenarios with optional search and filter parameters.
+// [REQ:REQ-P0-006] GET /api/v1/scenarios endpoint
+//
+// Query parameters:
+//   - search: Filter by name or description (case-insensitive)
+//   - status: Filter by status (running, stopped, error, unknown)
+//   - tags: Filter by tags (comma-separated)
+//   - sort: Sort field (priority, name, displayName) - default: priority
+//   - order: Sort order (asc, desc) - default: asc for priority, asc for name
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	scenarios, err := h.loadAllScenarios(r.Context())
+	if err != nil {
+		apierr.MapError(w, "[scenarios] list", apierr.Internal("failed to load scenarios"))
+		return
+	}
+
+	// Extract query params
+	query := r.URL.Query()
+	search := strings.ToLower(query.Get("search"))
+	status := query.Get("status")
+	tagsParam := query.Get("tags")
+	sortField := query.Get("sort")
+	sortOrder := query.Get("order")
+
+	// Apply filters
+	scenarios = h.filterScenarios(scenarios, search, status, tagsParam)
+
+	// Sort scenarios
+	h.sortScenarios(scenarios, sortField, sortOrder)
+
+	slog.Info("listing scenarios", "count", len(scenarios), "search", search, "status", status, "tags", tagsParam)
+	summaries := h.getReviewSummaries(r.Context())
+	protoScenarios := make([]*domainpb.Scenario, 0, len(scenarios))
+	for _, scenario := range scenarios {
+		protoScenarios = append(protoScenarios, scenarioToProto(scenario, reviewSummaryFor(summaries, scenario.Name)))
+	}
+	resp := &apipb.ListScenariosResponse{Scenarios: protoScenarios}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		apierr.MapError(w, "[scenarios] list", apierr.Internal("failed to encode response"))
+	}
+}
+
+// filterScenarios applies search, status, and tag filters to scenarios.
+func (h *Handler) filterScenarios(scenarios []Scenario, search, status, tagsParam string) []Scenario {
+	// Apply search filter
+	if search != "" {
+		var filtered []Scenario
+		for _, s := range scenarios {
+			if matchesSearch(s, search) {
+				filtered = append(filtered, s)
+			}
+		}
+		scenarios = filtered
+	}
+
+	// Apply status filter
+	if status != "" {
+		var filtered []Scenario
+		for _, s := range scenarios {
+			if string(s.Status) == status {
+				filtered = append(filtered, s)
+			}
+		}
+		scenarios = filtered
+	}
+
+	// Apply tags filter
+	if tagsParam != "" {
+		filterTags := strings.Split(tagsParam, ",")
+		var filtered []Scenario
+		for _, s := range scenarios {
+			if hasAnyTag(s.Tags, filterTags) {
+				filtered = append(filtered, s)
+			}
+		}
+		scenarios = filtered
+	}
+
+	return scenarios
+}
+
+// matchesSearch checks if a scenario matches a search term.
+func matchesSearch(s Scenario, search string) bool {
+	return strings.Contains(strings.ToLower(s.Name), search) ||
+		strings.Contains(strings.ToLower(s.DisplayName), search) ||
+		strings.Contains(strings.ToLower(s.Description), search)
+}
+
+// sortScenarios sorts scenarios by the specified field and order.
+func (h *Handler) sortScenarios(scenarios []Scenario, sortField, sortOrder string) {
+	if sortField == "" {
+		sortField = "priority"
+	}
+	if sortOrder == "" {
+		sortOrder = "asc"
+	}
+
+	sort.Slice(scenarios, func(i, j int) bool {
+		var less bool
+		switch sortField {
+		case "name":
+			less = scenarios[i].Name < scenarios[j].Name
+		case "displayName":
+			less = scenarios[i].DisplayName < scenarios[j].DisplayName
+		default: // priority
+			if scenarios[i].Priority != scenarios[j].Priority {
+				less = scenarios[i].Priority < scenarios[j].Priority
+			} else {
+				less = scenarios[i].Name < scenarios[j].Name
+			}
+		}
+		if sortOrder == "desc" {
+			return !less
+		}
+		return less
+	})
+}
+
+// Get returns a single scenario by name.
+// [REQ:REQ-P0-006] GET /api/v1/scenarios/{name} endpoint
+func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	scenario, err := h.loadScenario(r.Context(), name)
+	if err != nil {
+		if os.IsNotExist(err) {
+			apierr.MapError(w, "", apierr.NotFound("scenario not found"))
+			return
+		}
+		apierr.MapError(w, "[scenarios] get", apierr.Internal("failed to load scenario"))
+		return
+	}
+
+	summaries := h.getReviewSummaries(r.Context())
+	resp := &apipb.ScenarioResponse{Scenario: scenarioToProto(scenario, reviewSummaryFor(summaries, scenario.Name))}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		apierr.MapError(w, "[scenarios] get", apierr.Internal("failed to encode response"))
+	}
+}
+
+// UpdateMetadata updates editable metadata for a scenario.
+// [REQ:REQ-P0-007] PATCH /api/v1/scenarios/{name} endpoint for metadata management
+//
+// This endpoint allows toggling:
+//   - isGreenfield: Whether the scenario is treated as a new project
+//
+// Metadata is stored in .vrooli/metadata.json within the scenario directory.
+func (h *Handler) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	source, found, err := h.findScenarioSource(r.Context(), name)
+	if err != nil {
+		apierr.MapError(w, "[scenarios] update", apierr.Internal("failed to load scenarios from CLI"))
+		return
+	}
+	if !found {
+		apierr.MapError(w, "", apierr.NotFound("scenario not found"))
+		return
+	}
+
+	// Parse request body
+	var req apipb.UpdateScenarioMetadataRequest
+	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
+		apierr.MapError(w, "[scenarios] update", apierr.BadRequest("invalid request body"))
+		return
+	}
+	if !httputil.ValidateProtoRequest(w, "[scenarios] update", "invalid request body", &req) {
+		return
+	}
+
+	// Load existing metadata
+	metadata, _, err := h.loadMetadata(source.Path)
+	if err != nil {
+		apierr.MapError(w, "[scenarios] update", apierr.Internal("failed to load metadata"))
+		return
+	}
+
+	// Apply updates (partial update pattern)
+	if req.IsGreenfield != nil {
+		metadata.IsGreenfield = *req.IsGreenfield
+	}
+
+	// Save updated metadata
+	if err := h.saveMetadata(source.Path, metadata); err != nil {
+		apierr.MapError(w, "[scenarios] update", apierr.Internal("failed to save metadata"))
+		return
+	}
+
+	// Return updated scenario
+	scenario, err := h.loadScenarioFromSource(source)
+	if err != nil {
+		apierr.MapError(w, "[scenarios] update", apierr.Internal("failed to load scenario"))
+		return
+	}
+	applyCompletenessScore(&scenario, h.getCompletenessScores(r.Context()))
+
+	slog.Info("scenario metadata updated", "scenario", name, "isGreenfield", scenario.IsGreenfield)
+	summaries := h.getReviewSummaries(r.Context())
+	resp := &apipb.ScenarioResponse{Scenario: scenarioToProto(scenario, reviewSummaryFor(summaries, scenario.Name))}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		apierr.MapError(w, "[scenarios] update", apierr.Internal("failed to encode response"))
+	}
+}
+
+// hasAnyTag checks if the scenario has any of the filter tags.
+func hasAnyTag(scenarioTags, filterTags []string) bool {
+	for _, ft := range filterTags {
+		ft = strings.TrimSpace(strings.ToLower(ft))
+		for _, st := range scenarioTags {
+			if strings.ToLower(st) == ft {
+				return true
+			}
+		}
+	}
+	return false
+}

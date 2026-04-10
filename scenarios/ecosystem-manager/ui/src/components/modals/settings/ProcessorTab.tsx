@@ -6,14 +6,15 @@
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { ProcessorSettings } from '@/types/api';
+import type { ProcessorSettings, SettingsConstraints } from '@/types/api';
 
 interface ProcessorTabProps {
   settings: ProcessorSettings;
   onChange: (updates: Partial<ProcessorSettings>) => void;
+  constraints?: SettingsConstraints;
 }
 
-export function ProcessorTab({ settings, onChange }: ProcessorTabProps) {
+export function ProcessorTab({ settings, onChange, constraints }: ProcessorTabProps) {
   return (
     <div className="space-y-6">
       {/* Processor Active Toggle */}
@@ -43,8 +44,8 @@ export function ProcessorTab({ settings, onChange }: ProcessorTabProps) {
         </div>
         <Slider
           id="concurrent-slots"
-          min={1}
-          max={5}
+          min={constraints?.slots.min ?? 1}
+          max={constraints?.slots.max ?? 5}
           step={1}
           value={[settings.concurrent_slots]}
           onValueChange={(value) => onChange({ concurrent_slots: value[0] })}
@@ -65,8 +66,8 @@ export function ProcessorTab({ settings, onChange }: ProcessorTabProps) {
         </div>
         <Slider
           id="cooldown-seconds"
-          min={5}
-          max={300}
+          min={constraints?.cooldown_seconds.min ?? 5}
+          max={constraints?.cooldown_seconds.max ?? 300}
           step={5}
           value={[settings.cooldown_seconds]}
           onValueChange={(value) => onChange({ cooldown_seconds: value[0] })}

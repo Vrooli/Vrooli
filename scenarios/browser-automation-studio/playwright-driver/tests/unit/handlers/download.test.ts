@@ -1,4 +1,9 @@
-import { createTypedInstruction, createMockPage, createTestConfig } from '../../helpers';
+import {
+  createTypedInstruction,
+  createMockPage,
+  createMockContext,
+  createTestConfig,
+} from '../../helpers';
 import { DownloadHandler } from '../../../src/handlers/download';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
@@ -13,7 +18,7 @@ describe('DownloadHandler', () => {
     mockPage = createMockPage();
     context = {
       page: mockPage,
-      context: {} as any,
+      browserContext: createMockContext(),
       config: createTestConfig(),
       logger,
       metrics,

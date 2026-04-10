@@ -10,7 +10,7 @@
  *   this automatically when using fromJson/toJson with the appropriate options.
  */
 
-import { create, fromJson, toJson, type MessageShape, type DescMessage } from '@bufbuild/protobuf';
+import { create, fromJson, toJson, type MessageShape, type DescMessage, type JsonValue } from '@bufbuild/protobuf';
 import { timestampFromDate, timestampDate, type Timestamp } from '@bufbuild/protobuf/wkt';
 
 // =============================================================================
@@ -59,7 +59,10 @@ export function parseProto<T extends DescMessage>(
   schema: T,
   data: unknown
 ): MessageShape<T> {
-  const jsonData = typeof data === 'string' ? JSON.parse(data) : data;
+  const jsonData: unknown = typeof data === 'string' ? JSON.parse(data) : data;
+  if (!isJsonValue(jsonData)) {
+    throw new Error('Invalid JSON data for proto parsing');
+  }
   return fromJson(schema, jsonData, PARSE_OPTIONS);
 }
 
@@ -75,7 +78,10 @@ export function parseProtoLenient<T extends DescMessage>(
   schema: T,
   data: unknown
 ): MessageShape<T> {
-  const jsonData = typeof data === 'string' ? JSON.parse(data) : data;
+  const jsonData: unknown = typeof data === 'string' ? JSON.parse(data) : data;
+  if (!isJsonValue(jsonData)) {
+    throw new Error('Invalid JSON data for proto parsing');
+  }
   return fromJson(schema, jsonData, PARSE_OPTIONS_LENIENT);
 }
 
@@ -172,7 +178,7 @@ export function createMessage<T extends DescMessage>(
  * @param date - JavaScript Date object
  * @returns Proto Timestamp
  */
-export function dateToTimestamp(date: Date) {
+export function dateToTimestamp(date: Date): Timestamp {
   return timestampFromDate(date);
 }
 
@@ -220,41 +226,123 @@ export const EXECUTION_PLAN_SCHEMA_VERSION = 'automation-plan-v1';
 // JSON VALUE CONVERSION UTILITIES
 // =============================================================================
 
-import type { JsonValue, JsonObject, JsonList } from '@vrooli/proto-types/common/v1/types_pb';
+import type { JsonValue as ProtoJsonValue, JsonObject, JsonList } from '@vrooli/proto-types/common/v1/types_pb';
+
+const isJsonValue = (value: unknown): value is JsonValue => {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.every(isJsonValue);
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    return Object.values(value as Record<string, unknown>).every(isJsonValue);
+  }
+
+  return false;
+};
 
 /**
  * Convert a proto JsonValue to a plain JavaScript value.
  *
- * @param value - Proto JsonValue
+ * Handles both:
+ * 1. Typed bufbuild proto objects with value.kind.case
+ * 2. Raw JSON objects from protojson (fallback for incomplete deserialization)
+ *
+ * @param value - Proto JsonValue or raw JSON object
  * @returns Plain JavaScript value (string, number, boolean, object, array, or null)
  */
-export function jsonValueToPlain(value: JsonValue | undefined): unknown {
-  if (!value || !value.kind) {
+export function jsonValueToPlain(value: ProtoJsonValue | undefined): unknown {
+  if (!value) {
     return undefined;
   }
 
-  switch (value.kind.case) {
-    case 'boolValue':
-      return value.kind.value;
-    case 'intValue':
-      // Convert bigint to number (safe for most values)
-      return Number(value.kind.value);
-    case 'doubleValue':
-      return value.kind.value;
-    case 'stringValue':
-      return value.kind.value;
-    case 'objectValue':
-      return jsonObjectToPlain(value.kind.value);
-    case 'listValue':
-      return jsonListToPlain(value.kind.value);
-    case 'nullValue':
-      return null;
-    case 'bytesValue':
-      // Return as base64 string for compatibility
-      return Buffer.from(value.kind.value).toString('base64');
-    default:
-      return undefined;
+  // Handle typed bufbuild proto objects (with kind.case discriminator)
+  if (value.kind && value.kind.case) {
+    switch (value.kind.case) {
+      case 'boolValue':
+        return value.kind.value;
+      case 'intValue':
+        // Convert bigint to number (safe for most values)
+        return Number(value.kind.value);
+      case 'doubleValue':
+        return value.kind.value;
+      case 'stringValue':
+        return value.kind.value;
+      case 'objectValue':
+        return jsonObjectToPlain(value.kind.value);
+      case 'listValue':
+        return jsonListToPlain(value.kind.value);
+      case 'nullValue':
+        return null;
+      case 'bytesValue':
+        // Return as base64 string for compatibility
+        return Buffer.from(value.kind.value).toString('base64');
+      default:
+        // Unknown case - fall through to raw JSON handling
+        break;
+    }
   }
+
+  // Fallback: Handle raw JSON objects from protojson serialization
+  // This handles cases where nested JsonValue fields aren't fully deserialized
+  const raw = value as Record<string, unknown>;
+
+  // Check for snake_case field names (from UseProtoNames: true)
+  if ('string_value' in raw) return raw.string_value;
+  if ('bool_value' in raw) return raw.bool_value;
+  if ('int_value' in raw) return Number(raw.int_value);
+  if ('double_value' in raw) return raw.double_value;
+  if ('null_value' in raw) return null;
+  if ('bytes_value' in raw) {
+    const bytes = raw.bytes_value;
+    if (typeof bytes === 'string') return Buffer.from(bytes, 'base64').toString('base64');
+    if (bytes instanceof Uint8Array) return Buffer.from(bytes).toString('base64');
+    return bytes;
+  }
+
+  // Check for camelCase field names (default protojson)
+  if ('stringValue' in raw) return raw.stringValue;
+  if ('boolValue' in raw) return raw.boolValue;
+  if ('intValue' in raw) return Number(raw.intValue);
+  if ('doubleValue' in raw) return raw.doubleValue;
+  if ('nullValue' in raw) return null;
+  if ('bytesValue' in raw) {
+    const bytes = raw.bytesValue;
+    if (typeof bytes === 'string') return Buffer.from(bytes, 'base64').toString('base64');
+    if (bytes instanceof Uint8Array) return Buffer.from(bytes).toString('base64');
+    return bytes;
+  }
+
+  // Handle nested objects/lists
+  if ('object_value' in raw || 'objectValue' in raw) {
+    const objVal = (raw.object_value ?? raw.objectValue) as { fields?: Record<string, unknown> };
+    if (objVal?.fields) {
+      const result: Record<string, unknown> = {};
+      for (const [key, fieldValue] of Object.entries(objVal.fields)) {
+        result[key] = jsonValueToPlain(fieldValue as ProtoJsonValue);
+      }
+      return result;
+    }
+    return {};
+  }
+
+  if ('list_value' in raw || 'listValue' in raw) {
+    const listVal = (raw.list_value ?? raw.listValue) as { values?: unknown[] };
+    if (listVal?.values) {
+      return listVal.values.map((v) => jsonValueToPlain(v as ProtoJsonValue));
+    }
+    return [];
+  }
+
+  return undefined;
 }
 
 /**
@@ -287,7 +375,7 @@ export function jsonListToPlain(list: JsonList | undefined): unknown[] {
  * Convert a map of proto JsonValue to a plain JavaScript object.
  * Used for CompiledInstruction.params conversion.
  */
-export function jsonValueMapToPlain(map: { [key: string]: JsonValue } | undefined): Record<string, unknown> {
+export function jsonValueMapToPlain(map: { [key: string]: ProtoJsonValue } | undefined): Record<string, unknown> {
   if (!map) {
     return {};
   }

@@ -15,12 +15,22 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Play, RefreshCw, CheckCircle2, XCircle, Clock, BarChart3 } from 'lucide-react';
 import { getConfig } from '@/config';
-import {
-  ExecutionConfigPanel,
-  DEFAULT_EXECUTION_SETTINGS,
-  type ExecutionConfigSettings,
-} from './ExecutionConfigPanel';
+import { ExecutionConfigPanel, type ExecutionConfigSettings } from './ExecutionConfigPanel';
+import { DEFAULT_EXECUTION_SETTINGS } from './executionConfigConstants';
 import type { NavigationWaitUntil } from '@/types/workflow';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const safeJson = async (response: Response): Promise<unknown> => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
 
 interface WorkflowStats {
   execution_count: number;
@@ -48,6 +58,49 @@ interface WorkflowDetails {
     settings_typed?: WorkflowSettings;
   };
 }
+
+const parseWorkflowStats = (value: unknown): WorkflowStats | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.execution_count !== 'number') return null;
+  const stats: WorkflowStats = { execution_count: value.execution_count };
+  if (typeof value.last_execution === 'string') stats.last_execution = value.last_execution;
+  if (typeof value.success_rate === 'number') stats.success_rate = value.success_rate;
+  if (typeof value.avg_duration_ms === 'number') stats.avg_duration_ms = value.avg_duration_ms;
+  return stats;
+};
+
+const parseWorkflowSettings = (value: unknown): WorkflowSettings | null => {
+  if (!isRecord(value)) return null;
+  const settings: WorkflowSettings = {};
+  if (typeof value.viewport_width === 'number') settings.viewport_width = value.viewport_width;
+  if (typeof value.viewport_height === 'number') settings.viewport_height = value.viewport_height;
+  if (typeof value.timeout_ms === 'number') settings.timeout_ms = value.timeout_ms;
+  if (typeof value.entry_selector_timeout_ms === 'number') settings.entry_selector_timeout_ms = value.entry_selector_timeout_ms;
+  if (typeof value.navigation_wait_until === 'string') {
+    settings.navigation_wait_until = value.navigation_wait_until as NavigationWaitUntil;
+  }
+  if (typeof value.continue_on_error === 'boolean') settings.continue_on_error = value.continue_on_error;
+  return settings;
+};
+
+const parseWorkflowDetails = (value: unknown): WorkflowDetails | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.id !== 'string' || typeof value.name !== 'string') return null;
+  const details: WorkflowDetails = { id: value.id, name: value.name };
+  if (typeof value.description === 'string') details.description = value.description;
+  if (typeof value.node_count === 'number') details.node_count = value.node_count;
+  if (value.stats) {
+    const stats = parseWorkflowStats(value.stats);
+    if (stats) details.stats = stats;
+  }
+  if (isRecord(value.definition) && value.definition.settings_typed) {
+    const settings = parseWorkflowSettings(value.definition.settings_typed);
+    if (settings) {
+      details.definition = { settings_typed: settings };
+    }
+  }
+  return details;
+};
 
 interface WorkflowInfoCardProps {
   workflowId: string;
@@ -84,7 +137,11 @@ export function WorkflowInfoCard({
         if (!response.ok) {
           throw new Error(`Failed to fetch workflow: ${response.status}`);
         }
-        const data = await response.json();
+        const payload = await safeJson(response);
+        const data = parseWorkflowDetails(payload);
+        if (!data) {
+          throw new Error('Invalid workflow response');
+        }
         setWorkflow(data);
 
         // Extract workflow settings for config defaults

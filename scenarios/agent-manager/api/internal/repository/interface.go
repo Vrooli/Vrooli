@@ -2,8 +2,7 @@
 //
 // This package defines the SEAM for data persistence. All domain entities
 // are persisted through these interfaces, enabling:
-// - Different storage backends (PostgreSQL, SQLite, in-memory)
-// - Easy testing with mock repositories
+// - Easy testing with mock/stub repositories
 // - Database migrations without changing domain logic
 package repository
 
@@ -28,10 +27,12 @@ type ListFilter struct {
 // RunListFilter extends ListFilter with run-specific filters.
 type RunListFilter struct {
 	ListFilter
-	TaskID         *uuid.UUID
-	AgentProfileID *uuid.UUID
-	Status         *domain.RunStatus
-	TagPrefix      string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+	TaskID                    *uuid.UUID
+	AgentProfileID            *uuid.UUID
+	Status                    *domain.RunStatus
+	TagPrefix                 string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+	InvestigatesRunID         *uuid.UUID
+	AppliesInvestigationRunID *uuid.UUID
 }
 
 // -----------------------------------------------------------------------------
@@ -113,6 +114,31 @@ type RunRepository interface {
 
 	// CountByStatus returns the count of runs by status.
 	CountByStatus(ctx context.Context, status domain.RunStatus) (int, error)
+
+	// ListPendingRecommendationExtractions returns runs that need recommendation extraction.
+	// Returns runs with status=pending or status=failed (with attempts < maxRetries),
+	// ordered by queued_at ascending (oldest first).
+	ListPendingRecommendationExtractions(ctx context.Context, maxRetries, limit int) ([]*domain.Run, error)
+
+	// ClaimRecommendationExtraction atomically marks a run as "extracting".
+	// Returns true if claim succeeded (no concurrent extractor got it first).
+	// This prevents duplicate extraction if multiple workers exist.
+	ClaimRecommendationExtraction(ctx context.Context, runID uuid.UUID) (bool, error)
+
+	// ListUnextractedInvestigationRuns returns complete investigation runs that haven't had
+	// recommendations extracted yet (status is empty or "none").
+	// Used on startup to seed the extraction queue with existing runs.
+	// Limited to most recent runs (by created_at desc) to avoid overwhelming the queue.
+	ListUnextractedInvestigationRuns(ctx context.Context, tagPrefix string, limit int) ([]*domain.Run, error)
+
+	// ListStaleExtractions returns runs that have been stuck in "extracting" status
+	// for longer than the stale timeout. These are likely from crashed workers.
+	// Used by the worker to recover stuck extractions.
+	ListStaleExtractions(ctx context.Context, staleTimeout time.Duration, limit int) ([]*domain.Run, error)
+
+	// GetByTokenHash retrieves a run by its identity token hash.
+	// Returns nil, nil if no matching run is found.
+	GetByTokenHash(ctx context.Context, tokenHash string) (*domain.Run, error)
 }
 
 // -----------------------------------------------------------------------------

@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package ecosystem_manager.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/domain;domain";
+
+// =============================================================================
+// COMMON DOMAIN
+// =============================================================================
+//
+// @layer 0
+// @domain common
+// @imports none
+// @stability beta
+//
+// Shared constants and string-validated enums for the Ecosystem Manager.
+// All enum-like values are represented as validated strings to preserve
+// wire format compatibility with existing JSON APIs.
+//
+// USAGE CONTEXTS:
+//   - Imported by all other ecosystem-manager proto schemas
+//   - UI services for compile-time enum safety
+//
+// =============================================================================
+
+// TaskStatus enumerates the lifecycle states of a task.
+// Wire values use kebab-case to match existing API contracts.
+//
+// Note: This is modeled as a string field with buf.validate `in:` constraints
+// rather than a proto enum to preserve exact wire values (e.g. "in-progress").
+// Use the TASK_STATUS_* constants below as documentation only.
+
+// WebSocketEventType enumerates real-time event types pushed to clients.
+enum WebSocketEventType {
+  WEB_SOCKET_EVENT_TYPE_UNSPECIFIED = 0;
+  WEB_SOCKET_EVENT_TYPE_TASK_UPDATED = 1;
+  WEB_SOCKET_EVENT_TYPE_TASK_CREATED = 2;
+  WEB_SOCKET_EVENT_TYPE_TASK_DELETED = 3;
+  WEB_SOCKET_EVENT_TYPE_QUEUE_STATUS = 4;
+  WEB_SOCKET_EVENT_TYPE_PROCESS_STARTED = 5;
+  WEB_SOCKET_EVENT_TYPE_PROCESS_STOPPED = 6;
+  WEB_SOCKET_EVENT_TYPE_SETTINGS_UPDATED = 7;
+  WEB_SOCKET_EVENT_TYPE_LOG_ENTRY = 8;
+  WEB_SOCKET_EVENT_TYPE_EXECUTION_COMPLETED = 9;
+  WEB_SOCKET_EVENT_TYPE_AUTOSTEER_STATE = 10;
+  WEB_SOCKET_EVENT_TYPE_HEALTH = 11;
+}

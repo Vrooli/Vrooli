@@ -1,0 +1,25 @@
+{
+  "archived_at": "2026-02-05T20:24:33Z",
+  "created": "2026-02-05T20:24:33Z",
+  "description": "Democratic feature request voting and management system that enables any scenario/app to collect and prioritize user feedback",
+  "name": "feature-request-voting-archived",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "user-feedback",
+    "feature-management",
+    "voting-system",
+    "multi-tenant",
+    "saas-enhancement",
+    "product-management",
+    "kanban-board",
+    "react-ui",
+    "go-api",
+    "postgres-storage",
+    "scenario-authenticator",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] feature-request-voting",
+  "updated": "2026-02-05T20:24:33Z"
+}

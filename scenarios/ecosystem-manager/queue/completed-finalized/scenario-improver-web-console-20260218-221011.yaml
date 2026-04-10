@@ -1,0 +1,36 @@
+id: scenario-improver-web-console-20260218-221011
+title: Improve scenario web-console
+type: scenario
+operation: improver
+target: web-console
+targets:
+    - web-console
+category: improvement
+priority: medium
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: completed-finalized
+current_phase: completed-finalized
+started_at: ""
+completed_at: "2026-03-09T19:08:13-04:00"
+cooldown_until: "2026-03-09T19:13:13-04:00"
+completion_count: 92
+last_completed_at: "2026-03-09T19:08:13-04:00"
+validation_criteria: []
+created_by: ""
+created_at: "2026-02-18T22:10:11-05:00"
+updated_at: "2026-03-09T19:08:13-04:00"
+tags: []
+notes: ""
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: false
+steer_set:
+    - react-stability
+    - signal-and-feedback-surface-design
+auto_steer_profile_id: 8c3e5043-0b33-44e1-aa73-a044f6ac22c2

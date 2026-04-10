@@ -1,0 +1,131 @@
+{
+  "round": 2,
+  "generated_at": "2026-03-29T18:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Initiative data lifecycle for Initiatives tab",
+      "context": "Round 1 decision d3 was answered 'whatever you think is best'. The execution-store already exists (Zustand, polling). initiative-service.ts exists with a list() API. The question is whether to create a matching initiative-store or fetch inline in the tab component. Since the user deferred to 'best professional long-term solution', the plan now proposes a dedicated initiative-store matching the execution-store pattern for consistency. Confirm or override.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Create initiative-store (Zustand) wrapping initiative-service",
+          "rationale": "Matches execution-store pattern. Consistent data lifecycle, caching, selector-based reads, and refresh logic. Other components (e.g., future initiative detail views) can reuse it. The initiative-service.ts API layer already exists.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Fetch inline in InitiativesTab with useEffect + local state",
+          "rationale": "Simpler, no new store file. But breaks consistency with other entity tabs that read from stores. No caching or reuse."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Empty and loading state approach",
+      "context": "Each tab needs empty states (no items, no search results) and the Initiatives tab needs a loading state for the initial API fetch. This affects UX quality. Options range from simple text to illustrated empty states.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Simple text-only empty states with icon",
+          "rationale": "Fast to implement. A centered icon + short message per tab (e.g., 'No backlog items match your filters'). Loading state uses a pulsing skeleton matching item height. Consistent and low effort.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Illustrated empty states with contextual actions",
+          "rationale": "More polished — each tab gets a small illustration and a CTA button (e.g., 'Create a capture' on empty Captures tab). Better UX but significantly more design/implementation work."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Acceptance deny patterns",
+      "context": "acceptance_allow is already set to 'scenarios/swarm-manager/ui/**'. The plan involves no API changes and no modifications outside the UI. Should we set acceptance_deny to protect specific paths?",
+      "options": [
+        {
+          "key": "A",
+          "label": "No acceptance_deny needed",
+          "rationale": "The acceptance_allow already scopes to UI only. There are no sensitive files within the UI directory that need extra protection. Adding deny patterns for this item adds overhead without value.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Deny scenarios/swarm-manager/ui/src/stores/backlog-store.ts and capture-store.ts",
+          "rationale": "Protects existing stores from accidental modification. But the plan explicitly reads from these stores without modifying them, so denying writes would be overly cautious."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Filter persistence scope",
+      "context": "URL params will store the active tab and filters. But should filter state persist when switching between tabs? For example, if the user sets status filters on the Backlog tab, switches to Captures, then switches back — should the Backlog filters still be applied?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Persist filters per-tab in the reducer (not in URL)",
+          "rationale": "URL only stores the active tab's current filters. Switching tabs preserves each tab's filter state in the reducer, but URL reflects only the visible tab. Simpler URL, good UX during a session. Filters reset on page reload (only active tab's filters survive via URL).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "All tab filters in URL simultaneously",
+          "rationale": "Full URL persistence — e.g., ?stab=backlog\u0026bst=ready\u0026est=running. Every tab's filters survive page reload. But URL becomes long and complex."
+        },
+        {
+          "key": "C",
+          "label": "No filter persistence — reset on tab switch",
+          "rationale": "Simplest implementation. Every tab switch clears filters. But frustrating if the user is comparing filtered views across tabs."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "initiative-service.ts already exists with list(), get(), listFiles(), and getFileContent() methods. The API endpoints are at /initiatives, /initiatives/{name}, etc. No new API work is needed — only a Zustand store wrapper to provide caching and reactive access."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The execution-store already provides items[], status, and lastFetchedAt — the same pattern the initiative-store should follow. Node ID builders exist for all entity types: buildBacklogNodeId, buildExecutionNodeId, buildActivityNodeId, plus initiative/{name} and capture/{id} formats in node-id-parser.ts."
+    }
+  ],
+  "plan_updates": "Incorporated all round 1 decisions: useReducer for state management, separate tab component files, individual URL params with s-prefix, and initiative-store creation. Added Data Sources Per Tab table. Filled in Contract Decisions section with state management, component structure, data sources, and URL param encoding. Populated Testing Plan with unit tests (reducer, search, filter, sort, initiative-store), component tests (tabs, filter bar, entity tabs), and integration tests (URL roundtrip, graph selection, mobile layout). Added empty state and loading state items to rollout checklist."
+}

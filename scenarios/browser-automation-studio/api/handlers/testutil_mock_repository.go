@@ -21,6 +21,7 @@ type MockRepository struct {
 	schedules  map[uuid.UUID]*database.ScheduleIndex
 	exports    map[uuid.UUID]*database.ExportIndex
 	settings   map[string]string
+	assets     map[uuid.UUID]*database.AssetIndex
 
 	// Error injection for testing error paths
 	ListProjectsError error
@@ -35,6 +36,7 @@ func NewMockRepository() *MockRepository {
 		schedules:  make(map[uuid.UUID]*database.ScheduleIndex),
 		exports:    make(map[uuid.UUID]*database.ExportIndex),
 		settings:   make(map[string]string),
+		assets:     make(map[uuid.UUID]*database.AssetIndex),
 	}
 }
 
@@ -250,6 +252,19 @@ func (r *MockRepository) GetWorkflowByName(_ context.Context, name, folderPath s
 
 	for _, w := range r.workflows {
 		if w.Name == name && w.FolderPath == folderPath {
+			copy := *w
+			return &copy, nil
+		}
+	}
+	return nil, database.ErrNotFound
+}
+
+func (r *MockRepository) GetWorkflowByNameInProject(_ context.Context, projectID uuid.UUID, name, folderPath string) (*database.WorkflowIndex, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, w := range r.workflows {
+		if w.ProjectID != nil && *w.ProjectID == projectID && w.Name == name && w.FolderPath == folderPath {
 			copy := *w
 			return &copy, nil
 		}
@@ -602,6 +617,116 @@ func (r *MockRepository) DeleteSetting(_ context.Context, key string) error {
 }
 
 // ============================================================================
+// Asset Operations
+// ============================================================================
+
+func (r *MockRepository) CreateAsset(_ context.Context, asset *database.AssetIndex) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if asset.ID == uuid.Nil {
+		asset.ID = uuid.New()
+	}
+	now := time.Now()
+	asset.CreatedAt = now
+	asset.UpdatedAt = now
+
+	copy := *asset
+	r.assets[asset.ID] = &copy
+	return nil
+}
+
+func (r *MockRepository) GetAsset(_ context.Context, projectID uuid.UUID, filePath string) (*database.AssetIndex, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, asset := range r.assets {
+		if asset.ProjectID == projectID && asset.FilePath == filePath {
+			copy := *asset
+			return &copy, nil
+		}
+	}
+	return nil, database.ErrNotFound
+}
+
+func (r *MockRepository) GetAssetByID(_ context.Context, id uuid.UUID) (*database.AssetIndex, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	asset, ok := r.assets[id]
+	if !ok {
+		return nil, database.ErrNotFound
+	}
+	copy := *asset
+	return &copy, nil
+}
+
+func (r *MockRepository) UpdateAsset(_ context.Context, asset *database.AssetIndex) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.assets[asset.ID]; !ok {
+		return database.ErrNotFound
+	}
+	asset.UpdatedAt = time.Now()
+	copy := *asset
+	r.assets[asset.ID] = &copy
+	return nil
+}
+
+func (r *MockRepository) DeleteAsset(_ context.Context, id uuid.UUID) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	delete(r.assets, id)
+	return nil
+}
+
+func (r *MockRepository) DeleteAssetByPath(_ context.Context, projectID uuid.UUID, filePath string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for id, asset := range r.assets {
+		if asset.ProjectID == projectID && asset.FilePath == filePath {
+			delete(r.assets, id)
+			return nil
+		}
+	}
+	return nil
+}
+
+func (r *MockRepository) DeleteAssetsByProject(_ context.Context, projectID uuid.UUID) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for id, asset := range r.assets {
+		if asset.ProjectID == projectID {
+			delete(r.assets, id)
+		}
+	}
+	return nil
+}
+
+func (r *MockRepository) ListAssetsByProject(_ context.Context, projectID uuid.UUID, limit, offset int) ([]*database.AssetIndex, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	assets := make([]*database.AssetIndex, 0)
+	for _, asset := range r.assets {
+		if asset.ProjectID == projectID {
+			copy := *asset
+			assets = append(assets, &copy)
+		}
+	}
+
+	sort.Slice(assets, func(i, j int) bool {
+		return assets[i].FilePath < assets[j].FilePath
+	})
+
+	return applyPagination(assets, limit, offset), nil
+}
+
+// ============================================================================
 // Export Operations
 // ============================================================================
 
@@ -665,6 +790,37 @@ func (r *MockRepository) DeleteExport(_ context.Context, id uuid.UUID) error {
 	defer r.mu.Unlock()
 
 	delete(r.exports, id)
+	return nil
+}
+
+func (r *MockRepository) UpdateExportStatus(_ context.Context, id uuid.UUID, status string, errorMessage string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	export, ok := r.exports[id]
+	if !ok {
+		return database.ErrNotFound
+	}
+	export.Status = status
+	export.UpdatedAt = time.Now()
+	if errorMessage != "" {
+		export.Error = errorMessage
+	}
+	return nil
+}
+
+func (r *MockRepository) UpdateExportComplete(_ context.Context, id uuid.UUID, storageURL string, fileSizeBytes int64) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	export, ok := r.exports[id]
+	if !ok {
+		return database.ErrNotFound
+	}
+	export.Status = "completed"
+	export.StorageURL = storageURL
+	export.FileSizeBytes = &fileSizeBytes
+	export.UpdatedAt = time.Now()
 	return nil
 }
 
@@ -851,4 +1007,5 @@ func (r *MockRepository) Reset() {
 	r.schedules = make(map[uuid.UUID]*database.ScheduleIndex)
 	r.exports = make(map[uuid.UUID]*database.ExportIndex)
 	r.settings = make(map[string]string)
+	r.assets = make(map[uuid.UUID]*database.AssetIndex)
 }

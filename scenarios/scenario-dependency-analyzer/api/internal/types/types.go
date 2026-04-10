@@ -26,7 +26,7 @@ type ServiceConfig struct {
 	Ports       map[string]interface{} `json:"ports"`
 	Resources   map[string]Resource    `json:"resources"`
 	Scenarios   map[string]interface{} `json:"scenarios"`
-	Lifecycle   interface{}            `json:"lifecycle"`
+	Lifecycle   *ServiceLifecycle      `json:"lifecycle"`
 
 	// Common fields
 	Dependencies struct {
@@ -34,6 +34,19 @@ type ServiceConfig struct {
 		Scenarios map[string]ScenarioDependencySpec `json:"scenarios"`
 	} `json:"dependencies"`
 	Deployment *ServiceDeployment `json:"deployment"`
+}
+
+// ServiceLifecycle represents the lifecycle configuration in service.json v2.0.
+type ServiceLifecycle struct {
+	Version string               `json:"version"`
+	Health  *ServiceHealthConfig `json:"health"`
+}
+
+// ServiceHealthConfig represents health check configuration in service.json.
+type ServiceHealthConfig struct {
+	Description        string            `json:"description"`
+	Endpoints          map[string]string `json:"endpoints"` // e.g., {"api": "/health", "ui": "/health"}
+	StartupGracePeriod int               `json:"startup_grace_period"`
 }
 
 // Resource describes a single resource dependency declaration.
@@ -48,6 +61,7 @@ type Resource struct {
 
 // ScenarioDependencySpec captures declared scenario dependencies.
 type ScenarioDependencySpec struct {
+	Enabled      bool   `json:"enabled"`
 	Required     bool   `json:"required"`
 	Version      string `json:"version"`
 	VersionRange string `json:"versionRange"`
@@ -303,6 +317,8 @@ type DeploymentDependencyNode struct {
 	Type         string                        `json:"type"`
 	ResourceType string                        `json:"resource_type,omitempty"`
 	Path         string                        `json:"path,omitempty"`
+	Required     *bool                         `json:"required,omitempty"`
+	Enabled      *bool                         `json:"enabled,omitempty"`
 	Requirements *DeploymentRequirements       `json:"requirements,omitempty"`
 	TierSupport  map[string]TierSupportSummary `json:"tier_support,omitempty"`
 	Alternatives []string                      `json:"alternatives,omitempty"`

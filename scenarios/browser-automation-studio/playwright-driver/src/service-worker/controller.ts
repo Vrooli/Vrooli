@@ -66,6 +66,23 @@ export class ServiceWorkerController {
     this.control = control;
   }
 
+  private extractWorkerErrorMessage(event: unknown): string {
+    if (event && typeof event === 'object') {
+      const record = event as Record<string, unknown>;
+      const errorMessage = record.errorMessage;
+      if (typeof errorMessage === 'string') {
+        return errorMessage;
+      }
+      if (errorMessage && typeof errorMessage === 'object') {
+        const nested = errorMessage as Record<string, unknown>;
+        if (typeof nested.message === 'string') {
+          return nested.message;
+        }
+      }
+    }
+    return 'unknown error';
+  }
+
   /**
    * Initialize SW monitoring via CDP.
    */
@@ -88,11 +105,10 @@ export class ServiceWorkerController {
         this.handleVersionUpdate(event.versions);
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      this.cdpSession.on('ServiceWorker.workerErrorReported', (event: any) => {
+      this.cdpSession.on('ServiceWorker.workerErrorReported', (event: unknown) => {
         logger.warn(scopedLog(LogContext.SESSION, 'service worker error'), {
           sessionId: this.sessionId,
-          errorMessage: event.errorMessage?.message || event.errorMessage || 'unknown error',
+          errorMessage: this.extractWorkerErrorMessage(event),
         });
       });
 
@@ -288,7 +304,7 @@ export class ServiceWorkerController {
               hostname: url.hostname,
             });
             // Fire and forget - don't await in event handler
-            this.unregister(reg.scopeURL);
+            void this.unregister(reg.scopeURL);
           }
         } catch {
           // Invalid URL - skip

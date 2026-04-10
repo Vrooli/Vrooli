@@ -225,16 +225,14 @@ func (d *Dependencies) Stop(ctx context.Context) error {
 
 	// Stop checkpoint manager first (stops background workers)
 	if d.CheckpointManager != nil {
-		if err := d.CheckpointManager.Stop(); err != nil {
-			// Log but continue shutdown
-		}
+		// Ignore error - continue shutdown regardless
+		_ = d.CheckpointManager.Stop()
 	}
 
 	// Stop health monitor
 	if d.HealthMonitor != nil {
-		if err := d.HealthMonitor.Stop(); err != nil {
-			// Log but continue shutdown
-		}
+		// Ignore error - continue shutdown regardless
+		_ = d.HealthMonitor.Stop()
 	}
 
 	// Stop supervisor (kills playwright-driver)

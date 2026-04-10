@@ -4,7 +4,6 @@
  * Tests the provider configuration, capabilities, and factory function.
  */
 
-import { describe, beforeEach, afterEach, it, expect, jest } from '@jest/globals';
 import {
   createPlaywrightProvider,
   getConfiguredProviderName,
@@ -13,6 +12,15 @@ import {
   logProviderConfig,
 } from '../../../src/playwright/provider';
 import { RECORDING_TROUBLESHOOTING } from '../../../src/playwright/types';
+import { createNoOpLogger, setLogger } from '../../../src/utils';
+import type { Logger as WinstonLogger } from 'winston';
+
+const createMockLogger = (): WinstonLogger => ({
+  info: jest.fn(),
+  warn: jest.fn(),
+  debug: jest.fn(),
+  error: jest.fn(),
+} as unknown as WinstonLogger);
 
 describe('Playwright Provider', () => {
   const originalEnv = process.env.PLAYWRIGHT_PROVIDER;
@@ -91,17 +99,18 @@ describe('Playwright Provider', () => {
     });
 
     it('should warn and fallback when playwright is requested but not installed', () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const mockLogger = createMockLogger();
+      setLogger(mockLogger);
 
       const provider = createPlaywrightProvider('playwright');
 
       // Should fallback to rebrowser-playwright since playwright isn't installed
       expect(provider.name).toBe('rebrowser-playwright');
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Standard playwright requested')
       );
 
-      consoleSpy.mockRestore();
+      setLogger(createNoOpLogger());
     });
   });
 
@@ -119,11 +128,12 @@ describe('Playwright Provider', () => {
 
   describe('logProviderConfig', () => {
     it('should log provider configuration', () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      const mockLogger = createMockLogger();
+      setLogger(mockLogger);
 
       logProviderConfig();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockLogger.info).toHaveBeenCalledWith(
         '[playwright-provider] Active configuration:',
         expect.objectContaining({
           name: 'rebrowser-playwright',
@@ -133,7 +143,7 @@ describe('Playwright Provider', () => {
         })
       );
 
-      consoleSpy.mockRestore();
+      setLogger(createNoOpLogger());
     });
   });
 });
@@ -163,7 +173,7 @@ describe('RECORDING_TROUBLESHOOTING', () => {
 
   it('should provide actionable checklists', () => {
     // Every troubleshooting entry should have at least 2 checklist items
-    for (const [key, entry] of Object.entries(RECORDING_TROUBLESHOOTING)) {
+    for (const entry of Object.values(RECORDING_TROUBLESHOOTING)) {
       expect(entry.checkList.length).toBeGreaterThanOrEqual(2);
       for (const item of entry.checkList) {
         // Each item should be a meaningful sentence

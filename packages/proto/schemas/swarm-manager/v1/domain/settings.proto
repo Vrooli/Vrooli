@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+// =============================================================================
+// SETTINGS DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain settings
+// @imports none (external only: buf.validate)
+// @stability beta
+//
+// User-configurable settings for Swarm Manager. These values are persisted
+// locally and surfaced through the settings API for the UI.
+//
+// USAGE CONTEXTS:
+//   - API responses for settings endpoints
+//   - UI data models (settings page)
+//
+// =============================================================================
+
+// Confirmation level for delete operations.
+enum DeleteConfirmLevel {
+  // Simple OK/Cancel dialog (proto3 zero-value default).
+  DELETE_CONFIRM_LEVEL_SIMPLE = 0;
+  // No confirmation — delete immediately on click.
+  DELETE_CONFIRM_LEVEL_NONE = 1;
+  // Strong confirmation — user must type the entity name.
+  DELETE_CONFIRM_LEVEL_STRONG = 2;
+}
+
+// Per-entity-type delete confirmation settings.
+message DeleteConfirmationSettings {
+  DeleteConfirmLevel backlog = 1;
+  DeleteConfirmLevel initiative = 2;
+  DeleteConfirmLevel capture = 3;
+}
+
+// Settings captures persisted configuration for Swarm Manager.
+message Settings {
+  // UI theme preference.
+  string theme = 1 [(buf.validate.field).string = { in: ["dark", "light", "system"] }];
+
+  reserved 2, 3, 4;
+
+  // Execution defaults (absorbed from ExecutionPolicy).
+  string default_mode = 5 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  reserved 6;
+  bool auto_fixup = 7;
+  int32 max_fixup_attempts = 8 [(buf.validate.field).int32 = { gte: 0, lte: 5 }];
+  bool review_agent_enabled = 31;
+
+  // Workshop settings.
+  int32 max_auto_rounds = 9 [(buf.validate.field).int32 = { gte: 0, lte: 50 }];
+  bool auto_initialize_workshop = 16;
+  bool auto_advance_workshop = 17;
+  bool auto_cascade_workshop = 18;
+  // Grace period (seconds) before auto-advance spawns the next round. 0 = instant.
+  int32 auto_advance_delay_seconds = 32 [(buf.validate.field).int32 = { gte: 0, lte: 120 }];
+
+  // Agent behavior settings.
+  int32 agent_max_turns = 10 [(buf.validate.field).int32 = { gte: 5, lte: 200 }];
+  int32 agent_timeout_seconds = 11 [(buf.validate.field).int32 = { gte: 60, lte: 3600 }];
+  bool agent_requires_approval = 12;
+
+  // UI preference settings.
+  int32 search_debounce_ms = 13 [(buf.validate.field).int32 = { gte: 100, lte: 2000 }];
+  int32 toast_duration_ms = 14 [(buf.validate.field).int32 = { gte: 1000, lte: 30000 }];
+  reserved 15;
+  reserved "confirm_destructive_actions";
+  // Per-entity-type delete confirmation levels.
+  DeleteConfirmationSettings delete_confirmation = 33;
+
+  // Review thresholds.
+  double review_code_quality_min_score = 19 [(buf.validate.field).double = { gte: 0, lte: 100 }];
+  double review_test_min_pass_rate = 20 [(buf.validate.field).double = { gte: 0, lte: 1 }];
+  int32 review_max_blocking_violations = 21 [(buf.validate.field).int32.gte = 0];
+  int32 review_max_warnings = 22 [(buf.validate.field).int32.gte = -1];
+  bool review_require_screenshots = 23;
+  bool review_require_tests = 24;
+
+  // Concurrency and governance settings.
+  int32 max_concurrent_executions = 25 [(buf.validate.field).int32 = { gte: 1, lte: 20 }];
+  int32 max_queue_depth = 26 [(buf.validate.field).int32 = { gte: 0, lte: 100 }];
+  int32 circuit_breaker_threshold = 27 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+  int32 circuit_breaker_cooldown_minutes = 28 [(buf.validate.field).int32 = { gte: 5, lte: 1440 }];
+  double execution_cost_cap_per_run = 29 [(buf.validate.field).double.gte = 0];
+  double cost_per_turn_estimate = 30 [(buf.validate.field).double = { gte: 0, lte: 5 }];
+}

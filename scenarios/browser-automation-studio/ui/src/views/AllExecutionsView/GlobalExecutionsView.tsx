@@ -1,24 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, X, ChevronLeft, Clock, Filter, RefreshCw, CheckCircle, XCircle, Loader, Ban, AlertCircle } from 'lucide-react';
-import { getConfig } from '@/config';
 import { logger } from '@utils/logger';
 import toast from 'react-hot-toast';
-import { parseProjectList } from '@utils/projectProto';
-
-type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-
-interface ExecutionItem {
-  id: string;
-  workflowId: string;
-  workflowName: string;
-  projectId?: string;
-  projectName?: string;
-  status: ExecutionStatus;
-  startedAt: Date;
-  completedAt?: Date;
-  duration?: number;
-  error?: string;
-}
+import { loadGlobalExecutions, type ExecutionStatus, type GlobalExecutionItem } from './controllers/executionListController';
 
 interface GlobalExecutionsViewProps {
   onBack: () => void;
@@ -89,7 +73,7 @@ export const GlobalExecutionsView: React.FC<GlobalExecutionsViewProps> = ({
   onBack,
   onViewExecution,
 }) => {
-  const [executions, setExecutions] = useState<ExecutionItem[]>([]);
+  const [executions, setExecutions] = useState<GlobalExecutionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -104,71 +88,7 @@ export const GlobalExecutionsView: React.FC<GlobalExecutionsViewProps> = ({
     }
 
     try {
-      const config = await getConfig();
-
-      // Fetch projects for names
-      const projectsResponse = await fetch(`${config.API_URL}/projects`);
-      const projectsData = await projectsResponse.json();
-      const projects = parseProjectList(projectsData);
-      const projectsMap = new Map<string, string>();
-      projects.forEach((p) => projectsMap.set(p.id, p.name));
-
-      // Fetch workflows for names
-      const workflowsResponse = await fetch(`${config.API_URL}/workflows?limit=500`);
-      const workflowsData = await workflowsResponse.json();
-      const workflowsMap = new Map<string, { name: string; projectId?: string; projectName?: string }>();
-      if (Array.isArray(workflowsData.workflows)) {
-        workflowsData.workflows.forEach((w: Record<string, unknown>) => {
-          const projectId = String(w.project_id ?? w.projectId ?? '');
-          workflowsMap.set(String(w.id), {
-            name: String(w.name ?? 'Untitled'),
-            projectId,
-            projectName: projectsMap.get(projectId),
-          });
-        });
-      }
-
-      // Fetch all executions
-      const response = await fetch(`${config.API_URL}/executions?limit=200`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch executions: ${response.status}`);
-      }
-      const data = await response.json();
-
-      const executionItems: ExecutionItem[] = Array.isArray(data.executions)
-        ? data.executions.map((e: Record<string, unknown>) => {
-            const workflowId = String(e.workflow_id ?? e.workflowId ?? '');
-            const workflowInfo = workflowsMap.get(workflowId);
-            const statusValue = String(e.status ?? 'pending');
-            const validStatuses = ['pending', 'running', 'completed', 'failed', 'cancelled'];
-            const status = validStatuses.includes(statusValue) ? statusValue as ExecutionStatus : 'pending';
-
-            const startedAt = new Date(String(e.started_at ?? e.startedAt ?? new Date().toISOString()));
-            const completedAt = e.completed_at || e.completedAt
-              ? new Date(String(e.completed_at ?? e.completedAt))
-              : undefined;
-            const duration = completedAt
-              ? completedAt.getTime() - startedAt.getTime()
-              : undefined;
-
-            return {
-              id: String(e.id ?? e.execution_id ?? ''),
-              workflowId,
-              workflowName: workflowInfo?.name ?? 'Unknown Workflow',
-              projectId: workflowInfo?.projectId,
-              projectName: workflowInfo?.projectName,
-              status,
-              startedAt,
-              completedAt,
-              duration,
-              error: e.error ? String(e.error) : undefined,
-            };
-          })
-        : [];
-
-      // Sort by startedAt descending
-      executionItems.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
-
+      const executionItems = await loadGlobalExecutions(200);
       setExecutions(executionItems);
     } catch (error) {
       logger.error('Failed to fetch all executions', { component: 'GlobalExecutionsView', action: 'fetchAllExecutions' }, error);
@@ -179,16 +99,24 @@ export const GlobalExecutionsView: React.FC<GlobalExecutionsViewProps> = ({
     }
   }, []);
 
+  // Fetch once on mount
   useEffect(() => {
     fetchAllExecutions();
+  }, [fetchAllExecutions]);
 
-    // Poll for updates every 15 seconds
+  // Only poll when there are active executions (running/pending)
+  useEffect(() => {
+    const hasActiveExecutions = executions.some(
+      e => e.status === 'running' || e.status === 'pending'
+    );
+    if (!hasActiveExecutions) return;
+
     const interval = setInterval(() => {
       fetchAllExecutions(true);
     }, 15000);
 
     return () => clearInterval(interval);
-  }, [fetchAllExecutions]);
+  }, [fetchAllExecutions, executions]);
 
   // Filter executions
   const filteredExecutions = useMemo(() => {
@@ -221,7 +149,7 @@ export const GlobalExecutionsView: React.FC<GlobalExecutionsViewProps> = ({
     return { running, completed, failed, total: executions.length };
   }, [executions]);
 
-  const renderExecutionItem = (execution: ExecutionItem) => (
+  const renderExecutionItem = (execution: GlobalExecutionItem) => (
     <div
       key={execution.id}
       onClick={() => onViewExecution(execution.id, execution.workflowId)}

@@ -1,0 +1,12 @@
+{
+  "name": "remote-deployment-ops",
+  "title": "Remote Deployment Operations",
+  "description": "Make the desktop release and deployment workflow fully operable through Vrooli-native surfaces without shell or IDE dependency.",
+  "status": "active",
+  "items": [
+    "research/mobile-operable-deployment-options-audit",
+    "execute/mobile-operable-deployment-surfaces"
+  ],
+  "created": "2026-03-26T16:35:54Z",
+  "updated": "2026-03-26T16:36:26Z"
+}

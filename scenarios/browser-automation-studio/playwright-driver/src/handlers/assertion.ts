@@ -52,10 +52,12 @@ export class AssertionHandler extends BaseHandler {
       // Determine assertion mode - already set above
       const normalizedMode = mode.toLowerCase();
 
-      logger.debug('Running assertion', {
+      logger.info('Running assertion', {
         selector,
         mode: normalizedMode,
         timeout,
+        attributeName,
+        expectedValue,
       });
 
       // Capture element context BEFORE the assertion (recording-quality telemetry)
@@ -86,7 +88,7 @@ export class AssertionHandler extends BaseHandler {
 
         case 'attribute':
         case 'attribute_equals':
-        case 'attribute_contains':
+        case 'attribute_contains': {
           if (!attributeName) {
             return {
               success: false,
@@ -109,6 +111,7 @@ export class AssertionHandler extends BaseHandler {
             attrMode
           );
           break;
+        }
 
         case 'text_equals':
         case 'equals':

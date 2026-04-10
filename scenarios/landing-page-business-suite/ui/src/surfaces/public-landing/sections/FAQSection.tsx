@@ -74,7 +74,7 @@ export function FAQSection({ content, supportChatUrl }: FAQSectionProps) {
   const renderFaqItem = (faq: FAQItem, index: number) => (
     <div
       key={index}
-      className="rounded-2xl border border-white/10 bg-[#0F172A] transition-all duration-200 hover:border-white/20"
+      className="rounded-2xl border border-white/10 bg-surface-primary transition-all duration-200 hover:border-white/20"
       data-testid={`faq-${index}`}
     >
       <button
@@ -84,7 +84,7 @@ export function FAQSection({ content, supportChatUrl }: FAQSectionProps) {
       >
         <span className="pr-4 text-base font-semibold text-white">{faq.question}</span>
         <ChevronDown
-          className={`h-5 w-5 flex-shrink-0 text-[#F97316] transition-transform duration-200 ${openIndices.has(index) ? 'rotate-180' : ''}`}
+          className={`h-5 w-5 flex-shrink-0 text-accent transition-transform duration-200 ${openIndices.has(index) ? 'rotate-180' : ''}`}
         />
       </button>
       <div
@@ -99,7 +99,7 @@ export function FAQSection({ content, supportChatUrl }: FAQSectionProps) {
   );
 
   return (
-    <section className="bg-[#07090F] py-24">
+    <section className="bg-bg-base py-24">
       <div className="container mx-auto px-6">
         <div className="max-w-3xl">
           <p className="text-xs uppercase tracking-[0.35em] text-slate-500">FAQ</p>
@@ -123,8 +123,8 @@ export function FAQSection({ content, supportChatUrl }: FAQSectionProps) {
 
         {/* AI Assistant CTA - only show if supportChatUrl is configured */}
         {supportChatUrl && (
-          <div className="mt-12 flex flex-col items-center justify-center gap-4 rounded-2xl border border-white/10 bg-[#0F172A] p-8 text-center">
-            <Bot className="h-8 w-8 text-[#F97316]" />
+          <div className="mt-12 flex flex-col items-center justify-center gap-4 rounded-2xl border border-white/10 bg-surface-primary p-8 text-center">
+            <Bot className="h-8 w-8 text-accent" />
             <div>
               <h3 className="text-lg font-semibold text-white">Still have questions?</h3>
               <p className="mt-1 text-sm text-slate-300">Get instant answers from our AI assistant—no waiting, no calls.</p>

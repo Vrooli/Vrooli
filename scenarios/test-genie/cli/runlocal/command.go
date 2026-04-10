@@ -16,7 +16,13 @@ func Run(client *Client, args []string) error {
 		return err
 	}
 
-	req := Request{}
+	// Resolve the scenario path using sandbox-aware resolution.
+	// See packages/cli-core/cliutil/sandbox.go for the implementation.
+	scenarioPath := cliutil.ResolveScenarioPath(parsed.Scenario)
+
+	req := Request{
+		ScenarioPath: scenarioPath,
+	}
 	if parsed.Type != "" {
 		req.Type = parsed.Type
 	}
@@ -79,7 +85,7 @@ func ParseArgs(args []string) (Args, error) {
 	fs.StringVar(&out.Filter, "filter", "", "Pass through filter string to runner (e.g., test name)")
 	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
 		return Args{}, err
 	}
 	out.JSON = *jsonOutput

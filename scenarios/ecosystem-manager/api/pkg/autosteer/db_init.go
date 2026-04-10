@@ -9,7 +9,6 @@ import (
 // EnsureTablesExist checks if the auto_steer tables exist and provides helpful error messages
 func EnsureTablesExist(db *sql.DB) error {
 	tables := []string{
-		"auto_steer_profiles",
 		"profile_executions",
 		"profile_execution_state",
 		"execution_feedback_entries",
@@ -42,6 +41,17 @@ func EnsureTablesExist(db *sql.DB) error {
 		}
 	}
 
+	if err := ensureAutoSteerProfileForeignKeysRemoved(db); err != nil {
+		return fmt.Errorf("failed to remove legacy Auto Steer profile foreign keys: %w", err)
+	}
+
+	if err := ensureProfileIDColumnType(db, "profile_execution_state"); err != nil {
+		return fmt.Errorf("failed to normalize profile_execution_state.profile_id type: %w", err)
+	}
+	if err := ensureProfileIDColumnType(db, "profile_executions"); err != nil {
+		return fmt.Errorf("failed to normalize profile_executions.profile_id type: %w", err)
+	}
+
 	// Ensure new columns exist for backward compatibility
 	if err := ensureColumnExists(db, "profile_execution_state", "auto_steer_iteration", "INTEGER NOT NULL DEFAULT 0"); err != nil {
 		return fmt.Errorf("failed to ensure column auto_steer_iteration exists: %w", err)
@@ -62,7 +72,6 @@ func GetTableCounts(db *sql.DB) (map[string]int, error) {
 	counts := make(map[string]int)
 
 	tables := []string{
-		"auto_steer_profiles",
 		"profile_executions",
 		"profile_execution_state",
 	}
@@ -146,22 +155,60 @@ func ensureExecutionFeedbackEntriesTable(db *sql.DB) error {
 		return fmt.Errorf("failed to ensure execution_feedback_entries table: %w", err)
 	}
 
-	_, err := db.Exec(`
+	return nil
+}
+
+func ensureAutoSteerProfileForeignKeysRemoved(db *sql.DB) error {
+	query := `
 	DO $$
+	DECLARE
+		r RECORD;
 	BEGIN
 		IF EXISTS (
-			SELECT 1
-			FROM pg_constraint
-			WHERE conname = 'execution_feedback_entries_execution_task_id_fkey'
+			SELECT 1 FROM information_schema.tables
+			WHERE table_schema = 'public'
+			AND table_name = 'auto_steer_profiles'
 		) THEN
-			ALTER TABLE execution_feedback_entries DROP CONSTRAINT execution_feedback_entries_execution_task_id_fkey;
+			FOR r IN
+				SELECT conname, conrelid::regclass AS table_name
+				FROM pg_constraint
+				WHERE contype = 'f'
+				AND confrelid = 'auto_steer_profiles'::regclass
+			LOOP
+				EXECUTE format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS %I', r.table_name, r.conname);
+			END LOOP;
 		END IF;
-	END
+	END;
 	$$;
-	`)
-	if err != nil {
-		return fmt.Errorf("failed to drop legacy execution feedback foreign key: %w", err)
-	}
+	`
 
+	if _, err := db.Exec(query); err != nil {
+		return fmt.Errorf("failed to drop legacy auto_steer_profiles foreign keys: %w", err)
+	}
+	return nil
+}
+
+func ensureProfileIDColumnType(db *sql.DB, table string) error {
+	query := fmt.Sprintf(`
+		DO $$
+		DECLARE
+			col_type TEXT;
+		BEGIN
+			SELECT data_type INTO col_type
+			FROM information_schema.columns
+			WHERE table_schema = 'public'
+			AND table_name = '%s'
+			AND column_name = 'profile_id';
+
+			IF col_type IS NOT NULL AND col_type <> 'character varying' THEN
+				EXECUTE format('ALTER TABLE %%I ALTER COLUMN profile_id TYPE VARCHAR(255) USING profile_id::text', '%s');
+			END IF;
+		END;
+		$$;
+	`, table, table)
+
+	if _, err := db.Exec(query); err != nil {
+		return fmt.Errorf("failed to normalize %s.profile_id type: %w", table, err)
+	}
 	return nil
 }

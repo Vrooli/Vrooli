@@ -1,30 +1,18 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "stream-of-consciousness-analyzer",
     "displayName": "Stream of Consciousness Analyzer",
-    "description": "Transform unstructured text/voice into organized notes with AI-powered insights",
-    "version": "1.0.0",
+    "description": "A frictionless thought-capture app for deep thinkers with graph-structured cognition, featuring dual-view canvas and thought graph with voice capture and LLM refinement",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
     "tags": [
-      "saas-applications",
-      "productivity",
-      "ai-tools",
-      "note-taking",
-      "voice-processing",
-      "text-analysis",
-      "insight-extraction",
-      "campaign-management",
-      "thought-organization",
-      "n8n-workflows",
-      "postgres-storage",
-      "redis-cache",
-      "qdrant-vectors",
-      "ollama-ai"
+      "react-ui",
+      "go-api"
     ],
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -47,97 +35,81 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "description": "Stream analyzer API port",
+      "description": "Go API server",
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "description": "Stream analyzer UI port",
+      "description": "React UI",
       "range": "35000-39999"
+    },
+    "websocket": {
+      "env_var": "WS_PORT",
+      "description": "WebSocket channel",
+      "range": "25000-29999"
     }
   },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Stream of Consciousness Analyzer health check configuration",
+      "description": "Standard API/UI health checks",
       "endpoints": {
         "api": "/health",
         "ui": "/health"
       },
+      "startup_grace_period": 15000,
       "checks": [
         {
           "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
         },
         {
           "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
           "timeout": 5000,
-          "interval": 30000
+          "interval": 30000,
+          "critical": false
         }
-      ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 10000
+      ]
     },
     "setup": {
-      "description": "Initialize Stream of Consciousness Analyzer",
+      "description": "Build API & UI, install CLI",
       "condition": {
         "checks": [
           {
             "type": "binaries",
-            "targets": [
-              "api/stream-of-consciousness-analyzer-api"
-            ]
+            "targets": ["api/stream-of-consciousness-analyzer-api"]
+          },
+          {
+            "type": "cli",
+            "command": "stream-of-consciousness-analyzer"
           },
           {
             "type": "ui-bundle",
             "bundle_path": "ui/dist/index.html",
             "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "stream-of-consciousness-analyzer",
-            "targets": [
-              "stream-of-consciousness-analyzer"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
           }
         ]
       },
       "steps": [
         {
-          "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
-          "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
-        },
-        {
           "name": "install-cli",
           "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
+          "description": "Install CLI into ~/.vrooli/bin"
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o stream-of-consciousness-analyzer-api .",
-          "description": "Build Go API binary"
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o stream-of-consciousness-analyzer-api .",
+          "description": "Build Go API server"
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -145,24 +117,24 @@
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm run build",
+          "run": "cd ui && pnpm run build",
           "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
-          "run": "echo 'Stream Analyzer initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
-          "description": "Display service URLs"
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
+          "description": "Display access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start Stream of Consciousness Analyzer services",
+      "description": "Launch API and Vite dev server",
       "steps": [
         {
           "name": "start-api",
           "run": "cd api && ./stream-of-consciousness-analyzer-api",
-          "description": "Start Go API server in background",
           "background": true,
+          "description": "Start Go API server in background",
           "condition": {
             "file_exists": "api/stream-of-consciousness-analyzer-api"
           }
@@ -170,117 +142,58 @@
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
-          "description": "Start UI server",
           "background": true,
+          "description": "Serve production UI bundle",
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
         },
         {
           "name": "show-urls",
-          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}'",
-          "description": "Display running services"
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
+          "description": "Display access URLs"
         }
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing for stream-of-consciousness-analyzer",
+      "description": "Execute phased test suite via test-genie",
       "steps": [
         {
-          "name": "run-phased-tests",
+          "name": "run-tests",
           "run": "test-genie execute stream-of-consciousness-analyzer --preset comprehensive",
-          "description": "Execute phased scenario test suite"
+          "description": "Run all test phases via test-genie"
         }
       ]
     },
     "stop": {
-      "description": "Stop services",
+      "description": "Stop background processes",
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f \"stream-of-consciousness-analyzer-api\" || true; sleep 1; pkill -9 -f \"stream-of-consciousness-analyzer-api\" 2>/dev/null || true",
-          "description": "Stop API process"
+          "run": "pkill -f 'stream-of-consciousness-analyzer-api' || true",
+          "description": "Stop Go API"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/stream-of-consciousness-analyzer.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/stream-of-consciousness-analyzer.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
         }
       ]
     }
   },
   "dependencies": {
     "resources": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "shared_workflows": [
-          "chain-of-thought-orchestrator",
-          "embedding-generator",
-          "ollama",
-          "rate-limiter"
-        ],
-        "initialization": [
-          {
-            "file": "initialization/n8n/process-stream.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/organize-thoughts.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/extract-insights.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/campaign-context-builder.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/autonomous-thought-processor.json",
-            "type": "workflow"
-          }
-        ]
-      },
       "postgres": {
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store organized thoughts, insights, and campaigns",
+        "description": "Primary relational data store for schemes, thoughts, edges, and information items",
+        "schema": "stream-of-consciousness-analyzer",
         "initialization": [
           {
             "file": "initialization/postgres/schema.sql",
             "type": "schema"
           }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Cache for real-time processing and session management"
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "purpose": "Vector storage for semantic search across thoughts and insights",
-        "initialization": [
-          {
-            "file": "initialization/qdrant/collections.json",
-            "type": "config"
-          }
-        ]
-      },
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2:3b",
-          "nomic-embed-text"
         ]
       }
     }

@@ -15,7 +15,7 @@ interface ExportButtonProps {
 
 export function ExportButton({ disabled }: ExportButtonProps) {
   const [isExporting, setIsExporting] = useState(false);
-  const { preset, filter } = useTimeWindow();
+  const { preset, filter: _filter } = useTimeWindow();
 
   // Fetch all data for export
   const { data: summaryData } = useStatsSummary();

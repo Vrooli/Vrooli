@@ -29,60 +29,70 @@ const useStorageStateBase = createProfileResourceHook<StorageStateResponse>({
 
 export function useStorageState(): UseStorageStateResult {
   const base = useStorageStateBase();
+  const {
+    data,
+    loading,
+    error,
+    deleting,
+    fetch,
+    clear,
+    clearAll,
+    deleteRequest,
+  } = base;
 
   // Cookie operations
   const clearAllCookies = useCallback(
     async (profileId: string): Promise<boolean> => {
-      return base.deleteRequest(profileId, 'cookies');
+      return deleteRequest(profileId, 'cookies');
     },
-    [base.deleteRequest]
+    [deleteRequest]
   );
 
   const deleteCookiesByDomain = useCallback(
     async (profileId: string, domain: string): Promise<boolean> => {
-      return base.deleteRequest(profileId, `cookies/${encodeURIComponent(domain)}`);
+      return deleteRequest(profileId, `cookies/${encodeURIComponent(domain)}`);
     },
-    [base.deleteRequest]
+    [deleteRequest]
   );
 
   const deleteCookie = useCallback(
     async (profileId: string, domain: string, name: string): Promise<boolean> => {
-      return base.deleteRequest(profileId, `cookies/${encodeURIComponent(domain)}/${encodeURIComponent(name)}`);
+      return deleteRequest(profileId, `cookies/${encodeURIComponent(domain)}/${encodeURIComponent(name)}`);
     },
-    [base.deleteRequest]
+    [deleteRequest]
   );
 
   // LocalStorage operations
   const clearAllLocalStorage = useCallback(
     async (profileId: string): Promise<boolean> => {
-      return base.deleteRequest(profileId, 'origins');
+      return deleteRequest(profileId, 'origins');
     },
-    [base.deleteRequest]
+    [deleteRequest]
   );
 
   const deleteLocalStorageByOrigin = useCallback(
     async (profileId: string, origin: string): Promise<boolean> => {
-      return base.deleteRequest(profileId, `origins/${encodeURIComponent(origin)}`);
+      return deleteRequest(profileId, `origins/${encodeURIComponent(origin)}`);
     },
-    [base.deleteRequest]
+    [deleteRequest]
   );
 
   const deleteLocalStorageItem = useCallback(
     async (profileId: string, origin: string, name: string): Promise<boolean> => {
-      return base.deleteRequest(profileId, `origins/${encodeURIComponent(origin)}/${encodeURIComponent(name)}`);
+      return deleteRequest(profileId, `origins/${encodeURIComponent(origin)}/${encodeURIComponent(name)}`);
     },
-    [base.deleteRequest]
+    [deleteRequest]
   );
 
   return useMemo(
     () => ({
-      storageState: base.data,
-      loading: base.loading,
-      error: base.error,
-      deleting: base.deleting,
-      fetchStorageState: base.fetch,
-      clear: base.clear,
-      clearAllStorage: base.clearAll,
+      storageState: data,
+      loading,
+      error,
+      deleting,
+      fetchStorageState: fetch,
+      clear,
+      clearAllStorage: clearAll,
       clearAllCookies,
       deleteCookiesByDomain,
       deleteCookie,
@@ -91,13 +101,13 @@ export function useStorageState(): UseStorageStateResult {
       deleteLocalStorageItem,
     }),
     [
-      base.data,
-      base.loading,
-      base.error,
-      base.deleting,
-      base.fetch,
-      base.clear,
-      base.clearAll,
+      data,
+      loading,
+      error,
+      deleting,
+      fetch,
+      clear,
+      clearAll,
       clearAllCookies,
       deleteCookiesByDomain,
       deleteCookie,

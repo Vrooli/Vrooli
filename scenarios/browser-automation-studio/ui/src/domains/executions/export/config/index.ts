@@ -21,6 +21,8 @@ export type {
   ExportRenderSourceOption,
   ExportStatus,
   ExportStatusConfig,
+  ExportStylization,
+  ExportStylizationOption,
 } from "./types";
 
 // Constants
@@ -33,6 +35,8 @@ export {
   // Format options (for ExportDialog)
   EXPORT_FORMAT_OPTIONS,
   EXPORT_RENDER_SOURCE_OPTIONS,
+  // Stylization options
+  EXPORT_STYLIZATION_OPTIONS,
   // Helper functions
   buildDimensionPresetOptions,
   buildExportFileName,

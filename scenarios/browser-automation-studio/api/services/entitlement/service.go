@@ -27,6 +27,11 @@ type Service struct {
 	// Offline tracking
 	lastSuccessfulFetch time.Time
 	offlineMu           sync.RWMutex
+
+	// API source override (for dev mode)
+	apiSourceMu sync.RWMutex
+	apiSource   string // "production", "local", or "disabled"
+	localPort   int    // Port for local LPBS API
 }
 
 // NewService creates a new entitlement service.
@@ -39,22 +44,39 @@ func NewService(cfg config.EntitlementConfig, log *logrus.Logger) *Service {
 		},
 		cache:               make(map[string]*Entitlement),
 		lastSuccessfulFetch: time.Now(), // Assume online at startup
+		apiSource:           "production",
+		localPort:           15000, // Default LPBS API port range start
 	}
 }
 
-// IsEnabled reports whether entitlement checks are enabled.
-func (s *Service) IsEnabled() bool {
-	return s.cfg.Enabled
+// SetApiSource sets the API source for entitlement verification.
+// source can be "production", "local", or "disabled".
+// localPort is the port for local LPBS API (used when source is "local").
+func (s *Service) SetApiSource(source string, localPort int) {
+	s.apiSourceMu.Lock()
+	defer s.apiSourceMu.Unlock()
+
+	s.apiSource = source
+	if localPort > 0 {
+		s.localPort = localPort
+	}
+
+	// Clear cache when switching sources to get fresh data
+	s.cacheMu.Lock()
+	s.cache = make(map[string]*Entitlement)
+	s.cacheMu.Unlock()
+}
+
+// GetApiSource returns the current API source configuration.
+func (s *Service) GetApiSource() (source string, localPort int) {
+	s.apiSourceMu.RLock()
+	defer s.apiSourceMu.RUnlock()
+	return s.apiSource, s.localPort
 }
 
 // GetEntitlement retrieves the entitlement for a user, using cache when available.
 func (s *Service) GetEntitlement(ctx context.Context, userIdentity string) (*Entitlement, error) {
 	userIdentity = strings.TrimSpace(strings.ToLower(userIdentity))
-
-	// If entitlements are disabled, return unlimited entitlement
-	if !s.cfg.Enabled {
-		return s.unlimitedEntitlement(userIdentity), nil
-	}
 
 	// Empty user identity gets default tier
 	if userIdentity == "" {
@@ -93,14 +115,15 @@ func (s *Service) GetEntitlement(ctx context.Context, userIdentity string) (*Ent
 // CanExecuteWorkflow checks if the user can execute a workflow based on their tier limits.
 // Returns true if execution is allowed, false if limit reached.
 func (s *Service) CanExecuteWorkflow(ctx context.Context, userIdentity string, currentMonthCount int) bool {
-	if !s.cfg.Enabled {
-		return true
-	}
-
 	ent, err := s.GetEntitlement(ctx, userIdentity)
 	if err != nil {
-		// Fail open - allow execution if we can't check
-		s.log.WithError(err).Warn("Failed to check entitlement, allowing execution")
+		// Fail open for edge cases (network errors, service unavailable).
+		// This allows workflows to continue running when the entitlement service is temporarily
+		// unreachable. This is acceptable because:
+		// 1. Execution limits are soft limits primarily for fair use
+		// 2. Paid AI operations go through LPBS which has its own atomic credit checks
+		// 3. Brief connectivity issues shouldn't block user workflows
+		s.log.WithError(err).Warn("Failed to check entitlement, allowing execution (fail-open)")
 		return true
 	}
 
@@ -116,10 +139,6 @@ func (s *Service) CanExecuteWorkflow(ctx context.Context, userIdentity string, c
 // GetRemainingExecutions returns how many executions the user has remaining this month.
 // Returns -1 for unlimited.
 func (s *Service) GetRemainingExecutions(ctx context.Context, userIdentity string, currentMonthCount int) int {
-	if !s.cfg.Enabled {
-		return -1
-	}
-
 	ent, err := s.GetEntitlement(ctx, userIdentity)
 	if err != nil {
 		return -1
@@ -139,10 +158,6 @@ func (s *Service) GetRemainingExecutions(ctx context.Context, userIdentity strin
 
 // RequiresWatermark returns true if exports for this user should be watermarked.
 func (s *Service) RequiresWatermark(ctx context.Context, userIdentity string) bool {
-	if !s.cfg.Enabled {
-		return false
-	}
-
 	ent, err := s.GetEntitlement(ctx, userIdentity)
 	if err != nil {
 		// Fail safe - require watermark if we can't check
@@ -154,13 +169,11 @@ func (s *Service) RequiresWatermark(ctx context.Context, userIdentity string) bo
 
 // CanUseAI returns true if the user has access to AI-powered features.
 func (s *Service) CanUseAI(ctx context.Context, userIdentity string) bool {
-	if !s.cfg.Enabled {
-		return true
-	}
-
 	ent, err := s.GetEntitlement(ctx, userIdentity)
 	if err != nil {
-		// Fail closed for premium features
+		// Fail closed for premium features - don't allow AI access if we can't verify entitlement.
+		// This is a local pre-check; the LPBS AI gateway provides the authoritative credit check
+		// with atomic reservation when processing actual AI requests.
 		return false
 	}
 
@@ -169,10 +182,6 @@ func (s *Service) CanUseAI(ctx context.Context, userIdentity string) bool {
 
 // CanUseRecording returns true if the user has access to live recording features.
 func (s *Service) CanUseRecording(ctx context.Context, userIdentity string) bool {
-	if !s.cfg.Enabled {
-		return true
-	}
-
 	ent, err := s.GetEntitlement(ctx, userIdentity)
 	if err != nil {
 		// Fail closed for premium features
@@ -204,12 +213,32 @@ func (s *Service) BuildOverrideEntitlement(userIdentity string, tier Tier) *Enti
 
 // fetchEntitlement calls the remote entitlement service.
 func (s *Service) fetchEntitlement(ctx context.Context, userIdentity string) (*Entitlement, error) {
-	if s.cfg.ServiceURL == "" {
-		return nil, fmt.Errorf("entitlement service URL not configured")
+	// Get current API source
+	s.apiSourceMu.RLock()
+	apiSource := s.apiSource
+	localPort := s.localPort
+	s.apiSourceMu.RUnlock()
+
+	// If disabled, return nil to use default tier
+	if apiSource == "disabled" {
+		return nil, fmt.Errorf("API source is disabled")
+	}
+
+	// Determine the service URL based on api source
+	var serviceURL string
+	if apiSource == "local" {
+		serviceURL = fmt.Sprintf("http://localhost:%d", localPort)
+	} else {
+		// Production: use configured service URL
+		serviceURL = s.cfg.ServiceURL
+		if serviceURL == "" {
+			// Default to vrooli.com for production
+			serviceURL = "https://vrooli.com"
+		}
 	}
 
 	// Build request URL
-	reqURL, err := url.Parse(s.cfg.ServiceURL)
+	reqURL, err := url.Parse(serviceURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid service URL: %w", err)
 	}
@@ -246,13 +275,14 @@ func (s *Service) fetchEntitlement(ctx context.Context, userIdentity string) (*E
 	// Convert to our entitlement type
 	now := time.Now()
 	ent := &Entitlement{
-		UserIdentity: userIdentity,
-		Status:       Status(entResp.Status),
-		Tier:         Tier(strings.ToLower(entResp.PlanTier)),
-		PriceID:      entResp.PriceID,
-		Features:     entResp.Features,
-		FetchedAt:    now,
-		ExpiresAt:    now.Add(s.cfg.CacheTTL),
+		UserIdentity:      userIdentity,
+		Status:            Status(entResp.Status),
+		Tier:              Tier(strings.ToLower(entResp.PlanTier)),
+		PriceID:           entResp.PriceID,
+		Features:          entResp.Features,
+		BillingCycleStart: entResp.BillingCycleStart,
+		FetchedAt:         now,
+		ExpiresAt:         now.Add(s.cfg.CacheTTL),
 	}
 
 	// Handle credits if present
@@ -314,19 +344,7 @@ func (s *Service) defaultEntitlement(userIdentity string) *Entitlement {
 	}
 }
 
-// unlimitedEntitlement returns an entitlement with no restrictions (for dev mode).
-func (s *Service) unlimitedEntitlement(userIdentity string) *Entitlement {
-	now := time.Now()
-	return &Entitlement{
-		UserIdentity: userIdentity,
-		Status:       StatusActive,
-		Tier:         TierBusiness,
-		FetchedAt:    now,
-		ExpiresAt:    now.Add(24 * time.Hour),
-	}
-}
-
-// TierLimit returns the execution limit for a tier, independent of entitlement enablement.
+// TierLimit returns the execution limit for a tier.
 // Returns -1 for unlimited.
 func (s *Service) TierLimit(tier Tier) int {
 	return s.getTierLimit(tier)
@@ -454,4 +472,45 @@ func (s *Service) tierCanUseRecording(tier Tier) bool {
 		}
 	}
 	return false
+}
+
+// CanUseAIWithEntitlement checks AI access using features array first, then tier fallback.
+// If the Features array is present (non-nil and non-empty), it is authoritative.
+// If Features is nil or empty, falls back to tier-based config for backwards compatibility.
+func (s *Service) CanUseAIWithEntitlement(ent *Entitlement) bool {
+	if ent == nil {
+		return false
+	}
+	// Features array is authoritative when present
+	if len(ent.Features) > 0 {
+		return ent.HasFeature(FeatureAI)
+	}
+	// Fall back to tier-based config for backwards compatibility
+	return s.tierCanUseAI(ent.Tier)
+}
+
+// CanUseRecordingWithEntitlement checks recording access using features array first.
+// If the Features array is present (non-nil and non-empty), it is authoritative.
+// If Features is nil or empty, falls back to tier-based config for backwards compatibility.
+func (s *Service) CanUseRecordingWithEntitlement(ent *Entitlement) bool {
+	if ent == nil {
+		return false
+	}
+	if len(ent.Features) > 0 {
+		return ent.HasFeature(FeatureRecording)
+	}
+	return s.tierCanUseRecording(ent.Tier)
+}
+
+// RequiresWatermarkWithEntitlement checks if watermark is required using features array first.
+// If the Features array is present (non-nil and non-empty), it is authoritative.
+// If Features is nil or empty, falls back to tier-based config for backwards compatibility.
+func (s *Service) RequiresWatermarkWithEntitlement(ent *Entitlement) bool {
+	if ent == nil {
+		return true // Fail safe: require watermark
+	}
+	if len(ent.Features) > 0 {
+		return !ent.HasFeature(FeatureWatermarkFree)
+	}
+	return s.tierRequiresWatermark(ent.Tier)
 }

@@ -4,7 +4,7 @@ import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
 import { Card, CardContent } from "../ui/card";
 import { DeploymentProgress } from "./DeploymentProgress";
-import { InvestigateButton } from "./InvestigateButton";
+import { SpawnAgentButton } from "./SpawnAgentButton";
 import { InvestigationProgress } from "./InvestigationProgress";
 import { InvestigationReport } from "./InvestigationReport";
 import { useDeploymentInvestigation } from "../../hooks/useInvestigation";
@@ -85,19 +85,23 @@ export function StepDeploy({ deployment, onViewDeployments }: StepDeployProps) {
         />
       )}
 
-      {/* Retry and Investigate buttons when failed */}
+      {/* Retry button when failed */}
       {isFailed && deploymentId && (
+        <div className="flex items-center gap-3">
+          <Button onClick={deploy}>
+            <Rocket className="h-4 w-4 mr-1.5" />
+            Retry Deployment
+          </Button>
+        </div>
+      )}
+
+      {/* Spawn Agent button - always available when we have a deployment */}
+      {deploymentId && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Button onClick={deploy}>
-              <Rocket className="h-4 w-4 mr-1.5" />
-              Retry Deployment
-            </Button>
-            <InvestigateButton
-              deploymentId={deploymentId}
-              onInvestigationStarted={handleInvestigationStarted}
-            />
-          </div>
+          <SpawnAgentButton
+            deploymentId={deploymentId}
+            onTaskStarted={handleInvestigationStarted}
+          />
 
           {/* Investigation progress - show for active OR recently completed investigations */}
           {investigation.activeInvestigation && (

@@ -4,6 +4,7 @@ package apierror
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 )
 
@@ -44,14 +45,18 @@ func (e *APIError) WithMessage(message string) *APIError {
 func RespondError(w http.ResponseWriter, err *APIError) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(err.Status)
-	json.NewEncoder(w).Encode(err)
+	if encodeErr := json.NewEncoder(w).Encode(err); encodeErr != nil {
+		log.Printf("apierror: failed to encode error response: %v", encodeErr)
+	}
 }
 
 // RespondSuccess writes a JSON success response.
 func RespondSuccess(w http.ResponseWriter, statusCode int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(data)
+	if encodeErr := json.NewEncoder(w).Encode(data); encodeErr != nil {
+		log.Printf("apierror: failed to encode success response: %v", encodeErr)
+	}
 }
 
 // Common errors - 400 Bad Request
@@ -204,6 +209,12 @@ var (
 		Status:  http.StatusConflict,
 		Code:    "WORKFLOW_CONFLICT",
 		Message: "The workflow was updated elsewhere. Refresh and retry.",
+	}
+
+	ErrRecordingInProgress = &APIError{
+		Status:  http.StatusConflict,
+		Code:    "RECORDING_IN_PROGRESS",
+		Message: "Recording is already in progress for this session",
 	}
 )
 

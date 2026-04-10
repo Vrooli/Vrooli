@@ -1,0 +1,211 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (SQLite database)",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "service": "string",
+          "timestamp": "string",
+          "readiness": "boolean",
+          "dependencies": "object",
+          "metrics": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "lifestyle-dashboard status"
+      }
+    },
+    {
+      "id": "create-event",
+      "path": "/events",
+      "method": "POST",
+      "summary": "Create a new event",
+      "description": "Records a cross-domain event with JSON payload. Used by domain scenarios to log activities.",
+      "category": "events",
+      "request": {
+        "type": "object",
+        "properties": {
+          "domain": "string (required)",
+          "event_type": "string (required)",
+          "payload": "object",
+          "timestamp": "string (ISO-8601, defaults to now)",
+          "is_intervention": "boolean",
+          "hypothesis_id": "string (UUID)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "string (UUID)",
+          "timestamp": "string",
+          "domain": "string",
+          "event_type": "string",
+          "payload": "object",
+          "is_intervention": "boolean",
+          "hypothesis_id": "string",
+          "created_at": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Log supplement intake",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/events -H 'Content-Type: application/json' -d '{\"domain\": \"nootropics-tracker\", \"event_type\": \"supplement_taken\", \"payload\": {\"name\": \"Creatine\", \"dose_mg\": 5000}}'"
+        }
+      ]
+    },
+    {
+      "id": "query-events",
+      "path": "/events",
+      "method": "GET",
+      "summary": "Query events with filters",
+      "description": "Retrieves events with optional domain, time-range, and event_type filters. Supports cross-domain queries.",
+      "category": "events",
+      "parameters": [
+        {"name": "domain", "type": "string", "description": "Filter by domain scenario"},
+        {"name": "event_type", "type": "string", "description": "Filter by event type"},
+        {"name": "start", "type": "string", "description": "Start of time range (ISO-8601)"},
+        {"name": "end", "type": "string", "description": "End of time range (ISO-8601)"},
+        {"name": "limit", "type": "number", "description": "Max results (default 100)"}
+      ],
+      "examples": [
+        {
+          "name": "Get recent events",
+          "curl": "curl 'http://localhost:${API_PORT}/api/v1/events?limit=10'"
+        },
+        {
+          "name": "Get events by domain",
+          "curl": "curl 'http://localhost:${API_PORT}/api/v1/events?domain=sleep-tracker'"
+        }
+      ]
+    },
+    {
+      "id": "get-event",
+      "path": "/events/{id}",
+      "method": "GET",
+      "summary": "Get a specific event",
+      "description": "Retrieves a single event by its UUID",
+      "category": "events",
+      "examples": [
+        {
+          "name": "Get event",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/events/{uuid}"
+        }
+      ]
+    },
+    {
+      "id": "register-domain",
+      "path": "/domains",
+      "method": "POST",
+      "summary": "Register a domain scenario",
+      "description": "Registers a new domain scenario with its capabilities and health URL. Used by domain scenarios on startup.",
+      "category": "domains",
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string (required, e.g., 'sleep-tracker')",
+          "display_name": "string (required, e.g., 'Sleep Tracker')",
+          "description": "string",
+          "capabilities": "array of strings",
+          "health_url": "string (URL for health checks)"
+        }
+      },
+      "examples": [
+        {
+          "name": "Register domain",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/domains -H 'Content-Type: application/json' -d '{\"name\": \"sleep-tracker\", \"display_name\": \"Sleep Tracker\", \"capabilities\": [\"sleep_events\", \"sleep_analysis\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "list-domains",
+      "path": "/domains",
+      "method": "GET",
+      "summary": "List registered domains",
+      "description": "Returns all registered domain scenarios with their status and capabilities",
+      "category": "domains",
+      "examples": [
+        {
+          "name": "List domains",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/domains"
+        }
+      ]
+    },
+    {
+      "id": "get-domain",
+      "path": "/domains/{name}",
+      "method": "GET",
+      "summary": "Get domain details",
+      "description": "Retrieves details for a specific domain scenario",
+      "category": "domains"
+    },
+    {
+      "id": "update-domain",
+      "path": "/domains/{name}",
+      "method": "PATCH",
+      "summary": "Update domain properties",
+      "description": "Updates domain status, display name, or description",
+      "category": "domains"
+    },
+    {
+      "id": "domain-health",
+      "path": "/domains/{name}/health",
+      "method": "GET",
+      "summary": "Check domain health",
+      "description": "Checks the health of a registered domain by calling its health URL",
+      "category": "domains"
+    },
+    {
+      "id": "timeline",
+      "path": "/stats/timeline",
+      "method": "GET",
+      "summary": "Get activity timeline",
+      "description": "Returns event counts grouped by day and domain for charting",
+      "category": "stats",
+      "parameters": [
+        {"name": "days", "type": "number", "description": "Number of days to include (default 7)"}
+      ],
+      "examples": [
+        {
+          "name": "Get 7-day timeline",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/stats/timeline?days=7"
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "path": "/stats/summary",
+      "method": "GET",
+      "summary": "Get dashboard summary",
+      "description": "Returns aggregate statistics: total events, active domains, events by domain",
+      "category": "stats",
+      "examples": [
+        {
+          "name": "Get summary",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/stats/summary"
+        }
+      ]
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    }
+  ]
+}

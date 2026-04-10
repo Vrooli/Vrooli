@@ -1,0 +1,86 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-30T20:15:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 1,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Both the capture FAB (`floating-action-button.tsx` z-30) and the sidebar container (`Sidebar.tsx` z-30) share the same z-index. The FAB renders later in the DOM so it visually floats above the sidebar. The mobile backdrop is z-20, sidebar is z-30, capture panel is z-40, and detail overlays are z-40/z-50."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The FAB already adjusts its `right` position when the sidebar is open on desktop (`md:right-[21.5rem]`), but does not hide itself or lower its z-index. On mobile, the sidebar goes full-width with a z-20 backdrop + z-30 sidebar, so the FAB (also z-30) peeks through."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Fix strategy for z-index collision",
+      "context": "The capture FAB and sidebar both use z-30. We need the sidebar to cover the FAB when open. There are two clean approaches that don't disrupt the rest of the z-index hierarchy.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Lower the FAB to z-20",
+          "rationale": "Move the FAB from z-30 to z-20. Since the sidebar is z-30, it will naturally cover the FAB. The HUD bar is also z-20 but they don't overlap spatially. This is the minimal change.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Raise the sidebar to z-40",
+          "rationale": "Keep FAB at z-30 and bump sidebar to z-40. Downside: the sidebar would share z-40 with the capture panel (FloatingPanel), which could cause new stacking issues when the capture panel is open alongside the sidebar."
+        },
+        {
+          "key": "C",
+          "label": "Conditionally hide the FAB when sidebar is open",
+          "rationale": "Instead of z-index changes, hide the FAB entirely when the sidebar is open. Simplest visually but reduces discoverability — users won't see the capture button until they close the sidebar."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach."
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Capture button vertical position adjustment",
+      "context": "The FAB is currently at `bottom: calc(5rem + env(safe-area-inset-bottom))` (about 80px from the bottom). The description says it appears 'too high on the page'. Need to determine the target position.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Move to bottom-4 (1rem / 16px from bottom edge)",
+          "rationale": "Standard Material Design FAB position. Very close to the bottom — might be too close on mobile with gesture navigation areas."
+        },
+        {
+          "key": "B",
+          "label": "Move to bottom-6 (1.5rem / 24px from bottom edge)",
+          "rationale": "Slightly above the very bottom, good balance between visibility and not interfering with mobile gestures. Keeps safe-area-inset for mobile.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Keep current bottom calc but reduce the 5rem to 3rem",
+          "rationale": "Preserves the safe-area-inset-bottom pattern but moves button lower. Results in about 48px + safe area from bottom."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify a custom position."
+        }
+      ],
+      "selected": "C"
+    }
+  ],
+  "plan_updates": "Created initial plan.md with problem statement, root cause analysis, current z-index hierarchy, scope, acceptance criteria, and testing strategy. Implementation approach TBD pending decisions on fix strategy and button position."
+}

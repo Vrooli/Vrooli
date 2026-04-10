@@ -5,7 +5,8 @@
     "labels": {
       "reset": "none",
       "requirements_json": "[\"SCS-ANALYSIS-003\", \"SCS-ANALYSIS-004\"]"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,
@@ -19,7 +20,9 @@
         "http_request": {
           "method": "POST",
           "url": "{{API_URL}}/api/v1/scores/refresh-all",
-          "headers": {"Content-Type": "application/json"},
+          "headers": {
+            "Content-Type": "application/json"
+          },
           "expected_status": 200
         },
         "metadata": {
@@ -34,7 +37,9 @@
         "http_request": {
           "method": "POST",
           "url": "{{API_URL}}/api/v1/compare",
-          "headers": {"Content-Type": "application/json"},
+          "headers": {
+            "Content-Type": "application/json"
+          },
           "body": "{\"scenarios\": [\"scenario-completeness-scoring\"]}",
           "expected_status": 200
         },

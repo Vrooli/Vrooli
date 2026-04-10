@@ -54,3 +54,4 @@ pnpm-debug.log*
 *.tmp
 *.temp
 .cache/
+api/scenario-auditor

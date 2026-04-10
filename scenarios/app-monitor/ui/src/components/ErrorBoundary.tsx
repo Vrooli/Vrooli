@@ -64,6 +64,17 @@ const DefaultErrorFallback: React.FC<ErrorFallbackProps> = ({ error, resetError 
   </div>
 );
 
+/** Lightweight inline fallback for sections within a page */
+const SectionErrorFallback: React.FC<ErrorFallbackProps> = ({ error, resetError }) => (
+  <div className="error-fallback error-fallback--section" role="alert" aria-live="assertive">
+    <p className="error-fallback__section-message">This section failed to load.</p>
+    <p className="error-fallback__section-detail">{error.message}</p>
+    <button type="button" onClick={resetError} className="error-fallback__btn error-fallback__btn--primary">
+      Retry
+    </button>
+  </div>
+);
+
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
@@ -118,5 +129,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
+export { SectionErrorFallback };
 export type { ErrorBoundaryProps, ErrorFallbackProps };
 export default ErrorBoundary;

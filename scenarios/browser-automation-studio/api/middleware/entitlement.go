@@ -59,8 +59,8 @@ func (m *EntitlementMiddleware) InjectEntitlement(next http.Handler) http.Handle
 			return
 		}
 
-		// If entitlements are enabled and we have a user, fetch and inject entitlement
-		if m.cfg.Enabled && userIdentity != "" {
+		// Fetch and inject entitlement for authenticated users
+		if userIdentity != "" {
 			ent, err := m.service.GetEntitlement(r.Context(), userIdentity)
 			if err != nil {
 				m.log.WithError(err).WithField("user", userIdentity).Debug("Failed to get entitlement")
@@ -175,9 +175,7 @@ func resolveUserIdentity(r *http.Request) string {
 }
 
 func (m *EntitlementMiddleware) entitlementsEnabled(ctx context.Context) bool {
-	if m.cfg.Enabled {
-		return true
-	}
+	// Entitlements are always enabled - check if we have one from context (override or fetched)
 	return entitlement.FromContext(ctx) != nil
 }
 
@@ -226,5 +224,7 @@ func writeEntitlementError(w http.ResponseWriter, status int, code, message stri
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	// Simple JSON without importing encoding/json to keep middleware lightweight
-	w.Write([]byte(`{"error":{"code":"` + code + `","message":"` + message + `"}}`))
+	if _, err := w.Write([]byte(`{"error":{"code":"` + code + `","message":"` + message + `"}}`)); err != nil {
+		return
+	}
 }

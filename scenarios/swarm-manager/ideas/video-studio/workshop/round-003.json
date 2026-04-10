@@ -1,0 +1,184 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-26T20:30:00Z",
+  "readiness": {
+    "problem_clarity": 2,
+    "scope_defined": 2,
+    "approach_solid": 2,
+    "testable": 1,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Async job persistence backend for video jobs",
+      "context": "Video jobs are async and long-running (minutes). The job system needs to persist state across restarts and support status polling. Options range from in-memory (simplest, loses state on restart) to SQLite (durable, single-node) to PostgreSQL (shared resource, already available in Vrooli).",
+      "options": [
+        {
+          "key": "A",
+          "label": "SQLite — embedded, durable, zero-config, sufficient for single-node",
+          "rationale": "Video Studio runs on a single server. SQLite handles concurrent reads well, and WAL mode supports the polling pattern. No external dependency. Keeps the scenario self-contained.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "PostgreSQL via Vrooli resource — shared, scalable, familiar",
+          "rationale": "Vrooli already has PostgreSQL as a shared resource. Enables cross-scenario queries (e.g., marketing crew checking job status). But adds a resource dependency and schema migration overhead for a single-scenario job table."
+        },
+        {
+          "key": "C",
+          "label": "File-based JSON — jobs stored as JSON files in a jobs/ directory",
+          "rationale": "Simplest to implement, naturally browsable, but poor concurrent access and no query capability. Could work for low-volume P0."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Xvfb display allocation strategy for concurrent desktop recordings",
+      "context": "S2D hardcodes display :99. Video Studio may run multiple desktop recordings concurrently (e.g., multi-scene video with parallel segment capture). Display collisions would cause recording failures or cross-contamination.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Dynamic allocation with lock files — find next free display (:99, :100, ...) using /tmp/.X{n}-lock",
+          "rationale": "Standard X11 pattern. Xvfb itself checks for lock files. Wrap in a helper that scans for the first unlocked display number. Proven, no external deps.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Fixed pool — pre-allocate displays :99-:103 (5 concurrent max) with a semaphore",
+          "rationale": "Simpler to reason about. Bounded concurrency prevents resource exhaustion. But arbitrary limit may be too low or wasteful."
+        },
+        {
+          "key": "C",
+          "label": "One display, sequential recording — queue desktop recordings and run one at a time",
+          "rationale": "Simplest implementation. Desktop recording concurrency may not be a P0 requirement. Limits throughput but avoids all display management complexity."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "BAS API stability — how to handle potential API changes",
+      "context": "BAS's HTTP API was designed for its own UI, not as a stable external contract. Video Studio will depend on specific endpoints (start recording, get status, download artifact). If BAS API changes, Video Studio breaks silently. Need a strategy to manage this coupling.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Version-pinned client with integration tests — BAS client targets a specific API version, integration tests run against live BAS to detect drift",
+          "rationale": "Practical approach: document which BAS endpoints are used, pin expected response shapes, and let CI catch breakage. Doesn't require BAS changes.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Formal BAS API contract — add OpenAPI spec to BAS, Video Studio generates client from spec",
+          "rationale": "Gold standard for inter-scenario dependencies. But requires BAS to adopt OpenAPI, which is out of Video Studio's scope and adds cross-scenario coordination overhead."
+        },
+        {
+          "key": "C",
+          "label": "Adapter/anti-corruption layer — Video Studio defines its own recording interface, thin adapter translates to BAS API",
+          "rationale": "Isolates Video Studio from BAS API details. Easy to swap recording backends later. But adds a layer of indirection for P0."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Use existing proto contract with ‘discovery’ package setup that’s done for reliable cross-scenario communication in existing scenarios",
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "P0 compositing scope — how much FFmpeg compositing to support initially",
+      "context": "FFmpeg compositing can range from simple concatenation to complex filter graphs with crossfades, picture-in-picture, audio mixing, and effects. More capability means more complexity and more ways things can fail. P0 needs a clear line.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Concat only — join segments sequentially with consistent encoding, no transitions",
+          "rationale": "Dead simple FFmpeg concat demuxer. Reliable, fast, easy to test. Good enough for demo videos where scenes play back-to-back. Transitions can be added in P1.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Concat + crossfade transitions — add 0.5-1s crossfade between segments",
+          "rationale": "Noticeably more polished output. FFmpeg's xfade filter handles this, but requires precise duration math and re-encoding. Moderate complexity increase."
+        },
+        {
+          "key": "C",
+          "label": "Full filter graph — concat, crossfade, text overlays, audio mixing",
+          "rationale": "Professional-quality output from day one. But FFmpeg filter graphs are fragile, hard to debug, and significantly increase development/testing time for P0."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "AI scripting agent failure handling",
+      "context": "The AI scripting agent converts a text brief into a structured recording script. LLMs can produce invalid JSON, hallucinate non-existent URLs, or generate impractical action sequences (e.g., 'click the buy button' when there is no buy button). The system needs a strategy for handling these failures gracefully.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Schema validation + single retry with error feedback — validate script against JSON schema, if invalid retry once with the validation error in context",
+          "rationale": "Balances reliability with simplicity. One retry with error context usually fixes structural issues. Fail the job if the retry also fails. Keeps P0 implementation simple.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Schema validation + escalation — validate, fail the job on invalid script, surface the error for human review",
+          "rationale": "Simplest implementation. No retry logic. Human sees the failed brief and can rephrase or debug. But reduces autonomy."
+        },
+        {
+          "key": "C",
+          "label": "Multi-step validation — schema check → dry-run simulation → record, with retries at each step",
+          "rationale": "Most robust. Dry-run catches impractical actions before wasting recording time. But significantly more complex and requires building a simulation layer."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Auto-set acceptance_allow to ['scenarios/video-studio/**'] based on the item scope. No acceptance_deny needed — the scenario is greenfield with no protected paths."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Plan.md has been restructured from a summary into the full 13-section implementation plan format. Incorporates all settled decisions from rounds 1-2: runtime BAS dependency, resource-ffmpeg for capture + direct FFmpeg for compositing, ReplayMovieSpec-compatible IR (no code extraction), asset manifest from day one, webhook/callback for async completion, fully autonomous P0 with human review of output only."
+    }
+  ],
+  "plan_updates": "Restructured plan.md from summary into full 13-section implementation plan. Added: Required Reading, Scope with acceptance boundaries, Testing Plan (unit/integration/acceptance), Risks & Mitigations table (6 risks), Non-Goals, Definition of Done, Contract Decisions (API/CLI/data model), and Open Items. Incorporated all settled decisions from rounds 1-2."
+}

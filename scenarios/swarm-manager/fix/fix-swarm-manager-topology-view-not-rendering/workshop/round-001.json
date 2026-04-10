@@ -1,0 +1,109 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-07T23:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 1,
+    "problem_clarity": 2,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The topology view architecture is complete: API (projection_topology.go) → protobuf → graph-service.ts → graph-data-store → buildGraphPresentation() → Dagre layout → React Flow. The data pipeline has no missing links. The issue is almost certainly data-driven (empty API response, filters hiding nodes, clustering collapse) or a proto mapping mismatch — not a missing component."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Graph settings are persisted to localStorage key 'swarm-manager.graph.settings.v5' with migration from v3/v4. The topology lens defaults to groupingMode='initiative' and all entity types visible. If a user toggled filters in a prior session, those persist and could hide all nodes on reload."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Diagnostic approach — where to start",
+      "context": "We have 5 hypotheses for why the topology view is blank. Before writing any fix code, we need to narrow down the root cause. The most efficient path depends on what diagnostic access is available.",
+      "options": [
+        {
+          "key": "A",
+          "label": "API-first: curl the graph endpoint and inspect the response",
+          "rationale": "If the API returns 0 nodes, the issue is backend (data or projection logic). If it returns nodes, the issue is frontend (filtering, parsing, or rendering). This single test bisects the problem space. Recommended because it's the fastest way to narrow the search.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Browser-first: check console logs and network tab",
+          "rationale": "Catches proto mapping warnings, React errors, and lets you see the raw response shape. More thorough but requires the UI to be running and manually inspectable."
+        },
+        {
+          "key": "C",
+          "label": "localStorage-first: clear graph settings and reload",
+          "rationale": "Fastest possible test if the issue is persisted filter state. If clearing storage fixes it, we know the root cause immediately. But if it doesn't help, we've learned nothing."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own diagnostic approach."
+        }
+      ],
+      "selected": "A",
+      "notes": ""
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Is this a 'no data' issue or a 'data exists but not shown' issue?",
+      "context": "A critical fork: if the system has no active (non-completed, non-archived) backlog items, the topology view correctly shows nothing — that's not a bug. We need to confirm there IS data that should be rendering before debugging further.",
+      "options": [
+        {
+          "key": "A",
+          "label": "I have active backlog items — the view should show content",
+          "rationale": "Confirms this is a rendering/filtering bug. Proceed with full diagnostic.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "I'm not sure — need to check",
+          "rationale": "Run 'swarm-manager backlog list' to see if there are non-completed items. If all are completed/archived, the empty view is correct behavior."
+        },
+        {
+          "key": "C",
+          "label": "The backlog is empty or all items are completed",
+          "rationale": "Then the topology view is working correctly — it only shows active items. The fix would be about UX: showing a more helpful empty state message that explains why."
+        }
+      ],
+      "selected": "A",
+      "notes": ""
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Fix strategy once root cause is identified",
+      "context": "Depending on which hypothesis is confirmed, the fix approach differs significantly. Pre-selecting a strategy helps scope the work.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Minimal targeted fix — patch only the broken layer",
+          "rationale": "If it's a proto mismatch, fix the mapping. If it's a filter issue, fix the filter logic or add a safety reset. Smallest change, lowest risk. Recommended for a priority-5 fix.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Fix + defensive improvement — add empty-state diagnostics",
+          "rationale": "Beyond fixing the root cause, add developer-visible diagnostics (e.g., log node count at each pipeline stage) so similar issues surface faster in the future."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach."
+        }
+      ],
+      "selected": "B",
+      "notes": ""
+    }
+  ],
+  "plan_updates": "Created initial plan.md with 5 root cause hypotheses (API empty response, filter state, proto mapping, clustering collapse, CSS dimensions), ordered diagnostic strategy, scope definition with acceptance_allow set to scenarios/swarm-manager/**, and preliminary test plan."
+}

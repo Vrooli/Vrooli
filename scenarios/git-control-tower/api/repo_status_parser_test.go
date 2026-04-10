@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -218,4 +219,148 @@ func writeFile(t *testing.T, path string, contents string) {
 // New tests should use AssertContains directly.
 func assertContains(t *testing.T, values []string, expected string) {
 	AssertContains(t, values, expected)
+}
+
+func TestGetRepoStatus_FileHotspots(t *testing.T) {
+	fake := NewFakeGitRunner()
+	fake.AddStagedFile("main.go")
+	fake.AddUnstagedFile("utils.go")
+	fake.FileFrequency = map[string]int{
+		"main.go":      5,
+		"utils.go":     3,
+		"unrelated.go": 10,
+	}
+	status, err := GetRepoStatus(context.Background(), RepoStatusDeps{
+		Git:             fake,
+		RepoDir:         "/fake/repo",
+		IncludeHotspots: true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if status.FileHotspots == nil {
+		t.Fatal("expected FileHotspots to be non-nil")
+	}
+	if status.FileHotspots["main.go"] != 5 {
+		t.Errorf("expected main.go hotspot=5, got %d", status.FileHotspots["main.go"])
+	}
+	if status.FileHotspots["utils.go"] != 3 {
+		t.Errorf("expected utils.go hotspot=3, got %d", status.FileHotspots["utils.go"])
+	}
+	if _, ok := status.FileHotspots["unrelated.go"]; ok {
+		t.Error("unrelated.go should not be in hotspots (not in changes)")
+	}
+}
+
+func TestGetRepoStatus_FileHotspotsErrorGraceful(t *testing.T) {
+	fake := NewFakeGitRunner()
+	fake.AddStagedFile("main.go")
+	fake.FileFrequencyError = fmt.Errorf("git log failed")
+	status, err := GetRepoStatus(context.Background(), RepoStatusDeps{
+		Git:             fake,
+		RepoDir:         "/fake/repo",
+		IncludeHotspots: true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should succeed without hotspots
+	if status.FileHotspots != nil {
+		t.Error("expected FileHotspots to be nil on error")
+	}
+}
+
+func TestGetRepoStatus_HotspotsSkippedByDefault(t *testing.T) {
+	t.Parallel()
+
+	fake := NewFakeGitRunner()
+	fake.AddStagedFile("main.go")
+	fake.FileFrequency = map[string]int{"main.go": 5}
+	status, err := GetRepoStatus(context.Background(), RepoStatusDeps{
+		Git:     fake,
+		RepoDir: "/fake/repo",
+		// IncludeHotspots defaults to false
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if status.FileHotspots != nil {
+		t.Error("expected FileHotspots to be nil when IncludeHotspots is false")
+	}
+	// Verify LogFileFrequency was never called
+	for _, c := range fake.Calls {
+		if c.Method == "LogFileFrequency" {
+			t.Error("LogFileFrequency should not be called when IncludeHotspots is false")
+		}
+	}
+}
+
+func TestGetRepoStatus_UsesConfigCache(t *testing.T) {
+	t.Parallel()
+
+	fake := NewFakeGitRunner()
+	fake.ConfigValues["user.name"] = "CachedName"
+	fake.ConfigValues["user.email"] = "cached@test.com"
+
+	cache := NewGitConfigCache(60 * time.Second)
+
+	status, err := GetRepoStatus(context.Background(), RepoStatusDeps{
+		Git:         fake,
+		RepoDir:     "/fake/repo",
+		ConfigCache: cache,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if status.Author.Name != "CachedName" {
+		t.Errorf("expected author name 'CachedName', got %q", status.Author.Name)
+	}
+	if status.Author.Email != "cached@test.com" {
+		t.Errorf("expected author email 'cached@test.com', got %q", status.Author.Email)
+	}
+
+	// Second call should use the cache (verify only 1 ConfigGet call per key)
+	_, err = GetRepoStatus(context.Background(), RepoStatusDeps{
+		Git:         fake,
+		RepoDir:     "/fake/repo",
+		ConfigCache: cache,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	nameGets := 0
+	emailGets := 0
+	for _, c := range fake.Calls {
+		if c.Method == "ConfigGet" && len(c.Args) >= 2 {
+			switch c.Args[1] {
+			case "user.name":
+				nameGets++
+			case "user.email":
+				emailGets++
+			}
+		}
+	}
+	if nameGets != 1 {
+		t.Errorf("expected 1 ConfigGet for user.name (cached), got %d", nameGets)
+	}
+	if emailGets != 1 {
+		t.Errorf("expected 1 ConfigGet for user.email (cached), got %d", emailGets)
+	}
+}
+
+func TestBuildUntrackedStats_SetsIsNewFile(t *testing.T) {
+	// Create a temp file
+	dir := t.TempDir()
+	path := "test.go"
+	if err := os.WriteFile(filepath.Join(dir, path), []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stats, err := buildUntrackedStats(dir, path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !stats.IsNewFile {
+		t.Error("expected IsNewFile to be true for untracked files")
+	}
 }

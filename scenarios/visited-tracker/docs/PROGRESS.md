@@ -2214,7 +2214,7 @@ The UX quality improvements are complete. Phase 2 cannot advance due to **metric
 **Next Steps for Future Agents**:
 1. **Convert workflows to BAS format** (highest ROI: +20pts completeness estimated)
    - Convert 5 playbooks from simplified format to BAS nodes/edges format
-   - Reference: `/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/bas/` for examples
+   - Reference: `scenarios/browser-automation-studio/bas/` for examples
    - Will enable multi-layer validation for P0/P1 requirements
 2. **OR implement direct HTTP integration tests** (alternative approach)
    - Create `test/api/` directory with curl-based integration tests
@@ -3164,7 +3164,7 @@ None - validation iteration only.
    - Would enable requirement tracking via workflow evidence
    - Expected time: 3-4 hours
    - Expected impact: Requirements would show 64% complete in auto-sync view
-   - Reference: `/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/bas/`
+   - Reference: `scenarios/browser-automation-studio/bas/`
 
 **Medium Priority:**
 2. **Improve Node.js test coverage** (65.6% → 78%+ target)
@@ -3274,7 +3274,7 @@ The scenario is **production-ready for P0/P1** capabilities. The metrics discrep
 - Approach: Convert 5 BAS playbooks to nodes/edges format
 - Effort: 3-4 hours estimated
 - Impact: Auto-sync would show 64% (aligned with functional reality)
-- Reference: `/home/matthalloran8/Vrooli/scenarios/browser-automation-studio/bas/`
+- Reference: `scenarios/browser-automation-studio/bas/`
 - When: If auto-sync metrics become blocking for ecosystem manager
 
 **Option C: Implement P2 Requirements** (Future expansion)

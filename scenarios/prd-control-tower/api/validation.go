@@ -207,7 +207,6 @@ func handleValidateDraft(w http.ResponseWriter, r *http.Request) {
 			ON CONFLICT (draft_id)
 			DO UPDATE SET violations = $2, cached_at = $3
 		`, draftID, violationsJSON, now)
-
 		if err != nil {
 			// Non-fatal, just log
 			slog.Warn("Failed to cache validation results", "error", err, "draft_id", draftID)
@@ -502,7 +501,6 @@ func handleValidatePRD(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusOK, response)
 }
-
 
 func normalizeStatus(value string) string {
 	trimmed := strings.TrimSpace(value)

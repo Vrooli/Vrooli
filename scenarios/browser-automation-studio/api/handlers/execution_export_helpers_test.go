@@ -9,20 +9,21 @@ import (
 
 	"github.com/google/uuid"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	"github.com/vrooli/browser-automation-studio/services/export/source"
 	"github.com/vrooli/browser-automation-studio/storage"
 )
 
 func TestNormalizeRenderSource(t *testing.T) {
-	if source, ok := normalizeRenderSource(""); !ok || source != renderSourceAuto {
-		t.Fatalf("expected auto render source, got %q (ok=%v)", source, ok)
+	if result, ok := source.NormalizeRenderSource(""); !ok || result != source.RenderSourceAuto {
+		t.Fatalf("expected auto render source, got %q (ok=%v)", result, ok)
 	}
-	if source, ok := normalizeRenderSource("recorded_video"); !ok || source != renderSourceRecordedVideo {
-		t.Fatalf("expected recorded_video render source, got %q (ok=%v)", source, ok)
+	if result, ok := source.NormalizeRenderSource("recorded_video"); !ok || result != source.RenderSourceRecordedVideo {
+		t.Fatalf("expected recorded_video render source, got %q (ok=%v)", result, ok)
 	}
-	if source, ok := normalizeRenderSource("replay_frames"); !ok || source != renderSourceReplayFrames {
-		t.Fatalf("expected replay_frames render source, got %q (ok=%v)", source, ok)
+	if result, ok := source.NormalizeRenderSource("replay_frames"); !ok || result != source.RenderSourceReplayFrames {
+		t.Fatalf("expected replay_frames render source, got %q (ok=%v)", result, ok)
 	}
-	if _, ok := normalizeRenderSource("nope"); ok {
+	if _, ok := source.NormalizeRenderSource("nope"); ok {
 		t.Fatalf("expected invalid render source to fail")
 	}
 }
@@ -51,15 +52,15 @@ func TestResolveRecordedVideoSource_Path(t *testing.T) {
 		},
 	}
 
-	source, err := resolveRecordedVideoSource([]executionwriter.ArtifactData{artifact}, nil)
+	videoSource, err := source.ResolveVideoSource([]executionwriter.ArtifactData{artifact}, nil)
 	if err != nil {
 		t.Fatalf("expected video source, got error: %v", err)
 	}
-	if source == nil || source.Path != tmp.Name() {
-		t.Fatalf("expected video source path %q, got %#v", tmp.Name(), source)
+	if videoSource == nil || videoSource.Path != tmp.Name() {
+		t.Fatalf("expected video source path %q, got %#v", tmp.Name(), videoSource)
 	}
-	if source.ContentType != "video/webm" {
-		t.Fatalf("expected content type video/webm, got %q", source.ContentType)
+	if videoSource.ContentType != "video/webm" {
+		t.Fatalf("expected content type video/webm, got %q", videoSource.ContentType)
 	}
 }
 
@@ -74,21 +75,21 @@ func TestResolveRecordedVideoSource_Inline(t *testing.T) {
 		Payload:      payload,
 	}
 
-	source, err := resolveRecordedVideoSource([]executionwriter.ArtifactData{artifact}, nil)
+	videoSource, err := source.ResolveVideoSource([]executionwriter.ArtifactData{artifact}, nil)
 	if err != nil {
 		t.Fatalf("expected video source, got error: %v", err)
 	}
-	if source == nil {
+	if videoSource == nil {
 		t.Fatalf("expected non-nil source")
 	}
-	if _, statErr := os.Stat(source.Path); statErr != nil {
+	if _, statErr := os.Stat(videoSource.Path); statErr != nil {
 		t.Fatalf("expected inline file to exist, got error: %v", statErr)
 	}
-	if source.Cleanup == nil {
+	if videoSource.Cleanup == nil {
 		t.Fatalf("expected cleanup for inline video source")
 	}
-	source.Cleanup()
-	if _, statErr := os.Stat(source.Path); !os.IsNotExist(statErr) {
+	videoSource.Cleanup()
+	if _, statErr := os.Stat(videoSource.Path); !os.IsNotExist(statErr) {
 		t.Fatalf("expected inline file to be removed, got error: %v", statErr)
 	}
 }
@@ -98,12 +99,12 @@ func TestResolveRecordedVideoSource_Missing(t *testing.T) {
 		ArtifactType: "video_meta",
 		Payload:      map[string]any{"path": "/nope/video.webm"},
 	}
-	_, err := resolveRecordedVideoSource([]executionwriter.ArtifactData{artifact}, nil)
+	_, err := source.ResolveVideoSource([]executionwriter.ArtifactData{artifact}, nil)
 	if err == nil {
 		t.Fatalf("expected error for missing video")
 	}
-	if !errors.Is(err, errRecordedVideoNotFound) {
-		t.Fatalf("expected errRecordedVideoNotFound, got %v", err)
+	if !errors.Is(err, source.ErrVideoNotFound) {
+		t.Fatalf("expected ErrVideoNotFound, got %v", err)
 	}
 }
 
@@ -136,18 +137,18 @@ func TestResolveRecordedVideoSource_StorageURL(t *testing.T) {
 		Payload:      map[string]any{},
 	}
 
-	source, err := resolveRecordedVideoSource([]executionwriter.ArtifactData{artifact}, store)
+	videoSource, err := source.ResolveVideoSource([]executionwriter.ArtifactData{artifact}, store)
 	if err != nil {
 		t.Fatalf("expected video source, got error: %v", err)
 	}
-	if source == nil {
+	if videoSource == nil {
 		t.Fatalf("expected non-nil source")
 	}
-	if _, statErr := os.Stat(source.Path); statErr != nil {
+	if _, statErr := os.Stat(videoSource.Path); statErr != nil {
 		t.Fatalf("expected downloaded file to exist, got error: %v", statErr)
 	}
-	if source.Cleanup == nil {
+	if videoSource.Cleanup == nil {
 		t.Fatalf("expected cleanup for downloaded video source")
 	}
-	source.Cleanup()
+	videoSource.Cleanup()
 }

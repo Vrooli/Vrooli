@@ -47,17 +47,21 @@ type ErrorCode string
 
 // Validation errors (V prefix)
 const (
-	ErrCodeInvalidInput      ErrorCode = "V001"
-	ErrCodeMissingField      ErrorCode = "V002"
-	ErrCodeInvalidUUID       ErrorCode = "V003"
-	ErrCodeInvalidRole       ErrorCode = "V004"
-	ErrCodeInvalidViewMode   ErrorCode = "V005"
-	ErrCodeEmptyContent      ErrorCode = "V006"
-	ErrCodeMissingToolCallID ErrorCode = "V007"
-	ErrCodeInvalidJSON       ErrorCode = "V008"
-	ErrCodeNoFieldsToUpdate  ErrorCode = "V009"
-	ErrCodeInvalidColor      ErrorCode = "V010"
-	ErrCodeNoMessagesInChat  ErrorCode = "V011"
+	ErrCodeInvalidInput       ErrorCode = "V001"
+	ErrCodeMissingField       ErrorCode = "V002"
+	ErrCodeInvalidUUID        ErrorCode = "V003"
+	ErrCodeInvalidRole        ErrorCode = "V004"
+	ErrCodeInvalidViewMode    ErrorCode = "V005"
+	ErrCodeEmptyContent       ErrorCode = "V006"
+	ErrCodeMissingToolCallID  ErrorCode = "V007"
+	ErrCodeInvalidJSON        ErrorCode = "V008"
+	ErrCodeNoFieldsToUpdate   ErrorCode = "V009"
+	ErrCodeInvalidColor       ErrorCode = "V010"
+	ErrCodeNoMessagesInChat   ErrorCode = "V011"
+	ErrCodeAgentNotInMode     ErrorCode = "V012" // Chat is not in agent mode
+	ErrCodeAgentNoActiveRun   ErrorCode = "V013" // No active agent run
+	ErrCodeAgentAlreadyActive ErrorCode = "V014" // Chat already in agent mode
+	ErrCodeAgentRunBusy       ErrorCode = "V015" // Agent run is still in progress
 )
 
 // Not found errors (N prefix)
@@ -70,13 +74,16 @@ const (
 
 // Dependency errors (D prefix)
 const (
-	ErrCodeDatabaseUnavailable   ErrorCode = "D001"
-	ErrCodeDatabaseQueryFailed   ErrorCode = "D002"
-	ErrCodeOpenRouterUnavailable ErrorCode = "D003"
-	ErrCodeOpenRouterError       ErrorCode = "D004"
-	ErrCodeOllamaUnavailable     ErrorCode = "D005"
-	ErrCodeAgentManagerError     ErrorCode = "D006"
-	ErrCodeToolExecutionFailed   ErrorCode = "D007"
+	ErrCodeDatabaseUnavailable     ErrorCode = "D001"
+	ErrCodeDatabaseQueryFailed     ErrorCode = "D002"
+	ErrCodeOpenRouterUnavailable   ErrorCode = "D003"
+	ErrCodeOpenRouterError         ErrorCode = "D004"
+	ErrCodeOllamaUnavailable       ErrorCode = "D005"
+	ErrCodeAgentManagerError       ErrorCode = "D006"
+	ErrCodeToolExecutionFailed     ErrorCode = "D007"
+	ErrCodeAgentManagerUnavailable ErrorCode = "D008" // Agent-manager service not reachable
+	ErrCodeAgentRunNotFound        ErrorCode = "D009" // Run ID not found in agent-manager
+	ErrCodeAgentProtoParseFailed   ErrorCode = "D010" // Proto response parse failure
 )
 
 // Configuration errors (C prefix)
@@ -91,6 +98,16 @@ const (
 	ErrCodeInternalError    ErrorCode = "I001"
 	ErrCodeStreamingError   ErrorCode = "I002"
 	ErrCodeSerializationErr ErrorCode = "I003"
+)
+
+// Async operation errors (A prefix)
+const (
+	ErrCodeAsyncOperationNotFound  ErrorCode = "A001"
+	ErrCodeAsyncTrackingFailed     ErrorCode = "A002"
+	ErrCodeAsyncCancellationFailed ErrorCode = "A003"
+	ErrCodeAsyncNoCancellation     ErrorCode = "A004"
+	ErrCodeAsyncTimeout            ErrorCode = "A005"
+	ErrCodeAsyncAlreadyCompleted   ErrorCode = "A006"
 )
 
 // RecoveryAction suggests what the caller should do after an error.
@@ -183,7 +200,7 @@ func NewError(code ErrorCode, category ErrorCategory, message string, recovery R
 	}
 }
 
-// Convenience constructors for common errors
+// Convenience constructors for common validation errors
 
 // ErrInvalidInput creates a validation error for bad input.
 func ErrInvalidInput(message string) *AppError {
@@ -208,98 +225,6 @@ func ErrInvalidUUID(field string) *AppError {
 func ErrInvalidJSON() *AppError {
 	return NewError(ErrCodeInvalidJSON, CategoryValidation,
 		"invalid JSON in request body", ActionCorrectInput)
-}
-
-// ErrChatNotFound creates a not-found error for a missing chat.
-func ErrChatNotFound(chatID string) *AppError {
-	return NewError(ErrCodeChatNotFound, CategoryNotFound,
-		"chat not found", ActionVerifyResource).
-		WithDetail("chat_id", chatID)
-}
-
-// ErrLabelNotFound creates a not-found error for a missing label.
-func ErrLabelNotFound(labelID string) *AppError {
-	return NewError(ErrCodeLabelNotFound, CategoryNotFound,
-		"label not found", ActionVerifyResource).
-		WithDetail("label_id", labelID)
-}
-
-// ErrNoMessagesInChat creates a validation error when a chat has no messages.
-func ErrNoMessagesInChat(chatID string) *AppError {
-	return NewError(ErrCodeNoMessagesInChat, CategoryValidation,
-		"no messages in chat to process", ActionCorrectInput).
-		WithDetail("chat_id", chatID)
-}
-
-// ErrDatabaseError creates a dependency error for database failures.
-func ErrDatabaseError(operation string, err error) *AppError {
-	return NewError(ErrCodeDatabaseQueryFailed, CategoryDependency,
-		fmt.Sprintf("database operation failed: %s", operation), ActionRetryWithBackoff).
-		WithCause(err).WithDetail("operation", operation)
-}
-
-// ErrOpenRouterUnavailable creates a dependency error for OpenRouter failures.
-func ErrOpenRouterUnavailable(err error) *AppError {
-	return NewError(ErrCodeOpenRouterUnavailable, CategoryDependency,
-		"AI service temporarily unavailable", ActionRetryWithBackoff).
-		WithCause(err)
-}
-
-// ErrOpenRouterAPIError creates a dependency error for OpenRouter API errors.
-func ErrOpenRouterAPIError(statusCode int, message string) *AppError {
-	return NewError(ErrCodeOpenRouterError, CategoryDependency,
-		fmt.Sprintf("AI service error: %s", message), ActionRetryWithBackoff).
-		WithDetail("status_code", statusCode)
-}
-
-// ErrMissingAPIKey creates a configuration error for missing API keys.
-func ErrMissingAPIKey(service string) *AppError {
-	return NewError(ErrCodeMissingAPIKey, CategoryConfiguration,
-		fmt.Sprintf("%s API key not configured", service), ActionCheckConfiguration).
-		WithDetail("service", service)
-}
-
-// ErrToolNotFound creates a not-found error for unknown tools.
-func ErrToolNotFound(toolName string) *AppError {
-	return NewError(ErrCodeToolNotFound, CategoryNotFound,
-		fmt.Sprintf("unknown tool: %s", toolName), ActionVerifyResource).
-		WithDetail("tool_name", toolName)
-}
-
-// ErrToolExecutionFailed creates a dependency error for tool failures.
-func ErrToolExecutionFailed(toolName string, err error) *AppError {
-	return NewError(ErrCodeToolExecutionFailed, CategoryDependency,
-		fmt.Sprintf("tool execution failed: %s", toolName), ActionRetryWithBackoff).
-		WithCause(err).WithDetail("tool_name", toolName)
-}
-
-// ErrAgentManagerError creates a dependency error for agent-manager failures.
-func ErrAgentManagerError(operation string, err error) *AppError {
-	return NewError(ErrCodeAgentManagerError, CategoryDependency,
-		fmt.Sprintf("agent manager error: %s", operation), ActionCheckDependency).
-		WithCause(err).WithDetail("operation", operation)
-}
-
-// ErrOllamaUnavailable creates a dependency error for Ollama failures.
-// Note: Ollama is optional, so this may trigger graceful degradation.
-func ErrOllamaUnavailable(err error) *AppError {
-	return NewError(ErrCodeOllamaUnavailable, CategoryDependency,
-		"naming service temporarily unavailable", ActionRetryWithBackoff).
-		WithCause(err)
-}
-
-// ErrInternal creates an internal error for unexpected failures.
-func ErrInternal(message string, err error) *AppError {
-	return NewError(ErrCodeInternalError, CategoryInternal,
-		message, ActionEscalate).
-		WithCause(err)
-}
-
-// ErrStreamingError creates an internal error for streaming failures.
-func ErrStreamingError(message string, err error) *AppError {
-	return NewError(ErrCodeStreamingError, CategoryInternal,
-		message, ActionRetry).
-		WithCause(err)
 }
 
 // CategoryToHTTPStatus maps error categories to HTTP status codes.

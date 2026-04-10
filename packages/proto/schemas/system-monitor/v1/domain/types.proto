@@ -1,0 +1,199 @@
+syntax = "proto3";
+
+package system_monitor.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain;domain";
+
+// =============================================================================
+// SYSTEM-MONITOR CORE TYPES
+// =============================================================================
+//
+// @layer 0
+// @domain system-monitor
+// @imports none
+// @stability beta
+//
+// Core enums for the system-monitor scenario.
+// These form the foundation for investigation and metrics domain types.
+//
+// USAGE CONTEXTS:
+//   - Investigation Lifecycle: InvestigationStatus, InvestigationStepStatus
+//   - Finding Classification: FindingType, Severity, Relevance
+//   - Trigger Configuration: TriggerCondition
+//   - Resolution Planning: RiskLevel
+//
+// =============================================================================
+
+// =============================================================================
+// INVESTIGATION STATUS
+// =============================================================================
+
+// InvestigationStatus represents the lifecycle state of an investigation.
+//
+// State machine:
+//   queued -> in_progress -> completed
+//                        \-> failed
+//                        \-> stopped
+//                        \-> cancelled
+//
+// @usage Investigation.status
+enum InvestigationStatus {
+  // Default/unspecified.
+  INVESTIGATION_STATUS_UNSPECIFIED = 0;
+
+  // Investigation is waiting to be processed.
+  INVESTIGATION_STATUS_QUEUED = 1;
+
+  // Investigation is actively running.
+  INVESTIGATION_STATUS_IN_PROGRESS = 2;
+
+  // Investigation completed successfully.
+  INVESTIGATION_STATUS_COMPLETED = 3;
+
+  // Investigation failed with error.
+  INVESTIGATION_STATUS_FAILED = 4;
+
+  // Investigation was stopped by user.
+  INVESTIGATION_STATUS_STOPPED = 5;
+
+  // Investigation was cancelled.
+  INVESTIGATION_STATUS_CANCELLED = 6;
+}
+
+// =============================================================================
+// INVESTIGATION STEP STATUS
+// =============================================================================
+
+// InvestigationStepStatus represents the state of an individual step.
+//
+// @usage InvestigationStep.status
+enum InvestigationStepStatus {
+  // Default/unspecified.
+  INVESTIGATION_STEP_STATUS_UNSPECIFIED = 0;
+
+  // Step is waiting to execute.
+  INVESTIGATION_STEP_STATUS_PENDING = 1;
+
+  // Step is currently executing.
+  INVESTIGATION_STEP_STATUS_IN_PROGRESS = 2;
+
+  // Step completed successfully.
+  INVESTIGATION_STEP_STATUS_COMPLETED = 3;
+
+  // Step failed with error.
+  INVESTIGATION_STEP_STATUS_FAILED = 4;
+
+  // Step was skipped.
+  INVESTIGATION_STEP_STATUS_SKIPPED = 5;
+}
+
+// =============================================================================
+// FINDING TYPE
+// =============================================================================
+
+// FindingType categorizes investigation findings by data source.
+//
+// @usage InvestigationFinding.type
+enum FindingType {
+  // Default/unspecified.
+  FINDING_TYPE_UNSPECIFIED = 0;
+
+  // Finding based on metric data.
+  FINDING_TYPE_METRIC = 1;
+
+  // Finding based on log analysis.
+  FINDING_TYPE_LOG = 2;
+
+  // Finding based on process analysis.
+  FINDING_TYPE_PROCESS = 3;
+
+  // Finding based on network analysis.
+  FINDING_TYPE_NETWORK = 4;
+}
+
+// =============================================================================
+// SEVERITY
+// =============================================================================
+
+// Severity indicates the impact level of a finding or anomaly.
+//
+// @usage InvestigationFinding.impact, ImpactAssessment.severity, Anomaly.severity
+enum Severity {
+  // Default/unspecified.
+  SEVERITY_UNSPECIFIED = 0;
+
+  // Low impact, informational.
+  SEVERITY_LOW = 1;
+
+  // Medium impact, may require attention.
+  SEVERITY_MEDIUM = 2;
+
+  // High impact, requires attention.
+  SEVERITY_HIGH = 3;
+
+  // Critical impact, requires immediate action.
+  SEVERITY_CRITICAL = 4;
+}
+
+// =============================================================================
+// RELEVANCE
+// =============================================================================
+
+// Relevance indicates how relevant a timeline event is to the investigation.
+//
+// @usage TimelineEvent.relevance
+enum Relevance {
+  // Default/unspecified.
+  RELEVANCE_UNSPECIFIED = 0;
+
+  // Low relevance.
+  RELEVANCE_LOW = 1;
+
+  // Medium relevance.
+  RELEVANCE_MEDIUM = 2;
+
+  // High relevance.
+  RELEVANCE_HIGH = 3;
+}
+
+// =============================================================================
+// TRIGGER CONDITION
+// =============================================================================
+
+// TriggerCondition defines when a trigger fires relative to its threshold.
+//
+// @usage TriggerConfig.condition
+enum TriggerCondition {
+  // Default/unspecified.
+  TRIGGER_CONDITION_UNSPECIFIED = 0;
+
+  // Trigger when metric exceeds threshold.
+  TRIGGER_CONDITION_ABOVE = 1;
+
+  // Trigger when metric falls below threshold.
+  TRIGGER_CONDITION_BELOW = 2;
+}
+
+// =============================================================================
+// RISK LEVEL
+// =============================================================================
+
+// RiskLevel indicates the risk associated with a resolution plan or action.
+//
+// @usage ResolutionPlan.risk_level, MemoryGrowth.risk_level
+enum RiskLevel {
+  // Default/unspecified.
+  RISK_LEVEL_UNSPECIFIED = 0;
+
+  // Low risk, safe to execute.
+  RISK_LEVEL_LOW = 1;
+
+  // Medium risk, review recommended.
+  RISK_LEVEL_MEDIUM = 2;
+
+  // High risk, manual approval required.
+  RISK_LEVEL_HIGH = 3;
+
+  // Critical risk, expert supervision required.
+  RISK_LEVEL_CRITICAL = 4;
+}

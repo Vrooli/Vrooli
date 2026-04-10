@@ -14,6 +14,7 @@ package orchestration
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,12 +24,17 @@ import (
 
 	"agent-manager/internal/adapters/artifact"
 	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
+	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/policy"
+	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/storage"
 	"github.com/google/uuid"
 )
 
@@ -67,6 +73,7 @@ type Service interface {
 	StopRunByTag(ctx context.Context, tag string) error
 	StopAllRuns(ctx context.Context, opts StopAllOptions) (*StopAllResult, error)
 	ContinueRun(ctx context.Context, req ContinueRunRequest) (*domain.Run, error)
+	DeleteRunMessage(ctx context.Context, runID uuid.UUID, eventID uuid.UUID) (*domain.RunEvent, error)
 
 	// --- Run Resumption Operations (Interruption Resilience) ---
 	ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run, error)
@@ -77,6 +84,7 @@ type Service interface {
 	ApproveRun(ctx context.Context, req ApproveRequest) (*ApproveResult, error)
 	RejectRun(ctx context.Context, id uuid.UUID, actor, reason string) error
 	PartialApprove(ctx context.Context, req PartialApproveRequest) (*ApproveResult, error)
+	SyncRunFromSandbox(ctx context.Context, req SandboxSyncRequest) (*domain.Run, error)
 
 	// --- Event Operations ---
 	GetRunEvents(ctx context.Context, runID uuid.UUID, opts event.GetOptions) ([]*domain.RunEvent, error)
@@ -101,7 +109,24 @@ type Service interface {
 	GetInvestigationSettings(ctx context.Context) (*domain.InvestigationSettings, error)
 	UpdateInvestigationSettings(ctx context.Context, settings *domain.InvestigationSettings) error
 	ResetInvestigationSettings(ctx context.Context) error
-	DetectScenariosForRuns(ctx context.Context, runIDs []uuid.UUID) ([]*domain.DetectedScenario, error)
+
+	// --- Orchestration Settings Operations ---
+	GetOrchestrationSettings(ctx context.Context) (*agentconfig.OrchestrationSettings, error)
+	UpdateOrchestrationSettings(ctx context.Context, settings *agentconfig.OrchestrationSettings) error
+	ResetOrchestrationSettings(ctx context.Context) error
+
+	// --- Recommendation Extraction Operations ---
+	ExtractRecommendations(ctx context.Context, runID uuid.UUID) (*domain.ExtractionResult, error)
+	RegenerateRecommendations(ctx context.Context, runID uuid.UUID) error
+
+	// --- Path Validation ---
+	ValidatePath(ctx context.Context, path string, projectRoot string) (*sandbox.PathValidationResult, error)
+
+	// --- Identity Token Operations ---
+	VerifyIdentityToken(ctx context.Context, token string) (*IdentityVerifyResult, error)
+
+	// --- Config Accessors ---
+	GetDefaultProjectRoot() string
 }
 
 // -----------------------------------------------------------------------------
@@ -117,10 +142,20 @@ type ListOptions struct {
 // RunListOptions extends ListOptions for run-specific filtering.
 type RunListOptions struct {
 	ListOptions
-	TaskID         *uuid.UUID
-	AgentProfileID *uuid.UUID
-	Status         *domain.RunStatus
-	TagPrefix      string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+	TaskID                    *uuid.UUID
+	AgentProfileID            *uuid.UUID
+	Status                    *domain.RunStatus
+	TagPrefix                 string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+	InvestigatesRunID         *uuid.UUID
+	AppliesInvestigationRunID *uuid.UUID
+}
+
+// IdentityVerifyResult is the result of verifying an agent identity token.
+type IdentityVerifyResult struct {
+	Valid     bool             `json:"valid"`
+	Claims    *identity.Claims `json:"claims,omitempty"`
+	RunStatus domain.RunStatus `json:"run_status,omitempty"`
+	Error     string           `json:"error,omitempty"`
 }
 
 // PurgeTarget identifies entities eligible for purge.
@@ -168,20 +203,27 @@ type CreateRunRequest struct {
 	// Example: "ecosystem-task-123", "test-genie-abc"
 	Tag string `json:"tag,omitempty"`
 
+	// Investigation lineage metadata.
+	SourceRunIDs             []uuid.UUID `json:"sourceRunIds,omitempty"`
+	SourceInvestigationRunID *uuid.UUID  `json:"sourceInvestigationRunId,omitempty"`
+
 	// Inline config (optional - used if no profile, or overrides profile)
-	RunnerType           *domain.RunnerType  `json:"runnerType,omitempty"`
-	Model                *string             `json:"model,omitempty"`
-	ModelPreset          *domain.ModelPreset `json:"modelPreset,omitempty"`
-	MaxTurns             *int                `json:"maxTurns,omitempty"`
-	Timeout              *time.Duration      `json:"timeout,omitempty"`
-	FallbackRunnerTypes  []domain.RunnerType `json:"fallbackRunnerTypes,omitempty"`
-	AllowedTools         []string            `json:"allowedTools,omitempty"`
-	DeniedTools          []string            `json:"deniedTools,omitempty"`
-	SkipPermissionPrompt *bool               `json:"skipPermissionPrompt,omitempty"`
-	RequiresSandbox      *bool               `json:"requiresSandbox,omitempty"`
-	RequiresApproval     *bool               `json:"requiresApproval,omitempty"`
-	AllowedPaths         []string            `json:"allowedPaths,omitempty"`
-	DeniedPaths          []string            `json:"deniedPaths,omitempty"`
+	RunnerType           *domain.RunnerType      `json:"runnerType,omitempty"`
+	Model                *string                 `json:"model,omitempty"`
+	ModelPreset          *domain.ModelPreset     `json:"modelPreset,omitempty"`
+	MaxTurns             *int                    `json:"maxTurns,omitempty"`
+	Timeout              *time.Duration          `json:"timeout,omitempty"`
+	FallbackRunnerTypes  []domain.RunnerType     `json:"fallbackRunnerTypes,omitempty"`
+	AllowedTools         []string                `json:"allowedTools,omitempty"`
+	DeniedTools          []string                `json:"deniedTools,omitempty"`
+	SkipPermissionPrompt *bool                   `json:"skipPermissionPrompt,omitempty"`
+	EnableBrowser        *bool                   `json:"enableBrowser,omitempty"`
+	ExtraFlags           domain.RunnerExtraFlags `json:"extraFlags,omitempty"`
+	RequiresSandbox      *bool                   `json:"requiresSandbox,omitempty"`
+	NetworkAccess        *domain.NetworkAccess   `json:"networkAccess,omitempty"`
+	RequiresApproval     *bool                   `json:"requiresApproval,omitempty"`
+	AllowedPaths         []string                `json:"allowedPaths,omitempty"`
+	DeniedPaths          []string                `json:"deniedPaths,omitempty"`
 
 	// Sandbox behavior overrides (optional)
 	SandboxConfig *domain.SandboxConfig `json:"sandboxConfig,omitempty"`
@@ -203,6 +245,10 @@ type CreateRunRequest struct {
 	// If provided and a run with this key already exists, the existing run is returned.
 	// Format suggestion: "run:{taskID}:{timestamp}" or caller-defined unique string.
 	IdempotencyKey string `json:"idempotencyKey,omitempty"`
+
+	// Environment passes custom VROOLI_-prefixed environment variables to the
+	// agent process. Merged with sandbox env vars; sandbox vars take precedence.
+	Environment map[string]string `json:"environment,omitempty"`
 }
 
 // ProfileRef identifies a profile by key with optional defaults.
@@ -241,15 +287,18 @@ type StopAllResult struct {
 
 // ContinueRunRequest contains parameters for continuing an existing run conversation.
 type ContinueRunRequest struct {
-	RunID   uuid.UUID `json:"runId"`
-	Message string    `json:"message"`
+	RunID         uuid.UUID `json:"runId"`
+	Message       string    `json:"message"`
+	AttachmentIDs []string  `json:"attachmentIds,omitempty"`
 }
 
 // CreateInvestigationRequest contains parameters for creating an investigation run.
 type CreateInvestigationRequest struct {
-	RunIDs        []uuid.UUID        `json:"runIds"`
-	CustomContext string             `json:"customContext,omitempty"`
-	Depth         InvestigationDepth `json:"depth,omitempty"` // Defaults to "standard"
+	RunIDs        []uuid.UUID               `json:"runIds"`
+	CustomContext string                    `json:"customContext,omitempty"`
+	Depth         domain.InvestigationDepth `json:"depth,omitempty"`       // Defaults to "standard"
+	ProjectRoot   string                    `json:"projectRoot,omitempty"` // Root directory for investigation (explicit, no guessing)
+	ScopePaths    []string                  `json:"scopePaths,omitempty"`  // Paths where agent can make changes
 }
 
 // ApproveRequest contains parameters for approving a run.
@@ -266,6 +315,19 @@ type PartialApproveRequest struct {
 	FileIDs   []uuid.UUID
 	Actor     string
 	CommitMsg string
+}
+
+// SandboxSyncRequest updates run state based on workspace-sandbox approval events.
+type SandboxSyncRequest struct {
+	RunID      uuid.UUID
+	SandboxID  *uuid.UUID
+	Status     string
+	Actor      string
+	Reason     string
+	Applied    int
+	Remaining  int
+	IsPartial  bool
+	CommitHash string
 }
 
 // ApproveResult contains the approval outcome.
@@ -361,14 +423,35 @@ type Orchestrator struct {
 	// Robust termination (Phase 2)
 	terminator *Terminator
 
+	// Flag validation
+	flagValidator runner.FlagValidator
+
 	// Configuration
 	config OrchestratorConfig
 
-	// Storage label for health reporting (e.g., postgres, sqlite, memory).
+	// Storage label for health reporting (e.g., sqlite).
 	storageLabel string
 
 	// Model registry for runner model catalogs and presets.
 	modelRegistry *modelregistry.Store
+
+	// Recommendation extractor for investigation outputs.
+	recommendationExtractor recommendation.Extractor
+
+	// Prompt-manager client for reading investigation prompts from skills.
+	promptClient promptmanager.Client
+
+	// File storage for uploaded attachments.
+	storage storage.Service
+
+	// Orchestration settings store (file-backed, hot-reloadable).
+	orchestrationSettings *agentconfig.OrchestrationSettingsStore
+
+	// Reconciler reference for hot-reload propagation.
+	reconciler *Reconciler
+
+	// Identity signing secret for agent identity tokens.
+	identitySecret []byte
 }
 
 // OrchestratorConfig holds service configuration.
@@ -384,7 +467,7 @@ type OrchestratorConfig struct {
 // DefaultConfig returns sensible defaults.
 func DefaultConfig() OrchestratorConfig {
 	return OrchestratorConfig{
-		DefaultTimeout:          30 * time.Minute,
+		DefaultTimeout:          60 * time.Minute,
 		MaxConcurrentRuns:       10,
 		RequireSandboxByDefault: true,
 	}
@@ -491,6 +574,54 @@ func WithInvestigationSettings(repo repository.InvestigationSettingsRepository) 
 	}
 }
 
+// WithFlagValidator sets the flag validator for runner-specific flag validation.
+func WithFlagValidator(v runner.FlagValidator) Option {
+	return func(o *Orchestrator) {
+		o.flagValidator = v
+	}
+}
+
+// WithRecommendationExtractor sets the recommendation extractor for investigation outputs.
+func WithRecommendationExtractor(extractor recommendation.Extractor) Option {
+	return func(o *Orchestrator) {
+		o.recommendationExtractor = extractor
+	}
+}
+
+// WithPromptClient sets the prompt-manager client for reading investigation prompts from skills.
+func WithPromptClient(client promptmanager.Client) Option {
+	return func(o *Orchestrator) {
+		o.promptClient = client
+	}
+}
+
+// WithAttachmentStorage sets the file storage service for resolving attachment IDs.
+func WithAttachmentStorage(s storage.Service) Option {
+	return func(o *Orchestrator) {
+		o.storage = s
+	}
+}
+
+// WithOrchestrationSettings sets the orchestration settings store.
+func WithOrchestrationSettings(store *agentconfig.OrchestrationSettingsStore) Option {
+	return func(o *Orchestrator) {
+		o.orchestrationSettings = store
+	}
+}
+
+// WithIdentitySecret sets the HMAC secret for signing agent identity tokens.
+func WithIdentitySecret(secret []byte) Option {
+	return func(o *Orchestrator) {
+		o.identitySecret = secret
+	}
+}
+
+// SetReconciler sets the reconciler reference for hot-reload propagation.
+// This is called after construction because the reconciler depends on the orchestrator.
+func (o *Orchestrator) SetReconciler(r *Reconciler) {
+	o.reconciler = r
+}
+
 // New creates a new Orchestrator with the given dependencies.
 func New(
 	profiles repository.ProfileRepository,
@@ -589,12 +720,17 @@ func (o *Orchestrator) EnsureProfile(ctx context.Context, req EnsureProfileReque
 		return &EnsureProfileResult{Profile: existing}, nil
 	}
 
-	if req.Defaults == nil {
+	// Use built-in defaults for known profile keys if no defaults provided
+	defaults := req.Defaults
+	if defaults == nil {
+		defaults = getBuiltInProfileDefaults(key)
+	}
+	if defaults == nil {
 		return nil, domain.NewValidationErrorWithHint("defaults", "field is required",
 			"Provide default profile settings to create a new profile")
 	}
 
-	candidate := *req.Defaults
+	candidate := *defaults
 	candidate.ProfileKey = key
 	if strings.TrimSpace(candidate.Name) == "" {
 		candidate.Name = key
@@ -809,6 +945,27 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		return nil, err
 	}
 
+	// Resolve relative project root to absolute (workspace-sandbox requires absolute paths).
+	// Fall back to DefaultProjectRoot when the task has no project root set.
+	if pr := strings.TrimSpace(task.ProjectRoot); pr == "" || !filepath.IsAbs(pr) {
+		resolved := pr
+		if resolved == "" {
+			resolved = strings.TrimSpace(o.config.DefaultProjectRoot)
+		}
+		if resolved != "" && !filepath.IsAbs(resolved) {
+			if abs, err := filepath.Abs(resolved); err == nil {
+				resolved = abs
+			}
+		}
+		if resolved != task.ProjectRoot {
+			task.ProjectRoot = resolved
+			if o.tasks != nil {
+				task.UpdatedAt = time.Now()
+				_ = o.tasks.Update(ctx, task)
+			}
+		}
+	}
+
 	if req.AgentProfileID != nil && req.ProfileRef != nil {
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, domain.NewValidationErrorWithHint("agentProfileId/profileRef", "only one profile reference is allowed",
@@ -925,20 +1082,30 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		profileID = &profile.ID
 	}
 	run := &domain.Run{
-		ID:              uuid.New(),
-		TaskID:          task.ID,
-		AgentProfileID:  profileID, // May be nil if inline config used
-		Tag:             req.Tag,   // Custom tag for identification
-		RunMode:         runMode,
-		Status:          domain.RunStatusPending,
-		Phase:           domain.RunPhaseQueued,
-		ProgressPercent: 0,
-		IdempotencyKey:  req.IdempotencyKey,
-		ApprovalState:   domain.ApprovalStateNone,
-		ResolvedConfig:  resolvedConfig,
-		SandboxConfig:   sandboxConfig,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		ID:                       uuid.New(),
+		TaskID:                   task.ID,
+		AgentProfileID:           profileID, // May be nil if inline config used
+		Tag:                      req.Tag,   // Custom tag for identification
+		SourceRunIDs:             req.SourceRunIDs,
+		SourceInvestigationRunID: req.SourceInvestigationRunID,
+		RunMode:                  runMode,
+		Status:                   domain.RunStatusPending,
+		Phase:                    domain.RunPhaseQueued,
+		ProgressPercent:          0,
+		IdempotencyKey:           req.IdempotencyKey,
+		ApprovalState:            domain.ApprovalStateNone,
+		ResolvedConfig:           resolvedConfig,
+		SandboxConfig:            sandboxConfig,
+		CreatedAt:                time.Now(),
+		UpdatedAt:                time.Now(),
+	}
+	// Populate PromptPreview so WebSocket broadcasts include display text.
+	// This is normally a computed field from the List query JOIN, but we need it
+	// for real-time broadcasts during execution.
+	if len(task.Description) > 120 {
+		run.PromptPreview = task.Description[:120]
+	} else {
+		run.PromptPreview = task.Description
 	}
 	if run.ResolvedConfig != nil {
 		run.ResolvedConfig.SandboxConfig = sandboxConfig
@@ -955,21 +1122,67 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	// Mark idempotency as complete
 	o.markIdempotencyComplete(ctx, req.IdempotencyKey, run.ID, "Run")
 
-	// Determine the prompt: use override if provided, otherwise fall back to task description
-	prompt := req.Prompt
-	if prompt == "" {
-		prompt = task.Description
+	// Split instructions (system prompt) from context data (user message).
+	// Task description contains methodology/instructions → system prompt.
+	// Context attachments contain data/evidence → user message.
+	// If an override prompt is provided, it replaces the task description as system prompt.
+	systemPrompt, userMessage := domain.BuildSplitPrompt(task.Description, task.ContextAttachments, req.Prompt)
+
+	// Resolve image attachments from storage so runners receive file paths
+	var imageAttachments []runner.Attachment
+	if o.storage != nil {
+		for _, att := range task.ContextAttachments {
+			if att.Type == "image" && att.AttachmentID != "" {
+				meta, err := o.storage.Get(ctx, att.AttachmentID)
+				if err != nil {
+					continue // skip unresolvable attachments
+				}
+				imageAttachments = append(imageAttachments, runner.Attachment{
+					ID:          meta.ID,
+					FileName:    meta.FileName,
+					ContentType: meta.ContentType,
+					FilePath:    o.storage.GetFilePath(meta.StoragePath),
+				})
+			}
+		}
 	}
 
-	// Append context attachments to the prompt if present
-	if len(task.ContextAttachments) > 0 {
-		prompt = domain.BuildPromptWithContext(prompt, task.ContextAttachments)
+	// Emit the initial user prompt as the first message event.
+	// We emit the user message (context + task), not the system prompt,
+	// since the system prompt is runner-internal instructions.
+	if o.events != nil && strings.TrimSpace(userMessage) != "" {
+		// Build attachment metadata for the event so the UI can render image thumbnails
+		var attInfo []domain.MessageAttachmentInfo
+		for _, att := range imageAttachments {
+			meta, err := o.storage.Get(ctx, att.ID)
+			if err == nil {
+				attInfo = append(attInfo, domain.MessageAttachmentInfo{
+					ID:          meta.ID,
+					FileName:    meta.FileName,
+					ContentType: meta.ContentType,
+					URL:         o.storage.GetServingURL(meta.StoragePath),
+				})
+			}
+		}
+		var userEvent *domain.RunEvent
+		if len(attInfo) > 0 {
+			userEvent = domain.NewMessageEventWithAttachments(run.ID, "user", userMessage, attInfo)
+		} else {
+			userEvent = domain.NewMessageEvent(run.ID, "user", userMessage)
+		}
+		if err := o.events.Append(ctx, run.ID, userEvent); err != nil {
+			// Log but don't fail
+			_ = err
+		}
+		if o.broadcaster != nil {
+			o.broadcaster.BroadcastEvent(userEvent)
+		}
 	}
 
 	// Start execution asynchronously
-	go o.executeRun(context.Background(), run, task, profile, prompt, existingSandboxWorkDir)
+	go o.executeRun(context.Background(), run, task, profile, userMessage, systemPrompt, existingSandboxWorkDir, imageAttachments, req.Environment)
 
-	return run, nil
+	return o.attachRunActions(ctx, run), nil
 }
 
 func (o *Orchestrator) preflightScopePath(task *domain.Task, runMode domain.RunMode, existingSandboxID *uuid.UUID) error {
@@ -1104,8 +1317,24 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if req.SkipPermissionPrompt != nil {
 		cfg.SkipPermissionPrompt = *req.SkipPermissionPrompt
 	}
+	// Feature flag overrides
+	if req.EnableBrowser != nil {
+		cfg.Features.EnableBrowser = *req.EnableBrowser
+	}
+	// Extra flags overrides (replace per runner type)
+	if req.ExtraFlags != nil {
+		if cfg.ExtraFlags == nil {
+			cfg.ExtraFlags = make(domain.RunnerExtraFlags)
+		}
+		for rt, flags := range req.ExtraFlags {
+			cfg.ExtraFlags[rt] = append([]string(nil), flags...)
+		}
+	}
 	if req.RequiresSandbox != nil {
 		cfg.RequiresSandbox = *req.RequiresSandbox
+	}
+	if req.NetworkAccess != nil {
+		cfg.NetworkAccess = *req.NetworkAccess
 	}
 	if req.RequiresApproval != nil {
 		cfg.RequiresApproval = *req.RequiresApproval
@@ -1154,6 +1383,16 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 		}
 		cfg.Model = resolved
 	}
+
+	// Validate extra flags against runner allowlists (delegate to seam)
+	if o.flagValidator != nil {
+		for rt, flags := range cfg.ExtraFlags {
+			if err := o.flagValidator.ValidateFlags(rt, flags); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+
 	return cfg, profile, nil
 }
 
@@ -1200,6 +1439,29 @@ func normalizeSandboxConfig(cfg *domain.SandboxConfig) *domain.SandboxConfig {
 	}
 	cfg.Acceptance.Allow = normalizeSandboxCriteria(cfg.Acceptance.Allow)
 	cfg.Acceptance.Deny = normalizeSandboxCriteria(cfg.Acceptance.Deny)
+
+	// Default lifecycle cleanup for auto-approve sandboxes.
+	//
+	// When autoApprove is enabled, the sandbox changes are applied to the
+	// canonical repo and committed automatically — no human reviews the
+	// sandbox. Without cleanup, the sandbox stays "active" indefinitely,
+	// which:
+	//   1. Blocks future runs that target the same scope path (mutual
+	//      exclusion via reserved_paths).
+	//   2. Leaks overlay mounts and disk space.
+	//
+	// We default deleteOn to ["terminal"] so the sandbox is cleaned up after
+	// any terminal event (run_completed, run_failed, run_cancelled). This
+	// matches the intent of auto-approve: the caller trusts the changes and
+	// doesn't need the sandbox preserved for inspection.
+	//
+	// Callers who want different behavior (e.g., keep the sandbox for
+	// debugging) can explicitly set lifecycle.deleteOn to override this
+	// default.
+	if cfg.Acceptance.AutoApprove && len(cfg.Lifecycle.DeleteOn) == 0 && len(cfg.Lifecycle.StopOn) == 0 {
+		cfg.Lifecycle.DeleteOn = []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTerminal}
+	}
+
 	return cfg
 }
 
@@ -1260,6 +1522,15 @@ func validateSandboxConfig(cfg *domain.SandboxConfig) error {
 			)
 		}
 	}
+	// Warn when auto_approve is enabled but no allow criteria are configured.
+	// This is valid (empty allow = accept all non-denied files), but surprising
+	// enough to warrant a log line — especially since an empty deny (from proto
+	// serialization) previously caused silent universal denial.
+	if cfg.Acceptance.AutoApprove &&
+		len(cfg.Acceptance.Allow.PathGlobs) == 0 &&
+		len(cfg.Acceptance.Allow.Extensions) == 0 {
+		log.Printf("[sandbox-config] auto_approve enabled with no allow criteria — all non-denied files will be approved")
+	}
 	return nil
 }
 
@@ -1271,20 +1542,26 @@ func (o *Orchestrator) GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, e
 	if run == nil {
 		return nil, domain.NewNotFoundError("Run", id)
 	}
-	return run, nil
+	return o.attachRunActions(ctx, run), nil
 }
 
 func (o *Orchestrator) ListRuns(ctx context.Context, opts RunListOptions) ([]*domain.Run, error) {
-	return o.runs.List(ctx, repository.RunListFilter{
+	runs, err := o.runs.List(ctx, repository.RunListFilter{
 		ListFilter: repository.ListFilter{
 			Limit:  opts.Limit,
 			Offset: opts.Offset,
 		},
-		TaskID:         opts.TaskID,
-		AgentProfileID: opts.AgentProfileID,
-		Status:         opts.Status,
-		TagPrefix:      opts.TagPrefix,
+		TaskID:                    opts.TaskID,
+		AgentProfileID:            opts.AgentProfileID,
+		Status:                    opts.Status,
+		TagPrefix:                 opts.TagPrefix,
+		InvestigatesRunID:         opts.InvestigatesRunID,
+		AppliesInvestigationRunID: opts.AppliesInvestigationRunID,
 	})
+	if err != nil {
+		return nil, err
+	}
+	return o.attachRunActionsList(ctx, runs), nil
 }
 
 func (o *Orchestrator) DeleteRun(ctx context.Context, id uuid.UUID) error {
@@ -1292,10 +1569,8 @@ func (o *Orchestrator) DeleteRun(ctx context.Context, id uuid.UUID) error {
 	if err != nil {
 		return err
 	}
-	if run.Status == domain.RunStatusPending ||
-		run.Status == domain.RunStatusStarting ||
-		run.Status == domain.RunStatusRunning {
-		return domain.NewStateError("Run", string(run.Status), "delete", "stop the run before deleting it")
+	if allowed, reason := domain.CanDeleteRun(run); !allowed {
+		return domain.NewStateError("Run", string(run.Status), "delete", reason)
 	}
 	return o.runs.Delete(ctx, id)
 }
@@ -1314,7 +1589,7 @@ func (o *Orchestrator) GetRunByTag(ctx context.Context, tag string) (*domain.Run
 	// Find exact match
 	for _, run := range runs {
 		if run.GetTag() == tag {
-			return run, nil
+			return o.attachRunActions(ctx, run), nil
 		}
 	}
 
@@ -1390,8 +1665,8 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
-	if run.Status != domain.RunStatusRunning && run.Status != domain.RunStatusStarting {
-		return domain.NewStateError("Run", string(run.Status), "stop", "can only stop running or starting runs")
+	if allowed, reason := domain.CanStopRun(run); !allowed {
+		return domain.NewStateError("Run", string(run.Status), "stop", reason)
 	}
 
 	// Get the runner type from resolved config or profile
@@ -1435,16 +1710,8 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		return nil, err
 	}
 
-	// Validate run has a session ID
-	if run.SessionID == "" {
-		return nil, domain.NewStateError("Run", string(run.Status), "continue",
-			"run has no session ID - continuation not available for this run")
-	}
-
-	// Validate run is in a continuable state (completed or failed, not running)
-	if run.Status == domain.RunStatusRunning || run.Status == domain.RunStatusStarting {
-		return nil, domain.NewStateError("Run", string(run.Status), "continue",
-			"cannot continue a run that is still in progress")
+	if allowed, reason := domain.CanContinueRun(run); !allowed {
+		return nil, domain.NewStateError("Run", string(run.Status), "continue", reason)
 	}
 
 	// Get the runner type from resolved config
@@ -1478,18 +1745,62 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		return nil, runner.ErrContinuationNotSupported
 	}
 
-	// Update run status to running
+	// Update run status to running and reset heartbeat so the reconciler
+	// doesn't immediately consider this run stale based on the previous
+	// run's last heartbeat (which could be hours old).
+	previousStatus := run.Status
+	now := time.Now()
 	run.Status = domain.RunStatusRunning
-	run.UpdatedAt = time.Now()
+	run.Phase = domain.RunPhaseExecuting
+	run.ProgressPercent = domain.PhaseToProgress(domain.RunPhaseExecuting)
+	run.LastHeartbeat = &now
+	run.UpdatedAt = now
 	if err := o.runs.Update(ctx, run); err != nil {
 		return nil, err
 	}
 
-	// Emit user message event
 	if o.events != nil {
-		userEvent := domain.NewMessageEvent(run.ID, "user", req.Message)
+		statusEvent := domain.NewStatusEvent(
+			run.ID,
+			string(previousStatus),
+			string(domain.RunStatusRunning),
+			"Continuation requested",
+		)
+		if err := o.events.Append(ctx, run.ID, statusEvent); err == nil && o.broadcaster != nil {
+			o.broadcaster.BroadcastEvent(statusEvent)
+		}
+	}
+	if o.broadcaster != nil {
+		o.broadcaster.BroadcastRunStatus(run)
+	}
+
+	// Emit user message event (with attachment metadata if present, resolved later)
+	// Note: We defer emitting until after attachment resolution so we can include URLs.
+	emitUserMessage := func(attachments []runner.Attachment) {
+		if o.events == nil {
+			return
+		}
+		var attInfo []domain.MessageAttachmentInfo
+		if o.storage != nil {
+			for _, att := range attachments {
+				meta, err := o.storage.Get(ctx, att.ID)
+				if err == nil {
+					attInfo = append(attInfo, domain.MessageAttachmentInfo{
+						ID:          meta.ID,
+						FileName:    meta.FileName,
+						ContentType: meta.ContentType,
+						URL:         o.storage.GetServingURL(meta.StoragePath),
+					})
+				}
+			}
+		}
+		var userEvent *domain.RunEvent
+		if len(attInfo) > 0 {
+			userEvent = domain.NewMessageEventWithAttachments(run.ID, "user", req.Message, attInfo)
+		} else {
+			userEvent = domain.NewMessageEvent(run.ID, "user", req.Message)
+		}
 		if err := o.events.Append(ctx, run.ID, userEvent); err != nil {
-			// Log but don't fail
 			_ = err
 		}
 		if o.broadcaster != nil {
@@ -1533,35 +1844,178 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		eventSink = &noOpEventSink{}
 	}
 
-	// Execute continuation asynchronously
-	go o.executeContinuation(context.Background(), run, r, eventSink, req.Message, workDir)
+	// Resolve attachments
+	var attachments []runner.Attachment
+	if len(req.AttachmentIDs) > 0 && o.storage != nil {
+		metas, err := o.storage.GetMultiple(ctx, req.AttachmentIDs)
+		if err != nil {
+			// Log but continue without attachments
+			_ = err
+		}
+		for _, meta := range metas {
+			attachments = append(attachments, runner.Attachment{
+				ID:          meta.ID,
+				FileName:    meta.FileName,
+				ContentType: meta.ContentType,
+				FilePath:    o.storage.GetFilePath(meta.StoragePath),
+			})
+		}
+	}
 
-	return run, nil
+	// Emit user message event now that attachments are resolved
+	emitUserMessage(attachments)
+
+	// Execute continuation asynchronously
+	go o.executeContinuation(context.Background(), run, r, eventSink, req.Message, workDir, attachments)
+
+	return o.attachRunActions(ctx, run), nil
+}
+
+// DeleteRunMessage appends a message_deleted event for a message event.
+// The original message remains in the append-only stream for auditability.
+func (o *Orchestrator) DeleteRunMessage(ctx context.Context, runID uuid.UUID, eventID uuid.UUID) (*domain.RunEvent, error) {
+	if o.events == nil {
+		return nil, domain.NewConfigMissingError("eventStore", "not configured", nil)
+	}
+
+	events, err := o.events.Get(ctx, runID, event.GetOptions{
+		EventTypes: []domain.RunEventType{domain.EventTypeMessage, domain.EventTypeMessageDeleted},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var target *domain.RunEvent
+	alreadyDeleted := false
+	targetID := eventID.String()
+	for _, evt := range events {
+		if evt == nil {
+			continue
+		}
+		if evt.ID == eventID {
+			target = evt
+			continue
+		}
+		if data, ok := evt.Data.(*domain.MessageDeletedEventData); ok && data.TargetEventID == targetID {
+			alreadyDeleted = true
+		}
+	}
+
+	if target == nil {
+		return nil, domain.NewNotFoundErrorWithID("RunEvent", targetID)
+	}
+	if target.EventType != domain.EventTypeMessage {
+		return nil, domain.NewValidationError("eventId", "only message events can be deleted")
+	}
+	if alreadyDeleted {
+		return nil, domain.NewStateError("RunEvent", "deleted", "delete", "message already deleted")
+	}
+
+	deleteEvent := domain.NewMessageDeletedEvent(runID, targetID)
+	if err := o.events.Append(ctx, runID, deleteEvent); err != nil {
+		return nil, err
+	}
+	if o.broadcaster != nil {
+		o.broadcaster.BroadcastEvent(deleteEvent)
+	}
+	return deleteEvent, nil
+}
+
+// continuationHeartbeat sends periodic heartbeats for a continuation so the
+// reconciler doesn't consider the run stale while it's actively executing.
+func (o *Orchestrator) continuationHeartbeat(ctx context.Context, run *domain.Run, stop <-chan struct{}) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-stop:
+			return
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			now := time.Now()
+			run.LastHeartbeat = &now
+			run.UpdatedAt = now
+			if err := o.runs.Update(ctx, run); err != nil {
+				log.Printf("[heartbeat] ERROR: continuation heartbeat failed for run %s: %v", run.ID, err)
+			}
+		}
+	}
 }
 
 // executeContinuation handles the actual continuation execution (runs in background).
-func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run, r runner.Runner, eventSink runner.EventSink, message string, workDir string) {
+// Each continuation turn gets its own timeout from RunTimeoutMinutes, so a timed-out
+// run can be continued indefinitely — each "continue" message resets the clock.
+func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run, r runner.Runner, eventSink runner.EventSink, message string, workDir string, attachments []runner.Attachment) {
+	// Apply per-turn timeout to continuation
+	timeoutMinutes := 30 // default
+	if o.orchestrationSettings != nil {
+		s := o.orchestrationSettings.Get()
+		if s.RunExecution.RunTimeoutMinutes > 0 {
+			timeoutMinutes = s.RunExecution.RunTimeoutMinutes
+		}
+	}
+	execCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMinutes)*time.Minute)
+	defer cancel()
+
+	// Start heartbeat loop so the reconciler doesn't kill us during execution.
+	// Heartbeat uses the parent ctx so it survives after execCtx deadline fires.
+	heartbeatStop := make(chan struct{})
+	go o.continuationHeartbeat(ctx, run, heartbeatStop)
+	defer close(heartbeatStop)
+
 	// Build continue request
 	continueReq := runner.ContinueRequest{
-		RunID:      run.ID,
-		SessionID:  run.SessionID,
-		Prompt:     message,
-		WorkingDir: workDir,
-		EventSink:  eventSink,
+		RunID:       run.ID,
+		SessionID:   run.SessionID,
+		Prompt:      message,
+		WorkingDir:  workDir,
+		EventSink:   eventSink,
+		Attachments: attachments,
 	}
 
-	// Execute continuation
-	result, err := r.Continue(ctx, continueReq)
+	// Execute continuation with per-turn timeout
+	result, err := r.Continue(execCtx, continueReq)
 
 	// Update run based on result
 	now := time.Now()
+	previousStatus := run.Status
 	run.UpdatedAt = now
 
-	if err != nil {
+	if execCtx.Err() == context.DeadlineExceeded {
+		// Continuation timed out — mark as failed but preserve session ID
+		// so the user can continue again with a fresh timeout.
 		run.Status = domain.RunStatusFailed
 		run.EndedAt = &now
+		run.ErrorMsg = fmt.Sprintf("continuation exceeded timeout of %d minutes", timeoutMinutes)
+		if result != nil && result.SessionID != "" {
+			run.SessionID = result.SessionID
+		}
+		if o.events != nil {
+			errorEvent := domain.NewErrorEvent(run.ID, "continuation_timeout", run.ErrorMsg, true)
+			_ = o.events.Append(ctx, run.ID, errorEvent)
+			if o.broadcaster != nil {
+				o.broadcaster.BroadcastEvent(errorEvent)
+			}
+		}
+	} else if err != nil {
+		run.Status = domain.RunStatusFailed
+		run.EndedAt = &now
+		run.ErrorMsg = err.Error()
 		if o.events != nil {
 			errorEvent := domain.NewErrorEvent(run.ID, "continuation_error", err.Error(), false)
+			_ = o.events.Append(ctx, run.ID, errorEvent)
+			if o.broadcaster != nil {
+				o.broadcaster.BroadcastEvent(errorEvent)
+			}
+		}
+	} else if result != nil && !result.Success {
+		run.Status = domain.RunStatusFailed
+		run.EndedAt = &now
+		run.ErrorMsg = result.ErrorMessage
+		run.ExitCode = &result.ExitCode
+		if o.events != nil && result.ErrorMessage != "" {
+			errorEvent := domain.NewErrorEvent(run.ID, "continuation_error", result.ErrorMessage, false)
 			_ = o.events.Append(ctx, run.ID, errorEvent)
 			if o.broadcaster != nil {
 				o.broadcaster.BroadcastEvent(errorEvent)
@@ -1570,11 +2024,6 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 	} else if result != nil {
 		run.Status = domain.RunStatusComplete
 		run.EndedAt = &now
-
-		// Update session ID if it changed
-		if result.SessionID != "" {
-			run.SessionID = result.SessionID
-		}
 
 		// Update summary if available
 		if result.Summary != nil {
@@ -1585,10 +2034,29 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		run.EndedAt = &now
 	}
 
+	// Always preserve session ID from the result for further continuation,
+	// regardless of success/failure. The runner populates SessionID from
+	// stream events received before process termination.
+	if result != nil && result.SessionID != "" {
+		run.SessionID = result.SessionID
+	}
+
 	// Persist updated run
 	if err := o.runs.Update(ctx, run); err != nil {
 		// Log but can't do much else
 		_ = err
+	}
+
+	if o.events != nil && previousStatus != run.Status {
+		statusEvent := domain.NewStatusEvent(
+			run.ID,
+			string(previousStatus),
+			string(run.Status),
+			"Continuation completed",
+		)
+		if err := o.events.Append(ctx, run.ID, statusEvent); err == nil && o.broadcaster != nil {
+			o.broadcaster.BroadcastEvent(statusEvent)
+		}
 	}
 
 	// Broadcast status update
@@ -1599,7 +2067,7 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 
 // executeRun handles the actual agent execution (runs in background).
 // This delegates to RunExecutor for the actual work.
-func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, prompt string, existingSandboxWorkDir string) {
+func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, prompt string, systemPrompt string, existingSandboxWorkDir string, attachments []runner.Attachment, customEnv map[string]string) {
 	executor := NewRunExecutor(
 		o.runs,
 		o.runners,
@@ -1609,7 +2077,19 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 		task,
 		profile,
 		prompt,
+		systemPrompt,
 	)
+	// Apply orchestration settings to executor config if store is available.
+	if o.orchestrationSettings != nil {
+		s := o.orchestrationSettings.Get()
+		executor.WithConfig(ExecutorConfig{
+			Timeout:            time.Duration(s.RunExecution.RunTimeoutMinutes) * time.Minute,
+			HeartbeatInterval:  time.Duration(s.HealthDetection.HeartbeatIntervalSeconds) * time.Second,
+			CheckpointInterval: 1 * time.Minute,
+			MaxRetries:         3,
+			StaleThreshold:     time.Duration(s.HealthDetection.StaleThresholdSeconds) * time.Second,
+		})
+	}
 	// Configure executor with checkpoint repository if available
 	if o.checkpoints != nil {
 		executor.WithCheckpointRepository(o.checkpoints)
@@ -1627,6 +2107,16 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	if o.broadcaster != nil {
 		executor.WithBroadcaster(o.broadcaster)
 	}
+	if len(attachments) > 0 {
+		executor.WithAttachments(attachments)
+	}
+	if len(customEnv) > 0 {
+		executor.WithCustomEnvironment(customEnv)
+	}
+	if len(o.identitySecret) > 0 {
+		executor.WithIdentitySecret(o.identitySecret)
+	}
+	executor.WithRecommendationQueueFilter(o.recommendationQueueFilter(ctx))
 	executor.Execute(ctx)
 }
 
@@ -1691,7 +2181,7 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 	// Start execution asynchronously with resumption
 	go o.resumeRun(context.Background(), run, task, profile, checkpoint)
 
-	return run, nil
+	return o.attachRunActions(ctx, run), nil
 }
 
 // resumeRun handles the actual agent resumption (runs in background).
@@ -1705,7 +2195,19 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 		task,
 		profile,
 		"", // No new prompt for resume
+		"", // No system prompt for resume (session persists instructions)
 	)
+	// Apply orchestration settings to executor config if store is available.
+	if o.orchestrationSettings != nil {
+		s := o.orchestrationSettings.Get()
+		executor.WithConfig(ExecutorConfig{
+			Timeout:            time.Duration(s.RunExecution.RunTimeoutMinutes) * time.Minute,
+			HeartbeatInterval:  time.Duration(s.HealthDetection.HeartbeatIntervalSeconds) * time.Second,
+			CheckpointInterval: 1 * time.Minute,
+			MaxRetries:         3,
+			StaleThreshold:     time.Duration(s.HealthDetection.StaleThresholdSeconds) * time.Second,
+		})
+	}
 
 	// Configure for resumption
 	if o.checkpoints != nil {
@@ -1715,6 +2217,10 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 	if o.broadcaster != nil {
 		executor.WithBroadcaster(o.broadcaster)
 	}
+	if len(o.identitySecret) > 0 {
+		executor.WithIdentitySecret(o.identitySecret)
+	}
+	executor.WithRecommendationQueueFilter(o.recommendationQueueFilter(ctx))
 	executor.WithResumeFrom(checkpoint)
 
 	executor.Execute(ctx)
@@ -1837,6 +2343,52 @@ func (o *Orchestrator) UpdateModelRegistry(ctx context.Context, registry *modelr
 }
 
 // -----------------------------------------------------------------------------
+// Config Accessors
+// -----------------------------------------------------------------------------
+
+func (o *Orchestrator) GetDefaultProjectRoot() string {
+	return o.config.DefaultProjectRoot
+}
+
+// ValidatePath delegates path validation to the sandbox provider.
+func (o *Orchestrator) ValidatePath(ctx context.Context, path string, projectRoot string) (*sandbox.PathValidationResult, error) {
+	if o.sandbox == nil {
+		return nil, domain.NewConfigMissingError("sandbox", "provider not configured", nil)
+	}
+	return o.sandbox.ValidatePath(ctx, path, projectRoot)
+}
+
+// VerifyIdentityToken validates a signed agent identity token and returns the
+// embedded claims along with the current run status.
+func (o *Orchestrator) VerifyIdentityToken(ctx context.Context, token string) (*IdentityVerifyResult, error) {
+	if len(o.identitySecret) == 0 {
+		return &IdentityVerifyResult{Valid: false, Error: "identity system not configured"}, nil
+	}
+
+	claims, err := identity.VerifyToken(token, o.identitySecret)
+	if err != nil {
+		return &IdentityVerifyResult{Valid: false, Error: err.Error()}, nil
+	}
+
+	// Look up the run by token hash to get current status.
+	tokenHash := identity.HashToken(token)
+	run, err := o.runs.GetByTokenHash(ctx, tokenHash)
+	if err != nil {
+		return nil, err
+	}
+
+	runStatus := domain.RunStatus("unknown")
+	if run != nil {
+		runStatus = run.Status
+	}
+
+	return &IdentityVerifyResult{
+		Valid:     true,
+		Claims:    claims,
+		RunStatus: runStatus,
+	}, nil
+}
+
 // Status Operations
 // -----------------------------------------------------------------------------
 
@@ -2267,7 +2819,7 @@ func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
 	if b.store != nil {
 		if err := b.store.Append(context.Background(), b.runID, evt); err != nil {
 			// Log but don't fail - broadcasting is more important for UX
-			_ = err
+			log.Printf("[broadcast-sink] failed to store event for run %s: %v", b.runID, err)
 		}
 	}
 
@@ -2310,11 +2862,28 @@ func valueOrDefault(ptr *domain.RunMode, def domain.RunMode) domain.RunMode {
 // -----------------------------------------------------------------------------
 
 func (o *Orchestrator) GetInvestigationSettings(ctx context.Context) (*domain.InvestigationSettings, error) {
+	var settings *domain.InvestigationSettings
 	if o.investigationSettings == nil {
-		// Return defaults if no repository configured
-		return domain.DefaultInvestigationSettings(), nil
+		settings = domain.DefaultInvestigationSettings()
+	} else {
+		var err error
+		settings, err = o.investigationSettings.Get(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return o.investigationSettings.Get(ctx)
+
+	// Overlay prompt templates from prompt-manager skills (overrides DB values)
+	if o.promptClient != nil {
+		if prompt, err := o.promptClient.ReadSkill(ctx, "agent-manager-process-investigation", nil, false); err == nil {
+			settings.PromptTemplate = prompt
+		}
+		if applyPrompt, err := o.promptClient.ReadSkill(ctx, "agent-manager-process-investigation-apply", nil, false); err == nil {
+			settings.ApplyPromptTemplate = applyPrompt
+		}
+	}
+
+	return settings, nil
 }
 
 func (o *Orchestrator) UpdateInvestigationSettings(ctx context.Context, settings *domain.InvestigationSettings) error {
@@ -2322,14 +2891,32 @@ func (o *Orchestrator) UpdateInvestigationSettings(ctx context.Context, settings
 		return domain.NewConfigMissingError("investigationSettings", "repository not configured", nil)
 	}
 
-	// Validate settings
-	if strings.TrimSpace(settings.PromptTemplate) == "" {
-		return domain.NewValidationError("promptTemplate", "cannot be empty")
-	}
+	// Validate operational settings
 	if !settings.DefaultDepth.IsValid() {
 		return domain.NewValidationError("defaultDepth", "invalid depth value")
 	}
 
+	// Write prompt templates to prompt-manager skills
+	if o.promptClient != nil {
+		if adminClient, ok := o.promptClient.(promptmanager.AdminClient); ok {
+			if settings.PromptTemplate != "" {
+				content := settings.PromptTemplate
+				if _, err := adminClient.UpdateSkill(ctx, "agent-manager-process-investigation",
+					promptmanager.PromptSkillUpdate{Content: &content}); err != nil {
+					return fmt.Errorf("update investigation skill: %w", err)
+				}
+			}
+			if settings.ApplyPromptTemplate != "" {
+				content := settings.ApplyPromptTemplate
+				if _, err := adminClient.UpdateSkill(ctx, "agent-manager-process-investigation-apply",
+					promptmanager.PromptSkillUpdate{Content: &content}); err != nil {
+					return fmt.Errorf("update apply investigation skill: %w", err)
+				}
+			}
+		}
+	}
+
+	// Operational config still saved to local DB
 	return o.investigationSettings.Update(ctx, settings)
 }
 
@@ -2337,97 +2924,84 @@ func (o *Orchestrator) ResetInvestigationSettings(ctx context.Context) error {
 	if o.investigationSettings == nil {
 		return domain.NewConfigMissingError("investigationSettings", "repository not configured", nil)
 	}
+
+	// Revert prompt-manager skills to original version
+	if o.promptClient != nil {
+		if adminClient, ok := o.promptClient.(promptmanager.AdminClient); ok {
+			_ = adminClient.RevertSkillVersion(ctx, "agent-manager-process-investigation", 1)
+			_ = adminClient.RevertSkillVersion(ctx, "agent-manager-process-investigation-apply", 1)
+		}
+	}
+
+	// Reset operational config in DB
 	return o.investigationSettings.Reset(ctx)
 }
 
-// DetectScenariosForRuns analyzes runs and returns detected scenario information.
-func (o *Orchestrator) DetectScenariosForRuns(ctx context.Context, runIDs []uuid.UUID) ([]*domain.DetectedScenario, error) {
-	if len(runIDs) == 0 {
-		return nil, nil
+// -----------------------------------------------------------------------------
+// Orchestration Settings Operations
+// -----------------------------------------------------------------------------
+
+func (o *Orchestrator) GetOrchestrationSettings(_ context.Context) (*agentconfig.OrchestrationSettings, error) {
+	if o.orchestrationSettings == nil {
+		defaults := agentconfig.DefaultOrchestrationSettings()
+		return &defaults, nil
 	}
-
-	// Map to track scenarios and their run counts
-	scenarioMap := make(map[string]*domain.DetectedScenario)
-
-	for _, runID := range runIDs {
-		run, err := o.GetRun(ctx, runID)
-		if err != nil {
-			continue // Skip runs we can't find
-		}
-
-		task, err := o.GetTask(ctx, run.TaskID)
-		if err != nil {
-			continue
-		}
-
-		// Extract scenario from project root
-		projectRoot := strings.TrimSpace(task.ProjectRoot)
-		if projectRoot == "" {
-			continue
-		}
-
-		// Try to detect scenario from path pattern: .../scenarios/<scenario-name>/...
-		scenarioName, scenarioRoot := extractScenarioFromPath(projectRoot)
-		if scenarioName == "" {
-			continue
-		}
-
-		if existing, ok := scenarioMap[scenarioRoot]; ok {
-			existing.RunCount++
-		} else {
-			scenarioMap[scenarioRoot] = &domain.DetectedScenario{
-				Name:        scenarioName,
-				ProjectRoot: scenarioRoot,
-				KeyFiles:    findKeyFiles(scenarioRoot),
-				RunCount:    1,
-			}
-		}
-	}
-
-	// Convert map to slice
-	result := make([]*domain.DetectedScenario, 0, len(scenarioMap))
-	for _, scenario := range scenarioMap {
-		result = append(result, scenario)
-	}
-
-	return result, nil
+	settings := o.orchestrationSettings.Get()
+	return &settings, nil
 }
 
-// extractScenarioFromPath extracts the scenario name and root from a path.
-// Returns empty strings if not in a scenarios directory.
-func extractScenarioFromPath(path string) (name, root string) {
-	// Look for /scenarios/<name> pattern
-	parts := strings.Split(filepath.ToSlash(path), "/")
-	for i, part := range parts {
-		if part == "scenarios" && i+1 < len(parts) {
-			scenarioName := parts[i+1]
-			// Reconstruct the scenario root path
-			scenarioRoot := strings.Join(parts[:i+2], "/")
-			// Convert back to native path separators
-			scenarioRoot = filepath.FromSlash(scenarioRoot)
-			return scenarioName, scenarioRoot
-		}
+func (o *Orchestrator) UpdateOrchestrationSettings(_ context.Context, settings *agentconfig.OrchestrationSettings) error {
+	if o.orchestrationSettings == nil {
+		return domain.NewConfigMissingError("orchestrationSettings", "store not configured", nil)
 	}
-	return "", ""
+	if err := o.orchestrationSettings.Update(*settings); err != nil {
+		return err
+	}
+	o.propagateOrchestrationSettings(settings)
+	return nil
 }
 
-// findKeyFiles looks for important documentation files in a scenario directory.
-func findKeyFiles(scenarioRoot string) []string {
-	keyFileNames := []string{
-		"CLAUDE.md",
-		"README.md",
-		"Makefile",
-		"service.json",
-		"go.mod",
-		"package.json",
+func (o *Orchestrator) ResetOrchestrationSettings(_ context.Context) error {
+	if o.orchestrationSettings == nil {
+		return domain.NewConfigMissingError("orchestrationSettings", "store not configured", nil)
+	}
+	if err := o.orchestrationSettings.Reset(); err != nil {
+		return err
+	}
+	defaults := agentconfig.DefaultOrchestrationSettings()
+	o.propagateOrchestrationSettings(&defaults)
+	return nil
+}
+
+// propagateOrchestrationSettings applies updated settings to running components.
+func (o *Orchestrator) propagateOrchestrationSettings(s *agentconfig.OrchestrationSettings) {
+	// Update orchestrator config (affects new runs).
+	o.config.DefaultTimeout = time.Duration(s.RunExecution.RunTimeoutMinutes) * time.Minute
+	o.config.MaxConcurrentRuns = s.RunExecution.MaxConcurrentRuns
+	o.config.RequireSandboxByDefault = s.SafetyIsolation.RequireSandbox
+
+	// Propagate to reconciler.
+	if o.reconciler != nil {
+		o.reconciler.UpdateConfig(ReconcilerConfig{
+			Interval:          time.Duration(s.HealthDetection.ReconcilerIntervalSeconds) * time.Second,
+			StaleThreshold:    time.Duration(s.HealthDetection.StaleThresholdSeconds) * time.Second,
+			MaxRecoveryAge:    time.Duration(s.HealthDetection.MaxRecoveryAgeSeconds) * time.Second,
+			OrphanGracePeriod: time.Duration(s.ProcessTermination.OrphanGracePeriodSeconds) * time.Second,
+			MaxStaleRuns:      10,
+			KillOrphans:       s.ProcessTermination.KillOrphans,
+			AutoRecover:       true,
+		})
 	}
 
-	var found []string
-	for _, name := range keyFileNames {
-		path := filepath.Join(scenarioRoot, name)
-		if _, err := os.Stat(path); err == nil {
-			found = append(found, name)
-		}
+	// Propagate to terminator.
+	if o.terminator != nil {
+		o.terminator.UpdateConfig(TerminatorConfig{
+			GracePeriod:      time.Duration(s.ProcessTermination.GracePeriodSeconds) * time.Second,
+			MaxRetries:       s.ProcessTermination.TerminationMaxRetries,
+			BaseBackoff:      500 * time.Millisecond,
+			MaxBackoff:       5 * time.Second,
+			VerifyTimeout:    2 * time.Second,
+			KillProcessGroup: s.ProcessTermination.KillProcessGroup,
+		})
 	}
-	return found
 }

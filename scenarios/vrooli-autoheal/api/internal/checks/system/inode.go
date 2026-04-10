@@ -67,6 +67,7 @@ func (c *InodeCheck) Title() string { return "Inode Usage" }
 func (c *InodeCheck) Description() string {
 	return "Monitors inode usage to prevent file creation failures"
 }
+
 func (c *InodeCheck) Importance() string {
 	return "Inode exhaustion causes 'no space left on device' errors even with free disk space"
 }

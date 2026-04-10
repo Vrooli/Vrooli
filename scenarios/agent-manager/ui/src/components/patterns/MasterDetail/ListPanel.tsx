@@ -48,8 +48,13 @@ export function ListPanel({
       )}
     >
       {/* Header */}
-      <div className="shrink-0 px-4 py-3 border-b border-border">
-        <div className="flex items-center justify-between">
+      <div
+        className={cn(
+          "shrink-0 border-b border-border",
+          collapsed ? "px-2 py-3 flex items-center justify-center" : "px-4 py-3"
+        )}
+      >
+        <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between")}>
           <div className="flex items-center gap-2">
             {onToggleCollapse && (
               <Button
@@ -58,6 +63,7 @@ export function ListPanel({
                 className="h-6 w-6"
                 onClick={onToggleCollapse}
                 aria-label={collapsed ? "Expand panel" : "Collapse panel"}
+                title={collapsed ? `Expand ${title}` : `Collapse ${title}`}
               >
                 <ChevronLeft
                   className={cn(
@@ -67,9 +73,11 @@ export function ListPanel({
                 />
               </Button>
             )}
-            <span className="font-semibold text-sm">
-              {title} ({count})
-            </span>
+            {!collapsed && (
+              <span className="font-semibold text-sm">
+                {title} ({count})
+              </span>
+            )}
           </div>
           {!collapsed && headerActions}
         </div>

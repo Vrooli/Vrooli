@@ -1,7 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
-
-const API_BASE = resolveApiBase({ appendSuffix: true });
+import { buildTestGenieApiUrl } from "../lib/api";
 
 export interface DocSection {
   id: string;
@@ -20,8 +18,39 @@ export interface DocsManifest {
   sections: DocSection[];
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isDocSection(value: unknown): value is DocSection {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    (value.visibility === undefined || typeof value.visibility === "string") &&
+    Array.isArray(value.documents) &&
+    value.documents.every(
+      (document) =>
+        isRecord(document) &&
+        typeof document.path === "string" &&
+        typeof document.title === "string"
+    )
+  );
+}
+
+function isDocsManifest(value: unknown): value is DocsManifest {
+  return (
+    isRecord(value) &&
+    typeof value.version === "string" &&
+    typeof value.title === "string" &&
+    typeof value.defaultDocument === "string" &&
+    Array.isArray(value.sections) &&
+    value.sections.every(isDocSection)
+  );
+}
+
 async function fetchDocsManifest(): Promise<DocsManifest> {
-  const url = buildApiUrl("/docs/manifest", { baseUrl: API_BASE });
+  const url = buildTestGenieApiUrl("/docs/manifest");
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"
@@ -29,11 +58,15 @@ async function fetchDocsManifest(): Promise<DocsManifest> {
   if (!res.ok) {
     throw new Error(`Failed to fetch docs manifest: ${res.status}`);
   }
-  return res.json();
+  const payload: unknown = await res.json();
+  if (!isDocsManifest(payload)) {
+    throw new Error("Received invalid docs manifest payload");
+  }
+  return payload;
 }
 
 async function fetchDocContent(path: string): Promise<string> {
-  const url = buildApiUrl(`/docs/content?path=${encodeURIComponent(path)}`, { baseUrl: API_BASE });
+  const url = buildTestGenieApiUrl(`/docs/content?path=${encodeURIComponent(path)}`);
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"
@@ -41,8 +74,11 @@ async function fetchDocContent(path: string): Promise<string> {
   if (!res.ok) {
     throw new Error(`Failed to fetch doc content: ${res.status}`);
   }
-  const data = await res.json();
-  return data.content ?? "";
+  const payload: unknown = await res.json();
+  if (!isRecord(payload)) {
+    return "";
+  }
+  return typeof payload.content === "string" ? payload.content : "";
 }
 
 export function useDocsManifest() {

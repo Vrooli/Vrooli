@@ -325,9 +325,8 @@ func (c *Checker) EnsureHealthy(ctx context.Context, opts orchestrator.AutoRecov
 
 	// Step 1: Try cleanup first
 	result.Action = "cleanup"
-	if err := executor.CleanupProcesses(ctx); err != nil {
-		// Cleanup failed, but continue to restart
-	}
+	// Cleanup is best-effort. If it fails we still fall back to the restart path below.
+	_ = executor.CleanupProcesses(ctx)
 
 	// Wait briefly for cleanup to take effect
 	time.Sleep(2 * time.Second)

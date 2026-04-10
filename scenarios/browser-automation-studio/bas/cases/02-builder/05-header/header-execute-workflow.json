@@ -54,7 +54,8 @@
     "labels": {
       "reset": "none"
     },
-    "version": "1"
+    "version": "1",
+    "execution_mode": "observer"
   },
   "nodes": [
     {
@@ -170,7 +171,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() =\u003e { const button = document.querySelector('@selector/header.buttons.execute'); if (!button) { return false; } const viewer = document.querySelector('@selector/executions.viewer.root'); return button.hasAttribute('disabled') || viewer !== null; })()",
+          "expression": "(() => { const button = document.querySelector('@selector/header.buttons.execute'); if (!button) { return false; } const viewer = document.querySelector('@selector/executions.viewer.root'); return button.hasAttribute('disabled') || viewer !== null; })()",
           "store_result": "hasExecutionFeedback"
         },
         "metadata": {

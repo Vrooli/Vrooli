@@ -1,0 +1,101 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-03T22:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "HTTPClient construction inside VerifyIdentity",
+      "context": "Since D2 settled on a zero-parameter method, VerifyIdentity must construct its own HTTPClient internally. The existing HTTPClient in cliutil already supports APIBaseOptions with env var resolution. The question is whether to create a fresh client per call or expose an option to inject one for testing/reuse.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Create fresh HTTPClient per call using DetermineAPIBase",
+          "rationale": "Simplest approach. VerifyIdentity is called once per CLI invocation at most. Creates NewHTTPClient with APIBaseOptions{EnvVars: [\"VROOLI_AGENT_MANAGER_API_BASE\"]} and 10s timeout. Tests use t.Setenv to point at httptest server. No API surface bloat. Recommended.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Package-level DefaultIdentityClient variable (overridable for tests)",
+          "rationale": "Set a package-level var that VerifyIdentity uses. Tests override it. More testable but introduces mutable global state — goes against the clean pattern in sandbox.go."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Handling 401 response body parsing",
+      "context": "When agent-manager returns 401, the HTTPClient.Do method returns a *APIError (via ParseAPIError). VerifyIdentity needs to extract the verify-specific response (valid=false, error message) from this. The question is how to handle the 401 path — parse the APIError's raw response or make a separate parsing path.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Type-assert *APIError, parse RawResponse into VerifyResult",
+          "rationale": "HTTPClient.Do already captures the response body in APIError.RawResponse. VerifyIdentity checks errors.As(*APIError) for 401, then json.Unmarshal the RawResponse into VerifyResult. Reuses existing infrastructure. Recommended.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Use a lower-level HTTP call to avoid APIError wrapping",
+          "rationale": "Bypass HTTPClient.Do and use the raw http.Client directly. More control over response parsing but duplicates request setup logic (headers, base URL, JSON encoding)."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Env var constant naming and placement",
+      "context": "The identity env var names (VROOLI_AGENT_IDENTITY_TOKEN, VROOLI_AGENT_MANAGER_API_BASE) should be defined as constants for maintainability. sandbox.go doesn't use constants (inline strings), but identity.go has two env vars that will be referenced in tests.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Exported constants in identity.go",
+          "rationale": "Define EnvIdentityToken and EnvAgentManagerBase as exported constants at the top of identity.go. Tests and consuming scenarios can reference them. Self-documenting. Recommended.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Inline strings matching sandbox.go pattern",
+          "rationale": "Keep consistency with sandbox.go which uses os.Getenv(\"VROOLI_SANDBOX_ID\") inline. Simpler but harder to keep in sync if env var names ever change."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "All 4 round-1 decisions have been incorporated into the plan. The approach is now fully detailed: token-only IdentityEnv, zero-parameter VerifyIdentity method, env var for base URL, transport/auth error separation. The plan includes 8 specific test cases covering all paths."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "This plan appears ready for execution. All readiness dimensions are at 3 except risk_awareness (2), which is adequate for an S-effort item with straightforward stdlib-only implementation. The file change set is minimal (2 files), the test strategy is concrete, and all design decisions are settled. Consider reviewing and queuing."
+    }
+  ],
+  "plan_updates": "Incorporated all 4 settled round-1 decisions into a 'Design Decisions (Settled)' section. Refined the approach to show exact HTTPClient construction with DetermineAPIBase and APIBaseOptions. Expanded test plan from 4 to 8 specific test cases. Added implementation notes section covering test setup, JSON tag alignment, and 401 handling via APIError.RawResponse."
+}

@@ -1,0 +1,86 @@
+# Progress Log
+
+## Changelog
+
+| Date       | Author           | Change % | Description |
+|------------|------------------|----------|-------------|
+| 2026-01-15 | Ecosystem Manager | +2%     | Signal & Feedback Surface Design - Enhanced runtime observability: (1) Added structured log entries with timestamps and severity levels (INFO/WARN/ERROR/DEBUG) to all pipeline stage operations via new `appendInfo()`, `appendWarn()`, `appendError()` helpers in `stage_helpers.go`; (2) Added `ProgressPercent` (0-100) and `ProgressMessage` fields to pipeline `Status` type for quick status checks by agents and UIs without parsing stage arrays; (3) Updated orchestrator to call `UpdateProgress()` at all state transitions (start, running, stage changes, completion, failure, cancellation); (4) Added UI log parsing utilities in `pipeline-utils.ts` (`parseLogEntry()`, `parseLogs()`, `filterLogsByLevel()`, `getLogLevelStyle()`, `formatLogTimestamp()`, `getLatestSignificantLog()`) for displaying structured logs with proper formatting and severity coloring; (5) Updated TypeScript `PipelineStatus` interface with `progress_percent` and `progress_message` fields. Logs now follow parseable format `[TIMESTAMP] [LEVEL] message` for both human readability and programmatic filtering. All Go tests passing. |
+| 2026-01-15 | Ecosystem Manager | +0%     | Error Semantics Completion - Converted all remaining ad-hoc error handling in UI api.ts to use structured ApiError class. Updated 60+ API functions to use `throwIfNotOk()` helper instead of manual `throw new Error()`. Now all API errors throughout the UI are structured with: (1) error code for programmatic identification; (2) recovery action hint (retry, fix_input, etc.) for both UI display and agent consumption; (3) optional recovery hint text for user guidance. Special 404 handling preserved for state/logs queries where "not found" is an expected non-error condition. Fixed pipeline tests to use domain errors (ErrPipelineNotFound, ErrPipelineNotResumable) instead of plain fmt.Errorf - tests now verify correct HTTP status codes (422 for validation, 404 for not found, 400 for bad requests). Removed obsolete TestWriteJSON/TestWriteError tests since methods moved to shared/http. Error semantics now fully consistent between Go backend and TypeScript frontend. All 19 test packages passing. |
+| 2026-01-15 | Ecosystem Manager | +5%     | Error Semantics & Recovery Path Design - Enhanced structured error handling: (1) Added `RecoveryAction` type to `shared/errors` with 8 recovery categories (retry, retry_with_backoff, fix_input, provide_credentials, wait_for_resource, install_dependency, contact_support, none); (2) Extended `DomainError` struct with `Recovery` and `RecoveryHint` fields; (3) Created `defaultRecoveryMap` mapping all 50+ error codes to appropriate recovery actions; (4) Updated `ErrorResponse` HTTP type to include recovery fields; (5) Created pipeline-specific error constructors with recovery hints (ErrPipelineNotFound, ErrPipelineNotResumable, etc.); (6) Refactored `pipeline/handler.go` to use domain errors via `httputil.WriteError()`; (7) Added `ApiError` class and `throwIfNotOk()` helper to UI `api.ts`; (8) Created `error-utils.ts` with UI error display helpers; (9) Enhanced `pipelineStore.ts` with `PipelineErrorInfo` interface and structured error handling. All error responses now include machine-readable recovery hints for both humans and agents. |
+| 2026-01-15 | Ecosystem Manager | +0%     | Assumption Mapping & Hardening - Systematically audited codebase for implicit assumptions. Added defensive guards to: (1) `orchestrator.go` - UserHomeDir() fallback chain with logging when home dir unavailable; (2) `generation/analyzer.go` - VROOLI_ROOT env var support and os.Getwd() error handling; (3) `handler.go` - ContentLength handling for chunked encoding and empty body; (4) `domain/generator.ts` - validateFormInputs() now guards against null/undefined params, arrays, and string fields. No new features added - purely defensive hardening. All existing selectors already use optional chaining. Go/TS compilation verified. |
+| 2026-01-15 | Ecosystem Manager | +0%     | Idempotency & Replay Safety Hardening - Added `IdempotencyKey` field to pipeline `Config` and `Status` types. Implemented `GetByIdempotencyKey()` in InMemoryStore and FileStore. Updated orchestrator's `RunPipeline()` to check for existing pipelines by idempotency key before starting new work, enabling safe retries where "running twice is no worse than running once". Added 12 comprehensive idempotency tests (`TestIdempotencyKeyBasic`, `TestIdempotencyKeyStored`, etc.) verifying deduplication for running, completed, and empty-key scenarios. All 19 test packages passing. |
+| 2026-01-15 | Ecosystem Manager | +0%     | Seam Discovery & Documentation - Audited entire codebase for seam architecture. Documented 4 new API seams (Pipeline Orchestrator, Stage, Store, Supporting Seams) and 3 new UI seams (Pipeline Store, Pipeline Utils, Scenario State Hook) in SEAMS.md. Verified all existing seams are well-defined, properly documented, and consistently used. No weak or eroded seams identified - architecture is mature. |
+| 2026-01-15 | Ecosystem Manager | +0%     | Boundary-of-Responsibility Enforcement - Consolidated duplicate validation logic. Moved comprehensive `validateFormInputs()` from `components/generator/ValidationErrors.tsx` to `domain/generator.ts`. Converted `ValidationErrors.tsx` to pure presentation component (181→58 lines). Added `ValidationError` and `ValidateFormInputsParams` types to domain layer. Deprecated simple `validateGeneratorInputs()` in favor of richer version. Updated SEAMS.md to document validation seam. |
+| 2026-01-15 | Ecosystem Manager | +0%     | Screaming Architecture Refactoring - Removed duplicate types from root package (types.go), eliminating DesktopConfig, UpdateConfig, BundleIPCConfig duplication between main and generation packages. Deleted dead code files (domain_constants.go, package_operations.go) and unused utility functions (uniqueStrings, containsParentRef). Updated template_generator_test.go to use canonical generation.DesktopConfig types. Root package now has minimal cross-cutting concerns only. |
+| 2026-01-15 | Ecosystem Manager | +0%     | Architecture Alignment Audit - Fixed test file inconsistencies (bundle tests with outdated function signatures and test expectations that didn't match implementation behavior). All 19 test packages now pass. Documented current architecture which follows "screaming architecture" patterns well. |
+| 2026-01-16 | Ecosystem Manager | +0%     | Lint & Code Quality Cleanup - Fixed all lint errors blocking test suite: (1) Removed unused imports/variables in TypeScript (formatTimestamp, Input, Label, cn, resolveEndpoints, stateLoading, stages, StopTaskResponse); (2) Fixed deprecated `strings.Title` usage in tasks/shared/context.go by using `golang.org/x/text/cases` with proper language tag; (3) Fixed staticcheck warnings in wine_service_test.go by adding early returns after nil checks; (4) Fixed staticcheck SA4023 warnings in smoketest/store_test.go by converting interface tests to compile-time checks (var _ Interface = Impl()). All 9 test phases now pass. Architecture verified as well-aligned with screaming architecture principles. |
+| 2026-01-16 | Ecosystem Manager | +0%     | Architecture Alignment & Screaming Architecture Cleanup - (1) Removed unused log helper functions (`logInfo`, `logWarn`, `logError`, `logDebug`) from `pipeline/stage_helpers.go` - these were dead code since only the `appendInfo/appendWarn/appendError` methods (which use `appendLog` directly) were being used; (2) Fixed React hook dependency warning in `GeneratorForm.tsx` by adding missing `setSigningEnabledForBuild` to `resetFormState` callback dependencies; (3) Fixed `BuildStatus.tsx` react-hooks/exhaustive-deps warning by consolidating all derived state into a single `useMemo` hook instead of computing values on every render then using them as effect dependencies; (4) Fixed fast-refresh warnings by extracting `TEMPLATE_SUMMARIES` and `FRAMEWORK_SUMMARIES` constants from `FrameworkTemplateSection.tsx` into new `generator/constants.ts` file, and removing function re-exports from `ValidationErrors.tsx` (consumers should import from domain layer directly). TypeScript lint now shows 0 issues (reduced from 5). Go lint reduced from 37 to 33 issues. All 9 test phases pass. |
+| 2026-01-16 | Ecosystem Manager | +0%     | Boundary-of-Responsibility Enforcement (Phase 2) - Extracted build progress calculation and pipeline status transformation from presentation layer to domain layer: (1) Created `domain/build.ts` with `BUILD_STAGES` definitions, `calculateBuildProgress()`, `getBuildStageStatuses()`, `extractStageResults()`, and `pipelineStatusToBuildStatus()` functions; (2) Refactored `BuildStatus.tsx` to use domain functions instead of inline heuristics; (3) Moved `_extractStageResults()` logic from `pipelineStore.ts` to domain layer; (4) Consolidated `createErrorInfo()` helper and `ErrorInfo` type from store to `lib/error-utils.ts`; (5) Updated `pipelineStore.ts` to use shared `ErrorInfo` type and imported `createErrorInfo()`. Build stage definitions (keywords, progress percentages) now live in domain layer as single source of truth. TypeScript compilation verified. Updated SEAMS.md with new seams documentation. |
+| 2026-01-16 | Ecosystem Manager | +0%     | Browser Seam Enforcement - Unified all browser API calls to flow through established seams in `lib/browser.ts`: (1) Fixed 7 components bypassing `writeToClipboard()` seam with direct `navigator.clipboard.writeText()` calls (DebugJsonModal, SidebarHeader, DocsPanel, DiagnosticsPanels, BundledPreflightSection, BundledRuntimeSection, GenerateDesktopButton); (2) Fixed 2 components reimplementing blob download pattern instead of using `triggerBlobDownload()` seam (BundledPreflightSection, BundledRuntimeSection); (3) All clipboard operations now use result-based error handling; (4) Documented 6 high-priority API seam opportunities (CommandRunner, Filesystem abstraction, Wine installer, TimeProvider consistency, PathProvider, EnvironmentReader) and 3 medium-priority UI seam opportunities (confirmation dialogs, portal roots, navigation) in SEAMS.md. TypeScript compilation verified clean. No regressions. |
+| 2026-01-16 | Ecosystem Manager | +0%     | Idempotency & Replay Safety Hardening (UI Layer) - Extended idempotency support from backend to UI layer: (1) Added `idempotency_key` field to `PipelineConfig` TypeScript interface in `api.ts`; (2) Created idempotency key generation utilities in `pipeline-utils.ts` (`generateIdempotencyKey()`, `generateUniqueIdempotencyKey()`, `getSessionId()`, `resetSessionId()`) with session-scoped keys that are stable within a page session but unique across sessions; (3) Updated `pipelineStore.ts` with `isSubmitting` flag and `currentIdempotencyKey` state for double-submission prevention; (4) Added in-flight request guards to `runStage()`, `runFullPipeline()`, and `resumePipeline()` - if already submitting, returns existing pipeline ID instead of creating duplicate; (5) Added `resetForRetry()` action that resets session ID to allow explicit retries with fresh idempotency keys; (6) Added `selectIsSubmitting` and `selectIsBusy` selectors for UI button guards; (7) Documented full idempotency seam architecture in SEAMS.md with design philosophy, implementation details, remaining gaps, and future enhancements. Backend already had comprehensive idempotency tests (`[REQ:IDEM-001]` in `orchestrator_test.go` lines 877-1204). No new features - purely replay safety hardening. |
+| 2026-02-03 | Claude            | +0%     | Generic Port Environment Variable Injection - Fixed critical bug where bundled Go runtimes crashed (exit code 1) because port env vars (API_PORT, UI_PORT, etc.) were never set. Implementation: (1) Added `PortConfig` struct and `Ports map[string]PortConfig` to `ScenarioMetadata` in [CODE: api/generation/types.go#PortConfig], replacing hardcoded `UIPort`/`APIPort` fields; (2) Updated `ServiceJSON` struct in [CODE: api/generation/analyzer.go] to use `map[string]ServiceJSONPortDef` for dynamic port keys instead of hardcoded api/ui structs; (3) Added `PORTS_CONFIG` template variable via [CODE: templates/build-tools/template-generator.ts#buildPortsConfig]; (4) Added `PORTS` constant and env var injection loop in [CODE: templates/vanilla/main.ts:77] and [CODE: templates/vanilla/main.ts:2293]; (5) Added `EnvVar` field to `PortRequest` in runtime and deployment-manager manifests; (6) Added `VROOLI_LIFECYCLE_MANAGED` and `VROOLI_DESKTOP_MODE` lifecycle markers. Documented complete data flow in [DOC: docs/internal/SEAMS.md#port-environment-seam-feb-2026]. Breaking change by design - all existing desktop builds must be regenerated. |
+
+## Current State
+
+- **Overall Status**: Production Ready (bundled mode is the recommended default)
+- **Bundled Mode**: Fully operational - creates complete offline desktop applications
+- **Thin Client Mode**: Available for shared-server scenarios
+- **Tests**: 19/19 packages passing (100%)
+- **Completeness Score**: 49/100 (validation penalties for requirement grouping)
+
+## Architecture Notes
+
+The scenario-to-desktop codebase follows "screaming architecture" principles effectively:
+
+### Domain Modules (api/)
+- `build/` - Desktop application build orchestration
+- `bundle/` - Runtime bundling and packaging
+- `distribution/` - S3/R2 upload and artifact distribution
+- `generation/` - Template generation and scenario analysis
+- `pipeline/` - Multi-stage deployment orchestration
+- `preflight/` - Runtime validation before packaging
+- `records/` - Desktop build record persistence
+- `scenario/` - Scenario metadata and desktop status
+- `signing/` - Code signing configuration and generation
+- `smoketest/` - Smoke testing for built applications
+- `state/` - Scenario state persistence
+- `system/` - Wine service and system-level operations
+- `tasks/` - Task orchestration (investigate/fix workflows)
+- `telemetry/` - Deployment telemetry collection
+- `toolexecution/` - Tool Discovery and Execution Protocol
+- `toolhandlers/` - Tool handler HTTP layer
+- `toolregistry/` - Tool registration and discovery
+
+### Shared Infrastructure (api/shared/)
+- `errors/` - Domain error types
+- `http/` - HTTP utilities (CORS, response helpers, middleware)
+- `packaging/` - Package file locating utilities
+- `store/` - Generic store interfaces
+- `validation/` - Input validation
+
+### Root-Level Files (Cross-Cutting Concerns)
+Files in api/ root are intentionally cross-cutting and don't belong in a single domain module:
+- `handlers_docs.go`, `handlers_probe.go`, `handlers_icon_preview.go` - HTTP handlers for docs/health/preview
+- `handlers_tasks.go` - Task orchestration handlers
+- `proxy_hints.go`, `proxy_utils.go` - Proxy URL detection and normalization
+- `adapters.go` - Cross-domain adapter interfaces (connects build, generation, pipeline stores)
+- `utils.go` - Minimal utility functions (detectVrooliRoot)
+- `ports.go` - Port allocation constants
+
+The root package is now minimal - types live in domain packages (e.g., `generation.DesktopConfig`).
+
+## Known Issues
+
+### Security Audit Findings (All False Positives)
+- **AUTH-002** at signing/generation/electron_builder.go:24 - Template string for env var reference, not hardcoded password
+- **PATH-001** findings - Build-controlled paths, not user input
+- **HTTP-002** CORS wildcards - Intentional for tool protocol handlers
+
+### Standards Violations
+- 100 violations total (50 medium, 46 low, 4 info)
+- Most are PRD linkage issues (requirements missing operational target mappings)
+- Some are configuration warnings in service.json lifecycle setup
+
+### Lint Status
+- **TypeScript/JavaScript**: 0 issues (clean)
+- **Go**: 33 issues (mostly errcheck warnings in test files, 2 unused functions)

@@ -61,12 +61,12 @@ Each workflow follows a consistent 8-phase structure:
 
 ### By Component
 
-- **deployment-manager CLI** → [CLI Reference](../../scenarios/deployment-manager/README.md#cli-cheat-sheet-agent-friendly)
+- **deployment-manager CLI** → [CLI Reference](../../README.md#cli-cheat-sheet-agent-friendly)
 - **Fitness Scoring** → [Fitness Scoring Guide](../guides/fitness-scoring.md)
 - **Dependency Swapping** → [Dependency Swapping Guide](../guides/dependency-swapping.md)
 - **Secrets Management** → [Secrets Management Guide](../guides/secrets-management.md)
 - **Auto-Updates** → [Auto-Updates Guide](../guides/auto-updates.md)
-- **Bundle Manifests** → [Example Manifests](../examples/manifests/)
+- **Bundle Manifests** → [Example Manifests](../examples/manifests/README.md)
 
 ### By Tier
 

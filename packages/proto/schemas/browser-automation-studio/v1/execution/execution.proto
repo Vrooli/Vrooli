@@ -2,14 +2,14 @@ syntax = "proto3";
 
 package browser_automation_studio.v1;
 
-import "google/protobuf/timestamp.proto";
-import "buf/validate/validate.proto";
-import "common/v1/types.proto";
-import "browser-automation-studio/v1/base/shared.proto";
+import "browser-automation-studio/v1/actions/action.proto";
 import "browser-automation-studio/v1/base/browser_profile.proto";
+import "browser-automation-studio/v1/base/shared.proto";
 import "browser-automation-studio/v1/domain/telemetry.proto";
 import "browser-automation-studio/v1/workflows/definition.proto";
-import "browser-automation-studio/v1/actions/action.proto";
+import "buf/validate/validate.proto";
+import "common/v1/types.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution;execution";
 
@@ -206,6 +206,19 @@ message ExecutionParameters {
   // This enables running workflows in an authenticated state without login steps.
   // @format uuid
   optional string session_profile_id = 22 [(buf.validate.field).string.uuid = true];
+
+  // Session profile ID to save storage state to after execution.
+  // When set, captures the browser's storage state (cookies, localStorage)
+  // after successful execution and saves it to the specified profile.
+  // This enables capturing authenticated sessions for later reuse.
+  // @format uuid
+  optional string save_session_profile_id = 25 [(buf.validate.field).string.uuid = true];
+
+  // Restore tabs from the session profile before execution.
+  // When true and session_profile_id is set, restores the profile's saved tabs
+  // (navigating to their URLs) before workflow execution begins.
+  // Default: false (clean session start is preferred for testing)
+  optional bool restore_tabs = 26;
 
   // =============================================================================
   // EXECUTION-LEVEL DEFAULTS

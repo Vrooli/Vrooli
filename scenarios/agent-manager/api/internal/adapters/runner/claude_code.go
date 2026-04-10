@@ -1,7 +1,7 @@
 // Package runner provides runner adapter implementations.
 //
 // This file implements the Claude Code runner adapter for executing
-// Claude Code via the resource-claude-code wrapper within agent-manager.
+// Claude Code via direct CLI invocation within agent-manager.
 package runner
 
 import (
@@ -23,7 +23,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// ResourceCommand is the Vrooli resource wrapper command
+// ClaudeCodeCLICommand is the direct Claude CLI binary name.
+const ClaudeCodeCLICommand = "claude"
+
+// ClaudeCodeResourceCommand is the legacy Vrooli resource wrapper (kept for
+// transition-period process detection in the reconciler/terminator).
 const ClaudeCodeResourceCommand = "resource-claude-code"
 
 // =============================================================================
@@ -43,63 +47,24 @@ type ClaudeCodeRunner struct {
 
 // NewClaudeCodeRunner creates a new Claude Code runner.
 func NewClaudeCodeRunner() (*ClaudeCodeRunner, error) {
-	// Look for resource-claude-code in PATH (the Vrooli wrapper)
-	binaryPath, err := exec.LookPath(ClaudeCodeResourceCommand)
+	binaryPath, err := exec.LookPath(ClaudeCodeCLICommand)
 	if err != nil {
 		return &ClaudeCodeRunner{
 			available:   false,
-			message:     "resource-claude-code not found in PATH",
-			installHint: "Run: vrooli resource install claude-code",
+			message:     "claude CLI not found in PATH",
+			installHint: "Install: npm install -g @anthropic-ai/claude-code",
 			runs:        make(map[uuid.UUID]*exec.Cmd),
 			streamState: make(map[uuid.UUID]*claudeStreamState),
 		}, nil
 	}
 
-	// Verify the resource is healthy by checking status
-	runner := &ClaudeCodeRunner{
+	return &ClaudeCodeRunner{
 		binaryPath:  binaryPath,
 		available:   true,
-		message:     "resource-claude-code available",
+		message:     "claude CLI available",
 		runs:        make(map[uuid.UUID]*exec.Cmd),
 		streamState: make(map[uuid.UUID]*claudeStreamState),
-	}
-
-	// Quick health check via status command
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, binaryPath, "status", "--format", "json", "--fast")
-	output, err := cmd.Output()
-	if err != nil {
-		runner.available = false
-		runner.message = fmt.Sprintf("resource-claude-code status check failed: %v", err)
-		runner.installHint = "Run: resource-claude-code manage install"
-		return runner, nil
-	}
-
-	// Parse JSON status to check health
-	var statusData map[string]interface{}
-	if err := json.Unmarshal(output, &statusData); err == nil {
-		// Check health status - handle both boolean and string formats
-		isHealthy := true
-		if healthy, ok := statusData["healthy"].(bool); ok {
-			isHealthy = healthy
-		} else if healthyStr, ok := statusData["healthy"].(string); ok {
-			isHealthy = healthyStr == "true"
-		}
-
-		if !isHealthy {
-			runner.available = false
-			if msg, ok := statusData["health_message"].(string); ok {
-				runner.message = msg
-			} else {
-				runner.message = "resource-claude-code is not healthy"
-			}
-			runner.installHint = "Run: resource-claude-code manage install"
-		}
-	}
-
-	return runner, nil
+	}, nil
 }
 
 // Type returns the runner type identifier.
@@ -110,13 +75,14 @@ func (r *ClaudeCodeRunner) Type() domain.RunnerType {
 // Capabilities returns what this runner supports.
 func (r *ClaudeCodeRunner) Capabilities() Capabilities {
 	return Capabilities{
-		SupportsMessages:     true,
-		SupportsToolEvents:   true,
-		SupportsCostTracking: true,
-		SupportsStreaming:    true,
-		SupportsCancellation: true,
-		SupportsContinuation: true, // Claude Code supports --resume for session continuation
-		MaxTurns:             0,    // unlimited
+		SupportsMessages:         true,
+		SupportsToolEvents:       true,
+		SupportsCostTracking:     true,
+		SupportsStreaming:        true,
+		SupportsCancellation:     true,
+		SupportsContinuation:     true, // Claude Code supports --resume for session continuation
+		SupportsImageAttachments: true,
+		MaxTurns:                 0, // unlimited
 		SupportedModels: []string{
 			"sonnet",
 			"opus",
@@ -125,6 +91,8 @@ func (r *ClaudeCodeRunner) Capabilities() Capabilities {
 			"claude-opus-4-5-20251101",
 			"claude-haiku-4-5-20251001",
 		},
+		SupportedFeatures: []string{"EnableBrowser"},
+		AllowedExtraFlags: []string{"--disallowedTools"},
 	}
 }
 
@@ -146,16 +114,22 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 	// Build command arguments
 	args := r.buildArgs(req)
 
-	// Create command using resource-claude-code
-	cmd := exec.CommandContext(ctx, r.binaryPath, args...)
+	// Invoke claude directly using env prefix to surface the tag in /proc/<pid>/cmdline
+	// for reconciler process detection (same pattern as codex runner).
+	tag := req.GetTag()
+	envArgs := append([]string{
+		fmt.Sprintf("CLAUDE_CODE_AGENT_TAG=%s", tag),
+		r.binaryPath,
+	}, args...)
+	cmd := exec.CommandContext(ctx, "env", envArgs...)
 	cmd.Dir = req.WorkingDir
 
-	// Set environment using buildEnv (handles all configuration via env vars)
+	// Set environment
 	cmd.Env = r.buildEnv(req)
 
-	// Create a new process group so we can kill the entire subprocess tree
-	// This is needed because resource-claude-code is a bash wrapper that may have
-	// child processes (tee, cleanup handlers) that outlive the main Claude process
+	// Create a new process group so we can kill the entire subprocess tree.
+	// Claude Code may spawn child processes for tools (bash, etc.) that should
+	// be terminated when the run is stopped.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	// Track the running command for cancellation
@@ -168,16 +142,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		r.mu.Unlock()
 	}()
 
-	// Create pipes for stdout/stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeClaudeCode,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-
+	// Create stderr pipe before starting the managed process.
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, &domain.RunnerError{
@@ -197,14 +162,20 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		}
 	}
 
-	// Start command
-	if err := cmd.Start(); err != nil {
+	// Start command with managed process lifecycle.
+	// Uses a manual os.Pipe for stdout so that cmd.Wait() runs in a background
+	// goroutine and kills grandchildren on exit, giving the scanner a clean EOF.
+	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
+	if err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeClaudeCode,
 			Operation:  "execute",
 			Cause:      err,
 		}
 	}
+	defer func() {
+		_ = mp.Wait()
+	}()
 
 	// Emit starting event
 	if req.EventSink != nil {
@@ -216,8 +187,11 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		))
 	}
 
+	// Build prompt with attachment file paths prepended
+	prompt := buildPromptWithAttachments(req.Prompt, req.Attachments)
+
 	// Write prompt and close stdin
-	if _, err := stdin.Write([]byte(req.Prompt)); err != nil {
+	if _, err := stdin.Write([]byte(prompt)); err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeClaudeCode,
 			Operation:  "execute",
@@ -230,6 +204,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 	metrics := ExecutionMetrics{}
 	var lastAssistantMessage string
 	var errorOutput strings.Builder
+	var rateLimitEvent *domain.RateLimitEventData
 
 	// Read stderr in background
 	go func() {
@@ -240,14 +215,15 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		}
 	}()
 
-	// Parse streaming JSON output
-	// Use a larger buffer for the scanner - Claude's stream-json can output very long lines
-	// when reading large files or returning tool results (default is 64KB, we use 10MB)
+	// Parse streaming JSON output. The managed process handles lifecycle:
+	// when the runner process exits, grandchildren are killed and the
+	// scanner gets EOF automatically.
 	const maxScannerBuffer = 10 * 1024 * 1024 // 10MB
-	scanner := bufio.NewScanner(stdout)
+	scanner := bufio.NewScanner(mp.Stdout())
 	scanner.Buffer(make([]byte, 64*1024), maxScannerBuffer)
 
 	for scanner.Scan() {
+		mp.ResetTimer()
 		line := scanner.Text()
 		if line == "" {
 			continue
@@ -277,6 +253,9 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 			}
 			// Update metrics based on event
 			r.updateMetrics(event, &metrics, &lastAssistantMessage)
+			if data, ok := event.Data.(*domain.RateLimitEventData); ok {
+				rateLimitEvent = data
+			}
 
 			// Emit to sink
 			if req.EventSink != nil {
@@ -285,10 +264,15 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		}
 	}
 
-	// Check if scanner exited due to an error (vs clean EOF)
-	scannerErr := scanner.Err()
-	if scannerErr != nil {
-		// Scanner hit an error - log it but continue to wait for process
+	if mp.TimedOut() && req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewLogEvent(
+			req.RunID, "warn",
+			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
+		))
+	}
+
+	// Check if scanner exited due to an error (vs clean EOF).
+	if scannerErr := scanner.Err(); scannerErr != nil {
 		if req.EventSink != nil {
 			_ = req.EventSink.Emit(domain.NewLogEvent(
 				req.RunID,
@@ -298,42 +282,8 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		}
 	}
 
-	// Wait for command to complete with timeout
-	// The bash wrapper script may hang after Claude exits (cleanup handlers, tee, etc.)
-	// so we wait with a timeout and kill the process group if it doesn't exit cleanly
-	const wrapperCleanupTimeout = 30 * time.Second
-
-	waitDone := make(chan error, 1)
-	go func() {
-		waitDone <- cmd.Wait()
-	}()
-
-	select {
-	case err = <-waitDone:
-		// Normal completion - wrapper script exited cleanly
-	case <-time.After(wrapperCleanupTimeout):
-		// Wrapper script is stuck - kill the entire process group
-		if cmd.Process != nil {
-			// Kill the process group (negative PID kills the group)
-			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		}
-		// Wait for the killed process to be reaped
-		err = <-waitDone
-		// Log that we had to force kill
-		if req.EventSink != nil {
-			_ = req.EventSink.Emit(domain.NewLogEvent(
-				req.RunID,
-				"warn",
-				"Wrapper script did not exit cleanly after stdout closed; killed process group",
-			))
-		}
-	case <-ctx.Done():
-		// Context cancelled - kill the process group
-		if cmd.Process != nil {
-			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		}
-		err = <-waitDone
-	}
+	// Wait for process cleanup (grandchildren killed, exit status collected).
+	err = mp.Wait()
 
 	duration := time.Since(startTime)
 
@@ -358,14 +308,22 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 			result.ExitCode = -1
 			result.ErrorMessage = err.Error()
 		}
+	} else if rateLimitEvent != nil {
+		result.Success = false
+		result.ExitCode = 429
+		result.ErrorMessage = strings.TrimSpace(rateLimitEvent.Message)
+		if result.ErrorMessage == "" {
+			result.ErrorMessage = "rate limit reached"
+		}
 	} else {
 		result.Success = true
 		result.ExitCode = 0
 		result.Summary = &domain.RunSummary{
-			Description:  lastAssistantMessage,
-			TurnsUsed:    metrics.TurnsUsed,
-			TokensUsed:   TotalTokens(metrics),
-			CostEstimate: metrics.CostEstimateUSD,
+			Description:   lastAssistantMessage,
+			TurnsUsed:     metrics.TurnsUsed,
+			TokensUsed:    TotalTokens(metrics),
+			CostEstimate:  metrics.CostEstimateUSD,
+			ContextTokens: metrics.TokensInput,
 		}
 	}
 
@@ -393,7 +351,9 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 }
 
 // Stop attempts to gracefully stop a running Claude Code instance.
-// Uses process group signals to ensure the entire subprocess tree is stopped.
+// Sends SIGTERM to the process group first, then escalates to SIGKILL
+// after a grace period. The actual process reaping is handled by the
+// Execute/Continue method's cmd.Wait() goroutine.
 func (r *ClaudeCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 	r.mu.Lock()
 	cmd, exists := r.runs[runID]
@@ -407,12 +367,26 @@ func (r *ClaudeCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 		return nil
 	}
 
+	pgid := -cmd.Process.Pid
+
 	// Try graceful termination first (SIGTERM to process group)
-	// Negative PID sends signal to the entire process group
-	if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM); err != nil {
-		// If SIGTERM fails, force kill the process group
-		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	if err := syscall.Kill(pgid, syscall.SIGTERM); err != nil {
+		// Process may already be gone; try SIGKILL as last resort
+		_ = syscall.Kill(pgid, syscall.SIGKILL)
+		return nil
 	}
+
+	// Escalate to SIGKILL after a grace period if the process hasn't exited.
+	// This runs in the background; the actual process reaping happens in
+	// Execute/Continue's cmd.Wait() goroutine.
+	go func() {
+		select {
+		case <-time.After(5 * time.Second):
+			_ = syscall.Kill(pgid, syscall.SIGKILL)
+		case <-ctx.Done():
+			_ = syscall.Kill(pgid, syscall.SIGKILL)
+		}
+	}()
 
 	return nil
 }
@@ -437,26 +411,28 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 	r.initStreamState(req.RunID)
 	defer r.clearStreamState(req.RunID)
 
-	// Build command arguments with --resume flag
+	// Build command arguments for continuation
 	args := []string{
-		"run",
-		"--tag", req.RunID.String(),
+		"--print",
+		"--output-format", "stream-json",
+		"--verbose",
 		"--resume", req.SessionID,
+		"--dangerously-skip-permissions",
 		"-", // Read prompt from stdin
 	}
 
-	// Create command using resource-claude-code
-	cmd := exec.CommandContext(ctx, r.binaryPath, args...)
+	// Invoke claude directly using env prefix (same pattern as Execute)
+	tag := fmt.Sprintf("claude-continue-%s", req.RunID.String()[:8])
+	envArgs := append([]string{
+		fmt.Sprintf("CLAUDE_CODE_AGENT_TAG=%s", tag),
+		r.binaryPath,
+	}, args...)
+	cmd := exec.CommandContext(ctx, "env", envArgs...)
 	cmd.Dir = req.WorkingDir
 
-	// Set environment - use stream-json for event streaming
-	env := os.Environ()
-	env = append(env, "OUTPUT_FORMAT=stream-json")
-	env = append(env, "CLAUDE_NON_INTERACTIVE=true")
-	for key, value := range req.Environment {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
-	}
-	cmd.Env = env
+	env := sanitizedBaseEnv()
+	env = append(env, fmt.Sprintf("CLAUDE_CODE_AGENT_TAG=%s", tag))
+	cmd.Env = appendEnvMap(env, req.Environment)
 
 	// Create a new process group so we can kill the entire subprocess tree
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -471,16 +447,7 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 		r.mu.Unlock()
 	}()
 
-	// Create pipes for stdout/stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeClaudeCode,
-			Operation:  "continue",
-			Cause:      err,
-		}
-	}
-
+	// Create stderr pipe before starting the managed process.
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, &domain.RunnerError{
@@ -500,14 +467,18 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 		}
 	}
 
-	// Start command
-	if err := cmd.Start(); err != nil {
+	// Start command with managed process lifecycle.
+	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
+	if err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeClaudeCode,
 			Operation:  "continue",
 			Cause:      err,
 		}
 	}
+	defer func() {
+		_ = mp.Wait()
+	}()
 
 	// Emit starting event
 	if req.EventSink != nil {
@@ -517,12 +488,13 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 			string(domain.RunStatusRunning),
 			"Claude Code continuation started",
 		))
-		// Emit the user's follow-up message as an event
-		_ = req.EventSink.Emit(domain.NewMessageEvent(req.RunID, "user", req.Prompt))
 	}
 
+	// Build prompt with attachment file paths prepended
+	prompt := buildPromptWithAttachments(req.Prompt, req.Attachments)
+
 	// Write prompt and close stdin
-	if _, err := stdin.Write([]byte(req.Prompt)); err != nil {
+	if _, err := stdin.Write([]byte(prompt)); err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType: domain.RunnerTypeClaudeCode,
 			Operation:  "continue",
@@ -535,6 +507,7 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 	metrics := ExecutionMetrics{}
 	var lastAssistantMessage string
 	var errorOutput strings.Builder
+	var rateLimitEvent *domain.RateLimitEventData
 
 	// Read stderr in background
 	go func() {
@@ -545,12 +518,13 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 		}
 	}()
 
-	// Parse streaming JSON output
+	// Parse streaming JSON output with managed process lifecycle.
 	const maxScannerBuffer = 10 * 1024 * 1024 // 10MB
-	scanner := bufio.NewScanner(stdout)
+	scanner := bufio.NewScanner(mp.Stdout())
 	scanner.Buffer(make([]byte, 64*1024), maxScannerBuffer)
 
 	for scanner.Scan() {
+		mp.ResetTimer()
 		line := scanner.Text()
 		if line == "" {
 			continue
@@ -577,33 +551,24 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 				continue
 			}
 			r.updateMetrics(event, &metrics, &lastAssistantMessage)
+			if data, ok := event.Data.(*domain.RateLimitEventData); ok {
+				rateLimitEvent = data
+			}
 			if req.EventSink != nil {
 				_ = req.EventSink.Emit(event)
 			}
 		}
 	}
 
-	// Wait for command to complete with timeout
-	const wrapperCleanupTimeout = 30 * time.Second
-	waitDone := make(chan error, 1)
-	go func() {
-		waitDone <- cmd.Wait()
-	}()
-
-	select {
-	case err = <-waitDone:
-		// Normal completion
-	case <-time.After(wrapperCleanupTimeout):
-		if cmd.Process != nil {
-			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		}
-		err = <-waitDone
-	case <-ctx.Done():
-		if cmd.Process != nil {
-			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		}
-		err = <-waitDone
+	if mp.TimedOut() && req.EventSink != nil {
+		_ = req.EventSink.Emit(domain.NewLogEvent(
+			req.RunID, "warn",
+			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
+		))
 	}
+
+	// Wait for process cleanup.
+	err = mp.Wait()
 
 	duration := time.Since(startTime)
 
@@ -632,14 +597,22 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 			result.ExitCode = -1
 			result.ErrorMessage = err.Error()
 		}
+	} else if rateLimitEvent != nil {
+		result.Success = false
+		result.ExitCode = 429
+		result.ErrorMessage = strings.TrimSpace(rateLimitEvent.Message)
+		if result.ErrorMessage == "" {
+			result.ErrorMessage = "rate limit reached"
+		}
 	} else {
 		result.Success = true
 		result.ExitCode = 0
 		result.Summary = &domain.RunSummary{
-			Description:  lastAssistantMessage,
-			TurnsUsed:    metrics.TurnsUsed,
-			TokensUsed:   TotalTokens(metrics),
-			CostEstimate: metrics.CostEstimateUSD,
+			Description:   lastAssistantMessage,
+			TurnsUsed:     metrics.TurnsUsed,
+			TokensUsed:    TotalTokens(metrics),
+			CostEstimate:  metrics.CostEstimateUSD,
+			ContextTokens: metrics.TokensInput,
 		}
 	}
 
@@ -678,10 +651,10 @@ func (r *ClaudeCodeRunner) IsAvailable(ctx context.Context) (bool, string) {
 
 	// Verify the binary still exists
 	if _, err := os.Stat(r.binaryPath); os.IsNotExist(err) {
-		return false, "resource-claude-code binary not found. Run: vrooli resource install claude-code"
+		return false, "claude CLI not found. Install: npm install -g @anthropic-ai/claude-code"
 	}
 
-	return true, "resource-claude-code is available"
+	return true, "claude CLI is available"
 }
 
 // InstallHint returns instructions for installing this runner.
@@ -689,64 +662,67 @@ func (r *ClaudeCodeRunner) InstallHint() string {
 	return r.installHint
 }
 
-// buildArgs constructs command-line arguments for resource-claude-code run.
+// buildArgs constructs command-line arguments for direct claude CLI invocation.
 func (r *ClaudeCodeRunner) buildArgs(req ExecuteRequest) []string {
-	// Use the "run" subcommand with --tag for agent tracking
-	// Tag defaults to RunID if not set, but can be customized for readability
 	args := []string{
-		"run",
-		"--tag", req.GetTag(),
-		"-", // Read prompt from stdin
+		"--print",
+		"--output-format", "stream-json",
+		"--verbose", // Required with --print --output-format stream-json for full event stream
 	}
-	return args
-}
 
-// buildEnv constructs environment variables for resource-claude-code run.
-func (r *ClaudeCodeRunner) buildEnv(req ExecuteRequest) []string {
-	env := os.Environ()
-
-	// Output format - use stream-json for event streaming
-	env = append(env, "OUTPUT_FORMAT=stream-json")
-
-	// Non-interactive mode for autonomous execution
-	env = append(env, "CLAUDE_NON_INTERACTIVE=true")
-
-	// Get the resolved config (handles profile + inline overrides)
 	cfg := req.GetConfig()
-
-	// Model selection via environment
-	if cfg.Model != "" {
-		env = append(env, fmt.Sprintf("CLAUDE_MODEL=%s", cfg.Model))
-	}
 
 	// Max turns
 	if cfg.MaxTurns > 0 {
-		env = append(env, fmt.Sprintf("MAX_TURNS=%d", cfg.MaxTurns))
+		args = append(args, "--max-turns", strconv.Itoa(cfg.MaxTurns))
 	} else {
-		env = append(env, "MAX_TURNS=30") // Default
+		args = append(args, "--max-turns", "30")
 	}
 
-	// Timeout in seconds
-	if cfg.Timeout > 0 {
-		env = append(env, fmt.Sprintf("TIMEOUT=%d", int(cfg.Timeout.Seconds())))
+	// Model selection
+	if cfg.Model != "" {
+		args = append(args, "--model", cfg.Model)
+	}
+
+	// Skip permission prompts for autonomous execution
+	if cfg.SkipPermissionPrompt {
+		args = append(args, "--dangerously-skip-permissions")
 	}
 
 	// Allowed tools
 	if len(cfg.AllowedTools) > 0 {
-		env = append(env, fmt.Sprintf("ALLOWED_TOOLS=%s", strings.Join(cfg.AllowedTools, ",")))
+		args = append(args, "--allowedTools", strings.Join(cfg.AllowedTools, ","))
 	}
 
-	// Skip permission prompts if configured (for sandboxed environments)
-	if cfg.SkipPermissionPrompt {
-		env = append(env, "SKIP_PERMISSIONS=yes")
+	// System prompt
+	if req.SystemPrompt != "" {
+		args = append(args, "--append-system-prompt", req.SystemPrompt)
 	}
+
+	// Feature flags
+	if cfg.Features.EnableBrowser {
+		args = append(args, "--chrome")
+	}
+
+	// Validated extra flags for this runner
+	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeClaudeCode]; ok {
+		args = append(args, extras...)
+	}
+
+	args = append(args, "-") // Read prompt from stdin
+	return args
+}
+
+// buildEnv constructs environment variables for direct claude CLI invocation.
+// All configuration is passed via CLI args; only the agent tag and custom env remain.
+func (r *ClaudeCodeRunner) buildEnv(req ExecuteRequest) []string {
+	env := sanitizedBaseEnv()
+
+	// Tag for reconciler process detection via /proc/<pid>/environ.
+	env = append(env, fmt.Sprintf("CLAUDE_CODE_AGENT_TAG=%s", req.GetTag()))
 
 	// Add any custom environment from the request
-	for key, value := range req.Environment {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
-	}
-
-	return env
+	return appendEnvMap(env, req.Environment)
 }
 
 // ClaudeStreamEvent represents a single event from Claude Code's stream-json output.
@@ -777,6 +753,13 @@ type claudeStreamState struct {
 	toolUsePayload strings.Builder
 	lastAssistant  string
 	sessionID      string // Captured from stream for conversation continuation
+	gotResult      bool   // True when the final "result" event has been received
+	resultIsError  bool   // True if the result event indicated an error
+
+	// Compaction tracking
+	pendingCompact bool   // True if we just saw a /compact command
+	compactCommand string // The full /compact command text
+	compactFocus   string // Extracted focus instruction
 }
 
 // ClaudeMessage represents a message in the Claude stream.
@@ -799,6 +782,9 @@ type ClaudeContentItem struct {
 
 // ExtractTextContent extracts text content from a ClaudeMessage.
 // Handles both string content and array of content blocks.
+// ANSI escape sequences are stripped as defense-in-depth: even if the
+// resource-claude-code wrapper correctly separates stderr from stdout,
+// tool results (e.g., Bash output) may still embed terminal formatting.
 func (m *ClaudeMessage) ExtractTextContent() string {
 	if len(m.Content) == 0 {
 		return ""
@@ -807,7 +793,7 @@ func (m *ClaudeMessage) ExtractTextContent() string {
 	// Try parsing as a simple string first
 	var simpleString string
 	if err := json.Unmarshal(m.Content, &simpleString); err == nil {
-		return simpleString
+		return stripANSI(simpleString)
 	}
 
 	// Try parsing as an array of content blocks
@@ -816,7 +802,7 @@ func (m *ClaudeMessage) ExtractTextContent() string {
 		var textParts []string
 		for _, block := range contentBlocks {
 			if block.Type == "text" && block.Text != "" {
-				textParts = append(textParts, block.Text)
+				textParts = append(textParts, stripANSI(block.Text))
 			}
 		}
 		return strings.Join(textParts, "\n")
@@ -860,6 +846,8 @@ func (m *ClaudeMessage) ExtractToolResults() []ClaudeContentItem {
 	var toolResults []ClaudeContentItem
 	for _, block := range contentBlocks {
 		if block.Type == "tool_result" {
+			// Strip ANSI from tool result content (Bash output often has terminal formatting)
+			block.Content = stripANSI(block.Content)
 			toolResults = append(toolResults, block)
 		}
 	}
@@ -972,7 +960,7 @@ func (r *ClaudeCodeRunner) flushStreamMessage(runID uuid.UUID, state *claudeStre
 	if state.textBuffer.Len() == 0 {
 		return nil
 	}
-	message := state.textBuffer.String()
+	message := stripANSI(state.textBuffer.String())
 	state.textBuffer.Reset()
 	state.lastAssistant = message
 	return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", message)}
@@ -989,7 +977,72 @@ func (r *ClaudeCodeRunner) toolCallFromState(runID uuid.UUID, state *claudeStrea
 			input = map[string]interface{}{"raw": raw}
 		}
 	}
-	return domain.NewToolCallEvent(runID, state.toolUseName, input)
+	return domain.NewToolCallEvent(runID, state.toolUseName, state.toolUseID, input)
+}
+
+// =============================================================================
+// Prompt Helpers
+// =============================================================================
+
+// buildPromptWithAttachments prepends attachment file paths to a prompt.
+// Claude Code reads image files when paths are provided in the input.
+func buildPromptWithAttachments(prompt string, attachments []Attachment) string {
+	if len(attachments) == 0 {
+		return prompt
+	}
+	var sb strings.Builder
+	for _, att := range attachments {
+		sb.WriteString(att.FilePath)
+		sb.WriteString("\n")
+	}
+	sb.WriteString("\n")
+	sb.WriteString(prompt)
+	return sb.String()
+}
+
+// =============================================================================
+// Compaction Detection Helpers
+// =============================================================================
+
+// parseCompactCommand extracts focus from "/compact focus on auth" -> "auth".
+func parseCompactCommand(content string) (isCompact bool, focus string) {
+	content = strings.TrimSpace(content)
+	if !strings.HasPrefix(content, "/compact") {
+		return false, ""
+	}
+	// Ensure it's actually "/compact" and not "/compacting" etc.
+	rest := strings.TrimPrefix(content, "/compact")
+	if rest != "" && rest[0] != ' ' && rest[0] != '\t' && rest[0] != '\n' {
+		return false, ""
+	}
+
+	remainder := strings.TrimSpace(rest)
+	if strings.HasPrefix(remainder, "focus on ") {
+		focus = strings.TrimPrefix(remainder, "focus on ")
+	} else if remainder != "" {
+		focus = remainder
+	}
+
+	return true, strings.TrimSpace(focus)
+}
+
+// isCompactionSummary checks if content looks like a compaction summary.
+func isCompactionSummary(content string) bool {
+	return strings.Contains(content, "<summary>") ||
+		strings.HasPrefix(strings.TrimSpace(content), "Summary of")
+}
+
+// extractSummaryContent extracts content from <summary>...</summary> tags.
+func extractSummaryContent(content string) string {
+	start := strings.Index(content, "<summary>")
+	end := strings.Index(content, "</summary>")
+
+	if start != -1 && end != -1 && end > start {
+		return strings.TrimSpace(content[start+len("<summary>") : end])
+	}
+
+	// No tags, return as-is (some runners don't use tags)
+	return content
 }
 
 // parseStreamEvents parses a single line from Claude's stream-json output.
@@ -1041,15 +1094,67 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 			// Extract text content (handles both string and array formats)
 			textContent := streamEvent.Message.ExtractTextContent()
 			if textContent != "" {
-				if streamEvent.Message.Role == "assistant" {
-					state.lastAssistant = textContent
+				if streamEvent.Message.Role == "user" {
+					// Check for /compact command in user messages
+					if isCompact, focus := parseCompactCommand(textContent); isCompact {
+						state.pendingCompact = true
+						state.compactCommand = textContent
+						state.compactFocus = focus
+						// Don't emit the /compact as a regular message
+						return nil, nil
+					}
+					// Don't emit user messages from the stream — the orchestrator
+					// already creates message events for both the initial prompt
+					// and follow-up messages. Emitting them here produces duplicates
+					// that show as spurious "You" entries in the timeline. This also
+					// suppresses subagent prompts (Agent tool internal messages) that
+					// Claude Code echoes through the parent stream.
+				} else {
+					// Check for compaction summary in assistant response
+					if state.pendingCompact && streamEvent.Message.Role == "assistant" {
+						if isCompactionSummary(textContent) {
+							state.pendingCompact = false
+							summary := extractSummaryContent(textContent)
+							return []*domain.RunEvent{
+								domain.NewCompactionEvent(
+									runID,
+									summary,
+									"manual",
+									state.compactFocus,
+									0, // messagesCompacted (not available from stream)
+									0, // tokensBefore
+									0, // tokensAfter
+									state.compactCommand,
+								),
+							}, nil
+						}
+						// Not a summary, reset state and fall through to normal handling
+						state.pendingCompact = false
+					}
+
+					if streamEvent.Message.Role == "assistant" {
+						state.lastAssistant = textContent
+					}
+					events = append(events, domain.NewMessageEvent(
+						runID,
+						streamEvent.Message.Role,
+						textContent,
+					))
+					state.textBuffer.Reset()
 				}
-				events = append(events, domain.NewMessageEvent(
-					runID,
-					streamEvent.Message.Role,
-					textContent,
-				))
-				state.textBuffer.Reset()
+			}
+			// Extract tool results from user messages (tool_result blocks)
+			if streamEvent.Message.Role == "user" {
+				toolResults := streamEvent.Message.ExtractToolResults()
+				for _, result := range toolResults {
+					events = append(events, domain.NewToolResultEvent(
+						runID,
+						"",               // tool name not available from result
+						result.ToolUseID, // Tool call ID for correlation
+						result.Content,
+						nil, // No error for successful tool results
+					))
+				}
 			}
 			toolUses := streamEvent.Message.ExtractToolUses()
 			for _, tool := range toolUses {
@@ -1057,7 +1162,7 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 				if tool.Input != nil {
 					_ = json.Unmarshal(tool.Input, &input)
 				}
-				events = append(events, domain.NewToolCallEvent(runID, tool.Name, input))
+				events = append(events, domain.NewToolCallEvent(runID, tool.Name, tool.ID, input))
 			}
 		}
 		return events, nil
@@ -1068,6 +1173,25 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 			var events []*domain.RunEvent
 			textContent := streamEvent.Message.ExtractTextContent()
 			if textContent != "" {
+				// Check for compaction summary if we're expecting one
+				if state.pendingCompact && isCompactionSummary(textContent) {
+					state.pendingCompact = false
+					summary := extractSummaryContent(textContent)
+					return []*domain.RunEvent{
+						domain.NewCompactionEvent(
+							runID,
+							summary,
+							"manual",
+							state.compactFocus,
+							0, 0, 0,
+							state.compactCommand,
+						),
+					}, nil
+				}
+				if state.pendingCompact {
+					state.pendingCompact = false
+				}
+
 				state.lastAssistant = textContent
 				events = append(events, domain.NewMessageEvent(
 					runID,
@@ -1084,7 +1208,7 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 					if tool.Input != nil {
 						_ = json.Unmarshal(tool.Input, &input)
 					}
-					events = append(events, domain.NewToolCallEvent(runID, tool.Name, input))
+					events = append(events, domain.NewToolCallEvent(runID, tool.Name, tool.ID, input))
 				}
 			}
 			if len(events) > 0 {
@@ -1115,7 +1239,16 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 
 			textContent := streamEvent.Message.ExtractTextContent()
 			if textContent != "" {
-				events = append(events, domain.NewMessageEvent(runID, "user", textContent))
+				// Check for /compact command
+				if isCompact, focus := parseCompactCommand(textContent); isCompact {
+					state.pendingCompact = true
+					state.compactCommand = textContent
+					state.compactFocus = focus
+					// Don't emit the /compact as a regular message
+				}
+				// Don't emit user text as a message — the orchestrator already
+				// creates message events for both the initial prompt and follow-ups.
+				// Emitting here produces duplicate "You" entries in the timeline.
 			}
 			if len(events) > 0 {
 				return events, nil
@@ -1133,6 +1266,7 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 			return []*domain.RunEvent{domain.NewToolCallEvent(
 				runID,
 				streamEvent.ToolUse.Name,
+				streamEvent.ToolUse.ID,
 				input,
 			)}, nil
 		}
@@ -1143,6 +1277,7 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 		if streamEvent.Result != nil {
 			_ = json.Unmarshal(streamEvent.Result, &resultStr)
 		}
+		resultStr = stripANSI(resultStr)
 		return []*domain.RunEvent{domain.NewToolResultEvent(
 			runID,
 			"", // tool name not always available in result
@@ -1173,6 +1308,11 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 		}
 
 	case "result":
+		// Mark that we received the final result event — this means Claude Code
+		// has finished and we have all the data we need from the stream.
+		state.gotResult = true
+		state.resultIsError = streamEvent.IsError
+
 		var events []*domain.RunEvent
 		var resultStr string
 		if streamEvent.Result != nil {
@@ -1287,25 +1427,25 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 
 // parseResultEvent handles the final "result" event which contains cost and rate limit info.
 func (r *ClaudeCodeRunner) parseResultEvent(runID uuid.UUID, event *ClaudeStreamEvent) (*domain.RunEvent, error) {
-	// Check for rate limit error in result
+	var resultStr string
+	if event.Result != nil {
+		_ = json.Unmarshal(event.Result, &resultStr)
+	}
+
+	// Rate limit messages can appear in result payload even when is_error=false.
+	rateLimitInfo := r.detectRateLimit(resultStr)
+	if rateLimitInfo.Detected {
+		return domain.NewRateLimitEvent(
+			runID,
+			rateLimitInfo.LimitType,
+			rateLimitInfo.Message,
+			rateLimitInfo.ResetTime,
+			rateLimitInfo.RetryAfter,
+		), nil
+	}
+
+	// Check for non-rate-limit errors in result
 	if event.IsError {
-		var resultStr string
-		if event.Result != nil {
-			_ = json.Unmarshal(event.Result, &resultStr)
-		}
-
-		// Check for rate limit pattern: "Claude AI usage limit reached|timestamp"
-		rateLimitInfo := r.detectRateLimit(resultStr)
-		if rateLimitInfo.Detected {
-			return domain.NewRateLimitEvent(
-				runID,
-				rateLimitInfo.LimitType,
-				rateLimitInfo.Message,
-				rateLimitInfo.ResetTime,
-				rateLimitInfo.RetryAfter,
-			), nil
-		}
-
 		// Generic error
 		return domain.NewErrorEvent(
 			runID,
@@ -1356,8 +1496,13 @@ func (r *ClaudeCodeRunner) detectRateLimit(resultStr string) RateLimitInfo {
 		Message:  resultStr,
 	}
 
+	lowerMsg := strings.ToLower(resultStr)
+
 	// Pattern 1: "Claude AI usage limit reached|timestamp"
-	if strings.Contains(resultStr, "usage limit reached") || strings.Contains(resultStr, "rate limit") {
+	if strings.Contains(lowerMsg, "usage limit reached") ||
+		strings.Contains(lowerMsg, "rate limit") ||
+		strings.Contains(lowerMsg, "hit your limit") ||
+		strings.Contains(lowerMsg, "reached your limit") {
 		info.Detected = true
 		info.LimitType = "5_hour" // Most common limit type
 
@@ -1375,7 +1520,6 @@ func (r *ClaudeCodeRunner) detectRateLimit(resultStr string) RateLimitInfo {
 		}
 
 		// Determine limit type from message content
-		lowerMsg := strings.ToLower(resultStr)
 		if strings.Contains(lowerMsg, "daily") {
 			info.LimitType = "daily"
 		} else if strings.Contains(lowerMsg, "weekly") {

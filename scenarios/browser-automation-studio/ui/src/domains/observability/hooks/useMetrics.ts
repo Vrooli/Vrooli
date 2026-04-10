@@ -43,17 +43,44 @@ interface UseMetricsReturn {
   refetch: () => Promise<void>;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isString = (value: unknown): value is string => typeof value === 'string';
+const isNumber = (value: unknown): value is number => typeof value === 'number';
+const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
+
+const isMetricsResponse = (value: unknown): value is MetricsResponse => {
+  if (!isRecord(value)) return false;
+  if (!isRecord(value.summary)) return false;
+  if (!isNumber(value.summary.total_metrics)) return false;
+  if (!isString(value.summary.timestamp)) return false;
+  if (!isRecord(value.summary.config)) return false;
+  if (!isBoolean(value.summary.config.enabled)) return false;
+  if (value.summary.config.port !== undefined && !isNumber(value.summary.config.port)) return false;
+  if (!isRecord(value.metrics)) return false;
+  return true;
+};
+
 async function fetchMetrics(): Promise<MetricsResponse> {
   const config = await getConfig();
 
   const response = await fetch(`${config.API_URL}/observability/metrics`);
+  const payload: unknown = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to fetch metrics: ${response.statusText}`);
+    const message =
+      isRecord(payload) && typeof payload.message === 'string'
+        ? payload.message
+        : `Failed to fetch metrics: ${response.statusText}`;
+    throw new Error(message);
   }
 
-  return response.json();
+  if (!isMetricsResponse(payload)) {
+    throw new Error('Invalid metrics response');
+  }
+
+  return payload;
 }
 
 export function useMetrics(options: UseMetricsOptions = {}): UseMetricsReturn {

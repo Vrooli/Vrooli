@@ -72,6 +72,9 @@ import SubflowNode from "../nodes/SubflowNode";
 import WorkflowToolbar from "./WorkflowToolbar";
 import { ViewportDialog, normalizeViewportSetting, CodeEditorPanel } from "./components";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
 const nodeTypes: NodeTypes = {
   browserAction: BrowserActionNode,
   navigate: NavigateNode,
@@ -257,6 +260,7 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
       cancelAutosave();
     };
   }, [
+    currentWorkflow,
     currentWorkflow?.id,
     isDirty,
     hasVersionConflict,
@@ -486,6 +490,7 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
   const undo = useCallback(() => {
     if (historyIndex > 0) {
       const previousState = history[historyIndex - 1];
+      if (!previousState) return;
       setNodes(previousState.nodes);
       setEdges(previousState.edges);
       setHistoryIndex((prev) => prev - 1);
@@ -496,6 +501,7 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
   const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
       const nextState = history[historyIndex + 1];
+      if (!nextState) return;
       setNodes(nextState.nodes);
       setEdges(nextState.edges);
       setHistoryIndex((prev) => prev + 1);
@@ -524,7 +530,7 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
     const allNodes = [...updatedNodes, ...newNodes];
 
     setNodes(allNodes);
-  }, [nodes, edges, setNodes, saveToHistory]);
+  }, [nodes, setNodes, saveToHistory]);
 
   // Delete selected nodes and edges
   const deleteSelected = useCallback(() => {
@@ -661,14 +667,17 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
       const meta = deriveConditionMetadata(
         connection.sourceHandle ?? undefined,
       );
+      // Connection may have data in some contexts (extended connection objects)
+      const connectionData = 'data' in connection && connection.data && typeof connection.data === 'object'
+        ? { ...(connection.data as Record<string, unknown>) }
+        : undefined;
       const nextEdge: Edge = {
         ...connection,
-        data: (connection as any).data
-          ? { ...(connection as any).data }
-          : undefined,
+        data: connectionData,
       } as Edge;
       if (meta) {
-        nextEdge.data = { ...(nextEdge.data ?? {}), condition: meta.condition };
+        const baseData = isRecord(nextEdge.data) ? nextEdge.data : {};
+        nextEdge.data = { ...baseData, condition: meta.condition };
         nextEdge.label = meta.label;
         nextEdge.style = { ...(nextEdge.style ?? {}), stroke: meta.stroke };
       }
@@ -676,8 +685,9 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
         connection.targetHandle ?? undefined,
       );
       if (targetMeta) {
+        const baseData = isRecord(nextEdge.data) ? nextEdge.data : {};
         nextEdge.data = {
-          ...(nextEdge.data ?? {}),
+          ...baseData,
           condition: targetMeta.condition,
         };
         nextEdge.label = targetMeta.label;
@@ -794,8 +804,8 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
       setNodes((nds) => nds.concat(newNode));
 
       // If there's exactly one chain end, auto-connect it to the new node
-      if (chainEndNodes.length === 1) {
-        const sourceNode = chainEndNodes[0];
+      const sourceNode = chainEndNodes[0];
+      if (chainEndNodes.length === 1 && sourceNode) {
         const newEdge: Edge = {
           id: `edge-${sourceNode.id}-${newNodeId}`,
           source: sourceNode.id,

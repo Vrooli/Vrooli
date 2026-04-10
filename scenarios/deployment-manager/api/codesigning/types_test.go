@@ -121,7 +121,7 @@ func TestSigningConfig_JSONOmitEmpty(t *testing.T) {
 
 func TestWindowsSigningConfig_OptionalFields(t *testing.T) {
 	config := &WindowsSigningConfig{
-		CertificateSource: CertSourceStore,
+		CertificateSource:     CertSourceStore,
 		CertificateThumbprint: "ABC123",
 		// Other fields are optional
 	}

@@ -151,12 +151,12 @@ func TestValidator_ValidateConfig_MacOSValid(t *testing.T) {
 	config := &codesigning.SigningConfig{
 		Enabled: true,
 		MacOS: &codesigning.MacOSSigningConfig{
-			Identity:        "Developer ID Application: Test (ABC123XYZ0)",
-			TeamID:          "ABC123XYZ0",
-			HardenedRuntime: true,
-			Notarize:        true,
-			AppleAPIKeyID:   "KEY123",
-			AppleAPIKeyFile: "./AuthKey.p8",
+			Identity:         "Developer ID Application: Test (ABC123XYZ0)",
+			TeamID:           "ABC123XYZ0",
+			HardenedRuntime:  true,
+			Notarize:         true,
+			AppleAPIKeyID:    "KEY123",
+			AppleAPIKeyFile:  "./AuthKey.p8",
 			AppleAPIIssuerID: "ISSUER-UUID",
 		},
 	}
@@ -255,11 +255,11 @@ func TestValidator_ValidateConfig_MacOSNotarizeNoHardenedRuntime(t *testing.T) {
 	config := &codesigning.SigningConfig{
 		Enabled: true,
 		MacOS: &codesigning.MacOSSigningConfig{
-			Identity:          "Developer ID Application: Test (ABC123XYZ0)",
-			TeamID:            "ABC123XYZ0",
-			HardenedRuntime:   false,
-			Notarize:          true,
-			AppleIDEnv:        "APPLE_ID",
+			Identity:           "Developer ID Application: Test (ABC123XYZ0)",
+			TeamID:             "ABC123XYZ0",
+			HardenedRuntime:    false,
+			Notarize:           true,
+			AppleIDEnv:         "APPLE_ID",
 			AppleIDPasswordEnv: "APPLE_PASSWORD",
 		},
 	}
@@ -301,7 +301,7 @@ func TestValidator_ValidateConfig_LinuxMissingKeyID(t *testing.T) {
 	v := NewValidator()
 	config := &codesigning.SigningConfig{
 		Enabled: true,
-		Linux: &codesigning.LinuxSigningConfig{
+		Linux:   &codesigning.LinuxSigningConfig{
 			// Missing GPGKeyID
 		},
 	}

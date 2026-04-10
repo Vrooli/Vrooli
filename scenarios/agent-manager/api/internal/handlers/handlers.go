@@ -33,10 +33,12 @@ import (
 	"strings"
 
 	"agent-manager/internal/adapters/event"
+	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/protoconv"
+	"agent-manager/internal/storage"
 
 	"buf.build/go/protovalidate"
 	"github.com/google/uuid"
@@ -54,15 +56,30 @@ type Handler struct {
 	svc       orchestration.Service
 	hub       *WebSocketHub
 	validator protovalidate.Validator
+	storage   storage.Service
+}
+
+// HandlerOption configures the Handler.
+type HandlerOption func(*Handler)
+
+// WithStorage sets the file storage service for attachment uploads.
+func WithStorage(s storage.Service) HandlerOption {
+	return func(h *Handler) {
+		h.storage = s
+	}
 }
 
 // New creates a new Handler with the given orchestration service.
-func New(svc orchestration.Service) *Handler {
+func New(svc orchestration.Service, opts ...HandlerOption) *Handler {
 	validator, err := protovalidate.New()
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize protovalidate: %v", err))
 	}
-	return &Handler{svc: svc, validator: validator}
+	h := &Handler{svc: svc, validator: validator}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
 }
 
 // SetWebSocketHub sets the WebSocket hub for event broadcasting.
@@ -116,16 +133,24 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/{id}", h.DeleteRun).Methods("DELETE")
 	r.HandleFunc("/api/v1/runs/{id}/stop", h.StopRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/continue", h.ContinueRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/messages/{event_id}/delete", h.DeleteRunMessage).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/events", h.GetRunEvents).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/diff", h.GetRunDiff).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/approve", h.ApproveRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/reject", h.RejectRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/partial-approve", h.PartialApproveRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/sandbox-sync", h.SyncRunFromSandbox).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/extract-recommendations", h.ExtractRecommendations).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/regenerate-recommendations", h.RegenerateRecommendations).Methods("POST")
 
 	// Status endpoints
 	r.HandleFunc("/api/v1/runners", h.GetRunnerStatus).Methods("GET")
 	r.HandleFunc("/api/v1/runners/{runner_type}/probe", h.ProbeRunner).Methods("POST")
 	r.HandleFunc("/api/v1/runner-models", h.GetRunnerModels).Methods("GET")
 	r.HandleFunc("/api/v1/runner-models", h.UpdateRunnerModels).Methods("PUT")
+
+	// Path validation (proxied to workspace-sandbox)
+	r.HandleFunc("/api/v1/validate-path", h.ValidatePath).Methods("GET")
 
 	// Maintenance endpoints
 	r.HandleFunc("/api/v1/maintenance/purge", h.PurgeData).Methods("POST")
@@ -134,7 +159,20 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/investigation-settings", h.GetInvestigationSettings).Methods("GET")
 	r.HandleFunc("/api/v1/investigation-settings", h.UpdateInvestigationSettings).Methods("PUT")
 	r.HandleFunc("/api/v1/investigation-settings/reset", h.ResetInvestigationSettings).Methods("POST")
-	r.HandleFunc("/api/v1/runs/detect-scenarios", h.DetectScenariosForRuns).Methods("POST")
+
+	// Orchestration Settings endpoints
+	r.HandleFunc("/api/v1/orchestration-settings", h.GetOrchestrationSettings).Methods("GET")
+	r.HandleFunc("/api/v1/orchestration-settings", h.UpdateOrchestrationSettings).Methods("PUT")
+	r.HandleFunc("/api/v1/orchestration-settings/reset", h.ResetOrchestrationSettings).Methods("POST")
+
+	// Attachment endpoints
+	if h.storage != nil {
+		r.HandleFunc("/api/v1/attachments/upload", h.UploadAttachment).Methods("POST")
+		r.HandleFunc("/api/v1/uploads/{path:.*}", h.ServeUpload).Methods("GET")
+	}
+
+	// Identity verification endpoint
+	r.HandleFunc("/api/v1/identity/verify", h.VerifyIdentityToken).Methods("POST")
 }
 
 // =============================================================================
@@ -230,18 +268,6 @@ func parseQueryInt(r *http.Request, keys ...string) (int, bool) {
 	return value, true
 }
 
-func parseQueryInt64(r *http.Request, keys ...string) (int64, bool) {
-	raw := queryFirst(r, keys...)
-	if raw == "" {
-		return 0, false
-	}
-	value, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil {
-		return 0, false
-	}
-	return value, true
-}
-
 func parseQueryIntStrict(r *http.Request, keys ...string) (int, bool, error) {
 	raw := queryFirst(r, keys...)
 	if raw == "" {
@@ -275,10 +301,7 @@ func parseRunnerType(raw string) (domain.RunnerType, bool) {
 		parsed := protoconv.RunnerTypeFromProto(domainpb.RunnerType(numeric))
 		return parsed, parsed.IsValid()
 	}
-	normalized := strings.ToUpper(value)
-	if strings.HasPrefix(normalized, "RUNNER_TYPE_") {
-		normalized = strings.TrimPrefix(normalized, "RUNNER_TYPE_")
-	}
+	normalized := strings.TrimPrefix(strings.ToUpper(value), "RUNNER_TYPE_")
 	normalized = strings.ToLower(normalized)
 	if strings.Contains(normalized, "_") {
 		normalized = strings.ReplaceAll(normalized, "_", "-")
@@ -299,10 +322,7 @@ func parseTaskStatus(raw string) (domain.TaskStatus, bool) {
 		parsed := protoconv.TaskStatusFromProto(domainpb.TaskStatus(numeric))
 		return parsed, parsed != ""
 	}
-	normalized := strings.ToUpper(value)
-	if strings.HasPrefix(normalized, "TASK_STATUS_") {
-		normalized = strings.TrimPrefix(normalized, "TASK_STATUS_")
-	}
+	normalized := strings.TrimPrefix(strings.ToUpper(value), "TASK_STATUS_")
 	status := domain.TaskStatus(strings.ToLower(normalized))
 	switch status {
 	case domain.TaskStatusQueued,
@@ -327,10 +347,7 @@ func parseRunStatus(raw string) (domain.RunStatus, bool) {
 		parsed := protoconv.RunStatusFromProto(domainpb.RunStatus(numeric))
 		return parsed, parsed != ""
 	}
-	normalized := strings.ToUpper(value)
-	if strings.HasPrefix(normalized, "RUN_STATUS_") {
-		normalized = strings.TrimPrefix(normalized, "RUN_STATUS_")
-	}
+	normalized := strings.TrimPrefix(strings.ToUpper(value), "RUN_STATUS_")
 	status := domain.RunStatus(strings.ToLower(normalized))
 	switch status {
 	case domain.RunStatusPending,
@@ -361,6 +378,7 @@ func parseEventTypes(values []string) ([]domain.RunEventType, []string) {
 			switch domain.RunEventType(trimmed) {
 			case domain.EventTypeLog,
 				domain.EventTypeMessage,
+				domain.EventTypeMessageDeleted,
 				domain.EventTypeToolCall,
 				domain.EventTypeToolResult,
 				domain.EventTypeStatus,
@@ -704,8 +722,9 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	metrics := map[string]*commonpb.JsonValue{
-		"active_runs":  {Kind: &commonpb.JsonValue_IntValue{IntValue: int64(status.ActiveRuns)}},
-		"queued_tasks": {Kind: &commonpb.JsonValue_IntValue{IntValue: int64(status.QueuedTasks)}},
+		"active_runs":          {Kind: &commonpb.JsonValue_IntValue{IntValue: int64(status.ActiveRuns)}},
+		"queued_tasks":         {Kind: &commonpb.JsonValue_IntValue{IntValue: int64(status.QueuedTasks)}},
+		"default_project_root": {Kind: &commonpb.JsonValue_StringValue{StringValue: h.svc.GetDefaultProjectRoot()}},
 	}
 
 	writeProtoJSON(w, http.StatusOK, &commonpb.HealthResponse{
@@ -1329,6 +1348,13 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			skipPermissionPrompt := inline.GetSkipPermissionPrompt()
 			req.SkipPermissionPrompt = &skipPermissionPrompt
 		}
+		if inline.Features != nil {
+			f := protoconv.FeatureFlagsFromProto(inline.Features)
+			req.EnableBrowser = &f.EnableBrowser
+		}
+		if len(inline.ExtraFlags) > 0 || inline.ClearExtraFlags {
+			req.ExtraFlags = protoconv.RunnerExtraFlagsFromProto(inline.ExtraFlags)
+		}
 		if inline.RequiresSandbox != nil {
 			requiresSandbox := inline.GetRequiresSandbox()
 			req.RequiresSandbox = &requiresSandbox
@@ -1336,6 +1362,10 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		if inline.RequiresApproval != nil {
 			requiresApproval := inline.GetRequiresApproval()
 			req.RequiresApproval = &requiresApproval
+		}
+		if inline.NetworkAccess != nil {
+			na := protoconv.NetworkAccessFromProto(inline.GetNetworkAccess())
+			req.NetworkAccess = &na
 		}
 		if inline.SandboxConfig != nil {
 			req.SandboxConfig = protoconv.SandboxConfigFromProto(inline.SandboxConfig)
@@ -1346,6 +1376,14 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		if len(inline.DeniedPaths) > 0 || inline.ClearDeniedPaths {
 			req.DeniedPaths = inline.DeniedPaths
 		}
+	}
+
+	if len(protoReq.Environment) > 0 {
+		if err := validateCustomEnvironment(protoReq.Environment); err != nil {
+			writeSimpleError(w, r, "environment", err.Error())
+			return
+		}
+		req.Environment = protoReq.Environment
 	}
 
 	run, err := h.svc.CreateRun(r.Context(), req)
@@ -1359,12 +1397,33 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// validateCustomEnvironment validates that custom environment variables use
+// the VROOLI_ prefix and don't exceed size limits.
+func validateCustomEnvironment(env map[string]string) error {
+	if len(env) > 20 {
+		return fmt.Errorf("max 20 entries allowed, got %d", len(env))
+	}
+	totalSize := 0
+	for k, v := range env {
+		if !strings.HasPrefix(k, "VROOLI_") {
+			return fmt.Errorf("key %q must start with VROOLI_ prefix", k)
+		}
+		totalSize += len(k) + len(v)
+	}
+	if totalSize > 4096 {
+		return fmt.Errorf("total size %d exceeds 4096 byte limit", totalSize)
+	}
+	return nil
+}
+
 // CreateInvestigationRun creates a new investigation run for specified run IDs.
 func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		RunIDs        []string `json:"runIds"`
 		CustomContext string   `json:"customContext,omitempty"`
 		Depth         string   `json:"depth,omitempty"` // quick, standard, or deep
+		ProjectRoot   string   `json:"projectRoot,omitempty"`
+		ScopePaths    []string `json:"scopePaths,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON")
@@ -1382,7 +1441,7 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Validate depth if provided
-	depth := orchestration.InvestigationDepth(req.Depth)
+	depth := domain.InvestigationDepth(req.Depth)
 	if !depth.IsValid() {
 		writeSimpleError(w, r, "depth", "must be 'quick', 'standard', or 'deep'")
 		return
@@ -1392,6 +1451,8 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		RunIDs:        runIDs,
 		CustomContext: req.CustomContext,
 		Depth:         depth,
+		ProjectRoot:   req.ProjectRoot,
+		ScopePaths:    req.ScopePaths,
 	})
 	if err != nil {
 		writeError(w, r, err)
@@ -1461,8 +1522,12 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 //   - taskId: Filter by task ID
 //   - profileId: Filter by agent profile ID
 //   - tagPrefix: Filter by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
+//   - investigates_run_id: Filter investigation runs linked to a source run ID
+//   - applies_investigation_run_id: Filter apply runs linked to an investigation run ID
 func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 	req := apipb.ListRunsRequest{}
+	var investigatesRunID *uuid.UUID
+	var appliesInvestigationRunID *uuid.UUID
 
 	// Parse status filter
 	if statusStr := queryFirst(r, "status"); statusStr != "" {
@@ -1498,6 +1563,22 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 	// Parse tag prefix filter
 	if tagPrefix := queryFirst(r, "tag_prefix", "tagPrefix"); tagPrefix != "" {
 		req.TagPrefix = &tagPrefix
+	}
+	if investigatesRunIDStr := queryFirst(r, "investigates_run_id", "investigatesRunId"); investigatesRunIDStr != "" {
+		parsed, err := uuid.Parse(investigatesRunIDStr)
+		if err != nil {
+			writeSimpleError(w, r, "investigates_run_id", "invalid UUID format")
+			return
+		}
+		investigatesRunID = &parsed
+	}
+	if appliesInvestigationRunIDStr := queryFirst(r, "applies_investigation_run_id", "appliesInvestigationRunId"); appliesInvestigationRunIDStr != "" {
+		parsed, err := uuid.Parse(appliesInvestigationRunIDStr)
+		if err != nil {
+			writeSimpleError(w, r, "applies_investigation_run_id", "invalid UUID format")
+			return
+		}
+		appliesInvestigationRunID = &parsed
 	}
 
 	if limit, limitProvided, err := parseQueryIntStrict(r, "limit"); err != nil {
@@ -1543,6 +1624,8 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 	if req.Offset != nil {
 		opts.Offset = int(req.GetOffset())
 	}
+	opts.InvestigatesRunID = investigatesRunID
+	opts.AppliesInvestigationRunID = appliesInvestigationRunID
 
 	runs, err := h.svc.ListRuns(r.Context(), opts)
 	if err != nil {
@@ -1628,8 +1711,9 @@ func (h *Handler) ContinueRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	run, err := h.svc.ContinueRun(r.Context(), orchestration.ContinueRunRequest{
-		RunID:   id,
-		Message: req.Message,
+		RunID:         id,
+		Message:       req.Message,
+		AttachmentIDs: req.AttachmentIds,
 	})
 	if err != nil {
 		writeError(w, r, err)
@@ -1641,6 +1725,128 @@ func (h *Handler) ContinueRun(w http.ResponseWriter, r *http.Request) {
 		Run:     protoconv.RunToProto(run),
 	}
 	writeProtoJSON(w, http.StatusOK, resp)
+}
+
+// DeleteRunMessage marks a message event as deleted.
+// POST /api/v1/runs/{id}/messages/{event_id}/delete
+func (h *Handler) DeleteRunMessage(w http.ResponseWriter, r *http.Request) {
+	runIDStr := mux.Vars(r)["id"]
+	runID, err := uuid.Parse(runIDStr)
+	if err != nil {
+		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
+		return
+	}
+
+	eventIDStr := mux.Vars(r)["event_id"]
+	eventID, err := uuid.Parse(eventIDStr)
+	if err != nil {
+		writeSimpleError(w, r, "event_id", "invalid UUID format for event ID")
+		return
+	}
+
+	req := domainpb.DeleteRunMessageRequest{
+		RunId:   runIDStr,
+		EventId: eventIDStr,
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+
+	if _, err := h.svc.DeleteRunMessage(r.Context(), runID, eventID); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &domainpb.DeleteRunMessageResponse{
+		Success: true,
+	})
+}
+
+// =============================================================================
+// ATTACHMENT ENDPOINTS
+// =============================================================================
+
+// UploadAttachment handles multipart file uploads.
+// POST /api/v1/attachments/upload
+func (h *Handler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
+	if h.storage == nil {
+		writeSimpleError(w, r, "storage", "file storage not configured")
+		return
+	}
+
+	// Enforce max size at the HTTP level
+	maxSize := h.storage.MaxFileSize()
+	r.Body = http.MaxBytesReader(w, r.Body, maxSize+1024) // +1KB for multipart overhead
+
+	if err := r.ParseMultipartForm(maxSize); err != nil {
+		if err.Error() == "http: request body too large" {
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "file too large"})
+			return
+		}
+		writeSimpleError(w, r, "body", "invalid multipart form")
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		writeSimpleError(w, r, "file", "missing file field")
+		return
+	}
+	defer file.Close()
+
+	// Detect content type from file bytes (don't trust Content-Type header)
+	buf := make([]byte, 512)
+	n, _ := file.Read(buf)
+	detectedType := http.DetectContentType(buf[:n])
+	// Reset the file reader
+	if seeker, ok := file.(io.ReadSeeker); ok {
+		_, _ = seeker.Seek(0, io.SeekStart)
+	}
+
+	if !h.storage.IsAllowedType(detectedType) {
+		w.WriteHeader(http.StatusUnsupportedMediaType)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "unsupported file type: " + detectedType})
+		return
+	}
+
+	// Override the header content-type with detected type
+	header.Header.Set("Content-Type", detectedType)
+
+	meta, err := h.storage.Upload(r.Context(), file, header)
+	if err != nil {
+		writeSimpleError(w, r, "upload", err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":           meta.ID,
+		"file_name":    meta.FileName,
+		"content_type": meta.ContentType,
+		"file_size":    meta.FileSize,
+		"storage_path": meta.StoragePath,
+		"url":          h.storage.GetServingURL(meta.StoragePath),
+	})
+}
+
+// ServeUpload serves uploaded files.
+// GET /api/v1/uploads/{path:.*}
+func (h *Handler) ServeUpload(w http.ResponseWriter, r *http.Request) {
+	if h.storage == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	filePath := mux.Vars(r)["path"]
+	if filePath == "" || strings.Contains(filePath, "..") {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
+	fullPath := h.storage.GetFilePath(filePath)
+	http.ServeFile(w, r, fullPath)
 }
 
 // GetRunByTag retrieves a run by its custom tag.
@@ -1746,7 +1952,7 @@ func (h *Handler) GetRunEvents(w http.ResponseWriter, r *http.Request) {
 		req.Limit = &value
 	}
 
-	opts := event.GetOptions{}
+	opts := event.GetOptions{AfterSequence: -1}
 	eventTypesRaw := r.URL.Query()["event_types"]
 	if len(eventTypesRaw) == 0 {
 		eventTypesRaw = r.URL.Query()["eventTypes"]
@@ -1918,6 +2124,174 @@ func (h *Handler) RejectRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeProtoJSON(w, http.StatusOK, &apipb.RejectRunResponse{Status: "rejected"})
+}
+
+// PartialApproveRun approves only selected files from a run's changes.
+func (h *Handler) PartialApproveRun(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r, "id")
+	if err != nil {
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req apipb.PartialApproveRunRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	if req.RunId != "" && req.RunId != id.String() {
+		writeSimpleError(w, r, "run_id", "run_id does not match URL")
+		return
+	}
+
+	if len(req.FileIds) == 0 {
+		writeSimpleError(w, r, "file_ids", "at least one file ID is required")
+		return
+	}
+
+	fileIDs := make([]uuid.UUID, len(req.FileIds))
+	for i, fid := range req.FileIds {
+		parsed, err := uuid.Parse(fid)
+		if err != nil {
+			writeSimpleError(w, r, "file_ids", "invalid UUID format for file ID: "+fid)
+			return
+		}
+		fileIDs[i] = parsed
+	}
+
+	actor := normalizeActor(req.GetActor())
+	result, err := h.svc.PartialApprove(r.Context(), orchestration.PartialApproveRequest{
+		RunID:     id,
+		FileIDs:   fileIDs,
+		Actor:     actor,
+		CommitMsg: req.GetCommitMsg(),
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.PartialApproveRunResponse{
+		Result: protoconv.ApproveResultToProto(&protoconv.ApproveResult{
+			Success:    result.Success,
+			Applied:    result.Applied,
+			Remaining:  result.Remaining,
+			IsPartial:  result.IsPartial,
+			CommitHash: result.CommitHash,
+			ErrorMsg:   result.ErrorMsg,
+		}),
+	})
+}
+
+type sandboxSyncRequest struct {
+	RunID      string `json:"runId,omitempty"`
+	SandboxID  string `json:"sandboxId,omitempty"`
+	Status     string `json:"status"`
+	Actor      string `json:"actor,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+	Applied    int    `json:"applied,omitempty"`
+	Remaining  int    `json:"remaining,omitempty"`
+	IsPartial  bool   `json:"isPartial,omitempty"`
+	CommitHash string `json:"commitHash,omitempty"`
+}
+
+// SyncRunFromSandbox updates a run based on workspace-sandbox approval state.
+func (h *Handler) SyncRunFromSandbox(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r, "id")
+	if err != nil {
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
+		return
+	}
+
+	var req sandboxSyncRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if req.RunID != "" && req.RunID != id.String() {
+		writeSimpleError(w, r, "runId", "runId does not match URL")
+		return
+	}
+	if strings.TrimSpace(req.Status) == "" {
+		writeSimpleError(w, r, "status", "status is required")
+		return
+	}
+
+	var sandboxID *uuid.UUID
+	if strings.TrimSpace(req.SandboxID) != "" {
+		parsed, err := uuid.Parse(strings.TrimSpace(req.SandboxID))
+		if err != nil {
+			writeSimpleError(w, r, "sandboxId", "invalid UUID format for sandboxId")
+			return
+		}
+		sandboxID = &parsed
+	}
+
+	run, err := h.svc.SyncRunFromSandbox(r.Context(), orchestration.SandboxSyncRequest{
+		RunID:      id,
+		SandboxID:  sandboxID,
+		Status:     req.Status,
+		Actor:      req.Actor,
+		Reason:     req.Reason,
+		Applied:    req.Applied,
+		Remaining:  req.Remaining,
+		IsPartial:  req.IsPartial,
+		CommitHash: req.CommitHash,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status":        "synced",
+		"runId":         run.ID.String(),
+		"runStatus":     run.Status,
+		"approvalState": run.ApprovalState,
+	})
+}
+
+// ExtractRecommendations extracts structured recommendations from an investigation run.
+func (h *Handler) ExtractRecommendations(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r, "id")
+	if err != nil {
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
+		return
+	}
+
+	result, err := h.svc.ExtractRecommendations(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
+}
+
+// RegenerateRecommendations forces re-extraction of recommendations for an investigation run.
+// This resets the extraction state and queues the run for background processing.
+func (h *Handler) RegenerateRecommendations(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r, "id")
+	if err != nil {
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
+		return
+	}
+
+	if err := h.svc.RegenerateRecommendations(r.Context(), id); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 // GetRunnerStatus returns status of all runners.
@@ -2190,19 +2564,23 @@ func (h *Handler) GetInvestigationSettings(w http.ResponseWriter, r *http.Reques
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"promptTemplate": settings.PromptTemplate,
-		"defaultDepth":   string(settings.DefaultDepth),
-		"defaultContext": settings.DefaultContext,
-		"updatedAt":      settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"promptTemplate":            settings.PromptTemplate,
+		"applyPromptTemplate":       settings.ApplyPromptTemplate,
+		"defaultDepth":              string(settings.DefaultDepth),
+		"defaultContext":            settings.DefaultContext,
+		"investigationTagAllowlist": settings.InvestigationTagAllowlist,
+		"updatedAt":                 settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	})
 }
 
 // UpdateInvestigationSettings updates the investigation settings.
 func (h *Handler) UpdateInvestigationSettings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		PromptTemplate string                            `json:"promptTemplate"`
-		DefaultDepth   string                            `json:"defaultDepth"`
-		DefaultContext *domain.InvestigationContextFlags `json:"defaultContext"`
+		PromptTemplate            string                            `json:"promptTemplate"`
+		ApplyPromptTemplate       string                            `json:"applyPromptTemplate"`
+		DefaultDepth              string                            `json:"defaultDepth"`
+		DefaultContext            *domain.InvestigationContextFlags `json:"defaultContext"`
+		InvestigationTagAllowlist *[]domain.InvestigationTagRule    `json:"investigationTagAllowlist"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -2221,6 +2599,9 @@ func (h *Handler) UpdateInvestigationSettings(w http.ResponseWriter, r *http.Req
 	if req.PromptTemplate != "" {
 		current.PromptTemplate = req.PromptTemplate
 	}
+	if req.ApplyPromptTemplate != "" {
+		current.ApplyPromptTemplate = req.ApplyPromptTemplate
+	}
 	if req.DefaultDepth != "" {
 		depth := domain.InvestigationDepth(req.DefaultDepth)
 		if !depth.IsValid() {
@@ -2232,6 +2613,13 @@ func (h *Handler) UpdateInvestigationSettings(w http.ResponseWriter, r *http.Req
 	if req.DefaultContext != nil {
 		current.DefaultContext = *req.DefaultContext
 	}
+	if req.InvestigationTagAllowlist != nil {
+		if err := domain.ValidateInvestigationTagAllowlist(*req.InvestigationTagAllowlist); err != nil {
+			writeSimpleError(w, r, "investigationTagAllowlist", err.Error())
+			return
+		}
+		current.InvestigationTagAllowlist = *req.InvestigationTagAllowlist
+	}
 
 	if err := h.svc.UpdateInvestigationSettings(r.Context(), current); err != nil {
 		writeError(w, r, err)
@@ -2239,10 +2627,12 @@ func (h *Handler) UpdateInvestigationSettings(w http.ResponseWriter, r *http.Req
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"promptTemplate": current.PromptTemplate,
-		"defaultDepth":   string(current.DefaultDepth),
-		"defaultContext": current.DefaultContext,
-		"updatedAt":      current.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"promptTemplate":            current.PromptTemplate,
+		"applyPromptTemplate":       current.ApplyPromptTemplate,
+		"defaultDepth":              string(current.DefaultDepth),
+		"defaultContext":            current.DefaultContext,
+		"investigationTagAllowlist": current.InvestigationTagAllowlist,
+		"updatedAt":                 current.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	})
 }
 
@@ -2261,40 +2651,113 @@ func (h *Handler) ResetInvestigationSettings(w http.ResponseWriter, r *http.Requ
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"promptTemplate": settings.PromptTemplate,
-		"defaultDepth":   string(settings.DefaultDepth),
-		"defaultContext": settings.DefaultContext,
-		"updatedAt":      settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"promptTemplate":            settings.PromptTemplate,
+		"applyPromptTemplate":       settings.ApplyPromptTemplate,
+		"defaultDepth":              string(settings.DefaultDepth),
+		"defaultContext":            settings.DefaultContext,
+		"investigationTagAllowlist": settings.InvestigationTagAllowlist,
+		"updatedAt":                 settings.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	})
 }
 
-// DetectScenariosForRuns detects scenarios from run data.
-func (h *Handler) DetectScenariosForRuns(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		RunIDs []string `json:"runIds"`
+// =============================================================================
+// ORCHESTRATION SETTINGS
+// =============================================================================
+
+// GetOrchestrationSettings returns the current orchestration settings.
+func (h *Handler) GetOrchestrationSettings(w http.ResponseWriter, r *http.Request) {
+	settings, err := h.svc.GetOrchestrationSettings(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	writeJSON(w, http.StatusOK, settings)
+}
+
+// UpdateOrchestrationSettings updates the orchestration settings.
+func (h *Handler) UpdateOrchestrationSettings(w http.ResponseWriter, r *http.Request) {
+	var settings agentconfig.OrchestrationSettings
+	if err := json.NewDecoder(r.Body).Decode(&settings); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}
 
-	runIDs := make([]uuid.UUID, 0, len(req.RunIDs))
-	for _, idStr := range req.RunIDs {
-		id, err := uuid.Parse(idStr)
-		if err != nil {
-			writeSimpleError(w, r, "runIds", "invalid UUID format: "+idStr)
-			return
-		}
-		runIDs = append(runIDs, id)
+	if err := h.svc.UpdateOrchestrationSettings(r.Context(), &settings); err != nil {
+		writeError(w, r, err)
+		return
 	}
 
-	scenarios, err := h.svc.DetectScenariosForRuns(r.Context(), runIDs)
+	// Return the updated settings.
+	updated, err := h.svc.GetOrchestrationSettings(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, updated)
+}
+
+// ResetOrchestrationSettings resets the orchestration settings to defaults.
+func (h *Handler) ResetOrchestrationSettings(w http.ResponseWriter, r *http.Request) {
+	if err := h.svc.ResetOrchestrationSettings(r.Context()); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	settings, err := h.svc.GetOrchestrationSettings(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, settings)
+}
+
+// =============================================================================
+// PATH VALIDATION
+// =============================================================================
+
+// ValidatePath proxies path validation to workspace-sandbox.
+func (h *Handler) ValidatePath(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		writeSimpleError(w, r, "path", "path query parameter is required")
+		return
+	}
+
+	projectRoot := r.URL.Query().Get("projectRoot")
+
+	result, err := h.svc.ValidatePath(r.Context(), path, projectRoot)
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"scenarios": scenarios,
-	})
+	writeJSON(w, http.StatusOK, result)
+}
+
+// VerifyIdentityToken handles POST /api/v1/identity/verify.
+func (h *Handler) VerifyIdentityToken(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Token string `json:"token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON body")
+		return
+	}
+	if req.Token == "" {
+		writeSimpleError(w, r, "token", "token is required")
+		return
+	}
+
+	result, err := h.svc.VerifyIdentityToken(r.Context(), req.Token)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	if !result.Valid {
+		writeJSON(w, http.StatusUnauthorized, result)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
 }

@@ -119,6 +119,27 @@ export interface ExportFormatDisplayConfig {
  */
 export type ExportStatus = "pending" | "processing" | "completed" | "failed";
 
+// =============================================================================
+// Stylization Types
+// =============================================================================
+
+/**
+ * Stylization mode for exports.
+ * - stylized: Apply browser frame, background, cursor overlay
+ * - raw: Export content exactly as captured
+ */
+export type ExportStylization = "stylized" | "raw";
+
+/**
+ * Configuration for displaying a stylization option.
+ */
+export interface ExportStylizationOption {
+  id: ExportStylization;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+}
+
 /**
  * UI styling configuration for an export status.
  */

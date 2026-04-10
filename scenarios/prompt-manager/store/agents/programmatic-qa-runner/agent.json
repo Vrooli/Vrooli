@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "programmatic-qa-runner",
+  "displayName": "Programmatic QA Runner",
+  "description": "Runs preemptive programmatic QA checks for Vrooli scenarios and creates actionable backlog items from the results.",
+  "status": "active",
+  "appearance": {
+    "body": "#16A34A",
+    "head": "#22C55E",
+    "accent": "#86EFAC"
+  },
+  "tags": [
+    "quality",
+    "auditing",
+    "programmatic-qa",
+    "readiness-review"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

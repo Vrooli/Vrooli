@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "signal-and-feedback-surface-design",
+  "name": "Signal \u0026 Feedback Surface Design",
+  "description": "Design observability and feedback mechanisms",
+  "modes": [
+    "steer",
+    "observability"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "radio",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 43,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2026-02-04T13:13:54Z"
+}

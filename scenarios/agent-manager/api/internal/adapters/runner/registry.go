@@ -98,8 +98,9 @@ type MockRunner struct {
 	message      string
 
 	// Execution behavior
-	ExecuteFunc func(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error)
-	StopFunc    func(ctx context.Context, runID uuid.UUID) error
+	ExecuteFunc  func(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error)
+	ContinueFunc func(ctx context.Context, req ContinueRequest) (*ExecuteResult, error)
+	StopFunc     func(ctx context.Context, runID uuid.UUID) error
 }
 
 // NewMockRunner creates a new mock runner.
@@ -175,6 +176,10 @@ func (m *MockRunner) SetCapabilities(caps Capabilities) {
 
 // Continue continues a previous conversation in the same session.
 func (m *MockRunner) Continue(ctx context.Context, req ContinueRequest) (*ExecuteResult, error) {
+	if m.ContinueFunc != nil {
+		return m.ContinueFunc(ctx, req)
+	}
+
 	// Default mock behavior: simulate successful continuation
 	return &ExecuteResult{
 		Success:   true,
@@ -188,6 +193,41 @@ func (m *MockRunner) Continue(ctx context.Context, req ContinueRequest) (*Execut
 
 // Verify interface compliance
 var _ Runner = (*MockRunner)(nil)
+
+// =============================================================================
+// Mock FlagValidator (for testing)
+// =============================================================================
+
+// MockFlagValidator is a configurable FlagValidator for tests.
+type MockFlagValidator struct {
+	ValidateFlagsFunc     func(domain.RunnerType, []string) error
+	AllowedFlagsFunc      func(domain.RunnerType) []string
+	SupportedFeaturesFunc func(domain.RunnerType) []string
+}
+
+func (m *MockFlagValidator) ValidateFlags(rt domain.RunnerType, flags []string) error {
+	if m.ValidateFlagsFunc != nil {
+		return m.ValidateFlagsFunc(rt, flags)
+	}
+	return nil
+}
+
+func (m *MockFlagValidator) AllowedFlags(rt domain.RunnerType) []string {
+	if m.AllowedFlagsFunc != nil {
+		return m.AllowedFlagsFunc(rt)
+	}
+	return nil
+}
+
+func (m *MockFlagValidator) SupportedFeatures(rt domain.RunnerType) []string {
+	if m.SupportedFeaturesFunc != nil {
+		return m.SupportedFeaturesFunc(rt)
+	}
+	return nil
+}
+
+// Verify interface compliance
+var _ FlagValidator = (*MockFlagValidator)(nil)
 
 // =============================================================================
 // Stub Runner (for unavailable runners)

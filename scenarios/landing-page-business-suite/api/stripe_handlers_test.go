@@ -9,25 +9,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
 )
 
-func setStripeEnv(t *testing.T) func() {
-	t.Helper()
-	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_handlers")
-	os.Setenv("STRIPE_SECRET_KEY", "sk_test_handlers")
-	os.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_handlers")
-	return func() {
-		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
-		os.Unsetenv("STRIPE_SECRET_KEY")
-		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
-	}
-}
-
-func newMockStripeServer(t *testing.T) (*httptest.Server, func()) {
+func newMockStripeServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -47,16 +34,16 @@ func newMockStripeServer(t *testing.T) (*httptest.Server, func()) {
 			http.NotFound(w, r)
 		}
 	}))
-	os.Setenv("STRIPE_API_BASE", server.URL)
-	cleanup := func() {
-		os.Unsetenv("STRIPE_API_BASE")
-		server.Close()
-	}
-	return server, cleanup
+	t.Cleanup(server.Close)
+	return server
 }
 
 func signStripePayload(t *testing.T, payload []byte, timestamp string, secret string) string {
 	t.Helper()
+	// Use current timestamp if empty or zero (for timestamp validation compatibility)
+	if timestamp == "" || timestamp == "0" {
+		timestamp = fmt.Sprintf("%d", time.Now().Unix())
+	}
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(timestamp + "." + string(payload)))
 	return "t=" + timestamp + ",v1=" + hex.EncodeToString(mac.Sum(nil))
@@ -65,10 +52,10 @@ func signStripePayload(t *testing.T, payload []byte, timestamp string, secret st
 func TestHandleCheckoutCreateValidation(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
-	cleanup := setStripeEnv(t)
-	defer cleanup()
 
-	service := NewStripeService(db)
+	resetStripeTestData(t, db)
+	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_validation", "production", 1000000, 0.001, "credits")
+	service := ConfigureStripeServiceSimple(t, db)
 	handler := handleCheckoutCreate(service)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/checkout/create", bytes.NewBufferString(`{"price_id":""}`))
@@ -84,10 +71,7 @@ func TestHandleCheckoutCreateValidation(t *testing.T) {
 func TestHandleCheckoutCreateAndWebhookEndToEnd(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
-	cleanup := setStripeEnv(t)
-	defer cleanup()
-	stripeServer, closeServer := newMockStripeServer(t)
-	defer closeServer()
+	stripeServer := newMockStripeServer(t)
 
 	resetStripeTestData(t, db)
 
@@ -115,8 +99,8 @@ func TestHandleCheckoutCreateAndWebhookEndToEnd(t *testing.T) {
 		sessionTypeSubscription,
 		map[string]interface{}{"features": []string{"Handlers coverage"}},
 	)
-	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), NewPaymentSettingsService(db))
-	stripeService.UseHTTPClient(stripeServer.Client())
+	cfg := DefaultStripeTestConfig().WithKeys("pk_test_handlers", "sk_test_handlers", "whsec_handlers")
+	stripeService := ConfigureStripeService(t, db, cfg, stripeServer)
 
 	session, err := stripeService.CreateCheckoutSession("price_handlers_sub", "/ok", "/cancel", "handler@example.com")
 	if err != nil {
@@ -125,6 +109,7 @@ func TestHandleCheckoutCreateAndWebhookEndToEnd(t *testing.T) {
 
 	sessionID := session.SessionId
 	body := map[string]interface{}{
+		"id":   "evt_handler_checkout_123",
 		"type": "checkout.session.completed",
 		"data": map[string]interface{}{
 			"object": map[string]interface{}{
@@ -139,7 +124,7 @@ func TestHandleCheckoutCreateAndWebhookEndToEnd(t *testing.T) {
 
 	handler := handleStripeWebhook(stripeService)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(payload))
-	req.Header.Set("Stripe-Signature", signStripePayload(t, payload, "1700000000", "whsec_handlers"))
+	req.Header.Set("Stripe-Signature", signStripePayload(t, payload, "", "whsec_handlers"))
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -167,10 +152,7 @@ func TestHandleCheckoutCreateAndWebhookEndToEnd(t *testing.T) {
 func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
-	cleanup := setStripeEnv(t)
-	defer cleanup()
-	stripeServer, closeServer := newMockStripeServer(t)
-	defer closeServer()
+	stripeServer := newMockStripeServer(t)
 
 	resetStripeTestData(t, db)
 
@@ -198,8 +180,8 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 		sessionTypeCreditsTopup,
 		map[string]interface{}{},
 	)
-	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), NewPaymentSettingsService(db))
-	stripeService.UseHTTPClient(stripeServer.Client())
+	cfg := DefaultStripeTestConfig().WithKeys("pk_test_handlers", "sk_test_handlers", "whsec_handlers")
+	stripeService := ConfigureStripeService(t, db, cfg, stripeServer)
 	session, err := stripeService.CreateCheckoutSession("price_credits_topup", "/ok", "/cancel", "credits@example.com")
 	if err != nil {
 		t.Fatalf("checkout creation failed: %v", err)
@@ -207,6 +189,7 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 	sessionID := session.SessionId
 
 	body := map[string]interface{}{
+		"id":   "evt_credits_topup_123",
 		"type": "checkout.session.completed",
 		"data": map[string]interface{}{
 			"object": map[string]interface{}{
@@ -220,7 +203,7 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 	payload, _ := json.Marshal(body)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(payload))
-	req.Header.Set("Stripe-Signature", signStripePayload(t, payload, "1700000001", "whsec_handlers"))
+	req.Header.Set("Stripe-Signature", signStripePayload(t, payload, "", "whsec_handlers"))
 	rec := httptest.NewRecorder()
 
 	handleStripeWebhook(stripeService).ServeHTTP(rec, req)
@@ -240,8 +223,6 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 func TestHandleStripeWebhookInvoiceEvents(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
-	cleanup := setStripeEnv(t)
-	defer cleanup()
 
 	resetStripeTestData(t, db)
 
@@ -254,9 +235,11 @@ func TestHandleStripeWebhookInvoiceEvents(t *testing.T) {
 		t.Fatalf("failed to seed subscription: %v", err)
 	}
 
-	stripeService := NewStripeService(db)
+	cfg := DefaultStripeTestConfig().WithKeys("pk_test_handlers", "sk_test_handlers", "whsec_handlers")
+	stripeService := ConfigureStripeService(t, db, cfg, nil)
 
 	paidPayload := map[string]interface{}{
+		"id":   "evt_invoice_paid_handler",
 		"type": "invoice.paid",
 		"data": map[string]interface{}{
 			"object": map[string]interface{}{
@@ -277,7 +260,7 @@ func TestHandleStripeWebhookInvoiceEvents(t *testing.T) {
 	}
 	rawPaid, _ := json.Marshal(paidPayload)
 	reqPaid := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(rawPaid))
-	reqPaid.Header.Set("Stripe-Signature", signStripePayload(t, rawPaid, "1700000002", "whsec_handlers"))
+	reqPaid.Header.Set("Stripe-Signature", signStripePayload(t, rawPaid, "", "whsec_handlers"))
 	recPaid := httptest.NewRecorder()
 	handleStripeWebhook(stripeService).ServeHTTP(recPaid, reqPaid)
 	if recPaid.Code != http.StatusOK {
@@ -297,6 +280,7 @@ func TestHandleStripeWebhookInvoiceEvents(t *testing.T) {
 
 	// Payment failed should flip to past_due.
 	failedPayload := map[string]interface{}{
+		"id":   "evt_invoice_failed_handler",
 		"type": "invoice.payment_failed",
 		"data": map[string]interface{}{
 			"object": map[string]interface{}{
@@ -307,7 +291,7 @@ func TestHandleStripeWebhookInvoiceEvents(t *testing.T) {
 	}
 	rawFailed, _ := json.Marshal(failedPayload)
 	reqFailed := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(rawFailed))
-	reqFailed.Header.Set("Stripe-Signature", signStripePayload(t, rawFailed, "1700000003", "whsec_handlers"))
+	reqFailed.Header.Set("Stripe-Signature", signStripePayload(t, rawFailed, "", "whsec_handlers"))
 	recFailed := httptest.NewRecorder()
 	handleStripeWebhook(stripeService).ServeHTTP(recFailed, reqFailed)
 	if recFailed.Code != http.StatusOK {
@@ -325,22 +309,23 @@ func TestHandleStripeWebhookInvoiceEvents(t *testing.T) {
 func TestHandleStripeWebhookSubscriptionLifecycle(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
-	cleanup := setStripeEnv(t)
-	defer cleanup()
 
 	resetStripeTestData(t, db)
 
-	stripeService := NewStripeService(db)
+	cfg := DefaultStripeTestConfig().WithKeys("pk_test_handlers", "sk_test_handlers", "whsec_handlers")
+	stripeService := ConfigureStripeService(t, db, cfg, nil)
 	// Seed subscription row to be updated by lifecycle events
 	if _, err := db.Exec(`INSERT INTO subscriptions (subscription_id, status, created_at, updated_at) VALUES ($1,$2,NOW(),NOW()) ON CONFLICT (subscription_id) DO UPDATE SET status = EXCLUDED.status`, "sub_lifecycle", "active"); err != nil {
 		t.Fatalf("failed to seed subscription: %v", err)
 	}
 
 	events := []struct {
+		eventID   string
 		eventType string
 		payload   map[string]interface{}
 	}{
 		{
+			eventID:   "evt_lifecycle_updated",
 			eventType: "customer.subscription.updated",
 			payload: map[string]interface{}{
 				"id":     "sub_lifecycle",
@@ -348,6 +333,7 @@ func TestHandleStripeWebhookSubscriptionLifecycle(t *testing.T) {
 			},
 		},
 		{
+			eventID:   "evt_lifecycle_deleted",
 			eventType: "customer.subscription.deleted",
 			payload: map[string]interface{}{
 				"id":     "sub_lifecycle",
@@ -358,6 +344,7 @@ func TestHandleStripeWebhookSubscriptionLifecycle(t *testing.T) {
 
 	for i, evt := range events {
 		body := map[string]interface{}{
+			"id":   evt.eventID,
 			"type": evt.eventType,
 			"data": map[string]interface{}{
 				"object": evt.payload,
@@ -365,7 +352,7 @@ func TestHandleStripeWebhookSubscriptionLifecycle(t *testing.T) {
 		}
 		raw, _ := json.Marshal(body)
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(raw))
-		req.Header.Set("Stripe-Signature", signStripePayload(t, raw, time.Now().Format("150405"), "whsec_handlers"))
+		req.Header.Set("Stripe-Signature", signStripePayload(t, raw, "", "whsec_handlers"))
 		rec := httptest.NewRecorder()
 
 		handleStripeWebhook(stripeService).ServeHTTP(rec, req)
@@ -390,8 +377,6 @@ func TestHandleStripeWebhookSubscriptionLifecycle(t *testing.T) {
 func TestStripeSettingsHandlers(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
-	cleanup := setStripeEnv(t)
-	defer cleanup()
 
 	resetStripeTestData(t, db)
 
@@ -443,10 +428,7 @@ func TestStripeSettingsHandlers(t *testing.T) {
 func TestSubscriptionHandlersVerifyAndCancel(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
-	cleanup := setStripeEnv(t)
-	defer cleanup()
-	stripeServer, closeServer := newMockStripeServer(t)
-	defer closeServer()
+	stripeServer := newMockStripeServer(t)
 
 	resetStripeTestData(t, db)
 
@@ -459,8 +441,7 @@ func TestSubscriptionHandlersVerifyAndCancel(t *testing.T) {
 		t.Fatalf("failed to seed subscription: %v", err)
 	}
 
-	stripeService := NewStripeService(db)
-	stripeService.UseHTTPClient(stripeServer.Client())
+	stripeService := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	verifyRec := httptest.NewRecorder()
 	verifyReq := httptest.NewRequest(http.MethodGet, "/api/v1/subscription/verify?user=cancelme@example.com", nil)
@@ -489,12 +470,10 @@ func TestSubscriptionHandlersVerifyAndCancel(t *testing.T) {
 func TestHandleStripeWebhookRequiresSignature(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
-	cleanup := setStripeEnv(t)
-	defer cleanup()
 
 	resetStripeTestData(t, db)
 
-	stripeService := NewStripeService(db)
+	stripeService := ConfigureStripeServiceSimple(t, db)
 	handler := handleStripeWebhook(stripeService)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewBufferString(`{"type":"test.event"}`))

@@ -1,0 +1,22 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "seo-optimizer",
+  "name": "SEO Optimizer",
+  "description": "Comprehensive SEO analysis and optimization including site audits, keyword research, content optimization, and competitor analysis",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "skill",
+    "marketing",
+    "seo",
+    "analytics"
+  ],
+  "icon": "search",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-03-19T00:00:00Z",
+  "updatedAt": "2026-03-19T00:00:00Z"
+}

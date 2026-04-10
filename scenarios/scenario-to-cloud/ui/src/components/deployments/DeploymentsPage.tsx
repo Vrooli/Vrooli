@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useDeployments, useDeleteDeployment, useInspectDeployment, getStatusInfo } from "../../hooks/useDeployments";
 import { useDeploymentListProgress } from "../../hooks/useDeploymentListProgress";
+import { useDeploymentUrl } from "../../hooks/useDeploymentUrl";
 import { cn } from "../../lib/utils";
 import type { DeploymentSummary } from "../../lib/api";
 import { DeploymentDetails } from "./DeploymentDetails";
@@ -26,7 +27,8 @@ interface DeploymentsPageProps {
 
 export function DeploymentsPage({ onBack }: DeploymentsPageProps) {
   const { data: deployments, isLoading, error, refetch } = useDeployments();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { state: urlState, selectDeployment } = useDeploymentUrl();
+  const selectedId = urlState.deploymentId;
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
   const [deleteStopOnVPS, setDeleteStopOnVPS] = useState(false);
   const [deleteCleanupBundles, setDeleteCleanupBundles] = useState(false);
@@ -66,7 +68,7 @@ export function DeploymentsPage({ onBack }: DeploymentsPageProps) {
     return (
       <DeploymentDetails
         deploymentId={selectedId}
-        onBack={() => setSelectedId(null)}
+        onBack={() => selectDeployment(null)}
       />
     );
   }
@@ -144,7 +146,7 @@ export function DeploymentsPage({ onBack }: DeploymentsPageProps) {
                 deployment={deployment}
                 progressStep={progressStep}
                 progressPercent={progressPercent}
-                onSelect={() => setSelectedId(deployment.id)}
+                onSelect={() => selectDeployment(deployment.id)}
                 onInspect={() => handleInspect(deployment.id)}
                 onDelete={() => setShowDeleteDialog(deployment.id)}
                 isInspecting={inspectMutation.isPending && inspectMutation.variables === deployment.id}

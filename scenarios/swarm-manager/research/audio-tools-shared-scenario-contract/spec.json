@@ -1,0 +1,23 @@
+{
+  "acceptance_allow": [
+    "scenarios/web-console/**",
+    "scenarios/swarm-manager/ideas/audio-tools-archived/**"
+  ],
+  "created": "2026-03-26T20:54:35Z",
+  "depends_on": [
+    "research/audio-provider-routing-contract",
+    "fix/qa-swarm-manager-tests-20260408",
+    "fix/qa-swarm-manager-standards-20260408",
+    "execute/qa-swarm-manager-code-quality-20260408"
+  ],
+  "description": "## Context\n\nThe audio-tools scenario will be a shared audio microservice that any scenario can adopt for audio capabilities. It must support both the continuous voice I/O features currently in web-console (streaming transcription, TTS, VAD, summarization) and general audio processing (trim, merge, split, convert, normalize). The original audio-tools scenario was archived (Jan 2026) — its documentation is preserved at `scenarios/swarm-manager/ideas/audio-tools-archived/` and can be mined for useful requirements.\n\n## Research Goals\n\n1. **Define the P0 API contract** for audio-tools:\n   - **Continuous Voice I/O:** WebSocket streaming transcription, segment-final retranscription, VAD signals, persistent/one-shot modes, speaker verification\n   - **TTS Pipeline:** Text-to-speech synthesis (Kokoro + browser fallback), markdown-to-speech normalization, paragraph splitting, pre-synthesis caching\n   - **Summarization:** Ollama-based text summarization (light/moderate/heavy), configurable thresholds\n   - **Audio Processing:** Format conversion (MP3/WAV/FLAC/AAC/OGG), trim, merge, split, fade, volume adjustment, normalization\n   - **Provider Routing:** Integration with the routing contract from research/audio-provider-routing-contract\n\n2. **Define the adoption pattern** — how other scenarios consume audio-tools:\n   - API-level integration (HTTP/WebSocket endpoints)\n   - Adoptable UI components (React components that scenarios embed)\n   - Configuration inheritance (how the consuming scenario passes its provider preferences)\n\n3. **Mine the archived audio-tools documentation** for reusable requirements:\n   - `scenarios/swarm-manager/ideas/audio-tools-archived/README.md` (406 lines)\n   - `scenarios/swarm-manager/ideas/audio-tools-archived/PRD.md` (418 lines)\n   - `scenarios/swarm-manager/ideas/audio-tools-archived/requirements/index.json` (418 lines)\n   - Identify which requirements are still relevant vs. superseded by the new continuous-audio vision\n\n4. **Analyze the current web-console audio implementation** to identify what transfers directly vs. what needs redesign for multi-consumer use:\n   - Voice input: `scenarios/web-console/ui/src/hooks/useVoiceInput.ts`, `voice/` subdirectory\n   - TTS output: `scenarios/web-console/api/tts_*.go`, `ui/src/hooks/useTextToSpeech.ts`\n   - What is web-console-specific vs. generalizable?\n\n## Deliverables\n\n- P0 API specification (endpoints, WebSocket protocols, request/response schemas)\n- UI component adoption guide\n- Configuration schema\n- Migration plan from web-console audio code to shared scenario",
+  "effort": "M",
+  "initiative": "continuous-audio-platform",
+  "kind": "research",
+  "name": "audio-tools-shared-scenario-contract",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Define the Shared Audio-Tools Scenario API Contract and P0 Capabilities",
+  "updated": "2026-04-08T04:14:19Z"
+}

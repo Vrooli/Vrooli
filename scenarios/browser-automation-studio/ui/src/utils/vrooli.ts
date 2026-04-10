@@ -11,6 +11,21 @@ export interface ScenarioPortInfo {
   url: string;
 }
 
+const parseScenarioPortInfo = (value: unknown): ScenarioPortInfo | null => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  const obj = value as Record<string, unknown>;
+  if (typeof obj.port !== 'number' || typeof obj.status !== 'string' || typeof obj.url !== 'string') {
+    return null;
+  }
+  return {
+    port: obj.port,
+    status: obj.status,
+    url: obj.url,
+  };
+};
+
 /**
  * Get the port for a specific scenario using vrooli CLI
  * @param scenarioName - Name of the scenario to get port for
@@ -26,8 +41,14 @@ export async function getScenarioPort(scenarioName: string): Promise<ScenarioPor
       return null;
     }
 
-    return await response.json();
-  } catch (error) {
+    const data: unknown = await response.json();
+    const portInfo = parseScenarioPortInfo(data);
+    if (!portInfo) {
+      logger.error('Invalid port info response', { component: 'VrooliUtils', action: 'getScenarioPort', scenarioName });
+      return null;
+    }
+    return portInfo;
+  } catch (error: unknown) {
     logger.error('Error getting port for scenario', { component: 'VrooliUtils', action: 'getScenarioPort', scenarioName }, error);
     return null;
   }

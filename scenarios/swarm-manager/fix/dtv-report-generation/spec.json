@@ -1,0 +1,22 @@
+{
+  "acceptance_allow": [
+    "scenarios/development-toolchain-validator/api/**"
+  ],
+  "created": "2026-03-24T22:24:18Z",
+  "depends_on": [
+    "fix/dtv-validation-api"
+  ],
+  "description": "Implement the report domain (currently a stub at domain/report/doc.go) to aggregate validation results into the report formats the meta-optimization team expects.\n\nReport types needed:\n- --conflicts: Cross-skill contradictions (skills connected to same reference with incompatible structural expectations or overlapping CLI assertions producing different expected values)\n- --drift: Skills whose content hash changed since their connection was established (drift detection already exists in skill domain — this aggregates across all connections)\n- --maturity: Skill maturity scoring based on expectation coverage (skills with few or no expectations = low maturity, skills with comprehensive structural + CLI expectations = high maturity)\n- --tool-baselines: Tool accuracy regression checks (run CLI assertions for scenario-auditor, test-genie, scenario-completeness-scoring against references, compare results to stored baselines)\n\nScope:\n- Implement report service with methods for each report type\n- Create report models for structured output\n- Create HTTP handlers for report endpoints\n- Wire into main.go\n- Depends on dtv-validation-api because reports aggregate validation results",
+  "initiative": "dtv-meta-optimization-readiness",
+  "kind": "fix",
+  "name": "dtv-report-generation",
+  "priority": 2,
+  "status": "completed",
+  "tags": [
+    "reports",
+    "aggregation",
+    "meta-optimization"
+  ],
+  "title": "Report Domain Implementation",
+  "updated": "2026-03-27T00:55:53Z"
+}

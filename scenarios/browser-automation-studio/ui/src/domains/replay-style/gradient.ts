@@ -63,8 +63,13 @@ const parseStop = (raw: string): ReplayGradientStop | null => {
   }
   const match = trimmed.match(/^(.*)\s+(-?\d+(?:\.\d+)?)%$/);
   if (match) {
-    const color = match[1].trim();
-    const position = Number.parseFloat(match[2]);
+    const colorPart = match[1];
+    const positionPart = match[2];
+    if (!colorPart || !positionPart) {
+      return null;
+    }
+    const color = colorPart.trim();
+    const position = Number.parseFloat(positionPart);
     if (!color || !Number.isFinite(position)) {
       return null;
     }
@@ -115,8 +120,14 @@ export const parseGradientCss = (value: string): ReplayGradientSpec | null => {
     return null;
   }
 
-  const type = match[1].toLowerCase().startsWith('radial') ? 'radial' : 'linear';
-  const args = splitGradientArgs(match[2]);
+  const gradientType = match[1];
+  const argsString = match[2];
+  if (!gradientType || !argsString) {
+    return null;
+  }
+
+  const type = gradientType.toLowerCase().startsWith('radial') ? 'radial' : 'linear';
+  const args = splitGradientArgs(argsString);
   if (args.length < 2) {
     return null;
   }
@@ -125,25 +136,32 @@ export const parseGradientCss = (value: string): ReplayGradientSpec | null => {
   let center: { x: number; y: number } | undefined;
   let stopStartIndex = 0;
 
+  const firstArg = args[0];
+  if (!firstArg) {
+    return null;
+  }
+
   if (type === 'linear') {
-    const angleMatch = args[0].trim().match(/^(-?\d+(?:\.\d+)?)deg$/i);
-    if (angleMatch) {
-      angle = Number.parseFloat(angleMatch[1]);
+    const angleMatch = firstArg.trim().match(/^(-?\d+(?:\.\d+)?)deg$/i);
+    const angleValue = angleMatch?.[1];
+    if (angleValue) {
+      angle = Number.parseFloat(angleValue);
       stopStartIndex = 1;
     } else {
-      const directionAngle = parseLinearDirection(args[0]);
+      const directionAngle = parseLinearDirection(firstArg);
       if (typeof directionAngle === 'number') {
         angle = directionAngle;
         stopStartIndex = 1;
       }
     }
   } else {
-    const firstArg = args[0].trim();
-    if (isGradientConfigToken(firstArg)) {
+    if (isGradientConfigToken(firstArg.trim())) {
       const centerMatch = firstArg.match(/at\s+(-?\d+(?:\.\d+)?)%\s+(-?\d+(?:\.\d+)?)%/i);
-      if (centerMatch) {
-        const x = Number.parseFloat(centerMatch[1]);
-        const y = Number.parseFloat(centerMatch[2]);
+      const xVal = centerMatch?.[1];
+      const yVal = centerMatch?.[2];
+      if (xVal && yVal) {
+        const x = Number.parseFloat(xVal);
+        const y = Number.parseFloat(yVal);
         if (Number.isFinite(x) && Number.isFinite(y)) {
           center = { x: clampPercent(x), y: clampPercent(y) };
         }

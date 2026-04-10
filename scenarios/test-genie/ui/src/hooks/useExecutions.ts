@@ -9,7 +9,7 @@ export function useExecutions(limit = 6) {
     refetchInterval: 12000
   });
 
-  const executions = query.data ?? [];
+  const executions = useMemo(() => query.data ?? [], [query.data]);
 
   const lastFailedExecution = useMemo(
     () => executions.find((execution) => execution.success === false),

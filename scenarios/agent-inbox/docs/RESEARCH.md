@@ -50,8 +50,12 @@ Searched existing scenarios for chat/inbox functionality:
 - Privacy - conversation content stays local
 - Works offline
 
-### Why PostgreSQL?
-- Full-text search built-in
-- JSONB for flexible message metadata
-- Transactional integrity for chat operations
-- Already used across Vrooli scenarios
+### Why SQLite? (migrated from PostgreSQL)
+- Embedded, zero-config — no external database service to manage
+- Enables standalone desktop apps (via scenario-to-desktop), mobile, and LPBS bundling
+- FTS5 for full-text search across chats and messages
+- WAL mode for concurrent read performance
+- Single-file database is trivially portable and backed up
+- Pure-Go driver (modernc.org/sqlite) — no CGO required
+
+**Previous choice (PostgreSQL)** was abandoned because it blocked every deployment target except the full Vrooli stack. SQLite runs everywhere.

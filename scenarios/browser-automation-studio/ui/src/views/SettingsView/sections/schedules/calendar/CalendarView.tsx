@@ -32,7 +32,7 @@ function getScheduleColor(scheduleId: string): string {
   for (let i = 0; i < scheduleId.length; i++) {
     hash = scheduleId.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return SCHEDULE_COLORS[Math.abs(hash) % SCHEDULE_COLORS.length];
+  return SCHEDULE_COLORS[Math.abs(hash) % SCHEDULE_COLORS.length] ?? '#3b82f6';
 }
 
 export function CalendarView({ onCreateSchedule, onEditSchedule }: CalendarViewProps) {
@@ -145,8 +145,13 @@ export function CalendarView({ onCreateSchedule, onEditSchedule }: CalendarViewP
           meridiem: 'short',
         }}
         eventContent={(arg) => {
-          const isAggregate = arg.event.extendedProps.isAggregate;
-          const totalRuns = arg.event.extendedProps.totalRuns;
+          const extendedProps = arg.event.extendedProps as unknown;
+          const propsRecord =
+            extendedProps && typeof extendedProps === 'object'
+              ? (extendedProps as Record<string, unknown>)
+              : {};
+          const isAggregate = propsRecord.isAggregate === true;
+          const totalRuns = typeof propsRecord.totalRuns === 'number' ? propsRecord.totalRuns : null;
 
           return (
             <div className="fc-event-content px-1 py-0.5 text-xs truncate">

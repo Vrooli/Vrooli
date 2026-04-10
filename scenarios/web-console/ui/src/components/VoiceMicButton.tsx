@@ -1,0 +1,251 @@
+import { useRef, useLayoutEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { Mic, Loader2, AlertCircle, Volume2 } from "lucide-react";
+import { cn } from "../lib/classnames";
+import type { StartRecordingOpts } from "../hooks/useVoiceInput";
+
+/** Hold duration (ms) that distinguishes tap-to-toggle from push-to-talk. */
+const LONG_PRESS_MS = 300;
+
+/**
+ * Grace period (ms) after entering "transcribing" state during which taps are
+ * treated as no-ops instead of cancels.  This prevents the race where VAD
+ * auto-stops recording at the same instant the user taps to stop — without the
+ * guard the tap would land on the new "transcribing" state and discard the
+ * pending transcript.
+ */
+const TRANSCRIBING_GRACE_MS = 400;
+
+interface VoiceMicButtonProps {
+  supported: boolean;
+  isPreparing: boolean;
+  isRecording: boolean;
+  /** True when persistent voice mode is active (distinct from one-shot recording). */
+  isListening?: boolean;
+  /** True when passive wake word listening is active (mic open, no streaming). */
+  isPassive?: boolean;
+  isTranscribing: boolean;
+  error: string | null;
+  /** 0-1 audio level for live mic visualization */
+  audioLevel?: number;
+  /** Live partial transcript from streaming transcription. */
+  partialTranscript?: string;
+  /** Active voice backend, shown in tooltip for diagnostics. */
+  backend?: string;
+  /** Whether TTS is currently playing audio. */
+  isTtsSpeaking?: boolean;
+  onStart: (opts?: StartRecordingOpts) => void;
+  onStop: () => void;
+  onCancel?: () => void;
+  /** Exit passive wake word mode. */
+  onExitPassive?: () => void;
+  /** Stop TTS playback when tapped during speaking. */
+  onTtsStop?: () => void;
+  /** Extra classes for the outer wrapper (e.g. to control height from a grid parent). */
+  className?: string;
+  /** Extra classes for the inner button element. */
+  buttonClassName?: string;
+}
+
+/** Fixed-position tooltip rendered via portal so it can't be clipped by overflow parents. */
+function ErrorTooltip({ anchor, text }: { anchor: HTMLElement; text: string }) {
+  const [style, setStyle] = useState<React.CSSProperties>({ visibility: "hidden" });
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const rect = anchor.getBoundingClientRect();
+    const el = tooltipRef.current;
+    if (!el) return;
+
+    const tooltipRect = el.getBoundingClientRect();
+    const pad = 4;
+
+    // Try above the button first, fall back to below if no room
+    let top: number;
+    if (rect.top - tooltipRect.height - pad >= pad) {
+      top = rect.top - tooltipRect.height - pad;
+    } else {
+      top = rect.bottom + pad;
+    }
+
+    // Center horizontally on the button, clamped to viewport
+    let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+    left = Math.max(pad, Math.min(left, window.innerWidth - tooltipRect.width - pad));
+
+    setStyle({ position: "fixed", top, left, visibility: "visible" });
+  }, [anchor, text]);
+
+  return createPortal(
+    <div
+      ref={tooltipRef}
+      className="z-[9999] w-48 rounded border border-amber-500/50 bg-wc-surface-raised px-2 py-1 text-[10px] text-amber-300 shadow-lg pointer-events-none"
+      style={style}
+    >
+      {text}
+    </div>,
+    document.body,
+  );
+}
+
+export default function VoiceMicButton({
+  supported,
+  isPreparing,
+  isRecording,
+  isListening = false,
+  isPassive = false,
+  isTranscribing,
+  error,
+  audioLevel = 0,
+  partialTranscript,
+  backend,
+  isTtsSpeaking = false,
+  onStart,
+  onStop,
+  onCancel,
+  onExitPassive,
+  onTtsStop,
+  className: wrapperClassName,
+  buttonClassName,
+}: VoiceMicButtonProps) {
+  /** True when the mic is actively capturing (either one-shot or persistent). */
+  const isMicActive = isRecording || isListening;
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const pressStartRef = useRef(0);
+  /** Tracks the intent of the current pointer interaction to avoid stale-closure races. */
+  const pressIntentRef = useRef<"start" | "stop" | "cancel" | "none">("none");
+
+  /** Timestamp (ms) when isTranscribing last became true — used for grace period. */
+  const transcribingAtRef = useRef(0);
+  const prevTranscribingRef = useRef(false);
+  if (isTranscribing && !prevTranscribingRef.current) {
+    transcribingAtRef.current = Date.now();
+  }
+  prevTranscribingRef.current = isTranscribing;
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    // Block interaction while preparing to prevent double-tap issues
+    if (isPreparing) return;
+    pressStartRef.current = Date.now();
+    if (isTranscribing) {
+      // Grace period: if we just entered transcribing (e.g. VAD auto-stopped),
+      // ignore the tap so the user doesn't accidentally cancel the transcript.
+      const inGracePeriod = Date.now() - transcribingAtRef.current < TRANSCRIBING_GRACE_MS;
+      pressIntentRef.current = onCancel && !inGracePeriod ? "cancel" : "none";
+    } else if (isPassive) {
+      pressIntentRef.current = "stop"; // Will call onExitPassive
+    } else if (isMicActive) {
+      pressIntentRef.current = "stop";
+    } else {
+      // Stop TTS if it's playing, then start recording
+      if (isTtsSpeaking) onTtsStop?.();
+      pressIntentRef.current = "start";
+      onStart({ vadEnabled: true });
+    }
+  }, [isPreparing, isMicActive, isPassive, isTranscribing, isTtsSpeaking, onStart, onCancel, onTtsStop]);
+
+  const handlePointerUp = useCallback(() => {
+    if (isPreparing) return;
+    const intent = pressIntentRef.current;
+    pressIntentRef.current = "none";
+    if (intent === "cancel") {
+      onCancel?.();
+    } else if (intent === "stop" && isPassive) {
+      onExitPassive?.();
+    } else if (intent === "stop") {
+      onStop();
+    } else if (intent === "start" && !isListening && Date.now() - pressStartRef.current >= LONG_PRESS_MS) {
+      // Long press release -- push-to-talk: stop recording (one-shot only)
+      onStop();
+    }
+    // Short press on "start" -- tap-to-toggle: keep recording
+  }, [isPreparing, isPassive, isListening, onStop, onCancel, onExitPassive]);
+
+  if (!supported) return null;
+
+  const isIdle = !isMicActive && !isPassive && !isTranscribing && !isPreparing;
+  const hasError = error !== null && isIdle && !isTtsSpeaking;
+  const showTtsSpeaking = isTtsSpeaking && isIdle;
+
+  return (
+    <div className={cn("relative shrink-0", wrapperClassName)}>
+      <button
+        ref={btnRef}
+        data-testid="voice-mic-btn"
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        className={cn(
+          "relative shrink-0 rounded border px-1.5 py-1 text-xs font-medium transition active:bg-wc-accent-active touch-manipulation overflow-hidden",
+          buttonClassName,
+          isPreparing
+            ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
+            : isPassive
+              ? "border-indigo-500/30 bg-indigo-500/5 text-indigo-400"
+              : isListening
+                ? "border-cyan-500 bg-cyan-500/20 text-cyan-400"
+              : isRecording
+                ? "border-red-500 bg-red-500/20 text-red-400"
+                : isTranscribing
+                  ? "border-blue-500 bg-blue-500/20 text-blue-400"
+                  : showTtsSpeaking
+                    ? "border-green-500 bg-green-500/20 text-green-400"
+                    : hasError
+                      ? "border-amber-500 bg-amber-500/10 text-amber-400"
+                      : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
+        )}
+        title={
+          isPreparing
+            ? "Preparing..."
+            : isPassive
+              ? "Listening for wake word... tap to stop"
+              : isListening
+                ? "Listening... tap to stop"
+              : isRecording
+                ? "Recording... tap to stop"
+                : isTranscribing
+                  ? "Transcribing... tap to cancel"
+                  : showTtsSpeaking
+                    ? "Speaking... tap to stop"
+                    : hasError
+                      ? `Voice error: ${error}`
+                      : `Tap to speak${backend ? ` (${backend === "whisper" ? "Whisper" : "Browser"})` : ""}`
+        }
+      >
+        {/* Audio level fill -- rises from bottom. Cyan for listening, red for recording. */}
+        {isMicActive && (
+          <span
+            className={cn(
+              "absolute inset-x-0 bottom-0 rounded-[inherit] transition-[height] duration-75",
+              isListening ? "bg-cyan-500/30" : "bg-red-500/30",
+            )}
+            style={{ height: `${Math.round(audioLevel * 100)}%` }}
+          />
+        )}
+        {isPreparing ? (
+          <Mic className="h-3.5 w-3.5 animate-pulse relative" />
+        ) : isPassive ? (
+          <Mic className="h-3.5 w-3.5 animate-[breathe_3s_ease-in-out_infinite] relative opacity-60" />
+        ) : isListening ? (
+          <Mic className="h-3.5 w-3.5 animate-pulse relative" />
+        ) : isTranscribing ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin relative" />
+        ) : showTtsSpeaking ? (
+          <Volume2 className="h-3.5 w-3.5 animate-pulse relative" />
+        ) : hasError ? (
+          <AlertCircle className="h-3.5 w-3.5 relative" />
+        ) : (
+          <Mic className="h-3.5 w-3.5 relative" />
+        )}
+      </button>
+      {hasError && btnRef.current && (
+        <ErrorTooltip anchor={btnRef.current} text={error as string} />
+      )}
+      {isMicActive && partialTranscript && btnRef.current && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 max-w-[200px] rounded border border-wc-default bg-wc-surface-raised px-2 py-1 text-[10px] text-wc-text-secondary shadow-lg pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis">
+          {partialTranscript}
+        </div>
+      )}
+    </div>
+  );
+}

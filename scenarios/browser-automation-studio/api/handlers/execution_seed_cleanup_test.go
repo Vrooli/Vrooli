@@ -3,7 +3,6 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,36 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/services/testgenie"
 )
-
-// MockSeedCleanupManager is a mock for testgenie.SeedCleanupManager
-type MockSeedCleanupManager struct {
-	ScheduleError     error
-	ScheduleCalled    bool
-	LastExecutionID   string
-	LastScenario      string
-	LastCleanupToken  string
-}
-
-func (m *MockSeedCleanupManager) Schedule(executionID, scenario, cleanupToken string) error {
-	m.ScheduleCalled = true
-	m.LastExecutionID = executionID
-	m.LastScenario = scenario
-	m.LastCleanupToken = cleanupToken
-	return m.ScheduleError
-}
-
-// Compile-time check to ensure interface compliance
-var _ interface {
-	Schedule(string, string, string) error
-} = (*MockSeedCleanupManager)(nil)
-
-// createTestHandlerWithSeedCleanup creates a handler with seed cleanup manager for testing
-func createTestHandlerWithSeedCleanup() (*Handler, *MockSeedCleanupManager) {
-	handler, _, _, _, _, _ := createTestHandler()
-	mockManager := &MockSeedCleanupManager{}
-	handler.seedCleanupManager = &testgenie.SeedCleanupManager{}
-	return handler, mockManager
-}
 
 // ============================================================================
 // ScheduleExecutionSeedCleanup Tests
@@ -104,7 +73,9 @@ func TestScheduleExecutionSeedCleanup_MissingCleanupToken(t *testing.T) {
 	}
 
 	var response map[string]any
-	json.Unmarshal(rr.Body.Bytes(), &response)
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if response["code"] != "MISSING_REQUIRED_FIELD" {
 		t.Errorf("expected MISSING_REQUIRED_FIELD error code, got %v", response["code"])
 	}
@@ -154,7 +125,9 @@ func TestScheduleExecutionSeedCleanup_NilSeedCleanupManager(t *testing.T) {
 	}
 
 	var response map[string]any
-	json.Unmarshal(rr.Body.Bytes(), &response)
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	details := response["details"].(map[string]any)
 	if details["error"] != "seed cleanup manager unavailable" {
 		t.Errorf("expected 'seed cleanup manager unavailable' error, got %v", details["error"])
@@ -213,7 +186,9 @@ func TestScheduleExecutionSeedCleanup_Success(t *testing.T) {
 	// In production-like scenarios, it would succeed
 	if rr.Code == http.StatusOK {
 		var response map[string]any
-		json.Unmarshal(rr.Body.Bytes(), &response)
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
 		if response["status"] != "scheduled" {
 			t.Errorf("expected status 'scheduled', got %v", response["status"])
 		}
@@ -244,18 +219,6 @@ func TestScheduleExecutionSeedCleanup_ScheduleError(t *testing.T) {
 	// The manager will try to schedule and may fail due to nil dependencies
 	// We're just verifying error handling works correctly
 	_ = rr.Code // Status depends on internal manager behavior
-}
-
-// mockScheduleManager is a concrete type that can be assigned to seedCleanupManager
-type mockScheduleManager struct {
-	scheduleFunc func(execID, scenario, token string) error
-}
-
-func (m *mockScheduleManager) Schedule(execID, scenario, token string) error {
-	if m.scheduleFunc != nil {
-		return m.scheduleFunc(execID, scenario, token)
-	}
-	return nil
 }
 
 func TestSeedCleanupScheduleRequest_Fields(t *testing.T) {
@@ -302,6 +265,3 @@ func TestSeedCleanupScheduleRequest_Fields(t *testing.T) {
 		})
 	}
 }
-
-// Helper to suppress unused import warning
-var _ = errors.New

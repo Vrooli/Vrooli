@@ -1,14 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
-
-	"github.com/gorilla/mux"
 )
 
 const maxUploadSize = 10 * 1024 * 1024 // 10MB
@@ -21,14 +17,14 @@ func handleAssetUpload(as *AssetsService) http.HandlerFunc {
 
 		// Parse multipart form
 		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
-			http.Error(w, "File too large or invalid form data", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "File too large or invalid form data", ApiErrorTypeValidation)
 			return
 		}
 
 		// Get the file from form
 		file, header, err := r.FormFile("file")
 		if err != nil {
-			http.Error(w, "No file provided in 'file' field", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "No file provided in 'file' field", ApiErrorTypeValidation)
 			return
 		}
 		defer file.Close()
@@ -46,19 +42,21 @@ func handleAssetUpload(as *AssetsService) http.HandlerFunc {
 			AltText:    altText,
 			UploadedBy: uploadedBy,
 		})
-
 		if err != nil {
 			status := http.StatusInternalServerError
+			errType := ApiErrorTypeServerError
 			if strings.Contains(err.Error(), "invalid file type") {
 				status = http.StatusBadRequest
+				errType = ApiErrorTypeValidation
 			} else if strings.Contains(err.Error(), "file exceeds") {
 				status = http.StatusRequestEntityTooLarge
+				errType = ApiErrorTypeValidation
 			}
 			logStructuredError("asset_upload_failed", map[string]interface{}{
 				"error":    err.Error(),
 				"filename": header.Filename,
 			})
-			http.Error(w, err.Error(), status)
+			writeJSONError(w, status, err.Error(), errType)
 			return
 		}
 
@@ -71,19 +69,19 @@ func handleAssetUpload(as *AssetsService) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(asset)
+		writeJSONSuccessData(w, asset)
 	}
 }
 
 // handleAssetsList handles GET /api/v1/admin/assets
 func handleAssetsList(as *AssetsService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		category := r.URL.Query().Get("category")
+		category := getQueryParam(r, "category")
 
 		assets, err := as.List(category)
 		if err != nil {
 			logStructuredError("list_assets_failed", map[string]interface{}{"error": err.Error()})
-			http.Error(w, "Failed to list assets", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to list assets", ApiErrorTypeServerError)
 			return
 		}
 
@@ -91,8 +89,7 @@ func handleAssetsList(as *AssetsService) http.HandlerFunc {
 			assets = []Asset{}
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		writeJSONSuccessData(w, map[string]interface{}{
 			"assets": assets,
 		})
 	}
@@ -101,56 +98,47 @@ func handleAssetsList(as *AssetsService) http.HandlerFunc {
 // handleAssetGet handles GET /api/v1/admin/assets/{id}
 func handleAssetGet(as *AssetsService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		idStr := vars["id"]
-
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			http.Error(w, "Invalid asset ID", http.StatusBadRequest)
+		id, ok := getPathParamInt(w, r, "id")
+		if !ok {
 			return
 		}
 
 		asset, err := as.Get(id)
 		if err != nil {
 			if err == ErrAssetNotFound {
-				http.Error(w, "Asset not found", http.StatusNotFound)
+				writeJSONError(w, http.StatusNotFound, "Asset not found", ApiErrorTypeNotFound)
 				return
 			}
 			logStructuredError("get_asset_failed", map[string]interface{}{
 				"id":    id,
 				"error": err.Error(),
 			})
-			http.Error(w, "Failed to get asset", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to get asset", ApiErrorTypeServerError)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(asset)
+		writeJSONSuccessData(w, asset)
 	}
 }
 
 // handleAssetDelete handles DELETE /api/v1/admin/assets/{id}
 func handleAssetDelete(as *AssetsService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		idStr := vars["id"]
-
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			http.Error(w, "Invalid asset ID", http.StatusBadRequest)
+		id, ok := getPathParamInt(w, r, "id")
+		if !ok {
 			return
 		}
 
 		if err := as.Delete(id); err != nil {
 			if err == ErrAssetNotFound {
-				http.Error(w, "Asset not found", http.StatusNotFound)
+				writeJSONError(w, http.StatusNotFound, "Asset not found", ApiErrorTypeNotFound)
 				return
 			}
 			logStructuredError("delete_asset_failed", map[string]interface{}{
 				"id":    id,
 				"error": err.Error(),
 			})
-			http.Error(w, "Failed to delete asset", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to delete asset", ApiErrorTypeServerError)
 			return
 		}
 
@@ -162,21 +150,21 @@ func handleAssetDelete(as *AssetsService) http.HandlerFunc {
 
 // handleServeUpload handles GET /api/v1/uploads/{path...}
 // This serves uploaded files publicly (no auth required)
+//
+//nolint:unused // reserved for debug-only asset preview handler
 func handleServeUpload(as *AssetsService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get the path after /api/v1/uploads/
-		vars := mux.Vars(r)
-		storagePath := vars["path"]
-
-		if storagePath == "" {
-			http.Error(w, "File path required", http.StatusBadRequest)
+		storagePath, ok := getPathParam(r, "path")
+		if !ok || storagePath == "" {
+			writeJSONError(w, http.StatusBadRequest, "File path required", ApiErrorTypeValidation)
 			return
 		}
 
 		// Security: prevent directory traversal
 		cleanPath := filepath.Clean(storagePath)
 		if strings.Contains(cleanPath, "..") {
-			http.Error(w, "Invalid path", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid path", ApiErrorTypeValidation)
 			return
 		}
 
@@ -186,15 +174,15 @@ func handleServeUpload(as *AssetsService) http.HandlerFunc {
 		// Check if file exists
 		stat, err := os.Stat(fullPath)
 		if os.IsNotExist(err) {
-			http.Error(w, "File not found", http.StatusNotFound)
+			writeJSONError(w, http.StatusNotFound, "File not found", ApiErrorTypeNotFound)
 			return
 		}
 		if err != nil {
-			http.Error(w, "Failed to access file", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to access file", ApiErrorTypeServerError)
 			return
 		}
 		if stat.IsDir() {
-			http.Error(w, "Cannot serve directory", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Cannot serve directory", ApiErrorTypeValidation)
 			return
 		}
 

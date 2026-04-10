@@ -1,0 +1,19 @@
+{
+  "kind": "org-chart",
+  "schemaVersion": 1,
+  "teamId": "marketing-crew",
+  "edges": [
+    {
+      "managerAgentId": "marketing-lead",
+      "reportAgentId": "content-creator"
+    },
+    {
+      "managerAgentId": "marketing-lead",
+      "reportAgentId": "market-researcher"
+    },
+    {
+      "managerAgentId": "marketing-lead",
+      "reportAgentId": "content-editor"
+    }
+  ]
+}

@@ -41,22 +41,22 @@ describe('Health Route', () => {
     await sessionManager.shutdown();
   });
 
-  it('should return 200 OK', async () => {
+  it('should return 200 OK', () => {
     const mockReq = createMockHttpRequest({ method: 'GET', url: '/health' });
     const mockRes = createMockHttpResponse();
 
-    await handleHealth(mockReq, mockRes, sessionManager);
+    handleHealth(mockReq, mockRes, sessionManager);
 
     expect(mockRes.statusCode).toBe(200);
   });
 
-  it('should return status and sessions count', async () => {
+  it('should return status and sessions count', () => {
     const mockReq = createMockHttpRequest({ method: 'GET', url: '/health' });
     const mockRes = createMockHttpResponse();
 
-    await handleHealth(mockReq, mockRes, sessionManager);
+    handleHealth(mockReq, mockRes, sessionManager);
 
-    const json = (mockRes as any).getJSON();
+    const json = mockRes.getJSON();
     // Status is 'degraded' when browser hasn't been verified yet
     expect(['ok', 'degraded']).toContain(json.status);
     expect(json.sessions).toBe(0);
@@ -76,9 +76,9 @@ describe('Health Route', () => {
     const mockReq = createMockHttpRequest({ method: 'GET', url: '/health' });
     const mockRes = createMockHttpResponse();
 
-    await handleHealth(mockReq, mockRes, sessionManager);
+    handleHealth(mockReq, mockRes, sessionManager);
 
-    const json = (mockRes as any).getJSON();
+    const json = mockRes.getJSON();
     expect(json.sessions).toBe(1);
   });
 });

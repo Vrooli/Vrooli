@@ -11,10 +11,12 @@
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start stop status test logs clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start stop status test logs clean build dev run fmt fmt-go fmt-ui lint lint-go lint-ui check export-variants sync-variants
 
 # Default target - show help
 .DEFAULT_GOAL := help
+
+API_URL ?= http://localhost:3000
 
 # Get scenario name from current directory
 SCENARIO_NAME := $(notdir $(CURDIR))
@@ -58,6 +60,37 @@ test: ## Run all tests (API, UI, CLI)
 logs: ## Show recent logs for this scenario
 	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
+
+export-variants: ## Export variant snapshots to .vrooli/variants (requires ADMIN_SESSION cookie)
+	@if [ -z "$(ADMIN_SESSION)" ]; then \
+		echo "$(RED)Missing ADMIN_SESSION cookie value$(RESET)"; \
+		echo "Set ADMIN_SESSION to the admin_session cookie from the admin login response."; \
+		exit 1; \
+	fi
+	@mkdir -p .vrooli/variants
+	@echo "$(BLUE)📦 Exporting variants from $(API_URL)...$(RESET)"
+	@curl -s -H "Cookie: admin_session=$(ADMIN_SESSION)" "$(API_URL)/api/v1/variants" \
+		| jq -r '.variants[].slug' \
+		| while read -r slug; do \
+			if [ -n "$$slug" ]; then \
+				curl -s -H "Cookie: admin_session=$(ADMIN_SESSION)" "$(API_URL)/api/v1/admin/variants/$$slug/export" \
+					| jq 'del(.variant.weight, .variant.status)' \
+					> ".vrooli/variants/$$slug.json"; \
+				echo "  - $$slug"; \
+			fi; \
+		done
+	@echo "$(GREEN)✓ Variant snapshots exported$(RESET)"
+
+sync-variants: ## Re-import variant snapshots into the database (requires ADMIN_SESSION cookie)
+	@if [ -z "$(ADMIN_SESSION)" ]; then \
+		echo "$(RED)Missing ADMIN_SESSION cookie value$(RESET)"; \
+		echo "Set ADMIN_SESSION to the admin_session cookie from the admin login response."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🔄 Syncing variants into $(API_URL)...$(RESET)"
+	@curl -s -X POST -H "Cookie: admin_session=$(ADMIN_SESSION)" "$(API_URL)/api/v1/admin/variants/sync"
+	@echo ""
+	@echo "$(GREEN)✓ Variant snapshots synced$(RESET)"
 
 clean: ## Clean build artifacts
 	@echo "$(YELLOW)🧹 Cleaning $(SCENARIO_NAME) build artifacts...$(RESET)"
@@ -119,3 +152,6 @@ lint-ui: ## Lint UI code
 
 check: fmt lint test ## Run formatting, linting, and tests
 	@echo "$(GREEN)✓ All checks passed$(RESET)"
+
+# Development shortcuts
+run: start

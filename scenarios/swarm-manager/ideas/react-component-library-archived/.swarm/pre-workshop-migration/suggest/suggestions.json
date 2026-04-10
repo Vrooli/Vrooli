@@ -1,0 +1,43 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-02-25T12:00:00Z",
+  "itemKind": "idea",
+  "itemName": "react-component-library-archived",
+  "suggestions": [
+    {
+      "id": "S001",
+      "category": "scope",
+      "impact": "high",
+      "title": "Defer app-issue-tracker integration and simplify adoption to file-copy + CLI",
+      "details": "The user answered \"None\" for initial adoption targets (Q005) and was unsure why app-issue-tracker was needed (Q003). The adoption workflow (OT-P0-010, ADOPT-001 through ADOPT-004) adds significant complexity and an external dependency for a feature with no immediate consumers. Replace the P0 adoption workflow with a simple CLI command that copies a component into a target scenario directory and adds the header comment. This removes the app-issue-tracker dependency entirely for launch, letting the scenario ship faster with its core value: registry + editor + preview + AI editing. The full app-issue-tracker integration can be a P1 feature if adoption tracking proves valuable.",
+      "status": "pending"
+    },
+    {
+      "id": "S002",
+      "category": "architecture",
+      "impact": "high",
+      "title": "Replace PostgreSQL with embedded SQLite or flat-file JSON registry",
+      "details": "The PRD lists PostgreSQL as a required resource, but the component registry is a single-user tool where the filesystem (header comments) is already the source of truth. PostgreSQL adds operational overhead (resource dependency, migrations, connection management) for what is essentially a metadata cache. An embedded SQLite database or even a JSON index file (regenerated from disk scans) would eliminate the postgres dependency, simplify deployment, and align with the \"index from disk\" design (OT-P0-003). This is especially appropriate since the user confirmed internal-only components (Q007) - there is no multi-user concurrency concern.",
+      "status": "pending"
+    },
+    {
+      "id": "S003",
+      "category": "scope",
+      "impact": "medium",
+      "title": "Defer multi-viewport emulator to P1 and ship with single-frame preview first",
+      "details": "The multi-viewport emulator (OT-P0-006) is listed as P0 but adds substantial frontend complexity (multiple synchronized iframes, viewport presets, independent state per frame). The core value proposition is the component registry + code editor + live preview + AI editing. A single resizable preview iframe delivers 80% of the value. Multi-viewport can be added as a P1 enhancement once the core editing workflow is proven. This reduces P0 scope significantly and avoids the iframe-bridge complexity for element selection across multiple frames (OT-P0-007 also simplifies with a single frame).",
+      "status": "pending"
+    },
+    {
+      "id": "S004",
+      "category": "architecture",
+      "impact": "medium",
+      "title": "Use CodeMirror 6 instead of Monaco Editor",
+      "details": "The RESEARCH.md and PROBLEMS.md note that Monaco adds 2-3MB bundle size and the project already has build performance concerns (4400+ Vite modules across the ecosystem). CodeMirror 6 is significantly lighter (~200KB), has a modern extensible architecture, excellent TypeScript/TSX support via @lezer/javascript, and is more customizable for the specific needs here (custom lint rules for header comments, integration with AI suggestion overlays). Monaco is overkill for a single-file component editor - its value is in full IDE experiences. CodeMirror 6 is used by Replit and many modern editors precisely because of its balance of capability and performance.",
+      "status": "pending"
+    },
+    {
+      "id": "S005",
+      "category": "opportunity",
+      "impact": "high",
+      "title": "Design the registry as a reusable Vrooli capability for any scenarios

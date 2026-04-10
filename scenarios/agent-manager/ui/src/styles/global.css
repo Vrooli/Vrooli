@@ -7,7 +7,7 @@
   --foreground: 210 20% 98%;
   --card: 222 47% 8%;
   --card-foreground: 210 20% 96%;
-  --popover: 222 47% 8%;
+  --popover: 222 40% 13%;
   --popover-foreground: 210 20% 96%;
   --primary: 217 91% 60%;
   --primary-foreground: 210 100% 98%;
@@ -75,14 +75,22 @@ body {
   background: hsl(var(--muted-foreground));
 }
 
-/* Diff viewer styles */
-.diff-add {
-  background-color: rgba(34, 197, 94, 0.15);
+/* Hide scrollbar for horizontal tab scroll areas */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Diff viewer styles — table rows */
+tr.diff-add td {
+  background-color: rgba(34, 197, 94, 0.10);
+}
+tr.diff-add td:last-child {
   border-left: 3px solid hsl(var(--success));
 }
 
-.diff-remove {
-  background-color: rgba(239, 68, 68, 0.15);
+tr.diff-remove td {
+  background-color: rgba(239, 68, 68, 0.10);
+}
+tr.diff-remove td:last-child {
   border-left: 3px solid hsl(var(--destructive));
 }
 

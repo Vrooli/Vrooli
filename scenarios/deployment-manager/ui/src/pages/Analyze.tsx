@@ -40,7 +40,7 @@ export function Analyze() {
   const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
-    fetch("/embedded/analyzer/target")
+    fetch("/embedded/scenario-dependency-analyzer/external-url")
       .then((res) => res.json())
       .then((json) => {
         if (json?.url) setAnalyzerTarget(json.url as string);
@@ -91,7 +91,7 @@ export function Analyze() {
     if (queryScenario) params.set("scenario", queryScenario);
     params.set("graph_type", "combined");
     params.set("layout", "force");
-    const base = analyzerTarget || "/embedded/analyzer/";
+    const base = analyzerTarget || "/embedded/scenario-dependency-analyzer/";
     const separator = base.endsWith("/") ? "" : "/";
     return `${base}${separator}?${params.toString()}`;
   }, [analyzerTarget, queryScenario]);

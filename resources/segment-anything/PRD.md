@@ -22,7 +22,7 @@
   - Health endpoint implemented with all metrics
 
 ### P1 Requirements (Should Have - 4 items)  
-- [ ] **Text-Guided Segmentation**: Integration adapters for GroundingDINO or VOCR prompts enabling text-based object selection
+- [ ] **Text-Guided Segmentation**: Integration adapters for GroundingDINO prompts enabling text-based object selection
 - [ ] **Workflow Automation**: N8n recipes for batch processing, feeding outputs to Blender/OpenMCT/digital-twin pipelines
 - [ ] **Storage Integration**: Persist masks in MinIO, metadata in Postgres, embeddings in Qdrant for retrieval and reuse
 - [ ] **Quality Metrics Capture**: Track segmentation metrics in QuestDB (inference time, IoU scores, mask counts) for benchmarking

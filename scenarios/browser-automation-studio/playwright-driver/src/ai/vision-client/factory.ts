@@ -88,11 +88,7 @@ export function createVisionClient(config: VisionClientConfig): VisionModelClien
       );
 
     default: {
-      const _exhaustive: never = modelSpec.provider;
-      throw new VisionModelError(
-        `Unknown provider: ${modelSpec.provider}`,
-        'MODEL_UNAVAILABLE'
-      );
+      throw new VisionModelError('Unknown provider', 'MODEL_UNAVAILABLE');
     }
   }
 }
@@ -156,8 +152,9 @@ export function isModelSupported(modelId: string): boolean {
  */
 export function getSupportedModelIds(): string[] {
   // Import dynamically to avoid circular dependency
-  const { getAllModels } = require('./model-registry');
-  return getAllModels()
+  // eslint-disable-next-line @typescript-eslint/no-var-requires -- avoids circular dependency
+  const registry = require('./model-registry') as typeof import('./model-registry');
+  return registry.getAllModels()
     .filter((spec: VisionModelSpec) => spec.provider === 'openrouter' || spec.provider === 'anthropic')
     .map((spec: VisionModelSpec) => spec.id);
 }

@@ -31,15 +31,22 @@ const mockCampaign = {
   id: '1',
   name: 'Test Campaign',
   from_agent: 'test-agent',
-  status: 'active',
+  status: 'active' as const,
   location: '/test',
   pattern: '**/*.ts',
   patterns: ['**/*.ts'],
   tags: ['test'],
   total_files: 10,
   visited_files: 5,
+  coverage_percent: 50,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
+};
+
+const mockCampaignDetail = {
+  ...mockCampaign,
+  visits: [],
+  tracked_files: [],
 };
 
 describe('App', () => {
@@ -106,7 +113,7 @@ describe('App', () => {
       vi.mocked(api.fetchCampaigns).mockResolvedValue({
         campaigns: [mockCampaign],
       });
-      vi.mocked(api.fetchCampaign).mockResolvedValue(mockCampaign);
+      vi.mocked(api.fetchCampaign).mockResolvedValue(mockCampaignDetail);
 
       render(<App />, { wrapper: createWrapper() });
 
@@ -127,7 +134,7 @@ describe('App', () => {
       vi.mocked(api.fetchCampaigns).mockResolvedValue({
         campaigns: [mockCampaign],
       });
-      vi.mocked(api.fetchCampaign).mockResolvedValue(mockCampaign);
+      vi.mocked(api.fetchCampaign).mockResolvedValue(mockCampaignDetail);
 
       render(<App />, { wrapper: createWrapper() });
 
@@ -177,7 +184,7 @@ describe('App', () => {
       const user = userEvent.setup();
       vi.mocked(api.fetchCampaigns).mockResolvedValue({ campaigns: [] });
       vi.mocked(api.createCampaign).mockResolvedValue(mockCampaign);
-      vi.mocked(api.fetchCampaign).mockResolvedValue(mockCampaign);
+      vi.mocked(api.fetchCampaign).mockResolvedValue(mockCampaignDetail);
 
       render(<App />, { wrapper: createWrapper() });
 
@@ -214,7 +221,7 @@ describe('App', () => {
       const user = userEvent.setup();
       vi.mocked(api.fetchCampaigns).mockResolvedValue({ campaigns: [] });
       vi.mocked(api.createCampaign).mockResolvedValue(mockCampaign);
-      vi.mocked(api.fetchCampaign).mockResolvedValue(mockCampaign);
+      vi.mocked(api.fetchCampaign).mockResolvedValue(mockCampaignDetail);
 
       render(<App />, { wrapper: createWrapper() });
 
@@ -357,7 +364,7 @@ describe('App', () => {
       vi.mocked(api.fetchCampaigns).mockResolvedValue({
         campaigns: [mockCampaign],
       });
-      vi.mocked(api.fetchCampaign).mockResolvedValue(mockCampaign);
+      vi.mocked(api.fetchCampaign).mockResolvedValue(mockCampaignDetail);
 
       render(<App />, { wrapper: createWrapper() });
 

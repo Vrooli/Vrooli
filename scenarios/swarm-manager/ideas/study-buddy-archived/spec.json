@@ -1,0 +1,29 @@
+{
+  "archived_at": "2026-02-05T21:24:02Z",
+  "created": "2026-02-05T21:24:02Z",
+  "description": "AI-powered study assistant for personalized learning",
+  "name": "study-buddy-archived",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "personal-assistant",
+    "education",
+    "learning",
+    "study",
+    "flashcards",
+    "quiz",
+    "spaced-repetition",
+    "nodejs-ui",
+    "go-api",
+    "n8n-workflows",
+    "postgres-storage",
+    "redis-cache",
+    "qdrant-vectors",
+    "ollama-ai",
+    "kid-friendly",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] study-buddy",
+  "updated": "2026-02-05T21:24:02Z"
+}

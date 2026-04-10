@@ -11,7 +11,9 @@ import {
   Clapperboard,
   Film,
   FileJson,
-  MousePointer2,
+  Image,
+  Monitor,
+  Palette,
   Video,
 } from "lucide-react";
 import type {
@@ -20,6 +22,7 @@ import type {
   ExportFormat,
   ExportFormatOption,
   ExportRenderSourceOption,
+  ExportStylizationOption,
 } from "./types";
 
 // =============================================================================
@@ -98,20 +101,43 @@ export const EXPORT_RENDER_SOURCE_OPTIONS: ExportRenderSourceOption[] = [
   {
     id: "auto",
     label: "Auto",
-    description: "Prefer recorded video and fall back to replay render.",
+    description: "Prefer recording when available, fall back to slideshow.",
     icon: Clapperboard,
   },
   {
     id: "recorded_video",
-    label: "Recorded video",
-    description: "Use native Playwright recording when available.",
+    label: "Recording",
+    description: "Export the native screen recording captured during execution.",
     icon: Video,
   },
   {
     id: "replay_frames",
-    label: "Replay render",
-    description: "Use stylized replay frames (best for cursor control).",
-    icon: MousePointer2,
+    label: "Slideshow",
+    description: "Create a stylized video from captured screenshots with cursor animation.",
+    icon: Image,
+  },
+];
+
+// =============================================================================
+// Stylization Options (for ExportDialog)
+// =============================================================================
+
+/**
+ * Stylization options for the export dialog.
+ * Controls whether visual enhancements are applied during export.
+ */
+export const EXPORT_STYLIZATION_OPTIONS: ExportStylizationOption[] = [
+  {
+    id: "stylized",
+    label: "Stylized",
+    description: "Apply browser frame, background, and cursor overlay.",
+    icon: Palette,
+  },
+  {
+    id: "raw",
+    label: "Raw",
+    description: "Export content exactly as captured.",
+    icon: Monitor,
   },
 ];
 

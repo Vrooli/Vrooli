@@ -1,0 +1,21 @@
+{
+  "sections_present": [
+    "Purpose",
+    "Required Reading",
+    "Problem Statement",
+    "Scope",
+    "Current Technical Context",
+    "Target End State",
+    "Implementation Strategy",
+    "Contract Decisions",
+    "Testing Plan",
+    "Rollout/Validation Checklist",
+    "Risks + Mitigations",
+    "Non-goals/Prohibited Patterns",
+    "Definition of Done"
+  ],
+  "sections_missing": null,
+  "warnings": null,
+  "passed": true,
+  "validated_at": "2026-04-10T16:57:31Z"
+}

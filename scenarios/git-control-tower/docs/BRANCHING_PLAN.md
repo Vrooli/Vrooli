@@ -4,7 +4,7 @@
 - Scenario: `git-control-tower` (API + CLI + UI) with existing status/diff/stage/commit/push/pull.
 - Current branch support: read-only display via `RepoStatus.branch` in UI header.
 - Gap: no branch list/switch/create/publish workflows, limiting usability.
-- Architectural seams: `GitRunner` interface, service-layer deps structs, pure parsers, and test fakes (`FakeGitRunner`) documented in `docs/SEAMS.md`.
+- Architectural seams: `GitRunner` interface, service-layer deps structs, pure parsers, and test fakes (`FakeGitRunner`) documented in `docs/internal/SEAMS.md`.
 
 ## Objectives
 - Provide safe, intuitive branch controls (list, create, switch, publish).

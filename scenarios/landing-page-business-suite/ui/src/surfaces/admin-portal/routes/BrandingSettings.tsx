@@ -1,249 +1,45 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
+import { PageHeader } from '../components/PageHeader';
+import { FormSection } from '../components/FormSection';
+import { FormField } from '../components/FormField';
+import { inputClassName, textareaClassName } from '../components/formFieldClasses';
+import { StatusBadgeGrid } from '../components/StatusBadge';
+import { LabelWithHelp } from '../components/LabelWithHelp';
+import { PasswordInput } from '../components/PasswordInput';
+import { ClearableInput } from '../components/ClearableInput';
+import { Callout } from '../components/Callout';
 import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
-import { getBranding, updateBranding, clearBrandingField, type SiteBranding, type Asset } from '../../../shared/api';
-import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, CheckCircle2, AlertCircle, MessageCircle, HelpCircle, Mail, Eye, EyeOff } from 'lucide-react';
-
-interface BrandingFormState {
-  site_name: string;
-  tagline: string;
-  logo_url: string;
-  logo_icon_url: string;
-  favicon_url: string;
-  apple_touch_icon_url: string;
-  default_title: string;
-  default_description: string;
-  default_og_image_url: string;
-  theme_primary_color: string;
-  theme_background_color: string;
-  canonical_base_url: string;
-  google_site_verification: string;
-  robots_txt: string;
-  support_chat_url: string;
-  support_email: string;
-  smtp_host: string;
-  smtp_port: string;
-  smtp_username: string;
-  smtp_password: string;
-  smtp_from: string;
-}
-
-const defaultForm: BrandingFormState = {
-  site_name: '',
-  tagline: '',
-  logo_url: '',
-  logo_icon_url: '',
-  favicon_url: '',
-  apple_touch_icon_url: '',
-  default_title: '',
-  default_description: '',
-  default_og_image_url: '',
-  theme_primary_color: '',
-  theme_background_color: '',
-  canonical_base_url: '',
-  google_site_verification: '',
-  robots_txt: '',
-  support_chat_url: '',
-  support_email: '',
-  smtp_host: '',
-  smtp_port: '587',
-  smtp_username: '',
-  smtp_password: '',
-  smtp_from: '',
-};
-
-function brandingToForm(branding: SiteBranding): BrandingFormState {
-  return {
-    site_name: branding.site_name ?? '',
-    tagline: branding.tagline ?? '',
-    logo_url: branding.logo_url ?? '',
-    logo_icon_url: branding.logo_icon_url ?? '',
-    favicon_url: branding.favicon_url ?? '',
-    apple_touch_icon_url: branding.apple_touch_icon_url ?? '',
-    default_title: branding.default_title ?? '',
-    default_description: branding.default_description ?? '',
-    default_og_image_url: branding.default_og_image_url ?? '',
-    theme_primary_color: branding.theme_primary_color ?? '',
-    theme_background_color: branding.theme_background_color ?? '',
-    canonical_base_url: branding.canonical_base_url ?? '',
-    google_site_verification: branding.google_site_verification ?? '',
-    robots_txt: branding.robots_txt ?? '',
-    support_chat_url: branding.support_chat_url ?? '',
-    support_email: branding.support_email ?? '',
-    smtp_host: branding.smtp_host ?? '',
-    smtp_port: branding.smtp_port?.toString() ?? '587',
-    smtp_username: branding.smtp_username ?? '',
-    smtp_password: branding.smtp_password ?? '',
-    smtp_from: branding.smtp_from ?? '',
-  };
-}
+import { Textarea } from '../../../shared/ui/input';
+import { ToggleSwitch } from '../../../shared/ui/ToggleSwitch';
+import { InlineAlert } from '../../../shared/ui/InlineAlert';
+import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, MessageCircle, Mail, Clock } from 'lucide-react';
+import { useBrandingForm } from '../hooks/useBrandingForm';
+import { LAYOUT } from '../config/layout.constants';
 
 export function BrandingSettings() {
-  const [branding, setBranding] = useState<SiteBranding | null>(null);
-  const [form, setForm] = useState<BrandingFormState>(defaultForm);
-  const [originalForm, setOriginalForm] = useState<BrandingFormState>(defaultForm);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  const loadBranding = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getBranding();
-      setBranding(data);
-      const formData = brandingToForm(data);
-      setForm(formData);
-      setOriginalForm(formData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load branding');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadBranding();
-  }, [loadBranding]);
-
-  const handleInput = (field: keyof BrandingFormState) => (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    setForm((prev) => ({ ...prev, [field]: event.target.value }));
-    setSuccessMessage(null);
-  };
-
-  const handleImageChange = (field: keyof BrandingFormState) => (url: string | null) => {
-    setForm((prev) => ({ ...prev, [field]: url ?? '' }));
-    setSuccessMessage(null);
-  };
-
-  const applyLogoDerivatives = (asset: Asset) => {
-    const primaryLogo =
-      asset.derivatives?.logo_512 || asset.derivatives?.logo_256 || asset.url || form.logo_url;
-    const iconLogo =
-      asset.derivatives?.logo_icon ||
-      asset.derivatives?.logo_256 ||
-      asset.derivatives?.logo_128 ||
-      form.logo_icon_url ||
-      primaryLogo;
-    const favicon =
-      asset.derivatives?.favicon_32 ||
-      asset.derivatives?.favicon_64 ||
-      asset.derivatives?.favicon ||
-      form.favicon_url;
-    const touch = asset.derivatives?.apple_touch_180 || form.apple_touch_icon_url || favicon;
-
-    setForm((prev) => ({
-      ...prev,
-      logo_url: primaryLogo,
-      logo_icon_url: iconLogo,
-      favicon_url: favicon ?? prev.favicon_url,
-      apple_touch_icon_url: touch ?? prev.apple_touch_icon_url,
-    }));
-    setSuccessMessage(null);
-  };
-
-  const applyFaviconDerivatives = (asset: Asset) => {
-    const favicon =
-      asset.derivatives?.favicon ||
-      asset.derivatives?.favicon_32 ||
-      asset.derivatives?.favicon_64 ||
-      asset.url ||
-      form.favicon_url;
-    const touch = asset.derivatives?.apple_touch_180 || form.apple_touch_icon_url || favicon;
-    setForm((prev) => ({
-      ...prev,
-      favicon_url: favicon,
-      apple_touch_icon_url: touch,
-    }));
-    setSuccessMessage(null);
-  };
-
-  const applyOgDerivatives = (asset: Asset) => {
-    const og = asset.derivatives?.og_image_1200x630 || asset.url;
-    setForm((prev) => ({
-      ...prev,
-      default_og_image_url: og ?? '',
-    }));
-    setSuccessMessage(null);
-  };
-
-  const handleClearField = async (field: keyof BrandingFormState) => {
-    try {
-      const data = await clearBrandingField(field);
-      setBranding(data);
-      const formData = brandingToForm(data);
-      setForm(formData);
-      setOriginalForm(formData);
-      setSuccessMessage(`Cleared ${field.replace(/_/g, ' ')}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to clear field');
-    }
-  };
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setSaving(true);
-    setError(null);
-    setSuccessMessage(null);
-
-    try {
-      const payload: Record<string, string | number> = {};
-      (Object.keys(form) as (keyof BrandingFormState)[]).forEach((key) => {
-        const current = form[key].trim();
-        const original = originalForm[key].trim();
-        if (current !== original && current.length > 0) {
-          // Convert smtp_port to number
-          if (key === 'smtp_port') {
-            payload[key] = parseInt(current, 10);
-          } else {
-            payload[key] = current;
-          }
-        }
-      });
-
-      if (Object.keys(payload).length === 0) {
-        setError('No changes to save');
-        setSaving(false);
-        return;
-      }
-
-      const updated = await updateBranding(payload);
-      setBranding(updated);
-      const formData = brandingToForm(updated);
-      setForm(formData);
-      setOriginalForm(formData);
-      setSuccessMessage('Branding updated successfully');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update branding');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const isDirty = JSON.stringify(form) !== JSON.stringify(originalForm);
-
-  // Compute branding setup health
-  const brandingHealth = useMemo(() => {
-    const checks = {
-      identity: Boolean(form.site_name && form.logo_url),
-      favicon: Boolean(form.favicon_url),
-      seo: Boolean(form.default_title && form.default_description),
-      ogImage: Boolean(form.default_og_image_url),
-    };
-    const configured = Object.values(checks).filter(Boolean).length;
-    const total = Object.keys(checks).length;
-    return { checks, configured, total, percentage: Math.round((configured / total) * 100) };
-  }, [form]);
-
-  const previewPublicLanding = () => {
-    window.open('/', '_blank', 'noopener,noreferrer');
-  };
+  const {
+    branding,
+    form,
+    loading,
+    saving,
+    error,
+    successMessage,
+    isDirty,
+    brandingHealth,
+    loadBrandingData,
+    handleInput,
+    handleFieldChange,
+    handleImageChange,
+    applyLogoDerivatives,
+    applyFaviconDerivatives,
+    applyOgDerivatives,
+    handleClearField,
+    handleSubmit,
+    toggleComingSoon,
+    previewPublicLanding,
+  } = useBrandingForm();
 
   const renderColorPreview = (color: string) => {
     if (!color) return null;
@@ -257,117 +53,96 @@ export function BrandingSettings() {
   };
 
   return (
-    <AdminLayout>
-      <div className="space-y-8">
-        {/* Enhanced Header with Purpose Statement */}
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-900/90 p-6" data-testid="branding-header">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="flex-1">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Branding</p>
-              <h1 className="text-2xl font-bold text-white mt-1">Configure how your landing page looks and ranks</h1>
-              <p className="text-slate-400 text-sm mt-2">
-                Set your site identity, colors, and SEO defaults. These settings apply site-wide and can be overridden per-variant for specific sections.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
+    <AdminLayout maxWidth="default">
+      <div className={LAYOUT.pageSpacing}>
+        <PageHeader
+          variant="icon-title"
+          title="Configure how your landing page looks and ranks"
+          description="Set your site identity, colors, and SEO defaults. These settings apply site-wide and can be overridden per-variant for specific sections."
+          icon={Palette}
+          iconBgClass="bg-pink-500/10"
+          iconColorClass="text-pink-400"
+          testId="branding-header"
+          actions={
+            <>
               <Button variant="outline" size="sm" onClick={previewPublicLanding} className="gap-2" data-testid="branding-preview">
                 <ExternalLink className="h-4 w-4" />
                 Preview landing
               </Button>
-              <Button variant="ghost" size="sm" onClick={loadBranding} className="gap-2" data-testid="branding-refresh">
+              <Button variant="ghost" size="sm" onClick={loadBrandingData} className="gap-2" data-testid="branding-refresh">
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </Button>
-            </div>
-          </div>
+            </>
+          }
+        />
 
-          {/* Setup Completeness Indicator */}
-          {!loading && (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="branding-health">
-              <BrandingHealthBadge
-                label="Site identity"
-                configured={brandingHealth.checks.identity}
-                description={brandingHealth.checks.identity ? 'Name and logo set' : 'Add site name and logo'}
-              />
-              <BrandingHealthBadge
-                label="Favicon"
-                configured={brandingHealth.checks.favicon}
-                description={brandingHealth.checks.favicon ? 'Browser icon set' : 'Upload a favicon'}
-              />
-              <BrandingHealthBadge
-                label="SEO defaults"
-                configured={brandingHealth.checks.seo}
-                description={brandingHealth.checks.seo ? 'Title and description set' : 'Add page title and description'}
-              />
-              <BrandingHealthBadge
-                label="Social preview"
-                configured={brandingHealth.checks.ogImage}
-                description={brandingHealth.checks.ogImage ? 'OG image uploaded' : 'Upload social share image'}
-              />
-            </div>
-          )}
-        </div>
+        {/* Setup Completeness Indicator */}
+        {!loading && (
+          <StatusBadgeGrid
+            testId="branding-health"
+            columns={4}
+            badges={[
+              {
+                label: 'Site identity',
+                status: brandingHealth.checks.identity ? 'success' : 'warning',
+                description: brandingHealth.checks.identity ? 'Name and logo set' : 'Add site name and logo',
+              },
+              {
+                label: 'Favicon',
+                status: brandingHealth.checks.favicon ? 'success' : 'warning',
+                description: brandingHealth.checks.favicon ? 'Browser icon set' : 'Upload a favicon',
+              },
+              {
+                label: 'SEO defaults',
+                status: brandingHealth.checks.seo ? 'success' : 'warning',
+                description: brandingHealth.checks.seo ? 'Title and description set' : 'Add page title and description',
+              },
+              {
+                label: 'Social preview',
+                status: brandingHealth.checks.ogImage ? 'success' : 'warning',
+                description: brandingHealth.checks.ogImage ? 'OG image uploaded' : 'Upload social share image',
+              },
+            ]}
+          />
+        )}
 
         {loading ? (
           <div className="text-slate-400">Loading branding settings...</div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Site Identity */}
-            <Card className="border-white/10 bg-slate-900/60">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Type className="h-5 w-5 text-blue-300" /> Site Identity
-                </CardTitle>
-                <CardDescription>
-                  Your site name, tagline, and brand imagery
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+            <FormSection
+              title="Site Identity"
+              description="Your site name, tagline, and brand imagery"
+              icon={Type}
+              iconColorClass="text-blue-300"
+              testId="branding-identity-section"
+            >
+              <div className="space-y-6">
                 <div className="grid gap-6 md:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Site Name
-                    </label>
+                  <FormField label="Site Name">
                     <input
                       type="text"
                       value={form.site_name}
                       onChange={handleInput('site_name')}
                       placeholder="My Landing Page"
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                      className={inputClassName}
                     />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Tagline
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={form.tagline}
-                        onChange={handleInput('tagline')}
-                        placeholder="Your catchy tagline"
-                        className="mt-1 flex-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
-                      />
-                      {form.tagline && (
-                        <button
-                          type="button"
-                          onClick={() => handleClearField('tagline')}
-                          className="mt-1 p-2 text-slate-400 hover:text-rose-400"
-                          title="Clear tagline"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                  </FormField>
+                  <FormField label="Tagline">
+                    <ClearableInput
+                      value={form.tagline}
+                      onChange={handleInput('tagline')}
+                      onClear={() => handleClearField('tagline')}
+                      placeholder="Your catchy tagline"
+                    />
+                  </FormField>
                 </div>
 
                 {/* Logo Upload */}
                 <div className="grid gap-6 md:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-                      Logo
-                    </label>
+                  <FormField label="Logo" helpText="Upload a high-quality logo (any size). We auto-generate multiple sizes and a square icon.">
                     <ImageUploader
                       value={form.logo_url}
                       onChange={handleImageChange('logo_url')}
@@ -378,14 +153,8 @@ export function BrandingSettings() {
                       previewSize="lg"
                       alt="Site logo"
                     />
-                    <p className="mt-1 text-xs text-slate-500">
-                      Upload a high-quality logo (any size). We auto-generate multiple sizes and a square icon.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-                      Logo Icon (Square)
-                    </label>
+                  </FormField>
+                  <FormField label="Logo Icon (Square)">
                     <ImageUploader
                       value={form.logo_icon_url}
                       onChange={handleImageChange('logo_icon_url')}
@@ -396,15 +165,12 @@ export function BrandingSettings() {
                       previewSize="md"
                       alt="Site icon"
                     />
-                  </div>
+                  </FormField>
                 </div>
 
                 {/* Favicon Upload */}
                 <div className="grid gap-6 md:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-                      Favicon
-                    </label>
+                  <FormField label="Favicon" helpText="Recommended: 32x32 or 16x16 pixels">
                     <ImageUploader
                       value={form.favicon_url}
                       onChange={handleImageChange('favicon_url')}
@@ -416,14 +182,8 @@ export function BrandingSettings() {
                       accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/ico"
                       alt="Favicon"
                     />
-                    <p className="mt-1 text-xs text-slate-500">
-                      Recommended: 32x32 or 16x16 pixels
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-                      Apple Touch Icon
-                    </label>
+                  </FormField>
+                  <FormField label="Apple Touch Icon" helpText="Upload any size; we generate 180px touch icon plus small favicon sizes automatically.">
                     <ImageUploader
                       value={form.apple_touch_icon_url}
                       onChange={handleImageChange('apple_touch_icon_url')}
@@ -434,144 +194,167 @@ export function BrandingSettings() {
                       previewSize="md"
                       alt="Apple touch icon"
                     />
-                    <p className="mt-1 text-xs text-slate-500">
-                      Upload any size; we generate 180px touch icon plus small favicon sizes automatically.
+                  </FormField>
+                </div>
+              </div>
+            </FormSection>
+
+            {/* Coming Soon Mode */}
+            <FormSection
+              title="Coming Soon Mode"
+              description="Show a coming soon page to visitors while you prepare your landing page"
+              icon={Clock}
+              iconColorClass="text-amber-300"
+              testId="branding-coming-soon-section"
+            >
+              <div className="space-y-6">
+                {/* Toggle Switch */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label htmlFor="coming-soon-toggle" className="text-sm font-medium text-white">
+                      Enable Coming Soon Mode
+                    </label>
+                    <p className="text-xs text-slate-400 mt-1">
+                      When enabled, visitors see a "coming soon" page with email signup
                     </p>
                   </div>
+                  <ToggleSwitch
+                    id="coming-soon-toggle"
+                    checked={form.coming_soon_enabled}
+                    onToggle={toggleComingSoon}
+                  />
                 </div>
-              </CardContent>
-            </Card>
+
+                {/* Custom Message (only shown when enabled) */}
+                {form.coming_soon_enabled && (
+                  <>
+                    <FormField label="Custom Message (Optional)" helpText="Leave empty to use the default message">
+                      <Textarea
+                        value={form.coming_soon_message}
+                        onChange={handleInput('coming_soon_message')}
+                        placeholder="We are working hard to bring you something amazing. Stay tuned!"
+                        rows={3}
+                        className={textareaClassName}
+                      />
+                    </FormField>
+
+                    <Callout
+                      type="info"
+                      title="Admin panel remains accessible"
+                      message={
+                        <>
+                          The admin panel at <code className="bg-slate-800 px-1 rounded">/admin</code> will
+                          still be accessible for you to manage your site. Only public routes are affected.
+                        </>
+                      }
+                    />
+                  </>
+                )}
+              </div>
+            </FormSection>
 
             {/* Theme Colors */}
-            <Card className="border-white/10 bg-slate-900/60">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Palette className="h-5 w-5 text-purple-300" /> Theme Colors
-                </CardTitle>
-                <CardDescription>
-                  Customize primary accent and background colors
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-6 md:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Primary Accent Color
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={form.theme_primary_color}
-                        onChange={handleInput('theme_primary_color')}
-                        placeholder="#3B82F6"
-                        className="mt-1 flex-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
-                      />
-                      <input
-                        type="color"
-                        value={form.theme_primary_color || '#3B82F6'}
-                        onChange={(e) => setForm((prev) => ({ ...prev, theme_primary_color: e.target.value }))}
-                        className="mt-1 h-10 w-10 cursor-pointer rounded-lg border border-white/10 bg-slate-900/70"
-                      />
-                      {form.theme_primary_color && (
-                        <button
-                          type="button"
-                          onClick={() => handleClearField('theme_primary_color')}
-                          className="mt-1 p-2 text-slate-400 hover:text-rose-400"
-                          title="Clear color"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                    {renderColorPreview(form.theme_primary_color)}
+            <FormSection
+              title="Theme Colors"
+              description="Customize primary accent and background colors"
+              icon={Palette}
+              iconColorClass="text-purple-300"
+              testId="branding-theme-section"
+            >
+              <div className="grid gap-6 md:grid-cols-2">
+                <FormField label="Primary Accent Color">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={form.theme_primary_color}
+                      onChange={handleInput('theme_primary_color')}
+                      placeholder="#3B82F6"
+                      className={`flex-1 ${inputClassName}`}
+                    />
+                    <input
+                      type="color"
+                      value={form.theme_primary_color || '#3B82F6'}
+                      onChange={(e) => handleFieldChange('theme_primary_color', e.target.value)}
+                      className="mt-1 h-10 w-10 cursor-pointer rounded-lg border border-white/10 bg-slate-900/70"
+                    />
+                    {form.theme_primary_color && (
+                      <button
+                        type="button"
+                        onClick={() => handleClearField('theme_primary_color')}
+                        className="mt-1 p-2 text-slate-400 hover:text-rose-400"
+                        title="Clear color"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Background Color
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={form.theme_background_color}
-                        onChange={handleInput('theme_background_color')}
-                        placeholder="#07090F"
-                        className="mt-1 flex-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
-                      />
-                      <input
-                        type="color"
-                        value={form.theme_background_color || '#07090F'}
-                        onChange={(e) => setForm((prev) => ({ ...prev, theme_background_color: e.target.value }))}
-                        className="mt-1 h-10 w-10 cursor-pointer rounded-lg border border-white/10 bg-slate-900/70"
-                      />
-                      {form.theme_background_color && (
-                        <button
-                          type="button"
-                          onClick={() => handleClearField('theme_background_color')}
-                          className="mt-1 p-2 text-slate-400 hover:text-rose-400"
-                          title="Clear color"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                    {renderColorPreview(form.theme_background_color)}
+                  {renderColorPreview(form.theme_primary_color)}
+                </FormField>
+                <FormField label="Background Color">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={form.theme_background_color}
+                      onChange={handleInput('theme_background_color')}
+                      placeholder="#07090F"
+                      className={`flex-1 ${inputClassName}`}
+                    />
+                    <input
+                      type="color"
+                      value={form.theme_background_color || '#07090F'}
+                      onChange={(e) => handleFieldChange('theme_background_color', e.target.value)}
+                      className="mt-1 h-10 w-10 cursor-pointer rounded-lg border border-white/10 bg-slate-900/70"
+                    />
+                    {form.theme_background_color && (
+                      <button
+                        type="button"
+                        onClick={() => handleClearField('theme_background_color')}
+                        className="mt-1 p-2 text-slate-400 hover:text-rose-400"
+                        title="Clear color"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                  {renderColorPreview(form.theme_background_color)}
+                </FormField>
+              </div>
+            </FormSection>
 
             {/* Default SEO */}
-            <Card className="border-white/10 bg-slate-900/60">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Search className="h-5 w-5 text-green-300" /> Default SEO
-                </CardTitle>
-                <CardDescription>
-                  Default meta tags for search engines and social sharing (can be overridden per-variant)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Form Fields */}
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        Default Page Title
-                      </label>
-                      <input
-                        type="text"
-                        value={form.default_title}
-                        onChange={handleInput('default_title')}
-                        placeholder="My Amazing Product - Tagline Here"
-                        maxLength={60}
-                        className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
-                      />
-                      <p className="mt-1 text-xs text-slate-500">
-                        {form.default_title.length}/60 characters (recommended)
-                      </p>
-                    </div>
+            <FormSection
+              title="Default SEO"
+              description="Default meta tags for search engines and social sharing (can be overridden per-variant)"
+              icon={Search}
+              iconColorClass="text-green-300"
+              testId="branding-seo-section"
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Form Fields */}
+                <div className="space-y-6">
+                  <FormField label="Default Page Title" charCount={{ current: form.default_title.length, max: 60 }}>
+                    <input
+                      type="text"
+                      value={form.default_title}
+                      onChange={handleInput('default_title')}
+                      placeholder="My Amazing Product - Tagline Here"
+                      maxLength={60}
+                      className={inputClassName}
+                    />
+                  </FormField>
 
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        Default Description
-                      </label>
-                      <textarea
-                        value={form.default_description}
-                        onChange={handleInput('default_description')}
-                        placeholder="A compelling description of your product or service..."
-                        rows={3}
-                        maxLength={160}
-                        className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
-                      />
-                      <p className="mt-1 text-xs text-slate-500">
-                        {form.default_description.length}/160 characters (recommended)
-                      </p>
-                    </div>
+                  <FormField label="Default Description" charCount={{ current: form.default_description.length, max: 160 }}>
+                    <Textarea
+                      value={form.default_description}
+                      onChange={handleInput('default_description')}
+                      placeholder="A compelling description of your product or service..."
+                      rows={3}
+                      maxLength={160}
+                      className={textareaClassName}
+                    />
+                  </FormField>
 
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-                        Default OG Image (Social Preview)
-                      </label>
+                  <FormField label="Default OG Image (Social Preview)" helpText="We resize to 1200x630 for you so social shares look crisp.">
                     <ImageUploader
                       value={form.default_og_image_url}
                       onChange={handleImageChange('default_og_image_url')}
@@ -582,10 +365,7 @@ export function BrandingSettings() {
                       previewSize="xl"
                       alt="Social preview image"
                     />
-                    <p className="mt-1 text-xs text-slate-500">
-                      We resize to 1200x630 for you so social shares look crisp.
-                    </p>
-                  </div>
+                  </FormField>
                 </div>
 
                   {/* Live Preview */}
@@ -605,136 +385,83 @@ export function BrandingSettings() {
                       favicon={form.favicon_url || undefined}
                       twitterCard="summary_large_image"
                     />
-                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </FormSection>
 
             {/* Technical Settings */}
-            <Card className="border-white/10 bg-slate-900/60">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Globe className="h-5 w-5 text-cyan-300" /> Technical Settings
-                </CardTitle>
-                <CardDescription>
-                  Canonical URLs, verification codes, and robots.txt
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+            <FormSection
+              title="Technical Settings"
+              description="Canonical URLs, verification codes, and robots.txt"
+              icon={Globe}
+              iconColorClass="text-cyan-300"
+              testId="branding-technical-section"
+            >
+              <div className="space-y-6">
                 <div className="grid gap-6 md:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Canonical Base URL
-                    </label>
+                  <FormField label="Canonical Base URL" helpText="Used for canonical URLs and sitemap generation">
                     <input
                       type="url"
                       value={form.canonical_base_url}
                       onChange={handleInput('canonical_base_url')}
                       placeholder="https://example.com"
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                      className={inputClassName}
                     />
-                    <p className="mt-1 text-xs text-slate-500">
-                      Used for canonical URLs and sitemap generation
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Google Site Verification
-                    </label>
+                  </FormField>
+                  <FormField label="Google Site Verification">
                     <input
                       type="text"
                       value={form.google_site_verification}
                       onChange={handleInput('google_site_verification')}
                       placeholder="verification-code"
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                      className={inputClassName}
                     />
-                  </div>
+                  </FormField>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    robots.txt Content
-                  </label>
-                  <textarea
+                <FormField label="robots.txt Content">
+                  <Textarea
                     value={form.robots_txt}
                     onChange={handleInput('robots_txt')}
                     placeholder={'User-agent: *\nAllow: /'}
                     rows={5}
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 font-mono text-sm text-white"
+                    className={`${textareaClassName} font-mono`}
                   />
-                </div>
-              </CardContent>
-            </Card>
+                </FormField>
+              </div>
+            </FormSection>
 
             {/* Support Settings */}
-            <Card className="border-white/10 bg-slate-900/60">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5 text-orange-300" /> Support
-                </CardTitle>
-                <CardDescription>
-                  Configure how visitors can get help (async-first, no sales calls)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    AI Chat Agent URL
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={form.support_chat_url}
-                      onChange={handleInput('support_chat_url')}
-                      placeholder="https://chat.openai.com/g/g-your-gpt-id"
-                      className="mt-1 flex-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
-                    />
-                    {form.support_chat_url && (
-                      <button
-                        type="button"
-                        onClick={() => handleClearField('support_chat_url')}
-                        className="mt-1 p-2 text-slate-400 hover:text-rose-400"
-                        title="Clear URL"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Link to your AI assistant (ChatGPT GPT, Claude, or custom chat). Shown in the FAQ section as "Ask our AI assistant".
-                  </p>
-                  <p className="mt-2 text-xs text-slate-400">
-                    Leave empty to hide the support CTA from the FAQ section.
-                  </p>
-                </div>
+            <FormSection
+              title="Support"
+              description="Configure how visitors can get help (async-first, no sales calls)"
+              icon={MessageCircle}
+              iconColorClass="text-orange-300"
+              testId="branding-support-section"
+            >
+              <div className="space-y-6">
+                <FormField
+                  label="AI Chat Agent URL"
+                  helpText="Link to your AI assistant (ChatGPT GPT, Claude, or custom chat). Shown in the FAQ section as 'Ask our AI assistant'. Leave empty to hide the support CTA."
+                >
+                  <ClearableInput
+                    type="url"
+                    value={form.support_chat_url}
+                    onChange={handleInput('support_chat_url')}
+                    onClear={() => handleClearField('support_chat_url')}
+                    placeholder="https://chat.openai.com/g/g-your-gpt-id"
+                  />
+                </FormField>
 
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Support Email
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="email"
-                      value={form.support_email}
-                      onChange={handleInput('support_email')}
-                      placeholder="support@yourcompany.com"
-                      className="mt-1 flex-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
-                    />
-                    {form.support_email && (
-                      <button
-                        type="button"
-                        onClick={() => handleClearField('support_email')}
-                        className="mt-1 p-2 text-slate-400 hover:text-rose-400"
-                        title="Clear email"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Feedback submissions from /feedback will be sent to this email address.
-                  </p>
-                </div>
+                <FormField label="Support Email" helpText="Feedback submissions from /feedback will be sent to this email address.">
+                  <ClearableInput
+                    type="email"
+                    value={form.support_email}
+                    onChange={handleInput('support_email')}
+                    onClear={() => handleClearField('support_email')}
+                    placeholder="support@yourcompany.com"
+                  />
+                </FormField>
 
                 {/* SMTP Configuration - only show when support email is set */}
                 {form.support_email && (
@@ -758,7 +485,7 @@ export function BrandingSettings() {
                           value={form.smtp_host}
                           onChange={handleInput('smtp_host')}
                           placeholder="smtp.gmail.com"
-                          className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                          className={inputClassName}
                         />
                       </div>
                       <div>
@@ -771,7 +498,7 @@ export function BrandingSettings() {
                           value={form.smtp_port}
                           onChange={handleInput('smtp_port')}
                           placeholder="587"
-                          className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                          className={inputClassName}
                         />
                       </div>
                     </div>
@@ -787,7 +514,7 @@ export function BrandingSettings() {
                           value={form.smtp_username}
                           onChange={handleInput('smtp_username')}
                           placeholder="you@gmail.com"
-                          className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                          className={inputClassName}
                         />
                       </div>
                       <div>
@@ -813,7 +540,7 @@ export function BrandingSettings() {
                         value={form.smtp_from}
                         onChange={handleInput('smtp_from')}
                         placeholder="noreply@yourcompany.com (optional)"
-                        className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                        className={inputClassName}
                       />
                     </div>
 
@@ -838,119 +565,42 @@ export function BrandingSettings() {
                     </details>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </FormSection>
 
             {/* Save Button */}
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <Button type="submit" disabled={!isDirty || saving} className="gap-2">
                 {saving && <RefreshCw className="h-4 w-4 animate-spin" />}
                 {isDirty ? 'Save Changes' : 'No Changes'}
               </Button>
-              {error && <p className="text-sm text-rose-300">{error}</p>}
-              {successMessage && <p className="text-sm text-emerald-300">{successMessage}</p>}
               {branding?.updated_at && (
                 <p className="text-xs text-slate-500">
                   Last updated: {new Date(branding.updated_at).toLocaleString()}
                 </p>
               )}
             </div>
+            {error && (
+              <InlineAlert
+                severity="error"
+                message={error}
+                dismissible={false}
+                className="mt-4"
+                data-testid="branding-error"
+              />
+            )}
+            {successMessage && (
+              <InlineAlert
+                severity="success"
+                message={successMessage}
+                dismissible={false}
+                className="mt-4"
+                data-testid="branding-success"
+              />
+            )}
           </form>
         )}
       </div>
     </AdminLayout>
-  );
-}
-
-interface BrandingHealthBadgeProps {
-  label: string;
-  configured: boolean;
-  description: string;
-}
-
-function BrandingHealthBadge({ label, configured, description }: BrandingHealthBadgeProps) {
-  return (
-    <div
-      className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
-        configured
-          ? 'border-emerald-500/30 bg-emerald-500/10'
-          : 'border-amber-500/30 bg-amber-500/10'
-      }`}
-    >
-      {configured ? (
-        <CheckCircle2 className="h-5 w-5 text-emerald-300" />
-      ) : (
-        <AlertCircle className="h-5 w-5 text-amber-300" />
-      )}
-      <div>
-        <p className="text-sm font-semibold text-white">{label}</p>
-        <p className="text-xs text-slate-400">{description}</p>
-      </div>
-    </div>
-  );
-}
-
-interface LabelWithHelpProps {
-  label: string;
-  help: string;
-}
-
-function LabelWithHelp({ label, help }: LabelWithHelpProps) {
-  const [showHelp, setShowHelp] = useState(false);
-
-  return (
-    <div className="relative">
-      <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-        {label}
-        <button
-          type="button"
-          onClick={() => setShowHelp(!showHelp)}
-          className="text-slate-500 hover:text-slate-300"
-        >
-          <HelpCircle className="h-3.5 w-3.5" />
-        </button>
-      </label>
-      {showHelp && (
-        <div className="absolute left-0 top-full z-10 mt-1 w-72 rounded-lg border border-white/10 bg-slate-800 p-3 text-xs text-slate-300 shadow-xl">
-          {help}
-          <button
-            type="button"
-            onClick={() => setShowHelp(false)}
-            className="absolute right-2 top-2 text-slate-500 hover:text-slate-300"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface PasswordInputProps {
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  placeholder?: string;
-}
-
-function PasswordInput({ value, onChange, placeholder }: PasswordInputProps) {
-  const [show, setShow] = useState(false);
-
-  return (
-    <div className="relative">
-      <input
-        type={show ? 'text' : 'password'}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 pr-10 text-sm text-white"
-      />
-      <button
-        type="button"
-        onClick={() => setShow(!show)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-      >
-        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-      </button>
-    </div>
   );
 }

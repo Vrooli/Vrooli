@@ -37,6 +37,7 @@ var (
 	NewSkipObservation    = shared.NewSkipObservation
 )
 
+// DOC: docs/phases/docs/README.md#summary-metrics
 // Summary aggregates key counts for docs validation.
 type Summary struct {
 	FilesChecked     int `json:"filesChecked"`
@@ -51,10 +52,29 @@ type Summary struct {
 	ExternalFailures int `json:"externalFailures"`
 	MermaidFailures  int `json:"mermaidFailures"`
 	AbsoluteFailures int `json:"absoluteFailures"`
+
+	// Bidirectional reference tracking
+	CodeRefsFound    int `json:"codeRefsFound"`
+	CodeRefsBroken   int `json:"codeRefsBroken"`
+	DocRefsFound     int `json:"docRefsFound"`
+	DocRefsBroken    int `json:"docRefsBroken"`
+	CodeFilesScanned int `json:"codeFilesScanned"`
+
+	// Manifest tracking
+	DocsInManifest    int `json:"docsInManifest"`
+	DocsNotInManifest int `json:"docsNotInManifest"`
 }
 
 // String returns a short human-readable summary.
 func (s Summary) String() string {
-	return fmt.Sprintf("%d files, %d broken links, %d mermaid errors, %d markdown errors",
+	base := fmt.Sprintf("%d files, %d broken links, %d mermaid errors, %d markdown errors",
 		s.FilesChecked, s.BrokenLinks, s.MermaidFailures, s.MarkdownFailures)
+
+	// Add reference metrics if any were found
+	if s.CodeRefsFound > 0 || s.DocRefsFound > 0 {
+		base += fmt.Sprintf(", code refs: %d found/%d broken, doc refs: %d found/%d broken",
+			s.CodeRefsFound, s.CodeRefsBroken, s.DocRefsFound, s.DocRefsBroken)
+	}
+
+	return base
 }

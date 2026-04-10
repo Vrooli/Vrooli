@@ -239,6 +239,18 @@ func TestClaudeCodeRunner_ParseStreamEvent_ResultSuccess(t *testing.T) {
 	if costData.OutputTokens != 40 {
 		t.Errorf("expected outputTokens=40, got %d", costData.OutputTokens)
 	}
+
+	// Verify gotResult flag is set after parsing a "result" event
+	state := runner.streamStateFor(runID)
+	if state == nil {
+		t.Fatal("expected stream state, got nil")
+	}
+	if !state.gotResult {
+		t.Error("expected gotResult=true after parsing result event")
+	}
+	if state.resultIsError {
+		t.Error("expected resultIsError=false for successful result")
+	}
 }
 
 func TestClaudeCodeRunner_ParseStreamEvent_ResultError_RateLimit(t *testing.T) {
@@ -627,7 +639,7 @@ func TestClaudeCodeRunner_UpdateMetrics_ToolCallEvent(t *testing.T) {
 	metrics := ExecutionMetrics{}
 	var lastAssistant string
 
-	event := domain.NewToolCallEvent(runID, "Write", map[string]interface{}{"path": "/tmp/test"})
+	event := domain.NewToolCallEvent(runID, "Write", "toolu_test", map[string]interface{}{"path": "/tmp/test"})
 	runner.updateMetrics(event, &metrics, &lastAssistant)
 
 	if metrics.ToolCallCount != 1 {
@@ -777,6 +789,16 @@ func TestClaudeCodeRunner_DetectRateLimit_DailyLimit(t *testing.T) {
 	}
 }
 
+func TestClaudeCodeRunner_DetectRateLimit_HitYourLimitMessage(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+
+	info := runner.detectRateLimit("You've hit your limit · resets 10am (America/New_York)")
+
+	if !info.Detected {
+		t.Error("expected rate limit to be detected")
+	}
+}
+
 func TestClaudeCodeRunner_DetectRateLimit_NoLimit(t *testing.T) {
 	runner := &ClaudeCodeRunner{}
 
@@ -784,6 +806,312 @@ func TestClaudeCodeRunner_DetectRateLimit_NoLimit(t *testing.T) {
 
 	if info.Detected {
 		t.Error("expected rate limit NOT to be detected for unrelated message")
+	}
+}
+
+func TestClaudeCodeRunner_ParseResultEvent_NonErrorRateLimitMessage(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	runID := uuid.New()
+	event := &ClaudeStreamEvent{
+		Type:    "result",
+		IsError: false,
+		Result:  json.RawMessage(`"You've hit your limit · resets 10am (America/New_York)"`),
+	}
+
+	parsed, err := runner.parseResultEvent(runID, event)
+	if err != nil {
+		t.Fatalf("parseResultEvent returned error: %v", err)
+	}
+	if parsed == nil {
+		t.Fatal("expected event, got nil")
+	}
+	if parsed.EventType != domain.EventTypeError {
+		t.Fatalf("expected EventTypeError, got %s", parsed.EventType)
+	}
+	if _, ok := parsed.Data.(*domain.RateLimitEventData); !ok {
+		t.Fatalf("expected RateLimitEventData, got %T", parsed.Data)
+	}
+}
+
+// =============================================================================
+// ANSI ESCAPE SEQUENCE FILTERING TESTS
+// Regression tests for: ANSI-decorated terminal output from Claude Code's
+// --verbose mode must not create spurious events or leak into event content.
+// =============================================================================
+
+func TestStripANSI_BasicCSI(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect string
+	}{
+		{
+			name:   "reset colors and box drawing",
+			input:  "\x1b[39;49m\x1b[K\x1b[2m└\x1b[39m\x1b[49m\x1b[0m",
+			expect: "└",
+		},
+		{
+			name:   "no escape sequences",
+			input:  "Hello, world!",
+			expect: "Hello, world!",
+		},
+		{
+			name:   "empty string",
+			input:  "",
+			expect: "",
+		},
+		{
+			name:   "bold and color codes wrapping text",
+			input:  "\x1b[1m\x1b[31mError:\x1b[0m something failed",
+			expect: "Error: something failed",
+		},
+		{
+			name:   "cursor movement and erase",
+			input:  "\x1b[2K\x1b[1G\x1b[36m>\x1b[0m Processing...",
+			expect: "> Processing...",
+		},
+		{
+			name:   "OSC sequence (window title)",
+			input:  "\x1b]0;My Title\x07rest of text",
+			expect: "rest of text",
+		},
+		{
+			name:   "mixed ANSI in multiline",
+			input:  "\x1b[32m✓\x1b[0m Pass\n\x1b[31m✗\x1b[0m Fail",
+			expect: "✓ Pass\n✗ Fail",
+		},
+		{
+			name:   "trailing ESC",
+			input:  "hello\x1b",
+			expect: "hello",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := stripANSI(tc.input)
+			if got != tc.expect {
+				t.Errorf("stripANSI(%q) = %q, want %q", tc.input, got, tc.expect)
+			}
+		})
+	}
+}
+
+func TestParseStreamEvents_ANSILinesSkipped(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	runID := uuid.New()
+
+	// These are real ANSI escape sequences from Claude Code's terminal UI
+	// that appeared on stdout when stderr was merged via 2>&1.
+	ansiLines := []string{
+		"\x1b[39;49m\x1b[K\x1b[2m└\x1b[39m\x1b[49m\x1b[0m",
+		"\x1b[2K\x1b[1G\x1b[36m⠋\x1b[0m Thinking...",
+		"\x1b[1A\x1b[2K\x1b[1G",
+		"\x1b[?25h", // show cursor
+		"\x1b[?25l", // hide cursor
+		"\x1b[38;5;240m│\x1b[0m",
+		"\x1b[0m",
+	}
+
+	for i, line := range ansiLines {
+		events, err := runner.parseStreamEvents(runID, line)
+		if err != nil {
+			t.Errorf("line %d: unexpected error: %v", i, err)
+		}
+		if len(events) > 0 {
+			t.Errorf("line %d: expected no events for ANSI line %q, got %d events (type=%s)",
+				i, line, len(events), events[0].EventType)
+		}
+	}
+}
+
+func TestParseStreamEvents_ANSIInMessageContent(t *testing.T) {
+	runner := &ClaudeCodeRunner{
+		streamState: make(map[uuid.UUID]*claudeStreamState),
+	}
+	runID := uuid.New()
+	runner.initStreamState(runID)
+
+	// Simulate an assistant message where tool output leaked ANSI into text
+	ansiMsg := `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Output:\n\u001b[32m✓ Pass\u001b[0m\n\u001b[31m✗ Fail\u001b[0m"}]}}`
+
+	events, err := runner.parseStreamEvents(runID, ansiMsg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(events) == 0 {
+		t.Fatal("expected at least one event")
+	}
+
+	// Find the message event
+	for _, evt := range events {
+		if msgData, ok := evt.Data.(*domain.MessageEventData); ok {
+			if msgData.Content != "Output:\n✓ Pass\n✗ Fail" {
+				t.Errorf("ANSI not stripped from message content:\ngot:  %q\nwant: %q",
+					msgData.Content, "Output:\n✓ Pass\n✗ Fail")
+			}
+			return
+		}
+	}
+	t.Error("no message event found in parsed events")
+}
+
+func TestParseStreamEvents_ANSIInToolResult(t *testing.T) {
+	runner := &ClaudeCodeRunner{
+		streamState: make(map[uuid.UUID]*claudeStreamState),
+	}
+	runID := uuid.New()
+	runner.initStreamState(runID)
+
+	// Simulate a tool result with ANSI-decorated bash output
+	toolResultMsg := `{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_abc","content":"\u001b[1m\u001b[32mSuccess\u001b[0m: file created"}]}}`
+
+	events, err := runner.parseStreamEvents(runID, toolResultMsg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, evt := range events {
+		if resultData, ok := evt.Data.(*domain.ToolResultEventData); ok {
+			if resultData.Output != "Success: file created" {
+				t.Errorf("ANSI not stripped from tool result:\ngot:  %q\nwant: %q",
+					resultData.Output, "Success: file created")
+			}
+			return
+		}
+	}
+	t.Error("no tool result event found in parsed events")
+}
+
+func TestParseStreamEvents_HighVolumeANSINoEventSpam(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	runID := uuid.New()
+
+	// Simulate 1000 ANSI lines (typical verbose output during a long conversation)
+	// None should create events.
+	ansiPattern := "\x1b[39;49m\x1b[K\x1b[2m└\x1b[39m\x1b[49m\x1b[0m"
+	totalEvents := 0
+	for i := 0; i < 1000; i++ {
+		events, err := runner.parseStreamEvents(runID, ansiPattern)
+		if err != nil {
+			t.Fatalf("iteration %d: unexpected error: %v", i, err)
+		}
+		totalEvents += len(events)
+	}
+	if totalEvents > 0 {
+		t.Errorf("expected 0 events from 1000 ANSI lines, got %d", totalEvents)
+	}
+}
+
+// =============================================================================
+// USER MESSAGE SUPPRESSION
+// =============================================================================
+
+// TestParseStreamEvents_UserTextSuppressed verifies that user text messages
+// from the stream are NOT emitted as message events — the orchestrator already
+// creates these when sending prompts and follow-ups. Emitting them from the
+// stream would create duplicate "You" entries in the timeline.
+func TestParseStreamEvents_UserTextSuppressed(t *testing.T) {
+	runner := &ClaudeCodeRunner{
+		streamState: make(map[uuid.UUID]*claudeStreamState),
+	}
+	runID := uuid.New()
+	runner.initStreamState(runID)
+
+	// type:"message" with role:"user" — prompt echo or subagent prompt
+	events1, err := runner.parseStreamEvents(runID,
+		`{"type":"message","message":{"role":"user","content":"Find the code that does X"}}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, evt := range events1 {
+		if msgData, ok := evt.Data.(*domain.MessageEventData); ok && msgData.Role == "user" {
+			t.Errorf("user text message should be suppressed from type:message events, got content=%q", msgData.Content)
+		}
+	}
+
+	// type:"user" with plain text — follow-up echo
+	events2, err := runner.parseStreamEvents(runID,
+		`{"type":"user","message":{"role":"user","content":"Please also check the tests"}}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, evt := range events2 {
+		if msgData, ok := evt.Data.(*domain.MessageEventData); ok && msgData.Role == "user" {
+			t.Errorf("user text message should be suppressed from type:user events, got content=%q", msgData.Content)
+		}
+	}
+}
+
+// TestParseStreamEvents_UserToolResultsStillEmitted verifies that tool_result
+// blocks in user messages are still correctly extracted even though user text
+// is suppressed.
+func TestParseStreamEvents_UserToolResultsStillEmitted(t *testing.T) {
+	runner := &ClaudeCodeRunner{
+		streamState: make(map[uuid.UUID]*claudeStreamState),
+	}
+	runID := uuid.New()
+	runner.initStreamState(runID)
+
+	// type:"message" with role:"user" containing tool_result blocks
+	events, err := runner.parseStreamEvents(runID,
+		`{"type":"message","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_abc","content":"result data"}]}}`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	found := false
+	for _, evt := range events {
+		if resultData, ok := evt.Data.(*domain.ToolResultEventData); ok {
+			found = true
+			if resultData.Output != "result data" {
+				t.Errorf("unexpected output: %q, want %q", resultData.Output, "result data")
+			}
+		}
+	}
+	if !found {
+		t.Error("expected tool result event from type:message user event with tool_result blocks")
+	}
+}
+
+// =============================================================================
+// POST-RESULT STREAM PARSING
+// =============================================================================
+
+// TestParseStreamEvents_ContinuesAfterResult verifies that stream parsing does
+// not short-circuit after receiving the "result" event. This is important because
+// the scanner loop no longer breaks on gotResult — it reads until stdout EOF
+// (process exit). Any events emitted after the result (e.g., from background
+// subagent output) must still be parsed correctly.
+func TestParseStreamEvents_ContinuesAfterResult(t *testing.T) {
+	runner := &ClaudeCodeRunner{
+		streamState: make(map[uuid.UUID]*claudeStreamState),
+	}
+	runID := uuid.New()
+	runner.initStreamState(runID)
+
+	// Parse a result event — sets gotResult = true
+	events1, err := runner.parseStreamEvents(runID, claudeCodeSamples["result_success"])
+	if err != nil {
+		t.Fatalf("unexpected error parsing result: %v", err)
+	}
+	if len(events1) == 0 {
+		t.Fatal("expected events from result")
+	}
+
+	state := runner.streamStateFor(runID)
+	if !state.gotResult {
+		t.Fatal("expected gotResult=true after parsing result event")
+	}
+
+	// Parse more events after result — must still return valid events.
+	// This simulates background subagent output arriving after the main result.
+	events2, err := runner.parseStreamEvents(runID, claudeCodeSamples["assistant_text"])
+	if err != nil {
+		t.Fatalf("unexpected error parsing after result: %v", err)
+	}
+	if len(events2) == 0 {
+		t.Error("expected events to be parsed even after gotResult=true")
 	}
 }
 

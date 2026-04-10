@@ -72,7 +72,7 @@ Resources declared in `.vrooli/service.json` are checked:
 ```json
 {
   "resources": {
-    "required": ["postgres", "redis"],
+    "required": ["redis", "ollama"],
     "optional": ["browserless"]
   }
 }
@@ -81,6 +81,7 @@ Resources declared in `.vrooli/service.json` are checked:
 The phase verifies:
 - Required resources are running and healthy
 - Optional resources are noted if missing
+- Scenarios using embedded SQLite may declare no external resources at all
 
 ## Exit Codes
 
@@ -95,7 +96,7 @@ The phase verifies:
 |-------|-------|----------|
 | "go: command not found" | Go not installed | Install Go from golang.org |
 | "pnpm: command not found" | pnpm not installed | `npm install -g pnpm` |
-| "Resource postgres not running" | Database not started | `vrooli resource start postgres` |
+| "Resource <name> not running" | Required resource not started | `vrooli resource start <name>` |
 | "Node.js version too old" | Outdated Node.js | Install Node.js 18+ |
 
 ## Configuration

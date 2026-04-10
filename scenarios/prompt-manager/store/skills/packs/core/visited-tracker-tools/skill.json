@@ -1,0 +1,21 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "visited-tracker-tools",
+  "name": "Visited Tracker Tools",
+  "description": "Use visited-tracker to record file visits, exclusions, and handoff notes with glob and batch-friendly patterns.",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "visited-tracker",
+    "memory",
+    "coverage",
+    "workflow"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 11,
+  "createdAt": "2026-02-04T20:30:00Z",
+  "updatedAt": "2026-02-05T01:07:20Z"
+}

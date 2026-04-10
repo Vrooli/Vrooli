@@ -53,7 +53,7 @@ func TestWaitForReadiness_HealthSuccess(t *testing.T) {
 
 	_, portStr, _ := net.SplitHostPort(server.Listener.Addr().String())
 	var port int
-	fmt.Sscanf(portStr, "%d", &port)
+	_, _ = fmt.Sscanf(portStr, "%d", &port)
 
 	m := &manifest.Manifest{
 		Services: []manifest.Service{
@@ -94,7 +94,7 @@ func TestWaitForReadiness_PortOpen(t *testing.T) {
 
 	_, portStr, _ := net.SplitHostPort(listener.Addr().String())
 	var port int
-	fmt.Sscanf(portStr, "%d", &port)
+	_, _ = fmt.Sscanf(portStr, "%d", &port)
 
 	m := &manifest.Manifest{
 		Services: []manifest.Service{
@@ -179,7 +179,7 @@ func TestCheckOnce_TCP(t *testing.T) {
 
 	_, portStr, _ := net.SplitHostPort(listener.Addr().String())
 	var port int
-	fmt.Sscanf(portStr, "%d", &port)
+	_, _ = fmt.Sscanf(portStr, "%d", &port)
 
 	m := &manifest.Manifest{
 		Services: []manifest.Service{

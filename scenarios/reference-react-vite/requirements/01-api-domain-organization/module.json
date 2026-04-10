@@ -1,0 +1,134 @@
+{
+  "description": "Implement a Go API with screaming-architecture organization: endpoints grouped by bounded context/domain, not by HTTP verbs or technical layers. At least 3 distinct domain modules demonstrating the pattern.",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "children": [
+        "REQ-P0-001a",
+        "REQ-P0-001b"
+      ],
+      "description": "Complete API architecture following domain-driven design principles with screaming architecture pattern.",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "API Domain Architecture"
+    },
+    {
+      "category": "api",
+      "children": [
+        "REQ-P0-001a-1",
+        "REQ-P0-001a-2"
+      ],
+      "description": "API codebase must follow screaming architecture with endpoints organized by business domain rather than technical concerns. Each domain must be a distinct module with its own handlers, models, and repositories.",
+      "id": "REQ-P0-001a",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Domain-Driven API Structure"
+    },
+    {
+      "category": "api",
+      "description": "Tasks domain module implemented as self-contained package with handlers, models, and repository.",
+      "id": "REQ-P0-001a-1",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Tasks Domain Module",
+      "validation": [
+        {
+          "notes": "Verify tasks domain module has separate package",
+          "phase": "unit",
+          "ref": "api/domain/tasks/task_test.go",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Test tasks handler isolation",
+          "phase": "unit",
+          "ref": "api/handlers/tasks_test.go",
+          "status": "passed",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Projects domain module implemented as self-contained package.",
+      "id": "REQ-P0-001a-2",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Projects Domain Module",
+      "validation": [
+        {
+          "notes": "Verify projects domain module",
+          "phase": "unit",
+          "ref": "api/domain/projects/project_test.go",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Test projects handler",
+          "phase": "unit",
+          "ref": "api/handlers/projects_test.go",
+          "status": "passed",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "children": [
+        "REQ-P0-001b-1",
+        "REQ-P0-001b-2"
+      ],
+      "description": "Each domain module must be independent with no cross-domain handler dependencies. At least 3 distinct domain modules must be implemented.",
+      "id": "REQ-P0-001b",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Domain Module Independence"
+    },
+    {
+      "category": "api",
+      "description": "Domain modules have no direct dependencies on each other's internals.",
+      "id": "REQ-P0-001b-1",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Module Isolation",
+      "validation": [
+        {
+          "notes": "Tasks domain module implemented independently",
+          "phase": "business",
+          "ref": "api/domain/tasks/task.go",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Notes domain module implemented as third independent domain.",
+      "id": "REQ-P0-001b-2",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Notes Domain Module",
+      "validation": [
+        {
+          "notes": "Notes domain module implemented",
+          "phase": "business",
+          "ref": "api/domain/notes/note.go",
+          "status": "passed",
+          "type": "structural"
+        },
+        {
+          "notes": "Notes handler implemented",
+          "phase": "unit",
+          "ref": "api/handlers/notes_test.go",
+          "status": "passed",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "API Domain Organization"
+}

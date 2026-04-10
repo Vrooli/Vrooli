@@ -45,8 +45,8 @@ func (s *stubExecutionEngine) AdvancePhase(taskID, scenarioName string) (*PhaseA
 func (s *stubExecutionEngine) GetExecutionState(taskID string) (*ProfileExecutionState, error) {
 	return s.state, s.stateErr
 }
-func (s *stubExecutionEngine) GetCurrentMode(taskID string) (SteerMode, error) {
-	return ModeProgress, nil
+func (s *stubExecutionEngine) GetCurrentSet(taskID string) ([]string, error) {
+	return []string{string(ModeProgress)}, nil
 }
 
 type stubHistoryService struct{}

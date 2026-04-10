@@ -1,0 +1,17 @@
+# golangci-lint configuration for agent-inbox API
+# Run with: golangci-lint run
+
+linters:
+  enable:
+    - errcheck
+    - ineffassign
+    - staticcheck
+    - unused
+
+issues:
+  # Disable errcheck and unused for test files
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - unused

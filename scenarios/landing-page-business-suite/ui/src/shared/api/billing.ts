@@ -1,13 +1,49 @@
-import { fromJson } from '@bufbuild/protobuf';
+import { fromJson, type JsonValue, type DescMessage } from '@bufbuild/protobuf';
+import { z } from 'zod';
 import {
   ConfigSource,
   GetStripeSettingsResponseSchema,
   UpdateStripeSettingsResponseSchema,
+  type GetStripeSettingsResponse,
+  type UpdateStripeSettingsResponse,
   type StripeConfigSnapshot,
   type StripeSettings,
 } from '@proto-lprv/settings_pb';
 import { apiCall } from './common';
-import type { BillingPortalResponse, BundleCatalogEntry, CheckoutSession } from './types';
+import type { BillingPortalResponse, BundleCatalogEntry, CheckoutSession, PlanOption } from './types';
+import { normalizeTimestamp } from '../lib/protobuf-utils';
+import { parseOrNull } from './safeParse';
+import {
+  BundleCatalogResponseSchema,
+  CheckoutSessionSchema,
+  BillingPortalResponseSchema,
+  VerifyStripePriceResponseSchema,
+  StripeImportPreviewSchema,
+  StripeImportResultSchema,
+  ListCouponsResponseSchema,
+  StripeCouponSchema,
+  CouponUsageStatsListSchema,
+  type StripeCoupon,
+  type ListCouponsResponse,
+  type CouponUsageStats,
+} from './schemas/billing.schema';
+import { PlanOptionSchema } from './schemas/landing.schema';
+
+type BundleCatalogResponseParsed = z.infer<typeof BundleCatalogResponseSchema>;
+
+const normalizeBundleCatalog = (response: BundleCatalogResponseParsed): BundleCatalogResponse => ({
+  bundles: response.bundles.map((entry) => ({
+    bundle: entry.bundle,
+    prices: entry.prices.map((plan): PlanOption => ({
+      ...plan,
+      intro_enabled: plan.intro_enabled ?? false,
+      monthly_included_credits: plan.monthly_included_credits ?? 0,
+      one_time_bonus_credits: plan.one_time_bonus_credits ?? 0,
+      display_enabled: plan.display_enabled ?? false,
+      display_weight: plan.display_weight ?? 0,
+    })),
+  })),
+});
 
 export interface StripeSettingsResponse {
   publishable_key_preview?: string;
@@ -54,23 +90,6 @@ function flattenStripeSettings(snapshot?: StripeConfigSnapshot, settings?: Strip
     }
   };
 
-  const normalizeTimestamp = (value: unknown): string | undefined => {
-    if (!value) return undefined;
-    // Buf Timestamp with toJsonString
-    if (typeof (value as { toJsonString?: () => string }).toJsonString === 'function') {
-      return (value as { toJsonString: () => string }).toJsonString();
-    }
-    if (typeof value === 'string') return value;
-    if (value instanceof Date) return value.toISOString();
-    // Fallback for plain objects with seconds/nanos
-    const maybe = value as { seconds?: number; nanos?: number };
-    if (typeof maybe.seconds === 'number') {
-      const ms = maybe.seconds * 1000 + (maybe.nanos ? maybe.nanos / 1_000_000 : 0);
-      return new Date(ms).toISOString();
-    }
-    return undefined;
-  };
-
   return {
     publishable_key_preview: snapshot?.publishableKeyPreview,
     publishable_key_set: Boolean(snapshot?.publishableKeySet),
@@ -84,10 +103,9 @@ function flattenStripeSettings(snapshot?: StripeConfigSnapshot, settings?: Strip
 
 export function getStripeSettings() {
   return apiCall('/admin/settings/stripe').then((resp) => {
-    const message = fromJson(GetStripeSettingsResponseSchema, resp, {
+    const message = fromJson(GetStripeSettingsResponseSchema as DescMessage, resp as JsonValue, {
       ignoreUnknownFields: true,
-      protoFieldName: true,
-    });
+    }) as GetStripeSettingsResponse;
     return flattenStripeSettings(message.snapshot, message.settings);
   });
 }
@@ -97,22 +115,45 @@ export function updateStripeSettings(payload: StripeSettingsUpdatePayload) {
     method: 'PUT',
     body: JSON.stringify(payload),
   }).then((resp) => {
-    const message = fromJson(UpdateStripeSettingsResponseSchema, resp, {
+    const message = fromJson(UpdateStripeSettingsResponseSchema as DescMessage, resp as JsonValue, {
       ignoreUnknownFields: true,
-      protoFieldName: true,
-    });
+    }) as UpdateStripeSettingsResponse;
     return flattenStripeSettings(message.snapshot, message.settings);
   });
 }
 
-export function getBundleCatalog() {
-  return apiCall<BundleCatalogResponse>('/admin/bundles');
+export type RevealStripeSecretField = 'secret_key' | 'webhook_secret' | 'publishable_key';
+
+export interface RevealStripeSecretResponse {
+  field: RevealStripeSecretField;
+  value: string;
+}
+
+export function revealStripeSecret(field: RevealStripeSecretField): Promise<RevealStripeSecretResponse> {
+  const params = new URLSearchParams({ field });
+  return apiCall<RevealStripeSecretResponse>(`/admin/settings/stripe/reveal?${params.toString()}`);
+}
+
+export function getBundleCatalog(): Promise<BundleCatalogResponse> {
+  return apiCall<BundleCatalogResponse>('/admin/bundles').then((resp) => {
+    const validated = parseOrNull(BundleCatalogResponseSchema, resp, 'BundleCatalogResponse');
+    if (!validated) {
+      throw new Error('Invalid bundle catalog response');
+    }
+    return normalizeBundleCatalog(validated);
+  });
 }
 
 export function updateBundlePrice(bundleKey: string, priceId: string, payload: UpdateBundlePricePayload) {
   return apiCall(`/admin/bundles/${encodeURIComponent(bundleKey)}/prices/${encodeURIComponent(priceId)}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
+  }).then((resp) => {
+    const validated = parseOrNull(PlanOptionSchema, resp, 'PlanOption');
+    if (!validated) {
+      throw new Error('Invalid plan response from update');
+    }
+    return validated;
   });
 }
 
@@ -120,7 +161,13 @@ export function verifyStripePrice(key: string) {
   const params = new URLSearchParams({ key });
   return apiCall<{ id: string; lookup_key?: string; currency?: string; amount_cents?: number; interval?: string; active?: boolean; product?: string }>(
     `/admin/stripe/verify-price?${params.toString()}`,
-  );
+  ).then((resp) => {
+    const validated = parseOrNull(VerifyStripePriceResponseSchema, resp, 'VerifyStripePriceResponse');
+    if (!validated) {
+      throw new Error('Invalid price verification response from Stripe');
+    }
+    return validated;
+  });
 }
 
 export function createCheckoutSession(payload: {
@@ -142,7 +189,13 @@ export function createCheckoutSession(payload: {
   return apiCall<{ session: CheckoutSession }>('/billing/create-checkout-session', {
     method: 'POST',
     body: JSON.stringify(body),
-  }).then((resp) => resp.session);
+  }).then((resp) => {
+    const validated = parseOrNull(CheckoutSessionSchema, resp.session, 'CheckoutSession');
+    if (!validated) {
+      throw new Error('Invalid checkout session response');
+    }
+    return validated;
+  });
 }
 
 export function createCreditsCheckoutSession(payload: { price_id: string; customer_email: string; success_url?: string; cancel_url?: string }) {
@@ -154,7 +207,13 @@ export function createCreditsCheckoutSession(payload: { price_id: string; custom
       success_url: payload.success_url,
       cancel_url: payload.cancel_url,
     }),
-  }).then((resp) => resp.session);
+  }).then((resp) => {
+    const validated = parseOrNull(CheckoutSessionSchema, resp.session, 'CheckoutSession');
+    if (!validated) {
+      throw new Error('Invalid credits checkout session response');
+    }
+    return validated;
+  });
 }
 
 export function createBillingPortalSession(returnUrl?: string, userEmail?: string) {
@@ -162,5 +221,330 @@ export function createBillingPortalSession(returnUrl?: string, userEmail?: strin
   if (returnUrl) params.set('return_url', returnUrl);
   if (userEmail) params.set('user', userEmail);
   const suffix = params.toString() ? `?${params.toString()}` : '';
-  return apiCall<BillingPortalResponse>(`/billing/portal-url${suffix}`);
+  return apiCall<BillingPortalResponse>(`/billing/portal-url${suffix}`).then((resp) => {
+    const validated = parseOrNull(BillingPortalResponseSchema, resp, 'BillingPortalResponse');
+    if (!validated) {
+      throw new Error('Invalid billing portal response');
+    }
+    return validated;
+  });
+}
+
+// Stripe Import Types
+export interface StripePriceImport {
+  price_id: string;
+  lookup_key?: string;
+  currency: string;
+  amount_cents: number;
+  interval?: string;
+  product_id: string;
+  product_name: string;
+  active: boolean;
+  exists_locally: boolean;
+}
+
+export interface StripeProductWithPrices {
+  product_id: string;
+  product_name: string;
+  is_current_bundle?: boolean;
+  prices: StripePriceImport[];
+}
+
+export interface StripeImportPreview {
+  bundle_key?: string;
+  bundle_product_id?: string;
+  bundle_product_found?: boolean;
+  bundle_plan_count?: number;
+  products: StripeProductWithPrices[];
+  total_prices: number;
+  conflict_count: number;
+  new_count: number;
+}
+
+export interface ImportPlanSelection {
+  price_id: string;
+  action: 'import' | 'overwrite' | 'skip';
+}
+
+export interface StripeImportRequest {
+  bundle_product_id: string;
+  mode?: 'merge' | 'replace';
+  selections: ImportPlanSelection[];
+}
+
+export interface StripeImportResult {
+  imported: number;
+  overwritten: number;
+  skipped: number;
+  errors?: string[];
+}
+
+/**
+ * Get a preview of products/prices available to import from Stripe.
+ */
+export function getStripeImportPreview(): Promise<StripeImportPreview> {
+  return apiCall<StripeImportPreview>('/admin/stripe/import-preview').then((resp) => {
+    const validated = parseOrNull(StripeImportPreviewSchema, resp, 'StripeImportPreview');
+    if (!validated) {
+      throw new Error('Invalid Stripe import preview response');
+    }
+    return validated;
+  });
+}
+
+/**
+ * Import selected prices from Stripe into the local plan store.
+ */
+export function importStripePlans(request: StripeImportRequest): Promise<StripeImportResult> {
+  return apiCall<StripeImportResult>('/admin/stripe/import', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  }).then((resp) => {
+    const validated = parseOrNull(StripeImportResultSchema, resp, 'StripeImportResult');
+    if (!validated) {
+      throw new Error('Invalid Stripe import result');
+    }
+    return validated;
+  });
+}
+
+// Create Plan Types
+export interface CreateBundlePricePayload {
+  stripe_price_id: string;
+  plan_name: string;
+  plan_tier: string;
+  billing_interval: string;
+  amount_cents?: number;
+  currency?: string;
+  display_weight?: number;
+  display_enabled?: boolean;
+  monthly_included_credits?: number;
+  subtitle?: string;
+  badge?: string;
+  cta_label?: string;
+  highlight?: boolean;
+  features?: string[];
+}
+
+/**
+ * Create a new plan in the plan store.
+ */
+export function createBundlePrice(bundleKey: string, payload: CreateBundlePricePayload) {
+  return apiCall(`/admin/bundles/${encodeURIComponent(bundleKey)}/prices`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }).then((resp) => {
+    const validated = parseOrNull(PlanOptionSchema, resp, 'PlanOption');
+    if (!validated) {
+      throw new Error('Invalid plan response from create');
+    }
+    return validated;
+  });
+}
+
+/**
+ * Delete a plan from the plan store.
+ */
+export function deleteBundlePrice(bundleKey: string, priceId: string) {
+  return apiCall(`/admin/bundles/${encodeURIComponent(bundleKey)}/prices/${encodeURIComponent(priceId)}`, {
+    method: 'DELETE',
+  });
+}
+
+// Coupon Management Types
+export interface CreateCouponPayload {
+  id?: string;
+  name?: string;
+  amount_off?: number;
+  percent_off?: number;
+  currency?: string;
+  duration: 'once' | 'repeating' | 'forever';
+  duration_in_months?: number;
+  max_redemptions?: number;
+  redeem_by?: number;
+}
+
+export type { StripeCoupon, ListCouponsResponse, CouponUsageStats };
+
+/**
+ * List all coupons from Stripe.
+ */
+export function listCoupons(): Promise<ListCouponsResponse> {
+  return apiCall<ListCouponsResponse>('/admin/coupons').then((resp) => {
+    const validated = parseOrNull(ListCouponsResponseSchema, resp, 'ListCouponsResponse');
+    if (!validated) {
+      throw new Error('Invalid coupons list response');
+    }
+    return validated;
+  });
+}
+
+/**
+ * Create a new coupon in Stripe.
+ */
+export function createCoupon(payload: CreateCouponPayload): Promise<StripeCoupon> {
+  return apiCall<StripeCoupon>('/admin/coupons', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }).then((resp) => {
+    const validated = parseOrNull(StripeCouponSchema, resp, 'StripeCoupon');
+    if (!validated) {
+      throw new Error('Invalid coupon response');
+    }
+    return validated;
+  });
+}
+
+/**
+ * Get a single coupon from Stripe.
+ */
+export function getCoupon(couponId: string): Promise<StripeCoupon> {
+  return apiCall<StripeCoupon>(`/admin/coupons/${encodeURIComponent(couponId)}`).then((resp) => {
+    const validated = parseOrNull(StripeCouponSchema, resp, 'StripeCoupon');
+    if (!validated) {
+      throw new Error('Invalid coupon response');
+    }
+    return validated;
+  });
+}
+
+/**
+ * Delete a coupon from Stripe.
+ */
+export function deleteCoupon(couponId: string): Promise<void> {
+  return apiCall(`/admin/coupons/${encodeURIComponent(couponId)}`, {
+    method: 'DELETE',
+  }).then(() => undefined);
+}
+
+/**
+ * Update coupon payload. Note: Stripe only allows updating the name.
+ */
+export interface UpdateCouponPayload {
+  name?: string;
+}
+
+/**
+ * Update a coupon in Stripe (only name can be updated).
+ */
+export function updateCoupon(couponId: string, payload: UpdateCouponPayload): Promise<StripeCoupon> {
+  return apiCall<StripeCoupon>(`/admin/coupons/${encodeURIComponent(couponId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }).then((resp) => {
+    const validated = parseOrNull(StripeCouponSchema, resp, 'StripeCoupon');
+    if (!validated) {
+      throw new Error('Invalid coupon response');
+    }
+    return validated;
+  });
+}
+
+/**
+ * Get coupon usage statistics from local database.
+ */
+export function getCouponUsage(): Promise<CouponUsageStats[]> {
+  return apiCall<CouponUsageStats[]>('/admin/coupons/usage').then((resp) => {
+    const validated = parseOrNull(CouponUsageStatsListSchema, resp, 'CouponUsageStats[]');
+    if (!validated) {
+      throw new Error('Invalid coupon usage response');
+    }
+    return validated;
+  });
+}
+
+// Coupon-Plan Mapping Types
+export interface CouponMappingsResponse {
+  mappings: Record<string, string>; // priceID -> couponID
+}
+
+const CouponMappingsResponseSchema = z.object({
+  mappings: z.record(z.string(), z.string()),
+});
+
+/**
+ * Get all coupon-to-plan mappings.
+ */
+export function getCouponMappings(): Promise<CouponMappingsResponse> {
+  return apiCall<CouponMappingsResponse>('/admin/coupon-mappings').then((resp) => {
+    const validated = parseOrNull(CouponMappingsResponseSchema, resp, 'CouponMappingsResponse');
+    if (!validated) {
+      throw new Error('Invalid coupon mappings response');
+    }
+    return validated;
+  });
+}
+
+/**
+ * Assign a coupon to a specific plan.
+ */
+export function setCouponForPlan(priceId: string, couponId: string): Promise<void> {
+  return apiCall(`/admin/plans/${encodeURIComponent(priceId)}/coupon`, {
+    method: 'PUT',
+    body: JSON.stringify({ coupon_id: couponId }),
+  }).then(() => undefined);
+}
+
+/**
+ * Remove the coupon assignment from a specific plan.
+ */
+export function removeCouponFromPlan(priceId: string): Promise<void> {
+  return apiCall(`/admin/plans/${encodeURIComponent(priceId)}/coupon`, {
+    method: 'DELETE',
+  }).then(() => undefined);
+}
+
+// Stripe Coupon Import Types
+export interface CouponImportPreviewItem {
+  id: string;
+  name?: string;
+  amount_off?: number | null;
+  percent_off?: number | null;
+  currency?: string;
+  duration: 'once' | 'repeating' | 'forever';
+  duration_in_months?: number | null;
+  times_redeemed: number;
+  valid: boolean;
+  exists_locally: boolean;
+}
+
+export interface CouponImportPreview {
+  coupons: CouponImportPreviewItem[];
+  total_coupons: number;
+  existing_count: number;
+  new_count: number;
+}
+
+const CouponImportPreviewItemSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().optional(),
+  amount_off: z.number().nullable().optional(),
+  percent_off: z.number().nullable().optional(),
+  currency: z.string().optional(),
+  duration: z.enum(['once', 'repeating', 'forever']),
+  duration_in_months: z.number().nullable().optional(),
+  times_redeemed: z.number().int().nonnegative(),
+  valid: z.boolean(),
+  exists_locally: z.boolean(),
+});
+
+const CouponImportPreviewSchema = z.object({
+  coupons: z.array(CouponImportPreviewItemSchema),
+  total_coupons: z.number().int().nonnegative(),
+  existing_count: z.number().int().nonnegative(),
+  new_count: z.number().int().nonnegative(),
+});
+
+/**
+ * Get a preview of coupons available to import from Stripe.
+ */
+export function getStripeCouponPreview(): Promise<CouponImportPreview> {
+  return apiCall<CouponImportPreview>('/admin/stripe/coupons-preview').then((resp) => {
+    const validated = parseOrNull(CouponImportPreviewSchema, resp, 'CouponImportPreview');
+    if (!validated) {
+      throw new Error('Invalid coupon import preview response');
+    }
+    return validated;
+  });
 }

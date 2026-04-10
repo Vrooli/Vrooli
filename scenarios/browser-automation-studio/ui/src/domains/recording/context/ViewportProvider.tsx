@@ -21,8 +21,6 @@
  */
 
 import {
-  createContext,
-  useContext,
   useCallback,
   useEffect,
   useMemo,
@@ -35,6 +33,7 @@ import type {
   ViewportSyncState,
   ActualViewportOptional,
 } from '../types/viewport';
+import { ViewportContext } from './viewportContext';
 
 // Re-export types for backward compatibility
 export type { ViewportDimensions, ViewportSyncState } from '../types/viewport';
@@ -118,8 +117,6 @@ export interface ViewportContextValue extends ViewportContextState, ViewportCont
 // =============================================================================
 // Context
 // =============================================================================
-
-const ViewportContext = createContext<ViewportContextValue | null>(null);
 
 // =============================================================================
 // Provider
@@ -237,27 +234,4 @@ export function ViewportProvider({
   return <ViewportContext.Provider value={value}>{children}</ViewportContext.Provider>;
 }
 
-// =============================================================================
-// Hook
-// =============================================================================
-
-/**
- * Hook to access viewport context.
- * Must be used within a ViewportProvider.
- */
-export function useViewport(): ViewportContextValue {
-  const context = useContext(ViewportContext);
-  if (!context) {
-    throw new Error('useViewport must be used within a ViewportProvider');
-  }
-  return context;
-}
-
-/**
- * Hook to access viewport context, returning null if not within provider.
- * Useful for components that may be used outside the viewport context.
- */
-export function useViewportOptional(): ViewportContextValue | null {
-  return useContext(ViewportContext);
-}
-
+// Hooks are exported from viewportHooks.ts

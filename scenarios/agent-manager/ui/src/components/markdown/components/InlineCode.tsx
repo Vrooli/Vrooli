@@ -14,21 +14,21 @@ export function InlineCode({ children }: InlineCodeProps) {
   const isError = status === "error";
 
   return (
-    <span className="group inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/70 px-2 py-0.5 text-xs font-mono text-foreground">
+    <span className="group rounded-md border border-border/60 bg-muted/70 px-1.5 py-0.5 text-xs font-mono text-foreground">
       <code className="leading-relaxed">{children}</code>
       {textContent ? (
         <button
           type="button"
           onClick={copyCode}
-          className={`opacity-0 group-hover:opacity-100 transition-opacity ${
+          className={`ml-1 inline-flex align-middle opacity-0 group-hover:opacity-100 transition-opacity ${
             isError ? "text-destructive" : "text-muted-foreground hover:text-foreground"
           }`}
           aria-label={isCopied ? "Copied" : "Copy inline code"}
         >
           {isCopied ? (
-            <Check className="h-3.5 w-3.5 text-success" />
+            <Check className="h-3 w-3 text-success" />
           ) : (
-            <Copy className="h-3.5 w-3.5" />
+            <Copy className="h-3 w-3" />
           )}
         </button>
       ) : null}

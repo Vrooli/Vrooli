@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock component for validation results
@@ -27,11 +27,11 @@ describe('Validation Page', () => {
 
   it('[REQ:DM-P0-023] should display fitness threshold validation', () => {
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <MockValidationResults />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('validation-results')).toBeInTheDocument();
@@ -44,11 +44,11 @@ describe('Validation Page', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <SecretCheckComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('secret-check')).toBeInTheDocument();
@@ -60,11 +60,11 @@ describe('Validation Page', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <LicenseCheckComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('license-check')).toBeInTheDocument();
@@ -81,11 +81,11 @@ describe('Validation Page', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <ResourceCheckComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('resource-check')).toBeInTheDocument();
@@ -101,11 +101,11 @@ describe('Validation Page', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <AutoFixComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByText('Apply Suggested Fix')).toBeInTheDocument();
@@ -134,11 +134,11 @@ describe('Rollback Management', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <RollbackComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('rollback-options')).toBeInTheDocument();
@@ -154,11 +154,11 @@ describe('Rollback Management', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <ConfirmationComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('rollback-confirmation')).toBeInTheDocument();
@@ -174,11 +174,11 @@ describe('Rollback Management', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <ProgressComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('rollback-progress')).toBeInTheDocument();

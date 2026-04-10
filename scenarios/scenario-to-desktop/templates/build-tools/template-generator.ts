@@ -47,6 +47,9 @@ interface DesktopConfig {
     bundle_ui_port_name?: string;
     bundle_telemetry_upload_url?: string;
 
+    // Auth configuration
+    lpbs_url?: string; // Vrooli platform URL for auth (defaults to https://vrooli.com)
+
     // Template configuration
     framework: 'electron' | 'tauri' | 'neutralino';
     template_type: 'basic' | 'universal' | 'advanced' | 'kiosk' | 'multi_window';
@@ -105,6 +108,15 @@ interface DesktopConfig {
         // Whether to enable auto-update on startup
         auto_check?: boolean;
     };
+
+    // Port configuration for all service ports
+    // Key is the port name (e.g., "api", "ui", "websocket")
+    // Value includes env_var and default port
+    ports?: Record<string, {
+        env_var: string;
+        port: number;
+        description?: string;
+    }>;
 }
 
 interface TemplateFile {
@@ -245,19 +257,57 @@ class DesktopTemplateGenerator {
     private async getTemplateFiles(dirPath: string): Promise<TemplateFile[]> {
         const files: TemplateFile[] = [];
         const entries = await fs.readdir(dirPath, { withFileTypes: true });
-        
+
+        // Files that are dev-only and should NOT be copied to generated projects.
+        // These files exist in templates/vanilla/ for developing and testing the template itself,
+        // but generated desktop apps don't need them - they get their own configs via generation.
+        const devOnlyFiles = new Set([
+            'package.json',        // Dev-only package (distinct from package.json.template)
+            'tsconfig.dev.json',   // Dev-only tsconfig for template development (uses rootDir: ".")
+            'vitest.config.ts',    // Dev-only test config for template module unit tests
+            'eslint.config.js',    // Dev-only ESLint config
+            '.gitignore',          // Templates have their own gitignore; generated projects get one via generateGitIgnore()
+        ]);
+
+        // Directories that are dev-only and should NOT be copied to generated projects.
+        // These exist in templates/vanilla/ for development purposes only.
+        const devOnlyDirs = new Set([
+            'node_modules',        // Never copy node_modules - generated apps run npm install
+            '__tests__',           // Test directories are dev-only (unit tests for template modules)
+            'test-utils',          // Shared test mocks - only needed for template development
+            'examples',            // Example code for template developers, not needed in production
+        ]);
+
         for (const entry of entries) {
             const fullPath = path.join(dirPath, entry.name);
-            
+
             if (entry.isDirectory()) {
+                // Skip dev-only directories
+                if (devOnlyDirs.has(entry.name)) {
+                    continue;
+                }
                 const subFiles = await this.getTemplateFiles(fullPath);
                 files.push(...subFiles);
             } else {
+                // Skip dev-only files at the root of vanilla/
                 const relativePath = path.relative(path.join(this.templateBasePath, 'vanilla'), fullPath);
-                const targetPath = entry.name.endsWith('.template') 
+                if (devOnlyFiles.has(entry.name) && !relativePath.includes(path.sep)) {
+                    continue;
+                }
+
+                let targetPath = entry.name.endsWith('.template')
                     ? relativePath.replace('.template', '')
                     : relativePath;
-                
+
+                // CRITICAL: The 'bundle/' directory has a naming collision:
+                // - templates/vanilla/bundle/ contains TypeScript code for bundle validation
+                // - The actual bundle payload (created by bundle stage) is also at bundle/
+                // To avoid collision, redirect bundle module files directly to src/bundle/.
+                // This keeps the actual bundle payload at root level where electron-builder expects it.
+                if (targetPath.startsWith('bundle' + path.sep) || targetPath.startsWith('bundle/')) {
+                    targetPath = path.join('src', targetPath);
+                }
+
                 // Determine if file should be processed as template
                 // Always process: .template files, and common code/config files that may contain variables
                 const templateExtensions = ['.ts', '.js', '.json', '.html', '.md', '.yml', '.yaml', '.xml', '.sh'];
@@ -339,7 +389,20 @@ class DesktopTemplateGenerator {
             BUNDLED_RUNTIME_ROOT: this.config.bundle_runtime_root || 'bundle',
             BUNDLED_RUNTIME_IPC_HOST: this.config.bundle_ipc?.host || '127.0.0.1',
             BUNDLED_RUNTIME_IPC_PORT: this.config.bundle_ipc?.port || 47710,
-            BUNDLED_RUNTIME_TOKEN_PATH: this.config.bundle_ipc?.auth_token_path || 'runtime/auth-token',
+            // CRITICAL: Token path must match bundle.json exactly!
+            // If bundle_ipc.auth_token_path is not provided, we use a default.
+            // This default MUST match what the runtime creates, or the desktop app will timeout.
+            BUNDLED_RUNTIME_TOKEN_PATH: (() => {
+                const tokenPath = this.config.bundle_ipc?.auth_token_path || 'runtime/auth-token';
+                if (this.config.deployment_mode === 'bundled') {
+                    const source = this.config.bundle_ipc?.auth_token_path ? 'bundle.json' : 'default';
+                    console.log(`🔑 Token path: ${tokenPath} (source: ${source})`);
+                    if (!this.config.bundle_ipc?.auth_token_path) {
+                        console.warn(`⚠️  Using default token path - ensure runtime uses same path or bundled mode may fail!`);
+                    }
+                }
+                return tokenPath;
+            })(),
             BUNDLED_RUNTIME_UI_SERVICE: this.config.bundle_ui_service_id || '',
             BUNDLED_RUNTIME_UI_PORT_NAME: this.config.bundle_ui_port_name || 'http',
             BUNDLED_RUNTIME_TELEMETRY_UPLOAD_URL: this.config.bundle_telemetry_upload_url || '',
@@ -368,27 +431,63 @@ class DesktopTemplateGenerator {
             PUBLISHER_NAME: this.config.author,
             PUBLISH_CONFIG: JSON.stringify(this.getPublishConfig(), null, 2),
 
-            // Update configuration
+            // Update configuration (default to 'generic' for self-hosted updates)
+            // IMPORTANT: UPDATE_PROVIDER must match getPublishConfig() - if publish is null,
+            // provider must be "none" to prevent electron-updater from trying to check updates
+            // without the app-update.yml file that electron-builder generates.
             UPDATE_CHANNEL: this.config.update_config?.channel || 'stable',
-            UPDATE_PROVIDER: this.config.update_config?.provider || 'none',
+            UPDATE_PROVIDER: this.getEffectiveUpdateProvider(),
             UPDATE_AUTO_CHECK: this.config.update_config?.auto_check ?? false,
             UPDATE_SERVER_URL: this.getUpdateServerUrl(),
+
+            // Auth configuration
+            LPBS_URL: this.config.lpbs_url || 'https://vrooli.com',
+
+            // Port configuration - all ports with env_var names for runtime injection
+            // DOC: docs/internal/SEAMS.md#port-environment-seam-feb-2026
+            PORTS_CONFIG: JSON.stringify(
+                this.buildPortsConfig(),
+                null,
+                0  // No indentation for minimal output
+            ),
         };
-        
+
         // Merge template-specific variables
         if (templateConfig.template_variables) {
             Object.assign(variables, templateConfig.template_variables);
         }
-        
+
         return variables;
+    }
+
+    /**
+     * Build the PORTS configuration object for template injection.
+     * Transforms the config.ports map into a format suitable for main.ts.
+     * DOC: docs/internal/SEAMS.md#port-environment-seam
+     */
+    private buildPortsConfig(): Record<string, { envVar: string; port: number }> {
+        const ports = this.config.ports || {};
+        const result: Record<string, { envVar: string; port: number }> = {};
+
+        for (const [portKey, portDef] of Object.entries(ports)) {
+            if (portDef.env_var) {
+                result[portKey] = {
+                    envVar: portDef.env_var,
+                    port: portDef.port || 0,
+                };
+            }
+        }
+
+        return result;
     }
     
     private getPublishConfig(): any {
         const updateConfig = this.config.update_config;
-        const provider = updateConfig?.provider || 'none';
+        // Default to 'generic' (self-hosted) provider for auto-updates
+        const provider = updateConfig?.provider || 'generic';
         const channel = updateConfig?.channel || 'stable';
 
-        // If updates are disabled, return null (will be stringified as "null")
+        // If updates are explicitly disabled, return null
         if (provider === 'none') {
             return null;
         }
@@ -414,19 +513,29 @@ class DesktopTemplateGenerator {
         // Generic (self-hosted) update server
         if (provider === 'generic') {
             const generic = updateConfig?.generic;
-            let url = generic?.url || 'https://updates.example.com';
+            const url = generic?.url || '';
 
-            // Append channel path if configured
+            // If no URL configured, emit warning and disable updates
+            // This prevents broken update checks at runtime
+            if (!url) {
+                console.warn('[template-generator] WARNING: Generic update provider without URL configured.');
+                console.warn('  Auto-updates disabled. To enable updates, set update_config.generic.url');
+                console.warn('  Example: https://your-lpbs.com/api/v1/updates/{app_key}');
+                return null;
+            }
+
+            // Build full URL with channel
+            let fullUrl = url;
             if (generic?.channel_path) {
-                url = url + generic.channel_path.replace('{channel}', channel);
+                fullUrl = url + generic.channel_path.replace('{channel}', channel);
             } else {
                 // Default: append channel as path segment
-                url = `${url}/${channel}`;
+                fullUrl = `${url}/${channel}`;
             }
 
             return {
                 provider: "generic",
-                url: url,
+                url: fullUrl,
                 useMultipleRangeRequest: false, // Better compatibility
             };
         }
@@ -434,9 +543,44 @@ class DesktopTemplateGenerator {
         return null;
     }
 
+    /**
+     * Returns the effective update provider for the app.
+     * This must match getPublishConfig() - if publish config is null (e.g., generic
+     * provider without URL), the effective provider is "none" to prevent the app
+     * from trying to check for updates without the app-update.yml file.
+     */
+    private getEffectiveUpdateProvider(): 'github' | 'generic' | 'none' {
+        const updateConfig = this.config.update_config;
+        const provider = updateConfig?.provider || 'generic';
+
+        // Explicitly disabled
+        if (provider === 'none') {
+            return 'none';
+        }
+
+        // GitHub provider - always valid (electron-builder handles it)
+        if (provider === 'github') {
+            return 'github';
+        }
+
+        // Generic provider - only valid if URL is configured
+        if (provider === 'generic') {
+            const url = updateConfig?.generic?.url || '';
+            if (!url) {
+                // No URL = no app-update.yml generated = must disable updates
+                return 'none';
+            }
+            return 'generic';
+        }
+
+        // Unknown provider - disable updates for safety
+        return 'none';
+    }
+
     private getUpdateServerUrl(): string {
         const updateConfig = this.config.update_config;
-        const provider = updateConfig?.provider || 'none';
+        // Default to 'generic' provider (matches getPublishConfig)
+        const provider = updateConfig?.provider || 'generic';
         const channel = updateConfig?.channel || 'stable';
 
         if (provider === 'none') {
@@ -452,13 +596,15 @@ class DesktopTemplateGenerator {
 
         if (provider === 'generic') {
             const generic = updateConfig?.generic;
-            let url = generic?.url || '';
-            if (generic?.channel_path) {
-                url = url + generic.channel_path.replace('{channel}', channel);
-            } else if (url) {
-                url = `${url}/${channel}`;
+            const url = generic?.url || '';
+            // Return empty if no URL configured (updates effectively disabled)
+            if (!url) {
+                return '';
             }
-            return url;
+            if (generic?.channel_path) {
+                return url + generic.channel_path.replace('{channel}', channel);
+            }
+            return `${url}/${channel}`;
         }
 
         return '';
@@ -620,14 +766,14 @@ exports.default = async function notarizing(context) {
     private async createSourceStructure(): Promise<void> {
         const srcDir = path.join(this.outputPath, 'src');
         await fs.mkdir(srcDir, { recursive: true });
-        
+
         // Move template files to src/ if they exist in root
-        const filesToMove = ['main.ts', 'preload.ts', 'splash.html'];
-        
+        const filesToMove = ['main.ts', 'preload.ts', 'splash.html', 'splash-preload.ts'];
+
         for (const fileName of filesToMove) {
             const rootPath = path.join(this.outputPath, fileName);
             const srcPath = path.join(srcDir, fileName);
-            
+
             try {
                 await fs.access(rootPath);
                 await fs.rename(rootPath, srcPath);
@@ -636,6 +782,62 @@ exports.default = async function notarizing(context) {
                 // File doesn't exist or already in src, skip
             }
         }
+
+        // Move module directories to src/ if they exist in root.
+        // These are the production modules that main.ts imports (e.g., import { ... } from './telemetry').
+        // All modules must be in src/ alongside main.ts for imports to resolve correctly.
+        //
+        // IMPORTANT: 'bundle' is NOT in this list because there's a naming collision:
+        // - templates/vanilla/bundle/ contains TypeScript code for bundle validation
+        // - The actual bundle payload created by the bundle stage is also at bundle/
+        // For bundled deployments, electron-builder's extraResources expects bundle/ at the root.
+        // The template's bundle/ module files are copied directly to src/bundle/ by processTemplateFiles()
+        // without going through this move step, preserving the actual bundle at the root.
+        const dirsToMove = [
+            'auth',          // Authentication (magic link, token management)
+            // 'bundle' intentionally excluded - see comment above
+            'ipc',           // Inter-process communication handlers
+            'runtime',       // Bundled runtime process management
+            'splash',        // Splash screen lifecycle
+            'storage',       // App data storage (userData directory)
+            'telemetry',     // Event recording and upload
+            'window-state',  // Window position/size persistence
+        ];
+
+        for (const dirName of dirsToMove) {
+            const rootPath = path.join(this.outputPath, dirName);
+            const srcPath = path.join(srcDir, dirName);
+
+            try {
+                const stat = await fs.stat(rootPath);
+                if (stat.isDirectory()) {
+                    await this.moveDirectory(rootPath, srcPath);
+                    console.log(`📁 Moved ${dirName}/ to src/${dirName}/`);
+                }
+            } catch {
+                // Directory doesn't exist or already in src, skip
+            }
+        }
+    }
+
+    private async moveDirectory(source: string, destination: string): Promise<void> {
+        await fs.mkdir(destination, { recursive: true });
+
+        const entries = await fs.readdir(source, { withFileTypes: true });
+
+        for (const entry of entries) {
+            const sourcePath = path.join(source, entry.name);
+            const destPath = path.join(destination, entry.name);
+
+            if (entry.isDirectory()) {
+                await this.moveDirectory(sourcePath, destPath);
+            } else {
+                await fs.rename(sourcePath, destPath);
+            }
+        }
+
+        // Remove the now-empty source directory
+        await fs.rmdir(source);
     }
     
     private async setupAssets(): Promise<void> {

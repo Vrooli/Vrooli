@@ -3,7 +3,7 @@
  */
 
 import { createActionExecutor, createMockActionExecutor } from '../../../../src/ai/action/executor';
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import type { BrowserAction } from '../../../../src/ai/action/types';
 import type { ElementLabel } from '../../../../src/ai/vision-client/types';
 
@@ -47,6 +47,7 @@ function createMockPage(): {
     goto: jest.fn().mockResolvedValue(undefined),
     hover: jest.fn().mockResolvedValue(undefined),
     selectOption: jest.fn().mockResolvedValue(undefined),
+    evaluate: jest.fn().mockResolvedValue({ x: 0, y: 0 }),
     waitForSelector: jest.fn().mockResolvedValue(undefined),
     url: jest.fn().mockReturnValue('https://example.com'),
     viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
@@ -59,6 +60,7 @@ function createMockPage(): {
     goto: mocks.goto,
     hover: mocks.hover,
     selectOption: mocks.selectOption,
+    evaluate: mocks.evaluate,
     waitForSelector: mocks.waitForSelector,
     url: mocks.url,
     viewportSize: mocks.viewportSize,
@@ -194,10 +196,7 @@ describe('createActionExecutor', () => {
 
       expect(result.success).toBe(true);
       expect(mocks.click).toHaveBeenCalledWith('[data-ai-label="3"]');
-      expect(mocks.keyboard.type).toHaveBeenCalledWith(
-        'hello@example.com',
-        expect.any(Object)
-      );
+      expect(mocks.keyboard.type).toHaveBeenCalledWith('hello@example.com');
     });
 
     it('clears field before typing when clearFirst is true', async () => {
@@ -215,10 +214,7 @@ describe('createActionExecutor', () => {
         '[data-ai-label="3"]',
         expect.objectContaining({ clickCount: 3 })
       );
-      expect(mocks.keyboard.type).toHaveBeenCalledWith(
-        'new value',
-        expect.any(Object)
-      );
+      expect(mocks.keyboard.type).toHaveBeenCalledWith('new value');
     });
 
     it('types into currently focused element when no elementId', async () => {
@@ -230,10 +226,7 @@ describe('createActionExecutor', () => {
       await executor.execute(page, action);
 
       expect(mocks.click).not.toHaveBeenCalled();
-      expect(mocks.keyboard.type).toHaveBeenCalledWith(
-        'just text',
-        expect.any(Object)
-      );
+      expect(mocks.keyboard.type).toHaveBeenCalledWith('just text');
     });
   });
 
@@ -482,8 +475,12 @@ describe('createMockActionExecutor', () => {
 
     const calls = mock.getCalls();
     expect(calls).toHaveLength(2);
-    expect(calls[0].action.type).toBe('click');
-    expect(calls[1].action.type).toBe('type');
+    const [firstCall, secondCall] = calls;
+    if (!firstCall || !secondCall) {
+      throw new Error('Expected two recorded calls');
+    }
+    expect(firstCall.action.type).toBe('click');
+    expect(secondCall.action.type).toBe('type');
   });
 
   it('can be set to fail mode', async () => {

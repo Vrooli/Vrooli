@@ -9,26 +9,29 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// handleFeedbackCreate handles POST /api/v1/feedback (public endpoint)
-func handleFeedbackCreate(svc *FeedbackService, brandingSvc *BrandingService, emailSvc *EmailService) http.HandlerFunc {
+// NOTE: handleFeedbackCreate (database-backed BrandingService) has been removed.
+// Branding is now stored in JSON files (.vrooli/branding.json) and accessed via ConfigStore.
+
+// handleFeedbackCreateWithConfigStore handles POST /api/v1/feedback using ConfigStore for branding (public endpoint)
+func handleFeedbackCreateWithConfigStore(svc *FeedbackService, cs *ConfigStore, emailSvc *EmailService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var input CreateFeedbackInput
 		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid request format.", ApiErrorTypeValidation)
 			return
 		}
 
 		// Validate required fields
 		if strings.TrimSpace(input.Email) == "" {
-			http.Error(w, `{"error":"email is required"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Email address is required.", ApiErrorTypeValidation)
 			return
 		}
 		if strings.TrimSpace(input.Subject) == "" {
-			http.Error(w, `{"error":"subject is required"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Subject is required.", ApiErrorTypeValidation)
 			return
 		}
 		if strings.TrimSpace(input.Message) == "" {
-			http.Error(w, `{"error":"message is required"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Message is required.", ApiErrorTypeValidation)
 			return
 		}
 
@@ -46,7 +49,7 @@ func handleFeedbackCreate(svc *FeedbackService, brandingSvc *BrandingService, em
 		feedback, err := svc.Create(&input)
 		if err != nil {
 			logStructuredError("feedback_create_failed", map[string]interface{}{"error": err.Error()})
-			http.Error(w, `{"error":"failed to submit feedback"}`, http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to submit feedback. Please try again.", ApiErrorTypeServerError)
 			return
 		}
 
@@ -58,34 +61,39 @@ func handleFeedbackCreate(svc *FeedbackService, brandingSvc *BrandingService, em
 
 		// Send email notification if support email and SMTP are configured
 		go func() {
-			branding, err := brandingSvc.Get()
-			if err != nil {
-				logStructuredError("feedback_email_branding_fetch_failed", map[string]interface{}{"error": err.Error()})
-				return
+			branding := cs.GetBranding()
+			// Convert SiteBranding to the format expected by EmailService
+			dbBranding := &SiteBranding{
+				SiteName:          branding.SiteName,
+				SupportEmail:      branding.SupportEmail,
+				DefaultTitle:      branding.DefaultTitle,
+				ThemePrimaryColor: branding.ThemePrimaryColor,
 			}
-			if err := emailSvc.SendFeedbackNotification(branding, feedback); err != nil {
+			if err := emailSvc.SendFeedbackNotification(dbBranding, feedback); err != nil {
 				logStructuredError("feedback_email_send_failed", map[string]interface{}{"error": err.Error()})
 			}
 		}()
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"id":      feedback.ID,
-		})
+		}); err != nil {
+			logStructuredError("feedback_response_encode_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
 // handleFeedbackList handles GET /api/v1/admin/feedback (admin only)
-func handleFeedbackList(svc *FeedbackService) http.HandlerFunc {
+func handleFeedbackList(svc FeedbackServicer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		status := r.URL.Query().Get("status")
 
 		requests, err := svc.List(status)
 		if err != nil {
 			logStructuredError("feedback_list_failed", map[string]interface{}{"error": err.Error()})
-			http.Error(w, `{"error":"failed to list feedback"}`, http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to retrieve feedback list. Please try again.", ApiErrorTypeServerError)
 			return
 		}
 
@@ -94,38 +102,43 @@ func handleFeedbackList(svc *FeedbackService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(requests)
+		if err := json.NewEncoder(w).Encode(requests); err != nil {
+			logStructuredError("feedback_list_encode_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
 // handleFeedbackGet handles GET /api/v1/admin/feedback/{id} (admin only)
-func handleFeedbackGet(svc *FeedbackService) http.HandlerFunc {
+func handleFeedbackGet(svc FeedbackServicer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		id, err := strconv.Atoi(vars["id"])
 		if err != nil {
-			http.Error(w, `{"error":"invalid feedback id"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid feedback ID.", ApiErrorTypeValidation)
 			return
 		}
 
 		feedback, err := svc.GetByID(id)
 		if err != nil {
-			http.Error(w, `{"error":"feedback not found"}`, http.StatusNotFound)
+			logStructuredError("feedback_get_failed", map[string]interface{}{"id": id, "error": err.Error()})
+			writeJSONError(w, http.StatusNotFound, "Feedback not found.", ApiErrorTypeNotFound)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(feedback)
+		if err := json.NewEncoder(w).Encode(feedback); err != nil {
+			logStructuredError("feedback_get_encode_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
 // handleFeedbackUpdateStatus handles PATCH /api/v1/admin/feedback/{id}/status (admin only)
-func handleFeedbackUpdateStatus(svc *FeedbackService) http.HandlerFunc {
+func handleFeedbackUpdateStatus(svc FeedbackServicer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		id, err := strconv.Atoi(vars["id"])
 		if err != nil {
-			http.Error(w, `{"error":"invalid feedback id"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid feedback ID.", ApiErrorTypeValidation)
 			return
 		}
 
@@ -133,7 +146,7 @@ func handleFeedbackUpdateStatus(svc *FeedbackService) http.HandlerFunc {
 			Status string `json:"status"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid request format.", ApiErrorTypeValidation)
 			return
 		}
 
@@ -145,7 +158,7 @@ func handleFeedbackUpdateStatus(svc *FeedbackService) http.HandlerFunc {
 			"rejected":    true,
 		}
 		if !validStatuses[input.Status] {
-			http.Error(w, `{"error":"invalid status"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid status. Use: pending, in_progress, resolved, or rejected.", ApiErrorTypeValidation)
 			return
 		}
 
@@ -155,7 +168,7 @@ func handleFeedbackUpdateStatus(svc *FeedbackService) http.HandlerFunc {
 				"id":    id,
 				"error": err.Error(),
 			})
-			http.Error(w, `{"error":"failed to update feedback status"}`, http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to update feedback status. Please try again.", ApiErrorTypeServerError)
 			return
 		}
 
@@ -165,17 +178,19 @@ func handleFeedbackUpdateStatus(svc *FeedbackService) http.HandlerFunc {
 		})
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(feedback)
+		if err := json.NewEncoder(w).Encode(feedback); err != nil {
+			logStructuredError("feedback_status_encode_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
 // handleFeedbackDelete handles DELETE /api/v1/admin/feedback/{id} (admin only)
-func handleFeedbackDelete(svc *FeedbackService) http.HandlerFunc {
+func handleFeedbackDelete(svc FeedbackServicer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		id, err := strconv.Atoi(vars["id"])
 		if err != nil {
-			http.Error(w, `{"error":"invalid feedback id"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid feedback ID.", ApiErrorTypeValidation)
 			return
 		}
 
@@ -184,7 +199,7 @@ func handleFeedbackDelete(svc *FeedbackService) http.HandlerFunc {
 				"id":    id,
 				"error": err.Error(),
 			})
-			http.Error(w, `{"error":"failed to delete feedback"}`, http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to delete feedback. Please try again.", ApiErrorTypeServerError)
 			return
 		}
 
@@ -193,26 +208,28 @@ func handleFeedbackDelete(svc *FeedbackService) http.HandlerFunc {
 		})
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"id":      id,
-		})
+		}); err != nil {
+			logStructuredError("feedback_delete_encode_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
 // handleFeedbackDeleteBulk handles POST /api/v1/admin/feedback/bulk-delete (admin only)
-func handleFeedbackDeleteBulk(svc *FeedbackService) http.HandlerFunc {
+func handleFeedbackDeleteBulk(svc FeedbackServicer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var input struct {
 			IDs []int `json:"ids"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid request format.", ApiErrorTypeValidation)
 			return
 		}
 
 		if len(input.IDs) == 0 {
-			http.Error(w, `{"error":"no ids provided"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "No feedback IDs provided.", ApiErrorTypeValidation)
 			return
 		}
 
@@ -222,7 +239,7 @@ func handleFeedbackDeleteBulk(svc *FeedbackService) http.HandlerFunc {
 				"ids":   input.IDs,
 				"error": err.Error(),
 			})
-			http.Error(w, `{"error":"failed to delete feedback"}`, http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to delete feedback items. Please try again.", ApiErrorTypeServerError)
 			return
 		}
 
@@ -232,9 +249,11 @@ func handleFeedbackDeleteBulk(svc *FeedbackService) http.HandlerFunc {
 		})
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"deleted": deleted,
-		})
+		}); err != nil {
+			logStructuredError("feedback_bulk_delete_encode_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }

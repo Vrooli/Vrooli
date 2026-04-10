@@ -1,0 +1,29 @@
+{
+  "archived_at": "2026-02-06T03:06:52Z",
+  "created": "2026-02-06T03:06:52Z",
+  "description": "Social intelligence engine that stores and queries contact information, relationships, and social context for use by other scenarios",
+  "name": "contact-book-archived",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "social-intelligence",
+    "contact-management",
+    "relationship-graph",
+    "cross-scenario-foundation",
+    "social-orchestration",
+    "relationship-analytics",
+    "go-api",
+    "postgres-storage",
+    "qdrant-vectors",
+    "minio-storage",
+    "redis-cache",
+    "graph-analysis",
+    "privacy-first",
+    "consent-management",
+    "compound-intelligence",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] contact-book",
+  "updated": "2026-02-06T03:06:52Z"
+}

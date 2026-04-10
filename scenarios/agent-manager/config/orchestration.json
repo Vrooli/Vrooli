@@ -1,0 +1,25 @@
+{
+  "runExecution": {
+    "runTimeoutMinutes": 60,
+    "maxConcurrentRuns": 10,
+    "maxTurns": 100
+  },
+  "safetyIsolation": {
+    "requireSandbox": true,
+    "requireApproval": true,
+    "networkAccess": "localhost"
+  },
+  "healthDetection": {
+    "heartbeatIntervalSeconds": 60,
+    "staleThresholdSeconds": 1000,
+    "maxRecoveryAgeSeconds": 1100,
+    "reconcilerIntervalSeconds": 30
+  },
+  "processTermination": {
+    "gracePeriodSeconds": 5,
+    "killProcessGroup": true,
+    "killOrphans": true,
+    "orphanGracePeriodSeconds": 600,
+    "terminationMaxRetries": 3
+  }
+}

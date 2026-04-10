@@ -15,6 +15,8 @@ vi.mock('../../../utils/actionBuilder', () => ({
   buildActionDefinition: vi.fn((type, data) => ({ type, ...data })),
 }));
 
+const asRecord = (value: unknown): Record<string, unknown> => value as Record<string, unknown>;
+
 describe('serialization utilities', () => {
   describe('constants', () => {
     it('PREVIEW_DATA_KEYS contains expected keys', () => {
@@ -86,8 +88,8 @@ describe('serialization utilities', () => {
 
     it('handles nodes with missing or invalid data', () => {
       const nodes: Node[] = [
-        { id: 'node-1', type: 'test', position: { x: 0, y: 0 }, data: null as any },
-        { id: 'node-2', type: 'test', position: { x: 0, y: 0 }, data: undefined as any },
+        { id: 'node-1', type: 'test', position: { x: 0, y: 0 }, data: null },
+        { id: 'node-2', type: 'test', position: { x: 0, y: 0 }, data: undefined },
       ];
 
       const result = stripPreviewDataFromNodes(nodes);
@@ -157,8 +159,9 @@ describe('serialization utilities', () => {
       const result = sanitizeNodesForPersistence(nodes);
 
       expect(result[0]).toHaveProperty('data');
-      expect((result[0] as any).data).not.toBe(originalData);
-      expect((result[0] as any).data).toEqual(originalData);
+      const resultNode = asRecord(result[0]);
+      expect(resultNode.data).not.toBe(originalData);
+      expect(resultNode.data).toEqual(originalData);
     });
 
     it('normalizes position values', () => {
@@ -166,14 +169,15 @@ describe('serialization utilities', () => {
         {
           id: 'node-1',
           type: 'test',
-          position: { x: '100' as any, y: undefined as any },
+          position: { x: '100' as unknown as number, y: undefined as unknown as number },
           data: {},
         },
       ];
 
       const result = sanitizeNodesForPersistence(nodes);
 
-      expect((result[0] as any).position).toEqual({ x: 100, y: 0 });
+      const resultNode = asRecord(result[0]);
+      expect(resultNode.position).toEqual({ x: 100, y: 0 });
     });
 
     it('adds action field for V2 compatibility', () => {
@@ -192,14 +196,14 @@ describe('serialization utilities', () => {
     });
 
     it('removes function properties', () => {
-      const nodes: Node[] = [
+      const nodes: Array<Node & { onNodeClick?: () => void }> = [
         {
           id: 'node-1',
           type: 'test',
           position: { x: 0, y: 0 },
           data: {},
           onNodeClick: () => {},
-        } as any,
+        },
       ];
 
       const result = sanitizeNodesForPersistence(nodes);
@@ -271,8 +275,9 @@ describe('serialization utilities', () => {
 
       const result = sanitizeEdgesForPersistence(edges);
 
-      expect((result[0] as any).data).toEqual({ condition: 'success' });
-      expect((result[0] as any).style).toEqual({ stroke: '#ff0000' });
+      const resultEdge = asRecord(result[0]);
+      expect(resultEdge.data).toEqual({ condition: 'success' });
+      expect(resultEdge.style).toEqual({ stroke: '#ff0000' });
     });
   });
 
@@ -332,8 +337,9 @@ describe('serialization utilities', () => {
 
       const result = buildFlowDefinition(base, [], []);
 
-      expect((result.settings as any).executionViewport).toBeUndefined();
-      expect((result.settings as any).otherSetting).toBe(true);
+      const settings = asRecord(result.settings);
+      expect(settings.executionViewport).toBeUndefined();
+      expect(settings.otherSetting).toBe(true);
     });
 
     it('derives metadata_typed from metadata', () => {

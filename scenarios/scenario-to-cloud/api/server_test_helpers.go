@@ -2,12 +2,14 @@ package main
 
 import (
 	"errors"
+	"time"
 
 	"github.com/gorilla/mux"
 
 	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/secrets"
+	"scenario-to-cloud/tlsinfo"
 )
 
 func newTestServer() *Server {
@@ -20,6 +22,9 @@ func newTestServer() *Server {
 		secretsFetcher:   &FakeSecretsFetcher{},
 		secretsGenerator: secrets.NewGenerator(),
 		dnsService:       dns.NewService(dns.NetResolver{}),
+		tlsService:       tlsinfo.NewService(tlsinfo.WithTimeout(2 * time.Second)),
+		tlsALPNRunner:    tlsinfo.DefaultALPNRunner,
+		deploymentRepo:   &FakeDeploymentRepo{},
 	}
 	srv.setupRoutes()
 	return srv

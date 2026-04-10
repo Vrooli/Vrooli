@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/pathfilter"
 )
 
 // CustomPatternScanner implements pattern-based vulnerability scanning
@@ -362,7 +364,7 @@ func (c *CustomPatternScanner) Scan(opts ScanOptions) (*ScanResult, error) {
 		// Skip directories
 		if info.IsDir() {
 			// Skip vendor, node_modules, etc.
-			if shouldSkipDir(info.Name()) {
+			if pathfilter.SkipDir(info.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -386,7 +388,6 @@ func (c *CustomPatternScanner) Scan(opts ScanOptions) (*ScanResult, error) {
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("error walking directory: %v", err)
 	}
@@ -527,20 +528,6 @@ func (c *CustomPatternScanner) shouldApplyPattern(pattern PatternRule, fileExt s
 }
 
 // Helper functions
-
-func shouldSkipDir(name string) bool {
-	skipDirs := []string{
-		"vendor", "node_modules", ".git", "dist", "build",
-		".cache", "coverage", ".nyc_output", ".pytest_cache",
-	}
-
-	for _, skip := range skipDirs {
-		if name == skip {
-			return true
-		}
-	}
-	return false
-}
 
 func isTextFile(ext string) bool {
 	textExtensions := map[string]bool{

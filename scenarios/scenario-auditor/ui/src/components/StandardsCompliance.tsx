@@ -22,6 +22,7 @@ import {
   Target,
   TestTube,
   X,
+  Wrench,
   XCircle,
   Zap
 } from 'lucide-react'
@@ -104,6 +105,8 @@ export default function StandardsCompliance() {
     setBulkFixPreviewMeta(null)
     setBulkFixPreviewLoading(false)
   }, [])
+  const [quickFixLoading, setQuickFixLoading] = useState<string | null>(null)
+  const [quickFixMessage, setQuickFixMessage] = useState<{ key: string; type: 'success' | 'error'; text: string } | null>(null)
   const prevAgentsRef = useRef<Map<string, string>>(new Map())
   const queryClient = useQueryClient()
   const { data: activeAgentsData } = useQuery({
@@ -409,6 +412,41 @@ export default function StandardsCompliance() {
     const identifiers = bulkSelection.map((item, index) => item.id || `${item.scenario_name || 'unknown'}:${item.file_path}:${item.line_number}:${index}`)
     return `${identifiers.length}:${identifiers.join('|')}`
   }, [bulkSelection])
+
+  const QUICK_FIXABLE_RULES = useMemo(() => new Set([
+    'MAKEFILE_STRUCTURE',
+    'MAKEFILE_LIFECYCLE',
+    'MAKEFILE_QUALITY',
+  ]), [])
+
+  const isQuickFixable = useCallback((violation: StandardsViolation) => {
+    return violation.source === 'scenario-stack-governor' && QUICK_FIXABLE_RULES.has(violation.type)
+  }, [QUICK_FIXABLE_RULES])
+
+  const handleQuickFix = useCallback(async (violation: StandardsViolation) => {
+    const key = `${violation.scenario_name}:${violation.type}`
+    setQuickFixLoading(key)
+    setQuickFixMessage(null)
+    try {
+      const result = await apiService.triggerDeterministicFix(
+        [violation.scenario_name],
+        [violation.type],
+        false,
+      )
+      const fixedCount = result.results?.filter(r => r.fixed).length ?? 0
+      if (fixedCount > 0) {
+        setQuickFixMessage({ key, type: 'success', text: `Fixed ${fixedCount} issue(s)` })
+        void refetch()
+      } else {
+        const firstError = result.results?.find(r => r.error)?.error
+        setQuickFixMessage({ key, type: 'error', text: firstError || 'No fixes applied' })
+      }
+    } catch (err: any) {
+      setQuickFixMessage({ key, type: 'error', text: err.message || 'Fix request failed' })
+    } finally {
+      setQuickFixLoading(null)
+    }
+  }, [refetch])
 
   const formatSourceLabel = useCallback((source?: string | null) => {
     if (!source || source === 'scenario-auditor') {
@@ -1202,6 +1240,48 @@ export default function StandardsCompliance() {
                                         {sourceLabel && (
                                           <span className="text-xs text-dark-500">via {sourceLabel}</span>
                                         )}
+                                        {isQuickFixable(violation) && (() => {
+                                          const fixKey = `${violation.scenario_name}:${violation.type}`
+                                          const isFixing = quickFixLoading === fixKey
+                                          const msg = quickFixMessage?.key === fixKey ? quickFixMessage : null
+                                          return (
+                                            <span className="inline-flex items-center gap-1">
+                                              <span
+                                                role="button"
+                                                tabIndex={0}
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  if (!isFixing) void handleQuickFix(violation)
+                                                }}
+                                                onKeyDown={(e) => {
+                                                  if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.stopPropagation()
+                                                    if (!isFixing) void handleQuickFix(violation)
+                                                  }
+                                                }}
+                                                className={clsx(
+                                                  'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-colors cursor-pointer',
+                                                  isFixing
+                                                    ? 'bg-dark-100 text-dark-400 cursor-wait'
+                                                    : 'bg-success-50 text-success-700 hover:bg-success-100',
+                                                )}
+                                                title="Apply deterministic fix"
+                                              >
+                                                {isFixing ? (
+                                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                                ) : (
+                                                  <Wrench className="h-3 w-3" />
+                                                )}
+                                                Quick Fix
+                                              </span>
+                                              {msg && (
+                                                <span className={clsx('text-xs', msg.type === 'success' ? 'text-success-600' : 'text-danger-600')}>
+                                                  {msg.text}
+                                                </span>
+                                              )}
+                                            </span>
+                                          )
+                                        })()}
                                       </div>
                                     </div>
                                     <ChevronRight className="h-4 w-4 text-dark-400 flex-shrink-0" />

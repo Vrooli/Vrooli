@@ -162,7 +162,7 @@ Warnings are informational; type errors fail. See [Lint Phase](../phases/lint/RE
 - Markdown structure (unclosed fences)
 - Mermaid diagram headers + bracket balance
 - Link integrity (local files must exist; external URLs HTTP-checked)
-- Absolute filesystem paths are blocked (`/home/...`, `C:\...`)
+- Absolute filesystem paths are blocked (for example, `<absolute-path>` or `C:\\repo\\...`)
 
 See [Docs Phase](../phases/docs/README.md) for configuration options.
 
@@ -181,7 +181,7 @@ See [Docs Phase](../phases/docs/README.md) for configuration options.
 - Warning: < 80%
 - Error: < 70%
 
-See [Scenario Unit Testing](scenario-unit-testing.md) for writing effective unit tests.
+See [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) for writing effective unit tests.
 
 ### Phase 6: Integration Tests
 
@@ -337,7 +337,7 @@ test-genie execute my-scenario --preset comprehensive
 # Requirements synced to requirements/index.json
 ```
 
-See [Requirements Sync Guide](requirements-sync.md) for complete documentation.
+See [Requirements Sync Guide](../phases/business/requirements-sync.md) for complete documentation.
 
 ## Dynamic Port Discovery
 

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
+
 	"test-genie/internal/requirements/evidence"
 	"test-genie/internal/requirements/snapshot"
 )
@@ -29,7 +31,7 @@ func runDrift(args []string) error {
 	jsonOut := fs.Bool("json", false, "Output JSON")
 	dirFlag, scenarioFlag := parseCommonFlags(fs)
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

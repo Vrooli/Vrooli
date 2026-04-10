@@ -40,8 +40,8 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "description": "React UI",
-      "range": "35000-39999"
+      "port": 36237,
+      "description": "React UI"
     },
     "websocket": {
       "env_var": "WS_PORT",
@@ -185,12 +185,11 @@
   },
   "dependencies": {
     "resources": {
-      "postgres": {
-        "type": "postgres",
+      "sqlite": {
+        "type": "sqlite",
         "enabled": true,
         "required": true,
-        "description": "Primary relational data store",
-        "schema": "agent-inbox"
+        "description": "Embedded relational data store"
       },
       "ollama": {
         "type": "ollama",
@@ -211,6 +210,18 @@
         "enabled": true,
         "required": false,
         "description": "Provides coding agent execution (Claude Code, Codex, OpenCode) for task dispatch"
+      },
+      "scenario-to-cloud": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Provides VPS deployment lifecycle management (create, execute, stop, inspect deployments)"
+      },
+      "prompt-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Provides skills/prompts for agent context injection (optional - graceful degradation)"
       }
     }
   }

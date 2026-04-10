@@ -3,6 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { logger } from '@/services/logger';
 
 export const DEVICE_EMULATION_STORAGE_KEY = 'app-monitor:device-emulation-settings';
+const DEFAULT_DEVICE_EMULATION_STORAGE_NAMESPACE = 'default';
 const DEVICE_MIN_WIDTH = 240;
 const DEVICE_MIN_HEIGHT = 320;
 const DEVICE_MAX_DIMENSION = 2400;
@@ -44,8 +45,8 @@ const DEFAULT_DEVICE_EMULATION_STATE: Readonly<DeviceEmulationState> = {
   isRotated: false,
 };
 
-const DEVICE_MIN_ZOOM = DEVICE_ZOOM_LEVELS[0];
-const DEVICE_MAX_ZOOM = DEVICE_ZOOM_LEVELS[DEVICE_ZOOM_LEVELS.length - 1];
+const DEVICE_MIN_ZOOM = DEVICE_ZOOM_LEVELS[0] ?? 0.1;
+const DEVICE_MAX_ZOOM = DEVICE_ZOOM_LEVELS[DEVICE_ZOOM_LEVELS.length - 1] ?? 2;
 
 const mapDisplayToBaseDimensions = (dimensions: { width: number; height: number }, rotated: boolean) => {
   if (rotated) {
@@ -65,7 +66,7 @@ const pickZoomLevelForLimit = (limit: number) => {
   const normalizedLimit = limit + 1e-6;
   for (let index = DEVICE_ZOOM_LEVELS.length - 1; index >= 0; index -= 1) {
     const candidate = DEVICE_ZOOM_LEVELS[index];
-    if (candidate <= normalizedLimit) {
+    if (candidate !== undefined && candidate <= normalizedLimit) {
       return candidate;
     }
   }
@@ -134,23 +135,31 @@ const sanitizeDeviceEmulationState = (
   };
 };
 
-const readDeviceEmulationSettings = (): { active: boolean; state: DeviceEmulationState } => {
+const resolveStorageKey = (storageNamespace?: string): string => {
+  const normalizedNamespace = typeof storageNamespace === 'string' ? storageNamespace.trim() : '';
+  const namespace = normalizedNamespace.length > 0
+    ? normalizedNamespace
+    : DEFAULT_DEVICE_EMULATION_STORAGE_NAMESPACE;
+  return `${DEVICE_EMULATION_STORAGE_KEY}:${namespace}`;
+};
+
+const readDeviceEmulationSettings = (storageNamespace?: string): { active: boolean; viewportActive: boolean; state: DeviceEmulationState } => {
   if (typeof window === 'undefined') {
-    return { active: false, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
+    return { active: false, viewportActive: true, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
   }
 
   try {
-    const raw = window.localStorage.getItem(DEVICE_EMULATION_STORAGE_KEY);
+    const raw = window.localStorage.getItem(resolveStorageKey(storageNamespace));
     if (!raw) {
-      return { active: false, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
+      return { active: false, viewportActive: true, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
     }
 
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== 'object') {
-      return { active: false, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
+      return { active: false, viewportActive: true, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
     }
 
-    const record = parsed as { active?: unknown; state?: unknown };
+    const record = parsed as { active?: unknown; viewportActive?: unknown; state?: unknown };
     const rawState = typeof record.state === 'object' && record.state !== null
       ? sanitizeDeviceEmulationState(record.state as Partial<DeviceEmulationState>)
       : { ...DEFAULT_DEVICE_EMULATION_STATE };
@@ -160,22 +169,27 @@ const readDeviceEmulationSettings = (): { active: boolean; state: DeviceEmulatio
       active = record.active;
     }
 
-    return { active, state: rawState };
+    let viewportActive = true;
+    if (typeof record.viewportActive === 'boolean') {
+      viewportActive = record.viewportActive;
+    }
+
+    return { active, viewportActive, state: rawState };
   } catch (error) {
     logger.warn('Failed to read device emulation settings', error);
-    return { active: false, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
+    return { active: false, viewportActive: true, state: { ...DEFAULT_DEVICE_EMULATION_STATE } };
   }
 };
 
-const writeDeviceEmulationSettings = (active: boolean, state: DeviceEmulationState) => {
+const writeDeviceEmulationSettings = (active: boolean, viewportActive: boolean, state: DeviceEmulationState, storageNamespace?: string) => {
   if (typeof window === 'undefined') {
     return;
   }
 
   try {
     window.localStorage.setItem(
-      DEVICE_EMULATION_STORAGE_KEY,
-      JSON.stringify({ active, state: sanitizeDeviceEmulationState(state) }),
+      resolveStorageKey(storageNamespace),
+      JSON.stringify({ active, viewportActive, state: sanitizeDeviceEmulationState(state) }),
     );
   } catch (error) {
     logger.warn('Failed to persist device emulation settings', error);
@@ -184,6 +198,7 @@ const writeDeviceEmulationSettings = (active: boolean, state: DeviceEmulationSta
 
 interface UseDeviceEmulationOptions {
   container: HTMLDivElement | null;
+  storageNamespace?: string;
 }
 
 interface DeviceEmulationToolbarBindings {
@@ -196,8 +211,10 @@ interface DeviceEmulationToolbarBindings {
   colorScheme: DeviceColorScheme;
   vision: DeviceVisionMode;
   isResponsive: boolean;
+  isViewportActive: boolean;
   maxResponsiveWidth: number | null;
   maxResponsiveHeight: number | null;
+  onToggleViewportActive: () => void;
   onPresetChange: (presetId: DevicePresetId) => void;
   onDimensionChange: (dimension: 'width' | 'height', value: number) => void;
   onZoomChange: (zoom: DeviceZoomLevel) => void;
@@ -221,15 +238,20 @@ interface DeviceEmulationViewportBindings {
 
 interface DeviceEmulationHookValue {
   isActive: boolean;
+  isViewportActive: boolean;
   toggleActive: () => void;
   toolbar: DeviceEmulationToolbarBindings;
   viewport: DeviceEmulationViewportBindings;
 }
 
-export const useDeviceEmulation = ({ container }: UseDeviceEmulationOptions): DeviceEmulationHookValue => {
-  const initialSettings = useMemo(() => readDeviceEmulationSettings(), []);
+export const useDeviceEmulation = ({ container, storageNamespace }: UseDeviceEmulationOptions): DeviceEmulationHookValue => {
+  const initialSettings = useMemo(
+    () => readDeviceEmulationSettings(storageNamespace),
+    [storageNamespace],
+  );
   const [state, setState] = useState<DeviceEmulationState>(initialSettings.state);
   const [isActive, setIsActive] = useState<boolean>(initialSettings.active);
+  const [isViewportActive, setIsViewportActive] = useState<boolean>(initialSettings.viewportActive ?? true);
   const [viewportBounds, setViewportBounds] = useState<Readonly<{ width: number; height: number }>>({
     width: Number.POSITIVE_INFINITY,
     height: Number.POSITIVE_INFINITY,
@@ -277,15 +299,11 @@ export const useDeviceEmulation = ({ container }: UseDeviceEmulationOptions): De
       return null;
     }
 
-    const widthLimit = viewportBounds.width / state.zoom;
-    const heightLimit = viewportBounds.height / state.zoom;
-
-    if (!Number.isFinite(widthLimit) || !Number.isFinite(heightLimit)) {
-      return null;
-    }
-
-    return { width: widthLimit, height: heightLimit } as const;
-  }, [isActive, state.zoom, viewportBounds.height, viewportBounds.width]);
+    // In responsive mode, on-screen size = display dimensions (zoom only
+    // changes the effective resolution inside the iframe), so limits are
+    // the raw container bounds.
+    return { width: viewportBounds.width, height: viewportBounds.height } as const;
+  }, [isActive, viewportBounds.height, viewportBounds.width]);
 
   const maxZoomForDimensions = useMemo(() => {
     if (!isActive) {
@@ -330,8 +348,10 @@ export const useDeviceEmulation = ({ container }: UseDeviceEmulationOptions): De
       let next = sanitizeDeviceEmulationState(prev);
 
       if (next.presetId === 'responsive') {
-        const maxDisplayWidth = viewportBounds.width / next.zoom;
-        const maxDisplayHeight = viewportBounds.height / next.zoom;
+        // On-screen size = display dimensions (zoom only changes effective
+        // resolution), so clamp against raw container bounds.
+        const maxDisplayWidth = viewportBounds.width;
+        const maxDisplayHeight = viewportBounds.height;
 
         const currentDisplay = {
           width: next.isRotated ? next.customHeight : next.customWidth,
@@ -421,8 +441,8 @@ export const useDeviceEmulation = ({ container }: UseDeviceEmulationOptions): De
   }, [currentZoomDisplayLimits, isActive, selectedPreset.id, state.customHeight, state.customWidth, state.isRotated, state.zoom]);
 
   useEffect(() => {
-    writeDeviceEmulationSettings(isActive, state);
-  }, [isActive, state]);
+    writeDeviceEmulationSettings(isActive, isViewportActive, state, storageNamespace);
+  }, [isActive, isViewportActive, state, storageNamespace]);
 
   useLayoutEffect(() => {
     if (!isActive || typeof window === 'undefined') {
@@ -484,13 +504,16 @@ export const useDeviceEmulation = ({ container }: UseDeviceEmulationOptions): De
 
       const adjustWidth = resizeState.mode === 'both' || resizeState.mode === 'width';
       const adjustHeight = resizeState.mode === 'both' || resizeState.mode === 'height';
-      const deltaX = adjustWidth ? (event.clientX - resizeState.startX) / state.zoom : 0;
-      const deltaY = adjustHeight ? (event.clientY - resizeState.startY) / state.zoom : 0;
+      // Resize handles only appear in responsive mode where on-screen size
+      // equals display dimensions, so mouse deltas map 1:1 to display changes
+      // and limits are the raw container bounds.
+      const deltaX = adjustWidth ? (event.clientX - resizeState.startX) : 0;
+      const deltaY = adjustHeight ? (event.clientY - resizeState.startY) : 0;
       const widthLimit = Number.isFinite(viewportBounds.width)
-        ? viewportBounds.width / state.zoom
+        ? viewportBounds.width
         : Number.POSITIVE_INFINITY;
       const heightLimit = Number.isFinite(viewportBounds.height)
-        ? viewportBounds.height / state.zoom
+        ? viewportBounds.height
         : Number.POSITIVE_INFINITY;
 
       const nextDisplayWidth = adjustWidth
@@ -558,6 +581,10 @@ export const useDeviceEmulation = ({ container }: UseDeviceEmulationOptions): De
     setIsActive(current => !current);
   }, []);
 
+  const toggleViewportActive = useCallback(() => {
+    setIsViewportActive(current => !current);
+  }, []);
+
   const handlePresetChange = useCallback((nextPresetId: DevicePresetId) => {
     setState(prev => sanitizeDeviceEmulationState({ ...prev, presetId: nextPresetId }));
   }, []);
@@ -622,30 +649,9 @@ export const useDeviceEmulation = ({ container }: UseDeviceEmulationOptions): De
       }
 
       if (next.presetId === 'responsive') {
-        const maxDisplayWidth = viewportBounds.width / next.zoom;
-        const maxDisplayHeight = viewportBounds.height / next.zoom;
-
-        const currentDisplay = {
-          width: next.isRotated ? next.customHeight : next.customWidth,
-          height: next.isRotated ? next.customWidth : next.customHeight,
-        };
-
-        const limitedDisplay = {
-          width: clampDisplayToLimit(currentDisplay.width, maxDisplayWidth, DEVICE_MIN_WIDTH),
-          height: clampDisplayToLimit(currentDisplay.height, maxDisplayHeight, DEVICE_MIN_HEIGHT),
-        };
-
-        if (limitedDisplay.width !== currentDisplay.width || limitedDisplay.height !== currentDisplay.height) {
-          const base = mapDisplayToBaseDimensions(limitedDisplay, next.isRotated);
-          next = sanitizeDeviceEmulationState({
-            ...next,
-            customWidth: base.width,
-            customHeight: base.height,
-          }, {
-            minWidth: Math.max(1, Math.min(DEVICE_MIN_WIDTH, base.width)),
-            minHeight: Math.max(1, Math.min(DEVICE_MIN_HEIGHT, base.height)),
-          });
-        }
+        // Responsive zoom only changes the effective resolution inside the
+        // iframe — on-screen size stays the same, so no dimension clamping
+        // is needed when zoom changes.
       } else {
         const preset = DEVICE_PRESETS.find(candidate => candidate.id === next.presetId) ?? DEVICE_PRESETS[0];
         const presetDisplay = {
@@ -712,7 +718,7 @@ export const useDeviceEmulation = ({ container }: UseDeviceEmulationOptions): De
     }
   }, [displayDimensions.height, displayDimensions.width, selectedPreset.id]);
 
-  const toolbarBindings: DeviceEmulationToolbarBindings = {
+  const toolbarBindings = useMemo<DeviceEmulationToolbarBindings>(() => ({
     presets: DEVICE_PRESETS,
     selectedPresetId: selectedPreset.id as DevicePresetId,
     displayWidth: displayDimensions.width,
@@ -722,8 +728,10 @@ export const useDeviceEmulation = ({ container }: UseDeviceEmulationOptions): De
     colorScheme: state.colorScheme,
     vision: state.vision,
     isResponsive: selectedPreset.id === 'responsive',
+    isViewportActive,
     maxResponsiveWidth: currentZoomDisplayLimits?.width ?? null,
     maxResponsiveHeight: currentZoomDisplayLimits?.height ?? null,
+    onToggleViewportActive: toggleViewportActive,
     onPresetChange: handlePresetChange,
     onDimensionChange: handleDimensionChange,
     onZoomChange: handleZoomChange,
@@ -731,9 +739,26 @@ export const useDeviceEmulation = ({ container }: UseDeviceEmulationOptions): De
     onVisionChange: handleVisionChange,
     onRotate: handleRotate,
     onReset: handleReset,
-  };
+  }), [
+    selectedPreset.id,
+    displayDimensions.width,
+    displayDimensions.height,
+    state.zoom,
+    state.colorScheme,
+    state.vision,
+    isViewportActive,
+    currentZoomDisplayLimits,
+    toggleViewportActive,
+    handlePresetChange,
+    handleDimensionChange,
+    handleZoomChange,
+    handleColorSchemeChange,
+    handleVisionChange,
+    handleRotate,
+    handleReset,
+  ]);
 
-  const viewportBindings: DeviceEmulationViewportBindings = {
+  const viewportBindings = useMemo<DeviceEmulationViewportBindings>(() => ({
     displayWidth: displayDimensions.width,
     displayHeight: displayDimensions.height,
     zoomedWidth: zoomedDimensions.width,
@@ -743,14 +768,25 @@ export const useDeviceEmulation = ({ container }: UseDeviceEmulationOptions): De
     vision: state.vision,
     isResponsive: selectedPreset.id === 'responsive',
     onResizePointerDown: handleResizePointerDown,
-  };
+  }), [
+    displayDimensions.width,
+    displayDimensions.height,
+    zoomedDimensions.width,
+    zoomedDimensions.height,
+    state.zoom,
+    state.colorScheme,
+    state.vision,
+    selectedPreset.id,
+    handleResizePointerDown,
+  ]);
 
-  return {
+  return useMemo(() => ({
     isActive,
+    isViewportActive,
     toggleActive,
     toolbar: toolbarBindings,
     viewport: viewportBindings,
-  };
+  }), [isActive, isViewportActive, toggleActive, toolbarBindings, viewportBindings]);
 };
 
 export type { DeviceEmulationToolbarBindings, DeviceEmulationViewportBindings };

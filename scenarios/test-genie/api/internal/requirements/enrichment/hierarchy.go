@@ -45,7 +45,9 @@ func (h *HierarchyResolver) ResolveHierarchy(ctx context.Context, index *parsing
 	for id := range index.ByID {
 		if _, hasParent := index.ParentIndex[id]; !hasParent {
 			// This is a root node
-			h.resolveRequirement(ctx, id, index, visited, resolving)
+			if _, _, err := h.resolveRequirement(ctx, id, index, visited, resolving); err != nil {
+				return err
+			}
 		}
 	}
 

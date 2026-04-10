@@ -14,11 +14,12 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
 
 	"vrooli-autoheal/internal/bootstrap"
 	"vrooli-autoheal/internal/checks"
@@ -61,15 +62,15 @@ func run() error {
 	}
 	log.Printf("user config loaded from %s", configMgr.GetConfigPath())
 
-	// Connect to database with automatic retry and backoff.
-	// Reads POSTGRES_* environment variables set by the lifecycle system.
-	db, err := database.Connect(context.Background(), database.Config{
-		Driver:       database.DriverPostgres,
-		MaxOpenConns: 10,
-		MaxIdleConns: 5,
-	})
+	db, err := connectPersistenceDB(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+	log.Printf("persistence backend selected: sqlite")
+
+	// Initialize database schema (idempotent - uses CREATE TABLE IF NOT EXISTS)
+	if err := initializeSchema(db); err != nil {
+		log.Printf("warning: schema initialization failed: %v (tables may already exist)", err)
 	}
 
 	// Initialize components
@@ -79,6 +80,20 @@ func run() error {
 
 	// Wire config manager into registry for enable/autoHeal checks
 	registry.SetConfigProvider(configMgr)
+	registry.SetHealTrackerStore(store)
+
+	// Configure auto-heal cooldown/backoff from global config.
+	// This is required - no internal hardcoded policy fallback.
+	if err := applyAutoHealPolicyFromConfig(registry, configMgr.GetGlobal()); err != nil {
+		return fmt.Errorf("invalid auto-heal policy configuration: %w", err)
+	}
+
+	// Restore cooldown/backoff tracker state from persistence.
+	ctxTrackers, cancelTrackers := context.WithTimeout(context.Background(), 10*time.Second)
+	if err := registry.LoadHealTrackers(ctxTrackers); err != nil {
+		log.Printf("warning: heal tracker restore failed (continuing with empty in-memory trackers): %v", err)
+	}
+	cancelTrackers()
 
 	// Register health checks using user's monitoring config (delegated to bootstrap module)
 	bootstrap.RegisterChecksFromConfig(registry, plat, configMgr)
@@ -102,8 +117,9 @@ func run() error {
 
 	// Start server with graceful shutdown
 	return server.Run(server.Config{
-		Handler: handlers.RecoveryHandler()(router),
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Handler:      handlers.RecoveryHandler()(router),
+		WriteTimeout: 6 * time.Minute,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	})
 }
 
@@ -194,3 +210,98 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// initializeSchema runs the database schema initialization script.
+// Uses CREATE TABLE IF NOT EXISTS, making it safe to run on every startup.
+func initializeSchema(db *sql.DB) error {
+	schemaPaths := []string{
+		filepath.Join(filepath.Dir(os.Args[0]), "..", "initialization", "sqlite", "schema.sql"),
+		filepath.Join("initialization", "sqlite", "schema.sql"),
+		filepath.Join("..", "initialization", "sqlite", "schema.sql"),
+	}
+
+	var schemaSQL []byte
+	var err error
+	for _, path := range schemaPaths {
+		schemaSQL, err = os.ReadFile(path)
+		if err == nil {
+			log.Printf("initializing database schema from %s", path)
+			break
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("schema.sql not found in expected locations: %v", schemaPaths)
+	}
+
+	_, err = db.Exec(string(schemaSQL))
+	if err != nil {
+		return fmt.Errorf("failed to execute schema: %w", err)
+	}
+
+	log.Printf("database schema initialized successfully")
+	return nil
+}
+
+func connectPersistenceDB(ctx context.Context) (*sql.DB, error) {
+	dsn, err := resolveSQLiteDSN()
+	if err != nil {
+		return nil, err
+	}
+	db, err := database.Connect(ctx, database.Config{
+		Driver:       "sqlite",
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Enable WAL mode for better concurrent read/write performance.
+	// WAL allows readers to proceed without blocking writers and vice-versa,
+	// eliminating most SQLITE_BUSY errors from concurrent tick operations.
+	if _, err := db.ExecContext(ctx, "PRAGMA journal_mode=WAL"); err != nil {
+		log.Printf("warning: failed to enable WAL mode: %v", err)
+	}
+
+	// Set busy_timeout so SQLite retries internally on lock contention instead
+	// of returning SQLITE_BUSY immediately. 5 seconds is generous enough for
+	// the autoheal tick's persistence writes to complete without failing.
+	if _, err := db.ExecContext(ctx, "PRAGMA busy_timeout=5000"); err != nil {
+		log.Printf("warning: failed to set busy_timeout: %v", err)
+	}
+
+	return db, nil
+}
+
+func resolveSQLiteDSN() (string, error) {
+	if dsn := os.Getenv("SQLITE_PATH"); dsn != "" {
+		return dsn, nil
+	}
+	if dsn := os.Getenv("SQLITE_DB"); dsn != "" {
+		return dsn, nil
+	}
+
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
+	}
+	paths, err := storage.EnsureAllDirs(resolver, storage.Options{
+		ScenarioID: "vrooli-autoheal",
+	}, 0)
+	if err != nil {
+		return "", fmt.Errorf("ensure storage directories: %w", err)
+	}
+
+	return filepath.Join(paths.DataDir, "autoheal.sqlite"), nil
+}
+
+func applyAutoHealPolicyFromConfig(registry *checks.Registry, global userconfig.GlobalConfig) error {
+	policy, err := checks.NewAutoHealPolicyFromGlobal(global.RestartCooldownSeconds, global.MaxRestartAttempts)
+	if err != nil {
+		return err
+	}
+	return registry.SetAutoHealPolicy(policy)
+}

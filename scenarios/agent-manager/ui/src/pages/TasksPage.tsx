@@ -3,14 +3,11 @@ import { timestampMs } from "@bufbuild/protobuf/wkt";
 import {
   AlertCircle,
   ClipboardList,
-  Edit,
   FolderOpen,
   Play,
   Plus,
   RefreshCw,
   Settings2,
-  Trash2,
-  XCircle,
 } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -26,12 +23,13 @@ import {
 } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { ModelConfigSelector, type ModelSelectionMode } from "../components/ModelConfigSelector";
+import { ModelConfigSelector } from "../components/ModelConfigSelector";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Textarea } from "../components/ui/textarea";
-import { formatRelativeTime, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
+import { runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
 import type { AgentProfile, ModelRegistry, ProfileFormData, Run, RunFormData, RunnerStatus, RunnerType, Task, TaskFormData } from "../types";
 import { ModelPreset, RunMode, RunnerType as RunnerTypeEnum, TaskStatus } from "../types";
+import { formatStandardRelativeTime } from "../lib/dateTime";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
@@ -39,6 +37,7 @@ import { ListItem, ListItemTitle, ListItemSubtitle } from "../components/pattern
 import { TaskDetail } from "../components/TaskDetail";
 import { ContextAttachmentEditor } from "../components/ContextAttachmentEditor";
 import { useViewportSize } from "../hooks/useViewportSize";
+import { useTasksRunDialogState } from "../hooks/useTasksRunDialogState";
 
 const RUNNER_TYPES: RunnerType[] = [
   RunnerTypeEnum.CLAUDE_CODE,
@@ -85,22 +84,6 @@ const taskStatusLabel = (status: TaskStatus): string => {
 
 const getModelId = (model: string | { id: string }): string => {
   return typeof model === "string" ? model : model.id;
-};
-
-interface InlineRunConfig {
-  runnerType: RunnerType;
-  model: string;
-  modelPreset: ModelPreset;
-  modelMode: ModelSelectionMode;
-  maxTurns: number;
-  timeoutMinutes: number;
-  runMode: RunMode;
-  skipPermissionPrompt: boolean;
-  fallbackRunnerTypes: RunnerType[];
-}
-
-type ProfileFormState = ProfileFormData & {
-  modelMode: ModelSelectionMode;
 };
 
 const STATUS_FILTER_OPTIONS = [
@@ -158,8 +141,6 @@ export function TasksPage({
   // Modal state
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [showRunDialog, setShowRunDialog] = useState<Task | null>(null);
-  const [showProfileDialog, setShowProfileDialog] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<TaskFormData>({
@@ -176,36 +157,34 @@ export function TasksPage({
     projectRoot: "",
     contextAttachments: [],
   });
-  const [selectedProfileId, setSelectedProfileId] = useState("");
-  const [runConfigMode, setRunConfigMode] = useState<"profile" | "custom">("profile");
-  const [existingSandboxId, setExistingSandboxId] = useState("");
-  const [inlineConfig, setInlineConfig] = useState<InlineRunConfig>({
-    runnerType: RunnerTypeEnum.CLAUDE_CODE,
-    model: "",
-    modelPreset: ModelPreset.UNSPECIFIED,
-    modelMode: "default",
-    maxTurns: 100,
-    timeoutMinutes: 30,
-    runMode: RunMode.SANDBOXED,
-    skipPermissionPrompt: true,
-    fallbackRunnerTypes: [],
-  });
-  const [profileFormData, setProfileFormData] = useState<ProfileFormState>({
-    name: "",
-    profileKey: "",
-    description: "",
-    runnerType: RunnerTypeEnum.CLAUDE_CODE,
-    model: "",
-    modelPreset: ModelPreset.UNSPECIFIED,
-    modelMode: "default",
-    maxTurns: 100,
-    requiresSandbox: true,
-    requiresApproval: true,
-    timeoutMinutes: 30,
-    fallbackRunnerTypes: [],
-  });
+  const {
+    showRunDialog,
+    setShowRunDialog,
+    showProfileDialog,
+    setShowProfileDialog,
+    selectedProfileId,
+    setSelectedProfileId,
+    runConfigMode,
+    setRunConfigMode,
+    existingSandboxId,
+    setExistingSandboxId,
+    inlineConfig,
+    setInlineConfig,
+    profileFormData,
+    setProfileFormData,
+    profileFormError,
+    setProfileFormError,
+    resetProfileForm,
+    resetRunDialog,
+    handleAddInlineFallback,
+    handleInlineFallbackChange,
+    handleRemoveInlineFallback,
+    handleAddProfileFallback,
+    handleProfileFallbackChange,
+    handleRemoveProfileFallback,
+  } = useTasksRunDialogState();
+
   const [submitting, setSubmitting] = useState(false);
-  const [profileFormError, setProfileFormError] = useState<string | null>(null);
 
   // Filter/sort/search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -311,33 +290,12 @@ export function TasksPage({
       }
 
       await onCreateRun(request);
-      setShowRunDialog(null);
-      setSelectedProfileId("");
-      setRunConfigMode("profile");
+      resetRunDialog();
     } catch (err) {
       console.error("Failed to start run:", err);
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const resetProfileForm = () => {
-    setProfileFormData({
-      name: "",
-      profileKey: "",
-      description: "",
-      runnerType: RunnerTypeEnum.CLAUDE_CODE,
-      model: "",
-      modelPreset: ModelPreset.UNSPECIFIED,
-      modelMode: "default",
-      maxTurns: 100,
-      requiresSandbox: true,
-      requiresApproval: true,
-      timeoutMinutes: 30,
-      fallbackRunnerTypes: [],
-    });
-    setShowProfileDialog(false);
-    setProfileFormError(null);
   };
 
   const handleCreateProfile = async (e: React.FormEvent) => {
@@ -390,54 +348,6 @@ export function TasksPage({
     }
   };
 
-  const handleAddInlineFallback = () => {
-    setInlineConfig((prev) => ({
-      ...prev,
-      fallbackRunnerTypes: [...prev.fallbackRunnerTypes, RunnerTypeEnum.CLAUDE_CODE],
-    }));
-  };
-
-  const handleInlineFallbackChange = (index: number, value: string) => {
-    const parsed = Number(value) as RunnerType;
-    setInlineConfig((prev) => {
-      const fallback = [...prev.fallbackRunnerTypes];
-      fallback[index] = parsed;
-      return { ...prev, fallbackRunnerTypes: fallback };
-    });
-  };
-
-  const handleRemoveInlineFallback = (index: number) => {
-    setInlineConfig((prev) => {
-      const fallback = [...prev.fallbackRunnerTypes];
-      fallback.splice(index, 1);
-      return { ...prev, fallbackRunnerTypes: fallback };
-    });
-  };
-
-  const handleAddProfileFallback = () => {
-    setProfileFormData((prev) => ({
-      ...prev,
-      fallbackRunnerTypes: [...(prev.fallbackRunnerTypes ?? []), RunnerTypeEnum.CLAUDE_CODE],
-    }));
-  };
-
-  const handleProfileFallbackChange = (index: number, value: string) => {
-    const parsed = Number(value) as RunnerType;
-    setProfileFormData((prev) => {
-      const fallback = [...(prev.fallbackRunnerTypes ?? [])];
-      fallback[index] = parsed;
-      return { ...prev, fallbackRunnerTypes: fallback };
-    });
-  };
-
-  const handleRemoveProfileFallback = (index: number) => {
-    setProfileFormData((prev) => {
-      const fallback = [...(prev.fallbackRunnerTypes ?? [])];
-      fallback.splice(index, 1);
-      return { ...prev, fallbackRunnerTypes: fallback };
-    });
-  };
-
   const filteredAndSortedTasks = useMemo(() => {
     let result = [...tasks];
 
@@ -479,7 +389,8 @@ export function TasksPage({
       filteredAndSortedTasks.some((task) => task.id === selectedTaskId);
 
     if (!hasSelection) {
-      setSelectedTaskId(filteredAndSortedTasks[0].id);
+      const first = filteredAndSortedTasks[0];
+      if (first) setSelectedTaskId(first.id);
     }
   }, [filteredAndSortedTasks, isDesktop, selectedTaskId]);
 
@@ -570,7 +481,7 @@ export function TasksPage({
         >
           <ListItemTitle>{task.title}</ListItemTitle>
           <ListItemSubtitle>
-            {task.scopePath} | {formatRelativeTime(task.createdAt)}
+            {task.scopePath} | {formatStandardRelativeTime(task.createdAt)}
           </ListItemSubtitle>
         </ListItem>
       ))}
@@ -623,15 +534,15 @@ export function TasksPage({
       />
 
       {/* Create Task Modal */}
-      <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()}>
-        <DialogContent>
+      <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()} fullScreenMobile>
+        <DialogContent fullScreenMobile>
           <DialogHeader onClose={resetForm}>
             <DialogTitle>Create New Task</DialogTitle>
             <DialogDescription>
               Define the work that an agent should perform
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <DialogBody className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title *</Label>
@@ -707,15 +618,15 @@ export function TasksPage({
       </Dialog>
 
       {/* Edit Task Modal */}
-      <Dialog open={editingTask !== null} onOpenChange={(open) => !open && resetEditForm()}>
-        <DialogContent>
+      <Dialog open={editingTask !== null} onOpenChange={(open) => !open && resetEditForm()} fullScreenMobile>
+        <DialogContent fullScreenMobile>
           <DialogHeader onClose={resetEditForm}>
             <DialogTitle>Edit Task</DialogTitle>
             <DialogDescription>
               Update task details and scope
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleUpdate}>
+          <form onSubmit={handleUpdate} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <DialogBody className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="editTitle">Title *</Label>
@@ -795,15 +706,12 @@ export function TasksPage({
         open={showRunDialog !== null}
         onOpenChange={(open) => {
           if (!open) {
-            setShowRunDialog(null);
-            setSelectedProfileId("");
-            setRunConfigMode("profile");
-            setExistingSandboxId("");
+            resetRunDialog();
           }
         }}
       >
         <DialogContent className="max-w-lg">
-          <DialogHeader onClose={() => setShowRunDialog(null)}>
+          <DialogHeader onClose={resetRunDialog}>
             <DialogTitle>Start Run</DialogTitle>
             <DialogDescription>
               Configure how to execute: {showRunDialog?.title}
@@ -894,7 +802,7 @@ export function TasksPage({
                     onChange={(e) => {
                       const newRunnerType = Number(e.target.value) as RunnerType;
                       const availableModels = getModelsForRunner(newRunnerType);
-                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0]) : "";
+                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
                       setInlineConfig({
                         ...inlineConfig,
                         runnerType: newRunnerType,
@@ -1065,7 +973,7 @@ export function TasksPage({
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setShowRunDialog(null)}
+              onClick={resetRunDialog}
             >
               Cancel
             </Button>
@@ -1085,15 +993,15 @@ export function TasksPage({
       </Dialog>
 
       {/* Create Profile Modal (from Run dialog) */}
-      <Dialog open={showProfileDialog} onOpenChange={(open) => !open && resetProfileForm()}>
-        <DialogContent>
+      <Dialog open={showProfileDialog} onOpenChange={(open) => !open && resetProfileForm()} fullScreenMobile>
+        <DialogContent fullScreenMobile>
           <DialogHeader onClose={resetProfileForm}>
             <DialogTitle>Create New Profile</DialogTitle>
             <DialogDescription>
               Create a reusable agent profile for running tasks
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreateProfile}>
+          <form onSubmit={handleCreateProfile} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <DialogBody className="space-y-4">
               {profileFormError && (
                 <Card className="border-destructive/50 bg-destructive/10">
@@ -1124,7 +1032,7 @@ export function TasksPage({
                     onChange={(e) => {
                       const newRunnerType = Number(e.target.value) as RunnerType;
                       const availableModels = getModelsForRunner(newRunnerType);
-                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0]) : "";
+                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
                       setProfileFormData({
                         ...profileFormData,
                         runnerType: newRunnerType,
@@ -1287,6 +1195,20 @@ export function TasksPage({
                     className="h-4 w-4 rounded border-input"
                   />
                   <span className="text-sm">Require Approval</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <span className="text-sm">Network Access</span>
+                  <select
+                    value={profileFormData.networkAccess ?? "localhost"}
+                    onChange={(e) =>
+                      setProfileFormData({ ...profileFormData, networkAccess: e.target.value as "none" | "localhost" | "full" })
+                    }
+                    className="h-8 rounded border border-input bg-background px-2 text-sm"
+                  >
+                    <option value="none">None</option>
+                    <option value="localhost">Localhost</option>
+                    <option value="full">Full</option>
+                  </select>
                 </label>
               </div>
             </DialogBody>

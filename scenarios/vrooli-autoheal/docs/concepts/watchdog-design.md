@@ -62,7 +62,7 @@ graph LR
     style Service fill:#1e40af,color:#fff
 ```
 
-Service file (`/etc/systemd/system/vrooli-autoheal.service`):
+Service file (`<systemd-service-dir>/vrooli-autoheal.service`):
 
 ```ini
 [Unit]

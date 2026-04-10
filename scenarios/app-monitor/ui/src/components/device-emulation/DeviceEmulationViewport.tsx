@@ -18,17 +18,25 @@ const DeviceEmulationViewport = ({
   onResizePointerDown,
   children,
 }: DeviceEmulationViewportProps) => {
-  const wrapperStyle: CSSProperties = {
-    width: `${Math.round(zoomedWidth)}px`,
-    height: `${Math.round(zoomedHeight)}px`,
-  };
+  // Responsive: on-screen size = display dimensions; zoom changes effective resolution inside the iframe.
+  // Preset devices: on-screen size = display × zoom (zoom scales the physical viewport).
+  const wrapperStyle: CSSProperties = isResponsive
+    ? { width: `${Math.round(displayWidth)}px`, height: `${Math.round(displayHeight)}px` }
+    : { width: `${Math.round(zoomedWidth)}px`, height: `${Math.round(zoomedHeight)}px` };
 
-  const scaleStyle: CSSProperties = {
-    width: `${Math.round(displayWidth)}px`,
-    height: `${Math.round(displayHeight)}px`,
-    transform: `scale(${zoom})`,
-    transformOrigin: 'top left',
-  };
+  const scaleStyle: CSSProperties = isResponsive
+    ? {
+        width: `${Math.round(displayWidth / zoom)}px`,
+        height: `${Math.round(displayHeight / zoom)}px`,
+        transform: `scale(${zoom})`,
+        transformOrigin: 'top left',
+      }
+    : {
+        width: `${Math.round(displayWidth)}px`,
+        height: `${Math.round(displayHeight)}px`,
+        transform: `scale(${zoom})`,
+        transformOrigin: 'top left',
+      };
 
   return (
     <div className="device-emulation-viewport" style={wrapperStyle}>

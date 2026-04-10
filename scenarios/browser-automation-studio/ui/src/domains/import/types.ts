@@ -20,6 +20,8 @@ export interface FolderEntry {
   name: string;
   /** Absolute path */
   path: string;
+  /** Whether the entry is a directory */
+  isDir?: boolean;
   /** Whether this is a detectable import target (project, workflow file, etc.) */
   isTarget: boolean;
   /** Whether this is already registered in the database */
@@ -28,6 +30,10 @@ export interface FolderEntry {
   registeredId?: string;
   /** Suggested name from metadata */
   suggestedName?: string;
+  /** MIME type for files */
+  mimeType?: string;
+  /** File size in bytes */
+  sizeBytes?: number;
 }
 
 /** Result from folder scanning */
@@ -59,6 +65,28 @@ export interface ValidationWarning {
   code: string;
   message: string;
   field?: string;
+}
+
+/** Validation check status from API */
+export type ValidationCheckStatus = 'pass' | 'warn' | 'error' | 'info';
+
+/** Single validation check from API */
+export interface ValidationCheck {
+  id: string;
+  status: ValidationCheckStatus;
+  label: string;
+  description: string;
+  context?: Record<string, unknown>;
+}
+
+/** Validation summary from API - single source of truth for all validation info */
+export interface ValidationSummary {
+  overall_status: ValidationCheckStatus;
+  pass_count: number;
+  warn_count: number;
+  error_count: number;
+  info_count: number;
+  checks: ValidationCheck[];
 }
 
 /** File information after selection */

@@ -348,7 +348,7 @@ deployment-manager configure api_base "http://localhost:${API_PORT}"
 | Dependency swapping | [guides/dependency-swapping.md](guides/dependency-swapping.md) |
 | Secrets management | [guides/secrets-management.md](guides/secrets-management.md) |
 | Auto-updates | [guides/auto-updates.md](guides/auto-updates.md) |
-| Bundle manifest examples | [examples/manifests/](examples/manifests/) |
+| Bundle manifest examples | [examples/manifests/](examples/manifests/README.md) |
 | Tier 2 technical reference | [tiers/tier-2-desktop.md](tiers/tier-2-desktop.md) |
 | Implementation roadmap | [ROADMAP.md](ROADMAP.md) |
 | Known issues | [PROBLEMS.md](PROBLEMS.md) |

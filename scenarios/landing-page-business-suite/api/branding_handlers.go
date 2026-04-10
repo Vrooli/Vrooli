@@ -1,92 +1,70 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 )
 
-// handleGetBranding returns the site branding configuration
-func handleGetBranding(bs *BrandingService) http.HandlerFunc {
+// handleGetBranding returns the site branding configuration (from ConfigStore)
+func handleGetBranding(cs *ConfigStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		branding, err := bs.Get()
-		if err != nil {
-			logStructuredError("get_branding_failed", map[string]interface{}{"error": err.Error()})
-			http.Error(w, "Failed to get branding", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(branding)
+		branding := cs.GetBranding()
+		writeJSONSuccessData(w, branding)
 	}
 }
 
-// handleUpdateBranding updates the site branding configuration
-func handleUpdateBranding(bs *BrandingService) http.HandlerFunc {
+// handleUpdateBranding updates the site branding configuration (writes to JSON file)
+func handleUpdateBranding(cs *ConfigStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req BrandingUpdateRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
+		if !decodeJSONBody(w, r, &req) {
 			return
 		}
 
-		branding, err := bs.Update(&req)
+		branding, err := cs.UpdateBranding(&req)
 		if err != nil {
 			logStructuredError("update_branding_failed", map[string]interface{}{"error": err.Error()})
-			http.Error(w, "Failed to update branding", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to update branding", ApiErrorTypeServerError)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(branding)
+		writeJSONSuccessData(w, branding)
 	}
 }
 
-// handleClearBrandingField clears a specific branding field
-func handleClearBrandingField(bs *BrandingService) http.HandlerFunc {
+// handleClearBrandingField clears a specific branding field (writes to JSON file)
+func handleClearBrandingField(cs *ConfigStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Field string `json:"field"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
+		if !decodeJSONBody(w, r, &req) {
 			return
 		}
 
-		if req.Field == "" {
-			http.Error(w, "Field name required", http.StatusBadRequest)
+		field, ok := RequireNonEmpty(w, req.Field, "Field name")
+		if !ok {
 			return
 		}
 
-		if err := bs.ClearField(req.Field); err != nil {
+		if err := cs.ClearBrandingField(field); err != nil {
 			logStructuredError("clear_branding_field_failed", map[string]interface{}{
-				"field": req.Field,
+				"field": field,
 				"error": err.Error(),
 			})
-			http.Error(w, "Failed to clear field", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to clear field", ApiErrorTypeServerError)
 			return
 		}
 
 		// Return updated branding
-		branding, err := bs.Get()
-		if err != nil {
-			http.Error(w, "Failed to get updated branding", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(branding)
+		branding := cs.GetBranding()
+		writeJSONSuccessData(w, branding)
 	}
 }
 
-// handleGetPublicBranding returns public branding info (no auth required)
-func handleGetPublicBranding(bs *BrandingService) http.HandlerFunc {
+// handleGetPublicBranding returns public branding info (no auth required, from ConfigStore)
+func handleGetPublicBranding(cs *ConfigStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		branding, err := bs.Get()
-		if err != nil {
-			logStructuredError("get_public_branding_failed", map[string]interface{}{"error": err.Error()})
-			http.Error(w, "Failed to get branding", http.StatusInternalServerError)
-			return
-		}
+		branding := cs.GetBranding()
 
 		// Return only public-safe fields
 		publicBranding := map[string]interface{}{
@@ -97,9 +75,10 @@ func handleGetPublicBranding(bs *BrandingService) http.HandlerFunc {
 			"favicon_url":            branding.FaviconURL,
 			"theme_primary_color":    branding.ThemePrimaryColor,
 			"theme_background_color": branding.ThemeBackgroundColor,
+			"coming_soon_enabled":    branding.ComingSoonEnabled,
+			"coming_soon_message":    branding.ComingSoonMessage,
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(publicBranding)
+		writeJSONSuccessData(w, publicBranding)
 	}
 }

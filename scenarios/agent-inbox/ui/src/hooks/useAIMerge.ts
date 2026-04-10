@@ -40,10 +40,7 @@ export function useAIMerge(): UseAIMergeReturn {
       setError(null);
 
       try {
-        // TODO: Implement proper AI merging via backend endpoint
-        // For now, we do a simple combination:
-        // - If template has variables, prepend the user's message as context
-        // - Otherwise just append the draft to the template
+        // Simple text combination: prepend user's message as context before template
 
         // Simulate a brief delay for UX consistency
         await new Promise((resolve) => setTimeout(resolve, 500));

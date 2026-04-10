@@ -10,6 +10,7 @@ import {
   Sparkles,
   Code,
   Search,
+  Construction,
   type LucideIcon,
 } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "@/components/ui/dialog";
@@ -238,14 +239,23 @@ export function TemplateSelector({
                           {template.category}
                         </span>
                       )}
+                      {template.draft && (
+                        <span
+                          className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded bg-orange-900/50 text-orange-400 border border-orange-500/30"
+                          title="This template is a draft and may not be fully working"
+                        >
+                          <Construction className="h-2.5 w-2.5" />
+                          Draft
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-slate-400 mt-1 line-clamp-2">
                       {template.description}
                     </p>
-                    {template.variables.length > 0 && (
+                    {(template.variables?.length ?? 0) > 0 && (
                       <p className="text-xs text-slate-500 mt-2">
-                        {template.variables.length} variable
-                        {template.variables.length !== 1 ? "s" : ""} to fill
+                        {template.variables?.length ?? 0} variable
+                        {(template.variables?.length ?? 0) !== 1 ? "s" : ""} to fill
                       </p>
                     )}
                   </div>

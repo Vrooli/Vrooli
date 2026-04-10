@@ -18,6 +18,11 @@ declare global {
      * Used to prevent double-injection and to ignore events after stop.
      */
     __recordingActive?: boolean;
+    /**
+     * Flag indicating whether the recording script has been initialized.
+     * Used to prevent double-injection in recording-script.js.
+     */
+    __recordingInitialized?: boolean;
 
     /**
      * Callback function exposed by Playwright to receive raw browser events.

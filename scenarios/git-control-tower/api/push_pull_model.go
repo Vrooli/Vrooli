@@ -44,6 +44,29 @@ type PushResponse struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+// UpstreamActionRequest contains parameters for running a safe upstream action.
+type UpstreamActionRequest struct {
+	// Action is one of: fetch, push_set_upstream, set_upstream
+	Action string `json:"action"`
+	// Remote is the remote name (defaults to origin).
+	Remote string `json:"remote,omitempty"`
+	// Branch is the local branch name for the action.
+	Branch string `json:"branch,omitempty"`
+	// Upstream is the upstream ref (e.g. origin/main).
+	Upstream string `json:"upstream,omitempty"`
+}
+
+// UpstreamActionResponse contains the result of running a safe upstream action.
+type UpstreamActionResponse struct {
+	Success   bool      `json:"success"`
+	Action    string    `json:"action"`
+	Remote    string    `json:"remote,omitempty"`
+	Branch    string    `json:"branch,omitempty"`
+	Upstream  string    `json:"upstream,omitempty"`
+	Error     string    `json:"error,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
 // PullRequest contains parameters for pulling from remote.
 type PullRequest struct {
 	// Remote is the remote name. Default: "origin"

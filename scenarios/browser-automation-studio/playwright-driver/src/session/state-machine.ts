@@ -153,7 +153,7 @@ export function getValidTransitions(from: SessionPhase): readonly SessionPhase[]
  * @returns true if the session can be closed from this phase
  */
 export function canClose(phase: SessionPhase): boolean {
-  return (CLOSEABLE_PHASES as readonly SessionPhase[]).includes(phase);
+  return CLOSEABLE_PHASES.includes(phase);
 }
 
 /**

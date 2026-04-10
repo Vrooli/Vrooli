@@ -23,9 +23,12 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
+          // Perf: three.js + R3F + drei are ~700KB gzipped — split for independent browser caching
+          three: ['three', '@react-three/fiber', '@react-three/drei'],
           ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
           motion: ['framer-motion'],
           editor: ['@monaco-editor/react'],
+          mermaid: ['mermaid'],
         },
       },
     },

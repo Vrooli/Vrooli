@@ -1,25 +1,25 @@
 {
     "cooldown": {
         "description": "Minimum time between automatic investigations to prevent spam",
-        "period_seconds": 300
+        "period_seconds": 600
     },
     "metadata": {
         "config_version": "1.0.0",
         "created_at": "2025-09-11T00:00:00Z",
-        "last_modified": "2025-09-23T15:38:14-04:00"
+        "last_modified": "2026-01-01T00:00:00Z"
     },
     "triggers": [
         {
             "auto_fix": true,
             "condition": "above",
             "description": "Triggers when CPU usage exceeds threshold for sustained period",
-            "enabled": true,
+            "enabled": false,
             "icon": "cpu",
             "id": "high_cpu",
             "name": "High CPU Usage",
             "priority": "high",
             "sustained_duration_seconds": 60,
-            "threshold": 75,
+            "threshold": 95,
             "unit": "%"
         },
         {

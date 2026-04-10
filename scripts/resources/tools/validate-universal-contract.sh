@@ -224,12 +224,12 @@ validate_v2_file_structure() {
     )
     
     for file in "${required_files[@]}"; do
-        ((TOTAL_CHECKS++))
+        ((++TOTAL_CHECKS))
         if [[ -f "$resource_dir/$file" ]]; then
-            ((PASSED_CHECKS++))
+            ((++PASSED_CHECKS))
             [[ "$VERBOSE" == "true" ]] && log::success "  ✓ $file exists"
         else
-            ((FAILED_CHECKS++))
+            ((++FAILED_CHECKS))
             check_passed=false
             VALIDATION_ERRORS["$resource_name"]="${VALIDATION_ERRORS[$resource_name]:-}Missing: $file; "
             [[ "$VERBOSE" == "true" ]] && log::error "  ✗ $file missing"
@@ -250,7 +250,7 @@ validate_v2_file_structure() {
     
     for file in "${deprecated_files[@]}"; do
         if [[ -f "$resource_dir/$file" ]]; then
-            ((WARNING_COUNT++))
+            ((++WARNING_COUNT))
             VALIDATION_WARNINGS["$resource_name"]="${VALIDATION_WARNINGS[$resource_name]:-}Deprecated: $file; "
             [[ "$VERBOSE" == "true" ]] && log::warning "  ⚠ $file is deprecated"
         fi
@@ -276,12 +276,12 @@ validate_v1_file_structure() {
     )
     
     for file in "${required_files[@]}"; do
-        ((TOTAL_CHECKS++))
+        ((++TOTAL_CHECKS))
         if [[ -f "$resource_dir/$file" ]]; then
-            ((PASSED_CHECKS++))
+            ((++PASSED_CHECKS))
             [[ "$VERBOSE" == "true" ]] && log::success "  ✓ $file exists"
         else
-            ((FAILED_CHECKS++))
+            ((++FAILED_CHECKS))
             check_passed=false
             VALIDATION_ERRORS["$resource_name"]="${VALIDATION_ERRORS[$resource_name]:-}Missing: $file; "
             [[ "$VERBOSE" == "true" ]] && log::error "  ✗ $file missing"
@@ -314,13 +314,13 @@ validate_v2_command_registration() {
     )
     
     for cmd in "${required_commands[@]}"; do
-        ((TOTAL_CHECKS++))
+        ((++TOTAL_CHECKS))
         if grep -q "cli::register_command.*[\"']${cmd}[\"']" "$cli_file" 2>/dev/null || \
            grep -q "# Subcommands under" "$cli_file" 2>/dev/null; then
-            ((PASSED_CHECKS++))
+            ((++PASSED_CHECKS))
             [[ "$VERBOSE" == "true" ]] && log::success "  ✓ Command registered: $cmd"
         else
-            ((FAILED_CHECKS++))
+            ((++FAILED_CHECKS))
             VALIDATION_ERRORS["$resource_name"]="${VALIDATION_ERRORS[$resource_name]:-}Missing command: $cmd; "
             [[ "$VERBOSE" == "true" ]] && log::error "  ✗ Command missing: $cmd"
         fi
@@ -344,9 +344,9 @@ validate_v2_pattern_compliance() {
         
         local violations_count=0
         while IFS= read -r line_num line_content; do
-            ((violations_count++))
-            ((TOTAL_CHECKS++))
-            ((FAILED_CHECKS++))
+            ((++violations_count))
+            ((++TOTAL_CHECKS))
+            ((++FAILED_CHECKS))
             check_passed=false
             VALIDATION_ERRORS["$resource_name"]="${VALIDATION_ERRORS[$resource_name]:-}Line $line_num: Old manage.sh --action pattern: ${line_content:0:80}...; "
             [[ "$VERBOSE" == "true" ]] && log::error "  ✗ $(basename "$file"):$line_num: manage.sh --action pattern found"
@@ -365,9 +365,9 @@ validate_v2_pattern_compliance() {
         
         local violations_count=0
         while IFS= read -r line_num line_content; do
-            ((violations_count++))
-            ((TOTAL_CHECKS++))
-            ((FAILED_CHECKS++))
+            ((++violations_count))
+            ((++TOTAL_CHECKS))
+            ((++FAILED_CHECKS))
             check_passed=false
             VALIDATION_ERRORS["$resource_name"]="${VALIDATION_ERRORS[$resource_name]:-}Line $line_num: Old inject pattern: ${line_content:0:80}...; "
             [[ "$VERBOSE" == "true" ]] && log::error "  ✗ $(basename "$file"):$line_num: resource-* inject pattern found"
@@ -382,9 +382,9 @@ validate_v2_pattern_compliance() {
     while IFS= read -r -d '' file; do
         local violations_count=0
         while IFS= read -r line_num line_content; do
-            ((violations_count++))
-            ((TOTAL_CHECKS++))
-            ((WARNING_COUNT++))
+            ((++violations_count))
+            ((++TOTAL_CHECKS))
+            ((++WARNING_COUNT))
             VALIDATION_WARNINGS["$resource_name"]="${VALIDATION_WARNINGS[$resource_name]:-}Line $line_num: Direct curl health check: ${line_content:0:80}...; "
             [[ "$VERBOSE" == "true" ]] && log::warning "  ⚠ $(basename "$file"):$line_num: curl health check should use CLI"
         done < <(grep -n "curl.*localhost:[0-9]*/health" "$file" 2>/dev/null || true)
@@ -398,9 +398,9 @@ validate_v2_pattern_compliance() {
     while IFS= read -r -d '' file; do
         local violations_count=0
         while IFS= read -r line_num line_content; do
-            ((violations_count++))
-            ((TOTAL_CHECKS++))
-            ((WARNING_COUNT++))
+            ((++violations_count))
+            ((++TOTAL_CHECKS))
+            ((++WARNING_COUNT))
             VALIDATION_WARNINGS["$resource_name"]="${VALIDATION_WARNINGS[$resource_name]:-}Line $line_num: Generic placeholder pattern: ${line_content:0:80}...; "
             [[ "$VERBOSE" == "true" ]] && log::warning "  ⚠ $(basename "$file"):$line_num: resource-{name} placeholder found"
         done < <(grep -n "resource-{name}" "$file" 2>/dev/null || true)
@@ -435,13 +435,13 @@ validate_v1_command_registration() {
     )
     
     for action in "${required_actions[@]}"; do
-        ((TOTAL_CHECKS++))
+        ((++TOTAL_CHECKS))
         if grep -q "\"$action\")" "$manage_file" 2>/dev/null || \
            grep -q "$action)" "$manage_file" 2>/dev/null; then
-            ((PASSED_CHECKS++))
+            ((++PASSED_CHECKS))
             [[ "$VERBOSE" == "true" ]] && log::success "  ✓ Action found: $action"
         else
-            ((FAILED_CHECKS++))
+            ((++FAILED_CHECKS))
             VALIDATION_ERRORS["$resource_name"]="${VALIDATION_ERRORS[$resource_name]:-}Missing action: $action; "
             [[ "$VERBOSE" == "true" ]] && log::error "  ✗ Action missing: $action"
         fi
@@ -458,14 +458,14 @@ validate_shell_syntax() {
     
     # Check all .sh files for syntax errors
     while IFS= read -r -d '' file; do
-        ((TOTAL_CHECKS++))
+        ((++TOTAL_CHECKS))
         local filename="$(basename "$file")"
         
         if bash -n "$file" 2>/dev/null; then
-            ((PASSED_CHECKS++))
+            ((++PASSED_CHECKS))
             [[ "$VERBOSE" == "true" ]] && log::success "  ✓ Syntax OK: $filename"
         else
-            ((FAILED_CHECKS++))
+            ((++FAILED_CHECKS))
             check_passed=false
             VALIDATION_ERRORS["$resource_name"]="${VALIDATION_ERRORS[$resource_name]:-}Syntax error in $filename; "
             [[ "$VERBOSE" == "true" ]] && log::error "  ✗ Syntax error: $filename"
@@ -491,12 +491,12 @@ validate_file_permissions() {
     fi
     
     if [[ -n "$main_script" ]]; then
-        ((TOTAL_CHECKS++))
+        ((++TOTAL_CHECKS))
         if [[ -x "$main_script" ]]; then
-            ((PASSED_CHECKS++))
+            ((++PASSED_CHECKS))
             [[ "$VERBOSE" == "true" ]] && log::success "  ✓ $(basename "$main_script") is executable"
         else
-            ((FAILED_CHECKS++))
+            ((++FAILED_CHECKS))
             VALIDATION_ERRORS["$resource_name"]="${VALIDATION_ERRORS[$resource_name]:-}$(basename "$main_script") not executable; "
             [[ "$VERBOSE" == "true" ]] && log::error "  ✗ $(basename "$main_script") not executable"
             
@@ -549,7 +549,7 @@ test_command_execution() {
         return 1
     fi
     
-    ((TOTAL_CHECKS++))
+    ((++TOTAL_CHECKS))
     
     # Execute command and capture exit code
     local exit_code=0
@@ -561,10 +561,10 @@ test_command_execution() {
     
     # Check if exit code matches expected
     if [[ "$expected_exit_codes" =~ $exit_code ]]; then
-        ((PASSED_CHECKS++))
+        ((++PASSED_CHECKS))
         [[ "$VERBOSE" == "true" ]] && log::success "  ✓ Command '$command' returned expected code: $exit_code"
     else
-        ((FAILED_CHECKS++))
+        ((++FAILED_CHECKS))
         VALIDATION_ERRORS["$resource_name"]="${VALIDATION_ERRORS[$resource_name]:-}Command '$command' returned $exit_code (expected: $expected_exit_codes); "
         [[ "$VERBOSE" == "true" ]] && log::error "  ✗ Command '$command' returned $exit_code (expected: $expected_exit_codes)"
     fi

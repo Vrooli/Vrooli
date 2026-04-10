@@ -5,7 +5,8 @@
     "labels": {
       "fixture_id": "dismiss-tutorial",
       "reset": "none"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {},
   "nodes": [

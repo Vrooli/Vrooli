@@ -75,6 +75,14 @@ export function useRecordedVideoStatus({
 
   const fetchStatus = useCallback(
     async (signal?: AbortSignal) => {
+      // Guard: Skip API calls if no valid execution ID
+      if (!executionId || executionId.trim() === '') {
+        setStatus({ available: false, count: 0, videos: [] });
+        setLoading(false);
+        setError(null);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 

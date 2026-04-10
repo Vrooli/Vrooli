@@ -10,7 +10,10 @@
  */
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { searchChats, type SearchResult } from "../lib/api";
+import { searchChats, type SearchResult, type ContentSearchOptions } from "../lib/api";
+
+/** Quick = client-side chat name filter (instant), Content = server-side regex search */
+export type ChatSearchMode = "quick" | "content";
 
 // Stable empty array for default value
 // CRITICAL: Using `= []` in destructuring creates a NEW array on every render,
@@ -24,6 +27,14 @@ interface UseSearchOptions {
   limit?: number;
   /** Minimum query length before searching (default: 2) */
   minLength?: number;
+  /** Search mode: "quick" for client-side name filter, "content" for server-side search (default: "quick") */
+  mode?: ChatSearchMode;
+  /** Max message matches per chat in content mode (1–10, default: 1) */
+  perChat?: number;
+  /** Content search options */
+  caseSensitive?: boolean;
+  wholeWord?: boolean;
+  regex?: boolean;
 }
 
 interface UseSearchReturn {
@@ -31,7 +42,7 @@ interface UseSearchReturn {
   query: string;
   /** Update the search query */
   setQuery: (query: string) => void;
-  /** Search results (empty if query too short) */
+  /** Search results (empty if query too short) - only populated in content mode */
   results: SearchResult[];
   /** Whether a search is in progress */
   isSearching: boolean;
@@ -41,10 +52,24 @@ interface UseSearchReturn {
   isActive: boolean;
   /** Clear the search */
   clear: () => void;
+  /** Current search mode */
+  mode: ChatSearchMode;
 }
 
 export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
-  const { debounceMs = 300, limit = 20, minLength = 2 } = options;
+  const {
+    debounceMs = 300,
+    limit = 20,
+    minLength: minLengthOption = 2,
+    mode = "quick",
+    perChat = 1,
+    caseSensitive = false,
+    wholeWord = false,
+    regex = false,
+  } = options;
+
+  // Quick mode benefits from single-char matching since it's instant client-side filtering
+  const minLength = mode === "quick" ? 1 : minLengthOption;
 
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -62,16 +87,22 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const isActive = query.length >= minLength;
   const shouldSearch = debouncedQuery.length >= minLength;
 
-  // Fetch search results
+  // Build content search options
+  const searchOptions: ContentSearchOptions | undefined = useMemo(() => {
+    if (!caseSensitive && !wholeWord && !regex) return undefined;
+    return { caseSensitive, wholeWord, regex };
+  }, [caseSensitive, wholeWord, regex]);
+
+  // Fetch search results - only in content mode
   // NOTE: Use stable EMPTY_RESULTS constant instead of `= []`
   const {
     data: resultsData,
-    isLoading: isSearching,
+    isLoading: isContentSearching,
     error,
   } = useQuery({
-    queryKey: ["search", debouncedQuery, limit],
-    queryFn: () => searchChats(debouncedQuery, limit),
-    enabled: shouldSearch,
+    queryKey: ["search", debouncedQuery, limit, perChat, caseSensitive, wholeWord, regex],
+    queryFn: () => searchChats(debouncedQuery, limit, perChat, searchOptions),
+    enabled: shouldSearch && mode === "content",
     staleTime: 30000, // Cache results for 30s
   });
   const results = resultsData ?? EMPTY_RESULTS;
@@ -88,10 +119,11 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   return {
     query,
     setQuery,
-    results: shouldSearch ? results : EMPTY_RESULTS,
-    isSearching: isActive && (isSearching || query !== debouncedQuery),
+    results: shouldSearch && mode === "content" ? results : EMPTY_RESULTS,
+    isSearching: mode === "content" && isActive && (isContentSearching || query !== debouncedQuery),
     error: error as Error | null,
     isActive,
     clear,
+    mode,
   };
 }

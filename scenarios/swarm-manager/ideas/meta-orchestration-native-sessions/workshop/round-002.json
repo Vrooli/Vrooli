@@ -1,0 +1,180 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-06T13:00:00Z",
+  "mode": "workshop",
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 1,
+    "scope_defined": 2,
+    "testable": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Message capture architecture",
+      "context": "The orchestration session needs to store the full conversation (user + agent messages). Agent-manager does not expose a conversation history API — it only provides GetRunState (lifecycle status) and ContinueRun (send message). The existing clarification flow avoids this problem by polling for file artifacts (workshop rounds) rather than conversation messages. For meta-orchestration, the actual conversation text is the primary artifact. We need a strategy to capture both sides of the conversation.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Proxy pattern: API captures user messages on send, agent writes responses via CLI",
+          "rationale": "User sends message → orchestration API stores it in session.json → forwards to agent-manager via ContinueRun. For agent responses, the meta-orchestrator skill is modified to call a new CLI command (e.g., `swarm-manager orchestration append-message --session {id} --role assistant`) after each response. This keeps agent-manager unchanged and leverages the existing CLI pattern that agents already use (backlog batch-create, file-upload, etc.). Recommended because it requires no agent-manager changes, uses proven CLI-based patterns, and captures messages at the source with full fidelity.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Agent-manager conversation API: add GetConversation endpoint",
+          "rationale": "Add a new endpoint to agent-manager that returns the full conversation history for a run. The orchestration API polls this endpoint to capture agent messages. Clean separation — agent doesn't need to know about sessions. But requires modifying agent-manager (separate scenario), and conversation data may not be easily accessible from agent-manager's internal Claude Code process model."
+        },
+        {
+          "key": "C",
+          "label": "File-based message log: agent writes to session folder directly via file system",
+          "rationale": "The meta-orchestrator agent writes each response to a messages.jsonl file in the session folder on the file system. Simple and direct, but relies on the agent having the correct file path (which it would via env var). The orchestration API monitors this file for new lines. Avoids CLI overhead but introduces a different persistence pattern from the rest of the system."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own message capture approach"
+        }
+      ],
+      "selected": "B",
+      "freeform": null,
+      "notes": "The existing clarification flow should probably also be updated to leverage this new agent manager endpoint once we add it"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Created items tracking mechanism",
+      "context": "When the meta-orchestrator agent creates backlog items and initiatives via `swarm-manager backlog batch-create`, the session needs to know which items were created so it can display them in the UI and link them back. The agent already passes VROOLI_META_ORCHESTRATION_ID as an env var, which gets propagated to created items. The question is how the session discovers these items.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Query by meta_orchestration_id: session reads backlog items filtered by its own ID",
+          "rationale": "The meta-orchestrator agent passes meta_orchestration_id to batch-create (via the env var or a new --meta-orchestration-id flag). Created items store this ID in their spec.json. The session's GET endpoint queries the backlog store for items matching this ID. No extra write step needed — the data is already in the backlog. Recommended because it leverages the existing attribution field, requires no agent behavior changes beyond propagating the env var, and is always consistent (reads the source of truth).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Agent writes manifest: meta-orchestrator calls CLI to register created items with session",
+          "rationale": "After batch-create, the agent calls `swarm-manager orchestration add-items --session {id} --items kind/name,...`. Session stores a created_items list. Explicit and fast to read (no query needed). But requires the agent to make an extra CLI call, and the list could drift from actual backlog state if items are deleted."
+        },
+        {
+          "key": "C",
+          "label": "Dual: query by ID for authoritative list, cache in session for fast display",
+          "rationale": "Combine A and B — session caches created_items for fast UI rendering, but the API also queries by meta_orchestration_id and reconciles. More complex but gives both speed and accuracy."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own tracking approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Session lifecycle transitions",
+      "context": "Sessions need lifecycle states (active, completed, archived). The question is what triggers transitions. The agent-manager run has its own lifecycle (running, completed, failed, cancelled), and the session lifecycle should be related but not identical — a session may span multiple runs (if ContinueRun falls back to a new spawn).",
+      "options": [
+        {
+          "key": "A",
+          "label": "Hybrid: auto-complete when agent exits cleanly, user can manually archive or reopen",
+          "rationale": "When GetRunState shows the run completed/failed, the session status auto-updates on next poll. User can also manually mark as archived (hiding from active list) or reopen (which spawns a new run with history). This handles both the happy path (agent finishes planning) and the user-driven path (user decides planning is done). Recommended because it matches user expectations — sessions that finish feel finished, but users retain control.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "User-driven only: session stays active until user marks it complete or archives it",
+          "rationale": "Simplest implementation — no polling for run state needed. But sessions where the agent errored or finished will appear 'active' indefinitely until the user notices."
+        },
+        {
+          "key": "C",
+          "label": "Agent-driven only: session state mirrors run state exactly",
+          "rationale": "Tight coupling — session completed when run completed, failed when run failed. Simple mapping but doesn't handle the multi-run case (ContinueRun fallback creates new runs), and users can't manually manage lifecycle."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own lifecycle approach"
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "I don’t think they do necessarily need. States sessions are just a place where I can chat with an agent and like workshop ideas and create backlog items and stuff. That’s something that I can come back to at any time. I don’t think there’s a natural place where a where this is considered completed or failed like the concept doesn’t really make sense here I don’t think. What does make sense would be adding an archived at date, which is separate from a status if you look at how we have set up archives for other entity types. So that’s what I would recommend an archived at date instead of a state. ",
+      "notes": ""
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Planning page layout",
+      "context": "Round 1 decided on a dedicated 'Planning' page in the sidebar nav. The question now is the page layout. The existing backlog page uses a list view with expandable rows. The clarification panel is a floating draggable panel. The orchestration conversation is the primary interaction on this page.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Two-column split: session list on left, conversation panel on right",
+          "rationale": "Similar to email/chat apps. Session list is always visible for quick switching. Conversation panel takes ~70% width. Works well for power users who manage multiple sessions. Recommended because it keeps the session context visible while working in the conversation, and matches common productivity UX patterns.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Separate list and detail routes (/planning, /planning/:id)",
+          "rationale": "List page shows all sessions with status badges. Clicking opens a dedicated conversation page. Cleaner on smaller screens. But requires navigation to switch between sessions and loses the list context."
+        },
+        {
+          "key": "C",
+          "label": "Single page with collapsible sidebar drawer for session list",
+          "rationale": "Conversation takes full width by default. A toggle opens a sidebar drawer showing the session list. Maximizes conversation space but adds a toggle interaction to access the list."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own layout approach"
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "I think these sessions should be a tab in the sidebar like every other entity type. And it’s details page would be set up similarly to other entity, detail pages and in this situation, it would be either one or two tabs. The first tab would be the conversation itself which reuses components from the clarification feature we have and the second tab would be all of the detected entity types, like initiatives, and backlog items that we detect were created during this session.",
+      "notes": ""
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "Fork implementation approach",
+      "context": "Forking creates a new session from an existing one so the user can explore a different planning direction. The session may have many messages (20-50+ turns for complex planning). The forked session needs a fresh agent run with the conversation history injected as context.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Deep copy: duplicate all messages into new session, spawn agent with full history",
+          "rationale": "Copy all messages from the source session (or up to a user-selected fork point) into the new session's session.json. Spawn a new agent with the full history in its prompt. Simple, self-contained — the forked session has no dependency on the parent. Recommended because it's the simplest correct implementation, avoids cross-session references, and the message payload is small (text, not binary).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Reference + delta: new session stores parent_id and fork_index, API merges on read",
+          "rationale": "New session only stores the parent session ID and the index where the fork happened, plus any new messages. The API merges parent messages + new messages on read. Saves storage but adds read complexity and creates a dependency chain. If the parent is deleted, the fork loses its history."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own fork approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The agentactivity OwnerType enum currently has 3 values: OwnerBacklog, OwnerCapture, OwnerScenario. Adding OwnerOrchestration requires updating the switch statement in types.go:110 and adding the constant. This is a small, low-risk change."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The meta-orchestrator skill already uses `swarm-manager backlog batch-create --file /tmp/meta-orch-items.json` for creating items. The skill's Phase 6 would need a small modification: when VROOLI_META_ORCHESTRATION_ID is set, pass it as a field in the batch-create JSON or as a CLI flag. The backlog batch-create command would then propagate it to each created item's spec.json."
+    }
+  ],
+  "plan_updates": "Incorporated all round 1 settled decisions into plan: folder-per-session storage, icon toggle mode switch, ContinueRun with fallback, dedicated Planning page, ID+summary attribution, agent-generated titles. Added existing contract details from codebase inspection (BacklogSpawnRequest fields, RunState fields, OwnerType constants). Added new risk about agent-manager lacking conversation API. Updated Phase 2 with TBD markers for round 2 decisions."
+}

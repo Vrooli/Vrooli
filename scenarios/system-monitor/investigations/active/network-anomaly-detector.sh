@@ -12,6 +12,8 @@
 
 set -euo pipefail
 
+trap 'true' EXIT
+
 # Configuration
 SCRIPT_NAME="network-anomaly-detector"
 OUTPUT_DIR="../results/$(date +%Y%m%d_%H%M%S)_${SCRIPT_NAME}"
@@ -41,11 +43,11 @@ echo "🔍 Starting Network Anomaly Detection..."
 
 # Connection Summary
 echo "📊 Analyzing connection states..."
-TOTAL_CONNECTIONS=$(ss -a | wc -l)
-ESTABLISHED=$(ss -t state established | wc -l)
-LISTENING=$(ss -lt | wc -l)
-TIME_WAIT=$(ss -t state time-wait | wc -l)
-CLOSE_WAIT=$(ss -t state close-wait | wc -l)
+TOTAL_CONNECTIONS=$(timeout 10 ss -a 2>/dev/null | wc -l)
+ESTABLISHED=$(timeout 10 ss -t state established 2>/dev/null | wc -l)
+LISTENING=$(timeout 10 ss -lt 2>/dev/null | wc -l)
+TIME_WAIT=$(timeout 10 ss -t state time-wait 2>/dev/null | wc -l)
+CLOSE_WAIT=$(timeout 10 ss -t state close-wait 2>/dev/null | wc -l)
 
 jq ".connection_summary = {
   \"total\": ${TOTAL_CONNECTIONS},

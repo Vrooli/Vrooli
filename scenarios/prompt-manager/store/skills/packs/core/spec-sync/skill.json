@@ -1,0 +1,22 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "spec-sync",
+  "name": "Spec Sync",
+  "description": "Synchronize scenario specifications (PRD.md, requirements/, README.md, docs/) with actual implementation state. Ensures specs accurately reflect what the code does, enabling faithful scenario recreation after archiving.",
+  "modes": [
+    "steer",
+    "documentation",
+    "audits"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "refreshcw",
+  "status": "active",
+  "entry": "SKILL.md",
+  "defaultScope": "audit-scope",
+  "revision": 1,
+  "createdAt": "2026-02-16T00:00:00Z",
+  "updatedAt": "2026-02-16T00:00:00Z"
+}

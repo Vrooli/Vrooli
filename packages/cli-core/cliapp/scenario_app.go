@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -28,6 +29,7 @@ type ScenarioOptions struct {
 	ColorEnabled       *bool
 	OnColor            func(enabled bool)
 	Commands           []CommandGroup
+	SubcommandGroups   []SubcommandGroup
 	TokenKeys          []string
 	APIBaseKeys        []string
 	TokenEnvVars       []string
@@ -51,6 +53,7 @@ type ScenarioApp struct {
 	CLI          *App
 	StaleChecker *cliutil.StaleChecker
 	tokenSource  func() string
+	warnedLocal  bool
 
 	options     ScenarioOptions
 	baseOptions func() cliutil.APIBaseOptions
@@ -117,7 +120,14 @@ func NewScenarioApp(opts ScenarioOptions) (*ScenarioApp, error) {
 // SetCommands rebuilds the CLI with the provided command groups while keeping
 // the shared wiring intact.
 func (a *ScenarioApp) SetCommands(commands []CommandGroup) {
+	a.SetCommandsWithSubgroups(commands, nil)
+}
+
+// SetCommandsWithSubgroups rebuilds the CLI with both flat command groups and
+// hierarchical subcommand groups.
+func (a *ScenarioApp) SetCommandsWithSubgroups(commands []CommandGroup, subcommandGroups []SubcommandGroup) {
 	a.options.Commands = commands
+	a.options.SubcommandGroups = subcommandGroups
 
 	colorEnabled := DefaultColorEnabled()
 	if a.options.ColorEnabled != nil {
@@ -125,6 +135,8 @@ func (a *ScenarioApp) SetCommands(commands []CommandGroup) {
 	}
 
 	preflight := func(cmd Command, global GlobalOptions) error {
+		a.warnIfRunningScenarioLocalBinary()
+
 		if cmd.NeedsAPI {
 			if _, err := cliutil.ValidateAPIBase(a.APIBaseOptions()); err != nil {
 				// If auto-start is enabled, try to start the scenario
@@ -145,6 +157,9 @@ func (a *ScenarioApp) SetCommands(commands []CommandGroup) {
 				return fmt.Errorf("API token is required for %s; set one via configure or %s", cmd.Name, strings.Join(a.options.TokenEnvVars, ", "))
 			}
 		}
+		if global.DryRun {
+			a.HTTPClient.SetDryRun(true)
+		}
 		if a.options.Preflight != nil {
 			return a.options.Preflight(cmd, global, a)
 		}
@@ -152,16 +167,51 @@ func (a *ScenarioApp) SetCommands(commands []CommandGroup) {
 	}
 
 	a.CLI = NewApp(AppOptions{
-		Name:         a.options.Name,
-		Version:      a.options.Version,
-		Description:  a.options.Description,
-		Commands:     commands,
-		APIOverride:  &a.APIOverride,
-		ColorEnabled: colorEnabled,
-		OnColor:      a.options.OnColor,
-		StaleChecker: a.StaleChecker,
-		Preflight:    preflight,
+		Name:             a.options.Name,
+		Version:          a.options.Version,
+		Description:      a.options.Description,
+		Commands:         commands,
+		SubcommandGroups: subcommandGroups,
+		APIOverride:      &a.APIOverride,
+		ColorEnabled:     colorEnabled,
+		OnColor:          a.options.OnColor,
+		StaleChecker:     a.StaleChecker,
+		Preflight:        preflight,
 	})
+}
+
+func (a *ScenarioApp) warnIfRunningScenarioLocalBinary() {
+	if a.warnedLocal || strings.TrimSpace(os.Getenv("VROOLI_SUPPRESS_CLI_PATH_WARNING")) != "" {
+		return
+	}
+	executablePath, err := os.Executable()
+	if err != nil {
+		return
+	}
+	if !isScenarioLocalCLIExecutablePath(a.options.Name, executablePath) {
+		return
+	}
+
+	a.warnedLocal = true
+	relativeScenario := filepath.ToSlash(filepath.Join("scenarios", a.options.Name))
+	fmt.Fprintf(os.Stderr, "Warning: running %s from a scenario-local CLI binary (%s).\n", a.options.Name, executablePath)
+	fmt.Fprintf(os.Stderr, "Install and run the canonical binary instead:\n")
+	fmt.Fprintf(os.Stderr, "  cd %s/cli && ./install.sh\n", relativeScenario)
+	fmt.Fprintf(os.Stderr, "  %s <command>\n", a.options.Name)
+}
+
+func isScenarioLocalCLIExecutablePath(appName, executablePath string) bool {
+	normalizedName := strings.ToLower(strings.TrimSpace(appName))
+	if normalizedName == "" {
+		return false
+	}
+
+	path := filepath.ToSlash(strings.ToLower(strings.TrimSpace(executablePath)))
+	if path == "" {
+		return false
+	}
+	needle := "/scenarios/" + normalizedName + "/cli/"
+	return strings.Contains(path, needle)
 }
 
 // APIBaseOptions returns the current API base resolution options for use in

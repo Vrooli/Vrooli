@@ -1,13 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
-
-	"github.com/gorilla/mux"
 )
 
 type downloadAppRequest struct {
@@ -41,11 +38,11 @@ func handleAdminListDownloadApps(downloads *DownloadService, plans *PlanService)
 	return func(w http.ResponseWriter, r *http.Request) {
 		apps, err := downloads.ListApps(plans.BundleKey())
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to list download apps: %v", err), http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("failed to list download apps: %v", err), ApiErrorTypeServerError)
 			return
 		}
 
-		writeJSON(w, map[string]interface{}{
+		writeJSONSuccessData(w, map[string]interface{}{
 			"apps": apps,
 		})
 	}
@@ -54,77 +51,73 @@ func handleAdminListDownloadApps(downloads *DownloadService, plans *PlanService)
 func handleAdminCreateDownloadApp(downloads *DownloadService, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var payload downloadAppRequest
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			http.Error(w, "invalid request payload", http.StatusBadRequest)
+		if !decodeJSONBody(w, r, &payload) {
 			return
 		}
 
 		app, err := buildDownloadAppFromPayload(payload, plans.BundleKey(), payload.AppKey)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
 			return
 		}
 
 		created, err := downloads.UpsertDownloadApp(app)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to save download app: %v", err), http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save download app: %v", err), ApiErrorTypeServerError)
 			return
 		}
 
-		writeJSON(w, created)
+		writeJSONSuccessData(w, created)
 	}
 }
 
 func handleAdminSaveDownloadApp(downloads *DownloadService, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		appKey := vars["app_key"]
-		if strings.TrimSpace(appKey) == "" {
-			http.Error(w, "app_key path parameter is required", http.StatusBadRequest)
+		appKey, ok := getPathParam(r, "app_key")
+		if !ok || strings.TrimSpace(appKey) == "" {
+			writeJSONError(w, http.StatusBadRequest, "app_key path parameter is required", ApiErrorTypeValidation)
 			return
 		}
 
 		var payload downloadAppRequest
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			http.Error(w, "invalid request payload", http.StatusBadRequest)
+		if !decodeJSONBody(w, r, &payload) {
 			return
 		}
 
 		app, err := buildDownloadAppFromPayload(payload, plans.BundleKey(), appKey)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
 			return
 		}
 
 		updated, err := downloads.UpsertDownloadApp(app)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to save download app: %v", err), http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save download app: %v", err), ApiErrorTypeServerError)
 			return
 		}
 
-		writeJSON(w, updated)
+		writeJSONSuccessData(w, updated)
 	}
 }
 
 func handleAdminDeleteDownloadApp(downloads *DownloadService, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		appKey := vars["app_key"]
-		if strings.TrimSpace(appKey) == "" {
-			http.Error(w, "app_key path parameter is required", http.StatusBadRequest)
+		appKey, ok := getPathParam(r, "app_key")
+		if !ok || strings.TrimSpace(appKey) == "" {
+			writeJSONError(w, http.StatusBadRequest, "app_key path parameter is required", ApiErrorTypeValidation)
 			return
 		}
 
 		if err := downloads.DeleteApp(plans.BundleKey(), appKey); err != nil {
 			if errors.Is(err, ErrDownloadAppNotFound) {
-				http.Error(w, "download app not found", http.StatusNotFound)
+				writeJSONError(w, http.StatusNotFound, "download app not found", ApiErrorTypeNotFound)
 				return
 			}
-			http.Error(w, fmt.Sprintf("failed to delete download app: %v", err), http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("failed to delete download app: %v", err), ApiErrorTypeServerError)
 			return
 		}
 
-		writeJSON(w, map[string]bool{"success": true})
+		writeJSONSuccessSimple(w)
 	}
 }
 

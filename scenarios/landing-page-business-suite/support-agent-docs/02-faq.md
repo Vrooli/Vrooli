@@ -102,7 +102,7 @@ Yes. Vrooli Ascension runs locally and does not require an internet connection f
 
 **Cancellation:** You can cancel your subscription at any time. There are no cancellation fees. Your access continues through the end of your current billing period.
 
-**Refunds:** We offer a 30-day money-back guarantee. If you're not satisfied within 30 days of your purchase, submit a refund request at [vrooli.com/feedback](https://vrooli.com/feedback). Refunds are processed within 5 business days.
+**Refunds:** We offer a 30-day money-back guarantee. If you're not satisfied within 30 days of your purchase, submit a refund request at [GitHub issues](https://github.com/Vrooli/Vrooli/issues). Refunds are processed within 5 business days.
 
 ### Will future apps cost extra?
 
@@ -117,7 +117,7 @@ We also commit to no price creep—your subscription rate is locked as long as y
 - **Monthly or annual billing** (annual saves money)
 - **Access to updates** for all included apps
 
-Pricing details are available at [vrooli.com](https://vrooli.com).
+Pricing details are available at [Vrooli on GitHub](https://github.com/Vrooli/Vrooli).
 
 ---
 
@@ -132,7 +132,7 @@ Documentation is included with each app and also available in the source reposit
 
 ### How do I report bugs or request features?
 
-Submit feedback at [vrooli.com/feedback](https://vrooli.com/feedback). Select the appropriate category (bug report, feature request, refund request, or general feedback).
+Submit feedback at [GitHub issues](https://github.com/Vrooli/Vrooli/issues). Select the appropriate category (bug report, feature request, refund request, or general feedback).
 
 We do not offer custom code development. For feature requests, we evaluate based on benefit to all users.
 
@@ -140,7 +140,7 @@ We do not offer custom code development. For feature requests, we evaluate based
 
 Not at this time. For questions, use:
 
-- **Feedback form:** [vrooli.com/feedback](https://vrooli.com/feedback)
+- **Feedback form:** [GitHub issues](https://github.com/Vrooli/Vrooli/issues)
 - **Documentation:** [github.com/Vrooli/Vrooli/tree/master/scenarios/browser-automation-studio/docs](https://github.com/Vrooli/Vrooli/tree/master/scenarios/browser-automation-studio/docs)
 - **X/Twitter:** [@vrooliofficial](https://x.com/vrooliofficial)
 
@@ -148,8 +148,8 @@ Not at this time. For questions, use:
 
 We don't offer sales calls or demos—that's the "silent" in Silent Founder OS. Everything you need to evaluate the product is available through:
 
-- The landing page at [vrooli.com](https://vrooli.com)
+- The landing page at [Vrooli on GitHub](https://github.com/Vrooli/Vrooli)
 - Documentation in the GitHub repository
 - This FAQ and support resources
 
-If you have specific questions, submit them via [vrooli.com/feedback](https://vrooli.com/feedback).
+If you have specific questions, submit them via [GitHub issues](https://github.com/Vrooli/Vrooli/issues).

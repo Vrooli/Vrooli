@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ChangeEvent,
-  CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
-  PointerEvent as ReactPointerEvent,
+  ReactNode,
 } from 'react';
 import clsx from 'clsx';
 import {
@@ -13,6 +11,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Bug,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Layers,
   Info,
@@ -29,19 +29,16 @@ import {
   Crosshair,
 } from 'lucide-react';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
-import { useFloatingPosition } from '@/hooks/useFloatingPosition';
+import { useDraggablePosition } from '@/hooks/useDraggablePosition';
+import { useDockToEdge, computeDockStyle } from '@/hooks/useDockToEdge';
 import { useToolbarMenu, useMenuCoordinator, useMenuAutoFocus, useMenuOutsideClick } from '@/hooks/useToolbarMenu';
 import { PREVIEW_UI } from './views/previewConstants';
+import { AnchoredPopover } from './popover/AnchoredPopover';
+import { useAnchoredPopover } from './popover/useAnchoredPopover';
+import { formatPreviewUrlForDisplay } from '@/utils/previewUrl';
+import type { PreviewSuggestionSection } from '@/utils/workspaceDiscovery';
 
 import './AppPreviewToolbar.css';
-
-type PointerMoveLike = Pick<PointerEvent, 'clientX' | 'clientY' | 'pointerId'> & {
-  preventDefault?: () => void;
-};
-
-type PointerEndLike = Pick<PointerEvent, 'pointerId'> & {
-  preventDefault?: () => void;
-};
 
 export type AppPreviewToolbarPendingAction = 'start' | 'stop' | 'restart' | null;
 
@@ -85,9 +82,25 @@ export interface AppPreviewToolbarProps {
   canOpenTabsOverlay: boolean;
   previewInteractionSignal: number;
   issueCaptureCount: number;
+  developerActionCapabilities?: {
+    canOpenMenu: boolean;
+    canToggleFullscreen: boolean;
+    canToggleDeviceEmulation: boolean;
+    canToggleInspectContext: boolean;
+    canToggleLogs: boolean;
+    canReportIssue: boolean;
+  };
+  showDetailsButton?: boolean;
+  showLifecycleMenu?: boolean;
+  showDevMenu?: boolean;
+  rightInlineActions?: ReactNode;
+  buildUrlSuggestionSections?: (query: string) => PreviewSuggestionSection[];
+  onSelectUrlSuggestion?: (value: string) => void;
+  onOpenScenarioSelector?: () => void;
+  scenarioSelectorLabel?: string;
 }
 
-const AppPreviewToolbar = ({
+const AppPreviewToolbar = memo(({
   canGoBack,
   canGoForward,
   onGoBack,
@@ -127,33 +140,32 @@ const AppPreviewToolbar = ({
   canOpenTabsOverlay,
   previewInteractionSignal,
   issueCaptureCount,
+  developerActionCapabilities,
+  showDetailsButton = true,
+  showLifecycleMenu = true,
+  showDevMenu = true,
+  rightInlineActions,
+  buildUrlSuggestionSections,
+  onSelectUrlSuggestion,
+  onOpenScenarioSelector,
+  scenarioSelectorLabel = 'Open scenario selector',
 }: AppPreviewToolbarProps) => {
-  const [floatingPosition, setFloatingPosition] = useState<{ x: number; y: number }>({
-    x: PREVIEW_UI.DEFAULT_FLOATING_POSITION.x,
-    y: PREVIEW_UI.DEFAULT_FLOATING_POSITION.y,
-  });
-  const [isDragging, setIsDragging] = useState(false);
-  const { clampPosition, computeMenuStyle, computeBottomRightPosition } = useFloatingPosition();
-
   // Coordinate mutually-exclusive menus
   const { handleMenuOpenChange, closeAll: closeMenus, registerMenu } = useMenuCoordinator();
 
   // Create menu instances with consolidated hook
   const lifecycleMenu = useToolbarMenu({
     id: 'lifecycle',
-    computeMenuStyle,
     onOpenChange: handleMenuOpenChange,
   });
 
   const devMenu = useToolbarMenu({
     id: 'dev',
-    computeMenuStyle,
     onOpenChange: handleMenuOpenChange,
   });
 
   const navMenu = useToolbarMenu({
     id: 'nav',
-    computeMenuStyle,
     onOpenChange: handleMenuOpenChange,
   });
 
@@ -161,19 +173,6 @@ const AppPreviewToolbar = ({
   useEffect(() => registerMenu('dev', devMenu.close), [devMenu.close, registerMenu]);
   useEffect(() => registerMenu('nav', navMenu.close), [navMenu.close, registerMenu]);
 
-  const toolbarRef = useRef<HTMLDivElement | null>(null);
-  const dragStateRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startY: number;
-    offsetX: number;
-    offsetY: number;
-    width: number;
-    height: number;
-    pointerCaptured: boolean;
-    dragging: boolean;
-  } | null>(null);
-  const suppressClickRef = useRef(false);
   const { openOverlay } = useOverlayRouter();
 
   const captureBadgeCount = issueCaptureCount > 99 ? 99 : issueCaptureCount;
@@ -183,40 +182,123 @@ const AppPreviewToolbar = ({
     ? `${issueCaptureCount} capture${issueCaptureCount === 1 ? '' : 's'} staged`
     : null;
 
-  // Note: updateAnchor callbacks and useMenuPositioning calls removed
-  // These are now handled inside useToolbarMenu hook
+  // Note: anchor measurement and flip logic live in the shared popover hook.
 
   const detailsButtonLabel = hasDetailsWarning
     ? 'Application details (localhost references detected)'
     : 'Application details';
 
   const fullscreenActionLabel = isFullView ? 'Exit full view' : 'Enter full view';
+  const resolvedDeveloperActionCapabilities = useMemo(() => (
+    developerActionCapabilities ?? {
+      canOpenMenu: true,
+      canToggleFullscreen: true,
+      canToggleDeviceEmulation: true,
+      canToggleInspectContext: hasCurrentApp,
+      canToggleLogs: hasCurrentApp,
+      canReportIssue: hasCurrentApp,
+    }
+  ), [developerActionCapabilities, hasCurrentApp]);
   const inspectModeDisabledReason = useMemo(() => {
-    if (!hasCurrentApp) {
+    if (!resolvedDeveloperActionCapabilities.canToggleInspectContext) {
       return 'Select an application to inspect elements.';
     }
     if (!canInspect) {
       return 'Element inspection is unavailable for this preview.';
     }
     return null;
-  }, [canInspect, hasCurrentApp]);
+  }, [canInspect, resolvedDeveloperActionCapabilities.canToggleInspectContext]);
+  const [isSmallScreen, setIsSmallScreen] = useState(() => (
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(max-width: 640px)').matches
+      : false
+  ));
+  const shouldUseCompactNavigation = isFullView || isSmallScreen;
+  const shouldShowLifecycleMenu = showLifecycleMenu && !isSmallScreen;
 
   const isBrowser = typeof document !== 'undefined';
   const portalHost = isBrowser ? (menuPortalContainer ?? document.body) : null;
-
-  const computeToolbarBottomRightPosition = useCallback(() => {
-    if (typeof window === 'undefined') {
-      return null;
+  const urlWrapperRef = useRef<HTMLDivElement | null>(null);
+  const urlSuggestionsPopoverRef = useRef<HTMLDivElement | null>(null);
+  const closeUrlSuggestionsTimerRef = useRef<number | null>(null);
+  const suggestionSelectionGuardRef = useRef(false);
+  const urlSuggestionItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [isUrlSuggestionsOpen, setIsUrlSuggestionsOpen] = useState(false);
+  const [activeUrlSuggestionIndex, setActiveUrlSuggestionIndex] = useState(-1);
+  const [isUrlInputEditing, setIsUrlInputEditing] = useState(false);
+  const deferredPreviewUrlInput = useDeferredValue(previewUrlInput);
+  const urlSuggestionSections = useMemo<PreviewSuggestionSection[]>(() => {
+    if (!buildUrlSuggestionSections) {
+      return [];
     }
-
-    const toolbar = toolbarRef.current;
-    if (!toolbar) {
-      return null;
+    return buildUrlSuggestionSections(deferredPreviewUrlInput);
+  }, [buildUrlSuggestionSections, deferredPreviewUrlInput]);
+  const flattenedUrlSuggestions = useMemo(() => (
+    urlSuggestionSections.flatMap((section) => section.items)
+  ), [urlSuggestionSections]);
+  const urlSuggestionIndexById = useMemo(() => {
+    const entries = flattenedUrlSuggestions.map((item, index) => [item.id, index] as const);
+    return new Map(entries);
+  }, [flattenedUrlSuggestions]);
+  const hasUrlSuggestionsContent = flattenedUrlSuggestions.length > 0 || Boolean(onOpenScenarioSelector);
+  const urlSuggestionsCount = flattenedUrlSuggestions.length + (onOpenScenarioSelector ? 1 : 0);
+  const displayedPreviewUrlInput = useMemo(() => {
+    if (isUrlInputEditing) {
+      return previewUrlInput;
     }
+    return formatPreviewUrlForDisplay(previewUrlInput);
+  }, [isUrlInputEditing, previewUrlInput]);
 
-    const rect = toolbar.getBoundingClientRect();
-    return computeBottomRightPosition({ width: rect.width, height: rect.height });
-  }, [computeBottomRightPosition]);
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+    const mediaQuery = window.matchMedia('(max-width: 640px)');
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsSmallScreen(event.matches);
+    };
+    setIsSmallScreen(mediaQuery.matches);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
+  const urlSuggestionsPopover = useAnchoredPopover({
+    isOpen: isUrlSuggestionsOpen && hasUrlSuggestionsContent,
+    anchorRef: urlWrapperRef,
+    popoverRef: urlSuggestionsPopoverRef,
+    placement: 'bottom-end',
+  });
+
+  // Dock-to-edge: slide toolbar off-screen when dragged/flung to left/right edge.
+  // Defined before useDraggablePosition so its stable callbacks can be wired as drag handlers.
+  const sharedElementRef = useRef<HTMLElement | null>(null);
+  const dock = useDockToEdge({
+    elementRef: sharedElementRef,
+    isActive: isFullView,
+  });
+
+  // Draggable toolbar positioning for fullscreen mode
+  const floatingToolbar = useDraggablePosition({
+    isActive: isFullView,
+    storageKey: null,
+    defaultPosition: PREVIEW_UI.DEFAULT_FLOATING_POSITION,
+    floatingMargin: PREVIEW_UI.FLOATING_MARGIN,
+    onDragStart: () => {
+      closeMenus();
+      dock.handleDragStart();
+    },
+    onDragEnd: dock.handleDragEnd,
+  });
+
+  // Share the element ref between both hooks
+  sharedElementRef.current = floatingToolbar.elementRef.current;
+
+  // Compute final style: docked overrides floating position
+  const toolbarStyle = useMemo(
+    () => computeDockStyle(dock.docked, floatingToolbar.floatingStyle, floatingToolbar.position.y, dock.toolbarWidth, dock.vpWidth),
+    [dock.docked, floatingToolbar.floatingStyle, floatingToolbar.position.y, dock.toolbarWidth, dock.vpWidth],
+  );
 
   // Auto-focus first menu item when menus open (accessibility)
   useMenuAutoFocus(lifecycleMenu.isOpen, lifecycleMenu.firstItemRef);
@@ -235,57 +317,30 @@ const AppPreviewToolbar = ({
       navMenu.menuRef,
       navMenu.popoverRef,
       navMenu.buttonRef,
+      urlWrapperRef,
+      urlSuggestionsPopoverRef,
     ],
-    closeMenus,
-    lifecycleMenu.isOpen || devMenu.isOpen || navMenu.isOpen,
+    () => {
+      closeMenus();
+      setIsUrlSuggestionsOpen(false);
+    },
+    lifecycleMenu.isOpen || devMenu.isOpen || navMenu.isOpen || (isUrlSuggestionsOpen && hasUrlSuggestionsContent),
   );
 
   useEffect(() => {
     if (!isFullView) {
-      setFloatingPosition({
-        x: PREVIEW_UI.DEFAULT_FLOATING_POSITION.x,
-        y: PREVIEW_UI.DEFAULT_FLOATING_POSITION.y,
-      });
-      setIsDragging(false);
-      dragStateRef.current = null;
       closeMenus();
-      return;
+      setIsUrlSuggestionsOpen(false);
     }
+  }, [closeMenus, isFullView]);
 
-    const initialPosition = computeToolbarBottomRightPosition();
-    if (initialPosition) {
-      setFloatingPosition(initialPosition);
+  // Close menus when toolbar docks to an edge
+  useEffect(() => {
+    if (dock.docked) {
+      closeMenus();
+      setIsUrlSuggestionsOpen(false);
     }
-
-    const handleResize = () => {
-      const toolbar = toolbarRef.current;
-      if (!toolbar) {
-        return;
-      }
-      const rect = toolbar.getBoundingClientRect();
-      setFloatingPosition(prev => {
-        const next = clampPosition(prev.x, prev.y, { width: rect.width, height: rect.height });
-        if (next.x === prev.x && next.y === prev.y) {
-          return prev;
-        }
-        return next;
-      });
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
-    };
-  }, [
-    clampPosition,
-    computeToolbarBottomRightPosition,
-    isFullView,
-    closeMenus,
-  ]);
+  }, [dock.docked, closeMenus]);
 
   // Note: Old closeMenus callback removed - now provided by useMenuCoordinator
 
@@ -294,7 +349,49 @@ const AppPreviewToolbar = ({
       return;
     }
     closeMenus();
+    setIsUrlSuggestionsOpen(false);
   }, [closeMenus, previewInteractionSignal]);
+
+  useEffect(() => {
+    if (lifecycleMenu.isOpen || devMenu.isOpen || navMenu.isOpen) {
+      setIsUrlSuggestionsOpen(false);
+    }
+  }, [devMenu.isOpen, lifecycleMenu.isOpen, navMenu.isOpen]);
+
+  useEffect(() => {
+    if (!isUrlSuggestionsOpen || urlSuggestionsCount === 0) {
+      setActiveUrlSuggestionIndex(-1);
+      return;
+    }
+    setActiveUrlSuggestionIndex((current) => {
+      if (current >= urlSuggestionsCount) {
+        return urlSuggestionsCount - 1;
+      }
+      return current;
+    });
+  }, [isUrlSuggestionsOpen, urlSuggestionsCount]);
+
+  useEffect(() => {
+    if (!isUrlSuggestionsOpen || activeUrlSuggestionIndex < 0) {
+      return;
+    }
+    const activeNode = urlSuggestionItemRefs.current[activeUrlSuggestionIndex];
+    activeNode?.scrollIntoView({ block: 'nearest' });
+  }, [activeUrlSuggestionIndex, isUrlSuggestionsOpen]);
+
+  useEffect(() => {
+    if (urlSuggestionItemRefs.current.length > urlSuggestionsCount) {
+      urlSuggestionItemRefs.current = urlSuggestionItemRefs.current.slice(0, urlSuggestionsCount);
+    }
+  }, [urlSuggestionsCount]);
+
+  useEffect(() => {
+    return () => {
+      if (closeUrlSuggestionsTimerRef.current !== null) {
+        window.clearTimeout(closeUrlSuggestionsTimerRef.current);
+      }
+    };
+  }, []);
 
   // Simplified toggle handlers - mutual exclusion handled by coordinator
   const handleToggleLifecycleMenu = useCallback(() => {
@@ -338,12 +435,10 @@ const AppPreviewToolbar = ({
         onGoForward();
       }
     } else if (action === 'refresh') {
-      if (!isRefreshing) {
-        onRefresh();
-      }
+      onRefresh();
     }
     closeMenus();
-  }, [canGoBack, canGoForward, closeMenus, isRefreshing, onGoBack, onGoForward, onRefresh]);
+  }, [canGoBack, canGoForward, closeMenus, onGoBack, onGoForward, onRefresh]);
 
   const handleToggleFullscreen = useCallback(() => {
     onToggleFullView();
@@ -357,173 +452,126 @@ const AppPreviewToolbar = ({
     });
   }, [closeMenus, openOverlay]);
 
-  const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isFullView) {
+  const handleUrlInputFocus = useCallback(() => {
+    suggestionSelectionGuardRef.current = false;
+    setIsUrlInputEditing(true);
+    if (!hasUrlSuggestionsContent) {
       return;
     }
-
-    if (event.pointerType === 'mouse' && event.button !== 0) {
-      return;
+    if (closeUrlSuggestionsTimerRef.current !== null) {
+      window.clearTimeout(closeUrlSuggestionsTimerRef.current);
+      closeUrlSuggestionsTimerRef.current = null;
     }
+    setIsUrlSuggestionsOpen(true);
+    setActiveUrlSuggestionIndex(-1);
+  }, [hasUrlSuggestionsContent]);
 
-    const toolbar = toolbarRef.current;
-    if (!toolbar) {
-      return;
+  const handleUrlInputBlur = useCallback(() => {
+    const shouldSkipBlurCommit = suggestionSelectionGuardRef.current;
+    if (shouldSkipBlurCommit) {
+      suggestionSelectionGuardRef.current = false;
+    } else {
+      onPreviewUrlInputBlur();
     }
-
-    const rect = toolbar.getBoundingClientRect();
-    dragStateRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      offsetX: event.clientX - rect.left,
-      offsetY: event.clientY - rect.top,
-      width: rect.width,
-      height: rect.height,
-      pointerCaptured: false,
-      dragging: false,
-    };
-    setIsDragging(false);
-  }, [isFullView]);
-
-  const processPointerMove = useCallback((event: PointerMoveLike) => {
-    const state = dragStateRef.current;
-    if (!state || state.pointerId !== event.pointerId) {
-      return;
+    setIsUrlInputEditing(false);
+    if (closeUrlSuggestionsTimerRef.current !== null) {
+      window.clearTimeout(closeUrlSuggestionsTimerRef.current);
     }
+    closeUrlSuggestionsTimerRef.current = window.setTimeout(() => {
+      setIsUrlSuggestionsOpen(false);
+      setActiveUrlSuggestionIndex(-1);
+      closeUrlSuggestionsTimerRef.current = null;
+    }, 110);
+  }, [onPreviewUrlInputBlur]);
 
-    const toolbar = toolbarRef.current;
-    if (!toolbar) {
-      return;
-    }
-
-    const deltaX = event.clientX - state.startX;
-    const deltaY = event.clientY - state.startY;
-    if (!state.dragging) {
-      if (Math.abs(deltaX) + Math.abs(deltaY) < 6) {
-        return;
-      }
-      state.dragging = true;
-      setIsDragging(true);
-      closeMenus();
-      if (!state.pointerCaptured) {
-        try {
-          toolbar.setPointerCapture(event.pointerId);
-          state.pointerCaptured = true;
-        } catch (error) {
-          state.pointerCaptured = false;
-        }
-      }
-    }
-
-    if (!state.dragging) {
-      return;
-    }
-
-    event.preventDefault?.();
-    const next = clampPosition(
-      event.clientX - state.offsetX,
-      event.clientY - state.offsetY,
-      { width: state.width, height: state.height },
-    );
-    setFloatingPosition(prev => (
-      prev.x === next.x && prev.y === next.y ? prev : next
-    ));
-  }, [clampPosition, closeMenus]);
-
-  const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    processPointerMove(event);
-  }, [processPointerMove]);
-
-  const processPointerEnd = useCallback((event: PointerEndLike) => {
-    const state = dragStateRef.current;
-    if (!state || state.pointerId !== event.pointerId) {
-      return;
-    }
-
-    const toolbar = toolbarRef.current;
-    if (state.pointerCaptured && toolbar) {
-      try {
-        toolbar.releasePointerCapture(event.pointerId);
-      } catch (error) {
-        // noop - releasePointerCapture may throw if pointer already released
-      }
-    }
-
-    if (state.dragging) {
-      event.preventDefault?.();
-      suppressClickRef.current = true;
-      if (typeof window !== 'undefined') {
-        window.setTimeout(() => {
-          suppressClickRef.current = false;
-        }, 0);
-      } else {
-        suppressClickRef.current = false;
-      }
-    }
-
-    dragStateRef.current = null;
-    setIsDragging(false);
+  const markSuggestionSelectionGuard = useCallback(() => {
+    suggestionSelectionGuardRef.current = true;
   }, []);
 
-  const endDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    processPointerEnd(event);
-  }, [processPointerEnd]);
+  const handleUrlSuggestionSelect = useCallback((value: string) => {
+    markSuggestionSelectionGuard();
+    setIsUrlSuggestionsOpen(false);
+    setActiveUrlSuggestionIndex(-1);
+    onSelectUrlSuggestion?.(value);
+  }, [markSuggestionSelectionGuard, onSelectUrlSuggestion]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
+  const handleOpenScenarioSelectorClick = useCallback(() => {
+    markSuggestionSelectionGuard();
+    setIsUrlSuggestionsOpen(false);
+    setActiveUrlSuggestionIndex(-1);
+    onOpenScenarioSelector?.();
+  }, [markSuggestionSelectionGuard, onOpenScenarioSelector]);
+
+  const handleUrlSuggestionPointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    markSuggestionSelectionGuard();
+  }, [markSuggestionSelectionGuard]);
+
+  const handleUrlSuggestionSelectByIndex = useCallback((index: number) => {
+    if (index < 0 || index >= urlSuggestionsCount) {
       return;
     }
-
-    const handleWindowPointerMove = (event: PointerEvent) => processPointerMove(event);
-    const handleWindowPointerUp = (event: PointerEvent) => processPointerEnd(event);
-    const handleWindowPointerCancel = (event: PointerEvent) => processPointerEnd(event);
-
-    window.addEventListener('pointermove', handleWindowPointerMove, { passive: false });
-    window.addEventListener('pointerup', handleWindowPointerUp, { passive: false });
-    window.addEventListener('pointercancel', handleWindowPointerCancel, { passive: false });
-
-    return () => {
-      window.removeEventListener('pointermove', handleWindowPointerMove);
-      window.removeEventListener('pointerup', handleWindowPointerUp);
-      window.removeEventListener('pointercancel', handleWindowPointerCancel);
-    };
-  }, [processPointerEnd, processPointerMove]);
-
-  const handleClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
-    if (suppressClickRef.current) {
-      event.preventDefault();
-      event.stopPropagation();
-      suppressClickRef.current = false;
+    const suggestion = flattenedUrlSuggestions[index];
+    if (suggestion?.value) {
+      handleUrlSuggestionSelect(suggestion.value);
+      return;
     }
+    if (onOpenScenarioSelector && index === flattenedUrlSuggestions.length) {
+      handleOpenScenarioSelectorClick();
+    }
+  }, [
+    flattenedUrlSuggestions,
+    handleOpenScenarioSelectorClick,
+    handleUrlSuggestionSelect,
+    onOpenScenarioSelector,
+    urlSuggestionsCount,
+  ]);
+
+  const isExplicitUrlInput = useCallback((value: string): boolean => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return false;
+    }
+    if (trimmed.startsWith('/') || trimmed.startsWith('//')) {
+      return true;
+    }
+    if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+      return true;
+    }
+    if (/^(localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0)(:\d+)?(?:[/?#].*)?$/i.test(trimmed)) {
+      return true;
+    }
+    if (/^[a-z0-9.-]+:\d+(?:[/?#].*)?$/i.test(trimmed)) {
+      return true;
+    }
+    return /^[^\s/]+\.[^\s/]+(?:[/?#].*)?$/i.test(trimmed);
   }, []);
-
-  const floatingStyle = useMemo<CSSProperties | undefined>(() => {
-    if (!isFullView) {
-      return undefined;
-    }
-    return {
-      transform: `translate3d(${Math.round(floatingPosition.x)}px, ${Math.round(floatingPosition.y)}px, 0)`,
-    };
-  }, [floatingPosition, isFullView]);
 
   return (
     <div
-      ref={toolbarRef}
+      ref={floatingToolbar.elementRef as React.RefObject<HTMLDivElement>}
       className={clsx(
         'preview-toolbar',
         isFullView && 'preview-toolbar--floating',
-        isFullView && isDragging && 'preview-toolbar--dragging',
+        isFullView && floatingToolbar.isDragging && 'preview-toolbar--dragging',
+        dock.docked && 'preview-toolbar--docked',
+        dock.animating && 'preview-toolbar--dock-transition',
       )}
-      style={floatingStyle}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-      onClickCapture={handleClickCapture}
+      style={toolbarStyle}
+      onPointerDown={dock.docked ? undefined : floatingToolbar.pointerHandlers.onPointerDown}
+      onPointerMove={dock.docked ? undefined : floatingToolbar.pointerHandlers.onPointerMove}
+      onPointerUp={dock.docked ? undefined : floatingToolbar.pointerHandlers.onPointerUp}
+      onPointerCancel={dock.docked ? undefined : floatingToolbar.pointerHandlers.onPointerCancel}
+      onClickCapture={dock.docked ? undefined : floatingToolbar.handleClickCapture}
+      onClick={dock.docked ? dock.undock : undefined}
     >
-      <div className="preview-toolbar__group preview-toolbar__group--left">
-        {isFullView ? (
+      {dock.docked === 'right' && (
+        <div className="preview-toolbar__dock-tab" title="Click to restore toolbar">
+          <ChevronLeft aria-hidden size={16} />
+        </div>
+      )}
+      <div className="preview-toolbar__group preview-toolbar__group--left" aria-hidden={!!dock.docked || undefined}>
+        {shouldUseCompactNavigation ? (
           <>
             <div
               className={clsx('preview-toolbar__menu', navMenu.isOpen && 'preview-toolbar__menu--open')}
@@ -537,7 +585,6 @@ const AppPreviewToolbar = ({
                 )}
                 ref={navMenu.buttonRef}
                 onClick={handleToggleNavMenu}
-                disabled={!canGoBack && !canGoForward && isRefreshing}
                 aria-haspopup="menu"
                 aria-expanded={navMenu.isOpen}
                 aria-label="Navigation actions"
@@ -545,47 +592,46 @@ const AppPreviewToolbar = ({
               >
                 <Navigation2 aria-hidden size={18} />
               </button>
-            {portalHost && navMenu.isOpen && navMenu.menuStyle && createPortal(
-                <div
-                  className="preview-toolbar__menu-popover"
-                  role="menu"
-                  ref={navMenu.popoverRef}
-                  style={navMenu.menuStyle}
-                >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    ref={navMenu.firstItemRef}
-                    className="preview-toolbar__menu-item"
-                    onClick={() => handleNavAction('back')}
-                    disabled={!canGoBack}
-                  >
-                    <ArrowLeft aria-hidden size={16} />
-                    <span>Go back</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="preview-toolbar__menu-item"
-                    onClick={() => handleNavAction('forward')}
-                    disabled={!canGoForward}
-                  >
-                    <ArrowRight aria-hidden size={16} />
-                    <span>Go forward</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="preview-toolbar__menu-item"
-                    onClick={() => handleNavAction('refresh')}
-                    disabled={isRefreshing}
-                  >
-                    <RefreshCw aria-hidden size={16} className={clsx({ spinning: isRefreshing })} />
-                    <span>Refresh</span>
-                  </button>
-                </div>,
-                portalHost,
-              )}
+            <AnchoredPopover
+              isOpen={navMenu.isOpen}
+              portalHost={portalHost}
+              popoverRef={navMenu.popoverRef}
+              style={navMenu.menuStyle}
+              placement={navMenu.placement}
+              className="preview-toolbar__menu-popover"
+              role="menu"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                ref={navMenu.firstItemRef}
+                className="preview-toolbar__menu-item"
+                onClick={() => handleNavAction('back')}
+                disabled={!canGoBack}
+              >
+                <ArrowLeft aria-hidden size={16} />
+                <span>Go back</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="preview-toolbar__menu-item"
+                onClick={() => handleNavAction('forward')}
+                disabled={!canGoForward}
+              >
+                <ArrowRight aria-hidden size={16} />
+                <span>Go forward</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="preview-toolbar__menu-item"
+                onClick={() => handleNavAction('refresh')}
+              >
+                <RefreshCw aria-hidden size={16} className={clsx({ spinning: isRefreshing })} />
+                <span>Refresh</span>
+              </button>
+            </AnchoredPopover>
             </div>
             {isFullView && (
               <button
@@ -626,7 +672,6 @@ const AppPreviewToolbar = ({
               type="button"
               className={clsx('preview-toolbar__icon-btn', 'preview-toolbar__icon-btn--refresh')}
               onClick={onRefresh}
-              disabled={isRefreshing}
               aria-label={isRefreshing ? 'Refreshing application status' : 'Refresh application'}
               title={isRefreshing ? 'Refreshing...' : 'Refresh'}
             >
@@ -634,35 +679,13 @@ const AppPreviewToolbar = ({
             </button>
           </>
         )}
-        <button
-          type="button"
-          className={clsx(
-            'preview-toolbar__icon-btn',
-            'preview-toolbar__details-btn--mobile',
-            hasDetailsWarning && 'preview-toolbar__icon-btn--warning',
-          )}
-          onClick={onOpenDetails}
-          disabled={!hasCurrentApp}
-          aria-label={detailsButtonLabel}
-          title={detailsButtonLabel}
-        >
-          {hasDetailsWarning ? (
-            <AlertTriangle aria-hidden size={18} />
-          ) : (
-            <Info aria-hidden size={18} />
-          )}
-        </button>
-      </div>
-      <div className="preview-toolbar__title">
-        <div
-          className={clsx('preview-toolbar__url-wrapper', urlStatusClass)}
-          title={urlStatusTitle}
-        >
+        {showDetailsButton && (
           <button
             type="button"
             className={clsx(
-              'preview-toolbar__url-action-btn',
-              hasDetailsWarning && 'preview-toolbar__url-action-btn--warning',
+              'preview-toolbar__icon-btn',
+              'preview-toolbar__details-btn--mobile',
+              hasDetailsWarning && 'preview-toolbar__icon-btn--warning',
             )}
             onClick={onOpenDetails}
             disabled={!hasCurrentApp}
@@ -670,18 +693,99 @@ const AppPreviewToolbar = ({
             title={detailsButtonLabel}
           >
             {hasDetailsWarning ? (
-              <AlertTriangle aria-hidden size={16} />
+              <AlertTriangle aria-hidden size={18} />
             ) : (
-              <Info aria-hidden size={16} />
+              <Info aria-hidden size={18} />
             )}
           </button>
+        )}
+      </div>
+      <div className="preview-toolbar__title">
+        <div
+          className={clsx('preview-toolbar__url-wrapper', urlStatusClass)}
+          title={urlStatusTitle}
+          ref={urlWrapperRef}
+        >
+          {showDetailsButton && (
+            <button
+              type="button"
+              className={clsx(
+                'preview-toolbar__url-action-btn',
+                hasDetailsWarning && 'preview-toolbar__url-action-btn--warning',
+              )}
+              onClick={onOpenDetails}
+              disabled={!hasCurrentApp}
+              aria-label={detailsButtonLabel}
+              title={detailsButtonLabel}
+            >
+              {hasDetailsWarning ? (
+                <AlertTriangle aria-hidden size={16} />
+              ) : (
+                <Info aria-hidden size={16} />
+              )}
+            </button>
+          )}
           <input
             type="text"
             className="preview-toolbar__url-input"
-            value={previewUrlInput}
-            onChange={onPreviewUrlInputChange}
-            onBlur={onPreviewUrlInputBlur}
-            onKeyDown={onPreviewUrlInputKeyDown}
+            value={displayedPreviewUrlInput}
+            onChange={(event) => {
+              onPreviewUrlInputChange(event);
+              setActiveUrlSuggestionIndex(-1);
+              if (hasUrlSuggestionsContent) {
+                setIsUrlSuggestionsOpen(true);
+              }
+            }}
+            onBlur={handleUrlInputBlur}
+            onFocus={handleUrlInputFocus}
+            onClick={handleUrlInputFocus}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                if (isUrlSuggestionsOpen) {
+                  event.preventDefault();
+                  setIsUrlSuggestionsOpen(false);
+                  setActiveUrlSuggestionIndex(-1);
+                  return;
+                }
+              }
+              if (hasUrlSuggestionsContent && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+                event.preventDefault();
+                setIsUrlSuggestionsOpen(true);
+                setActiveUrlSuggestionIndex((current) => {
+                  const startIndex = current < 0 ? (event.key === 'ArrowDown' ? -1 : 0) : current;
+                  if (event.key === 'ArrowDown') {
+                    return (startIndex + 1 + urlSuggestionsCount) % urlSuggestionsCount;
+                  }
+                  return (startIndex - 1 + urlSuggestionsCount) % urlSuggestionsCount;
+                });
+                return;
+              }
+              if (event.key === 'Enter' && isUrlSuggestionsOpen && activeUrlSuggestionIndex >= 0) {
+                event.preventDefault();
+                handleUrlSuggestionSelectByIndex(activeUrlSuggestionIndex);
+                return;
+              }
+              if (event.key === 'Enter' && activeUrlSuggestionIndex < 0 && hasUrlSuggestionsContent) {
+                const shouldPreferSuggestion = !isExplicitUrlInput(previewUrlInput);
+                if (shouldPreferSuggestion) {
+                  event.preventDefault();
+                  if (flattenedUrlSuggestions.length > 0) {
+                    handleUrlSuggestionSelectByIndex(0);
+                    return;
+                  }
+                  if (onOpenScenarioSelector) {
+                    handleOpenScenarioSelectorClick();
+                    return;
+                  }
+                }
+              }
+              onPreviewUrlInputKeyDown(event);
+              if (event.defaultPrevented) {
+                setIsUrlSuggestionsOpen(false);
+                setActiveUrlSuggestionIndex(-1);
+                return;
+              }
+            }}
             placeholder="Enter preview URL"
             aria-label="Preview URL"
             autoComplete="off"
@@ -699,40 +803,101 @@ const AppPreviewToolbar = ({
             <ExternalLink aria-hidden size={16} />
           </button>
         </div>
-      </div>
-      <div className="preview-toolbar__group preview-toolbar__group--right">
-        <div
-          className={clsx('preview-toolbar__menu', lifecycleMenu.isOpen && 'preview-toolbar__menu--open')}
-          ref={lifecycleMenu.menuRef}
+        <AnchoredPopover
+          isOpen={isUrlSuggestionsOpen && hasUrlSuggestionsContent}
+          portalHost={portalHost}
+          popoverRef={urlSuggestionsPopoverRef}
+          style={urlSuggestionsPopover.style}
+          placement={urlSuggestionsPopover.placement}
+          className="preview-toolbar__url-suggestions"
+          role="listbox"
         >
-          <button
-            type="button"
-            className={clsx(
-              'preview-toolbar__icon-btn',
-              isAppRunning && 'preview-toolbar__icon-btn--danger',
-              (pendingAction === 'start' || pendingAction === 'stop') && 'preview-toolbar__icon-btn--waiting',
-              lifecycleMenu.isOpen && 'preview-toolbar__icon-btn--active',
-            )}
-            ref={lifecycleMenu.buttonRef}
-            onClick={handleToggleLifecycleMenu}
-            disabled={!hasCurrentApp || actionInProgress}
-            aria-haspopup="menu"
-            aria-expanded={lifecycleMenu.isOpen}
-            aria-label={hasCurrentApp ? `Lifecycle actions (${appStatusLabel})` : 'Lifecycle actions unavailable'}
-            title={hasCurrentApp ? `Lifecycle actions (${appStatusLabel})` : 'Lifecycle actions unavailable'}
+          {urlSuggestionSections.map((section) => (
+            <div key={section.id} className="preview-toolbar__url-section">
+              <div className="preview-toolbar__url-section-heading">{section.label}</div>
+              {section.items.map((suggestion) => {
+                const optionIndex = urlSuggestionIndexById.get(suggestion.id) ?? -1;
+                return (
+                  <button
+                    key={suggestion.id}
+                    type="button"
+                    className={clsx(
+                      'preview-toolbar__url-suggestion',
+                      activeUrlSuggestionIndex === optionIndex && 'preview-toolbar__url-suggestion--active',
+                    )}
+                    onPointerDown={handleUrlSuggestionPointerDown}
+                    onMouseEnter={() => setActiveUrlSuggestionIndex(optionIndex)}
+                    onClick={() => handleUrlSuggestionSelect(suggestion.value)}
+                    ref={(node) => {
+                      urlSuggestionItemRefs.current[optionIndex] = node;
+                    }}
+                    title={suggestion.label}
+                  >
+                    <span>{formatPreviewUrlForDisplay(suggestion.label)}</span>
+                    {suggestion.detail && (
+                      <span className="preview-toolbar__url-suggestion-detail">{suggestion.detail}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+          {onOpenScenarioSelector && (
+            <button
+              type="button"
+              className={clsx(
+                'preview-toolbar__url-selector',
+                activeUrlSuggestionIndex === flattenedUrlSuggestions.length && 'preview-toolbar__url-suggestion--active',
+              )}
+              onPointerDown={handleUrlSuggestionPointerDown}
+              onMouseEnter={() => setActiveUrlSuggestionIndex(flattenedUrlSuggestions.length)}
+              onClick={handleOpenScenarioSelectorClick}
+              ref={(node) => {
+                urlSuggestionItemRefs.current[flattenedUrlSuggestions.length] = node;
+              }}
+            >
+              <Layers aria-hidden size={14} />
+              <span>{scenarioSelectorLabel}</span>
+            </button>
+          )}
+        </AnchoredPopover>
+      </div>
+      <div className="preview-toolbar__group preview-toolbar__group--right" aria-hidden={!!dock.docked || undefined}>
+        {shouldShowLifecycleMenu && (
+          <div
+            className={clsx('preview-toolbar__menu', lifecycleMenu.isOpen && 'preview-toolbar__menu--open')}
+            ref={lifecycleMenu.menuRef}
           >
-            {(pendingAction === 'start' || pendingAction === 'stop') ? (
-              <Loader2 aria-hidden size={18} className="spinning" />
-            ) : (
-              <Power aria-hidden size={18} />
-            )}
-          </button>
-          {portalHost && lifecycleMenu.isOpen && lifecycleMenu.menuStyle && createPortal(
-            <div
+            <button
+              type="button"
+              className={clsx(
+                'preview-toolbar__icon-btn',
+                isAppRunning && 'preview-toolbar__icon-btn--danger',
+                (pendingAction === 'start' || pendingAction === 'stop') && 'preview-toolbar__icon-btn--waiting',
+                lifecycleMenu.isOpen && 'preview-toolbar__icon-btn--active',
+              )}
+              ref={lifecycleMenu.buttonRef}
+              onClick={handleToggleLifecycleMenu}
+              disabled={!hasCurrentApp || actionInProgress}
+              aria-haspopup="menu"
+              aria-expanded={lifecycleMenu.isOpen}
+              aria-label={hasCurrentApp ? `Lifecycle actions (${appStatusLabel})` : 'Lifecycle actions unavailable'}
+              title={hasCurrentApp ? `Lifecycle actions (${appStatusLabel})` : 'Lifecycle actions unavailable'}
+            >
+              {(pendingAction === 'start' || pendingAction === 'stop') ? (
+                <Loader2 aria-hidden size={18} className="spinning" />
+              ) : (
+                <Power aria-hidden size={18} />
+              )}
+            </button>
+            <AnchoredPopover
+              isOpen={lifecycleMenu.isOpen}
+              portalHost={portalHost}
+              popoverRef={lifecycleMenu.popoverRef}
+              style={lifecycleMenu.menuStyle}
+              placement={lifecycleMenu.placement}
               className="preview-toolbar__menu-popover"
               role="menu"
-              ref={lifecycleMenu.popoverRef}
-              style={lifecycleMenu.menuStyle}
             >
               <button
                 type="button"
@@ -759,40 +924,42 @@ const AppPreviewToolbar = ({
                 )}
                 <span>{restartActionLabel}</span>
               </button>
-            </div>,
-            portalHost,
-          )}
-        </div>
-        <div
-          className={clsx('preview-toolbar__menu', devMenu.isOpen && 'preview-toolbar__menu--open')}
-          ref={devMenu.menuRef}
-        >
-          <button
-            type="button"
-            className={clsx(
-              'preview-toolbar__icon-btn',
-              'preview-toolbar__icon-btn--dev',
-              devMenu.isOpen && 'preview-toolbar__icon-btn--active',
-            )}
-            ref={devMenu.buttonRef}
-            onClick={handleToggleDevMenu}
-            disabled={!hasCurrentApp}
-            aria-haspopup="menu"
-            aria-expanded={devMenu.isOpen}
-            aria-label={captureAriaLabel ? `Developer actions (${captureAriaLabel})` : 'Developer actions'}
-            title={captureAriaLabel ? `Developer actions (${captureAriaLabel})` : 'Developer actions'}
+            </AnchoredPopover>
+          </div>
+        )}
+        {showDevMenu && (
+          <div
+            className={clsx('preview-toolbar__menu', devMenu.isOpen && 'preview-toolbar__menu--open')}
+            ref={devMenu.menuRef}
           >
-            <Wrench aria-hidden size={18} />
-            {showCaptureBadge && (
-              <span className="preview-toolbar__badge" aria-hidden>{captureBadgeLabel}</span>
-            )}
-          </button>
-          {portalHost && devMenu.isOpen && devMenu.menuStyle && createPortal(
-            <div
+            <button
+              type="button"
+              className={clsx(
+                'preview-toolbar__icon-btn',
+                'preview-toolbar__icon-btn--dev',
+                devMenu.isOpen && 'preview-toolbar__icon-btn--active',
+              )}
+              ref={devMenu.buttonRef}
+              onClick={handleToggleDevMenu}
+              disabled={!resolvedDeveloperActionCapabilities.canOpenMenu}
+              aria-haspopup="menu"
+              aria-expanded={devMenu.isOpen}
+              aria-label={captureAriaLabel ? `Developer actions (${captureAriaLabel})` : 'Developer actions'}
+              title={captureAriaLabel ? `Developer actions (${captureAriaLabel})` : 'Developer actions'}
+            >
+              <Wrench aria-hidden size={18} />
+              {showCaptureBadge && (
+                <span className="preview-toolbar__badge" aria-hidden>{captureBadgeLabel}</span>
+              )}
+            </button>
+            <AnchoredPopover
+              isOpen={devMenu.isOpen}
+              portalHost={portalHost}
+              popoverRef={devMenu.popoverRef}
+              style={devMenu.menuStyle}
+              placement={devMenu.placement}
               className="preview-toolbar__menu-popover"
               role="menu"
-              ref={devMenu.popoverRef}
-              style={devMenu.menuStyle}
             >
               <button
                 type="button"
@@ -800,7 +967,7 @@ const AppPreviewToolbar = ({
                 ref={devMenu.firstItemRef}
                 className="preview-toolbar__menu-item"
                 onClick={handleToggleFullscreen}
-                disabled={!hasCurrentApp}
+                disabled={!resolvedDeveloperActionCapabilities.canToggleFullscreen}
               >
                 {isFullView ? (
                   <Minimize2 aria-hidden size={16} />
@@ -814,7 +981,7 @@ const AppPreviewToolbar = ({
                 role="menuitem"
                 className="preview-toolbar__menu-item"
                 onClick={onToggleDeviceEmulation}
-                disabled={!hasCurrentApp}
+                disabled={!resolvedDeveloperActionCapabilities.canToggleDeviceEmulation}
               >
                 <MonitorSmartphone aria-hidden size={16} />
                 <span>{isDeviceEmulationActive ? 'Hide emulator' : 'Show emulator'}</span>
@@ -825,22 +992,22 @@ const AppPreviewToolbar = ({
                 className={clsx(
                   'preview-toolbar__menu-item',
                   isInspecting && 'preview-toolbar__menu-item--active',
-                  !hasCurrentApp || !canInspect ? 'preview-toolbar__menu-item--with-note' : undefined,
+                  !resolvedDeveloperActionCapabilities.canToggleInspectContext || !canInspect ? 'preview-toolbar__menu-item--with-note' : undefined,
                 )}
                 onClick={() => {
                   closeMenus();
                   onToggleInspect();
                 }}
                 aria-pressed={isInspecting}
-                aria-disabled={(!hasCurrentApp || !canInspect) || undefined}
-                disabled={!hasCurrentApp || !canInspect}
-                title={( !hasCurrentApp || !canInspect ) && inspectModeDisabledReason ? inspectModeDisabledReason : (isInspecting ? 'Exit inspect mode' : 'Inspect element')}
+                aria-disabled={(!resolvedDeveloperActionCapabilities.canToggleInspectContext || !canInspect) || undefined}
+                disabled={!resolvedDeveloperActionCapabilities.canToggleInspectContext || !canInspect}
+                title={( !resolvedDeveloperActionCapabilities.canToggleInspectContext || !canInspect ) && inspectModeDisabledReason ? inspectModeDisabledReason : (isInspecting ? 'Exit inspect mode' : 'Inspect element')}
               >
                 <span className="preview-toolbar__menu-item-label">
                   <Crosshair aria-hidden size={16} />
                   <span>{isInspecting ? 'Exit inspect mode' : 'Inspect element'}</span>
                 </span>
-                {(!hasCurrentApp || !canInspect) && inspectModeDisabledReason && (
+                {(!resolvedDeveloperActionCapabilities.canToggleInspectContext || !canInspect) && inspectModeDisabledReason && (
                   <span className="preview-toolbar__menu-item-note">{inspectModeDisabledReason}</span>
                 )}
               </button>
@@ -850,7 +1017,7 @@ const AppPreviewToolbar = ({
                 className={clsx('preview-toolbar__menu-item', areLogsVisible && 'preview-toolbar__menu-item--active')}
                 onClick={handleToggleLogs}
                 aria-pressed={areLogsVisible}
-                disabled={!hasCurrentApp}
+                disabled={!resolvedDeveloperActionCapabilities.canToggleLogs}
               >
                 <ScrollText aria-hidden size={16} />
                 <span>{areLogsVisible ? 'Hide logs' : 'Show logs'}</span>
@@ -860,7 +1027,7 @@ const AppPreviewToolbar = ({
                 role="menuitem"
                 className="preview-toolbar__menu-item"
                 onClick={handleReportIssue}
-                disabled={!hasCurrentApp}
+                disabled={!resolvedDeveloperActionCapabilities.canReportIssue}
               >
                 <span className="preview-toolbar__menu-item-label">
                   <Bug aria-hidden size={16} />
@@ -870,13 +1037,20 @@ const AppPreviewToolbar = ({
                   <span className="preview-toolbar__menu-item-badge" aria-hidden>{captureBadgeLabel}</span>
                 )}
               </button>
-            </div>,
-            portalHost,
-          )}
-        </div>
+            </AnchoredPopover>
+          </div>
+        )}
+        {rightInlineActions}
       </div>
+      {dock.docked === 'left' && (
+        <div className="preview-toolbar__dock-tab" title="Click to restore toolbar">
+          <ChevronRight aria-hidden size={16} />
+        </div>
+      )}
     </div>
   );
-};
+});
+
+AppPreviewToolbar.displayName = 'AppPreviewToolbar';
 
 export default AppPreviewToolbar;

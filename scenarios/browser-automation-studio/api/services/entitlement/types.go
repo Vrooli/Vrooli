@@ -29,7 +29,11 @@ import (
 	"time"
 )
 
-const OverrideTierSettingKey = "entitlement_override_tier"
+const (
+	OverrideTierSettingKey = "entitlement_override_tier"
+	ApiSourceSettingKey    = "entitlement_api_source"
+	LocalApiPortSettingKey = "entitlement_local_api_port"
+)
 
 // Tier represents a subscription tier with its capabilities.
 type Tier string
@@ -53,6 +57,14 @@ const (
 	StatusInactive Status = "inactive"
 )
 
+// Feature constants for type-safe feature checks.
+// These are the canonical feature strings that can appear in the Features array.
+const (
+	FeatureAI            = "ai"
+	FeatureRecording     = "recording"
+	FeatureWatermarkFree = "watermark_free"
+)
+
 // Entitlement represents a user's current subscription and capabilities.
 type Entitlement struct {
 	// UserIdentity is the email or customer ID used to look up entitlements.
@@ -72,6 +84,10 @@ type Entitlement struct {
 
 	// Credits is the user's credit balance (for future use).
 	Credits int64 `json:"credits,omitempty"`
+
+	// BillingCycleStart is the day of month (1-28) when the billing cycle resets.
+	// 0 means use calendar month (1st of each month).
+	BillingCycleStart int `json:"billing_cycle_start,omitempty"`
 
 	// FetchedAt is when this entitlement was fetched from the service.
 	FetchedAt time.Time `json:"fetched_at"`
@@ -98,6 +114,39 @@ func (e *Entitlement) HasFeature(feature string) bool {
 		}
 	}
 	return false
+}
+
+// GetBillingPeriod returns start/end for the billing period containing t.
+// Falls back to calendar month if BillingCycleStart is 0 or invalid.
+func (e *Entitlement) GetBillingPeriod(t time.Time) (start, end time.Time) {
+	day := e.BillingCycleStart
+	if day < 1 || day > 28 {
+		// Calendar month fallback
+		year, month, _ := t.Date()
+		start = time.Date(year, month, 1, 0, 0, 0, 0, t.Location())
+		end = start.AddDate(0, 1, 0).Add(-time.Nanosecond)
+		return
+	}
+
+	year, month, currentDay := t.Date()
+	loc := t.Location()
+
+	if currentDay >= day {
+		// Period started this month
+		start = time.Date(year, month, day, 0, 0, 0, 0, loc)
+		end = time.Date(year, month+1, day, 0, 0, 0, 0, loc).Add(-time.Nanosecond)
+	} else {
+		// Period started last month
+		start = time.Date(year, month-1, day, 0, 0, 0, 0, loc)
+		end = time.Date(year, month, day, 0, 0, 0, 0, loc).Add(-time.Nanosecond)
+	}
+	return
+}
+
+// GetBillingMonth returns billing period identifier for DB queries (e.g., "2026-01-15").
+func (e *Entitlement) GetBillingMonth(t time.Time) string {
+	start, _ := e.GetBillingPeriod(t)
+	return start.Format("2006-01-02")
 }
 
 // TierOrder returns a numeric order for tier comparison.
@@ -145,12 +194,13 @@ func ParseTier(value string) (Tier, bool) {
 
 // entitlementResponse matches the response from landing-page-business-suite /api/v1/entitlements.
 type entitlementResponse struct {
-	Status       string        `json:"status"`
-	PlanTier     string        `json:"plan_tier"`
-	PriceID      string        `json:"price_id"`
-	Features     []string      `json:"features"`
-	Credits      *credits      `json:"credits"`
-	Subscription *subscription `json:"subscription"`
+	Status            string        `json:"status"`
+	PlanTier          string        `json:"plan_tier"`
+	PriceID           string        `json:"price_id"`
+	Features          []string      `json:"features"`
+	BillingCycleStart int           `json:"billing_cycle_start"`
+	Credits           *credits      `json:"credits"`
+	Subscription      *subscription `json:"subscription"`
 }
 
 type credits struct {

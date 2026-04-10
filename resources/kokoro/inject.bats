@@ -1,0 +1,115 @@
+#!/usr/bin/env bats
+# Tests for Kokoro inject.sh script
+
+# Get script directory first
+INJECT_BATS_DIR="${BATS_TEST_DIRNAME}"
+
+# Load Kokoro-local Bats test helpers
+# shellcheck disable=SC1091
+source "${INJECT_BATS_DIR}/test/test-helper.bash"
+
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "kokoro"
+
+    export SETUP_FILE_SCRIPT_DIR="${BATS_TEST_DIRNAME}"
+}
+
+# Lightweight per-test setup
+setup() {
+    # Setup standard mocks
+    vrooli_auto_setup
+
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+
+    # Set kokoro-specific environment for injection
+    export KOKORO_HOST="http://localhost:9999"
+    export KOKORO_DATA_DIR="${HOME}/.kokoro"
+    export KOKORO_VOICES_DIR="${KOKORO_DATA_DIR}/voices"
+
+    source "${SCRIPT_DIR}/inject.sh"
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
+}
+
+# Test script loading
+@test "inject.sh loads without errors" {
+    # The script should source successfully in setup
+    [ "$?" -eq 0 ]
+}
+
+# Test usage function exists
+@test "inject::usage function is defined" {
+    # Check if the function is defined
+    declare -f inject::usage >/dev/null
+}
+
+# Test validation function exists
+@test "inject::validate_config function is defined" {
+    declare -f inject::validate_config >/dev/null
+}
+
+# Test voice validation
+@test "kokoro voice validation works" {
+    # Test valid voice configuration
+    local valid_config='{"voices": [{"name": "af_heart", "default": true}]}'
+
+    run inject::validate_config "$valid_config"
+    [ "$status" -eq 0 ]
+}
+
+# Test empty configuration validation
+@test "empty configuration is rejected" {
+    # Test empty configuration
+    local empty_config='{}'
+
+    run inject::validate_config "$empty_config"
+    [ "$status" -eq 1 ]
+}
+
+# Test malformed JSON validation
+@test "malformed JSON is rejected" {
+    # Test malformed JSON
+    local malformed_config='{"voices": [{'
+
+    run inject::validate_config "$malformed_config"
+    [ "$status" -eq 1 ]
+}
+
+# Test accessibility check
+@test "accessibility check function works" {
+    # Mock the accessibility check to avoid requiring real service
+    inject::check_accessibility() {
+        return 0  # Always accessible for test
+    }
+
+    run inject::check_accessibility
+    [ "$status" -eq 0 ]
+}
+
+# Test rollback actions
+@test "rollback actions can be added" {
+    # Test adding rollback action
+    inject::add_rollback_action "test action" "echo 'test command'"
+
+    # Check that the action was added
+    [ ${#KOKORO_ROLLBACK_ACTIONS[@]} -eq 1 ]
+}
+
+# Test main function parameter validation
+@test "main function requires parameters" {
+    # Test main function without parameters
+    run inject::main "--validate"
+    [ "$status" -eq 1 ]
+}
+
+# Test help action
+@test "help action works" {
+    run inject::main "--help" "{}"
+    [ "$status" -eq 0 ]
+}

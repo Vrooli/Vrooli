@@ -1,223 +1,86 @@
-# Test-Genie Seam Documentation
+# Test Genie Seams
 
-This document catalogs the architectural **seams** in the test-genie codebase. Seams are intentional variation points that enable testing, extension, and controlled change.
+This document tracks the intentional seams that let Test Genie evolve without forcing broad edits across the codebase.
 
-## What is a Seam?
+## Primary seams
 
-A seam is a place where you can alter behavior without editing the code at that location. In Go, seams are typically:
-- **Interfaces** that can be satisfied by different implementations
-- **Function parameters** that accept interfaces instead of concrete types
-- **Functional options** that configure behavior at construction time
+### Queue staleness policy
 
-## Agent State Management
+- Package: `api/internal/queue`
+- Surface: `ActiveQueueWindow()` plus repository-owned snapshot logic
+- Why it exists: queue telemetry needs a policy boundary for "active" vs "stale" queued work. The HTTP layer and CLI should consume that decision, not invent their own filters.
 
-> **NOTE:** Agent state (tasks, runs, profiles) is now managed by the **agent-manager** service.
-> Test-genie uses the `agentmanager` package to communicate with agent-manager via HTTP.
-> The seams documented below are for **containment** (OS-level isolation) which test-genie
-> still manages locally as a reference for agent-manager's actual execution environment.
+### Scenario summary projection
 
----
+- Package: `api/internal/scenarios`
+- Surface: `ScenarioDirectoryRepository`
+- Why it exists: scenario catalog views should summarize queue and execution state without coupling callers to raw SQL or raw queue rows. The repository now shares the same active-queue cutoff as queue telemetry.
 
-## Package: `internal/containment`
+### Execution bootstrap
 
-### Seam: `Provider` (provider.go:78-95)
+- Package: `api/internal/orchestrator`
+- Surface: prepared execution setup/finalization inside `SuiteOrchestrator`
+- Why it exists: streaming and non-streaming suite execution must agree on runtime URL resolution, plan construction, artifact directories, result summaries, and requirement sync behavior. The shared bootstrap/finalization path keeps those decisions in one place.
 
-**Purpose:** Abstracts the execution environment for agent sandboxing.
+### Playbooks registry normalization
 
-**Interface:**
-```go
-type Provider interface {
-    Type() ContainmentType
-    IsAvailable(ctx context.Context) bool
-    PrepareCommand(ctx context.Context, config ExecutionConfig) (*exec.Cmd, error)
-    Info() ProviderInfo
-}
-```
+- Package: `api/internal/playbooks/registry`
+- Surface: `Builder.Build()` and `Loader.Load()`
+- Why it exists: BAS workflow files are authoring inputs; `bas/registry.json` is the execution contract. Registry normalization is where legacy labels, execution-mode hints, ordering, fixtures, and requirements become one stable manifest.
 
-**Implementations:**
-- `DockerProvider` - Docker container isolation (security level 7)
-- `FallbackProvider` - No isolation (security level 0)
+### Playbooks execution mode
 
-**Why this seam exists:**
-- Enables testing agent spawning without Docker
-- Allows adding new containment strategies (bubblewrap, nsjail, etc.)
-- Graceful degradation when Docker unavailable
+- Package: `api/internal/playbooks/types`
+- Surface: `Registry.Metadata.ExecutionMode`, `Registry.UsesObserverMode()`
+- Why it exists: observer-mode vs mutating playbooks is a configuration decision that should be expressed in data, then consumed by the playbooks phase. This keeps self-target safety out of ad hoc string checks in orchestration code.
 
----
+### CLI API-response parsing
 
-### Seam: `ProviderSelector` (provider.go:116-127)
+- Package: `cli/internal/apijson`
+- Surface: `Parse[T]`
+- Why it exists: empty-body and malformed-response diagnostics are transport concerns shared across CLI commands. Centralizing them prevents drift between `status`, `generate`, `runlocal`, `execute`, and playbooks seed commands.
 
-**Purpose:** Abstracts the selection logic for choosing a containment provider.
+### Requirements view loading
 
-**Interface:**
-```go
-type ProviderSelector interface {
-    SelectProvider(ctx context.Context) Provider
-    GetStatus(ctx context.Context) ContainmentStatus
-    ListProviders(ctx context.Context) []ProviderInfo
-}
-```
+- Package: `api/internal/app/httpserver`
+- Surface: `loadScenarioRequirementsView()` plus shared requirements-module parsing helpers
+- Why it exists: the requirements UI needs one coherent projection of three sources of truth: cached summary snapshots, source `requirements/*.json` files, and sync metadata. The handler owns the projection; callers do not need to know where each field originated.
 
-**Production Implementation:** `Manager`
-**Test Implementation:** Mock selector returning specific provider
+### Registry-build ownership
 
-**Usage in Server:**
-```go
-type Dependencies struct {
-    ContainmentSelector containment.ProviderSelector // Optional: defaults to DefaultManager()
-}
-```
+- Package: `cli/internal/registry`
+- Surface: thin wrapper over `api/internal/playbooks/registry`
+- Why it exists: the CLI command is a delivery surface, not a second source of truth for registry schema. The wrapper keeps the command UX local while making the shared API builder the only normalization pipeline.
 
-**Why this seam exists:**
-- Enables HTTP handler testing without real containment
-- Allows testing specific provider selection scenarios
-- Injectable via `Dependencies` struct
+## Secondary seams
 
----
+### HTTP transport adapters
 
-### Seam: `CommandLookup` (docker.go:24-26)
+- Package: `api/internal/app/httpserver`
+- Surface: handler interfaces such as suite queue, execution service, and scenario directory service
+- Why it exists: handlers should be testable with stubs and should not own domain rules.
 
-**Purpose:** Abstracts `exec.LookPath` for testing Docker availability.
+### Generation phase control surface
 
-**Interface:**
-```go
-type CommandLookup interface {
-    LookPath(file string) (string, error)
-}
-```
+- Package: `ui/src/pages/Generate`
+- Surface: `PHASES_FOR_GENERATION` plus task-specific copy overrides in `PhaseSelector`
+- Why it exists: the generation UI only exposes a small, intentional set of phase levers. Labels, descriptions, and button states should come from one control surface so the dialog, selector, and tests do not drift.
 
-**Production Implementation:** `OSCommandLookup`
-**Test Implementation:** `MockCommandLookup`
+### Phase command executors
 
-**Usage:**
-```go
-provider := containment.NewDockerProvider(
-    containment.WithCommandLookup(&MockCommandLookup{available: map[string]bool{"docker": false}}),
-)
-```
+- Package: `api/internal/orchestrator/phases`
+- Surface: command execution helpers and phase-scoped dependencies
+- Why it exists: phase implementations often need shell execution or lifecycle hooks; keeping those behind seams makes targeted tests possible without invoking the real world.
 
-**Why this seam exists:**
-- Enables testing Docker availability detection without Docker
-- Allows simulating "Docker not installed" scenarios
+### Requirements reporting/rendering
 
----
+- Package: `api/internal/requirements/reporting`
+- Surface: renderer interfaces and format-specific builders
+- Why it exists: markdown, JSON, and trace outputs should share the same domain summary while varying only presentation.
 
-### Seam: `CommandRunner` (docker.go:30-32)
+## What should not become a seam
 
-**Purpose:** Abstracts command execution for availability checking.
-
-**Interface:**
-```go
-type CommandRunner interface {
-    Run(ctx context.Context, name string, args ...string) error
-}
-```
-
-**Production Implementation:** `OSCommandRunner`
-**Test Implementation:** `MockCommandRunner`
-
-**Why this seam exists:**
-- Enables testing "Docker installed but daemon not running" scenarios
-- Avoids real Docker invocation in tests
-
----
-
-## Package: `internal/app/httpserver`
-
-### Seam: Server Dependencies (server.go)
-
-**Purpose:** Dependency injection for all HTTP handler services.
-
-**Structure:**
-```go
-type Dependencies struct {
-    DB                  *sql.DB
-    SuiteQueue          suiteRequestQueue
-    Executions          execution.ExecutionHistory
-    ExecutionSvc        suiteExecutor
-    Scenarios           scenarioDirectory
-    PhaseCatalog        phaseCatalog
-    AgentService        *agentmanager.AgentService  // Agent-manager integration
-    ContainmentSelector containment.ProviderSelector
-    Logger              Logger
-}
-```
-
-**Why this seam exists:**
-- All handler dependencies are injectable interfaces
-- Enables comprehensive HTTP integration testing
-- Supports different configurations for dev/test/prod
-
----
-
-## Seam Usage Patterns
-
-### 1. Functional Options Pattern
-
-Used in `DockerProvider`:
-
-```go
-// Construction with options
-provider := containment.NewDockerProvider(
-    containment.WithCommandLookup(mockLookup),
-    containment.WithContainmentConfig(cfg),
-)
-```
-
-### 2. Interface Injection Pattern
-
-Used in `Server.Dependencies`:
-
-```go
-deps := httpserver.Dependencies{
-    ContainmentSelector: mockSelector,
-    AgentService:        mockAgentService,  // Uses agentmanager.AgentService
-}
-```
-
-### 3. Default Fallback Pattern
-
-Optional dependencies default to production implementations:
-
-```go
-containmentSel := deps.ContainmentSelector
-if containmentSel == nil {
-    containmentSel = containment.DefaultManager()
-}
-```
-
----
-
-## Testing Guidelines
-
-1. **Always use seams in tests** - Never instantiate production dependencies directly in tests
-2. **Mock one layer at a time** - Test handlers with mock services, services with mock repositories
-3. **Test edge cases at seams** - Seams are where behavior varies, so test the variations
-4. **Add seams proactively** - If you find yourself wanting to test something but can't, add a seam
-
----
-
-## Adding New Seams
-
-When adding a new seam:
-
-1. **Define an interface** in the same package as the consumer
-2. **Create production implementation** with `OS`/`Default`/`Real` prefix
-3. **Use functional options** for construction-time injection
-4. **Document the seam** in this file
-5. **Add tests** that exercise the seam with mock implementations
-
----
-
-## Seam Health Indicators
-
-| Seam | Has Tests | Mock Impl | Production Impl | Documentation |
-|------|-----------|-----------|-----------------|---------------|
-| `Provider` | Yes | Via seams | `DockerProvider`, `FallbackProvider` | Yes |
-| `ProviderSelector` | Yes | Via seams | `Manager` | Yes |
-| `CommandLookup` | Yes | `MockCommandLookup` | `OSCommandLookup` | Yes |
-| `CommandRunner` | Yes | `MockCommandRunner` | `OSCommandRunner` | Yes |
-
-> **Note:** Agent-related seams (AgentRepository, ProcessChecker, EnvironmentProvider, TimeProvider,
-> AllowedCommandsProvider, BlockedPatternsProvider) have been removed. Agent lifecycle is now
-> managed by the agent-manager service.
+- Queue stale filtering in the CLI. That belongs in persistence/repository code.
+- Playbooks observer-mode detection in raw workflow execution. That belongs in registry data and orchestration setup.
+- A second registry schema in the CLI. The command should delegate to the shared builder.
+- An implicit Test Genie WebSocket endpoint in integration checks. Real-time agent updates come from `agent-manager`, so Test Genie's core integration phase should not assume an internal socket exists.

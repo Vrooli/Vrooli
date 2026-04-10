@@ -74,8 +74,20 @@ Use this structure for your final response; ecosystem-manager relies on it to tr
 **Status**: {{STATUS}}
 **Current Phase**: {{CURRENT_PHASE}}
 
+### Origin Handoff
+
+- Source: {{ORIGIN_SOURCE}}
+- Backlog item: {{ORIGIN_BACKLOG_ITEM}}
+- Item folder: {{ORIGIN_ITEM_FOLDER}}
+- Handoff dir: {{ORIGIN_HANDOFF_DIR}}
+- Handoff brief: {{ORIGIN_HANDOFF_BRIEF_PATH}}
+- Handoff manifest: {{ORIGIN_HANDOFF_MANIFEST_PATH}}
+- Handoff source index: {{ORIGIN_HANDOFF_SOURCE_INDEX_PATH}}
+
+If a swarm-manager handoff is present, treat the handoff brief and manifest as the authoritative upstream planning contract. Read them before changing scope or implementation strategy.
+
 ### Notes
 
-*Notes are shared across multiple chat sessions, so any issues mentioned in notes may already be resolved. Investigate before addressing them.*
+*Notes may include upstream handoff context as well as carry-over task notes. Treat time-sensitive claims as provisional, but preserve explicit product decisions unless newer evidence contradicts them.*
 
 {{NOTES}}

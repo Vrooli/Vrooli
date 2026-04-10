@@ -24,6 +24,29 @@ if (window.top !== window.self) {
 
 The shim results are available at `window.__VROOLI_UI_SMOKE_STORAGE_PATCH__` for inspection by smoke tests.
 
+### Shortcut Intent Relay (Iframe -> Host)
+
+When an embedded scenario wants to escalate a shortcut to the host (for example when a local shortcut is a no-op), emit a shortcut intent:
+
+```typescript
+import {
+  emitShortcutIntent,
+  HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
+} from '@vrooli/iframe-bridge';
+
+emitShortcutIntent({
+  action: HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
+  outcome: 'noop', // local handler was idempotent/no-op
+  chord: 'mod+k',
+  source: 'keyboard',
+});
+```
+
+Guideline:
+- Handle local shortcut first.
+- If local action is `noop`/`unhandled`, relay intent to host.
+- Still call `preventDefault()` on claimed browser-reserved chords like `Ctrl/Cmd+K`.
+
 ## Development
 
 ```bash

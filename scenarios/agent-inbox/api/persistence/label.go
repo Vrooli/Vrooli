@@ -24,7 +24,7 @@ func (r *Repository) ListLabels(ctx context.Context) ([]domain.Label, error) {
 	labels := make([]domain.Label, 0) // Always return [] instead of null in JSON
 	for rows.Next() {
 		var l domain.Label
-		if err := rows.Scan(&l.ID, &l.Name, &l.Color, &l.CreatedAt); err != nil {
+		if err := rows.Scan(&l.ID, &l.Name, &l.Color, scanTime(&l.CreatedAt)); err != nil {
 			continue
 		}
 		labels = append(labels, l)
@@ -35,14 +35,15 @@ func (r *Repository) ListLabels(ctx context.Context) ([]domain.Label, error) {
 
 // CreateLabel creates a new label.
 func (r *Repository) CreateLabel(ctx context.Context, name, color string) (*domain.Label, error) {
+	id := newID()
 	var label domain.Label
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO labels (name, color)
-		VALUES ($1, $2)
+		INSERT INTO labels (id, name, color)
+		VALUES ($1, $2, $3)
 		RETURNING id, name, color, created_at
-	`, name, color).Scan(&label.ID, &label.Name, &label.Color, &label.CreatedAt)
+	`, id, name, color).Scan(&label.ID, &label.Name, &label.Color, scanTime(&label.CreatedAt))
 	if err != nil {
-		if strings.Contains(err.Error(), "unique") {
+		if strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "UNIQUE") {
 			return nil, fmt.Errorf("label with this name already exists")
 		}
 		return nil, fmt.Errorf("failed to create label: %w", err)
@@ -76,7 +77,7 @@ func (r *Repository) UpdateLabel(ctx context.Context, labelID string, name, colo
 		strings.Join(updates, ", "), argNum)
 
 	var label domain.Label
-	err := r.db.QueryRowContext(ctx, query, args...).Scan(&label.ID, &label.Name, &label.Color, &label.CreatedAt)
+	err := r.db.QueryRowContext(ctx, query, args...).Scan(&label.ID, &label.Name, &label.Color, scanTime(&label.CreatedAt))
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

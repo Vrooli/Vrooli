@@ -1,0 +1,50 @@
+{
+  "description": "Compare a connected skill's stored version/hash against its current version in prompt-manager. Flag when skill content has changed since the connection was configured, indicating the configuration may be stale.",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "OT-P0-003",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-003"
+      ],
+      "description": "Implement system to detect changes in skill content by comparing stored and current versions",
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-003",
+      "status": "implemented",
+      "title": "Skill Version Comparison Engine",
+      "validation": [
+        {
+          "notes": "Version comparison logic accurate",
+          "phase": "unit",
+          "ref": "api/domain/skill/drift_service_test.go",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Hash comparison works",
+          "phase": "unit",
+          "ref": "api/domain/skill/drift_service_test.go",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Real-time version checks succeed",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All content changes detected",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Skill Drift Detection"
+}

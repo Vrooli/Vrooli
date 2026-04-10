@@ -1,0 +1,122 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-27T19:15:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 1,
+    "problem_clarity": 2,
+    "risk_awareness": 1,
+    "scope_defined": 1,
+    "testable": 0
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Current swarm-manager UI is a flat 5-tab shell (Backlog, Scenarios, Execution, Prompts, Settings) with ~154 TS files, 6 Zustand stores, 7 services, and 30+ domain types. No graph, no sidebar, no relationship visualization. Backlog is the default landing page."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Prompt-manager graph uses React Flow v12 + Dagre. ~60-70% of the implementation is generic (GraphView canvas, GraphFlowNode shapes, BFS neighborhood, legend, viewport persistence). ~30-40% is domain-specific (hardcoded node types team/agent/skill/cli, domain queries, CLI collapsing, health weights). Extraction seam: make node types, edge kinds, queries, and health weights configurable via a GraphConfig interface."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Six entity types are natural graph nodes: Capture, BacklogItem, Initiative, Scenario, ExecutionRecord, Run. Seven edge types are derivable from existing data: depends_on, member_of, classified_as, executes, targets (via acceptance_allow glob matching), follow_up, spawned_run. The overview endpoint and depgraph package already compute some of these relationships."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Four findings from the archived dashboard research remain valid: (1) no initiative service layer in frontend, (2) backlog filtering needs initiative-aware support, (3) overview aggregation too narrow, (4) settings should not be primary navigation. Dashboard-page and initiative-card assumptions have been discarded."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Graph primitive extraction strategy",
+      "context": "The prompt-manager graph is 60-70% reusable. We need to decide where shared graph primitives live. This affects both the swarm-manager graph and the long-term reuse story across Vrooli scenarios.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Extract to a shared package (e.g. packages/graph-primitives)",
+          "rationale": "Maximum reuse across scenarios, single source of truth for the React Flow wrapper, layout, and node renderer. Higher upfront cost to define the abstraction boundary."
+        },
+        {
+          "key": "B",
+          "label": "Copy and adapt into swarm-manager, clean seam later",
+          "rationale": "Fastest path to a working graph in swarm-manager. Keeps prompt-manager untouched. Risks divergence, but avoids premature abstraction before we know swarm-manager's exact needs.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Definitely build swarm managers graph implementation to be completely separate so that it has no dependency with prompt managers graph and they can evolve independently"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Initial graph lenses for v1",
+      "context": "The orchestration summary decided on multiple lenses rather than one giant everything-graph. Three lenses were proposed: work topology, lifecycle/flow, and operations. We need to confirm which lenses to define in the contract and what each shows.",
+      "options": [
+        {
+          "key": "A",
+          "label": "All three lenses: Topology, Flow, Operations",
+          "rationale": "Covers the full vision from the orchestration summary. Topology shows entity relationships (items, initiatives, scenarios, dependencies). Flow shows lifecycle progression (backlog → ready → queued → running → completed). Operations shows live state (running executions, agent runs, scenario health). Risk: scope creep if all three must be fully specified."
+        },
+        {
+          "key": "B",
+          "label": "Two lenses for v1: Topology + Flow; defer Operations",
+          "rationale": "Operations requires live metrics integration (agent-manager polling, scenario health) which adds complexity. Topology and Flow cover the core relationship and lifecycle needs. Operations can be added as a follow-up.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Single lens for v1: Topology only; layer Flow and Ops later",
+          "rationale": "Simplest possible v1. Just show entity relationships and dependencies. Risk: graph may feel limited without lifecycle context."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own lens breakdown"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Shell IA: sidebar content model",
+      "context": "The new workspace replaces the 5-tab bar with a sidebar + graph canvas + inspector. We need to define what lives in the sidebar. The orchestration summary said prompts become drill-down info and settings drop from primary nav.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Entity-type sections: Backlog, Initiatives, Scenarios, Captures",
+          "rationale": "Sidebar groups by entity type with collapsible sections. Each section shows a filterable list. Clicking an item selects it in the graph and opens the inspector. Execution and Prompts are accessible from the inspector or a secondary menu. Settings moves to a gear icon/modal."
+        },
+        {
+          "key": "B",
+          "label": "Activity-first: unified feed with entity-type filters",
+          "rationale": "Sidebar shows a single chronological feed of recent activity (new captures, status changes, completed executions) with filter toggles for entity types. Reduces cognitive overhead of separate sections. Entity browsing is done via graph interaction.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Lens-driven: sidebar content changes based on active lens",
+          "rationale": "Topology lens shows entity tree, Flow lens shows pipeline stages, Operations lens shows live status. Keeps sidebar contextually relevant but may confuse users who expect consistent navigation."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own sidebar model"
+        }
+      ],
+      "selected": "B"
+    }
+  ],
+  "plan_updates": "Created initial conclusion.md scaffold with research question, methodology, 5 findings from codebase audits (current UX structure, prompt-manager graph reuse seam, entity/edge model, overview API foundation, archived dashboard signal), and preliminary limitations."
+}

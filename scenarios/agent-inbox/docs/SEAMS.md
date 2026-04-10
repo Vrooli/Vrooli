@@ -1,429 +1,787 @@
-# Agent Inbox - Architectural Seams
+# Agent Inbox - Seams & Boundaries
 
-This document describes the key architectural seams in the Agent Inbox scenario. A seam is a place in the code where behavior can be substituted without changing the code that uses it—critical for testing, flexibility, and maintainability.
+This document describes the architectural seams and responsibility boundaries in the agent-inbox scenario, with particular focus on the async tool tracking system.
 
-## Domain Model
+## Responsibility Zones
 
-The Agent Inbox is an AI chat management interface with three core functions:
+### 1. Entry/Presentation Layer
 
-1. **Chat**: Manage AI conversations via OpenRouter (multiple models)
-2. **Dispatch**: Delegate coding tasks to specialized agents (via agent-manager)
-3. **Organize**: Email-like inbox with labels, read/unread, archive, stars
+**Location:** `api/handlers/`
 
-### Core Entities
+**Responsibilities:**
+- HTTP request/response handling
+- SSE streaming setup and teardown
+- Input validation (chat IDs, tool call IDs)
+- JSON serialization for responses
 
-| Entity | Description | Location |
-|--------|-------------|----------|
-| **Chat** | A conversation containing messages | `api/domain/types.go` |
-| **Message** | A single turn in conversation (user/assistant/system/tool) | `api/domain/types.go` |
-| **Label** | Colored category for organizing chats | `api/domain/types.go` |
-| **ToolCall** | AI-requested invocation of external capability | `api/domain/types.go` |
-| **ToolCallRecord** | Execution record with status, result, timing | `api/domain/types.go` |
+**Key Files:**
+- `async_status.go` - SSE endpoint for async operation streaming
+- `chat.go` - Chat CRUD operations
+- `ai.go` - AI completion endpoints
 
----
+**Boundaries:**
+- Handlers call service methods, never domain logic directly
+- Handlers do NOT build domain objects - they receive them from services
+- SSE connection lifecycle is managed here, not in services
 
-## API Architecture
+### 2. Coordination/Orchestration Layer
 
-The API follows a "Screaming Architecture" where the folder structure clearly communicates the domain purpose:
+**Location:** `api/services/`
 
-```
-api/
-├── main.go              # Server wiring only (~140 lines)
-├── domain/
-│   └── types.go         # Core domain types, constants, validation
-├── persistence/
-│   └── repository.go    # All database operations
-├── handlers/            # HTTP handlers organized by domain
-│   ├── handlers.go      # Shared types, response helpers, route registration
-│   ├── health.go        # Health check endpoint
-│   ├── chat.go          # Chat CRUD operations
-│   ├── message.go       # Message and chat state toggles
-│   ├── label.go         # Label management
-│   └── ai.go            # AI completion, models, tools, streaming
-├── integrations/        # External service clients
-│   ├── openrouter.go    # OpenRouter API client
-│   ├── ollama.go        # Ollama client for auto-naming
-│   ├── agent_manager.go # Agent-manager HTTP client
-│   ├── tool_executor.go # Tool call routing and execution
-│   └── tools.go         # Tool definitions
-└── middleware/
-    └── middleware.go    # CORS, logging
-```
+**Responsibilities:**
+- Orchestrating multi-step workflows
+- Managing operation lifecycles
+- Coordinating between components (AI, tools, storage)
 
-### Architecture Principles Applied
+**Key Files:**
+- `completion.go` - Orchestrates AI completion flow including tool execution
+- `async_tracker.go` - Coordinates async operation polling and notifications
 
-1. **Handlers organized by domain**: Instead of one massive main.go, handlers are split by business domain (chat, message, label, ai)
-2. **Thin main.go**: Only server wiring and entry point (~140 lines vs original 968 lines)
-3. **Clear seams**: Each package has a focused responsibility that can be substituted for testing
-4. **Dependency injection**: Handlers receive dependencies (repo, ollama client) at construction time
+**Boundaries:**
+- Services own the "how" of workflows, not the "what" (domain rules)
+- Services coordinate between repositories, executors, and trackers
+- Services do NOT handle HTTP/transport concerns
 
----
+### 3. Domain Layer
 
-## Key Seams
+**Location:** `api/domain/`, `api/services/` (types)
 
-### Seam: Handlers
+**Responsibilities:**
+- Domain types and their invariants
+- Status constants and validation
+- Data structures representing business concepts
 
-**Location**: `api/handlers/`
+**Key Files:**
+- `domain/types.go` - Core domain types (Chat, Message, ToolCallRecord)
+- `services/async_config.go` - Async status constants and configuration
+- `services/async_tracker.go` (types only) - AsyncOperation, AsyncStatusUpdate
 
-**Purpose**: HTTP request handling separated by domain responsibility.
+**Boundaries:**
+- Domain types are pure data containers with minimal behavior
+- Status transitions are validated by services, not in domain types
+- Configuration constants live alongside the code that uses them
 
-**Files**:
-- `handlers.go` - Shared Handlers struct, route registration, response helpers
-- `health.go` - Health check endpoint
-- `chat.go` - Chat CRUD (list, create, get, update, delete)
-- `message.go` - Add message, toggle read/archive/star
-- `label.go` - Label CRUD and chat assignment
-- `ai.go` - AI completion (streaming/non-streaming), models, tools, auto-naming
+### 4. Integration Layer
 
-**Substitution Points**:
-- For **tests**: Create Handlers with mock Repository and OllamaClient
-- For **different frameworks**: Implement new handlers with same interfaces
+**Location:** `api/integrations/`
 
-**Key Interface**:
-```go
-type Handlers struct {
-    Repo         *persistence.Repository
-    OllamaClient *integrations.OllamaClient
-}
+**Responsibilities:**
+- External service communication (LLM APIs, scenario tools)
+- Protocol handling (JSON-RPC, HTTP)
+- Error translation from external systems
 
-func New(repo, ollama) *Handlers
-func (h *Handlers) RegisterRoutes(r *mux.Router)
-```
+**Key Files:**
+- `tool_executor.go` - Executes tools on external scenarios
+- `scenario_client.go` - HTTP client for scenario APIs
+- `protocol_handler.go` - JSON-RPC protocol implementation
 
----
+**Boundaries:**
+- Integration layer translates external errors to domain errors
+- Never exposes external response structures to services
+- Handles retries and circuit breaking
 
-### Seam: Repository (Database)
+### 5. Cross-Cutting Concerns
 
-**Location**: `api/persistence/repository.go`
+**Location:** `api/services/`, `api/resilience/`
 
-**Purpose**: Centralizes all database operations behind a single interface.
+**Responsibilities:**
+- Logging
+- Error handling patterns
+- Retry/circuit breaker logic
+- Configuration management
 
-**Substitution Points**:
-- For **unit tests**: Create a mock `Repository` that returns canned data
-- For **integration tests**: Use a test database with `InitSchema()`
-- For **different databases**: Implement a new repository with the same interface
-
-**Key Operations**:
-```go
-// Chat operations
-ListChats(ctx, archived, starred) ([]Chat, error)
-GetChat(ctx, chatID) (*Chat, error)
-CreateChat(ctx, name, model, viewMode) (*Chat, error)
-UpdateChat(ctx, chatID, name, model) (*Chat, error)
-DeleteChat(ctx, chatID) (bool, error)
-
-// Message operations
-GetMessages(ctx, chatID) ([]Message, error)
-CreateMessage(ctx, chatID, role, content, ...) (*Message, error)
-SaveAssistantMessage(ctx, chatID, model, content, tokenCount) (*Message, error)
-
-// Label operations
-ListLabels(ctx) ([]Label, error)
-CreateLabel(ctx, name, color) (*Label, error)
-AssignLabel(ctx, chatID, labelID) error
-
-// Tool call operations
-SaveToolCallRecord(ctx, messageID, record) error
-ListToolCallsForChat(ctx, chatID) ([]ToolCallRecord, error)
-```
+**Key Files:**
+- `resilience/circuit_breaker.go` - Circuit breaker implementation
+- `resilience/retry.go` - Retry logic with backoff
+- `config/config.go` - Configuration loading
 
 ---
 
-### Seam: OpenRouter Client
+## Async Tool Tracking Architecture
 
-**Location**: `api/integrations/openrouter.go`
+### Component Diagram
 
-**Purpose**: Isolates OpenRouter API communication for chat completions.
-
-**Substitution Points**:
-- For **tests**: Mock the HTTP client or inject a test client
-- For **different AI providers**: Create alternative implementation with same interface
-
-**Key Operations**:
-```go
-NewOpenRouterClient() (*OpenRouterClient, error)
-CreateCompletion(ctx, request) (*http.Response, error)
-ParseNonStreamingResponse(body) (*OpenRouterResponse, error)
-AvailableModels() []ModelInfo
+```
+                    ┌─────────────────────────────────────────────────────────┐
+                    │                    HTTP Layer                            │
+                    │  ┌───────────────────────────────────────────────────┐  │
+                    │  │ handlers/async_status.go                          │  │
+                    │  │  - StreamAsyncStatus (SSE endpoint)               │  │
+                    │  │  - GetAsyncOperations                             │  │
+                    │  │  - CancelAsyncOperation                           │  │
+                    │  └───────────────────────────────────────────────────┘  │
+                    └─────────────────────────┬───────────────────────────────┘
+                                              │
+                                              │ calls
+                                              ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Service Layer                                      │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │ services/async_tracker.go                                              │ │
+│  │                                                                         │ │
+│  │  AsyncTrackerService                                                   │ │
+│  │  ├── StartTracking()      - Begin tracking async operation             │ │
+│  │  ├── StopTracking()       - Cancel and mark as cancelled               │ │
+│  │  ├── GetOperation()       - Retrieve single operation                  │ │
+│  │  ├── GetActiveOperations()- List non-completed operations              │ │
+│  │  ├── SubscribeWithID()    - Subscribe to SSE updates                   │ │
+│  │  ├── UnsubscribeByID()    - Clean up subscription                      │ │
+│  │  ├── RegisterCompletionCallback() - AI loop notification               │ │
+│  │  ├── CancelOperation()    - Execute cancel tool + stop                 │ │
+│  │  ├── RecoverOperations()  - Load & resume from DB on startup           │ │
+│  │  ├── Shutdown()           - Graceful shutdown of polling loops         │ │
+│  │  └── GetCompletionEvents()- Query completion events since timestamp    │ │
+│  │                                                                         │ │
+│  │  Internal (unexported):                                                │ │
+│  │  ├── pollLoop()           - Background polling goroutine               │ │
+│  │  ├── processStatusResult()- Handle status tool response                │ │
+│  │  ├── pushUpdateData()     - Send to all subscribers                    │ │
+│  │  └── triggerCompletionCallback() - Notify AI loop                      │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  ┌─────────────────────────┐  ┌─────────────────────────────────────────┐  │
+│  │ services/async_config.go│  │ services/field_extractor.go             │  │
+│  │  - Poll intervals       │  │  - ExtractField()                       │  │
+│  │  - Buffer sizes         │  │  - ExtractStringField()                 │  │
+│  │  - Status constants     │  │  - ExtractIntField()                    │  │
+│  │  - Cleanup config       │  │  - ContainsString()                     │  │
+│  └─────────────────────────┘  └─────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                              │
+                                              │ uses
+                                              ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Integration Layer                                    │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │ integrations/tool_executor.go                                          │ │
+│  │  - ExecuteTool() - Executes tools on external scenarios                │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                              │
+                 ┌────────────────────────────┼────────────────────────────┐
+                 │ HTTP calls                 │ SQL                        │
+                 ▼                            ▼                            │
+┌────────────────────────────────┐  ┌────────────────────────────────────────┐
+│      External Scenarios        │  │          Persistence Layer             │
+│  - agent-manager (agent runs)  │  │  ┌──────────────────────────────────┐  │
+│  - browser-automation-studio   │  │  │ persistence/async_operation.go   │  │
+│  - Any scenario with async     │  │  │  - CreateAsyncOperation()        │  │
+│    tools                       │  │  │  - UpdateAsyncOperation()        │  │
+└────────────────────────────────┘  │  │  - GetAllActiveAsyncOperations() │  │
+                                    │  │  - CreateCompletionEvent()       │  │
+                                    │  │  - GetCompletionEventsSince()    │  │
+                                    │  └──────────────────────────────────┘  │
+                                    │                                        │
+                                    │  Tables:                               │
+                                    │  - async_operations                    │
+                                    │  - async_completion_events             │
+                                    └────────────────────────────────────────┘
 ```
 
-**Configuration**:
-- `OPENROUTER_API_KEY` - Required for production
+### Data Flow: Async Operation Lifecycle
+
+```
+1. TOOL EXECUTION
+   ─────────────────────────────────────────────────────────────────────────
+   CompletionService.ExecuteToolCalls()
+       │
+       ├─► toolExecutor.ExecuteTool("run-agent", {...})
+       │       │
+       │       └─► Returns: {"run_id": "run_abc123", "status": "pending"}
+       │
+       └─► maybeStartAsyncTracking()
+               │
+               ├─► toolRegistry.GetToolByName() - check for AsyncBehavior
+               │
+               └─► asyncTracker.StartTracking()
+
+2. TRACKING INITIALIZATION
+   ─────────────────────────────────────────────────────────────────────────
+   AsyncTrackerService.StartTracking()
+       │
+       ├─► extractOperationID() - get "run_abc123" from result
+       │
+       ├─► Create AsyncOperation record
+       │
+       ├─► Store in operations map (mutex protected)
+       │
+       ├─► pushUpdateData() - notify SSE subscribers of new operation
+       │
+       └─► go pollLoop() - start background polling goroutine
+
+3. BACKGROUND POLLING
+   ─────────────────────────────────────────────────────────────────────────
+   pollLoop(ctx, op)
+       │
+       ├─► snapshotOperation() - copy immutable config for thread safety
+       │
+       └─► Loop until terminal or timeout:
+               │
+               ├─► Wait poll interval (default 5s)
+               │
+               ├─► callStatusToolWithSnapshot()
+               │       │
+               │       └─► toolExecutor.ExecuteTool("get-run-status", {"run_id": "run_abc123"})
+               │
+               ├─► processStatusResult()
+               │       │
+               │       ├─► ExtractStringField(result, "data.run.status")
+               │       ├─► Check against success_values / failure_values
+               │       ├─► Extract progress, message, phase if configured
+               │       ├─► Update operation (mutex protected)
+               │       └─► pushUpdateData() - notify subscribers
+               │
+               └─► If terminal:
+                       │
+                       ├─► triggerCompletionCallback() - notify AI loop
+                       └─► Return (goroutine exits)
+
+4. SSE DELIVERY TO UI
+   ─────────────────────────────────────────────────────────────────────────
+   StreamAsyncStatus handler
+       │
+       ├─► SubscribeWithID(chatID) - get buffered channel
+       │
+       ├─► Send initial operations snapshot
+       │
+       └─► Loop until client disconnects:
+               │
+               └─► Select on sub.Channel or r.Context().Done()
+                       │
+                       └─► Marshal update to JSON, write SSE event
+
+5. AI LOOP CONTINUATION
+   ─────────────────────────────────────────────────────────────────────────
+   Streaming completion handler
+       │
+       ├─► RegisterCompletionCallback(chatID) - get callback channel
+       │
+       └─► Select on callback channel or timeout:
+               │
+               └─► Receive AsyncCompletionEvent
+                       │
+                       └─► Continue AI conversation with result
+```
+
+### Concurrency Model
+
+**Thread Safety Mechanisms:**
+
+1. **Mutex Protection (`sync.RWMutex`)**
+   - All map operations (operations, subscribers, subscriptions, callbacks)
+   - Read lock for queries, write lock for modifications
+
+2. **Immutable Snapshots (`OperationSnapshot`)**
+   - Polling goroutine captures config once at start
+   - Avoids repeated lock acquisitions during long-running polls
+   - Proto AsyncBehavior is immutable after creation
+
+3. **Non-Blocking Channel Sends**
+   - `pushUpdateData()` uses `select` with `default` case
+   - Full channels cause dropped updates (logged), not deadlocks
+   - Buffer sizes tuned in `async_config.go`
+
+4. **Context Cancellation**
+   - Each poll goroutine has its own cancellable context
+   - `StopTracking()` cancels context, goroutine exits cleanly
+   - `cancelFuncs` map tracks cancel functions by toolCallID
+
+**Race Conditions Avoided:**
+- Building updates while holding mutex, then releasing before push
+- Using snapshot for config reads in poll loop
+- Non-blocking sends prevent subscriber slowdown from blocking tracker
+
+### Notification Systems
+
+| System | Purpose | Consumer | Buffer Size | Behavior on Full |
+|--------|---------|----------|-------------|------------------|
+| SSE Subscribers | Real-time UI updates | Web clients | 100 | Drop update, log warning |
+| Completion Callbacks | AI loop continuation | CompletionService | 10 | Drop event, log warning |
+
+### Configuration Constants
+
+| Constant | Default | Purpose |
+|----------|---------|---------|
+| `DefaultPollInterval` | 5s | Time between status checks (initial) |
+| `MinPollInterval` | 1s | Minimum allowed interval |
+| `DefaultMaxPollDuration` | 1h | Max time before timeout |
+| `SubscriberChannelBufferSize` | 100 | SSE channel buffer |
+| `CompletionCallbackBufferSize` | 10 | AI callback buffer |
+| `DefaultCleanupInterval` | 5m | Cleanup routine frequency |
+| `DefaultCleanupRetention` | 30m | How long to keep completed ops |
+
+### Backoff Configuration (Proto Defaults)
+
+| Field | Default | Purpose |
+|-------|---------|---------|
+| `initial_interval_seconds` | 5 | Starting poll interval |
+| `max_interval_seconds` | 30 | Maximum poll interval after backoff |
+| `multiplier` | 1.5 | Interval growth factor per poll |
 
 ---
 
-### Seam: Ollama Client
+## Streaming Protocol Specification
 
-**Location**: `api/integrations/ollama.go`
+### SSE Event Types
 
-**Purpose**: Local AI for privacy-preserving auto-naming.
-
-**Substitution Points**:
-- For **tests**: Mock the client or inject a test Ollama instance
-- For **offline use**: Graceful fallback to "New Conversation"
-
-**Key Operations**:
-```go
-NewOllamaClient() *OllamaClient
-GenerateChatName(ctx, conversationSummary) (string, error)
-IsAvailable(ctx) bool
-```
-
-**Configuration**:
-- `OLLAMA_BASE_URL` - Custom Ollama URL
-- `OLLAMA_NAMING_MODEL` - Model for naming (default: llama3.1:8b)
-
----
-
-### Seam: Agent Manager Client
-
-**Location**: `api/integrations/agent_manager.go`
-
-**Purpose**: HTTP client for dispatching coding tasks to Claude Code, Codex, or OpenCode agents.
-
-**Substitution Points**:
-- For **tests**: Mock the HTTP calls to agent-manager
-- For **different runners**: Agent-manager abstracts runner selection
-
-**Key Operations**:
-```go
-NewAgentManagerClient() (*AgentManagerClient, error)
-SpawnCodingAgent(ctx, task, runnerType, workspace, timeout) (map, error)
-CheckAgentStatus(ctx, runID) (map, error)
-StopAgent(ctx, runID) (map, error)
-ListActiveAgents(ctx) (interface{}, error)
-GetAgentDiff(ctx, runID) (map, error)
-ApproveAgentChanges(ctx, runID) (map, error)
-```
-
-**Configuration**:
-- `AGENT_MANAGER_API_URL` - Direct URL override
-- Falls back to `vrooli scenario port agent-manager API_PORT`
-
----
-
-### Seam: Tool Executor
-
-**Location**: `api/integrations/tool_executor.go`
-
-**Purpose**: Routes tool calls from AI to appropriate integrations. Separated from agent_manager.go for clear responsibility boundaries.
-
-**Substitution Points**:
-- For **tests**: Inject mock AgentManagerClient
-- For **new tools**: Add cases to `ExecuteTool` switch
-- For **different scenarios**: Add new integration clients
-
-**Key Interface**:
-```go
-type ToolExecutor struct {
-    agentManager *AgentManagerClient
-}
-
-func NewToolExecutor() *ToolExecutor
-func (e *ToolExecutor) ExecuteTool(ctx, chatID, toolCallID, toolName, args) (*ToolCallRecord, error)
-```
-
-**Current Tools**:
-| Tool | Description |
-|------|-------------|
-| `spawn_coding_agent` | Create new coding agent run |
-| `check_agent_status` | Get status of running agent |
-| `stop_agent` | Stop a running agent |
-| `list_active_agents` | List all running agents |
-| `get_agent_diff` | Get code changes from agent |
-| `approve_agent_changes` | Apply agent's changes |
-
----
-
-## UI Architecture
+The completion endpoint (`POST /chats/{id}/complete?stream=true`) returns Server-Sent Events (SSE) with the following event structure:
 
 ```
-ui/src/
-├── App.tsx                    # Main app, layout orchestration
-├── hooks/
-│   ├── useChats.ts           # Main chat orchestration (delegates to focused hooks)
-│   ├── useCompletion.ts      # AI streaming and tool call state
-│   ├── useLabels.ts          # Label CRUD operations
-│   └── useKeyboardShortcuts.ts
-├── lib/
-│   └── api.ts                # API client (clean seam for all HTTP)
-├── components/
-│   ├── chat/                 # ChatView, ChatList, MessageList, etc.
-│   ├── labels/               # LabelManager
-│   ├── layout/               # Sidebar
-│   ├── settings/             # Settings, KeyboardShortcuts
-│   └── ui/                   # Generic UI components
+data: {"type": "<event_type>", ...fields}
 ```
 
-### Seam: API Client
+#### Event Type Reference
 
-**Location**: `ui/src/lib/api.ts`
+| Type | Description | Key Fields |
+|------|-------------|------------|
+| `content` | Streamed text chunk | `content`, `completion_id` |
+| `image_generated` | AI-generated image | `image_url` |
+| `tool_call_start` | Tool execution begins | `tool_id`, `tool_name`, `arguments` |
+| `tool_call_result` | Tool execution complete | `tool_id`, `status`, `result`, `error`, `deactivate_template` |
+| `tool_calls_complete` | All tools done, continuing | `continuing: true` |
+| `tool_pending_approval` | Tool awaits user approval | `tool_call_id`, `tool_name`, `arguments` |
+| `awaiting_approvals` | Stream paused for approvals | (no extra fields) |
+| `async_waiting` | Paused for async tool | `operations: [{tool_call_id, tool_name, run_id}]` |
+| `async_progress` | Async operation update | `tool_call_id`, `progress`, `phase`, `message` |
+| `async_completed` | Async operation finished | `tool_call_id`, `status`, `result`, `error` |
+| `error` | Structured error | `code`, `error`, `request_id` |
+| `warning` | Non-fatal issue | `code`, `message` |
+| `progress` | Phase/status update | `phase`, `message` |
 
-**Purpose**: All HTTP communication with the backend API.
+### Event Flow Diagrams
 
-**Substitution Points**:
-- For **unit tests**: Mock individual functions
-- For **E2E tests**: Use MSW (Mock Service Worker)
-- For **offline mode**: Implement a local storage adapter
+#### Simple Completion (No Tools)
+```
+Client                                Server
+  │                                     │
+  │  POST /complete?stream=true         │
+  │ ──────────────────────────────────► │
+  │                                     │
+  │     data: {"type":"content","content":"H"}
+  │ ◄────────────────────────────────── │
+  │     data: {"type":"content","content":"ello"}
+  │ ◄────────────────────────────────── │
+  │     data: [DONE]                    │
+  │ ◄────────────────────────────────── │
+```
 
-**Key Functions**:
+#### Completion with Tool Calls
+```
+Client                                Server                          External Tool
+  │                                     │                                    │
+  │  POST /complete?stream=true         │                                    │
+  │ ──────────────────────────────────► │                                    │
+  │                                     │                                    │
+  │     data: {"type":"tool_call_start", "tool_id":"...", "tool_name":"..."}
+  │ ◄────────────────────────────────── │                                    │
+  │                                     │  Execute tool                      │
+  │                                     │ ─────────────────────────────────► │
+  │                                     │                                    │
+  │                                     │  Tool result                       │
+  │                                     │ ◄───────────────────────────────── │
+  │     data: {"type":"tool_call_result", "status":"completed", "result":...}
+  │ ◄────────────────────────────────── │                                    │
+  │     data: {"type":"tool_calls_complete", "continuing":true}
+  │ ◄────────────────────────────────── │                                    │
+  │                                     │                                    │
+  │     (auto-continue: AI responds to tool results)                         │
+  │     data: {"type":"content","content":"Based on the tool result..."}
+  │ ◄────────────────────────────────── │                                    │
+  │     data: [DONE]                    │                                    │
+  │ ◄────────────────────────────────── │                                    │
+```
+
+#### Completion with Approval Required
+```
+Client                                Server
+  │                                     │
+  │  POST /complete?stream=true         │
+  │ ──────────────────────────────────► │
+  │                                     │
+  │     data: {"type":"tool_pending_approval", "tool_call_id":"...", ...}
+  │ ◄────────────────────────────────── │
+  │     data: {"type":"awaiting_approvals"}
+  │ ◄────────────────────────────────── │
+  │     data: [DONE]                    │  (stream ends, waiting for action)
+  │ ◄────────────────────────────────── │
+  │                                     │
+  │  POST /tool-calls/{id}/approve      │
+  │ ──────────────────────────────────► │
+  │     {"auto_continued": true, ...}   │
+  │ ◄────────────────────────────────── │
+  │                                     │
+  │  (new completion triggered server-side if auto_continued)
+```
+
+#### Completion with Async Tool
+```
+Client                                Server                     Async Tool
+  │                                     │                             │
+  │  POST /complete?stream=true         │                             │
+  │ ──────────────────────────────────► │                             │
+  │                                     │                             │
+  │     data: {"type":"tool_call_start", ...}
+  │ ◄────────────────────────────────── │                             │
+  │     data: {"type":"tool_call_result", "is_async":true, ...}
+  │ ◄────────────────────────────────── │                             │
+  │     data: {"type":"async_waiting", "operations":[...]}
+  │ ◄────────────────────────────────── │                             │
+  │                                     │  Start polling              │
+  │                                     │ ──────────────────────────► │
+  │                                     │                             │
+  │  (stream stays open, waiting)       │  Poll status                │
+  │                                     │ ◄────────────────────────── │
+  │     data: {"type":"async_progress", "progress":50, ...}
+  │ ◄────────────────────────────────── │                             │
+  │                                     │                             │
+  │                                     │  Operation complete         │
+  │                                     │ ◄────────────────────────── │
+  │     data: {"type":"async_completed", "status":"completed", ...}
+  │ ◄────────────────────────────────── │                             │
+  │                                     │                             │
+  │     (auto-continue with async result)
+  │     data: {"type":"content","content":"The operation completed..."}
+  │ ◄────────────────────────────────── │                             │
+  │     data: [DONE]                    │                             │
+  │ ◄────────────────────────────────── │                             │
+```
+
+### Request ID Correlation
+
+Each streaming request includes identifiers for correlation:
+
+- **completion_id**: Unique per completion request, included in events
+- **request_id**: Server-side trace ID, included in error events
+
+Client-side usage (from `useCompletion.ts`):
 ```typescript
-// Chat operations
-fetchChats(options?) -> Promise<Chat[]>
-fetchChat(id) -> Promise<ChatWithMessages>
-createChat(data?) -> Promise<Chat>
-updateChat(id, data) -> Promise<Chat>
-deleteChat(id) -> Promise<void>
-addMessage(chatId, data) -> Promise<Message>
-
-// AI operations
-completeChat(chatId, options?) -> Promise<Message | void>
-autoNameChat(chatId) -> Promise<Chat>
-fetchModels() -> Promise<Model[]>
-fetchTools() -> Promise<ToolDefinition[]>
-
-// Label operations
-fetchLabels() -> Promise<Label[]>
-createLabel(data) -> Promise<Label>
-assignLabel(chatId, labelId) -> Promise<void>
-```
-
----
-
-### Seam: useCompletion Hook
-
-**Location**: `ui/src/hooks/useCompletion.ts`
-
-**Purpose**: Encapsulates AI completion complexity—streaming, tool calls, state.
-
-**Substitution Points**:
-- For **tests**: Mock `completeChat` or provide test event sequences
-- For **different streaming protocols**: Swap event handling
-
-**State**:
-```typescript
-interface CompletionState {
-  isGenerating: boolean;
-  streamingContent: string;
-  activeToolCalls: ActiveToolCall[];
+// Guard against stale events from cancelled requests
+if (currentRequestIdRef.current !== requestId) {
+  return; // Stale event from cancelled request
 }
 ```
 
 ---
 
-### Seam: useLabels Hook
+## Interface Contracts
 
-**Location**: `ui/src/hooks/useLabels.ts`
+### AsyncTrackerInterface
 
-**Purpose**: Isolates label CRUD from main chat logic.
+Defined in `services/interfaces.go` for dependency injection and testing:
 
-**Substitution Points**:
-- For **tests**: Mock React Query or API functions
+```go
+type AsyncTrackerInterface interface {
+    GetActiveOperations(chatID string) []*AsyncOperation
+    GetOperation(toolCallID string) *AsyncOperation
+    StartTracking(ctx, toolCallID, chatID, toolName, scenario string,
+                  toolResult interface{}, asyncBehavior *toolspb.AsyncBehavior) error
+}
+```
+
+### Proto-Based Configuration
+
+Tool async behavior is defined in `packages/proto/schemas/agent-inbox/v1/domain/tool.proto`:
+
+- `AsyncBehavior` - Top-level async configuration
+- `StatusPolling` - How to poll for status
+- `CompletionConditions` - When to consider operation done
+- `ProgressTracking` - Optional progress extraction paths
+- `CancellationBehavior` - Optional cancel tool configuration
 
 ---
 
 ## Testing Strategy
 
-### API (Go)
+### Unit Tests (`async_tracker_test.go`)
 
-| Layer | Test Approach |
-|-------|---------------|
-| **Handlers** | HTTP test with real `Repository` on test DB |
-| **Repository** | Direct SQL tests against test DB |
-| **Integrations** | Mock HTTP responses, test client logic |
-| **Domain** | Unit tests for validation functions |
+- Initialization verification
+- Input validation (missing config, missing operation ID)
+- Operation lifecycle (start, stop, remove)
+- Subscription management (subscribe, unsubscribe)
+- Field extraction (dot-notation paths)
+- Status processing (success, failure, in-progress)
 
-Example test setup:
+### Integration Tests (`async_tracker_integration_test.go`)
+
+- Full operation lifecycle with subscribers and callbacks
+- Multiple concurrent operations
+- Cleanup of stale operations
+- Concurrent subscribe/unsubscribe
+
+### Concurrency Tests (run with `-race`)
+
+- Concurrent StartTracking calls
+- Concurrent Subscribe/Unsubscribe
+- Concurrent update pushing
+- Goroutine leak detection
+
+---
+
+## Persistence Layer
+
+### Database Tables
+
+The async tracking system persists state for crash recovery and multi-consumer callbacks:
+
+| Table | Purpose |
+|-------|---------|
+| `async_operations` | Stores active and completed operations for crash recovery |
+| `async_completion_events` | Stores completion events for multi-consumer querying |
+
+### Crash Recovery
+
+On server startup, `RecoverOperations()` is called to:
+1. Load all active (non-terminal) operations from the database
+2. Perform a fresh status check for each operation
+3. Resume polling loops for operations that are still running
+
+This ensures that long-running operations survive server restarts without losing progress.
+
+### Graceful Shutdown
+
+On server shutdown, `Shutdown()` is called to:
+1. Cancel all active polling goroutines
+2. Mark in-progress operations as "interrupted" in the database
+3. Allow cleanup before database connection closes
+
+### Multi-Consumer Callbacks
+
+In addition to channel-based callbacks, completion events are persisted to `async_completion_events`:
+- Multiple consumers can query `GetCompletionEvents(chatID, since)` for events since a timestamp
+- Events are retained in the database for later retrieval
+- Useful for AI handlers that start after an operation completes
+
+---
+
+## Exponential Backoff
+
+The polling system supports exponential backoff to reduce load on external services:
+
+### Configuration (via Proto)
+
+Backoff is configured per-tool in the `PollingBackoff` proto message:
+- `initial_interval_seconds` - Starting interval (default: 5s)
+- `max_interval_seconds` - Maximum interval (default: 30s)
+- `multiplier` - Growth factor (default: 1.5)
+
+### Behavior
+
+1. First poll uses `initial_interval_seconds`
+2. Each subsequent poll: `interval = min(interval * multiplier, max_interval)`
+3. Polling continues at `max_interval_seconds` until completion
+
+### Example
+
+With defaults (5s initial, 30s max, 1.5x multiplier):
+```
+Poll 1: 5s
+Poll 2: 7.5s
+Poll 3: 11.25s
+Poll 4: 16.875s
+Poll 5: 25.3s
+Poll 6+: 30s (capped)
+```
+
+---
+
+## UI Layer Seams
+
+### Hook Boundaries
+
+The UI uses React hooks to encapsulate domain logic. Each hook has clear boundaries:
+
+| Hook | Responsibility | Seam Point |
+|------|----------------|------------|
+| `useCompletion` | AI streaming state, tool calls, approvals | `completeChat()` from api module |
+| `useChats` | Chat list, selection, CRUD | `fetchChats()`, `createChat()`, etc. |
+| `useAsyncStatus` | Async operation polling via SSE | SSE connection to `/async-status` |
+| `useAttachments` | File upload state | `uploadAttachment()` |
+| `useLabels` | Label management | `fetchLabels()`, `createLabel()`, etc. |
+| `useTools` | Tool registry state | `fetchToolSet()` |
+
+### Testing Seams
+
+For testing UI components, hooks can be mocked at the API module level:
+
+```typescript
+// Test file
+jest.mock('../lib/api', () => ({
+  completeChat: jest.fn().mockImplementation(async (chatId, options) => {
+    // Simulate streaming events
+    options?.onEvent?.({ type: 'content', content: 'Test response' });
+  }),
+  // ... other mocks
+}));
+```
+
+Alternatively, for integration tests, the `fetch` function can be intercepted:
+
+```typescript
+// Using MSW (Mock Service Worker)
+import { rest } from 'msw';
+
+const handlers = [
+  rest.post('/api/v1/chats/:id/complete', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.body('data: {"type":"content","content":"Hello"}\n\n'));
+  }),
+];
+```
+
+### State Management Boundaries
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              App                                         │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │                       Global State                                  │ │
+│  │  - ToolsContext (tool registry, refresh)                           │ │
+│  │  - No Redux/MobX - minimal global state                            │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                                                                          │
+│  ┌─────────────────────────┐  ┌─────────────────────────────────────┐  │
+│  │     useChats            │  │           useCompletion              │  │
+│  │  (chat list, selection) │  │  (streaming, tool calls, approvals) │  │
+│  │                         │  │                                      │  │
+│  │  State:                 │  │  State:                              │  │
+│  │  - chats[]              │  │  - isGenerating                      │  │
+│  │  - selectedChat         │  │  - streamingContent                  │  │
+│  │  - viewState            │  │  - activeToolCalls[]                 │  │
+│  │                         │  │  - pendingApprovals[]                │  │
+│  │  Seam: React Query      │  │  - awaitingApprovals                 │  │
+│  │  (cache invalidation)   │  │                                      │  │
+│  └─────────────────────────┘  │  Seam: AbortController               │  │
+│                               │  (request cancellation)              │  │
+│                               └─────────────────────────────────────┘  │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │                        API Client Layer                            │ │
+│  │                      (ui/src/lib/api.ts)                           │ │
+│  │                                                                     │ │
+│  │  Primary Seam: All HTTP calls go through this module               │ │
+│  │  - Type-safe request/response handling                             │ │
+│  │  - SSE streaming abstraction                                       │ │
+│  │  - URL building via buildApiUrl()                                  │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### React Patterns for Stability
+
+The `useCompletion` hook uses several patterns to prevent render storms:
+
+1. **Stable Empty Arrays**: Prevents reference changes
+   ```typescript
+   const EMPTY_IMAGES: string[] = [];
+   const EMPTY_TOOL_CALLS: ActiveToolCall[] = [];
+   ```
+
+2. **Request ID Guards**: Prevents stale event handling
+   ```typescript
+   if (currentRequestIdRef.current !== requestId) {
+     return; // Stale event
+   }
+   ```
+
+3. **startTransition**: Batches non-urgent state updates
+   ```typescript
+   startTransition(() => {
+     setStreamingContent((prev) => prev + event.content);
+   });
+   ```
+
+4. **Memoized Return**: Prevents object reference changes
+   ```typescript
+   return useMemo(() => ({ ...state, ...actions }), [dependencies]);
+   ```
+
+---
+
+## Handler Responsibilities
+
+### API Handler Boundaries
+
+| Handler File | Responsibility | Should NOT Do |
+|--------------|----------------|---------------|
+| `ai.go` | HTTP for completions, SSE setup | Business logic (delegates to services) |
+| `chat.go` | Chat CRUD HTTP endpoints | Tool execution, message tree logic |
+| `message.go` | Message HTTP endpoints | AI completion orchestration |
+| `async_status.go` | SSE for async updates | Polling logic (delegates to tracker) |
+| `tools.go` | Tool discovery/config HTTP | Tool execution |
+| `upload.go` | File upload HTTP | Storage implementation |
+
+### Service Layer Boundaries
+
+| Service | Owns | Delegates To |
+|---------|------|--------------|
+| `CompletionService` | Completion orchestration, tool call coordination | `ToolExecutor`, `AsyncTracker`, `Repository` |
+| `AsyncTrackerService` | Operation lifecycle, polling, notifications | `ToolExecutor` (for status calls), `Repository` |
+| `ToolRegistry` | Tool metadata cache, enabled state | `Repository` (for configs) |
+| `ReconciliationService` | Startup recovery | `Repository` |
+
+### Handler → Service → Repository Pattern
+
+```
+Handler                    Service                     Repository
+   │                          │                            │
+   │  Validate HTTP input     │                            │
+   │  ──────────────────►     │                            │
+   │                          │  Orchestrate workflow      │
+   │                          │  ──────────────────────►   │
+   │                          │                            │  SQL
+   │                          │                            │ ─────►
+   │                          │                            │
+   │                          │  ◄──────────────────────   │
+   │  Format HTTP response    │                            │
+   │  ◄──────────────────     │                            │
+```
+
+### Error Translation Boundaries
+
+| Layer | Error Type | Responsibility |
+|-------|------------|----------------|
+| Repository | `sql.ErrNoRows`, DB errors | Wrap in domain errors |
+| Service | `ErrChatNotFound`, `ErrNoMessages` | Business rule validation |
+| Handler | `AppError` → HTTP status | Map to status codes |
+
+From `handlers/ai.go`:
 ```go
-func setupTestServer(t *testing.T) *TestServer {
-    db := connectTestDB(t)
-    repo := persistence.NewRepository(db)
-    repo.InitSchema(context.Background())
-    h := handlers.New(repo, integrations.NewOllamaClient())
-    router := mux.NewRouter()
-    h.RegisterRoutes(router)
-    return &TestServer{repo: repo, router: router, handlers: h}
+func mapCompletionErrorToStatus(err error) int {
+    switch {
+    case errors.Is(err, services.ErrChatNotFound):
+        return http.StatusNotFound
+    case errors.Is(err, services.ErrNoMessages):
+        return http.StatusBadRequest
+    // ...
+    }
 }
 ```
 
-### UI (React/TypeScript)
-
-| Layer | Test Approach |
-|-------|---------------|
-| **Components** | Vitest + Testing Library |
-| **Hooks** | Mock API functions, test state transitions |
-| **API Client** | Mock fetch or use MSW |
-| **E2E** | Playwright against running scenario |
-
 ---
 
-## Adding New Features
+## Testability Seams Summary
 
-### New Tool
+### API-Side Seams
 
-1. Add tool definition in `api/integrations/tools.go`
-2. Add case in `ToolExecutor.ExecuteTool()` (`api/integrations/tool_executor.go`)
-3. Update UI tool call display if needed (`ui/src/components/chat/MessageList.tsx`)
+| Seam | Interface | Mock Strategy |
+|------|-----------|---------------|
+| Database | `CompletionRepository` | In-memory implementation |
+| Tool execution | `ToolExecutorInterface` | Mock executor returning canned results |
+| Async tracking | `AsyncTrackerInterface` | Mock tracker with immediate completion |
+| LLM client | (not injectable) | Consider extracting `LLMClientInterface` |
+| Ollama client | `OllamaClientInterface` | Mock for auto-naming tests |
 
-### New Integration
+### UI-Side Seams
 
-1. Create client in `api/integrations/new_service.go`
-2. Add to Handlers struct and wire in `handlers/handlers.go`
-3. If UI needs it, add API functions and types in `ui/src/lib/api.ts`
+| Seam | Injection Point | Mock Strategy |
+|------|-----------------|---------------|
+| API calls | `api.ts` module | Jest mock or MSW |
+| SSE streaming | `completeChat()` | Call `onEvent` directly |
+| Fetch | Global `fetch` | MSW intercept |
 
-### New Chat Feature
+### Recommended Improvements
 
-1. Add domain types if needed in `api/domain/types.go`
-2. Add repository methods in `api/persistence/repository.go`
-3. Add HTTP handlers in appropriate `api/handlers/*.go` file
-4. Add API functions in `ui/src/lib/api.ts`
-5. Update hooks (`useChats.ts` or create focused hook)
-6. Update components
+1. **Extract LLM Client Interface**: Currently `integrations.NewOpenRouterClient()` is called directly in handlers. Extracting to an interface would improve testability.
 
-### New API Endpoint
+2. **Dependency Injection for Hooks**: Consider a `useApiClient()` hook that can be provided via context for easier testing.
 
-1. Add handler method to appropriate file in `api/handlers/`
-2. Register route in `api/handlers/handlers.go` `RegisterRoutes()`
-3. Add corresponding API function in `ui/src/lib/api.ts`
-
----
-
-## Configuration Reference
-
-| Variable | Layer | Purpose |
-|----------|-------|---------|
-| `API_PORT` | API | Server listen port |
-| `DATABASE_URL` | API | PostgreSQL connection |
-| `OPENROUTER_API_KEY` | API | OpenRouter authentication |
-| `OLLAMA_BASE_URL` | API | Custom Ollama URL |
-| `OLLAMA_NAMING_MODEL` | API | Model for auto-naming |
-| `AGENT_MANAGER_API_URL` | API | Agent-manager service URL |
-| `CORS_ALLOWED_ORIGINS` | API | Allowed CORS origins |
-| `UI_PORT` | UI | Vite dev server port |
-
----
-
-## Architectural Improvements History
-
-### 2025-12-25: Screaming Architecture Refactor
-
-**Changes Made**:
-1. **Created `handlers/` package** - Split 968-line main.go into focused handler files organized by domain:
-   - `handlers.go` (84 lines) - Shared types, route registration, response helpers
-   - `health.go` (26 lines) - Health check
-   - `chat.go` (119 lines) - Chat CRUD
-   - `message.go` (85 lines) - Messages and state toggles
-   - `label.go` (130 lines) - Label operations
-   - `ai.go` (282 lines) - AI completion and streaming
-
-2. **Simplified main.go** - Reduced from 968 to ~140 lines, now only handles server wiring
-
-3. **Extracted `tool_executor.go`** - Separated ToolExecutor from agent_manager.go to enforce single responsibility:
-   - `agent_manager.go` - HTTP client for agent-manager service
-   - `tool_executor.go` - Tool call routing and execution logic
-
-**Benefits**:
-- Codebase structure now "screams" its purpose (chat management, AI completion, labels)
-- Clear responsibility boundaries make testing easier
-- New developers can quickly find where to add features
-- Smaller, focused files are easier to review and maintain
+3. **State Machine for Completion**: The boolean flags in `useCompletion` (`isGenerating`, `awaitingApprovals`) could be replaced with an explicit state machine (e.g., XState) for clearer state transitions.

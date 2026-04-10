@@ -9,11 +9,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
@@ -22,15 +23,10 @@ func TestNewStripeService(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	// Set environment variables
-	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_123")
-	os.Setenv("STRIPE_SECRET_KEY", "sk_test_123")
-	os.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_123")
-	defer func() {
-		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
-		os.Unsetenv("STRIPE_SECRET_KEY")
-		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
-	}()
+	// Set environment variables using t.Setenv for parallel safety
+	t.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_123")
+	t.Setenv("STRIPE_SECRET_KEY", "sk_test_123")
+	t.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_123")
 
 	service := NewStripeService(db)
 	if service == nil {
@@ -56,23 +52,6 @@ func TestStripeService_ConfigLoaderOverride(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 	resetStripeTestData(t, db)
-
-	// Ensure ambient env does not leak into the custom loader.
-	envKeys := []string{"STRIPE_PUBLISHABLE_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_API_BASE"}
-	originals := map[string]string{}
-	for _, key := range envKeys {
-		originals[key] = os.Getenv(key)
-		os.Unsetenv(key)
-	}
-	t.Cleanup(func() {
-		for _, key := range envKeys {
-			if val := originals[key]; val != "" {
-				os.Setenv(key, val)
-			} else {
-				os.Unsetenv(key)
-			}
-		}
-	})
 
 	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_loader", "production", 1000000, 0.001, "credits")
 	insertBundlePrice(
@@ -109,23 +88,9 @@ func TestStripeService_ConfigLoaderOverride(t *testing.T) {
 	}))
 	defer stripeServer.Close()
 
-	service := NewStripeService(db)
-	service.UseHTTPClient(stripeServer.Client())
-	service.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
-		return stripeRuntimeConfig{
-			publishableKey: "pk_loader",
-			secretKey:      "rk_loader",
-			webhookSecret:  "whsec_loader",
-			hasPublishable: true,
-			hasSecret:      true,
-			hasWebhook:     true,
-			apiBase:        stripeServer.URL,
-			source:         "test_loader",
-		}, nil
-	})
-	if err := service.RefreshConfig(context.Background()); err != nil {
-		t.Fatalf("refresh with custom loader failed: %v", err)
-	}
+	// Use ConfigureStripeService with custom keys
+	cfg := DefaultStripeTestConfig().WithKeys("pk_loader", "rk_loader", "whsec_loader")
+	service := ConfigureStripeService(t, db, cfg, stripeServer)
 
 	session, err := service.CreateCheckoutSession(
 		"price_loader",
@@ -172,36 +137,9 @@ func TestCreateCheckoutSession(t *testing.T) {
 		t.Fatalf("Failed to create checkout_sessions table: %v", err)
 	}
 
-	// Seed bundle metadata so plan lookup succeeds
-	if _, err := db.Exec(`
-		INSERT INTO bundle_products (bundle_key, bundle_name, stripe_product_id, credits_per_usd, display_credits_multiplier, display_credits_label, environment)
-		VALUES ('business_suite', 'Business Suite', 'prod_business_suite', 1000000, 0.001, 'credits', 'production')
-		ON CONFLICT (bundle_key) DO NOTHING
-	`); err != nil {
-		t.Fatalf("failed to seed bundle product: %v", err)
-	}
+	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_business_suite", "production", 1000000, 0.001, "credits")
+	insertBundlePrice(t, db, productID, "price_123", "Test Plan", "pro", "month", "usd", 5000, true, "flat_amount", 100, 1, "test_intro_lookup", 1000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
 
-	if _, err := db.Exec(`
-		INSERT INTO bundle_prices (
-			product_id, stripe_price_id, plan_name, plan_tier, billing_interval,
-			amount_cents, currency, intro_enabled, intro_type, intro_amount_cents, intro_periods, intro_price_lookup_key,
-			monthly_included_credits, one_time_bonus_credits, plan_rank, bonus_type,
-			kind, metadata, display_weight
-		) VALUES (
-			(SELECT id FROM bundle_products WHERE bundle_key = 'business_suite'),
-			'price_123', 'Test Plan', 'pro', 'month',
-			5000, 'usd', TRUE, 'flat_amount', 100, 1, 'test_intro_lookup',
-			1000000, 0, 1, 'none',
-			'subscription', '{}'::jsonb, 10
-		)
-		ON CONFLICT (stripe_price_id) DO NOTHING
-	`); err != nil {
-		t.Fatalf("failed to seed bundle price: %v", err)
-	}
-
-	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_valid")
-	os.Setenv("STRIPE_SECRET_KEY", "sk_test_valid")
-	os.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_valid")
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/checkout/sessions" && r.Method == http.MethodPost {
 			w.Header().Set("Content-Type", "application/json")
@@ -210,17 +148,9 @@ func TestCreateCheckoutSession(t *testing.T) {
 		}
 		http.NotFound(w, r)
 	}))
-	os.Setenv("STRIPE_API_BASE", stripeServer.URL)
-	defer func() {
-		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
-		os.Unsetenv("STRIPE_SECRET_KEY")
-		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
-		os.Unsetenv("STRIPE_API_BASE")
-		stripeServer.Close()
-	}()
+	defer stripeServer.Close()
 
-	service := NewStripeService(db)
-	service.UseHTTPClient(stripeServer.Client())
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	session, err := service.CreateCheckoutSession(
 		"price_123",
@@ -228,7 +158,6 @@ func TestCreateCheckoutSession(t *testing.T) {
 		"/cancel",
 		"test@example.com",
 	)
-
 	if err != nil {
 		t.Fatalf("CreateCheckoutSession failed: %v", err)
 	}
@@ -257,13 +186,23 @@ func TestCreateCheckoutSessionRequiresSecret(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	os.Unsetenv("STRIPE_SECRET_KEY")
-	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_missing_secret")
-	defer func() {
-		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
-	}()
+	// Configure service with no secret key to test error handling
+	service := requireTestStripeService(t, db)
+	service.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
+		return stripeRuntimeConfig{
+			publishableKey: "pk_test_missing_secret",
+			secretKey:      "", // Missing secret key
+			webhookSecret:  "",
+			hasPublishable: true,
+			hasSecret:      false,
+			hasWebhook:     false,
+			source:         "test",
+		}, nil
+	})
+	if err := service.RefreshConfig(context.Background()); err != nil {
+		t.Fatalf("refresh failed: %v", err)
+	}
 
-	service := NewStripeService(db)
 	_, err := service.CreateCheckoutSession("price_missing_secret", "/ok", "/cancel", "no-secret@example.com")
 	if err == nil {
 		t.Fatalf("expected error when secret key is missing")
@@ -275,16 +214,8 @@ func TestVerifyWebhookSignature(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_valid")
-	os.Setenv("STRIPE_SECRET_KEY", "sk_test_valid")
-	os.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_secret")
-	defer func() {
-		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
-		os.Unsetenv("STRIPE_SECRET_KEY")
-		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
-	}()
-
-	service := NewStripeService(db)
+	cfg := DefaultStripeTestConfig().WithKeys("pk_test_valid", "sk_test_valid", "whsec_test_secret")
+	service := ConfigureStripeService(t, db, cfg, nil)
 
 	payload := []byte(`{"type":"checkout.session.completed","data":{}}`)
 	timestamp := time.Now().Unix()
@@ -357,32 +288,8 @@ func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 		t.Fatalf("Failed to create tables: %v", err)
 	}
 
-	// Seed bundle metadata for checkout plan
-	if _, err := db.Exec(`
-		INSERT INTO bundle_products (bundle_key, bundle_name, stripe_product_id, credits_per_usd, display_credits_multiplier, display_credits_label, environment)
-		VALUES ('business_suite', 'Business Suite', 'prod_business_suite', 1000000, 0.001, 'credits', 'production')
-		ON CONFLICT (bundle_key) DO NOTHING
-	`); err != nil {
-		t.Fatalf("failed to seed bundle product: %v", err)
-	}
-
-	if _, err := db.Exec(`
-		INSERT INTO bundle_prices (
-			product_id, stripe_price_id, plan_name, plan_tier, billing_interval,
-			amount_cents, currency, intro_enabled, intro_type, intro_amount_cents, intro_periods, intro_price_lookup_key,
-			monthly_included_credits, one_time_bonus_credits, plan_rank, bonus_type,
-			kind, metadata, display_weight
-		) VALUES (
-			(SELECT id FROM bundle_products WHERE bundle_key = 'business_suite'),
-			'price_123', 'Test Plan', 'pro', 'month',
-			5000, 'usd', TRUE, 'flat_amount', 100, 1, 'test_intro_lookup',
-			1000000, 0, 1, 'none',
-			'subscription', '{}'::jsonb, 10
-		)
-		ON CONFLICT (stripe_price_id) DO NOTHING
-	`); err != nil {
-		t.Fatalf("failed to seed bundle price: %v", err)
-	}
+	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_business_suite", "production", 1000000, 0.001, "credits")
+	insertBundlePrice(t, db, productID, "price_123", "Test Plan", "pro", "month", "usd", 5000, true, "flat_amount", 100, 1, "test_intro_lookup", 1000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
 
 	// Insert initial checkout session
 	_, err = db.Exec(`
@@ -393,18 +300,11 @@ func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 		t.Fatalf("Failed to insert checkout session: %v", err)
 	}
 
-	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_valid")
-	os.Setenv("STRIPE_SECRET_KEY", "sk_test_valid")
-	os.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_secret")
-	defer func() {
-		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
-		os.Unsetenv("STRIPE_SECRET_KEY")
-		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
-	}()
-
-	service := NewStripeService(db)
+	cfg := DefaultStripeTestConfig().WithKeys("pk_test_valid", "sk_test_valid", "whsec_test_secret")
+	service := ConfigureStripeService(t, db, cfg, nil)
 
 	event := map[string]interface{}{
+		"id":   "evt_checkout_123",
 		"type": "checkout.session.completed",
 		"data": map[string]interface{}{
 			"object": map[string]interface{}{
@@ -416,7 +316,7 @@ func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 	}
 
 	payload, _ := json.Marshal(event)
-	timestamp := "1234567890"
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
 	signedPayload := timestamp + "." + string(payload)
 	mac := hmac.New(sha256.New, []byte("whsec_test_secret"))
 	mac.Write([]byte(signedPayload))
@@ -490,9 +390,6 @@ func TestVerifySubscription(t *testing.T) {
 		t.Fatalf("Failed to insert subscription: %v", err)
 	}
 
-	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_valid")
-	os.Setenv("STRIPE_SECRET_KEY", "sk_test_valid")
-	os.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_valid")
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v1/subscriptions/sub_cancel_test") {
 			w.Header().Set("Content-Type", "application/json")
@@ -501,17 +398,9 @@ func TestVerifySubscription(t *testing.T) {
 		}
 		http.NotFound(w, r)
 	}))
-	os.Setenv("STRIPE_API_BASE", stripeServer.URL)
-	defer func() {
-		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
-		os.Unsetenv("STRIPE_SECRET_KEY")
-		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
-		os.Unsetenv("STRIPE_API_BASE")
-		stripeServer.Close()
-	}()
+	defer stripeServer.Close()
 
-	service := NewStripeService(db)
-	service.UseHTTPClient(stripeServer.Client())
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	// Test active subscription
 	result, err := service.VerifySubscription("active@example.com")
@@ -574,9 +463,6 @@ func TestCancelSubscription(t *testing.T) {
 		t.Fatalf("Failed to insert subscription: %v", err)
 	}
 
-	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_valid")
-	os.Setenv("STRIPE_SECRET_KEY", "sk_test_valid")
-	os.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_valid")
 	mockStripe := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v1/subscriptions/") {
 			w.Header().Set("Content-Type", "application/json")
@@ -585,17 +471,9 @@ func TestCancelSubscription(t *testing.T) {
 		}
 		http.NotFound(w, r)
 	}))
-	os.Setenv("STRIPE_API_BASE", mockStripe.URL)
-	defer func() {
-		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
-		os.Unsetenv("STRIPE_SECRET_KEY")
-		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
-		os.Unsetenv("STRIPE_API_BASE")
-		mockStripe.Close()
-	}()
+	defer mockStripe.Close()
 
-	service := NewStripeService(db)
-	service.UseHTTPClient(mockStripe.Client())
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), mockStripe)
 
 	// Cancel subscription
 	result, err := service.CancelSubscription("cancel@example.com")
@@ -668,16 +546,7 @@ func TestVerifySubscription_CacheWarning(t *testing.T) {
 		t.Fatalf("Failed to insert subscription: %v", err)
 	}
 
-	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_valid")
-	os.Setenv("STRIPE_SECRET_KEY", "sk_test_valid")
-	os.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_valid")
-	defer func() {
-		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
-		os.Unsetenv("STRIPE_SECRET_KEY")
-		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
-	}()
-
-	service := NewStripeService(db)
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), nil)
 
 	result, err := service.VerifySubscription("stale@example.com")
 	if err != nil {
@@ -687,4 +556,1241 @@ func TestVerifySubscription_CacheWarning(t *testing.T) {
 	if result == nil || result.State == landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE {
 		t.Errorf("Expected a subscription status, got %v", result)
 	}
+}
+
+func TestPersistSubscriptionFromStripe_PreservesPlanTier(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_test", "production", 1_000_000, 0.001, "credits")
+	service := requireTestStripeService(t, db)
+
+	_, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_email, status, plan_tier, bundle_key, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,NOW(),NOW())
+	`, "sub_keep", "keep@example.com", "active", "pro", "business_suite")
+	require.NoError(t, err)
+
+	sub := &stripeSubscription{
+		ID:            "sub_keep",
+		Status:        "active",
+		Customer:      "cus_keep",
+		CustomerEmail: "keep@example.com",
+		Metadata:      map[string]interface{}{},
+	}
+
+	_, err = service.persistSubscriptionFromStripe("", sub)
+	require.NoError(t, err)
+
+	var planTier string
+	err = db.QueryRow(`SELECT plan_tier FROM subscriptions WHERE subscription_id = $1`, "sub_keep").Scan(&planTier)
+	require.NoError(t, err)
+	assert.Equal(t, "pro", planTier)
+}
+
+func TestPersistInvoiceStatus_InfersPlanTierFromPriceID(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_test", "production", 1_000_000, 0.001, "credits")
+	service := requireTestStripeService(t, db)
+
+	err := service.persistInvoiceStatus("sub_infer", "cus_infer", "infer@example.com", "price_solo_monthly", "active")
+	require.NoError(t, err)
+
+	var planTier string
+	err = db.QueryRow(`SELECT plan_tier FROM subscriptions WHERE subscription_id = $1`, "sub_infer").Scan(&planTier)
+	require.NoError(t, err)
+	assert.Equal(t, "solo", planTier)
+}
+
+// ============================================================================
+// extractBillingCycleDay Tests (GAP-005)
+// ============================================================================
+
+func TestExtractBillingCycleDay(t *testing.T) {
+	tests := []struct {
+		name      string
+		timestamp int64
+		expected  int
+	}{
+		{"zero", 0, 0},
+		{"negative", -1, 0},
+		{"day 15", time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC).Unix(), 15},
+		{"day 1", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).Unix(), 1},
+		{"day 28", time.Date(2026, 1, 28, 23, 59, 0, 0, time.UTC).Unix(), 28},
+		{"day 29 capped", time.Date(2026, 1, 29, 12, 0, 0, 0, time.UTC).Unix(), 28},
+		{"day 31 capped", time.Date(2026, 1, 31, 12, 0, 0, 0, time.UTC).Unix(), 28},
+		{"day 30 capped", time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC).Unix(), 28},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := extractBillingCycleDay(tc.timestamp); got != tc.expected {
+				t.Errorf("expected %d, got %d", tc.expected, got)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// chooseUserIdentity Tests (Pure Function)
+// ============================================================================
+
+func TestChooseUserIdentity_UserHintProvided(t *testing.T) {
+	sub := &stripeSubscription{
+		CustomerEmail: "sub@example.com",
+		Customer:      "cus_123",
+	}
+
+	result := chooseUserIdentity("user@example.com", sub)
+	if result != "user@example.com" {
+		t.Errorf("expected user hint to be returned, got %s", result)
+	}
+}
+
+func TestChooseUserIdentity_NilSubscription(t *testing.T) {
+	result := chooseUserIdentity("", nil)
+	if result != "" {
+		t.Errorf("expected empty string for nil subscription, got %s", result)
+	}
+}
+
+func TestChooseUserIdentity_SubscriptionWithEmail(t *testing.T) {
+	sub := &stripeSubscription{
+		CustomerEmail: "sub@example.com",
+		Customer:      "cus_123",
+	}
+
+	result := chooseUserIdentity("", sub)
+	if result != "sub@example.com" {
+		t.Errorf("expected subscription email, got %s", result)
+	}
+}
+
+func TestChooseUserIdentity_SubscriptionWithCustomerOnly(t *testing.T) {
+	sub := &stripeSubscription{
+		CustomerEmail: "",
+		Customer:      "cus_123",
+	}
+
+	result := chooseUserIdentity("", sub)
+	if result != "cus_123" {
+		t.Errorf("expected customer ID, got %s", result)
+	}
+}
+
+func TestChooseUserIdentity_EmptyUserHintAndEmail(t *testing.T) {
+	sub := &stripeSubscription{
+		CustomerEmail: "",
+		Customer:      "",
+	}
+
+	result := chooseUserIdentity("", sub)
+	if result != "" {
+		t.Errorf("expected empty string, got %s", result)
+	}
+}
+
+func TestChooseUserIdentity_WhitespaceHandling(t *testing.T) {
+	sub := &stripeSubscription{
+		CustomerEmail: "sub@example.com",
+		Customer:      "cus_123",
+	}
+
+	// Whitespace-only user hint should fall back to subscription
+	result := chooseUserIdentity("   ", sub)
+	if result != "sub@example.com" {
+		t.Errorf("expected subscription email for whitespace hint, got %s", result)
+	}
+}
+
+// ============================================================================
+// VerifyStripePrice Tests (HTTP Mock)
+// ============================================================================
+
+func TestVerifyStripePrice_ValidPriceID(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/v1/prices/price_valid") {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{
+				"id": "price_valid",
+				"lookup_key": "pro_monthly",
+				"currency": "usd",
+				"unit_amount": 4900,
+				"active": true,
+				"recurring": {"interval": "month"},
+				"product": {"name": "Pro Plan"}
+			}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer stripeServer.Close()
+
+	service := NewStripeService(db)
+	service.UseHTTPClient(stripeServer.Client())
+	service.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
+		return stripeRuntimeConfig{
+			publishableKey: "pk_test",
+			secretKey:      "sk_test",
+			hasPublishable: true,
+			hasSecret:      true,
+			apiBase:        stripeServer.URL,
+		}, nil
+	})
+	if err := service.RefreshConfig(context.Background()); err != nil {
+		t.Fatalf("Failed to refresh stripe config: %v", err)
+	}
+
+	result, err := service.VerifyStripePrice("price_valid")
+	if err != nil {
+		t.Fatalf("VerifyStripePrice failed: %v", err)
+	}
+
+	if result["id"] != "price_valid" {
+		t.Errorf("expected id 'price_valid', got %v", result["id"])
+	}
+	if result["currency"] != "usd" {
+		t.Errorf("expected currency 'usd', got %v", result["currency"])
+	}
+	if result["active"] != true {
+		t.Errorf("expected active true, got %v", result["active"])
+	}
+}
+
+func TestVerifyStripePrice_ValidLookupKey(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/v1/prices") {
+			// First call: lookup by key
+			if strings.Contains(r.URL.RawQuery, "lookup_keys") {
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprint(w, `{"data": [{"id": "price_from_lookup"}]}`)
+				return
+			}
+			// Second call: get price by ID
+			if strings.Contains(r.URL.Path, "price_from_lookup") {
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprint(w, `{
+					"id": "price_from_lookup",
+					"lookup_key": "pro_monthly",
+					"currency": "usd",
+					"unit_amount": 4900,
+					"active": true,
+					"recurring": {"interval": "month"},
+					"product": {"name": "Pro Plan"}
+				}`)
+				return
+			}
+		}
+		http.NotFound(w, r)
+	}))
+	defer stripeServer.Close()
+
+	service := NewStripeService(db)
+	service.UseHTTPClient(stripeServer.Client())
+	service.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
+		return stripeRuntimeConfig{
+			publishableKey: "pk_test",
+			secretKey:      "sk_test",
+			hasPublishable: true,
+			hasSecret:      true,
+			apiBase:        stripeServer.URL,
+		}, nil
+	})
+	if err := service.RefreshConfig(context.Background()); err != nil {
+		t.Fatalf("Failed to refresh stripe config: %v", err)
+	}
+
+	result, err := service.VerifyStripePrice("pro_monthly")
+	if err != nil {
+		t.Fatalf("VerifyStripePrice failed: %v", err)
+	}
+
+	if result["id"] != "price_from_lookup" {
+		t.Errorf("expected id 'price_from_lookup', got %v", result["id"])
+	}
+}
+
+func TestVerifyStripePrice_EmptyKey(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewStripeService(db)
+
+	_, err := service.VerifyStripePrice("")
+	if err == nil {
+		t.Error("expected error for empty key")
+	}
+}
+
+func TestVerifyStripePrice_PriceNotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.RawQuery, "lookup_keys") {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"data": []}`)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprint(w, `{"error": {"message": "No such price"}}`)
+	}))
+	defer stripeServer.Close()
+
+	service := NewStripeService(db)
+	service.UseHTTPClient(stripeServer.Client())
+	service.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
+		return stripeRuntimeConfig{
+			publishableKey: "pk_test",
+			secretKey:      "sk_test",
+			hasPublishable: true,
+			hasSecret:      true,
+			apiBase:        stripeServer.URL,
+		}, nil
+	})
+	if err := service.RefreshConfig(context.Background()); err != nil {
+		t.Fatalf("Failed to refresh stripe config: %v", err)
+	}
+
+	_, err := service.VerifyStripePrice("nonexistent_key")
+	if err == nil {
+		t.Error("expected error for nonexistent price")
+	}
+}
+
+func TestVerifyStripePrice_NetworkError(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	service := NewStripeService(db)
+	service.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
+		return stripeRuntimeConfig{
+			publishableKey: "pk_test",
+			secretKey:      "sk_test",
+			hasPublishable: true,
+			hasSecret:      true,
+			apiBase:        "http://localhost:99999", // Invalid port
+		}, nil
+	})
+	if err := service.RefreshConfig(context.Background()); err != nil {
+		t.Fatalf("Failed to refresh stripe config: %v", err)
+	}
+
+	_, err := service.VerifyStripePrice("price_test")
+	if err == nil {
+		t.Error("expected network error")
+	}
+}
+
+func TestVerifyStripePriceTyped_Success(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/v1/prices/price_typed") {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{
+				"id": "price_typed",
+				"lookup_key": "pro_monthly",
+				"currency": "usd",
+				"unit_amount": 4900,
+				"active": true,
+				"recurring": {"interval": "month"},
+				"product": {"name": "Pro Plan"}
+			}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer stripeServer.Close()
+
+	service := NewStripeService(db)
+	service.UseHTTPClient(stripeServer.Client())
+	service.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
+		return stripeRuntimeConfig{
+			publishableKey: "pk_test",
+			secretKey:      "sk_test",
+			hasPublishable: true,
+			hasSecret:      true,
+			apiBase:        stripeServer.URL,
+		}, nil
+	})
+	if err := service.RefreshConfig(context.Background()); err != nil {
+		t.Fatalf("Failed to refresh stripe config: %v", err)
+	}
+
+	info, err := service.VerifyStripePriceTyped("price_typed")
+	if err != nil {
+		t.Fatalf("VerifyStripePriceTyped failed: %v", err)
+	}
+
+	if info.ID != "price_typed" {
+		t.Errorf("expected id 'price_typed', got %s", info.ID)
+	}
+	if info.Currency != "usd" {
+		t.Errorf("expected currency 'usd', got %s", info.Currency)
+	}
+	if !info.Active {
+		t.Error("expected active to be true")
+	}
+}
+
+// ============================================================================
+// Webhook Handler Tests
+// ============================================================================
+
+func TestHandleWebhook_SubscriptionCreated_NewSubscription(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	cfg := DefaultStripeTestConfig().WithKeys("pk_test_default", "sk_test_default", "whsec_test")
+	service := ConfigureStripeService(t, db, cfg, nil)
+
+	event := map[string]interface{}{
+		"id":   "evt_sub_created_123",
+		"type": "customer.subscription.created",
+		"data": map[string]interface{}{
+			"object": map[string]interface{}{
+				"id":       "sub_new_123",
+				"status":   "active",
+				"customer": "cus_456",
+			},
+		},
+	}
+
+	payload, _ := json.Marshal(event)
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	signedPayload := timestamp + "." + string(payload)
+	mac := hmac.New(sha256.New, []byte("whsec_test"))
+	mac.Write([]byte(signedPayload))
+	signature := hex.EncodeToString(mac.Sum(nil))
+	signatureHeader := "t=" + timestamp + ",v1=" + signature
+
+	err := service.HandleWebhook(payload, signatureHeader)
+	if err != nil {
+		t.Fatalf("HandleWebhook failed: %v", err)
+	}
+
+	// Verify subscription was created
+	var status string
+	err = db.QueryRow("SELECT status FROM subscriptions WHERE subscription_id = $1", "sub_new_123").Scan(&status)
+	if err != nil {
+		t.Fatalf("subscription not created: %v", err)
+	}
+	if status != "active" {
+		t.Errorf("expected status 'active', got %s", status)
+	}
+}
+
+func TestHandleWebhook_SubscriptionCreated_MissingID(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	cfg := DefaultStripeTestConfig().WithKeys("pk_test_default", "sk_test_default", "whsec_test")
+	service := ConfigureStripeService(t, db, cfg, nil)
+
+	event := map[string]interface{}{
+		"id":   "evt_sub_missing_id",
+		"type": "customer.subscription.created",
+		"data": map[string]interface{}{
+			"object": map[string]interface{}{
+				"status": "active",
+				// Missing "id"
+			},
+		},
+	}
+
+	payload, _ := json.Marshal(event)
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	signedPayload := timestamp + "." + string(payload)
+	mac := hmac.New(sha256.New, []byte("whsec_test"))
+	mac.Write([]byte(signedPayload))
+	signature := hex.EncodeToString(mac.Sum(nil))
+	signatureHeader := "t=" + timestamp + ",v1=" + signature
+
+	err := service.HandleWebhook(payload, signatureHeader)
+	if err == nil {
+		t.Error("expected error for missing subscription ID")
+	}
+}
+
+func TestHandleWebhook_InvoicePaid_RefreshesSubscription(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	// Pre-create a subscription
+	_, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_id, status, created_at, updated_at)
+		VALUES ('sub_invoice', 'cus_invoice', 'active', NOW(), NOW())
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert subscription: %v", err)
+	}
+
+	cfg := DefaultStripeTestConfig().WithKeys("pk_test_default", "sk_test_default", "whsec_test")
+	service := ConfigureStripeService(t, db, cfg, nil)
+
+	event := map[string]interface{}{
+		"id":   "evt_invoice_paid_123",
+		"type": "invoice.paid",
+		"data": map[string]interface{}{
+			"object": map[string]interface{}{
+				"subscription":   "sub_invoice",
+				"customer":       "cus_invoice",
+				"customer_email": "invoice@example.com",
+			},
+		},
+	}
+
+	payload, _ := json.Marshal(event)
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	signedPayload := timestamp + "." + string(payload)
+	mac := hmac.New(sha256.New, []byte("whsec_test"))
+	mac.Write([]byte(signedPayload))
+	signature := hex.EncodeToString(mac.Sum(nil))
+	signatureHeader := "t=" + timestamp + ",v1=" + signature
+
+	err = service.HandleWebhook(payload, signatureHeader)
+	if err != nil {
+		t.Fatalf("HandleWebhook failed: %v", err)
+	}
+
+	// Verify subscription status is still active
+	var status string
+	err = db.QueryRow("SELECT status FROM subscriptions WHERE subscription_id = $1", "sub_invoice").Scan(&status)
+	if err != nil {
+		t.Fatalf("failed to query subscription: %v", err)
+	}
+	if status != "active" {
+		t.Errorf("expected status 'active', got %s", status)
+	}
+}
+
+func TestHandleWebhook_SubscriptionUpdated_UpdatesStatus(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	// Pre-create a subscription
+	_, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_id, status, created_at, updated_at)
+		VALUES ('sub_update', 'cus_update', 'active', NOW(), NOW())
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert subscription: %v", err)
+	}
+
+	cfg := DefaultStripeTestConfig().WithKeys("pk_test_default", "sk_test_default", "whsec_test")
+	service := ConfigureStripeService(t, db, cfg, nil)
+
+	event := map[string]interface{}{
+		"id":   "evt_sub_updated_123",
+		"type": "customer.subscription.updated",
+		"data": map[string]interface{}{
+			"object": map[string]interface{}{
+				"id":       "sub_update",
+				"status":   "past_due",
+				"customer": "cus_update",
+			},
+		},
+	}
+
+	payload, _ := json.Marshal(event)
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	signedPayload := timestamp + "." + string(payload)
+	mac := hmac.New(sha256.New, []byte("whsec_test"))
+	mac.Write([]byte(signedPayload))
+	signature := hex.EncodeToString(mac.Sum(nil))
+	signatureHeader := "t=" + timestamp + ",v1=" + signature
+
+	err = service.HandleWebhook(payload, signatureHeader)
+	if err != nil {
+		t.Fatalf("HandleWebhook failed: %v", err)
+	}
+
+	var status string
+	err = db.QueryRow("SELECT status FROM subscriptions WHERE subscription_id = $1", "sub_update").Scan(&status)
+	if err != nil {
+		t.Fatalf("failed to query subscription: %v", err)
+	}
+	if status != "past_due" {
+		t.Errorf("expected status 'past_due', got %s", status)
+	}
+}
+
+func TestHandleWebhook_SubscriptionDeleted_CancelsSubscription(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	// Pre-create a subscription
+	_, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_id, status, created_at, updated_at)
+		VALUES ('sub_delete', 'cus_delete', 'active', NOW(), NOW())
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert subscription: %v", err)
+	}
+
+	cfg := DefaultStripeTestConfig().WithKeys("pk_test_default", "sk_test_default", "whsec_test")
+	service := ConfigureStripeService(t, db, cfg, nil)
+
+	event := map[string]interface{}{
+		"id":   "evt_sub_deleted_123",
+		"type": "customer.subscription.deleted",
+		"data": map[string]interface{}{
+			"object": map[string]interface{}{
+				"id":       "sub_delete",
+				"status":   "canceled",
+				"customer": "cus_delete",
+			},
+		},
+	}
+
+	payload, _ := json.Marshal(event)
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	signedPayload := timestamp + "." + string(payload)
+	mac := hmac.New(sha256.New, []byte("whsec_test"))
+	mac.Write([]byte(signedPayload))
+	signature := hex.EncodeToString(mac.Sum(nil))
+	signatureHeader := "t=" + timestamp + ",v1=" + signature
+
+	err = service.HandleWebhook(payload, signatureHeader)
+	if err != nil {
+		t.Fatalf("HandleWebhook failed: %v", err)
+	}
+
+	var status string
+	var canceledAt *time.Time
+	err = db.QueryRow("SELECT status, canceled_at FROM subscriptions WHERE subscription_id = $1", "sub_delete").Scan(&status, &canceledAt)
+	if err != nil {
+		t.Fatalf("failed to query subscription: %v", err)
+	}
+	if status != "canceled" {
+		t.Errorf("expected status 'canceled', got %s", status)
+	}
+	if canceledAt == nil {
+		t.Error("expected canceled_at to be set")
+	}
+}
+
+func TestHandleWebhook_InvoicePaymentFailed_UpdatesStatus(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	// Pre-create a subscription
+	_, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_id, status, created_at, updated_at)
+		VALUES ('sub_failed', 'cus_failed', 'active', NOW(), NOW())
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert subscription: %v", err)
+	}
+
+	cfg := DefaultStripeTestConfig().WithKeys("pk_test_default", "sk_test_default", "whsec_test")
+	service := ConfigureStripeService(t, db, cfg, nil)
+
+	event := map[string]interface{}{
+		"id":   "evt_invoice_failed_123",
+		"type": "invoice.payment_failed",
+		"data": map[string]interface{}{
+			"object": map[string]interface{}{
+				"subscription":   "sub_failed",
+				"customer":       "cus_failed",
+				"customer_email": "failed@example.com",
+			},
+		},
+	}
+
+	payload, _ := json.Marshal(event)
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	signedPayload := timestamp + "." + string(payload)
+	mac := hmac.New(sha256.New, []byte("whsec_test"))
+	mac.Write([]byte(signedPayload))
+	signature := hex.EncodeToString(mac.Sum(nil))
+	signatureHeader := "t=" + timestamp + ",v1=" + signature
+
+	err = service.HandleWebhook(payload, signatureHeader)
+	if err != nil {
+		t.Fatalf("HandleWebhook failed: %v", err)
+	}
+
+	var status string
+	err = db.QueryRow("SELECT status FROM subscriptions WHERE subscription_id = $1", "sub_failed").Scan(&status)
+	if err != nil {
+		t.Fatalf("failed to query subscription: %v", err)
+	}
+	if status != "past_due" {
+		t.Errorf("expected status 'past_due', got %s", status)
+	}
+}
+
+func TestHandleWebhook_UnknownEventType_Succeeds(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	cfg := DefaultStripeTestConfig().WithKeys("pk_test_default", "sk_test_default", "whsec_test")
+	service := ConfigureStripeService(t, db, cfg, nil)
+
+	event := map[string]interface{}{
+		"id":   "evt_unknown_123",
+		"type": "unknown.event.type",
+		"data": map[string]interface{}{
+			"object": map[string]interface{}{
+				"id": "unknown_123",
+			},
+		},
+	}
+
+	payload, _ := json.Marshal(event)
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	signedPayload := timestamp + "." + string(payload)
+	mac := hmac.New(sha256.New, []byte("whsec_test"))
+	mac.Write([]byte(signedPayload))
+	signature := hex.EncodeToString(mac.Sum(nil))
+	signatureHeader := "t=" + timestamp + ",v1=" + signature
+
+	err := service.HandleWebhook(payload, signatureHeader)
+	if err != nil {
+		t.Errorf("expected unknown event to succeed, got error: %v", err)
+	}
+}
+
+// ============================================================================
+// Helper Function Tests
+// ============================================================================
+
+func TestParseStripeAmount_Float64(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewStripeService(db)
+
+	result := service.parseStripeAmount(float64(4900))
+	if result != 4900 {
+		t.Errorf("expected 4900, got %d", result)
+	}
+}
+
+func TestParseStripeAmount_Int64(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewStripeService(db)
+
+	result := service.parseStripeAmount(int64(4900))
+	if result != 4900 {
+		t.Errorf("expected 4900, got %d", result)
+	}
+}
+
+func TestParseStripeAmount_JSONNumber(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewStripeService(db)
+
+	result := service.parseStripeAmount(json.Number("4900"))
+	if result != 4900 {
+		t.Errorf("expected 4900, got %d", result)
+	}
+}
+
+func TestParseStripeAmount_String(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewStripeService(db)
+
+	result := service.parseStripeAmount("4900")
+	if result != 4900 {
+		t.Errorf("expected 4900, got %d", result)
+	}
+}
+
+func TestParseStripeAmount_InvalidType(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewStripeService(db)
+
+	result := service.parseStripeAmount(struct{}{})
+	if result != 0 {
+		t.Errorf("expected 0 for invalid type, got %d", result)
+	}
+}
+
+func TestBillingIntervalDuration_Year(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewStripeService(db)
+
+	result := service.billingIntervalDuration(landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR)
+	expected := 365 * 24 * time.Hour
+	if result != expected {
+		t.Errorf("expected %v, got %v", expected, result)
+	}
+}
+
+func TestBillingIntervalDuration_Month(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewStripeService(db)
+
+	result := service.billingIntervalDuration(landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH)
+	expected := 30 * 24 * time.Hour
+	if result != expected {
+		t.Errorf("expected %v, got %v", expected, result)
+	}
+}
+
+func TestBillingIntervalDuration_Default(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewStripeService(db)
+
+	result := service.billingIntervalDuration(landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_UNSPECIFIED)
+	expected := 30 * 24 * time.Hour
+	if result != expected {
+		t.Errorf("expected default of %v, got %v", expected, result)
+	}
+}
+
+func TestExtractAmount_FromAmountTotal(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewStripeService(db)
+
+	obj := map[string]interface{}{
+		"amount_total": float64(4900),
+	}
+
+	result := service.extractAmount(obj, nil)
+	if result != 4900 {
+		t.Errorf("expected 4900, got %d", result)
+	}
+}
+
+func TestExtractAmount_FallbackToSession(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewStripeService(db)
+
+	obj := map[string]interface{}{}
+	session := &checkoutSessionRecord{
+		AmountCents: struct {
+			Int64 int64
+			Valid bool
+		}{Int64: 9900, Valid: true},
+	}
+
+	result := service.extractAmount(obj, session)
+	if result != 9900 {
+		t.Errorf("expected 9900, got %d", result)
+	}
+}
+
+func TestMaskValue_ShortValue(t *testing.T) {
+	result := maskValue("abc")
+	if result != "abc" {
+		t.Errorf("expected 'abc' for short value, got '%s'", result)
+	}
+}
+
+func TestMaskValue_LongValue(t *testing.T) {
+	result := maskValue("pk_test_1234567890")
+	if !strings.HasPrefix(result, "pk_t") || !strings.HasSuffix(result, "90") {
+		t.Errorf("expected masked value, got '%s'", result)
+	}
+}
+
+func TestMaskValue_EmptyValue(t *testing.T) {
+	result := maskValue("")
+	if result != "" {
+		t.Errorf("expected empty string, got '%s'", result)
+	}
+}
+
+// TestCreditTopup_NilBundle_ReturnsError verifies that credit topup returns an
+// explicit error when the bundle product is not configured.
+func TestCreditTopup_NilBundle_ReturnsError(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	// Create an empty plan store (no bundle configured) - GetBundleProduct returns nil
+	emptyStore := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  "", // No file - empty store
+		BundleKey:  "nonexistent",
+		DisplayEnv: "production",
+	})
+
+	planService := NewPlanServiceWithPlanStore(emptyStore)
+	service := NewStripeServiceWithSettings(db, planService, NewPaymentSettingsService(db))
+
+	// Create a mock plan for credit topup
+	plan := &PlanOption{
+		StripePriceId: "price_test",
+		AmountCents:   1000,
+		Kind:          landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP,
+	}
+
+	err := service.handleCreditTopup("test@example.com", 1000, plan, "evt_test", nil)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "bundle product not configured")
+}
+
+// TestHandleCustomerUpdated_EmailMigration verifies that customer email changes
+// are properly propagated to all local tables.
+func TestHandleCustomerUpdated_EmailMigration(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	// Create all required tables
+	_, err := db.Exec(`
+		DROP TABLE IF EXISTS intro_coupon_usage CASCADE;
+		DROP TABLE IF EXISTS credit_transactions CASCADE;
+		DROP TABLE IF EXISTS credit_wallets CASCADE;
+		DROP TABLE IF EXISTS checkout_sessions CASCADE;
+		DROP TABLE IF EXISTS subscriptions CASCADE;
+		DROP TABLE IF EXISTS users CASCADE;
+
+		CREATE TABLE users (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			email VARCHAR(255) UNIQUE NOT NULL,
+			stripe_customer_id VARCHAR(255),
+			has_used_intro BOOLEAN DEFAULT FALSE,
+			email_verified BOOLEAN DEFAULT FALSE,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW(),
+			last_login_at TIMESTAMP
+		);
+		CREATE TABLE subscriptions (
+			id SERIAL PRIMARY KEY,
+			subscription_id VARCHAR(255) UNIQUE NOT NULL,
+			customer_id VARCHAR(255),
+			customer_email VARCHAR(255),
+			status VARCHAR(50) NOT NULL,
+			plan_tier VARCHAR(50),
+			price_id VARCHAR(255),
+			bundle_key VARCHAR(100),
+			canceled_at TIMESTAMP,
+			billing_cycle_start INTEGER,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW()
+		);
+		CREATE TABLE checkout_sessions (
+			id SERIAL PRIMARY KEY,
+			session_id VARCHAR(255) UNIQUE NOT NULL,
+			customer_email VARCHAR(255),
+			customer_id VARCHAR(255),
+			price_id VARCHAR(255),
+			subscription_id VARCHAR(255),
+			status VARCHAR(50) NOT NULL,
+			session_type VARCHAR(50) DEFAULT 'subscription',
+			amount_cents INTEGER,
+			schedule_id VARCHAR(255),
+			metadata JSONB DEFAULT '{}'::jsonb,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW()
+		);
+		CREATE TABLE credit_wallets (
+			id SERIAL PRIMARY KEY,
+			customer_email VARCHAR(255) UNIQUE NOT NULL,
+			balance_credits BIGINT DEFAULT 0,
+			updated_at TIMESTAMP DEFAULT NOW()
+		);
+		CREATE TABLE credit_transactions (
+			id SERIAL PRIMARY KEY,
+			customer_email VARCHAR(255) NOT NULL,
+			amount_credits BIGINT NOT NULL,
+			transaction_type VARCHAR(50) NOT NULL,
+			stripe_event_id VARCHAR(255) UNIQUE,
+			metadata JSONB DEFAULT '{}'::jsonb,
+			created_at TIMESTAMP DEFAULT NOW()
+		);
+		CREATE TABLE intro_coupon_usage (
+			id SERIAL PRIMARY KEY,
+			email VARCHAR(255) NOT NULL,
+			stripe_customer_id VARCHAR(255),
+			coupon_id VARCHAR(255),
+			plan_tier VARCHAR(50),
+			subscription_id VARCHAR(255),
+			used_at TIMESTAMP DEFAULT NOW()
+		)
+	`)
+	require.NoError(t, err)
+
+	oldEmail := "old@example.com"
+	newEmail := "new@example.com"
+	customerID := "cus_migrate_123"
+
+	// Insert test data with old email
+	_, err = db.Exec(`INSERT INTO users (email, stripe_customer_id) VALUES ($1, $2)`, oldEmail, customerID)
+	require.NoError(t, err)
+
+	_, err = db.Exec(`INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status) VALUES ($1, $2, $3, $4)`,
+		"sub_migrate_123", customerID, oldEmail, "active")
+	require.NoError(t, err)
+
+	_, err = db.Exec(`INSERT INTO checkout_sessions (session_id, customer_id, customer_email, status) VALUES ($1, $2, $3, $4)`,
+		"cs_migrate_123", customerID, oldEmail, "complete")
+	require.NoError(t, err)
+
+	_, err = db.Exec(`INSERT INTO credit_wallets (customer_email, balance_credits) VALUES ($1, $2)`, oldEmail, 500)
+	require.NoError(t, err)
+
+	_, err = db.Exec(`INSERT INTO credit_transactions (customer_email, amount_credits, transaction_type) VALUES ($1, $2, $3)`,
+		oldEmail, 500, "credit_topup")
+	require.NoError(t, err)
+
+	_, err = db.Exec(`INSERT INTO intro_coupon_usage (email, stripe_customer_id, coupon_id) VALUES ($1, $2, $3)`,
+		oldEmail, customerID, "coupon_test")
+	require.NoError(t, err)
+
+	service := NewStripeService(db)
+
+	// Simulate customer.updated webhook
+	customerObj := map[string]interface{}{
+		"id":    customerID,
+		"email": newEmail,
+		"previous_attributes": map[string]interface{}{
+			"email": oldEmail,
+		},
+	}
+
+	err = service.handleCustomerUpdated(customerObj)
+	require.NoError(t, err)
+
+	// Verify all tables were updated
+	var email string
+
+	// Check users table
+	err = db.QueryRow(`SELECT email FROM users WHERE stripe_customer_id = $1`, customerID).Scan(&email)
+	require.NoError(t, err)
+	assert.Equal(t, newEmail, email, "users.email should be updated")
+
+	// Check subscriptions table
+	err = db.QueryRow(`SELECT customer_email FROM subscriptions WHERE customer_id = $1`, customerID).Scan(&email)
+	require.NoError(t, err)
+	assert.Equal(t, newEmail, email, "subscriptions.customer_email should be updated")
+
+	// Check checkout_sessions table
+	err = db.QueryRow(`SELECT customer_email FROM checkout_sessions WHERE customer_id = $1`, customerID).Scan(&email)
+	require.NoError(t, err)
+	assert.Equal(t, newEmail, email, "checkout_sessions.customer_email should be updated")
+
+	// Check credit_wallets table
+	var balance int64
+	err = db.QueryRow(`SELECT balance_credits FROM credit_wallets WHERE customer_email = $1`, newEmail).Scan(&balance)
+	require.NoError(t, err)
+	assert.Equal(t, int64(500), balance, "credit_wallets should be migrated")
+
+	// Verify old email no longer exists in credit_wallets
+	var count int
+	err = db.QueryRow(`SELECT COUNT(*) FROM credit_wallets WHERE customer_email = $1`, oldEmail).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count, "old email should not exist in credit_wallets")
+
+	// Check credit_transactions table
+	err = db.QueryRow(`SELECT customer_email FROM credit_transactions WHERE amount_credits = 500`).Scan(&email)
+	require.NoError(t, err)
+	assert.Equal(t, newEmail, email, "credit_transactions.customer_email should be updated")
+
+	// Check intro_coupon_usage table
+	err = db.QueryRow(`SELECT email FROM intro_coupon_usage WHERE stripe_customer_id = $1`, customerID).Scan(&email)
+	require.NoError(t, err)
+	assert.Equal(t, newEmail, email, "intro_coupon_usage.email should be updated")
+}
+
+// TestCreditTopup_TransactionRecorded verifies that credit transactions are
+// properly recorded for auditing.
+func TestCreditTopup_TransactionRecorded(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	// Create required tables
+	_, err := db.Exec(`
+		DROP TABLE IF EXISTS credit_transactions CASCADE;
+		DROP TABLE IF EXISTS credit_wallets CASCADE;
+		CREATE TABLE credit_wallets (
+			id SERIAL PRIMARY KEY,
+			customer_email VARCHAR(255) UNIQUE NOT NULL,
+			balance_credits BIGINT DEFAULT 0,
+			updated_at TIMESTAMP DEFAULT NOW()
+		);
+		CREATE TABLE credit_transactions (
+			id SERIAL PRIMARY KEY,
+			customer_email VARCHAR(255) NOT NULL,
+			amount_credits BIGINT NOT NULL,
+			transaction_type VARCHAR(50) NOT NULL,
+			stripe_event_id VARCHAR(255) UNIQUE,
+			metadata JSONB DEFAULT '{}'::jsonb,
+			created_at TIMESTAMP DEFAULT NOW()
+		);
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event_id
+		ON credit_transactions(stripe_event_id) WHERE stripe_event_id IS NOT NULL
+	`)
+	require.NoError(t, err)
+
+	service := NewStripeService(db)
+
+	metadata := map[string]interface{}{
+		"price_id":   "price_test_123",
+		"session_id": "cs_test_123",
+	}
+
+	err = service.addCredits("audit@example.com", 250, "credit_topup", "evt_audit_123", metadata)
+	require.NoError(t, err)
+
+	// Verify transaction was recorded with all details
+	var (
+		customerEmail   string
+		amountCredits   int64
+		transactionType string
+		stripeEventID   string
+		metadataJSON    string
+	)
+
+	err = db.QueryRow(`
+		SELECT customer_email, amount_credits, transaction_type, stripe_event_id, metadata::text
+		FROM credit_transactions
+		WHERE stripe_event_id = $1
+	`, "evt_audit_123").Scan(&customerEmail, &amountCredits, &transactionType, &stripeEventID, &metadataJSON)
+	require.NoError(t, err)
+
+	assert.Equal(t, "audit@example.com", customerEmail)
+	assert.Equal(t, int64(250), amountCredits)
+	assert.Equal(t, "credit_topup", transactionType)
+	assert.Equal(t, "evt_audit_123", stripeEventID)
+	assert.Contains(t, metadataJSON, "price_test_123")
+	assert.Contains(t, metadataJSON, "cs_test_123")
+}
+
+// TestHandleCustomerUpdated_NoOldEmail verifies that the handler works when
+// previous_attributes doesn't include the old email.
+func TestHandleCustomerUpdated_NoOldEmail(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	// Create subscriptions table
+	_, err := db.Exec(`
+		DROP TABLE IF EXISTS subscriptions CASCADE;
+		CREATE TABLE subscriptions (
+			id SERIAL PRIMARY KEY,
+			subscription_id VARCHAR(255) UNIQUE NOT NULL,
+			customer_id VARCHAR(255),
+			customer_email VARCHAR(255),
+			status VARCHAR(50) NOT NULL,
+			plan_tier VARCHAR(50),
+			price_id VARCHAR(255),
+			bundle_key VARCHAR(100),
+			canceled_at TIMESTAMP,
+			billing_cycle_start INTEGER,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW()
+		)
+	`)
+	require.NoError(t, err)
+
+	oldEmail := "lookup@example.com"
+	newEmail := "updated@example.com"
+	customerID := "cus_lookup_update"
+
+	// Insert subscription with old email
+	_, err = db.Exec(`INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status) VALUES ($1, $2, $3, $4)`,
+		"sub_lookup_123", customerID, oldEmail, "active")
+	require.NoError(t, err)
+
+	service := NewStripeService(db)
+
+	// Simulate customer.updated without previous_attributes
+	customerObj := map[string]interface{}{
+		"id":    customerID,
+		"email": newEmail,
+	}
+
+	err = service.handleCustomerUpdated(customerObj)
+	require.NoError(t, err)
+
+	// Verify subscription was updated (old email was looked up from DB)
+	var email string
+	err = db.QueryRow(`SELECT customer_email FROM subscriptions WHERE customer_id = $1`, customerID).Scan(&email)
+	require.NoError(t, err)
+	assert.Equal(t, newEmail, email)
+}
+
+// TestHandleCustomerUpdated_SameEmail verifies that no-op when emails match.
+func TestHandleCustomerUpdated_SameEmail(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Create subscriptions table
+	_, err := db.Exec(`
+		DROP TABLE IF EXISTS subscriptions CASCADE;
+		CREATE TABLE subscriptions (
+			id SERIAL PRIMARY KEY,
+			subscription_id VARCHAR(255) UNIQUE NOT NULL,
+			customer_id VARCHAR(255),
+			customer_email VARCHAR(255),
+			status VARCHAR(50) NOT NULL,
+			plan_tier VARCHAR(50),
+			price_id VARCHAR(255),
+			bundle_key VARCHAR(100),
+			canceled_at TIMESTAMP,
+			billing_cycle_start INTEGER,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW()
+		)
+	`)
+	require.NoError(t, err)
+
+	email := "same@example.com"
+	customerID := "cus_same_123"
+
+	// Insert subscription
+	_, err = db.Exec(`INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status) VALUES ($1, $2, $3, $4)`,
+		"sub_same_123", customerID, email, "active")
+	require.NoError(t, err)
+
+	service := NewStripeService(db)
+
+	// Simulate customer.updated with same email
+	customerObj := map[string]interface{}{
+		"id":    customerID,
+		"email": email,
+		"previous_attributes": map[string]interface{}{
+			"email": email,
+		},
+	}
+
+	err = service.handleCustomerUpdated(customerObj)
+	require.NoError(t, err) // Should be no-op, no error
 }

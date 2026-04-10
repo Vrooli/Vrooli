@@ -203,6 +203,90 @@ func DeepCloneValue(value any) any {
 	}
 }
 
+// tryUnwrapJsonValueMap checks if a map looks like a serialized JsonValue (from protojson)
+// and returns the unwrapped JsonValue. This handles both snake_case (UseProtoNames: true)
+// and camelCase (default) field names.
+//
+// Examples of maps that are unwrapped:
+//   - {"string_value": "hello"} -> JsonValue{StringValue: "hello"}
+//   - {"stringValue": "hello"} -> JsonValue{StringValue: "hello"}
+//   - {"int_value": 42} -> JsonValue{IntValue: 42}
+//   - {"object_value": {"fields": {...}}} -> JsonValue{ObjectValue: ...}
+func tryUnwrapJsonValueMap(m map[string]any) *commonv1.JsonValue {
+	if len(m) != 1 {
+		return nil
+	}
+	// Check for snake_case keys (from UseProtoNames: true)
+	if v, ok := m["string_value"]; ok {
+		if s, ok := v.(string); ok {
+			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: s}}
+		}
+	}
+	if v, ok := m["bool_value"]; ok {
+		if b, ok := v.(bool); ok {
+			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BoolValue{BoolValue: b}}
+		}
+	}
+	if v, ok := m["int_value"]; ok {
+		if i, ok := toInt64Any(v); ok {
+			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: i}}
+		}
+	}
+	if v, ok := m["double_value"]; ok {
+		if f, ok := ToFloat64(v); ok {
+			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: f}}
+		}
+	}
+	if _, ok := m["null_value"]; ok {
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}}
+	}
+	// Check for camelCase keys (default protojson)
+	if v, ok := m["stringValue"]; ok {
+		if s, ok := v.(string); ok {
+			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: s}}
+		}
+	}
+	if v, ok := m["boolValue"]; ok {
+		if b, ok := v.(bool); ok {
+			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BoolValue{BoolValue: b}}
+		}
+	}
+	if v, ok := m["intValue"]; ok {
+		if i, ok := toInt64Any(v); ok {
+			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: i}}
+		}
+	}
+	if v, ok := m["doubleValue"]; ok {
+		if f, ok := ToFloat64(v); ok {
+			return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: f}}
+		}
+	}
+	if _, ok := m["nullValue"]; ok {
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}}
+	}
+	// Not a JsonValue-like map
+	return nil
+}
+
+// toInt64Any converts any numeric value to int64
+func toInt64Any(v any) (int64, bool) {
+	switch n := v.(type) {
+	case int:
+		return int64(n), true
+	case int32:
+		return int64(n), true
+	case int64:
+		return n, true
+	case float64:
+		return int64(n), true
+	case json.Number:
+		if i, err := n.Int64(); err == nil {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
 // AnyToJsonValue converts any Go value to a commonv1.JsonValue proto message.
 // Handles primitives (bool, int, float, string, bytes), maps, slices, json.Number,
 // and structpb.Value recursively. Falls back to JSON round-trip for unsupported types.
@@ -250,6 +334,11 @@ func AnyToJsonValue(v any) *commonv1.JsonValue {
 	case []byte:
 		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BytesValue{BytesValue: val}}
 	case map[string]any:
+		// Check if this map looks like a serialized JsonValue (from protojson UseProtoNames: true)
+		// This happens when workflow JSON is round-tripped through the API compiler
+		if unwrapped := tryUnwrapJsonValueMap(val); unwrapped != nil {
+			return unwrapped
+		}
 		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ObjectValue{ObjectValue: ToJsonObject(val)}}
 	case []any:
 		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ListValue{ListValue: ToJsonList(val)}}

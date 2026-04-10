@@ -5,7 +5,7 @@
     "parent": "vrooli",
     "name": "prompt-manager",
     "displayName": "Personal Prompt Manager",
-    "description": "Campaign-based prompt storage and management tool with API access, CLI, and web interface for organizing AI prompts",
+    "description": "File-based prompt storage and management tool with API access and web interface for organizing AI prompts",
     "version": "1.0.0",
     "type": "business-application",
     "category": "productivity",
@@ -43,8 +43,8 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "description": "React UI",
-      "range": "35000-39999"
+      "port": 36235,
+      "description": "React UI"
     }
   },
   "lifecycle": {
@@ -180,34 +180,36 @@
     }
   },
   "dependencies": {
+    "scenarios": {
+      "agent-manager": {
+        "required": false,
+        "description": "Executes heartbeat runs via task/run API. Heartbeat system degrades when unavailable."
+      }
+    },
     "resources": {
       "postgres": {
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "description": "Primary relational data store",
+        "description": "Metrics and test results storage (prompts stored in files)",
         "initialization": [
           {
-            "file": "initialization/postgres/schema_with_prefix.sql",
+            "file": "initialization/postgres/schema_v2.sql",
             "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "seed"
           }
         ]
       },
       "qdrant": {
         "type": "qdrant",
-        "enabled": false,
+        "enabled": true,
         "required": false,
-        "description": "Optional: Vector database for semantic search"
+        "description": "Vector database for AI-powered semantic search (stores skill embeddings)"
       },
       "ollama": {
         "type": "ollama",
-        "enabled": false,
+        "enabled": true,
         "required": false,
-        "description": "Optional: Local LLM for prompt testing",
+        "description": "Local LLM for AI search embeddings (nomic-embed-text) and prompt testing (llama3.2)",
         "models": [
           "nomic-embed-text",
           "llama3.2"

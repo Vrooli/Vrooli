@@ -1,13 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BarChart, TrendingUp, RefreshCw, Loader } from 'lucide-react';
 import type { SystemReport } from '../../../types';
 import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
+import { useToast } from '../../../shared/components/ToastProvider';
+import { extractErrorMessage, protoFetch } from '../../../shared/api/apiFetch';
+import { parseListReportsResponse, parseGenerateReportResponse } from '../../../shared/api/proto-contracts';
+import { timestampDate } from '@bufbuild/protobuf/wkt';
 
 export const ReportsPanel = () => {
+  const { showApiError } = useToast();
   const [reports, setReports] = useState<SystemReport[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isGenerating, setIsGenerating] = useState<string | null>(null); // Track which report is generating
+  const [error, setError] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const loadReports = async (isRefresh = false) => {
     if (isRefresh) {
@@ -17,58 +28,27 @@ export const ReportsPanel = () => {
     }
     
     try {
-      // TODO: Implement API call to load reports
-      // For now, show placeholder data
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      setReports([
-        {
-          id: 'daily-' + Date.now(),
-          type: 'daily',
-          generated_at: new Date().toISOString(),
-          period_start: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          period_end: new Date().toISOString(),
-          summary: {
-            total_alerts: 3,
-            avg_cpu_usage: 45.2,
-            avg_memory_usage: 67.8,
-            max_tcp_connections: 1247,
-            uptime_percentage: 99.8
-          },
-          metrics: {
-            cpu_trend: [40, 42, 45, 48, 46, 44, 45],
-            memory_trend: [65, 66, 68, 70, 69, 67, 68],
-            network_trend: [1200, 1180, 1220, 1247, 1230, 1210, 1225],
-            timestamps: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00']
-          },
-          alerts: [
-            {
-              timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-              severity: 'medium',
-              category: 'CPU',
-              message: 'CPU usage exceeded 80% for 5 minutes',
-              resolved: true
-            }
-          ],
-          recommendations: [
-            'Consider upgrading CPU for better performance',
-            'Monitor memory usage patterns during peak hours'
-          ]
-        }
-      ]);
-    } catch (error) {
-      console.error('Failed to load reports:', error);
+      setError(null);
+      const resp = await protoFetch('/reports', parseListReportsResponse);
+      if (!mountedRef.current) return;
+      setReports((resp.reports ?? []) as unknown as SystemReport[]);
+    } catch (err) {
+      if (mountedRef.current) {
+        setError(extractErrorMessage(err, 'Failed to load reports'));
+      }
     } finally {
-      if (isRefresh) {
-        setIsRefreshing(false);
-      } else {
-        setLoading(false);
+      if (mountedRef.current) {
+        if (isRefresh) {
+          setIsRefreshing(false);
+        } else {
+          setLoading(false);
+        }
       }
     }
   };
 
   useEffect(() => {
-    loadReports();
+    void loadReports();
   }, []);
 
   const generateReport = async (type: 'daily' | 'weekly') => {
@@ -77,84 +57,35 @@ export const ReportsPanel = () => {
     setIsGenerating(type);
     
     try {
-      console.log('Generating', type, 'report...');
-      // TODO: Implement API call to generate report
-      
-      // Simulate report generation with realistic delay
-      await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
-      
-      // Generate new report and add to list
-      const newReport = {
-        id: type + '-' + Date.now(),
-        type: type,
-        generated_at: new Date().toISOString(),
-        period_start: new Date(Date.now() - (type === 'daily' ? 24 : 168) * 60 * 60 * 1000).toISOString(),
-        period_end: new Date().toISOString(),
-        summary: {
-          total_alerts: Math.floor(Math.random() * 10),
-          avg_cpu_usage: Math.random() * 100,
-          avg_memory_usage: Math.random() * 100,
-          max_tcp_connections: Math.floor(Math.random() * 2000) + 1000,
-          uptime_percentage: 95 + Math.random() * 5
-        },
-        metrics: {
-          cpu_trend: Array(7).fill(0).map(() => Math.random() * 100),
-          memory_trend: Array(7).fill(0).map(() => Math.random() * 100),
-          network_trend: Array(7).fill(0).map(() => Math.floor(Math.random() * 1000) + 1000),
-          timestamps: type === 'daily' 
-            ? ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00']
-            : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-        },
-        alerts: [
-          {
-            timestamp: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000).toISOString(),
-            severity: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)] as 'low' | 'medium' | 'high',
-            category: ['CPU', 'Memory', 'Network', 'Disk'][Math.floor(Math.random() * 4)],
-            message: 'System resource alert detected',
-            resolved: Math.random() > 0.3
-          }
-        ],
-        recommendations: [
-          'Monitor system performance during peak hours',
-          'Consider resource optimization strategies',
-          'Review alert thresholds for accuracy'
-        ]
-      };
-      
-      setReports(prev => [newReport, ...prev]);
-      console.log(`${type} report generated successfully`);
-      
-    } catch (error) {
-      console.error('Failed to generate report:', error);
+      await protoFetch('/reports/generate', parseGenerateReportResponse, {
+        method: 'POST',
+        body: JSON.stringify({ type }),
+      });
+
+      if (!mountedRef.current) return;
+      // Reload the full list to get consistent data
+      await loadReports(true);
+    } catch (err) {
+      showApiError(err);
     } finally {
-      setIsGenerating(null);
+      if (mountedRef.current) {
+        setIsGenerating(null);
+      }
     }
   };
 
   return (
     <section className="reports-panel card">
-      <div className="panel-header" style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 'var(--spacing-md)'
-      }}>
-        <h2 style={{ margin: 0, color: 'var(--color-text-bright)' }}>
+      <div className="flex-row-between mb-md">
+        <h2 className="section-heading">
           PLAYBACK REPORTS
         </h2>
-        
-        <div className="report-controls" style={{
-          display: 'flex',
-          gap: 'var(--spacing-sm)'
-        }}>
-          <button 
-            className={`btn btn-action ${(isGenerating || isRefreshing) ? 'disabled' : ''}`}
+
+        <div className="flex-row-center gap-sm">
+          <button
+            className="btn btn-action"
             onClick={() => generateReport('daily')}
             disabled={isGenerating !== null || isRefreshing}
-            style={{
-              opacity: (isGenerating !== null || isRefreshing) ? 0.6 : 1,
-              cursor: (isGenerating !== null || isRefreshing) ? 'not-allowed' : 'pointer'
-            }}
           >
             {isGenerating === 'daily' ? (
               <>
@@ -168,14 +99,10 @@ export const ReportsPanel = () => {
               </>
             )}
           </button>
-          <button 
-            className={`btn btn-action ${(isGenerating || isRefreshing) ? 'disabled' : ''}`}
+          <button
+            className="btn btn-action"
             onClick={() => generateReport('weekly')}
             disabled={isGenerating !== null || isRefreshing}
-            style={{
-              opacity: (isGenerating !== null || isRefreshing) ? 0.6 : 1,
-              cursor: (isGenerating !== null || isRefreshing) ? 'not-allowed' : 'pointer'
-            }}
           >
             {isGenerating === 'weekly' ? (
               <>
@@ -189,14 +116,10 @@ export const ReportsPanel = () => {
               </>
             )}
           </button>
-          <button 
-            className={`btn btn-action ${(isGenerating || isRefreshing) ? 'disabled' : ''}`}
+          <button
+            className="btn btn-action"
             onClick={() => loadReports(true)}
             disabled={isGenerating !== null || isRefreshing}
-            style={{
-              opacity: (isGenerating !== null || isRefreshing) ? 0.6 : 1,
-              cursor: (isGenerating !== null || isRefreshing) ? 'not-allowed' : 'pointer'
-            }}
           >
             {isRefreshing ? (
               <>
@@ -216,123 +139,86 @@ export const ReportsPanel = () => {
       <div className="reports-list">
         {loading ? (
           <LoadingSkeleton variant="card" count={2} />
-        ) : reports.length === 0 ? (
-          <div style={{
+        ) : error && !loading ? (
+          <div className="error-banner" style={{
+            padding: 'var(--spacing-md)',
+            marginBottom: 'var(--spacing-md)',
+            color: 'var(--color-warning)',
             textAlign: 'center',
-            color: 'var(--color-text-dim)',
-            padding: 'var(--spacing-lg)',
-            fontSize: 'var(--font-size-lg)'
+            fontSize: 'var(--text-sm)',
           }}>
+            FAILED TO LOAD REPORTS
+            <br />
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>{error}</span>
+            <br />
+            <button type="button" className="btn btn-action"
+              onClick={() => loadReports()}
+              style={{ marginTop: 'var(--spacing-sm)' }}>
+              <RefreshCw size={14} /> RETRY
+            </button>
+          </div>
+        ) : reports.length === 0 ? (
+          <div className="text-center text-muted p-lg text-lg">
             NO REPORTS AVAILABLE
           </div>
         ) : (
           reports.map(report => (
-            <div key={report.id} className="report-item card" style={{
-              padding: 'var(--spacing-md)',
-              background: 'rgba(0, 0, 0, 0.5)',
-              marginBottom: 'var(--spacing-md)',
-              cursor: 'pointer',
-              transition: 'all var(--transition-fast)'
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: 'var(--spacing-md)'
-              }}>
+            <div key={report.id} className="report-item section-card mb-md" style={{ cursor: 'pointer' }}>
+              <div className="flex-row-between mb-md" style={{ alignItems: 'flex-start' }}>
                 <div>
-                  <h4 style={{ 
-                    margin: '0 0 var(--spacing-xs) 0', 
-                    color: 'var(--color-text-bright)',
-                    textTransform: 'uppercase'
-                  }}>
+                  <h4 className="section-heading" style={{ textTransform: 'uppercase' }}>
                     {report.type} Report
                   </h4>
-                  <p style={{
-                    margin: 0,
-                    color: 'var(--color-text-dim)',
-                    fontSize: 'var(--font-size-sm)'
-                  }}>
-                    Generated: {new Date(report.generated_at).toLocaleString()}
+                  <p className="text-muted text-sm" style={{ margin: 0 }}>
+                    Generated: {report.generatedAt ? timestampDate(report.generatedAt).toLocaleString() : 'Unknown'}
                   </p>
                 </div>
-                
-                <span style={{
-                  padding: 'var(--spacing-xs) var(--spacing-sm)',
-                  background: 'var(--color-accent)',
-                  color: 'var(--color-background)',
-                  borderRadius: 'var(--border-radius-sm)',
-                  fontSize: 'var(--font-size-xs)',
-                  fontWeight: 'bold',
-                  textTransform: 'uppercase'
-                }}>
+
+                <span className="badge badge-success">
                   {report.type}
                 </span>
               </div>
-              
-              <div className="report-summary" style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: 'var(--spacing-md)',
-                marginBottom: 'var(--spacing-md)'
-              }}>
-                <div className="summary-item">
-                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
-                    Avg CPU Usage:
-                  </span>
-                  <span style={{ color: 'var(--color-text-bright)', fontWeight: 'bold' }}>
-                    {report.summary.avg_cpu_usage.toFixed(1)}%
+
+              <div className="report-summary detail-grid detail-grid-md mb-md">
+                <div className="summary-stat">
+                  <span className="summary-stat-label">Avg CPU Usage:</span>
+                  <span className="summary-stat-value" style={{ color: 'var(--color-text-heading)' }}>
+                    {report.summary?.avgCpuUsage.toFixed(1)}%
                   </span>
                 </div>
-                
-                <div className="summary-item">
-                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
-                    Avg Memory Usage:
-                  </span>
-                  <span style={{ color: 'var(--color-text-bright)', fontWeight: 'bold' }}>
-                    {report.summary.avg_memory_usage.toFixed(1)}%
+
+                <div className="summary-stat">
+                  <span className="summary-stat-label">Avg Memory Usage:</span>
+                  <span className="summary-stat-value" style={{ color: 'var(--color-text-heading)' }}>
+                    {report.summary?.avgMemoryUsage.toFixed(1)}%
                   </span>
                 </div>
-                
-                <div className="summary-item">
-                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
-                    Total Alerts:
-                  </span>
-                  <span style={{ 
-                    color: report.summary.total_alerts > 0 ? 'var(--color-warning)' : 'var(--color-success)',
-                    fontWeight: 'bold'
+
+                <div className="summary-stat">
+                  <span className="summary-stat-label">Total Alerts:</span>
+                  <span className="summary-stat-value" style={{
+                    color: (report.summary?.totalAlerts ?? 0) > 0 ? 'var(--color-warning)' : 'var(--color-success)'
                   }}>
-                    {report.summary.total_alerts}
+                    {report.summary?.totalAlerts}
                   </span>
                 </div>
-                
-                <div className="summary-item">
-                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
-                    Uptime:
-                  </span>
-                  <span style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>
-                    {report.summary.uptime_percentage.toFixed(1)}%
+
+                <div className="summary-stat">
+                  <span className="summary-stat-label">Uptime:</span>
+                  <span className="summary-stat-value" style={{ color: 'var(--color-success)' }}>
+                    {report.summary?.uptimePercentage.toFixed(1)}%
                   </span>
                 </div>
               </div>
               
               {report.recommendations.length > 0 && (
                 <div className="recommendations">
-                  <h5 style={{ 
-                    margin: '0 0 var(--spacing-sm) 0',
-                    color: 'var(--color-accent)',
-                    fontSize: 'var(--font-size-sm)'
-                  }}>
+                  <h5 className="text-accent text-sm" style={{ margin: '0 0 var(--spacing-sm) 0' }}>
                     Key Recommendations:
                   </h5>
-                  <ul style={{ 
-                    margin: 0, 
-                    paddingLeft: 'var(--spacing-lg)',
-                    color: 'var(--color-text)',
-                    fontSize: 'var(--font-size-sm)'
-                  }}>
+                  <ul className="text-sm" style={{ margin: 0, paddingLeft: 'var(--spacing-lg)' }}>
                     {report.recommendations.slice(0, 2).map((rec, index) => (
-                      <li key={index} style={{ marginBottom: 'var(--spacing-xs)' }}>
+                      <li key={index} className="mb-sm">
                         {rec}
                       </li>
                     ))}

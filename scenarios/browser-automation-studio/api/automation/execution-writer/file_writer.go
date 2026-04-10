@@ -1184,6 +1184,28 @@ func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 		}
 	}
 
+	// Convert assertion outcome to proto format for persistence in timeline.
+	// This enables assertions.md to show detailed assertion results.
+	if outcome.Assertion != nil {
+		assertionResult := &basbase.AssertionResult{
+			Mode:          enums.StringToAssertionMode(outcome.Assertion.Mode),
+			Selector:      outcome.Assertion.Selector,
+			Success:       outcome.Assertion.Success,
+			Negated:       outcome.Assertion.Negated,
+			CaseSensitive: outcome.Assertion.CaseSensitive,
+		}
+		if outcome.Assertion.Message != "" {
+			assertionResult.Message = &outcome.Assertion.Message
+		}
+		if outcome.Assertion.Expected != nil {
+			assertionResult.Expected = anyToJsonValue(outcome.Assertion.Expected)
+		}
+		if outcome.Assertion.Actual != nil {
+			assertionResult.Actual = anyToJsonValue(outcome.Assertion.Actual)
+		}
+		ctx.Assertion = assertionResult
+	}
+
 	entry := &bastimeline.TimelineEntry{
 		Id:          entryID,
 		SequenceNum: int32(outcome.StepIndex),
@@ -1596,12 +1618,6 @@ func normalizeActionType(actionType string) string {
 	return out
 }
 
-// sanitizeOutcome applies default size limits to outcome fields.
-// For configurable limits, use sanitizeOutcomeWithConfig instead.
-func sanitizeOutcome(out contracts.StepOutcome) contracts.StepOutcome {
-	return sanitizeOutcomeWithLimits(out, contracts.ScreenshotMaxBytes, contracts.DOMSnapshotMaxBytes, contracts.ConsoleEntryMaxBytes, contracts.NetworkPayloadPreviewMaxBytes)
-}
-
 // sanitizeOutcomeWithConfig applies configurable size limits from ArtifactCollectionSettings.
 func (r *FileWriter) sanitizeOutcomeWithConfig(out contracts.StepOutcome, cfg config.ArtifactCollectionSettings) contracts.StepOutcome {
 	maxScreenshot := cfg.MaxScreenshotBytes
@@ -1659,11 +1675,6 @@ func sanitizeOutcomeWithLimits(out contracts.StepOutcome, maxScreenshot, maxDOM,
 	return out
 }
 
-// sanitizeConsole applies default size limits to console log entries.
-func sanitizeConsole(entries []contracts.ConsoleLogEntry) []contracts.ConsoleLogEntry {
-	return sanitizeConsoleWithLimit(entries, contracts.ConsoleEntryMaxBytes)
-}
-
 // sanitizeConsoleWithLimit applies configurable size limits to console log entries.
 func sanitizeConsoleWithLimit(entries []contracts.ConsoleLogEntry, maxEntryBytes int) []contracts.ConsoleLogEntry {
 	if len(entries) == 0 {
@@ -1683,11 +1694,6 @@ func sanitizeConsoleWithLimit(entries []contracts.ConsoleLogEntry, maxEntryBytes
 		}
 	}
 	return sanitized
-}
-
-// sanitizeNetwork applies default size limits to network events.
-func sanitizeNetwork(events []contracts.NetworkEvent) []contracts.NetworkEvent {
-	return sanitizeNetworkWithLimit(events, contracts.NetworkPayloadPreviewMaxBytes)
 }
 
 // sanitizeNetworkWithLimit applies configurable size limits to network events.

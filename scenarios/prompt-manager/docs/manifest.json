@@ -1,0 +1,187 @@
+{
+  "version": "1.0.0",
+  "title": "Prompt Manager Documentation",
+  "description": "Documentation for the prompt-manager scenario including API, CLI, UI, and 3D world visualization",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Get running in 5 minutes",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture Overview",
+          "description": "System design, data flow, and component relationships",
+          "audience": ["developers"]
+        },
+        {
+          "path": "concepts/3D-WORLD-ARCHITECTURE.md",
+          "title": "3D World Architecture",
+          "description": "Component hierarchy, state management, and rendering pipeline for the 3D visualization system",
+          "audience": ["developers"]
+        },
+        {
+          "path": "concepts/STORE-MIGRATION.md",
+          "title": "Storage Migration",
+          "description": "Migration guide from legacy skills/ to new store/ directory structure",
+          "audience": ["developers"]
+        },
+        {
+          "path": "concepts/HEARTBEATS.md",
+          "title": "Heartbeats & Cron Execution",
+          "description": "Autonomous scheduled task execution for team members",
+          "audience": ["developers", "users"]
+        },
+        {
+          "path": "concepts/GRAPH.md",
+          "title": "Relationship Graph",
+          "description": "How the dependency graph maps connections between teams, agents, skills, and CLI tools",
+          "audience": ["developers", "users"]
+        },
+        {
+          "path": "concepts/TEAM-EXECUTION.md",
+          "title": "Team Execution Model",
+          "description": "Per-team execution contexts with serialized or bounded-parallel heartbeat queues",
+          "audience": ["developers"]
+        },
+        {
+          "path": "concepts/PERSONA-SYSTEM.md",
+          "title": "Persona System",
+          "description": "Agent SOUL.md personality and behavioral guidance configuration",
+          "audience": ["developers", "users"]
+        },
+        {
+          "path": "concepts/CAPABILITY-MATCHING.md",
+          "title": "Capability Matching",
+          "description": "How skills are matched to agents based on capability declarations",
+          "audience": ["developers"]
+        },
+        {
+          "path": "concepts/RELATIONS.md",
+          "title": "Relations",
+          "description": "Team-member relation system and normalization patterns",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "reference/api-endpoints.md",
+          "title": "API Reference",
+          "description": "Complete REST API documentation with request/response examples",
+          "audience": ["developers"]
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "title": "CLI Reference",
+          "description": "All CLI commands, options, and examples",
+          "audience": ["users", "developers"]
+        },
+        {
+          "path": "reference/configuration.md",
+          "title": "Configuration",
+          "description": "Environment variables, settings, and resource configuration",
+          "audience": ["developers", "operators"]
+        },
+        {
+          "path": "reference/heartbeat-api.md",
+          "title": "Heartbeat API",
+          "description": "REST API endpoints for heartbeat configuration and execution",
+          "audience": ["developers"]
+        },
+        {
+          "path": "reference/heartbeat-cli.md",
+          "title": "Heartbeat CLI",
+          "description": "CLI commands for heartbeat management",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "compass",
+      "documents": [
+        {
+          "path": "guides/ASSET-GENERATION.md",
+          "title": "3D Asset Generation",
+          "description": "How to create new 3D objects (decorations, props) using the Node.js GLB generator pipeline",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
+      "id": "plans",
+      "title": "Plans",
+      "icon": "map",
+      "documents": [
+        {
+          "path": "plans/team-coordination-greenfield-redesign-implementation-plan.md",
+          "title": "Team Coordination Greenfield Redesign",
+          "description": "Greenfield implementation plan for decoupling runtime, coordination, and concurrency in Prompt Manager teams",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Testing Seams",
+          "description": "Integration boundaries, dependency injection points, and testing strategies",
+          "internal": true
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Known Issues",
+          "description": "Technical debt, test gaps, and deferred work",
+          "internal": true
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "title": "Progress",
+          "description": "Development history, milestones, and architecture decisions",
+          "internal": true
+        },
+        {
+          "path": "internal/INTEROP_AUDIT.md",
+          "title": "Interop Audit",
+          "description": "Agent-manager integration audit and interop layer analysis",
+          "internal": true
+        },
+        {
+          "path": "internal/UNIT_TEST_ARCHITECTURE.md",
+          "title": "Unit Test Architecture",
+          "description": "Test organization, coverage status, and testing patterns",
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "guides", "plans", "reference"],
+    "secondary": ["internal"]
+  }
+}

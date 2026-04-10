@@ -120,13 +120,15 @@ function Dashboard({
     });
   }, [fetchProjects, fetchRecentWorkflows, fetchRecentExecutions, fetchRunningExecutions, scheduleNonCriticalWork]);
 
-  // Auto-refresh running executions periodically
+  // Auto-refresh running executions only when there are active executions
+  // WebSocket handles real-time updates; this is just a fallback
   useEffect(() => {
+    if (runningExecutions.length === 0) return;
     const interval = setInterval(() => {
       void fetchRunningExecutions();
-    }, 10000); // Every 10 seconds
+    }, 10000);
     return () => clearInterval(interval);
-  }, [fetchRunningExecutions]);
+  }, [fetchRunningExecutions, runningExecutions.length]);
 
   // Listen for global search event from centralized keyboard shortcut system
   useEffect(() => {

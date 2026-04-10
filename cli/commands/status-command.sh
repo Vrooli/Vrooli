@@ -479,7 +479,12 @@ collect_scenario_data() {
 
             if [[ "$is_running" == "true" ]]; then
                 running_scenarios=$((running_scenarios + 1))
-                scenario_statuses["$name"]="running"  # Can't determine health without API
+                # Check for degraded state from best-effort startup
+                if [[ -f "$scenario_dir/degraded.json" ]]; then
+                    scenario_statuses["$name"]="degraded"
+                else
+                    scenario_statuses["$name"]="running"
+                fi
             else
                 scenario_statuses["$name"]="stopped"
             fi

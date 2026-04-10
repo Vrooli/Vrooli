@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/vrooli/api-core/discovery"
 )
@@ -161,6 +162,11 @@ var portLookupFunc = func(ctx context.Context, scenarioName, portName string) (i
 	return scenarioCLI.LookupPort(ctx, scenarioName, portName)
 }
 
+const (
+	portLookupRetryWindow = 6 * time.Second
+	portLookupRetryDelay  = 250 * time.Millisecond
+)
+
 // SetPortLookupFuncForTests provides backward compatibility for existing tests.
 func SetPortLookupFuncForTests(fn func(context.Context, string, string) (int, error)) func() {
 	previous := portLookupFunc
@@ -189,14 +195,38 @@ func ResolvePort(ctx context.Context, scenarioName string, portNames ...string) 
 		}
 	}
 
-	for _, name := range candidateNames {
-		port, err := portLookupFunc(ctx, trimmedScenario, name)
-		if err != nil || port <= 0 {
-			continue
+	deadline := time.Now().Add(portLookupRetryWindow)
+	var lastErr error
+
+	for {
+		for _, name := range candidateNames {
+			port, err := portLookupFunc(ctx, trimmedScenario, name)
+			if err == nil && port > 0 {
+				return &PortInfo{Name: name, Port: port}, nil
+			}
+			if err != nil {
+				lastErr = fmt.Errorf("%s lookup failed: %w", name, err)
+			} else {
+				lastErr = fmt.Errorf("%s lookup returned invalid port %d", name, port)
+			}
 		}
-		return &PortInfo{Name: name, Port: port}, nil
+
+		if ctx.Err() != nil || time.Now().After(deadline) {
+			break
+		}
+
+		timer := time.NewTimer(portLookupRetryDelay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			break
+		case <-timer.C:
+		}
 	}
 
+	if lastErr != nil {
+		return nil, fmt.Errorf("failed to resolve port for scenario %s: %w", trimmedScenario, lastErr)
+	}
 	return nil, fmt.Errorf("failed to resolve port for scenario %s", trimmedScenario)
 }
 

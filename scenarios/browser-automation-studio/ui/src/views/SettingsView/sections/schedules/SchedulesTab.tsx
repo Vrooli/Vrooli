@@ -79,18 +79,18 @@ export function SchedulesTab() {
     handleOpenCreate(undefined, date);
   }, [handleOpenCreate]);
 
-  const handleCalendarEditSchedule = useCallback((scheduleId: string) => {
-    const schedule = schedules.find(s => s.id === scheduleId);
-    if (schedule) {
-      handleOpenEdit(schedule);
-    }
-  }, [schedules]);
-
   const handleOpenEdit = useCallback((schedule: WorkflowSchedule) => {
     setEditingSchedule(schedule);
     setSelectedWorkflowId(schedule.workflow_id);
     setIsModalOpen(true);
   }, []);
+
+  const handleCalendarEditSchedule = useCallback((scheduleId: string) => {
+    const schedule = schedules.find(s => s.id === scheduleId);
+    if (schedule) {
+      handleOpenEdit(schedule);
+    }
+  }, [schedules, handleOpenEdit]);
 
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);

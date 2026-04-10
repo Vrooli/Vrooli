@@ -48,7 +48,7 @@ DNS resolution is required for:
 - **Critical**: Resolution failed
 
 ### Troubleshooting
-1. Check /etc/resolv.conf
+1. Check resolver configuration (the `resolv.conf` file)
 2. Test with `getent hosts google.com`
 3. Verify systemd-resolved is running
 4. Check if using local DNS server
@@ -112,7 +112,7 @@ systemd-resolved provides:
 ### Troubleshooting
 1. Check status: `systemctl status systemd-resolved`
 2. View logs: `journalctl -u systemd-resolved`
-3. Verify symlink: `ls -la /etc/resolv.conf`
+3. Verify resolver symlink: `ls -la <resolver-config-path>`
 
 ---
 

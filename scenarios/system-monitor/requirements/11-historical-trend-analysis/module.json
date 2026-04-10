@@ -1,0 +1,57 @@
+{
+  "description": "No dedicated timeline endpoint exists. Trend analysis is only implemented within report generation (api/internal/services/report.go). UI calls /api/v1/metrics/timeline which is not registered in the API router; UI sparkline falls back to client-side accumulation.",
+  "module_id": "MOD-P1-011",
+  "prd_ref": "system-monitor-should-have-historical-trend-analysis-no-timeline-endpoint-exists-trend-analysis-implemented-only-within-report-generation",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-004"
+      ],
+      "description": "Implement historical trend analysis capability through dedicated timeline endpoints and standalone analysis functions beyond report generation. System must track and analyze metric patterns over time to identify long-term trends and seasonal variations.",
+      "id": "REQ-P1-001",
+      "prd_ref": "system-monitor-should-have-historical-trend-analysis-no-timeline-endpoint-exists-trend-analysis-implemented-only-within-report-generation",
+      "status": "pending",
+      "title": "Historical Trend Analysis System",
+      "validation": [
+        {
+          "notes": "Test trend calculation accuracy",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify timeline data retrieval",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate trend analysis across multiple time periods",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Analysis completion \u003c 2s for 30 days of data",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Trends accurately identify system behavior patterns",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Historical trend analysis (no timeline endpoint exists; trend analysis implemented only within report generation)"
+}

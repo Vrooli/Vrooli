@@ -18,13 +18,16 @@ var (
 	ErrScenarioAuditorUnavailable    = errors.New("scenario-auditor unavailable")
 	ErrScenarioBridgeScenarioMissing = errors.New("scenario missing for bridge audit")
 	ErrIssueTrackerUnavailable       = errors.New("app-issue-tracker unavailable")
+	ErrPresetNotFound                = errors.New("workspace preset not found")
+	ErrPresetNameRequired            = errors.New("preset name is required")
 )
 
 // Cache and timing constants
 const (
-	orchestratorCacheTTL   = 90 * time.Second  // Increased from 60s to reduce cache misses during slow scenario status calls
-	partialCacheTTL        = 45 * time.Second  // Increased proportionally
-	completenessCacheTTL   = 24 * time.Hour    // Completeness scores change less frequently than runtime status
+	orchestratorCacheTTL   = 90 * time.Second // Increased from 60s to reduce cache misses during slow scenario status calls
+	partialCacheTTL        = 45 * time.Second // Increased proportionally
+	enrichmentCacheTTL     = 90 * time.Second // Per-scenario tech stack / dependency insights
+	completenessCacheTTL   = 24 * time.Hour   // Completeness scores change less frequently than runtime status
 	issueTrackerCacheTTL   = 30 * time.Second
 	issueTrackerFetchLimit = 50
 )
@@ -91,6 +94,14 @@ var (
 		".vscode":      {},
 		"coverage":     {},
 		"tmp":          {},
+		// Test infrastructure directories. Files inside these (e.g. setup.ts,
+		// helpers.ts) are not named *.test.ts or *.spec.ts, so isTestFile()
+		// alone won't catch them. Scanning them would false-positive on
+		// hardcoded localhost URLs used in test configuration / mock data.
+		"__tests__":     {},
+		"__mocks__":     {},
+		"__fixtures__":  {},
+		"__snapshots__": {},
 	}
 
 	localhostSkipFiles = map[string]struct{}{
@@ -176,6 +187,13 @@ type issueCacheEntry struct {
 	totalCount  int
 }
 
+// enrichmentCacheEntry caches per-scenario tech stack and dependency data
+type enrichmentCacheEntry struct {
+	techStack    []string
+	dependencies []repository.AppDependency
+	fetchedAt    time.Time
+}
+
 // AppService handles business logic for application management
 type AppService struct {
 	repo               repository.AppRepository
@@ -190,6 +208,9 @@ type AppService struct {
 	issueCacheTTL      time.Duration
 	repoRoot           string
 	browserlessService *BrowserlessService
+	enrichmentMu       sync.RWMutex
+	enrichmentCache    map[string]*enrichmentCacheEntry // key: lowercase scenario name
+	uiServerPort       string
 }
 
 // =============================================================================
@@ -234,12 +255,6 @@ type scenarioResourceItem struct {
 	Healthy     bool    `json:"healthy"`
 	Installed   bool    `json:"installed"`
 	Note        *string `json:"note"`
-}
-
-// ecosystemManagerResponse represents the direct API response from ecosystem-manager
-type ecosystemManagerResponse struct {
-	Success bool              `json:"success"`
-	Data    []OrchestratorApp `json:"data"`
 }
 
 // OrchestratorApp represents an app from the orchestrator
@@ -408,11 +423,6 @@ type scenarioStatusConnectivity struct {
 	APIURL    string   `json:"api_url"`
 	Error     string   `json:"error"`
 	LatencyMs *float64 `json:"latency_ms"`
-}
-
-type scenarioStatusDependency struct {
-	Connected bool   `json:"connected"`
-	Status    string `json:"status"`
 }
 
 type scenarioStatusHealthCheck struct {
@@ -694,11 +704,11 @@ type IssueReportResult struct {
 
 // CompletenessResponse represents the raw output from `vrooli scenario completeness --json`
 type CompletenessResponse struct {
-	Scenario       string   `json:"scenario"`
-	Category       string   `json:"category"`
-	Score          int      `json:"score"`
-	Classification string   `json:"classification"`
-	Warnings       []string `json:"warnings,omitempty"`
+	Scenario        string   `json:"scenario"`
+	Category        string   `json:"category"`
+	Score           int      `json:"score"`
+	Classification  string   `json:"classification"`
+	Warnings        []string `json:"warnings,omitempty"`
 	Recommendations []string `json:"recommendations,omitempty"`
 }
 

@@ -1,0 +1,27 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "marketing-crew",
+  "roles": [
+    {
+      "id": "lead",
+      "name": "Lead",
+      "description": "Plans content strategy, reviews output, manages the content calendar."
+    },
+    {
+      "id": "creator",
+      "name": "Creator",
+      "description": "Writes dev logs, social posts, and blog drafts in builder voice."
+    },
+    {
+      "id": "researcher",
+      "name": "Researcher",
+      "description": "Researches audience, competitors, and trends for content strategy."
+    },
+    {
+      "id": "editor",
+      "name": "Editor",
+      "description": "Polishes content for tone, accuracy, and platform formatting."
+    }
+  ]
+}

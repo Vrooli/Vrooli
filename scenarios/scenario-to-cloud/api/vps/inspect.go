@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 )
 
@@ -72,19 +73,19 @@ func BuildInspectPlan(manifest domain.CloudManifest, opts InspectOptions) (Inspe
 			ID:          "scenario_status",
 			Title:       "Scenario status",
 			Description: "Fetch `vrooli scenario status --json` for the target scenario.",
-			Command:     ssh.LocalSSHCommand(cfg, ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario status %s --json", ssh.QuoteSingle(targetScenario)))),
+			Command:     ssh.LocalSSHCommand(cfg, shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario status %s --json", shellutil.QuoteSingle(targetScenario)))),
 		},
 		{
 			ID:          "resource_status",
 			Title:       "Resource status",
 			Description: "Fetch `vrooli resource status --json` for the mini install.",
-			Command:     ssh.LocalSSHCommand(cfg, ssh.VrooliCommand(workdir, "vrooli resource status --json")),
+			Command:     ssh.LocalSSHCommand(cfg, shellutil.VrooliCommand(workdir, "vrooli resource status --json")),
 		},
 		{
 			ID:          "scenario_logs",
 			Title:       "Scenario logs",
 			Description: "Fetch bounded logs output for the target scenario.",
-			Command:     ssh.LocalSSHCommand(cfg, ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario logs %s --tail %d", ssh.QuoteSingle(targetScenario), opts.TailLines))),
+			Command:     ssh.LocalSSHCommand(cfg, shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario logs %s --tail %d", shellutil.QuoteSingle(targetScenario), opts.TailLines))),
 		},
 	}
 
@@ -97,15 +98,15 @@ func RunInspect(ctx context.Context, manifest domain.CloudManifest, opts Inspect
 	workdir := manifest.Target.VPS.Workdir
 	targetScenario := manifest.Scenario.ID
 
-	statusRes, err := sshRunner.Run(ctx, cfg, ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario status %s --json", ssh.QuoteSingle(targetScenario))))
+	statusRes, err := sshRunner.Run(ctx, cfg, shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario status %s --json", shellutil.QuoteSingle(targetScenario))), ssh.DefaultRunOptions())
 	if err != nil {
 		return InspectResult{OK: false, Error: coalesce(statusRes.Stderr, err.Error()), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
-	resourceRes, err := sshRunner.Run(ctx, cfg, ssh.VrooliCommand(workdir, "vrooli resource status --json"))
+	resourceRes, err := sshRunner.Run(ctx, cfg, shellutil.VrooliCommand(workdir, "vrooli resource status --json"), ssh.DefaultRunOptions())
 	if err != nil {
 		return InspectResult{OK: false, Error: coalesce(resourceRes.Stderr, err.Error()), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
-	logsRes, err := sshRunner.Run(ctx, cfg, ssh.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario logs %s --tail %d", ssh.QuoteSingle(targetScenario), opts.TailLines)))
+	logsRes, err := sshRunner.Run(ctx, cfg, shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario logs %s --tail %d", shellutil.QuoteSingle(targetScenario), opts.TailLines)), ssh.DefaultRunOptions())
 	if err != nil {
 		return InspectResult{OK: false, Error: coalesce(logsRes.Stderr, err.Error()), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}

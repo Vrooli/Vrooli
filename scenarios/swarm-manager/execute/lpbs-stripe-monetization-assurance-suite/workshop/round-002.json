@@ -1,0 +1,121 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-04T18:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "New test file naming and decomposition",
+      "context": "Round 1 decided on new dedicated integration test files (d1=A). The plan references 4 phases. We need to decide how many new files to create and how to name them. The existing convention is \u003cservice\u003e_\u003cconcern\u003e_test.go. There's already stripe_integration_test.go (9 tests covering full-cycle flows), stripe_concurrent_test.go, stripe_idempotency_test.go, and download_authorizer_test.go.",
+      "options": [
+        {
+          "key": "A",
+          "label": "3 files: monetization E2E, download entitlement integration, coupon lifecycle E2E",
+          "rationale": "stripe_monetization_e2e_test.go (checkout→webhook→entitlement→download happy/sad paths, out-of-order webhooks), download_entitlement_integration_test.go (subscription lifecycle affecting gating, error propagation), coupon_lifecycle_e2e_test.go (intro coupon full cycle + abuse cases). Concurrency tests (only 2) go into existing stripe_concurrent_test.go. Clean separation by concern.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "2 files: monetization E2E (combines checkout+download+coupon), concurrency integration",
+          "rationale": "Fewer files, but stripe_monetization_e2e_test.go becomes large. Concurrency gets its own file since it tests different properties (race conditions vs correctness)."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own file decomposition"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Full E2E flow composition strategy",
+      "context": "The hardest new test is checkout→webhook→entitlement→download. This crosses StripeService, StripeWebhookService, AccountService, and DownloadAuthorizer. The existing stripe_integration_test.go creates each service independently with a shared DB and mock Stripe httptest.Server. The question is whether to wire these services together in a shared test harness or compose them ad-hoc per test.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Shared test harness struct with all 4 services",
+          "rationale": "Create a monetizationTestHarness that bundles StripeService + StripeWebhookService + AccountService + DownloadAuthorizer + mock Stripe server + test DB. Each test calls harness.setup() and gets all services pre-wired. Reduces boilerplate, ensures consistent wiring. Follows the pattern of setupTestServer() but for the monetization concern.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Ad-hoc composition per test function",
+          "rationale": "Each test creates the services it needs. More explicit, no hidden state. Follows the pattern used in stripe_integration_test.go today. Downside: significant boilerplate since most tests need all 4 services."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Webhook signature handling in out-of-order tests",
+      "context": "Out-of-order webhook tests (round 1, d5=A) need to fire multiple webhooks in specific sequences. The existing integration tests use a real HMAC-SHA256 signature with a test webhook secret (whsec_test). The webhook service verifies signatures. For the out-of-order tests, we need to decide how to handle signing for the test event payloads.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Reuse existing signWebhookPayload helper pattern",
+          "rationale": "The existing tests already sign payloads with the test secret. Extract or replicate the signing logic into a helper (signTestWebhook(payload, secret) string) and use it for each event in the sequence. Simple, realistic, follows existing patterns.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Bypass signature verification for ordering tests",
+          "rationale": "Set a test flag or use a noop verifier so ordering tests focus purely on event processing logic. Less realistic but isolates the ordering concern from signature mechanics."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Subscription lifecycle state matrix scope",
+      "context": "Phase 2 needs tests for subscription lifecycle affecting download gating. Stripe subscription statuses include: active, past_due, canceled, unpaid, incomplete, incomplete_expired, trialing, paused. The existing entitlement tests cover active, past_due, trialing, and canceled. The question is which additional transitions to test in the new integration tests.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Focus on transitions: active→canceled→re-subscribed, active→past_due→active, trialing→expired",
+          "rationale": "These are the customer-visible transitions that affect download access. Tests verify the DownloadAuthorizer correctly gates/ungates through each transition. Covers the highest-impact states without testing every permutation.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Full matrix: all 8 statuses × download authorization",
+          "rationale": "Exhaustive coverage of every Stripe status. Catches edge cases like 'paused' or 'incomplete_expired' that the current code may not handle explicitly. Higher maintenance cost."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own scope"
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The existing stripe_integration_test.go already has a strong foundation: 9 full-cycle tests covering intro pricing, credit purchases, subscription cancellation, email change, coupon abuse, multiple checkouts, webhook retry idempotency, and invoice-paid refresh. The new tests should complement, not duplicate, these existing flows. Key gaps remain in: (1) checkout→download authorization E2E, (2) subscription lifecycle transitions affecting gating, (3) out-of-order webhook resilience."
+    }
+  ],
+  "plan_updates": "Incorporated all round 1 decisions into plan. Filled Phase 1-4 TBD sections with specific test cases. Refined approach_solid from 1→2 by detailing test composition strategy. scope_defined raised to 3 with acceptance_allow confirmed and clear in/out boundaries."
+}

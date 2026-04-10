@@ -1,0 +1,99 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-23T18:00:00Z",
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 2,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The scenario scaffold is at 99/100 completeness with 470+ tests and 97% Go API coverage, but the current implementation covers only the foundational CRUD layer: schemes, information items, thoughts, edges, export, and LLM suggestion stubs. Several core differentiating features from the spec are not yet implemented: (1) voice capture with Whisper transcription, (2) agent-manager chat integration, (3) offline-first with IndexedDB/service worker sync, (4) canvas virtualization with spatial indexing, (5) LLM-powered ghost node generation with actual Ollama/OpenRouter calls, and (6) the export-to-scenario flow. The plan needs to be updated to reflect what's been built and define phased delivery of the remaining features."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Implementation phasing for remaining features",
+      "context": "Six major features remain unbuilt. They have different dependency chains and complexity levels. Building them all at once would be unwieldy. Recommend Phase A (voice + canvas virtualization — core capture UX), Phase B (ghost nodes + offline sync — intelligence + resilience), Phase C (agent chat + export flow — integration features). This front-loads the features that define the core user experience.",
+      "options": [
+        {"key": "A", "label": "Phase A → B → C as described (capture UX first)", "rationale": "Voice capture and canvas performance are the core differentiators. Getting these right first validates the UX thesis before investing in integrations."},
+        {"key": "B", "label": "Voice + offline first, then canvas + ghost nodes, then integrations", "rationale": "Offline-first is architecturally foundational — adding it later means retrofitting IndexedDB/sync into every feature. Doing it early avoids rework."},
+        {"key": "C", "label": "All features in parallel as separate work items", "rationale": "Maximum parallelism — each feature is independent enough for separate agents. Higher coordination cost but faster wall-clock time."},
+        {"key": "D", "label": "Other", "rationale": "Provide your own phasing strategy"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Canvas library selection for virtualization and touch handling",
+      "context": "The current CanvasView is a basic div-based implementation with manual drag/pan/zoom handlers. The spec calls for virtualized rendering with spatial indexing to handle 200+ items on mobile. This is a significant architectural upgrade. The plan mentions react-flow but there are alternatives with different tradeoffs for a mobile-first spatial canvas.",
+      "options": [
+        {"key": "A", "label": "React Flow (reactflow.dev)", "rationale": "Mature, well-documented, built-in viewport culling and minimap. Primarily designed for node-graph UIs (flowcharts). May feel over-structured for a freeform spatial canvas — nodes are connected, not freely floating. Touch support exists but is secondary to desktop."},
+        {"key": "B", "label": "Custom canvas with quadtree spatial index", "rationale": "Full control over touch interactions and mobile UX. More work but exactly fits the freeform spatial layout use case. No library overhead or fighting library opinions. Use a quadtree library (e.g., d3-quadtree) for viewport culling."},
+        {"key": "C", "label": "Konva.js / react-konva (HTML5 Canvas)", "rationale": "GPU-accelerated 2D rendering via HTML5 Canvas element. Excellent performance with many items. Built-in touch support. Downside: canvas-rendered content isn't DOM — harder to style, no native text input, accessibility challenges."},
+        {"key": "D", "label": "Excalidraw-based (fork or embed)", "rationale": "Already solves freeform spatial canvas with touch, collaboration, and infinite canvas. Rich feature set but heavy dependency and may be hard to customize for the specific thought-capture UX."},
+        {"key": "E", "label": "Other", "rationale": "Provide your own approach"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Voice capture: browser MediaRecorder vs dedicated recording library",
+      "context": "The voice capture feature needs to record audio, stream it to Whisper for real-time transcription, and place the result on the canvas. The plan specifies mirroring web-console's Whisper integration (WebSocket streaming + HTTP batch). The recording side has two main approaches.",
+      "options": [
+        {"key": "A", "label": "Browser MediaRecorder API directly", "rationale": "No additional dependency. Well-supported across browsers. Outputs WebM/Opus by default (needs ffmpeg transcoding to WAV for Whisper). Straightforward to stream chunks via WebSocket. Mirrors what web-console likely does."},
+        {"key": "B", "label": "RecordRTC or similar recording library", "rationale": "Handles cross-browser codec differences, provides WAV output directly (no server-side transcoding), supports pause/resume. Adds ~50KB dependency but reduces backend complexity."},
+        {"key": "C", "label": "Other", "rationale": "Provide your own approach"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Offline sync: when to implement the IndexedDB/service worker layer",
+      "context": "The spec requires offline-first operation. Currently, all data goes directly to PostgreSQL via the API with no local persistence. Adding offline support is architecturally invasive — it affects every data mutation path (write local first, sync in background). Retrofitting it later means touching every existing feature. However, for a Vrooli server deployment (always-on local server), offline is less critical than for a mobile PWA on the go.",
+      "options": [
+        {"key": "A", "label": "Implement offline layer before new features", "rationale": "Every new feature (voice, agent chat, ghost nodes) will need to work offline. Building the sync layer first means new features automatically get offline support. Avoids costly retrofit."},
+        {"key": "B", "label": "Defer offline to a dedicated phase after core features", "rationale": "The primary deployment is a local Vrooli server where the API is always reachable. Offline matters most for future mobile PWA use. Build core features first against the API, then add the offline layer as a dedicated phase that wraps all mutations."},
+        {"key": "C", "label": "Implement a thin offline queue now, full sync later", "rationale": "Add a simple mutation queue (IndexedDB write-through) that captures failed API calls and retries on reconnect. Not full offline-first, but handles intermittent connectivity. Low effort now, full implementation later."},
+        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "Agent chat integration: embedded panel vs agent-manager API calls",
+      "context": "The spec calls for an agent-manager-powered chat panel with read/write access to the scheme. Agent-manager is a separate Vrooli scenario. The integration approach affects how tightly coupled these scenarios become.",
+      "options": [
+        {"key": "A", "label": "Embedded iframe from agent-manager UI", "rationale": "Minimal coupling — agent-manager provides a chat widget URL, stream-of-consciousness-analyzer embeds it with scheme context via postMessage. Agent-manager handles all chat UX. Downsides: iframe styling constraints, limited control over quick-action buttons."},
+        {"key": "B", "label": "Direct API calls to agent-manager's chat endpoint", "rationale": "Build a custom chat UI in stream-of-consciousness-analyzer that calls agent-manager's API for completions. Full control over UX and quick-action buttons. Tighter coupling but better integration. Agent gets scheme context via API read calls."},
+        {"key": "C", "label": "Shared chat component library", "rationale": "Extract a reusable chat component from agent-manager that both scenarios can use. Best long-term reusability but highest initial effort. Requires coordinating with agent-manager's codebase."},
+        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The existing SuggestionService has the provider selection infrastructure (Ollama primary, OpenRouter fallback) and database schema for suggestions, but the actual LLM call to generate suggestions is not yet implemented — GenerateSuggestions returns stub data. The throttling, batching, and ghost node rendering in the graph view also need to be built. This is lower risk since the provider infrastructure is solid; the remaining work is the prompt engineering and UI rendering."
+    }
+  ],
+  "plan_updates": "Updated plan to reflect current implementation state (99/100, 470+ tests), identified 6 unimplemented core features, and surfaced decisions on phasing, canvas library, voice capture, offline sync timing, and agent chat integration approach."
+}

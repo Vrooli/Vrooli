@@ -21,8 +21,8 @@ func TestIntegration_CampaignStatistics(t *testing.T) {
 	defer srv.db.Close()
 
 	testScenario := "integration-test-stats"
-	srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
-	defer srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario) }()
 
 	// Create campaign with known configuration
 	var campaignID int
@@ -34,7 +34,6 @@ func TestIntegration_CampaignStatistics(t *testing.T) {
 		VALUES ($1, 'active', 10, 5, 3, 12, 50)
 		RETURNING id
 	`, testScenario).Scan(&campaignID)
-
 	if err != nil {
 		t.Fatalf("Failed to create campaign: %v", err)
 	}
@@ -111,8 +110,8 @@ func TestIntegration_CampaignStatisticsEdgeCases(t *testing.T) {
 	defer srv.db.Close()
 
 	testScenario := "integration-test-stats-edge"
-	srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
-	defer srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario) }()
 
 	// Test with zero files_total (edge case)
 	var campaignID int
@@ -124,7 +123,6 @@ func TestIntegration_CampaignStatisticsEdgeCases(t *testing.T) {
 		VALUES ($1, 'active', 10, 5, 0, 0, 0)
 		RETURNING id
 	`, testScenario).Scan(&campaignID)
-
 	if err != nil {
 		t.Fatalf("Failed to create campaign: %v", err)
 	}

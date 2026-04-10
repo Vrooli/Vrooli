@@ -11,7 +11,11 @@ if (window.top !== window.self) {
   initIframeBridgeChild({ appId: "scenario-to-desktop" });
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("Root element not found. Check that index.html contains a <div id=\"root\"></div>.");
+}
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <App />

@@ -37,9 +37,10 @@ type PromptFile struct {
 	ModifiedAt string `json:"modified_at,omitempty"`
 }
 
-// PhaseInfo represents a phase name for the UI.
+// PhaseInfo represents a phase name and description for the UI.
 type PhaseInfo struct {
-	Name string `json:"name"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
 }
 
 // NewPromptsHandlers creates a new prompts handler set.
@@ -55,36 +56,6 @@ func (h *PromptsHandlers) ListPromptFilesHandler(w http.ResponseWriter, r *http.
 		return
 	}
 	writeJSON(w, files, http.StatusOK)
-}
-
-// ListPhaseNamesHandler returns available phase names from prompts/phases/*.md files.
-func (h *PromptsHandlers) ListPhaseNamesHandler(w http.ResponseWriter, r *http.Request) {
-	phasesDir := filepath.Join(h.assembler.PromptsDir, "phases")
-	var phases []PhaseInfo
-
-	err := filepath.WalkDir(phasesDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(d.Name(), ".md") {
-			return nil
-		}
-
-		// Extract phase name from filename (remove .md extension)
-		name := strings.TrimSuffix(d.Name(), ".md")
-		phases = append(phases, PhaseInfo{Name: name})
-		return nil
-	})
-
-	if err != nil {
-		writeError(w, fmt.Sprintf("Failed to list phase names: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	writeJSON(w, phases, http.StatusOK)
 }
 
 // GetPromptFileHandler returns the content of a prompt file.
@@ -291,9 +262,6 @@ func (h *PromptsHandlers) resolvePromptPath(w http.ResponseWriter, r *http.Reque
 func classifyPromptFile(relPath string) string {
 	if strings.HasPrefix(relPath, "templates/") {
 		return "template"
-	}
-	if strings.HasPrefix(relPath, "phases/") {
-		return "phase"
 	}
 	return "other"
 }

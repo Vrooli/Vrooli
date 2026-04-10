@@ -8,9 +8,10 @@ const mockPage = {
   goto: jest.fn().mockResolvedValue(undefined),
   screenshot: jest.fn().mockResolvedValue(Buffer.from('image-bytes')),
   url: jest.fn().mockReturnValue('https://example.com'),
+  title: jest.fn().mockResolvedValue('Example'),
 };
 const mockSessionManager: Pick<SessionManager, 'getSession'> = {
-  getSession: () => ({ page: mockPage } as any),
+  getSession: () => ({ page: mockPage } as unknown as ReturnType<SessionManager['getSession']>),
 };
 
 describe('Record Mode Routes', () => {
@@ -33,7 +34,7 @@ describe('Record Mode Routes', () => {
     await handleRecordNavigate(mockReq, mockRes, sessionId, mockSessionManager as SessionManager, config);
 
     expect(mockRes.statusCode).toBe(200);
-    const payload = (mockRes as any).getJSON();
+    const payload = mockRes.getJSON();
     expect(payload.url).toBe('https://example.com');
     expect(payload.screenshot).toContain('data:image/jpeg;base64,');
     expect(mockPage.goto).toHaveBeenCalledWith('https://example.com', { waitUntil: 'load', timeout: config.execution.navigationTimeoutMs });

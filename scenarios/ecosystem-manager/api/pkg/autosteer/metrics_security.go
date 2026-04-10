@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -150,7 +151,7 @@ func (c *SecurityMetricsCollector) assessGoInputValidation(scenarioName string) 
 	validatedHandlers := 0
 
 	// Walk through Go files
-	filepath.Walk(apiPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(apiPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -196,7 +197,9 @@ func (c *SecurityMetricsCollector) assessGoInputValidation(scenarioName string) 
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk API path for security metrics: %v", err)
+	}
 
 	if totalHandlers == 0 {
 		return 100.0 // No handlers = no validation needed
@@ -216,7 +219,7 @@ func (c *SecurityMetricsCollector) assessTSInputValidation(scenarioName string) 
 	totalForms := 0
 	validatedForms := 0
 
-	filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -264,7 +267,9 @@ func (c *SecurityMetricsCollector) assessTSInputValidation(scenarioName string) 
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk source path for security metrics: %v", err)
+	}
 
 	if totalForms == 0 {
 		return 100.0
@@ -327,7 +332,7 @@ func (c *SecurityMetricsCollector) hasAuthMiddleware(scenarioName string) bool {
 	apiPath := filepath.Join(c.projectRoot, "scenarios", scenarioName, "api")
 
 	found := false
-	filepath.Walk(apiPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(apiPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || found {
 			return nil
 		}
@@ -352,7 +357,9 @@ func (c *SecurityMetricsCollector) hasAuthMiddleware(scenarioName string) bool {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk API path for auth middleware scan: %v", err)
+	}
 
 	return found
 }
@@ -362,7 +369,7 @@ func (c *SecurityMetricsCollector) hasAuthRoutes(scenarioName string) bool {
 	apiPath := filepath.Join(c.projectRoot, "scenarios", scenarioName, "api")
 
 	found := false
-	filepath.Walk(apiPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(apiPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || found {
 			return nil
 		}
@@ -387,7 +394,9 @@ func (c *SecurityMetricsCollector) hasAuthRoutes(scenarioName string) bool {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk API path for auth routes scan: %v", err)
+	}
 
 	return found
 }
@@ -397,7 +406,7 @@ func (c *SecurityMetricsCollector) hasPasswordHashing(scenarioName string) bool 
 	apiPath := filepath.Join(c.projectRoot, "scenarios", scenarioName, "api")
 
 	found := false
-	filepath.Walk(apiPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(apiPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || found {
 			return nil
 		}
@@ -422,7 +431,9 @@ func (c *SecurityMetricsCollector) hasPasswordHashing(scenarioName string) bool 
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk API path for password hashing scan: %v", err)
+	}
 
 	return found
 }
@@ -432,7 +443,7 @@ func (c *SecurityMetricsCollector) hasJWT(scenarioName string) bool {
 	apiPath := filepath.Join(c.projectRoot, "scenarios", scenarioName, "api")
 
 	found := false
-	filepath.Walk(apiPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(apiPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || found {
 			return nil
 		}
@@ -457,7 +468,9 @@ func (c *SecurityMetricsCollector) hasJWT(scenarioName string) bool {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk API path for JWT scan: %v", err)
+	}
 
 	return found
 }
@@ -467,7 +480,7 @@ func (c *SecurityMetricsCollector) hasSessionManagement(scenarioName string) boo
 	apiPath := filepath.Join(c.projectRoot, "scenarios", scenarioName, "api")
 
 	found := false
-	filepath.Walk(apiPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(apiPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || found {
 			return nil
 		}
@@ -492,7 +505,9 @@ func (c *SecurityMetricsCollector) hasSessionManagement(scenarioName string) boo
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk API path for session management scan: %v", err)
+	}
 
 	return found
 }
@@ -563,7 +578,7 @@ func (c *SecurityMetricsCollector) checkForHardcodedSecrets(scenarioName string)
 	findings := []SecurityFinding{}
 	scenarioPath := filepath.Join(c.projectRoot, "scenarios", scenarioName)
 
-	filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -612,7 +627,9 @@ func (c *SecurityMetricsCollector) checkForHardcodedSecrets(scenarioName string)
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk scenario path for secret scan: %v", err)
+	}
 
 	return findings
 }

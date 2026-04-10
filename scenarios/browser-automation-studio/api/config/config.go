@@ -86,6 +86,9 @@ type Config struct {
 	// Performance controls debug performance mode for frame streaming diagnostics.
 	// When enabled, detailed timing data is collected and exposed for bottleneck analysis.
 	Performance PerformanceConfig
+
+	// AIProvider controls the AI provider fallback chain configuration.
+	AIProvider AIProviderConfig
 }
 
 // TimeoutsConfig groups timeout-related settings.
@@ -486,15 +489,16 @@ type HTTPConfig struct {
 // This enables the monetization model by connecting to the landing-page-business-suite
 // entitlement service to verify user subscriptions and enforce tier-based limits.
 type EntitlementConfig struct {
-	// Enabled controls whether entitlement checking is active.
-	// When false, all features are available without restrictions (development mode).
-	// Env: BAS_ENTITLEMENT_ENABLED (default: false)
-	Enabled bool
-
 	// ServiceURL is the base URL of the entitlement service (landing-page-business-suite).
 	// Must include protocol (https://) and no trailing slash.
 	// Env: BAS_ENTITLEMENT_SERVICE_URL (default: "")
 	ServiceURL string
+
+	// ServiceSecret is the shared secret for service-to-service authentication with LPBS.
+	// Used for reporting usage data via POST /api/v1/usage/report.
+	// Generate with: openssl rand -base64 32
+	// Env: BAS_LPBS_SERVICE_SECRET (default: "")
+	ServiceSecret string
 
 	// CacheTTL is how long to cache entitlement responses before re-checking.
 	// Tradeoff: Higher = fewer network calls, slower to reflect subscription changes.
@@ -509,7 +513,7 @@ type EntitlementConfig struct {
 
 	// OfflineGracePeriod is how long to allow operations when the entitlement service is unreachable.
 	// Uses cached entitlements during this period; after expiry, falls back to free tier.
-	// Env: BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS (default: 86400000, 24 hours)
+	// Env: BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS (default: 18000000, 5 hours)
 	OfflineGracePeriod time.Duration
 
 	// DefaultTier is the tier to use when no subscription is found or service is unavailable.
@@ -568,6 +572,39 @@ type PerformanceConfig struct {
 	// When true, perf_stats messages are broadcast periodically over WebSocket.
 	// Env: BAS_PERF_STREAM_TO_WEBSOCKET (default: true)
 	StreamToWebSocket bool
+}
+
+// AIProviderConfig controls the AI provider fallback chain.
+// The chain tries providers in order: BYOK → VrooliAPI → DevMode → Block
+type AIProviderConfig struct {
+	// EnableBYOK allows users to provide their own OpenRouter keys via header.
+	// When true, requests with X-BYOK-OpenRouter-Key header use the user's key.
+	// Env: BAS_AI_ENABLE_BYOK (default: true)
+	EnableBYOK bool
+
+	// EnableVrooliAPI enables the Vrooli external AI API (when available).
+	// This is the paid tier that charges credits.
+	// Env: BAS_AI_ENABLE_VROOLI_API (default: true)
+	EnableVrooliAPI bool
+
+	// EnableDevMode enables the dev mode fallback using resource-openrouter.
+	// This is always available if the resource is installed locally.
+	// Env: BAS_AI_ENABLE_DEV_MODE (default: true)
+	EnableDevMode bool
+
+	// BYOKValidationTTL is how long to cache BYOK key validation results.
+	// Tradeoff: Higher = fewer validation calls, slower to detect revoked keys.
+	// Env: BAS_AI_BYOK_VALIDATION_TTL_MS (default: 300000, 5 minutes)
+	BYOKValidationTTL time.Duration
+
+	// VrooliAPIURL is the URL for Vrooli's external AI service.
+	// Placeholder for now - returns unavailable until service is built.
+	// Env: BAS_AI_VROOLI_API_URL (default: "")
+	VrooliAPIURL string
+
+	// DefaultModel is the AI model to use when not specified.
+	// Env: BAS_AI_DEFAULT_MODEL (default: "openai/gpt-4o-mini")
+	DefaultModel string
 }
 
 var (
@@ -689,16 +726,16 @@ func loadFromEnv() *Config {
 			CORSMaxAge:       parseInt("BAS_HTTP_CORS_MAX_AGE", 300),
 		},
 		Entitlement: EntitlementConfig{
-			Enabled:            parseBool("BAS_ENTITLEMENT_ENABLED", false),
 			ServiceURL:         parseString("BAS_ENTITLEMENT_SERVICE_URL", ""),
+			ServiceSecret:      parseString("BAS_LPBS_SERVICE_SECRET", ""),
 			CacheTTL:           parseDurationMs("BAS_ENTITLEMENT_CACHE_TTL_MS", 300000),
 			RequestTimeout:     parseDurationMs("BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS", 5000),
-			OfflineGracePeriod: parseDurationMs("BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS", 86400000),
+			OfflineGracePeriod: parseDurationMs("BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS", 18000000),
 			DefaultTier:        parseString("BAS_ENTITLEMENT_DEFAULT_TIER", "free"),
 			TierLimits:         parseTierLimits("BAS_ENTITLEMENT_TIER_LIMITS_JSON"),
 			AICreditsLimits:    parseAICreditsLimits("BAS_ENTITLEMENT_AI_CREDITS_LIMITS_JSON"),
 			WatermarkTiers:     parseStringList("BAS_ENTITLEMENT_WATERMARK_TIERS", "free,solo"),
-			AITiers:            parseStringList("BAS_ENTITLEMENT_AI_TIERS", "pro,studio,business"),
+			AITiers:            parseStringList("BAS_ENTITLEMENT_AI_TIERS", "solo,pro,studio,business"),
 			RecordingTiers:     parseStringList("BAS_ENTITLEMENT_RECORDING_TIERS", "solo,pro,studio,business"),
 		},
 		Performance: PerformanceConfig{
@@ -707,6 +744,14 @@ func loadFromEnv() *Config {
 			ExposeEndpoint:     parseBool("BAS_PERF_EXPOSE_ENDPOINT", true),
 			BufferSize:         parseInt("BAS_PERF_BUFFER_SIZE", 100),
 			StreamToWebSocket:  parseBool("BAS_PERF_STREAM_TO_WEBSOCKET", true),
+		},
+		AIProvider: AIProviderConfig{
+			EnableBYOK:        parseBool("BAS_AI_ENABLE_BYOK", true),
+			EnableVrooliAPI:   parseBool("BAS_AI_ENABLE_VROOLI_API", true),
+			EnableDevMode:     parseBool("BAS_AI_ENABLE_DEV_MODE", true),
+			BYOKValidationTTL: parseDurationMs("BAS_AI_BYOK_VALIDATION_TTL_MS", 300000),
+			VrooliAPIURL:      parseString("BAS_AI_VROOLI_API_URL", ""),
+			DefaultModel:      parseString("BAS_AI_DEFAULT_MODEL", "openai/gpt-4o-mini"),
 		},
 	}
 }
@@ -848,10 +893,8 @@ func (c *Config) Validate() error {
 	}
 
 	// Entitlement validation
-	if c.Entitlement.Enabled {
-		if c.Entitlement.ServiceURL == "" {
-			return fmt.Errorf("Entitlement.ServiceURL is required when entitlements are enabled")
-		}
+	// When ServiceURL is configured, validate related settings
+	if c.Entitlement.ServiceURL != "" {
 		if c.Entitlement.CacheTTL <= 0 {
 			return fmt.Errorf("Entitlement.CacheTTL must be positive, got %v", c.Entitlement.CacheTTL)
 		}

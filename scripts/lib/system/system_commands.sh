@@ -31,7 +31,7 @@ system::assert_command() {
     local error_message="${2:-Command $command not found}"
     if ! system::is_command "$command"; then
         log::error "$error_message"
-        exit "${ERROR_COMMAND_NOT_FOUND}"
+        exit "${EXIT_DEPENDENCY_ERROR:-6}"
     fi
 }
 
@@ -101,6 +101,15 @@ system::get_package_name() {
               brew)      echo "procps" ;;         # Homebrew? usually not needed
             esac
             ;;
+        Xvfb)
+            case "$pm" in
+                apt-get)   echo "xvfb" ;;
+                dnf|yum)   echo "xorg-x11-server-Xvfb" ;;
+                pacman)    echo "xorg-server-xvfb" ;;
+                apk)       echo "xvfb" ;;
+                brew)      echo "" ;;
+            esac
+            ;;
         *)
             # fallback: assume the package has the same name
             echo "$cmd"
@@ -126,34 +135,40 @@ system::install_pkg() {
         log::warning "No sudo available; running $pm commands as user"
     fi
   
+    local install_exit=0
     case "$pm" in
         apt-get)
             # prevent hanging on apt
-            timeout --kill-after=10s "${SYSTEM_INSTALL_TIMEOUT}"s ${prefix} apt-get update -qq
-            timeout --kill-after=10s "${SYSTEM_INSTALL_TIMEOUT}"s ${prefix} apt-get install -y -qq --no-install-recommends "$pkg"
+            timeout --kill-after=10s "${SYSTEM_INSTALL_TIMEOUT}"s ${prefix} apt-get update -qq 2>/dev/null
+            timeout --kill-after=10s "${SYSTEM_INSTALL_TIMEOUT}"s ${prefix} apt-get install -y -qq --no-install-recommends "$pkg" || install_exit=$?
             ;;
         dnf)
-            ${prefix} dnf install -y "$pkg"
+            ${prefix} dnf install -y "$pkg" || install_exit=$?
             ;;
         yum)
-            ${prefix} yum install -y "$pkg"
+            ${prefix} yum install -y "$pkg" || install_exit=$?
             ;;
         pacman)
-            ${prefix} pacman -Syu --noconfirm "$pkg"
+            ${prefix} pacman -Syu --noconfirm "$pkg" || install_exit=$?
             ;;
         apk)
-            ${prefix} apk update
-            ${prefix} apk add --no-cache "$pkg"
+            ${prefix} apk update 2>/dev/null
+            ${prefix} apk add --no-cache "$pkg" || install_exit=$?
           ;;
         brew)
-            brew install "$pkg"
+            brew install "$pkg" || install_exit=$?
             ;;
         *)
             log::error "Unsupported pkg manager: $pm"
-            exit 1
+            return 1
             ;;
     esac
-    
+
+    if [[ "$install_exit" -ne 0 ]]; then
+        log::error "Failed to install $pkg via $pm (exit code $install_exit)"
+        return 1
+    fi
+
     log::success "Installed $pkg via $pm"
 }
 
@@ -236,12 +251,12 @@ system::check_and_install() {
     if [[ "$cmd" == "yq" ]]; then
         if ! system::install_yq_binary; then
              log::error "Could not install $cmd using binary download method—please install it manually."
-             exit "${ERROR_DEPENDENCY_MISSING}"
+             exit "${EXIT_DEPENDENCY_ERROR:-6}"
         fi
     else
         if ! system::install_pkg "$cmd"; then
             log::error "Could not install $cmd using package manager—please install it manually."
-            exit "${ERROR_DEPENDENCY_MISSING}"
+            exit "${EXIT_DEPENDENCY_ERROR:-6}"
         fi
     fi
   
@@ -250,7 +265,7 @@ system::check_and_install() {
     else
         # This case should ideally be caught by the specific install functions' error handling
         log::error "Installation of $cmd was reported as successful, but the command is still not found."
-        exit "${ERROR_DEPENDENCY_MISSING}"
+        exit "${EXIT_DEPENDENCY_ERROR:-6}"
     fi
 }
 

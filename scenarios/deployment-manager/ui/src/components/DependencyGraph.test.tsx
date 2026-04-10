@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock component for dependency visualization
@@ -28,11 +28,11 @@ describe('Dependency Graph Component', () => {
 
   it('[REQ:DM-P0-037] should render dependency graph', () => {
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <MockDependencyGraph />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('dependency-graph')).toBeInTheDocument();
@@ -50,11 +50,11 @@ describe('Dependency Graph Component', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <NodesComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('node-1')).toBeInTheDocument();
@@ -71,11 +71,11 @@ describe('Dependency Graph Component', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <CircularDepComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('circular-warning')).toBeInTheDocument();
@@ -91,11 +91,11 @@ describe('Dependency Graph Component', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <SwapSuggestionsComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('swap-suggestions')).toBeInTheDocument();
@@ -124,11 +124,11 @@ describe('Fitness Score Display', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <FitnessScoreComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('fitness-score')).toBeInTheDocument();
@@ -148,11 +148,11 @@ describe('Fitness Score Display', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <SubscoresComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('subscores')).toBeInTheDocument();
@@ -169,11 +169,11 @@ describe('Fitness Score Display', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <BlockerComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('blockers')).toBeInTheDocument();
@@ -191,11 +191,11 @@ describe('Fitness Score Display', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <ResourcesComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('resources')).toBeInTheDocument();

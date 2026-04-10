@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +14,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/recycler"
 	"github.com/ecosystem-manager/api/pkg/settings"
+	"github.com/ecosystem-manager/api/pkg/steering"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
@@ -23,18 +22,10 @@ import (
 type taskExecution struct {
 	taskID    string
 	agentTag  string
-	runID     string    // agent-manager run ID for StopRun calls
-	cmd       *exec.Cmd // Deprecated: only used for legacy fallback, nil when using agent-manager
+	runID     string // agent-manager run ID for StopRun calls
 	started   time.Time
 	timeoutAt time.Time // When this execution will timeout
 	timedOut  bool      // Whether timeout has already occurred
-}
-
-func (te *taskExecution) pid() int {
-	if te == nil || te.cmd == nil || te.cmd.Process == nil {
-		return 0
-	}
-	return te.cmd.Process.Pid
 }
 
 // getRunID returns the agent-manager run ID, empty if not set
@@ -47,12 +38,7 @@ func (te *taskExecution) getRunID() string {
 
 // getRunIDForTask returns the agent-manager run ID for a task, empty if not found
 func (qp *Processor) getRunIDForTask(taskID string) string {
-	qp.executionsMu.RLock()
-	defer qp.executionsMu.RUnlock()
-	if exec, ok := qp.executions[taskID]; ok {
-		return exec.getRunID()
-	}
-	return ""
+	return qp.registry.GetRunIDForTask(taskID)
 }
 
 // stopRunViaAgentManager stops a run using agent-manager by task ID
@@ -93,12 +79,11 @@ type Processor struct {
 	isPaused    bool // Added for maintenance state awareness
 	stopChannel chan bool
 	wakeCh      chan struct{}
-	storage     *tasks.Storage
+	storage     tasks.StorageAPI
 	assembler   *prompts.Assembler
 
-	// Live task executions keyed by task ID
-	executions   map[string]*taskExecution
-	executionsMu sync.RWMutex
+	// Execution registry for tracking running tasks (interface for testability)
+	registry ExecutionRegistryAPI
 
 	// Root of the Vrooli workspace for resource CLI commands
 	vrooliRoot string
@@ -113,13 +98,10 @@ type Processor struct {
 	broadcast chan<- any
 
 	// Rate limit pause management
-	rateLimitPaused bool
-	pauseUntil      time.Time
-	pauseMutex      sync.Mutex
+	rateLimiter *RateLimiter
 
-	// Task log buffers for streaming execution logs
-	taskLogs      map[string]*TaskLogBuffer
-	taskLogsMutex sync.RWMutex
+	// Task log buffering and persistence
+	taskLogger *TaskLogger
 
 	// Bookkeeping for queue activity
 	lastProcessedMu sync.RWMutex
@@ -133,14 +115,31 @@ type Processor struct {
 	// Auto Steer integration for multi-dimensional improvement
 	autoSteerIntegration *AutoSteerIntegration
 
-	// Recycler to trigger recycling on task completion/failure
-	recycler *recycler.Recycler
+	// Recycler to trigger recycling on task completion/failure (interface for testability)
+	recycler recycler.RecyclerAPI
 
 	// Centralized task coordinator for lifecycle + side effects orchestration.
 	coord *tasks.Coordinator
 
-	// Agent manager service for delegating agent execution
-	agentSvc *agentmanager.AgentService
+	// Agent manager service for delegating agent execution (interface for testability)
+	agentSvc agentmanager.AgentServiceAPI
+
+	// Execution manager for task execution lifecycle (Phase 3.1 extraction)
+	executionManager *ExecutionManager
+
+	// History manager for execution history persistence (Phase 3.2 extraction)
+	historyManager *HistoryManager
+
+	// Insight manager for insight report generation and persistence (Phase 3.3 extraction)
+	insightManager *InsightManager
+
+	// Timeout watchdog for enforcing task timeouts
+	watchdog *TimeoutWatchdog
+
+	// Execution limit tracking (runtime only, not persisted)
+	executionsCompletedMu sync.Mutex
+	executionsCompleted   int
+	executionLimitReached bool
 
 	// Lifecycle control for background workers
 	ctx    context.Context
@@ -154,59 +153,174 @@ type slotSnapshot struct {
 	Available int
 }
 
-// NewProcessor creates a new queue processor
-func NewProcessor(storage *tasks.Storage, assembler *prompts.Assembler, broadcast chan<- any, recycler *recycler.Recycler) *Processor {
+// ProcessorDeps contains all dependencies for the Processor.
+// Using a deps struct allows for clean dependency injection and testability.
+type ProcessorDeps struct {
+	// Required dependencies
+	Storage   tasks.StorageAPI
+	Assembler *prompts.Assembler
+	Broadcast chan<- any
+
+	// Optional dependencies - if nil, defaults will be created
+	Registry         ExecutionRegistryAPI
+	AgentSvc         agentmanager.AgentServiceAPI
+	Recycler         recycler.RecyclerAPI
+	RateLimiter      *RateLimiter
+	TaskLogger       *TaskLogger
+	SteeringRegistry steering.RegistryAPI
+
+	// Configuration
+	VrooliRoot   string
+	ScenarioRoot string
+	TaskLogsDir  string
+}
+
+// NewProcessor creates a new queue processor with explicit dependencies.
+// Background workers are NOT started - call Start() after construction.
+func NewProcessor(deps ProcessorDeps) *Processor {
 	ctx, cancel := context.WithCancel(context.Background())
-	processor := &Processor{
-		stopChannel: make(chan bool),
-		wakeCh:      make(chan struct{}, 1),
-		storage:     storage,
-		assembler:   assembler,
-		executions:  make(map[string]*taskExecution),
-		broadcast:   broadcast,
-		taskLogs:    make(map[string]*TaskLogBuffer),
-		recycler:    recycler,
-		ctx:         ctx,
-		cancel:      cancel,
+
+	// Derive paths if not provided
+	vrooliRoot := deps.VrooliRoot
+	if vrooliRoot == "" {
+		vrooliRoot = paths.DetectVrooliRoot()
+	}
+	scenarioRoot := deps.ScenarioRoot
+	if scenarioRoot == "" && deps.Storage != nil {
+		scenarioRoot = filepath.Dir(deps.Storage.GetQueueDir())
+	}
+	taskLogsDir := deps.TaskLogsDir
+	if taskLogsDir == "" && deps.Storage != nil {
+		taskLogsDir = filepath.Join(deps.Storage.GetQueueDir(), "..", "logs", "task-runs")
 	}
 
-	processor.vrooliRoot = paths.DetectVrooliRoot()
-	processor.scenarioRoot = filepath.Dir(storage.QueueDir)
-	processor.taskLogsDir = filepath.Join(storage.QueueDir, "..", "logs", "task-runs")
-	if err := os.MkdirAll(processor.taskLogsDir, 0o755); err != nil {
-		log.Printf("Warning: unable to create task logs directory %s: %v", processor.taskLogsDir, err)
+	// Create default implementations for optional dependencies
+	registry := deps.Registry
+	if registry == nil {
+		registry = NewExecutionRegistry()
 	}
 
-	// Initialize agent-manager service
-	processor.agentSvc = agentmanager.NewAgentService(agentmanager.Config{
+	rateLimiter := deps.RateLimiter
+	if rateLimiter == nil {
+		rateLimiter = NewRateLimiter(deps.Broadcast)
+	}
+
+	taskLogger := deps.TaskLogger
+	if taskLogger == nil && taskLogsDir != "" {
+		taskLogger = NewTaskLogger(taskLogsDir, deps.Broadcast)
+	}
+
+	// Create HistoryManager first (shared by Processor and ExecutionManager)
+	historyManager := NewHistoryManager(taskLogsDir)
+
+	// Create the processor
+	p := &Processor{
+		stopChannel:    make(chan bool, 1), // Buffered to prevent deadlock when Stop() holds mutex
+		wakeCh:         make(chan struct{}, 1),
+		storage:        deps.Storage,
+		assembler:      deps.Assembler,
+		registry:       registry,
+		broadcast:      deps.Broadcast,
+		rateLimiter:    rateLimiter,
+		taskLogger:     taskLogger,
+		recycler:       deps.Recycler,
+		agentSvc:       deps.AgentSvc,
+		historyManager: historyManager,
+		ctx:            ctx,
+		cancel:         cancel,
+		vrooliRoot:     vrooliRoot,
+		scenarioRoot:   scenarioRoot,
+		taskLogsDir:    taskLogsDir,
+	}
+
+	// Create ExecutionManager with shared dependencies (including HistoryManager)
+	p.executionManager = NewExecutionManager(ExecutionManagerDeps{
+		Storage:          deps.Storage,
+		Assembler:        deps.Assembler,
+		AgentSvc:         deps.AgentSvc,
+		Registry:         registry,
+		TaskLogger:       taskLogger,
+		Broadcast:        deps.Broadcast,
+		SteeringRegistry: deps.SteeringRegistry,
+		HistoryManager:   historyManager,
+		// AutoSteerIntegration is set separately via SetAutoSteerIntegration
+		TaskLogsDir: taskLogsDir,
+	})
+
+	// Wire up callbacks
+	p.executionManager.SetWakeFunc(p.Wake)
+	p.executionManager.SetFinalizeFunc(p.finalizeTaskStatus)
+
+	// Create InsightManager with shared dependencies
+	p.insightManager = NewInsightManager(InsightManagerDeps{
+		TaskLogsDir:    taskLogsDir,
+		HistoryManager: historyManager,
+		AgentSvc:       deps.AgentSvc,
+		Assembler:      deps.Assembler,
+		Storage:        deps.Storage,
+	})
+
+	return p
+}
+
+// NewProcessorWithDefaults creates a processor with default implementations for all optional dependencies.
+// This is the convenience constructor for production use that mirrors the original behavior.
+// Background workers ARE started automatically for backward compatibility.
+func NewProcessorWithDefaults(storage tasks.StorageAPI, assembler *prompts.Assembler, broadcast chan<- any, rec recycler.RecyclerAPI) *Processor {
+	vrooliRoot := paths.DetectVrooliRoot()
+
+	// Create agent service with default config
+	agentSvc := agentmanager.NewAgentService(agentmanager.Config{
 		TaskProfileKey:     "ecosystem-manager-tasks",
 		InsightsProfileKey: "ecosystem-manager-insights",
 		Timeout:            30 * time.Second,
-		VrooliRoot:         processor.vrooliRoot,
+		VrooliRoot:         vrooliRoot,
 	})
 
-	// Initialize agent profiles (non-blocking, log warnings)
-	go func() {
-		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		if err := processor.agentSvc.Initialize(initCtx); err != nil {
-			log.Printf("[agent-manager] Warning: failed to initialize profiles: %v", err)
-		}
-	}()
+	processor := NewProcessor(ProcessorDeps{
+		Storage:   storage,
+		Assembler: assembler,
+		Broadcast: broadcast,
+		Recycler:  rec,
+		AgentSvc:  agentSvc,
+	})
 
-	// Clean up orphaned processes
-	processor.cleanupOrphanedProcesses()
-
-	// Clean up old temporary prompt files
-	go processor.cleanupOldPromptFiles()
-
-	// Reconcile any stale in-progress tasks left behind from previous runs
-	go processor.initialInProgressReconcile()
-
-	// Start timeout enforcement watchdog (defense-in-depth)
-	go processor.timeoutEnforcementWatchdog()
+	// Initialize background workers for backward compatibility
+	processor.InitializeWorkers()
 
 	return processor
+}
+
+// InitializeWorkers sets up and starts all background workers.
+// This should be called after construction when using NewProcessor directly.
+// NewProcessorWithDefaults calls this automatically.
+// Note: This does NOT start the main processLoop - call Start() separately for that.
+func (qp *Processor) InitializeWorkers() {
+	// Initialize agent profiles (non-blocking, log warnings)
+	if qp.agentSvc != nil {
+		go func() {
+			initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := qp.agentSvc.Initialize(initCtx); err != nil {
+				log.Printf("[agent-manager] Warning: failed to initialize profiles: %v", err)
+			}
+		}()
+	}
+
+	// Clean up orphaned processes
+	qp.cleanupOrphanedProcesses()
+
+	// Clean up old temporary prompt files
+	go qp.cleanupOldPromptFiles()
+
+	// Reconcile any stale in-progress tasks left behind from previous runs
+	go qp.initialInProgressReconcile()
+
+	// Create and start timeout enforcement watchdog (defense-in-depth)
+	if qp.watchdog == nil && qp.registry != nil && qp.agentSvc != nil {
+		qp.watchdog = NewTimeoutWatchdog(qp.registry, qp.agentSvc)
+		qp.watchdog.Start()
+	}
 }
 
 // SetCoordinator injects a central coordinator for lifecycle-aware transitions.
@@ -244,12 +358,16 @@ func (qp *Processor) startTaskExecution(task *tasks.TaskItem, currentStatus stri
 		}
 	} else if currentStatus != "in-progress" {
 		lc := tasks.Lifecycle{Store: qp.storage}
-		var err error
-		task, err = lc.StartPending(task.ID, ctx)
+		outcome, err := lc.ApplyTransition(tasks.TransitionRequest{
+			TaskID:            task.ID,
+			ToStatus:          tasks.StatusInProgress,
+			TransitionContext: ctx,
+		})
 		if err != nil {
 			return fmt.Errorf("start pending task %s: %w", task.ID, err)
 		}
-		previousStatus = "pending"
+		task = outcome.Task
+		previousStatus = outcome.From
 	}
 
 	agentIdentifier := makeAgentTag(task.ID)
@@ -277,6 +395,10 @@ func (qp *Processor) startTaskExecution(task *tasks.TaskItem, currentStatus stri
 // This must be called after the processor is created but before processing starts
 func (qp *Processor) SetAutoSteerIntegration(integration *AutoSteerIntegration) {
 	qp.autoSteerIntegration = integration
+	// Propagate to ExecutionManager
+	if qp.executionManager != nil {
+		qp.executionManager.SetAutoSteerIntegration(integration)
+	}
 	log.Println("✅ Auto Steer integration configured for queue processor")
 	systemlog.Info("Auto Steer integration enabled")
 }
@@ -284,6 +406,17 @@ func (qp *Processor) SetAutoSteerIntegration(integration *AutoSteerIntegration) 
 // AutoSteerIntegration returns the configured Auto Steer integration, if any.
 func (qp *Processor) AutoSteerIntegration() *AutoSteerIntegration {
 	return qp.autoSteerIntegration
+}
+
+// SetSteeringRegistry sets the steering registry for unified steering strategy dispatch.
+// This must be called after the processor is created but before processing starts.
+func (qp *Processor) SetSteeringRegistry(registry steering.RegistryAPI) {
+	// Propagate to ExecutionManager (steering is handled there)
+	if qp.executionManager != nil {
+		qp.executionManager.SetSteeringRegistry(registry)
+	}
+	log.Println("✅ Steering registry configured for queue processor")
+	systemlog.Info("Steering registry enabled")
 }
 
 // Start begins the queue processing loop
@@ -296,6 +429,7 @@ func (qp *Processor) Start() {
 		return
 	}
 
+	qp.resetExecutionCounter()
 	qp.isRunning = true
 	go qp.processLoop()
 	qp.Wake()
@@ -311,9 +445,7 @@ func (qp *Processor) Stop() {
 		return
 	}
 
-	qp.executionsMu.RLock()
-	runningCount := len(qp.executions)
-	qp.executionsMu.RUnlock()
+	runningCount := qp.registry.Count()
 
 	qp.stopChannel <- true
 	qp.isRunning = false
@@ -326,6 +458,9 @@ func (qp *Processor) Stop() {
 
 // Shutdown stops background workers and should be called during full application teardown.
 func (qp *Processor) Shutdown() {
+	if qp.watchdog != nil {
+		qp.watchdog.Stop()
+	}
 	qp.cancel()
 }
 
@@ -354,6 +489,14 @@ func (qp *Processor) ForceStartTask(taskID string, allowOverflow bool) error {
 		return fmt.Errorf("task id required")
 	}
 
+	// Respect processor state: don't start tasks when paused or inactive
+	if qp.IsPaused() {
+		return fmt.Errorf("processor is paused")
+	}
+	if !settings.IsActive() {
+		return fmt.Errorf("processor is inactive")
+	}
+
 	// Prevent duplicate launches
 	if qp.IsTaskRunning(taskID) {
 		return nil
@@ -373,9 +516,12 @@ func (qp *Processor) ForceStartTask(taskID string, allowOverflow bool) error {
 	}
 
 	externalActive := qp.getExternalActiveTaskIDs()
+	intent := tasks.IntentManual
+	if allowOverflow {
+		intent = tasks.IntentReconcile // Use reconcile intent to bypass constraints when overflow is allowed
+	}
 	return qp.startTaskExecution(task, status, externalActive, tasks.TransitionContext{
-		Intent:        tasks.IntentManual,
-		ForceOverride: allowOverflow,
+		Intent: intent,
 	})
 }
 
@@ -391,8 +537,12 @@ func (qp *Processor) StartTaskIfSlotAvailable(taskID string) error {
 
 	qp.mu.Lock()
 	isRunning := qp.isRunning
+	isPaused := qp.isPaused
 	qp.mu.Unlock()
-	if !isRunning {
+	if !isRunning || isPaused {
+		return nil
+	}
+	if !settings.IsActive() {
 		return nil
 	}
 
@@ -428,6 +578,31 @@ func (qp *Processor) Wake() {
 	case qp.wakeCh <- struct{}{}:
 	default:
 	}
+}
+
+// GetSlotSnapshot returns the current slot availability.
+// Implements SchedulerAPI.
+func (qp *Processor) GetSlotSnapshot() SlotSnapshot {
+	externalActive := qp.getExternalActiveTaskIDs()
+	internalRunning := qp.getInternalRunningTaskIDs()
+	snap := qp.computeSlotSnapshot(internalRunning, externalActive)
+	return SlotSnapshot(snap)
+}
+
+// IsRunning returns whether the processor is currently running.
+// Implements SchedulerAPI.
+func (qp *Processor) IsRunning() bool {
+	qp.mu.Lock()
+	defer qp.mu.Unlock()
+	return qp.isRunning
+}
+
+// IsPaused returns whether the processor is in maintenance mode.
+// Implements SchedulerAPI.
+func (qp *Processor) IsPaused() bool {
+	qp.mu.Lock()
+	defer qp.mu.Unlock()
+	return qp.isPaused
 }
 
 // processLoop is the main queue processing loop
@@ -466,34 +641,15 @@ func (qp *Processor) ProcessQueue() {
 		return
 	}
 
-	// Check if rate limit paused
-	qp.pauseMutex.Lock()
-	if qp.rateLimitPaused {
-		if time.Now().Before(qp.pauseUntil) {
-			remaining := time.Until(qp.pauseUntil)
-			log.Printf("⏸️ Queue paused due to rate limit. Resuming in %v", remaining.Round(time.Second))
-			qp.pauseMutex.Unlock()
-
-			// Broadcast pause status
-			qp.broadcastUpdate("rate_limit_pause", map[string]any{
-				"paused":         true,
-				"pause_until":    qp.pauseUntil.Format(time.RFC3339),
-				"remaining_secs": int(remaining.Seconds()),
-			})
-			return
-		} else {
-			// Pause has expired, resume processing
-			qp.rateLimitPaused = false
-			qp.pauseUntil = time.Time{}
-			log.Printf("✅ Rate limit pause expired. Resuming queue processing.")
-
-			// Broadcast resume
-			qp.broadcastUpdate("rate_limit_resume", map[string]any{
-				"paused": false,
-			})
-		}
+	// Check if execution limit has been reached
+	if qp.ExecutionLimitReached() {
+		return
 	}
-	qp.pauseMutex.Unlock()
+
+	// Check if rate limit paused (includes auto-expiration and broadcasting)
+	if status := qp.rateLimiter.CheckLimit(); status.IsPaused {
+		return
+	}
 
 	qp.setLastProcessed(time.Now())
 
@@ -577,12 +733,22 @@ func (qp *Processor) ProcessQueue() {
 }
 
 func (qp *Processor) finalizeTaskStatus(task *tasks.TaskItem, toStatus string) error {
+	preTransitionPhase := ""
+	if task != nil {
+		preTransitionPhase = task.CurrentPhase
+	}
+
 	// Persist latest task payload to its current bucket so ApplyTransition sees updated fields (results, metadata).
-	currentStatus := task.Status
-	if strings.TrimSpace(currentStatus) == "" {
-		if status, err := qp.storage.CurrentStatus(task.ID); err == nil {
-			currentStatus = status
-		}
+	// IMPORTANT: Always query disk for the real location. The in-memory task.Status may have been changed
+	// by callers (e.g., handleSteeringContinuation sets it to "pending" while the file is still in
+	// in-progress/). Using the wrong directory creates a duplicate that the subsequent no-op transition
+	// never cleans up.
+	currentStatus := ""
+	if status, err := qp.storage.CurrentStatus(task.ID); err == nil {
+		currentStatus = status
+	}
+	if currentStatus == "" {
+		currentStatus = task.Status
 	}
 	if currentStatus == "" {
 		currentStatus = toStatus
@@ -656,7 +822,40 @@ func (qp *Processor) finalizeTaskStatus(task *tasks.TaskItem, toStatus string) e
 		qp.recycler.Enqueue(task.ID)
 	}
 
+	// Track execution count for completed execution outcomes and check execution limit.
+	// This includes successful requeues (to pending with completed phase) and finalized buckets.
+	if shouldCountExecution(toStatus, preTransitionPhase) {
+		if qp.incrementExecutionCount() {
+			go func() {
+				qp.Stop()
+				s := settings.GetSettings()
+				s.Active = false
+				settings.UpdateSettings(s)
+				if err := settings.SaveToDisk(); err != nil {
+					log.Printf("Failed to persist settings after execution limit reached: %v", err)
+				}
+				qp.broadcastUpdate("execution_limit_reached", map[string]any{
+					"executions_completed": qp.ExecutionsCompleted(),
+					"execution_limit":      s.ExecutionLimit,
+				})
+				log.Printf("Execution limit reached (%d tasks); processor auto-stopped", s.ExecutionLimit)
+			}()
+		}
+	}
+
 	return nil
+}
+
+func shouldCountExecution(toStatus, preTransitionPhase string) bool {
+	switch toStatus {
+	case tasks.StatusCompleted, tasks.StatusFailed, tasks.StatusCompletedFinalized, tasks.StatusFailedBlocked:
+		return true
+	case tasks.StatusPending:
+		// Successful steering continuation requeues to pending after a completed execution.
+		return preTransitionPhase == tasks.StatusCompleted
+	default:
+		return false
+	}
 }
 
 // cleanupOldPromptFiles removes temporary prompt files older than 24 hours from /tmp
@@ -697,59 +896,6 @@ func (qp *Processor) cleanupOldPromptFiles() {
 	}
 }
 
-// timeoutEnforcementWatchdog monitors for tasks that have exceeded their timeout
-// This provides defense-in-depth backup enforcement if context.WithTimeout fails
-// or if cleanup/finalization failures leave tasks stuck in executions map
-func (qp *Processor) timeoutEnforcementWatchdog() {
-	ticker := time.NewTicker(scaleDuration(TimeoutWatchdogInterval))
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			qp.enforceTimeouts()
-		case <-qp.ctx.Done():
-			return
-		}
-	}
-}
-
-// enforceTimeouts checks all tracked executions and forcibly terminates timed-out tasks
-func (qp *Processor) enforceTimeouts() {
-	qp.executionsMu.RLock()
-	timedOutTasks := make([]struct {
-		taskID   string
-		agentTag string
-		pid      int
-	}, 0)
-
-	for taskID, exec := range qp.executions {
-		if exec.isTimedOut() {
-			timedOutTasks = append(timedOutTasks, struct {
-				taskID   string
-				agentTag string
-				pid      int
-			}{
-				taskID:   taskID,
-				agentTag: exec.agentTag,
-				pid:      exec.pid(),
-			})
-		}
-	}
-	qp.executionsMu.RUnlock()
-
-	if len(timedOutTasks) == 0 {
-		return
-	}
-
-	log.Printf("⏰ WATCHDOG: Detected %d timed-out tasks still in executions, forcing termination", len(timedOutTasks))
-	systemlog.Warnf("Timeout watchdog detected %d stuck tasks - forcing termination", len(timedOutTasks))
-
-	for _, task := range timedOutTasks {
-		qp.forceTerminateTimedOutTask(task.taskID, task.agentTag, task.pid)
-	}
-}
-
 // computeSlotSnapshot centralizes slot accounting for scheduler and manual starts.
 func (qp *Processor) computeSlotSnapshot(internalRunning, externalActive map[string]struct{}) slotSnapshot {
 	running := len(internalRunning)
@@ -776,22 +922,39 @@ func (qp *Processor) computeSlotSnapshot(internalRunning, externalActive map[str
 	}
 }
 
-// forceTerminateTimedOutTask forcibly terminates a task that exceeded its timeout
-// This is called by the watchdog when it detects a task stuck in executions after timeout
-func (qp *Processor) forceTerminateTimedOutTask(taskID, agentTag string, pid int) {
-	log.Printf("WATCHDOG: Force terminating timed-out task %s (agent: %s)", taskID, agentTag)
-	systemlog.Warnf("Timeout watchdog forcing termination of task %s", taskID)
+// ExecutionsCompleted returns the current execution count since last start/reset.
+func (qp *Processor) ExecutionsCompleted() int {
+	qp.executionsCompletedMu.Lock()
+	defer qp.executionsCompletedMu.Unlock()
+	return qp.executionsCompleted
+}
 
-	// Stop via agent-manager (primary path)
-	if err := qp.stopRunViaAgentManager(taskID); err != nil {
-		log.Printf("WARNING: Watchdog agent-manager stop failed for task %s: %v", taskID, err)
-		systemlog.Warnf("Watchdog agent-manager stop failed for %s: %v", taskID, err)
+// ExecutionLimitReached returns whether the execution limit has been hit.
+func (qp *Processor) ExecutionLimitReached() bool {
+	qp.executionsCompletedMu.Lock()
+	defer qp.executionsCompletedMu.Unlock()
+	return qp.executionLimitReached
+}
+
+// resetExecutionCounter resets the execution counter and limit-reached flag.
+func (qp *Processor) resetExecutionCounter() {
+	qp.executionsCompletedMu.Lock()
+	defer qp.executionsCompletedMu.Unlock()
+	qp.executionsCompleted = 0
+	qp.executionLimitReached = false
+}
+
+// incrementExecutionCount increments the counter and returns true if the limit was just reached.
+func (qp *Processor) incrementExecutionCount() bool {
+	limit := settings.GetSettings().ExecutionLimit
+	qp.executionsCompletedMu.Lock()
+	defer qp.executionsCompletedMu.Unlock()
+	qp.executionsCompleted++
+	if limit > 0 && qp.executionsCompleted >= limit && !qp.executionLimitReached {
+		qp.executionLimitReached = true
+		return true
 	}
-
-	// Unregister execution
-	qp.unregisterExecution(taskID)
-	log.Printf("WATCHDOG: Terminated and unregistered timed-out task %s", taskID)
-	systemlog.Infof("Watchdog successfully terminated timed-out task %s", taskID)
+	return false
 }
 
 // UpdateAgentProfiles propagates current settings to agent-manager profiles.

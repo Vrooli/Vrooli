@@ -1,0 +1,13 @@
+{
+  "kind": "team-member",
+  "schemaVersion": 1,
+  "teamId": "scenario-qa",
+  "agentId": "quality-auditor",
+  "roles": [
+    "architectural-auditor"
+  ],
+  "status": "active",
+  "revision": 1,
+  "createdAt": "2026-04-07T00:00:00Z",
+  "updatedAt": "2026-04-07T00:00:00Z"
+}

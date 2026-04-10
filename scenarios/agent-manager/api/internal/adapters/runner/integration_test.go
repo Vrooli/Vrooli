@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 
@@ -465,6 +464,3 @@ func findRepoRoot(t *testing.T) string {
 	t.Skip("unable to locate repo root (AGENTS.md not found)")
 	return ""
 }
-
-// Compile check - ensure event package is imported
-var _ = event.NewMemoryStore

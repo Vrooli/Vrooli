@@ -1,0 +1,82 @@
+== Phase 1: HTTP Client Files (after refactor) ==
+  84 tidiness_manager_client.go    (was 178, -53%)
+  50 test_genie_client.go          (was 143, -65%)
+  72 auditor_client.go             (was 172, -58%)
+ 135 browser_automation_client.go   (was 227, -41%)
+ 352 agent_manager_client.go        (was 397, -11%)
+ 693 total                          (was 1117, -38%)
+
+NEW: httpclient.go (156 lines) — shared BaseClient
+
+== Phase 5: Split Large Files (after refactor) ==
+main.go:                     241 lines (was 1363, -82%)
+  -> routes.go:              128 lines
+
+git_runner.go:               260 lines (was 1149, -77%)
+  -> git_runner_core.go:     307 lines
+  -> git_runner_branch.go:   260 lines
+  -> git_runner_remote.go:   186 lines
+  -> git_runner_history.go:  191 lines
+
+diff_service.go:             344 lines (was 763, -55%)
+  -> diff_helpers.go:        165 lines
+
+visual_capture_storage.go:   312 lines (was 649, -52%)
+  -> visual_capture_storage_utils.go:     159 lines
+  -> visual_capture_storage_workflow.go:  194 lines
+
+agent_manager_model.go:      279 lines (was 607, -54%)
+  -> agent_manager_model_api.go:      178 lines
+  -> agent_manager_model_convert.go:  185 lines
+
+== Test Files (after refactor) ==
+review_handler_test.go:          695 lines (was 1355, -49%)
+git_runner_fake_test.go:         889 lines (was 997, -11%)
+diff_service_test.go:            794 lines (was 794, unchanged)
+agent_manager_client_test.go:    791 lines (was 779, +2%)
+visual_capture_service_test.go:  695 lines (was 634, +10%)
+visual_capture_storage_test.go:  482 lines (was 486, -1%)
+gitignore_health_service_test.go:441 lines (was 441, unchanged)
+sync_status_service_test.go:     407 lines (was 407, unchanged)
+
+NEW: git_runner_fake_helpers_test.go (125 lines)
+
+== Top 25 Files by Size ==
+ 889 git_runner_fake_test.go
+ 794 diff_service_test.go
+ 791 agent_manager_client_test.go
+ 695 visual_capture_service_test.go
+ 695 review_handler_test.go
+ 693 review_handler_detail_test.go
+ 482 visual_capture_storage_test.go
+ 441 gitignore_health_service_test.go
+ 407 sync_status_service_test.go
+ 354 staging_service_test.go
+ 352 agent_manager_client.go
+ 348 push_pull_service.go
+ 345 gitignore_health_service.go
+ 344 diff_service.go
+ 341 credentials_store.go
+ 333 browser_automation_client_test.go
+ 332 scenario_envelope_test.go
+ 326 visual_capture_handler.go
+ 319 repo_service.go
+ 318 workflow_capture_service.go
+ 312 visual_capture_storage.go
+ 307 git_runner_core.go
+ 307 content_search_service.go
+ 303 diff_parse.go
+
+== Scanner Files (unchanged) ==
+ 60 filerelations/languages/golang/scanner.go
+ 58 filerelations/languages/python/scanner.go
+ (No scan_imports.go abstraction created)
+
+== Tech Debt Markers ==
+ 0 TODO markers found in ui/src/
+
+== Build & Test Results ==
+Build: PASS (go build ./...)
+Tests: PASS (go test ./... -timeout 300s)
+ - git-control-tower: ok (2.363s)
+ - git-control-tower/ssh: ok (0.003s)

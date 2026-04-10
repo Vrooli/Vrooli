@@ -78,7 +78,24 @@ export class UploadHandler extends BaseHandler {
       const timeout = validateTimeout(params.timeoutMs, DEFAULT_TIMEOUT_MS, 'uploadfile');
 
       // Determine the actual file path(s) to upload - single file or array
-      const filePath = filePaths.length === 1 ? filePaths[0] : filePaths;
+      let filePath: string | string[];
+      if (filePaths.length === 1) {
+        const singlePath = filePaths[0];
+        if (!singlePath) {
+          return {
+            success: false,
+            error: {
+              message: 'uploadfile instruction missing filePath parameter',
+              code: 'MISSING_PARAM',
+              kind: 'orchestration',
+              retryable: false,
+            },
+          };
+        }
+        filePath = singlePath;
+      } else {
+        filePath = filePaths;
+      }
 
       // Generate operation key from selector + file path
       const fileKey = Array.isArray(filePath) ? filePath.sort().join(':') : filePath;

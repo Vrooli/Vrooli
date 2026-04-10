@@ -1,14 +1,13 @@
 # 🖥️ Scenario-to-Desktop
 
-> **Two modes available:**
-> - **Thin Client** (UI only) - Bundles UI; connects to running Tier 1 server
-> - **Bundled App** (offline) - Full offline package with UI + API + runtime. Use `deployment-manager deploy-desktop` for the automated pipeline.
+> **Bundled Offline Mode is the strongly recommended default.**
+> Creates complete offline desktop applications with all services bundled - no server required.
 
-Transform Vrooli scenarios into desktop applications. scenario-to-desktop generates Electron wrappers that can either connect to a remote Vrooli server (thin client) or run completely offline with bundled services (bundled mode).
+Transform Vrooli scenarios into professional desktop applications. scenario-to-desktop generates Electron wrappers with full offline capability using the bundled runtime supervisor.
 
-## Bundled Desktop Apps (Recommended)
+## Bundled Desktop Apps (Recommended Default)
 
-For complete offline desktop applications, use the **deployment-manager** orchestration:
+**This is the recommended approach for most scenarios.** Creates complete offline desktop applications:
 
 ```bash
 # Create a deployment profile
@@ -21,27 +20,38 @@ deployment-manager deploy-desktop --profile my-profile
 This handles:
 - Bundle manifest generation with dependency swaps
 - Cross-compilation of API binaries for all platforms
-- Electron wrapper generation
+- Electron wrapper generation with runtime supervisor
 - Platform installers (Windows/macOS/Linux)
-- Runtime supervisor bundling
+- Automatic service health monitoring and restart
+- Secret management and secure configuration
 
 See [Hello Desktop Tutorial](../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md) for a complete walkthrough.
 
-## Thin Client Mode (Connect to Server)
+### Why Bundled Mode?
+- **Complete offline operation** - users don't need internet or server access
+- **Self-contained** - all services, databases, and resources bundled inside
+- **Professional experience** - automatic service management, health checks, and recovery
+- **Easy distribution** - single installer file, works anywhere
 
-For UI-only builds that connect to a running Vrooli server:
+## Thin Client Mode (Alternative)
+
+For scenarios where multiple users need to share a backend, or you want smaller installers:
+
+**When to use thin client:**
+- Multiple users connecting to the same server
+- Real-time data sharing between users
+- You already have infrastructure running
 
 **Limitations:**
-- **UI-only bundles** – copies `ui/dist` assets into the Electron wrapper
 - **Requires server** – API and resources must run elsewhere
-- **Secrets on server** – auth/session traffic forwards to running scenario
 - **No offline mode** – requires network connection to server
+- **UI-only bundles** – copies `ui/dist` assets into the Electron wrapper
 
 ## Thin-Client Workflow (connect to your Vrooli server)
 
-> **New:** The scenario-to-desktop UI now generates wrappers, runs `npm install/build/dist` for Windows/macOS/Linux, and ingests telemetry directly. The manual steps below are still useful for debugging or when you need to script the process yourself.
+> **Note:** Bundled mode is now the recommended default. Use thin client only when you specifically need multiple users connecting to a shared server.
 
-Thin clients are just remote controls for the full Vrooli stack that is already running your scenario. Until bundling lands, desktop builds must follow this routine:
+Thin clients are remote controls for a Vrooli stack running your scenario elsewhere:
 
 1. **Confirm `vrooli` exists on the host running the scenario.** Run `vrooli --version`. If missing, install it and run `./scripts/manage.sh setup --yes yes` once.
 2. **Start the scenario** with `vrooli scenario start <name>` (or `make start`). Wait until `vrooli scenario status <name>` reports healthy.
@@ -98,6 +108,14 @@ scenario-to-desktop telemetry collect \
 
 The API stores the events under `.vrooli/deployment/telemetry/picker-wheel.jsonl`, giving deployment-manager and scenario-dependency-analyzer a single source of truth for how thin clients behave in the wild.
 
+### Preflight Validation (Bundled Mode)
+
+Preflight spins up the bundled runtime control API to validate manifests, secrets, readiness, ports, and telemetry before packaging.
+
+- **Default behavior**: Dry-run runtime starts, services stay stopped, and the API queries `/validate`, `/readyz`, `/ports`, `/telemetry`.
+- **Start services**: Set `start_services=true` to launch services and capture readiness plus optional log tails.
+- **Sessions**: When services are started, a preflight session (in-memory) is created with a TTL. Use `session_id` to refresh status, and `session_stop=true` to clean up early.
+
 ### Installer outputs and updater channels
 
 **Default installer formats** (optimized for cross-platform builds on Linux):
@@ -109,29 +127,30 @@ The API stores the events under `.vrooli/deployment/telemetry/picker-wheel.jsonl
 | **Windows** | NSIS | `Setup.exe` | Standard installer, works via Wine |
 | **macOS** | ZIP | `.zip` | Contains `.app` bundle, user drags to Applications |
 
-> **Why these formats?** NSIS and ZIP can be built on Linux via Wine, enabling single-machine cross-platform builds. For DMG/PKG/MSI installers, use macOS/Windows CI runners. See [Cross-Platform Builds Guide](docs/CROSS_PLATFORM_BUILDS.md) for details.
+> **Why these formats?** NSIS and ZIP can be built on Linux via Wine, enabling single-machine cross-platform builds. For DMG/PKG/MSI installers, use macOS/Windows CI runners. See [Cross-Platform Builds Guide](docs/guides/cross-platform-builds.md) for details.
 
 - **Channel intent**: Auto-update hooks remain off by default. When you wire a publish target, stick to three channels (`dev`, `beta`, `stable`) and publish per-platform artifacts with signatures; the runtime/Electron wrapper should only enable updates when a channel URL and signing material are configured.
 - **Bundled mode impact**: Offline bundles will initially rely on manual installer refreshes; differential updates stay on the roadmap. Until then, treat each installer as a full reinstall and keep telemetry enabled so deployment-manager can flag upgrade pain.
 
 ### Generator UI Upgrades
 
-- **Deployment intent picker** highlights Thin Client (ready today) vs Cloud API / Bundled (stubs). Selecting anything other than Thin Client surfaces a "coming soon" warning so builders don’t think offline bundles ship yet.
-- **Server strategy select** lets you choose between external, static, embedded Node, or executable launches. External remains the golden path; the others stay available for experiments.
-- **Proxy connection group** captures the Cloudflare/app-monitor URL right inside the Web UI, shows detected hints, and lets you test the proxy before building. You can also opt-in to have the desktop wrapper run `vrooli setup/start/stop` per build.
-- **Scenario inventory button** now expands into the same mini wizard, so "Generate Desktop" can’t happen without forcing a conscious deployment choice.
+- **Deployment intent picker** defaults to Bundled mode (recommended) with Thin Client available for shared-server scenarios. Cloud API remains a future stub.
+- **Server strategy select** lets you choose between bundled (recommended), external, static, embedded Node, or executable launches.
+- **Bundled mode workflow** guides you through the deployment-manager pipeline for complete offline packages.
+- **Proxy connection group** (for thin client) captures the Cloudflare/app-monitor URL, shows detected hints, and lets you test the proxy before building.
+- **Scenario inventory button** expands into the deployment wizard, defaulting to bundled mode.
 
 ## 📚 Documentation
 - Docs manifest for UI tab: `docs/manifest.json`
-- Start here: `docs/QUICKSTART.md` and `docs/deployment-modes.md`
-- **Cross-platform builds: `docs/CROSS_PLATFORM_BUILDS.md`** - Build formats, Wine setup, CI/CD recommendations
-- Builds and troubleshooting: `docs/build-and-packaging.md`, `docs/DEBUGGING_WINDOWS.md`, `docs/WINE_INSTALLATION.md`
-- Feature cookbook: `docs/desktop-integration-guide.md`
-- Telemetry/ops: `docs/telemetry.md`
+- Start here: `docs/QUICKSTART.md` and `docs/concepts/deployment-modes.md`
+- **Cross-platform builds: `docs/guides/cross-platform-builds.md`** - Build formats, Wine setup, CI/CD recommendations
+- Builds and troubleshooting: `docs/guides/build-and-packaging.md`, `docs/guides/debugging-windows.md`, `docs/guides/wine-installation.md`
+- Feature cookbook: `docs/guides/desktop-integration.md`
+- Telemetry/ops: `docs/reference/telemetry.md`
 
 ## 🎯 Overview
 
-scenario-to-desktop is a **permanent intelligence capability** for packaging scenarios. In v1 it focuses on rapid thin clients with native menus and distribution scaffolding. Offline capability, auto-updates, and bundled resources are roadmap items coordinated through the deployment hub.
+scenario-to-desktop is a **permanent intelligence capability** for packaging scenarios as professional desktop applications. The recommended approach is **bundled mode**, which creates complete offline applications with all services included. Thin client mode remains available for shared-server scenarios.
 
 ### Core Value Proposition
 
@@ -164,35 +183,42 @@ scenario-to-desktop/
 
 ## 🚀 Quick Start
 
-1) **Start the scenario with lifecycle**  
+### Bundled Desktop Apps (Recommended)
+
+```bash
+# Create a deployment profile
+deployment-manager profile create my-profile my-scenario --tier 2
+
+# Build everything (binaries, Electron wrapper, installers)
+deployment-manager deploy-desktop --profile my-profile
+```
+
+This creates complete offline desktop installers for Windows, macOS, and Linux.
+
+See [Hello Desktop Tutorial](../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md) for a complete walkthrough.
+
+### Thin Client Mode (Alternative)
+
+For shared-server scenarios:
+
+1) **Start scenario-to-desktop**
 ```bash
 cd scenarios/scenario-to-desktop
-make start        # preferred; or: vrooli scenario start scenario-to-desktop
+make start
 ```
 
-2) **Open the UI → Scenario Inventory**  
-Paste the LAN or Cloudflare/app-monitor proxy URL for the target scenario, keep `Deployment Mode = Thin Client`, pick platforms (Win/macOS/Linux), and click **Generate Desktop**.
+2) **Open the UI → Scenario Inventory**
+Select `Deployment Mode = Thin Client`, paste the proxy URL, pick platforms, and click **Generate Desktop**.
 
-3) **Download installers + telemetry**  
-Built artifacts stay listed after refresh; collect `deployment-telemetry.jsonl` via the UI or `scenario-to-desktop telemetry collect`.
+3) **Download installers**
+Built artifacts stay listed; collect telemetry via the UI or CLI.
 
-4) **Stop when done**  
+4) **Stop when done**
 ```bash
-make stop   # or: vrooli scenario stop scenario-to-desktop
+make stop
 ```
 
-CLI-only/manual config example:
-```bash
-scenario-to-desktop generate <scenario> \
-  --deployment-mode external-server \
-  --server-type external \
-  --server-url https://app-monitor.<domain>/apps/<scenario>/proxy/ \
-  --api-url https://app-monitor.<domain>/apps/<scenario>/proxy/api/ \
-  --auto-manage-vrooli=false
-```
-
-Full walkthroughs: see `docs/QUICKSTART.md` and `docs/deployment-modes.md`.
-```
+Full walkthroughs: see `docs/QUICKSTART.md` and `docs/concepts/deployment-modes.md`.
 
 ### 4. Build Desktop Packages
 
@@ -230,8 +256,8 @@ npm run dist:win    # Build Windows MSI installer
 
 ### 5. Windows builds (pointer)
 
-- For Windows builds on Linux, follow `docs/WINE_INSTALLATION.md` for a no-sudo Wine setup.
-- For runtime/build troubleshooting on Windows, see `docs/DEBUGGING_WINDOWS.md`.
+- For Windows builds on Linux, follow `docs/guides/wine-installation.md` for a no-sudo Wine setup.
+- For runtime/build troubleshooting on Windows, see `docs/guides/debugging-windows.md`.
 
 ### 6. Development and Testing
 
@@ -316,7 +342,7 @@ ssh -L 4444:localhost:37842 user@server
 # Set SERVER_PATH to http://localhost:4444/apps/picker-wheel/
 ```
 
-Until deployment-manager lands, **desktop builds = glorified browsers** that rely on one of these reachability patterns.
+For thin client mode, your desktop app connects to the server using one of these reachability patterns.
 
 
 ## 💼 Use Cases & Examples
@@ -919,9 +945,9 @@ cd ui && npm install && npm start
 - [PRD.md](./PRD.md) - Comprehensive product requirements
 - **[Desktop Wrapper Guide](./templates/DESKTOP_WRAPPER_GUIDE.md) - Universal wrapper principles and patterns** ⭐ **NEW**
 - [Templates README](./templates/README.md) - Template system details
-- [API Documentation](./api/README.md) - REST API reference
-- [CLI Reference](./cli/README.md) - Command-line usage
-- [Build Tools](./templates/build-tools/README.md) - Generation system
+- [API Documentation](./docs/guides/desktop-integration.md) - REST API reference
+- [CLI Reference](./docs/QUICKSTART.md) - Command-line usage
+- [Build Tools](./docs/guides/build-and-packaging.md) - Generation system
 
 ## 💡 Examples Gallery
 
@@ -939,7 +965,7 @@ cd ui && npm install && npm start
 
 ## 🔗 Links
 
-- **Homepage**: https://vrooli.com/scenarios/scenario-to-desktop
+- **Homepage**: https://github.com/Vrooli/Vrooli
 - **Documentation**: https://docs.vrooli.com/scenarios/scenario-to-desktop
 - **API Reference**: Check allocated port via `vrooli scenario status scenario-to-desktop`
 - **Web Interface**: Check allocated port via `vrooli scenario status scenario-to-desktop`
@@ -948,8 +974,8 @@ cd ui && npm install && npm start
 
 ---
 
-**Built with ❤️ by the [Vrooli Platform](https://vrooli.com)**
+**Built with ❤️ by the [Vrooli Platform](https://github.com/Vrooli/Vrooli)**
 
 *scenario-to-desktop is part of Vrooli's recursive intelligence system, where every capability built becomes a permanent tool for building even more advanced capabilities. Each desktop app generated contributes to the ever-expanding intelligence of the platform.*
 
-**Version**: 1.0.0 | **Status**: Thin-client + bundled (deployment-manager pipeline); cloud mode stubbed | **License**: MIT
+**Version**: 1.0.0 | **Status**: Bundled offline mode (recommended default) + thin-client mode; cloud mode stubbed | **License**: MIT

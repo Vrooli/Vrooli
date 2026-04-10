@@ -115,7 +115,7 @@ func (aco *AutoCampaignOrchestrator) CreateAutoCampaign(scenario string, maxSess
 	var vtCampaignID int
 	if err == nil && vtCampaign != nil {
 		// Parse campaign ID (assuming it's numeric)
-		fmt.Sscanf(vtCampaign.ID, "%d", &vtCampaignID)
+		_, _ = fmt.Sscanf(vtCampaign.ID, "%d", &vtCampaignID)
 	}
 
 	// Insert campaign record
@@ -347,7 +347,8 @@ func (aco *AutoCampaignOrchestrator) RecordCampaignError(campaignID int, errorRe
 // scanCampaign scans a campaign row into an AutoCampaign struct
 func scanCampaign(scanner interface {
 	Scan(dest ...interface{}) error
-}) (*AutoCampaign, error) {
+},
+) (*AutoCampaign, error) {
 	campaign := &AutoCampaign{}
 	var completedAt sql.NullTime
 

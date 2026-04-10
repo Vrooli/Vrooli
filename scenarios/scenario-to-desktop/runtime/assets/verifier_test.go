@@ -31,13 +31,13 @@ func TestEnsureAssets(t *testing.T) {
 		asset1Path := filepath.Join(bundleDir, "assets", "file1.txt")
 		asset2Path := filepath.Join(bundleDir, "assets", "file2.txt")
 
-		if err := os.MkdirAll(filepath.Dir(asset1Path), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(asset1Path), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(asset1Path, asset1Content, 0644); err != nil {
+		if err := os.WriteFile(asset1Path, asset1Content, 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(asset2Path, asset2Content, 0644); err != nil {
+		if err := os.WriteFile(asset2Path, asset2Content, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -82,7 +82,7 @@ func TestVerifyAsset(t *testing.T) {
 
 		content := []byte("test content")
 		assetPath := filepath.Join(bundleDir, "test.txt")
-		if err := os.WriteFile(assetPath, content, 0644); err != nil {
+		if err := os.WriteFile(assetPath, content, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -100,7 +100,7 @@ func TestVerifyAsset(t *testing.T) {
 		bundleDir := t.TempDir()
 
 		dirPath := filepath.Join(bundleDir, "somedir")
-		if err := os.Mkdir(dirPath, 0755); err != nil {
+		if err := os.Mkdir(dirPath, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
@@ -121,7 +121,7 @@ func TestVerifyAssetChecksum(t *testing.T) {
 
 		content := []byte("checksummed content")
 		assetPath := filepath.Join(bundleDir, "checksummed.txt")
-		if err := os.WriteFile(assetPath, content, 0644); err != nil {
+		if err := os.WriteFile(assetPath, content, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -145,7 +145,7 @@ func TestVerifyAssetChecksum(t *testing.T) {
 
 		content := []byte("actual content")
 		assetPath := filepath.Join(bundleDir, "checksummed.txt")
-		if err := os.WriteFile(assetPath, content, 0644); err != nil {
+		if err := os.WriteFile(assetPath, content, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -169,7 +169,7 @@ func TestVerifyAssetChecksum(t *testing.T) {
 
 		content := []byte("test")
 		assetPath := filepath.Join(bundleDir, "test.txt")
-		if err := os.WriteFile(assetPath, content, 0644); err != nil {
+		if err := os.WriteFile(assetPath, content, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -196,7 +196,7 @@ func TestCheckAssetSizeBudget(t *testing.T) {
 	t.Run("accepts exact size", func(t *testing.T) {
 		content := make([]byte, 1000)
 		assetPath := filepath.Join(bundleDir, "exact.bin")
-		if err := os.WriteFile(assetPath, content, 0644); err != nil {
+		if err := os.WriteFile(assetPath, content, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -218,7 +218,7 @@ func TestCheckAssetSizeBudget(t *testing.T) {
 		actual := int64(10.5 * 1024 * 1024)
 		content := make([]byte, actual)
 		assetPath := filepath.Join(bundleDir, "slack.bin")
-		if err := os.WriteFile(assetPath, content, 0644); err != nil {
+		if err := os.WriteFile(assetPath, content, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -240,7 +240,7 @@ func TestCheckAssetSizeBudget(t *testing.T) {
 		actual := int64(15 * 1024 * 1024)
 		content := make([]byte, actual)
 		assetPath := filepath.Join(bundleDir, "oversized.bin")
-		if err := os.WriteFile(assetPath, content, 0644); err != nil {
+		if err := os.WriteFile(assetPath, content, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -262,7 +262,7 @@ func TestCheckAssetSizeBudget(t *testing.T) {
 		actual := int64(2 * 1024 * 1024)
 		content := make([]byte, actual)
 		assetPath := filepath.Join(bundleDir, "small.bin")
-		if err := os.WriteFile(assetPath, content, 0644); err != nil {
+		if err := os.WriteFile(assetPath, content, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -284,7 +284,7 @@ func TestCheckAssetSizeBudget(t *testing.T) {
 		actual := int64(5 * 1024 * 1024)
 		content := make([]byte, actual)
 		assetPath := filepath.Join(bundleDir, "half.bin")
-		if err := os.WriteFile(assetPath, content, 0644); err != nil {
+		if err := os.WriteFile(assetPath, content, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -357,7 +357,7 @@ func TestVerifyAssetWithSizeAndChecksum(t *testing.T) {
 
 	content := []byte("complete asset verification test content")
 	assetPath := filepath.Join(bundleDir, "verified.bin")
-	if err := os.WriteFile(assetPath, content, 0644); err != nil {
+	if err := os.WriteFile(assetPath, content, 0o644); err != nil {
 		t.Fatal(err)
 	}
 

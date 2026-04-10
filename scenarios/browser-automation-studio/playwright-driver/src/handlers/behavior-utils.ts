@@ -128,7 +128,8 @@ export function getBehaviorFromContext(context: HandlerContext): HumanBehavior |
  * Useful when you have direct access to BrowserContext but not HandlerContext.
  */
 export function getBehaviorFromBrowserContext(browserContext: BrowserContext): HumanBehavior | null {
-  const settings = (browserContext as any)[BEHAVIOR_SETTINGS_KEY] as BehaviorSettings | undefined;
+  type BehaviorContext = BrowserContext & { [BEHAVIOR_SETTINGS_KEY]?: BehaviorSettings };
+  const settings = (browserContext as BehaviorContext)[BEHAVIOR_SETTINGS_KEY];
   if (!settings) return null;
   const behavior = new HumanBehavior(settings);
   return behavior.isEnabled() ? behavior : null;
@@ -203,8 +204,7 @@ export async function executeHumanScroll(
   if (!behavior) {
     await page.evaluate(
       ([x, y]) => {
-        // @ts-expect-error - window is available in browser context
-        window.scrollTo(x, y);
+        window.scrollTo(x ?? 0, y ?? 0);
       },
       [targetX, targetY]
     );
@@ -212,12 +212,10 @@ export async function executeHumanScroll(
   }
 
   // Get current scroll position
-  const currentPosition = await page.evaluate(() => ({
-    // @ts-expect-error - window is available in browser context
-    x: window.scrollX || window.pageXOffset,
-    // @ts-expect-error - window is available in browser context
-    y: window.scrollY || window.pageYOffset,
-  }));
+    const currentPosition = await page.evaluate(() => ({
+      x: window.scrollX || window.pageXOffset,
+      y: window.scrollY || window.pageYOffset,
+    }));
 
   const deltaX = targetX - currentPosition.x;
   const deltaY = targetY - currentPosition.y;
@@ -228,8 +226,7 @@ export async function executeHumanScroll(
   if (totalDistance < SCROLL_CLOSE_ENOUGH_THRESHOLD_PX) {
     await page.evaluate(
       ([x, y]) => {
-        // @ts-expect-error - window is available in browser context
-        window.scrollTo(x, y);
+        window.scrollTo(x ?? 0, y ?? 0);
       },
       [targetX, targetY]
     );
@@ -297,10 +294,9 @@ export async function executeSmoothScroll(
   // Use native smooth scroll
   await page.evaluate(
     ([x, y]) => {
-      // @ts-expect-error - window is available in browser context
       window.scrollTo({
-        left: x,
-        top: y,
+        left: x ?? 0,
+        top: y ?? 0,
         behavior: 'smooth',
       });
     },
@@ -309,9 +305,7 @@ export async function executeSmoothScroll(
 
   // Wait for scroll to complete (approximate based on distance)
   const currentPosition = await page.evaluate(() => ({
-    // @ts-expect-error - window is available in browser context
     x: window.scrollX || window.pageXOffset,
-    // @ts-expect-error - window is available in browser context
     y: window.scrollY || window.pageYOffset,
   }));
 
@@ -382,6 +376,9 @@ export async function moveMouseNaturally(
   // Move along path
   for (let i = 1; i < path.length; i++) {
     const point = path[i];
+    if (!point) {
+      continue;
+    }
     await page.mouse.move(point.x, point.y);
     if (stepDuration > 0 && i < path.length - 1) {
       await sleep(stepDuration);

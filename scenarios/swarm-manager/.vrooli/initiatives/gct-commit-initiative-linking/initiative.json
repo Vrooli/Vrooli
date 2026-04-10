@@ -1,0 +1,13 @@
+{
+  "name": "gct-commit-initiative-linking",
+  "title": "GCT Commit-Initiative Linking",
+  "description": "Namespaced git trailer system (Vrooli-Initiative, Vrooli-Backlog, Vrooli-Continues) linking commits to Swarm Manager initiatives. Enhances the 'continue' UX with auto-populated trailers. Optional Swarm Manager integration for initiative enrichment with graceful degradation.",
+  "status": "active",
+  "items": [
+    "research/gct-trailer-system-design",
+    "execute/gct-trailer-support",
+    "execute/gct-swarm-manager-integration"
+  ],
+  "created": "2026-04-06T18:43:38Z",
+  "updated": "2026-04-06T18:43:38Z"
+}

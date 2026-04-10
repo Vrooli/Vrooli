@@ -1,0 +1,127 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-08T14:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "File length threshold for splitting",
+      "context": "The GCT review flags files \u003e500 lines. We have 46 Go files and 24 TS/TSX files exceeding this. Some files are slightly over (500-600 lines) and splitting them may create unnecessary churn. We need to decide where to draw the line for mandatory splitting vs. leaving alone.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Split everything over 500 lines (match GCT threshold exactly)",
+          "rationale": "Maximizes violation count reduction. Every split directly reduces the long_files count. But some 500-600 line files may not benefit structurally from splitting."
+        },
+        {
+          "key": "B",
+          "label": "Split files over 700 lines, leave 500-700 for opportunistic cleanup",
+          "rationale": "Focuses effort on the worst offenders (30+ Go files, 10+ TS/TSX files above 700). The 500-700 range files may naturally shrink when complex functions are extracted in Phase 3. Recommended because it maximizes impact per effort and avoids unnecessary churn on borderline files.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own threshold or approach"
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "React component decomposition strategy",
+      "context": "The largest frontend files are GeneratorForm.tsx (979 lines), pipelineStore.ts (878 lines), SigningPage.tsx (687 lines), and PreflightSection.tsx (624 lines). These are structurally different: GeneratorForm is a monolithic form, pipelineStore is a Zustand store with polling logic, SigningPage and PreflightSection are page-level components with multiple sections.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Extract sub-components and custom hooks",
+          "rationale": "Split GeneratorForm into section sub-components (e.g., GeneratorFormHeader, GeneratorFormConfig, GeneratorFormActions). Extract polling/rate-limiting logic from pipelineStore into separate utility hooks. Recommended because it follows React best practices and reduces both line count and complexity.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Extract only custom hooks, keep components intact",
+          "rationale": "Move reusable logic into hooks but keep component structure unchanged. Less disruptive but may not bring files below threshold."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": ""
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Go complexity reduction technique priority",
+      "context": "100 complex_functions violations exist, concentrated in orchestrator.go (28 functions), service.go files, and handler files. Common complexity patterns in this codebase: deeply nested switch/case in state machines, multi-step error handling chains, and large conditional blocks in pipeline stages.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Early returns + guard clauses first, then extract helpers",
+          "rationale": "Flatten nesting with early returns as the primary technique, then extract remaining complex blocks into named helper functions. Recommended because early returns are the lowest-risk refactor (no new functions to wire up) and often sufficient alone to drop cyclomatic complexity below threshold.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Extract helper functions first, then simplify remaining logic",
+          "rationale": "Pull out cohesive blocks into well-named helpers, reducing each function's line count and complexity. More structural change but creates better-named abstractions."
+        },
+        {
+          "key": "C",
+          "label": "Table-driven refactoring for switch/case heavy functions",
+          "rationale": "Replace large switch statements with map lookups or table-driven dispatch. Effective for state machines but may reduce readability for unfamiliar maintainers."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Handling the cli/pipeline/commands.go file (1,581 lines)",
+      "context": "This is the 3rd largest Go file and lives in the cli/ directory, not api/. It contains CLI command definitions for the pipeline. The acceptance_allow pattern covers scenarios/scenario-to-desktop/** which includes cli/. This file was not called out in the plan's key offenders table.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Split by command group (e.g., commands_run.go, commands_status.go, commands_config.go)",
+          "rationale": "CLI commands naturally group by subcommand. Splitting by group keeps related code together and is a clean structural decomposition. Recommended because CLI command files are the easiest to split — each command is self-contained.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Defer to Phase 2 but deprioritize vs. api/ files",
+          "rationale": "Focus effort on api/ and runtime/ first since they have more violations. Address cli/ only if time permits."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The validation report flagged two missing items in plan.md: (1) no greenfield declaration — since this is pure refactoring with no backward compatibility concerns, a greenfield declaration is appropriate, and (2) no `vrooli scenario restart` final cleanup step in the rollout checklist. Both will be added to the updated plan."
+    }
+  ],
+  "plan_updates": "Incorporated all round 1 decisions into plan. Added greenfield declaration. Added `vrooli scenario restart` to rollout checklist. Expanded Implementation Strategy with concrete file lists per phase. Added cli/ files to scope. Refined testing plan with phase-specific validation."
+}

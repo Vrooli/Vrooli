@@ -1,0 +1,16 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "bundle-integration-steer",
+  "name": "Bundle Integration Steer",
+  "modes": [
+    "steer",
+    "architecture"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "defaultScope": "architecture-scope",
+  "revision": 1,
+  "createdAt": "2026-03-22T12:00:00Z",
+  "updatedAt": "2026-03-22T12:00:00Z"
+}

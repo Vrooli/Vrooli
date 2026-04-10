@@ -1,0 +1,208 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "readiness": "boolean",
+          "dependencies": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "vrooli-onboarding status"
+      }
+    },
+    {
+      "id": "list-resources",
+      "path": "/api/v1/resources",
+      "method": "GET",
+      "summary": "List all Vrooli resources",
+      "description": "Returns all available resources with status and category information",
+      "category": "resources",
+      "response": {
+        "type": "object",
+        "properties": {
+          "resources": "array",
+          "count": "number",
+          "loaded_at": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "List resources",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/resources"
+        }
+      ]
+    },
+    {
+      "id": "get-resource",
+      "path": "/api/v1/resources/{name}",
+      "method": "GET",
+      "summary": "Get a single resource by name",
+      "description": "Returns detailed information for a specific resource",
+      "category": "resources",
+      "response": {
+        "type": "object",
+        "properties": {
+          "name": "string",
+          "status": "string",
+          "category": "string",
+          "installed": "string",
+          "last_updated": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Get postgres resource",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/resources/postgres"
+        }
+      ]
+    },
+    {
+      "id": "get-progress",
+      "path": "/api/v1/progress",
+      "method": "GET",
+      "summary": "Get onboarding progress",
+      "description": "Returns current onboarding progress for a user",
+      "category": "progress",
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "number",
+          "user_id": "string",
+          "current_step": "number",
+          "completed_steps": "array",
+          "config_data": "object",
+          "updated_at": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Get default user progress",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/progress"
+        }
+      ]
+    },
+    {
+      "id": "update-progress",
+      "path": "/api/v1/progress",
+      "method": "PUT",
+      "summary": "Update onboarding progress",
+      "description": "Save or update onboarding progress for a user",
+      "category": "progress",
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "number",
+          "user_id": "string",
+          "current_step": "number",
+          "completed_steps": "array",
+          "config_data": "object",
+          "updated_at": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Update progress",
+          "curl": "curl -X PUT http://localhost:${API_PORT}/api/v1/progress -H 'Content-Type: application/json' -d '{\"current_step\": 2, \"completed_steps\": [0, 1], \"config_data\": {}}'"
+        }
+      ]
+    },
+    {
+      "id": "generate-config",
+      "path": "/api/v1/config/generate",
+      "method": "POST",
+      "summary": "Generate service configuration",
+      "description": "Generate a service.json snippet from selected resources",
+      "category": "config",
+      "response": {
+        "type": "object",
+        "properties": {
+          "config": "object",
+          "warnings": "array"
+        }
+      },
+      "examples": [
+        {
+          "name": "Generate config for postgres and redis",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/config/generate -H 'Content-Type: application/json' -d '{\"resources\": [\"postgres\", \"redis\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "validate-config",
+      "path": "/api/v1/config/validate",
+      "method": "POST",
+      "summary": "Validate service configuration",
+      "description": "Validate a configuration against known resource requirements and dependencies",
+      "category": "config",
+      "response": {
+        "type": "object",
+        "properties": {
+          "valid": "boolean",
+          "results": "array"
+        }
+      },
+      "examples": [
+        {
+          "name": "Validate config",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/config/validate -H 'Content-Type: application/json' -d '{\"resources\": {\"postgres\": {\"enabled\": true, \"name\": \"postgres\"}}}'"
+        }
+      ]
+    },
+    {
+      "id": "export-config",
+      "path": "/api/v1/config/export",
+      "method": "POST",
+      "summary": "Export configuration to filesystem",
+      "description": "Write validated configuration to disk with automatic backup of existing config",
+      "category": "config"
+    },
+    {
+      "id": "resource-health",
+      "path": "/api/v1/resources/health",
+      "method": "GET",
+      "summary": "Get resource health status",
+      "description": "Returns real-time health/availability status for all resources",
+      "category": "resources"
+    },
+    {
+      "id": "setup-order",
+      "path": "/api/v1/setup-order",
+      "method": "GET",
+      "summary": "Get recommended setup order",
+      "description": "Returns resources sorted by dependency-aware recommended setup order",
+      "category": "resources"
+    },
+    {
+      "id": "glossary",
+      "path": "/api/v1/glossary",
+      "method": "GET",
+      "summary": "Technical term glossary",
+      "description": "Returns glossary entries mapping technical terms to plain language descriptions, with optional search",
+      "category": "documentation"
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    }
+  ]
+}

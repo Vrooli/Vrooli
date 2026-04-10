@@ -1,0 +1,29 @@
+{
+  "acceptance_allow": [
+    "scenarios/deployment-manager/api/**",
+    "scenarios/deployment-manager/ui/**",
+    "scenarios/deployment-manager/cli/**",
+    "scenarios/deployment-manager/docs/**"
+  ],
+  "archived_at": "2026-04-09T03:23:05Z",
+  "created": "2026-03-26T16:35:48Z",
+  "depends_on": [
+    "research/desktop-release-control-plane-audit"
+  ],
+  "description": "Replace the current deployment-manager visual-validation placeholder with a real validation-and-review path tied to desktop release approval.\n\nThe finished flow should let operators:\n- launch or attach visual validation for built desktop artifacts\n- inspect stored validation records and video evidence\n- approve or reject from the review flow\n- link review outcomes to the canonical deployment approval state instead of leaving validation as a disconnected warning step",
+  "effort": "L",
+  "initiative": "desktop-release-governance",
+  "kind": "execute",
+  "name": "deployment-manager-visual-validation-approval-flow",
+  "priority": 1,
+  "status": "completed",
+  "tags": [
+    "deployment-manager",
+    "visual-validation",
+    "approval-gating",
+    "video-review",
+    "desktop-release"
+  ],
+  "title": "Turn Visual Validation Into A Real Approval Flow",
+  "updated": "2026-04-09T03:23:05Z"
+}

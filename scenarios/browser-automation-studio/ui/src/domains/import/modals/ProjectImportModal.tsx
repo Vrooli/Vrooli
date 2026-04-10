@@ -20,6 +20,7 @@ import toast from 'react-hot-toast';
 
 import { ImportSourceSelector } from '../components/ImportSourceSelector';
 import { StatusBadge, AlertBox } from '../components/ValidationStatus';
+import { ValidationAccordion } from '../components/ValidationAccordion';
 import { useProjectImport, type InspectFolderResponse } from '../hooks/useProjectImport';
 import { getApiBase } from '../../../config';
 import type { ProjectImportModalProps, FolderEntry } from '../types';
@@ -71,10 +72,10 @@ export function ProjectImportModal({
     setPathValidationStatus('checking');
     debounceTimerRef.current = setTimeout(async () => {
       try {
-        const response = await fetch(`${getApiBase()}/fs/list-directories`, {
+        const response = await fetch(`${getApiBase()}/fs/scan`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: trimmed }),
+          body: JSON.stringify({ mode: 'projects', path: trimmed }),
         });
         setPathValidationStatus(response.ok ? 'valid' : 'invalid');
       } catch {
@@ -241,7 +242,7 @@ export function ProjectImportModal({
 
         {/* Content - scrollable */}
         <div className="px-6 pb-6 flex-1 overflow-y-auto min-h-0">
-          {!showPreview ? (
+          {!showPreview || !inspectResult ? (
             <SelectStep
               folderPath={folderPath}
               validationError={validationError}
@@ -256,7 +257,7 @@ export function ProjectImportModal({
             />
           ) : (
             <PreviewStep
-              inspectResult={inspectResult!}
+              inspectResult={inspectResult}
               name={name}
               description={description}
               isImporting={isImporting}
@@ -406,43 +407,29 @@ function PreviewStep({
         </p>
       </div>
 
-      {/* Status Badges */}
+      {/* Validation Accordion */}
       <div
-        className="flex flex-wrap gap-2 mb-5"
+        className="mb-5"
         data-testid={selectors.dialogs.projectImport.preview.section}
       >
-        <StatusBadge
-          success={inspectResult.has_bas_metadata}
-          label="Has project metadata"
-          warningLabel="No project metadata"
-        />
-        <StatusBadge
-          success={inspectResult.has_workflows}
-          label="Workflows detected"
-          warningLabel="No workflows found"
-        />
+        {inspectResult.validation ? (
+          <ValidationAccordion validation={inspectResult.validation} />
+        ) : (
+          /* Fallback for legacy API responses without validation */
+          <div className="flex flex-wrap gap-2">
+            <StatusBadge
+              success={inspectResult.has_bas_metadata}
+              label="Has project metadata"
+              warningLabel="No project metadata"
+            />
+            <StatusBadge
+              success={inspectResult.has_workflows}
+              label="Workflows detected"
+              warningLabel="No workflows found"
+            />
+          </div>
+        )}
       </div>
-
-      {/* Already indexed warning */}
-      {inspectResult.already_indexed && (
-        <AlertBox
-          type="warning"
-          title="Project already indexed"
-          message="This folder is already registered. Importing will return the existing project."
-          className="mb-5"
-          data-testid={selectors.dialogs.projectImport.preview.alreadyIndexedWarning}
-        />
-      )}
-
-      {/* Metadata error warning */}
-      {inspectResult.metadata_error && (
-        <AlertBox
-          type="warning"
-          title="Metadata parsing issue"
-          message={inspectResult.metadata_error}
-          className="mb-5"
-        />
-      )}
 
       {/* Name Input */}
       <div className="mb-4">

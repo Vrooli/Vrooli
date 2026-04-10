@@ -33,7 +33,7 @@ cat ~/.vrooli/service.json | jq '.services'
 vrooli setup
 
 # Install specific resources
-vrooli resource install ollama n8n agent-s2
+vrooli resource install ollama postgres
 
 # Install by category
 vrooli resource start-all  # Start all AI resources
@@ -335,57 +335,9 @@ curl http://localhost:1880/flows | jq .
 ```
 📖 **Details**: [resources/automation/node-red/README.md](../../resources/node-red/README.md)
 
-## Huginn - Agent-based Event Processing
-**Intelligent web monitoring and data aggregation**
-
-**Use Cases**:
-- Website change monitoring
-- Data scraping and aggregation
-- Intelligent alerts and notifications
-- RSS/feed processing
-
-**When to Use**: Web monitoring, content tracking, intelligent data collection  
-**Alternative**: Node-RED for real-time processing, n8n for API-based workflows
-
-**Quick Example**:
-```bash
-# Access Huginn interface
-open http://localhost:4111
-
-# Create monitoring agent via API
-curl -X POST http://localhost:4111/agents -d @agent_config.json
-```
-📖 **Details**: [resources/automation/huginn/README.md](../../resources/huginn/README.md)
-
 ---
 
 # 🤖 Agent Resources
-
-## Agent-S2 - Autonomous Screen Interaction
-**AI-powered desktop and web automation with visual reasoning**
-
-**Use Cases**:
-- Public website navigation (anti-bot handling)
-- Desktop application automation
-- Visual UI interaction and testing
-- Adaptive automation requiring decision-making
-
-**When to Use**: Public/complex websites, desktop apps, visual reasoning needed, unknown/changing interfaces  
-**Alternative**: Browserless for predictable/internal sites, direct APIs when available
-
-**Quick Example**:
-```bash
-# Take screenshot
-curl -X POST "http://localhost:4113/screenshot?format=png&response_format=binary" -o screenshot.png
-
-# Test with management script (recommended)
-resource-agent-s2 usage --usage-type screenshot
-
-# Core automation examples
-curl -X POST http://localhost:4113/mouse/click -d '{"x": 500, "y": 300}'
-curl -X POST http://localhost:4113/keyboard/type -d '{"text": "Hello World"}'
-```
-📖 **Details**: [resources/agents/agent-s2/README.md](../../resources/agent-s2/README.md)
 
 ## Browserless - Chrome-as-a-Service
 **Fast, lightweight web automation for trusted environments**
@@ -670,17 +622,6 @@ open http://localhost:1880  # Node-RED real-time dashboard
   }
 }
 ```
-
-## Resource Categories
-
-Install by logical groupings:
-- `ai-only` - All AI resources (ollama, whisper, comfyui)
-- `automation-only` - Workflow platforms (n8n, node-red, huginn)  
-- `agents-only` - Interaction agents (agent-s2, browserless, claude-code)
-- `search-only` - Search and information retrieval (searxng)
-- `storage-only` - Storage solutions (minio, questdb, vault, qdrant)
-- `essential` - Core set (ollama, n8n, agent-s2, minio, questdb)
-- `enabled` - Only enabled resources (default)
 
 ---
 

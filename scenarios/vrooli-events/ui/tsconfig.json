@@ -1,0 +1,19 @@
+{
+  /*
+   * SAFETY-CRITICAL RULES — DO NOT REMOVE OR WEAKEN
+   *
+   * DON'T: Use type assertions (as X) to bypass type checking
+   * UI crashes are the #1 production issue — strict types prevent them
+   *
+   * These settings are enforced by scenario-auditor.
+   */
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
+  },
+  "include": ["src", "vite.config.ts"],
+  "exclude": ["dist"]
+}

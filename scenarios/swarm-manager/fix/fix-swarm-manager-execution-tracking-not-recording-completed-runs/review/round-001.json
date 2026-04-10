@@ -1,0 +1,84 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-10T18:30:00Z",
+  "execution_id": "80790151aeefe87d",
+  "status": "complete",
+  "agent_assessment": "All four bugs from the plan are implemented and verified. Bug 1: agentactivity.Service now has a GetRunDiff method (line 120) that delegates to the inner differ, and the execution.NewService type assertion (service.go:247) correctly wires it. Bug 2: mapRunStatus (polling.go:250) resets ConsecutiveUnknown on known statuses and fails after maxConsecutiveUnknown (default 5) consecutive unknowns. Bug 3: refreshRunningLocked tracks ConsecutiveErrors (polling.go:141) with threshold of 30 and max-age timeout of 30 minutes (polling.go:120), both configurable via ServiceConfig. Bug 4: SelfScenarioName is explicitly set to \"swarm-manager\" in routes_execution.go:26. All 6 planned test functions exist in polling_test.go and cover the critical paths. go build and go test both pass cleanly across the entire swarm-manager API.",
+  "classification": "ready",
+  "notes": [
+    "Non-sandbox execution: diff shows 0 changed files, but all implementation verified by direct code inspection",
+    "All configurable thresholds have sensible defaults: 30 consecutive errors, 5 consecutive unknowns, 30 min max-age",
+    "runTracker map is correctly ephemeral (in-memory only, created/deleted in sync with execution records)"
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "type": "custom",
+      "title": "Bug 1: agentactivity.Service implements RunDiffer",
+      "description": "agentactivity/service.go:120-125 adds GetRunDiff method that delegates to s.differ (the inner agentmanager client). execution/service.go:247 performs type assertion cfg.AgentService.(RunDiffer) which now succeeds because agentactivity.Service has the method. TestNewService_DifferWired (polling_test.go:121) confirms differ is non-nil when AgentService implements RunDiffer.",
+      "verified": false
+    },
+    {
+      "id": "e2",
+      "type": "custom",
+      "title": "Bug 2: mapRunStatus handles unknown statuses with grace period",
+      "description": "polling.go:250-285 — mapRunStatus default case increments tracker.ConsecutiveUnknown, logs warning on first unknown, returns StatusRunning during grace period, and returns StatusFailed after maxConsecutiveUnknown (default 5) consecutive unknowns. All known statuses (pending, starting, running, needs_review, complete, failed, cancelled) reset ConsecutiveUnknown to 0. TestMapRunStatus_AllKnown and TestMapRunStatus_Unknown_GracePeriod verify this behavior.",
+      "verified": false
+    },
+    {
+      "id": "e3",
+      "type": "custom",
+      "title": "Bug 3: Staleness detection via consecutive errors and max-age",
+      "description": "polling.go:139-159 — GetRunState errors increment tracker.ConsecutiveErrors; after maxConsecutiveErrors (default 30, ~60s), run is marked StatusFailed with reason 'lost contact with agent-manager run'. polling.go:120-137 — max-age check fails runs exceeding maxRunAge (default 30 min). Successful polls reset ConsecutiveErrors to 0 (line 161). ServiceConfig fields MaxConsecutiveErrors, MaxConsecutiveUnknown, MaxRunAge are all configurable. TestPolling_ConsecutiveErrors, TestPolling_MaxAge, and TestPolling_ErrorReset all verify these paths.",
+      "verified": false
+    },
+    {
+      "id": "e4",
+      "type": "custom",
+      "title": "Bug 4: SelfScenarioName explicitly set",
+      "description": "routes_execution.go:26 sets SelfScenarioName: \"swarm-manager\" in the ServiceConfig, removing the fragile filepath.Base(rootDir) fallback dependency.",
+      "verified": false
+    },
+    {
+      "id": "e5",
+      "type": "cli_output",
+      "title": "go build passes for swarm-manager API",
+      "description": "cd scenarios/swarm-manager/api && go build ./... completed successfully with no errors.",
+      "verified": false,
+      "test_results": [
+        {"name": "go build ./...", "passed": true, "output_summary": "Clean build, no errors"}
+      ]
+    },
+    {
+      "id": "e6",
+      "type": "cli_output",
+      "title": "go test passes for swarm-manager API",
+      "description": "cd scenarios/swarm-manager/api && go test ./... -timeout 300s — all packages pass including internal/execution which contains the 6 new regression tests.",
+      "verified": false,
+      "test_results": [
+        {"name": "go test ./... (all packages)", "passed": true, "output_summary": "All packages pass, including internal/execution with 6 new polling tests"},
+        {"name": "TestMapRunStatus_AllKnown", "passed": true, "output_summary": "All known statuses map correctly; ConsecutiveUnknown resets to 0"},
+        {"name": "TestMapRunStatus_Unknown_GracePeriod", "passed": true, "output_summary": "Unknown status returns Running during grace, Failed after threshold"},
+        {"name": "TestNewService_DifferWired", "passed": true, "output_summary": "differ and inspector both non-nil with proper AgentService"},
+        {"name": "TestPolling_ConsecutiveErrors", "passed": true, "output_summary": "Run marked Failed after maxConsecutiveErrors"},
+        {"name": "TestPolling_MaxAge", "passed": true, "output_summary": "Run marked Failed after max-age timeout"},
+        {"name": "TestPolling_ErrorReset", "passed": true, "output_summary": "Successful poll resets consecutive error counter to 0"}
+      ]
+    }
+  ],
+  "request_threads": [],
+  "improvement_suggestions": [
+    {
+      "category": "test_coverage",
+      "description": "Add an integration test that exercises the full polling loop with a real (or in-memory) store: create a record in StatusRunning, mock inspector returning 'complete', call ProcessActiveExecutions, and verify the record transitions to StatusCompleted with FinishedAt set. Current unit tests validate individual functions but don't test the full orchestration path.",
+      "evidence_id": "e6",
+      "priority": "medium"
+    },
+    {
+      "category": "test_coverage",
+      "description": "Add a test for the RunDiffer forwarding in agentactivity.Service directly (not just the execution.NewService wiring). Verify that agentactivity.Service.GetRunDiff delegates to the inner client and returns errors correctly when differ is nil.",
+      "evidence_id": "e1",
+      "priority": "low"
+    }
+  ]
+}

@@ -21,6 +21,7 @@
  * DO NOT manually edit `selectors.manifest.json` - your changes will be overwritten!
  */
 
+// DOC: docs/concepts/ARCHITECTURE.md#ui-surface
 type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
 type LiteralNode = string | LiteralSelectorTree;
 
@@ -51,8 +52,11 @@ interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefine
   readonly selectorPattern?: string;
 }
 
+type AnyParamSchema = ParamSchema | undefined;
+type AnyDynamicSelectorDefinition = DynamicSelectorDefinition<AnyParamSchema>;
+
 type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
+  readonly [key: string]: DynamicSelectorBranch | AnyDynamicSelectorDefinition;
 };
 
 type DynamicSelectorTree = DynamicSelectorBranch;
@@ -84,7 +88,7 @@ type SelectorTreeResult<
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
 const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token) => {
+  template.replace(TEMPLATE_TOKEN, (_match: string, token: string) => {
     if (!(token in values)) {
       throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
     }
@@ -93,15 +97,18 @@ const formatTemplate = (template: string, values: Record<string, string | number
 
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
-  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition).kind === "dynamic-selector");
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isDynamicDefinition = (value: unknown): value is AnyDynamicSelectorDefinition =>
+  isRecord(value) && value.kind === "dynamic-selector";
 
 const normalizeParams = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: AnyDynamicSelectorDefinition,
   raw: Record<string, string | number>,
   path: string,
 ) => {
-  const schema = definition.params ?? ({} as ParamSchema);
+  const schema: ParamSchema = definition.params ?? {};
   const normalized: Record<string, string | number> = {};
 
   for (const key of Object.keys(schema)) {
@@ -109,7 +116,13 @@ const normalizeParams = (
       throw new Error(`Selector '${path}' is missing parameter '${key}'`);
     }
     const definitionEntry = schema[key];
+    if (!definitionEntry) {
+      throw new Error(`Selector '${path}' is missing parameter definition for '${key}'`);
+    }
     const value = raw[key];
+    if (value === undefined) {
+      throw new Error(`Selector '${path}' parameter '${key}' must be provided`);
+    }
     if (definitionEntry.type === "number") {
       if (typeof value !== "number") {
         throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
@@ -232,12 +245,13 @@ const mergeLiteralAndDynamicNodes = (
   return merged;
 };
 
-const createDynamicSelectorFn = (
-  definition: DynamicSelectorDefinition<any>,
+const createDynamicSelectorFn = <P extends ParamSchema | undefined>(
+  definition: DynamicSelectorDefinition<P>,
   path: string,
-) => {
-  return (params?: Record<string, string | number>) => {
-    const normalized = normalizeParams(definition, params ?? {}, path);
+): DynamicSelectorFn<P> => {
+  return (params?: ParamValues<P>) => {
+    const rawParams: Record<string, string | number> = { ...(params ?? {}) };
+    const normalized = normalizeParams(definition, rawParams, path);
     const template = definition.testIdPattern ?? definition.selectorPattern;
     if (!template) {
       throw new Error(`Selector '${path}' is missing both testIdPattern and selectorPattern`);
@@ -265,29 +279,39 @@ const createSelectorRegistry = <
   return { selectors, manifest };
 };
 
-const literalSelectors: LiteralSelectorTree = {
+const literalSelectors = {
   header: {
     title: "ko-header-title",
     statusBadge: "ko-status-badge",
     pageTitle: "ko-page-title",
+    mobileMenuButton: "ko-header-mobile-menu-button",
+    mobileMenuPanel: "ko-header-mobile-menu-panel",
   },
   nav: {
     dashboard: "ko-nav-dashboard",
     search: "ko-nav-search",
+    explorer: "ko-nav-explorer",
+    viewer: "ko-nav-viewer",
     graph: "ko-nav-graph",
     metrics: "ko-nav-metrics",
   },
   dashboard: {
     quickActions: "ko-dashboard-quick-actions",
     quickSearch: "ko-dashboard-quick-search",
+    quickSearchForm: "ko-dashboard-quick-search-form",
+    quickSearchMode: "ko-dashboard-quick-search-mode",
+    quickSearchInput: "ko-dashboard-quick-search-input",
+    quickSearchSubmit: "ko-dashboard-quick-search-submit",
     quickMetrics: "ko-dashboard-quick-metrics",
     quickGraph: "ko-dashboard-quick-graph",
     healthSection: "ko-health-section",
     healthRefresh: "ko-health-refresh",
     healthError: "ko-health-error",
     featureSearch: "ko-feature-search",
+    featureExplorer: "ko-feature-explorer",
     featureGraph: "ko-feature-graph",
     featureMetrics: "ko-feature-metrics",
+    activityFeed: "ko-dashboard-activity-feed",
     cliSection: "ko-cli-section",
   },
   search: {
@@ -301,6 +325,31 @@ const literalSelectors: LiteralSelectorTree = {
     resultsList: "ko-search-results",
     emptyState: "ko-search-empty",
     error: "ko-search-error",
+    modeSelector: "ko-search-mode-selector",
+    docSearchForm: "ko-doc-search-form",
+    docSearchQuery: "ko-doc-search-query",
+    docSearchPattern: "ko-doc-search-pattern",
+    docSearchScope: "ko-doc-search-scope",
+    docSearchScenario: "ko-doc-search-scenario",
+    docSearchBasePath: "ko-doc-search-base-path",
+    docSearchFileTypes: "ko-doc-search-file-types",
+    docSearchContextLines: "ko-doc-search-context-lines",
+    docSearchCaseSensitive: "ko-doc-search-case-sensitive",
+    docSearchIncludeContent: "ko-doc-search-include-content",
+    docSearchUseSemantic: "ko-doc-search-use-semantic",
+    docSearchSummary: "ko-doc-search-summary",
+    docSearchResults: "ko-doc-search-results",
+    docSearchEmpty: "ko-doc-search-empty",
+    docSearchError: "ko-doc-search-error",
+  },
+  deepSearch: {
+    form: "ko-deep-search-form",
+    input: "ko-deep-search-input",
+    submit: "ko-deep-search-submit",
+    clear: "ko-deep-search-clear",
+    status: "ko-deep-search-status",
+    results: "ko-deep-search-results",
+    error: "ko-deep-search-error",
   },
   metrics: {
     overall: "ko-metrics-overall",
@@ -310,19 +359,74 @@ const literalSelectors: LiteralSelectorTree = {
     summary: "ko-metrics-summary",
   },
   graph: {
+    container: "ko-graph-container",
+    form: "ko-graph-form",
+    centerInput: "ko-graph-center-input",
+    collectionInput: "ko-graph-collection-input",
+    visibilityInput: "ko-graph-visibility-input",
+    namespacesInput: "ko-graph-namespaces-input",
+    tagsInput: "ko-graph-tags-input",
+    depthInput: "ko-graph-depth-input",
+    limitInput: "ko-graph-limit-input",
+    thresholdInput: "ko-graph-threshold-input",
+    submit: "ko-graph-submit",
+    clear: "ko-graph-clear",
+    refresh: "ko-graph-refresh",
+    results: "ko-graph-results",
+    canvasPanel: "ko-graph-canvas-panel",
+    canvas: "ko-graph-canvas",
+    canvasViewport: "ko-graph-canvas-viewport",
+    fit: "ko-graph-fit",
+    zoomIn: "ko-graph-zoom-in",
+    zoomOut: "ko-graph-zoom-out",
+    resetViewport: "ko-graph-reset-viewport",
+    zoomLabel: "ko-graph-zoom-label",
+    minWeightInput: "ko-graph-min-weight-input",
+    layoutRadial: "ko-graph-layout-radial",
+    layoutForce: "ko-graph-layout-force",
+    layoutColumn: "ko-graph-layout-column",
+    highlightNeighbors: "ko-graph-highlight-neighbors",
+    expandToggle: "ko-graph-expand-toggle",
+    expand: "ko-graph-expand",
+    truncatedWarning: "ko-graph-truncated-warning",
+    legend: "ko-graph-legend",
+    details: "ko-graph-details",
+    nodePrefix: "ko-graph-node",
+    nodes: "ko-graph-nodes",
+    edges: "ko-graph-edges",
+    error: "ko-graph-error",
     emptyState: "ko-graph-empty",
   },
-};
+  explorer: {
+    scenarioList: "ko-explorer-scenario-list",
+    scenarioFilter: "ko-explorer-scenario-filter",
+    docTree: "ko-explorer-doc-tree",
+    healthPanel: "ko-explorer-health-panel",
+  },
+  viewer: {
+    pathInput: "ko-viewer-path-input",
+    loadButton: "ko-viewer-load-button",
+    modeToggle: "ko-viewer-mode-toggle",
+    codeView: "ko-viewer-code-view",
+    previewView: "ko-viewer-preview-view",
+    resetPanel: "ko-viewer-reset-panel",
+  },
+} as const satisfies LiteralSelectorTree;
 
-const dynamicSelectorDefinitions: DynamicSelectorTree = {
+const dynamicSelectorDefinitions = {
   search: {
     sampleByQuery: defineDynamicSelector({
       description: "Sample query button filtered by query text",
       selectorPattern: '[data-testid="ko-search-sample"][data-query="${query}"]',
       params: { query: { type: "string" } },
     }),
+    modeButton: defineDynamicSelector({
+      description: "Search mode selector button by mode",
+      selectorPattern: '[data-testid="ko-search-mode-selector-${mode}"]',
+      params: { mode: { type: "enum", values: ["semantic", "files", "text", "unified", "deep"] } },
+    }),
   },
-};
+} as const satisfies DynamicSelectorTree;
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
 

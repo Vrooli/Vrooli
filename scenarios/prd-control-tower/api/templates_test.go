@@ -29,7 +29,7 @@ func TestHandleListScenarioTemplates(t *testing.T) {
 
 	templatesDir := filepath.Join(tmpRoot, "scripts", "scenarios", "templates")
 	testTemplateDir := filepath.Join(templatesDir, "test-template")
-	if err := os.MkdirAll(testTemplateDir, 0755); err != nil {
+	if err := os.MkdirAll(testTemplateDir, 0o755); err != nil {
 		t.Fatalf("Failed to create template dir: %v", err)
 	}
 
@@ -56,7 +56,7 @@ func TestHandleListScenarioTemplates(t *testing.T) {
 	}`
 
 	manifestPath := filepath.Join(testTemplateDir, "template.json")
-	if err := os.WriteFile(manifestPath, []byte(templateJSON), 0644); err != nil {
+	if err := os.WriteFile(manifestPath, []byte(templateJSON), 0o644); err != nil {
 		t.Fatalf("Failed to create template.json: %v", err)
 	}
 
@@ -118,7 +118,7 @@ func TestHandleGetScenarioTemplate(t *testing.T) {
 
 	templatesDir := filepath.Join(tmpRoot, "scripts", "scenarios", "templates")
 	testTemplateDir := filepath.Join(templatesDir, "minimal-template")
-	if err := os.MkdirAll(testTemplateDir, 0755); err != nil {
+	if err := os.MkdirAll(testTemplateDir, 0o755); err != nil {
 		t.Fatalf("Failed to create template dir: %v", err)
 	}
 
@@ -128,7 +128,7 @@ func TestHandleGetScenarioTemplate(t *testing.T) {
 	}`
 
 	manifestPath := filepath.Join(testTemplateDir, "template.json")
-	if err := os.WriteFile(manifestPath, []byte(templateJSON), 0644); err != nil {
+	if err := os.WriteFile(manifestPath, []byte(templateJSON), 0o644); err != nil {
 		t.Fatalf("Failed to create template.json: %v", err)
 	}
 
@@ -220,7 +220,7 @@ func TestLoadScenarioTemplateManifest(t *testing.T) {
 
 	templatesDir := filepath.Join(tmpRoot, "scripts", "scenarios", "templates")
 	validTemplateDir := filepath.Join(templatesDir, "valid-template")
-	if err := os.MkdirAll(validTemplateDir, 0755); err != nil {
+	if err := os.MkdirAll(validTemplateDir, 0o755); err != nil {
 		t.Fatalf("Failed to create template dir: %v", err)
 	}
 
@@ -232,17 +232,17 @@ func TestLoadScenarioTemplateManifest(t *testing.T) {
 		"stack": ["TypeScript"]
 	}`
 	validPath := filepath.Join(validTemplateDir, "template.json")
-	if err := os.WriteFile(validPath, []byte(validJSON), 0644); err != nil {
+	if err := os.WriteFile(validPath, []byte(validJSON), 0o644); err != nil {
 		t.Fatalf("Failed to create valid template.json: %v", err)
 	}
 
 	// Create invalid template.json (malformed JSON)
 	invalidTemplateDir := filepath.Join(templatesDir, "invalid-template")
-	if err := os.MkdirAll(invalidTemplateDir, 0755); err != nil {
+	if err := os.MkdirAll(invalidTemplateDir, 0o755); err != nil {
 		t.Fatalf("Failed to create invalid template dir: %v", err)
 	}
 	invalidPath := filepath.Join(invalidTemplateDir, "template.json")
-	if err := os.WriteFile(invalidPath, []byte("not valid json"), 0644); err != nil {
+	if err := os.WriteFile(invalidPath, []byte("not valid json"), 0o644); err != nil {
 		t.Fatalf("Failed to create invalid template.json: %v", err)
 	}
 

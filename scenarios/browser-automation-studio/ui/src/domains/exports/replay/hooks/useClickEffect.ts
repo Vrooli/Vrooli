@@ -60,8 +60,7 @@ export function useClickEffect({
   }, [
     activeClickEffect,
     cursorClickAnimation,
-    currentClickPosition?.x,
-    currentClickPosition?.y,
+    currentClickPosition,
     currentFrameId,
     currentStepType,
     frameProgress,

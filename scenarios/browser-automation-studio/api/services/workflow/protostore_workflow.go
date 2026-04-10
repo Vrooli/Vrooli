@@ -110,14 +110,20 @@ func flexibleWorkflowPayloadToProto(project *database.ProjectIndex, payload map[
 		version = 1
 	}
 
-	// Parse definition from definition_v2 field if present.
+	// Parse definition from definition_v2 or flow_definition field.
+	// Use buildFlowDefinition which normalizes subflow args and other proto-incompatible values.
 	var def *basworkflows.WorkflowDefinitionV2
+	var defErr error
 	if v2Raw, ok := payload["definition_v2"].(map[string]any); ok {
-		v2Bytes, _ := json.Marshal(v2Raw)
-		var v2 basworkflows.WorkflowDefinitionV2
-		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(v2Bytes, &v2); err == nil {
-			def = &v2
-		}
+		def, defErr = marshalToFlowDefinition(v2Raw)
+	} else if flowDef, ok := payload["flow_definition"].(map[string]any); ok {
+		def, defErr = marshalToFlowDefinition(flowDef)
+	} else {
+		// Try to build from top-level nodes/edges (fallback for legacy format)
+		def, defErr = buildFlowDefinition(payload)
+	}
+	if defErr != nil {
+		return nil, false, fmt.Errorf("build flow definition: %w", defErr)
 	}
 
 	if def == nil {

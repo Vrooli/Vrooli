@@ -1,0 +1,29 @@
+{
+  "archived_at": "2026-02-05T21:13:37Z",
+  "created": "2026-02-05T21:13:37Z",
+  "description": "Smart nutrition tracking with calorie counting, macro tracking, and AI-powered meal suggestions",
+  "name": "nutrition-tracker-archived",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "saas-applications",
+    "health",
+    "nutrition",
+    "calorie-tracking",
+    "macro-tracking",
+    "meal-planning",
+    "ai-suggestions",
+    "fitness",
+    "go-api",
+    "nodejs-ui",
+    "n8n-workflows",
+    "postgres-storage",
+    "redis-cache",
+    "qdrant-vectors",
+    "ollama-ai",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] nutrition-tracker",
+  "updated": "2026-02-05T21:13:37Z"
+}

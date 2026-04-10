@@ -54,6 +54,8 @@ import type { Node, Edge } from "reactflow";
 import { selectors } from "@constants/selectors";
 
 const useWorkflowStoreMock = vi.hoisted(() => vi.fn());
+const getWindowWithDragEvent = (): Window & { DragEvent?: typeof DragEvent } =>
+  window as Window & { DragEvent?: typeof DragEvent };
 
 vi.mock("@stores/workflowStore", () => ({
   useWorkflowStore: useWorkflowStoreMock,
@@ -61,7 +63,7 @@ vi.mock("@stores/workflowStore", () => ({
 
 if (
   typeof window !== "undefined" &&
-  typeof (window as any).DragEvent === "undefined"
+  typeof getWindowWithDragEvent().DragEvent === "undefined"
 ) {
   class DragEventPolyfill extends Event {
     dataTransfer: DataTransfer;
@@ -85,7 +87,7 @@ if (
         } as DataTransfer);
     }
   }
-  (window as any).DragEvent = DragEventPolyfill as typeof DragEvent;
+  getWindowWithDragEvent().DragEvent = DragEventPolyfill as typeof DragEvent;
 }
 
 // Mock react-hot-toast
@@ -143,6 +145,14 @@ const mockUseEdgesState = vi.fn((initialEdges: Edge[]) => {
   return useState(initialEdges);
 });
 
+type MockReactFlowProps = {
+  children?: React.ReactNode;
+  onDrop?: React.DragEventHandler<HTMLDivElement>;
+  onDragOver?: React.DragEventHandler<HTMLDivElement>;
+  nodes?: Node[];
+  edges?: Edge[];
+};
+
 vi.mock("reactflow", () => {
   const MockReactFlow = ({
     children,
@@ -150,7 +160,7 @@ vi.mock("reactflow", () => {
     onDragOver,
     nodes,
     edges,
-  }: any) => (
+  }: MockReactFlowProps) => (
     <div
       data-testid={selectors.workflowBuilder.canvas.reactFlow}
       onDrop={onDrop}
@@ -245,8 +255,8 @@ const applyWorkflowStoreState = (
 ) => {
   const state = { ...createBaseStoreState(), ...overrides };
   useWorkflowStoreMock.mockImplementation(
-    (selector?: (s: typeof state) => any) =>
-      selector ? selector(state) : state,
+    <T,>(selector?: (s: typeof state) => T) =>
+      selector ? selector(state) : (state as unknown as T),
   );
   return state;
 };
@@ -255,11 +265,12 @@ const importWorkflowBuilder = async () =>
   (await import("./WorkflowBuilder")).default;
 
 const originalFetch = global.fetch;
+const globalWithFetch = global as typeof globalThis & { fetch?: typeof fetch };
 
 describe("WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (global as any).fetch = vi.fn(() =>
+    globalWithFetch.fetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve(mockValidationResponse()),
@@ -274,8 +285,7 @@ describe("WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]", () => {
     if (originalFetch) {
       global.fetch = originalFetch;
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-      delete (global as any).fetch;
+      delete globalWithFetch.fetch;
     }
   });
 

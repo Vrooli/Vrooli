@@ -222,7 +222,7 @@ func TestGenerateAIContentHTTP(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer mockServer.Close()
 
@@ -234,7 +234,6 @@ func TestGenerateAIContentHTTP(t *testing.T) {
 	}
 
 	content, model, err := generateAIContentHTTP(mockServer.URL, draft, "Executive Summary", "Test context", "", false, nil, "")
-
 	if err != nil {
 		t.Errorf("generateAIContentHTTP() unexpected error: %v", err)
 	}
@@ -271,7 +270,7 @@ func TestGenerateAIContentHTTPError(t *testing.T) {
 			serverHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "text/plain")
 				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte("Internal server error"))
+				_, _ = w.Write([]byte("Internal server error"))
 			},
 			expectContains: "OpenRouter API returned error",
 		},
@@ -279,7 +278,7 @@ func TestGenerateAIContentHTTPError(t *testing.T) {
 			name: "invalid JSON response",
 			serverHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				w.Write([]byte("not valid json"))
+				_, _ = w.Write([]byte("not valid json"))
 			},
 			expectContains: "failed to decode response",
 		},
@@ -287,7 +286,7 @@ func TestGenerateAIContentHTTPError(t *testing.T) {
 			name: "missing choices in response",
 			serverHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(map[string]any{
+				_ = json.NewEncoder(w).Encode(map[string]any{
 					"model": "test-model",
 				})
 			},

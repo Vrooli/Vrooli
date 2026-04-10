@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Activity,
   AlertCircle,
+  Ban,
   Check,
+  CheckSquare,
   Clock,
   Eye,
-  Play,
   RefreshCw,
   Search,
   Square,
@@ -15,10 +17,17 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
-import { formatRelativeTime } from "../lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import { formatStandardRelativeTime } from "../lib/dateTime";
 import type {
   AgentProfile,
   ApproveFormData,
@@ -31,9 +40,11 @@ import type {
 } from "../types";
 import { ApprovalState, RunStatus } from "../types";
 import type { MessageHandler, WebSocketMessage } from "../hooks/useWebSocket";
+import { ApplyInvestigationModal } from "../components/ApplyInvestigationModal";
 import { InvestigateModal } from "../components/InvestigateModal";
 import { RunDetail } from "../components/RunDetail";
 import { useViewportSize } from "../hooks/useViewportSize";
+import { useRunsPageState } from "../hooks/useRunsPageState";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
@@ -48,13 +59,17 @@ interface RunsPageProps {
   onStopRun: (id: string) => Promise<void>;
   onDeleteRun: (id: string) => Promise<void>;
   onRetryRun: (run: Run) => Promise<Run>;
+  onGetRun: (id: string) => Promise<Run>;
   onGetEvents: (id: string) => Promise<RunEvent[]>;
   onGetDiff: (id: string) => Promise<RunDiff>;
+  onGetTask: (id: string) => Promise<Task>;
   onApproveRun: (id: string, req: ApproveFormData) => Promise<ApproveResult>;
   onRejectRun: (id: string, req: RejectFormData) => Promise<void>;
-  onInvestigateRuns: (runIds: string[], customContext?: string, depth?: "quick" | "standard" | "deep") => Promise<Run>;
+  onPartialApproveRun: (id: string, fileIds: string[], actor?: string, commitMsg?: string) => Promise<ApproveResult>;
+  onInvestigateRuns: (runIds: string[], customContext?: string, depth?: "quick" | "standard" | "deep", projectRoot?: string, scopePaths?: string[]) => Promise<Run>;
   onApplyInvestigation: (investigationRunId: string, customContext?: string) => Promise<Run>;
-  onContinueRun: (id: string, message: string) => Promise<Run>;
+  onContinueRun: (id: string, message: string, attachmentIds?: string[]) => Promise<Run>;
+  onDeleteRunMessage: (runId: string, eventId: string) => Promise<void>;
   onRefresh: () => void;
   wsSubscribe: (runId: string) => void;
   wsUnsubscribe: (runId: string) => void;
@@ -77,6 +92,8 @@ const SORT_OPTIONS: SortOption[] = [
   { value: "oldest", label: "Oldest First" },
 ];
 
+const VALID_TABS = new Set(["task", "timeline", "diff", "cost"]);
+
 export function RunsPage({
   runs,
   tasks,
@@ -86,13 +103,17 @@ export function RunsPage({
   onStopRun,
   onDeleteRun,
   onRetryRun,
+  onGetRun,
   onGetEvents,
   onGetDiff,
+  onGetTask,
   onApproveRun,
   onRejectRun,
+  onPartialApproveRun,
   onInvestigateRuns,
   onApplyInvestigation,
   onContinueRun,
+  onDeleteRunMessage,
   onRefresh,
   wsSubscribe,
   wsUnsubscribe,
@@ -100,40 +121,58 @@ export function RunsPage({
   wsRemoveMessageHandler,
 }: RunsPageProps) {
   const { runId } = useParams<{ runId?: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isDesktop } = useViewportSize();
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
+  const isDeselectingRef = useRef(false);
   const [events, setEvents] = useState<RunEvent[]>([]);
   const [diff, setDiff] = useState<RunDiff | null>(null);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [diffLoading, setDiffLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteConfirmRun, setDeleteConfirmRun] = useState<Run | null>(null);
+  const [mobileHeaderLeft, setMobileHeaderLeft] = useState<React.ReactNode>(null);
+  const [mobileHeaderRight, setMobileHeaderRight] = useState<React.ReactNode>(null);
+  const [runOverrides, setRunOverrides] = useState<Record<string, Run>>({});
+  const [extraTasks, setExtraTasks] = useState<Record<string, Task>>({});
 
-  // Filter/sort/search state
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("newest");
+  const {
+    searchQuery,
+    setSearchQuery,
+    statusFilter,
+    setStatusFilter,
+    sortBy,
+    setSortBy,
+    selectionMode,
+    setSelectionMode,
+    selectedRunIds,
+    setSelectedRunIds,
+    investigateModalOpen,
+    setInvestigateModalOpen,
+    investigateLoading,
+    setInvestigateLoading,
+    investigateError,
+    setInvestigateError,
+    toggleSelectionMode,
+    clearSelection,
+    handleRunCheckboxChange,
+  } = useRunsPageState();
 
-  // Multi-select state for investigations
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedRunIds, setSelectedRunIds] = useState<Set<string>>(new Set());
-  const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null);
-  const [investigateModalOpen, setInvestigateModalOpen] = useState(false);
-  const [investigateLoading, setInvestigateLoading] = useState(false);
-  const [investigateError, setInvestigateError] = useState<string | null>(null);
   const [applyModalOpen, setApplyModalOpen] = useState(false);
-  const [applyInvestigationId, setApplyInvestigationId] = useState<string | null>(null);
+  const [applyInvestigationRun, setApplyInvestigationRun] = useState<Run | null>(null);
   const [applyLoading, setApplyLoading] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
 
-  const getTaskTitle = useCallback(
-    (taskId: string) => tasks.find((t) => t.id === taskId)?.title || "Unknown Task",
-    [tasks]
+  const getTaskById = useCallback(
+    (taskId: string) => extraTasks[taskId] ?? tasks.find((t) => t.id === taskId) ?? null,
+    [extraTasks, tasks]
   );
 
-  const getTaskById = useCallback(
-    (taskId: string) => tasks.find((t) => t.id === taskId) ?? null,
-    [tasks]
+  const getTaskTitle = useCallback(
+    (taskId: string) => getTaskById(taskId)?.title || "Unknown Task",
+    [getTaskById]
   );
 
   const getProfileName = useCallback(
@@ -142,35 +181,155 @@ export function RunsPage({
     [profiles]
   );
 
+  const resolvedRuns = useMemo(
+    () => runs.map((run) => runOverrides[run.id] ?? run),
+    [runs, runOverrides]
+  );
+
+  const syncRunDetails = useCallback(
+    async (runId: string) => {
+      try {
+        const latest = await onGetRun(runId);
+        setRunOverrides((prev) => ({ ...prev, [runId]: latest }));
+        setSelectedRun((prev) => (prev && prev.id === runId ? { ...prev, ...latest } : prev));
+
+        if (!getTaskById(latest.taskId)) {
+          const task = await onGetTask(latest.taskId);
+          setExtraTasks((prev) => ({ ...prev, [task.id]: task }));
+        }
+      } catch (err) {
+        console.error("Failed to sync run details:", err);
+      }
+    },
+    [getTaskById, onGetRun, onGetTask]
+  );
+
+  // Extract IDs as stable primitives to avoid unnecessary effect re-runs
+  const selectedRunId = selectedRun?.id ?? null;
+  const applyInvestigationRunId = applyInvestigationRun?.id ?? null;
+
   // Subscribe to WebSocket events for the selected run
   useEffect(() => {
-    if (!selectedRun) return;
-    wsSubscribe(selectedRun.id);
+    if (!selectedRunId) return;
+    wsSubscribe(selectedRunId);
     return () => {
-      wsUnsubscribe(selectedRun.id);
+      wsUnsubscribe(selectedRunId);
     };
-  }, [selectedRun?.id, wsSubscribe, wsUnsubscribe]);
+  }, [selectedRunId, wsSubscribe, wsUnsubscribe]);
+
+  // Subscribe to WebSocket events for the investigation run when Apply modal is open
+  // This ensures we get updates when recommendation extraction completes
+  useEffect(() => {
+    if (!applyInvestigationRunId || !applyModalOpen) return;
+    wsSubscribe(applyInvestigationRunId);
+    return () => {
+      wsUnsubscribe(applyInvestigationRunId);
+    };
+  }, [applyInvestigationRunId, applyModalOpen, wsSubscribe, wsUnsubscribe]);
+
+  // Track whether WS has connected at least once, so we can distinguish
+  // reconnections (which need an event refetch) from the initial connection.
+  const wsHasConnectedRef = useRef(false);
 
   // Handle WebSocket messages for real-time updates
   useEffect(() => {
     const handleMessage: MessageHandler = (message: WebSocketMessage) => {
-      if (!selectedRun || message.runId !== selectedRun.id) return;
+      // On WS reconnect, refetch events for the selected run to catch any
+      // events missed during the disconnect (e.g. user switched browser tabs
+      // and the WS timed out). Skip on initial connection since loadRunDetails
+      // already fetches events.
+      if (message.type === "connected") {
+        if (wsHasConnectedRef.current && selectedRunId) {
+          const runIdToReconcile = selectedRunId;
+          (async () => {
+            try {
+              // Refetch the run itself (status may have changed during disconnect)
+              const latestRun = await onGetRun(runIdToReconcile);
+              setSelectedRun((prev) => (prev && prev.id === runIdToReconcile ? { ...prev, ...latestRun } : prev));
+              setRunOverrides((prev) => ({ ...prev, [runIdToReconcile]: latestRun }));
 
-      switch (message.type) {
-        case "run_event": {
-          const newEvent = message.payload as RunEvent;
-          setEvents((prev) => {
-            if (prev.some((e) => e.id === newEvent.id || e.sequence === newEvent.sequence)) {
-              return prev;
+              // Refetch all events to fill any gaps
+              const freshEvents = await onGetEvents(runIdToReconcile);
+              if (freshEvents?.length) {
+                setEvents((prev) => {
+                  const knownIds = new Set(freshEvents.map((e) => e.id));
+                  const knownSeqs = new Set(freshEvents.map((e) => e.sequence));
+                  const extras = prev.filter((e) => !knownIds.has(e.id) && !knownSeqs.has(e.sequence));
+                  return [...freshEvents, ...extras];
+                });
+              }
+            } catch (err) {
+              console.error("Failed to reconcile events after WS reconnect:", err);
             }
-            return [...prev, newEvent];
-          });
-          break;
+          })();
         }
-        case "run_status": {
+        wsHasConnectedRef.current = true;
+        return;
+      }
+
+      // Handle messages for selectedRun
+      if (selectedRunId && message.runId === selectedRunId) {
+        switch (message.type) {
+          case "run_event": {
+            const newEvent = message.payload as RunEvent;
+            setEvents((prev) => {
+              if (prev.some((e) => e.id === newEvent.id || e.sequence === newEvent.sequence)) {
+                return prev;
+              }
+              return [...prev, newEvent];
+            });
+            break;
+          }
+          case "run_status": {
+            const statusUpdate = message.payload as Partial<Run>;
+            setSelectedRun((prev) => (prev ? { ...prev, ...statusUpdate } : null));
+            const runId = statusUpdate.id;
+            if (runId) {
+              setRunOverrides((prev) => {
+                const existing = prev[runId];
+                if (!existing) return prev;
+                return { ...prev, [runId]: { ...existing, ...statusUpdate } as Run };
+              });
+            }
+            // When run reaches terminal state, refetch events after a short delay
+            // to catch any in-flight messages (subscription cleanup handles unsubscribe)
+            const isTerminal = statusUpdate.status !== undefined &&
+              [RunStatus.COMPLETE, RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.NEEDS_REVIEW].includes(statusUpdate.status);
+            if (isTerminal && selectedRunId) {
+              const runIdToRefetch = selectedRunId;
+              setTimeout(async () => {
+                try {
+                  const freshEvents = await onGetEvents(runIdToRefetch);
+                  if (!freshEvents?.length) return;
+                  // Merge REST events with any WS-received events to avoid losing in-flight messages
+                  setEvents((prev) => {
+                    const knownIds = new Set(freshEvents.map((e) => e.id));
+                    const knownSeqs = new Set(freshEvents.map((e) => e.sequence));
+                    // Keep WS-only events that the REST response hasn't caught yet
+                    const extras = prev.filter((e) => !knownIds.has(e.id) && !knownSeqs.has(e.sequence));
+                    return [...freshEvents, ...extras];
+                  });
+                } catch (err) {
+                  console.error("Failed to refetch events on completion:", err);
+                }
+              }, 500);
+            }
+            break;
+          }
+        }
+      }
+
+      // Handle messages for applyInvestigationRun (for recommendation extraction updates)
+      if (applyInvestigationRunId && message.runId === applyInvestigationRunId) {
+        if (message.type === "run_status") {
           const statusUpdate = message.payload as Partial<Run>;
-          setSelectedRun((prev) => (prev ? { ...prev, ...statusUpdate } : null));
-          break;
+          setApplyInvestigationRun((prev) => (prev ? { ...prev, ...statusUpdate } : null));
+          // Unsubscribe once investigation run reaches terminal state
+          const isTerminal = statusUpdate.status !== undefined &&
+            [RunStatus.COMPLETE, RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.NEEDS_REVIEW].includes(statusUpdate.status);
+          if (isTerminal) {
+            wsUnsubscribe(applyInvestigationRunId);
+          }
         }
       }
     };
@@ -179,13 +338,14 @@ export function RunsPage({
     return () => {
       wsRemoveMessageHandler(handleMessage);
     };
-  }, [selectedRun?.id, wsAddMessageHandler, wsRemoveMessageHandler]);
+  }, [selectedRunId, applyInvestigationRunId, wsAddMessageHandler, wsRemoveMessageHandler, wsUnsubscribe, onGetEvents, onGetRun]);
 
   const loadRunDetails = useCallback(
     async (run: Run) => {
       setSelectedRun(run);
       setEvents([]);
       setDiff(null);
+      void syncRunDetails(run.id);
 
       setEventsLoading(true);
       try {
@@ -213,27 +373,47 @@ export function RunsPage({
         }
       }
     },
-    [onGetEvents, onGetDiff]
+    [onGetEvents, onGetDiff, syncRunDetails]
   );
 
   // Sync selectedRun with the runs list when it updates
   useEffect(() => {
     if (!selectedRun) return;
-    const updatedRun = runs.find((r) => r.id === selectedRun.id);
+    const updatedRun = resolvedRuns.find((r) => r.id === selectedRun.id);
     if (updatedRun && updatedRun !== selectedRun) {
       setSelectedRun(updatedRun);
     }
-  }, [runs, selectedRun]);
+  }, [resolvedRuns, selectedRun]);
+
+  // Sync applyInvestigationRun with the runs list when it updates
+  // This ensures the modal sees WebSocket updates (e.g., recommendation extraction status)
+  useEffect(() => {
+    if (!applyInvestigationRun) return;
+    const updatedRun = runs.find((r) => r.id === applyInvestigationRun.id);
+    if (updatedRun && updatedRun !== applyInvestigationRun) {
+      setApplyInvestigationRun(updatedRun);
+    }
+  }, [runs, applyInvestigationRun]);
+
+  // Clear deselecting guard only after the router has actually processed
+  // the navigation (runId becomes undefined). This prevents the URL-sync
+  // effect from re-selecting the run due to a stale runId param.
+  useEffect(() => {
+    if (isDeselectingRef.current && !runId) {
+      isDeselectingRef.current = false;
+    }
+  }, [runId]);
 
   // Load run from URL params when component mounts or runId changes
   useEffect(() => {
-    if (!runId || runs.length === 0) return;
-    if (selectedRun?.id === runId) return;
-    const run = runs.find((r) => r.id === runId);
+    if (isDeselectingRef.current) return;
+    if (!runId || resolvedRuns.length === 0) return;
+    if (selectedRunId === runId) return;
+    const run = resolvedRuns.find((r) => r.id === runId);
     if (run) {
       loadRunDetails(run);
     }
-  }, [runId, runs, selectedRun?.id, loadRunDetails]);
+  }, [runId, resolvedRuns, selectedRunId, loadRunDetails]);
 
   const handleStop = async (runId: string) => {
     if (!confirm("Are you sure you want to stop this run?")) return;
@@ -245,20 +425,27 @@ export function RunsPage({
     }
   };
 
-  const canDeleteRun = (run: Run | null): boolean => {
-    if (!run) return false;
-    return ![RunStatus.PENDING, RunStatus.STARTING, RunStatus.RUNNING].includes(run.status);
+  const handleDeleteRequest = (run: Run) => {
+    console.log("[DELETE] handleDeleteRequest called", { runId: run?.id, run });
+    setDeleteError(null);
+    setDeleteConfirmRun(run);
   };
 
-  const handleDelete = async (run: Run) => {
-    if (!confirm("Delete this run? This removes its history and events.")) return;
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirmRun) return;
+    const run = deleteConfirmRun;
     setDeleteLoading(true);
+    setDeleteError(null);
     try {
       await onDeleteRun(run.id);
+      setDeleteConfirmRun(null);
       if (selectedRun?.id === run.id) {
         setSelectedRun(null);
         navigate("/runs");
       }
+    } catch (err) {
+      console.error("Failed to delete run:", err);
+      setDeleteError((err as Error).message || "Failed to delete run");
     } finally {
       setDeleteLoading(false);
     }
@@ -276,51 +463,41 @@ export function RunsPage({
     onRefresh();
   };
 
+  const handlePartialApprove = async (id: string, fileIds: string[], actor?: string, commitMsg?: string) => {
+    const result = await onPartialApproveRun(id, fileIds, actor, commitMsg);
+    // Reload to reflect updated approval state
+    if (result.remaining === 0) {
+      setSelectedRun(null);
+    }
+    onRefresh();
+    return result;
+  };
+
   const handleRetry = async (run: Run) => {
     const newRun = await onRetryRun(run);
     loadRunDetails(newRun);
     return newRun;
   };
 
-  // Multi-select handlers
-  const handleRunCheckboxChange = (runId: string, index: number, shiftKey: boolean) => {
-    setSelectedRunIds((prev) => {
-      const next = new Set(prev);
-
-      if (shiftKey && lastClickedIndex !== null) {
-        const start = Math.min(lastClickedIndex, index);
-        const end = Math.max(lastClickedIndex, index);
-        for (let i = start; i <= end; i++) {
-          next.add(filteredAndSortedRuns[i].id);
-        }
-      } else {
-        if (next.has(runId)) {
-          next.delete(runId);
-        } else {
-          next.add(runId);
-        }
-      }
-
-      return next;
-    });
-    setLastClickedIndex(index);
-  };
-
-  const toggleSelectionMode = () => {
-    if (selectionMode) {
-      setSelectedRunIds(new Set());
-      setLastClickedIndex(null);
-    }
-    setSelectionMode(!selectionMode);
-  };
-
-  const handleInvestigate = async (customContext: string, depth: "quick" | "standard" | "deep") => {
+  const handleInvestigate = async (
+    customContext: string,
+    depth: "quick" | "standard" | "deep",
+    _context?: unknown, // ignored - context flags handled server-side
+    projectRoot?: string,
+    scopePaths?: string[]
+  ) => {
     setInvestigateLoading(true);
     setInvestigateError(null);
     try {
-      const created = await onInvestigateRuns(Array.from(selectedRunIds), customContext || undefined, depth);
+      const created = await onInvestigateRuns(
+        Array.from(selectedRunIds),
+        customContext || undefined,
+        depth,
+        projectRoot,
+        scopePaths
+      );
       setInvestigateModalOpen(false);
-      setSelectedRunIds(new Set());
+      clearSelection();
       setSelectionMode(false);
       navigate(`/runs/${created.id}`);
     } catch (err) {
@@ -336,18 +513,22 @@ export function RunsPage({
   };
 
   const handleApplyInvestigationFromDetail = (runId: string) => {
-    setApplyInvestigationId(runId);
-    setApplyModalOpen(true);
+    // Find the run object from the runs list
+    const run = runs.find((r) => r.id === runId);
+    if (run) {
+      setApplyInvestigationRun(run);
+      setApplyModalOpen(true);
+    }
   };
 
   const handleApplyInvestigation = async (customContext: string) => {
-    if (!applyInvestigationId) return;
+    if (!applyInvestigationRun) return;
     setApplyLoading(true);
     setApplyError(null);
     try {
-      const created = await onApplyInvestigation(applyInvestigationId, customContext || undefined);
+      const created = await onApplyInvestigation(applyInvestigationRun.id, customContext || undefined);
       setApplyModalOpen(false);
-      setApplyInvestigationId(null);
+      setApplyInvestigationRun(null);
       navigate(`/runs/${created.id}`);
     } catch (err) {
       setApplyError((err as Error).message);
@@ -357,7 +538,7 @@ export function RunsPage({
   };
 
   const filteredAndSortedRuns = useMemo(() => {
-    let result = [...runs];
+    let result = [...resolvedRuns];
 
     if (statusFilter !== "all") {
       const statusValue = Number(statusFilter) as RunStatus;
@@ -380,24 +561,25 @@ export function RunsPage({
     });
 
     return result;
-  }, [runs, statusFilter, searchQuery, sortBy, getTaskTitle, getProfileName]);
+  }, [resolvedRuns, statusFilter, searchQuery, sortBy, getTaskTitle, getProfileName]);
 
   useEffect(() => {
     if (!isDesktop) return;
     if (runId) return;
     if (filteredAndSortedRuns.length === 0) return;
 
-    const selectedRunId = selectedRun?.id ?? null;
     const hasSelection =
       selectedRunId !== null &&
       filteredAndSortedRuns.some((run) => run.id === selectedRunId);
 
     if (!hasSelection) {
       const firstRun = filteredAndSortedRuns[0];
-      navigate(`/runs/${firstRun.id}`, { replace: true });
-      loadRunDetails(firstRun);
+      if (firstRun) {
+        navigate(`/runs/${firstRun.id}`, { replace: true });
+        loadRunDetails(firstRun);
+      }
     }
-  }, [filteredAndSortedRuns, isDesktop, loadRunDetails, navigate, runId, selectedRun?.id]);
+  }, [filteredAndSortedRuns, isDesktop, loadRunDetails, navigate, runId, selectedRunId]);
 
   const filters: FilterConfig[] = [
     {
@@ -433,19 +615,17 @@ export function RunsPage({
               variant={selectionMode ? "default" : "outline"}
               size="sm"
               onClick={toggleSelectionMode}
-              className="gap-1"
+              aria-label={selectionMode ? "Exit selection mode" : "Enter selection mode"}
+              className="w-9 px-0"
             >
               {selectionMode ? (
-                <>
-                  <X className="h-3 w-3" />
-                  <span className="hidden sm:inline">Done</span>
-                </>
+                <X className="h-4 w-4" />
               ) : (
-                "Select"
+                <CheckSquare className="h-4 w-4" />
               )}
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={onRefresh}>
+          <Button variant="outline" size="sm" onClick={onRefresh} aria-label="Refresh" className="w-9 px-0">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
@@ -491,56 +671,48 @@ export function RunsPage({
                 checked={selectedRunIds.has(run.id)}
                 onChange={(e) => {
                   e.stopPropagation();
-                  handleRunCheckboxChange(run.id, index, e.nativeEvent instanceof MouseEvent && e.nativeEvent.shiftKey);
+                  handleRunCheckboxChange(
+                    run.id,
+                    index,
+                    e.nativeEvent instanceof MouseEvent && e.nativeEvent.shiftKey,
+                    filteredAndSortedRuns
+                  );
                 }}
                 onClick={(e) => e.stopPropagation()}
                 className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
               />
             ) : undefined
           }
-          icon={<RunStatusIcon status={run.status} />}
+          icon={<RunStatusIcon status={run.status} approvalState={run.approvalState} />}
           actions={
             <div className="flex items-center gap-1">
-              <Badge
-                variant={
-                  runStatusLabel(run.status) as
-                    | "pending"
-                    | "starting"
-                    | "running"
-                    | "needs_review"
-                    | "complete"
-                    | "failed"
-                    | "cancelled"
-                }
-              >
-                {runStatusLabel(run.status).replace("_", " ")}
-              </Badge>
-              {(run.status === RunStatus.RUNNING || run.status === RunStatus.STARTING) && (
+              {run.actions?.canStop && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6"
+                  className="h-8 w-8"
                   aria-label={`Stop run ${getTaskTitle(run.taskId)}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleStop(run.id);
                   }}
                 >
-                  <Square className="h-3 w-3" />
+                  <Square className="h-3.5 w-3.5" />
                 </Button>
               )}
-              {canDeleteRun(run) && (
+              {run.actions?.canDelete && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-destructive hover:text-destructive"
+                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                   aria-label={`Delete run ${getTaskTitle(run.taskId)}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDelete(run);
+                    console.log("[DELETE] List trash icon clicked", { runId: run.id });
+                    handleDeleteRequest(run);
                   }}
                 >
-                  <Trash2 className="h-3 w-3" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               )}
             </div>
@@ -548,17 +720,26 @@ export function RunsPage({
         >
           <ListItemTitle>{getTaskTitle(run.taskId)}</ListItemTitle>
           <ListItemSubtitle>
-            {getProfileName(run.agentProfileId)} | {formatRelativeTime(run.createdAt)}
+            {getProfileName(run.agentProfileId)} | {formatStandardRelativeTime(run.createdAt)}
           </ListItemSubtitle>
         </ListItem>
       ))}
     </ListPanel>
   );
 
+  // Determine initial tab: query param > status-based default > "timeline"
+  const tabParam = searchParams.get("tab");
+  const initialTab = useMemo(() => {
+    if (tabParam && VALID_TABS.has(tabParam)) return tabParam as "task" | "timeline" | "diff" | "cost";
+    if (selectedRun?.status === RunStatus.NEEDS_REVIEW) return "diff" as const;
+    return "timeline" as const;
+  }, [tabParam, selectedRun?.status]);
+
   const detailPanel = (
     <DetailPanel
       title="Run Details"
       hasSelection={!!selectedRun}
+      hideHeader
       empty={
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
           <Eye className="h-12 w-12 mb-3 opacity-50" />
@@ -567,31 +748,41 @@ export function RunsPage({
       }
     >
       {selectedRun && (
-        <RunDetail
-          run={selectedRun}
-          events={events}
-          diff={diff}
-          eventsLoading={eventsLoading}
-          diffLoading={diffLoading}
-          task={getTaskById(selectedRun.taskId)}
-          taskTitle={getTaskTitle(selectedRun.taskId)}
-          profileName={getProfileName(selectedRun.agentProfileId)}
-          onApprove={(req) => handleApprove(selectedRun.id, req)}
-          onReject={(req) => handleReject(selectedRun.id, req)}
-          onRetry={handleRetry}
-          onInvestigate={handleInvestigateFromDetail}
-          onApplyInvestigation={handleApplyInvestigationFromDetail}
-          onDelete={handleDelete}
-          onContinue={async (message) => {
-            await onContinueRun(selectedRun.id, message);
-            // Reload events to show the new messages
-            const newEvents = await onGetEvents(selectedRun.id);
-            setEvents(newEvents);
-          }}
-          deleteLoading={deleteLoading}
-        />
-      )}
-    </DetailPanel>
+          <RunDetail
+            run={selectedRun}
+            initialTab={initialTab}
+            events={events}
+            diff={diff}
+            eventsLoading={eventsLoading}
+            diffLoading={diffLoading}
+            task={getTaskById(selectedRun.taskId)}
+            taskTitle={getTaskTitle(selectedRun.taskId)}
+            profileName={getProfileName(selectedRun.agentProfileId)}
+            onApprove={(req) => handleApprove(selectedRun.id, req)}
+            onReject={(req) => handleReject(selectedRun.id, req)}
+            onPartialApprove={(fileIds, actor, commitMsg) => handlePartialApprove(selectedRun.id, fileIds, actor, commitMsg)}
+            onRetry={handleRetry}
+            onInvestigate={handleInvestigateFromDetail}
+            onApplyInvestigation={handleApplyInvestigationFromDetail}
+            onStop={async (r) => handleStop(r.id)}
+            onDelete={handleDeleteRequest}
+            onContinue={async (message, attachmentIds) => {
+              await onContinueRun(selectedRun.id, message, attachmentIds);
+              // Reload events to show the new messages
+              const newEvents = await onGetEvents(selectedRun.id);
+              setEvents(newEvents);
+            }}
+            onDeleteMessage={async (eventId) => {
+              await onDeleteRunMessage(selectedRun.id, eventId);
+              const newEvents = await onGetEvents(selectedRun.id);
+              setEvents(newEvents);
+            }}
+            deleteLoading={deleteLoading}
+            onMobileHeaderLeft={setMobileHeaderLeft}
+            onMobileHeaderRight={setMobileHeaderRight}
+          />
+        )}
+      </DetailPanel>
   );
 
   const headerContent = error ? (
@@ -612,10 +803,13 @@ export function RunsPage({
         detailPanel={detailPanel}
         selectedId={selectedRun?.id ?? null}
         onDeselect={() => {
+          isDeselectingRef.current = true;
           setSelectedRun(null);
           navigate("/runs");
         }}
         detailTitle={selectedRun ? getTaskTitle(selectedRun.taskId) : "Run Details"}
+        detailHeaderLeft={selectedRun ? mobileHeaderLeft : undefined}
+        detailHeaderRight={selectedRun ? mobileHeaderRight : undefined}
       />
 
       {/* Investigation Modal */}
@@ -630,64 +824,141 @@ export function RunsPage({
         title={`Investigate ${selectedRunIds.size} Run${selectedRunIds.size !== 1 ? "s" : ""}`}
         description="Analyze the selected runs to identify issues and recommendations."
         confirmLabel="Start Investigation"
+        defaultProjectRoot={(() => {
+          // Get project root from the first selected run's task
+          const firstRunId = Array.from(selectedRunIds)[0];
+          const firstRun = runs.find((r) => r.id === firstRunId);
+          if (firstRun) {
+            const task = tasks.find((t) => t.id === firstRun.taskId);
+            return task?.projectRoot || "";
+          }
+          return "";
+        })()}
+        defaultScopePaths={(() => {
+          // Get scope paths from the first selected run's task
+          const firstRunId = Array.from(selectedRunIds)[0];
+          const firstRun = runs.find((r) => r.id === firstRunId);
+          if (firstRun) {
+            const task = tasks.find((t) => t.id === firstRun.taskId);
+            // scopePath may be colon-separated or single
+            const scopePath = task?.scopePath || "";
+            return scopePath ? scopePath.split(":").filter(Boolean) : [];
+          }
+          return [];
+        })()}
         onSubmit={handleInvestigate}
         loading={investigateLoading}
         error={investigateError}
       />
 
-      <InvestigateModal
+      <ApplyInvestigationModal
         open={applyModalOpen}
         onOpenChange={(open) => {
           setApplyModalOpen(open);
           if (!open) {
-            setApplyInvestigationId(null);
+            setApplyInvestigationRun(null);
             setApplyError(null);
           }
         }}
-        title="Apply Investigation Fixes"
-        description="Apply recommendations from the selected investigation run."
-        confirmLabel="Apply Fixes"
+        investigationRun={applyInvestigationRun}
         onSubmit={handleApplyInvestigation}
         loading={applyLoading}
         error={applyError}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={!!deleteConfirmRun}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteConfirmRun(null);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Run</DialogTitle>
+            <DialogDescription>
+              Delete this run? This removes its history and events. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && (
+            <div className="mx-4 sm:mx-6 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {deleteError}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteConfirmRun(null);
+                setDeleteError(null);
+              }}
+              disabled={deleteLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleteLoading}
+            >
+              {deleteLoading ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
 
-function runStatusLabel(status: RunStatus): string {
+function runStatusTooltip(status: RunStatus): string {
   switch (status) {
-    case RunStatus.PENDING:
-      return "pending";
-    case RunStatus.STARTING:
-      return "starting";
-    case RunStatus.RUNNING:
-      return "running";
-    case RunStatus.NEEDS_REVIEW:
-      return "needs_review";
     case RunStatus.COMPLETE:
-      return "complete";
+      return "Complete";
     case RunStatus.FAILED:
-      return "failed";
+      return "Failed";
+    case RunStatus.RUNNING:
+      return "Running";
+    case RunStatus.STARTING:
+      return "Starting";
+    case RunStatus.NEEDS_REVIEW:
+      return "Needs Review";
     case RunStatus.CANCELLED:
-      return "cancelled";
+      return "Cancelled";
+    case RunStatus.PENDING:
+      return "Pending";
     default:
-      return "pending";
+      return "Pending";
   }
 }
 
-function RunStatusIcon({ status }: { status: RunStatus }) {
+function RunStatusIcon({ status, approvalState }: { status: RunStatus; approvalState?: ApprovalState }) {
+  // Rejected runs get distinct orange icon
+  if (approvalState === ApprovalState.REJECTED) {
+    return <span className="flex-shrink-0" title="Rejected"><Ban className="h-5 w-5 text-orange-500" /></span>;
+  }
+
+  const tooltip = runStatusTooltip(status);
+  let icon: JSX.Element;
   switch (status) {
     case RunStatus.COMPLETE:
-      return <Check className="h-5 w-5 text-success flex-shrink-0" />;
+      icon = <Check className="h-5 w-5 text-success" />;
+      break;
     case RunStatus.FAILED:
-      return <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />;
+      icon = <XCircle className="h-5 w-5 text-destructive" />;
+      break;
     case RunStatus.RUNNING:
     case RunStatus.STARTING:
-      return <Activity className="h-5 w-5 text-primary animate-pulse flex-shrink-0" />;
+      icon = <Activity className="h-5 w-5 text-primary animate-pulse" />;
+      break;
     case RunStatus.NEEDS_REVIEW:
-      return <Clock className="h-5 w-5 text-warning flex-shrink-0" />;
+      icon = <Clock className="h-5 w-5 text-warning" />;
+      break;
     default:
-      return <Clock className="h-5 w-5 text-muted-foreground flex-shrink-0" />;
+      icon = <Clock className="h-5 w-5 text-muted-foreground" />;
+      break;
   }
+  return <span className="flex-shrink-0" title={tooltip}>{icon}</span>;
 }

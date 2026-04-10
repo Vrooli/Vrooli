@@ -1,0 +1,142 @@
+{
+  "description": "Multi-pane terminal layout with simultaneous terminals, 2-column desktop and 1-column mobile behavior aligned with app-monitor workspace ergonomics",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "ui",
+      "children": ["REQ-P0-001b", "REQ-P0-001c"],
+      "description": "Implement responsive CSS grid layout that renders 2-column panes on desktop (>=768px) and single-column stacked panes on mobile (<768px). Pane containers must support dynamic addition and removal without full re-render.",
+      "id": "REQ-P0-001a",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Responsive Pane Grid Layout",
+      "validation": [
+        {
+          "notes": "Pane grid selector registered in selector registry",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/selectors.test.ts:exposes workspace paneGrid selector",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Pane layout config constants exported (min width/height)",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/config.test.ts:exports pane layout thresholds",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Workspace renders pane grid, empty state, header controls, nav buttons, drawer toggle",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/workspace.test.tsx",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "children": ["REQ-P0-001b-i"],
+      "description": "Each pane operates an independent terminal session with its own PTY, input/output stream, and lifecycle. Pane creation allocates a new session; pane destruction tears down the session cleanly.",
+      "id": "REQ-P0-001b",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Independent Pane Session Lifecycle",
+      "validation": [
+        {
+          "notes": "Multiple active terminals function independently",
+          "phase": "unit",
+          "ref": "api/session_test.go:TestSessionManager_ConcurrentSessions",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Pane destruction cleans up session resources",
+          "phase": "unit",
+          "ref": "api/session_test.go:TestSessionManager_Delete",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Session limit enforced to prevent resource exhaustion",
+          "phase": "unit",
+          "ref": "api/session_handlers_test.go:TestHandleCreateSession_SessionLimit",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Workspace multi-pane rendering, error banner with retry, launcher integration",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/workspace.test.tsx",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "BAS case launches two panes with distinct command markers and verifies output isolation",
+          "phase": "integration",
+          "ref": "bas/cases/01-foundation/01-terminal/multi-pane-independent-io.json",
+          "status": "implemented",
+          "type": "automation"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "PTY allocation creates isolated process per session. Cleanup on termination releases file descriptors and signals child process.",
+      "id": "REQ-P0-001b-i",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "PTY Allocation and Cleanup",
+      "validation": [
+        {
+          "notes": "PTY factory creates and manages process lifecycle",
+          "phase": "unit",
+          "ref": "api/pty_test.go:TestFakePTY_CreateAndGet",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "description": "Pane add/remove controls visible in workspace header. Add opens a new terminal; close tears down the pane session with confirmation if process is running.",
+      "id": "REQ-P0-001c",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Pane Management Controls",
+      "validation": [
+        {
+          "notes": "Create session API endpoint returns session info",
+          "phase": "unit",
+          "ref": "api/session_handlers_test.go:TestHandleCreateSession",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Delete session API endpoint returns 204",
+          "phase": "unit",
+          "ref": "api/session_handlers_test.go:TestHandleDeleteSession",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "New terminal button selector registered",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/selectors.test.ts:exposes workspace newTerminalButton selector",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Header New button, drawer toggle, sessions/settings nav buttons in Workspace",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/workspace.test.tsx",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Pane-Based Terminal Workspace"
+}

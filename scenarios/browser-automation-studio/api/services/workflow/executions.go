@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
@@ -17,7 +19,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
-	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
@@ -106,38 +108,44 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 		return nil, err
 	}
 
-	initialStore, initialParams, env, artifactCfg, execBrowserProfile, projectRoot, startURL, sessionProfileID, navigationWaitUntil, continueOnError := executionParametersToMaps(req.Parameters)
+	initialStore, initialParams, env, artifactCfg, execBrowserProfile, projectRoot, startURL, sessionProfileID, saveSessionProfileID, restoreTabs, navigationWaitUntil, continueOnError := executionParametersToMaps(req.Parameters)
 	if err := validateSeedRequirements(workflowSummary.FlowDefinition, initialStore, initialParams, env); err != nil {
 		return nil, err
 	}
 
 	// Resolve session profile if provided for authenticated execution
 	var storageState json.RawMessage
-	var profileBrowserSettings *archiveingestion.BrowserProfile
-	if sessionProfileID != "" && s.sessionProfiles != nil {
-		profile, err := s.sessionProfiles.Get(sessionProfileID)
+	var profileBrowserSettings *sessionprofilepersistence.BrowserProfile
+	var openTabs []sessionprofilepersistence.TabState
+	if sessionProfileID != "" && s.sessionProfileService != nil {
+		profile, err := s.sessionProfileService.GetProfile(sessionprofilepersistence.ProfileID(sessionProfileID))
 		if err != nil {
 			return nil, fmt.Errorf("session profile %s not found: %w", sessionProfileID, err)
 		}
 		storageState = profile.StorageState
 		profileBrowserSettings = profile.BrowserProfile
 
+		// Load open tabs if tab restoration is requested
+		if restoreTabs && len(profile.OpenTabs) > 0 {
+			openTabs = profile.OpenTabs
+		}
+
 		// Update usage tracking to keep profile LRU order current
-		if _, err := s.sessionProfiles.Touch(sessionProfileID); err != nil && s.log != nil {
+		if _, err := s.sessionProfileService.Touch(sessionprofilepersistence.ProfileID(sessionProfileID)); err != nil && s.log != nil {
 			s.log.WithError(err).WithField("session_profile_id", sessionProfileID).Warn("Failed to update session profile usage timestamp")
 		}
 	}
 
 	// Extract workflow default browser profile and merge with execution override
 	// Priority order: execution params > session profile > workflow defaults
-	var workflowBrowserProfile *archiveingestion.BrowserProfile
+	var workflowBrowserProfile *sessionprofilepersistence.BrowserProfile
 	if workflowSummary.FlowDefinition != nil && workflowSummary.FlowDefinition.Settings != nil && workflowSummary.FlowDefinition.Settings.BrowserProfile != nil {
-		workflowBrowserProfile = archiveingestion.BrowserProfileFromProto(workflowSummary.FlowDefinition.Settings.BrowserProfile)
+		workflowBrowserProfile = sessionprofilepersistence.BrowserProfileFromProto(workflowSummary.FlowDefinition.Settings.BrowserProfile)
 	}
 	// First merge workflow defaults with session profile defaults
-	baseBrowserProfile := archiveingestion.MergeBrowserProfiles(workflowBrowserProfile, profileBrowserSettings)
+	baseBrowserProfile := sessionprofilepersistence.MergeBrowserProfiles(workflowBrowserProfile, profileBrowserSettings)
 	// Then merge with execution-level overrides (highest priority)
-	finalBrowserProfile := archiveingestion.MergeBrowserProfiles(baseBrowserProfile, execBrowserProfile)
+	finalBrowserProfile := sessionprofilepersistence.MergeBrowserProfiles(baseBrowserProfile, execBrowserProfile)
 
 	now := time.Now().UTC()
 	exec := &database.ExecutionIndex{
@@ -167,7 +175,7 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	}
 	_ = s.writeExecutionSnapshot(ctx, exec, snapshot)
 
-	s.startExecutionRunnerWithOptions(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, navigationWaitUntil, continueOnError)
+	s.startExecutionRunnerWithOptions(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
 
 	if req.WaitForCompletion {
 		// Poll for completion; execution updates are persisted to the DB index by the runner.
@@ -218,17 +226,19 @@ func (s *WorkflowService) resolveWorkflowForExecution(ctx context.Context, workf
 	return getResp.Workflow, nil
 }
 
-// executionParametersToMaps extracts namespace maps, artifact config, browser profile, project root, start URL, and session profile ID from ExecutionParameters.
-// Returns: store (@store/ namespace), params (@params/ namespace), env (environment), artifact config, browser profile, projectRoot, startURL, sessionProfileID, navigationWaitUntil, continueOnError.
+// executionParametersToMaps extracts namespace maps, artifact config, browser profile, project root, start URL, session profile IDs, and execution defaults from ExecutionParameters.
+// Returns: store (@store/ namespace), params (@params/ namespace), env (environment), artifact config, browser profile, projectRoot, startURL, sessionProfileID, saveSessionProfileID, restoreTabs, navigationWaitUntil, continueOnError.
 // projectRoot is used for filesystem-based subflow resolution when the calling workflow has no database project.
 // sessionProfileID references a stored session profile for authenticated execution.
+// saveSessionProfileID specifies where to save storage state after execution.
+// restoreTabs indicates whether to restore tabs from the session profile before execution.
 // navigationWaitUntil and continueOnError are execution-level defaults that override workflow settings.
-func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, projectRoot string, startURL string, sessionProfileID string, navigationWaitUntil string, continueOnError *bool) {
+func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, projectRoot string, startURL string, sessionProfileID string, saveSessionProfileID string, restoreTabs bool, navigationWaitUntil string, continueOnError *bool) {
 	store = map[string]any{}
 	params = map[string]any{}
 	env = map[string]any{}
 	if p == nil {
-		return store, params, env, nil, nil, "", "", "", "", nil
+		return store, params, env, nil, nil, "", "", "", "", false, "", nil
 	}
 
 	for k, v := range p.InitialStore {
@@ -255,7 +265,7 @@ func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[s
 
 	// Extract browser profile for anti-detection and human-like behavior if provided
 	if p.BrowserProfile != nil {
-		browserProfile = archiveingestion.BrowserProfileFromProto(p.BrowserProfile)
+		browserProfile = sessionprofilepersistence.BrowserProfileFromProto(p.BrowserProfile)
 	}
 
 	// Extract project_root for filesystem-based subflow resolution.
@@ -272,6 +282,18 @@ func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[s
 		sessionProfileID = strings.TrimSpace(*p.SessionProfileId)
 	}
 
+	// Extract save session profile ID for post-execution state capture.
+	// When set, the browser's storage state will be saved to this profile after execution.
+	if p.SaveSessionProfileId != nil {
+		saveSessionProfileID = strings.TrimSpace(*p.SaveSessionProfileId)
+	}
+
+	// Extract tab restoration flag for session profile.
+	// When true, restores the profile's saved tabs before execution.
+	if p.RestoreTabs != nil {
+		restoreTabs = *p.RestoreTabs
+	}
+
 	// Extract execution-level defaults for navigation and error handling.
 	// These override workflow defaults but can be further overridden by per-node settings.
 	if p.NavigationWaitUntil != nil {
@@ -279,7 +301,7 @@ func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[s
 	}
 	continueOnError = p.ContinueOnError
 
-	return store, params, env, artifactCfg, browserProfile, projectRoot, startURL, sessionProfileID, navigationWaitUntil, continueOnError
+	return store, params, env, artifactCfg, browserProfile, projectRoot, startURL, sessionProfileID, saveSessionProfileID, restoreTabs, navigationWaitUntil, continueOnError
 }
 
 func jsonValueToAny(v *commonv1.JsonValue) any {
@@ -308,28 +330,24 @@ func (s *WorkflowService) startExecutionRunner(workflow *basapi.WorkflowSummary,
 }
 
 func (s *WorkflowService) startExecutionRunnerWithNamespaces(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, projectRoot string) {
-	s.startExecutionRunnerWithOptions(workflow, executionID, store, params, env, artifactCfg, nil, nil, nil, projectRoot, "", "", nil)
+	s.startExecutionRunnerWithOptions(workflow, executionID, store, params, env, artifactCfg, nil, nil, nil, projectRoot, "", "", false, nil, "", nil)
 }
 
-func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, navigationWaitUntil string, continueOnError *bool) {
+func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.storeExecutionCancel(executionID, cancel)
-	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, opts, projectRoot, startURL, navigationWaitUntil, continueOnError)
-}
-
-// executeWorkflowAsync is the single implementation for running workflows asynchronously.
-// It handles both legacy (flat parameters in store) and new (namespaced store/params/env) callers.
-// artifactCfg controls what artifacts are collected; nil means use default (full profile).
-func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings) {
-	s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, nil, nil, nil, "", "", "", nil)
+	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
 }
 
 // executeWorkflowAsyncWithOptions runs a workflow asynchronously with optional settings.
 // projectRoot is the absolute path to the project root for filesystem-based subflow resolution.
 // browserProfile configures anti-detection and human-like behavior settings for the execution.
 // storageState contains cookies/localStorage from a session profile for authenticated execution.
+// saveSessionProfileID specifies where to save storage state after successful execution.
+// restoreTabs indicates whether to restore tabs from the session profile before execution.
+// openTabs contains the saved tab states to restore (only used when restoreTabs is true).
 // navigationWaitUntil and continueOnError are execution-level defaults that override workflow settings.
-func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, navigationWaitUntil string, continueOnError *bool) {
+func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) {
 	defer s.cancelExecutionByID(executionID)
 
 	persistenceCtx := context.Background()
@@ -359,7 +377,12 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		s.artifactRecorder.SetArtifactConfig(artifactCfg)
 	}
 
-	plan, _, err := autoexecutor.BuildContractsPlan(ctx, executionID, workflow)
+	compileCtx := ctx
+	if projectRoot != "" {
+		compileCtx = autocompiler.WithProjectRoot(ctx, projectRoot)
+	}
+
+	plan, _, err := autoexecutor.BuildContractsPlan(compileCtx, executionID, workflow)
 	if err != nil {
 		execIndex.Status = database.ExecutionStatusFailed
 		execIndex.ErrorMessage = err.Error()
@@ -412,27 +435,64 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 	}
 
 	req := autoexecutor.Request{
-		Plan:               plan,
-		EngineName:         engineName,
-		EngineFactory:      s.engineFactory,
-		Recorder:           s.artifactRecorder,
-		EventSink:          eventSink,
-		HeartbeatInterval:  2 * time.Second,
-		ReuseMode:          autoengine.ReuseModeReuse,
-		WorkflowResolver:   s,
-		PlanCompiler:       s.planCompiler,
-		MaxSubflowDepth:    5,
-		StartFromStepIndex: -1,
-		ProjectRoot:        projectRoot,
-		InitialStore:       store,
-		InitialParams:      params,
+		Plan:                plan,
+		EngineName:          engineName,
+		EngineFactory:       s.engineFactory,
+		Recorder:            s.artifactRecorder,
+		EventSink:           eventSink,
+		HeartbeatInterval:   2 * time.Second,
+		ReuseMode:           autoengine.ReuseModeReuse,
+		WorkflowResolver:    s,
+		PlanCompiler:        s.planCompiler,
+		MaxSubflowDepth:     5,
+		StartFromStepIndex:  -1,
+		ProjectRoot:         projectRoot,
+		InitialStore:        store,
+		InitialParams:       params,
 		Env:                 env,
 		StartURL:            strings.TrimSpace(startURL),
 		ArtifactConfig:      artifactCfg,
 		BrowserProfile:      browserProfile,
 		StorageState:        storageState,
+		RestoreTabs:         restoreTabs,
+		OpenTabs:            openTabs,
 		NavigationWaitUntil: navigationWaitUntil,
 		ContinueOnError:     continueOnError,
+	}
+
+	// Set up callback to save storage state after successful execution
+	if saveSessionProfileID != "" && s.sessionProfileService != nil {
+		if s.log != nil {
+			s.log.WithFields(logrus.Fields{
+				"execution_id":            executionID.String(),
+				"save_session_profile_id": saveSessionProfileID,
+			}).Info("Setting up storage state save callback")
+		}
+		profileID := saveSessionProfileID // capture for closure
+		req.SaveStorageStateCallback = func(storageState json.RawMessage) error {
+			if s.log != nil {
+				s.log.WithFields(logrus.Fields{
+					"execution_id":            executionID.String(),
+					"save_session_profile_id": profileID,
+					"storage_state_size":      len(storageState),
+				}).Info("Saving storage state to session profile")
+			}
+			_, err := s.sessionProfileService.SaveStorageState(sessionprofilepersistence.ProfileID(profileID), storageState)
+			if err != nil && s.log != nil {
+				s.log.WithError(err).WithFields(logrus.Fields{
+					"execution_id":            executionID.String(),
+					"save_session_profile_id": profileID,
+				}).Error("Failed to save storage state to session profile")
+			}
+			return err
+		}
+	} else if saveSessionProfileID != "" && s.sessionProfileService == nil {
+		if s.log != nil {
+			s.log.WithFields(logrus.Fields{
+				"execution_id":            executionID.String(),
+				"save_session_profile_id": saveSessionProfileID,
+			}).Warn("Cannot save session state: session profiles service not available")
+		}
 	}
 
 	executor := s.executor

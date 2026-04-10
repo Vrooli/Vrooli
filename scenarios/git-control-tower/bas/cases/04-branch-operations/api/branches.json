@@ -2,9 +2,17 @@
   "metadata": {
     "name": "Branch Operations",
     "description": "Validates /api/v1/repo/branches returns local and remote branch lists",
-    "tags": ["e2e", "api", "git", "branches"],
-    "requirements": ["GCT-OT-P1-001"],
-    "reset": "none"
+    "tags": [
+      "e2e",
+      "api",
+      "git",
+      "branches"
+    ],
+    "requirements": [
+      "GCT-OT-P1-001"
+    ],
+    "reset": "none",
+    "execution_mode": "observer"
   },
   "settings": {},
   "nodes": [
@@ -19,10 +27,22 @@
           "Content-Type": "application/json"
         },
         "assertions": [
-          {"type": "status_code", "expected": 200},
-          {"type": "json_path_exists", "path": "$.current"},
-          {"type": "json_path_exists", "path": "$.locals"},
-          {"type": "json_path_exists", "path": "$.remotes"}
+          {
+            "type": "status_code",
+            "expected": 200
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.current"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.locals"
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.remotes"
+          }
         ]
       }
     }

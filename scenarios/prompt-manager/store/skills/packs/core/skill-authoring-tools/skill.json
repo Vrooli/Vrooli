@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "skill-authoring-tools",
+  "name": "Tools Skill Authoring",
+  "description": "Authoring guide for Tools skills covering safe usage, guardrails, and verification.",
+  "modes": [
+    "meta",
+    "tools"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "wrench",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 43,
+  "createdAt": "2026-01-28T00:00:00Z",
+  "updatedAt": "2026-02-04T13:13:54Z"
+}

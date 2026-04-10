@@ -20,6 +20,13 @@ interface ServiceWorkerParams {
   scopeURL?: string; // For 'unregister' operation
 }
 
+interface ServiceWorkerController {
+  getWorkers(): unknown;
+  unregister(scopeURL: string): Promise<boolean>;
+  unregisterAll(): Promise<number>;
+  stopAll(): Promise<void>;
+}
+
 /**
  * Service Worker instruction handler.
  */
@@ -52,7 +59,7 @@ export class ServiceWorkerHandler extends BaseHandler {
 
       // Get SW controller from context
       // The controller is attached to the session by manager.ts
-      const swController = (context as any).serviceWorkerController;
+      const swController = (context as HandlerContext & { serviceWorkerController?: ServiceWorkerController }).serviceWorkerController;
 
       if (!swController) {
         return {
@@ -105,7 +112,7 @@ export class ServiceWorkerHandler extends BaseHandler {
           return {
             success: false,
             error: {
-              message: `Unsupported service worker operation: ${operation}`,
+              message: 'Unsupported service worker operation',
               code: 'UNSUPPORTED_OPERATION',
               kind: 'orchestration',
               retryable: false,

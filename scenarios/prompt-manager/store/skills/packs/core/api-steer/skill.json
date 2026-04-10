@@ -1,0 +1,16 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "api-steer",
+  "name": "API Steer",
+  "modes": [
+    "steer",
+    "architecture"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "defaultScope": "architecture-scope",
+  "revision": 49,
+  "createdAt": "2026-01-30T13:13:00-05:00",
+  "updatedAt": "2026-02-06T23:12:28Z"
+}

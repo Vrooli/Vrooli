@@ -43,6 +43,7 @@ type AIGenerateDraftRequest struct {
 	ReferencePRDs          []ReferencePRD `json:"reference_prds,omitempty"`
 	Model                  string         `json:"model,omitempty"`
 	SaveGeneratedToDraft   *bool          `json:"save_generated_to_draft,omitempty"`
+	CustomPath             string         `json:"custom_path,omitempty"`
 }
 
 type ReferencePRD struct {
@@ -75,6 +76,7 @@ type PublishRequest struct {
 	CreateBackup bool                    `json:"create_backup"`
 	DeleteDraft  bool                    `json:"delete_draft"`
 	Template     *PublishTemplateRequest `json:"template,omitempty"`
+	CustomPath   string                  `json:"custom_path,omitempty"`
 }
 
 type PublishResponse struct {

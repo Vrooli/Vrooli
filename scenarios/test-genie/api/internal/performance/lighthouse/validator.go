@@ -325,11 +325,6 @@ func (v *validator) auditPageWithRetry(ctx context.Context, page PageConfig, pag
 		}
 	}
 
-	if lastResult.RetryCount == 0 && maxRetries > 0 && !lastResult.Success && lastResult.Error != nil {
-		// Record how many retries were used (only if we actually retried)
-		// This is already tracked via the loop, but we track final count
-	}
-
 	return lastResult
 }
 

@@ -189,6 +189,12 @@ message ToolMetadata {
   // Whether the tool output may contain sensitive data.
   // Used for logging and display decisions.
   bool sensitive_output = 12;
+
+  // Whether this tool is internal-only and should be hidden from AI.
+  // Internal tools (like status polling and cancellation) are used by the
+  // async tracker but should not be visible in the AI's tool list.
+  // @default false
+  bool internal_only = 13;
 }
 
 // ToolExample provides a usage example for documentation.

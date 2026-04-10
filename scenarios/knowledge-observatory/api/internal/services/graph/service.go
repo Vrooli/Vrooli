@@ -1,5 +1,7 @@
 package graph
 
+// DOC: docs/concepts/ARCHITECTURE.md#graph-flow
+// DOC: docs/reference/api-endpoints.md#graph
 import (
 	"context"
 	"errors"

@@ -170,7 +170,7 @@ describe('safeSerializable', () => {
   it('should pass through objects with functions (functions become undefined in JSON)', () => {
     // Note: Functions in objects don't cause JSON.stringify to throw,
     // they just become undefined. This test documents actual behavior.
-    const obj = { fn: () => {}, value: 'test' };
+    const obj = { fn: (): void => {}, value: 'test' };
     const result = safeSerializable(obj, 'test');
     // Function is preserved in-memory since stringify doesn't throw
     expect(result).toEqual(obj);
@@ -262,7 +262,10 @@ describe('validateTimestamp', () => {
     expect(result.valid).toBe(true);
     expect(result.adjustedTimestamp).toBeDefined();
     expect(result.driftMs).toBeDefined();
-    expect(Math.abs(result.driftMs!)).toBeLessThan(1000); // Within 1 second
+    if (result.driftMs === undefined) {
+      throw new Error('Expected driftMs to be defined');
+    }
+    expect(Math.abs(result.driftMs)).toBeLessThan(1000); // Within 1 second
   });
 
   it('should accept ISO 8601 string timestamps', () => {
@@ -345,7 +348,12 @@ describe('getMonotonicTimestamp', () => {
 
     // Each timestamp should be >= the previous one
     for (let i = 1; i < timestamps.length; i++) {
-      expect(timestamps[i]).toBeGreaterThanOrEqual(timestamps[i - 1]);
+      const current = timestamps[i];
+      const previous = timestamps[i - 1];
+      if (current === undefined || previous === undefined) {
+        throw new Error('Missing timestamp when validating ordering');
+      }
+      expect(current).toBeGreaterThanOrEqual(previous);
     }
   });
 });

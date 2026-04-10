@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/domain"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
@@ -41,25 +42,25 @@ type MockCatalogService struct {
 	workflows map[uuid.UUID]*database.WorkflowIndex
 
 	// Error injection for testing error paths
-	CheckHealthError           error
-	CheckAutomationHealthError error
-	CreateProjectError         error
-	GetProjectError            error
-	GetProjectByNameError      error
+	CheckHealthError            error
+	CheckAutomationHealthError  error
+	CreateProjectError          error
+	GetProjectError             error
+	GetProjectByNameError       error
 	GetProjectByFolderPathError error
-	UpdateProjectError         error
-	DeleteProjectError         error
-	ListProjectsError          error
-	GetProjectStatsError       error
-	GetProjectsStatsError      error
+	UpdateProjectError          error
+	DeleteProjectError          error
+	ListProjectsError           error
+	GetProjectStatsError        error
+	GetProjectsStatsError       error
 	ListWorkflowsByProjectError error
 	DeleteProjectWorkflowsError error
-	CreateWorkflowError        error
-	GetWorkflowAPIError        error
-	UpdateWorkflowError        error
-	DeleteWorkflowError        error
-	ListWorkflowsError         error
-	SyncProjectWorkflowsError  error
+	CreateWorkflowError         error
+	GetWorkflowAPIError         error
+	UpdateWorkflowError         error
+	DeleteWorkflowError         error
+	ListWorkflowsError          error
+	SyncProjectWorkflowsError   error
 
 	// Health check responses
 	AutomationHealthy bool
@@ -175,7 +176,7 @@ func (m *MockCatalogService) UpdateProject(ctx context.Context, project *databas
 	return nil
 }
 
-func (m *MockCatalogService) DeleteProject(ctx context.Context, id uuid.UUID) error {
+func (m *MockCatalogService) DeleteProject(ctx context.Context, id uuid.UUID, deleteFiles bool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.DeleteProjectCalled = true
@@ -391,31 +392,31 @@ type MockExecutionService struct {
 	executions map[uuid.UUID]*database.ExecutionIndex
 
 	// Error injection
-	ExecuteWorkflowError             error
-	ExecuteWorkflowAPIError          error
-	ExecuteAdhocWorkflowAPIError     error
-	StopExecutionError               error
-	ResumeExecutionError             error
-	ListExecutionsError              error
-	GetExecutionError                error
-	UpdateExecutionError             error
-	GetExecutionScreenshotsError     error
-	GetExecutionTimelineError        error
-	GetExecutionTimelineProtoError   error
-	DescribeExecutionExportError     error
-	ExportToFolderError              error
-	HydrateExecutionProtoError       error
-	GetExecutionTraceArtifactsError  error
-	GetExecutionHarArtifactsError    error
-	GetExecutionVideoArtifactsError  error
+	ExecuteWorkflowError            error
+	ExecuteWorkflowAPIError         error
+	ExecuteAdhocWorkflowAPIError    error
+	StopExecutionError              error
+	ResumeExecutionError            error
+	ListExecutionsError             error
+	GetExecutionError               error
+	UpdateExecutionError            error
+	GetExecutionScreenshotsError    error
+	GetExecutionTimelineError       error
+	GetExecutionTimelineProtoError  error
+	DescribeExecutionExportError    error
+	ExportToFolderError             error
+	HydrateExecutionProtoError      error
+	GetExecutionTraceArtifactsError error
+	GetExecutionHarArtifactsError   error
+	GetExecutionVideoArtifactsError error
 
 	// Response overrides
-	ExecutionScreenshots      []*basexecution.ExecutionScreenshot
-	ExecutionTimeline         *workflow.ExecutionTimeline
-	ExecutionTimelineProto    *bastimeline.ExecutionTimeline
-	ExecutionTraceArtifacts   []workflow.ExecutionFileArtifact
-	ExecutionHarArtifacts     []workflow.ExecutionFileArtifact
-	ExecutionVideoArtifacts   []workflow.ExecutionVideoArtifact
+	ExecutionScreenshots    []*basexecution.ExecutionScreenshot
+	ExecutionTimeline       *workflow.ExecutionTimeline
+	ExecutionTimelineProto  *bastimeline.ExecutionTimeline
+	ExecutionTraceArtifacts []workflow.ExecutionFileArtifact
+	ExecutionHarArtifacts   []workflow.ExecutionFileArtifact
+	ExecutionVideoArtifacts []workflow.ExecutionVideoArtifact
 
 	// Call tracking
 	StopExecutionCalled   bool
@@ -673,7 +674,7 @@ func (m *MockExecutionService) AddExecution(execution *database.ExecutionIndex) 
 type MockHub struct {
 	mu sync.RWMutex
 
-	ClientCount             int
+	ClientCount               int
 	ExecutionFrameSubscribers map[string]bool
 	RecordingSubscribers      map[string]bool
 
@@ -701,9 +702,20 @@ func (m *MockHub) BroadcastEnvelope(event any) {
 	m.LastBroadcastedEvent = event
 }
 
-func (m *MockHub) BroadcastRecordingAction(sessionID string, action any) {}
+func (m *MockHub) BroadcastRecordingEntry(sessionID string, entry *wsHub.UnifiedTimelineEntry) wsHub.BroadcastResult {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
-func (m *MockHub) BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEntry map[string]any) {
+	subscriberCount := 0
+	if m.RecordingSubscribers[sessionID] {
+		subscriberCount = 1
+	}
+
+	return wsHub.BroadcastResult{
+		SubscriberCount: subscriberCount,
+		SentCount:       subscriberCount,
+		DroppedCount:    0,
+	}
 }
 
 func (m *MockHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {}
@@ -740,6 +752,8 @@ func (m *MockHub) Run() {}
 
 func (m *MockHub) CloseExecution(executionID uuid.UUID) {}
 
+func (m *MockHub) BroadcastExportProgress(progress *wsHub.ExportProgress) {}
+
 // ============================================================================
 // Mock Storage
 // ============================================================================
@@ -752,13 +766,13 @@ type MockStorage struct {
 	artifacts   map[string][]byte
 
 	// Error injection
-	HealthCheckError       error
-	GetScreenshotError     error
-	StoreScreenshotError   error
-	DeleteScreenshotError  error
-	ListScreenshotsError   error
-	GetArtifactError       error
-	StoreArtifactError     error
+	HealthCheckError      error
+	GetScreenshotError    error
+	StoreScreenshotError  error
+	DeleteScreenshotError error
+	ListScreenshotsError  error
+	GetArtifactError      error
+	StoreArtifactError    error
 
 	// Config
 	BucketName string
@@ -927,21 +941,21 @@ type MockDriverClient struct {
 	ForwardInputError         error
 
 	// Response overrides
-	StopRecordingResponse   *driver.StopRecordingResponse
-	RecordingStatusResponse *driver.RecordingStatusResponse
-	RecordedActionsResponse *driver.GetActionsResponse
-	NavigateResponse        *driver.NavigateResponse
-	ReloadResponse          *driver.ReloadResponse
-	GoBackResponse          *driver.GoBackResponse
-	GoForwardResponse       *driver.GoForwardResponse
-	NavigationStateResponse *driver.NavigationStateResponse
-	NavigationStackResponse *driver.NavigationStackResponse
-	UpdateViewportResponse  *driver.UpdateViewportResponse
-	StreamSettingsResponse  *driver.UpdateStreamSettingsResponse
+	StopRecordingResponse    *driver.StopRecordingResponse
+	RecordingStatusResponse  *driver.RecordingStatusResponse
+	RecordedActionsResponse  *driver.GetActionsResponse
+	NavigateResponse         *driver.NavigateResponse
+	ReloadResponse           *driver.ReloadResponse
+	GoBackResponse           *driver.GoBackResponse
+	GoForwardResponse        *driver.GoForwardResponse
+	NavigationStateResponse  *driver.NavigationStateResponse
+	NavigationStackResponse  *driver.NavigationStackResponse
+	UpdateViewportResponse   *driver.UpdateViewportResponse
+	StreamSettingsResponse   *driver.UpdateStreamSettingsResponse
 	ValidateSelectorResponse *driver.ValidateSelectorResponse
-	ReplayPreviewResponse   *driver.ReplayPreviewResponse
-	ScreenshotResponse      *driver.CaptureScreenshotResponse
-	FrameResponse           *driver.GetFrameResponse
+	ReplayPreviewResponse    *driver.ReplayPreviewResponse
+	ScreenshotResponse       *driver.CaptureScreenshotResponse
+	FrameResponse            *driver.GetFrameResponse
 
 	// Call tracking
 	StopRecordingCalled      bool
@@ -1264,10 +1278,10 @@ type MockRecordModeService struct {
 	mockDriverClient *MockDriverClient
 
 	// Error injection for service-level operations
-	CreateSessionError   error
-	CloseSessionError    error
-	GetStorageStateError error
-	StartRecordingError  error
+	CreateSessionError    error
+	CloseSessionError     error
+	GetStorageStateError  error
+	StartRecordingError   error
 	GenerateWorkflowError error
 
 	// Response overrides
@@ -1275,11 +1289,11 @@ type MockRecordModeService struct {
 	StorageState      json.RawMessage
 
 	// Call tracking
-	CreateSessionCalled      bool
-	CloseSessionCalled       bool
-	StartRecordingCalled     bool
-	GenerateWorkflowCalled   bool
-	LastSessionID            string
+	CreateSessionCalled    bool
+	CloseSessionCalled     bool
+	StartRecordingCalled   bool
+	GenerateWorkflowCalled bool
+	LastSessionID          string
 }
 
 func NewMockRecordModeService() *MockRecordModeService {
@@ -1403,6 +1417,10 @@ func (m *MockRecordModeService) GetPages(sessionID string) (*livecapture.PageLis
 	}, nil
 }
 
+func (m *MockRecordModeService) GetOpenPages(sessionID string) ([]*domain.Page, uuid.UUID, error) {
+	return []*domain.Page{}, uuid.Nil, nil
+}
+
 func (m *MockRecordModeService) ActivatePage(ctx context.Context, sessionID string, pageID uuid.UUID) error {
 	return nil
 }
@@ -1435,6 +1453,13 @@ func (m *MockRecordModeService) CreatePage(ctx context.Context, sessionID string
 	return &driver.CreatePageResponse{
 		DriverPageID: "mock-page-id",
 		URL:          url,
+	}, nil
+}
+
+func (m *MockRecordModeService) RestoreTabs(ctx context.Context, sessionID string, tabs []sessionprofilepersistence.TabState) (*livecapture.TabRestorationResult, error) {
+	return &livecapture.TabRestorationResult{
+		InitialURL: "",
+		Tabs:       []livecapture.RestoredTab{},
 	}, nil
 }
 

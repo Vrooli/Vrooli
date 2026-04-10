@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   validateManifest,
+  initManifest,
   buildBundle,
   runPreflight as runPreflightApi,
   createDeployment,
@@ -17,9 +18,13 @@ import {
   type ProvidedSecrets,
 } from "../lib/api";
 import {
+  type CustomSecret,
+  isValidSecretKey,
+  isReservedKey,
+} from "../types/secrets";
+import {
   type DeploymentManifest,
   type WizardStep,
-  DEFAULT_MANIFEST,
   DEFAULT_MANIFEST_JSON,
   WIZARD_STEPS,
 } from "../types/deployment";
@@ -27,6 +32,8 @@ import {
 const MAX_HISTORY_SIZE = 50;
 
 const STORAGE_KEY = "scenario-to-cloud:deployment";
+const REQUIRE_SSH_SUCCESS_FOR_MANIFEST =
+  import.meta.env.VITE_REQUIRE_SSH_SUCCESS_FOR_MANIFEST === "true";
 
 type SavedDeployment = {
   manifestJson: string;
@@ -73,6 +80,7 @@ export function useDeployment() {
 
   // Manifest state
   const [manifestJson, setManifestJson] = useState(saved?.manifestJson ?? DEFAULT_MANIFEST_JSON);
+  const [defaultManifestJson, setDefaultManifestJson] = useState(DEFAULT_MANIFEST_JSON);
 
   // Validation state
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[] | null>(null);
@@ -111,6 +119,9 @@ export function useDeployment() {
   const [secretsFetched, setSecretsFetched] = useState(false); // Track if fetch was attempted
   const [providedSecrets, setProvidedSecrets] = useState<ProvidedSecrets>({});
 
+  // Custom secrets state (manually added secrets not detected by secrets-manager)
+  const [customSecrets, setCustomSecrets] = useState<CustomSecret[]>([]);
+
   // Undo/redo history
   const historyRef = useRef<string[]>([]);
   const futureRef = useRef<string[]>([]);
@@ -127,6 +138,29 @@ export function useDeployment() {
   }, [manifestJson]);
 
   const currentStep = WIZARD_STEPS[currentStepIndex];
+
+  // Initialize default manifest from API contract.
+  useEffect(() => {
+    if (saved?.manifestJson) return;
+
+    let cancelled = false;
+    async function bootstrapManifest(): Promise<void> {
+      try {
+        const res = await initManifest();
+        if (!res.manifest || cancelled) return;
+        const json = JSON.stringify(res.manifest, null, 2);
+        setDefaultManifestJson(json);
+        setManifestJson((prev) => (prev === DEFAULT_MANIFEST_JSON ? json : prev));
+      } catch {
+        // Keep local fallback defaults if API bootstrap fails.
+      }
+    }
+
+    void bootstrapManifest();
+    return () => {
+      cancelled = true;
+    };
+  }, [saved?.manifestJson]);
 
   // Wrapper to reset deployment state when bundle changes
   const setBundleArtifact = useCallback((artifact: BundleArtifact | null) => {
@@ -441,6 +475,66 @@ export function useDeployment() {
     setProvidedSecrets(prev => ({ ...prev, [key]: value }));
   }, []);
 
+  // Custom secrets management
+  const addCustomSecret = useCallback(() => {
+    const id = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setCustomSecrets(prev => [...prev, { id, key: "", value: "", description: "" }]);
+  }, []);
+
+  const removeCustomSecret = useCallback((id: string) => {
+    setCustomSecrets(prev => prev.filter(s => s.id !== id));
+  }, []);
+
+  const updateCustomSecret = useCallback((id: string, field: keyof Omit<CustomSecret, "id">, value: string) => {
+    setCustomSecrets(prev => prev.map(s =>
+      s.id === id ? { ...s, [field]: value } : s
+    ));
+  }, []);
+
+  // Validate all custom secrets
+  const customSecretsValidation = useMemo(() => {
+    const errors: Record<string, string> = {};
+    const keys = new Set<string>();
+
+    // Also collect keys from auto-detected secrets
+    const autoDetectedKeys = new Set(
+      secretsManifest?.bundle_secrets.map(s => s.target.name || s.id) ?? []
+    );
+
+    for (const secret of customSecrets) {
+      if (!secret.key.trim()) {
+        errors[secret.id] = "Key is required";
+      } else if (!isValidSecretKey(secret.key)) {
+        errors[secret.id] = "Key must be uppercase letters, numbers, and underscores (e.g., MY_API_KEY)";
+      } else if (isReservedKey(secret.key)) {
+        errors[secret.id] = "This key prefix is reserved";
+      } else if (keys.has(secret.key)) {
+        errors[secret.id] = "Duplicate key";
+      } else if (autoDetectedKeys.has(secret.key)) {
+        errors[secret.id] = "This key conflicts with an auto-detected secret";
+      } else if (!secret.value.trim()) {
+        errors[secret.id] = "Value is required";
+      }
+      keys.add(secret.key);
+    }
+
+    return {
+      errors,
+      isValid: Object.keys(errors).length === 0,
+    };
+  }, [customSecrets, secretsManifest]);
+
+  // Merge custom secrets into provided secrets for deployment
+  const mergedProvidedSecrets = useMemo((): ProvidedSecrets => {
+    const merged = { ...providedSecrets };
+    for (const secret of customSecrets) {
+      if (secret.key.trim() && secret.value.trim()) {
+        merged[secret.key] = secret.value;
+      }
+    }
+    return merged;
+  }, [providedSecrets, customSecrets]);
+
   const deploy = useCallback(async () => {
     setDeploymentStatus("deploying");
     setDeploymentError(null);
@@ -474,14 +568,14 @@ export function useDeployment() {
       // This is now non-blocking - it returns immediately.
       // Progress is tracked via SSE on /deployments/{id}/progress
       // and status updates come via the onDeploymentComplete callback
-      await executeDeployment(newDeploymentId, { providedSecrets });
+      await executeDeployment(newDeploymentId, { providedSecrets: mergedProvidedSecrets });
 
       // Status remains "deploying" - will be updated via SSE progress events
     } catch (e) {
       setDeploymentError(e instanceof Error ? e.message : String(e));
       setDeploymentStatus("failed");
     }
-  }, [parsedManifest, manifestJson, currentStepIndex, sshKeyPath, bundleArtifact, providedSecrets]);
+  }, [parsedManifest, manifestJson, currentStepIndex, sshKeyPath, bundleArtifact, mergedProvidedSecrets]);
 
   // Called when SSE progress stream reports completion or error
   const onDeploymentComplete = useCallback((success: boolean, error?: string) => {
@@ -510,19 +604,19 @@ export function useDeployment() {
     historyRef.current = [...historyRef.current, manifestJson].slice(-MAX_HISTORY_SIZE);
     futureRef.current = [];
 
-    setManifestJson(DEFAULT_MANIFEST_JSON);
+    setManifestJson(defaultManifestJson);
     setValidationIssues(null);
     setValidationError(null);
     setNormalizedManifest(null);
     saveDeployment({
-      manifestJson: DEFAULT_MANIFEST_JSON,
+      manifestJson: defaultManifestJson,
       currentStep: currentStepIndex,
       timestamp: Date.now(),
       sshKeyPath,
       deploymentId,
       deploymentStatus,
     });
-  }, [manifestJson, currentStepIndex, sshKeyPath, deploymentId, deploymentStatus]);
+  }, [manifestJson, defaultManifestJson, currentStepIndex, sshKeyPath, deploymentId, deploymentStatus]);
 
   // Reset manifest but preserve scenario selection and auto-populate its ports
   const resetManifestWithScenario = useCallback((scenarioId: string, scenarioPorts: Record<string, number>) => {
@@ -530,10 +624,15 @@ export function useDeployment() {
     historyRef.current = [...historyRef.current, manifestJson].slice(-MAX_HISTORY_SIZE);
     futureRef.current = [];
 
+    const parsedDefault = JSON.parse(defaultManifestJson) as DeploymentManifest;
     const newManifest: DeploymentManifest = {
-      ...DEFAULT_MANIFEST,
+      ...parsedDefault,
       scenario: { id: scenarioId },
-      dependencies: { ...DEFAULT_MANIFEST.dependencies, scenarios: [scenarioId] },
+      dependencies: {
+        ...parsedDefault.dependencies,
+        scenarios: [scenarioId],
+        resources: parsedDefault.dependencies?.resources ?? [],
+      },
       ports: scenarioPorts,
     };
     const json = JSON.stringify(newManifest, null, 2);
@@ -550,7 +649,7 @@ export function useDeployment() {
       deploymentId,
       deploymentStatus,
     });
-  }, [manifestJson, currentStepIndex, sshKeyPath, deploymentId, deploymentStatus]);
+  }, [manifestJson, defaultManifestJson, currentStepIndex, sshKeyPath, deploymentId, deploymentStatus]);
 
   // Full reset (returns to step 0, clears everything)
   const reset = useCallback(() => {
@@ -558,7 +657,7 @@ export function useDeployment() {
     historyRef.current = [];
     futureRef.current = [];
     setCurrentStepIndex(0);
-    setManifestJson(DEFAULT_MANIFEST_JSON);
+    setManifestJson(defaultManifestJson);
     setValidationIssues(null);
     setValidationError(null);
     setNormalizedManifest(null);
@@ -566,6 +665,7 @@ export function useDeployment() {
     setSecretsError(null);
     setSecretsFetched(false);
     setProvidedSecrets({});
+    setCustomSecrets([]);
     setBundleArtifact(null);
     setBundleError(null);
     setPreflightPassed(null);
@@ -577,21 +677,35 @@ export function useDeployment() {
     setDeploymentId(null);
     setSSHKeyPath(null);
     setSSHConnectionStatus("untested");
-  }, []);
+  }, [defaultManifestJson]);
 
   // Computed state
   const canProceed = useMemo(() => {
     switch (currentStep.id) {
       case "manifest":
-        // Merged manifest + validate: require valid JSON AND no blocking validation errors
-        return (
+        // Merged manifest + validate: require valid JSON AND no blocking validation errors.
+        // Optional strict mode can also require a successful SSH connectivity check.
+        if (!(
           parsedManifest.ok &&
           validationIssues !== null &&
           validationIssues.filter((i) => i.severity === "error").length === 0
-        );
+        )) {
+          return false;
+        }
+
+        if (
+          REQUIRE_SSH_SUCCESS_FOR_MANIFEST &&
+          parsedManifest.value.target?.vps?.host
+        ) {
+          return sshConnectionStatus === "success";
+        }
+
+        return true;
       case "secrets":
         // Must have completed fetch attempt
         if (!secretsFetched) return false;
+        // Validate custom secrets if any are defined
+        if (customSecrets.length > 0 && !customSecretsValidation.isValid) return false;
         // If no secrets manifest (null response), no secrets required - can proceed
         if (!secretsManifest) return true;
         // Check all required user_prompt secrets are provided
@@ -612,9 +726,9 @@ export function useDeployment() {
       default:
         return false;
     }
-  }, [currentStep.id, parsedManifest, validationIssues, secretsFetched, secretsManifest, providedSecrets, bundleArtifact, preflightPassed, preflightOverride, preflightChecks, deploymentStatus]);
+  }, [currentStep.id, parsedManifest, validationIssues, secretsFetched, secretsManifest, providedSecrets, bundleArtifact, preflightPassed, preflightOverride, preflightChecks, deploymentStatus, sshConnectionStatus]);
 
-  const hasSavedProgress = saved !== null && saved.manifestJson !== DEFAULT_MANIFEST_JSON;
+  const hasSavedProgress = saved !== null && saved.manifestJson !== defaultManifestJson;
 
   return {
     // Navigation
@@ -658,6 +772,13 @@ export function useDeployment() {
     fetchSecrets,
     providedSecrets,
     setProvidedSecrets: updateProvidedSecret,
+
+    // Custom secrets (manually added)
+    customSecrets,
+    addCustomSecret,
+    removeCustomSecret,
+    updateCustomSecret,
+    customSecretsValidation,
 
     // Bundle
     bundleArtifact,

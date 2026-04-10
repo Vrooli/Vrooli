@@ -365,47 +365,32 @@ export function SettingsPage({
               </p>
               <div className="form-grid-agent">
                 <label>
-                  <span>AI Backend Provider</span>
+                  <span>Runner type</span>
                   <select
-                    value={agent.backend?.provider ?? "codex"}
+                    value={agent.runnerType}
                     onChange={(event) =>
-                      handleAgentChange("backend", {
-                        provider: event.target.value as "codex" | "claude-code",
-                        autoFallback: agent.backend?.autoFallback ?? true,
-                      })
+                      handleAgentChange("runnerType", event.target.value as "claude-code" | "codex" | "opencode")
                     }
                   >
-                    {constraints?.providers && constraints.providers.length > 0 ? (
-                      constraints.providers.map((provider) => (
-                        <option key={provider.value} value={provider.value} title={provider.description}>
-                          {provider.label}
+                    {constraints?.runners && constraints.runners.length > 0 ? (
+                      constraints.runners.map((runner) => (
+                        <option key={runner.value} value={runner.value} title={runner.description}>
+                          {runner.label}
                         </option>
                       ))
                     ) : (
                       <>
-                        <option value="codex">Codex</option>
                         <option value="claude-code">Claude Code</option>
+                        <option value="codex">Codex</option>
+                        <option value="opencode">OpenCode</option>
                       </>
                     )}
                   </select>
-                  {constraints?.providers && (
+                  {constraints?.runners && (
                     <small style={{ display: "block", marginTop: "4px", color: "var(--text-secondary)" }}>
-                      {constraints.providers.find(p => p.value === (agent.backend?.provider ?? "codex"))?.description}
+                      {constraints.runners.find((runner) => runner.value === agent.runnerType)?.description}
                     </small>
                   )}
-                </label>
-                <label className="checkbox-field">
-                  <input
-                    type="checkbox"
-                    checked={agent.backend?.autoFallback ?? true}
-                    onChange={(event) =>
-                      handleAgentChange("backend", {
-                        provider: agent.backend?.provider ?? "codex",
-                        autoFallback: event.target.checked,
-                      })
-                    }
-                  />
-                  <span>Auto-fallback to alternative backend</span>
                 </label>
                 <label className="slider-field">
                   <div className="slider-label">

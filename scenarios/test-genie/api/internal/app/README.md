@@ -7,7 +7,7 @@ The app package is the composition root that wires together runtime configuratio
 ```mermaid
 flowchart TB
     subgraph Entry["Entry Point"]
-        main["cmd/test-genie-api/main.go"]
+        main["api/main.go"]
     end
 
     subgraph App["app package"]

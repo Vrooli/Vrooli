@@ -381,6 +381,12 @@ func TestRunRoundTrip(t *testing.T) {
 		StartedAt:       &startedAt,
 		CreatedAt:       time.Now().Truncate(time.Second),
 		UpdatedAt:       time.Now().Truncate(time.Second),
+		Actions: &domain.RunActions{
+			CanInvestigate:        true,
+			CanDelete:             true,
+			CanContinue:           true,
+			CanApplyInvestigation: false,
+		},
 	}
 
 	proto := RunToProto(original)
@@ -403,6 +409,9 @@ func TestRunRoundTrip(t *testing.T) {
 	}
 	if result.ProgressPercent != original.ProgressPercent {
 		t.Errorf("ProgressPercent: expected %v, got %v", original.ProgressPercent, result.ProgressPercent)
+	}
+	if result.Actions == nil || result.Actions.CanDelete != original.Actions.CanDelete {
+		t.Errorf("Actions.CanDelete: expected %v, got %v", original.Actions.CanDelete, result.Actions)
 	}
 }
 
@@ -427,8 +436,9 @@ func TestRunEventToProtoPayloads(t *testing.T) {
 			Timestamp: now,
 			Sequence:  1,
 			Data: &domain.ToolCallEventData{
-				ToolName: "Read",
-				Input:    map[string]interface{}{"path": "README.md"},
+				ToolName:   "Read",
+				ToolCallID: "toolu_test_read",
+				Input:      map[string]interface{}{"path": "README.md"},
 			},
 		}
 		proto := RunEventToProto(event)
@@ -438,6 +448,9 @@ func TestRunEventToProtoPayloads(t *testing.T) {
 		}
 		if payload.ToolName != "Read" {
 			t.Errorf("ToolName: expected Read, got %s", payload.ToolName)
+		}
+		if payload.ToolCallId != "toolu_test_read" {
+			t.Errorf("ToolCallId: expected toolu_test_read, got %s", payload.ToolCallId)
 		}
 		if payload.Input == nil || payload.Input.AsMap()["path"] != "README.md" {
 			t.Errorf("Input: expected path README.md, got %#v", payload.Input)
@@ -640,6 +653,188 @@ func TestRunEventToProtoPayloads(t *testing.T) {
 }
 
 // =============================================================================
+// FEATURE FLAGS PROTO ROUND-TRIP TESTS
+// =============================================================================
+
+func TestFeatureFlagsRoundTrip(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags domain.FeatureFlags
+	}{
+		{
+			name:  "zero value",
+			flags: domain.FeatureFlags{},
+		},
+		{
+			name:  "EnableBrowser true",
+			flags: domain.FeatureFlags{EnableBrowser: true},
+		},
+		{
+			name:  "EnableBrowser false",
+			flags: domain.FeatureFlags{EnableBrowser: false},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			proto := FeatureFlagsToProto(tt.flags)
+			result := FeatureFlagsFromProto(proto)
+			if result != tt.flags {
+				t.Errorf("round-trip failed: expected %+v, got %+v", tt.flags, result)
+			}
+		})
+	}
+}
+
+func TestFeatureFlagsToProto_ZeroReturnsNil(t *testing.T) {
+	result := FeatureFlagsToProto(domain.FeatureFlags{})
+	if result != nil {
+		t.Errorf("expected nil for zero FeatureFlags, got %+v", result)
+	}
+}
+
+func TestFeatureFlagsFromProto_NilReturnsZero(t *testing.T) {
+	result := FeatureFlagsFromProto(nil)
+	if result != (domain.FeatureFlags{}) {
+		t.Errorf("expected zero FeatureFlags for nil, got %+v", result)
+	}
+}
+
+// =============================================================================
+// RUNNER EXTRA FLAGS PROTO ROUND-TRIP TESTS
+// =============================================================================
+
+func TestRunnerExtraFlagsRoundTrip(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags domain.RunnerExtraFlags
+	}{
+		{
+			name:  "nil flags",
+			flags: nil,
+		},
+		{
+			name: "single runner single flag",
+			flags: domain.RunnerExtraFlags{
+				domain.RunnerTypeClaudeCode: []string{"--verbose"},
+			},
+		},
+		{
+			name: "single runner multiple flags",
+			flags: domain.RunnerExtraFlags{
+				domain.RunnerTypeClaudeCode: []string{"--verbose", "--allowedTools=Read,Write"},
+			},
+		},
+		{
+			name: "multiple runners",
+			flags: domain.RunnerExtraFlags{
+				domain.RunnerTypeClaudeCode: []string{"--verbose"},
+				domain.RunnerTypeCodex:      []string{"--verbose"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			proto := RunnerExtraFlagsToProto(tt.flags)
+			result := RunnerExtraFlagsFromProto(proto)
+
+			// Both nil and empty should be treated equivalently
+			if len(tt.flags) == 0 && len(result) == 0 {
+				return // Both nil/empty - OK
+			}
+
+			if len(result) != len(tt.flags) {
+				t.Errorf("round-trip failed: expected %d runner types, got %d", len(tt.flags), len(result))
+				return
+			}
+
+			for rt, expectedFlags := range tt.flags {
+				gotFlags, ok := result[rt]
+				if !ok {
+					t.Errorf("round-trip failed: missing runner type %s", rt)
+					continue
+				}
+				if len(gotFlags) != len(expectedFlags) {
+					t.Errorf("round-trip failed for %s: expected %d flags, got %d", rt, len(expectedFlags), len(gotFlags))
+					continue
+				}
+				for i, flag := range expectedFlags {
+					if gotFlags[i] != flag {
+						t.Errorf("round-trip failed for %s[%d]: expected %q, got %q", rt, i, flag, gotFlags[i])
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestRunnerExtraFlagsToProto_NilReturnsNil(t *testing.T) {
+	result := RunnerExtraFlagsToProto(nil)
+	if result != nil {
+		t.Errorf("expected nil for nil RunnerExtraFlags, got %+v", result)
+	}
+}
+
+func TestRunnerExtraFlagsToProto_EmptyReturnsNil(t *testing.T) {
+	result := RunnerExtraFlagsToProto(domain.RunnerExtraFlags{})
+	if result != nil {
+		t.Errorf("expected nil for empty RunnerExtraFlags, got %+v", result)
+	}
+}
+
+func TestRunnerExtraFlagsFromProto_NilReturnsNil(t *testing.T) {
+	result := RunnerExtraFlagsFromProto(nil)
+	if result != nil {
+		t.Errorf("expected nil for nil proto, got %+v", result)
+	}
+}
+
+// =============================================================================
+// AGENT PROFILE WITH FEATURES ROUND-TRIP TEST
+// =============================================================================
+
+func TestAgentProfileWithFeaturesRoundTrip(t *testing.T) {
+	original := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "features-profile",
+		ProfileKey: "features-key",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		Features:   domain.FeatureFlags{EnableBrowser: true},
+		ExtraFlags: domain.RunnerExtraFlags{
+			domain.RunnerTypeClaudeCode: []string{"--verbose", "--allowedTools"},
+			domain.RunnerTypeCodex:      []string{"--verbose"},
+		},
+		CreatedAt: time.Now().Truncate(time.Second),
+		UpdatedAt: time.Now().Truncate(time.Second),
+	}
+
+	proto := AgentProfileToProto(original)
+	result := AgentProfileFromProto(proto)
+
+	// Verify features round-trip
+	if result.Features.EnableBrowser != original.Features.EnableBrowser {
+		t.Errorf("Features.EnableBrowser: expected %v, got %v", original.Features.EnableBrowser, result.Features.EnableBrowser)
+	}
+
+	// Verify extra flags round-trip
+	if len(result.ExtraFlags) != len(original.ExtraFlags) {
+		t.Errorf("ExtraFlags: expected %d runner types, got %d", len(original.ExtraFlags), len(result.ExtraFlags))
+	}
+
+	for rt, expectedFlags := range original.ExtraFlags {
+		gotFlags, ok := result.ExtraFlags[rt]
+		if !ok {
+			t.Errorf("ExtraFlags: missing runner type %s", rt)
+			continue
+		}
+		if !reflect.DeepEqual(gotFlags, expectedFlags) {
+			t.Errorf("ExtraFlags[%s]: expected %v, got %v", rt, expectedFlags, gotFlags)
+		}
+	}
+}
+
+// =============================================================================
 // JSON SERIALIZATION TESTS
 // =============================================================================
 
@@ -667,5 +862,119 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 	}
 	if result.RunnerType != profile.RunnerType {
 		t.Errorf("RunnerType: expected %v, got %v", profile.RunnerType, result.RunnerType)
+	}
+}
+
+// =============================================================================
+// DIFF CONVERSION TESTS
+// =============================================================================
+
+func TestDiffResultToProto_PatchSuffixMatch(t *testing.T) {
+	// Regression test: workspace-sandbox returns scope-relative file paths
+	// (e.g. "api/main.go") but the unified diff uses project-root-relative
+	// paths (e.g. "scenarios/foo/api/main.go"). DiffResultToProto must match
+	// them via suffix so that per-file patches are populated.
+	runID := uuid.New()
+	fileID := uuid.New()
+
+	unified := `diff --git a/scenarios/my-app/api/main.go b/scenarios/my-app/api/main.go
+--- a/scenarios/my-app/api/main.go
++++ b/scenarios/my-app/api/main.go
+@@ -1,3 +1,3 @@
+ package main
+-// old
++// new
+ func main() {}
+`
+	dr := &DiffResult{
+		SandboxID:   uuid.New(),
+		UnifiedDiff: unified,
+		Files: []FileChange{
+			{
+				ID:         fileID,
+				FilePath:   "api/main.go", // scope-relative
+				ChangeType: "modified",
+				LinesAdded: 1,
+			},
+		},
+	}
+
+	proto := DiffResultToProto(runID, dr)
+	if proto == nil {
+		t.Fatal("expected non-nil RunDiff")
+	}
+	if len(proto.Files) != 1 {
+		t.Fatalf("expected 1 file, got %d", len(proto.Files))
+	}
+	if proto.Files[0].Patch == "" {
+		t.Error("expected non-empty patch for suffix-matched file, got empty string")
+	}
+}
+
+func TestDiffResultToProto_ExactPathMatch(t *testing.T) {
+	runID := uuid.New()
+	unified := `diff --git a/api/main.go b/api/main.go
+--- a/api/main.go
++++ b/api/main.go
+@@ -1 +1 @@
+-old
++new
+`
+	dr := &DiffResult{
+		UnifiedDiff: unified,
+		Files: []FileChange{
+			{FilePath: "api/main.go", ChangeType: "modified"},
+		},
+	}
+
+	proto := DiffResultToProto(runID, dr)
+	if proto.Files[0].Patch == "" {
+		t.Error("expected non-empty patch for exact-matched file")
+	}
+}
+
+func TestDiffResultToProto_NilResult(t *testing.T) {
+	if DiffResultToProto(uuid.New(), nil) != nil {
+		t.Error("expected nil for nil DiffResult")
+	}
+}
+
+func TestDiffResultToProto_EmptyDiff(t *testing.T) {
+	dr := &DiffResult{
+		UnifiedDiff: "",
+		Files: []FileChange{
+			{FilePath: "api/main.go", ChangeType: "modified"},
+		},
+	}
+	proto := DiffResultToProto(uuid.New(), dr)
+	if proto.Files[0].Patch != "" {
+		t.Error("expected empty patch when unified diff is empty")
+	}
+}
+
+func TestLookupPatch(t *testing.T) {
+	m := map[string]string{
+		"scenarios/foo/api/main.go":     "patch-a",
+		"scenarios/foo/api/handlers.go": "patch-b",
+	}
+
+	tests := []struct {
+		name     string
+		filePath string
+		want     string
+	}{
+		{"suffix match", "api/main.go", "patch-a"},
+		{"exact match", "scenarios/foo/api/main.go", "patch-a"},
+		{"no match", "api/other.go", ""},
+		{"root-level file suffix match", "main.go", "patch-a"}, // /main.go suffix matches
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := lookupPatch(m, tt.filePath)
+			if got != tt.want {
+				t.Errorf("lookupPatch(%q) = %q, want %q", tt.filePath, got, tt.want)
+			}
+		})
 	}
 }

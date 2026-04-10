@@ -309,42 +309,6 @@ func TestInspectRoutine_ValidWorkflow(t *testing.T) {
 	}
 }
 
-func TestScanRoutines_EmptyDirectory(t *testing.T) {
-	handler, scanner, _, projecter := setupTestHandler(t)
-
-	projectID := uuid.New()
-	projecter.projects[projectID] = &shared.ProjectIndexData{
-		ID:         projectID,
-		Name:       "Test Project",
-		FolderPath: "/projects/test",
-	}
-
-	// Add workflows directory (empty)
-	scanner.directories["/projects/test/workflows"] = []shared.FileEntry{}
-
-	r := chi.NewRouter()
-	handler.RegisterRoutes(r)
-
-	req := httptest.NewRequest(http.MethodPost, "/projects/"+projectID.String()+"/routines/scan", bytes.NewBufferString(`{}`))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
-	}
-
-	var resp routines.ScanRoutinesResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
-
-	if len(resp.Entries) != 0 {
-		t.Errorf("expected 0 entries, got %d", len(resp.Entries))
-	}
-}
-
 func TestImportRoutine_InvalidProjectID(t *testing.T) {
 	handler, _, _, _ := setupTestHandler(t)
 

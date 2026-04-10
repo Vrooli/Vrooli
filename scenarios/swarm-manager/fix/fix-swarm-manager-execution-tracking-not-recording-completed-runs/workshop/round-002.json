@@ -1,0 +1,101 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-10T18:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Code investigation confirmed all 4 bugs. The agentactivity.Service → agentmanager.AgentService wrapping chain is: main.go:84 creates raw client, main.go:208 wraps in agentactivity.Service, routes_execution.go:29 passes it to execution.ServiceConfig. The type assertion at service.go:216 fails because agentactivity.Service lacks GetRunDiff."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "acceptance_allow has been auto-set to: scenarios/swarm-manager/api/internal/execution/**, scenarios/swarm-manager/api/routes_execution.go, scenarios/swarm-manager/api/internal/agentactivity/**. All planned changes fall within these patterns."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Staleness threshold defaults",
+      "context": "User noted in R1 d2 that 'default should be more than 20s, restarting can sometimes take minutes.' We need concrete defaults for the consecutive-error threshold and max-age timeout. Agent-manager's StaleThreshold is 5 minutes for heartbeats.",
+      "options": [
+        {
+          "key": "A",
+          "label": "30 consecutive errors (~60s) + 30 min max-age",
+          "rationale": "Tolerates restarts lasting up to 1 minute before declaring failure. Max-age of 30 minutes covers most legitimate runs while catching truly stuck ones. Both configurable via ServiceConfig fields.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "60 consecutive errors (~2 min) + 60 min max-age",
+          "rationale": "More conservative — tolerates longer restarts and very long-running agents. Risk: slow detection of genuinely lost runs."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own thresholds"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Where to store per-run tracking state (consecutive errors, unknown-status count)",
+      "context": "The staleness detector and unknown-status grace period both need per-run counters. These are ephemeral (lost on restart is acceptable). The question is where to store them — adding fields to the persisted Record vs. keeping a separate in-memory map.",
+      "options": [
+        {
+          "key": "A",
+          "label": "In-memory map[runID]*runTracker alongside the store",
+          "rationale": "Clean separation — persisted records stay focused on durable state (status, timestamps). Tracking state is ephemeral by design. Slight complexity: must create/delete entries in sync with records.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add fields to the persisted execution Record",
+          "rationale": "Simpler — everything in one place. Downside: ConsecutiveErrors and UnknownStatusCount are noise in the persisted JSON file, and they'd survive restarts which resets the semantic meaning anyway."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Unknown-status grace period threshold",
+      "context": "For Bug 2 (mapRunStatus), we agreed on a grace period before failing. Need to decide the specific threshold — number of consecutive polls returning an unknown status before transitioning to StatusFailed.",
+      "options": [
+        {
+          "key": "A",
+          "label": "5 consecutive unknown polls (~10 seconds)",
+          "rationale": "Quick detection. If a status is unknown for 10 seconds straight, it's unlikely to resolve. Keeps polling responsive.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "15 consecutive unknown polls (~30 seconds)",
+          "rationale": "More conservative — gives more time for transient status issues. But 30 seconds of unknown status is unusual."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own threshold"
+        }
+      ],
+      "selected": "A"
+    }
+  ],
+  "plan_updates": "Expanded plan.md with all mandatory sections: Purpose, Current Technical Context, Target End State, Contract Decisions (incorporating R1 answers), Implementation Strategy (5 phases with concrete steps), Non-goals, Testing Plan table, Risks matrix, Definition of Done, and Rollout Checklist. Set acceptance_allow on spec.json. Readiness improved: scope_defined 2→3, approach_solid 1→2."
+}

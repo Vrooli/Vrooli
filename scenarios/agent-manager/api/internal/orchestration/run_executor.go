@@ -32,8 +32,6 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"sync"
 	"time"
 
@@ -41,6 +39,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
 	"agent-manager/internal/repository"
 	"github.com/google/uuid"
 )
@@ -68,7 +67,7 @@ type ExecutorConfig struct {
 // StaleThreshold is 5 minutes to allow for slow database updates or long tool calls.
 func DefaultExecutorConfig() ExecutorConfig {
 	return ExecutorConfig{
-		Timeout:            30 * time.Minute,
+		Timeout:            60 * time.Minute,
 		HeartbeatInterval:  15 * time.Second, // More frequent heartbeats for reliability
 		CheckpointInterval: 1 * time.Minute,
 		MaxRetries:         3,
@@ -99,10 +98,12 @@ type RunExecutor struct {
 	config ExecutorConfig
 
 	// Execution context
-	run     *domain.Run
-	task    *domain.Task
-	profile *domain.AgentProfile
-	prompt  string
+	run          *domain.Run
+	task         *domain.Task
+	profile      *domain.AgentProfile
+	prompt       string
+	systemPrompt string
+	attachments  []runner.Attachment // image attachments resolved from storage
 
 	// Workspace state
 	sandboxID *uuid.UUID
@@ -122,11 +123,21 @@ type RunExecutor struct {
 	result  *runner.ExecuteResult
 	execErr error
 
+	// Recommendation extraction gate
+	shouldQueueRecommendations func(*domain.Run) bool
+
 	// Resumption state
 	isResuming bool
 
 	// Sandbox finalization state
 	sandboxFinalized bool
+
+	// Custom environment variables injected by API callers.
+	customEnv map[string]string
+
+	// Identity token state
+	identitySecret []byte // HMAC secret for token signing (nil = identity disabled)
+	identityToken  string // generated token for this run
 }
 
 // NewRunExecutor creates a new executor for the given run.
@@ -139,6 +150,7 @@ func NewRunExecutor(
 	task *domain.Task,
 	profile *domain.AgentProfile,
 	prompt string,
+	systemPrompt string,
 ) *RunExecutor {
 	return &RunExecutor{
 		runs:          runs,
@@ -149,10 +161,14 @@ func NewRunExecutor(
 		task:          task,
 		profile:       profile,
 		prompt:        prompt,
+		systemPrompt:  systemPrompt,
 		config:        DefaultExecutorConfig(),
 		checkpoint:    domain.NewCheckpoint(run.ID, domain.RunPhaseQueued),
 		heartbeatStop: make(chan struct{}),
 		heartbeatDone: make(chan struct{}),
+		shouldQueueRecommendations: func(run *domain.Run) bool {
+			return run.IsInvestigationRun()
+		},
 	}
 }
 
@@ -178,6 +194,21 @@ func (e *RunExecutor) WithExistingSandbox(sandboxID uuid.UUID, workDir string) *
 	return e
 }
 
+// WithIdentitySecret sets the HMAC secret used to generate identity tokens.
+// If not set, no identity token will be injected into runs.
+func (e *RunExecutor) WithIdentitySecret(secret []byte) *RunExecutor {
+	e.identitySecret = secret
+	return e
+}
+
+// WithRecommendationQueueFilter sets a custom filter for recommendation extraction.
+func (e *RunExecutor) WithRecommendationQueueFilter(filter func(*domain.Run) bool) *RunExecutor {
+	if filter != nil {
+		e.shouldQueueRecommendations = filter
+	}
+	return e
+}
+
 // WithResumeFrom configures the executor to resume from a checkpoint.
 func (e *RunExecutor) WithResumeFrom(checkpoint *domain.RunCheckpoint) *RunExecutor {
 	e.checkpoint = checkpoint
@@ -196,6 +227,20 @@ func (e *RunExecutor) WithResumeFrom(checkpoint *domain.RunCheckpoint) *RunExecu
 // WithBroadcaster sets the event broadcaster for real-time updates.
 func (e *RunExecutor) WithBroadcaster(b EventBroadcaster) *RunExecutor {
 	e.broadcaster = b
+	return e
+}
+
+// WithAttachments sets image attachments resolved from storage for the initial execution.
+func (e *RunExecutor) WithAttachments(attachments []runner.Attachment) *RunExecutor {
+	e.attachments = attachments
+	return e
+}
+
+// WithCustomEnvironment sets caller-provided environment variables that will
+// be merged into the agent process environment. Sandbox variables take
+// precedence on key conflicts.
+func (e *RunExecutor) WithCustomEnvironment(env map[string]string) *RunExecutor {
+	e.customEnv = env
 	return e
 }
 
@@ -307,6 +352,9 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 		e.handleContextError(ctx, err)
 		return
 	}
+
+	// Step 3.5: Generate identity token (before execution so it's available in env)
+	e.generateIdentityToken(execCtx)
 
 	// Step 4: Execute agent
 	e.advancePhase(execCtx, domain.RunPhaseExecuting)
@@ -475,11 +523,18 @@ func (e *RunExecutor) stopHeartbeat() {
 // handleContextError handles context cancellation or timeout.
 func (e *RunExecutor) handleContextError(ctx context.Context, err error) {
 	if err == context.DeadlineExceeded {
+		// Preserve session ID for continuation even on timeout.
+		// The runner returns a valid result with SessionID populated
+		// from stream events received before the process was killed.
+		if e.result != nil && e.result.SessionID != "" {
+			e.run.SessionID = e.result.SessionID
+		}
+
 		e.failWithError(ctx, &domain.RunnerError{
 			RunnerType:  e.getRunnerType(),
 			Operation:   "timeout",
-			Cause:       errors.New(fmt.Sprintf("execution exceeded timeout of %v", e.config.Timeout)),
-			IsTransient: false,
+			Cause:       fmt.Errorf("execution exceeded timeout of %v", e.config.Timeout),
+			IsTransient: true, // Timeout is retryable via continuation
 		})
 		e.outcome = domain.RunOutcomeTimeout
 	} else if err == context.Canceled {
@@ -495,6 +550,11 @@ func (e *RunExecutor) handleContextError(ctx context.Context, err error) {
 		}
 	}
 
+	// Broadcast terminal status so WebSocket clients see the change
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastRunStatus(e.run)
+	}
+
 	e.cleanupOnFailure(ctx)
 }
 
@@ -507,7 +567,14 @@ func (e *RunExecutor) updateStatusToStarting(ctx context.Context) error {
 	e.run.Status = domain.RunStatusStarting
 	e.run.StartedAt = &now
 	e.run.UpdatedAt = now
-	return e.runs.Update(ctx, e.run)
+	if err := e.runs.Update(ctx, e.run); err != nil {
+		return err
+	}
+	// Broadcast so WebSocket clients see the transition to Starting
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastRunStatus(e.run)
+	}
+	return nil
 }
 
 // =============================================================================
@@ -529,14 +596,27 @@ func (e *RunExecutor) createSandboxWorkspace(ctx context.Context) error {
 	// Use idempotency key to allow safe retries of sandbox creation
 	idempotencyKey := fmt.Sprintf("sandbox:run:%s", e.run.ID.String())
 
+	// Resolve relative project root to absolute (workspace-sandbox requires absolute paths)
+	projectRoot := e.task.ProjectRoot
+	if projectRoot != "" && !filepath.IsAbs(projectRoot) {
+		if absRoot, err := filepath.Abs(projectRoot); err == nil {
+			projectRoot = absRoot
+		}
+	}
+
+	metadata := map[string]string{
+		"agent_manager_run_id": e.run.ID.String(),
+	}
 	sbx, err := e.sandbox.Create(ctx, sandbox.CreateRequest{
+		Name:           e.buildSandboxName(),
 		ScopePath:      e.task.ScopePath,
-		NoLock:         e.run.SandboxConfig != nil && e.run.SandboxConfig.NoLock,
-		ProjectRoot:    e.task.ProjectRoot,
+		NoLock:         noLockFromSandboxConfig(e.run.SandboxConfig),
+		ProjectRoot:    projectRoot,
 		Owner:          e.run.ID.String(),
 		OwnerType:      "run",
 		IdempotencyKey: idempotencyKey,
 		Behavior:       e.run.SandboxConfig,
+		Metadata:       metadata,
 	})
 	if err != nil {
 		if _, ok := err.(*domain.SandboxError); ok {
@@ -593,6 +673,40 @@ func (e *RunExecutor) useInPlaceWorkspace() error {
 	}
 	e.workDir = e.task.ProjectRoot
 	return nil
+}
+
+// buildSandboxName constructs a descriptive name for the sandbox.
+// Priority: run.Tag > task.Title > scope path
+// Profile name is appended when available for context.
+func (e *RunExecutor) buildSandboxName() string {
+	// Use run tag if explicitly set
+	if tag := e.run.GetTag(); tag != "" {
+		return tag
+	}
+
+	// Get profile name for context
+	profileName := ""
+	if e.profile != nil && e.profile.Name != "" {
+		profileName = e.profile.Name
+	}
+
+	// Use task title if available
+	if e.task.Title != "" {
+		if profileName != "" {
+			return fmt.Sprintf("%s (%s)", e.task.Title, profileName)
+		}
+		return e.task.Title
+	}
+
+	// Fall back to scope path
+	scope := e.task.ScopePath
+	if scope == "" {
+		scope = "/"
+	}
+	if profileName != "" {
+		return fmt.Sprintf("%s (%s)", scope, profileName)
+	}
+	return scope
 }
 
 // =============================================================================
@@ -764,6 +878,10 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 	if err := e.runs.Update(ctx, e.run); err != nil {
 		e.emitSystemEvent(ctx, "warn", "failed to persist run start: "+err.Error())
 	}
+	// Broadcast so WebSocket clients see the transition to Running
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastRunStatus(e.run)
+	}
 
 	// Create event sink
 	eventSink := e.createEventSink()
@@ -778,11 +896,160 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 		Task:           e.task,
 		WorkingDir:     e.workDir,
 		Prompt:         e.prompt,
+		SystemPrompt:   e.systemPrompt,
 		EventSink:      eventSink,
+		Attachments:    e.attachments,
+		Environment:    e.MergedEnvVars(),
 	}
 
 	// Execute
 	e.result, e.execErr = r.Execute(ctx, req)
+}
+
+// sandboxEnvVars returns environment variables that enable sandbox-aware scenario
+// lifecycle commands (start, stop, restart) inside the agent's process.
+//
+// # Problem
+//
+// When an agent runs in an overlayfs sandbox, its file changes are captured in
+// the overlay's upper/ layer — the real repo is untouched. But the Vrooli CLI
+// lifecycle system (vrooli scenario restart, make start, etc.) reads from the
+// real repo by default. Without these environment variables, an agent's code
+// changes would be invisible to restarted scenarios, making it impossible to
+// test changes while sandboxed.
+//
+// # Solution
+//
+// These env vars tell the Vrooli CLI (scripts/lib/scenario/runner.sh) to
+// redirect scenario path resolution to the sandbox's merged/ directory. The
+// agent doesn't need to pass any flags — it just runs "vrooli scenario restart"
+// normally and the CLI handles the redirection transparently.
+//
+// # Design constraints
+//
+//   - One instance per slug: restarting a scenario stops any existing instance
+//     of that slug, regardless of whether it was started from a sandbox, a
+//     different sandbox, or the real repo.
+//   - Path-only change: ports, process metadata, health checks, and logs are
+//     identical whether started from the sandbox or the real repo.
+//   - Scope-narrowed: only scenarios within VROOLI_SANDBOX_SCOPE are redirected.
+//     Other scenarios use the real repo, so an agent sandboxing scenario A
+//     won't affect scenario B's restarts.
+//
+// # Variables
+//
+//   - VROOLI_SANDBOX_ID: sandbox UUID, used for logging and debugging
+//   - VROOLI_SANDBOX_MERGED: absolute path to the overlay's merged/ directory
+//   - VROOLI_SANDBOX_SCOPE: relative scope path (e.g. "scenarios/my-scenario")
+//
+// # Example flow
+//
+//  1. Agent edits main.go inside the sandbox (changes go to overlay upper/)
+//  2. Agent runs "vrooli scenario restart my-scenario"
+//  3. CLI detects VROOLI_SANDBOX_MERGED and VROOLI_SANDBOX_SCOPE in env
+//  4. CLI checks that "my-scenario" falls within the scope
+//  5. CLI resolves path to {VROOLI_SANDBOX_MERGED}/scenarios/my-scenario
+//  6. Lifecycle rebuilds and starts from the merged directory (agent's changes)
+//
+// Returns nil for non-sandboxed runs, so callers can unconditionally assign the
+// result to ExecuteRequest.Environment.
+func (e *RunExecutor) SandboxEnvVars() map[string]string {
+	// Only inject sandbox context for sandboxed runs that have completed
+	// sandbox creation (sandboxID and workDir are populated).
+	if e.run.RunMode != domain.RunModeSandboxed {
+		return nil
+	}
+	if e.sandboxID == nil || e.workDir == "" {
+		return nil
+	}
+
+	vars := map[string]string{
+		"VROOLI_SANDBOX_ID":     e.sandboxID.String(),
+		"VROOLI_SANDBOX_MERGED": e.workDir,
+	}
+	if e.task != nil && e.task.ScopePath != "" {
+		vars["VROOLI_SANDBOX_SCOPE"] = e.task.ScopePath
+	}
+	return vars
+}
+
+// IdentityEnvVars returns identity token env vars for the current run.
+// Returns nil if no identity token has been generated.
+func (e *RunExecutor) IdentityEnvVars() map[string]string {
+	if e.identityToken == "" {
+		return nil
+	}
+	return map[string]string{
+		"VROOLI_AGENT_IDENTITY_TOKEN": e.identityToken,
+	}
+}
+
+// MergedEnvVars returns custom env vars merged with sandbox and identity env vars.
+// Sandbox and identity vars take precedence on key conflicts to prevent callers from
+// overriding VROOLI_SANDBOX_MERGED or other system-managed variables.
+func (e *RunExecutor) MergedEnvVars() map[string]string {
+	sandbox := e.SandboxEnvVars()
+	identityVars := e.IdentityEnvVars()
+	if len(e.customEnv) == 0 && len(sandbox) == 0 && len(identityVars) == 0 {
+		return nil
+	}
+	merged := make(map[string]string, len(e.customEnv)+len(sandbox)+len(identityVars))
+	for k, v := range e.customEnv {
+		merged[k] = v
+	}
+	// System vars override custom vars for security.
+	for k, v := range sandbox {
+		merged[k] = v
+	}
+	for k, v := range identityVars {
+		merged[k] = v
+	}
+	if len(merged) == 0 {
+		return nil
+	}
+	return merged
+}
+
+// generateIdentityToken creates a signed identity token for this run and
+// persists its hash in the database. Non-fatal: if generation fails, the run
+// proceeds without an identity token.
+func (e *RunExecutor) generateIdentityToken(ctx context.Context) {
+	if len(e.identitySecret) == 0 {
+		return
+	}
+
+	now := time.Now()
+	profileKey := ""
+	if e.profile != nil {
+		profileKey = e.profile.ProfileKey
+	}
+	scopePath := ""
+	if e.task != nil {
+		scopePath = e.task.ScopePath
+	}
+
+	claims := &identity.Claims{
+		RunID:      e.run.ID,
+		TaskID:     e.run.TaskID,
+		ProfileKey: profileKey,
+		ScopePath:  scopePath,
+		IssuedAt:   now.Unix(),
+		ExpiresAt:  now.Add(identity.DefaultTTL).Unix(),
+		Meta:       map[string]string{},
+	}
+
+	token, err := identity.GenerateToken(claims, e.identitySecret)
+	if err != nil {
+		e.emitSystemEvent(ctx, "warn", "failed to generate identity token: "+err.Error())
+		return
+	}
+
+	e.identityToken = token
+	e.run.IdentityTokenHash = identity.HashToken(token)
+
+	if err := e.runs.Update(ctx, e.run); err != nil {
+		e.emitSystemEvent(ctx, "warn", "failed to persist identity token hash: "+err.Error())
+	}
 }
 
 func (e *RunExecutor) createEventSink() runner.EventSink {
@@ -828,6 +1095,11 @@ func (e *RunExecutor) handleResult(ctx context.Context) {
 	if err := e.runs.Update(ctx, e.run); err != nil {
 		e.emitSystemEvent(ctx, "warn", "failed to persist run result: "+err.Error())
 	}
+
+	// Broadcast final status so WebSocket clients see the terminal state
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastRunStatus(e.run)
+	}
 }
 
 func (e *RunExecutor) classifyOutcome() domain.RunOutcome {
@@ -859,115 +1131,40 @@ func (e *RunExecutor) handleSuccessfulCompletion(ctx context.Context) {
 		}
 	}
 
-	if err := e.validateExpectedOutputs(ctx); err != nil {
-		e.failWithError(ctx, err)
-		e.outcome = domain.RunOutcomeException
-		e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunFailed, "expected outputs missing")
-		return
-	}
-
-	autoApplied := false
-	if requiresApproval {
-		autoApplied = e.tryAutoApproval(ctx)
-		if !autoApplied {
-			e.run.Status = domain.RunStatusNeedsReview
-			e.run.ApprovalState = domain.ApprovalStatePending
-		}
-	} else {
-		// Skip approval workflow - mark as complete directly
+	// In-place runs (no sandbox) skip the approval workflow entirely.
+	// The approval/review flow depends on having a sandbox to diff against
+	// and merge from. Without a sandbox, changes were applied directly to the
+	// working tree, so there is nothing to approve or reject — the run is
+	// already complete.
+	if e.run.RunMode == domain.RunModeInPlace {
 		e.run.Status = domain.RunStatusComplete
 		e.run.ApprovalState = domain.ApprovalStateNone
+		e.emitSystemEvent(ctx, "info", "in-place run completed — skipping approval (no sandbox to diff)")
+	} else {
+		autoApplied := false
+		if requiresApproval {
+			autoApplied = e.tryAutoApproval(ctx)
+			if !autoApplied {
+				e.run.Status = domain.RunStatusNeedsReview
+				e.run.ApprovalState = domain.ApprovalStatePending
+			}
+		} else {
+			// Skip approval workflow - mark as complete directly
+			e.run.Status = domain.RunStatusComplete
+			e.run.ApprovalState = domain.ApprovalStateNone
+		}
 	}
 
+	// Queue recommendation extraction for investigation runs
+	// The background RecommendationWorker will pick this up and extract recommendations
+	if e.shouldQueueRecommendations != nil && e.shouldQueueRecommendations(e.run) {
+		now := time.Now()
+		e.run.RecommendationStatus = domain.RecommendationStatusPending
+		e.run.RecommendationQueuedAt = &now
+	}
+
+	e.revokeIdentityToken()
 	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunCompleted, "run completed")
-}
-
-func (e *RunExecutor) validateExpectedOutputs(ctx context.Context) error {
-	if e.task == nil {
-		return nil
-	}
-	expectedPaths := extractExpectedPaths(e.task.Title, e.task.Description)
-	if len(expectedPaths) == 0 {
-		return nil
-	}
-	if e.run.RunMode != domain.RunModeSandboxed {
-		return nil
-	}
-	if e.sandbox == nil || e.sandboxID == nil {
-		return &domain.ValidationError{
-			Field:   "expected_files",
-			Message: "expected outputs specified but sandbox diff unavailable",
-			Hint:    "ensure sandboxed runs have an active sandbox before validation",
-		}
-	}
-
-	diff, err := e.sandbox.GetDiff(ctx, *e.sandboxID)
-	if err != nil {
-		return fmt.Errorf("expected output validation failed: %w", err)
-	}
-
-	changed := make(map[string]struct{}, len(diff.Files))
-	for _, file := range diff.Files {
-		path := filepath.ToSlash(filepath.Clean(file.FilePath))
-		changed[path] = struct{}{}
-	}
-
-	projectRoot := strings.TrimSpace(e.task.ProjectRoot)
-	missing := make([]string, 0, len(expectedPaths))
-	for _, expected := range expectedPaths {
-		normalized := filepath.ToSlash(filepath.Clean(expected))
-		if projectRoot != "" && filepath.IsAbs(normalized) {
-			if rel, err := filepath.Rel(projectRoot, normalized); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
-				normalized = filepath.ToSlash(filepath.Clean(rel))
-			}
-		}
-		if _, ok := changed[normalized]; !ok {
-			missing = append(missing, normalized)
-		}
-	}
-
-	if len(missing) > 0 {
-		return &domain.ValidationError{
-			Field:   "expected_files",
-			Message: fmt.Sprintf("expected outputs missing: %s", strings.Join(missing, ", ")),
-			Hint:    "verify the agent created the requested files in the sandbox",
-		}
-	}
-	return nil
-}
-
-func extractExpectedPaths(parts ...string) []string {
-	content := strings.Join(parts, "\n")
-	if strings.TrimSpace(content) == "" {
-		return nil
-	}
-
-	patterns := []*regexp.Regexp{
-		regexp.MustCompile(`(?i)\bcreate (?:a |an )?(?:new )?(?:text )?file at ([^\s"'` + "`" + `]+)`),
-		regexp.MustCompile("`([^`]+)`"),
-	}
-
-	seen := make(map[string]struct{})
-	var results []string
-	for _, pattern := range patterns {
-		matches := pattern.FindAllStringSubmatch(content, -1)
-		for _, match := range matches {
-			if len(match) < 2 {
-				continue
-			}
-			path := strings.TrimSpace(match[1])
-			path = strings.TrimRight(path, ".,;:")
-			if path == "" {
-				continue
-			}
-			if _, ok := seen[path]; ok {
-				continue
-			}
-			seen[path] = struct{}{}
-			results = append(results, path)
-		}
-	}
-	return results
 }
 
 func (e *RunExecutor) handleFailure(ctx context.Context) {
@@ -980,12 +1177,35 @@ func (e *RunExecutor) handleFailure(ctx context.Context) {
 		e.run.ExitCode = &e.result.ExitCode
 	}
 
+	// Emit error event so clients polling events see the failure reason
+	if e.run.ErrorMsg != "" {
+		if e.execErr != nil {
+			if domainErr, ok := e.execErr.(domain.DomainError); ok {
+				e.emitFailureEvent(ctx, domainErr)
+			} else {
+				e.emitGenericFailureEvent(ctx, e.execErr)
+			}
+		} else if e.result != nil && e.result.ErrorMessage != "" {
+			e.emitGenericFailureEvent(ctx, errors.New(e.result.ErrorMessage))
+		}
+	}
+
+	e.revokeIdentityToken()
 	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunFailed, "run failed")
 }
 
 func (e *RunExecutor) handleCancellation(ctx context.Context) {
 	e.run.Status = domain.RunStatusCancelled
+	e.revokeIdentityToken()
 	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunCancelled, "run cancelled")
+}
+
+// revokeIdentityToken marks the run's identity token as revoked.
+func (e *RunExecutor) revokeIdentityToken() {
+	if e.run.IdentityTokenHash != "" {
+		now := time.Now()
+		e.run.IdentityTokenRevokedAt = &now
+	}
 }
 
 // =============================================================================
@@ -1021,6 +1241,11 @@ func (e *RunExecutor) failWithError(ctx context.Context, err error) {
 		// Log but don't override - the original error is more important
 		e.emitSystemEvent(ctx, "error", "failed to persist failure state: "+updateErr.Error())
 	}
+
+	// Broadcast failure status so WebSocket clients see the change
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastRunStatus(e.run)
+	}
 }
 
 // classifyErrorOutcome maps errors to RunOutcome for categorization.
@@ -1052,6 +1277,10 @@ func (e *RunExecutor) emitFailureEvent(ctx context.Context, err domain.DomainErr
 
 	evt := domain.NewErrorEventFromDomainError(e.run.ID, err)
 	_ = e.events.Append(ctx, e.run.ID, evt)
+	// Broadcast so WebSocket clients see post-runner events in real-time
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastEvent(evt)
+	}
 }
 
 // emitGenericFailureEvent captures a non-domain error as an event.
@@ -1063,6 +1292,10 @@ func (e *RunExecutor) emitGenericFailureEvent(ctx context.Context, err error) {
 
 	evt := domain.NewErrorEvent(e.run.ID, string(domain.ErrCodeInternal), err.Error(), false)
 	_ = e.events.Append(ctx, e.run.ID, evt)
+	// Broadcast so WebSocket clients see post-runner events in real-time
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastEvent(evt)
+	}
 }
 
 // emitSystemEvent captures a system-level event (log, status change).
@@ -1074,6 +1307,10 @@ func (e *RunExecutor) emitSystemEvent(ctx context.Context, level, message string
 
 	evt := domain.NewLogEvent(e.run.ID, level, message)
 	_ = e.events.Append(ctx, e.run.ID, evt)
+	// Broadcast so WebSocket clients see post-runner events in real-time
+	if e.broadcaster != nil {
+		e.broadcaster.BroadcastEvent(evt)
+	}
 }
 
 // =============================================================================
@@ -1173,6 +1410,10 @@ func (e *RunExecutor) tryAutoApproval(ctx context.Context) bool {
 	if cfg.Acceptance.AutoApprove {
 		return e.autoApprove(ctx)
 	}
+	// Auto-approve empty sandboxes (enabled by default)
+	if !cfg.Acceptance.DisableAutoApproveIfEmpty {
+		return e.autoApproveIfEmpty(ctx)
+	}
 	return false
 }
 
@@ -1216,6 +1457,44 @@ func (e *RunExecutor) autoReject(ctx context.Context) bool {
 	return true
 }
 
+func (e *RunExecutor) autoApproveIfEmpty(ctx context.Context) bool {
+	if e.sandbox == nil || e.sandboxID == nil {
+		return false
+	}
+
+	// Get diff to check if sandbox is empty
+	diff, err := e.sandbox.GetDiff(ctx, *e.sandboxID)
+	if err != nil {
+		e.emitSystemEvent(ctx, "warn", "auto-approve-if-empty: failed to get diff: "+err.Error())
+		return false
+	}
+
+	// Check if no changes
+	if diff.Stats.FilesChanged > 0 {
+		return false // Has changes, requires manual review
+	}
+
+	// Empty sandbox - auto-approve
+	actor := "auto-approve-empty"
+	_, err = e.sandbox.Approve(ctx, sandbox.ApproveRequest{
+		SandboxID: *e.sandboxID,
+		Actor:     actor,
+	})
+	if err != nil {
+		e.emitSystemEvent(ctx, "warn", "auto-approve-if-empty failed: "+err.Error())
+		return false
+	}
+
+	now := time.Now()
+	e.run.ApprovalState = domain.ApprovalStateApproved
+	e.run.ApprovedBy = actor
+	e.run.ApprovedAt = &now
+	e.run.Status = domain.RunStatusComplete
+
+	e.emitSystemEvent(ctx, "info", "auto-approved empty sandbox (no changes detected)")
+	return true
+}
+
 // =============================================================================
 // QUERY METHODS
 // =============================================================================
@@ -1233,4 +1512,17 @@ func (e *RunExecutor) SandboxID() *uuid.UUID {
 // WorkDir returns the working directory used for execution.
 func (e *RunExecutor) WorkDir() string {
 	return e.workDir
+}
+
+func boolPtr(v bool) *bool { return &v }
+
+// noLockFromSandboxConfig returns the NoLock value from a SandboxConfig,
+// or nil if the config doesn't explicitly set it. Returning nil lets the
+// workspace-sandbox server apply its own DefaultNoLock setting, rather than
+// the agent-manager always overriding with false when NoLock isn't specified.
+func noLockFromSandboxConfig(cfg *domain.SandboxConfig) *bool {
+	if cfg == nil || !cfg.NoLock {
+		return nil // let workspace-sandbox server default apply
+	}
+	return boolPtr(true)
 }

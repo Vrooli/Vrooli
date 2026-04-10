@@ -22,24 +22,29 @@ import {
   GitCompare,
   History,
   Search,
+  Key,
 } from "lucide-react";
 import {
   useDeployment,
   useInspectDeployment,
   useStopDeployment,
+  useStartDeployment,
   useExecuteDeployment,
   getStatusInfo,
 } from "../../hooks/useDeployments";
 import { useDeploymentProgress } from "../../hooks/useDeploymentProgress";
 import { useDeploymentInvestigation } from "../../hooks/useInvestigation";
+import { useLiveState } from "../../hooks/useLiveState";
+import { useDeploymentUrl } from "../../hooks/useDeploymentUrl";
 import { cn } from "../../lib/utils";
 import { runPreflight as runPreflightApi, type Deployment, type PreflightCheck, type PreflightResponse } from "../../lib/api";
 import type { StepStatus } from "../../types/progress";
-import { LiveStateTab, FilesTab, DriftTab, HistoryTab, InvestigationsTab, TerminalTab } from "./tabs";
+import type { DeploymentTab } from "../../types/url";
+import { LiveStateTab, FilesTab, DriftTab, SecretsTab, HistoryTab, InvestigationsTab, TerminalTab } from "./tabs";
 import { CodeBlock } from "../ui/code-block";
 import { Alert } from "../ui/alert";
 import { Stepper, type StepperStatus } from "../ui/stepper";
-import { InvestigateButton } from "../wizard/InvestigateButton";
+import { SpawnAgentButton } from "../wizard/SpawnAgentButton";
 import { InvestigationProgress } from "../wizard/InvestigationProgress";
 import { InvestigationReport } from "../wizard/InvestigationReport";
 import { BuildStatusPanel } from "../wizard/StepBuild";
@@ -60,18 +65,22 @@ interface DeploymentDetailsProps {
 }
 
 export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsProps) {
-  const { data: deployment, isLoading, error, refetch } = useDeployment(deploymentId);
+  const { data: deploymentRecord, isLoading, error, refetch } = useDeployment(deploymentId);
   const inspectMutation = useInspectDeployment();
   const stopMutation = useStopDeployment();
+  const startMutation = useStartDeployment();
   const executeMutation = useExecuteDeployment();
+
+  // URL state for tabs and modals
+  const { state: urlState, setTab, openModal, closeModal } = useDeploymentUrl();
+  const activeTab = urlState.tab;
+  const showRedeployDialog = urlState.modal === "redeploy";
+  const showInvestigationReport = urlState.modal === "investigation-report";
 
   const [showManifest, setShowManifest] = useState(false);
   const [showSetupResult, setShowSetupResult] = useState(false);
   const [showDeployResult, setShowDeployResult] = useState(false);
   const [showLogs, setShowLogs] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "live-state" | "files" | "drift" | "history" | "investigations" | "terminal">("overview");
-  const [showInvestigationReport, setShowInvestigationReport] = useState(false);
-  const [showRedeployDialog, setShowRedeployDialog] = useState(false);
   const [buildNewBundle, setBuildNewBundle] = useState(false);
   const [runPreflight, setRunPreflight] = useState(false);
   const [redeployActive, setRedeployActive] = useState(false);
@@ -80,7 +89,8 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
     forceBundleBuild: boolean;
   } | null>(null);
   const [redeployViewStep, setRedeployViewStep] = useState<number | null>(null);
-  const redeployRunId = deployment?.run_id ?? null;
+  const redeployRunId = deploymentRecord?.run_id ?? null;
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const lastBundleRefreshRunRef = useRef<string | null>(null);
   const [redeployPreflightResult, setRedeployPreflightResult] = useState<PreflightResponse | null>(null);
   const [redeployPreflightError, setRedeployPreflightError] = useState<string | null>(null);
@@ -91,12 +101,12 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
     isConnected: redeployConnected,
     connectionError: redeployConnectionError,
     reset: resetRedeployProgress,
-  } = useDeploymentProgress(redeployActive ? deploymentId : null, { runId: redeployRunId });
+  } = useDeploymentProgress(redeployActive ? deploymentId : null, { runId: activeRunId ?? redeployRunId });
 
   // Investigation state
   const investigation = useDeploymentInvestigation(deploymentId);
+  const { data: liveState } = useLiveState(deploymentId);
 
-  const deploymentRecord = deployment ?? null;
   const statusInfo = getStatusInfo(deploymentRecord?.status ?? "pending");
   const manifest = (deploymentRecord?.manifest ?? {}) as {
     scenario?: { id: string };
@@ -116,6 +126,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
     deploymentRecord?.status === "stopped";
 
   const canStop = deploymentRecord?.status === "deployed";
+  const canStart = deploymentRecord?.status === "stopped";
   const hasExistingBundle = Boolean(deploymentRecord?.bundle_path);
   const canViewRedeployProgress = redeployActive || isInProgress;
   const redeployLocked = executeMutation.isPending || isInProgress;
@@ -361,26 +372,31 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
     );
   }
 
-  const openRedeployDialog = () => {
+  const openRedeployDialogHandler = () => {
     setBuildNewBundle(!hasExistingBundle);
     setRunPreflight(false);
     setRedeployActive(false);
+    setActiveRunId(null);
     setRedeployOptionsSnapshot(null);
     setRedeployViewStep(null);
     resetRedeployProgress();
-    setShowRedeployDialog(true);
+    openModal("redeploy");
   };
 
   const openRedeployProgress = () => {
     hydrateRedeployOptions();
     setRedeployActive(true);
-    setShowRedeployDialog(true);
+    openModal("redeploy");
   };
 
   const startRedeploy = () => {
     const snapshot = { runPreflight, forceBundleBuild: buildNewBundle };
     setRedeployOptionsSnapshot(snapshot);
-    setRedeployActive(true);
+    // Reset state to disconnect any existing SSE and show loading state
+    // This handles the case where user clicks Re-deploy again after a previous deployment
+    setRedeployActive(false);
+    setActiveRunId(null);
+    resetRedeployProgress();
     try {
       sessionStorage.setItem(`stc.redeploy.options.${deploymentId}`, JSON.stringify(snapshot));
     } catch {
@@ -395,6 +411,10 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
         },
       },
       {
+        onSuccess: (data) => {
+          setActiveRunId(data.run_id);
+          setRedeployActive(true);
+        },
         onError: () => {
           setRedeployActive(false);
         },
@@ -414,10 +434,11 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
             <ArrowLeft className="h-4 w-4" />
             Back to Deployments
           </button>
-          <h1 className="text-2xl font-bold text-white">{deployment.name}</h1>
+          <h1 className="text-2xl font-bold text-white">{deploymentRecord.name}</h1>
           <div className="flex items-center gap-3 mt-2">
-            <StatusBadgeLarge status={deployment.status} />
-            {manifest.edge?.domain && deployment.status === "deployed" && (
+            <StatusBadgeLarge status={deploymentRecord.status} />
+            <SSHKeyAuthBadge liveState={liveState} />
+            {manifest.edge?.domain && deploymentRecord.status === "deployed" && (
               <a
                 href={`https://${manifest.edge.domain}`}
                 target="_blank"
@@ -470,9 +491,28 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
               </button>
             )}
 
+            {canStart && (
+              <button
+                onClick={() => startMutation.mutate(deploymentId)}
+                disabled={startMutation.isPending}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg border border-emerald-500/30",
+                  "hover:bg-emerald-500/10 text-emerald-400 transition-colors text-sm font-medium",
+                  startMutation.isPending && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {startMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                Start
+              </button>
+            )}
+
             {canRedeploy && (
               <button
-                onClick={openRedeployDialog}
+                onClick={openRedeployDialogHandler}
                 disabled={executeMutation.isPending}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500",
@@ -485,7 +525,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
                 ) : (
                   <Play className="h-4 w-4" />
                 )}
-                {deployment.status === "failed" ? "Retry" : "Re-deploy"}
+                {deploymentRecord.status === "failed" ? "Retry" : "Re-deploy"}
               </button>
             )}
 
@@ -502,13 +542,11 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
               </button>
             )}
 
-            {/* Investigate button for failed deployments */}
-            {deployment.status === "failed" && (
-              <InvestigateButton
-                deploymentId={deploymentId}
-                onInvestigationStarted={() => {}}
-              />
-            )}
+            {/* Spawn agent button - always available */}
+            <SpawnAgentButton
+              deploymentId={deploymentId}
+              onTaskStarted={() => {}}
+            />
           </div>
         </div>
       </div>
@@ -525,7 +563,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
               </div>
               <button
                 type="button"
-                onClick={() => setShowRedeployDialog(false)}
+                onClick={closeModal}
                 className="text-slate-400 hover:text-white transition-colors"
                 aria-label="Close redeploy dialog"
               >
@@ -596,7 +634,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
 
                 <div className="flex justify-end gap-3">
                   <button
-                    onClick={() => setShowRedeployDialog(false)}
+                    onClick={closeModal}
                     className="px-4 py-2 rounded-lg font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
                   >
                     Close
@@ -719,12 +757,17 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
                 {displayedStepId === "deploy" && (
                   <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4 space-y-3">
                     <p className="text-xs uppercase tracking-wide text-slate-500">Deployment</p>
-                    {redeployActive || executeMutation.isPending ? (
+                    {redeployActive ? (
                       <DeploymentProgressView
                         progress={redeployProgress}
                         isConnected={redeployConnected}
                         connectionError={redeployConnectionError}
                       />
+                    ) : executeMutation.isPending ? (
+                      <div className="flex items-center justify-center py-6 text-slate-400">
+                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                        Starting deployment...
+                      </div>
                     ) : (
                       <Alert variant="info" title="Ready to deploy">
                         Start the redeploy to stream live deployment progress here.
@@ -740,7 +783,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       )}
 
       {/* Investigation progress - show when there's an active investigation */}
-      {investigation.activeInvestigation && deployment.status === "failed" && (
+      {investigation.activeInvestigation && (
         <InvestigationProgress
           investigation={investigation.activeInvestigation}
           isRunning={investigation.isRunning}
@@ -749,7 +792,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           isOutdated={isInvestigationOutdated(investigation.activeInvestigation)}
           onViewReport={(invId) => {
             investigation.viewReport(invId);
-            setShowInvestigationReport(true);
+            openModal("investigation-report", { invId });
           }}
         />
       )}
@@ -758,26 +801,26 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       {showInvestigationReport && investigation.activeInvestigation && (
         <InvestigationReport
           investigation={investigation.activeInvestigation}
-          onClose={() => setShowInvestigationReport(false)}
+          onClose={closeModal}
           isOutdated={isInvestigationOutdated(investigation.activeInvestigation)}
           onApplyFixes={async (invId, options) => {
             await investigation.applyFixes(invId, options);
-            setShowInvestigationReport(false);
+            closeModal();
           }}
           isApplyingFixes={investigation.isApplyingFixes}
         />
       )}
 
       {/* Error message */}
-      {deployment.error_message && (
+      {deploymentRecord.error_message && (
         <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/10">
           <div className="flex items-start gap-2">
             <XCircle className="h-5 w-5 text-red-400 mt-0.5" />
             <div>
               <p className="font-medium text-red-400">
-                Failed at: {deployment.error_step || "unknown step"}
+                Failed at: {deploymentRecord.error_step || "unknown step"}
               </p>
-              <p className="text-red-300 mt-1">{deployment.error_message}</p>
+              <p className="text-red-300 mt-1">{deploymentRecord.error_message}</p>
             </div>
           </div>
         </div>
@@ -786,7 +829,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       {/* Tab Navigation */}
       <div className="flex gap-1 border-b border-white/10 pb-px overflow-x-auto">
         <button
-          onClick={() => setActiveTab("overview")}
+          onClick={() => setTab("overview")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
             activeTab === "overview"
@@ -798,7 +841,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           Overview
         </button>
         <button
-          onClick={() => setActiveTab("live-state")}
+          onClick={() => setTab("live-state")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
             activeTab === "live-state"
@@ -810,7 +853,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           Live State
         </button>
         <button
-          onClick={() => setActiveTab("files")}
+          onClick={() => setTab("files")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
             activeTab === "files"
@@ -822,7 +865,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           Files
         </button>
         <button
-          onClick={() => setActiveTab("drift")}
+          onClick={() => setTab("drift")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
             activeTab === "drift"
@@ -834,7 +877,19 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           Drift
         </button>
         <button
-          onClick={() => setActiveTab("history")}
+          onClick={() => setTab("secrets")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
+            activeTab === "secrets"
+              ? "bg-slate-800 text-white border-b-2 border-blue-500"
+              : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+          )}
+        >
+          <Key className="h-4 w-4" />
+          Secrets
+        </button>
+        <button
+          onClick={() => setTab("history")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
             activeTab === "history"
@@ -846,7 +901,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           History
         </button>
         <button
-          onClick={() => setActiveTab("investigations")}
+          onClick={() => setTab("investigations")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
             activeTab === "investigations"
@@ -858,7 +913,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           Investigations
         </button>
         <button
-          onClick={() => setActiveTab("terminal")}
+          onClick={() => setTab("terminal")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
             activeTab === "terminal"
@@ -873,7 +928,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
 
       {/* Tab Content */}
       {activeTab === "live-state" && (
-        <LiveStateTab deploymentId={deploymentId} deploymentName={deployment.name} />
+        <LiveStateTab deploymentId={deploymentId} deploymentName={deploymentRecord.name} />
       )}
       {activeTab === "files" && (
         <FilesTab deploymentId={deploymentId} />
@@ -881,17 +936,20 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       {activeTab === "drift" && (
         <DriftTab deploymentId={deploymentId} />
       )}
+      {activeTab === "secrets" && (
+        <SecretsTab deploymentId={deploymentId} />
+      )}
       {activeTab === "history" && (
         <HistoryTab deploymentId={deploymentId} />
       )}
       {activeTab === "investigations" && (
         <InvestigationsTab
           deploymentId={deploymentId}
-          deploymentRunId={deployment.run_id}
-          lastDeployedAt={deployment.last_deployed_at}
+          deploymentRunId={deploymentRecord.run_id}
+          lastDeployedAt={deploymentRecord.last_deployed_at}
           onViewReport={(inv) => {
             investigation.viewReport(inv.id);
-            setShowInvestigationReport(true);
+            openModal("investigation-report", { invId: inv.id });
           }}
         />
       )}
@@ -909,7 +967,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
             <div className="flex items-center gap-2">
               <Server className="h-4 w-4 text-slate-500" />
               <span className="text-slate-400">Scenario:</span>
-              <span className="text-white">{manifest.scenario?.id || deployment.scenario_id}</span>
+              <span className="text-white">{manifest.scenario?.id || deploymentRecord.scenario_id}</span>
             </div>
             {manifest.edge?.domain && (
               <div className="flex items-center gap-2">
@@ -936,24 +994,24 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
               <Clock className="h-4 w-4 text-slate-500" />
               <span className="text-slate-400">Created:</span>
               <span className="text-white">
-                {new Date(deployment.created_at).toLocaleString()}
+                {new Date(deploymentRecord.created_at).toLocaleString()}
               </span>
             </div>
-            {deployment.last_deployed_at && (
+            {deploymentRecord.last_deployed_at && (
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 <span className="text-slate-400">Last deployed:</span>
                 <span className="text-white">
-                  {new Date(deployment.last_deployed_at).toLocaleString()}
+                  {new Date(deploymentRecord.last_deployed_at).toLocaleString()}
                 </span>
               </div>
             )}
-            {deployment.last_inspected_at && (
+            {deploymentRecord.last_inspected_at && (
               <div className="flex items-center gap-2">
                 <RefreshCw className="h-4 w-4 text-blue-500" />
                 <span className="text-slate-400">Last inspected:</span>
                 <span className="text-white">
-                  {new Date(deployment.last_inspected_at).toLocaleString()}
+                  {new Date(deploymentRecord.last_inspected_at).toLocaleString()}
                 </span>
               </div>
             )}
@@ -987,14 +1045,14 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       )}
 
       {/* Deployment Manifest */}
-      {deployment.manifest && (
+      {deploymentRecord.manifest && (
         <CollapsibleSection
           title="Deployment Manifest"
           isOpen={showManifest}
           onToggle={() => setShowManifest(!showManifest)}
         >
           <CodeBlock
-            code={JSON.stringify(deployment.manifest, null, 2)}
+            code={JSON.stringify(deploymentRecord.manifest, null, 2)}
             language="json"
             maxHeight="500px"
             showLineNumbers={true}
@@ -1004,14 +1062,14 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       )}
 
       {/* Setup Result */}
-      {deployment.setup_result && (
+      {deploymentRecord.setup_result && (
         <CollapsibleSection
           title="Setup Result"
           isOpen={showSetupResult}
           onToggle={() => setShowSetupResult(!showSetupResult)}
         >
           <CodeBlock
-            code={JSON.stringify(deployment.setup_result, null, 2)}
+            code={JSON.stringify(deploymentRecord.setup_result, null, 2)}
             language="json"
             maxHeight="400px"
             showLineNumbers={true}
@@ -1021,14 +1079,14 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       )}
 
       {/* Deploy Result */}
-      {deployment.deploy_result && (
+      {deploymentRecord.deploy_result && (
         <CollapsibleSection
           title="Deploy Result"
           isOpen={showDeployResult}
           onToggle={() => setShowDeployResult(!showDeployResult)}
         >
           <CodeBlock
-            code={JSON.stringify(deployment.deploy_result, null, 2)}
+            code={JSON.stringify(deploymentRecord.deploy_result, null, 2)}
             language="json"
             maxHeight="400px"
             showLineNumbers={true}
@@ -1038,18 +1096,52 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       )}
 
       {/* Logs */}
-      {deployment.last_inspect_result && (
+      {deploymentRecord.last_inspect_result && (
         <CollapsibleSection
           title="Logs"
           isOpen={showLogs}
           onToggle={() => setShowLogs(!showLogs)}
         >
-          <LogsSection inspectResult={deployment.last_inspect_result} />
+          <LogsSection inspectResult={deploymentRecord.last_inspect_result} />
         </CollapsibleSection>
       )}
         </>
       )}
     </div>
+  );
+}
+
+function SSHKeyAuthBadge({ liveState }: { liveState: { system?: { ssh?: { verification_state?: "authorized" | "unauthorized" | "unknown" } } } | null | undefined }) {
+  if (!liveState?.system?.ssh) {
+    return null;
+  }
+
+  const ssh = liveState.system.ssh;
+  const keyState = ssh.verification_state ?? "unknown";
+
+  const config = {
+    authorized: {
+      text: "SSH key authorized",
+      className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+      Icon: CheckCircle2,
+    },
+    unauthorized: {
+      text: "SSH key unauthorized",
+      className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+      Icon: AlertCircle,
+    },
+    unknown: {
+      text: "SSH key auth unknown",
+      className: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+      Icon: AlertCircle,
+    },
+  }[keyState];
+
+  return (
+    <span className={cn("inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium", config.className)}>
+      <config.Icon className="h-4 w-4" />
+      {config.text}
+    </span>
   );
 }
 

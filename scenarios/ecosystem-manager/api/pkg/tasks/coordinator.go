@@ -4,7 +4,14 @@ import (
 	"fmt"
 
 	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
+	"github.com/ecosystem-manager/api/pkg/systemlog"
 )
+
+// QueueResetter is a minimal interface for resetting steering queue state.
+// This avoids import cycles between tasks and steering packages.
+type QueueResetter interface {
+	ResetPosition(taskID string) error
+}
 
 // RuntimeCoordinator defines the processor hooks needed to enact lifecycle side effects.
 type RuntimeCoordinator interface {
@@ -22,10 +29,11 @@ type Broadcaster interface {
 // Coordinator centralizes lifecycle application, persistence of caller-provided field edits,
 // and execution of runtime side effects. This keeps transition logic in one place.
 type Coordinator struct {
-	LC          *Lifecycle
-	Store       StorageAPI
-	Runtime     RuntimeCoordinator
-	Broadcaster Broadcaster
+	LC             *Lifecycle
+	Store          StorageAPI
+	Runtime        RuntimeCoordinator
+	Broadcaster    Broadcaster
+	QueueStateRepo QueueResetter
 }
 
 // ApplyOptions controls how ApplyTransition executes.
@@ -83,12 +91,17 @@ func (c *Coordinator) ApplyTransition(req TransitionRequest, opts ApplyOptions) 
 }
 
 func (c *Coordinator) applyRuntimeEffects(taskID string, effects TransitionEffects) {
+	if effects.ResetSteeringQueue && c.QueueStateRepo != nil {
+		// Reset steering queue position to allow re-running the queue from the beginning.
+		// Errors are logged but don't fail the transition.
+		_ = c.QueueStateRepo.ResetPosition(taskID)
+	}
 	if c.Runtime == nil {
 		return
 	}
 	if effects.TerminateProcess {
 		if err := c.Runtime.TerminateRunningProcess(taskID); err != nil {
-			// Avoid failing caller flows for termination errors; log via systemlog when available.
+			systemlog.Warnf("Coordinator failed to terminate process for task %s: %v", taskID, err)
 		}
 	}
 	if effects.ForceStart {

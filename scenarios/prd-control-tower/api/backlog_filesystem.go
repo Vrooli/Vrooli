@@ -23,7 +23,7 @@ func saveBacklogEntryToFile(entry BacklogEntry) error {
 
 	// Create directory if it doesn't exist
 	backlogDir := filepath.Dir(backlogPath)
-	if err := os.MkdirAll(backlogDir, 0755); err != nil {
+	if err := os.MkdirAll(backlogDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create backlog directory: %w", err)
 	}
 
@@ -47,7 +47,7 @@ func saveBacklogEntryToFile(entry BacklogEntry) error {
 	content.WriteString("\n")
 
 	// Write file
-	if err := os.WriteFile(backlogPath, []byte(content.String()), 0644); err != nil {
+	if err := os.WriteFile(backlogPath, []byte(content.String()), 0o644); err != nil {
 		return fmt.Errorf("failed to write backlog file: %w", err)
 	}
 
@@ -161,7 +161,7 @@ func syncBacklogFilesystemWithDatabase(exec dbExecutor) error {
 	if err != nil {
 		if os.IsNotExist(err) {
 			// Create directory if it doesn't exist
-			if err := os.MkdirAll(backlogRoot, 0755); err != nil {
+			if err := os.MkdirAll(backlogRoot, 0o755); err != nil {
 				return fmt.Errorf("failed to create backlog directory: %w", err)
 			}
 			return nil
@@ -221,7 +221,6 @@ func syncBacklogFilesystemWithDatabase(exec dbExecutor) error {
 				updated_at = EXCLUDED.updated_at
 		`, backlogEntry.ID, backlogEntry.IdeaText, backlogEntry.EntityType, backlogEntry.SuggestedName, nullIfEmpty(backlogEntry.Notes),
 			backlogEntry.Status, convertedDraftID, backlogEntry.CreatedAt, backlogEntry.UpdatedAt)
-
 		if err != nil {
 			return fmt.Errorf("failed to sync backlog entry %s: %w", backlogEntry.ID, err)
 		}

@@ -128,8 +128,14 @@ type Result struct {
     Status    Status                 // OK, Warning, Critical
     Message   string                 // Human-readable description
     Details   map[string]interface{} // Optional structured data
+    Metrics   *HealthMetrics         // Optional health score and sub-checks
     Timestamp time.Time              // When the check ran
     Duration  time.Duration          // How long it took
+}
+
+type HealthMetrics struct {
+    Score     *int       // 0-100 health score (optional)
+    SubChecks []SubCheck // Individual sub-check results
 }
 ```
 

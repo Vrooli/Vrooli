@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Variant",
+  "description": "An alternative version of a skill's content for A/B testing",
+  "type": "object",
+  "required": ["kind", "schemaVersion", "id", "skillId", "name", "entry", "revision", "createdAt", "updatedAt"],
+  "properties": {
+    "kind": {
+      "type": "string",
+      "const": "variant"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Kebab-case identifier, unique within the parent skill"
+    },
+    "skillId": {
+      "type": "string",
+      "description": "ID of the parent skill"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Human-readable variant name"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Brief description of what this variant changes"
+    },
+    "entry": {
+      "type": "string",
+      "description": "Relative path to content file (always VARIANT.md)"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Auto-incremented on each update"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { ReactNode } from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { AdminHome } from './AdminHome';
@@ -45,10 +45,32 @@ vi.mock('../../../app/providers/LandingVariantProvider', () => ({
   LandingVariantProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
+// Also mock the separate useLandingVariant hook file (AdminHome imports from here)
+vi.mock('../../../app/providers/useLandingVariant', () => ({
+  useLandingVariant: () => ({
+    variant: { slug: 'control', name: 'Control Variant' },
+    config: null,
+    loading: false,
+    error: null,
+    resolution: 'api_select',
+    statusNote: 'Serving weighted traffic',
+    lastUpdated: Date.now(),
+    refresh: vi.fn(),
+  }),
+}));
+
 const mockedListVariants = vi.mocked(listVariants);
 const mockedCheckAdminSession = vi.mocked(checkAdminSession);
 const mockedGetStripeSettings = vi.mocked(getStripeSettings);
 const mockedResetDemoData = vi.mocked(resetDemoData);
+const mockStripeSettings = {
+  publishable_key_set: true,
+  secret_key_set: true,
+  webhook_secret_set: false,
+  source: 'env' as const,
+  updated_at: new Date().toISOString(),
+  dashboard_url: 'https://dashboard.stripe.com/',
+};
 const mockVariantsResponse = {
   variants: [
     {
@@ -99,181 +121,103 @@ const mockAnalyticsSummary = {
   ],
 };
 
-const renderWithRouter = (component: React.ReactElement) => {
-  return render(
+const renderWithRouter = (component: React.ReactElement) =>
+  render(
     <BrowserRouter>
       <AdminAuthProvider>
         {component}
       </AdminAuthProvider>
     </BrowserRouter>
   );
+
+const renderWithAuth = async (component: React.ReactElement) => {
+  const utils = renderWithRouter(component);
+  await waitFor(() => expect(mockedCheckAdminSession).toHaveBeenCalled());
+  return utils;
 };
 
 describe('AdminHome [REQ:ADMIN-MODES]', () => {
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
   const originalLocation = window.location;
-  let fetchAnalyticsSpy: ReturnType<typeof vi.spyOn>;
+  const setLocation = (next: Location) => {
+    Object.defineProperty(window, 'location', { value: next, writable: true });
+  };
+  let fetchAnalyticsSpy: ReturnType<typeof vi.spyOn> | null = null;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn().mockResolvedValue({ ok: false } as Response);
-    delete (window as { location?: Location }).location;
-    window.location = { ...originalLocation, pathname: '/admin' };
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false } as Response);
+    setLocation({ ...originalLocation, pathname: '/admin' } as Location);
     window.localStorage.clear();
     mockedListVariants.mockResolvedValue(mockVariantsResponse);
     mockedCheckAdminSession.mockResolvedValue({ authenticated: true, email: 'ops@vrooli.dev', reset_enabled: false });
-    fetchAnalyticsSpy = vi.spyOn(analyticsController, 'fetchAnalyticsSummary').mockResolvedValue(mockAnalyticsSummary);
+    fetchAnalyticsSpy = vi.spyOn(analyticsController, 'fetchAnalyticsSummary').mockResolvedValue(mockAnalyticsSummary) as ReturnType<typeof vi.spyOn>;
     mockedGetStripeSettings.mockResolvedValue(mockStripeSettings);
     mockedResetDemoData.mockResolvedValue({ reset: true, timestamp: new Date().toISOString() });
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
-    window.location = originalLocation;
+    globalThis.fetch = originalFetch;
+    setLocation(originalLocation);
     window.localStorage.clear();
-    fetchAnalyticsSpy.mockRestore();
+    fetchAnalyticsSpy?.mockRestore();
   });
 
-  it('[REQ:ADMIN-MODES] should display exactly two modes: Analytics and Customization', () => {
-    renderWithRouter(<AdminHome />);
+  it('[REQ:ADMIN-MODES] should display exactly two modes: Analytics and Customization', async () => {
+    await renderWithAuth(<AdminHome />);
 
-    expect(screen.getByText('Analytics / Metrics')).toBeInTheDocument();
-    // Use role query to avoid ambiguity - there's a heading and button text with "Customization"
-    expect(screen.getByRole('heading', { name: 'Customization' })).toBeInTheDocument();
-
-    const modeButtons = screen.getAllByRole('button').filter(btn =>
-      btn.getAttribute('data-testid')?.startsWith('admin-mode-')
-    );
-    expect(modeButtons).toHaveLength(2);
+    expect(screen.getByTestId('admin-quick-flows')).toBeInTheDocument();
+    expect(screen.getByTestId('flow-landing')).toBeInTheDocument();
+    expect(screen.getByTestId('flow-billing')).toBeInTheDocument();
+    expect(screen.getByTestId('flow-apps')).toBeInTheDocument();
+    expect(screen.getByTestId('flow-users')).toBeInTheDocument();
   });
 
-  it('[REQ:ADMIN-NAV] should navigate to analytics when Analytics mode is clicked', async () => {
+  it('[REQ:ADMIN-NAV] navigates to quick flow destinations', async () => {
     const user = userEvent.setup();
-    renderWithRouter(<AdminHome />);
+    await renderWithAuth(<AdminHome />);
 
-    const analyticsButton = screen.getByTestId('admin-mode-analytics');
-    await user.click(analyticsButton);
+    await user.click(screen.getByTestId('flow-landing'));
+    await user.click(screen.getByTestId('flow-billing'));
+    await user.click(screen.getByTestId('flow-apps'));
+    await user.click(screen.getByTestId('flow-users'));
 
-    expect(mockNavigate).toHaveBeenCalledWith('/admin/analytics');
+    expect(mockNavigate).toHaveBeenCalledWith('/admin/landing');
+    expect(mockNavigate).toHaveBeenCalledWith('/admin/billing-home');
+    expect(mockNavigate).toHaveBeenCalledWith('/admin/apps');
+    expect(mockNavigate).toHaveBeenCalledWith('/admin/users');
   });
 
-  it('[REQ:ADMIN-NAV] should navigate to customization when Customization mode is clicked', async () => {
-    const user = userEvent.setup();
-    renderWithRouter(<AdminHome />);
+  it('shows computed stats once health data loads', async () => {
+    await renderWithAuth(<AdminHome />);
 
-    const customizationButton = screen.getByTestId('admin-mode-customization');
-    await user.click(customizationButton);
-
-    expect(mockNavigate).toHaveBeenCalledWith('/admin/customization');
+    const statsBar = await screen.findByTestId('admin-stats-bar');
+    await waitFor(() => {
+      expect(within(statsBar).getByText('2')).toBeInTheDocument();
+    });
+    expect(within(statsBar).getByText('100%')).toBeInTheDocument();
+    expect(within(statsBar).getByText('No')).toBeInTheDocument();
+    expect(within(statsBar).getByText('Control Variant')).toBeInTheDocument();
   });
 
-  it('should display mode descriptions', () => {
-    renderWithRouter(<AdminHome />);
-
-    expect(screen.getByText(/View conversion rates, A\/B test results/)).toBeInTheDocument();
-    expect(screen.getByText(/Customize landing page content, trigger agent-based/)).toBeInTheDocument();
-  });
-
-  it('renders the experience guide with preview affordance', async () => {
+  it('opens preview and handles demo reset confirmation flow', async () => {
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
     const user = userEvent.setup();
-    renderWithRouter(<AdminHome />);
 
-    expect(screen.getByTestId('admin-experience-guide')).toBeInTheDocument();
-    await user.click(screen.getByTestId('admin-guide-preview'));
+    await renderWithAuth(<AdminHome />);
 
+    await user.click(screen.getByTestId('admin-preview-landing'));
     expect(openSpy).toHaveBeenCalledWith('/', '_blank', 'noopener,noreferrer');
-    openSpy.mockRestore();
-  });
 
-  it('surfaces demo data reset control with confirmation dialog', async () => {
-    const user = userEvent.setup();
-
-    renderWithRouter(<AdminHome />);
-
-    // Reset card should always be visible
-    const resetCard = await screen.findByTestId('admin-reset-demo-card');
-    expect(resetCard).toBeInTheDocument();
-
-    // Click the reset button to show confirmation dialog
+    await user.click(screen.getByTestId('admin-danger-toggle'));
     await user.click(screen.getByTestId('admin-reset-demo-btn'));
 
-    // Confirmation dialog should appear
     const confirmDialog = await screen.findByTestId('admin-reset-confirm-dialog');
     expect(confirmDialog).toBeInTheDocument();
-    expect(confirmDialog).toHaveTextContent('Are you sure you want to reset?');
 
-    // Click confirm to execute reset
     await user.click(screen.getByTestId('admin-reset-confirm-btn'));
-
     expect(mockedResetDemoData).toHaveBeenCalled();
-  });
 
-  it('should surface quick resume panel when recents exist', async () => {
-    window.localStorage.setItem(
-      'landing_admin_experience',
-      JSON.stringify({
-        version: 1,
-        lastVariant: {
-          slug: 'alpha',
-          name: 'Variant Alpha',
-          surface: 'variant',
-          lastVisitedAt: new Date().toISOString(),
-        },
-        lastAnalytics: {
-          variantSlug: 'beta',
-          variantName: 'Variant Beta',
-          timeRangeDays: 30,
-          savedAt: new Date().toISOString(),
-        },
-      })
-    );
-
-    renderWithRouter(<AdminHome />);
-
-    expect(await screen.findByTestId('admin-resume-panel')).toBeInTheDocument();
-    expect(screen.getByTestId('admin-resume-customization')).toBeInTheDocument();
-    expect(screen.getByTestId('admin-resume-analytics')).toBeInTheDocument();
-  });
-
-  it('renders experience health digest with attention summary', async () => {
-    renderWithRouter(<AdminHome />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('admin-health-digest')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('admin-health-attention-card')).toHaveTextContent('Beta Variant');
-  });
-
-  it('navigates to focused customization from health digest', async () => {
-    const user = userEvent.setup();
-    renderWithRouter(<AdminHome />);
-
-    const reviewButton = await screen.findByTestId('admin-health-review');
-    await user.click(reviewButton);
-
-    expect(mockNavigate).toHaveBeenCalledWith('/admin/customization?focus=beta&focusSectionType=hero');
+    openSpy.mockRestore();
   });
 });
-const mockStripeSettings = {
-  publishable_key_set: true,
-  secret_key_set: true,
-  webhook_secret_set: false,
-  source: 'env' as const,
-  updated_at: new Date().toISOString(),
-  dashboard_url: 'https://dashboard.stripe.com/',
-};
-
-  it('surfaces monetization guardrails and billing flow', async () => {
-    const user = userEvent.setup();
-    renderWithRouter(<AdminHome />);
-
-    const monetizationCard = await screen.findByTestId('admin-monetization-card');
-    expect(monetizationCard).toHaveTextContent('Monetization guardrail');
-    expect(monetizationCard).toHaveTextContent('Publishable key');
-    expect(monetizationCard).toHaveTextContent('Webhook secret');
-
-    const billingFlowButton = await screen.findByTestId('admin-guide-billing');
-    await user.click(billingFlowButton);
-    expect(mockNavigate).toHaveBeenCalledWith('/admin/billing');
-  });

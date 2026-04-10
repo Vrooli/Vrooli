@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -239,4 +238,24 @@ func getVrooliRoot() (string, error) {
 		vrooliRoot = filepath.Join(home, "Vrooli")
 	}
 	return vrooliRoot, nil
+}
+
+// resolveEntityBaseDir returns the base directory for an entity's PRD and requirements.
+// When customPath is provided, it is used directly. Otherwise, the standard
+// $VROOLI_ROOT/{entityType}s/{entityName} path is used.
+func resolveEntityBaseDir(entityType, entityName, customPath string) (string, error) {
+	if strings.TrimSpace(customPath) != "" {
+		return customPath, nil
+	}
+	vrooliRoot, err := getVrooliRoot()
+	if err != nil {
+		return "", err
+	}
+	var entityDir string
+	if entityType == EntityTypeScenario {
+		entityDir = "scenarios"
+	} else {
+		entityDir = "resources"
+	}
+	return filepath.Join(vrooliRoot, entityDir, entityName), nil
 }

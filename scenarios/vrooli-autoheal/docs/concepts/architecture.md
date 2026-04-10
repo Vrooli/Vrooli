@@ -25,7 +25,7 @@ graph TB
 
     subgraph Infrastructure["Infrastructure Layer"]
         Platform["Platform Detection<br/>OS capabilities"]
-        Store["PostgreSQL Store<br/>Result persistence"]
+        Store["SQLite Store<br/>Result persistence"]
         Config["Configuration<br/>Environment vars"]
     end
 

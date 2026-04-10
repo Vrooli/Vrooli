@@ -10,7 +10,7 @@ import { PHASES_FOR_GENERATION, PHASE_LABELS } from "../../lib/constants";
 import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
 import { cn } from "../../lib/utils";
-import { AgentModel, SpawnAgentsResult, fetchAgentModels, spawnAgents, fetchAppConfig, type AppConfig } from "../../lib/api";
+import { fetchAgentModels, spawnAgents, fetchAppConfig, type AgentModel, type SpawnAgentsResult, type AppConfig } from "../../lib/api";
 
 const TASK_LABELS: Record<TaskType, string> = {
   bootstrap: "Bootstrap Tests",
@@ -152,9 +152,10 @@ function buildTaskBody(
         .join(" ")}`
     : `test-genie run-tests ${scenarioName} --type phased`;
   const phaseDocs = selectedPhases
-    .map((phase) => PHASES_FOR_GENERATION.find((p) => p.key === phase))
-    .filter(Boolean)
-    .map((phase) => `${testGeniePath}${phase!.docsPath}`);
+    .flatMap((phase) => {
+      const metadata = PHASES_FOR_GENERATION.find((item) => item.key === phase);
+      return metadata ? [`${testGeniePath}${metadata.docsPath}`] : [];
+    });
 
   const phaseDocsList =
     phaseDocs.length > 0 ? phaseDocs.map((doc) => `- ${doc}`).join("\n") : "- (no phase docs selected)";
@@ -302,16 +303,13 @@ export function GeneratePage() {
   const [maxTurns, setMaxTurns] = useState(12);
   const [timeoutSeconds, setTimeoutSeconds] = useState(300);
   const [allowedTools, setAllowedTools] = useState("read,edit,write,glob,grep");
-  const [skipPermissions, setSkipPermissions] = useState(false);
+  const [skipPermissions] = useState(false);
   const [spawnBusy, setSpawnBusy] = useState(false);
   const [spawnStatus, setSpawnStatus] = useState<string | null>(null);
   const [spawnResults, setSpawnResults] = useState<SpawnAgentsResult[] | null>(null);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
-  const [configLoading, setConfigLoading] = useState(true);
   const [networkEnabled, setNetworkEnabled] = useState(false); // Default: disabled for safety
   const [advancedOpen, setAdvancedOpen] = useState(false); // Collapsible advanced settings
-
-  const hasTargets = targetPaths.length > 0;
 
   // Load app config on mount (includes repoRoot)
   useEffect(() => {
@@ -333,8 +331,6 @@ export function GeneratePage() {
           pathValidation: true,
           bashAllowlistOnly: true,
         });
-      } finally {
-        setConfigLoading(false);
       }
     };
     loadConfig();
@@ -344,7 +340,7 @@ export function GeneratePage() {
     try {
       const raw = localStorage.getItem(RECENT_MODEL_STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw);
+        const parsed: unknown = JSON.parse(raw);
         if (Array.isArray(parsed)) {
           setRecentModels(parsed.filter((v) => typeof v === "string"));
         }
@@ -455,12 +451,13 @@ export function GeneratePage() {
   }, [cappedCombos, customPrompts, focusScenario, selectedTask, additionalContext, appConfig, networkEnabled]);
 
   useEffect(() => {
-    if (!activePromptId && promptItems.length > 0) {
-      setActivePromptId(promptItems[0].id);
+    const firstPrompt = promptItems[0];
+    if (!activePromptId && firstPrompt) {
+      setActivePromptId(firstPrompt.id);
       return;
     }
     if (activePromptId && promptItems.every((item) => item.id !== activePromptId)) {
-      setActivePromptId(promptItems[0]?.id ?? null);
+      setActivePromptId(firstPrompt?.id ?? null);
     }
   }, [activePromptId, promptItems]);
 
@@ -690,7 +687,10 @@ export function GeneratePage() {
                       onClick={() => {
                         if (!currentPromptItem) return;
                         const prevIndex = (currentPromptItem.index - 1 + promptCount) % promptCount;
-                        setActivePromptId(promptItems[prevIndex].id);
+                        const previousPrompt = promptItems[prevIndex];
+                        if (previousPrompt) {
+                          setActivePromptId(previousPrompt.id);
+                        }
                       }}
                     >
                       Prev
@@ -701,7 +701,10 @@ export function GeneratePage() {
                       onClick={() => {
                         if (!currentPromptItem) return;
                         const nextIndex = (currentPromptItem.index + 1) % promptCount;
-                        setActivePromptId(promptItems[nextIndex].id);
+                        const nextPrompt = promptItems[nextIndex];
+                        if (nextPrompt) {
+                          setActivePromptId(nextPrompt.id);
+                        }
                       }}
                     >
                       Next

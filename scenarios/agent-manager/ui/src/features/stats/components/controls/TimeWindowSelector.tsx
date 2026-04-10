@@ -1,7 +1,6 @@
 // Time window selector component
 
 import { useTimeWindow, getPresetShortLabel } from "../../hooks/useTimeWindow";
-import type { TimePreset } from "../../api/types";
 
 export function TimeWindowSelector() {
   const { preset, setPreset, presetOptions } = useTimeWindow();

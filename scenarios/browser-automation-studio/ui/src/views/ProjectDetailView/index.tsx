@@ -100,7 +100,8 @@ export default function ProjectDetailView() {
       if (foundProject) {
         setProject(foundProject);
         setCurrentProject(foundProject);
-        setSelectedFolder(foundProject.folder_path ?? '/');
+        // Use root folder path for workflow categories, NOT project.folder_path which is the filesystem path
+        setSelectedFolder('/');
       } else {
         toast.error('Project not found');
         navigate('/');

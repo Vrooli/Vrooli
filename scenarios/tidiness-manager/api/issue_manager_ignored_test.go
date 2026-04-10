@@ -33,7 +33,7 @@ func TestIssueManager_MarkAsIgnored(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to insert test issue: %v", err)
 	}
-	defer srv.db.Exec("DELETE FROM issues WHERE id = $1", issueID)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM issues WHERE id = $1", issueID) }()
 
 	// Update issue to ignored
 	reqBody := map[string]string{

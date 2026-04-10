@@ -37,7 +37,7 @@ func TestSubmitIssueToTrackerReturnsIssueID(t *testing.T) {
 				"issue_id": "issue-abc",
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(handler))
@@ -74,7 +74,7 @@ func TestSubmitIssueToTrackerParsesNestedIssueID(t *testing.T) {
 				},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(handler))

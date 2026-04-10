@@ -1,0 +1,29 @@
+{
+  "archived_at": "2026-02-05T20:52:53Z",
+  "created": "2026-02-05T20:52:53Z",
+  "description": "Real-time news aggregation with AI-powered bias detection, fact-checking, and perspective analysis",
+  "name": "news-aggregator-bias-analysis-archived",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "news-application",
+    "media",
+    "news",
+    "bias-detection",
+    "fact-checking",
+    "media-analysis",
+    "journalism",
+    "ai-analysis",
+    "rss",
+    "javascript-ui",
+    "perspective-aggregator",
+    "nodejs-ui",
+    "go-api",
+    "postgres-storage",
+    "redis-cache",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] news-aggregator-bias-analysis",
+  "updated": "2026-02-05T20:52:53Z"
+}

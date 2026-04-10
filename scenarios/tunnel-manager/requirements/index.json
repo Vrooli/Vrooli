@@ -1,0 +1,20 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-route-manifest/module.json",
+    "02-port-compliance/module.json",
+    "03-tunnel-health/module.json",
+    "04-liveness-probes/module.json",
+    "05-auto-recovery/module.json",
+    "06-cli-interface/module.json",
+    "07-cloudflare-api/module.json",
+    "08-local-config/module.json",
+    "09-web-dashboard/module.json",
+    "10-observability/module.json"
+  ],
+  "requirements": []
+}

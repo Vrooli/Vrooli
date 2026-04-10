@@ -1,0 +1,32 @@
+{
+  "id": "debug-type-errors",
+  "name": "Fix Type Errors",
+  "description": "Resolve TypeScript or type-related errors",
+  "icon": "FileType",
+  "modes": ["Debug/Fix", "Type Errors"],
+  "content": "I'm getting type errors that I need help resolving:\n\n**Type Error(s):**\n{{type_errors}}\n\n**File/Location:** {{location}}\n\n**What I'm trying to do:** {{intent}}\n\nPlease:\n1. Explain why these type errors are occurring\n2. Provide the correct type definitions\n3. Show the fixed code\n4. Suggest if there are better type patterns for this use case",
+  "variables": [
+    {
+      "name": "type_errors",
+      "label": "Type Errors",
+      "type": "textarea",
+      "placeholder": "Paste the TypeScript error messages",
+      "required": true
+    },
+    {
+      "name": "location",
+      "label": "File/Location",
+      "type": "text",
+      "placeholder": "e.g., src/hooks/useAuth.ts",
+      "required": true
+    },
+    {
+      "name": "intent",
+      "label": "What You're Trying to Do",
+      "type": "textarea",
+      "placeholder": "Describe the functionality you're implementing",
+      "required": false
+    }
+  ],
+  "suggestedToolIds": ["spawn_coding_agent"]
+}

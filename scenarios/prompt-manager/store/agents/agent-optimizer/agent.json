@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "agent-optimizer",
+  "displayName": "Agent Optimizer",
+  "description": "Audits agent configurations, improves SOUL/AGENTS/TOOLS files for better agent performance.",
+  "status": "active",
+  "appearance": {
+    "body": "#92400E",
+    "head": "#F59E0B",
+    "accent": "#FEF3C7"
+  },
+  "tags": [
+    "meta",
+    "agents",
+    "identity-design",
+    "optimization"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

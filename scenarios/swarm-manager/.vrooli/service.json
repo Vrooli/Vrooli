@@ -1,21 +1,21 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
-  "version": "2.0.0",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "swarm-manager",
     "displayName": "Swarm Manager",
-    "description": "Autonomous task orchestrator that coordinates work across all Vrooli scenarios",
-    "version": "1.0.0",
+    "description": "Central command center for managing scenario ecosystem with backlog-driven execution control and lifecycle orchestration",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
     "tags": [
-      "orchestration",
-      "task-management",
-      "automation",
-      "ai-coordinator",
-      "vrooli-core"
+      "react-ui",
+      "go-api",
+      "go-cli",
+      "scenario-management",
+      "ecosystem-orchestration"
     ],
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -38,96 +38,81 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "description": "Swarm Manager API port",
+      "description": "Go API server",
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "35000-39999",
-      "port": 37510,
-      "description": "Swarm Manager dashboard UI port"
+      "port": 36234,
+      "description": "React UI"
+    },
+    "websocket": {
+      "env_var": "WS_PORT",
+      "description": "WebSocket channel",
+      "range": "25000-29999"
     }
   },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Swarm Manager health check configuration",
+      "description": "Standard API/UI health checks",
       "endpoints": {
         "api": "/health",
-        "ui": "/health",
-        "metrics": "/api/metrics"
+        "ui": "/health"
       },
+      "startup_grace_period": 15000,
       "checks": [
         {
           "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
         },
         {
           "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
-          "timeout": 3000,
-          "interval": 45000
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
         }
-      ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 10000
+      ]
     },
     "setup": {
-      "description": "Initialize Swarm Manager",
+      "description": "Build API & UI, install CLI",
       "condition": {
         "checks": [
           {
             "type": "binaries",
-            "targets": [
-              "api/swarm-manager-api"
-            ]
+            "targets": ["api/swarm-manager-api"]
+          },
+          {
+            "type": "cli",
+            "command": "swarm-manager"
           },
           {
             "type": "ui-bundle",
             "bundle_path": "ui/dist/index.html",
             "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "swarm-manager",
-            "targets": [
-              "swarm-manager"
-            ]
           }
         ]
       },
       "steps": [
         {
-          "name": "verify-directories",
-          "run": "ls -la tasks/ | head -5",
-          "description": "Surface existing task modules"
-        },
-        {
           "name": "install-cli",
-          "run": "bash cli/install.sh",
-          "description": "Install CLI command globally",
-          "condition": {
-            "file_exists": "cli/install.sh"
-          }
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI into ~/.vrooli/bin"
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o swarm-manager-api .",
-          "description": "Build Go API binary",
-          "condition": {
-            "file_exists": "api/go.mod"
-          }
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o swarm-manager-api .",
+          "description": "Build Go API server"
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install --prefer-offline --no-audit --no-fund --loglevel error",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -135,24 +120,24 @@
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm run build",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
           "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
-          "run": "echo 'Swarm Manager initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: swarm-manager --help'",
-          "description": "Display service access URLs"
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
+          "description": "Display access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start Swarm Manager services",
+      "description": "Launch API and Vite dev server",
       "steps": [
         {
           "name": "start-api",
           "run": "cd api && ./swarm-manager-api",
-          "description": "Start Go API server in background",
           "background": true,
+          "description": "Start Go API server in background",
           "condition": {
             "file_exists": "api/swarm-manager-api"
           }
@@ -160,93 +145,92 @@
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
-          "description": "Start UI server in background",
           "background": true,
+          "description": "Serve production UI bundle",
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
         },
         {
           "name": "show-urls",
-          "run": "echo \"\u2705 Swarm Manager is running at http://localhost:${UI_PORT}\""
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
+          "description": "Display access URLs"
         }
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing for swarm-manager",
+      "description": "Execute phased test suite via test-genie",
       "steps": [
         {
-          "name": "run-phased-tests",
+          "name": "run-tests",
           "run": "test-genie execute swarm-manager --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "shutdown": {
-      "description": "Stop Swarm Manager services",
-      "steps": [
-        {
-          "name": "stop-services",
-          "run": "pkill -f swarm-manager-api || true; pkill -f 'node server.js' || true"
+          "description": "Run all test phases via test-genie"
         }
       ]
     },
     "stop": {
-      "description": "Stop services",
+      "description": "Stop background processes",
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f \"swarm-manager-api\" || true; sleep 1; pkill -9 -f \"swarm-manager-api\" 2>/dev/null || true",
-          "description": "Stop API process"
+          "run": "pkill -f 'swarm-manager-api' || true",
+          "description": "Stop Go API"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/swarm-manager.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/swarm-manager.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
         }
       ]
     }
   },
   "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
+    "resources": {},
+    "scenarios": {
+      "agent-manager": {
         "enabled": true,
         "required": true,
-        "description": "Task metadata, execution history, and configuration storage",
-        "schema": "swarm_manager"
+        "description": "Spawning agents for automated work"
       },
-      "redis": {
-        "type": "redis",
+      "ecosystem-manager": {
         "enabled": true,
         "required": true,
-        "description": "Task locks, real-time updates, and pub/sub messaging"
+        "description": "Scenario initialization and improvement"
       },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "description": "Task embeddings, pattern recognition, and learning system"
-      },
-      "claude-code": {
-        "type": "claude-code",
-        "enabled": true,
-        "required": true,
-        "description": "Task analysis, priority estimation, and work execution"
-      },
-      "ollama": {
-        "type": "ollama",
+      "knowledge-observatory": {
         "enabled": false,
         "required": false,
-        "description": "Local LLM for lightweight task analysis"
-      }
-    },
-    "scenarios": {
-      "core-debugger": {
+        "description": "PROBLEMS.md management (P1)"
+      },
+      "visited-tracker": {
+        "enabled": false,
+        "required": false,
+        "description": "Context cleanup campaigns (P1)"
+      },
+      "scenario-completeness-scoring": {
+        "enabled": false,
+        "required": false,
+        "description": "Completeness metrics (P1)"
+      },
+      "app-issue-tracker": {
+        "enabled": false,
+        "required": false,
+        "description": "Issue management (P1)"
+      },
+      "test-genie": {
+        "enabled": false,
+        "required": false,
+        "description": "Test execution and reporting (P1)"
+      },
+      "prompt-manager": {
+        "enabled": true,
         "required": true,
-        "version": "1.0.0",
-        "versionRange": ">=1.0.0",
-        "description": "Auto-detected dependency via direct_cli"
+        "description": "Skill prompt templates for backlog research and processing"
+      },
+      "git-control-tower": {
+        "enabled": false,
+        "required": false,
+        "description": "Post-execution code review and readiness validation"
       }
     }
   }

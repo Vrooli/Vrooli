@@ -1,0 +1,38 @@
+{
+  "module": {
+    "id": "storage-retrieval",
+    "name": "Results Storage & Retrieval",
+    "description": "PostgreSQL storage for evaluation data with query and aggregation capabilities",
+    "prd_refs": ["OT-P0-006"]
+  },
+  "requirements": [
+    {
+      "id": "STORE-001",
+      "title": "Database Schema",
+      "description": "PostgreSQL schema for jobs, results, metrics, and configurations",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "status": "pending"
+    },
+    {
+      "id": "STORE-002",
+      "title": "Results Query API",
+      "description": "Query results by scenario, model, time range, and metric type",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "status": "pending"
+    },
+    {
+      "id": "STORE-003",
+      "title": "Aggregate Statistics",
+      "description": "Calculate averages, percentiles, and trend statistics",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "status": "pending"
+    },
+    {
+      "id": "STORE-004",
+      "title": "Data Retention Policies",
+      "description": "Configurable retention and archival for evaluation data",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "status": "pending"
+    }
+  ]
+}

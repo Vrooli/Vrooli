@@ -1,0 +1,132 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-30T18:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 2,
+    "scope_defined": 1,
+    "approach_solid": 1,
+    "testable": 1,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The BAS provider chain is text-only (ExecutePrompt(string) → string). Audio capabilities have heterogeneous I/O: Whisper takes audio bytes and returns text, Kokoro takes text and returns audio bytes, Ollama takes text and returns text. The BAS AIProvider interface cannot be reused directly — audio-tools needs per-capability typed interfaces."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The BAS architectural patterns (chain fallback, LPBS credit integration, availability caching, factory pattern, error classification) are highly reusable as design patterns, even though the Go code itself is text-modality-specific. Replicating the pattern per-capability is more practical than extracting a shared generic package."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "The LPBS AI gateway currently only supports text-based chat completion endpoints. Routing STT/TTS through LPBS would require new gateway endpoints for audio upload (STT) and audio download (TTS). This is a cross-scenario dependency outside audio-tools scope."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Current web-console audio stack is entirely local-only: Whisper at localhost:8090, Kokoro at localhost:8880, Ollama at localhost:11434. No provider routing, BYOK, or credit metering exists for any audio capability today."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Provider routing architecture approach",
+      "context": "The BAS text-only interface doesn't fit audio modalities. Three architecture approaches are viable, each with different complexity/flexibility tradeoffs.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Per-capability typed provider chains",
+          "rationale": "Each capability (STT, TTS, summarize) gets its own Go interface and chain with capability-specific request/response types. Simplest to implement, clearest types, but some boilerplate duplication across chains.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Generic provider with Go type parameters",
+          "rationale": "One Provider[Req, Resp] generic interface, with concrete types per capability. Less boilerplate but more abstract; Go generics can be awkward for interface-heavy patterns."
+        },
+        {
+          "key": "C",
+          "label": "Unified audio gateway with internal routing",
+          "rationale": "Single API surface that accepts all audio requests and routes internally. Cleanest external API but highest internal complexity; may over-abstract early."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own architecture direction."
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "LPBS scope for audio capabilities",
+      "context": "LPBS gateway only supports text chat today. Deciding which audio capabilities should route through LPBS affects credit metering design and cross-scenario dependencies.",
+      "options": [
+        {
+          "key": "A",
+          "label": "LPBS for summarization only (text-based)",
+          "rationale": "Summarization already fits the LPBS text API. STT/TTS stay local-only or use direct external APIs with BYOK keys. Avoids LPBS gateway changes entirely.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "LPBS for all three capabilities",
+          "rationale": "Full credit metering for all audio operations. Requires new LPBS audio endpoints — significant cross-scenario work but most complete monetization story."
+        },
+        {
+          "key": "C",
+          "label": "LPBS for summarization + STT (skip TTS)",
+          "rationale": "STT through LPBS is higher value (cloud Whisper costs more than local). TTS stays local/BYOK only. Moderate LPBS scope."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own scoping direction."
+        }
+      ],
+      "selected": "B",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Reuse strategy for BAS provider chain code",
+      "context": "BAS has ~1100 lines of well-structured provider chain code. The question is whether to extract shared infrastructure or replicate the pattern independently in audio-tools.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Replicate pattern, don't extract shared code",
+          "rationale": "Audio-tools implements its own provider chains following BAS patterns. Avoids coupling, allows audio-specific optimizations. BAS code stays unchanged. Recommended for now since the interfaces differ significantly.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Extract shared provider-chain package",
+          "rationale": "Extract common fallback logic, availability caching, LPBS reporting into a shared Go package. Both BAS and audio-tools import it. Higher upfront cost but reduces drift over time."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own reuse strategy."
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "BAS credit metering uses hard-coded operation costs (security measure — no env var overrides). Audio-tools would need its own operation types (e.g., 'audio.stt_transcribe', 'audio.tts_synthesize', 'audio.summarize') with per-operation cost definitions. LPBS usage reporting uses a standard structure with 'app_bundle_key' and 'LimitKey=ai_credits' that audio-tools can adopt directly."
+    }
+  ],
+  "plan_updates": "Created initial conclusion.md with research question, 6 findings covering BAS pattern analysis, audio API heterogeneity, LPBS scope implications, current local-only state, and 3 architecture approaches. Identified key limitations around LPBS gateway scope and external API pricing."
+}

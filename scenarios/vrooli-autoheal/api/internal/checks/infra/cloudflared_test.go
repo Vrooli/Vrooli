@@ -29,6 +29,10 @@ func TestCloudflaredCheckRunWithMock_ServiceActive(t *testing.T) {
 		Output: []byte("active"),
 		Error:  nil,
 	}
+	mockExec.Responses["vrooli scenario port app-monitor UI_PORT"] = checks.MockResponse{
+		Output: []byte(""),
+		Error:  checks.ErrCommandNotFound,
+	}
 	// No errors in logs (use default response)
 	mockExec.DefaultResponse = checks.MockResponse{
 		Output: []byte(""),
@@ -474,6 +478,13 @@ func TestCloudflaredCheckCountRecentErrors(t *testing.T) {
 			expectedCount: 3,
 		},
 		{
+			name: "ignores origin service unreachable noise",
+			logOutput: "2026-02-19T06:06:28Z ERR  error=\"Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp 127.0.0.1:36236: connect: connection refused\" connIndex=1 event=1 ingressRule=10 originService=http://localhost:36236\n" +
+				"2026-02-19T06:06:28Z ERR Request failed error=\"Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp 127.0.0.1:36236: connect: connection refused\" connIndex=1 dest=https://vrooli-autoheal.itsagitime.com/api/v1/status event=0 ip=198.41.200.73 type=http\n" +
+				"2026-02-19T06:06:30Z ERR Failed to serve tunnel connection error=\"quic: timeout\"",
+			expectedCount: 1,
+		},
+		{
 			name:          "empty logs",
 			logOutput:     "",
 			expectedCount: 0,
@@ -498,6 +509,51 @@ func TestCloudflaredCheckCountRecentErrors(t *testing.T) {
 	}
 }
 
+func TestCloudflaredCheckRunWithMock_OriginUnreachableNoiseDoesNotTriggerWarning(t *testing.T) {
+	caps := &platform.Capabilities{
+		Platform:        platform.Linux,
+		SupportsSystemd: true,
+	}
+
+	mockExec := checks.NewMockExecutor()
+	mockExec.Responses["systemctl is-active cloudflared"] = checks.MockResponse{
+		Output: []byte("active"),
+		Error:  nil,
+	}
+	mockExec.Responses["vrooli scenario port app-monitor UI_PORT"] = checks.MockResponse{
+		Output: []byte(""),
+		Error:  checks.ErrCommandNotFound,
+	}
+
+	noiseLine := "2026-02-19T06:06:28Z ERR Request failed error=\"Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp 127.0.0.1:36236: connect: connection refused\""
+	logs := ""
+	for i := 0; i < 30; i++ {
+		logs += noiseLine + "\n"
+	}
+	mockExec.DefaultResponse = checks.MockResponse{
+		Output: []byte(logs),
+		Error:  nil,
+	}
+
+	check := NewCloudflaredCheck(caps,
+		WithCloudflaredExecutor(mockExec),
+		WithLocalTestPort(0), // disable connectivity probe; isolate error-rate behavior
+	)
+
+	result := check.Run(context.Background())
+	if result.Status != checks.StatusOK {
+		t.Fatalf("Status = %v, want %v (message: %s)", result.Status, checks.StatusOK, result.Message)
+	}
+
+	got, ok := result.Details["recentErrorCount"].(int)
+	if !ok {
+		t.Fatalf("recentErrorCount type = %T, want int", result.Details["recentErrorCount"])
+	}
+	if got != 0 {
+		t.Fatalf("recentErrorCount = %d, want 0", got)
+	}
+}
+
 // TestCloudflaredCheckExecutorInjection verifies executor is properly injected
 func TestCloudflaredCheckExecutorInjection(t *testing.T) {
 	mockExec := checks.NewMockExecutor()
@@ -514,5 +570,94 @@ func TestCloudflaredCheckDefaultExecutor(t *testing.T) {
 
 	if check.executor != checks.DefaultExecutor {
 		t.Error("Default executor should be used when not injected")
+	}
+}
+
+// TestCloudflaredCheckRun_AutoDetectsAppMonitorPort ensures local tunnel probe
+// uses the current app-monitor UI port instead of a stale hardcoded default.
+func TestCloudflaredCheckRun_AutoDetectsAppMonitorPort(t *testing.T) {
+	caps := &platform.Capabilities{
+		Platform:        platform.Linux,
+		SupportsSystemd: true,
+	}
+
+	mockExec := checks.NewMockExecutor()
+	mockExec.Responses["systemctl is-active cloudflared"] = checks.MockResponse{
+		Output: []byte("active"),
+		Error:  nil,
+	}
+	mockExec.Responses["vrooli scenario port app-monitor UI_PORT"] = checks.MockResponse{
+		Output: []byte("UI_PORT=35000\n"),
+		Error:  nil,
+	}
+	mockExec.DefaultResponse = checks.MockResponse{
+		Output: []byte(""),
+		Error:  nil,
+	}
+
+	mockHTTP := checks.NewMockHTTPClient()
+	mockHTTP.DefaultResponse = checks.MockHTTPResponse{
+		Error: checks.ErrConnectionRefused,
+	}
+	mockHTTP.Responses["http://127.0.0.1:35000/"] = checks.MockHTTPResponse{
+		StatusCode: 200,
+		Body:       "ok",
+	}
+
+	check := NewCloudflaredCheck(caps,
+		WithCloudflaredExecutor(mockExec),
+		WithCloudflaredHTTPClient(mockHTTP),
+	)
+
+	result := check.Run(context.Background())
+
+	if result.Status != checks.StatusOK {
+		t.Fatalf("Status = %v, want %v (Message: %s)", result.Status, checks.StatusOK, result.Message)
+	}
+
+	gotPort, ok := result.Details["localTestPort"]
+	if !ok {
+		t.Fatalf("expected localTestPort in details, got: %+v", result.Details)
+	}
+	if gotPort != 35000 {
+		t.Fatalf("localTestPort = %v, want 35000", gotPort)
+	}
+}
+
+// TestCloudflaredCheckRun_SkipsLocalProbeWhenNoPort verifies cloudflared is
+// still healthy when no stable local test port can be determined.
+func TestCloudflaredCheckRun_SkipsLocalProbeWhenNoPort(t *testing.T) {
+	caps := &platform.Capabilities{
+		Platform:        platform.Linux,
+		SupportsSystemd: true,
+	}
+
+	mockExec := checks.NewMockExecutor()
+	mockExec.Responses["systemctl is-active cloudflared"] = checks.MockResponse{
+		Output: []byte("active"),
+		Error:  nil,
+	}
+	mockExec.Responses["vrooli scenario port app-monitor UI_PORT"] = checks.MockResponse{
+		Output: []byte(""),
+		Error:  checks.ErrCommandNotFound,
+	}
+	mockExec.DefaultResponse = checks.MockResponse{
+		Output: []byte(""),
+		Error:  nil,
+	}
+
+	mockHTTP := checks.NewMockHTTPClient()
+	mockHTTP.DefaultResponse = checks.MockHTTPResponse{
+		Error: checks.ErrConnectionRefused,
+	}
+
+	check := NewCloudflaredCheck(caps,
+		WithCloudflaredExecutor(mockExec),
+		WithCloudflaredHTTPClient(mockHTTP),
+	)
+
+	result := check.Run(context.Background())
+	if result.Status != checks.StatusOK {
+		t.Fatalf("Status = %v, want %v (Message: %s)", result.Status, checks.StatusOK, result.Message)
 	}
 }

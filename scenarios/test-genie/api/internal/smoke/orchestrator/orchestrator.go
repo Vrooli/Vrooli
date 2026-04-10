@@ -21,7 +21,7 @@ type Orchestrator struct {
 	autoRecoveryEnabled bool
 	autoRecoveryOpts    AutoRecoveryOptions
 	scenarioStarter     ScenarioStarter
-	autoStartedScenario string // Track if we auto-started to cleanup on exit
+	autoStartedScenario string // Track scenario ownership for deferred cleanup
 }
 
 // New creates a new Orchestrator with the given configuration and options.
@@ -39,6 +39,22 @@ func New(config Config, opts ...Option) *Orchestrator {
 // Run executes the UI smoke test workflow.
 func (o *Orchestrator) Run(ctx context.Context) (*Result, error) {
 	startTime := time.Now()
+
+	defer func() {
+		if o.autoStartedScenario == "" || o.scenarioStarter == nil {
+			return
+		}
+
+		// Use a fresh context for cleanup so it still runs when the primary
+		// execution context has timed out or been canceled.
+		stopCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := o.scenarioStarter.Stop(stopCtx, o.autoStartedScenario); err != nil {
+			o.log("Auto-start cleanup failed for scenario %s: %v", o.autoStartedScenario, err)
+			return
+		}
+		o.log("Auto-start cleanup completed for scenario %s", o.autoStartedScenario)
+	}()
 
 	// Validate configuration
 	if err := o.config.Validate(); err != nil {
@@ -151,12 +167,16 @@ func (o *Orchestrator) Run(ctx context.Context) (*Result, error) {
 			// Attempt auto-start if enabled
 			if o.config.AutoStart && o.scenarioStarter != nil {
 				o.log("Attempting auto-start of scenario %s...", o.config.ScenarioName)
-				port, startErr := o.scenarioStarter.Start(ctx, o.config.ScenarioName)
+				startResult, startErr := o.scenarioStarter.Start(ctx, o.config.ScenarioName)
 				if startErr != nil {
 					o.log("Auto-start failed: %v", startErr)
 				} else {
-					o.autoStartedScenario = o.config.ScenarioName // Track for cleanup
-					uiURL = fmt.Sprintf("http://localhost:%d", port)
+					if startResult != nil && startResult.Started {
+						o.autoStartedScenario = o.config.ScenarioName
+					}
+					if startResult != nil && startResult.UIPort > 0 {
+						uiURL = fmt.Sprintf("http://localhost:%d", startResult.UIPort)
+					}
 					o.log("Auto-start succeeded, UI available at %s", uiURL)
 				}
 			}

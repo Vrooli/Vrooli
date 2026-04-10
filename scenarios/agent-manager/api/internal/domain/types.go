@@ -9,6 +9,7 @@
 package domain
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -42,9 +43,16 @@ type AgentProfile struct {
 	// Execution flags
 	SkipPermissionPrompt bool `json:"skipPermissionPrompt,omitempty" db:"skip_permission_prompt"`
 
+	// Feature flags (typed, discoverable capabilities)
+	Features FeatureFlags `json:"features,omitempty" db:"features"`
+
+	// Extra CLI flags per runner type (validated escape hatch)
+	ExtraFlags RunnerExtraFlags `json:"extraFlags,omitempty" db:"extra_flags"`
+
 	// Default policies (can be overridden per task)
-	RequiresSandbox  bool `json:"requiresSandbox" db:"requires_sandbox"`
-	RequiresApproval bool `json:"requiresApproval" db:"requires_approval"`
+	RequiresSandbox  bool          `json:"requiresSandbox" db:"requires_sandbox"`
+	RequiresApproval bool          `json:"requiresApproval" db:"requires_approval"`
+	NetworkAccess    NetworkAccess `json:"networkAccess" db:"network_access"`
 
 	// Sandbox behavior settings
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty" db:"sandbox_config"`
@@ -107,6 +115,42 @@ func (p ModelPreset) IsValid() bool {
 	}
 }
 
+// NetworkAccess controls the level of network access granted to an agent during execution.
+type NetworkAccess string
+
+const (
+	// NetworkAccessNone blocks all network access.
+	// Codex: maps to --full-auto.
+	NetworkAccessNone NetworkAccess = "none"
+
+	// NetworkAccessLocalhost allows access to localhost only (local scenario APIs).
+	// Codex: maps to --dangerously-bypass-approvals-and-sandbox.
+	NetworkAccessLocalhost NetworkAccess = "localhost"
+
+	// NetworkAccessFull allows unrestricted network access.
+	// Codex: maps to --dangerously-bypass-approvals-and-sandbox.
+	NetworkAccessFull NetworkAccess = "full"
+)
+
+// IsValid reports whether the network access level is a supported value.
+// Empty string is valid and treated as NetworkAccessLocalhost at runtime.
+func (n NetworkAccess) IsValid() bool {
+	switch n {
+	case "", NetworkAccessNone, NetworkAccessLocalhost, NetworkAccessFull:
+		return true
+	default:
+		return false
+	}
+}
+
+// Effective returns the network access level, defaulting empty to NetworkAccessLocalhost.
+func (n NetworkAccess) Effective() NetworkAccess {
+	if n == "" {
+		return NetworkAccessLocalhost
+	}
+	return n
+}
+
 // SandboxLifecycleEvent describes lifecycle triggers for sandbox cleanup.
 type SandboxLifecycleEvent string
 
@@ -127,28 +171,76 @@ type SandboxLifecycleConfig struct {
 	IdleTimeout time.Duration           `json:"idleTimeout,omitempty"`
 }
 
-// SandboxFileCriteria defines allow/deny matchers for acceptance.
+// SandboxFileCriteria defines allow/deny matchers for acceptance filtering.
+// Both PathGlobs and Extensions are AND-ed: a file must match at least one
+// glob AND have a matching extension (if both are specified) to match.
 type SandboxFileCriteria struct {
-	PathGlobs  []string `json:"pathGlobs,omitempty"`
-	Extensions []string `json:"extensions,omitempty"`
+	PathGlobs  []string `json:"pathGlobs,omitempty"`  // e.g. ["ui/**", "src/components/**"]
+	Extensions []string `json:"extensions,omitempty"` // e.g. [".tsx", ".css"]
 }
 
-// SandboxAcceptanceConfig controls which files are eligible for approval.
+// SandboxAcceptanceConfig controls which file changes are eligible for approval
+// after the agent finishes its run.
+//
+// IMPORTANT: Acceptance is about which changes survive the approval process,
+// NOT about restricting what the agent can write. The overlay allows writes to
+// any file within the scope. Acceptance filtering happens later, when the diff
+// is reviewed.
+//
+// This separation is intentional. It means:
+//   - ScopePath on the Task controls the overlay's filesystem coverage (what the
+//     lifecycle system can see when restarting scenarios — see SandboxEnvVars in
+//     run_executor.go).
+//   - AcceptanceConfig controls the blast radius of approved changes (what
+//     actually gets applied to the real repo).
+//
+// Example: An agent tasked with UI styling changes should have:
+//   - ScopePath = "scenarios/my-app"        (full scenario, so restarts work)
+//   - Allow     = {PathGlobs: ["ui/**"]}    (only UI changes get approved)
+//   - Deny      = {PathGlobs: ["api/**"]}   (API changes are always rejected)
+//
+// This way the agent can restart the scenario to see its UI changes rendered,
+// but any accidental API modifications are caught during approval review.
 type SandboxAcceptanceConfig struct {
-	Mode         string              `json:"mode,omitempty"` // "allowlist"
-	Allow        SandboxFileCriteria `json:"allow,omitempty"`
-	Deny         SandboxFileCriteria `json:"deny,omitempty"`
-	IgnoreBinary bool                `json:"ignoreBinary,omitempty"`
-	AutoApprove  bool                `json:"autoApprove,omitempty"`
-	AutoReject   bool                `json:"autoReject,omitempty"`
+	Mode                      string              `json:"mode,omitempty"` // "allowlist" (default)
+	Allow                     SandboxFileCriteria `json:"allow,omitempty"`
+	Deny                      SandboxFileCriteria `json:"deny,omitempty"`
+	IgnoreBinary              bool                `json:"ignoreBinary,omitempty"`
+	AutoApprove               bool                `json:"autoApprove,omitempty"`
+	AutoReject                bool                `json:"autoReject,omitempty"`
+	DisableAutoApproveIfEmpty bool                `json:"disableAutoApproveIfEmpty,omitempty"`
 }
 
 // SandboxConfig holds lifecycle + acceptance settings for a sandbox.
+//
+// Design note: SandboxConfig controls sandbox BEHAVIOR (when to clean up,
+// which files to accept). It does NOT control the sandbox's filesystem
+// SCOPE — that comes from Task.ScopePath, which determines what directory
+// the overlay covers. See the ScopePath vs Acceptance distinction documented
+// on SandboxAcceptanceConfig.
 type SandboxConfig struct {
 	Lifecycle  SandboxLifecycleConfig  `json:"lifecycle,omitempty"`
 	Acceptance SandboxAcceptanceConfig `json:"acceptance,omitempty"`
-	NoLock     bool                    `json:"noLock,omitempty"`
+	NoLock     bool                    `json:"noLock,omitempty"` // Disable mutual exclusion locking (for investigative/read-only sandboxes)
 }
+
+// FeatureFlags contains well-known typed feature flags.
+// Each flag maps to runner-specific CLI args at execution time.
+// Runners that don't support a feature silently ignore it.
+type FeatureFlags struct {
+	// EnableBrowser enables browser automation tools.
+	// Claude Code: maps to --chrome flag.
+	// Other runners: silently ignored (not supported).
+	EnableBrowser bool `json:"enableBrowser,omitempty"`
+}
+
+// IsZero reports whether all feature flags are at their zero values.
+func (f FeatureFlags) IsZero() bool {
+	return !f.EnableBrowser
+}
+
+// RunnerExtraFlags maps runner types to validated extra CLI flags.
+type RunnerExtraFlags map[RunnerType][]string
 
 // -----------------------------------------------------------------------------
 // Task - Defines WHAT needs to be done
@@ -160,7 +252,22 @@ type Task struct {
 	Title       string    `json:"title" db:"title"`
 	Description string    `json:"description,omitempty" db:"description"`
 
-	// Scope defines where the agent can operate
+	// ScopePath defines the directory that the overlayfs sandbox covers.
+	// It is relative to ProjectRoot (e.g., "scenarios/agent-inbox").
+	//
+	// IMPORTANT: The overlay's merged directory contains ONLY the contents of
+	// this path. The scope determines what the agent sees in the sandbox AND
+	// what the Vrooli CLI lifecycle system can build/run when the agent restarts
+	// a scenario (via the VROOLI_SANDBOX_* env vars — see run_executor.go).
+	//
+	// Best practice: Set ScopePath to the full scenario directory (e.g.,
+	// "scenarios/my-app"), not a subdirectory. If the scope is too narrow
+	// (e.g., "scenarios/my-app/ui"), the lifecycle system won't have the
+	// Makefile or service.json needed to restart the scenario, and will fall
+	// back to the real repo — making the agent's changes invisible on restart.
+	//
+	// To restrict WHICH changes get approved (blast radius), use
+	// SandboxAcceptanceConfig.Allow/Deny on the run's SandboxConfig instead.
 	ScopePath   string `json:"scopePath" db:"scope_path"`
 	ProjectRoot string `json:"projectRoot,omitempty" db:"project_root"`
 
@@ -193,14 +300,20 @@ const (
 )
 
 // ContextAttachment represents additional context for a task.
+// Each attachment should have a clear summary and appropriate priority
+// to help agents quickly understand relevance and focus on important context.
 type ContextAttachment struct {
-	Type    string   `json:"type"`           // "file", "link", "note"
-	Key     string   `json:"key,omitempty"`  // Unique identifier (e.g., "error-logs", "deployment-manifest")
-	Tags    []string `json:"tags,omitempty"` // Categorization tags for filtering and analytics
-	Path    string   `json:"path,omitempty"`
-	URL     string   `json:"url,omitempty"`
-	Content string   `json:"content,omitempty"`
-	Label   string   `json:"label,omitempty"`
+	Type         string   `json:"type"`                    // "file", "link", "note", "image"
+	Key          string   `json:"key,omitempty"`           // Unique identifier (e.g., "error-logs", "deployment-manifest")
+	Tags         []string `json:"tags,omitempty"`          // Categorization tags for filtering and analytics
+	Path         string   `json:"path,omitempty"`          // File path for "file" type
+	URL          string   `json:"url,omitempty"`           // URL for "link" type
+	Content      string   `json:"content,omitempty"`       // Inline content for "note" type
+	Label        string   `json:"label,omitempty"`         // Human-readable title
+	Summary      string   `json:"summary,omitempty"`       // One-sentence TL;DR of what this context contains
+	Format       string   `json:"format,omitempty"`        // Content format: "text", "json", "markdown", "yaml", "log"
+	Priority     string   `json:"priority,omitempty"`      // Importance: "high", "medium", "low"
+	AttachmentID string   `json:"attachment_id,omitempty"` // Reference to uploaded Attachment (for "image" type)
 }
 
 // -----------------------------------------------------------------------------
@@ -262,6 +375,30 @@ type Run struct {
 	// For OpenCode: sessionID from stream events
 	SessionID string `json:"sessionId,omitempty" db:"session_id"`
 
+	// Investigation lineage fields
+	// SourceRunIDs links investigation runs back to the run(s) being investigated.
+	SourceRunIDs []uuid.UUID `json:"sourceRunIds,omitempty" db:"source_run_ids"`
+	// SourceInvestigationRunID links apply runs back to the investigation run they apply.
+	SourceInvestigationRunID *uuid.UUID `json:"sourceInvestigationRunId,omitempty" db:"source_investigation_run_id"`
+
+	// Recommendation extraction state (for investigation runs)
+	// Recommendations are extracted passively after investigation runs complete.
+	RecommendationStatus   RecommendationStatus `json:"recommendationStatus,omitempty" db:"recommendation_status"`
+	RecommendationResult   *ExtractionResult    `json:"recommendationResult,omitempty" db:"recommendation_result"`
+	RecommendationAttempts int                  `json:"recommendationAttempts,omitempty" db:"recommendation_attempts"`
+	RecommendationError    string               `json:"recommendationError,omitempty" db:"recommendation_error"`
+	RecommendationQueuedAt *time.Time           `json:"recommendationQueuedAt,omitempty" db:"recommendation_queued_at"`
+
+	// Identity token fields
+	IdentityTokenHash      string     `json:"identityTokenHash,omitempty" db:"identity_token_hash"`
+	IdentityTokenRevokedAt *time.Time `json:"identityTokenRevokedAt,omitempty" db:"identity_token_revoked_at"`
+
+	// First ~120 chars of the associated task description (computed, not persisted).
+	PromptPreview string `json:"promptPreview,omitempty"`
+
+	// Action availability (computed, not persisted)
+	Actions *RunActions `json:"actions,omitempty"`
+
 	// Metadata
 	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
@@ -307,6 +444,13 @@ func (r *Run) UpdateProgress(phase RunPhase, percent int) {
 	r.UpdatedAt = now
 }
 
+// IsInvestigationRun returns true if this run is an investigation run (not an apply run).
+// Investigation runs have a tag starting with "agent-manager-investigation" but not ending in "-apply".
+func (r *Run) IsInvestigationRun() bool {
+	return strings.HasPrefix(r.Tag, "agent-manager-investigation") &&
+		!strings.HasSuffix(r.Tag, "-apply")
+}
+
 // RunMode indicates whether the run uses sandbox isolation.
 type RunMode string
 
@@ -339,6 +483,26 @@ const (
 	ApprovalStateRejected          ApprovalState = "rejected"
 )
 
+// RecommendationStatus represents the state of recommendation extraction for investigation runs.
+type RecommendationStatus string
+
+const (
+	// RecommendationStatusNone - Not applicable (non-investigation run or not yet complete)
+	RecommendationStatusNone RecommendationStatus = "none"
+
+	// RecommendationStatusPending - Awaiting extraction (queued for background processing)
+	RecommendationStatusPending RecommendationStatus = "pending"
+
+	// RecommendationStatusExtracting - Extraction in progress
+	RecommendationStatusExtracting RecommendationStatus = "extracting"
+
+	// RecommendationStatusComplete - Successfully extracted and cached
+	RecommendationStatusComplete RecommendationStatus = "complete"
+
+	// RecommendationStatusFailed - Extraction failed after max retries
+	RecommendationStatusFailed RecommendationStatus = "failed"
+)
+
 // RunSummary contains the structured summary from an agent run.
 type RunSummary struct {
 	Description   string   `json:"description,omitempty"`
@@ -348,6 +512,7 @@ type RunSummary struct {
 	TokensUsed    int      `json:"tokensUsed,omitempty"`
 	TurnsUsed     int      `json:"turnsUsed,omitempty"`
 	CostEstimate  float64  `json:"costEstimate,omitempty"`
+	ContextTokens int      `json:"contextTokens,omitempty"`
 }
 
 // RunConfig contains the resolved configuration for a run.
@@ -369,9 +534,16 @@ type RunConfig struct {
 	// Execution flags
 	SkipPermissionPrompt bool `json:"skipPermissionPrompt,omitempty"`
 
+	// Feature flags (typed, discoverable capabilities)
+	Features FeatureFlags `json:"features,omitempty"`
+
+	// Extra CLI flags per runner type (validated escape hatch)
+	ExtraFlags RunnerExtraFlags `json:"extraFlags,omitempty"`
+
 	// Policy flags
-	RequiresSandbox  bool `json:"requiresSandbox"`
-	RequiresApproval bool `json:"requiresApproval"`
+	RequiresSandbox  bool          `json:"requiresSandbox"`
+	RequiresApproval bool          `json:"requiresApproval"`
+	NetworkAccess    NetworkAccess `json:"networkAccess"`
 
 	// Sandbox behavior settings
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty"`
@@ -397,8 +569,16 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 	c.AllowedTools = profile.AllowedTools
 	c.DeniedTools = profile.DeniedTools
 	c.SkipPermissionPrompt = profile.SkipPermissionPrompt
+	c.Features = profile.Features
+	if len(profile.ExtraFlags) > 0 {
+		c.ExtraFlags = make(RunnerExtraFlags, len(profile.ExtraFlags))
+		for rt, flags := range profile.ExtraFlags {
+			c.ExtraFlags[rt] = append([]string(nil), flags...)
+		}
+	}
 	c.RequiresSandbox = profile.RequiresSandbox
 	c.RequiresApproval = profile.RequiresApproval
+	c.NetworkAccess = profile.NetworkAccess
 	c.SandboxConfig = profile.SandboxConfig
 	c.AllowedPaths = profile.AllowedPaths
 	c.DeniedPaths = profile.DeniedPaths
@@ -409,9 +589,10 @@ func DefaultRunConfig() *RunConfig {
 	return &RunConfig{
 		RunnerType:       RunnerTypeClaudeCode,
 		MaxTurns:         30,
-		Timeout:          30 * time.Minute,
+		Timeout:          60 * time.Minute,
 		RequiresSandbox:  true,
 		RequiresApproval: true,
+		NetworkAccess:    NetworkAccessLocalhost,
 	}
 }
 
@@ -425,7 +606,7 @@ func DefaultRunConfig() *RunConfig {
 //
 // Usage:
 //   event := NewLogEvent(runID, "info", "Starting execution")
-//   event := NewToolCallEvent(runID, "Read", map[string]interface{}{"path": "/foo"})
+//   event := NewToolCallEvent(runID, "Read", "toolu_123", map[string]interface{}{"path": "/foo"})
 //
 // The Data field contains a type-specific payload that can be type-asserted:
 //   if log, ok := event.Data.(*LogEventData); ok { ... }
@@ -444,14 +625,16 @@ type RunEvent struct {
 type RunEventType string
 
 const (
-	EventTypeLog        RunEventType = "log"
-	EventTypeMessage    RunEventType = "message"
-	EventTypeToolCall   RunEventType = "tool_call"
-	EventTypeToolResult RunEventType = "tool_result"
-	EventTypeStatus     RunEventType = "status"
-	EventTypeMetric     RunEventType = "metric"
-	EventTypeArtifact   RunEventType = "artifact"
-	EventTypeError      RunEventType = "error"
+	EventTypeLog            RunEventType = "log"
+	EventTypeMessage        RunEventType = "message"
+	EventTypeMessageDeleted RunEventType = "message_deleted"
+	EventTypeToolCall       RunEventType = "tool_call"
+	EventTypeToolResult     RunEventType = "tool_result"
+	EventTypeStatus         RunEventType = "status"
+	EventTypeMetric         RunEventType = "metric"
+	EventTypeArtifact       RunEventType = "artifact"
+	EventTypeError          RunEventType = "error"
+	EventTypeCompaction     RunEventType = "compaction"
 )
 
 // =============================================================================
@@ -498,8 +681,18 @@ func NewLogEvent(runID uuid.UUID, level, message string) *RunEvent {
 
 // MessageEventData contains data for conversation messages (user, assistant, system).
 type MessageEventData struct {
-	Role    string `json:"role"`    // user, assistant, system
-	Content string `json:"content"` // Message content
+	Role        string                  `json:"role"`                  // user, assistant, system
+	Content     string                  `json:"content"`               // Message content
+	Attachments []MessageAttachmentInfo `json:"attachments,omitempty"` // Image/file attachments
+}
+
+// MessageAttachmentInfo stores metadata about attachments included with a message.
+// Used by the UI to render image thumbnails inline.
+type MessageAttachmentInfo struct {
+	ID          string `json:"id"`
+	FileName    string `json:"file_name"`
+	ContentType string `json:"content_type"`
+	URL         string `json:"url"` // Serving URL relative to API base
 }
 
 func (d *MessageEventData) EventType() RunEventType { return EventTypeMessage }
@@ -516,27 +709,63 @@ func NewMessageEvent(runID uuid.UUID, role, content string) *RunEvent {
 	}
 }
 
+// NewMessageEventWithAttachments creates a message event that includes attachment metadata.
+func NewMessageEventWithAttachments(runID uuid.UUID, role, content string, attachments []MessageAttachmentInfo) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeMessage,
+		Timestamp: time.Now(),
+		Data:      &MessageEventData{Role: role, Content: content, Attachments: attachments},
+	}
+}
+
+// =============================================================================
+// MESSAGE DELETED EVENT
+// =============================================================================
+
+// MessageDeletedEventData marks a message event as deleted/redacted.
+type MessageDeletedEventData struct {
+	TargetEventID string `json:"targetEventId"`
+}
+
+func (d *MessageDeletedEventData) EventType() RunEventType { return EventTypeMessageDeleted }
+func (d *MessageDeletedEventData) isEventPayload()         {}
+
+// NewMessageDeletedEvent creates a new message deletion event.
+func NewMessageDeletedEvent(runID uuid.UUID, targetEventID string) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeMessageDeleted,
+		Timestamp: time.Now(),
+		Data:      &MessageDeletedEventData{TargetEventID: targetEventID},
+	}
+}
+
 // =============================================================================
 // TOOL CALL EVENT
 // =============================================================================
 
 // ToolCallEventData contains data for tool invocation events.
 type ToolCallEventData struct {
-	ToolName string                 `json:"toolName"` // Name of the tool being called
-	Input    map[string]interface{} `json:"input"`    // Tool input parameters
+	ToolName   string                 `json:"toolName"`             // Name of the tool being called
+	ToolCallID string                 `json:"toolCallId,omitempty"` // Correlation ID linking to the tool_result
+	Input      map[string]interface{} `json:"input"`                // Tool input parameters
 }
 
 func (d *ToolCallEventData) EventType() RunEventType { return EventTypeToolCall }
 func (d *ToolCallEventData) isEventPayload()         {}
 
 // NewToolCallEvent creates a new tool call event.
-func NewToolCallEvent(runID uuid.UUID, toolName string, input map[string]interface{}) *RunEvent {
+// toolCallID is the correlation ID (e.g. "toolu_01GXZ...") that links this call to its result.
+func NewToolCallEvent(runID uuid.UUID, toolName, toolCallID string, input map[string]interface{}) *RunEvent {
 	return &RunEvent{
 		ID:        uuid.New(),
 		RunID:     runID,
 		EventType: EventTypeToolCall,
 		Timestamp: time.Now(),
-		Data:      &ToolCallEventData{ToolName: toolName, Input: input},
+		Data:      &ToolCallEventData{ToolName: toolName, ToolCallID: toolCallID, Input: input},
 	}
 }
 
@@ -820,6 +1049,54 @@ func NewErrorEventFromDomainError(runID uuid.UUID, err DomainError) *RunEvent {
 }
 
 // =============================================================================
+// COMPACTION EVENT
+// =============================================================================
+
+// CompactionEventData represents a context compaction/summarization event.
+type CompactionEventData struct {
+	Summary           string `json:"summary"`
+	Trigger           string `json:"trigger"`         // "manual" or "auto"
+	Focus             string `json:"focus,omitempty"` // Optional focus instruction
+	MessagesCompacted int64  `json:"messagesCompacted"`
+	TokensBefore      int64  `json:"tokensBefore"`
+	TokensAfter       int64  `json:"tokensAfter"`
+	OriginalCommand   string `json:"originalCommand,omitempty"`
+}
+
+func (d *CompactionEventData) EventType() RunEventType { return EventTypeCompaction }
+func (d *CompactionEventData) isEventPayload()         {}
+
+// NewCompactionEvent creates a new compaction event.
+// trigger should be "manual" or "auto".
+// focus is optional (empty string if not specified).
+func NewCompactionEvent(
+	runID uuid.UUID,
+	summary string,
+	trigger string,
+	focus string,
+	messagesCompacted int64,
+	tokensBefore int64,
+	tokensAfter int64,
+	originalCommand string,
+) *RunEvent {
+	return &RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: EventTypeCompaction,
+		Timestamp: time.Now(),
+		Data: &CompactionEventData{
+			Summary:           summary,
+			Trigger:           trigger,
+			Focus:             focus,
+			MessagesCompacted: messagesCompacted,
+			TokensBefore:      tokensBefore,
+			TokensAfter:       tokensAfter,
+			OriginalCommand:   originalCommand,
+		},
+	}
+}
+
+// =============================================================================
 // LEGACY SUPPORT (RunEventData)
 // =============================================================================
 // RunEventData is kept for backward compatibility during migration.
@@ -836,9 +1113,10 @@ type RunEventData struct {
 	Role    string `json:"role,omitempty"`
 	Content string `json:"content,omitempty"`
 
-	// For tool_call events
-	ToolName  string                 `json:"toolName,omitempty"`
-	ToolInput map[string]interface{} `json:"toolInput,omitempty"`
+	// For tool_call and tool_result events
+	ToolName   string                 `json:"toolName,omitempty"`
+	ToolCallID string                 `json:"toolCallId,omitempty"` // Correlation ID (shared by tool_call and tool_result)
+	ToolInput  map[string]interface{} `json:"toolInput,omitempty"`
 
 	// For tool_result events
 	ToolOutput string `json:"toolOutput,omitempty"`
@@ -900,13 +1178,13 @@ func (d RunEventData) ToTypedPayload() EventPayload {
 	case EventTypeMessage:
 		return &MessageEventData{Role: d.Role, Content: d.Content}
 	case EventTypeToolCall:
-		return &ToolCallEventData{ToolName: d.ToolName, Input: d.ToolInput}
+		return &ToolCallEventData{ToolName: d.ToolName, ToolCallID: d.ToolCallID, Input: d.ToolInput}
 	case EventTypeToolResult:
 		var err string
 		if d.ToolError != "" {
 			err = d.ToolError
 		}
-		return &ToolResultEventData{ToolName: d.ToolName, Output: d.ToolOutput, Error: err, Success: err == ""}
+		return &ToolResultEventData{ToolName: d.ToolName, ToolCallID: d.ToolCallID, Output: d.ToolOutput, Error: err, Success: err == ""}
 	case EventTypeStatus:
 		return &StatusEventData{OldStatus: d.OldStatus, NewStatus: d.NewStatus}
 	case EventTypeMetric:

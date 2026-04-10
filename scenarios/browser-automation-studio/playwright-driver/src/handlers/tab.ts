@@ -250,13 +250,28 @@ export class TabHandler extends BaseHandler {
           },
         };
       }
-      targetPage = context.tabStack[targetIndex];
+      const candidate = context.tabStack[targetIndex];
+      if (!candidate) {
+        return {
+          success: false,
+          error: {
+            message: `Tab not found at index: ${targetIndex}`,
+            code: 'TAB_NOT_FOUND',
+            kind: 'user',
+            retryable: false,
+          },
+        };
+      }
+      targetPage = candidate;
     }
     // Switch by title pattern
     else if (params.title) {
       const titlePattern = new RegExp(params.title, 'i');
       for (let i = 0; i < context.tabStack.length; i++) {
         const page = context.tabStack[i];
+        if (!page) {
+          continue;
+        }
         const title = await page.title();
         if (titlePattern.test(title)) {
           targetPage = page;
@@ -281,6 +296,9 @@ export class TabHandler extends BaseHandler {
       const urlPattern = new RegExp(params.urlPattern, 'i');
       for (let i = 0; i < context.tabStack.length; i++) {
         const page = context.tabStack[i];
+        if (!page) {
+          continue;
+        }
         if (urlPattern.test(page.url())) {
           targetPage = page;
           targetIndex = i;
@@ -417,6 +435,17 @@ export class TabHandler extends BaseHandler {
     }
 
     const pageToClose = context.tabStack[index];
+    if (!pageToClose) {
+      return {
+        success: false,
+        error: {
+          message: `Tab not found at index: ${index}`,
+          code: 'TAB_NOT_FOUND',
+          kind: 'user',
+          retryable: false,
+        },
+      };
+    }
 
     logger.debug(scopedLog(LogContext.INSTRUCTION, 'closing tab'), {
       sessionId,
@@ -434,7 +463,19 @@ export class TabHandler extends BaseHandler {
     if (context.page === pageToClose) {
       // Switch to the previous tab, or first tab if we closed index 0
       const newIndex = Math.min(index, context.tabStack.length - 1);
-      context.page = context.tabStack[newIndex];
+      const nextPage = context.tabStack[newIndex];
+      if (!nextPage) {
+        return {
+          success: false,
+          error: {
+            message: 'No remaining tab available after close',
+            code: 'TAB_NOT_FOUND',
+            kind: 'user',
+            retryable: false,
+          },
+        };
+      }
+      context.page = nextPage;
       await context.page.bringToFront();
     }
 

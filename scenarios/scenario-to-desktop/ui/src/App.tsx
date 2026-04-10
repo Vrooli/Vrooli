@@ -1,23 +1,23 @@
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Book, List, Monitor, Zap, Folder, Shield } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { BuildStatus } from "./components/BuildStatus";
-import { GeneratorForm } from "./components/GeneratorForm";
+import { useEffect, useMemo, useRef } from "react";
+import { useIsMobile } from "./hooks/useMediaQuery";
+import { GeneratorPage } from "./pages";
 import { ScenarioInventory } from "./components/scenario-inventory";
-import { BuildDesktopButton } from "./components/scenario-inventory/BuildDesktopButton";
-import { DownloadButtons } from "./components/scenario-inventory/DownloadButtons";
-import { TelemetryUploadCard } from "./components/scenario-inventory/TelemetryUploadCard";
 import { DocsPanel } from "./components/docs/DocsPanel";
 import { SigningPage } from "./components/signing";
-import type { ScenarioDesktopStatus, ScenariosResponse } from "./components/scenario-inventory/types";
-import { StatsPanel } from "./components/StatsPanel";
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
-import { Button } from "./components/ui/button";
-import { fetchScenarioDesktopStatus } from "./lib/api";
-import type { BuildStatus as BuildStatusType } from "./lib/api";
+import { SpawnAgentButton } from "./components/state/SpawnAgentButton";
+import { ErrorBoundary, SectionErrorBoundary } from "./components/ui/ErrorBoundary";
+import { LiveDesktopDrawer } from "./components/livedesktop";
+import { CapturesDrawer } from "./components/captures";
+import type { ScenarioDesktopStatus } from "./components/scenario-inventory/types";
+import { usePipelineStore } from "./store";
+import { useFormStore } from "./store/formStore";
+import { useUrlState, type ViewMode } from "./hooks/useUrlState";
+import { useServerSync } from "./hooks/useServerSync";
 import { loadGeneratorAppState, saveGeneratorAppState } from "./lib/draftStorage";
 import { cn } from "./lib/utils";
-import { RecordsManager } from "./components/RecordsManager";
+import { RecordsManager } from "./components/scenario-inventory/RecordsManager";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,183 +28,99 @@ const queryClient = new QueryClient({
   }
 });
 
-type ViewMode = "generator" | "inventory" | "docs" | "records" | "signing";
-
-function parseSearchParams(): { view?: ViewMode; scenario?: string; doc?: string } {
-  if (typeof window === "undefined") return {};
-  const params = new URLSearchParams(window.location.search);
-  const view = params.get("view") as ViewMode | null;
-  const scenario = params.get("scenario") || undefined;
-  const doc = params.get("doc") || undefined;
-  return { view: view || undefined, scenario, doc };
-}
-
 function AppContent() {
-  const initialParams = useMemo(() => parseSearchParams(), []);
   const storedState = useMemo(() => loadGeneratorAppState(), []);
-  const [selectedTemplate, setSelectedTemplate] = useState(storedState?.selectedTemplate || "basic");
-  const [wrapperBuildId, setWrapperBuildId] = useState<string | null>(storedState?.currentBuildId ?? null);
-  const [wrapperBuildStatus, setWrapperBuildStatus] = useState<BuildStatusType | null>(null);
-  const [selectedScenarioName, setSelectedScenarioName] = useState(
-    initialParams.scenario ?? storedState?.selectedScenarioName ?? ""
-  );
-  const [selectionSource, setSelectionSource] = useState<"inventory" | "manual" | null>(
-    initialParams.scenario ? "manual" : storedState?.selectionSource ?? null
-  );
-  const [viewMode, setViewMode] = useState<ViewMode>(
-    (initialParams.view as ViewMode | undefined) ?? (storedState?.viewMode as ViewMode | undefined) ?? "inventory"
-  );
-  const [docPath, setDocPath] = useState<string | null>(
-    initialParams.doc ?? storedState?.docPath ?? null
-  );
-  const [activeStep, setActiveStep] = useState(storedState?.activeStep ?? 2);
-  const [userPinnedStep, setUserPinnedStep] = useState(storedState?.userPinnedStep ?? false);
-  const [generateState, setGenerateState] = useState<{ pending: boolean; error: string | null }>({
-    pending: false,
-    error: null
-  });
-  const overviewRef = useRef<HTMLDivElement>(null);
-  const configureRef = useRef<HTMLDivElement>(null);
-  const buildRef = useRef<HTMLDivElement>(null);
-  const deliverRef = useRef<HTMLDivElement>(null);
 
-  // Sync view/scenario with URL hash for sharable routes
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const { view, scenario } = parseSearchParams();
-    if (view) setViewMode(view);
-    if (scenario) setSelectedScenarioName(scenario);
-
-    const handleHashChange = () => {
-      const { view: nextView, scenario: nextScenario } = parseSearchParams();
-      if (nextView) setViewMode(nextView);
-      if (nextScenario !== undefined) {
-        setSelectedScenarioName(nextScenario);
-        setSelectionSource("manual");
-      }
-    };
-
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams();
-    params.set("view", viewMode);
-    if (selectedScenarioName) {
-      params.set("scenario", selectedScenarioName);
-    }
-    const newHash = `#${params.toString()}`;
-    if (window.location.hash !== newHash) {
-      window.history.replaceState(null, "", newHash);
-    }
-  }, [viewMode, selectedScenarioName]);
-
-  const { data: scenariosData } = useQuery<ScenariosResponse>({
-    queryKey: ["scenarios-desktop-status"],
-    queryFn: fetchScenarioDesktopStatus,
-    refetchInterval: 30000
+  // URL state is the single source of truth for view, scenario, and doc
+  const urlState = useUrlState({
+    defaultView: (storedState?.viewMode as ViewMode) ?? "inventory",
+    defaultScenario: storedState?.selectedScenarioName ?? "",
+    defaultDoc: storedState?.docPath ?? null,
   });
 
-  const selectedScenario: ScenarioDesktopStatus | null = useMemo(
-    () => scenariosData?.scenarios.find((s) => s.name === selectedScenarioName) || null,
-    [scenariosData, selectedScenarioName]
+  const { viewMode, setViewMode, scenarioName: selectedScenarioName, setScenarioName: setSelectedScenarioName, docPath, setDocPath } = urlState;
+
+  // selectionSource is transient metadata — always changes alongside scenarioName
+  const selectionSourceRef = useRef<"inventory" | "manual" | null>(
+    urlState.initialParams.scenario ? "manual" : storedState?.selectionSource ?? null
   );
 
-  const recommendedStep = useMemo(() => {
-    if (viewMode !== "generator") return 2;
-    if (selectedScenario?.build_artifacts?.length) return 4;
-    if (wrapperBuildId) return 3;
-    if (selectedScenarioName) return 2;
-    return 1;
-  }, [viewMode, selectedScenario?.build_artifacts?.length, wrapperBuildId, selectedScenarioName]);
-  const generatorFormId = "desktop-generator-form";
-  const hasWrapper = Boolean(wrapperBuildId) || Boolean(selectedScenario?.has_desktop);
-  const generateLabel = hasWrapper ? "Regenerate Wrapper" : "Generate Wrapper";
-  const canGenerate = Boolean(selectedScenarioName);
-  const canBuildInstallers = Boolean(
-    selectedScenarioName && (wrapperBuildStatus?.status === "ready" || selectedScenario?.has_desktop)
-  );
+  // selectedTemplate lives in formStore (it's form state)
+  const selectedTemplate = useFormStore((s) => s.selectedTemplate);
+  const setSelectedTemplate = useFormStore((s) => s.setSelectedTemplate);
 
-  // Sync view/scenario/doc from URL on load and back/forward
+  // Initialize template from localStorage on mount
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const syncFromLocation = () => {
-      const { view, scenario, doc } = parseSearchParams();
-      if (view) setViewMode(view);
-      if (scenario !== undefined) setSelectedScenarioName(scenario);
-      if (doc !== undefined) setDocPath(doc);
+    if (storedState?.selectedTemplate && storedState.selectedTemplate !== "basic") {
+      setSelectedTemplate(storedState.selectedTemplate);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Intentionally run once on mount
+
+  // Pipeline store - single source of truth for build status
+  const storePipelineId = usePipelineStore((s) => s.pipelineId);
+  const storeRunStatus = usePipelineStore((s) => s.runStatus);
+  const storeGenerateResult = usePipelineStore((s) => s.generateResult);
+  const setPipelineScenario = usePipelineStore((s) => s.setScenario);
+
+  // Map store run status to UI-friendly status for bottom bar
+  const uiBuildStatus = useMemo(() => {
+    if (!storePipelineId) return null;
+    let status: "building" | "ready" | "failed";
+    switch (storeRunStatus) {
+      case "running":
+      case "starting":
+        status = "building";
+        break;
+      case "completed":
+        status = "ready";
+        break;
+      case "failed":
+      case "cancelled":
+        status = "failed";
+        break;
+      default:
+        return null; // idle state — no status to show
+    }
+    return {
+      status,
+      output_path: storeGenerateResult?.desktop_path,
+      pipeline_id: storePipelineId,
     };
-    syncFromLocation();
-    window.addEventListener("popstate", syncFromLocation);
-    return () => window.removeEventListener("popstate", syncFromLocation);
-  }, []);
+  }, [storePipelineId, storeRunStatus, storeGenerateResult]);
 
-  // Persist view/scenario/doc to URL for shareable routing
+  // Server sync — persists build + smoke test status to server
+  useServerSync({ scenarioName: selectedScenarioName, viewMode });
+
+  // Sync scenario with pipeline store
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    const params = new URLSearchParams(url.search);
-    params.set("view", viewMode);
     if (selectedScenarioName) {
-      params.set("scenario", selectedScenarioName);
-    } else {
-      params.delete("scenario");
+      setPipelineScenario(selectedScenarioName);
     }
-    if (docPath) {
-      params.set("doc", docPath);
-    } else {
-      params.delete("doc");
-    }
-    url.search = params.toString();
-    const newUrl = url.toString();
-    if (window.location.href !== newUrl) {
-      window.history.replaceState(null, "", newUrl);
-    }
-  }, [viewMode, selectedScenarioName, docPath]);
+  }, [selectedScenarioName, setPipelineScenario]);
 
+  // Persist UI preferences to localStorage
   useEffect(() => {
     saveGeneratorAppState({
-      version: 1,
-      updatedAt: new Date().toISOString(),
       viewMode,
       selectedScenarioName,
       selectedTemplate,
-      selectionSource,
-      currentBuildId: wrapperBuildId,
-      activeStep,
-      userPinnedStep,
+      selectionSource: selectionSourceRef.current,
+      currentBuildId: storePipelineId,
       docPath
     });
   }, [
     viewMode,
     selectedScenarioName,
     selectedTemplate,
-    selectionSource,
-    wrapperBuildId,
-    activeStep,
-    userPinnedStep,
+    storePipelineId,
     docPath
   ]);
 
-  useEffect(() => {
-    if (viewMode !== "generator") {
-      setUserPinnedStep(false);
-      setActiveStep(2);
-      return;
-    }
-    // Only update automatically when the user hasn't pinned a step.
-    if (!userPinnedStep) {
-      setActiveStep(recommendedStep);
-    }
-  }, [viewMode, recommendedStep, userPinnedStep]);
-
   const handleInventorySelect = (scenario: ScenarioDesktopStatus) => {
+    selectionSourceRef.current = "inventory";
     setSelectedScenarioName(scenario.name);
-    setSelectionSource("inventory");
     setViewMode("generator");
-    setUserPinnedStep(false);
   };
 
   const openSigningTab = (scenario?: string) => {
@@ -212,461 +128,179 @@ function AppContent() {
       setSelectedScenarioName(scenario);
     }
     setViewMode("signing");
-    setUserPinnedStep(false);
   };
 
   const openGeneratorForScenario = (scenario?: string) => {
     if (scenario) {
+      selectionSourceRef.current = "inventory";
       setSelectedScenarioName(scenario);
-      setSelectionSource("inventory");
     }
     setViewMode("generator");
-    setUserPinnedStep(false);
-    setActiveStep(2);
   };
 
-  const scrollTargets: Record<number, RefObject<HTMLDivElement>> = useMemo(
-    () => ({
-      1: overviewRef,
-      2: configureRef,
-      3: buildRef,
-      4: deliverRef
-    }),
+  const isMobile = useIsMobile();
+
+  /** Tab definitions — single source of truth for the view-mode selector. */
+  const tabs: { mode: ViewMode; icon: typeof List; label: string }[] = useMemo(
+    () => [
+      { mode: "inventory", icon: List, label: "Inventory" },
+      { mode: "generator", icon: Zap, label: "Generate" },
+      { mode: "records", icon: Folder, label: "Apps" },
+      { mode: "signing", icon: Shield, label: "Signing" },
+      { mode: "docs", icon: Book, label: "Docs" },
+    ],
     []
   );
 
-  const handleStepSelect = (stepId: number) => {
-    setUserPinnedStep(true);
-    setActiveStep(stepId);
-    // Scroll after a short delay to ensure refs are on the page.
-    window.requestAnimationFrame(() => {
-      const target = scrollTargets[stepId]?.current;
-      if (target) {
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    });
-  };
-
-  const steps = [
-    { id: 1, title: "Overview", description: "How the desktop build works" },
-    { id: 2, title: "Configure", description: "Select scenario, template, and connection" },
-    { id: 3, title: "Build", description: "Kick off installers and watch progress" },
-    { id: 4, title: "Deliver", description: "Download installers and share telemetry" }
-  ];
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-slate-50 scroll-smooth">
-      <div className="mx-auto max-w-7xl p-6">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="mb-3 flex items-center justify-center gap-3">
-            <Monitor className="h-10 w-10 text-blue-400" />
-            <h1 className="text-4xl font-bold">Scenario to Desktop</h1>
+      <div className="mx-auto max-w-7xl p-2 md:p-6">
+        {/* Header + tabs — merged into a compact strip on mobile */}
+        <div className="mb-3 md:mb-8 text-center">
+          <div className="mb-1.5 md:mb-3 flex items-center justify-center gap-2 md:gap-3">
+            <Monitor className="hidden md:block h-10 w-10 text-blue-400" />
+            <h1 className="text-xl md:text-4xl font-bold">Scenario to Desktop</h1>
           </div>
-          <p className="text-lg text-slate-300">
+          <p className="hidden md:block text-lg text-slate-300">
             Transform Vrooli scenarios into professional desktop applications
           </p>
         </div>
 
-        {/* View Mode Selector */}
-        <div className="mb-6 flex justify-center">
-          <div className="inline-flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/60 p-1 shadow-lg shadow-blue-950/40">
-            <button
-              type="button"
-              className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
-                viewMode === "inventory"
-                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
-                  : "text-slate-300 hover:text-white"
-              )}
-              onClick={() => setViewMode("inventory")}
-            >
-              <List className="h-4 w-4" />
-              Scenario Inventory
-            </button>
-            <button
-              type="button"
-              className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
-                viewMode === "generator"
-                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
-                  : "text-slate-300 hover:text-white"
-              )}
-              onClick={() => setViewMode("generator")}
-            >
-              <Zap className="h-4 w-4" />
-              Generate Desktop App
-            </button>
-            <button
-              type="button"
-              className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
-                viewMode === "records"
-                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
-                  : "text-slate-300 hover:text-white"
-              )}
-              onClick={() => setViewMode("records")}
-            >
-              <Folder className="h-4 w-4" />
-              Generated Apps
-            </button>
-            <button
-              type="button"
-              className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
-                viewMode === "signing"
-                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
-                  : "text-slate-300 hover:text-white"
-              )}
-              onClick={() => setViewMode("signing")}
-            >
-              <Shield className="h-4 w-4" />
-              Signing
-            </button>
-            <button
-              type="button"
-              className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition",
-                viewMode === "docs"
-                  ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
-                  : "text-slate-300 hover:text-white"
-              )}
-              onClick={() => setViewMode("docs")}
-            >
-              <Book className="h-4 w-4" />
-              Docs
-            </button>
+        {/* View Mode Selector — compact icon-only pills on mobile */}
+        <div className="mb-3 md:mb-6 flex justify-center">
+          <div
+            className="flex items-center gap-0.5 md:gap-1 rounded-full border border-slate-800 bg-slate-900/60 p-0.5 md:p-1 shadow-lg shadow-blue-950/40 overflow-x-auto scrollbar-hide max-w-full"
+            role="tablist"
+          >
+            {tabs.map(({ mode, icon: Icon, label }) => (
+              <button
+                key={mode}
+                type="button"
+                role="tab"
+                aria-selected={viewMode === mode}
+                className={cn(
+                  "flex items-center gap-1.5 md:gap-2 rounded-full px-2.5 md:px-4 py-1.5 md:py-2 text-sm font-semibold transition whitespace-nowrap shrink-0",
+                  viewMode === mode
+                    ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow"
+                    : "text-slate-300 hover:text-white"
+                )}
+                onClick={() => setViewMode(mode)}
+              >
+                <Icon className="h-4 w-4" />
+                {(!isMobile || viewMode === mode) && <span>{label}</span>}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Conditional Content */}
+        {/* Conditional Content - Each section wrapped with Error Boundary for graceful degradation */}
         {viewMode === "inventory" ? (
-          <ScenarioInventory onScenarioLaunch={handleInventorySelect} />
+          <SectionErrorBoundary name="Scenario Inventory">
+            <ScenarioInventory onScenarioLaunch={handleInventorySelect} />
+          </SectionErrorBoundary>
         ) : viewMode === "docs" ? (
-          <DocsPanel
-            initialPath={docPath}
-            onPathChange={(path) => {
-              if (viewMode === "docs") {
-                setDocPath(path || null);
-              }
-            }}
-          />
+          <SectionErrorBoundary name="Documentation">
+            <DocsPanel
+              initialPath={docPath}
+              onPathChange={(path) => {
+                if (viewMode === "docs") {
+                  setDocPath(path || null);
+                }
+              }}
+            />
+          </SectionErrorBoundary>
         ) : viewMode === "signing" ? (
-          <SigningPage
-            initialScenario={selectedScenarioName}
-            onScenarioChange={(name) => {
-              setSelectedScenarioName(name);
-              setSelectionSource("manual");
-            }}
-          />
+          <SectionErrorBoundary name="Code Signing">
+            <SigningPage
+              initialScenario={selectedScenarioName}
+              onScenarioChange={(name) => {
+                selectionSourceRef.current = "manual";
+                setSelectedScenarioName(name);
+              }}
+            />
+          </SectionErrorBoundary>
         ) : viewMode === "records" ? (
-          <RecordsManager
-            onSwitchTemplate={(scenarioName, templateType) => {
-              openGeneratorForScenario(scenarioName);
-              setSelectedTemplate(templateType || "basic");
-            }}
-            onEditSigning={(scenarioName) => openSigningTab(scenarioName)}
-            onRebuildWithSigning={(scenarioName) => openGeneratorForScenario(scenarioName)}
-          />
+          <SectionErrorBoundary name="Generated Apps">
+            <RecordsManager
+              onSwitchTemplate={(scenarioName, templateType) => {
+                openGeneratorForScenario(scenarioName);
+                setSelectedTemplate(templateType || "basic");
+              }}
+              onEditSigning={(scenarioName) => openSigningTab(scenarioName)}
+              onRebuildWithSigning={(scenarioName) => openGeneratorForScenario(scenarioName)}
+            />
+          </SectionErrorBoundary>
         ) : (
-          <>
-            <Stepper steps={steps} activeStep={activeStep} onStepSelect={handleStepSelect} />
-
-            <div className="space-y-6">
-              {/* Step 1 */}
-              <div ref={overviewRef}>
-                <Card className="border-slate-800/80 bg-slate-900/70">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
-                      Step 1 · Overview
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid gap-6 lg:grid-cols-3">
-                    <div className="lg:col-span-2 space-y-2">
-                      <p className="text-lg font-semibold text-slate-50">
-                        Connect → Build → Deliver with telemetry awareness
-                      </p>
-                      <p className="text-sm text-slate-300">
-                        Start by understanding the journey: we link to your running scenario, package installers across
-                        platforms, then give you downloads and optional telemetry upload so deployment-manager can spot
-                        missing dependencies.
-                      </p>
-                      <a
-                        href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm text-blue-300 underline hover:text-blue-200"
-                      >
-                        Read the Desktop tier guide
-                      </a>
-                    </div>
-                    <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                      <StatsPanel />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Step 2 */}
-              <div className="space-y-6" ref={configureRef}>
-                <Card className="border-blue-800/70 bg-slate-900/70">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
-                      Step 2 · Configure
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <GeneratorForm
-                      selectedTemplate={selectedTemplate}
-                      onTemplateChange={setSelectedTemplate}
-                      onBuildStart={(buildId) => {
-                        setWrapperBuildId(buildId);
-                        setActiveStep(3);
-                      }}
-                      scenarioName={selectedScenarioName}
-                      onScenarioNameChange={(name) => {
-                        setSelectedScenarioName(name);
-                        setSelectionSource("manual");
-                        setActiveStep(name ? 2 : 1);
-                      }}
-                      selectionSource={selectionSource}
-                      onOpenSigningTab={openSigningTab}
-                      formId={generatorFormId}
-                      showSubmit={false}
-                      onGenerateStateChange={setGenerateState}
-                    />
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Step 3 */}
-              <Card className="border-slate-800/80 bg-slate-900/70" ref={buildRef}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
-                    Step 3 · Generate wrapper & build installers
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-sm text-slate-300">
-                    <p className="font-semibold text-slate-200">Wrapper vs installer</p>
-                    <p>
-                      <span className="font-semibold text-slate-200">Wrapper</span>: Electron project scaffold stored in{" "}
-                      <span className="font-mono text-slate-200">platforms/electron</span> for development and config.
-                    </p>
-                    <p>
-                      <span className="font-semibold text-slate-200">Installer</span>: Packaged distributables built into{" "}
-                      <span className="font-mono text-slate-200">dist-electron/</span> (AppImage/EXE/PKG/ZIP).
-                    </p>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="text-sm font-semibold text-slate-200">1) Generate wrapper</div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <Button
-                        type="submit"
-                        form={generatorFormId}
-                        disabled={!canGenerate || generateState.pending}
-                      >
-                        {generateState.pending ? "Generating wrapper..." : generateLabel}
-                      </Button>
-                      {!canGenerate && (
-                        <p className="text-xs text-slate-400">Pick a scenario in step 2 to enable builds.</p>
-                      )}
-                    </div>
-                    {generateState.error && (
-                      <div className="rounded-lg bg-red-900/20 p-3 text-sm text-red-300">
-                        <strong>Error:</strong> {generateState.error}
-                      </div>
-                    )}
-                    {wrapperBuildId ? (
-                      <BuildStatus
-                        buildId={wrapperBuildId}
-                        onStatusChange={(status) => {
-                          setWrapperBuildStatus(status);
-                        }}
-                      />
-                    ) : (
-                      <p className="text-sm text-slate-300">
-                        Generate the wrapper using the settings from step 2. Progress will appear here automatically.
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="text-sm font-semibold text-slate-200">2) Build installers</div>
-                    {selectedScenarioName ? (
-                      canBuildInstallers ? (
-                        <BuildDesktopButton scenarioName={selectedScenarioName} />
-                      ) : (
-                        <p className="text-xs text-slate-400">
-                          Generate the wrapper first so installer packaging can run.
-                        </p>
-                      )
-                    ) : (
-                      <p className="text-xs text-slate-400">Select a scenario to unlock installer builds.</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Step 4 */}
-              <Card className="border-slate-800/80 bg-slate-900/70" ref={deliverRef}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-sm uppercase tracking-wide text-slate-300">
-                    Step 4 · Download & Telemetry
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {!selectedScenarioName && (
-                    <p className="text-sm text-slate-300">
-                      Select a scenario in step 2 to unlock downloads and telemetry uploads.
-                    </p>
-                  )}
-                  {selectedScenarioName && !selectedScenario && (
-                    <p className="text-sm text-slate-300">
-                      Loading scenario details...
-                    </p>
-                  )}
-                  {selectedScenario && (
-                    <>
-                      {(selectedScenario.build_artifacts?.length ?? 0) > 0 ? (
-                        <div className="space-y-4">
-                          <DownloadButtons
-                            scenarioName={selectedScenario.name}
-                            artifacts={selectedScenario.build_artifacts || []}
-                          />
-                          <TelemetryUploadCard
-                            scenarioName={selectedScenario.name}
-                            appDisplayName={selectedScenario.display_name || selectedScenario.name}
-                          />
-                        </div>
-                      ) : (
-                        <div className="space-y-3 text-sm text-slate-300">
-                          <p>No installers detected yet for this scenario.</p>
-                          <p className="text-xs text-slate-400">
-                            Wrappers live in{" "}
-                            <span className="font-mono text-slate-200">platforms/electron</span>; installers appear in{" "}
-                            <span className="font-mono text-slate-200">dist-electron/</span> after packaging.
-                          </p>
-                          <div className="space-y-1 text-xs text-slate-400">
-                            <p>
-                              Expected output:{" "}
-                              <span className="font-mono text-slate-200">
-                                {selectedScenario.artifacts_expected_path ||
-                                  `scenarios/${selectedScenario.name}/platforms/electron/dist-electron`}
-                              </span>
-                            </p>
-                            {selectedScenario.record_output_path && (
-                              <p>
-                                Last recorded build output:{" "}
-                                <span className="font-mono text-slate-200">
-                                  {selectedScenario.record_output_path}
-                                </span>
-                                {selectedScenario.record_location_mode && (
-                                  <> ({selectedScenario.record_location_mode})</>
-                                )}
-                              </p>
-                            )}
-                            {selectedScenario.record_updated_at && (
-                              <p>Last recorded build: {selectedScenario.record_updated_at}</p>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Button type="button" variant="outline" size="sm" onClick={() => setViewMode("records")}>
-                              Open Records
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setActiveStep(3)}
-                            >
-                              Back to build
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </>
+          <SectionErrorBoundary name="Desktop App Generator">
+            <GeneratorPage
+              scenarioName={selectedScenarioName}
+              onScenarioNameChange={(name) => {
+                selectionSourceRef.current = "manual";
+                setSelectedScenarioName(name);
+              }}
+              selectedTemplate={selectedTemplate}
+              onTemplateChange={setSelectedTemplate}
+              selectionSource={selectionSourceRef.current}
+              onOpenSigningTab={openSigningTab}
+            />
+          </SectionErrorBoundary>
         )}
 
-        {/* Footer */}
-        <div className="mt-12 text-center text-sm text-slate-400">
-          <p>
-            Built with ❤️ by the{" "}
-            <a
-              href="https://vrooli.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:underline"
-            >
-              Vrooli Platform
-            </a>
-            {" | "}
-            <a
-              href="https://github.com/vrooli/vrooli"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:underline"
-            >
-              View on GitHub
-            </a>
-          </p>
-        </div>
+        {/* Bottom spacer for fixed action bar clearance */}
+        <div className="pb-24" />
       </div>
-    </div>
-  );
-}
 
-interface StepperProps {
-  steps: { id: number; title: string; description: string }[];
-  activeStep: number;
-  onStepSelect: (step: number) => void;
-}
-
-function Stepper({ steps, activeStep, onStepSelect }: StepperProps) {
-  return (
-    <div className="mb-6 overflow-x-auto">
-      <div className="flex min-w-full justify-center gap-3 rounded-xl border border-slate-800/80 bg-slate-900/60 p-3">
-        {steps.map((step) => (
-          <button
-            key={step.id}
-            type="button"
-            onClick={() => onStepSelect(step.id)}
-            className={cn(
-              "flex min-w-[180px] flex-1 flex-col gap-1 rounded-lg border px-4 py-3 text-left transition",
-              activeStep === step.id
-                ? "border-blue-600 bg-blue-950/40 text-white shadow"
-                : "border-slate-800 bg-slate-950/40 text-slate-300 hover:border-slate-600"
-            )}
-          >
-            <div className="flex items-center gap-2 text-xs uppercase tracking-wide">
-              <span
-                className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold",
-                  activeStep === step.id ? "bg-blue-500 text-slate-950" : "bg-slate-800 text-slate-200"
-                )}
-              >
-                {step.id}
-              </span>
-              <span>{step.title}</span>
+      {/* Fixed Bottom Action Bar - shows when there's an active build */}
+      {viewMode === "generator" && storePipelineId && uiBuildStatus && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-700/80 bg-slate-900/95 backdrop-blur-md shadow-lg shadow-slate-950/50">
+          <div className="mx-auto max-w-7xl px-3 md:px-6 py-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-2">
+                  {uiBuildStatus.status === "failed" ? (
+                    <div className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" />
+                  ) : uiBuildStatus.status === "ready" ? (
+                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                  ) : (
+                    <div className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse" />
+                  )}
+                  <span className="text-sm font-medium text-slate-200 truncate">
+                    {selectedScenarioName || "Build"}
+                  </span>
+                </div>
+                <span className="text-xs text-slate-400 hidden sm:inline">
+                  {uiBuildStatus.status === "failed" ? (
+                    "Build failed - spawn an agent to investigate"
+                  ) : uiBuildStatus.status === "ready" ? (
+                    "Build ready - spawn an agent to verify or improve"
+                  ) : uiBuildStatus.status === "building" ? (
+                    "Build in progress..."
+                  ) : (
+                    "Spawn an agent to analyze this build"
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <SpawnAgentButton
+                  pipelineId={storePipelineId}
+                />
+              </div>
             </div>
-            <p className="text-sm text-slate-300">{step.description}</p>
-          </button>
-        ))}
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AppContent />
-    </QueryClientProvider>
+    <ErrorBoundary sectionName="Application" showHomeButton>
+      <QueryClientProvider client={queryClient}>
+        <AppContent />
+        <LiveDesktopDrawer />
+        <CapturesDrawer />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

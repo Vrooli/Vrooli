@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "description": "P1 natural language query requirements for Lifestyle Dashboard",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "LD-NL-QUERY-PARSE",
+      "category": "ai",
+      "prd_ref": "Operational Targets > P1 > OT-P1-007",
+      "linked_operational_target_ids": ["OT-P1-007"],
+      "title": "Natural language query parsing",
+      "description": "Parse natural language questions into structured queries using Ollama. Support questions like 'How has my sleep been this month?' and 'What changed when I started creatine?'",
+      "priority": "P1",
+      "status": "not_started",
+      "validation": [
+        {
+          "type": "unit-test",
+          "parameters": {
+            "test_pattern": "TestNLQueryParsing"
+          }
+        }
+      ]
+    },
+    {
+      "id": "LD-NL-QUERY-EXECUTE",
+      "category": "ai",
+      "prd_ref": "Operational Targets > P1 > OT-P1-007",
+      "linked_operational_target_ids": ["OT-P1-007"],
+      "title": "Natural language query execution",
+      "description": "Execute parsed queries against event data and format results as human-readable responses with relevant charts/summaries",
+      "priority": "P1",
+      "status": "not_started",
+      "validation": [
+        {
+          "type": "api-integration-test",
+          "parameters": {
+            "endpoint": "/api/v1/query/natural",
+            "method": "POST"
+          }
+        }
+      ]
+    }
+  ]
+}

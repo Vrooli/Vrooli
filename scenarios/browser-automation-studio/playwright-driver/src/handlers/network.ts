@@ -152,8 +152,8 @@ export class NetworkHandler extends BaseHandler {
     const routeKey = generateRouteKey(urlPattern, method, operation);
     const routes = getSessionRouteMap(sessionId);
 
-    if (routes.has(routeKey)) {
-      const existing = routes.get(routeKey)!;
+    const existing = routes.get(routeKey);
+    if (existing) {
       logger.debug(scopedLog(LogContext.INSTRUCTION, `${operation} route already registered (idempotent)`), {
         sessionId,
         urlPattern,
@@ -649,8 +649,9 @@ export class NetworkHandler extends BaseHandler {
    * Determine content type from body and headers
    */
   private getContentType(body: unknown, headers?: Record<string, string>): string {
-    if (headers?.['content-type'] || headers?.['Content-Type']) {
-      return headers['content-type'] || headers['Content-Type'];
+    const headerContentType = headers?.['content-type'] ?? headers?.['Content-Type'];
+    if (headerContentType) {
+      return headerContentType;
     }
 
     if (typeof body === 'string') {

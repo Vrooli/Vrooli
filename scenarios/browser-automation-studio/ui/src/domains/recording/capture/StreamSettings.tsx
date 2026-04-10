@@ -13,127 +13,20 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  CUSTOM_PRESET_META,
+  PRESETS,
+  loadCustomSettings,
+  loadShowStats,
+  loadStoredPreset,
+  saveCustomSettings,
+  savePreset,
+  saveShowStats,
+  type StreamPreset,
+  type StreamSettingsValues,
+} from './streamSettingsConfig';
 
-/** Stream quality preset identifiers */
-export type StreamPreset = 'fast' | 'balanced' | 'sharp' | 'hidpi' | 'custom';
-
-/** Resolved stream settings values */
-export interface StreamSettingsValues {
-  quality: number;
-  fps: number;
-  /** 'css' = 1x scale, 'device' = device pixel ratio */
-  scale: 'css' | 'device';
-}
-
-/** Preset configurations (excludes 'custom' which uses user-defined values) */
-const PRESETS: Record<Exclude<StreamPreset, 'custom'>, { label: string; description: string; settings: StreamSettingsValues }> = {
-  fast: {
-    label: 'Fast',
-    description: 'Lower quality, faster streaming',
-    settings: { quality: 40, fps: 10, scale: 'css' },
-  },
-  balanced: {
-    label: 'Balanced',
-    description: 'Good quality and performance',
-    settings: { quality: 55, fps: 20, scale: 'css' },
-  },
-  sharp: {
-    label: 'Sharp',
-    description: 'Higher quality preview',
-    settings: { quality: 70, fps: 15, scale: 'css' },
-  },
-  hidpi: {
-    label: 'HiDPI',
-    description: 'Crisp on Retina displays',
-    settings: { quality: 60, fps: 30, scale: 'device' },
-  },
-};
-
-/** Custom preset metadata (settings come from user state) */
-const CUSTOM_PRESET_META = {
-  label: 'Custom',
-  description: 'Configure your own settings',
-};
-
-/** Default custom settings (used when switching to custom for the first time) */
-const DEFAULT_CUSTOM_SETTINGS: StreamSettingsValues = { quality: 55, fps: 20, scale: 'css' };
-
-const STORAGE_KEY = 'browser-automation-studio:stream-preset';
-const CUSTOM_SETTINGS_STORAGE_KEY = 'browser-automation-studio:stream-custom-settings';
-const SHOW_STATS_STORAGE_KEY = 'browser-automation-studio:show-stream-stats';
-const DEFAULT_PRESET: StreamPreset = 'balanced';
-const DEFAULT_SHOW_STATS = true;
-
-/** Load preset from localStorage */
-function loadStoredPreset(): StreamPreset {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored && (stored in PRESETS || stored === 'custom')) {
-      return stored as StreamPreset;
-    }
-  } catch {
-    // localStorage may be unavailable
-  }
-  return DEFAULT_PRESET;
-}
-
-/** Save preset to localStorage */
-function savePreset(preset: StreamPreset): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, preset);
-  } catch {
-    // localStorage may be unavailable
-  }
-}
-
-/** Load custom settings from localStorage */
-function loadCustomSettings(): StreamSettingsValues {
-  try {
-    const stored = localStorage.getItem(CUSTOM_SETTINGS_STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored) as Partial<StreamSettingsValues>;
-      return {
-        quality: typeof parsed.quality === 'number' ? Math.min(100, Math.max(1, parsed.quality)) : DEFAULT_CUSTOM_SETTINGS.quality,
-        fps: typeof parsed.fps === 'number' ? Math.min(60, Math.max(1, parsed.fps)) : DEFAULT_CUSTOM_SETTINGS.fps,
-        scale: parsed.scale === 'device' ? 'device' : 'css',
-      };
-    }
-  } catch {
-    // localStorage may be unavailable or invalid JSON
-  }
-  return DEFAULT_CUSTOM_SETTINGS;
-}
-
-/** Save custom settings to localStorage */
-function saveCustomSettings(settings: StreamSettingsValues): void {
-  try {
-    localStorage.setItem(CUSTOM_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // localStorage may be unavailable
-  }
-}
-
-/** Load showStats preference from localStorage */
-function loadShowStats(): boolean {
-  try {
-    const stored = localStorage.getItem(SHOW_STATS_STORAGE_KEY);
-    if (stored !== null) {
-      return stored === 'true';
-    }
-  } catch {
-    // localStorage may be unavailable
-  }
-  return DEFAULT_SHOW_STATS;
-}
-
-/** Save showStats preference to localStorage */
-function saveShowStats(show: boolean): void {
-  try {
-    localStorage.setItem(SHOW_STATS_STORAGE_KEY, String(show));
-  } catch {
-    // localStorage may be unavailable
-  }
-}
+export type { StreamPreset, StreamSettingsValues } from './streamSettingsConfig';
 
 interface StreamSettingsProps {
   /** Current session ID - enables live settings update when dropdown closes */
@@ -595,49 +488,3 @@ export function StreamSettings({
     </div>
   );
 }
-
-/** Hook to use stream settings with localStorage persistence */
-export function useStreamSettings() {
-  const [preset, setPreset] = useState<StreamPreset>(loadStoredPreset);
-  const [customSettings, setCustomSettings] = useState<StreamSettingsValues>(loadCustomSettings);
-  const [showStats, setShowStats] = useState<boolean>(loadShowStats);
-
-  // Compute effective settings based on preset
-  const settings = preset === 'custom' ? customSettings : PRESETS[preset].settings;
-
-  const handlePresetChange = useCallback((newPreset: StreamPreset) => {
-    setPreset(newPreset);
-    savePreset(newPreset);
-  }, []);
-
-  const handleCustomSettingsChange = useCallback((newSettings: StreamSettingsValues) => {
-    setCustomSettings(newSettings);
-    saveCustomSettings(newSettings);
-  }, []);
-
-  const handleShowStatsChange = useCallback((show: boolean) => {
-    setShowStats(show);
-    saveShowStats(show);
-  }, []);
-
-  return {
-    preset,
-    settings,
-    customSettings,
-    showStats,
-    setPreset: handlePresetChange,
-    setCustomSettings: handleCustomSettingsChange,
-    setShowStats: handleShowStatsChange,
-  };
-}
-
-/** Get settings for a preset */
-export function getPresetSettings(preset: StreamPreset): StreamSettingsValues {
-  if (preset === 'custom') {
-    return loadCustomSettings();
-  }
-  return PRESETS[preset].settings;
-}
-
-/** Export preset keys for type safety */
-export const STREAM_PRESETS = PRESETS;

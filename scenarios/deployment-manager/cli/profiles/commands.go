@@ -13,111 +13,6 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
-type Profile struct {
-	ID       string                 `json:"id"`
-	Name     string                 `json:"name"`
-	Scenario string                 `json:"scenario"`
-	Tiers    []int                  `json:"tiers"`
-	Swaps    Swaps                  `json:"swaps"`
-	Secrets  map[string]interface{} `json:"secrets"`
-	Settings map[string]interface{} `json:"settings"`
-	Version  int                    `json:"version"`
-}
-
-// Swap mirrors the API swap payload.
-type Swap struct {
-	From            string   `json:"from"`
-	To              string   `json:"to"`
-	Reason          string   `json:"reason,omitempty"`
-	Limitations     string   `json:"limitations,omitempty"`
-	ApplicableTiers []string `json:"applicable_tiers,omitempty"`
-	AppliedAt       string   `json:"applied_at,omitempty"`
-}
-
-// Swaps accepts either the legacy map[string]string format or the API array of Swap objects.
-type Swaps []Swap
-
-func (s *Swaps) UnmarshalJSON(data []byte) error {
-	// Treat null/empty as empty slice
-	if len(data) == 0 || string(data) == "null" {
-		*s = Swaps{}
-		return nil
-	}
-	switch data[0] {
-	case '{':
-		// Legacy map format: {"postgres":"sqlite"}
-		var m map[string]string
-		if err := json.Unmarshal(data, &m); err != nil {
-			return err
-		}
-		var out Swaps
-		for k, v := range m {
-			out = append(out, Swap{From: k, To: v})
-		}
-		*s = out
-		return nil
-	case '[':
-		var arr []Swap
-		if err := json.Unmarshal(data, &arr); err != nil {
-			return err
-		}
-		*s = arr
-		return nil
-	default:
-		return fmt.Errorf("unsupported swaps format")
-	}
-}
-
-func (s Swaps) MarshalJSON() ([]byte, error) {
-	// Always emit as array to match API shape
-	type alias Swap
-	arr := make([]alias, 0, len(s))
-	for _, sw := range s {
-		arr = append(arr, alias(sw))
-	}
-	return json.Marshal(arr)
-}
-
-func (s Swaps) len() int {
-	return len(s)
-}
-
-func (s *Swaps) ensureInitialized() {
-	if s == nil {
-		return
-	}
-	if *s == nil {
-		*s = Swaps{}
-	}
-}
-
-func (s *Swaps) set(from, to string) {
-	s.ensureInitialized()
-	for i := range *s {
-		if (*s)[i].From == from {
-			(*s)[i].To = to
-			return
-		}
-	}
-	*s = append(*s, Swap{From: from, To: to})
-}
-
-func (s *Swaps) remove(from string) {
-	s.ensureInitialized()
-	out := (*s)[:0]
-	for _, sw := range *s {
-		if sw.From != from {
-			out = append(out, sw)
-		}
-	}
-	*s = out
-}
-
-type ProfileHistory struct {
-	ProfileID string    `json:"profile_id"`
-	Versions  []Profile `json:"versions"`
-}
-
 type Commands struct {
 	api *cliutil.APIClient
 }
@@ -131,7 +26,7 @@ func New(api *cliutil.APIClient) *Commands {
 func (c *Commands) List(args []string) error {
 	fs := flag.NewFlagSet("profiles", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json|table)")
-	_, _ = cmdutil.ParseArgs(fs, args)
+	_ = cliutil.ParseInterspersed(fs, args)
 	body, err := c.api.Get("/api/v1/profiles", nil)
 	if err != nil {
 		return err
@@ -164,10 +59,10 @@ func (c *Commands) List(args []string) error {
 func (c *Commands) Create(args []string) error {
 	fs := flag.NewFlagSet("profile create", flag.ContinueOnError)
 	tier := fs.String("tier", "2", "deployment tier")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) < 2 {
 		return errors.New("usage: profile create <name> <scenario> [--tier <tier>]")
 	}
@@ -190,10 +85,10 @@ func (c *Commands) Create(args []string) error {
 func (c *Commands) Show(args []string) error {
 	fs := flag.NewFlagSet("profile show", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -226,10 +121,10 @@ func (c *Commands) Export(args []string) error {
 	fs := flag.NewFlagSet("profile export", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
 	outputPath := fs.String("output", "", "output file")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -261,10 +156,10 @@ func (c *Commands) Import(args []string) error {
 	fs := flag.NewFlagSet("profile import", flag.ContinueOnError)
 	name := fs.String("name", "", "override profile name")
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("file path is required")
 	}
@@ -293,10 +188,10 @@ func (c *Commands) Update(args []string) error {
 	fs := flag.NewFlagSet("profile update", flag.ContinueOnError)
 	tier := fs.String("tier", "", "deployment tier")
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -420,10 +315,10 @@ func (c *Commands) Swap(args []string) error {
 func (c *Commands) Versions(args []string) error {
 	fs := flag.NewFlagSet("profile versions", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -443,10 +338,10 @@ func (c *Commands) Versions(args []string) error {
 func (c *Commands) Analyze(args []string) error {
 	fs := flag.NewFlagSet("profile analyze", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -489,10 +384,10 @@ func (c *Commands) Save(args []string) error {
 func (c *Commands) Diff(args []string) error {
 	fs := flag.NewFlagSet("profile diff", flag.ContinueOnError)
 	format := fs.String("format", "json", "output format")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -535,10 +430,10 @@ func (c *Commands) Rollback(args []string) error {
 	fs := flag.NewFlagSet("profile rollback", flag.ContinueOnError)
 	target := fs.String("version", "", "version number")
 	toVersion := fs.String("to-version", "", "version number")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -603,10 +498,10 @@ func (c *Commands) Secrets(args []string) error {
 func (c *Commands) secretsIdentify(args []string) error {
 	fs := flag.NewFlagSet("secrets identify", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -622,10 +517,10 @@ func (c *Commands) secretsIdentify(args []string) error {
 func (c *Commands) secretsTemplate(args []string) error {
 	fs := flag.NewFlagSet("secrets template", flag.ContinueOnError)
 	format := fs.String("format", "env", "template format (env|json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -651,10 +546,10 @@ func (c *Commands) secretsTemplate(args []string) error {
 func (c *Commands) secretsValidate(args []string) error {
 	fs := flag.NewFlagSet("secrets validate", flag.ContinueOnError)
 	format := fs.String("format", "", "output format (json)")
-	remaining, err := cmdutil.ParseArgs(fs, args)
-	if err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	remaining := fs.Args()
 	if len(remaining) == 0 {
 		return errors.New("profile id is required")
 	}
@@ -665,167 +560,4 @@ func (c *Commands) secretsValidate(args []string) error {
 	}
 	cmdutil.PrintByFormat(*format, body)
 	return nil
-}
-
-// Helpers
-
-func decodeProfile(data []byte) (Profile, error) {
-	var p Profile
-	if err := json.Unmarshal(data, &p); err != nil {
-		return Profile{}, err
-	}
-	normalizeProfile(&p)
-	return p, nil
-}
-
-func normalizeProfile(p *Profile) {
-	if p.Swaps == nil {
-		p.Swaps = Swaps{}
-	}
-	if p.Secrets == nil {
-		p.Secrets = map[string]interface{}{}
-	}
-	if p.Settings == nil {
-		p.Settings = map[string]interface{}{}
-	}
-}
-
-func ensureNestedMap(obj map[string]interface{}, key string) map[string]interface{} {
-	if val, ok := obj[key]; ok {
-		if cast, ok := val.(map[string]interface{}); ok && cast != nil {
-			return cast
-		}
-	}
-	newMap := map[string]interface{}{}
-	obj[key] = newMap
-	return newMap
-}
-
-func fetchVersionHistory(api *cliutil.APIClient, profileID string) (*ProfileHistory, error) {
-	body, err := api.Get("/api/v1/profiles/"+profileID+"/versions", nil)
-	if err != nil {
-		return nil, err
-	}
-	var history ProfileHistory
-	if err := json.Unmarshal(body, &history); err != nil {
-		return nil, fmt.Errorf("parse version history: %w", err)
-	}
-	for i := range history.Versions {
-		normalizeProfile(&history.Versions[i])
-	}
-	return &history, nil
-}
-
-func extractUpdatableProfileFields(source Profile) map[string]interface{} {
-	fields := map[string]interface{}{
-		"tiers":    source.Tiers,
-		"swaps":    source.Swaps,
-		"secrets":  source.Secrets,
-		"settings": source.Settings,
-	}
-	return fields
-}
-
-func versionNumber(v Profile) int {
-	if v.Version != 0 {
-		return v.Version
-	}
-	return 0
-}
-
-func findVersion(versions []Profile, version string) (Profile, bool) {
-	for _, v := range versions {
-		if fmt.Sprint(versionNumber(v)) == version {
-			return v, true
-		}
-	}
-	return Profile{}, false
-}
-
-func computeProfileDiff(previous, current Profile) map[string]map[string]interface{} {
-	diff := map[string]map[string]interface{}{}
-
-	if !intSlicesEqual(previous.Tiers, current.Tiers) {
-		diff["tiers"] = map[string]interface{}{"from": previous.Tiers, "to": current.Tiers}
-	}
-	if !valuesEqual(previous.Swaps, current.Swaps) {
-		diff["swaps"] = map[string]interface{}{"from": previous.Swaps, "to": current.Swaps}
-	}
-	if !valuesEqual(previous.Secrets, current.Secrets) {
-		diff["secrets"] = map[string]interface{}{"from": previous.Secrets, "to": current.Secrets}
-	}
-	if !valuesEqual(previous.Settings, current.Settings) {
-		diff["settings"] = map[string]interface{}{"from": previous.Settings, "to": current.Settings}
-	}
-
-	return diff
-}
-
-func intSlicesEqual(a, b []int) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func valuesEqual(a, b interface{}) bool {
-	switch aVal := a.(type) {
-	case []interface{}:
-		bVal, ok := b.([]interface{})
-		if !ok || len(aVal) != len(bVal) {
-			return false
-		}
-		for i := range aVal {
-			if !valuesEqual(aVal[i], bVal[i]) {
-				return false
-			}
-		}
-		return true
-	case []int:
-		bVal, ok := b.([]int)
-		if !ok {
-			return false
-		}
-		return intSlicesEqual(aVal, bVal)
-	case map[string]interface{}:
-		bVal, ok := b.(map[string]interface{})
-		if !ok || len(aVal) != len(bVal) {
-			return false
-		}
-		for k, v := range aVal {
-			if !valuesEqual(v, bVal[k]) {
-				return false
-			}
-		}
-		return true
-	case map[string]string:
-		bVal, ok := b.(map[string]string)
-		if !ok || len(aVal) != len(bVal) {
-			return false
-		}
-		for k, v := range aVal {
-			if bVal[k] != v {
-				return false
-			}
-		}
-		return true
-	default:
-		return fmt.Sprintf("%v", a) == fmt.Sprintf("%v", b)
-	}
-}
-
-func intSliceToString(values []int) string {
-	if len(values) == 0 {
-		return ""
-	}
-	parts := make([]string, len(values))
-	for i, v := range values {
-		parts[i] = fmt.Sprintf("%d", v)
-	}
-	return strings.Join(parts, ",")
 }

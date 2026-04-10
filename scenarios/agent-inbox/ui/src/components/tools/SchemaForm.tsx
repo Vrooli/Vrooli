@@ -75,7 +75,7 @@ export function SchemaForm({
       const value = values[fieldName];
       if (value === undefined || value === null || value === "") {
         // Only look up schema if properties exist
-        const schema = props[fieldName];
+        const _schema = props[fieldName];
         const label = fieldName
           .replace(/_/g, " ")
           .replace(/([a-z])([A-Z])/g, "$1 $2")

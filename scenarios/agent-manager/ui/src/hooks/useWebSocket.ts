@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { resolveWsBase } from "@vrooli/api-base";
-import { create, fromJson, toJson } from "@bufbuild/protobuf";
+import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import type { RunEvent, Task } from "../types";
 import {
   AgentManagerWsClientMessageSchema,
@@ -48,7 +48,7 @@ const protoReadOptions = { ignoreUnknownFields: true, protoFieldName: true };
 const protoWriteOptions = { useProtoFieldName: true };
 
 function parseProtoMessage(raw: unknown): WebSocketMessage | null {
-  const message = fromJson(AgentManagerWsMessageSchema, raw as any, protoReadOptions);
+  const message = fromJson(AgentManagerWsMessageSchema, raw as JsonValue, protoReadOptions);
   switch (message.type) {
     case AgentManagerWsMessageType.RUN_EVENT:
       if (message.payload.case !== "runEvent") return null;
@@ -62,10 +62,20 @@ function parseProtoMessage(raw: unknown): WebSocketMessage | null {
       {
         const runId = message.payload.value.runId || message.runId;
         if (!runId) return null;
+        const statusPayload: Record<string, unknown> = {
+          id: runId,
+          status: message.payload.value.status,
+        };
+        if (message.payload.value.taskId) {
+          statusPayload.taskId = message.payload.value.taskId;
+        }
+        if (message.payload.value.promptPreview) {
+          statusPayload.promptPreview = message.payload.value.promptPreview;
+        }
         return {
           type: "run_status",
           runId,
-          payload: { id: runId, status: message.payload.value.status },
+          payload: statusPayload,
         };
       }
     case AgentManagerWsMessageType.TASK_STATUS:
@@ -184,7 +194,7 @@ export function useWebSocket(
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
+          const data: unknown = JSON.parse(String(event.data));
           const normalized = parseProtoMessage(data) ?? (data as WebSocketMessage);
           onMessageRef.current?.(normalized);
           // Call all registered message handlers

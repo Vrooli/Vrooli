@@ -1,10 +1,9 @@
 // Settings dialog with Model Registry, Model Pricing, Maintenance, and Investigation tabs
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Button } from "../../ui/button";
 import {
   Dialog,
-  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -14,12 +13,24 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
 import { PurgeConfirmDialog, type PurgePreview } from "../PurgeConfirmDialog";
 import { InvestigationTab } from "./InvestigationTab";
+import type { InvestigationTabHandle } from "./InvestigationTab";
+import { OrchestrationTab } from "./OrchestrationTab";
+import type { OrchestrationTabHandle } from "./OrchestrationTab";
 import { MaintenanceTab } from "./MaintenanceTab";
 import { ModelPricingTab } from "./ModelPricingTab";
 import { ModelRegistryTab } from "./ModelRegistryTab";
 import { useModelRegistryEditor } from "../../../hooks/useModelRegistryEditor";
 import { useInvestigationSettings, useMaintenance, useModelRegistry, useRunners } from "../../../hooks/useApi";
+import { useOrchestrationSettings } from "../../../hooks/useOrchestrationSettings";
 import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
+
+const TAB_DESCRIPTIONS: Record<string, string> = {
+  models: "Configure per-runner model lists and preset mappings",
+  pricing: "View and manage model pricing with overrides",
+  investigation: "Configure investigation and apply-fix agent behavior",
+  orchestration: "Configure run lifecycle, safety, health detection, and termination behavior",
+  maintenance: "Purge data and manage service controls",
+};
 
 interface SettingsDialogProps {
   open: boolean;
@@ -46,6 +57,15 @@ export function SettingsDialog({
     isActive: open,
     updateRegistry: modelRegistry.updateRegistry,
   });
+
+  // Investigation ref + dirty state for unified footer
+  const investigationRef = useRef<InvestigationTabHandle>(null);
+  const [investigationDirty, setInvestigationDirty] = useState(false);
+
+  // Orchestration ref + dirty state for unified footer
+  const orchestrationSettings = useOrchestrationSettings();
+  const orchestrationRef = useRef<OrchestrationTabHandle>(null);
+  const [orchestrationDirty, setOrchestrationDirty] = useState(false);
 
   // Purge state
   const [purgePattern, setPurgePattern] = useState("^test-.*");
@@ -96,21 +116,28 @@ export function SettingsDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange} contentClassName="max-w-7xl">
-        <DialogContent>
-          <DialogHeader>
+      <Dialog open={open} onOpenChange={onOpenChange} fullScreenMobile>
+        <DialogContent fullScreenMobile className="sm:max-w-[90vw] xl:max-w-7xl">
+          <DialogHeader onClose={() => onOpenChange(false)} className="p-4 sm:p-6">
             <DialogTitle>Settings</DialogTitle>
-            <DialogDescription>Manage model registry configuration and maintenance actions.</DialogDescription>
+            <DialogDescription>{TAB_DESCRIPTIONS[activeTab]}</DialogDescription>
           </DialogHeader>
-          <DialogBody className="space-y-6">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="models">Model Registry</TabsTrigger>
-                <TabsTrigger value="pricing">Model Pricing</TabsTrigger>
-                <TabsTrigger value="investigation">Investigation</TabsTrigger>
-                <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
+            {/* Tab bar — sticky, scrollable on mobile */}
+            <div className="px-4 sm:px-6 pb-2 pt-1 shrink-0 border-b border-border">
+              <TabsList className="flex w-full overflow-x-auto no-scrollbar sm:grid sm:grid-cols-5">
+                <TabsTrigger value="models" className="shrink-0">Model Registry</TabsTrigger>
+                <TabsTrigger value="pricing" className="shrink-0">Model Pricing</TabsTrigger>
+                <TabsTrigger value="investigation" className="shrink-0">Investigation</TabsTrigger>
+                <TabsTrigger value="orchestration" className="shrink-0">Orchestration</TabsTrigger>
+                <TabsTrigger value="maintenance" className="shrink-0">Maintenance</TabsTrigger>
               </TabsList>
-              <TabsContent value="models" className="mt-4">
+            </div>
+
+            {/* Scrollable tab content */}
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4">
+              <TabsContent value="models" className="mt-0">
                 <ModelRegistryTab
                   draft={editor.draft}
                   loading={modelRegistry.loading}
@@ -130,19 +157,32 @@ export function SettingsDialog({
                   onUpdatePreset={editor.updatePreset}
                 />
               </TabsContent>
-              <TabsContent value="pricing" className="mt-4">
+              <TabsContent value="pricing" className="mt-0">
                 <ModelPricingTab />
               </TabsContent>
-              <TabsContent value="investigation" className="mt-4">
+              <TabsContent value="investigation" className="mt-0">
                 <InvestigationTab
+                  ref={investigationRef}
                   settings={investigationSettings.data}
                   loading={investigationSettings.loading}
                   error={investigationSettings.error}
                   onSave={investigationSettings.updateSettings}
                   onReset={investigationSettings.resetSettings}
+                  onDirtyChange={setInvestigationDirty}
                 />
               </TabsContent>
-              <TabsContent value="maintenance" className="mt-4">
+              <TabsContent value="orchestration" className="mt-0">
+                <OrchestrationTab
+                  ref={orchestrationRef}
+                  settings={orchestrationSettings.data}
+                  loading={orchestrationSettings.loading}
+                  error={orchestrationSettings.error}
+                  onSave={orchestrationSettings.updateSettings}
+                  onReset={orchestrationSettings.resetSettings}
+                  onDirtyChange={setOrchestrationDirty}
+                />
+              </TabsContent>
+              <TabsContent value="maintenance" className="mt-0">
                 <MaintenanceTab
                   purgePattern={purgePattern}
                   onPurgePatternChange={setPurgePattern}
@@ -151,10 +191,11 @@ export function SettingsDialog({
                   onPurgePreview={handlePurgePreview}
                 />
               </TabsContent>
-            </Tabs>
-          </DialogBody>
-          <DialogFooter>
-            {activeTab === "models" ? (
+            </div>
+          </Tabs>
+
+          <DialogFooter className="p-4 sm:p-6">
+            {activeTab === "models" && editor.draft && (
               <>
                 <Button variant="outline" onClick={editor.reset} disabled={!editor.draft}>
                   Reset
@@ -165,15 +206,45 @@ export function SettingsDialog({
                 >
                   {editor.saving ? "Saving..." : "Save"}
                 </Button>
-                <Button variant="outline" onClick={() => onOpenChange(false)}>
-                  Close
+              </>
+            )}
+            {activeTab === "orchestration" && orchestrationDirty && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => orchestrationRef.current?.reset()}
+                  disabled={orchestrationRef.current?.saving}
+                >
+                  Reset to Defaults
+                </Button>
+                <Button
+                  onClick={() => orchestrationRef.current?.save()}
+                  disabled={orchestrationRef.current?.saving}
+                >
+                  {orchestrationRef.current?.saving ? "Saving..." : "Save"}
                 </Button>
               </>
-            ) : (
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Close
-              </Button>
             )}
+            {activeTab === "investigation" && investigationDirty && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => investigationRef.current?.reset()}
+                  disabled={investigationRef.current?.saving}
+                >
+                  Reset to Defaults
+                </Button>
+                <Button
+                  onClick={() => investigationRef.current?.save()}
+                  disabled={investigationRef.current?.saving}
+                >
+                  {investigationRef.current?.saving ? "Saving..." : "Save"}
+                </Button>
+              </>
+            )}
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

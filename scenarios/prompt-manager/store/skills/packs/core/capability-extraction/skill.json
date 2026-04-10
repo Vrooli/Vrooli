@@ -1,0 +1,23 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "capability-extraction",
+  "name": "Capability Extraction",
+  "description": "Methodology for auditing agent files to identify embedded methodologies that should be extracted into reusable, optimizable skills. Covers the 'Agent instructions to Skills' half of the promotion pipeline.",
+  "modes": [
+    "practice"
+  ],
+  "tags": [
+    "practice",
+    "meta-optimization",
+    "extraction",
+    "methodology",
+    "agents"
+  ],
+  "icon": "package",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-02-11T00:00:00Z",
+  "updatedAt": "2026-02-11T00:00:00Z"
+}

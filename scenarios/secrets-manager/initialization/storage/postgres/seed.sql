@@ -14,17 +14,17 @@ ON CONFLICT (resource_name, secret_key) DO NOTHING;
 -- Classification defaults for known infrastructure resources
 UPDATE resource_secrets
 SET classification = CASE
-        WHEN resource_name IN ('postgres', 'vault', 'redis', 'minio') THEN 'infrastructure'
+        WHEN resource_name IN ('postgres', 'vault', 'redis', 'minio', 'edge-dns') THEN 'infrastructure'
         WHEN resource_name IN ('n8n', 'ollama') THEN 'service'
         ELSE classification
     END,
     owner_team = CASE
-        WHEN resource_name IN ('postgres', 'vault') THEN 'Platform Infra'
+        WHEN resource_name IN ('postgres', 'vault', 'edge-dns') THEN 'Platform Infra'
         WHEN resource_name IN ('n8n', 'ollama') THEN 'AI & Automation'
         ELSE owner_team
     END,
     owner_contact = CASE
-        WHEN resource_name IN ('postgres', 'vault') THEN 'platform@vrooli.dev'
+        WHEN resource_name IN ('postgres', 'vault', 'edge-dns') THEN 'platform@vrooli.dev'
         WHEN resource_name IN ('n8n', 'ollama') THEN 'automation@vrooli.dev'
         ELSE owner_contact
     END
@@ -83,6 +83,19 @@ INSERT INTO resource_secrets (resource_name, secret_key, secret_type, required, 
 ('vault', 'VAULT_SKIP_VERIFY', 'env_var', false, 'Skip TLS verification (dev only)', '^(true|false)$', 'https://www.vaultproject.io/docs/commands#vault_skip_verify'),
 ('vault', 'VAULT_DEV_ROOT_TOKEN_ID', 'token', false, 'Development mode root token', '^[a-zA-Z0-9.-_]+$', 'https://www.vaultproject.io/docs/concepts/dev-server')
 ON CONFLICT (resource_name, secret_key) DO NOTHING;
+
+-- Edge DNS secrets (for DNS-01 issuance when proxying is enabled)
+INSERT INTO resource_secrets (resource_name, secret_key, secret_type, required, description, validation_pattern, documentation_url) VALUES
+('edge-dns', 'CLOUDFLARE_API_TOKEN', 'token', false, 'Cloudflare API token for DNS-01 validation', '^[A-Za-z0-9._-]{20,}$', 'https://dash.cloudflare.com/profile/api-tokens')
+ON CONFLICT (resource_name, secret_key) DO NOTHING;
+
+-- tier-4-saas (VPS/Cloud) strategies for edge DNS credentials
+INSERT INTO secret_deployment_strategies (resource_secret_id, tier, handling_strategy, requires_user_input, prompt_label, prompt_description, bundle_hints)
+SELECT rs.id, 'tier-4-saas', 'prompt', true, 'Cloudflare API token', 'Required for DNS-01 issuance when Cloudflare proxying is enabled.',
+       '{"class":"user_prompt","target_type":"env"}'::jsonb
+FROM resource_secrets rs
+WHERE rs.resource_name = 'edge-dns' AND rs.secret_key = 'CLOUDFLARE_API_TOKEN'
+ON CONFLICT DO NOTHING;
 
 -- Redis resource secrets
 INSERT INTO resource_secrets (resource_name, secret_key, secret_type, required, description, validation_pattern, documentation_url) VALUES  
@@ -156,7 +169,7 @@ ON CONFLICT (resource_name, secret_key) DO NOTHING;
 INSERT INTO secret_scans (scan_type, resources_scanned, secrets_discovered, scan_duration_ms, scan_status, scan_metadata) 
 VALUES (
     'seed', 
-    ARRAY['postgres', 'vault', 'redis', 'n8n', 'ollama', 'minio', 'qdrant', 'browserless', 'huginn', 'searxng', 'judge0'],
+    ARRAY['postgres', 'vault', 'edge-dns', 'redis', 'n8n', 'ollama', 'minio', 'qdrant', 'browserless', 'huginn', 'searxng', 'judge0'],
     (SELECT COUNT(*) FROM resource_secrets),
     0,
     'completed',

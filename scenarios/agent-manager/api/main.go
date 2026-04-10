@@ -12,18 +12,23 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
 	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/handlers"
+	"agent-manager/internal/identity"
 	"agent-manager/internal/metrics"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/pricing/providers"
+	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/storage"
+	"agent-manager/internal/toolexecution"
 	"agent-manager/internal/toolregistry"
 
 	gorillaHandlers "github.com/gorilla/handlers"
@@ -37,23 +42,24 @@ import (
 
 // Config holds runtime configuration
 type Config struct {
-	Port        string
-	UseInMemory bool
+	Port string
 }
 
 // Server wires the HTTP router, database, and orchestration service
 type Server struct {
-	config         *Config
-	db             *database.DB
-	logger         *logrus.Logger
-	router         *mux.Router
-	orchestrator   orchestration.Service
-	statsService   orchestration.StatsService
-	statsRepo      repository.StatsRepository
-	pricingService pricing.Service
-	wsHub          *handlers.WebSocketHub
-	reconciler     *orchestration.Reconciler
-	toolRegistry   *toolregistry.Registry
+	config               *Config
+	db                   *database.DB
+	logger               *logrus.Logger
+	router               *mux.Router
+	orchestrator         orchestration.Service
+	statsService         orchestration.StatsService
+	statsRepo            repository.StatsRepository
+	pricingService       pricing.Service
+	wsHub                *handlers.WebSocketHub
+	reconciler           *orchestration.Reconciler
+	recommendationWorker *orchestration.RecommendationWorker
+	toolRegistry         *toolregistry.Registry
+	storage              storage.Service
 }
 
 // NewServer initializes configuration, database, and routes
@@ -64,29 +70,27 @@ func NewServer() (*Server, error) {
 		FullTimestamp: true,
 	})
 
-	cfg := &Config{
-		UseInMemory: strings.ToLower(os.Getenv("USE_IN_MEMORY")) == "true",
-	}
+	cfg := &Config{}
 
-	var db *database.DB
-	var err error
-
-	// Database connection (optional for in-memory mode)
-	if !cfg.UseInMemory {
-		db, err = database.NewConnection(logger)
-		if err != nil {
-			log.Printf("Failed to connect to database, using in-memory storage: %v", err)
-			cfg.UseInMemory = true
-			db = nil
-		}
+	// Database connection - SQLite is required, failure is fatal
+	db, err := database.NewConnection(logger)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
 	// Create WebSocket hub for real-time event broadcasting (needed by orchestrator)
 	wsHub := handlers.NewWebSocketHub()
 	go wsHub.Run()
 
+	// Create upload storage service
+	uploadDir := os.Getenv("UPLOAD_DIR")
+	if uploadDir == "" {
+		uploadDir = "/tmp/agent-manager-uploads"
+	}
+	uploadStorage := storage.NewLocalService(uploadDir)
+
 	// Create the orchestrator with appropriate repositories and broadcaster
-	deps := createOrchestrator(db, cfg.UseInMemory, wsHub, logger)
+	deps := createOrchestrator(db, wsHub, logger, uploadStorage)
 
 	// Create tool registry for tool discovery protocol
 	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
@@ -100,17 +104,19 @@ func NewServer() (*Server, error) {
 	// as-is instead of decoding to /). This is required for model names containing slashes
 	// like "aion-labs/aion-1.0" which are URL-encoded to "aion-labs%2Faion-1.0".
 	srv := &Server{
-		config:         cfg,
-		db:             db,
-		logger:         logger,
-		router:         mux.NewRouter().UseEncodedPath(),
-		orchestrator:   deps.orchestrator,
-		statsService:   deps.statsService,
-		statsRepo:      deps.statsRepo,
-		pricingService: deps.pricingService,
-		wsHub:          wsHub,
-		reconciler:     deps.reconciler,
-		toolRegistry:   toolReg,
+		config:               cfg,
+		db:                   db,
+		logger:               logger,
+		router:               mux.NewRouter().UseEncodedPath(),
+		orchestrator:         deps.orchestrator,
+		statsService:         deps.statsService,
+		statsRepo:            deps.statsRepo,
+		pricingService:       deps.pricingService,
+		wsHub:                wsHub,
+		reconciler:           deps.reconciler,
+		recommendationWorker: deps.recommendationWorker,
+		toolRegistry:         toolReg,
+		storage:              uploadStorage,
 	}
 
 	// Start the reconciler for orphan detection and stale run recovery
@@ -120,65 +126,46 @@ func NewServer() (*Server, error) {
 		}
 	}
 
+	// Start the recommendation worker for passive extraction from investigation runs
+	if srv.recommendationWorker != nil {
+		if err := srv.recommendationWorker.Start(context.Background()); err != nil {
+			log.Printf("Warning: Failed to start recommendation worker: %v", err)
+		}
+	}
+
 	srv.setupRoutes()
 	return srv, nil
 }
 
 // orchestratorDeps holds the orchestrator and related services
 type orchestratorDeps struct {
-	orchestrator   orchestration.Service
-	statsService   orchestration.StatsService
-	statsRepo      repository.StatsRepository
-	pricingService pricing.Service
-	reconciler     *orchestration.Reconciler
+	orchestrator         orchestration.Service
+	statsService         orchestration.StatsService
+	statsRepo            repository.StatsRepository
+	pricingService       pricing.Service
+	reconciler           *orchestration.Reconciler
+	recommendationWorker *orchestration.RecommendationWorker
 }
 
 // createOrchestrator creates the orchestration service with all dependencies
-func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSocketHub, logger *logrus.Logger) orchestratorDeps {
+func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *logrus.Logger, uploadStorage storage.Service) orchestratorDeps {
 	levers, err := agentconfig.LoadLevers()
 	if err != nil {
 		log.Printf("Warning: failed to load config levers: %v", err)
 	}
 
-	// Create repositories
-	var (
-		profileRepo     repository.ProfileRepository
-		taskRepo        repository.TaskRepository
-		runRepo         repository.RunRepository
-		checkpointRepo  repository.CheckpointRepository
-		idempotencyRepo repository.IdempotencyRepository
-		statsRepo       repository.StatsRepository
-	)
-
-	// Create event store - use PostgreSQL when database is available
-	var eventStore event.Store
-	storageLabel := ""
-
-	if useInMemory || db == nil {
-		eventStore = event.NewMemoryStore()
-		// In-memory fallback
-		log.Printf("Using in-memory storage")
-		storageLabel = "memory (fallback)"
-		profileRepo = repository.NewMemoryProfileRepository()
-		taskRepo = repository.NewMemoryTaskRepository()
-		memRunRepo := repository.NewMemoryRunRepository()
-		runRepo = memRunRepo
-		checkpointRepo = repository.NewMemoryCheckpointRepository()
-		idempotencyRepo = repository.NewMemoryIdempotencyRepository()
-		statsRepo = repository.NewMemoryStatsRepositoryWithRepos(memRunRepo, nil)
-	} else {
-		// PostgreSQL persistence
-		log.Printf("Using PostgreSQL persistence")
-		storageLabel = string(db.Dialect())
-		eventStore = event.NewPostgresStore(db.DB, logger)
-		repos := database.NewRepositories(db, logger)
-		profileRepo = repos.Profiles
-		taskRepo = repos.Tasks
-		runRepo = repos.Runs
-		checkpointRepo = repos.Checkpoints
-		idempotencyRepo = repos.Idempotency
-		statsRepo = repos.Stats
-	}
+	// Create repositories from SQLite database
+	log.Printf("Using SQLite persistence")
+	storageLabel := "sqlite"
+	eventStore := event.NewSQLiteStore(db.DB, logger)
+	repos := database.NewRepositories(db, logger)
+	profileRepo := repos.Profiles
+	taskRepo := repos.Tasks
+	runRepo := repos.Runs
+	checkpointRepo := repos.Checkpoints
+	idempotencyRepo := repos.Idempotency
+	statsRepo := repos.Stats
+	investigationSettingsRepo := repos.InvestigationSettings
 
 	// Create runner registry
 	runnerRegistry := runner.NewRegistry()
@@ -246,6 +233,9 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		}
 	}
 
+	// Create flag validator for runner-specific CLI flag validation
+	flagValidator := runner.NewRegistryFlagValidator(runnerRegistry)
+
 	// Create workspace-sandbox provider
 	sandboxURL := os.Getenv("WORKSPACE_SANDBOX_URL")
 	if sandboxURL == "" {
@@ -263,11 +253,32 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 	}
 	sandboxProvider := sandbox.NewWorkspaceSandboxProvider(sandboxURL)
 
+	// Load orchestration settings (file-backed, git-checked-in).
+	orchSettingsPath := agentconfig.ResolveOrchestrationSettingsPath()
+	orchSettingsStore, err := agentconfig.NewOrchestrationSettingsStore(orchSettingsPath)
+	if err != nil {
+		log.Printf("Warning: failed to load orchestration settings from %s: %v", orchSettingsPath, err)
+	}
+
+	// Build terminator config from orchestration settings (or defaults).
+	terminatorCfg := orchestration.DefaultTerminatorConfig()
+	if orchSettingsStore != nil {
+		os := orchSettingsStore.Get()
+		terminatorCfg = orchestration.TerminatorConfig{
+			GracePeriod:      time.Duration(os.ProcessTermination.GracePeriodSeconds) * time.Second,
+			MaxRetries:       os.ProcessTermination.TerminationMaxRetries,
+			BaseBackoff:      500 * time.Millisecond,
+			MaxBackoff:       5 * time.Second,
+			VerifyTimeout:    2 * time.Second,
+			KillProcessGroup: os.ProcessTermination.KillProcessGroup,
+		}
+	}
+
 	// Create terminator for robust process termination (Phase 2)
 	terminator := orchestration.NewTerminator(
 		runRepo,
 		runnerRegistry,
-		orchestration.DefaultTerminatorConfig(),
+		terminatorCfg,
 	)
 
 	modelRegistryPath := modelregistry.ResolvePath()
@@ -302,6 +313,26 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		}
 	}
 
+	// Apply orchestration settings on top of levers (settings file is the primary source).
+	if orchSettingsStore != nil {
+		os := orchSettingsStore.Get()
+		orchConfig.DefaultTimeout = time.Duration(os.RunExecution.RunTimeoutMinutes) * time.Minute
+		orchConfig.MaxConcurrentRuns = os.RunExecution.MaxConcurrentRuns
+		orchConfig.RequireSandboxByDefault = os.SafetyIsolation.RequireSandbox
+	}
+
+	// Create prompt-manager client for investigation prompt skills
+	promptClient := promptmanager.NewHTTPClient()
+
+	// Create recommendation extractor for investigation outputs
+	recommendationExtractor := recommendation.NewOllamaExtractor()
+
+	// Load identity signing secret for agent identity tokens.
+	identitySecret, err := identity.LoadOrCreateSecret(database.DataDir())
+	if err != nil {
+		log.Fatalf("Failed to initialize identity secret: %v", err)
+	}
+
 	// Build orchestrator with all dependencies including WebSocket broadcaster and terminator
 	orch := orchestration.New(
 		profileRepo,
@@ -317,44 +348,76 @@ func createOrchestrator(db *database.DB, useInMemory bool, wsHub *handlers.WebSo
 		orchestration.WithTerminator(terminator),
 		orchestration.WithStorageLabel(storageLabel),
 		orchestration.WithModelRegistry(modelRegistryStore),
+		orchestration.WithRecommendationExtractor(recommendationExtractor),
+		orchestration.WithInvestigationSettings(investigationSettingsRepo),
+		orchestration.WithPromptClient(promptClient),
+		orchestration.WithFlagValidator(flagValidator),
+		orchestration.WithAttachmentStorage(uploadStorage),
+		orchestration.WithOrchestrationSettings(orchSettingsStore),
+		orchestration.WithIdentitySecret(identitySecret),
 	)
+
+	// Build reconciler config from orchestration settings (or defaults).
+	reconcilerCfg := orchestration.DefaultReconcilerConfig()
+	if orchSettingsStore != nil {
+		os := orchSettingsStore.Get()
+		reconcilerCfg = orchestration.ReconcilerConfig{
+			Interval:          time.Duration(os.HealthDetection.ReconcilerIntervalSeconds) * time.Second,
+			StaleThreshold:    time.Duration(os.HealthDetection.StaleThresholdSeconds) * time.Second,
+			MaxRecoveryAge:    time.Duration(os.HealthDetection.MaxRecoveryAgeSeconds) * time.Second,
+			OrphanGracePeriod: time.Duration(os.ProcessTermination.OrphanGracePeriodSeconds) * time.Second,
+			MaxStaleRuns:      10,
+			KillOrphans:       os.ProcessTermination.KillOrphans,
+			AutoRecover:       true,
+		}
+	}
 
 	// Create reconciler for orphan detection and stale run recovery (Phase 2)
 	reconciler := orchestration.NewReconciler(
 		runRepo,
 		runnerRegistry,
-		orchestration.WithReconcilerConfig(orchestration.ReconcilerConfig{
-			Interval:          30 * time.Second,
-			StaleThreshold:    2 * time.Minute,
-			OrphanGracePeriod: 5 * time.Minute,
-			MaxStaleRuns:      10,
-			KillOrphans:       true, // Always kill orphan processes
-			AutoRecover:       true, // Auto-recover stale runs if process is alive
-		}),
+		orchestration.WithReconcilerConfig(reconcilerCfg),
 		orchestration.WithReconcilerBroadcaster(wsHub),
+		orchestration.WithReconcilerSandbox(sandboxProvider),
+	)
+
+	// Wire reconciler back to orchestrator for hot-reload propagation.
+	orch.SetReconciler(reconciler)
+
+	// Create recommendation worker for passive extraction from investigation runs
+	// Uses the investigation settings repository for tag allowlist filtering
+	allowlistProvider := orchestration.NewSettingsAllowlistProvider(investigationSettingsRepo)
+	recommendationWorker := orchestration.NewRecommendationWorker(
+		runRepo,
+		eventStore,
+		recommendationExtractor,
+		orchestration.WithRecommendationWorkerConfig(orchestration.RecommendationWorkerConfig{
+			Interval:      30 * time.Second,
+			MaxRetries:    3,
+			RetryBackoff:  1 * time.Minute,
+			MaxConcurrent: 1, // Serial processing to avoid overloading Ollama
+		}),
+		orchestration.WithRecommendationWorkerBroadcaster(wsHub),
+		orchestration.WithRecommendationWorkerAllowlist(allowlistProvider),
 	)
 
 	// Create stats service for analytics
 	statsSvc := orchestration.NewStatsOrchestrator(statsRepo)
 
 	// Create pricing service for model pricing management
-	var pricingRepo pricing.Repository
-	if useInMemory || db == nil {
-		pricingRepo = pricing.NewMemoryRepository()
-	} else {
-		pricingRepo = database.NewPricingRepository(db, logger)
-	}
+	pricingRepo := database.NewPricingRepository(db, logger)
 	openRouterProvider := providers.NewOpenRouterProvider()
 	pricingProviders := []pricing.Provider{openRouterProvider}
 	pricingSvc := pricing.NewService(pricingRepo, pricingProviders, logger)
 
-	log.Printf("Orchestrator initialized (in-memory: %v, sandbox: %s)", useInMemory, sandboxURL)
+	log.Printf("Orchestrator initialized (storage: %s, sandbox: %s)", storageLabel, sandboxURL)
 	return orchestratorDeps{
-		orchestrator:   orch,
-		statsService:   statsSvc,
-		statsRepo:      statsRepo,
-		pricingService: pricingSvc,
-		reconciler:     reconciler,
+		orchestrator:         orch,
+		statsService:         statsSvc,
+		statsRepo:            statsRepo,
+		pricingService:       pricingSvc,
+		reconciler:           reconciler,
+		recommendationWorker: recommendationWorker,
 	}
 }
 
@@ -363,19 +426,18 @@ func (s *Server) setupRoutes() {
 	s.router.Use(corsMiddleware)
 
 	// Health endpoint using api-core/health for standardized response format
-	// DB may be nil in in-memory mode - health.DB handles this gracefully
 	var rawDB *sql.DB
 	if s.db != nil && s.db.DB != nil {
 		rawDB = s.db.DB.DB // Access underlying *sql.DB from sqlx.DB (which is embedded in database.DB)
 	}
 	healthHandler := health.New().
 		Version("1.0.0").
-		Check(health.DB(rawDB), health.Optional). // Optional since in-memory mode is valid
+		Check(health.DB(rawDB), health.Critical).
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	// Detailed health for UI (includes sandbox + runner dependencies).
 	// Keep /health minimal for infra probes.
-	handler := handlers.New(s.orchestrator)
+	handler := handlers.New(s.orchestrator, handlers.WithStorage(s.storage))
 	handler.SetWebSocketHub(s.wsHub)
 	s.router.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
 
@@ -401,10 +463,18 @@ func (s *Server) setupRoutes() {
 	toolsHandler := handlers.NewToolsHandler(s.toolRegistry)
 	toolsHandler.RegisterRoutes(&muxRouteAdapter{s.router})
 
+	// Register Tool Execution Protocol endpoint
+	toolExec := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
+		Orchestrator: s.orchestrator,
+	})
+	toolExecHandler := toolexecution.NewHandler(toolExec)
+	s.router.HandleFunc("/api/v1/tools/execute", toolExecHandler.Execute).Methods("POST", "OPTIONS")
+
 	// Prometheus metrics endpoint
 	s.router.Handle("/metrics", metrics.Handler()).Methods("GET")
 
 	log.Printf("Tool discovery endpoint available at /api/v1/tools")
+	log.Printf("Tool execution endpoint available at /api/v1/tools/execute")
 	log.Printf("WebSocket endpoint available at /api/v1/ws")
 	log.Printf("Prometheus metrics available at /metrics")
 }
@@ -439,6 +509,13 @@ func (s *Server) Cleanup() error {
 	if s.reconciler != nil {
 		if err := s.reconciler.Stop(); err != nil {
 			s.log("reconciler shutdown failed", map[string]interface{}{"error": err.Error()})
+		}
+	}
+
+	// Stop the recommendation worker
+	if s.recommendationWorker != nil {
+		if err := s.recommendationWorker.Stop(); err != nil {
+			s.log("recommendation worker shutdown failed", map[string]interface{}{"error": err.Error()})
 		}
 	}
 
@@ -545,6 +622,9 @@ func main() {
 
 	if err := server.Run(server.Config{
 		Handler: srv.Router(),
+		// Extended timeouts for LLM-based operations (e.g., recommendation extraction)
+		WriteTimeout: 3 * time.Minute,
+		ReadTimeout:  1 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			return srv.Cleanup()
 		},

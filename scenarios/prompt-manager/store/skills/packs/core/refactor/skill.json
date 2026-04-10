@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "refactor",
+  "name": "Refactor",
+  "description": "Code quality and structure improvements",
+  "modes": [
+    "steer",
+    "refactor"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "refreshcw",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 44,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2026-02-04T13:13:54Z"
+}

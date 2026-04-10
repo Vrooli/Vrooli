@@ -39,6 +39,13 @@ func (w *memWriter) GetFile(path string) ([]byte, bool) {
 	return data, ok
 }
 
+func mustAddModule(t *testing.T, index *parsing.ModuleIndex, module *types.RequirementModule) {
+	t.Helper()
+	if err := index.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
+}
+
 // =============================================================================
 // Builder Tests
 // =============================================================================
@@ -66,7 +73,6 @@ func TestBuilder_Build_EmptyIndex(t *testing.T) {
 	b := New()
 
 	snapshot, err := b.Build(context.Background(), parsing.NewModuleIndex(), enrichment.Summary{})
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -85,7 +91,6 @@ func TestBuilder_Build_NilIndex(t *testing.T) {
 	b := New()
 
 	snapshot, err := b.Build(context.Background(), nil, enrichment.Summary{})
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -119,7 +124,6 @@ func TestBuilder_Build_Summary(t *testing.T) {
 	}
 
 	snapshot, err := b.Build(context.Background(), parsing.NewModuleIndex(), summary)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -158,10 +162,11 @@ func TestBuilder_Build_ModuleSnapshots(t *testing.T) {
 			{ID: "REQ-005", Status: types.StatusPlanned},
 		},
 	}
-	index.AddModule(module)
+	if err := index.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 
 	snapshot, err := b.Build(context.Background(), index, enrichment.Summary{})
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -209,10 +214,11 @@ func TestBuilder_Build_OperationalTargets(t *testing.T) {
 			{ID: "REQ-005", Title: "No PRD Ref", Status: types.StatusComplete}, // No PRD ref
 		},
 	}
-	index.AddModule(module)
+	if err := index.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 
 	snapshot, err := b.Build(context.Background(), index, enrichment.Summary{})
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -273,10 +279,11 @@ func TestBuilder_Build_OperationalTargets_AllPending(t *testing.T) {
 			{ID: "REQ-002", PRDRef: "PRD-001", Status: types.StatusPending},
 		},
 	}
-	index.AddModule(module)
+	if err := index.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 
 	snapshot, err := b.Build(context.Background(), index, enrichment.Summary{})
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -310,11 +317,14 @@ func TestBuilder_Build_MultipleModules(t *testing.T) {
 			{ID: "REQ-003", Status: types.StatusInProgress},
 		},
 	}
-	index.AddModule(module1)
-	index.AddModule(module2)
+	if err := index.AddModule(module1); err != nil {
+		t.Fatalf("add first module: %v", err)
+	}
+	if err := index.AddModule(module2); err != nil {
+		t.Fatalf("add second module: %v", err)
+	}
 
 	snapshot, err := b.Build(context.Background(), index, enrichment.Summary{})
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -333,10 +343,11 @@ func TestBuilder_Build_EmptyModule(t *testing.T) {
 		ModuleName:   "empty-module",
 		Requirements: []types.Requirement{},
 	}
-	index.AddModule(module)
+	if err := index.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
 
 	snapshot, err := b.Build(context.Background(), index, enrichment.Summary{})
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -375,7 +386,6 @@ func TestWriteSnapshot(t *testing.T) {
 	}
 
 	err := WriteSnapshot(writer, "/output/snapshot.json", snapshot)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -407,7 +417,6 @@ func TestWriteSnapshot_Formatting(t *testing.T) {
 	}
 
 	err := WriteSnapshot(writer, "/output/snapshot.json", snapshot)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -586,8 +595,8 @@ func TestBuilder_FullIntegration(t *testing.T) {
 			{ID: "EXT-001", Title: "Extension 1", PRDRef: "PRD-EXT", Status: types.StatusPending, Criticality: types.CriticalityP1},
 		},
 	}
-	index.AddModule(module1)
-	index.AddModule(module2)
+	mustAddModule(t, index, module1)
+	mustAddModule(t, index, module2)
 
 	summary := enrichment.Summary{
 		Total:          4,
@@ -608,7 +617,6 @@ func TestBuilder_FullIntegration(t *testing.T) {
 	}
 
 	snapshot, err := b.Build(context.Background(), index, summary)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

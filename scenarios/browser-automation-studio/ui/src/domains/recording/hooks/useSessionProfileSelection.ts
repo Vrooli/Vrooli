@@ -94,7 +94,14 @@ export function useSessionProfileSelection({
       setSelectedProfileId(maybeDefault);
       setSessionProfileId(maybeDefault);
     }
-  }, [selectedProfileId, sessionProfileId, sessionProfiles.profiles, sessionProfiles.getDefaultProfileId, setSessionProfileId]);
+  }, [
+    selectedProfileId,
+    sessionProfileId,
+    sessionProfiles,
+    sessionProfiles.profiles,
+    sessionProfiles.getDefaultProfileId,
+    setSessionProfileId,
+  ]);
 
   // Sync when sessionProfileId changes externally
   useEffect(() => {
@@ -120,7 +127,13 @@ export function useSessionProfileSelection({
         localStorage.removeItem(LAST_SELECTED_PROFILE_KEY);
       }
     }
-  }, [selectedProfileId, sessionProfiles.getDefaultProfileId, sessionProfiles.profiles, setSessionProfileId]);
+  }, [
+    selectedProfileId,
+    sessionProfiles,
+    sessionProfiles.getDefaultProfileId,
+    sessionProfiles.profiles,
+    setSessionProfileId,
+  ]);
 
   // Select a session profile (with localStorage persistence)
   const handleSelectSessionProfile = useCallback(

@@ -1,24 +1,21 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/gorilla/mux"
 )
 
 func handleAdminGetDownloadStorage(hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		snapshot, err := hosting.SettingsSnapshot(r.Context(), plans.BundleKey())
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to load download storage settings: %v", err), http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("failed to load download storage settings: %v", err), ApiErrorTypeServerError)
 			return
 		}
-		writeJSON(w, map[string]interface{}{
+		writeJSONSuccessData(w, map[string]interface{}{
 			"settings": snapshot,
 		})
 	}
@@ -27,18 +24,17 @@ func handleAdminGetDownloadStorage(hosting *DownloadHostingService, plans *PlanS
 func handleAdminUpdateDownloadStorage(hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var payload DownloadStorageSettingsUpdate
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			http.Error(w, "invalid request payload", http.StatusBadRequest)
+		if !decodeJSONBody(w, r, &payload) {
 			return
 		}
 
 		settings, err := hosting.SaveSettings(r.Context(), plans.BundleKey(), payload)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
 			return
 		}
 
-		writeJSON(w, map[string]interface{}{
+		writeJSONSuccessData(w, map[string]interface{}{
 			"settings": settings,
 		})
 	}
@@ -48,118 +44,158 @@ func handleAdminTestDownloadStorage(hosting *DownloadHostingService, plans *Plan
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := hosting.TestConnection(r.Context(), plans.BundleKey()); err != nil {
 			status := http.StatusBadRequest
+			errType := ApiErrorTypeValidation
 			if errors.Is(err, ErrDownloadStorageNotConfigured) {
 				status = http.StatusConflict
+				errType = ApiErrorTypeServerError
 			}
-			http.Error(w, err.Error(), status)
+			writeJSONError(w, status, err.Error(), errType)
 			return
 		}
-		writeJSON(w, map[string]bool{"success": true})
+		writeJSONSuccessSimple(w)
 	}
 }
 
 func handleAdminListDownloadArtifacts(hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		query := r.URL.Query().Get("query")
-		platform := r.URL.Query().Get("platform")
+		query := getQueryParam(r, "query")
+		platform := getQueryParam(r, "platform")
+		appKey := getQueryParam(r, "app_key")
 
 		page := 1
-		if raw := strings.TrimSpace(r.URL.Query().Get("page")); raw != "" {
+		if raw := strings.TrimSpace(getQueryParam(r, "page")); raw != "" {
 			if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
 				page = parsed
 			}
 		}
 		pageSize := 50
-		if raw := strings.TrimSpace(r.URL.Query().Get("page_size")); raw != "" {
+		if raw := strings.TrimSpace(getQueryParam(r, "page_size")); raw != "" {
 			if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
 				pageSize = parsed
 			}
 		}
 
-		result, err := hosting.ListArtifacts(r.Context(), plans.BundleKey(), query, platform, page, pageSize)
+		result, err := hosting.ListArtifacts(r.Context(), plans.BundleKey(), query, platform, appKey, page, pageSize)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to list download artifacts: %v", err), http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("failed to list download artifacts: %v", err), ApiErrorTypeServerError)
 			return
 		}
-		writeJSON(w, result)
+		writeJSONSuccessData(w, result)
+	}
+}
+
+func handleAdminListDownloadArtifactsByApp(hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		appKey := getQueryParam(r, "app_key")
+		platform := getQueryParam(r, "platform")
+
+		if strings.TrimSpace(appKey) == "" {
+			writeJSONError(w, http.StatusBadRequest, "app_key is required", ApiErrorTypeValidation)
+			return
+		}
+
+		page := 1
+		if raw := strings.TrimSpace(getQueryParam(r, "page")); raw != "" {
+			if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+				page = parsed
+			}
+		}
+		pageSize := 50
+		if raw := strings.TrimSpace(getQueryParam(r, "page_size")); raw != "" {
+			if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+				pageSize = parsed
+			}
+		}
+
+		result, err := hosting.ListArtifactsByApp(r.Context(), plans.BundleKey(), appKey, platform, page, pageSize)
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("failed to list download artifacts: %v", err), ApiErrorTypeServerError)
+			return
+		}
+		writeJSONSuccessData(w, result)
 	}
 }
 
 func handleAdminPresignUploadDownloadArtifact(hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var payload PresignUploadRequest
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			http.Error(w, "invalid request payload", http.StatusBadRequest)
+		if !decodeJSONBody(w, r, &payload) {
 			return
 		}
 
 		resp, err := hosting.PresignUpload(r.Context(), plans.BundleKey(), payload)
 		if err != nil {
 			status := http.StatusBadRequest
+			errType := ApiErrorTypeValidation
 			if errors.Is(err, ErrDownloadStorageNotConfigured) {
 				status = http.StatusConflict
+				errType = ApiErrorTypeServerError
 			}
-			http.Error(w, err.Error(), status)
+			writeJSONError(w, status, err.Error(), errType)
 			return
 		}
 
-		writeJSON(w, resp)
+		writeJSONSuccessData(w, resp)
 	}
 }
 
 func handleAdminCommitDownloadArtifact(hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var payload CommitArtifactRequest
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			http.Error(w, "invalid request payload", http.StatusBadRequest)
+		if !decodeJSONBody(w, r, &payload) {
 			return
 		}
 
 		artifact, err := hosting.CommitArtifact(r.Context(), plans.BundleKey(), payload)
 		if err != nil {
 			status := http.StatusBadRequest
+			errType := ApiErrorTypeValidation
 			if errors.Is(err, ErrDownloadStorageNotConfigured) {
 				status = http.StatusConflict
+				errType = ApiErrorTypeServerError
 			}
-			http.Error(w, err.Error(), status)
+			writeJSONError(w, status, err.Error(), errType)
 			return
 		}
 
-		writeJSON(w, artifact)
+		writeJSONSuccessData(w, artifact)
 	}
 }
 
 func handleAdminPresignGetDownloadArtifact(hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		raw := strings.TrimSpace(vars["artifact_id"])
-		id, err := strconv.ParseInt(raw, 10, 64)
-		if err != nil || id <= 0 {
-			http.Error(w, "artifact_id path parameter must be a positive integer", http.StatusBadRequest)
+		id, ok := getPathParamInt64(w, r, "artifact_id")
+		if !ok {
+			return
+		}
+		if id <= 0 {
+			writeJSONError(w, http.StatusBadRequest, "artifact_id must be a positive integer", ApiErrorTypeValidation)
 			return
 		}
 
 		artifact, err := hosting.GetArtifact(r.Context(), plans.BundleKey(), id)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to load artifact: %v", err), http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("failed to load artifact: %v", err), ApiErrorTypeServerError)
 			return
 		}
 		if artifact == nil {
-			http.Error(w, "artifact not found", http.StatusNotFound)
+			writeJSONError(w, http.StatusNotFound, "artifact not found", ApiErrorTypeNotFound)
 			return
 		}
 
 		url, err := hosting.PresignGetArtifact(r.Context(), plans.BundleKey(), *artifact)
 		if err != nil {
 			status := http.StatusBadRequest
+			errType := ApiErrorTypeValidation
 			if errors.Is(err, ErrDownloadStorageNotConfigured) {
 				status = http.StatusConflict
+				errType = ApiErrorTypeServerError
 			}
-			http.Error(w, err.Error(), status)
+			writeJSONError(w, status, err.Error(), errType)
 			return
 		}
 
-		writeJSON(w, map[string]string{
+		writeJSONSuccessData(w, map[string]string{
 			"url": url,
 		})
 	}
@@ -170,6 +206,7 @@ func handleAdminApplyDownloadArtifact(downloads *DownloadService, hosting *Downl
 		var payload struct {
 			AppKey              string                 `json:"app_key"`
 			Platform            string                 `json:"platform"`
+			VariantKey          string                 `json:"variant_key"`
 			ArtifactID          int64                  `json:"artifact_id"`
 			ReleaseVersion      string                 `json:"release_version"`
 			ReleaseNotes        string                 `json:"release_notes"`
@@ -177,29 +214,28 @@ func handleAdminApplyDownloadArtifact(downloads *DownloadService, hosting *Downl
 			RequiresEntitlement *bool                  `json:"requires_entitlement"`
 			Metadata            map[string]interface{} `json:"metadata"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			http.Error(w, "invalid request payload", http.StatusBadRequest)
+		if !decodeJSONBody(w, r, &payload) {
 			return
 		}
 
 		appKey := strings.TrimSpace(payload.AppKey)
 		platform := strings.TrimSpace(payload.Platform)
 		if appKey == "" || platform == "" {
-			http.Error(w, "app_key and platform are required", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "app_key and platform are required", ApiErrorTypeValidation)
 			return
 		}
 		if payload.ArtifactID <= 0 {
-			http.Error(w, "artifact_id is required", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "artifact_id is required", ApiErrorTypeValidation)
 			return
 		}
 
 		artifact, err := hosting.GetArtifact(r.Context(), plans.BundleKey(), payload.ArtifactID)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to load artifact: %v", err), http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("failed to load artifact: %v", err), ApiErrorTypeServerError)
 			return
 		}
 		if artifact == nil {
-			http.Error(w, "artifact not found", http.StatusNotFound)
+			writeJSONError(w, http.StatusNotFound, "artifact not found", ApiErrorTypeNotFound)
 			return
 		}
 
@@ -208,7 +244,7 @@ func handleAdminApplyDownloadArtifact(downloads *DownloadService, hosting *Downl
 			releaseVersion = strings.TrimSpace(artifact.ReleaseVersion)
 		}
 		if releaseVersion == "" {
-			http.Error(w, "release_version is required (provide it or set one on the artifact)", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "release_version is required (provide it or set one on the artifact)", ApiErrorTypeValidation)
 			return
 		}
 
@@ -222,6 +258,7 @@ func handleAdminApplyDownloadArtifact(downloads *DownloadService, hosting *Downl
 			BundleKey:           plans.BundleKey(),
 			AppKey:              appKey,
 			Platform:            platform,
+			VariantKey:          payload.VariantKey,
 			ArtifactURL:         "",
 			ArtifactSource:      "managed",
 			ArtifactID:          &id,
@@ -232,10 +269,100 @@ func handleAdminApplyDownloadArtifact(downloads *DownloadService, hosting *Downl
 			Metadata:            payload.Metadata,
 		})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
 			return
 		}
 
-		writeJSON(w, updated)
+		writeJSONSuccessData(w, updated)
+	}
+}
+
+// handleAdminSetArtifactAsCurrent promotes an artifact to be the current version for an app/platform.
+func handleAdminSetArtifactAsCurrent(downloads *DownloadService, hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var payload struct {
+			ArtifactID int64  `json:"artifact_id"`
+			AppKey     string `json:"app_key"`
+			Platform   string `json:"platform"`
+		}
+		if !decodeJSONBody(w, r, &payload) {
+			return
+		}
+
+		appKey := strings.TrimSpace(payload.AppKey)
+		platform := strings.TrimSpace(payload.Platform)
+		if appKey == "" || platform == "" {
+			writeJSONError(w, http.StatusBadRequest, "app_key and platform are required", ApiErrorTypeValidation)
+			return
+		}
+		if payload.ArtifactID <= 0 {
+			writeJSONError(w, http.StatusBadRequest, "artifact_id is required", ApiErrorTypeValidation)
+			return
+		}
+
+		artifact, err := hosting.GetArtifact(r.Context(), plans.BundleKey(), payload.ArtifactID)
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("failed to load artifact: %v", err), ApiErrorTypeServerError)
+			return
+		}
+		if artifact == nil {
+			writeJSONError(w, http.StatusNotFound, "artifact not found", ApiErrorTypeNotFound)
+			return
+		}
+
+		// Get the existing asset to preserve its settings (entitlement, release notes, etc.)
+		existingAsset, err := downloads.GetAsset(plans.BundleKey(), appKey, platform)
+		if err != nil && !errors.Is(err, ErrDownloadNotFound) {
+			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("failed to load existing asset: %v", err), ApiErrorTypeServerError)
+			return
+		}
+
+		// Use artifact's release version, fall back to existing asset's version
+		releaseVersion := strings.TrimSpace(artifact.ReleaseVersion)
+		releaseNotes := ""
+		requiresEntitlement := false
+		var metadata map[string]interface{}
+
+		if existingAsset != nil {
+			if releaseVersion == "" {
+				releaseVersion = existingAsset.ReleaseVersion
+			}
+			releaseNotes = existingAsset.ReleaseNotes
+			requiresEntitlement = existingAsset.RequiresEntitlement
+			metadata = existingAsset.Metadata
+		}
+
+		if releaseVersion == "" {
+			writeJSONError(w, http.StatusBadRequest, "artifact has no release_version and no existing version to use", ApiErrorTypeValidation)
+			return
+		}
+
+		// Add size_bytes from artifact to metadata
+		if metadata == nil {
+			metadata = make(map[string]interface{})
+		}
+		if artifact.SizeBytes > 0 {
+			metadata["size_mb"] = float64(artifact.SizeBytes) / (1024 * 1024)
+		}
+
+		id := payload.ArtifactID
+		updated, err := downloads.UpsertAsset(r.Context(), DownloadAsset{
+			BundleKey:           plans.BundleKey(),
+			AppKey:              appKey,
+			Platform:            platform,
+			ArtifactURL:         "",
+			ArtifactSource:      "managed",
+			ArtifactID:          &id,
+			ReleaseVersion:      releaseVersion,
+			ReleaseNotes:        releaseNotes,
+			RequiresEntitlement: requiresEntitlement,
+			Metadata:            metadata,
+		})
+		if err != nil {
+			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
+			return
+		}
+
+		writeJSONSuccessData(w, updated)
 	}
 }

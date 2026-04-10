@@ -261,6 +261,18 @@ class ApiService {
     return response.violations || []
   }
 
+  // Deterministic Fix (proxied to stack-governor)
+  async triggerDeterministicFix(
+    scenarioNames: string[],
+    ruleIds: string[],
+    dryRun = false
+  ): Promise<{ results: Array<{ scenario_name: string; rule_id: string; fixed: boolean; file_path: string; changes: Array<{ type: string; detail: string }>; error?: string }>; count: number; unfixable_rules?: string[]; errors?: string[] }> {
+    return this.fetch('/standards/fix', {
+      method: 'POST',
+      body: JSON.stringify({ scenario_names: scenarioNames, rule_ids: ruleIds, dry_run: dryRun }),
+    })
+  }
+
   // Claude Fix
   async triggerClaudeFix(
     scenarioName: string,

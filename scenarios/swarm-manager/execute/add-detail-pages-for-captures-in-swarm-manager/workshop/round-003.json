@@ -1,0 +1,31 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-30T21:30:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 2,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "All 8 workshop decisions (4 from round 1, 4 from round 2) have been incorporated into the plan. Round 2 decisions (R2-d1 through R2-d4) moved from Pending to Settled in the Contract Decisions table. Implementation phases updated with specific approaches: custom lightbox modal (R2-d1=A), no selectionToNodeId changes (R2-d2=A), store-first data fetching (R2-d3=A), and CaptureTriage component extraction (R2-d4=A)."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Remaining gap: testable dimension scores 2/3. Test cases are identified (unit, integration, regression) but specific assertions and test file locations are not fully specified. This is acceptable for execution — the implementing agent can derive test specifics from the existing test patterns in the codebase."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Note from round 2 info i2: acceptance_allow field could not be set via backlog update API (405 error). The plan documents the intended acceptance_allow as 'scenarios/swarm-manager/ui/**'. This is a metadata issue and does not block execution."
+    }
+  ],
+  "plan_updates": "Moved all round 2 decisions to Settled status in Contract Decisions table. Added 'Third-party lightbox libraries' to Out of Scope. Updated Phase 5 title to 'Lightbox & Polish' with custom modal implementation details. Added lightbox unit tests to Testing Plan. Added 'store-first fetch staleness' risk. Added prohibitions for lightbox dependencies and selectionToNodeId modification to Non-goals. Updated Target End State with lightbox specifics."
+}

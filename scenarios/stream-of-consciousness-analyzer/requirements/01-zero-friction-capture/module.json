@@ -1,0 +1,161 @@
+{
+  "description": "Users can begin recording thoughts within 1 second of app launch via voice, text, or media",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "performance",
+      "children": ["REQ-P0-001a", "REQ-P0-001b"],
+      "description": "The application must enable users to start voice recording within 1000ms of app launch through a prominent record button or voice command",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Sub-Second Voice Recording Start"
+    },
+    {
+      "category": "api",
+      "children": ["REQ-P0-001a1", "REQ-P0-001a2"],
+      "description": "API response helpers produce correct JSON format and status codes for all handler responses",
+      "id": "REQ-P0-001a",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "API Response Formatting"
+    },
+    {
+      "category": "api",
+      "description": "JSON success response helper serializes data with correct Content-Type and 200 status",
+      "id": "REQ-P0-001a1",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Success Response Serialization",
+      "validation": [
+        {
+          "notes": "Test JSON response helpers used by all handlers",
+          "phase": "unit",
+          "ref": "api/handlers_test.go:TestWriteJSON",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Error response helper produces structured error JSON with appropriate HTTP status codes",
+      "id": "REQ-P0-001a2",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Error Response Structure",
+      "validation": [
+        {
+          "notes": "Test error response format for API consistency",
+          "phase": "unit",
+          "ref": "api/handlers_test.go:TestWriteJSONError",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Data models serialize correctly for API transport, ensuring sub-second client-side parsing",
+      "id": "REQ-P0-001b",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Model Serialization Fidelity",
+      "validation": [
+        {
+          "notes": "Scheme model JSON serialization roundtrip",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestSchemeJSON",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test partial update fields for thought input (omit unchanged fields)",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestUpdateThoughtInputPartialFields",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "children": ["REQ-P0-002a", "REQ-P0-002b"],
+      "description": "Text entry must be available within 1000ms of app launch through an auto-focused text field",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Quick Text Entry"
+    },
+    {
+      "category": "api",
+      "description": "Scheme creation validates input and rejects malformed JSON with proper error responses",
+      "id": "REQ-P0-002a",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Scheme Input Validation",
+      "validation": [
+        {
+          "notes": "Test bad JSON rejection for scheme creation",
+          "phase": "unit",
+          "ref": "api/handlers_test.go:TestHandleCreateScheme_BadJSON",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Empty name rejection for scheme creation",
+          "phase": "unit",
+          "ref": "api/scheme_handlers_test.go:TestHandleCreateScheme_EmptyName",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "children": ["REQ-P0-002b1", "REQ-P0-002b2"],
+      "description": "Scheme CRUD operations handle success and error paths correctly",
+      "id": "REQ-P0-002b",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Scheme CRUD Operations"
+    },
+    {
+      "category": "api",
+      "description": "Scheme creation input deserializes correctly from JSON request bodies",
+      "id": "REQ-P0-002b1",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Scheme Input Deserialization",
+      "validation": [
+        {
+          "notes": "Test CreateSchemeInput deserialization",
+          "phase": "unit",
+          "ref": "api/model_test.go:TestCreateSchemeInputJSON",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Full scheme lifecycle (create, update, delete) completes without errors",
+      "id": "REQ-P0-002b2",
+      "prd_ref": "OT-P0-001",
+      "status": "passed",
+      "title": "Scheme Lifecycle Integrity",
+      "validation": [
+        {
+          "notes": "Scheme lifecycle create/update/delete",
+          "phase": "unit",
+          "ref": "api/scheme_handlers_test.go:TestSchemeLifecycle",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Zero-Friction Capture"
+}

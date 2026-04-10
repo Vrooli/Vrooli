@@ -1,0 +1,113 @@
+{
+  "description": "UI properly integrates with Vrooli's iframe-bridge for orchestration. ui-smoke test passes with browserless screenshot capture.",
+  "module_id": "MOD-P1-020",
+  "prd_ref": "OT-P1-008",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "children": [
+        "REQ-P1-008a",
+        "REQ-P1-008b"
+      ],
+      "description": "Complete iframe-bridge integration with UI smoke testing.",
+      "id": "REQ-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "passed",
+      "title": "iframe-bridge Integration"
+    },
+    {
+      "category": "integration",
+      "children": [
+        "REQ-P1-008a-1",
+        "REQ-P1-008a-2"
+      ],
+      "description": "UI properly integrates with Vrooli's iframe-bridge for orchestration commands and events.",
+      "id": "REQ-P1-008a",
+      "prd_ref": "OT-P1-008",
+      "status": "passed",
+      "title": "iframe-bridge Protocol"
+    },
+    {
+      "category": "integration",
+      "description": "iframe-bridge initialization with appId.",
+      "id": "REQ-P1-008a-1",
+      "prd_ref": "OT-P1-008",
+      "status": "passed",
+      "title": "Bridge Initialization",
+      "validation": [
+        {
+          "notes": "iframe-bridge initialization with proper appId",
+          "phase": "unit",
+          "ref": "ui/src/main.tsx",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "integration",
+      "description": "Idempotent initialization guard.",
+      "id": "REQ-P1-008a-2",
+      "prd_ref": "OT-P1-008",
+      "status": "passed",
+      "title": "Initialization Guard",
+      "validation": [
+        {
+          "notes": "Idempotency guard in main.tsx",
+          "phase": "integration",
+          "ref": "ui/src/main.tsx",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "integration",
+      "children": [
+        "REQ-P1-008b-1",
+        "REQ-P1-008b-2"
+      ],
+      "description": "ui-smoke test passes with browserless screenshot capture verifying visual rendering.",
+      "id": "REQ-P1-008b",
+      "prd_ref": "OT-P1-008",
+      "status": "passed",
+      "title": "UI Smoke Test"
+    },
+    {
+      "category": "integration",
+      "description": "Vite build configuration for production.",
+      "id": "REQ-P1-008b-1",
+      "prd_ref": "OT-P1-008",
+      "status": "passed",
+      "title": "Build Configuration",
+      "validation": [
+        {
+          "notes": "UI builds and serves successfully",
+          "phase": "business",
+          "ref": "ui/vite.config.ts",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "integration",
+      "description": "Smoke test screenshot capture.",
+      "id": "REQ-P1-008b-2",
+      "prd_ref": "OT-P1-008",
+      "status": "passed",
+      "title": "Screenshot Verification",
+      "validation": [
+        {
+          "notes": "UI smoke test coverage directory",
+          "phase": "performance",
+          "ref": "coverage/ui-smoke",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    }
+  ],
+  "title": "iframe-bridge Integration"
+}

@@ -1,17 +1,26 @@
 # Manifest Reference
 
+> [CODE: api/domain/manifest.go] — CloudManifest type definition
+> [CODE: api/manifest/] — Validation and normalization logic
+
 Complete reference for the deployment manifest configuration.
+
+Canonical source:
+```bash
+scenario-to-cloud manifest schema
+```
 
 ## Schema Overview
 
 ```json
 {
+  "version": "...",
   "scenario": { ... },
   "target": { ... },
   "edge": { ... },
   "ports": { ... },
   "dependencies": { ... },
-  "options": { ... }
+  "bundle": { ... }
 }
 ```
 
@@ -38,6 +47,7 @@ Defines where to deploy.
 ```json
 {
   "target": {
+    "type": "vps",
     "vps": {
       "host": "192.168.1.100",
       "user": "root",
@@ -50,6 +60,7 @@ Defines where to deploy.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
+| `type` | string | Yes | - | Deployment target type (`vps`) |
 | `vps.host` | string | Yes | - | Hostname or IP address |
 | `vps.user` | string | No | `root` | SSH username |
 | `vps.port` | number | No | `22` | SSH port |
@@ -113,16 +124,17 @@ Declare required resources and scenarios.
 | `resources` | string[] | Resource IDs to start |
 | `scenarios` | string[] | Dependent scenario IDs |
 
-## Options Section
+## Bundle Section
 
-Deployment behavior options.
+Bundle composition and runtime safety defaults.
 
 ```json
 {
-  "options": {
+  "bundle": {
     "include_packages": true,
-    "autoheal": true,
-    "force_rebuild": false
+    "include_autoheal": true,
+    "scenarios": ["agent-inbox", "vrooli-autoheal"],
+    "resources": ["postgres"]
   }
 }
 ```
@@ -130,17 +142,20 @@ Deployment behavior options.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `include_packages` | boolean | `true` | Include npm/go dependencies |
-| `autoheal` | boolean | `true` | Enable automatic restart on failure |
-| `force_rebuild` | boolean | `false` | Rebuild even if bundle exists |
+| `include_autoheal` | boolean | `true` | Include `vrooli-autoheal` in bundle |
+| `scenarios` | string[] | from dependencies | Explicit scenarios bundled |
+| `resources` | string[] | from dependencies | Explicit resources bundled |
 
 ## Complete Example
 
 ```json
 {
+  "version": "1.0.0",
   "scenario": {
     "id": "agent-inbox"
   },
   "target": {
+    "type": "vps",
     "vps": {
       "host": "vps.example.com",
       "user": "deploy",
@@ -162,9 +177,9 @@ Deployment behavior options.
     "resources": ["postgres", "ollama"],
     "scenarios": []
   },
-  "options": {
+  "bundle": {
     "include_packages": true,
-    "autoheal": true
+    "include_autoheal": true
   }
 }
 ```

@@ -23,26 +23,6 @@ gemini::inject() {
     gemini::init >/dev/null 2>&1
     
     case "$target" in
-        n8n|huginn|node-red)
-            # Inject API credentials for automation platforms
-            local injection_data="{
-                \"type\": \"gemini\",
-                \"name\": \"Google Gemini API\",
-                \"credentials\": {
-                    \"apiKey\": \"${GEMINI_API_KEY}\",
-                    \"baseUrl\": \"${GEMINI_API_BASE}\",
-                    \"defaultModel\": \"${GEMINI_DEFAULT_MODEL}\"
-                }
-            }"
-            
-            # Call target's injection handler if available
-            if command -v "resource-${target}" >/dev/null 2>&1; then
-                echo "$injection_data" | resource-"${target}" inject gemini -
-                log::success "Injected Gemini credentials into ${target}"
-            else
-                log::warn "${target} resource not available for injection"
-            fi
-            ;;
         ollama)
             # Gemini can't be injected into Ollama (different API types)
             log::error "Gemini cannot be injected into Ollama (incompatible APIs)"

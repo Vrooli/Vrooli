@@ -24,7 +24,7 @@ export function MaintenanceTab({
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Danger Zone</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground">Danger Zone</h3>
         <Card className="border-destructive/40 bg-destructive/5">
           <CardContent className="space-y-4 py-4">
             <div className="space-y-2">
@@ -85,7 +85,7 @@ export function MaintenanceTab({
       </div>
 
       <div className="space-y-2 text-sm text-muted-foreground">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Service Controls</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground">Service Controls</h3>
         <p>Future settings like pausing new runs or offline mode will live here.</p>
       </div>
     </div>

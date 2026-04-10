@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import { getProxyInfo } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
 import App from "./App";
 import "./styles/global.css";
@@ -10,6 +11,19 @@ declare global {
     __agentManagerBridgeInitialized?: boolean;
   }
 }
+
+// INTEROP-CRITICAL: BrowserRouter must use proxy-aware basename so route links
+// work correctly when this UI is served under /apps/<scenario>/proxy.
+function getRouterBasename(): string {
+  const proxyInfo = getProxyInfo();
+  const proxyPath = proxyInfo?.primary?.path ?? proxyInfo?.basePath;
+  if (!proxyPath) {
+    return "";
+  }
+  return proxyPath.replace(/\/+$/, "");
+}
+
+const routerBasename = getRouterBasename();
 
 if (
   typeof window !== "undefined" &&
@@ -22,7 +36,7 @@ if (
     if (document.referrer) {
       parentOrigin = new URL(document.referrer).origin;
     }
-  } catch (error) {
+  } catch {
     // Fall back to default origin when parsing fails.
   }
 
@@ -32,7 +46,7 @@ if (
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename}>
       <App />
     </BrowserRouter>
   </React.StrictMode>

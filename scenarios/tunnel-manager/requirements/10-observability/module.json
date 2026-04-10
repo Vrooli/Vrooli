@@ -1,0 +1,175 @@
+{
+  "module": "observability",
+  "description": "Metrics storage, logging, and event tracking for tunnel operations",
+  "prd_refs": [
+    "OT-P1-004",
+    "OT-P1-007",
+    "OT-P1-009"
+  ],
+  "requirements": [
+    {
+      "id": "OBS-001",
+      "title": "Metrics time-series storage",
+      "description": "Store scraped cloudflared metrics (HA connections, error rate, RTT, active streams) in PostgreSQL with timestamps. Retain 7 days of 1-minute resolution data.",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "children": [
+        "OBS-001A",
+        "OBS-001B"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "OBS-001A",
+      "title": "Metric data model",
+      "description": "Store metric name, value, and timestamp as time-series rows in PostgreSQL",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "children": [
+        "OBS-001A1"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "OBS-001A1",
+      "title": "Metric retention policy",
+      "description": "Automatically purge metric records older than 7 days to control storage growth",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "passing",
+          "ref": "api/metrics_store_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "OBS-001B",
+      "title": "Metric query API",
+      "description": "Expose API endpoints to query stored metrics with time range and metric name filters",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "passing",
+          "ref": "api/metrics_store_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "OBS-002",
+      "title": "Probe history storage",
+      "description": "Store probe results per route in PostgreSQL: timestamp, route, internal result, external result, classification, response time. Retain 7 days.",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "children": [
+        "OBS-002A",
+        "OBS-002B"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "OBS-002A",
+      "title": "Probe result schema",
+      "description": "Store per-route probe data: timestamp, route ID, internal result, external result, classification, response time",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "children": [
+        "OBS-002A1"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "OBS-002A1",
+      "title": "Probe history retention",
+      "description": "Automatically purge probe records older than 7 days",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "passing",
+          "ref": "api/probe_store_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "OBS-002B",
+      "title": "Probe history query API",
+      "description": "Expose API endpoints to query probe history with route and time range filters",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "passing",
+          "ref": "api/probe_store_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "OBS-003",
+      "title": "Structured logging",
+      "description": "All operations logged with structured fields: component, action, result, duration, error. Log to stderr in JSON format for journalctl compatibility.",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "children": [
+        "OBS-003A"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "OBS-003A",
+      "title": "JSON log format",
+      "description": "Output structured logs in JSON format to stderr for journalctl and log aggregation compatibility",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "children": [
+        "OBS-003A1"
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "OBS-003A1",
+      "title": "Log field structure",
+      "description": "Each log entry includes component, action, result, duration, and error fields",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "passing",
+          "ref": "api/logging_test.go"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "OBS-004",
+      "title": "Health API endpoint",
+      "description": "GET /api/v1/health/detailed returns composite tunnel health for other Vrooli scenarios (e.g., vrooli-autoheal) to consume. Includes route-level status summary.",
+      "prd_ref": "OT-P1-009",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "passing",
+          "ref": "api/health_handler_test.go"
+        }
+      ],
+      "status": "complete"
+    }
+  ]
+}

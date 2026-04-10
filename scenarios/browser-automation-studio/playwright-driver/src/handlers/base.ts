@@ -172,7 +172,7 @@ export abstract class BaseHandler implements InstructionHandler {
     page: Page,
     selector: string
   ): Promise<{ x: number; y: number; width: number; height: number } | null> {
-    const element = await page.locator(selector).first();
+    const element = page.locator(selector).first();
     const box = await element.boundingBox();
 
     if (!box) {
@@ -195,7 +195,7 @@ export abstract class BaseHandler implements InstructionHandler {
     selector?: string
   ): Promise<string> {
     if (selector) {
-      const element = await page.locator(selector).first();
+      const element = page.locator(selector).first();
       const text = await element.textContent();
       return text || '';
     }
@@ -212,7 +212,7 @@ export abstract class BaseHandler implements InstructionHandler {
     selector: string,
     attribute: string
   ): Promise<string | null> {
-    const element = await page.locator(selector).first();
+    const element = page.locator(selector).first();
     return element.getAttribute(attribute);
   }
 

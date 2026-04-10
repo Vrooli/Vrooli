@@ -3,68 +3,31 @@
  * Manages real-time WebSocket connection to agent-manager for agent updates
  */
 
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { fetchAgentManagerWSUrl } from '../lib/api';
-
-// WebSocket message types from agent-manager
-export type WebSocketMessageType =
-  | 'connected'
-  | 'run_started'
-  | 'run_output'
-  | 'run_completed'
-  | 'run_failed'
-  | 'run_cancelled'
-  | 'agent_updated'    // Mapped from run events for backwards compatibility
-  | 'agent_output'     // Mapped from run_output
-  | 'agent_stopped'    // Mapped from run_cancelled
-  | 'agents_stopped_all'
-  | string;
-
-export interface WebSocketMessage {
-  type: WebSocketMessageType;
-  data?: AgentUpdateData | AgentOutputData | Record<string, unknown>;
-  message?: string;
-  timestamp?: number;
-  [key: string]: unknown;
-}
-
-export interface AgentUpdateData {
-  id: string;
-  runId?: string;
-  sessionId?: string;
-  scenario?: string;
-  scope?: string[];
-  phases?: string[];
-  model?: string;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'timeout' | 'stopped';
-  startedAt?: string;
-  completedAt?: string;
-  output?: string;
-  error?: string;
-}
-
-export interface AgentOutputData {
-  agentId: string;
-  runId?: string;
-  output: string;
-  sequence?: number;
-}
-
-interface WebSocketContextValue {
-  isConnected: boolean;
-  lastMessage: WebSocketMessage | null;
-  send: (message: unknown) => void;
-  reconnect: () => void;
-  subscribeToRuns: (runIds: string[]) => void;
-}
-
-const WebSocketContext = createContext<WebSocketContextValue | undefined>(undefined);
+import {
+  type AgentUpdateData,
+  type WebSocketContextValue,
+  type WebSocketMessage,
+  WebSocketContext,
+} from './WebSocketContext.shared';
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 30000;
 
-// Map agent-manager run status to test-genie agent status
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function readNumber(value: unknown): number | undefined {
+  return typeof value === 'number' ? value : undefined;
+}
+
 function mapRunStatus(status: string): AgentUpdateData['status'] {
   switch (status) {
     case 'RUN_STATUS_QUEUED':
@@ -90,98 +53,125 @@ function mapRunStatus(status: string): AgentUpdateData['status'] {
   }
 }
 
-// Map agent-manager WebSocket event to test-genie format
 function mapAgentManagerEvent(event: Record<string, unknown>): WebSocketMessage {
-  const eventType = event.type as string || event.eventType as string;
+  const eventType = readString(event.type) ?? readString(event.eventType) ?? 'unknown';
 
   switch (eventType) {
     case 'run_started':
-    case 'run_status_changed':
+    case 'run_status_changed': {
+      const runId = readString(event.runId);
       return {
         type: 'agent_updated',
         data: {
-          id: event.tag || event.runId,
-          runId: event.runId,
-          status: mapRunStatus(event.status as string || 'running'),
-          startedAt: event.startedAt,
-          completedAt: event.completedAt,
-        } as AgentUpdateData,
+          id: readString(event.tag) ?? runId ?? 'unknown-agent',
+          runId,
+          status: mapRunStatus(readString(event.status) ?? 'running'),
+          startedAt: readString(event.startedAt),
+          completedAt: readString(event.completedAt),
+        },
         timestamp: Date.now(),
       };
+    }
 
-    case 'run_output':
+    case 'run_output': {
+      const runId = readString(event.runId);
       return {
         type: 'agent_output',
         data: {
-          agentId: event.tag || event.runId,
-          runId: event.runId,
-          output: event.output || event.content,
-          sequence: event.sequence,
-        } as AgentOutputData,
+          agentId: readString(event.tag) ?? runId ?? 'unknown-agent',
+          runId,
+          output: readString(event.output) ?? readString(event.content) ?? '',
+          sequence: readNumber(event.sequence),
+        },
         timestamp: Date.now(),
       };
+    }
 
-    case 'run_completed':
+    case 'run_completed': {
+      const runId = readString(event.runId);
       return {
         type: 'agent_updated',
         data: {
-          id: event.tag || event.runId,
-          runId: event.runId,
+          id: readString(event.tag) ?? runId ?? 'unknown-agent',
+          runId,
           status: 'completed',
-          completedAt: event.completedAt,
-          output: event.output,
-        } as AgentUpdateData,
+          completedAt: readString(event.completedAt),
+          output: readString(event.output),
+        },
         timestamp: Date.now(),
       };
+    }
 
-    case 'run_failed':
+    case 'run_failed': {
+      const runId = readString(event.runId);
       return {
         type: 'agent_updated',
         data: {
-          id: event.tag || event.runId,
-          runId: event.runId,
+          id: readString(event.tag) ?? runId ?? 'unknown-agent',
+          runId,
           status: 'failed',
-          completedAt: event.completedAt,
-          error: event.error,
-        } as AgentUpdateData,
+          completedAt: readString(event.completedAt),
+          error: readString(event.error),
+        },
         timestamp: Date.now(),
       };
+    }
 
-    case 'run_cancelled':
+    case 'run_cancelled': {
+      const runId = readString(event.runId);
       return {
         type: 'agent_stopped',
         data: {
-          id: event.tag || event.runId,
-          runId: event.runId,
+          id: readString(event.tag) ?? runId ?? 'unknown-agent',
+          runId,
           status: 'stopped',
-          completedAt: event.completedAt,
-        } as AgentUpdateData,
+          completedAt: readString(event.completedAt),
+        },
         timestamp: Date.now(),
       };
+    }
 
     default:
-      // Pass through other events unchanged
       return {
         type: eventType || 'unknown',
-        data: event as Record<string, unknown>,
+        data: event,
         timestamp: Date.now(),
       };
   }
 }
 
-export function WebSocketProvider({ children }: { children: React.ReactNode }) {
+export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
+  const connectRef = useRef<(() => void) | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const reconnectDelayRef = useRef(INITIAL_RECONNECT_DELAY);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wsUrlRef = useRef<string | null>(null);
   const subscribedRunsRef = useRef<string[]>([]);
 
+  const attemptReconnect = useCallback(() => {
+    if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+      console.error('[WebSocket] Max reconnection attempts reached');
+      return;
+    }
+
+    reconnectAttemptsRef.current++;
+    const delay = reconnectDelayRef.current;
+
+    console.log(
+      `[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`
+    );
+
+    reconnectTimeoutRef.current = setTimeout(() => {
+      connectRef.current?.();
+      reconnectDelayRef.current = Math.min(reconnectDelayRef.current * 2, MAX_RECONNECT_DELAY);
+    }, delay);
+  }, []);
+
   const connect = useCallback(async () => {
-    // Fetch WebSocket URL from test-genie API if not cached
     if (!wsUrlRef.current) {
       try {
         const response = await fetchAgentManagerWSUrl();
@@ -214,7 +204,6 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         reconnectAttemptsRef.current = 0;
         reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
 
-        // Re-subscribe to any tracked runs
         if (subscribedRunsRef.current.length > 0) {
           ws.send(JSON.stringify({
             type: 'subscribe',
@@ -225,8 +214,16 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
       ws.onmessage = (event) => {
         try {
-          const rawMessage = JSON.parse(event.data);
-          // Map agent-manager events to test-genie format
+          if (typeof event.data !== 'string') {
+            console.error('[WebSocket] Ignoring non-string message payload');
+            return;
+          }
+          const rawMessage: unknown = JSON.parse(event.data);
+          if (!isRecord(rawMessage)) {
+            console.error('[WebSocket] Ignoring non-object message payload');
+            return;
+          }
+
           const message = mapAgentManagerEvent(rawMessage);
           console.log('[WebSocket] Message received:', message.type, message.data);
           setLastMessage(message);
@@ -248,27 +245,11 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       console.error('[WebSocket] Failed to create connection:', error);
       attemptReconnect();
     }
-  }, []);
+  }, [attemptReconnect]);
 
-  const attemptReconnect = useCallback(() => {
-    if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
-      console.error('[WebSocket] Max reconnection attempts reached');
-      return;
-    }
-
-    reconnectAttemptsRef.current++;
-    const delay = reconnectDelayRef.current;
-
-    console.log(
-      `[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`
-    );
-
-    reconnectTimeoutRef.current = setTimeout(() => {
-      connect();
-      // Exponential backoff
-      reconnectDelayRef.current = Math.min(reconnectDelayRef.current * 2, MAX_RECONNECT_DELAY);
-    }, delay);
-  }, [connect]);
+  connectRef.current = () => {
+    void connect();
+  };
 
   const send = useCallback((message: unknown) => {
     const ws = wsRef.current;
@@ -280,25 +261,21 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const reconnect = useCallback(() => {
-    // Close existing connection
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
 
-    // Clear any pending reconnection
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
 
-    // Reset reconnection state and URL cache
     reconnectAttemptsRef.current = 0;
     reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
     wsUrlRef.current = null;
 
-    // Connect
-    connect();
+    void connect();
   }, [connect]);
 
   const subscribeToRuns = useCallback((runIds: string[]) => {
@@ -307,16 +284,14 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     if (ws && ws.readyState === WebSocket.OPEN && runIds.length > 0) {
       ws.send(JSON.stringify({
         type: 'subscribe',
-        runIds: runIds,
+        runIds,
       }));
     }
   }, []);
 
-  // Initial connection
   useEffect(() => {
-    connect();
+    void connect();
 
-    // Cleanup on unmount
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -336,12 +311,4 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   };
 
   return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
-}
-
-export function useWebSocket() {
-  const context = useContext(WebSocketContext);
-  if (!context) {
-    throw new Error('useWebSocket must be used within a WebSocketProvider');
-  }
-  return context;
 }

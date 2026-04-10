@@ -354,6 +354,62 @@ teardown() {
 # Test container cleanup
 @test "whisper::cleanup_container performs complete cleanup" {
     result=$(whisper::cleanup_container)
-    
+
     [[ "$result" =~ "cleanup" ]] || [[ "$result" =~ "DOCKER_RM:" ]]
+}
+
+# GPU auto-detection tests — run in subshells to get clean readonly state
+
+@test "GPU auto-detection defaults to yes when GPU available" {
+    local defaults_path="${WHISPER_DIR}/config/defaults.sh"
+    result=$(
+        unset WHISPER_GPU_ENABLED GPU
+        # Mock nvidia-smi and docker to simulate GPU presence
+        nvidia-smi() { return 0; }
+        docker() {
+            case "$1" in
+                "info") echo "  Runtimes: nvidia runc"; return 0 ;;
+                *) return 0 ;;
+            esac
+        }
+        export -f nvidia-smi docker
+        source "$defaults_path"
+        defaults::export_config
+        echo "$WHISPER_GPU_ENABLED"
+    )
+    [ "$result" = "yes" ]
+}
+
+@test "GPU auto-detection defaults to no when no GPU" {
+    local defaults_path="${WHISPER_DIR}/config/defaults.sh"
+    result=$(
+        unset WHISPER_GPU_ENABLED GPU
+        # Mock nvidia-smi to fail
+        nvidia-smi() { return 1; }
+        export -f nvidia-smi
+        source "$defaults_path"
+        defaults::export_config
+        echo "$WHISPER_GPU_ENABLED"
+    )
+    [ "$result" = "no" ]
+}
+
+@test "WHISPER_GPU_ENABLED manual override is respected" {
+    local defaults_path="${WHISPER_DIR}/config/defaults.sh"
+    result=$(
+        export WHISPER_GPU_ENABLED="no"
+        # Mock GPU as available — should be ignored because of manual override
+        nvidia-smi() { return 0; }
+        docker() {
+            case "$1" in
+                "info") echo "  Runtimes: nvidia runc"; return 0 ;;
+                *) return 0 ;;
+            esac
+        }
+        export -f nvidia-smi docker
+        source "$defaults_path"
+        defaults::export_config
+        echo "$WHISPER_GPU_ENABLED"
+    )
+    [ "$result" = "no" ]
 }

@@ -1,0 +1,165 @@
+{
+  "version": "1.0.0",
+  "title": "Brand Manager Documentation",
+  "description": "Documentation for the Brand Manager scenario — full branding lifecycle for all Vrooli scenarios",
+  "baseUrl": "/docs",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "description": "Learn how to use Brand Manager",
+      "icon": "rocket",
+      "order": 1,
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Get running in 5 minutes",
+          "order": 1,
+          "audience": ["users", "developers", "agents"]
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "description": "Architecture and mental model",
+      "icon": "lightbulb",
+      "order": 2,
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "High-level system design and data flow",
+          "order": 1,
+          "audience": ["developers", "agents"]
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "description": "API, CLI, and configuration reference",
+      "icon": "book",
+      "order": 3,
+      "documents": [
+        {
+          "path": "reference/api-endpoints.md",
+          "title": "API Reference",
+          "description": "REST API endpoint documentation",
+          "order": 1,
+          "audience": ["developers", "agents"]
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "title": "CLI Reference",
+          "description": "Command-line interface documentation",
+          "order": 2,
+          "audience": ["users", "developers", "agents"]
+        },
+        {
+          "path": "reference/configuration.md",
+          "title": "Configuration",
+          "description": "Environment variables and service configuration",
+          "order": 3,
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "description": "Developer-only documentation for maintenance and debugging",
+      "icon": "lock",
+      "order": 4,
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Seams",
+          "description": "Module boundaries and testability zones",
+          "order": 1,
+          "audience": ["developers"],
+          "internal": true
+        },
+        {
+          "path": "internal/STORAGE_AUDIT.md",
+          "title": "Storage Audit",
+          "description": "SQLite storage architecture assessment",
+          "order": 2,
+          "audience": ["developers"],
+          "internal": true
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Known Issues",
+          "description": "Open issues, deferred ideas, and known risks",
+          "order": 3,
+          "audience": ["developers"],
+          "internal": true
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "title": "Progress Log",
+          "description": "Development history and changelog",
+          "order": 4,
+          "audience": ["developers", "agents"],
+          "internal": true
+        },
+        {
+          "path": "internal/RESEARCH.md",
+          "title": "Research",
+          "description": "Background research and reference implementations",
+          "order": 5,
+          "audience": ["developers"],
+          "internal": true
+        },
+        {
+          "path": "../PRD.md",
+          "title": "PRD",
+          "description": "Product requirements document",
+          "order": 6,
+          "audience": ["product", "developers"],
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "audiences": {
+    "users": {
+      "label": "Users",
+      "description": "Scenario owners who want to brand their scenarios",
+      "priority": 1
+    },
+    "developers": {
+      "label": "Developers",
+      "description": "Technical users building or extending Brand Manager",
+      "priority": 2
+    },
+    "agents": {
+      "label": "AI Agents",
+      "description": "Automated agents that create and apply brands",
+      "priority": 3
+    },
+    "product": {
+      "label": "Product",
+      "description": "Product managers and stakeholders",
+      "priority": 4
+    }
+  },
+  "search": {
+    "enabled": true,
+    "indexFields": ["title", "description", "content"]
+  },
+  "navigation": {
+    "showSidebar": true,
+    "showBreadcrumbs": true,
+    "showTableOfContents": true,
+    "hideInternalByDefault": true
+  },
+  "filters": {
+    "showAudienceFilter": true,
+    "showInternalToggle": true
+  }
+}

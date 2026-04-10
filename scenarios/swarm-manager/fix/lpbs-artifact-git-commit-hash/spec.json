@@ -1,0 +1,22 @@
+{
+  "acceptance_allow": [
+    "scenarios/landing-page-business-suite/api/**",
+    "scenarios/scenario-to-desktop/api/**"
+  ],
+  "archived_at": "2026-04-02T12:51:48Z",
+  "created": "2026-03-30T18:01:13Z",
+  "description": "The `download_artifacts` table in LPBS has no `git_commit_hash` field, making it impossible to trace a published artifact back to its source commit without going through scenario-to-desktop's transient pipeline state. Add `git_commit_hash TEXT` to `download_artifacts`, accept it in the `commit` endpoint, and pass it from scenario-to-desktop's `BuildProvenance` during `CommitArtifact`.\n\nSource: research/desktop-release-control-plane-audit conclusion — Finding 2, Finding 9 gap #6.",
+  "effort": "S",
+  "initiative": "desktop-release-governance",
+  "kind": "fix",
+  "name": "lpbs-artifact-git-commit-hash",
+  "priority": 1,
+  "status": "completed",
+  "tags": [
+    "lpbs",
+    "traceability",
+    "database"
+  ],
+  "title": "Add git_commit_hash field to LPBS download_artifacts table",
+  "updated": "2026-04-02T03:26:06Z"
+}

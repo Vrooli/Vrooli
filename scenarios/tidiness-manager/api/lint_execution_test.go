@@ -21,19 +21,19 @@ lint:
 	@echo "src/another.go:25:10: missing return statement [missing-return]"
 	@exit 0
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
 	// Create api directory to scan
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api directory: %v", err)
 	}
 
 	// Create test file
 	testFile := filepath.Join(apiDir, "test.go")
-	if err := os.WriteFile(testFile, []byte("package main\n\nfunc main() {}\n"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -92,7 +92,7 @@ lint:
 	@echo "src/error.go:1:1: syntax error [syntax]"
 	@exit 1
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -137,7 +137,7 @@ lint:
 	@nonexistentcommand --flag
 	@echo "This should not run"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -176,7 +176,7 @@ lint:
 	@sleep 10
 	@echo "Done"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -211,17 +211,17 @@ lint:
 	@echo "lint output for concurrent test"
 	@echo "file.go:1:1: test issue [test]"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("failed to create api directory: %v", err)
 	}
 
 	testFile := filepath.Join(apiDir, "test.go")
-	if err := os.WriteFile(testFile, []byte("package main\n"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("package main\n"), 0o644); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
@@ -270,7 +270,7 @@ lint:
 	@sleep 2
 	@echo "Done"
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
@@ -312,7 +312,7 @@ lint:
 	@# Silent command with no output
 	@true
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(makefileContent), 0o644); err != nil {
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 

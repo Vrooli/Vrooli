@@ -1,8 +1,8 @@
 import datetime
 
-from google.protobuf import timestamp_pb2 as _timestamp_pb2
-from buf.validate import validate_pb2 as _validate_pb2
 from agent_manager.v1.domain import types_pb2 as _types_pb2
+from buf.validate import validate_pb2 as _validate_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -12,7 +12,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Task(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "title", "description", "scope_path", "project_root", "phase_prompt_ids", "context_attachments", "status", "created_by", "created_at", "updated_at")
     ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -38,7 +38,7 @@ class Task(_message.Message):
     def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., scope_path: _Optional[str] = ..., project_root: _Optional[str] = ..., phase_prompt_ids: _Optional[_Iterable[str]] = ..., context_attachments: _Optional[_Iterable[_Union[ContextAttachment, _Mapping]]] = ..., status: _Optional[_Union[_types_pb2.TaskStatus, str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ContextAttachment(_message.Message):
-    __slots__ = ()
+    __slots__ = ("type", "path", "url", "content", "label", "key", "tags", "summary", "format", "priority", "attachment_id")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     URL_FIELD_NUMBER: _ClassVar[int]
@@ -46,6 +46,10 @@ class ContextAttachment(_message.Message):
     LABEL_FIELD_NUMBER: _ClassVar[int]
     KEY_FIELD_NUMBER: _ClassVar[int]
     TAGS_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    FORMAT_FIELD_NUMBER: _ClassVar[int]
+    PRIORITY_FIELD_NUMBER: _ClassVar[int]
+    ATTACHMENT_ID_FIELD_NUMBER: _ClassVar[int]
     type: str
     path: str
     url: str
@@ -53,10 +57,14 @@ class ContextAttachment(_message.Message):
     label: str
     key: str
     tags: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, type: _Optional[str] = ..., path: _Optional[str] = ..., url: _Optional[str] = ..., content: _Optional[str] = ..., label: _Optional[str] = ..., key: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ...) -> None: ...
+    summary: str
+    format: str
+    priority: str
+    attachment_id: str
+    def __init__(self, type: _Optional[str] = ..., path: _Optional[str] = ..., url: _Optional[str] = ..., content: _Optional[str] = ..., label: _Optional[str] = ..., key: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., summary: _Optional[str] = ..., format: _Optional[str] = ..., priority: _Optional[str] = ..., attachment_id: _Optional[str] = ...) -> None: ...
 
 class ScopeLock(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "run_id", "scope_path", "project_root", "acquired_at", "expires_at")
     ID_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCOPE_PATH_FIELD_NUMBER: _ClassVar[int]
@@ -72,7 +80,7 @@ class ScopeLock(_message.Message):
     def __init__(self, id: _Optional[str] = ..., run_id: _Optional[str] = ..., scope_path: _Optional[str] = ..., project_root: _Optional[str] = ..., acquired_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class Policy(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "name", "description", "priority", "scope_pattern", "rules", "created_by", "created_at", "updated_at", "enabled")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -96,7 +104,7 @@ class Policy(_message.Message):
     def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., scope_pattern: _Optional[str] = ..., rules: _Optional[_Union[PolicyRules, _Mapping]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., enabled: _Optional[bool] = ...) -> None: ...
 
 class PolicyRules(_message.Message):
-    __slots__ = ()
+    __slots__ = ("require_sandbox", "allow_in_place", "in_place_requires_approval", "require_approval", "auto_approve_patterns", "max_concurrent_runs", "max_concurrent_per_scope", "max_files_changed", "max_total_size_bytes", "max_execution_time_ms", "allowed_runners", "denied_runners")
     REQUIRE_SANDBOX_FIELD_NUMBER: _ClassVar[int]
     ALLOW_IN_PLACE_FIELD_NUMBER: _ClassVar[int]
     IN_PLACE_REQUIRES_APPROVAL_FIELD_NUMBER: _ClassVar[int]

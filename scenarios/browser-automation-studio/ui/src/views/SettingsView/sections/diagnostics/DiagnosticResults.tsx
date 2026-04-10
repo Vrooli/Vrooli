@@ -18,6 +18,8 @@ import {
   Radio,
   BarChart3,
   MinusCircle,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 
@@ -279,10 +281,12 @@ function ChecksBreakdown({ checks }: ChecksBreakdownProps) {
   const checksByCategory = useMemo(() => {
     const grouped: Record<string, DiagnosticCheck[]> = {};
     for (const check of checks) {
-      if (!grouped[check.category]) {
-        grouped[check.category] = [];
+      const existing = grouped[check.category];
+      if (!existing) {
+        grouped[check.category] = [check];
+      } else {
+        existing.push(check);
       }
-      grouped[check.category].push(check);
     }
     return grouped;
   }, [checks]);
@@ -321,6 +325,7 @@ function ChecksBreakdown({ checks }: ChecksBreakdownProps) {
         if (!categoryChecks || categoryChecks.length === 0) return null;
 
         const stats = categoryStats[category];
+        if (!stats) return null;
         const isExpanded = expandedCategories.has(category);
         const hasIssues = stats.failed > 0 || stats.warning > 0;
 
@@ -418,7 +423,36 @@ interface DiagnosticResultsCardProps {
 
 export function DiagnosticResultsCard({ result }: DiagnosticResultsCardProps) {
   const [showRawDetails, setShowRawDetails] = useState(false);
+  const [copied, setCopied] = useState(false);
   const recording = result.results.recording;
+
+  // Build and copy JSON to clipboard
+  const handleCopyJson = async () => {
+    const errorCount = recording?.issues.filter(i => i.severity === 'error').length ?? 0;
+    const warningCount = recording?.issues.filter(i => i.severity === 'warning').length ?? 0;
+    const infoCount = recording?.issues.filter(i => i.severity === 'info').length ?? 0;
+
+    const exportData = {
+      copiedAt: new Date().toISOString(),
+      scanCompletedAt: result.completed_at,
+      durationMs: result.duration_ms,
+      overallStatus: recording?.ready && errorCount === 0 ? 'healthy' : errorCount > 0 ? 'error' : 'degraded',
+      summary: {
+        errors: errorCount,
+        warnings: warningCount,
+        info: infoCount,
+      },
+      results: result.results,
+    };
+
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(exportData, null, 2));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy diagnostic results:', err);
+    }
+  };
 
   if (!recording) {
     return (
@@ -486,29 +520,48 @@ export function DiagnosticResultsCard({ result }: DiagnosticResultsCardProps) {
             </div>
           </div>
 
-          {/* Issue Summary Badges */}
-          {hasIssues && (
-            <div className="flex items-center gap-2">
-              {errorCount > 0 && (
-                <span className="flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-red-500/20 text-red-300">
-                  <AlertCircle size={12} />
-                  {errorCount}
-                </span>
+          {/* Issue Summary Badges + Copy Button */}
+          <div className="flex items-center gap-3">
+            {hasIssues && (
+              <div className="flex items-center gap-2">
+                {errorCount > 0 && (
+                  <span className="flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-red-500/20 text-red-300">
+                    <AlertCircle size={12} />
+                    {errorCount}
+                  </span>
+                )}
+                {warningCount > 0 && (
+                  <span className="flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-amber-500/20 text-amber-300">
+                    <AlertTriangle size={12} />
+                    {warningCount}
+                  </span>
+                )}
+                {infoCount > 0 && (
+                  <span className="flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-blue-500/20 text-blue-300">
+                    <CheckCircle2 size={12} />
+                    {infoCount}
+                  </span>
+                )}
+              </div>
+            )}
+            <button
+              onClick={handleCopyJson}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-400 hover:text-gray-200 bg-gray-700/50 hover:bg-gray-700 rounded-md transition-colors"
+              title="Copy diagnostic results as JSON"
+            >
+              {copied ? (
+                <>
+                  <Check size={12} className="text-emerald-400" />
+                  <span className="text-emerald-400">Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy size={12} />
+                  <span>Copy JSON</span>
+                </>
               )}
-              {warningCount > 0 && (
-                <span className="flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-amber-500/20 text-amber-300">
-                  <AlertTriangle size={12} />
-                  {warningCount}
-                </span>
-              )}
-              {infoCount > 0 && (
-                <span className="flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-blue-500/20 text-blue-300">
-                  <CheckCircle2 size={12} />
-                  {infoCount}
-                </span>
-              )}
-            </div>
-          )}
+            </button>
+          </div>
         </div>
       </div>
 

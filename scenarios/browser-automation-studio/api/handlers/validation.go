@@ -36,11 +36,6 @@ func validateFolderPath(value string) error {
 	return validateStringLength("folder_path", value, MaxFolderPathLength)
 }
 
-// validateFilePath validates a file_path field against the VARCHAR(1000) limit.
-func validateFilePath(value string) error {
-	return validateStringLength("file_path", value, MaxFilePathLength)
-}
-
 // validateCronExpression validates a cron_expression field length (not syntax).
 func validateCronExpressionLength(value string) error {
 	return validateStringLength("cron_expression", value, MaxCronExpressionLength)

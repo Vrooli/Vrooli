@@ -227,12 +227,6 @@ fixture_helpers::get_workflow_fixture() {
                     ;;
             esac
             ;;
-        "node-red")
-            echo "$workflow_dir/node-red/node-red-workflow.json"
-            ;;
-        "huginn")
-            echo "$workflow_dir/huginn/huginn-web-automation.json"
-            ;;
         "integration")
             echo "$workflow_dir/integration/multi-ai-pipeline.json"
             ;;

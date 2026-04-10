@@ -12,10 +12,10 @@ import (
 
 // MockProcReader is a mock implementation of ProcReader for testing
 type MockProcReader struct {
-	Processes      []checks.ProcessInfo
-	Error          error
-	EnvironData    map[int]map[string]string // PID -> env vars
-	CmdlineData    map[int]string            // PID -> cmdline
+	Processes   []checks.ProcessInfo
+	Error       error
+	EnvironData map[int]map[string]string // PID -> env vars
+	CmdlineData map[int]string            // PID -> cmdline
 }
 
 func (m *MockProcReader) ReadMeminfo() (*checks.MemInfo, error) {
@@ -84,8 +84,9 @@ func TestOrphanCheckHealable(t *testing.T) {
 
 	// Verify expected actions exist
 	expectedActions := map[string]bool{
-		"list": false,
-		"kill": false,
+		"list":      false,
+		"kill-safe": false,
+		"kill":      false,
 	}
 	for _, action := range actions {
 		if _, exists := expectedActions[action.ID]; exists {
@@ -184,10 +185,10 @@ func TestOrphanCheckRunWithMock(t *testing.T) {
 			expectMsgPart:  "No orphan Vrooli processes",
 		},
 		{
-			name: "non-vrooli process ignored",
+			name:             "non-vrooli process ignored",
 			trackedProcesses: []checks.TrackedProcess{},
 			runningProcesses: []checks.ProcessInfo{
-				{PID: 100, PPid: 1, Comm: "nginx", State: "S"},       // Not a Vrooli process
+				{PID: 100, PPid: 1, Comm: "nginx", State: "S"},      // Not a Vrooli process
 				{PID: 200, PPid: 1, Comm: "postgresql", State: "S"}, // Not a Vrooli process
 			},
 			expectedStatus: checks.StatusOK,
@@ -306,6 +307,44 @@ func TestOrphanCheckExecuteActionUnknown(t *testing.T) {
 	}
 }
 
+func TestOrphanCheckExecuteActionKillSafe_SkipsProtectedAndUnmanaged(t *testing.T) {
+	mockStateReader := &MockVrooliStateReader{
+		TrackedProcesses: []checks.TrackedProcess{},
+	}
+	mockProcReader := &MockProcReader{
+		Processes: []checks.ProcessInfo{
+			{PID: 2001, PPid: 1, Comm: "vrooli-helper", State: "S"},
+			{PID: 2002, PPid: 1, Comm: "vrooli-autoheal-api", State: "S"},
+		},
+		EnvironData: map[int]map[string]string{
+			2001: {}, // unmanaged
+			2002: {
+				"VROOLI_LIFECYCLE_MANAGED": "true",
+				"VROOLI_SCENARIO":          "vrooli-autoheal", // protected
+			},
+		},
+		CmdlineData: map[int]string{
+			2002: "/home/test/Vrooli/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop",
+		},
+	}
+
+	check := NewOrphanCheck(
+		WithOrphanStateReader(mockStateReader),
+		WithOrphanProcReader(mockProcReader),
+	)
+	result := check.ExecuteAction(context.Background(), "kill-safe")
+
+	if !result.Success {
+		t.Fatalf("expected kill-safe success when only skipped candidates, got error: %s", result.Error)
+	}
+	if !strings.Contains(result.Output, "unmanaged") {
+		t.Errorf("expected output to describe unmanaged skip, got: %s", result.Output)
+	}
+	if !strings.Contains(result.Output, "protected") {
+		t.Errorf("expected output to describe protected skip, got: %s", result.Output)
+	}
+}
+
 // TestOrphanCheckRecoveryActionsDangerous tests dangerous action marking
 // [REQ:HEAL-ACTION-001]
 func TestOrphanCheckRecoveryActionsDangerous(t *testing.T) {
@@ -321,6 +360,13 @@ func TestOrphanCheckRecoveryActionsDangerous(t *testing.T) {
 	if action, ok := actionMap["list"]; ok {
 		if action.Dangerous {
 			t.Error("list action should not be dangerous")
+		}
+	}
+
+	// kill-safe should be safe
+	if action, ok := actionMap["kill-safe"]; ok {
+		if action.Dangerous {
+			t.Error("kill-safe action should not be dangerous")
 		}
 	}
 
@@ -346,6 +392,9 @@ func TestOrphanCheckRecoveryActionsAvailability(t *testing.T) {
 		if action.ID == "kill" && action.Available {
 			t.Error("kill action should not be available when no orphans")
 		}
+		if action.ID == "kill-safe" && action.Available {
+			t.Error("kill-safe action should not be available when no orphans")
+		}
 		if action.ID == "list" && !action.Available {
 			t.Error("list action should always be available")
 		}
@@ -359,6 +408,9 @@ func TestOrphanCheckRecoveryActionsAvailability(t *testing.T) {
 	for _, action := range actionsHasOrphans {
 		if action.ID == "kill" && !action.Available {
 			t.Error("kill action should be available when orphans exist")
+		}
+		if action.ID == "kill-safe" && !action.Available {
+			t.Error("kill-safe action should be available when orphans exist")
 		}
 	}
 }
@@ -445,7 +497,7 @@ func TestOrphanCheckAncestryTracking(t *testing.T) {
 	mockProcReader := &MockProcReader{
 		Processes: []checks.ProcessInfo{
 			{PID: 100, PPid: 1, Comm: "vrooli-parent", State: "S"},
-			{PID: 200, PPid: 100, Comm: "vrooli-child", State: "S"},   // Child of 100
+			{PID: 200, PPid: 100, Comm: "vrooli-child", State: "S"},      // Child of 100
 			{PID: 300, PPid: 200, Comm: "vrooli-grandchild", State: "S"}, // Grandchild of 100
 		},
 	}
@@ -459,6 +511,28 @@ func TestOrphanCheckAncestryTracking(t *testing.T) {
 	// All processes should be tracked (parent or descendants of parent)
 	if orphanCount, ok := result.Details["orphanCount"].(int); !ok || orphanCount != 0 {
 		t.Errorf("orphanCount = %v, want 0 (all are tracked or descendants)", result.Details["orphanCount"])
+	}
+}
+
+func TestIsSelfCheckProcess(t *testing.T) {
+	tests := []struct {
+		comm string
+		want bool
+	}{
+		{comm: "vrooli-autoheal", want: true},
+		{comm: "./orphan-check", want: true},
+		{comm: "zombie-detector", want: true},
+		{comm: "vrooli-orphan", want: false},
+		{comm: "browser-automation-studio-api", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.comm, func(t *testing.T) {
+			got := isSelfCheckProcess(tt.comm)
+			if got != tt.want {
+				t.Fatalf("isSelfCheckProcess(%q) = %v, want %v", tt.comm, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -503,8 +577,8 @@ func TestGetOrphanPIDs(t *testing.T) {
 	mockProcReader := &MockProcReader{
 		Processes: []checks.ProcessInfo{
 			{PID: 100, PPid: 1, Comm: "vrooli-tracked", State: "S"},
-			{PID: 200, PPid: 1, Comm: "scenario-api", State: "S"},   // Not named "orphan" to avoid filter
-			{PID: 201, PPid: 1, Comm: "scenario-ui", State: "S"},    // Not named "orphan" to avoid filter
+			{PID: 200, PPid: 1, Comm: "scenario-api", State: "S"}, // Not named "orphan" to avoid filter
+			{PID: 201, PPid: 1, Comm: "scenario-ui", State: "S"},  // Not named "orphan" to avoid filter
 		},
 		// Provide environment markers to identify as Vrooli processes
 		EnvironData: map[int]map[string]string{

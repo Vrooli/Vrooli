@@ -45,6 +45,7 @@ func (h *Handlers) ListSandboxes(w http.ResponseWriter, r *http.Request) {
 			filter.Status = append(filter.Status, types.Status(st))
 		}
 	}
+	filter.Name = r.URL.Query().Get("name")
 	filter.Owner = r.URL.Query().Get("owner")
 	filter.ProjectRoot = r.URL.Query().Get("projectRoot")
 	filter.ScopePath = r.URL.Query().Get("scopePath")

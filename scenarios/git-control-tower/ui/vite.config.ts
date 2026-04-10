@@ -4,6 +4,15 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   base: "./", // Required for tunnel/proxy contexts
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          mermaid: ["mermaid"],
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: "jsdom",

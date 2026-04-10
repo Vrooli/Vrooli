@@ -4,97 +4,42 @@
  * Displays available tools grouped by scenario with toggle switches.
  * Used in the Settings modal for global tool configuration and in
  * the ChatHeader for per-chat overrides.
- *
- * ARCHITECTURE:
- * - Receives tool data and callbacks from parent (separation of concerns)
- * - Pure presentational component with no direct API calls
- * - Supports both global and chat-specific configurations via props
- *
- * TESTING SEAMS:
- * - All data passed via props
- * - Callbacks for user actions
- * - Test IDs on interactive elements
  */
 
-import { useState } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import {
-  ChevronDown,
-  ChevronRight,
   RefreshCw,
   AlertCircle,
-  CheckCircle2,
-  XCircle,
+  AlertTriangle,
   Loader2,
-  RotateCcw,
   Zap,
-  Clock,
-  DollarSign,
-  Shield,
-  ShieldOff,
-  Play,
+  Info,
+  Search,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
+import { ScenarioSection } from "./ScenarioSection";
 import type { EffectiveTool, ScenarioStatus, ToolCategory, ApprovalOverride } from "../../lib/api";
 
+type SortOrder = "a-z" | "z-a" | "most-enabled" | "fewest-enabled";
+
 interface ToolConfigurationProps {
-  /** Tools grouped by scenario */
   toolsByScenario: Map<string, EffectiveTool[]>;
-  /** Available categories for grouping */
   categories: ToolCategory[];
-  /** Scenario availability statuses */
   scenarioStatuses?: ScenarioStatus[];
-  /** Whether this is for a specific chat (shows "override" indicators) */
   chatId?: string;
-  /** Loading state */
   isLoading?: boolean;
-  /** Refreshing state */
-  isRefreshing?: boolean;
-  /** Updating state */
+  isSyncing?: boolean;
   isUpdating?: boolean;
-  /** Error message */
   error?: string | null;
-  /** Whether YOLO mode is enabled (hides approval selectors) */
   yoloMode?: boolean;
-  /** Callback when tool is toggled */
-  onToggleTool: (scenario: string, toolName: string, enabled: boolean) => void;
-  /** Callback when tool approval is changed */
+  enabledCount?: number;
+  totalCount?: number;
+  onToggleTool: (scenario: string, toolName: string, enabled: boolean) => void | Promise<void>;
   onSetApproval?: (scenario: string, toolName: string, override: ApprovalOverride) => void;
-  /** Callback when tool config is reset to default */
   onResetTool?: (scenario: string, toolName: string) => void;
-  /** Callback to refresh tool registry */
-  onRefresh?: () => void;
-  /** Callback when user wants to run a tool manually */
+  onSyncTools?: () => void;
   onRunTool?: (tool: EffectiveTool) => void;
-}
-
-/**
- * Get icon for cost estimate
- */
-function getCostIcon(cost?: string) {
-  switch (cost) {
-    case "low":
-      return <DollarSign className="h-3 w-3 text-green-400" />;
-    case "medium":
-      return <DollarSign className="h-3 w-3 text-yellow-400" />;
-    case "high":
-      return <DollarSign className="h-3 w-3 text-red-400" />;
-    default:
-      return null;
-  }
-}
-
-/**
- * Get scenario status icon and color
- */
-function getStatusIndicator(status?: ScenarioStatus) {
-  if (!status) {
-    return <AlertCircle className="h-4 w-4 text-slate-500" />;
-  }
-  if (status.available) {
-    return <CheckCircle2 className="h-4 w-4 text-green-400" />;
-  }
-  return <XCircle className="h-4 w-4 text-red-400" />;
 }
 
 export function ToolConfiguration({
@@ -103,44 +48,99 @@ export function ToolConfiguration({
   scenarioStatuses,
   chatId,
   isLoading,
-  isRefreshing,
+  isSyncing,
   isUpdating,
   error,
   yoloMode,
+  enabledCount,
+  totalCount,
   onToggleTool,
   onSetApproval,
   onResetTool,
-  onRefresh,
+  onSyncTools,
   onRunTool,
 }: ToolConfigurationProps) {
-  // Track which scenarios are expanded
   const [expandedScenarios, setExpandedScenarios] = useState<Set<string>>(
     new Set(toolsByScenario.keys())
   );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("a-z");
 
-  const toggleScenario = (scenario: string) => {
+  const batchOperationInProgress = useRef(false);
+
+  const handleToggleScenario = useCallback(async (scenarioName: string, enableAll: boolean) => {
+    if (batchOperationInProgress.current || isUpdating) return;
+    batchOperationInProgress.current = true;
+    try {
+      const currentTools = toolsByScenario.get(scenarioName) ?? [];
+      for (const tool of currentTools) {
+        if (tool.enabled !== enableAll) {
+          await onToggleTool(scenarioName, tool.tool.name, enableAll);
+        }
+      }
+    } finally {
+      batchOperationInProgress.current = false;
+    }
+  }, [toolsByScenario, isUpdating, onToggleTool]);
+
+  const toggleScenario = useCallback((scenario: string) => {
     setExpandedScenarios((prev) => {
       const next = new Set(prev);
-      if (next.has(scenario)) {
-        next.delete(scenario);
-      } else {
-        next.add(scenario);
-      }
+      if (next.has(scenario)) next.delete(scenario);
+      else next.add(scenario);
       return next;
     });
-  };
+  }, []);
 
   // Build status lookup
-  const statusByScenario = new Map<string, ScenarioStatus>();
-  for (const status of scenarioStatuses ?? []) {
-    statusByScenario.set(status.scenario, status);
-  }
+  const statusByScenario = useMemo(() => {
+    const map = new Map<string, ScenarioStatus>();
+    for (const status of scenarioStatuses ?? []) {
+      map.set(status.scenario, status);
+    }
+    return map;
+  }, [scenarioStatuses]);
 
   // Build category lookup
-  const categoryById = new Map<string, ToolCategory>();
-  for (const cat of categories) {
-    categoryById.set(cat.id, cat);
-  }
+  const categoryById = useMemo(() => {
+    const map = new Map<string, ToolCategory>();
+    for (const cat of categories) {
+      map.set(cat.id, cat);
+    }
+    return map;
+  }, [categories]);
+
+  // Filter and sort scenarios
+  const scenarioEntries = useMemo(() => {
+    const entries = Array.from(toolsByScenario.entries());
+    const query = searchQuery.toLowerCase().trim();
+
+    const filtered = query
+      ? entries.filter(([scenario, tools]) => {
+          if (scenario.toLowerCase().includes(query)) return true;
+          return tools.some(
+            (t) =>
+              t.tool.name.toLowerCase().includes(query) ||
+              t.tool.description.toLowerCase().includes(query)
+          );
+        })
+      : entries;
+
+    return filtered.sort((a, b) => {
+      const [scenarioA, toolsA] = a;
+      const [scenarioB, toolsB] = b;
+      const enabledA = toolsA.filter((t) => t.enabled).length;
+      const enabledB = toolsB.filter((t) => t.enabled).length;
+
+      switch (sortOrder) {
+        case "a-z": return scenarioA.localeCompare(scenarioB);
+        case "z-a": return scenarioB.localeCompare(scenarioA);
+        case "most-enabled": return enabledB - enabledA || scenarioA.localeCompare(scenarioB);
+        case "fewest-enabled": return enabledA - enabledB || scenarioA.localeCompare(scenarioB);
+        default: return scenarioA.localeCompare(scenarioB);
+      }
+    });
+  }, [toolsByScenario, searchQuery, sortOrder]);
 
   if (isLoading) {
     return (
@@ -153,15 +153,12 @@ export function ToolConfiguration({
 
   if (error) {
     return (
-      <div
-        className="flex flex-col items-center justify-center py-8 text-center"
-        data-testid="tools-error"
-      >
+      <div className="flex flex-col items-center justify-center py-8 text-center" data-testid="tools-error">
         <AlertCircle className="h-8 w-8 text-red-400 mb-2" />
         <p className="text-sm text-red-400 mb-3">{error}</p>
-        {onRefresh && (
-          <Button variant="secondary" size="sm" onClick={onRefresh}>
-            <RefreshCw className="h-4 w-4 mr-2" />
+        {onSyncTools && (
+          <Button variant="secondary" size="sm" onClick={onSyncTools} disabled={isSyncing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
             Retry
           </Button>
         )}
@@ -171,226 +168,123 @@ export function ToolConfiguration({
 
   if (toolsByScenario.size === 0) {
     return (
-      <div
-        className="flex flex-col items-center justify-center py-8 text-center"
-        data-testid="tools-empty"
-      >
+      <div className="flex flex-col items-center justify-center py-8 text-center" data-testid="tools-empty">
         <Zap className="h-8 w-8 text-slate-500 mb-2" />
         <p className="text-sm text-slate-400 mb-1">No tools available</p>
-        <p className="text-xs text-slate-500">
-          Start tool-providing scenarios to enable AI capabilities
-        </p>
-        {onRefresh && (
-          <Button variant="secondary" size="sm" onClick={onRefresh} className="mt-4">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+        <p className="text-xs text-slate-500">Start tool-providing scenarios to enable AI capabilities</p>
+        {onSyncTools && (
+          <Button variant="secondary" size="sm" onClick={onSyncTools} disabled={isSyncing} className="mt-4">
+            <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
+            Sync Tools
           </Button>
         )}
       </div>
     );
   }
 
-  const scenarioEntries = Array.from(toolsByScenario.entries());
-
   return (
     <div className="space-y-4" data-testid="tool-configuration">
-      {/* Header with refresh button */}
-      {onRefresh && (
+      {/* Token cost explanation */}
+      <div className="p-3 rounded-lg bg-slate-800/50 border border-white/10">
+        <div className="flex items-start gap-2">
+          <Info className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+          <div className="text-xs text-slate-400">
+            <p>Each enabled tool adds ~50-200 tokens to every AI request, increasing costs and latency.</p>
+            <p className="mt-1">Enable only the tools you need for your current workflow.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Warning when >10 tools enabled */}
+      {enabledCount !== undefined && enabledCount > 10 && (
+        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+            <span className="text-xs text-amber-300">
+              {enabledCount} tools enabled — this adds ~{enabledCount * 100}-{enabledCount * 200} tokens per request
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Search and sort controls */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <input
+            type="text"
+            placeholder="Search tools or scenarios..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+            data-testid="tool-search-input"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Tooltip content="Sort scenarios">
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+              className="text-xs bg-white/5 border border-white/10 rounded px-2 py-1.5 text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+              data-testid="tool-sort-select"
+            >
+              <option value="a-z">{`A \u2192 Z`}</option>
+              <option value="z-a">{`Z \u2192 A`}</option>
+              <option value="most-enabled">Most Enabled</option>
+              <option value="fewest-enabled">Fewest Enabled</option>
+            </select>
+          </Tooltip>
+        </div>
+      </div>
+
+      {/* Header with sync button */}
+      {onSyncTools && (
         <div className="flex items-center justify-between">
           <p className="text-xs text-slate-500">
             {chatId ? "Override tool settings for this chat" : "Configure default tools for all chats"}
+            {totalCount !== undefined && ` (${enabledCount ?? 0}/${totalCount} enabled)`}
           </p>
-          <Tooltip content="Refresh tool registry">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              data-testid="refresh-tools-button"
-            >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          <Tooltip content="Discover tools from all running scenarios">
+            <Button variant="ghost" size="sm" onClick={onSyncTools} disabled={isSyncing} data-testid="sync-tools-button">
+              <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+              <span className="ml-1 text-xs">{isSyncing ? "Syncing..." : "Sync"}</span>
             </Button>
           </Tooltip>
         </div>
       )}
 
+      {/* No results message */}
+      {searchQuery && scenarioEntries.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-8 text-center" data-testid="tools-no-results">
+          <Search className="h-8 w-8 text-slate-500 mb-2" />
+          <p className="text-sm text-slate-400">No tools or scenarios match &quot;{searchQuery}&quot;</p>
+          <Button variant="ghost" size="sm" onClick={() => setSearchQuery("")} className="mt-2">
+            Clear search
+          </Button>
+        </div>
+      )}
+
       {/* Scenario sections */}
-      {scenarioEntries.map(([scenario, tools]) => {
-        const status = statusByScenario.get(scenario);
-        const isExpanded = expandedScenarios.has(scenario);
-        const enabledCount = tools.filter((t) => t.enabled).length;
-
-        return (
-          <div
-            key={scenario}
-            className="rounded-lg border border-white/10 bg-white/5 overflow-hidden"
-            data-testid={`scenario-section-${scenario}`}
-          >
-            {/* Scenario header */}
-            <button
-              onClick={() => toggleScenario(scenario)}
-              className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors"
-              data-testid={`scenario-toggle-${scenario}`}
-            >
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4 text-slate-400" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-slate-400" />
-              )}
-              <div className="flex-1 flex items-center gap-2 min-w-0">
-                {getStatusIndicator(status)}
-                <span className="font-medium text-white truncate">{scenario}</span>
-                <span className="text-xs text-slate-500">
-                  {enabledCount}/{tools.length} enabled
-                </span>
-              </div>
-            </button>
-
-            {/* Tools list */}
-            {isExpanded && (
-              <div className="border-t border-white/10">
-                {tools.map((effectiveTool) => {
-                  const { tool, enabled, source, requires_approval, approval_override, approval_source } = effectiveTool;
-                  const hasOverride = chatId && source === "chat";
-                  const hasApprovalOverride = chatId && approval_source === "chat";
-                  const category = tool.category ? categoryById.get(tool.category) : null;
-
-                  // Determine current approval state for display
-                  const currentApprovalOverride = approval_override ?? "";
-                  const defaultRequiresApproval = tool.metadata.requires_approval;
-
-                  return (
-                    <div
-                      key={tool.name}
-                      className="flex items-start gap-3 p-3 border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-colors"
-                      data-testid={`tool-item-${scenario}-${tool.name}`}
-                    >
-                      {/* Toggle switch */}
-                      <label className="relative inline-flex items-center cursor-pointer mt-0.5">
-                        <input
-                          type="checkbox"
-                          checked={enabled}
-                          onChange={(e) => onToggleTool(scenario, tool.name, e.target.checked)}
-                          disabled={isUpdating}
-                          className="sr-only peer"
-                          data-testid={`tool-toggle-${scenario}-${tool.name}`}
-                        />
-                        <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500" />
-                      </label>
-
-                      {/* Tool info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium text-white">{tool.name}</span>
-                          {category && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-white/10 text-slate-400">
-                              {category.name}
-                            </span>
-                          )}
-                          {tool.metadata.long_running && (
-                            <Tooltip content="Long-running operation">
-                              <Clock className="h-3 w-3 text-slate-500" />
-                            </Tooltip>
-                          )}
-                          {getCostIcon(tool.metadata.cost_estimate)}
-                          {hasOverride && (
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
-                              override
-                            </span>
-                          )}
-                          {/* Approval indicator (when not in YOLO mode) */}
-                          {!yoloMode && enabled && (
-                            <Tooltip content={requires_approval ? "Requires approval" : "Auto-executes"}>
-                              {requires_approval ? (
-                                <Shield className="h-3 w-3 text-yellow-400" />
-                              ) : (
-                                <ShieldOff className="h-3 w-3 text-green-400" />
-                              )}
-                            </Tooltip>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">
-                          {tool.description}
-                        </p>
-
-                        {/* Approval selector (only shown when enabled and not in YOLO mode) */}
-                        {enabled && !yoloMode && onSetApproval && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-xs text-slate-500">Approval:</span>
-                            <select
-                              value={currentApprovalOverride}
-                              onChange={(e) => onSetApproval(scenario, tool.name, e.target.value as ApprovalOverride)}
-                              disabled={isUpdating}
-                              className="text-xs bg-white/5 border border-white/10 rounded px-2 py-1 text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-                              data-testid={`tool-approval-${scenario}-${tool.name}`}
-                            >
-                              <option value="">
-                                Default ({defaultRequiresApproval ? "Require" : "Auto"})
-                              </option>
-                              <option value="require">Require Approval</option>
-                              <option value="skip">Auto-execute</option>
-                            </select>
-                            {hasApprovalOverride && (
-                              <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-300">
-                                custom
-                              </span>
-                            )}
-                          </div>
-                        )}
-
-                        {tool.metadata.tags && tool.metadata.tags.length > 0 && (
-                          <div className="flex gap-1 mt-1.5 flex-wrap">
-                            {tool.metadata.tags.slice(0, 3).map((tag) => (
-                              <span
-                                key={tag}
-                                className="text-xs px-1 py-0.5 rounded bg-white/5 text-slate-500"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="flex items-center gap-1 shrink-0">
-                        {/* Run button (manual tool execution) */}
-                        {onRunTool && (
-                          <Tooltip content="Run manually">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onRunTool(effectiveTool)}
-                              disabled={isUpdating}
-                              data-testid={`tool-run-${scenario}-${tool.name}`}
-                            >
-                              <Play className="h-4 w-4 text-indigo-400" />
-                            </Button>
-                          </Tooltip>
-                        )}
-                        {/* Reset button (for chat-specific overrides) */}
-                        {hasOverride && onResetTool && (
-                          <Tooltip content="Reset to default">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onResetTool(scenario, tool.name)}
-                              disabled={isUpdating}
-                              data-testid={`tool-reset-${scenario}-${tool.name}`}
-                            >
-                              <RotateCcw className="h-4 w-4" />
-                            </Button>
-                          </Tooltip>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {scenarioEntries.map(([scenario, tools]) => (
+        <ScenarioSection
+          key={scenario}
+          scenario={scenario}
+          tools={tools}
+          status={statusByScenario.get(scenario)}
+          isExpanded={expandedScenarios.has(scenario)}
+          onToggleExpanded={toggleScenario}
+          onToggleScenario={handleToggleScenario}
+          categoryById={categoryById}
+          chatId={chatId}
+          isUpdating={isUpdating}
+          isBatchInProgress={batchOperationInProgress.current}
+          yoloMode={yoloMode}
+          onToggleTool={onToggleTool}
+          onSetApproval={onSetApproval}
+          onResetTool={onResetTool}
+          onRunTool={onRunTool}
+        />
+      ))}
     </div>
   );
 }

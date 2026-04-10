@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/execution.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+message ListExecutionResponse {
+  repeated ExecutionRecord items = 1;
+}
+
+message ExecutionResponse {
+  ExecutionRecord execution = 1;
+}
+
+message ExecutionPolicyResponse {
+  ExecutionPolicy policy = 1;
+}
+
+message CreateExecutionRequest {
+  string backlog_kind = 1 [(buf.validate.field).string.min_len = 1];
+  string backlog_name = 2 [(buf.validate.field).string.min_len = 1];
+  string mode = 3 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  reserved 4;
+  optional string started_by = 5;
+  optional string operation = 6;
+}
+
+// FollowUpExecutionRequest triggers a follow-up from a completed/failed execution.
+message FollowUpExecutionRequest {
+  string execution_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Follow-up type: fixup (fix review issues), followup (general continuation), custom (free-form).
+  string follow_up_type = 2 [(buf.validate.field).string = { in: ["fixup", "followup", "custom"] }];
+  // Additional context or instructions for the follow-up.
+  optional string context = 3;
+  // Run mode: continue (reply to existing agent-manager run) or new (spawn fresh run).
+  string run_mode = 4 [(buf.validate.field).string = { in: ["continue", "new"] }];
+}

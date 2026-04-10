@@ -38,7 +38,7 @@ const YOUTUBE_ID_REGEX = /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a
 
 function getYouTubeId(url: string): string | null {
   const match = url.match(YOUTUBE_ID_REGEX);
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 function getVideoEmbedUrl(url: string): string | null {
@@ -62,13 +62,9 @@ export function VideoSection(props: VideoSectionProps) {
   const caption = resolved.caption;
   const rawVideoUrl = typeof resolved.videoUrl === 'string' ? resolved.videoUrl.trim() : '';
 
-  if (!rawVideoUrl) {
-    return null;
-  }
-
-  const [isPlaying, setIsPlaying] = useState(false);
-  const youtubeId = getYouTubeId(rawVideoUrl);
-  const embedUrl = getVideoEmbedUrl(rawVideoUrl);
+  // Extract video info before any hooks (must be called unconditionally)
+  const youtubeId = rawVideoUrl ? getYouTubeId(rawVideoUrl) : null;
+  const embedUrl = rawVideoUrl ? getVideoEmbedUrl(rawVideoUrl) : null;
   const derivedThumbnailUrl = !resolved.thumbnailUrl && youtubeId
     ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`
     : null;
@@ -76,11 +72,18 @@ export function VideoSection(props: VideoSectionProps) {
     ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`
     : null;
 
+  // All hooks must be called before any conditional returns
+  const [isPlaying, setIsPlaying] = useState(false);
   const [posterUrl, setPosterUrl] = useState<string | null>(resolved.thumbnailUrl ?? derivedThumbnailUrl);
 
   useEffect(() => {
     setPosterUrl(resolved.thumbnailUrl ?? derivedThumbnailUrl);
   }, [resolved.thumbnailUrl, derivedThumbnailUrl]);
+
+  // Early returns after all hooks
+  if (!rawVideoUrl) {
+    return null;
+  }
 
   if (!embedUrl) {
     console.error("[VideoSection] Invalid video URL:", rawVideoUrl);
@@ -88,13 +91,13 @@ export function VideoSection(props: VideoSectionProps) {
   }
 
   return (
-    <section className="bg-[#07090F] py-20 px-6">
+    <section className="bg-bg-base py-20 px-6">
       <div className="mx-auto max-w-5xl">
         {title && (
           <h2 className="mb-8 text-center text-3xl font-semibold text-white md:text-4xl">{title}</h2>
         )}
 
-        <div className="relative aspect-video overflow-hidden rounded-[32px] border border-white/10 bg-[#0F172A] shadow-[0_25px_50px_rgba(0,0,0,0.45)]">
+        <div className="relative aspect-video overflow-hidden rounded-[32px] border border-white/10 bg-surface-primary shadow-[0_25px_50px_rgba(0,0,0,0.45)]">
           {!isPlaying && posterUrl ? (
             <button
               onClick={() => setIsPlaying(true)}

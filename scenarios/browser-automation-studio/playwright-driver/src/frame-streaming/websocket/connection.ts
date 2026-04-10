@@ -15,7 +15,7 @@ import type { FrameWebSocket } from '../types';
 import { WS_RECONNECT_DELAY_MS } from '../types';
 
 // Type cast for WebSocket constructor (ws module types are complex)
-const WS: new (url: string) => FrameWebSocket = WebSocket as unknown as new (url: string) => FrameWebSocket;
+const WS: new (url: string) => FrameWebSocket = WebSocket as new (url: string) => FrameWebSocket;
 
 /**
  * WebSocket connection state.

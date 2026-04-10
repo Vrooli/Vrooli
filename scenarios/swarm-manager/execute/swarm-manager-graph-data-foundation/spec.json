@@ -1,0 +1,32 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/api/**",
+    "scenarios/swarm-manager/ui/**",
+    "scenarios/swarm-manager/docs/**",
+    "scenarios/prompt-manager/ui/src/components/graph/**",
+    "scenarios/prompt-manager/ui/src/services/graphService.ts",
+    "scenarios/prompt-manager/ui/src/stores/graphStore.ts",
+    "packages/**"
+  ],
+  "archived_at": "2026-03-30T14:35:46Z",
+  "created": "2026-03-27T18:40:16Z",
+  "depends_on": [
+    "research/swarm-manager-graph-workspace-contract"
+  ],
+  "description": "Create the `/api/v1/graph?lens=topology|flow|operations` endpoint that serves lens-specific node/edge projections. Build on the existing overview endpoint and depgraph package.\n\nThis work should:\n- add capture nodes and classified_as edges (Capture → BacklogItem via classification.items)\n- add execution records with executes edges (ExecutionRecord → BacklogItem) and follow_up edges (ExecutionRecord → ExecutionRecord via parent_execution_id)\n- add scenario nodes with targets edges resolved from acceptance_allow globs\n- add agent-run nodes with spawned_run edges (ExecutionRecord → Run via run_id)\n- return data in React Flow-compatible format (nodes array with type/position, edges array with source/target/type)\n- implement server-side filtering by lens and default status exclusions per lens\n- add SSE endpoint (`GET /api/v1/graph/stream?lens=operations`) for real-time push updates on the Operations lens — dispatching events on scenario status changes, execution state transitions, and agent run updates\n- implement server-side event dispatch infrastructure for SSE\n\nCanonical node types: Capture, BacklogItem, Initiative, Scenario, ExecutionRecord, Run\nCanonical edge types: depends_on, member_of, classified_as, executes, targets, follow_up, spawned_run\n\nThis is the foundation item that makes the rest of the redesign possible. Keep it greenfield and type-safe.",
+  "effort": "M",
+  "initiative": "swarm-manager-graph-workspace",
+  "kind": "execute",
+  "name": "swarm-manager-graph-data-foundation",
+  "priority": 1,
+  "status": "completed",
+  "tags": [
+    "swarm-manager",
+    "ux",
+    "graph",
+    "data-model",
+    "greenfield"
+  ],
+  "title": "Build Swarm Manager Graph Data Foundation",
+  "updated": "2026-03-30T02:01:26Z"
+}

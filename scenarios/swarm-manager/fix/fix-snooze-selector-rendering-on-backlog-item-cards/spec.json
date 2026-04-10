@@ -1,0 +1,24 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/ui/src/components/command-post/SnoozePopover.tsx",
+    "scenarios/swarm-manager/ui/src/components/backlog/backlog-card.tsx"
+  ],
+  "created": "2026-04-08T02:49:59Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "The snooze selector on backlog item cards in swarm-manager isn't rendering properly. Likely needs to use a portal to escape overflow or z-index constraints of the card container.",
+  "kind": "fix",
+  "name": "fix-snooze-selector-rendering-on-backlog-item-cards",
+  "priority": 5,
+  "status": "failed",
+  "tags": [
+    "swarm-manager",
+    "ui",
+    "snooze",
+    "portal",
+    "backlog"
+  ],
+  "title": "Fix snooze selector rendering on backlog item cards",
+  "updated": "2026-04-08T03:18:42Z"
+}

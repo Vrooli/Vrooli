@@ -11,6 +11,7 @@ import (
 	"test-genie/cli/requirements"
 	"test-genie/cli/runlocal"
 	"test-genie/cli/status"
+	"test-genie/cli/storage"
 	"test-genie/cli/uismoke"
 )
 
@@ -133,14 +134,20 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 				Description: "Inspect and sync scenario requirements",
 				Run:         func(args []string) error { return requirements.Run(args) },
 			},
-			{
-				Name:        "playbooks-seed",
-				NeedsAPI:    true,
-				Description: "Manage playbooks seed lifecycle (apply/cleanup)",
-				Run:         func(args []string) error { return playbooksseed.Run(a.seedClient, args) },
+				{
+					Name:        "playbooks-seed",
+					NeedsAPI:    true,
+					Description: "Manage playbooks seed lifecycle (apply/cleanup)",
+					Run:         func(args []string) error { return playbooksseed.Run(a.seedClient, args) },
+				},
+				{
+					Name:        "storage",
+					NeedsAPI:    false,
+					Description: "Run one-time storage maintenance tasks",
+					Run:         func(args []string) error { return storage.Run(args) },
+				},
 			},
-		},
-	}
+		}
 	system := cliapp.CommandGroup{
 		Title: "System",
 		Commands: []cliapp.Command{

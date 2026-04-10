@@ -1,6 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+// INTEROP-CRITICAL: base must stay relative so proxied, tunneled, and iframe
+// embedded deployments resolve assets correctly outside a domain root.
 export default defineConfig({
   base: './',  // Required for tunnel/proxy contexts
   plugins: [react()],

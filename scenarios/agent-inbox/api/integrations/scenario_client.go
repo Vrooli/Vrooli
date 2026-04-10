@@ -5,7 +5,6 @@
 //
 // ARCHITECTURE:
 // - ScenarioClient: HTTP client for fetching tool manifests
-// - Discovery: URL resolution via environment or vrooli CLI
 // - Caching: TTL-based caching to reduce network traffic
 //
 // TESTING SEAMS:
@@ -18,9 +17,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"os/exec"
-	"strings"
 	"sync"
 	"time"
 
@@ -258,33 +254,4 @@ func (c *ScenarioClient) fetchManifest(ctx context.Context, baseURL string) (*to
 	}
 
 	return &manifest, nil
-}
-
-// defaultURLResolver implements URLResolver using environment variables and vrooli CLI.
-type defaultURLResolver struct{}
-
-// ResolveScenarioURL resolves a scenario name to its API base URL.
-// Priority:
-// 1. Environment variable: <SCENARIO_NAME>_API_URL (e.g., AGENT_MANAGER_API_URL)
-// 2. Vrooli CLI: vrooli scenario port <name> API_PORT
-func (r *defaultURLResolver) ResolveScenarioURL(ctx context.Context, scenarioName string) (string, error) {
-	// Try environment variable first
-	envKey := strings.ToUpper(strings.ReplaceAll(scenarioName, "-", "_")) + "_API_URL"
-	if url := os.Getenv(envKey); url != "" {
-		return url, nil
-	}
-
-	// Fall back to vrooli CLI
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", scenarioName, "API_PORT")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("scenario %s not available: %w", scenarioName, err)
-	}
-
-	port := strings.TrimSpace(string(output))
-	if port == "" {
-		return "", fmt.Errorf("scenario %s returned empty port", scenarioName)
-	}
-
-	return fmt.Sprintf("http://localhost:%s", port), nil
 }

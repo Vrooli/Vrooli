@@ -70,6 +70,7 @@ func (c *MemoryCheck) Title() string { return "Memory Usage" }
 func (c *MemoryCheck) Description() string {
 	return "Monitors RAM usage and detects memory pressure before OOM conditions"
 }
+
 func (c *MemoryCheck) Importance() string {
 	return "High memory usage leads to swap thrashing, OOM kills, and service instability"
 }

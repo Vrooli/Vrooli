@@ -20,7 +20,7 @@ const DeploymentMonitor = ({ deploymentId, onRetry }: DeploymentMonitorProps) =>
   const [logs, setLogs] = useState<DeploymentLog[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [search, setSearch] = useState<string>('');
-  const [locked, setLocked] = useState<boolean>(true);
+  const [locked, _setLocked] = useState<boolean>(true);
 
   useEffect(() => {
     // Simulate log streaming

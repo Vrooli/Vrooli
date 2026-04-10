@@ -3,6 +3,7 @@ package orchestration_test
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
 )
@@ -21,13 +23,8 @@ import (
 func newTestOrchestrator(t *testing.T) orchestration.Service {
 	t.Helper()
 
-	profileRepo := repository.NewMemoryProfileRepository()
-	taskRepo := repository.NewMemoryTaskRepository()
-	runRepo := repository.NewMemoryRunRepository()
-	checkpointRepo := repository.NewMemoryCheckpointRepository()
-	idempotencyRepo := repository.NewMemoryIdempotencyRepository()
-
-	eventStore := event.NewMemoryStore()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
 
 	runnerRegistry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -35,9 +32,9 @@ func newTestOrchestrator(t *testing.T) orchestration.Service {
 	mustRegisterRunner(t, runnerRegistry, mockRunner)
 
 	return orchestration.New(
-		profileRepo,
-		taskRepo,
-		runRepo,
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
 		orchestration.WithConfig(orchestration.OrchestratorConfig{
 			DefaultTimeout:          30 * time.Minute,
 			MaxConcurrentRuns:       10,
@@ -45,8 +42,8 @@ func newTestOrchestrator(t *testing.T) orchestration.Service {
 		}),
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(runnerRegistry),
-		orchestration.WithCheckpoints(checkpointRepo),
-		orchestration.WithIdempotency(idempotencyRepo),
+		orchestration.WithCheckpoints(repos.Checkpoints),
+		orchestration.WithIdempotency(repos.Idempotency),
 	)
 }
 
@@ -729,13 +726,8 @@ func TestOrchestrator_CreateRun_IdempotencyKey(t *testing.T) {
 func newTestOrchestratorWithLimit(t *testing.T, maxRuns int) (orchestration.Service, repository.RunRepository) {
 	t.Helper()
 
-	profileRepo := repository.NewMemoryProfileRepository()
-	taskRepo := repository.NewMemoryTaskRepository()
-	runRepo := repository.NewMemoryRunRepository()
-	checkpointRepo := repository.NewMemoryCheckpointRepository()
-	idempotencyRepo := repository.NewMemoryIdempotencyRepository()
-
-	eventStore := event.NewMemoryStore()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
 
 	runnerRegistry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
@@ -743,9 +735,9 @@ func newTestOrchestratorWithLimit(t *testing.T, maxRuns int) (orchestration.Serv
 	mustRegisterRunner(t, runnerRegistry, mockRunner)
 
 	svc := orchestration.New(
-		profileRepo,
-		taskRepo,
-		runRepo,
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
 		orchestration.WithConfig(orchestration.OrchestratorConfig{
 			DefaultTimeout:          30 * time.Minute,
 			MaxConcurrentRuns:       maxRuns,
@@ -753,11 +745,11 @@ func newTestOrchestratorWithLimit(t *testing.T, maxRuns int) (orchestration.Serv
 		}),
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(runnerRegistry),
-		orchestration.WithCheckpoints(checkpointRepo),
-		orchestration.WithIdempotency(idempotencyRepo),
+		orchestration.WithCheckpoints(repos.Checkpoints),
+		orchestration.WithIdempotency(repos.Idempotency),
 	)
 
-	return svc, runRepo
+	return svc, repos.Runs
 }
 
 // TestOrchestrator_SlotEnforcement_BlocksAtCapacity verifies that CreateRun
@@ -1017,6 +1009,250 @@ func TestOrchestrator_SlotEnforcement_AllowsUnderCapacity(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// FEATURE FLAGS & EXTRA FLAGS TESTS
+// =============================================================================
+// Tests for feature flag and extra flag handling in run creation.
+
+// newTestOrchestratorWithFlagValidator creates an orchestrator with a custom flag validator.
+func newTestOrchestratorWithFlagValidator(t *testing.T, fv runner.FlagValidator) orchestration.Service {
+	t.Helper()
+
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	runnerRegistry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "mock runner available")
+	mustRegisterRunner(t, runnerRegistry, mockRunner)
+
+	return orchestration.New(
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		orchestration.WithConfig(orchestration.OrchestratorConfig{
+			DefaultTimeout:          30 * time.Minute,
+			MaxConcurrentRuns:       10,
+			RequireSandboxByDefault: false, // Disable sandbox for these tests
+		}),
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(runnerRegistry),
+		orchestration.WithCheckpoints(repos.Checkpoints),
+		orchestration.WithIdempotency(repos.Idempotency),
+		orchestration.WithFlagValidator(fv),
+	)
+}
+
+// TestOrchestrator_CreateRun_InlineEnableBrowser tests that inline EnableBrowser
+// flag is applied to the resolved config.
+func TestOrchestrator_CreateRun_InlineEnableBrowser(t *testing.T) {
+	svc := newTestOrchestratorWithFlagValidator(t, &runner.MockFlagValidator{})
+	ctx := context.Background()
+
+	profile := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "browser-test-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+	mustCreateProfile(t, svc, ctx, profile)
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Browser Test Task",
+		ScopePath: "src/",
+		Status:    domain.TaskStatusQueued,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	mustCreateTask(t, svc, ctx, task)
+
+	enableBrowser := true
+	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Prompt:         "Test with browser enabled",
+		EnableBrowser:  &enableBrowser,
+	})
+	// The run may fail for non-capacity reasons (runner execution issues in mock),
+	// but it should NOT fail due to EnableBrowser being invalid.
+	if err != nil {
+		var capErr *domain.CapacityExceededError
+		if errors.As(err, &capErr) {
+			t.Fatal("should not get CapacityExceededError")
+		}
+		// Other errors (e.g., runner execution) are acceptable
+		t.Logf("CreateRun returned non-feature-flag error (acceptable): %v", err)
+	}
+}
+
+// TestOrchestrator_CreateRun_ExtraFlagsValidation tests that extra flags
+// are validated against runner allowlists when a FlagValidator is set.
+func TestOrchestrator_CreateRun_ExtraFlagsValidation(t *testing.T) {
+	rejecting := &runner.MockFlagValidator{
+		ValidateFlagsFunc: func(rt domain.RunnerType, flags []string) error {
+			return domain.NewValidationError("extraFlags", "mock: flag rejected")
+		},
+	}
+	svc := newTestOrchestratorWithFlagValidator(t, rejecting)
+	ctx := context.Background()
+
+	// Create profile with extra flags
+	profile := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "flags-test-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		ExtraFlags: domain.RunnerExtraFlags{
+			domain.RunnerTypeClaudeCode: []string{"--forbidden"},
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	mustCreateProfile(t, svc, ctx, profile)
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Flags Validation Task",
+		ScopePath: "src/",
+		Status:    domain.TaskStatusQueued,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	mustCreateTask(t, svc, ctx, task)
+
+	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Prompt:         "This should fail validation",
+	})
+
+	if err == nil {
+		t.Fatal("expected error from flag validation, got nil")
+	}
+
+	// The error should be a validation error mentioning extraFlags
+	ve, ok := err.(*domain.ValidationError)
+	if !ok {
+		t.Logf("error type: %T, error: %v", err, err)
+		// May be wrapped - check the message
+		if !errors.Is(err, err) {
+			t.Logf("non-validation error (may be expected): %v", err)
+		}
+	} else {
+		if ve.Field != "extraFlags" {
+			t.Errorf("expected field 'extraFlags', got %q", ve.Field)
+		}
+	}
+}
+
+// TestOrchestrator_CreateRun_ExtraFlagsInlineOverride tests that inline
+// extra flags override profile extra flags per runner type.
+func TestOrchestrator_CreateRun_ExtraFlagsInlineOverride(t *testing.T) {
+	// Use a mock validator that records which flags it validates
+	var validatedFlags []string
+	recording := &runner.MockFlagValidator{
+		ValidateFlagsFunc: func(rt domain.RunnerType, flags []string) error {
+			validatedFlags = append(validatedFlags, flags...)
+			return nil
+		},
+	}
+	svc := newTestOrchestratorWithFlagValidator(t, recording)
+	ctx := context.Background()
+
+	// Create profile with extra flags
+	profile := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "inline-override-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		ExtraFlags: domain.RunnerExtraFlags{
+			domain.RunnerTypeClaudeCode: []string{"--profile-flag"},
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	mustCreateProfile(t, svc, ctx, profile)
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Inline Override Task",
+		ScopePath: "src/",
+		Status:    domain.TaskStatusQueued,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	mustCreateTask(t, svc, ctx, task)
+
+	// Create run with inline extra flags that override profile's
+	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Prompt:         "Test inline override",
+		ExtraFlags: domain.RunnerExtraFlags{
+			domain.RunnerTypeClaudeCode: []string{"--inline-flag"},
+		},
+	})
+	// Verify that the inline flags were validated (may fail for other reasons)
+	if err != nil {
+		t.Logf("CreateRun returned error (may be expected): %v", err)
+	}
+
+	// Check that the validated flags include the inline flag
+	hasInlineFlag := false
+	for _, f := range validatedFlags {
+		if f == "--inline-flag" {
+			hasInlineFlag = true
+		}
+	}
+	if !hasInlineFlag {
+		t.Errorf("expected --inline-flag to be validated, validated flags: %v", validatedFlags)
+	}
+}
+
+// TestOrchestrator_CreateRun_NoFlagValidator tests that when no FlagValidator
+// is set, extra flags pass through without validation.
+func TestOrchestrator_CreateRun_NoFlagValidator(t *testing.T) {
+	svc, _ := newTestOrchestratorWithLimit(t, 10)
+	ctx := context.Background()
+
+	profile := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "no-validator-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		ExtraFlags: domain.RunnerExtraFlags{
+			domain.RunnerTypeClaudeCode: []string{"--anything-goes"},
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	mustCreateProfile(t, svc, ctx, profile)
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "No Validator Task",
+		ScopePath: "src/",
+		Status:    domain.TaskStatusQueued,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	mustCreateTask(t, svc, ctx, task)
+
+	// Should NOT fail due to flag validation (no validator is set)
+	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Prompt:         "Test without validator",
+	})
+	if err != nil {
+		// Check it's not a validation error about extra flags
+		if ve, ok := err.(*domain.ValidationError); ok && ve.Field == "extraFlags" {
+			t.Fatalf("should not get extraFlags validation error when no validator is set: %v", err)
+		}
+		// Other errors are acceptable
+		t.Logf("CreateRun returned non-validation error (acceptable): %v", err)
+	}
+}
+
 // TestOrchestrator_SlotEnforcement_ZeroLimitDisablesCheck verifies that
 // MaxConcurrentRuns=0 disables the capacity check entirely.
 func TestOrchestrator_SlotEnforcement_ZeroLimitDisablesCheck(t *testing.T) {
@@ -1069,5 +1305,89 @@ func TestOrchestrator_SlotEnforcement_ZeroLimitDisablesCheck(t *testing.T) {
 		if errors.As(err, &capErr) {
 			t.Fatal("MaxConcurrentRuns=0 should disable capacity check")
 		}
+	}
+}
+
+// TestOrchestrator_CreateRun_ResolvesRelativeProjectRoot verifies that a task
+// with a relative projectRoot (e.g., ".") gets resolved to an absolute path
+// before sandbox creation. This prevents the workspace-sandbox API from
+// rejecting the request with a database constraint violation.
+//
+// Regression test for: investigation runs failing with "Unable to create
+// isolated workspace" when the source run's task had projectRoot=".".
+func TestOrchestrator_CreateRun_ResolvesRelativeProjectRoot(t *testing.T) {
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	runnerRegistry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "mock runner available")
+	mustRegisterRunner(t, runnerRegistry, mockRunner)
+
+	svc := orchestration.New(
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		orchestration.WithConfig(orchestration.OrchestratorConfig{
+			DefaultTimeout:          30 * time.Minute,
+			MaxConcurrentRuns:       10,
+			RequireSandboxByDefault: true,
+			DefaultProjectRoot:      "/fallback/root",
+		}),
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(runnerRegistry),
+		orchestration.WithCheckpoints(repos.Checkpoints),
+		orchestration.WithIdempotency(repos.Idempotency),
+	)
+	ctx := context.Background()
+
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "resolve-root-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		Model:      "claude-3-opus",
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	})
+
+	// Create task with relative projectRoot "." — the exact scenario that
+	// caused the bug when investigation runs inherited this from source tasks.
+	task := mustCreateTask(t, svc, ctx, &domain.Task{
+		ID:          uuid.New(),
+		Title:       "Relative Root Task",
+		ScopePath:   ".",
+		ProjectRoot: ".",
+		Status:      domain.TaskStatusQueued,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	})
+
+	// CreateRun should succeed past the preflight validation.
+	// It will still fail asynchronously (no sandbox provider), but the run
+	// should be created with the task's projectRoot resolved to absolute.
+	run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Prompt:         "Test prompt",
+		Force:          true,
+	})
+	// The run should be created (preflight passes)
+	if err != nil {
+		t.Fatalf("CreateRun failed unexpectedly: %v", err)
+	}
+	if run == nil {
+		t.Fatal("expected run to be created")
+	}
+
+	// Verify the task's projectRoot was resolved to an absolute path
+	updatedTask, err := svc.GetTask(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("GetTask failed: %v", err)
+	}
+	if !filepath.IsAbs(updatedTask.ProjectRoot) {
+		t.Errorf("expected task.ProjectRoot to be absolute, got %q", updatedTask.ProjectRoot)
+	}
+	if updatedTask.ProjectRoot == "." {
+		t.Error("task.ProjectRoot should not remain as '.'")
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/gin-gonic/gin"
 )
@@ -52,7 +52,7 @@ func (h *DockerHandler) GetContainers(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	containers, err := h.docker.ContainerList(ctx, types.ContainerListOptions{All: true})
+	containers, err := h.docker.ContainerList(ctx, container.ListOptions{All: true})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to list containers",

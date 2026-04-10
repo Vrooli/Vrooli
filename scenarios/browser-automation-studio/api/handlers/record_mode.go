@@ -15,13 +15,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
-	"github.com/vrooli/browser-automation-studio/automation/events"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/domain"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/performance"
-	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/websocket"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
@@ -58,16 +57,16 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 	// Resolve session profile for authentication persistence and browser configuration
 	var profileID, profileName, profileLastUsed string
 	var storageState json.RawMessage
-	var browserProfile *archiveingestion.BrowserProfile
-	var openTabs []archiveingestion.TabState
-	if h.sessionProfiles != nil {
+	var browserProfile *sessionprofilepersistence.BrowserProfile
+	var openTabs []sessionprofilepersistence.TabState
+	if h.sessionProfileService != nil {
 		profile, err := h.resolveSessionProfile(req.SessionProfileID)
 		if err != nil {
 			h.respondError(w, err)
 			return
 		}
 		if profile != nil {
-			profileID = profile.ID
+			profileID = string(profile.ID)
 			profileName = profile.Name
 			profileLastUsed = profile.LastUsedAt.Format(time.RFC3339)
 			storageState = profile.StorageState
@@ -122,8 +121,8 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Update session profile usage tracking
-	if profileID != "" && h.sessionProfiles != nil {
-		if updated, err := h.sessionProfiles.Touch(profileID); err != nil {
+	if profileID != "" && h.sessionProfileService != nil {
+		if updated, err := h.sessionProfileService.Touch(sessionprofilepersistence.ProfileID(profileID)); err != nil {
 			h.log.WithError(err).WithField("profile_id", profileID).Warn("Failed to update session profile usage")
 		} else if updated != nil {
 			profileName = updated.Name
@@ -174,6 +173,47 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 					IsActive: tab.IsActive,
 				})
 			}
+
+			// Save history entries from tab restoration
+			if profileID != "" && h.sessionProfileService != nil && len(restorationResult.HistoryEntries) > 0 {
+				for _, histEntry := range restorationResult.HistoryEntries {
+					entry := sessionprofilepersistence.HistoryEntry{
+						ID:        uuid.NewString(),
+						URL:       histEntry.URL,
+						Title:     histEntry.Title,
+						Timestamp: time.Now().UTC().Format(time.RFC3339),
+					}
+					if _, err := h.sessionProfileService.AddHistoryEntry(sessionprofilepersistence.ProfileID(profileID), entry); err != nil {
+						h.log.WithError(err).WithFields(map[string]interface{}{
+							"profile_id": profileID,
+							"url":        histEntry.URL,
+						}).Warn("Failed to add history entry from tab restoration")
+					}
+				}
+				h.log.WithFields(map[string]interface{}{
+					"profile_id":    profileID,
+					"history_count": len(restorationResult.HistoryEntries),
+				}).Debug("Saved history entries from tab restoration")
+			}
+		}
+	} else if profileID != "" && h.sessionProfileService != nil && result.InitialNavigation != nil {
+		// No tab restoration, but there was an initial URL navigation - capture it as history
+		entry := sessionprofilepersistence.HistoryEntry{
+			ID:        uuid.NewString(),
+			URL:       result.InitialNavigation.URL,
+			Title:     result.InitialNavigation.Title,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		}
+		if _, err := h.sessionProfileService.AddHistoryEntry(sessionprofilepersistence.ProfileID(profileID), entry); err != nil {
+			h.log.WithError(err).WithFields(map[string]interface{}{
+				"profile_id": profileID,
+				"url":        result.InitialNavigation.URL,
+			}).Warn("Failed to add history entry from initial navigation")
+		} else {
+			h.log.WithFields(map[string]interface{}{
+				"profile_id": profileID,
+				"url":        result.InitialNavigation.URL,
+			}).Debug("Saved history entry from initial navigation")
 		}
 	}
 
@@ -222,9 +262,9 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 
 	// Capture storage state and open tabs before closing (for session profile persistence)
 	var storageState json.RawMessage
-	var openTabs []archiveingestion.TabState
+	var openTabs []sessionprofilepersistence.TabState
 	profileID := h.getActiveSessionProfile(sessionID)
-	if profileID != "" && h.sessionProfiles != nil {
+	if profileID != "" && h.sessionProfileService != nil {
 		// Capture storage state
 		if state, err := h.recordModeService.GetStorageState(ctx, sessionID); err != nil {
 			h.log.WithError(err).WithFields(map[string]interface{}{
@@ -242,9 +282,9 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 				"profile_id": profileID,
 			}).Warn("Failed to capture open tabs before closing session")
 		} else {
-			openTabs = make([]archiveingestion.TabState, 0, len(pages))
+			openTabs = make([]sessionprofilepersistence.TabState, 0, len(pages))
 			for i, page := range pages {
-				openTabs = append(openTabs, archiveingestion.TabState{
+				openTabs = append(openTabs, sessionprofilepersistence.TabState{
 					URL:      page.URL,
 					Title:    page.Title,
 					IsActive: page.ID == activePageID,
@@ -269,9 +309,9 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Persist storage state and open tabs to profile after successful close
-	if profileID != "" && h.sessionProfiles != nil {
+	if profileID != "" && h.sessionProfileService != nil {
 		if len(storageState) > 0 {
-			if _, err := h.sessionProfiles.SaveStorageState(profileID, storageState); err != nil {
+			if _, err := h.sessionProfileService.SaveStorageState(sessionprofilepersistence.ProfileID(profileID), storageState); err != nil {
 				h.log.WithError(err).WithFields(map[string]interface{}{
 					"profile_id": profileID,
 					"session_id": sessionID,
@@ -281,7 +321,7 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 
 		// Save open tabs for restoration on next session start
 		if len(openTabs) > 0 {
-			if _, err := h.sessionProfiles.SaveOpenTabs(profileID, openTabs); err != nil {
+			if _, err := h.sessionProfileService.SaveOpenTabs(sessionprofilepersistence.ProfileID(profileID), openTabs); err != nil {
 				h.log.WithError(err).WithFields(map[string]interface{}{
 					"profile_id": profileID,
 					"session_id": sessionID,
@@ -339,7 +379,7 @@ func (h *Handler) StartLiveRecording(w http.ResponseWriter, r *http.Request) {
 		// Check for specific error types
 		if driverErr, ok := err.(*driver.Error); ok {
 			if strings.Contains(driverErr.Message, "RECORDING_IN_PROGRESS") {
-				h.respondError(w, ErrConflict.WithMessage("Recording is already in progress for this session"))
+				h.respondError(w, ErrRecordingInProgress)
 				return
 			}
 		}
@@ -350,9 +390,11 @@ func (h *Handler) StartLiveRecording(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Map service response to handler response type
+	// Generate recording ID since the driver doesn't provide one
 	driverResp := StartRecordingResponse{
-		SessionID: resp.SessionID,
-		StartedAt: resp.StartedAt,
+		RecordingID: uuid.NewString(),
+		SessionID:   resp.SessionID,
+		StartedAt:   resp.StartedAt,
 	}
 
 	if pb, err := protoconv.StartRecordingToProto(driverResp); err == nil && pb != nil {
@@ -487,7 +529,11 @@ func (h *Handler) GetRecordingDebug(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		if h.log != nil {
+			h.log.WithError(err).Warn("record_mode: failed to proxy response")
+		}
+	}
 }
 
 // GetRecordedActions handles GET /api/v1/recordings/live/{sessionId}/actions
@@ -637,6 +683,9 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Generate correlation ID for tracing through the pipeline
+	correlationID := h.generateCorrelationID(sessionID)
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
@@ -645,14 +694,12 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Parse incoming action - supports both legacy JSON and proto TimelineEntry formats
 	var action driver.RecordedAction
-	var timelineEntry map[string]any
-
 	if err := json.Unmarshal(body, &action); err == nil && action.ActionType != "" {
-		// Legacy RecordedAction payload.
-		timelineEntry = h.convertRecordedActionToTimelineEntry(&action)
+		// Legacy RecordedAction JSON payload
 	} else {
-		// Proto TimelineEntry payload (preferred from playwright-driver).
+		// Proto TimelineEntry payload (preferred from playwright-driver)
 		var entry bastimeline.TimelineEntry
 		if err := protojson.Unmarshal(body, &entry); err != nil {
 			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
@@ -661,17 +708,18 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		action = driver.RecordedActionFromTimelineEntry(&entry)
-		timelineEntry = h.convertRecordedActionToTimelineEntry(&action)
-		if timelineEntry == nil {
-			var entryMap map[string]any
-			if err := json.Unmarshal(body, &entryMap); err == nil {
-				timelineEntry = entryMap
-			}
-		}
 	}
+
+	h.log.WithFields(map[string]interface{}{
+		"correlation_id": correlationID,
+		"session_id":     sessionID,
+		"action_type":    action.ActionType,
+		"action_id":      action.ID,
+	}).Debug("Action received")
 
 	// Assign page ID to the action and store in timeline
 	var pageIDForTimeline uuid.UUID
+	var persisted bool
 	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
 		pages := sess.Pages()
 		// If driver provided a page ID, map it; otherwise use active page
@@ -686,61 +734,66 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 			pageIDForTimeline = pages.GetActivePageID()
 			action.PageID = pageIDForTimeline.String()
 		}
-		// Update timeline entry with page ID
-		if timelineEntry != nil {
-			timelineEntry["pageId"] = action.PageID
-		}
 
-		// Store action in timeline
+		// Store action in timeline (persistence)
 		h.recordModeService.AddTimelineAction(sessionID, &action, pageIDForTimeline)
+		persisted = true
 	}
 
-	// Broadcast with both legacy action and timeline_entry
-	if timelineEntry != nil {
-		h.wsHub.BroadcastRecordingActionWithTimeline(sessionID, action, timelineEntry)
-	} else {
-		// Fallback to legacy format if conversion fails
-		h.wsHub.BroadcastRecordingAction(sessionID, action)
-	}
+	// Broadcast unified timeline entry format
+	broadcastResult := h.wsHub.BroadcastRecordingEntry(sessionID, h.createUnifiedEntry(&action))
 
+	// Log unified result for observability
 	h.log.WithFields(map[string]interface{}{
-		"session_id":   sessionID,
-		"action_type":  action.ActionType,
-		"sequence_num": action.SequenceNum,
-	}).Debug("Received and broadcast recording action")
+		"correlation_id":   correlationID,
+		"session_id":       sessionID,
+		"action_type":      action.ActionType,
+		"action_id":        action.ID,
+		"sequence_num":     action.SequenceNum,
+		"persisted":        persisted,
+		"broadcast_sent":   broadcastResult.SentCount > 0,
+		"subscriber_count": broadcastResult.SubscriberCount,
+		"sent_count":       broadcastResult.SentCount,
+		"dropped_count":    broadcastResult.DroppedCount,
+	}).Debug("Action recorded")
 
 	h.respondSuccess(w, http.StatusOK, map[string]string{
 		"status": "ok",
 	})
 }
 
-// convertRecordedActionToTimelineEntry converts a driver.RecordedAction to a TimelineEntry proto,
-// then to a map for JSON serialization over WebSocket.
-func (h *Handler) convertRecordedActionToTimelineEntry(action *driver.RecordedAction) map[string]any {
-	// Convert the driver.RecordedAction to a unified TimelineEntry proto
-	timelineEntry := events.RecordedActionToTimelineEntry(action)
-	if timelineEntry == nil {
+// createUnifiedEntry creates a unified timeline entry format for WebSocket broadcast.
+// This format matches what the UI expects and replaces the legacy dual-format broadcasting.
+func (h *Handler) createUnifiedEntry(action *driver.RecordedAction) *websocket.UnifiedTimelineEntry {
+	if action == nil {
 		return nil
 	}
 
-	// Marshal to JSON using protojson (snake_case for consistency)
-	jsonBytes, err := protojson.MarshalOptions{
-		UseProtoNames:   true,
-		EmitUnpopulated: false,
-	}.Marshal(timelineEntry)
-	if err != nil {
-		h.log.WithError(err).Debug("Failed to marshal TimelineEntry to JSON")
-		return nil
+	// Build selector if present
+	var selector map[string]any
+	if action.Selector != nil && action.Selector.Primary != "" {
+		selector = map[string]any{
+			"primary": action.Selector.Primary,
+		}
 	}
 
-	// Unmarshal to map for inclusion in WebSocket message
-	var result map[string]any
-	if err := json.Unmarshal(jsonBytes, &result); err != nil {
-		h.log.WithError(err).Debug("Failed to unmarshal TimelineEntry JSON to map")
-		return nil
+	return &websocket.UnifiedTimelineEntry{
+		ID:        action.ID,
+		Type:      "action",
+		Timestamp: action.Timestamp,
+		PageID:    action.PageID,
+		Action: &websocket.TimelineAction{
+			ID:         action.ID,
+			ActionType: action.ActionType,
+			SequenceNum: action.SequenceNum,
+			Timestamp:  action.Timestamp,
+			Confidence: action.Confidence,
+			URL:        action.URL,
+			PageTitle:  action.PageTitle,
+			Selector:   selector,
+			Payload:    action.Payload,
+		},
 	}
-
-	return result
 }
 
 // ReceiveRecordingFrame handles POST /api/v1/recordings/live/{sessionId}/frame
@@ -1177,36 +1230,37 @@ func (h *Handler) ReloadRecordingSession(w http.ResponseWriter, r *http.Request)
 
 	// Create a reload action for the recording timeline
 	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
+		correlationID := h.generateCorrelationID(sessionID)
 		pages := sess.Pages()
 		activePageID := pages.GetActivePageID()
 
 		now := time.Now()
 		reloadAction := driver.RecordedAction{
-			ID:          uuid.NewString(),
-			SessionID:   sessionID,
-			Timestamp:   now.Format(time.RFC3339Nano),
-			ActionType:  "reload",
-			Confidence:  1.0,
-			URL:         resp.URL,
-			PageID:      activePageID.String(),
-			PageTitle:   resp.Title,
+			ID:         uuid.NewString(),
+			SessionID:  sessionID,
+			Timestamp:  now.Format(time.RFC3339Nano),
+			ActionType: "reload",
+			Confidence: 1.0,
+			URL:        resp.URL,
+			PageID:     activePageID.String(),
+			PageTitle:  resp.Title,
 		}
 
 		h.recordModeService.AddTimelineAction(sessionID, &reloadAction, activePageID)
 
-		timelineEntry := h.convertRecordedActionToTimelineEntry(&reloadAction)
-		if timelineEntry != nil {
-			timelineEntry["pageId"] = activePageID.String()
-			h.wsHub.BroadcastRecordingActionWithTimeline(sessionID, reloadAction, timelineEntry)
-		} else {
-			h.wsHub.BroadcastRecordingAction(sessionID, reloadAction)
-		}
+		// Broadcast unified timeline entry
+		broadcastResult := h.wsHub.BroadcastRecordingEntry(sessionID, h.createUnifiedEntry(&reloadAction))
 
 		h.log.WithFields(map[string]interface{}{
-			"session_id":  sessionID,
-			"action_type": "reload",
-			"url":         resp.URL,
-		}).Debug("Created and broadcast reload action")
+			"correlation_id":   correlationID,
+			"session_id":       sessionID,
+			"action_type":      "reload",
+			"action_id":        reloadAction.ID,
+			"url":              resp.URL,
+			"persisted":        true,
+			"broadcast_sent":   broadcastResult.SentCount > 0,
+			"subscriber_count": broadcastResult.SubscriberCount,
+		}).Debug("Reload action recorded")
 	}
 
 	driverResp := ReloadRecordingResponse{
@@ -1257,6 +1311,7 @@ func (h *Handler) GoBackRecordingSession(w http.ResponseWriter, r *http.Request)
 
 	// Create a goBack action for the recording timeline
 	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
+		correlationID := h.generateCorrelationID(sessionID)
 		pages := sess.Pages()
 		activePageID := pages.GetActivePageID()
 
@@ -1265,25 +1320,20 @@ func (h *Handler) GoBackRecordingSession(w http.ResponseWriter, r *http.Request)
 
 		now := time.Now()
 		goBackAction := driver.RecordedAction{
-			ID:          uuid.NewString(),
-			SessionID:   sessionID,
-			Timestamp:   now.Format(time.RFC3339Nano),
-			ActionType:  "goBack",
-			Confidence:  1.0,
-			URL:         resp.URL,
-			PageID:      activePageID.String(),
-			PageTitle:   resp.Title,
+			ID:         uuid.NewString(),
+			SessionID:  sessionID,
+			Timestamp:  now.Format(time.RFC3339Nano),
+			ActionType: "goBack",
+			Confidence: 1.0,
+			URL:        resp.URL,
+			PageID:     activePageID.String(),
+			PageTitle:  resp.Title,
 		}
 
 		h.recordModeService.AddTimelineAction(sessionID, &goBackAction, activePageID)
 
-		timelineEntry := h.convertRecordedActionToTimelineEntry(&goBackAction)
-		if timelineEntry != nil {
-			timelineEntry["pageId"] = activePageID.String()
-			h.wsHub.BroadcastRecordingActionWithTimeline(sessionID, goBackAction, timelineEntry)
-		} else {
-			h.wsHub.BroadcastRecordingAction(sessionID, goBackAction)
-		}
+		// Broadcast unified timeline entry
+		broadcastResult := h.wsHub.BroadcastRecordingEntry(sessionID, h.createUnifiedEntry(&goBackAction))
 
 		// Broadcast page_navigated event
 		pageEvent := &domain.PageEvent{
@@ -1297,10 +1347,15 @@ func (h *Handler) GoBackRecordingSession(w http.ResponseWriter, r *http.Request)
 		h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
 
 		h.log.WithFields(map[string]interface{}{
-			"session_id":  sessionID,
-			"action_type": "goBack",
-			"url":         resp.URL,
-		}).Debug("Created and broadcast goBack action")
+			"correlation_id":   correlationID,
+			"session_id":       sessionID,
+			"action_type":      "goBack",
+			"action_id":        goBackAction.ID,
+			"url":              resp.URL,
+			"persisted":        true,
+			"broadcast_sent":   broadcastResult.SentCount > 0,
+			"subscriber_count": broadcastResult.SubscriberCount,
+		}).Debug("GoBack action recorded")
 	}
 
 	driverResp := GoBackRecordingResponse{
@@ -1351,6 +1406,7 @@ func (h *Handler) GoForwardRecordingSession(w http.ResponseWriter, r *http.Reque
 
 	// Create a goForward action for the recording timeline
 	if sess, ok := h.recordModeService.GetSession(sessionID); ok && sess.Pages() != nil {
+		correlationID := h.generateCorrelationID(sessionID)
 		pages := sess.Pages()
 		activePageID := pages.GetActivePageID()
 
@@ -1359,25 +1415,20 @@ func (h *Handler) GoForwardRecordingSession(w http.ResponseWriter, r *http.Reque
 
 		now := time.Now()
 		goForwardAction := driver.RecordedAction{
-			ID:          uuid.NewString(),
-			SessionID:   sessionID,
-			Timestamp:   now.Format(time.RFC3339Nano),
-			ActionType:  "goForward",
-			Confidence:  1.0,
-			URL:         resp.URL,
-			PageID:      activePageID.String(),
-			PageTitle:   resp.Title,
+			ID:         uuid.NewString(),
+			SessionID:  sessionID,
+			Timestamp:  now.Format(time.RFC3339Nano),
+			ActionType: "goForward",
+			Confidence: 1.0,
+			URL:        resp.URL,
+			PageID:     activePageID.String(),
+			PageTitle:  resp.Title,
 		}
 
 		h.recordModeService.AddTimelineAction(sessionID, &goForwardAction, activePageID)
 
-		timelineEntry := h.convertRecordedActionToTimelineEntry(&goForwardAction)
-		if timelineEntry != nil {
-			timelineEntry["pageId"] = activePageID.String()
-			h.wsHub.BroadcastRecordingActionWithTimeline(sessionID, goForwardAction, timelineEntry)
-		} else {
-			h.wsHub.BroadcastRecordingAction(sessionID, goForwardAction)
-		}
+		// Broadcast unified timeline entry
+		broadcastResult := h.wsHub.BroadcastRecordingEntry(sessionID, h.createUnifiedEntry(&goForwardAction))
 
 		// Broadcast page_navigated event
 		pageEvent := &domain.PageEvent{
@@ -1391,10 +1442,15 @@ func (h *Handler) GoForwardRecordingSession(w http.ResponseWriter, r *http.Reque
 		h.wsHub.BroadcastPageEvent(sessionID, pageEvent)
 
 		h.log.WithFields(map[string]interface{}{
-			"session_id":  sessionID,
-			"action_type": "goForward",
-			"url":         resp.URL,
-		}).Debug("Created and broadcast goForward action")
+			"correlation_id":   correlationID,
+			"session_id":       sessionID,
+			"action_type":      "goForward",
+			"action_id":        goForwardAction.ID,
+			"url":              resp.URL,
+			"persisted":        true,
+			"broadcast_sent":   broadcastResult.SentCount > 0,
+			"subscriber_count": broadcastResult.SubscriberCount,
+		}).Debug("GoForward action recorded")
 	}
 
 	driverResp := GoForwardRecordingResponse{
@@ -1563,14 +1619,19 @@ func (h *Handler) UpdateRecordingViewport(w http.ResponseWriter, r *http.Request
 	}
 
 	// Map service response to handler response type
+	var width, height int
+	if resp.ActualViewport != nil {
+		width = resp.ActualViewport.Width
+		height = resp.ActualViewport.Height
+	}
 	driverResp := struct {
 		SessionID string `json:"session_id"`
 		Width     int    `json:"width"`
 		Height    int    `json:"height"`
 	}{
 		SessionID: resp.SessionID,
-		Width:     resp.Width,
-		Height:    resp.Height,
+		Width:     width,
+		Height:    height,
 	}
 
 	h.respondSuccess(w, http.StatusOK, driverResp)
@@ -1777,68 +1838,52 @@ func (h *Handler) PersistRecordingSession(w http.ResponseWriter, r *http.Request
 	})
 }
 
-func (h *Handler) resolveSessionProfile(requestedID string) (*archiveingestion.SessionProfile, *APIError) {
-	if h == nil || h.sessionProfiles == nil {
+func (h *Handler) resolveSessionProfile(requestedID string) (*sessionprofilepersistence.SessionProfile, *APIError) {
+	if h == nil || h.sessionProfileService == nil {
 		return nil, nil
 	}
 
-	id := strings.TrimSpace(requestedID)
-	if id != "" {
-		profile, err := h.sessionProfiles.Get(id)
-		if err != nil {
+	// Use the service's GetOrCreateProfile method which handles:
+	// - If ID provided: get that specific profile
+	// - If no ID: get most recent profile or create new one
+	profile, err := h.sessionProfileService.GetOrCreateProfile(sessionprofilepersistence.ProfileID(strings.TrimSpace(requestedID)))
+	if err != nil {
+		if h.log != nil {
+			h.log.WithError(err).Error("Failed to resolve session profile")
+		}
+		// Check if it's a "not found" error
+		if strings.Contains(err.Error(), "not found") {
 			return nil, ErrExecutionNotFound.WithMessage("Session profile not found")
 		}
-		return profile, nil
-	}
-
-	profile, err := h.sessionProfiles.MostRecent()
-	if err != nil {
-		if h.log != nil {
-			h.log.WithError(err).Error("Failed to list session profiles")
-		}
 		return nil, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to load session profiles",
-		})
-	}
-
-	if profile != nil {
-		return profile, nil
-	}
-
-	profile, err = h.sessionProfiles.Create("")
-	if err != nil {
-		if h.log != nil {
-			h.log.WithError(err).Error("Failed to create default session profile")
-		}
-		return nil, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to create session profile",
+			"error": err.Error(),
 		})
 	}
 	return profile, nil
 }
 
 func (h *Handler) setActiveSessionProfile(sessionID, profileID string) {
-	if h.sessionProfiles != nil {
-		h.sessionProfiles.SetActiveSession(sessionID, profileID)
+	if h.sessionProfileService != nil {
+		h.sessionProfileService.SetActiveSession(sessionID, profileID)
 	}
 }
 
 func (h *Handler) clearActiveSessionProfile(sessionID string) string {
-	if h.sessionProfiles != nil {
-		return h.sessionProfiles.ClearActiveSession(sessionID)
+	if h.sessionProfileService != nil {
+		return h.sessionProfileService.ClearActiveSession(sessionID)
 	}
 	return ""
 }
 
 func (h *Handler) getActiveSessionProfile(sessionID string) string {
-	if h.sessionProfiles != nil {
-		return h.sessionProfiles.GetActiveSession(sessionID)
+	if h.sessionProfileService != nil {
+		return h.sessionProfileService.GetActiveSession(sessionID)
 	}
 	return ""
 }
 
 func (h *Handler) persistSessionProfile(ctx context.Context, sessionID string) error {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		return nil
 	}
 	profileID := h.getActiveSessionProfile(sessionID)
@@ -1852,7 +1897,7 @@ func (h *Handler) persistSessionProfile(ctx context.Context, sessionID string) e
 		return err
 	}
 	if len(state) > 0 {
-		if _, err := h.sessionProfiles.SaveStorageState(profileID, state); err != nil {
+		if _, err := h.sessionProfileService.SaveStorageState(sessionprofilepersistence.ProfileID(profileID), state); err != nil {
 			h.log.WithError(err).WithFields(map[string]interface{}{
 				"profile_id": profileID,
 				"session_id": sessionID,
@@ -1869,16 +1914,16 @@ func (h *Handler) persistSessionProfile(ctx context.Context, sessionID string) e
 			"profile_id": profileID,
 		}).Warn("Failed to capture open tabs during persist")
 	} else if len(pages) > 0 {
-		openTabs := make([]archiveingestion.TabState, 0, len(pages))
+		openTabs := make([]sessionprofilepersistence.TabState, 0, len(pages))
 		for i, page := range pages {
-			openTabs = append(openTabs, archiveingestion.TabState{
+			openTabs = append(openTabs, sessionprofilepersistence.TabState{
 				URL:      page.URL,
 				Title:    page.Title,
 				IsActive: page.ID == activePageID,
 				Order:    i,
 			})
 		}
-		if _, err := h.sessionProfiles.SaveOpenTabs(profileID, openTabs); err != nil {
+		if _, err := h.sessionProfileService.SaveOpenTabs(sessionprofilepersistence.ProfileID(profileID), openTabs); err != nil {
 			h.log.WithError(err).WithFields(map[string]interface{}{
 				"profile_id": profileID,
 				"session_id": sessionID,
@@ -1944,4 +1989,14 @@ func (h *Handler) CreateInputForwarder() func(sessionID string, input map[string
 
 		return nil
 	}
+}
+
+// generateCorrelationID creates a correlation ID for tracing actions through the pipeline.
+// Format: rec-{short_session_id}-{timestamp_ns}
+func (h *Handler) generateCorrelationID(sessionID string) string {
+	shortSession := sessionID
+	if len(shortSession) > 8 {
+		shortSession = shortSession[:8]
+	}
+	return fmt.Sprintf("rec-%s-%d", shortSession, time.Now().UnixNano())
 }

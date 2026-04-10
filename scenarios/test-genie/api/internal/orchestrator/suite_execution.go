@@ -174,20 +174,31 @@ type SuiteExecutionRequest struct {
 	UIURL          string `json:"uiUrl,omitempty"`
 	APIURL         string `json:"apiUrl,omitempty"`
 	BrowserlessURL string `json:"browserlessUrl,omitempty"`
+
+	// ScenarioPath overrides the scenario directory path. When set (by a CLI
+	// running inside a sandboxed agent), GetScenarioPath() uses this path
+	// directly instead of resolving via VROOLI_ROOT. This allows sandboxed
+	// agents to run tests against their modified files in the overlay.
+	ScenarioPath string `json:"scenarioPath,omitempty"`
 }
 
 // SuiteExecutionResult captures the outcome of a run.
 type SuiteExecutionResult struct {
-	ExecutionID    uuid.UUID              `json:"executionId,omitempty"`
-	SuiteRequestID *uuid.UUID             `json:"suiteRequestId,omitempty"`
-	ScenarioName   string                 `json:"scenarioName"`
-	StartedAt      time.Time              `json:"startedAt"`
-	CompletedAt    time.Time              `json:"completedAt"`
-	Success        bool                   `json:"success"`
-	PresetUsed     string                 `json:"preset,omitempty"`
-	Phases         []PhaseExecutionResult `json:"phases"`
-	PhaseSummary   PhaseSummary           `json:"phaseSummary"`
-	Warnings       []string               `json:"warnings,omitempty"`
+	ExecutionID         uuid.UUID              `json:"executionId,omitempty"`
+	SuiteRequestID      *uuid.UUID             `json:"suiteRequestId,omitempty"`
+	ScenarioName        string                 `json:"scenarioName"`
+	StartedAt           time.Time              `json:"startedAt"`
+	CompletedAt         time.Time              `json:"completedAt"`
+	Success             bool                   `json:"success"`
+	PresetUsed          string                 `json:"preset,omitempty"`
+	RequestedPreset     string                 `json:"requestedPreset,omitempty"`
+	RequestedPhases     []string               `json:"requestedPhases,omitempty"`
+	RequestedSkipPhases []string               `json:"requestedSkipPhases,omitempty"`
+	PlannedPhases       []string               `json:"plannedPhases,omitempty"`
+	FailFast            bool                   `json:"failFast"`
+	Phases              []PhaseExecutionResult `json:"phases"`
+	PhaseSummary        PhaseSummary           `json:"phaseSummary"`
+	Warnings            []string               `json:"warnings,omitempty"`
 }
 
 type PhaseExecutionResult = phases.ExecutionResult
@@ -237,6 +248,27 @@ type ExecutionEvent struct {
 // ExecutionEventCallback is called for each event during streaming execution.
 type ExecutionEventCallback func(event ExecutionEvent)
 
+type preparedExecution struct {
+	env       workspacepkg.Environment
+	config    *workspacepkg.Config
+	plan      *phasePlan
+	runID     string
+	runLogDir string
+	result    *SuiteExecutionResult
+}
+
+type phaseRunContext struct {
+	start       time.Time
+	timeout     time.Duration
+	phaseCtx    context.Context
+	cancel      context.CancelFunc
+	definition  phases.Definition
+	logPath     string
+	logFile     *os.File
+	logWriter   io.Writer
+	projectRoot string
+}
+
 func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 	if strings.TrimSpace(scenariosRoot) == "" {
 		return nil, fmt.Errorf("scenarios root path is required")
@@ -264,148 +296,42 @@ func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 
 // Execute performs a phased test run and returns the recorded result.
 func (o *SuiteOrchestrator) Execute(ctx context.Context, req SuiteExecutionRequest) (*SuiteExecutionResult, error) {
-	scenario := strings.TrimSpace(req.ScenarioName)
-	if scenario == "" {
-		return nil, shared.NewValidationError("scenarioName is required")
-	}
-
-	ws, err := workspacepkg.New(o.scenariosRoot, scenario)
+	prepared, err := o.prepareExecution(req)
 	if err != nil {
 		return nil, err
 	}
 
-	// Configure runtime URLs for phases that connect to running services
-	autoUI, autoAPI := detectRuntimeURLs(ws.ScenarioDir)
-	uiURL := req.UIURL
-	if uiURL == "" {
-		uiURL = autoUI
-	}
-	apiURL := req.APIURL
-	if apiURL == "" {
-		apiURL = autoAPI
-	}
-	ws.SetRuntimeURLs(uiURL, apiURL, resolveBrowserlessURL(req.BrowserlessURL))
-	env := ws.Environment()
+	phaseResults, anyFailure := o.runSelectedPhases(
+		ctx,
+		prepared.env,
+		prepared.runLogDir,
+		prepared.plan.Selected,
+		req.FailFast,
+		buildPhaseWarningMap(prepared.plan),
+	)
 
-	config, err := workspacepkg.LoadTestingConfig(env.ScenarioDir)
-	if err != nil {
-		return nil, err
-	}
-
-	plan, err := o.buildPhasePlan(env, config, req)
-	if err != nil {
-		return nil, err
-	}
-
-	runID := time.Now().UTC().Format("20060102-150405")
-
-	if err := sharedartifacts.EnsureCoverageStructure(env.ScenarioDir); err != nil {
-		return nil, err
-	}
-	runLogDir := sharedartifacts.RunLogsDir(env.ScenarioDir, runID)
-	if err := os.MkdirAll(runLogDir, 0o755); err != nil {
-		return nil, fmt.Errorf("failed to create run log directory: %w", err)
-	}
-
-	result := &SuiteExecutionResult{
-		ScenarioName: scenario,
-		StartedAt:    time.Now().UTC(),
-		PresetUsed:   plan.PresetUsed,
-		Warnings:     buildPlanWarnings(plan),
-	}
-
-	phaseResults, anyFailure := o.runSelectedPhases(ctx, env, runLogDir, plan.Selected, req.FailFast, buildPhaseWarningMap(plan))
-
-	result.CompletedAt = time.Now().UTC()
-	result.Success = !anyFailure
-	result.Phases = phaseResults
-	result.PhaseSummary = SummarizePhases(phaseResults)
-
-	if err := o.writeLatestManifest(env.ScenarioDir, runLogDir, runID, result.StartedAt, result.CompletedAt, phaseResults); err != nil {
-		log.Printf("failed to write latest manifest: %v", err)
-	}
-
-	o.syncRequirementsIfNeeded(ctx, env, config, req, plan, phaseResults)
-
-	return result, nil
+	return o.finalizeExecution(ctx, req, prepared, phaseResults, anyFailure, nil), nil
 }
 
 // ExecuteWithEvents performs a phased test run while streaming events via callback.
 // This enables real-time progress reporting for SSE/WebSocket clients.
 func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExecutionRequest, emit ExecutionEventCallback) (*SuiteExecutionResult, error) {
-	scenario := strings.TrimSpace(req.ScenarioName)
-	if scenario == "" {
-		return nil, shared.NewValidationError("scenarioName is required")
-	}
-
-	ws, err := workspacepkg.New(o.scenariosRoot, scenario)
+	prepared, err := o.prepareExecution(req)
 	if err != nil {
 		return nil, err
 	}
 
-	// Configure runtime URLs for phases that connect to running services
-	autoUI, autoAPI := detectRuntimeURLs(ws.ScenarioDir)
-	uiURL := req.UIURL
-	if uiURL == "" {
-		uiURL = autoUI
-	}
-	apiURL := req.APIURL
-	if apiURL == "" {
-		apiURL = autoAPI
-	}
-	ws.SetRuntimeURLs(uiURL, apiURL, resolveBrowserlessURL(req.BrowserlessURL))
-	env := ws.Environment()
+	phaseResults, anyFailure := o.runSelectedPhasesWithEvents(
+		ctx,
+		prepared.env,
+		prepared.runLogDir,
+		prepared.plan.Selected,
+		req.FailFast,
+		emit,
+		buildPhaseWarningMap(prepared.plan),
+	)
 
-	config, err := workspacepkg.LoadTestingConfig(env.ScenarioDir)
-	if err != nil {
-		return nil, err
-	}
-
-	plan, err := o.buildPhasePlan(env, config, req)
-	if err != nil {
-		return nil, err
-	}
-
-	runID := time.Now().UTC().Format("20060102-150405")
-
-	if err := sharedartifacts.EnsureCoverageStructure(env.ScenarioDir); err != nil {
-		return nil, err
-	}
-	runLogDir := sharedartifacts.RunLogsDir(env.ScenarioDir, runID)
-	if err := os.MkdirAll(runLogDir, 0o755); err != nil {
-		return nil, fmt.Errorf("failed to create run log directory: %w", err)
-	}
-
-	result := &SuiteExecutionResult{
-		ScenarioName: scenario,
-		StartedAt:    time.Now().UTC(),
-		PresetUsed:   plan.PresetUsed,
-		Warnings:     buildPlanWarnings(plan),
-	}
-
-	phaseResults, anyFailure := o.runSelectedPhasesWithEvents(ctx, env, runLogDir, plan.Selected, req.FailFast, emit, buildPhaseWarningMap(plan))
-
-	result.CompletedAt = time.Now().UTC()
-	result.Success = !anyFailure
-	result.Phases = phaseResults
-	result.PhaseSummary = SummarizePhases(phaseResults)
-
-	// Emit completion event
-	if emit != nil {
-		emit(ExecutionEvent{
-			Type:      EventComplete,
-			Timestamp: time.Now(),
-			Result:    result,
-		})
-	}
-
-	if err := o.writeLatestManifest(env.ScenarioDir, runLogDir, runID, result.StartedAt, result.CompletedAt, phaseResults); err != nil {
-		log.Printf("failed to write latest manifest: %v", err)
-	}
-
-	o.syncRequirementsIfNeeded(ctx, env, config, req, plan, phaseResults)
-
-	return result, nil
+	return o.finalizeExecution(ctx, req, prepared, phaseResults, anyFailure, emit), nil
 }
 
 func (o *SuiteOrchestrator) runSelectedPhases(
@@ -432,6 +358,84 @@ func (o *SuiteOrchestrator) runSelectedPhases(
 		}
 	}
 	return results, anyFailure
+}
+
+func newRunID() string {
+	return fmt.Sprintf("%s-%s", time.Now().UTC().Format("20060102-150405"), uuid.NewString()[:8])
+}
+
+func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*preparedExecution, error) {
+	planCtx, err := o.loadExecutionPlanContext(req)
+	if err != nil {
+		return nil, err
+	}
+	scenario := planCtx.env.ScenarioName
+
+	runID := newRunID()
+	if err := sharedartifacts.EnsureCoverageStructure(planCtx.env.ScenarioDir); err != nil {
+		return nil, err
+	}
+
+	runLogDir := sharedartifacts.RunLogsDir(planCtx.env.ScenarioDir, runID)
+	if err := os.MkdirAll(runLogDir, 0o755); err != nil {
+		return nil, fmt.Errorf("failed to create run log directory: %w", err)
+	}
+
+	return &preparedExecution{
+		env:       planCtx.env,
+		config:    planCtx.config,
+		plan:      planCtx.plan,
+		runID:     runID,
+		runLogDir: runLogDir,
+		result: &SuiteExecutionResult{
+			ScenarioName:        scenario,
+			StartedAt:           time.Now().UTC(),
+			PresetUsed:          planCtx.plan.PresetUsed,
+			RequestedPreset:     normalizePhaseName(req.Preset),
+			RequestedPhases:     normalizePhaseList(req.Phases),
+			RequestedSkipPhases: normalizePhaseList(req.Skip),
+			PlannedPhases:       phaseDefinitionNames(planCtx.plan.Selected),
+			FailFast:            req.FailFast,
+			Warnings:            buildPlanWarnings(planCtx.plan),
+		},
+	}, nil
+}
+
+func (o *SuiteOrchestrator) finalizeExecution(
+	ctx context.Context,
+	req SuiteExecutionRequest,
+	prepared *preparedExecution,
+	phaseResults []PhaseExecutionResult,
+	anyFailure bool,
+	emit ExecutionEventCallback,
+) *SuiteExecutionResult {
+	result := prepared.result
+	result.CompletedAt = time.Now().UTC()
+	result.Success = !anyFailure
+	result.Phases = phaseResults
+	result.PhaseSummary = SummarizePhases(phaseResults)
+
+	if emit != nil {
+		emit(ExecutionEvent{
+			Type:      EventComplete,
+			Timestamp: time.Now(),
+			Result:    result,
+		})
+	}
+
+	if err := o.writeLatestManifest(
+		prepared.env.ScenarioDir,
+		prepared.runLogDir,
+		prepared.runID,
+		result.StartedAt,
+		result.CompletedAt,
+		phaseResults,
+	); err != nil {
+		log.Printf("failed to write latest manifest: %v", err)
+	}
+
+	o.syncRequirementsIfNeeded(ctx, prepared.env, prepared.config, req, prepared.plan, phaseResults)
+	return result
 }
 
 func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
@@ -662,107 +666,41 @@ func (o *SuiteOrchestrator) scriptPhaseRunner(scriptPath string) phases.Runner {
 }
 
 func (o *SuiteOrchestrator) runPhase(ctx context.Context, env workspacepkg.Environment, runLogDir string, def phases.Definition, preObservations []phases.Observation) PhaseExecutionResult {
-	start := time.Now()
-	logPath := filepath.Join(runLogDir, fmt.Sprintf("%s.log", def.Name.String()))
-	logFile, err := os.Create(logPath)
+	run, err := o.beginPhaseRun(ctx, env, runLogDir, def, nil, preObservations)
 	if err != nil {
-		return PhaseExecutionResult{
-			Name:            def.Name.String(),
-			Status:          "failed",
-			DurationSeconds: 0,
-			LogPath:         logPath,
-			Error:           fmt.Sprintf("failed to create log file: %v", err),
-		}
+		return o.newPhaseSetupFailure(def.Name, runLogDir, err)
 	}
-	defer logFile.Close()
+	defer run.close()
 
-	timeout := def.Timeout
-	if timeout <= 0 {
-		timeout = o.phaseTimeout
-	}
-
-	phaseCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	if env.AppRoot == "" {
-		env.AppRoot = workspacepkg.AppRootFromScenario(env.ScenarioDir)
-	}
-
-	if len(preObservations) > 0 {
-		for _, obs := range preObservations {
-			if obsStr := obs.String(); obsStr != "" {
-				_, _ = fmt.Fprintln(logFile, obsStr)
-			}
-		}
-	}
-
-	report := def.Runner(phaseCtx, env, logFile)
-	runErr := report.Err
-	duration := int(math.Ceil(time.Since(start).Seconds()))
-	if duration < 0 {
-		duration = 0
-	}
-
-	status := "passed"
-	errMsg := ""
-	classification := report.FailureClassification
-	remediation := report.Remediation
-
-	if runErr != nil {
-		status = "failed"
-		errMsg = runErr.Error()
-		if errors.Is(runErr, context.DeadlineExceeded) || errors.Is(phaseCtx.Err(), context.DeadlineExceeded) {
-			errMsg = fmt.Sprintf("phase timed out after %s", timeout)
-			classification = phases.FailureClassTimeout
-			if remediation == "" {
-				remediation = "Increase the timeout or break the phase into smaller steps."
-			}
-		}
-		if classification == "" {
-			classification = phases.FailureClassSystem
-		}
-		if remediation == "" {
-			remediation = "Refer to the phase logs to triage the failure."
-		}
-	}
-
-	relLog, relErr := filepath.Rel(o.projectRoot, logPath)
-	if relErr == nil {
-		logPath = relLog
-	}
-
-	result := PhaseExecutionResult{
-		Name:            def.Name.String(),
-		Status:          status,
-		DurationSeconds: duration,
-		LogPath:         logPath,
-		Error:           errMsg,
-		Classification:  classification,
-		Remediation:     remediation,
-		Observations:    report.Observations,
-	}
-	if len(preObservations) > 0 {
-		result.Observations = append(preObservations, result.Observations...)
-	}
-	appendObservationsToLog(logPath, o.projectRoot, result.Observations)
-	return result
+	report := def.Runner(run.phaseCtx, env, run.logWriter)
+	return o.completePhaseRun(run, report, preObservations)
 }
 
 // runPhaseWithEvents is like runPhase but emits observation events during execution.
 func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspacepkg.Environment, runLogDir string, def phases.Definition, emit ExecutionEventCallback, preObservations []phases.Observation) PhaseExecutionResult {
-	start := time.Now()
+	run, err := o.beginPhaseRun(ctx, env, runLogDir, def, emit, preObservations)
+	if err != nil {
+		return o.newPhaseSetupFailure(def.Name, runLogDir, err)
+	}
+	defer run.close()
+
+	report := def.Runner(run.phaseCtx, env, run.logWriter)
+	return o.completePhaseRun(run, report, preObservations)
+}
+
+func (o *SuiteOrchestrator) beginPhaseRun(
+	ctx context.Context,
+	env workspacepkg.Environment,
+	runLogDir string,
+	def phases.Definition,
+	emit ExecutionEventCallback,
+	preObservations []phases.Observation,
+) (*phaseRunContext, error) {
 	logPath := filepath.Join(runLogDir, fmt.Sprintf("%s.log", def.Name.String()))
 	logFile, err := os.Create(logPath)
 	if err != nil {
-		return PhaseExecutionResult{
-			Name:            def.Name.String(),
-			Status:          "failed",
-			DurationSeconds: 0,
-			LogPath:         logPath,
-			Error:           fmt.Sprintf("failed to create log file: %v", err),
-		}
+		return nil, err
 	}
-	defer logFile.Close()
 
 	timeout := def.Timeout
 	if timeout <= 0 {
@@ -770,16 +708,7 @@ func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspac
 	}
 
 	phaseCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	if env.AppRoot == "" {
-		env.AppRoot = workspacepkg.AppRootFromScenario(env.ScenarioDir)
-	}
-
-	// Create a writer that always captures full logs to disk, but only streams
-	// select lines as observations. MultiWriter duplicates writes so the stream
-	// path can stay minimal while the log captures everything.
-	var logWriter io.Writer = logFile
+	logWriter := io.Writer(logFile)
 	if emit != nil {
 		logWriter = io.MultiWriter(
 			logFile,
@@ -791,23 +720,44 @@ func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspac
 		)
 	}
 
-	if len(preObservations) > 0 {
-		for _, obs := range preObservations {
-			if obsStr := obs.String(); obsStr != "" {
-				_, _ = fmt.Fprintln(logWriter, obsStr)
-			}
+	for _, obs := range preObservations {
+		if obsStr := obs.String(); obsStr != "" {
+			_, _ = fmt.Fprintln(logWriter, obsStr)
 		}
 	}
 
-	report := def.Runner(phaseCtx, env, logWriter)
+	return &phaseRunContext{
+		start:       time.Now(),
+		timeout:     timeout,
+		phaseCtx:    phaseCtx,
+		cancel:      cancel,
+		definition:  def,
+		logPath:     logPath,
+		logFile:     logFile,
+		logWriter:   logWriter,
+		projectRoot: o.projectRoot,
+	}, nil
+}
+
+func (p *phaseRunContext) close() {
+	if p.cancel != nil {
+		p.cancel()
+	}
+	if p.logFile != nil {
+		_ = p.logFile.Close()
+	}
+}
+
+func (o *SuiteOrchestrator) completePhaseRun(
+	run *phaseRunContext,
+	report phases.RunReport,
+	preObservations []phases.Observation,
+) PhaseExecutionResult {
 	runErr := report.Err
-	duration := int(math.Ceil(time.Since(start).Seconds()))
+	duration := int(math.Ceil(time.Since(run.start).Seconds()))
 	if duration < 0 {
 		duration = 0
 	}
-
-	// Observations are included in the phase result and rendered by the CLI
-	// after phase completion, so we don't stream them here to avoid duplication.
 
 	status := "passed"
 	errMsg := ""
@@ -817,8 +767,8 @@ func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspac
 	if runErr != nil {
 		status = "failed"
 		errMsg = runErr.Error()
-		if errors.Is(runErr, context.DeadlineExceeded) || errors.Is(phaseCtx.Err(), context.DeadlineExceeded) {
-			errMsg = fmt.Sprintf("phase timed out after %s", timeout)
+		if errors.Is(runErr, context.DeadlineExceeded) || errors.Is(run.phaseCtx.Err(), context.DeadlineExceeded) {
+			errMsg = fmt.Sprintf("phase timed out after %s", run.timeout)
 			classification = phases.FailureClassTimeout
 			if remediation == "" {
 				remediation = "Increase the timeout or break the phase into smaller steps."
@@ -832,16 +782,16 @@ func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspac
 		}
 	}
 
-	relLog, relErr := filepath.Rel(o.projectRoot, logPath)
-	if relErr == nil {
-		logPath = relLog
+	displayLogPath := run.logPath
+	if relLog, err := filepath.Rel(run.projectRoot, run.logPath); err == nil {
+		displayLogPath = relLog
 	}
 
 	result := PhaseExecutionResult{
-		Name:            def.Name.String(),
+		Name:            run.definition.Name.String(),
 		Status:          status,
 		DurationSeconds: duration,
-		LogPath:         logPath,
+		LogPath:         displayLogPath,
 		Error:           errMsg,
 		Classification:  classification,
 		Remediation:     remediation,
@@ -850,7 +800,18 @@ func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspac
 	if len(preObservations) > 0 {
 		result.Observations = append(preObservations, result.Observations...)
 	}
+	appendObservationsToLog(displayLogPath, run.projectRoot, result.Observations)
 	return result
+}
+
+func (o *SuiteOrchestrator) newPhaseSetupFailure(name phases.Name, runLogDir string, err error) PhaseExecutionResult {
+	return PhaseExecutionResult{
+		Name:            name.String(),
+		Status:          "failed",
+		DurationSeconds: 0,
+		LogPath:         filepath.Join(runLogDir, fmt.Sprintf("%s.log", name.String())),
+		Error:           fmt.Sprintf("failed to create log file: %v", err),
+	}
 }
 
 func (o *SuiteOrchestrator) writeLatestManifest(scenarioDir, runLogDir, runID string, startedAt, completedAt time.Time, results []PhaseExecutionResult) error {
@@ -1172,6 +1133,49 @@ func buildCommandHistory(req SuiteExecutionRequest, plan *phasePlan) []string {
 
 func normalizePhaseName(raw string) string {
 	return strings.ToLower(strings.TrimSpace(raw))
+}
+
+func normalizePhaseList(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+
+	normalized := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		name := normalizePhaseName(value)
+		if name == "" {
+			continue
+		}
+		if _, exists := seen[name]; exists {
+			continue
+		}
+		seen[name] = struct{}{}
+		normalized = append(normalized, name)
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
+}
+
+func phaseDefinitionNames(defs []phases.Definition) []string {
+	if len(defs) == 0 {
+		return nil
+	}
+
+	names := make([]string, 0, len(defs))
+	for _, def := range defs {
+		name := normalizePhaseName(def.Name.String())
+		if name == "" {
+			continue
+		}
+		names = append(names, name)
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	return names
 }
 
 func resolveDesiredPhaseList(req SuiteExecutionRequest, presets map[string][]string) ([]string, string, error) {

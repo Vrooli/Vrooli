@@ -1,0 +1,117 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-09T04:10:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Codebase already has two production-tested in-memory TTL cache implementations in agent-manager: (1) pricing service cache (internal/pricing/service.go) uses sync.RWMutex + map with expiresAt per entry, manual invalidation on updates, and staleness metadata (FetchedAt, ExpiresAt, IsStale fields). (2) Stats orchestration cache (internal/orchestration/stats.go) uses 30s fixed TTL with sync.RWMutex. Both are custom-built using Go stdlib — no external cache libraries. Command-center should follow the same pattern with per-source TTLs and staleness metadata in API responses."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "errgroup is the established concurrent fan-out pattern in the codebase (used in git-control-tower/repo_status_service.go for parallel git operations, scenario-stack-governor for parallel module checks). The agent-manager stats orchestration uses sync.WaitGroup for parallel DB queries. For HTTP fan-out to 3 sources, errgroup.WithContext is the better fit — it propagates context cancellation and collects the first error. Pattern: g, ctx := errgroup.WithContext(ctx); g.Go(func() error { ... }); if err := g.Wait(); err != nil { ... }."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "The swarm-manager circuit breaker (internal/execution/circuit_breaker.go) is file-backed and per-item (tracks consecutive failures with threshold + cooldown). For command-center's per-source circuit breaker, a simpler in-memory model suffices: track consecutive failures per source, trip after N failures, half-open after cooldown period, reset on success. No file persistence needed since command-center restarts should reset breakers (sources may have recovered)."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "The command-center scenario does NOT exist yet — no files at scenarios/command-center/. The execute/command-center-scenario-scaffold backlog item (which command-center-api-aggregator depends on) must create the scenario before implementation begins. The API aggregator will be built inside scenarios/command-center/api/."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Concurrent fan-out timeout strategy",
+      "context": "Command-center makes parallel requests to 3 sources (LPBS, Swarm Manager, Vrooli Core). If one source is slow or down, it shouldn't block the entire response. Need to decide how to handle per-source timeouts and partial response assembly.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Per-source context timeout (e.g., 5s per source) with errgroup — return partial results from fast sources if one times out, fill timed-out source from cache",
+          "rationale": "Best UX — dashboards render quickly with whatever data is available. Cache serves stale data for timed-out sources. Each source gets its own context.WithTimeout child. Requires staleness metadata so UI knows which data is fresh vs stale.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Single request-level timeout (e.g., 10s) — all sources must respond or the whole request fails",
+          "rationale": "Simpler to implement. But one slow source degrades all dashboards. Bad UX when only one source is having issues."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Staleness metadata in API responses",
+      "context": "When serving cached data (especially stale-on-failure), the UI needs to know data freshness. Need to decide the staleness reporting format in command-center's API responses.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Per-source staleness object in every response: {\"sources\": {\"lpbs\": {\"status\": \"fresh\", \"fetched_at\": \"...\", \"age_seconds\": 12}, \"swarm\": {\"status\": \"stale\", \"fetched_at\": \"...\", \"age_seconds\": 45, \"error\": \"timeout\"}}}",
+          "rationale": "UI can render freshness indicators per data section. Transparent about data quality. Consistent structure across all dashboard endpoints.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Single response-level freshness flag: {\"data_fresh\": true, \"oldest_source_age_seconds\": 45}",
+          "rationale": "Simpler. UI shows one freshness badge. But loses granularity — can't distinguish which source is stale."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Go package structure for the aggregator",
+      "context": "Need to define how the command-center API code is organized. The execute spec mentions source clients, cache layer, dashboard composers, and gap registry.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Flat package main with service-per-file (matching LPBS pattern): main.go, server.go, routes.go, cache.go, client_lpbs.go, client_swarm.go, client_scenarios.go, dashboard_mission_control.go, dashboard_hive.go, etc., gaps.go",
+          "rationale": "Consistent with LPBS pattern already in the codebase. Simple, no import cycles. Each dashboard handler composes from source clients. Good for a single-binary service.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Internal packages: internal/source/{lpbs,swarm,scenarios}, internal/cache, internal/dashboard, internal/gaps — with main.go wiring",
+          "rationale": "Stronger encapsulation. Clear dependency boundaries. But more boilerplate for a relatively simple service. Matches agent-manager pattern."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    }
+  ],
+  "plan_updates": "Incorporated settled round 2 decisions (widen requireAdminOrService, per-dashboard endpoints, three separate LPBS endpoints). Added findings on existing cache and fan-out patterns from the codebase. New decisions focus on implementation-level details: timeout strategy, staleness metadata format, and package structure."
+}

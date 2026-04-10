@@ -19,10 +19,10 @@
 import {
   createContext,
   useContext,
-  type ReactNode,
   type MutableRefObject,
 } from "react";
 import type { ReplayMovieSpec } from "@/types/export";
+import type { ReplayFrame, ReplayStyleProps } from "@/domains/exports/replay/types";
 import type {
   ExportDimensionPreset,
   ExportDimensions,
@@ -30,6 +30,7 @@ import type {
   ExportFormatOption,
   ExportRenderSource,
   ExportRenderSourceOption,
+  ExportStylization,
 } from "../config";
 
 // =============================================================================
@@ -38,11 +39,20 @@ import type {
 
 /**
  * Format selection state.
+ * Supports multiple format selection for batch exports.
  */
 export interface ExportFormatState {
+  /** @deprecated Use formats array instead */
   format: ExportFormat;
+  /** @deprecated Use toggleFormat instead */
   setFormat: (format: ExportFormat) => void;
+  /** Currently selected formats (supports multiple) */
+  formats: ExportFormat[];
+  /** Toggle a format on/off in the selection */
+  toggleFormat: (format: ExportFormat) => void;
+  /** True if any selected format is binary (mp4/gif) */
   isBinaryExport: boolean;
+  /** Available format options */
   formatOptions: ExportFormatOption[];
 }
 
@@ -68,15 +78,16 @@ export interface ExportDimensionState {
 
 /**
  * File naming and destination state.
+ * Note: All exports are server-side only (no browser downloads).
  */
 export interface ExportFileState {
   fileStem: string;
   setFileStem: (stem: string) => void;
   defaultFileStem: string;
   finalFileName: string;
-  supportsFileSystemAccess: boolean;
-  useNativeFilePicker: boolean;
-  setUseNativeFilePicker: (use: boolean) => void;
+  /** Output directory for server-side exports */
+  outputDir: string;
+  setOutputDir: (dir: string) => void;
 }
 
 /**
@@ -92,19 +103,44 @@ export interface ExportRenderSourceState {
 }
 
 /**
+ * Stylization mode selection state.
+ */
+export interface ExportStylizationState {
+  stylization: ExportStylization;
+  setStylization: (stylization: ExportStylization) => void;
+  isStylized: boolean;
+}
+
+/**
  * Preview rendering state.
  */
 export interface ExportPreviewState {
   movieSpec: ReplayMovieSpec | null;
-  composerPreviewUrl: string;
+  /** Replay frames for the ReplayPlayer component */
+  replayFrames: ReplayFrame[];
+  /** Style configuration for ReplayPlayer */
+  replayStyle: ReplayStyleProps;
+  /** URL for recorded video (when using recording source) */
+  recordedVideoUrl: string | null;
+  /** URL for first frame preview (fallback image) */
   firstFramePreviewUrl: string | null;
+  /** Label for first frame (step description) */
   firstFrameLabel: string | null;
+  /** @deprecated - Use ReplayPlayer instead of iframe. Kept for backwards compatibility. */
+  composerPreviewUrl: string;
+  /** @deprecated - Use ReplayPlayer instead of iframe. Kept for backwards compatibility. */
   composerRef: MutableRefObject<HTMLIFrameElement | null>;
+  /** @deprecated - Use ReplayPlayer instead of iframe. Kept for backwards compatibility. */
   composerWindowRef: MutableRefObject<Window | null>;
+  /** @deprecated - Use ReplayPlayer instead of iframe. Kept for backwards compatibility. */
   composerOriginRef: MutableRefObject<string | null>;
+  /** @deprecated - Use ReplayPlayer instead of iframe. Kept for backwards compatibility. */
   isComposerReady: boolean;
+  /** @deprecated - Use ReplayPlayer instead of iframe. Kept for backwards compatibility. */
   setIsComposerReady: (ready: boolean) => void;
+  /** @deprecated - Use ReplayPlayer instead of iframe. Kept for backwards compatibility. */
   composerError: string | null;
+  /** @deprecated - Use ReplayPlayer instead of iframe. Kept for backwards compatibility. */
   setComposerError: (error: string | null) => void;
 }
 
@@ -115,6 +151,19 @@ export interface ExportProgressState {
   isExporting: boolean;
   isPreviewLoading: boolean;
   statusMessage: string;
+  /** Active export ID (for WebSocket progress subscription) */
+  activeExportId: string | null;
+  /** Real-time export progress from WebSocket */
+  exportProgress: {
+    export_id: string;
+    execution_id: string;
+    stage: "preparing" | "capturing" | "encoding" | "finalizing" | "completed" | "failed";
+    progress_percent: number;
+    status: "processing" | "completed" | "failed";
+    storage_url?: string;
+    file_size_bytes?: number;
+    error?: string;
+  } | null;
 }
 
 /**
@@ -148,11 +197,15 @@ export interface ExportDialogContextValue {
   titleId: string;
   descriptionId: string;
 
+  /** Whether the dialog is in edit mode (editing an existing export) */
+  isEditMode: boolean;
+
   /** Grouped state */
   formatState: ExportFormatState;
   dimensionState: ExportDimensionState;
   fileState: ExportFileState;
   renderSourceState: ExportRenderSourceState;
+  stylizationState: ExportStylizationState;
   previewState: ExportPreviewState;
   progressState: ExportProgressState;
   metricsState: ExportMetricsState;
@@ -168,7 +221,7 @@ export interface ExportDialogContextValue {
 // Context
 // =============================================================================
 
-const ExportDialogContext = createContext<ExportDialogContextValue | null>(null);
+export const ExportDialogContext = createContext<ExportDialogContextValue | null>(null);
 
 // =============================================================================
 // Hook
@@ -219,6 +272,13 @@ export function useExportRenderSourceState(): ExportRenderSourceState {
 }
 
 /**
+ * Hook to access stylization state from context.
+ */
+export function useExportStylizationState(): ExportStylizationState {
+  return useExportDialogContext().stylizationState;
+}
+
+/**
  * Hook to access preview state from context.
  */
 export function useExportPreviewState(): ExportPreviewState {
@@ -247,29 +307,6 @@ export function useExportDialogActions(): ExportDialogActions {
 }
 
 // =============================================================================
-// Provider
-// =============================================================================
-
-interface ExportDialogProviderProps {
-  children: ReactNode;
-  value: ExportDialogContextValue;
-}
-
-/**
- * Provider component for export dialog context.
- */
-export function ExportDialogProvider({
-  children,
-  value,
-}: ExportDialogProviderProps): JSX.Element {
-  return (
-    <ExportDialogContext.Provider value={value}>
-      {children}
-    </ExportDialogContext.Provider>
-  );
-}
-
-// =============================================================================
 // Builder
 // =============================================================================
 
@@ -282,9 +319,14 @@ export interface BuildExportDialogContextOptions {
   dialogTitleId: string;
   dialogDescriptionId: string;
 
+  /** Whether the dialog is in edit mode (editing an existing export) */
+  isEditMode?: boolean;
+
   // Format state
   exportFormat: ExportFormat;
   setExportFormat: (format: ExportFormat) => void;
+  exportFormats: ExportFormat[];
+  toggleExportFormat: (format: ExportFormat) => void;
   isBinaryExport: boolean;
   exportFormatOptions: ExportFormatOption[];
 
@@ -309,9 +351,9 @@ export interface BuildExportDialogContextOptions {
   setExportFileStem: (stem: string) => void;
   defaultExportFileStem: string;
   finalFileName: string;
-  supportsFileSystemAccess: boolean;
-  useNativeFilePicker: boolean;
-  setUseNativeFilePicker: (use: boolean) => void;
+  /** Output directory for server-side exports */
+  outputDir: string;
+  setOutputDir: (dir: string) => void;
 
   // Render source state
   renderSource: ExportRenderSource;
@@ -321,8 +363,16 @@ export interface BuildExportDialogContextOptions {
   recordedVideoCount: number;
   recordedVideoLoading: boolean;
 
+  // Stylization state
+  stylization: ExportStylization;
+  setStylization: (stylization: ExportStylization) => void;
+  isStylized: boolean;
+
   // Preview state
   preparedMovieSpec: ReplayMovieSpec | null;
+  replayFrames: ReplayFrame[];
+  replayStyle: ReplayStyleProps;
+  recordedVideoUrl: string | null;
   composerPreviewUrl: string;
   firstFramePreviewUrl: string | null;
   firstFrameLabel: string | null;
@@ -338,6 +388,19 @@ export interface BuildExportDialogContextOptions {
   isExporting: boolean;
   isExportPreviewLoading: boolean;
   exportStatusMessage: string;
+  /** Active export ID for WebSocket progress subscription */
+  activeExportId: string | null;
+  /** Real-time export progress from WebSocket */
+  exportProgress: {
+    export_id: string;
+    execution_id: string;
+    stage: "preparing" | "capturing" | "encoding" | "finalizing" | "completed" | "failed";
+    progress_percent: number;
+    status: "processing" | "completed" | "failed";
+    storage_url?: string;
+    file_size_bytes?: number;
+    error?: string;
+  } | null;
 
   // Metrics state
   replayFramesLength: number;
@@ -368,10 +431,13 @@ export function buildExportDialogContextValue(
   return {
     titleId: options.dialogTitleId,
     descriptionId: options.dialogDescriptionId,
+    isEditMode: options.isEditMode ?? false,
 
     formatState: {
       format: options.exportFormat,
       setFormat: options.setExportFormat,
+      formats: options.exportFormats,
+      toggleFormat: options.toggleExportFormat,
       isBinaryExport: options.isBinaryExport,
       formatOptions: options.exportFormatOptions,
     },
@@ -392,9 +458,8 @@ export function buildExportDialogContextValue(
       setFileStem: options.setExportFileStem,
       defaultFileStem: options.defaultExportFileStem,
       finalFileName: options.finalFileName,
-      supportsFileSystemAccess: options.supportsFileSystemAccess,
-      useNativeFilePicker: options.useNativeFilePicker,
-      setUseNativeFilePicker: options.setUseNativeFilePicker,
+      outputDir: options.outputDir,
+      setOutputDir: options.setOutputDir,
     },
 
     renderSourceState: {
@@ -406,8 +471,17 @@ export function buildExportDialogContextValue(
       recordedVideoLoading: options.recordedVideoLoading,
     },
 
+    stylizationState: {
+      stylization: options.stylization,
+      setStylization: options.setStylization,
+      isStylized: options.isStylized,
+    },
+
     previewState: {
       movieSpec: options.preparedMovieSpec,
+      replayFrames: options.replayFrames,
+      replayStyle: options.replayStyle,
+      recordedVideoUrl: options.recordedVideoUrl,
       composerPreviewUrl: options.composerPreviewUrl,
       firstFramePreviewUrl: options.firstFramePreviewUrl,
       firstFrameLabel: options.firstFrameLabel,
@@ -424,6 +498,8 @@ export function buildExportDialogContextValue(
       isExporting: options.isExporting,
       isPreviewLoading: options.isExportPreviewLoading,
       statusMessage: options.exportStatusMessage,
+      activeExportId: options.activeExportId,
+      exportProgress: options.exportProgress,
     },
 
     metricsState: {

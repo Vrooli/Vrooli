@@ -1,0 +1,137 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cloneGraphUIInitialState, useGraphUIStore } from "./graph-ui-store";
+
+function resetStore() {
+  useGraphUIStore.setState(cloneGraphUIInitialState());
+  window.localStorage.clear();
+}
+
+describe("graphUIStore", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    resetStore();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  describe("node selection", () => {
+    it("starts with no selection", () => {
+      expect(useGraphUIStore.getState().selectedNodeId).toBeNull();
+    });
+
+    it("selects a node", () => {
+      useGraphUIStore.getState().selectNode("node-1");
+      expect(useGraphUIStore.getState().selectedNodeId).toBe("node-1");
+    });
+
+    it("clears selection on null", () => {
+      useGraphUIStore.getState().selectNode("node-1");
+      useGraphUIStore.getState().selectNode(null);
+      expect(useGraphUIStore.getState().selectedNodeId).toBeNull();
+    });
+  });
+
+  describe("layout preferences", () => {
+    it("defaults to hierarchical", () => {
+      expect(useGraphUIStore.getState().layoutMode).toBe("hierarchical");
+    });
+
+    it("persists per-lens layout mode changes", () => {
+      useGraphUIStore.getState().setLayoutForLens("topology", "compact");
+
+      expect(useGraphUIStore.getState().layoutMode).toBe("compact");
+      expect(useGraphUIStore.getState().getLayoutForLens("topology")).toBe("compact");
+      expect(window.localStorage.getItem("swarm-manager.graph.layout")).toContain("\"topology\":\"compact\"");
+    });
+
+    it("cycles layout mode for the current lens", () => {
+      useGraphUIStore.getState().cycleLayoutMode("topology");
+      expect(useGraphUIStore.getState().layoutMode).toBe("compact");
+
+      useGraphUIStore.getState().cycleLayoutMode("topology");
+      expect(useGraphUIStore.getState().layoutMode).toBe("grouped");
+    });
+
+    it("loads a stored lens layout into the active layout mode", () => {
+      useGraphUIStore.getState().setLayoutForLens("operations", "grouped");
+      useGraphUIStore.getState().setLayoutMode("hierarchical");
+
+      useGraphUIStore.getState().applyLayoutForLens("operations");
+      expect(useGraphUIStore.getState().layoutMode).toBe("grouped");
+    });
+
+    it("stores layout direction", () => {
+      useGraphUIStore.getState().setLayoutDirection("LR");
+      expect(useGraphUIStore.getState().layoutDirection).toBe("LR");
+      expect(window.localStorage.getItem("swarm-manager.graph.layout-direction")).toBe("LR");
+    });
+  });
+
+  describe("fit view and viewport", () => {
+    it("increments the fit-view nonce on request", () => {
+      expect(useGraphUIStore.getState().fitViewNonce).toBe(0);
+      useGraphUIStore.getState().requestFitView();
+      expect(useGraphUIStore.getState().fitViewNonce).toBe(1);
+    });
+
+    it("persists viewport changes per lens", () => {
+      const viewport = { x: 100, y: 200, zoom: 1.2 };
+      useGraphUIStore.getState().setViewportForLens("operations", viewport);
+
+      // Store state is updated synchronously.
+      expect(useGraphUIStore.getState().viewportByLens.operations).toEqual(viewport);
+
+      // localStorage write is debounced — flush the timer.
+      vi.advanceTimersByTime(600);
+      expect(window.localStorage.getItem("swarm-manager.graph.viewport.v2")).toBe(
+        JSON.stringify({
+          focus: null,
+          topology: null,
+          operations: viewport,
+        }),
+      );
+    });
+
+    it("keeps lens viewports isolated from each other", () => {
+      const topologyViewport = { x: 100, y: 200, zoom: 1.2 };
+      const operationsViewport = { x: -50, y: 80, zoom: 0.75 };
+
+      useGraphUIStore.getState().setViewportForLens("topology", topologyViewport);
+      useGraphUIStore.getState().setViewportForLens("operations", operationsViewport);
+
+      expect(useGraphUIStore.getState().viewportByLens.topology).toEqual(topologyViewport);
+      expect(useGraphUIStore.getState().viewportByLens.operations).toEqual(operationsViewport);
+    });
+  });
+
+  describe("sidebar", () => {
+    it("toggles the sidebar", () => {
+      useGraphUIStore.getState().toggleSidebar();
+      expect(useGraphUIStore.getState().sidebarCollapsed).toBe(true);
+      expect(window.localStorage.getItem("swarm-manager.graph.sidebar-collapsed")).toBe("true");
+    });
+  });
+
+  describe("topology cluster expansion", () => {
+    it("starts with no expanded topology clusters", () => {
+      expect(useGraphUIStore.getState().expandedTopologyClusters.size).toBe(0);
+    });
+
+    it("toggles a topology cluster", () => {
+      useGraphUIStore.getState().toggleTopologyCluster("initiative/graph");
+      expect(useGraphUIStore.getState().expandedTopologyClusters.has("initiative/graph")).toBe(true);
+
+      useGraphUIStore.getState().toggleTopologyCluster("initiative/graph");
+      expect(useGraphUIStore.getState().expandedTopologyClusters.has("initiative/graph")).toBe(false);
+    });
+
+    it("can collapse and expand all topology clusters", () => {
+      useGraphUIStore.getState().expandTopologyClusters(["initiative/one", "initiative/two"]);
+      expect(useGraphUIStore.getState().expandedTopologyClusters.size).toBe(2);
+
+      useGraphUIStore.getState().collapseAllTopologyClusters();
+      expect(useGraphUIStore.getState().expandedTopologyClusters.size).toBe(0);
+    });
+  });
+});

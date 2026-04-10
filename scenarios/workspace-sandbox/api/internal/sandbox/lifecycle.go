@@ -9,22 +9,26 @@ import (
 
 // LifecycleReconciler enforces per-sandbox lifecycle policies on a schedule.
 type LifecycleReconciler struct {
-	service  *Service
-	interval time.Duration
-	stopCh   chan struct{}
-	doneCh   chan struct{}
+	service     *Service
+	interval    time.Duration
+	healTracker *healTracker
+	healCfg     HealConfig
+	stopCh      chan struct{}
+	doneCh      chan struct{}
 }
 
-// NewLifecycleReconciler creates a reconciler with the given interval.
-func NewLifecycleReconciler(service *Service, interval time.Duration) *LifecycleReconciler {
+// NewLifecycleReconciler creates a reconciler with the given interval and heal config.
+func NewLifecycleReconciler(service *Service, interval time.Duration, healCfg HealConfig) *LifecycleReconciler {
 	if interval <= 0 {
 		interval = 15 * time.Minute
 	}
 	return &LifecycleReconciler{
-		service:  service,
-		interval: interval,
-		stopCh:   make(chan struct{}),
-		doneCh:   make(chan struct{}),
+		service:     service,
+		interval:    interval,
+		healTracker: newHealTracker(),
+		healCfg:     healCfg,
+		stopCh:      make(chan struct{}),
+		doneCh:      make(chan struct{}),
 	}
 }
 
@@ -38,11 +42,15 @@ func (r *LifecycleReconciler) Start() {
 		defer ticker.Stop()
 		defer close(r.doneCh)
 
-		r.service.ReconcileLifecycle(context.Background())
+		ctx := context.Background()
+		r.service.ReconcileLifecycle(ctx)
+		r.service.ReconcileActiveMounts(ctx, r.healTracker, r.healCfg)
 		for {
 			select {
 			case <-ticker.C:
-				r.service.ReconcileLifecycle(context.Background())
+				ctx := context.Background()
+				r.service.ReconcileLifecycle(ctx)
+				r.service.ReconcileActiveMounts(ctx, r.healTracker, r.healCfg)
 			case <-r.stopCh:
 				return
 			}

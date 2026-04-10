@@ -9,6 +9,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import { getApiBase } from '@/config';
+import { useSessionStore } from '../stores';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
 
 /** Page status in the recording session */
 export type PageStatus = 'active' | 'closed';
@@ -62,6 +66,135 @@ interface PageSwitchMessage {
   timestamp: string;
 }
 
+const pageEventTypes = new Set<PageEventType>(['page_created', 'page_navigated', 'page_closed']);
+
+const parsePage = (value: unknown): Page | null => {
+  if (!isRecord(value)) return null;
+  const id = typeof value.id === 'string' ? value.id : null;
+  const sessionId =
+    typeof value.sessionId === 'string'
+      ? value.sessionId
+      : typeof value.session_id === 'string'
+        ? value.session_id
+        : null;
+  if (!id || !sessionId) return null;
+  const url = typeof value.url === 'string' ? value.url : '';
+  const title = typeof value.title === 'string' ? value.title : '';
+  const openerId =
+    typeof value.openerId === 'string'
+      ? value.openerId
+      : typeof value.opener_id === 'string'
+        ? value.opener_id
+        : undefined;
+  const isInitial =
+    typeof value.isInitial === 'boolean'
+      ? value.isInitial
+      : typeof value.is_initial === 'boolean'
+        ? value.is_initial
+        : false;
+  const status: PageStatus = value.status === 'closed' ? 'closed' : 'active';
+  const createdAt =
+    typeof value.createdAt === 'string'
+      ? value.createdAt
+      : typeof value.created_at === 'string'
+        ? value.created_at
+        : new Date().toISOString();
+  const closedAt =
+    typeof value.closedAt === 'string'
+      ? value.closedAt
+      : typeof value.closed_at === 'string'
+        ? value.closed_at
+        : undefined;
+
+  return {
+    id,
+    sessionId,
+    url,
+    title,
+    openerId,
+    isInitial,
+    status,
+    createdAt,
+    closedAt,
+  };
+};
+
+const parsePagesResponse = (value: unknown): PagesResponse | null => {
+  if (!isRecord(value)) return null;
+  const pages = Array.isArray(value.pages)
+    ? value.pages.map(parsePage).filter((page): page is Page => page !== null)
+    : [];
+  const activePageId =
+    typeof value.activePageId === 'string'
+      ? value.activePageId
+      : typeof value.active_page_id === 'string'
+        ? value.active_page_id
+        : '';
+  return { pages, activePageId };
+};
+
+const parsePageEvent = (value: unknown): PageEvent | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.type !== 'string' || !pageEventTypes.has(value.type as PageEventType)) return null;
+  const pageId =
+    typeof value.pageId === 'string'
+      ? value.pageId
+      : typeof value.page_id === 'string'
+        ? value.page_id
+        : null;
+  if (!pageId) return null;
+  const timestamp = typeof value.timestamp === 'string' ? value.timestamp : new Date().toISOString();
+  const id = typeof value.id === 'string' ? value.id : `${pageId}-${timestamp}`;
+
+  return {
+    id,
+    type: value.type as PageEventType,
+    pageId,
+    url: typeof value.url === 'string' ? value.url : undefined,
+    title: typeof value.title === 'string' ? value.title : undefined,
+    openerId:
+      typeof value.openerId === 'string'
+        ? value.openerId
+        : typeof value.opener_id === 'string'
+          ? value.opener_id
+          : undefined,
+    timestamp,
+  };
+};
+
+const parsePageEventMessage = (value: unknown): PageEventMessage | null => {
+  if (!isRecord(value) || value.type !== 'page_event') return null;
+  if (typeof value.session_id !== 'string') return null;
+  const event = parsePageEvent(value.event);
+  if (!event) return null;
+  const timestamp = typeof value.timestamp === 'string' ? value.timestamp : new Date().toISOString();
+  return {
+    type: 'page_event',
+    session_id: value.session_id,
+    event,
+    timestamp,
+  };
+};
+
+const parsePageSwitchMessage = (value: unknown): PageSwitchMessage | null => {
+  if (!isRecord(value) || value.type !== 'page_switch') return null;
+  if (typeof value.session_id !== 'string' || typeof value.active_page_id !== 'string') return null;
+  const timestamp = typeof value.timestamp === 'string' ? value.timestamp : new Date().toISOString();
+  return {
+    type: 'page_switch',
+    session_id: value.session_id,
+    active_page_id: value.active_page_id,
+    timestamp,
+  };
+};
+
+const parseErrorMessage = (value: unknown): string | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.error === 'string') return value.error;
+  if (typeof value.message === 'string') return value.message;
+  return null;
+};
+
 interface UsePagesOptions {
   /** Session ID to track pages for */
   sessionId: string | null;
@@ -105,7 +238,7 @@ interface UsePagesReturn {
 }
 
 export function usePages({
-  sessionId,
+  sessionId: propSessionId,
   onPageCreated,
   onPageClosed,
   onActivePageChanged,
@@ -118,6 +251,20 @@ export function usePages({
 
   const { lastMessage } = useWebSocket();
   const apiUrl = getApiBase();
+
+  // Read session validation state from store
+  const storeSessionId = useSessionStore((s) => s.sessionId);
+  const isValidated = useSessionStore((s) => s.isValidated);
+
+  // Use store session ID if validated, otherwise fall back to prop
+  const sessionId = isValidated ? storeSessionId : propSessionId;
+
+  // Get store actions for syncing page state
+  const storeSetPages = useSessionStore((s) => s.setPages);
+  const storeAddPage = useSessionStore((s) => s.addPage);
+  const storeUpdatePage = useSessionStore((s) => s.updatePage);
+  const storeSetActivePageId = useSessionStore((s) => s.setActivePageId);
+  const storeUpdatePageColorMap = useSessionStore((s) => s.updatePageColorMap);
 
   // Keep callbacks in refs to avoid stale closures
   const onPageCreatedRef = useRef(onPageCreated);
@@ -146,14 +293,24 @@ export function usePages({
         throw new Error(`Failed to fetch pages: ${response.statusText}`);
       }
 
-      const data: PagesResponse = await response.json();
+      const payload: unknown = await response.json();
+      const data = parsePagesResponse(payload);
+      if (!data) {
+        throw new Error('Invalid pages response');
+      }
+
       const pageMap = new Map<string, Page>();
-      (data.pages || []).forEach((page) => {
+      data.pages.forEach((page) => {
         pageMap.set(page.id, page);
       });
 
       setPages(pageMap);
       setActivePageId(data.activePageId || null);
+
+      // Sync to store
+      storeSetPages(pageMap);
+      storeSetActivePageId(data.activePageId || null);
+      storeUpdatePageColorMap(data.pages);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch pages';
       setError(message);
@@ -161,17 +318,17 @@ export function usePages({
     } finally {
       setIsLoading(false);
     }
-  }, [apiUrl, sessionId]);
+  }, [apiUrl, sessionId, storeSetPages, storeSetActivePageId, storeUpdatePageColorMap]);
 
-  // Fetch pages when session changes
+  // Fetch pages when session changes and is validated
   useEffect(() => {
-    if (sessionId) {
+    if (sessionId && isValidated) {
       void refreshPages();
     } else {
       setPages(new Map());
       setActivePageId(null);
     }
-  }, [sessionId, refreshPages]);
+  }, [sessionId, isValidated, refreshPages]);
 
   // Keep track of active page in a ref for use in callbacks without stale closures
   const activePageIdRef = useRef(activePageId);
@@ -181,11 +338,9 @@ export function usePages({
   useEffect(() => {
     if (!lastMessage || !sessionId) return;
 
-    const msg = lastMessage as unknown as PageEventMessage | PageSwitchMessage;
-
-    // Handle page lifecycle events
-    if (msg.type === 'page_event' && msg.session_id === sessionId) {
-      const event = msg.event;
+    const eventMessage = parsePageEventMessage(lastMessage);
+    if (eventMessage && eventMessage.session_id === sessionId) {
+      const event = eventMessage.event;
 
       setPages((prev) => {
         const next = new Map(prev);
@@ -203,6 +358,9 @@ export function usePages({
               createdAt: event.timestamp,
             };
             next.set(event.pageId, newPage);
+
+            // Sync to store
+            storeAddPage(newPage);
 
             // Notify callback
             if (onPageCreatedRef.current) {
@@ -222,6 +380,9 @@ export function usePages({
                 title: newTitle,
               });
 
+              // Sync to store
+              storeUpdatePage(event.pageId, { url: newUrl, title: newTitle });
+
               // Notify callback with isActive flag
               if (onPageNavigatedRef.current) {
                 const isActive = event.pageId === activePageIdRef.current;
@@ -240,6 +401,9 @@ export function usePages({
                 closedAt: event.timestamp,
               });
 
+              // Sync to store
+              storeUpdatePage(event.pageId, { status: 'closed', closedAt: event.timestamp });
+
               // Notify callback
               if (onPageClosedRef.current) {
                 onPageClosedRef.current(event.pageId);
@@ -254,16 +418,20 @@ export function usePages({
     }
 
     // Handle page switch events
-    if (msg.type === 'page_switch' && msg.session_id === sessionId) {
-      const newActivePageId = msg.active_page_id;
+    const switchMessage = parsePageSwitchMessage(lastMessage);
+    if (switchMessage && switchMessage.session_id === sessionId) {
+      const newActivePageId = switchMessage.active_page_id;
       setActivePageId(newActivePageId);
+
+      // Sync to store
+      storeSetActivePageId(newActivePageId);
 
       // Notify callback
       if (onActivePageChangedRef.current) {
         onActivePageChangedRef.current(newActivePageId);
       }
     }
-  }, [lastMessage, sessionId]);
+  }, [lastMessage, sessionId, storeAddPage, storeUpdatePage, storeSetActivePageId]);
 
   // Switch active page
   const switchToPage = useCallback(async (pageId: string) => {
@@ -279,8 +447,9 @@ export function usePages({
       );
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || `Failed to switch page: ${response.statusText}`);
+        const payload: unknown = await response.json().catch(() => null);
+        const message = parseErrorMessage(payload) ?? `Failed to switch page: ${response.statusText}`;
+        throw new Error(message);
       }
 
       // Optimistically update state (will also receive WebSocket confirmation)
@@ -311,11 +480,18 @@ export function usePages({
       );
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || `Failed to close page: ${response.statusText}`);
+        const payload: unknown = await response.json().catch(() => null);
+        const message = parseErrorMessage(payload) ?? `Failed to close page: ${response.statusText}`;
+        throw new Error(message);
       }
 
-      const result = await response.json();
+      const resultPayload: unknown = await response.json();
+      const activePageIdResult =
+        isRecord(resultPayload) && typeof resultPayload.activePageId === 'string'
+          ? resultPayload.activePageId
+          : isRecord(resultPayload) && typeof resultPayload.active_page_id === 'string'
+            ? resultPayload.active_page_id
+            : null;
 
       // Optimistically update state (will also receive WebSocket confirmation)
       setPages((prev) => {
@@ -332,10 +508,10 @@ export function usePages({
       });
 
       // Update active page if it changed
-      if (result.activePageId) {
-        setActivePageId(result.activePageId);
+      if (activePageIdResult) {
+        setActivePageId(activePageIdResult);
         if (onActivePageChangedRef.current) {
-          onActivePageChangedRef.current(result.activePageId);
+          onActivePageChangedRef.current(activePageIdResult);
         }
       }
 
@@ -368,8 +544,9 @@ export function usePages({
       );
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || `Failed to create page: ${response.statusText}`);
+        const payload: unknown = await response.json().catch(() => null);
+        const message = parseErrorMessage(payload) ?? `Failed to create page: ${response.statusText}`;
+        throw new Error(message);
       }
 
       // The page will be added via WebSocket event, no need to update state here

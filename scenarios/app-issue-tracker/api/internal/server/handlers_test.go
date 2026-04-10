@@ -250,7 +250,9 @@ func TestTriggerInvestigationHandler_RespectsConcurrentSlots(t *testing.T) {
 	env.Server.processor.RegisterRunningProcess(
 		"issue-concurrency-running",
 		"agent-existing",
+		"run-test",
 		time.Now().UTC().Format(time.RFC3339),
+		nil,
 		nil,
 	)
 
@@ -432,7 +434,7 @@ func TestStopRunningProcessHandler(t *testing.T) {
 	defer env.Cleanup()
 
 	issueID := "issue-stop-123"
-	env.Server.processor.RegisterRunningProcess(issueID, "agent-1", time.Now().UTC().Format(time.RFC3339), nil)
+	env.Server.processor.RegisterRunningProcess(issueID, "agent-1", "run-test", time.Now().UTC().Format(time.RFC3339), nil, nil)
 
 	req := HTTPTestRequest{
 		Method:  http.MethodDelete,

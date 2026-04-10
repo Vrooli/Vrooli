@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useAdminAuth } from '../../../app/providers/AdminAuthProvider';
+import { useAdminAuth } from '../../../app/providers/useAdminAuth';
 
 export function ProtectedRoute({ children }: { children?: React.ReactNode }) {
   const location = useLocation();

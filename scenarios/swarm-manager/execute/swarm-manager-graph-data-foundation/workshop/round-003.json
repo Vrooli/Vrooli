@@ -1,0 +1,41 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-28T01:45:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "All round 2 decisions incorporated into the plan. Major change: transport switched from SSE to WebSocket throughout — endpoint changed from `/api/v1/graph/stream` (SSE) to `/ws/graph` (WebSocket), new `internal/ws/` package replaces `internal/sse/`, broker adapted from ecosystem-manager's proven Gorilla-based Manager pattern (fan-out broadcaster, client map with RWMutex, WriteJSON). Message envelope uses `{type, data, timestamp}` format matching ecosystem-manager conventions."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Capture listing interface: CaptureLister defined in graph package, implemented via adapter wrapping the existing captures handler filesystem logic. Follows the same adapter pattern used by overview service for backlog data. No new service layer needed — just an interface extraction."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "EventDispatcher injection: uses optional setter method (SetEventDispatcher) on execution service and scenarios handler, matching the existing SetSettingsReader pattern in agentmanager. Nil dispatcher means no-ops — existing tests are completely unaffected. No constructor signature changes."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "classified_as edge matching: exact kind+title comparison against existing backlog items. Only emits edges to nodes that actually exist in the graph, avoiding dangling references from unaccepted classification suggestions."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "All 5 readiness dimensions score 3/3. Problem is well-defined with clear node/edge taxonomy from research. Scope boundaries are explicit (6 node types, 7 edge types, 3 lenses, WebSocket for operations). Implementation strategy has 4 phases with concrete file-level deliverables. Testing plan covers all projection builders, edge resolution, HTTP handler, and WebSocket broker/stream. Risks identified with concrete mitigations including agent-manager graceful degradation and bounded concurrency for RunState lookups."
+    }
+  ],
+  "plan_updates": "Replaced all SSE references with WebSocket (Gorilla-based, ecosystem-manager patterns). Changed streaming endpoint from GET /api/v1/graph/stream to /ws/graph. Replaced internal/sse/ with internal/ws/ package. Updated message format to {type, data, timestamp} envelope. Added Gorilla dependency to risks table. Updated non-goals to prohibit SSE instead of WebSocket. Updated test names (TestWSBroker, TestWSStream) and test approach (Gorilla websocket.Dial instead of EventSource). Clarified classified_as edge matching as exact kind+title. Confirmed EventDispatcher uses optional setter pattern. Added ecosystem-manager reference files to key files table."
+}

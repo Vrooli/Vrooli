@@ -1,0 +1,131 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-01T12:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "UI page structure for approvals",
+      "context": "The approval system involves two distinct workflows: (1) configuring required platforms per profile, and (2) managing individual approvals (create, decide, view gate status). These could be surfaced as a standalone page, integrated into the existing ProfileDetail page, or both.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Standalone Approvals page + gate badge on ProfileDetail",
+          "rationale": "Approvals page gives a cross-profile overview (e.g., 'show me all pending approvals'); ProfileDetail gets a compact gate status badge and required-platforms config. Best of both: dedicated workflow page for approval operators, contextual info where profile managers already work.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Everything on ProfileDetail (no standalone page)",
+          "rationale": "Simpler to build — one page to maintain. But forces operators to navigate profile-by-profile to find pending approvals, which doesn't scale when managing multiple profiles."
+        },
+        {
+          "key": "C",
+          "label": "Standalone Approvals page only (no ProfileDetail integration)",
+          "rationale": "Clean separation, but users viewing a profile have no immediate visibility into its gate status without navigating away."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "CLI subcommand nesting depth for platform commands",
+      "context": "The approval API has 7 endpoints. Six map naturally to `approvals \u003cverb\u003e`, but the two platform-config endpoints (set/get required platforms) could be nested as `approvals platforms set|get` or flattened as `approvals set-platforms|get-platforms`.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Nested: `approvals platforms set` / `approvals platforms get`",
+          "rationale": "Groups related platform-config operations together. Mirrors the API URL structure (`/profiles/{id}/required-platforms`). Consistent with how `validations` groups its subcommands.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Flat: `approvals set-platforms` / `approvals get-platforms`",
+          "rationale": "Simpler dispatch — no two-level subcommand routing needed. Slightly less discoverable since platform commands blend into the approval verbs."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Gate check CLI output format",
+      "context": "The `gate` subcommand checks whether all required platforms are approved for a given commit. Its output is critical for both human operators and agent automation. The ReleaseGateStatus response includes Ready (bool) and per-platform status. The output format affects how operators interpret blocked deploys.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Operational contract: Status → Triage → Next Steps",
+          "rationale": "Gate check is fundamentally a diagnostic/decision command — 'can I deploy?' The operational contract surfaces what's blocking (triage: which platforms are pending/rejected/missing) and what to do next (exact `approvals decide` or `approvals create` commands). This is what cli-steer recommends for diagnostic commands.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Data retrieval contract: Summary → Results table → Hints",
+          "rationale": "Treats gate check as a data query returning platform statuses. Clean and tabular, but doesn't guide the operator toward resolving blockers."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Approval decide UX in the UI",
+      "context": "Operators need to approve or reject approvals from the UI. This could be inline in the approval list table (quick actions), on a dedicated detail view, or both. Visual validation already has a separate review workflow that links to approvals via validation_id — should the approval decide flow reference/embed visual validation results?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Inline quick-action buttons in list + detail view with validation link",
+          "rationale": "Approve/reject buttons directly in the approval list table for fast batch operations. Clicking an approval row opens a detail view with notes field, reviewer attribution, and a link to the associated visual validation (if validation_id is set). Covers both quick-fire and deliberate review workflows.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Detail view only (no inline actions)",
+          "rationale": "Forces operators to open each approval individually. Safer (less accidental clicks) but slower for batch reviews."
+        },
+        {
+          "key": "C",
+          "label": "Inline only (no detail view)",
+          "rationale": "Fast but no room for notes or validation context. Operators would need the CLI for detailed decisions."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The existing backend is fully production-ready: 7 API endpoints implemented with handlers, repository, types, DB schema + migration, orchestrator integration (HTTP 412 on blocked gate), and staleness management. No backend changes are needed — this item is purely about surfacing existing capability through CLI and UI."
+    }
+  ],
+  "plan_updates": "Created initial plan scaffold with all 13 mandatory sections. Problem statement, scope, technical context, 4-phase implementation strategy, command mapping table, and definition of done all populated from codebase exploration and research conclusion."
+}

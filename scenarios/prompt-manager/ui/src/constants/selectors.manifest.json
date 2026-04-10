@@ -1,0 +1,357 @@
+{
+  "selectors": {
+    "sidebar.container": {
+      "testId": "skill-sidebar",
+      "selector": "[data-testid=\"skill-sidebar\"]"
+    },
+    "sidebar.tabSkills": {
+      "testId": "skill-sidebar-tab-skills",
+      "selector": "[data-testid=\"skill-sidebar-tab-skills\"]"
+    },
+    "sidebar.tabAgents": {
+      "testId": "skill-sidebar-tab-agents",
+      "selector": "[data-testid=\"skill-sidebar-tab-agents\"]"
+    },
+    "sidebar.searchInput": {
+      "testId": "skill-sidebar-search-input",
+      "selector": "[data-testid=\"skill-sidebar-search-input\"]"
+    },
+    "sidebar.emptyState": {
+      "testId": "skill-sidebar-empty-state",
+      "selector": "[data-testid=\"skill-sidebar-empty-state\"]"
+    },
+    "sidebar.skillRow": {
+      "testId": "skill-sidebar-skill-row",
+      "selector": "[data-testid=\"skill-sidebar-skill-row\"]"
+    },
+    "sidebar.expandAllButton": {
+      "testId": "skill-sidebar-expand-all",
+      "selector": "[data-testid=\"skill-sidebar-expand-all\"]"
+    },
+    "sidebar.newSkillButton": {
+      "testId": "skill-sidebar-new-skill",
+      "selector": "[data-testid=\"skill-sidebar-new-skill\"]"
+    },
+    "editor.header": {
+      "testId": "skill-editor-header",
+      "selector": "[data-testid=\"skill-editor-header\"]"
+    },
+    "editor.nameDisplay": {
+      "testId": "skill-editor-name-display",
+      "selector": "[data-testid=\"skill-editor-name-display\"]"
+    },
+    "editor.nameInput": {
+      "testId": "skill-editor-name-input",
+      "selector": "[data-testid=\"skill-editor-name-input\"]"
+    },
+    "editor.unsavedIndicator": {
+      "testId": "skill-editor-unsaved-indicator",
+      "selector": "[data-testid=\"skill-editor-unsaved-indicator\"]"
+    },
+    "editor.actionsMenu": {
+      "testId": "skill-editor-actions-menu",
+      "selector": "[data-testid=\"skill-editor-actions-menu\"]"
+    },
+    "editor.discardAction": {
+      "testId": "skill-editor-discard-action",
+      "selector": "[data-testid=\"skill-editor-discard-action\"]"
+    },
+    "editor.saveButton": {
+      "testId": "skill-editor-save-button",
+      "selector": "[data-testid=\"skill-editor-save-button\"]"
+    },
+    "editor.saveAllButton": {
+      "testId": "skill-editor-save-all-button",
+      "selector": "[data-testid=\"skill-editor-save-all-button\"]"
+    },
+    "editor.discardButton": {
+      "testId": "skill-editor-discard-button",
+      "selector": "[data-testid=\"skill-editor-discard-button\"]"
+    },
+    "agents.list": {
+      "testId": "agent-list",
+      "selector": "[data-testid=\"agent-list\"]"
+    },
+    "agents.newButton": {
+      "testId": "agent-new-button",
+      "selector": "[data-testid=\"agent-new-button\"]"
+    },
+    "agents.row": {
+      "testId": "agent-row",
+      "selector": "[data-testid=\"agent-row\"]"
+    },
+    "agents.contextMenu": {
+      "testId": "agent-context-menu",
+      "selector": "[data-testid=\"agent-context-menu\"]"
+    },
+    "agentEditor.header": {
+      "testId": "agent-editor-header",
+      "selector": "[data-testid=\"agent-editor-header\"]"
+    },
+    "agentEditor.nameDisplay": {
+      "testId": "agent-editor-name-display",
+      "selector": "[data-testid=\"agent-editor-name-display\"]"
+    },
+    "agentEditor.nameInput": {
+      "testId": "agent-editor-name-input",
+      "selector": "[data-testid=\"agent-editor-name-input\"]"
+    },
+    "teams.list": {
+      "testId": "team-list",
+      "selector": "[data-testid=\"team-list\"]"
+    },
+    "teams.newButton": {
+      "testId": "team-new-button",
+      "selector": "[data-testid=\"team-new-button\"]"
+    },
+    "teams.importButton": {
+      "testId": "team-import-button",
+      "selector": "[data-testid=\"team-import-button\"]"
+    },
+    "teams.row": {
+      "testId": "team-row",
+      "selector": "[data-testid=\"team-row\"]"
+    },
+    "teams.exportButton": {
+      "testId": "team-export-button",
+      "selector": "[data-testid=\"team-export-button\"]"
+    },
+    "teams.contextMenu": {
+      "testId": "team-context-menu",
+      "selector": "[data-testid=\"team-context-menu\"]"
+    },
+    "teamEditor.header": {
+      "testId": "team-editor-header",
+      "selector": "[data-testid=\"team-editor-header\"]"
+    },
+    "teamEditor.nameDisplay": {
+      "testId": "team-editor-name-display",
+      "selector": "[data-testid=\"team-editor-name-display\"]"
+    },
+    "teamEditor.nameInput": {
+      "testId": "team-editor-name-input",
+      "selector": "[data-testid=\"team-editor-name-input\"]"
+    },
+    "teamEditor.orgChart": {
+      "testId": "team-editor-org-chart",
+      "selector": "[data-testid=\"team-editor-org-chart\"]"
+    },
+    "teamEditor.memberDetail": {
+      "testId": "team-editor-member-detail",
+      "selector": "[data-testid=\"team-editor-member-detail\"]"
+    },
+    "teamEditor.addMemberButton": {
+      "testId": "team-editor-add-member",
+      "selector": "[data-testid=\"team-editor-add-member\"]"
+    },
+    "teamEditor.runtimeMode": {
+      "testId": "team-editor-runtime-mode",
+      "selector": "[data-testid=\"team-editor-runtime-mode\"]"
+    },
+    "teamEditor.coordinationPattern": {
+      "testId": "team-editor-coordination-pattern",
+      "selector": "[data-testid=\"team-editor-coordination-pattern\"]"
+    },
+    "teamEditor.executionPolicy": {
+      "testId": "team-editor-execution-policy",
+      "selector": "[data-testid=\"team-editor-execution-policy\"]"
+    },
+    "teamEditor.decisionMode": {
+      "testId": "team-editor-decision-mode",
+      "selector": "[data-testid=\"team-editor-decision-mode\"]"
+    },
+    "runs.list": {
+      "testId": "run-list",
+      "selector": "[data-testid=\"run-list\"]"
+    },
+    "runs.row": {
+      "testId": "run-row",
+      "selector": "[data-testid=\"run-row\"]"
+    },
+    "runEditor.header": {
+      "testId": "run-editor-header",
+      "selector": "[data-testid=\"run-editor-header\"]"
+    },
+    "runEditor.tabInfo": {
+      "testId": "run-editor-tab-info",
+      "selector": "[data-testid=\"run-editor-tab-info\"]"
+    },
+    "runEditor.tabEvents": {
+      "testId": "run-editor-tab-events",
+      "selector": "[data-testid=\"run-editor-tab-events\"]"
+    },
+    "runEditor.tabInvestigation": {
+      "testId": "run-editor-tab-investigation",
+      "selector": "[data-testid=\"run-editor-tab-investigation\"]"
+    },
+    "world.canvas": {
+      "testId": "world-canvas",
+      "selector": "[data-testid=\"world-canvas\"]"
+    },
+    "world.stats": {
+      "testId": "world-stats",
+      "selector": "[data-testid=\"world-stats\"]"
+    },
+    "settings.button": {
+      "testId": "world-settings-button",
+      "selector": "[data-testid=\"world-settings-button\"]"
+    },
+    "settings.popup": {
+      "testId": "world-settings-popup",
+      "selector": "[data-testid=\"world-settings-popup\"]"
+    },
+    "settings.camera": {
+      "testId": "world-settings-camera",
+      "selector": "[data-testid=\"world-settings-camera\"]"
+    },
+    "settings.timeSlider": {
+      "testId": "world-settings-time-slider",
+      "selector": "[data-testid=\"world-settings-time-slider\"]"
+    },
+    "settings.realTimeToggle": {
+      "testId": "world-settings-realtime-toggle",
+      "selector": "[data-testid=\"world-settings-realtime-toggle\"]"
+    },
+    "settings.scene": {
+      "testId": "world-settings-scene",
+      "selector": "[data-testid=\"world-settings-scene\"]"
+    },
+    "settings.graphics": {
+      "testId": "world-settings-graphics",
+      "selector": "[data-testid=\"world-settings-graphics\"]"
+    },
+    "settings.customToggle": {
+      "testId": "world-settings-custom-toggle",
+      "selector": "[data-testid=\"world-settings-custom-toggle\"]"
+    },
+    "settings.fpsOverlayToggle": {
+      "testId": "world-settings-fps-overlay-toggle",
+      "selector": "[data-testid=\"world-settings-fps-overlay-toggle\"]"
+    },
+    "settings.fpsTraceToggle": {
+      "testId": "world-settings-fps-trace-toggle",
+      "selector": "[data-testid=\"world-settings-fps-trace-toggle\"]"
+    },
+    "settings.fpsMaxSelect": {
+      "testId": "world-settings-fps-max-select",
+      "selector": "[data-testid=\"world-settings-fps-max-select\"]"
+    },
+    "viewOverlay.stats": {
+      "testId": "view-overlay-stats",
+      "selector": "[data-testid=\"view-overlay-stats\"]"
+    },
+    "viewOverlay.viewToggle": {
+      "testId": "view-overlay-view-toggle",
+      "selector": "[data-testid=\"view-overlay-view-toggle\"]"
+    },
+    "viewOverlay.settingsButton": {
+      "testId": "view-overlay-settings-button",
+      "selector": "[data-testid=\"view-overlay-settings-button\"]"
+    },
+    "viewOverlay.helpButton": {
+      "testId": "view-overlay-help-button",
+      "selector": "[data-testid=\"view-overlay-help-button\"]"
+    },
+    "viewOverlay.mobileSidebarButton": {
+      "testId": "view-overlay-mobile-sidebar-button",
+      "selector": "[data-testid=\"view-overlay-mobile-sidebar-button\"]"
+    },
+    "viewOverlay.mobileStatsButton": {
+      "testId": "view-overlay-mobile-stats-button",
+      "selector": "[data-testid=\"view-overlay-mobile-stats-button\"]"
+    },
+    "viewOverlay.mobileLeftPanelButton": {
+      "testId": "view-overlay-mobile-left-panel-button",
+      "selector": "[data-testid=\"view-overlay-mobile-left-panel-button\"]"
+    },
+    "viewOverlay.mobilePanelBackdrop": {
+      "testId": "view-overlay-mobile-panel-backdrop",
+      "selector": "[data-testid=\"view-overlay-mobile-panel-backdrop\"]"
+    },
+    "viewOverlay.mobilePanelSheet": {
+      "testId": "view-overlay-mobile-panel-sheet",
+      "selector": "[data-testid=\"view-overlay-mobile-panel-sheet\"]"
+    },
+    "viewOverlay.performancePanel": {
+      "testId": "view-overlay-performance-panel",
+      "selector": "[data-testid=\"view-overlay-performance-panel\"]"
+    },
+    "viewOverlay.mobileAgentPickerButton": {
+      "testId": "view-overlay-mobile-agent-picker-button",
+      "selector": "[data-testid=\"view-overlay-mobile-agent-picker-button\"]"
+    },
+    "graph.modeToggle": {
+      "testId": "graph-mode-toggle",
+      "selector": "[data-testid=\"graph-mode-toggle\"]"
+    },
+    "graph.modeVisual": {
+      "testId": "graph-mode-visual",
+      "selector": "[data-testid=\"graph-mode-visual\"]"
+    },
+    "graph.modeJson": {
+      "testId": "graph-mode-json",
+      "selector": "[data-testid=\"graph-mode-json\"]"
+    },
+    "graph.jsonCopyButton": {
+      "testId": "graph-json-copy-button",
+      "selector": "[data-testid=\"graph-json-copy-button\"]"
+    },
+    "xrefs.panel": {
+      "testId": "xrefs-panel",
+      "selector": "[data-testid=\"xrefs-panel\"]"
+    },
+    "xrefs.toggle": {
+      "testId": "xrefs-toggle",
+      "selector": "[data-testid=\"xrefs-toggle\"]"
+    },
+    "xrefs.list": {
+      "testId": "xrefs-list",
+      "selector": "[data-testid=\"xrefs-list\"]"
+    },
+    "xrefs.item": {
+      "testId": "xrefs-item",
+      "selector": "[data-testid=\"xrefs-item\"]"
+    },
+    "environment.controls": {
+      "testId": "environment-controls",
+      "selector": "[data-testid=\"environment-controls\"]"
+    },
+    "environment.sceneSpace": {
+      "testId": "environment-scene-space",
+      "selector": "[data-testid=\"environment-scene-space\"]"
+    },
+    "environment.scenePark": {
+      "testId": "environment-scene-park",
+      "selector": "[data-testid=\"environment-scene-park\"]"
+    },
+    "environment.sceneOffice": {
+      "testId": "environment-scene-office",
+      "selector": "[data-testid=\"environment-scene-office\"]"
+    },
+    "environment.timeSlider": {
+      "testId": "environment-time-slider",
+      "selector": "[data-testid=\"environment-time-slider\"]"
+    },
+    "environment.realTimeToggle": {
+      "testId": "environment-realtime-toggle",
+      "selector": "[data-testid=\"environment-realtime-toggle\"]"
+    },
+    "environment.timeMorning": {
+      "testId": "environment-time-morning",
+      "selector": "[data-testid=\"environment-time-morning\"]"
+    },
+    "environment.timeNoon": {
+      "testId": "environment-time-noon",
+      "selector": "[data-testid=\"environment-time-noon\"]"
+    },
+    "environment.timeSunset": {
+      "testId": "environment-time-sunset",
+      "selector": "[data-testid=\"environment-time-sunset\"]"
+    },
+    "environment.timeNight": {
+      "testId": "environment-time-night",
+      "selector": "[data-testid=\"environment-time-night\"]"
+    }
+  },
+  "dynamicSelectors": {}
+}

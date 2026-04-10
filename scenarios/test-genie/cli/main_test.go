@@ -14,8 +14,8 @@ import (
 func TestExecuteAcceptsPositionalPhases(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/phases":
-			fmt.Fprintf(w, `{"items":[{"name":"unit","description":"Unit tests"},{"name":"integration","description":"Integration tests"}]}`)
+		case "/api/v1/executions/plan":
+			fmt.Fprintf(w, `{"scenarioName":"demo","phases":[{"name":"unit","estimatedDurationSeconds":1,"timeoutSeconds":60},{"name":"integration","estimatedDurationSeconds":2,"timeoutSeconds":120}],"summary":{"phaseCount":2,"estimatedDurationSeconds":3,"timeoutSeconds":180}}`)
 			return
 		case "/api/v1/executions":
 			body, _ := io.ReadAll(r.Body)
@@ -42,8 +42,8 @@ func TestExecuteAcceptsPositionalPhases(t *testing.T) {
 func TestExecuteAllPhaseSkipsExplicitList(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/phases":
-			fmt.Fprintf(w, `{"items":[]}`)
+		case "/api/v1/executions/plan":
+			fmt.Fprintf(w, `{"scenarioName":"demo","phases":[{"name":"structure","estimatedDurationSeconds":1,"timeoutSeconds":60},{"name":"standards","estimatedDurationSeconds":1,"timeoutSeconds":60}],"summary":{"phaseCount":2,"estimatedDurationSeconds":2,"timeoutSeconds":120}}`)
 			return
 		case "/api/v1/executions":
 			body, _ := io.ReadAll(r.Body)

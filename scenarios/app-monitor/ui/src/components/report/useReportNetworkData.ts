@@ -204,6 +204,7 @@ export function useReportNetworkData({
     }
   }, [
     resolveIdentifier,
+    activePreviewUrl,
     bridgeSupported,
     bridgeCaps,
     networkState,

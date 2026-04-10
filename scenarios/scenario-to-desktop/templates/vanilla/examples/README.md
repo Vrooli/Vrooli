@@ -267,7 +267,7 @@ cd platforms/electron && npm run dev
 
 - [Electron IPC Documentation](https://www.electronjs.org/docs/latest/tutorial/ipc)
 - [Electron Security Best Practices](https://www.electronjs.org/docs/latest/tutorial/security)
-- [Desktop Wrapper Guide](../DESKTOP_WRAPPER_GUIDE.md)
+- [Desktop Wrapper Guide](../../DESKTOP_WRAPPER_GUIDE.md)
 - [Electron Menu Documentation](https://www.electronjs.org/docs/latest/api/menu)
 - [Electron Notification Documentation](https://www.electronjs.org/docs/latest/api/notification)
 
@@ -297,4 +297,4 @@ Found a useful pattern not covered here? Add it! Examples should:
 
 **Happy Desktop App Building!** 🚀
 
-For questions or issues, see the main [scenario-to-desktop README](../../../../README.md).
+For questions or issues, see the main [scenario-to-desktop README](../../../README.md).

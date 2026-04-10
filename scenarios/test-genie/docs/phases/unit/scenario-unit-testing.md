@@ -492,8 +492,8 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
 ```
 
 **See Also:**
-- [@vrooli/vitest-requirement-reporter](../../../packages/vitest-requirement-reporter/README.md) - Package documentation
-- [Requirement Tracking Guide](requirement-tracking.md) - Complete system overview
+- [@vrooli/vitest-requirement-reporter](../../reference/vitest-requirement-reporter.md) - Package documentation
+- [Requirement Tracking Guide](../business/requirements-sync.md) - Complete system overview
 
 #### Vitest Alternative
 ```javascript

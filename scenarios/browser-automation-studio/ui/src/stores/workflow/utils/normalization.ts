@@ -31,9 +31,13 @@ export const parseDate = (value: unknown): Date => {
 
 export const ensureArray = <T>(value: unknown, fallback: T[] = []): T[] => {
   if (Array.isArray(value)) {
-    return [...value] as T[];
+    return (value as T[]).slice();
   }
-  return [...fallback];
+  return fallback.slice();
+};
+
+const deepCloneArray = (value: unknown[]): unknown[] => {
+  return JSON.parse(JSON.stringify(value)) as unknown[];
 };
 
 // ============================================================================
@@ -54,7 +58,7 @@ export const normalizeWorkflowResponse = (workflow: unknown): Workflow => {
   const flowDefinition = buildFlowDefinition(
     rawDefinition,
     sanitizeNodesForPersistence(normalizedNodes),
-    JSON.parse(JSON.stringify(normalizedEdges ?? [])),
+    deepCloneArray(normalizedEdges ?? []),
     executionViewport,
   );
 

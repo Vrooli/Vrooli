@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	httputil "scenario-to-desktop-api/shared/http"
 )
 
 // probeEndpointsHandler validates that the provided UI/API URLs respond before we generate a thin client.
@@ -80,6 +82,5 @@ func (s *Server) probeEndpointsHandler(w http.ResponseWriter, r *http.Request) {
 		"api":       probe(request.APIURL),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	httputil.WriteJSON(w, http.StatusOK, response)
 }

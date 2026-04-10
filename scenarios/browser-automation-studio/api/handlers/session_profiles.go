@@ -9,42 +9,60 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
-	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
 type sessionProfileResponse struct {
-	ID              string                           `json:"id"`
-	Name            string                           `json:"name"`
-	CreatedAt       string                           `json:"created_at"`
-	UpdatedAt       string                           `json:"updated_at"`
-	LastUsedAt      string                           `json:"last_used_at"`
-	HasStorageState bool                             `json:"has_storage_state"`
-	BrowserProfile  *archiveingestion.BrowserProfile `json:"browser_profile,omitempty"`
+	ID              string                                  `json:"id"`
+	Name            string                                  `json:"name"`
+	CreatedAt       string                                  `json:"created_at"`
+	UpdatedAt       string                                  `json:"updated_at"`
+	LastUsedAt      string                                  `json:"last_used_at"`
+	HasStorageState bool                                    `json:"has_storage_state"`
+	BrowserProfile  *sessionprofilepersistence.BrowserProfile `json:"browser_profile,omitempty"`
 }
 
-func toSessionProfileResponse(p *archiveingestion.SessionProfile) sessionProfileResponse {
+func toSessionProfileResponse(p *sessionprofilepersistence.SessionProfile) sessionProfileResponse {
 	if p == nil {
 		return sessionProfileResponse{}
 	}
 	return sessionProfileResponse{
-		ID:              p.ID,
+		ID:              string(p.ID),
 		Name:            p.Name,
 		CreatedAt:       p.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:       p.UpdatedAt.Format(time.RFC3339),
 		LastUsedAt:      p.LastUsedAt.Format(time.RFC3339),
-		HasStorageState: len(p.StorageState) > 0,
+		HasStorageState: hasActualStorage(p.StorageState),
 		BrowserProfile:  p.BrowserProfile,
 	}
 }
 
+// hasActualStorage checks if the storage state contains any cookies or localStorage items.
+// This handles the case where storage was cleared (resulting in `{"cookies":[],"origins":[]}`)
+// which has bytes but no actual storage content.
+func hasActualStorage(storageState []byte) bool {
+	if len(storageState) == 0 {
+		return false
+	}
+	var state struct {
+		Cookies []json.RawMessage `json:"cookies"`
+		Origins []json.RawMessage `json:"origins"`
+	}
+	if err := json.Unmarshal(storageState, &state); err != nil {
+		// If we can't parse it, assume it has content (conservative approach)
+		return true
+	}
+	return len(state.Cookies) > 0 || len(state.Origins) > 0
+}
+
 // ListRecordingSessionProfiles returns all persisted session profiles.
 func (h *Handler) ListRecordingSessionProfiles(w http.ResponseWriter, _ *http.Request) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
 
-	profiles, err := h.sessionProfiles.List()
+	profiles, err := h.sessionProfileService.ListProfiles()
 	if err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
 			"error": err.Error(),
@@ -64,7 +82,7 @@ func (h *Handler) ListRecordingSessionProfiles(w http.ResponseWriter, _ *http.Re
 
 // CreateRecordingSessionProfile creates a new empty session profile.
 func (h *Handler) CreateRecordingSessionProfile(w http.ResponseWriter, r *http.Request) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
@@ -79,7 +97,7 @@ func (h *Handler) CreateRecordingSessionProfile(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	profile, err := h.sessionProfiles.Create(req.Name)
+	profile, err := h.sessionProfileService.CreateProfile(req.Name)
 	if err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
 			"error": err.Error(),
@@ -92,7 +110,7 @@ func (h *Handler) CreateRecordingSessionProfile(w http.ResponseWriter, r *http.R
 
 // UpdateRecordingSessionProfile updates an existing profile's name and/or browser profile settings.
 func (h *Handler) UpdateRecordingSessionProfile(w http.ResponseWriter, r *http.Request) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
@@ -106,8 +124,8 @@ func (h *Handler) UpdateRecordingSessionProfile(w http.ResponseWriter, r *http.R
 	}
 
 	var req struct {
-		Name           string                           `json:"name"`
-		BrowserProfile *archiveingestion.BrowserProfile `json:"browser_profile"`
+		Name           string                                  `json:"name"`
+		BrowserProfile *sessionprofilepersistence.BrowserProfile `json:"browser_profile"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
@@ -127,12 +145,12 @@ func (h *Handler) UpdateRecordingSessionProfile(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	var profile *archiveingestion.SessionProfile
+	var profile *sessionprofilepersistence.SessionProfile
 	var err error
 
 	// Update name if provided
 	if hasName {
-		profile, err = h.sessionProfiles.Rename(profileID, req.Name)
+		profile, err = h.sessionProfileService.RenameProfile(sessionprofilepersistence.ProfileID(profileID), req.Name)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") {
 				h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
@@ -147,7 +165,7 @@ func (h *Handler) UpdateRecordingSessionProfile(w http.ResponseWriter, r *http.R
 
 	// Update browser profile if provided
 	if hasBrowserProfile {
-		profile, err = h.sessionProfiles.UpdateBrowserProfile(profileID, req.BrowserProfile)
+		profile, err = h.sessionProfileService.UpdateBrowserProfile(sessionprofilepersistence.ProfileID(profileID), req.BrowserProfile)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") {
 				h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
@@ -171,7 +189,7 @@ func (h *Handler) UpdateRecordingSessionProfile(w http.ResponseWriter, r *http.R
 
 // DeleteRecordingSessionProfile removes a profile and any in-memory session mapping.
 func (h *Handler) DeleteRecordingSessionProfile(w http.ResponseWriter, r *http.Request) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
@@ -184,7 +202,8 @@ func (h *Handler) DeleteRecordingSessionProfile(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if err := h.sessionProfiles.Delete(profileID); err != nil {
+	// DeleteProfile also clears active session associations
+	if err := h.sessionProfileService.DeleteProfile(sessionprofilepersistence.ProfileID(profileID)); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
 			return
@@ -195,19 +214,10 @@ func (h *Handler) DeleteRecordingSessionProfile(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	h.removeProfileSessions(profileID)
-
 	h.respondSuccess(w, http.StatusOK, map[string]string{
 		"status": "deleted",
 		"id":     profileID,
 	})
-}
-
-// removeProfileSessions clears any active session mappings for the given profile.
-func (h *Handler) removeProfileSessions(profileID string) {
-	if h.sessionProfiles != nil {
-		h.sessionProfiles.ClearSessionsForProfile(profileID)
-	}
 }
 
 // ========================================================================
@@ -277,7 +287,7 @@ type playwrightStorageState struct {
 // GetStorageState returns the storage state (cookies and localStorage) for a session profile.
 // HttpOnly cookie values are masked for security.
 func (h *Handler) GetStorageState(w http.ResponseWriter, r *http.Request) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
@@ -290,7 +300,7 @@ func (h *Handler) GetStorageState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profile, err := h.sessionProfiles.Get(profileID)
+	profile, err := h.sessionProfileService.GetProfile(sessionprofilepersistence.ProfileID(profileID))
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
@@ -302,51 +312,33 @@ func (h *Handler) GetStorageState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return empty response if no storage state
-	if len(profile.StorageState) == 0 {
-		h.respondSuccess(w, http.StatusOK, storageStateResponse{
-			Cookies: []storageStateCookie{},
-			Origins: []storageStateOrigin{},
-			Stats:   storageStateStats{},
-		})
-		return
-	}
-
-	// Parse the Playwright storage state
-	var pwState playwrightStorageState
-	if err := json.Unmarshal(profile.StorageState, &pwState); err != nil {
+	// Use service layer to mask storage state (consolidates masking logic)
+	masked, err := h.sessionProfileService.MaskStorageState(profile.StorageState)
+	if err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
-			"error": "Failed to parse storage state: " + err.Error(),
+			"error": err.Error(),
 		}))
 		return
 	}
 
-	// Build response with masked httpOnly cookie values
-	cookies := make([]storageStateCookie, 0, len(pwState.Cookies))
-	for _, c := range pwState.Cookies {
-		cookie := storageStateCookie{
-			Name:     c.Name,
-			Domain:   c.Domain,
-			Path:     c.Path,
-			Expires:  c.Expires,
-			HttpOnly: c.HttpOnly,
-			Secure:   c.Secure,
-			SameSite: c.SameSite,
-		}
-		if c.HttpOnly {
-			cookie.Value = "[HIDDEN]"
-			cookie.ValueMasked = true
-		} else {
-			cookie.Value = c.Value
-			cookie.ValueMasked = false
-		}
-		cookies = append(cookies, cookie)
+	// Convert service types to handler response types
+	cookies := make([]storageStateCookie, 0, len(masked.Cookies))
+	for _, c := range masked.Cookies {
+		cookies = append(cookies, storageStateCookie{
+			Name:        c.Name,
+			Value:       c.Value,
+			ValueMasked: c.ValueMasked,
+			Domain:      c.Domain,
+			Path:        c.Path,
+			Expires:     c.Expires,
+			HttpOnly:    c.HttpOnly,
+			Secure:      c.Secure,
+			SameSite:    c.SameSite,
+		})
 	}
 
-	// Build origins with localStorage
-	origins := make([]storageStateOrigin, 0, len(pwState.Origins))
-	localStorageCount := 0
-	for _, o := range pwState.Origins {
+	origins := make([]storageStateOrigin, 0, len(masked.Origins))
+	for _, o := range masked.Origins {
 		items := make([]storageStateLocalStorageItem, 0, len(o.LocalStorage))
 		for _, item := range o.LocalStorage {
 			items = append(items, storageStateLocalStorageItem{
@@ -354,7 +346,6 @@ func (h *Handler) GetStorageState(w http.ResponseWriter, r *http.Request) {
 				Value: item.Value,
 			})
 		}
-		localStorageCount += len(items)
 		origins = append(origins, storageStateOrigin{
 			Origin:       o.Origin,
 			LocalStorage: items,
@@ -365,9 +356,9 @@ func (h *Handler) GetStorageState(w http.ResponseWriter, r *http.Request) {
 		Cookies: cookies,
 		Origins: origins,
 		Stats: storageStateStats{
-			CookieCount:       len(cookies),
-			LocalStorageCount: localStorageCount,
-			OriginCount:       len(origins),
+			CookieCount:       masked.Stats.CookieCount,
+			LocalStorageCount: masked.Stats.LocalStorageCount,
+			OriginCount:       masked.Stats.OriginCount,
 		},
 	})
 }
@@ -379,7 +370,7 @@ func (h *Handler) GetStorageState(w http.ResponseWriter, r *http.Request) {
 // ClearAllStorage removes all cookies and localStorage from a session profile.
 // DELETE /recordings/sessions/{profileId}/storage
 func (h *Handler) ClearAllStorage(w http.ResponseWriter, r *http.Request) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
@@ -394,7 +385,7 @@ func (h *Handler) ClearAllStorage(w http.ResponseWriter, r *http.Request) {
 
 	// Save empty storage state
 	emptyState := json.RawMessage(`{"cookies":[],"origins":[]}`)
-	if _, err := h.sessionProfiles.SaveStorageState(profileID, emptyState); err != nil {
+	if _, err := h.sessionProfileService.SaveStorageState(sessionprofilepersistence.ProfileID(profileID), emptyState); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
 			return
@@ -566,7 +557,7 @@ func (h *Handler) DeleteLocalStorageItem(w http.ResponseWriter, r *http.Request)
 
 // modifyStorageState is a helper that loads, modifies, and saves storage state.
 func (h *Handler) modifyStorageState(w http.ResponseWriter, r *http.Request, modify func(*playwrightStorageState)) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
@@ -579,7 +570,7 @@ func (h *Handler) modifyStorageState(w http.ResponseWriter, r *http.Request, mod
 		return
 	}
 
-	profile, err := h.sessionProfiles.Get(profileID)
+	profile, err := h.sessionProfileService.GetProfile(sessionprofilepersistence.ProfileID(profileID))
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
@@ -614,7 +605,7 @@ func (h *Handler) modifyStorageState(w http.ResponseWriter, r *http.Request, mod
 		return
 	}
 
-	if _, err := h.sessionProfiles.SaveStorageState(profileID, newState); err != nil {
+	if _, err := h.sessionProfileService.SaveStorageState(sessionprofilepersistence.ProfileID(profileID), newState); err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
 			"error": err.Error(),
 		}))
@@ -632,10 +623,10 @@ func (h *Handler) modifyStorageState(w http.ResponseWriter, r *http.Request, mod
 
 // serviceWorkerResponse is the API response for service worker endpoints.
 type serviceWorkerResponse struct {
-	SessionID string                    `json:"session_id"`
-	Workers   []serviceWorkerInfo       `json:"workers"`
-	Control   serviceWorkerControl      `json:"control"`
-	Message   string                    `json:"message,omitempty"`
+	SessionID string               `json:"session_id"`
+	Workers   []serviceWorkerInfo  `json:"workers"`
+	Control   serviceWorkerControl `json:"control"`
+	Message   string               `json:"message,omitempty"`
 }
 
 // serviceWorkerInfo represents a registered service worker.
@@ -649,9 +640,9 @@ type serviceWorkerInfo struct {
 
 // serviceWorkerControl represents the service worker control settings.
 type serviceWorkerControl struct {
-	Mode            string                          `json:"mode"`
-	DomainOverrides []serviceWorkerDomainOverride  `json:"domainOverrides,omitempty"`
-	BlockedDomains  []string                       `json:"blockedDomains,omitempty"`
+	Mode            string                        `json:"mode"`
+	DomainOverrides []serviceWorkerDomainOverride `json:"domainOverrides,omitempty"`
+	BlockedDomains  []string                      `json:"blockedDomains,omitempty"`
 }
 
 // serviceWorkerDomainOverride represents per-domain service worker control.
@@ -810,10 +801,10 @@ func (h *Handler) DeleteServiceWorker(w http.ResponseWriter, r *http.Request) {
 
 // getSessionForProfile returns the active playwright session ID for a profile.
 func (h *Handler) getSessionForProfile(profileID string) string {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		return ""
 	}
-	return h.sessionProfiles.GetSessionForProfile(profileID)
+	return h.sessionProfileService.GetSessionForProfile(profileID)
 }
 
 // ========================================================================
@@ -822,9 +813,9 @@ func (h *Handler) getSessionForProfile(profileID string) string {
 
 // historyResponse is the API response for GET /recordings/sessions/{profileId}/history.
 type historyResponse struct {
-	Entries  []archiveingestion.HistoryEntry   `json:"entries"`
-	Settings *archiveingestion.HistorySettings `json:"settings"`
-	Stats    historyStats                      `json:"stats"`
+	Entries  []sessionprofilepersistence.HistoryEntry   `json:"entries"`
+	Settings *sessionprofilepersistence.HistorySettings `json:"settings"`
+	Stats    historyStats                               `json:"stats"`
 }
 
 type historyStats struct {
@@ -836,7 +827,7 @@ type historyStats struct {
 // GetHistory returns the navigation history for a session profile.
 // GET /recordings/sessions/{profileId}/history
 func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
@@ -849,7 +840,7 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entries, settings, err := h.sessionProfiles.GetHistoryWithPruning(profileID)
+	entries, settings, err := h.sessionProfileService.GetHistoryWithPruning(sessionprofilepersistence.ProfileID(profileID))
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
@@ -863,7 +854,7 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 
 	// Ensure entries is never nil (nil marshals to null, empty slice marshals to [])
 	if entries == nil {
-		entries = []archiveingestion.HistoryEntry{}
+		entries = []sessionprofilepersistence.HistoryEntry{}
 	}
 
 	// Build stats
@@ -883,7 +874,7 @@ func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 // ClearHistory removes all history entries from a session profile.
 // DELETE /recordings/sessions/{profileId}/history
 func (h *Handler) ClearHistory(w http.ResponseWriter, r *http.Request) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
@@ -896,7 +887,7 @@ func (h *Handler) ClearHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := h.sessionProfiles.ClearHistory(profileID); err != nil {
+	if _, err := h.sessionProfileService.ClearHistory(sessionprofilepersistence.ProfileID(profileID)); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
 			return
@@ -915,7 +906,7 @@ func (h *Handler) ClearHistory(w http.ResponseWriter, r *http.Request) {
 // DeleteHistoryEntry removes a specific history entry by ID.
 // DELETE /recordings/sessions/{profileId}/history/{entryId}
 func (h *Handler) DeleteHistoryEntry(w http.ResponseWriter, r *http.Request) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
@@ -936,7 +927,7 @@ func (h *Handler) DeleteHistoryEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := h.sessionProfiles.DeleteHistoryEntry(profileID, entryID); err != nil {
+	if _, err := h.sessionProfileService.DeleteHistoryEntry(sessionprofilepersistence.ProfileID(profileID), entryID); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			h.respondError(w, ErrExecutionNotFound.WithMessage(err.Error()))
 			return
@@ -956,7 +947,7 @@ func (h *Handler) DeleteHistoryEntry(w http.ResponseWriter, r *http.Request) {
 // UpdateHistorySettings updates the history retention settings.
 // PATCH /recordings/sessions/{profileId}/history/settings
 func (h *Handler) UpdateHistorySettings(w http.ResponseWriter, r *http.Request) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
@@ -969,7 +960,7 @@ func (h *Handler) UpdateHistorySettings(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var req archiveingestion.HistorySettings
+	var req sessionprofilepersistence.HistorySettings
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
 			"error": "Invalid JSON body: " + err.Error(),
@@ -977,7 +968,7 @@ func (h *Handler) UpdateHistorySettings(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	profile, err := h.sessionProfiles.UpdateHistorySettings(profileID, &req)
+	profile, err := h.sessionProfileService.UpdateHistorySettings(sessionprofilepersistence.ProfileID(profileID), &req)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
@@ -1006,7 +997,7 @@ func (h *Handler) UpdateHistorySettings(w http.ResponseWriter, r *http.Request) 
 // NavigateToHistoryURL navigates to a URL from history.
 // POST /recordings/sessions/{profileId}/history/navigate
 func (h *Handler) NavigateToHistoryURL(w http.ResponseWriter, r *http.Request) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
@@ -1069,15 +1060,15 @@ func (h *Handler) NavigateToHistoryURL(w http.ResponseWriter, r *http.Request) {
 // HistoryCallback receives history entries from the playwright driver.
 // POST /internal/history-callback
 func (h *Handler) HistoryCallback(w http.ResponseWriter, r *http.Request) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
 
 	var req struct {
-		SessionID      string                        `json:"session_id"`
-		Entry          archiveingestion.HistoryEntry `json:"entry"`
-		NavigationType string                        `json:"navigation_type"`
+		SessionID      string                               `json:"session_id"`
+		Entry          sessionprofilepersistence.HistoryEntry `json:"entry"`
+		NavigationType string                               `json:"navigation_type"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{
@@ -1094,7 +1085,7 @@ func (h *Handler) HistoryCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Look up profile for this session
-	profileID := h.sessionProfiles.GetActiveSession(req.SessionID)
+	profileID := h.sessionProfileService.GetActiveSession(req.SessionID)
 	if profileID == "" {
 		// No profile associated with this session - might be execution mode
 		h.respondSuccess(w, http.StatusOK, map[string]string{
@@ -1105,7 +1096,7 @@ func (h *Handler) HistoryCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add the history entry
-	if _, err := h.sessionProfiles.AddHistoryEntry(profileID, req.Entry); err != nil {
+	if _, err := h.sessionProfileService.AddHistoryEntry(sessionprofilepersistence.ProfileID(profileID), req.Entry); err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
 			"error": err.Error(),
 		}))
@@ -1125,7 +1116,7 @@ func (h *Handler) HistoryCallback(w http.ResponseWriter, r *http.Request) {
 // GetSessionTabs returns the saved tabs for a session profile.
 // GET /recordings/sessions/{profileId}/tabs
 func (h *Handler) GetSessionTabs(w http.ResponseWriter, r *http.Request) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
@@ -1138,7 +1129,7 @@ func (h *Handler) GetSessionTabs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profile, err := h.sessionProfiles.Get(profileID)
+	profile, err := h.sessionProfileService.GetProfile(sessionprofilepersistence.ProfileID(profileID))
 	if err != nil {
 		h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
 		return
@@ -1161,7 +1152,7 @@ func (h *Handler) GetSessionTabs(w http.ResponseWriter, r *http.Request) {
 // ClearSessionTabs removes all saved tabs from a session profile.
 // DELETE /recordings/sessions/{profileId}/tabs
 func (h *Handler) ClearSessionTabs(w http.ResponseWriter, r *http.Request) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
@@ -1175,7 +1166,7 @@ func (h *Handler) ClearSessionTabs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Save empty tabs array to clear all
-	if _, err := h.sessionProfiles.SaveOpenTabs(profileID, nil); err != nil {
+	if _, err := h.sessionProfileService.SaveOpenTabs(sessionprofilepersistence.ProfileID(profileID), nil); err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
 			"error": err.Error(),
 		}))
@@ -1191,7 +1182,7 @@ func (h *Handler) ClearSessionTabs(w http.ResponseWriter, r *http.Request) {
 // DeleteSessionTab removes a single tab by its order from a session profile.
 // DELETE /recordings/sessions/{profileId}/tabs/{order}
 func (h *Handler) DeleteSessionTab(w http.ResponseWriter, r *http.Request) {
-	if h.sessionProfiles == nil {
+	if h.sessionProfileService == nil {
 		h.respondError(w, ErrServiceUnavailable.WithMessage("Session profiles are not configured"))
 		return
 	}
@@ -1213,7 +1204,7 @@ func (h *Handler) DeleteSessionTab(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profile, err := h.sessionProfiles.Get(profileID)
+	profile, err := h.sessionProfileService.GetProfile(sessionprofilepersistence.ProfileID(profileID))
 	if err != nil {
 		h.respondError(w, ErrExecutionNotFound.WithMessage("Session profile not found"))
 		return
@@ -1221,7 +1212,7 @@ func (h *Handler) DeleteSessionTab(w http.ResponseWriter, r *http.Request) {
 
 	// Find and remove the tab with the specified order
 	var found bool
-	newTabs := make([]archiveingestion.TabState, 0, len(profile.OpenTabs))
+	newTabs := make([]sessionprofilepersistence.TabState, 0, len(profile.OpenTabs))
 	for _, tab := range profile.OpenTabs {
 		if tab.Order == order {
 			found = true
@@ -1241,7 +1232,7 @@ func (h *Handler) DeleteSessionTab(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Save the updated tabs
-	if _, err := h.sessionProfiles.SaveOpenTabs(profileID, newTabs); err != nil {
+	if _, err := h.sessionProfileService.SaveOpenTabs(sessionprofilepersistence.ProfileID(profileID), newTabs); err != nil {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{
 			"error": err.Error(),
 		}))

@@ -1,0 +1,61 @@
+{
+  "description": "For each skill-reference connection, allow defining CLI tool assertions: a command to run (read-only tools with `--json` output), a JSONPath expression, a comparison operator (eq, neq, gt, gte, lt, lte, exists, contains, matches, between), and an expected value. These represent the validation/search tools referenced in steer skills.",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Define and implement schema for CLI tool assertions including command specification and JSONPath evaluations",
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-005",
+      "status": "implemented",
+      "title": "CLI Tool Assertion Schema",
+      "validation": [
+        {
+          "notes": "JSONPath validation with regex pattern matching",
+          "phase": "unit",
+          "ref": "api/domain/expectation/cli_service_test.go",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "All 10 assertion operators validated (eq, neq, gt, gte, lt, lte, exists, contains, matches, between)",
+          "phase": "unit",
+          "ref": "api/domain/expectation/cli_service_test.go",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Dangerous command pattern detection (rm, sudo, curl|bash, etc.)",
+          "phase": "unit",
+          "ref": "api/domain/expectation/cli_service_test.go",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "HTTP handlers with dry-run validation support",
+          "phase": "unit",
+          "ref": "api/handlers/expectation_test.go",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Command execution successful",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All comparison operators supported in assertion evaluation",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "CLI Tool Expectation Config"
+}

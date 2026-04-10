@@ -1,0 +1,98 @@
+import { describe, expect, it } from "vitest";
+import {
+  buildDesktopConfig,
+  computeStandardOutputPath,
+  computeStagingPreviewPath,
+  getSelectedPlatforms,
+  resolveEndpoints
+} from "./generator";
+import { decideConnection } from "./deployment";
+
+describe("generator domain", () => {
+  it("returns selected platforms from the selection map", () => {
+    const platforms = getSelectedPlatforms({ win: true, mac: false, linux: true });
+
+    expect(platforms).toEqual(["win", "linux"]);
+  });
+
+  it("resolves endpoints based on deployment mode", () => {
+    const bundledDecision = decideConnection("bundled", "external");
+    const remoteDecision = decideConnection("external-server", "external");
+    const localDecision = decideConnection("external-server", "node");
+
+    expect(
+      resolveEndpoints({
+        decision: bundledDecision,
+        proxyUrl: "https://example.com/proxy/",
+        localServerPath: "ui/server.js",
+        localApiEndpoint: "http://localhost:3001/api"
+      })
+    ).toEqual({ serverPath: "http://127.0.0.1", apiEndpoint: "http://127.0.0.1" });
+
+    expect(
+      resolveEndpoints({
+        decision: remoteDecision,
+        proxyUrl: "https://example.com/proxy/",
+        localServerPath: "ui/server.js",
+        localApiEndpoint: "http://localhost:3001/api"
+      })
+    ).toEqual({ serverPath: "https://example.com/proxy/", apiEndpoint: "https://example.com/proxy/" });
+
+    expect(
+      resolveEndpoints({
+        decision: localDecision,
+        proxyUrl: "https://example.com/proxy/",
+        localServerPath: "ui/server.js",
+        localApiEndpoint: "http://localhost:3001/api"
+      })
+    ).toEqual({ serverPath: "ui/server.js", apiEndpoint: "http://localhost:3001/api" });
+  });
+
+  it("builds a desktop config with expected derived fields", () => {
+    const decision = decideConnection("external-server", "external");
+    const endpoints = resolveEndpoints({
+      decision,
+      proxyUrl: "https://example.com/proxy/",
+      localServerPath: "ui/server.js",
+      localApiEndpoint: "http://localhost:3001/api"
+    });
+
+    const config = buildDesktopConfig({
+      scenarioName: "picker-wheel",
+      appDisplayName: "Picker Wheel",
+      appDescription: "Test app",
+      iconPath: "/tmp/icon.png",
+      selectedTemplate: "basic",
+      framework: "electron",
+      serverType: decision.effectiveServerType,
+      serverPort: 3000,
+      outputPath: "scenarios/picker-wheel/platforms/electron",
+      selectedPlatforms: ["win"],
+      deploymentMode: "external-server",
+      autoManageTier1: true,
+      vrooliBinaryPath: "vrooli",
+      proxyUrl: "https://example.com/proxy/",
+      bundleManifestPath: "/tmp/bundle.json",
+      isBundled: false,
+      requiresRemoteConfig: true,
+      resolvedEndpoints: endpoints,
+      locationMode: "proper",
+      includeSigning: true,
+      codeSigning: { enabled: true }
+    });
+
+    expect(config.app_id).toBe("com.vrooli.picker.wheel");
+    expect(config.proxy_url).toBe("https://example.com/proxy/");
+    expect(config.external_server_url).toBe("https://example.com/proxy/");
+    expect(config.external_api_url).toBeUndefined();
+    expect(config.bundle_manifest_path).toBeUndefined();
+    expect(config.code_signing?.enabled).toBe(true);
+  });
+
+  it("computes standard output and staging preview paths", () => {
+    expect(computeStandardOutputPath("demo-scenario"))
+      .toBe("scenarios/demo-scenario/platforms/electron");
+    expect(computeStagingPreviewPath("demo-scenario"))
+      .toBe("scenarios/scenario-to-desktop/data/staging/demo-scenario/<build-id>");
+  });
+});

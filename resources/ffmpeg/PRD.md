@@ -24,6 +24,7 @@
 - [x] **Web Interface**: Simple UI for media processing tasks (Fixed web server startup)
 - [x] **Integration APIs**: RESTful endpoints for remote processing (Full API implementation with security)
 - [x] **Performance Monitoring**: Track conversion speed and resource usage
+- [x] **Screen Capture**: Desktop/virtual display recording via x11grab for deployment validation workflows
 
 ## Technical Specifications
 

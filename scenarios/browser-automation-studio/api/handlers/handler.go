@@ -23,15 +23,20 @@ import (
 	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
 	"github.com/vrooli/browser-automation-studio/performance"
-	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/services/ai"
+	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	"github.com/vrooli/browser-automation-studio/services/credits"
+	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/export/render"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
-	"github.com/vrooli/browser-automation-studio/services/replay"
+	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/testgenie"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
+	"github.com/vrooli/browser-automation-studio/services/vision"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
@@ -40,7 +45,7 @@ import (
 
 // Handler contains all HTTP handlers
 type replayRenderer interface {
-	Render(ctx context.Context, spec *export.ReplayMovieSpec, format replay.RenderFormat, filename string) (*replay.RenderedMedia, error)
+	Render(ctx context.Context, spec *export.ReplayMovieSpec, format render.RenderFormat, filename string) (*render.RenderedMedia, error)
 }
 
 // RecordModeService defines the interface for live recording session management.
@@ -71,7 +76,7 @@ type RecordModeService interface {
 	GetOpenPages(sessionID string) ([]*domain.Page, uuid.UUID, error)
 	ActivatePage(ctx context.Context, sessionID string, pageID uuid.UUID) error
 	CreatePage(ctx context.Context, sessionID string, url string) (*autodriver.CreatePageResponse, error)
-	RestoreTabs(ctx context.Context, sessionID string, tabs []archiveingestion.TabState) (*livecapture.TabRestorationResult, error)
+	RestoreTabs(ctx context.Context, sessionID string, tabs []sessionprofilepersistence.TabState) (*livecapture.TabRestorationResult, error)
 
 	// Timeline support (has business logic for timeline management)
 	AddTimelineAction(sessionID string, action *autodriver.RecordedAction, pageID uuid.UUID)
@@ -96,27 +101,33 @@ type Handler struct {
 	storage           storage.StorageInterface
 	recordingService  archiveingestion.IngestionServiceInterface
 	recordModeService RecordModeService // Live recording session management (interface for testability)
-	recordingsRoot    string
-	replayRenderer    replayRenderer
-	sessionProfiles   *archiveingestion.SessionProfileStore
-	log               *logrus.Logger
+	recordingsRoot          string
+	replayRenderer          replayRenderer
+	sessionProfileService   *sessionprofile.Service
+	log                     *logrus.Logger
 	upgrader          websocket.Upgrader
 	wsAllowAll        bool
 	wsAllowedOrigins  []string
 
 	// Performance monitoring
-	perfRegistry *performance.CollectorRegistry
+	perfRegistry       *performance.CollectorRegistry
 	seedCleanupManager *testgenie.SeedCleanupManager
 
 	// AI subhandlers
-	screenshotHandler        *aihandlers.ScreenshotHandler
-	domHandler               *aihandlers.DOMHandler
-	elementAnalysisHandler   *aihandlers.ElementAnalysisHandler
-	aiAnalysisHandler        *aihandlers.AIAnalysisHandler
-	visionNavigationHandler  *aihandlers.VisionNavigationHandler
+	screenshotHandler       *aihandlers.ScreenshotHandler
+	domHandler              *aihandlers.DOMHandler
+	elementAnalysisHandler  *aihandlers.ElementAnalysisHandler
+	aiAnalysisHandler       *aihandlers.AIAnalysisHandler
+	visionNavigationHandler *aihandlers.VisionNavigationHandler
 
 	// Entitlement service for tier-based feature gating
 	entitlementService *entitlement.Service
+
+	// Credit service for unified usage tracking
+	creditService credits.CreditService
+
+	// AI client factory for per-request AI client creation
+	aiClientFactory *ai.AIClientFactory
 }
 
 // recordingUploadLimitBytes returns the configured maximum upload size for recording archives.
@@ -144,16 +155,19 @@ type HandlerDeps struct {
 	CatalogService   workflow.CatalogService   // Workflow/project CRUD, versioning, sync
 	ExecutionService workflow.ExecutionService // Execution lifecycle, timeline, export
 
-	WorkflowValidator    *workflowvalidator.Validator
-	Storage              storage.StorageInterface
-	RecordingService     archiveingestion.IngestionServiceInterface
-	RecordModeService    RecordModeService // Live recording session management (interface for testability)
-	RecordingsRoot       string
-	ReplayRenderer       replayRenderer
-	SessionProfiles      *archiveingestion.SessionProfileStore
-	UXMetricsRepo        uxmetrics.Repository          // Optional: enables UX metrics collection
-	EntitlementService   *entitlement.Service          // Optional: enables tier-based feature gating
-	AICreditsTracker     *entitlement.AICreditsTracker // Optional: enables AI credits tracking
+	WorkflowValidator  *workflowvalidator.Validator
+	Storage            storage.StorageInterface
+	RecordingService   archiveingestion.IngestionServiceInterface
+	RecordModeService  RecordModeService // Live recording session management (interface for testability)
+	RecordingsRoot          string
+	ReplayRenderer          replayRenderer
+	SessionProfileService   *sessionprofile.Service
+	UXMetricsRepo           uxmetrics.Repository         // Optional: enables UX metrics collection
+	EntitlementService  *entitlement.Service         // Optional: enables tier-based feature gating
+	CreditService       credits.CreditService        // Optional: enables unified credit tracking
+	AIClientFactory     *ai.AIClientFactory          // Optional: enables per-request AI client creation
+	NavigatorRegistry   *vision.NavigatorRegistry    // Optional: enables vision navigator selection
+	PlaywrightNavigator *vision.PlaywrightVisionNavigator // Optional: direct reference to playwright navigator
 }
 
 // InitDefaultDeps initializes the standard production dependencies.
@@ -165,9 +179,13 @@ func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Log
 
 // DepsOptions holds optional dependencies for handler initialization.
 type DepsOptions struct {
-	UXMetricsRepo      uxmetrics.Repository
-	EntitlementService *entitlement.Service
-	AICreditsTracker   *entitlement.AICreditsTracker
+	UXMetricsRepo           uxmetrics.Repository
+	EntitlementService      *entitlement.Service
+	CreditService           credits.CreditService                    // Unified credit tracking
+	AIClientFactory         *ai.AIClientFactory                      // Per-request AI client creation
+	NavigatorRegistry       *vision.NavigatorRegistry                // Vision navigator selection
+	PlaywrightNavigator     *vision.PlaywrightVisionNavigator        // Direct reference to playwright navigator
+	UnifiedRecordingService *unifiedrecording.Service                // Timeline persistence for recorded actions
 }
 
 // InitDefaultDepsWithUXMetrics initializes dependencies with optional UX metrics collection.
@@ -185,7 +203,9 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 	// Store screenshots alongside other execution artifacts under recordingsRoot.
 	storageClient := storage.NewScreenshotStorage(log, recordingsRoot)
 	recordingService := archiveingestion.NewIngestionService(repo, storageClient, wsHub, log, recordingsRoot)
-	sessionProfiles := archiveingestion.NewSessionProfileStore(paths.ResolveSessionProfilesRoot(log), log)
+
+	// Create session profile service with file repository
+	sessionProfileSvc := sessionprofile.NewServiceWithPath(paths.ResolveSessionProfilesRoot(log), log)
 
 	// Wire automation stack
 	autoExecutor := autoexecutor.NewSimpleExecutor(nil)
@@ -209,27 +229,19 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 		log.Debug("UX metrics collector enabled in event pipeline")
 	}
 
-	// Create AI client - wrap with credits tracking if entitlement services are available
+	// Create base AI client for workflow service
+	// Note: For credit-tracked AI operations, use AIClientFactory instead
 	var aiClient ai.AIClient = ai.NewOpenRouterClient(log)
-	if opts.EntitlementService != nil && opts.AICreditsTracker != nil {
-		aiClient = ai.NewCreditsClient(ai.CreditsClientOptions{
-			Inner:            aiClient,
-			EntitlementSvc:   opts.EntitlementService,
-			AICreditsTracker: opts.AICreditsTracker,
-			Logger:           log,
-			UserIdentityFn:   entitlement.UserIdentityFromContext,
-		})
-		log.Debug("AI credits tracking enabled")
-	}
 
 	// Create workflow service with dependencies
 	workflowSvc := workflow.NewWorkflowServiceWithDeps(repo, wsHub, log, workflow.WorkflowServiceOptions{
-		Executor:          autoExecutor,
-		EngineFactory:     autoEngineFactory,
-		ArtifactRecorder:  autoRecorder,
-		EventSinkFactory:  eventSinkFactory,
-		ExecutionDataRoot: recordingsRoot,
-		AIClient:          aiClient,
+		Executor:              autoExecutor,
+		EngineFactory:         autoEngineFactory,
+		ArtifactRecorder:      autoRecorder,
+		EventSinkFactory:      eventSinkFactory,
+		ExecutionDataRoot:     recordingsRoot,
+		AIClient:              aiClient,
+		SessionProfileService: sessionProfileSvc,
 	})
 
 	// Ensure the demo project exists so file-first operations have a stable project root.
@@ -248,22 +260,32 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 	}
 
 	// Create record mode service for live recording session management
-	recordModeSvc := livecapture.NewService(log)
+	// Inject unified recording service from options for timeline persistence
+	// Without this, recorded actions won't be persisted
+	recordModeSvc := livecapture.NewService(log, opts.UnifiedRecordingService)
+	if opts.UnifiedRecordingService != nil {
+		log.Info("✅ Record mode service initialized with unified recording (timeline persistence enabled)")
+	} else {
+		log.Warn("⚠️ Record mode service initialized WITHOUT unified recording - actions won't be persisted to timeline")
+	}
 
 	return HandlerDeps{
 		// WorkflowService implements both CatalogService and ExecutionService interfaces
-		CatalogService:     workflowSvc,
-		ExecutionService:   workflowSvc,
-		WorkflowValidator:  validatorInstance,
-		Storage:            storageClient,
-		RecordingService:   recordingService,
-		RecordModeService:  recordModeSvc,
-		RecordingsRoot:     recordingsRoot,
-		ReplayRenderer:     replay.NewReplayRenderer(log, recordingsRoot),
-		SessionProfiles:    sessionProfiles,
-		UXMetricsRepo:      opts.UXMetricsRepo,
-		EntitlementService: opts.EntitlementService,
-		AICreditsTracker:   opts.AICreditsTracker,
+		CatalogService:          workflowSvc,
+		ExecutionService:        workflowSvc,
+		WorkflowValidator:       validatorInstance,
+		Storage:                 storageClient,
+		RecordingService:        recordingService,
+		RecordModeService:       recordModeSvc,
+		RecordingsRoot:          recordingsRoot,
+		ReplayRenderer:          render.NewReplayRenderer(log, recordingsRoot),
+		SessionProfileService:   sessionProfileSvc,
+		UXMetricsRepo:           opts.UXMetricsRepo,
+		EntitlementService:      opts.EntitlementService,
+		CreditService:           opts.CreditService,
+		AIClientFactory:         opts.AIClientFactory,
+		NavigatorRegistry:       opts.NavigatorRegistry,
+		PlaywrightNavigator:     opts.PlaywrightNavigator,
 	}
 }
 
@@ -295,39 +317,57 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	)
 
 	handler := &Handler{
-		catalogService:     deps.CatalogService,
-		executionService:   deps.ExecutionService,
-		workflowValidator:  deps.WorkflowValidator,
-		repo:               repo,
-		wsHub:              wsHub,
-		storage:            deps.Storage,
-		recordingService:   deps.RecordingService,
-		recordModeService:  deps.RecordModeService,
-		recordingsRoot:     deps.RecordingsRoot,
-		replayRenderer:     deps.ReplayRenderer,
-		sessionProfiles:    deps.SessionProfiles,
-		log:                log,
+		catalogService:          deps.CatalogService,
+		executionService:        deps.ExecutionService,
+		workflowValidator:       deps.WorkflowValidator,
+		repo:                    repo,
+		wsHub:                   wsHub,
+		storage:                 deps.Storage,
+		recordingService:        deps.RecordingService,
+		recordModeService:       deps.RecordModeService,
+		recordingsRoot:          deps.RecordingsRoot,
+		replayRenderer:          deps.ReplayRenderer,
+		sessionProfileService:   deps.SessionProfileService,
+		log:                     log,
 		wsAllowAll:         allowAllOrigins,
 		wsAllowedOrigins:   allowedCopy,
 		upgrader:           websocket.Upgrader{},
 		perfRegistry:       perfRegistry,
 		seedCleanupManager: seedCleanupManager,
 		entitlementService: deps.EntitlementService,
+		creditService:      deps.CreditService,
+		aiClientFactory:    deps.AIClientFactory,
 	}
 	handler.upgrader.CheckOrigin = handler.isOriginAllowed
 
 	// Initialize AI subhandlers with dependencies
 	handler.domHandler = aihandlers.NewDOMHandler(log)
 	handler.screenshotHandler = aihandlers.NewScreenshotHandler(log)
-	handler.elementAnalysisHandler = aihandlers.NewElementAnalysisHandler(log)
-	handler.aiAnalysisHandler = aihandlers.NewAIAnalysisHandler(log, handler.domHandler)
 
-	// Initialize vision navigation handler with optional entitlement/credits
-	visionNavOpts := []aihandlers.VisionNavigationHandlerOption{
-		aihandlers.WithVisionNavigationHub(wsHub),
+	// Initialize element analysis handler with optional credit service
+	elementAnalysisOpts := []aihandlers.ElementAnalysisOption{}
+	if deps.CreditService != nil {
+		elementAnalysisOpts = append(elementAnalysisOpts, aihandlers.WithElementAnalysisCreditService(deps.CreditService))
 	}
-	if deps.EntitlementService != nil {
-		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationEntitlement(deps.EntitlementService, deps.AICreditsTracker))
+	handler.elementAnalysisHandler = aihandlers.NewElementAnalysisHandler(log, elementAnalysisOpts...)
+
+	// Initialize AI analysis handler with optional credit service
+	aiAnalysisOpts := []aihandlers.AIAnalysisOption{}
+	if deps.CreditService != nil {
+		aiAnalysisOpts = append(aiAnalysisOpts, aihandlers.WithAIAnalysisCreditService(deps.CreditService))
+	}
+	handler.aiAnalysisHandler = aihandlers.NewAIAnalysisHandler(log, handler.domHandler, aiAnalysisOpts...)
+
+	// Initialize vision navigation handler with navigator registry
+	visionNavOpts := []aihandlers.VisionNavigationHandlerOption{}
+	if deps.CreditService != nil {
+		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationCreditService(deps.CreditService))
+	}
+	if deps.NavigatorRegistry != nil {
+		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationRegistry(deps.NavigatorRegistry))
+	}
+	if deps.PlaywrightNavigator != nil {
+		visionNavOpts = append(visionNavOpts, aihandlers.WithPlaywrightNavigator(deps.PlaywrightNavigator))
 	}
 	handler.visionNavigationHandler = aihandlers.NewVisionNavigationHandler(log, visionNavOpts...)
 
@@ -400,6 +440,11 @@ func (h *Handler) AIAnalyzeElements(w http.ResponseWriter, r *http.Request) {
 }
 
 // Vision Navigation delegation methods
+
+// AINavigateListNavigators delegates to the vision navigation handler
+func (h *Handler) AINavigateListNavigators(w http.ResponseWriter, r *http.Request) {
+	h.visionNavigationHandler.HandleListNavigators(w, r)
+}
 
 // AINavigate delegates to the vision navigation handler
 func (h *Handler) AINavigate(w http.ResponseWriter, r *http.Request) {

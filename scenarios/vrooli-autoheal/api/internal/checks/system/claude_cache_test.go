@@ -21,8 +21,12 @@ func TestClaudeCacheCheckRunWithMock_Healthy(t *testing.T) {
 	// Create temp directory structure for testing
 	tmpDir := t.TempDir()
 	claudeDir := filepath.Join(tmpDir, ".claude")
-	os.MkdirAll(filepath.Join(claudeDir, "todos"), 0755)
-	os.WriteFile(filepath.Join(claudeDir, "todos", "test.json"), []byte("{}"), 0644)
+	if err := os.MkdirAll(filepath.Join(claudeDir, "todos"), 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(claudeDir, "todos", "test.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 
 	check := NewClaudeCacheCheck(
 		WithHomeDirFunc(func() (string, error) { return tmpDir, nil }),
@@ -64,12 +68,16 @@ func TestClaudeCacheCheckRunWithMock_Warning(t *testing.T) {
 	tmpDir := t.TempDir()
 	claudeDir := filepath.Join(tmpDir, ".claude")
 	todosDir := filepath.Join(claudeDir, "todos")
-	os.MkdirAll(todosDir, 0755)
+	if err := os.MkdirAll(todosDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
 
 	// Create files to exceed warning threshold (15 files with low threshold of 10)
 	for i := 0; i < 15; i++ {
 		filename := filepath.Join(todosDir, "todo_"+string(rune('a'+i))+".json")
-		os.WriteFile(filename, []byte("{}"), 0644)
+		if err := os.WriteFile(filename, []byte("{}"), 0o644); err != nil {
+			t.Fatalf("WriteFile failed: %v", err)
+		}
 	}
 
 	check := NewClaudeCacheCheck(
@@ -88,12 +96,16 @@ func TestClaudeCacheCheckRunWithMock_Critical(t *testing.T) {
 	tmpDir := t.TempDir()
 	claudeDir := filepath.Join(tmpDir, ".claude")
 	todosDir := filepath.Join(claudeDir, "todos")
-	os.MkdirAll(todosDir, 0755)
+	if err := os.MkdirAll(todosDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
 
 	// Create files to exceed critical threshold (25 files with threshold of 20)
 	for i := 0; i < 25; i++ {
 		filename := filepath.Join(todosDir, "todo_"+string(rune('a'+i))+".json")
-		os.WriteFile(filename, []byte("{}"), 0644)
+		if err := os.WriteFile(filename, []byte("{}"), 0o644); err != nil {
+			t.Fatalf("WriteFile failed: %v", err)
+		}
 	}
 
 	check := NewClaudeCacheCheck(
@@ -126,8 +138,12 @@ func TestClaudeCacheCheckRunWithMock_HomeDirError(t *testing.T) {
 func TestClaudeCacheCheckMetrics(t *testing.T) {
 	tmpDir := t.TempDir()
 	claudeDir := filepath.Join(tmpDir, ".claude")
-	os.MkdirAll(filepath.Join(claudeDir, "todos"), 0755)
-	os.WriteFile(filepath.Join(claudeDir, "todos", "test.json"), []byte("{}"), 0644)
+	if err := os.MkdirAll(filepath.Join(claudeDir, "todos"), 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(claudeDir, "todos", "test.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 
 	check := NewClaudeCacheCheck(
 		WithHomeDirFunc(func() (string, error) { return tmpDir, nil }),
@@ -251,9 +267,15 @@ func TestClaudeCacheCheckRecoveryActionsDangerous(t *testing.T) {
 func TestClaudeCacheCheckExecuteAction_Analyze(t *testing.T) {
 	tmpDir := t.TempDir()
 	claudeDir := filepath.Join(tmpDir, ".claude")
-	os.MkdirAll(filepath.Join(claudeDir, "todos"), 0755)
-	os.MkdirAll(filepath.Join(claudeDir, "file-history"), 0755)
-	os.WriteFile(filepath.Join(claudeDir, "todos", "test.json"), []byte("{}"), 0644)
+	if err := os.MkdirAll(filepath.Join(claudeDir, "todos"), 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(claudeDir, "file-history"), 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(claudeDir, "todos", "test.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 
 	check := NewClaudeCacheCheck(
 		WithHomeDirFunc(func() (string, error) { return tmpDir, nil }),
@@ -273,8 +295,12 @@ func TestClaudeCacheCheckExecuteAction_CleanupStale(t *testing.T) {
 	tmpDir := t.TempDir()
 	claudeDir := filepath.Join(tmpDir, ".claude")
 	todosDir := filepath.Join(claudeDir, "todos")
-	os.MkdirAll(todosDir, 0755)
-	os.WriteFile(filepath.Join(todosDir, "test.json"), []byte("{}"), 0644)
+	if err := os.MkdirAll(todosDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(todosDir, "test.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 
 	check := NewClaudeCacheCheck(
 		WithHomeDirFunc(func() (string, error) { return tmpDir, nil }),
@@ -294,8 +320,12 @@ func TestClaudeCacheCheckExecuteAction_CleanupAll(t *testing.T) {
 	tmpDir := t.TempDir()
 	claudeDir := filepath.Join(tmpDir, ".claude")
 	todosDir := filepath.Join(claudeDir, "todos")
-	os.MkdirAll(todosDir, 0755)
-	os.WriteFile(filepath.Join(todosDir, "test.json"), []byte("{}"), 0644)
+	if err := os.MkdirAll(todosDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(todosDir, "test.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 
 	check := NewClaudeCacheCheck(
 		WithHomeDirFunc(func() (string, error) { return tmpDir, nil }),
@@ -394,15 +424,29 @@ func TestClaudeCacheCheckCategorization(t *testing.T) {
 	claudeDir := filepath.Join(tmpDir, ".claude")
 
 	// Create different directory types
-	os.MkdirAll(filepath.Join(claudeDir, "todos"), 0755)
-	os.MkdirAll(filepath.Join(claudeDir, "file-history"), 0755)
-	os.MkdirAll(filepath.Join(claudeDir, "shell-snapshots"), 0755)
+	if err := os.MkdirAll(filepath.Join(claudeDir, "todos"), 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(claudeDir, "file-history"), 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(claudeDir, "shell-snapshots"), 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
 
 	// Create files in each
-	os.WriteFile(filepath.Join(claudeDir, "todos", "t1.json"), []byte("{}"), 0644)
-	os.WriteFile(filepath.Join(claudeDir, "todos", "t2.json"), []byte("{}"), 0644)
-	os.WriteFile(filepath.Join(claudeDir, "file-history", "h1.json"), []byte("{}"), 0644)
-	os.WriteFile(filepath.Join(claudeDir, "shell-snapshots", "s1.json"), []byte("{}"), 0644)
+	if err := os.WriteFile(filepath.Join(claudeDir, "todos", "t1.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(claudeDir, "todos", "t2.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(claudeDir, "file-history", "h1.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(claudeDir, "shell-snapshots", "s1.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 
 	check := NewClaudeCacheCheck(
 		WithHomeDirFunc(func() (string, error) { return tmpDir, nil }),

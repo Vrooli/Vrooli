@@ -31,6 +31,8 @@ import (
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/repository"
 	"workspace-sandbox/internal/sandbox"
+	"workspace-sandbox/internal/toolexecution"
+	"workspace-sandbox/internal/toolregistry"
 )
 
 // Server wires the HTTP router, database, and services.
@@ -45,6 +47,10 @@ type Server struct {
 	gcService        *gc.Service      // OT-P1-003: GC/Prune Operations
 	lifecycleRecon   *sandbox.LifecycleReconciler
 	metricsCollector *metrics.Collector // OT-P1-008: Metrics/Observability
+
+	// Tool Discovery Protocol support
+	toolRegistry *toolregistry.Registry
+	toolHandler  *toolexecution.Handler
 }
 
 // NewServer initializes configuration, database, and routes.
@@ -121,19 +127,53 @@ func NewServer() (*Server, error) {
 		validationPolicy = policy.NewNoOpValidationPolicy()
 	}
 
+	// Initialize teardown policy
+	// If teardown hooks are configured, use HookTeardownPolicy to run
+	// pre-teardown hooks before sandbox unmount/delete. This allows external
+	// systems to evacuate processes from the sandbox's merged directory.
+	var teardownPolicy policy.TeardownPolicy
+	if len(cfg.Policy.TeardownHooks) > 0 {
+		hooks := make([]policy.TeardownHook, len(cfg.Policy.TeardownHooks))
+		for i, h := range cfg.Policy.TeardownHooks {
+			hooks[i] = policy.TeardownHook{
+				Name:        h.Name,
+				Description: h.Description,
+				Command:     h.Command,
+				Args:        h.Args,
+				Timeout:     h.Timeout,
+			}
+		}
+		teardownPolicy = policy.NewHookTeardownPolicy(hooks,
+			policy.WithTeardownGlobalTimeout(cfg.Policy.TeardownTimeout),
+		)
+		log.Printf("teardown hooks enabled | hooks=%d timeout=%v", len(hooks), cfg.Policy.TeardownTimeout)
+	} else {
+		teardownPolicy = policy.NewNoOpTeardownPolicy()
+	}
+
 	// Initialize repository and service
 	repo := repository.NewSandboxRepository(db)
 	svcCfg := sandbox.ServiceConfig{
-		DefaultProjectRoot: cfg.Driver.ProjectRoot,
-		MaxSandboxes:       cfg.Limits.MaxSandboxes,
-		DefaultTTL:         cfg.Lifecycle.DefaultTTL,
+		DefaultProjectRoot:      cfg.Driver.ProjectRoot,
+		MaxSandboxes:            cfg.Limits.MaxSandboxes,
+		DefaultTTL:              cfg.Lifecycle.DefaultTTL,
+		DefaultNoLock:           cfg.Policy.DefaultNoLock,
+		AgentManagerURL:         cfg.Integration.AgentManagerURL,
+		AgentManagerSyncEnabled: cfg.Integration.AgentManagerSyncEnabled,
+		AgentManagerSyncTimeout: cfg.Integration.AgentManagerSyncTimeout,
 	}
 	svc := sandbox.NewService(repo, driverManager, svcCfg,
 		sandbox.WithApprovalPolicy(approvalPolicy),
 		sandbox.WithAttributionPolicy(attributionPolicy),
 		sandbox.WithValidationPolicy(validationPolicy),
+		sandbox.WithTeardownPolicy(teardownPolicy),
 	)
-	lifecycleRecon := sandbox.NewLifecycleReconciler(svc, cfg.Lifecycle.GCInterval)
+	healCfg := sandbox.HealConfig{
+		IdleGracePeriod:        cfg.Lifecycle.AutoHealIdleGrace,
+		MaxConsecutiveFailures: cfg.Lifecycle.AutoHealMaxRetries,
+		BaseBackoff:            cfg.Lifecycle.AutoHealBaseBackoff,
+	}
+	lifecycleRecon := sandbox.NewLifecycleReconciler(svc, cfg.Lifecycle.GCInterval, healCfg)
 
 	// Initialize process tracker (OT-P0-008)
 	processTracker := process.NewTrackerWithConfig(process.TrackerConfig{
@@ -188,6 +228,41 @@ func NewServer() (*Server, error) {
 	// Initialize metrics collector [OT-P1-008]
 	metricsCollector := metrics.NewCollector()
 
+	// --- Tool Discovery Protocol support ---
+	// Initialize tool registry with all providers
+	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
+		ScenarioName:        "workspace-sandbox",
+		ScenarioVersion:     "1.0.0",
+		ScenarioDescription: "Isolated workspace management with CoW filesystems for safe agent development",
+	})
+
+	// Register all tool providers (4 tiers)
+	toolReg.RegisterProvider(toolregistry.NewSandboxToolProvider())   // Tier 1: Sandbox lifecycle
+	toolReg.RegisterProvider(toolregistry.NewExecutionToolProvider()) // Tier 2: Command execution
+	toolReg.RegisterProvider(toolregistry.NewFileToolProvider())      // Tier 3: File operations
+	toolReg.RegisterProvider(toolregistry.NewDiffToolProvider())      // Tier 4: Diff/approval
+
+	// Create adapters for tool execution
+	processExecutor := toolexecution.NewProcessExecutorAdapter(toolexecution.ProcessExecutorConfig{
+		SandboxService: svc,
+		Driver:         driverManager,
+		ProcessTracker: processTracker,
+		ProcessLogger:  processLogger,
+		ProfileStore:   profileStore,
+		ExecConfig:     cfg.Execution,
+	})
+	fileOperator := toolexecution.NewFileOperatorAdapter(svc)
+
+	// Create tool executor and handler
+	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
+		SandboxService:  svc,
+		ProcessExecutor: processExecutor,
+		FileOperator:    fileOperator,
+	})
+	toolHandler := toolexecution.NewHandler(toolExecutor)
+
+	log.Printf("tool discovery protocol enabled | providers=%d", toolReg.ProviderCount())
+
 	srv := &Server{
 		config:           cfg,
 		db:               db,
@@ -199,6 +274,8 @@ func NewServer() (*Server, error) {
 		gcService:        gcService,
 		lifecycleRecon:   lifecycleRecon,
 		metricsCollector: metricsCollector,
+		toolRegistry:     toolReg,
+		toolHandler:      toolHandler,
 	}
 
 	srv.setupRoutes()
@@ -224,6 +301,14 @@ func (s *Server) setupRoutes() {
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+
+	// Tool Discovery Protocol routes (agent-inbox integration)
+	// GET /api/v1/tools - Get tool manifest with all available tools
+	// GET /api/v1/tools/{name} - Get a specific tool definition
+	// POST /api/v1/tools/execute - Execute a tool
+	s.router.HandleFunc("/api/v1/tools", s.toolRegistry.HandleGetManifest).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/tools/{name}", s.toolRegistry.HandleGetTool).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/tools/execute", s.toolHandler.Execute).Methods("POST", "OPTIONS")
 
 	// Delegate remaining route registration to handlers package
 	// This centralizes route knowledge with the handlers and makes the API surface explicit
@@ -404,6 +489,14 @@ func ensureSchema(db *sql.DB) error {
 			return fmt.Errorf("failed to create applied_changes table: %w", err)
 		}
 		log.Println("migration complete: applied_changes table created")
+	}
+
+	// --- agent_manager_run_id on applied_changes ---
+	if _, err := db.Exec(`ALTER TABLE applied_changes ADD COLUMN IF NOT EXISTS agent_manager_run_id TEXT`); err != nil {
+		return fmt.Errorf("failed to add agent_manager_run_id column: %w", err)
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_applied_changes_run_id ON applied_changes(agent_manager_run_id)`); err != nil {
+		return fmt.Errorf("failed to create agent_manager_run_id index: %w", err)
 	}
 
 	// --- reserved_path support (soft safety reserved directory) ---

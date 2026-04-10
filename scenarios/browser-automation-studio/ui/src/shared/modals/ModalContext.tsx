@@ -5,54 +5,13 @@
  * Provides a single source of truth for modal visibility and coordinates
  * modal closure on navigation changes.
  */
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
-
-export type DocsTab = "getting-started" | "node-reference" | "schema-reference" | "shortcuts";
-
-interface AssetUploadModalConfig {
-  folder: string;
-  projectId: string;
-}
-
-interface ModalState {
-  // Modal visibility
-  showAIModal: boolean;
-  showProjectModal: boolean;
-  showWorkflowCreationModal: boolean;
-  showAssetUploadModal: boolean;
-  assetUploadConfig: AssetUploadModalConfig | null;
-  showDocs: boolean;
-  docsInitialTab: DocsTab;
-}
-
-interface ModalActions {
-  // AI Modal
-  openAIModal: () => void;
-  closeAIModal: () => void;
-
-  // Project Modal
-  openProjectModal: () => void;
-  closeProjectModal: () => void;
-
-  // Workflow Creation Modal
-  openWorkflowCreationModal: () => void;
-  closeWorkflowCreationModal: () => void;
-
-  // Asset Upload Modal
-  openAssetUploadModal: (config: AssetUploadModalConfig) => void;
-  closeAssetUploadModal: () => void;
-
-  // Docs Modal
-  openDocs: (tab?: DocsTab) => void;
-  closeDocs: () => void;
-
-  // Bulk operations
-  closeAllModals: () => void;
-}
-
-type ModalContextValue = ModalState & ModalActions;
-
-const ModalContext = createContext<ModalContextValue | null>(null);
+import { useState, useCallback, useEffect, type ReactNode } from "react";
+import {
+  ModalContext,
+  type DocsTab,
+  type AssetUploadModalConfig,
+  type ModalContextValue,
+} from "./ModalContextBase";
 
 interface ModalProviderProps {
   children: ReactNode;
@@ -176,19 +135,3 @@ export function ModalProvider({ children, currentView }: ModalProviderProps) {
  * Hook to access modal state and actions.
  * Must be used within a ModalProvider.
  */
-export function useModals(): ModalContextValue {
-  const context = useContext(ModalContext);
-  if (!context) {
-    throw new Error("useModals must be used within a ModalProvider");
-  }
-  return context;
-}
-
-/**
- * Hook to check if any modal is currently open.
- * Useful for keyboard shortcut context detection.
- */
-export function useIsAnyModalOpen(): boolean {
-  const { showAIModal, showProjectModal, showWorkflowCreationModal, showAssetUploadModal, showDocs } = useModals();
-  return showAIModal || showProjectModal || showWorkflowCreationModal || showAssetUploadModal || showDocs;
-}

@@ -1,0 +1,38 @@
+{
+  "kind": "team",
+  "schemaVersion": 1,
+  "id": "meta-optimization",
+  "displayName": "Meta Optimization Team",
+  "mission": "Ensure the health of Vrooli's development capability chain and optimize skills, agents, and teams for maximum compound impact.",
+  "enabled": false,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "meta-lead",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showDecisionLogGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
+  },
+  "decisionMode": "yolo",
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "revision": 2,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-03-11T00:00:00Z"
+}

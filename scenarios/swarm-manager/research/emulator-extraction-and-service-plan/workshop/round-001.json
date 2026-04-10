@@ -1,0 +1,148 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-03T21:15:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 1,
+    "problem_clarity": 2,
+    "risk_awareness": 1,
+    "scope_defined": 1,
+    "testable": 0
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Extraction scope — what moves to vrooli-emulator",
+      "context": "The livedesktop package is well-isolated and ready to extract. However, there are two possible scopes: (1) extract only the session/display management (livedesktop), or (2) also unify smoketest's display management under the emulator. Smoketest currently uses xvfb-run independently. Unifying would eliminate duplication but increases extraction complexity.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Livedesktop only — extract session management, VNC proxy, actions, and platform backends",
+          "rationale": "Cleanest extraction boundary, minimal risk. Smoketest can migrate later as a follow-up.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Livedesktop + smoketest display — unify all display management in the emulator",
+          "rationale": "Eliminates duplication immediately, but smoketest has different needs (headless, no VNC) that may complicate the API."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own scope definition"
+        }
+      ],
+      "selected": "B",
+      "clarification_id": "74063326-b01b-4b0a-a437-7b2f6d923f91"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Inter-scenario communication protocol",
+      "context": "vrooli-emulator needs to expose its session API to consumers (scenario-to-desktop, deployment-manager, future scenarios). The current livedesktop uses HTTP REST + WebSocket (for VNC). Options are: keep HTTP/WS as-is, add gRPC for programmatic consumers, or use both.",
+      "options": [
+        {
+          "key": "A",
+          "label": "HTTP REST + WebSocket only (same as current livedesktop)",
+          "rationale": "Zero protocol migration cost. WebSocket is already required for VNC. Simple for UI consumers and CLI.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "gRPC for service-to-service, HTTP+WS for UI/CLI",
+          "rationale": "Stronger typing and streaming for programmatic consumers, but adds a second protocol to maintain."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own protocol choice"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "UI component ownership",
+      "context": "The livedesktop UI components (VncCanvas, LiveDesktopDrawer, DesktopControlsMenu, MetricsBar, etc.) and Zustand store currently live in scenario-to-desktop's UI. These need to be available to any scenario that wants to embed a desktop viewer. Options differ in how the UI is distributed.",
+      "options": [
+        {
+          "key": "A",
+          "label": "vrooli-emulator owns a UI package; consumers import components",
+          "rationale": "Single source of truth for desktop viewer UI. Consumers compose it into their own layouts. Standard library approach."
+        },
+        {
+          "key": "B",
+          "label": "vrooli-emulator provides API only; each consumer rebuilds UI",
+          "rationale": "Maximum flexibility but duplicates the noVNC integration work. Only makes sense if different consumers need radically different UIs."
+        },
+        {
+          "key": "C",
+          "label": "vrooli-emulator ships its own standalone UI + embeddable components",
+          "rationale": "Emulator gets a full management UI (session list, viewer, controls) AND exports key components for embedding. Most complete but highest initial effort.",
+          "recommended": true
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own UI ownership model"
+        }
+      ],
+      "selected": "C",
+      "notes": "Using an iframe or similar technique probably best fits how we typically do this sort of thing. E.g. app-monitor, deployment-manager"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Human validation integration model",
+      "context": "Human validation (visual inspection of desktop apps) is needed by both scenario-to-desktop (smoketest review) and deployment-manager (approval workflows). The emulator could provide validation primitives (screenshot capture, side-by-side comparison, annotation) as part of its API, or leave validation logic to consumers.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Emulator provides capture primitives only; validation logic stays in consumers",
+          "rationale": "Emulator stays focused on display/session management. deployment-manager and scenario-to-desktop own their validation UX.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Emulator includes a validation subsystem (capture + comparison + annotation + verdict)",
+          "rationale": "Centralizes validation so every consumer gets the same capabilities, but scope-creeps the emulator beyond display management."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own validation model"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The PlatformBackend interface in platform.go is already designed for extraction — it documents local backends (linux-xvfb, future windows-qemu, android-emulator) and remote backends (remote-macos, remote-ios) with explicit design constraints for service extraction: URLs over byte blobs, stateless callers, backend-owned session state. This interface can move to vrooli-emulator nearly unchanged."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The dependency research (desktop-release-control-plane-audit) is completed and confirms the release pipeline is deployment-manager → scenario-to-desktop → LPBS. The emulator extraction does NOT affect this pipeline — livedesktop is not in the build/deploy path. This means extraction has low blast radius for the production desktop flow."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "livedesktop's only internal dependency is the procmetrics package (process monitoring). This is a small, focused package that should either move to vrooli-emulator or become a shared library. All other scenario-to-desktop packages (pipeline, build, deploy, signing, etc.) have zero coupling to livedesktop."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "The artifact launch model currently works by: (1) session start with optional app_path, (2) if empty, auto-discover from latest build artifact via findArtifact(scenarioName), (3) LaunchApp spawns process on virtual display. After extraction, vrooli-emulator would need callers to provide the app_path explicitly (no cross-scenario build artifact knowledge), or accept a scenario name and use service discovery to find the build output path."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "The captures system (screenshots, recordings) in scenario-to-desktop has its own handler and store at api/captures/. It's partially coupled to livedesktop (screenshots come from sessions) but also stores pipeline-generated captures independently. This needs a clear ownership split during extraction."
+    }
+  ],
+  "plan_updates": "Created initial conclusion.md scaffold with research question, methodology, 6 findings covering isolation analysis, display duplication, platform abstraction readiness, UI coupling, consumer analysis, and smoketest unification opportunity."
+}

@@ -11,6 +11,19 @@ import { getConfig } from '@/config';
 import { parseProtoStrict } from '@/utils/proto';
 import type { WorkflowDefinition, WorkflowValidationResult } from '@/types/workflow';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const safeJson = async (response: Response): Promise<unknown> => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
 interface ValidationOptions {
   strict?: boolean;
 }
@@ -33,7 +46,10 @@ export const validateWorkflowDefinition = async (
     throw new Error(await readErrorMessage(response));
   }
 
-  const payload = await response.json();
+  const payload = await safeJson(response);
+  if (!payload) {
+    throw new Error(`Workflow validation failed (${response.status})`);
+  }
   const proto = parseProtoStrict<ProtoWorkflowValidationResult>(WorkflowValidationResultSchema, payload);
   return toJson(WorkflowValidationResultSchema, proto, { useProtoFieldName: true }) as unknown as WorkflowValidationResult;
 };
@@ -49,11 +65,11 @@ const normalizeWorkflowDefinition = (workflow: WorkflowDefinition): Record<strin
 
 const readErrorMessage = async (response: Response): Promise<string> => {
   try {
-    const payload = await response.json();
-    if (payload && typeof payload.message === 'string') {
+    const payload = await safeJson(response);
+    if (isRecord(payload) && typeof payload.message === 'string') {
       return payload.message;
     }
-  } catch (error) {
+  } catch (_error) {
     // Ignore JSON parsing errors and fall back to status message
   }
   return `Workflow validation failed (${response.status})`;

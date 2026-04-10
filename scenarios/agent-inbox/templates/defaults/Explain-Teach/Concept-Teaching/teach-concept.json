@@ -1,0 +1,31 @@
+{
+  "id": "explain-concept",
+  "name": "Teach Concept",
+  "description": "Learn a programming concept with examples from the codebase",
+  "icon": "GraduationCap",
+  "modes": ["Explain/Teach", "Concept Teaching"],
+  "content": "I want to understand {{concept}} better.\n\n**My current level:** {{level}}\n\n**How I'll use it:** {{use_case}}\n\nPlease:\n1. Explain the concept from first principles\n2. Show examples from our codebase where it's used\n3. Walk through a practical implementation\n4. Highlight common mistakes to avoid\n5. Suggest exercises to practice",
+  "variables": [
+    {
+      "name": "concept",
+      "label": "Concept",
+      "type": "text",
+      "placeholder": "e.g., React Context, TypeScript generics, async/await",
+      "required": true
+    },
+    {
+      "name": "level",
+      "label": "Experience Level",
+      "type": "select",
+      "options": ["Beginner", "Intermediate", "Advanced (need deep dive)"],
+      "required": true
+    },
+    {
+      "name": "use_case",
+      "label": "How You'll Use It",
+      "type": "textarea",
+      "placeholder": "What are you trying to build or understand?",
+      "required": false
+    }
+  ]
+}

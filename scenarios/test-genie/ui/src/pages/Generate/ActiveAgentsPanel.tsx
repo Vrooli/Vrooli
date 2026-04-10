@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useCallback } from "react";
+import { useState, useCallback, type ReactNode } from "react";
 import {
   Bot,
   Square,
@@ -28,9 +28,9 @@ import {
 } from "../../lib/api";
 import { cn } from "../../lib/utils";
 import { useAgentUpdates } from "../../hooks/useAgentUpdates";
-import { useWebSocket } from "../../contexts/WebSocketContext";
+import { useWebSocket } from "../../contexts/WebSocketContext.shared";
 
-const STATUS_ICONS: Record<ActiveAgent["status"], React.ReactNode> = {
+const STATUS_ICONS: Record<ActiveAgent["status"], ReactNode> = {
   pending: <Clock className="h-4 w-4 text-slate-400" />,
   running: <Loader2 className="h-4 w-4 text-cyan-400 animate-spin" />,
   completed: <CheckCircle2 className="h-4 w-4 text-emerald-400" />,
@@ -204,16 +204,26 @@ interface ActiveAgentsPanelProps {
   defaultCollapsed?: boolean;
 }
 
-// Status filter options
+type StatusFilter = "all" | "active" | "completed" | "failed" | "stopped";
+type TerminalAgentStatus = Extract<ActiveAgent["status"], "completed" | "failed" | "timeout" | "stopped">;
+
 const STATUS_OPTIONS = [
   { value: "all", label: "All" },
   { value: "active", label: "Active" },
   { value: "completed", label: "Completed" },
   { value: "failed", label: "Failed" },
   { value: "stopped", label: "Stopped" },
-] as const;
+] satisfies Array<{ value: StatusFilter; label: string }>;
 
-type StatusFilter = typeof STATUS_OPTIONS[number]["value"];
+const TERMINAL_AGENT_STATUSES: TerminalAgentStatus[] = ["completed", "failed", "timeout", "stopped"];
+
+function isStatusFilter(value: string): value is StatusFilter {
+  return STATUS_OPTIONS.some((option) => option.value === value);
+}
+
+function isTerminalAgentStatus(value: string): value is TerminalAgentStatus {
+  return TERMINAL_AGENT_STATUSES.some((status) => status === value);
+}
 
 export function ActiveAgentsPanel({ scenario, scope, onAgentStatusChange, defaultCollapsed = true }: ActiveAgentsPanelProps) {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
@@ -221,7 +231,7 @@ export function ActiveAgentsPanel({ scenario, scope, onAgentStatusChange, defaul
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
   const [streamingOutput, setStreamingOutput] = useState<Record<string, string>>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
-  const [scenarioFilter, setScenarioFilter] = useState<string>("");
+  const [scenarioFilter, setScenarioFilter] = useState<string>(() => scenario ?? "");
   const [searchQuery, setSearchQuery] = useState("");
   const queryClient = useQueryClient();
   const { isConnected } = useWebSocket();
@@ -230,9 +240,8 @@ export function ActiveAgentsPanel({ scenario, scope, onAgentStatusChange, defaul
   const handleAgentUpdate = useCallback((agent: { id: string; status: string }) => {
     // Notify parent of terminal status changes
     if (onAgentStatusChange && agent.status) {
-      const terminalStatuses = ["completed", "failed", "timeout", "stopped"];
-      if (terminalStatuses.includes(agent.status)) {
-        onAgentStatusChange(agent.id, agent.status as "completed" | "failed" | "timeout" | "stopped");
+      if (isTerminalAgentStatus(agent.status)) {
+        onAgentStatusChange(agent.id, agent.status);
         // Clear streaming output when agent completes (final output will be in agent.output)
         setStreamingOutput((prev) => {
           const next = { ...prev };
@@ -285,6 +294,7 @@ export function ActiveAgentsPanel({ scenario, scope, onAgentStatusChange, defaul
   const activeCount = allAgents.filter(
     (a) => a.status === "running" || a.status === "pending"
   ).length;
+  const scopeSummary = scope?.length ? `${scope.length} scoped path${scope.length === 1 ? "" : "s"}` : null;
 
   // Get unique scenarios for filter dropdown
   const uniqueScenarios = Array.from(new Set(allAgents.map(a => a.scenario).filter(Boolean))).sort();
@@ -365,6 +375,11 @@ export function ActiveAgentsPanel({ scenario, scope, onAgentStatusChange, defaul
           <div>
             <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Agents</p>
             <h3 className="mt-1 text-lg font-semibold text-white">Active Agents</h3>
+            {(scenario || scopeSummary) && (
+              <p className="mt-2 text-sm text-slate-400">
+                {[scenario ? `Scenario: ${scenario}` : null, scopeSummary].filter(Boolean).join(" • ")}
+              </p>
+            )}
           </div>
           {activeCount > 0 && (
             <span className="rounded-full border border-cyan-400/50 bg-cyan-400/10 px-2 py-0.5 text-xs text-cyan-100">
@@ -480,7 +495,12 @@ export function ActiveAgentsPanel({ scenario, scope, onAgentStatusChange, defaul
           <Filter className="h-4 w-4 text-slate-400" />
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            onChange={(e) => {
+              const nextStatus = e.target.value;
+              if (isStatusFilter(nextStatus)) {
+                setStatusFilter(nextStatus);
+              }
+            }}
             className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-cyan-400/50 focus:outline-none"
           >
             {STATUS_OPTIONS.map((opt) => (
@@ -669,18 +689,24 @@ export function ActiveAgentsPanel({ scenario, scope, onAgentStatusChange, defaul
                   )}
 
                   {/* Show streaming output for running agents */}
-                  {isActive && streamingOutput[agent.id] && (
-                    <div className="rounded-lg border border-cyan-400/30 bg-cyan-400/5 p-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-cyan-400">Live Output:</span>
-                        <Loader2 className="h-3 w-3 text-cyan-400 animate-spin" />
+                  {(() => {
+                    const liveOutput = streamingOutput[agent.id];
+                    if (!isActive || !liveOutput) {
+                      return null;
+                    }
+                    return (
+                      <div className="rounded-lg border border-cyan-400/30 bg-cyan-400/5 p-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-cyan-400">Live Output:</span>
+                          <Loader2 className="h-3 w-3 text-cyan-400 animate-spin" />
+                        </div>
+                        <pre className="mt-1 text-xs text-cyan-100 whitespace-pre-wrap max-h-48 overflow-y-auto font-mono">
+                          {liveOutput.slice(-3000)}
+                          {liveOutput.length > 3000 && "\n... (truncated, showing last 3000 chars)"}
+                        </pre>
                       </div>
-                      <pre className="mt-1 text-xs text-cyan-100 whitespace-pre-wrap max-h-48 overflow-y-auto font-mono">
-                        {streamingOutput[agent.id].slice(-3000)}
-                        {streamingOutput[agent.id].length > 3000 && "\n... (truncated, showing last 3000 chars)"}
-                      </pre>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Show final output for completed agents */}
                   {agent.output && !agent.error && !isActive && (

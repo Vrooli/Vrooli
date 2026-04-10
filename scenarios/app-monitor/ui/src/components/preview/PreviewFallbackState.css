@@ -1,0 +1,126 @@
+.preview-fallback {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 1rem 1.1rem;
+  color: var(--app-text-primary);
+  background: rgba(9, 12, 22, 0.82);
+  backdrop-filter: blur(2px);
+}
+
+.preview-fallback--overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+}
+
+.preview-fallback--panel {
+  width: 100%;
+  height: 100%;
+}
+
+.preview-fallback--error {
+  color: #ffc1c1;
+}
+
+.preview-fallback__content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  text-align: center;
+  line-height: 1.4;
+  font-size: 0.86rem;
+  color: rgba(208, 216, 238, 0.78);
+}
+
+.preview-fallback__icon {
+  flex: 0 0 auto;
+}
+
+.preview-fallback__icon--spin {
+  animation: preview-fallback-spin 1s linear infinite;
+}
+
+.preview-fallback--with-skeleton .preview-fallback__content {
+  margin-top: 0.1rem;
+}
+
+.preview-fallback__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-width: 760px;
+  margin: 0 auto;
+  width: min(100%, 88vw);
+  opacity: 0.92;
+}
+
+.preview-fallback__pulse {
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    rgba(24, 31, 54, 0.42) 0%,
+    rgba(37, 47, 76, 0.52) 45%,
+    rgba(24, 31, 54, 0.42) 100%
+  );
+  background-size: 240% 100%;
+  animation: preview-fallback-shimmer 1.9s ease-in-out infinite;
+}
+
+.preview-fallback__pulse--title {
+  width: min(220px, 52%);
+  height: 10px;
+  margin: 0 auto;
+  border-radius: 999px;
+}
+
+.preview-fallback__pulse--line {
+  width: min(480px, 76%);
+  height: 9px;
+  margin: 0 auto;
+  border-radius: 999px;
+}
+
+.preview-fallback__pulse--line-short {
+  width: min(300px, 45%);
+}
+
+.preview-fallback__pulse--surface {
+  width: 100%;
+  min-height: 210px;
+  border-radius: 12px;
+  margin-top: 0.3rem;
+  background:
+    linear-gradient(rgba(22, 28, 49, 0.62), rgba(22, 28, 49, 0.62)) top/100% 34px no-repeat,
+    linear-gradient(
+      90deg,
+      rgba(21, 28, 47, 0.46) 0%,
+      rgba(33, 42, 68, 0.56) 45%,
+      rgba(21, 28, 47, 0.46) 100%
+    );
+  background-size: 100% 34px, 230% 100%;
+  border: 1px solid rgba(72, 88, 126, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(18, 24, 42, 0.45);
+}
+
+@keyframes preview-fallback-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes preview-fallback-shimmer {
+  0% {
+    background-position: 120% 0;
+  }
+
+  100% {
+    background-position: -120% 0;
+  }
+}

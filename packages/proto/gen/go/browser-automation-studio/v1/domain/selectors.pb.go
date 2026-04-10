@@ -374,7 +374,7 @@ var File_browser_automation_studio_v1_domain_selectors_proto protoreflect.FileDe
 
 const file_browser_automation_studio_v1_domain_selectors_proto_rawDesc = "" +
 	"\n" +
-	"3browser-automation-studio/v1/domain/selectors.proto\x12\x1cbrowser_automation_studio.v1\x1a.browser-automation-studio/v1/base/shared.proto\x1a0browser-automation-studio/v1/base/geometry.proto\"\xab\x01\n" +
+	"3browser-automation-studio/v1/domain/selectors.proto\x12\x1cbrowser_automation_studio.v1\x1a0browser-automation-studio/v1/base/geometry.proto\x1a.browser-automation-studio/v1/base/shared.proto\"\xab\x01\n" +
 	"\x11SelectorCandidate\x12>\n" +
 	"\x04type\x18\x01 \x01(\x0e2*.browser_automation_studio.v1.SelectorTypeR\x04type\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value\x12\x1e\n" +

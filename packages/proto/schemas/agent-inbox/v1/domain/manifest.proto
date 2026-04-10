@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package agent_inbox.v1;
 
-import "google/protobuf/timestamp.proto";
 import "agent-inbox/v1/domain/tool.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain;domain";
 

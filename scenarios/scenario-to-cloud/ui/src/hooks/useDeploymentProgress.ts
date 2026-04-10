@@ -41,9 +41,12 @@ export function useDeploymentProgress(
       return;
     }
 
-    const url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/progress`, {
+    let url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/progress`, {
       baseUrl: API_BASE,
     });
+    if (runId) {
+      url += `?run_id=${encodeURIComponent(runId)}`;
+    }
 
     // Initialize progress state
     setProgress({

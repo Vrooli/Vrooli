@@ -1,7 +1,7 @@
 {
   "scenario": "browser-automation-studio",
   "report_version": 1,
-  "generated_at": "2026-01-09T05:48:33.834505811Z",
+  "generated_at": "2026-02-08T00:59:33.207849922Z",
   "dependencies": [
     {
       "name": "minio",
@@ -164,39 +164,6 @@
         "sqlite"
       ],
       "source": "declared"
-    },
-    {
-      "name": "redis",
-      "type": "resource",
-      "resource_type": "cache",
-      "requirements": {
-        "ram_mb": 256,
-        "disk_mb": 128,
-        "cpu_cores": 0.5,
-        "network": "optional",
-        "source": "estimated",
-        "confidence": "low"
-      },
-      "tier_support": {
-        "tier-1-local": {
-          "supported": true,
-          "fitness_score": 0.8,
-          "notes": "Shared redis"
-        },
-        "tier-2-desktop": {
-          "supported": false,
-          "fitness_score": 0.3,
-          "reason": "Need embedded cache or switch to in-process broadcast",
-          "alternatives": [
-            "event-emitter"
-          ]
-        }
-      },
-      "alternatives": [
-        "event-emitter",
-        "in-memory-pubsub"
-      ],
-      "source": "declared"
     }
   ],
   "aggregates": {
@@ -261,32 +228,31 @@
       }
     },
     "tier-1-local": {
-      "fitness_score": 0.76,
-      "dependency_count": 5,
+      "fitness_score": 0.7499999999999999,
+      "dependency_count": 4,
       "blocking_dependencies": [
         "ollama",
         "openrouter"
       ],
       "estimated_requirements": {
-        "ram_mb": 5632,
-        "disk_mb": 14464,
-        "cpu_cores": 6.5
+        "ram_mb": 5376,
+        "disk_mb": 14336,
+        "cpu_cores": 6
       }
     },
     "tier-2-desktop": {
       "fitness_score": 0.3,
-      "dependency_count": 5,
+      "dependency_count": 4,
       "blocking_dependencies": [
         "minio",
         "ollama",
         "openrouter",
-        "postgres",
-        "redis"
+        "postgres"
       ],
       "estimated_requirements": {
-        "ram_mb": 5632,
-        "disk_mb": 14464,
-        "cpu_cores": 6.5
+        "ram_mb": 5376,
+        "disk_mb": 14336,
+        "cpu_cores": 6
       }
     },
     "tier-4-saas": {
@@ -305,7 +271,7 @@
   },
   "bundle_manifest": {
     "scenario": "browser-automation-studio",
-    "generated_at": "2026-01-09T05:48:33.834505811Z",
+    "generated_at": "2026-02-08T00:59:33.207849922Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -320,7 +286,30 @@
       {
         "path": "api/browser-automation-studio-api",
         "type": "api-binary",
+        "exists": true,
+        "notes": "Detected api component (go)"
+      },
+      {
+        "path": "cli",
+        "type": "cli-source",
         "exists": true
+      },
+      {
+        "path": "cli/browser-automation-studio",
+        "type": "cli-binary",
+        "exists": true,
+        "notes": "Detected cli component (go)"
+      },
+      {
+        "path": "playwright-driver",
+        "type": "playwright-driver-source",
+        "exists": true
+      },
+      {
+        "path": "playwright-driver/browser-automation-studio-playwright-driver",
+        "type": "playwright-driver-binary",
+        "exists": false,
+        "notes": "Detected api component (typescript)"
       },
       {
         "path": "ui/dist",
@@ -330,12 +319,8 @@
       {
         "path": "ui/dist/index.html",
         "type": "ui-entry",
-        "exists": true
-      },
-      {
-        "path": "cli/browser-automation-studio",
-        "type": "cli-binary",
-        "exists": false
+        "exists": true,
+        "notes": "Detected UI component (typescript)"
       }
     ],
     "dependencies": [
@@ -465,30 +450,6 @@
         "alternatives": [
           "sqlite"
         ]
-      },
-      {
-        "name": "redis",
-        "type": "resource",
-        "resource_type": "cache",
-        "tier_support": {
-          "tier-1-local": {
-            "supported": true,
-            "fitness_score": 0.8,
-            "notes": "Shared redis"
-          },
-          "tier-2-desktop": {
-            "supported": false,
-            "fitness_score": 0.3,
-            "reason": "Need embedded cache or switch to in-process broadcast",
-            "alternatives": [
-              "event-emitter"
-            ]
-          }
-        },
-        "alternatives": [
-          "event-emitter",
-          "in-memory-pubsub"
-        ]
       }
     ],
     "skeleton": {
@@ -529,18 +490,13 @@
           "original": "postgres",
           "replacement": "sqlite",
           "reason": "Recommended bundle-safe alternative from dependency metadata"
-        },
-        {
-          "original": "redis",
-          "replacement": "event-emitter",
-          "reason": "Recommended bundle-safe alternative from dependency metadata"
         }
       ],
       "services": [
         {
           "id": "browser-automation-studio-api",
           "type": "api-binary",
-          "description": "Bundled API process for browser-automation-studio",
+          "description": "Bundled api process for browser-automation-studio",
           "binaries": {
             "darwin-x64": {
               "path": "bin/api/darwin-x64/browser-automation-studio-api"
@@ -597,9 +553,105 @@
           }
         },
         {
+          "id": "browser-automation-studio-cli",
+          "type": "resource",
+          "description": "cli component for browser-automation-studio",
+          "binaries": {
+            "darwin-x64": {
+              "path": "bin/cli/darwin-x64/browser-automation-studio"
+            },
+            "linux-x64": {
+              "path": "bin/cli/linux-x64/browser-automation-studio"
+            },
+            "win-x64": {
+              "path": "bin/cli/win-x64/browser-automation-studio.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "cli",
+            "entry_point": ".",
+            "output_pattern": "bin/cli/{{platform}}/browser-automation-studio{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "health": {
+            "type": "command",
+            "command": [
+              "echo",
+              "healthy"
+            ],
+            "interval_ms": 10000,
+            "timeout_ms": 5000,
+            "retries": 1
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "http",
+            "timeout_ms": 5000
+          }
+        },
+        {
+          "id": "browser-automation-studio-playwright-driver",
+          "type": "api-binary",
+          "description": "Bundled playwright-driver process for browser-automation-studio",
+          "binaries": {
+            "darwin-x64": {
+              "path": "bin/playwright-driver/darwin-x64/browser-automation-studio-playwright-driver"
+            },
+            "linux-x64": {
+              "path": "bin/playwright-driver/linux-x64/browser-automation-studio-playwright-driver"
+            },
+            "win-x64": {
+              "path": "bin/playwright-driver/win-x64/browser-automation-studio-playwright-driver.exe"
+            }
+          },
+          "build": {
+            "type": "npm",
+            "source_dir": "playwright-driver",
+            "entry_point": ".",
+            "output_pattern": "bin/playwright-driver/{{platform}}/browser-automation-studio-playwright-driver{{ext}}"
+          },
+          "env": {
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "data_dirs": [
+            "data/playwright-driver"
+          ],
+          "log_dir": "logs/playwright-driver",
+          "ports": {
+            "requested": [
+              {
+                "name": "playwright-driver",
+                "range": {
+                  "min": 23100,
+                  "max": 23200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/health",
+            "port_name": "playwright-driver",
+            "interval_ms": 2000,
+            "timeout_ms": 15000,
+            "retries": 5
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "playwright-driver",
+            "timeout_ms": 30000
+          }
+        },
+        {
           "id": "ui",
           "type": "ui-bundle",
-          "description": "Production UI bundle served locally",
+          "description": "Production UI bundle for browser-automation-studio",
           "binaries": {
             "darwin-x64": {
               "path": "ui/dist/index.html"
@@ -647,49 +699,6 @@
             }
           ],
           "critical": true
-        },
-        {
-          "id": "browser-automation-studio-cli",
-          "type": "resource",
-          "description": "CLI for browser-automation-studio scenario",
-          "binaries": {
-            "darwin-x64": {
-              "path": "bin/cli/darwin-x64/browser-automation-studio"
-            },
-            "linux-x64": {
-              "path": "bin/cli/linux-x64/browser-automation-studio"
-            },
-            "win-x64": {
-              "path": "bin/cli/win-x64/browser-automation-studio.exe"
-            }
-          },
-          "build": {
-            "type": "go",
-            "source_dir": "cli",
-            "entry_point": ".",
-            "output_pattern": "bin/cli/{{platform}}/browser-automation-studio{{ext}}",
-            "env": {
-              "CGO_ENABLED": "0"
-            }
-          },
-          "env": {
-            "VROOLI_LIFECYCLE_MANAGED": "true"
-          },
-          "health": {
-            "type": "command",
-            "command": [
-              "echo",
-              "healthy"
-            ],
-            "interval_ms": 10000,
-            "timeout_ms": 5000,
-            "retries": 1
-          },
-          "readiness": {
-            "type": "health_success",
-            "port_name": "http",
-            "timeout_ms": 5000
-          }
         }
       ]
     }
@@ -730,16 +739,6 @@
           "postgres_user"
         ],
         "playbook_reference": "secrets-manager/playbooks/database-credentials.md",
-        "priority": "required"
-      },
-      {
-        "dependency_name": "redis",
-        "dependency_type": "resource",
-        "secret_type": "cache_credentials",
-        "required_secrets": [
-          "redis_password"
-        ],
-        "playbook_reference": "secrets-manager/playbooks/cache-credentials.md",
         "priority": "required"
       }
     ],
@@ -787,21 +786,11 @@
         ],
         "relationship": "managed_service",
         "impact_description": "Eliminates database management overhead"
-      },
-      {
-        "original_resource": "redis",
-        "alternative_resource": "in-memory-cache",
-        "reason": "Embedded caching for desktop deployments",
-        "applicable_tiers": [
-          "desktop"
-        ],
-        "relationship": "embedded_alternative",
-        "impact_description": "Simplifies deployment, no separate service needed"
       }
     ],
     "recommendations": [
-      "Configure 4 secret(s) for dependencies - see secrets-manager playbooks",
-      "Consider 5 resource swap(s) for deployment optimization"
+      "Configure 3 secret(s) for dependencies - see secrets-manager playbooks",
+      "Consider 4 resource swap(s) for deployment optimization"
     ]
   }
 }

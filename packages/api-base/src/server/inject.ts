@@ -34,6 +34,7 @@ import { escapeForInlineScript } from '../shared/utils.js'
  * })
  * ```
  */
+// DOC: docs/api/server.md#buildproxymetadata
 export function buildProxyMetadata(options: ProxyMetadataOptions): ProxyInfo {
   const {
     appId,
@@ -470,6 +471,8 @@ function buildProxyBootstrapScript(info: ProxyInfo, options: {
  * })
  * ```
  */
+// DOC: docs/api/server.md#injectproxymetadata
+// DOC: docs/concepts/ARCHITECTURE.md#html-injection-pipeline
 export function injectProxyMetadata(
   html: string,
   metadata: ProxyInfo,
@@ -524,6 +527,8 @@ export function injectProxyMetadata(
  * const modifiedHtml = injectScenarioConfig(html, config)
  * ```
  */
+// DOC: docs/api/server.md#injectscenarioconfig
+// DOC: docs/concepts/runtime-config.md
 export function injectScenarioConfig(
   html: string,
   config: ScenarioConfig,
@@ -582,6 +587,8 @@ export function injectScenarioConfig(
  * const modified = injectBaseTag(html, '/apps/scenario-auditor/proxy/')
  * ```
  */
+// DOC: docs/api/server.md#injectbasetag
+// DOC: docs/guides/host-scenario-pattern.md#2-base-tag-injection-helper
 export function injectBaseTag(
   html: string,
   basePath: string,

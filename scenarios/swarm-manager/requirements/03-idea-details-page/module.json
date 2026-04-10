@@ -1,0 +1,273 @@
+{
+  "description": "File tree view, drag-and-drop upload, preview for markdown/code/images",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "OT-P0-003",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-002"
+      ],
+      "description": "Implement API endpoints for listing files, getting file content, and uploading files to backlog items",
+      "id": "REQ-P0-004-API",
+      "prd_ref": "OT-P0-003",
+      "status": "implemented",
+      "title": "Backlog Files API",
+      "validation": [
+        {
+          "notes": "Test API endpoint returns files list",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler_test.go::TestListFiles_And_GetFileContent",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test API endpoint handles multiple files and directories",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler_test.go::TestListFiles_And_GetFileContent",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "List returns 404 for non-existent backlog item",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler.go::ListFiles",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "BacklogFile struct JSON serialization",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler.go::BacklogFile",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test API file content endpoint returns text content",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler_test.go::TestListFiles_And_GetFileContent",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test API file content endpoint handles nested files",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler.go::GetFileContent",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "File content returns 404 for missing backlog item",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler.go::GetFileContent",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "File content returns 404 for missing file",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler.go::GetFileContent",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "File content blocks path traversal",
+          "phase": "unit",
+          "ref": "api/internal/httputil/response_test.go::TestSafeFilePath",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test API file upload success",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler_test.go::TestUploadFile_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "File upload supports subdirectories",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler.go::UploadFile",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "File upload returns 404 for missing backlog item",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler.go::UploadFile",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "File upload returns 400 for missing file",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler.go::UploadFile",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test content type detection",
+          "phase": "unit",
+          "ref": "api/internal/backlog/handler.go::getContentType",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-004-API"
+      ],
+      "description": "Create UI page showing backlog details with file tree view, drag-and-drop file upload, and preview for markdown/code/images",
+      "id": "REQ-P0-004-UI",
+      "prd_ref": "OT-P0-003",
+      "status": "implemented",
+      "title": "Backlog Details UI Page",
+      "validation": [
+        {
+          "notes": "Test file tree component rendering - empty state",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-tree.test.tsx::displays empty state when no files",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file tree component renders files",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-tree.test.tsx::renders file list correctly",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file tree directories expand/collapse",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-tree.test.tsx::renders directories that can be expanded",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file selection callback",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-tree.test.tsx::calls onFileSelect when file is clicked",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file size formatting",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-tree.test.tsx::displays file size in human-readable format",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test selected file highlighting",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-tree.test.tsx::highlights selected file",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test nested directory structure",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-tree.test.tsx::renders nested directories correctly",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file preview renders with file name",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-preview.test.tsx::renders file preview with file name",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file preview renders markdown content",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-preview.test.tsx::renders markdown content correctly",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file preview renders code files with code view",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-preview.test.tsx::renders code files with code view",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file preview renders plain text",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-preview.test.tsx::renders plain text for unknown file types",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file preview renders image preview",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-preview.test.tsx::renders image preview for image files",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload dropzone renders",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::renders upload dropzone",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload handles file selection",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::handles file selection via input",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload shows upload list",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::shows upload list when files are added",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload success state",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::shows success state after successful upload",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload error state",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::shows error state when upload fails",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload retry functionality",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::allows retry on failed upload",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload drag and drop",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::handles drop event",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload onComplete callback",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::calls onUploadComplete after successful upload",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Backlog details page"
+}

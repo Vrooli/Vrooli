@@ -1,0 +1,14 @@
+{
+  "archived_at": "2026-02-05T20:42:44Z",
+  "created": "2026-02-05T20:42:44Z",
+  "description": "Video downloader service with Go API and React UI",
+  "name": "video-downloader-archived",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] video-downloader",
+  "updated": "2026-02-05T20:42:44Z"
+}

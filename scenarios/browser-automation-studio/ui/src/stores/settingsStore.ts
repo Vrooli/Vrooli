@@ -59,6 +59,22 @@ const safeRemoveItem = (key: string): void => {
   }
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const safeParseJson = (value: string): unknown => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const parseStoredRecord = (stored: string): Record<string, unknown> | null => {
+  const parsed = safeParseJson(stored);
+  return isRecord(parsed) ? parsed : null;
+};
+
 // Validation helpers
 const isValidSpeedProfile = (value: unknown): value is CursorSpeedProfile => {
   return ['instant', 'linear', 'easeIn', 'easeOut', 'easeInOut'].includes(value as string);
@@ -406,8 +422,8 @@ const loadBrandingSettings = <T extends object>(key: string, defaults: T): T => 
   try {
     const stored = safeGetItem(`${STORAGE_PREFIX}replay.${key}`);
     if (!stored) return defaults;
-    const parsed = JSON.parse(stored);
-    return { ...defaults, ...parsed };
+    const parsed = parseStoredRecord(stored);
+    return parsed ? { ...defaults, ...parsed } : defaults;
   } catch {
     return defaults;
   }
@@ -527,8 +543,8 @@ const loadWorkflowDefaults = (): WorkflowDefaultSettings => {
   try {
     const stored = safeGetItem(WORKFLOW_DEFAULTS_KEY);
     if (!stored) return getDefaultWorkflowSettings();
-    const parsed = JSON.parse(stored);
-    return { ...getDefaultWorkflowSettings(), ...parsed };
+    const parsed = parseStoredRecord(stored);
+    return parsed ? { ...getDefaultWorkflowSettings(), ...parsed } : getDefaultWorkflowSettings();
   } catch {
     return getDefaultWorkflowSettings();
   }
@@ -542,7 +558,11 @@ const loadApiKeySettings = (): ApiKeySettings => {
   try {
     const stored = safeGetItem(API_KEYS_KEY);
     if (!stored) return getDefaultApiKeySettings();
-    const parsed = JSON.parse(stored) as LegacyApiKeySettings;
+    const parsedRecord = parseStoredRecord(stored);
+    if (!parsedRecord) {
+      return getDefaultApiKeySettings();
+    }
+    const parsed = parsedRecord as LegacyApiKeySettings;
 
     // Migrate from old format: if old keys exist, extract openrouterApiKey only
     if ('browserlessApiKey' in parsed || 'openaiApiKey' in parsed || 'anthropicApiKey' in parsed || 'customApiEndpoint' in parsed) {
@@ -568,8 +588,8 @@ const loadDisplaySettings = (): DisplaySettings => {
   try {
     const stored = safeGetItem(DISPLAY_SETTINGS_KEY);
     if (!stored) return getDefaultDisplaySettings();
-    const parsed = JSON.parse(stored);
-    return { ...getDefaultDisplaySettings(), ...parsed };
+    const parsed = parseStoredRecord(stored);
+    return parsed ? { ...getDefaultDisplaySettings(), ...parsed } : getDefaultDisplaySettings();
   } catch {
     return getDefaultDisplaySettings();
   }
@@ -624,16 +644,23 @@ const applyTheme = (settings: DisplaySettings): void => {
   root.setAttribute('data-compact', String(settings.compactMode));
 };
 
+const isReplayPreset = (value: unknown): value is ReplayPreset => {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return typeof value.id === 'string'
+    && typeof value.name === 'string'
+    && isRecord(value.settings);
+};
+
 // Load user presets from localStorage
 const loadUserPresets = (): ReplayPreset[] => {
   try {
     const stored = safeGetItem(PRESETS_STORAGE_KEY);
     if (!stored) return [];
-    const parsed = JSON.parse(stored);
+    const parsed = safeParseJson(stored);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((p: unknown) =>
-      p && typeof p === 'object' && 'id' in p && 'name' in p && 'settings' in p
-    );
+    return parsed.filter(isReplayPreset);
   } catch {
     return [];
   }
@@ -649,9 +676,13 @@ const generatePresetId = (): string => {
   return `user-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 };
 
-// Pick a random item from an array
+// Pick a random item from an array (assumes non-empty array)
 const randomChoice = <T,>(arr: readonly T[]): T => {
-  return arr[Math.floor(Math.random() * arr.length)];
+  const item = arr[Math.floor(Math.random() * arr.length)];
+  if (item === undefined) {
+    throw new Error('randomChoice called on empty array');
+  }
+  return item;
 };
 
 // Valid speed profiles for randomization
@@ -743,8 +774,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
     // Apply all settings
     const { settings } = preset;
-    Object.entries(settings).forEach(([key, value]) => {
-      saveReplaySetting(key as keyof ReplaySettings, value);
+    const entries = Object.entries(settings) as [
+      keyof ReplaySettings,
+      ReplaySettings[keyof ReplaySettings],
+    ][];
+    entries.forEach(([key, value]) => {
+      saveReplaySetting(key, value);
     });
 
     const defaults = getDefaultReplaySettings();
@@ -786,8 +821,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     };
 
     // Apply all settings to storage
-    Object.entries(randomSettings).forEach(([key, value]) => {
-      saveReplaySetting(key as keyof ReplaySettings, value);
+    const entries = Object.entries(randomSettings) as [
+      keyof ReplaySettings,
+      ReplaySettings[keyof ReplaySettings],
+    ][];
+    entries.forEach(([key, value]) => {
+      saveReplaySetting(key, value);
     });
 
     set({ replay: randomSettings, activePresetId: null });

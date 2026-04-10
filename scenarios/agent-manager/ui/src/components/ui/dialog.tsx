@@ -7,9 +7,11 @@ interface DialogProps {
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
   contentClassName?: string;
+  /** When true, dialog fills the screen on mobile and reverts to centered overlay on sm+ */
+  fullScreenMobile?: boolean;
 }
 
-export function Dialog({ open, onOpenChange, children, contentClassName }: DialogProps) {
+export function Dialog({ open, onOpenChange, children, contentClassName, fullScreenMobile }: DialogProps) {
   // Handle escape key
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -46,7 +48,8 @@ export function Dialog({ open, onOpenChange, children, contentClassName }: Dialo
       {/* Content */}
       <div
         className={cn(
-          "relative z-50 w-full max-w-lg mx-4 animate-in fade-in-0 zoom-in-95 duration-200",
+          "relative z-50 w-full animate-in fade-in-0 zoom-in-95 duration-200",
+          fullScreenMobile ? "mx-0 sm:mx-4" : "mx-4",
           contentClassName
         )}
       >
@@ -58,18 +61,24 @@ export function Dialog({ open, onOpenChange, children, contentClassName }: Dialo
 
 interface DialogContentProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
+  /** When true, fills the screen on mobile and reverts to standard dialog on sm+ */
+  fullScreenMobile?: boolean;
 }
 
 export function DialogContent({
   className,
   children,
+  fullScreenMobile,
   ...props
 }: DialogContentProps) {
   return (
     <div
       className={cn(
-        "relative rounded-lg border border-border bg-card shadow-xl",
-        "max-h-[85vh] overflow-y-auto",
+        "relative bg-card shadow-xl flex flex-col",
+        fullScreenMobile
+          ? "h-[100dvh] max-h-none rounded-none border-0 sm:h-auto sm:max-h-[85vh] sm:rounded-lg sm:border sm:border-border"
+          : "rounded-lg border border-border max-h-[85vh]",
+        "max-w-lg mx-auto",
         className
       )}
       {...props}
@@ -93,7 +102,7 @@ export function DialogHeader({
   return (
     <div
       className={cn(
-        "flex items-start justify-between gap-4 border-b border-border p-6",
+        "flex items-start justify-between gap-4 border-b border-border p-4 sm:p-6",
         className
       )}
       {...props}
@@ -161,7 +170,7 @@ export function DialogBody({
   ...props
 }: DialogBodyProps) {
   return (
-    <div className={cn("p-6", className)} {...props}>
+    <div className={cn("p-4 sm:p-6 overflow-y-auto flex-1 min-h-0", className)} {...props}>
       {children}
     </div>
   );
@@ -179,7 +188,7 @@ export function DialogFooter({
   return (
     <div
       className={cn(
-        "flex justify-end gap-2 border-t border-border p-6",
+        "flex justify-end gap-2 border-t border-border p-4 sm:p-6",
         className
       )}
       {...props}

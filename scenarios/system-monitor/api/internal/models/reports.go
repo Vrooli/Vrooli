@@ -27,18 +27,18 @@ type ReportRequest struct {
 
 // DetailedSystemReport contains comprehensive system information
 type DetailedSystemReport struct {
-	ReportID         string              `json:"report_id"`
-	ReportType       string              `json:"report_type"`
-	GeneratedAt      time.Time           `json:"generated_at"`
-	TimeRange        ReportTimeRange     `json:"time_range"`
-	ExecutiveSummary ExecutiveSummary    `json:"executive_summary"`
-	MetricsSummary   MetricsSummary      `json:"metrics_summary"`
-	Anomalies        []AnomalyReport     `json:"anomalies"`
-	Performance      PerformanceReport   `json:"performance"`
-	Availability     AvailabilityReport  `json:"availability"`
-	Trends           TrendAnalysis       `json:"trends"`
-	Recommendations  []string            `json:"recommendations"`
-	NextSteps        []string            `json:"next_steps"`
+	ReportID         string             `json:"report_id"`
+	ReportType       string             `json:"report_type"`
+	GeneratedAt      time.Time          `json:"generated_at"`
+	TimeRange        ReportTimeRange    `json:"time_range"`
+	ExecutiveSummary ExecutiveSummary   `json:"executive_summary"`
+	MetricsSummary   MetricsSummary     `json:"metrics_summary"`
+	Anomalies        []AnomalyReport    `json:"anomalies"`
+	Performance      PerformanceReport  `json:"performance"`
+	Availability     AvailabilityReport `json:"availability"`
+	Trends           TrendAnalysis      `json:"trends"`
+	Recommendations  []string           `json:"recommendations"`
+	NextSteps        []string           `json:"next_steps"`
 }
 
 // ReportTimeRange defines the time range for a report
@@ -166,13 +166,13 @@ type PerformanceAnalysis struct {
 
 // MetricStats contains statistical analysis of a metric
 type MetricStats struct {
-	Average     float64   `json:"average"`
-	Min         float64   `json:"min"`
-	Max         float64   `json:"max"`
-	StdDev      float64   `json:"std_dev"`
-	PeakValue   float64   `json:"peak_value"`
-	PeakTime    time.Time `json:"peak_time"`
-	MinTime     time.Time `json:"min_time"`
+	Average   float64   `json:"average"`
+	Min       float64   `json:"min"`
+	Max       float64   `json:"max"`
+	StdDev    float64   `json:"std_dev"`
+	PeakValue float64   `json:"peak_value"`
+	PeakTime  time.Time `json:"peak_time"`
+	MinTime   time.Time `json:"min_time"`
 }
 
 // Trend represents a trend in metrics
@@ -199,14 +199,15 @@ type EnhancedSystemReport struct {
 	MetricsCount        int                      `json:"metrics_count"`
 	AlertsCount         int                      `json:"alerts_count"`
 	InvestigationsCount int                      `json:"investigations_count"`
+	Warnings            []string                 `json:"warnings,omitempty"`
 }
 
 // Update ExecutiveSummary to include new fields
 type EnhancedExecutiveSummary struct {
-	OverallHealth     string   `json:"overall_health"`
-	KeyFindings       []string `json:"key_findings"`
-	TimeDescription   string   `json:"time_description"`
-	MetricsAnalyzed   int      `json:"metrics_analyzed"`
+	OverallHealth   string   `json:"overall_health"`
+	KeyFindings     []string `json:"key_findings"`
+	TimeDescription string   `json:"time_description"`
+	MetricsAnalyzed int      `json:"metrics_analyzed"`
 }
 
 // HealthResponse represents the health check response

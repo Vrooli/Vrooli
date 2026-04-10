@@ -23,6 +23,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -52,6 +53,9 @@ type Config struct {
 
 	// Database connection settings.
 	Database DatabaseConfig
+
+	// Integration settings for external scenario sync.
+	Integration IntegrationConfig
 }
 
 // ServerConfig controls HTTP server behavior.
@@ -145,6 +149,18 @@ type LifecycleConfig struct {
 	// ProcessKillWait is how long to wait after SIGKILL for process to die.
 	// Default: 50ms
 	ProcessKillWait time.Duration
+
+	// AutoHealIdleGrace is the minimum time since LastUsedAt before
+	// a stale sandbox mount is eligible for automatic remount. Default: 30s.
+	AutoHealIdleGrace time.Duration
+
+	// AutoHealMaxRetries is the maximum consecutive remount failures
+	// before marking a sandbox as Error. Default: 5.
+	AutoHealMaxRetries int
+
+	// AutoHealBaseBackoff is the initial backoff after a failed remount.
+	// Doubled on each subsequent failure, capped at 1h. Default: 30s.
+	AutoHealBaseBackoff time.Duration
 }
 
 // PolicyConfig controls approval and attribution rules.
@@ -190,6 +206,30 @@ type PolicyConfig struct {
 	// Higher = more accurate detection but slower for large files.
 	// Default: 8000
 	BinaryDetectionThreshold int
+
+	// DefaultNoLock controls whether new sandboxes skip scope locking by default.
+	// When true, sandboxes are created without mutual exclusion checks unless
+	// the caller explicitly requests locking (noLock: false).
+	// When false, sandboxes enforce mutual exclusion unless the caller
+	// explicitly disables it (noLock: true).
+	// Default: true
+	DefaultNoLock bool
+
+	// TeardownHooks defines pre-teardown hooks to run before unmounting or
+	// deleting a sandbox. Each hook runs best-effort; failures are logged
+	// but never block teardown. This enables external systems to gracefully
+	// evacuate processes from the sandbox's merged directory before the
+	// filesystem disappears.
+	//
+	// In the Vrooli ecosystem, this is typically configured to call
+	// "vrooli scenario heal-from-sandbox" which detects scenarios running
+	// from the sandbox path and restarts them from the canonical repo.
+	TeardownHooks []TeardownHookConfig
+
+	// TeardownTimeout is the maximum time to wait for all teardown hooks.
+	// Shorter than validation timeout since teardown should be fast.
+	// Default: 30s
+	TeardownTimeout time.Duration
 }
 
 // ValidationHookConfig defines a single validation hook.
@@ -212,6 +252,27 @@ type ValidationHookConfig struct {
 
 	// Timeout is the maximum time for this specific hook.
 	// If zero, uses the global ValidationTimeout.
+	Timeout time.Duration
+}
+
+// TeardownHookConfig defines a single pre-teardown hook.
+// Unlike ValidationHookConfig, there is no Required field — all teardown
+// hooks are best-effort because teardown must never be blocked.
+type TeardownHookConfig struct {
+	// Name is a human-readable identifier for the hook.
+	Name string
+
+	// Description explains what the hook does.
+	Description string
+
+	// Command is the executable to run.
+	Command string
+
+	// Args are arguments to pass to the command.
+	Args []string
+
+	// Timeout is the maximum time for this specific hook.
+	// If zero, uses the global TeardownTimeout.
 	Timeout time.Duration
 }
 
@@ -298,6 +359,18 @@ type DatabaseConfig struct {
 	SSLMode string
 }
 
+// IntegrationConfig controls cross-scenario callbacks.
+type IntegrationConfig struct {
+	// AgentManagerURL is the base URL for agent-manager API (optional).
+	AgentManagerURL string
+
+	// AgentManagerSyncEnabled enables workspace-sandbox -> agent-manager sync.
+	AgentManagerSyncEnabled bool
+
+	// AgentManagerSyncTimeout bounds outbound sync requests.
+	AgentManagerSyncTimeout time.Duration
+}
+
 // DefaultBaseDir returns the default sandbox base directory.
 // Uses XDG data directory (~/.local/share/workspace-sandbox) for unprivileged operation.
 // Falls back to /var/lib/workspace-sandbox if home directory cannot be determined.
@@ -335,8 +408,12 @@ func Default() Config {
 			TerminalCleanupDelay: 1 * time.Hour,
 			ProcessGracePeriod:   100 * time.Millisecond,
 			ProcessKillWait:      50 * time.Millisecond,
+			AutoHealIdleGrace:    30 * time.Second,
+			AutoHealMaxRetries:   5,
+			AutoHealBaseBackoff:  30 * time.Second,
 		},
 		Policy: PolicyConfig{
+			DefaultNoLock:             true,
 			RequireHumanApproval:      true,
 			AutoApproveThresholdFiles: 10,
 			AutoApproveThresholdLines: 500,
@@ -345,6 +422,17 @@ func Default() Config {
 			ValidationHooks:           nil, // No hooks by default
 			ValidationTimeout:         5 * time.Minute,
 			BinaryDetectionThreshold:  8000,
+			TeardownHooks:             nil, // No hooks by default
+			// TeardownTimeout caps ALL pre-teardown hooks combined. Set to 90s to
+			// give the per-hook budget (60s) room plus overhead for hook startup,
+			// process metadata scanning, and logging. In teardown.go's nested
+			// timeout model, each hook gets min(global, per-hook) time.
+			//
+			// If this timeout fires, exec.CommandContext sends SIGKILL to the hook
+			// process, which means affected scenarios may not be stopped before
+			// unmount — they become orphaned with no filesystem. This is why the
+			// timeout must be generous.
+			TeardownTimeout: 90 * time.Second,
 		},
 		Driver: DriverConfig{
 			BaseDir:          DefaultBaseDir(),
@@ -366,6 +454,11 @@ func Default() Config {
 		Database: DatabaseConfig{
 			Schema:  "workspace-sandbox",
 			SSLMode: "disable",
+		},
+		Integration: IntegrationConfig{
+			AgentManagerURL:         "",
+			AgentManagerSyncEnabled: true,
+			AgentManagerSyncTimeout: 5 * time.Second,
 		},
 	}
 }
@@ -403,18 +496,60 @@ func LoadFromEnv() (Config, error) {
 	cfg.Lifecycle.TerminalCleanupDelay = envDuration("WORKSPACE_SANDBOX_TERMINAL_CLEANUP_DELAY", cfg.Lifecycle.TerminalCleanupDelay)
 	cfg.Lifecycle.ProcessGracePeriod = envDuration("WORKSPACE_SANDBOX_PROCESS_GRACE_PERIOD", cfg.Lifecycle.ProcessGracePeriod)
 	cfg.Lifecycle.ProcessKillWait = envDuration("WORKSPACE_SANDBOX_PROCESS_KILL_WAIT", cfg.Lifecycle.ProcessKillWait)
+	cfg.Lifecycle.AutoHealIdleGrace = envDuration("WORKSPACE_SANDBOX_AUTOHEAL_IDLE_GRACE", cfg.Lifecycle.AutoHealIdleGrace)
+	cfg.Lifecycle.AutoHealMaxRetries = envInt("WORKSPACE_SANDBOX_AUTOHEAL_MAX_RETRIES", cfg.Lifecycle.AutoHealMaxRetries)
+	cfg.Lifecycle.AutoHealBaseBackoff = envDuration("WORKSPACE_SANDBOX_AUTOHEAL_BASE_BACKOFF", cfg.Lifecycle.AutoHealBaseBackoff)
 
 	// Policy config
 	cfg.Policy.RequireHumanApproval = envBool("WORKSPACE_SANDBOX_REQUIRE_HUMAN_APPROVAL", cfg.Policy.RequireHumanApproval)
 	cfg.Policy.AutoApproveThresholdFiles = envInt("WORKSPACE_SANDBOX_AUTO_APPROVE_FILES", cfg.Policy.AutoApproveThresholdFiles)
 	cfg.Policy.AutoApproveThresholdLines = envInt("WORKSPACE_SANDBOX_AUTO_APPROVE_LINES", cfg.Policy.AutoApproveThresholdLines)
 	cfg.Policy.BinaryDetectionThreshold = envInt("WORKSPACE_SANDBOX_BINARY_THRESHOLD", cfg.Policy.BinaryDetectionThreshold)
+	cfg.Policy.DefaultNoLock = envBool("WORKSPACE_SANDBOX_DEFAULT_NO_LOCK", cfg.Policy.DefaultNoLock)
 	if tmpl := os.Getenv("WORKSPACE_SANDBOX_COMMIT_TEMPLATE"); tmpl != "" {
 		cfg.Policy.CommitMessageTemplate = tmpl
 	}
 	if mode := os.Getenv("WORKSPACE_SANDBOX_COMMIT_AUTHOR_MODE"); mode != "" {
 		cfg.Policy.CommitAuthorMode = mode
 	}
+
+	// Teardown hook config
+	//
+	// Pre-teardown hooks run before sandbox unmount/delete to give external
+	// systems a chance to evacuate processes from the merged directory. Hooks
+	// are always best-effort: failures are logged but never block teardown.
+	//
+	// Priority:
+	//   1. Explicit WORKSPACE_SANDBOX_TEARDOWN_HOOK_CMD env var
+	//   2. Auto-detect: if "vrooli" is on PATH, use the built-in heal command
+	//   3. No hooks (no-op)
+	if hookCmd := os.Getenv("WORKSPACE_SANDBOX_TEARDOWN_HOOK_CMD"); hookCmd != "" {
+		cfg.Policy.TeardownHooks = []TeardownHookConfig{{
+			Name:        "pre-teardown",
+			Description: "Configured via WORKSPACE_SANDBOX_TEARDOWN_HOOK_CMD",
+			Command:     hookCmd,
+		}}
+	} else if vrooliPath, err := exec.LookPath("vrooli"); err == nil {
+		// Auto-enable: when running inside a Vrooli environment, automatically
+		// configure the heal-from-sandbox hook. This ensures scenarios running
+		// from a sandbox's merged directory are gracefully restarted before the
+		// overlay is torn down.
+		//
+		// The hook reads SANDBOX_MERGED_DIR from the environment (set by the
+		// teardown policy) to find and restart affected scenarios.
+		cfg.Policy.TeardownHooks = []TeardownHookConfig{{
+			Name:        "vrooli-heal-from-sandbox",
+			Description: "Stops scenarios running from sandbox merged path before teardown, then restarts them from the canonical repo in the background",
+			Command:     vrooliPath,
+			Args:        []string{"scenario", "heal-from-sandbox"},
+			// Timeout budget: each scenario stop takes ~4s (SIGTERM + 2s grace +
+			// SIGKILL + 1s cleanup in lifecycle.sh), so 60s supports ~15 scenarios
+			// stopping sequentially. Restarts are backgrounded by heal.sh and don't
+			// count against this budget.
+			Timeout: 60 * time.Second,
+		}}
+	}
+	cfg.Policy.TeardownTimeout = envDuration("WORKSPACE_SANDBOX_TEARDOWN_TIMEOUT", cfg.Policy.TeardownTimeout)
 
 	// Driver config
 	// PROJECT_ROOT takes precedence, falls back to VROOLI_ROOT if not set
@@ -426,6 +561,11 @@ func LoadFromEnv() (Config, error) {
 		cfg.Driver.BaseDir = baseDir
 	}
 	cfg.Driver.UseFuseOverlayfs = envBool("WORKSPACE_SANDBOX_USE_FUSE", cfg.Driver.UseFuseOverlayfs)
+
+	// Integration config
+	cfg.Integration.AgentManagerURL = envString("WORKSPACE_SANDBOX_AGENT_MANAGER_URL", cfg.Integration.AgentManagerURL)
+	cfg.Integration.AgentManagerSyncEnabled = envBool("WORKSPACE_SANDBOX_AGENT_MANAGER_SYNC_ENABLED", cfg.Integration.AgentManagerSyncEnabled)
+	cfg.Integration.AgentManagerSyncTimeout = envDuration("WORKSPACE_SANDBOX_AGENT_MANAGER_SYNC_TIMEOUT", cfg.Integration.AgentManagerSyncTimeout)
 
 	// Execution config - defaults
 	cfg.Execution.DefaultResourceLimits.MemoryLimitMB = envInt("WORKSPACE_SANDBOX_DEFAULT_MEMORY_MB", cfg.Execution.DefaultResourceLimits.MemoryLimitMB)
@@ -499,6 +639,9 @@ func (c *Config) Validate() error {
 	if c.Lifecycle.GCInterval < time.Minute {
 		errs = append(errs, "lifecycle.gcInterval must be at least 1 minute")
 	}
+	if c.Lifecycle.AutoHealMaxRetries < 1 {
+		errs = append(errs, "lifecycle.autoHealMaxRetries must be at least 1")
+	}
 
 	// Policy validation
 	validAuthorModes := map[string]bool{"agent": true, "reviewer": true, "coauthored": true}
@@ -533,6 +676,13 @@ func envInt(key string, defaultVal int) int {
 		if i, err := strconv.Atoi(v); err == nil {
 			return i
 		}
+	}
+	return defaultVal
+}
+
+func envString(key string, defaultVal string) string {
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		return v
 	}
 	return defaultVal
 }

@@ -125,9 +125,7 @@ Required for **ALL** resources:
 
 ### **Category-Specific Contracts**
 - **AI Resources** (`ai.yaml`) - ollama, whisper, unstructured-io, comfyui
-- **Automation** (`automation.yaml`) - node-red, huginn  
 - **Storage** (`storage.yaml`) - postgres, redis, vault, qdrant, minio
-- **Agents** (`agents.yaml`) - browserless, claude-code, agent-s2
 - **Search** (`search.yaml`) - searxng
 - **Execution** (`execution.yaml`) - judge0
 

@@ -545,8 +545,9 @@ type PayloadGenerator interface {
 // ScenarioStarter starts a scenario and waits for it to be ready.
 type ScenarioStarter interface {
 	// Start starts the scenario and returns when the UI is ready.
-	// Returns the UI port if successfully started, or an error.
-	Start(ctx context.Context, scenarioName string) (int, error)
+	// Returns structured startup metadata so callers can decide whether they
+	// should stop the scenario during cleanup.
+	Start(ctx context.Context, scenarioName string) (*ScenarioStartResult, error)
 
 	// Stop stops a scenario that was auto-started.
 	Stop(ctx context.Context, scenarioName string) error

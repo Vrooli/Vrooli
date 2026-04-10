@@ -5,7 +5,8 @@
     "labels": {
       "reset": "full",
       "requirements_json": "[\"PCT-FUNC-002\", \"PCT-DRAFT-CREATE\", \"PCT-DRAFT-EDIT\"]"
-    }
+    },
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,

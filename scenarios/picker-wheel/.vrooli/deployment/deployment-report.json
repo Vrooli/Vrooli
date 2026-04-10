@@ -1,7 +1,7 @@
 {
   "scenario": "picker-wheel",
   "report_version": 1,
-  "generated_at": "2025-12-02T17:35:28.254125492Z",
+  "generated_at": "2026-01-21T13:42:52.199135345Z",
   "dependencies": [
     {
       "name": "n8n",
@@ -94,8 +94,8 @@
           "fitness_score": 0.2,
           "reason": "Database should be remote for mobile deployments",
           "alternatives": [
-            "saas-postgres",
-            "cloud-postgres"
+            "saas-variant",
+            "cloud-variant"
           ]
         },
         "saas": {
@@ -130,8 +130,8 @@
           "fitness_score": 0.2,
           "reason": "Database should be remote for mobile deployments",
           "alternatives": [
-            "saas-qdrant",
-            "cloud-qdrant"
+            "saas-variant",
+            "cloud-variant"
           ]
         },
         "saas": {
@@ -218,7 +218,7 @@
   },
   "bundle_manifest": {
     "scenario": "picker-wheel",
-    "generated_at": "2025-12-02T17:35:28.254125492Z",
+    "generated_at": "2026-01-21T13:42:52.199135345Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -233,7 +233,8 @@
       {
         "path": "api/picker-wheel-api",
         "type": "api-binary",
-        "exists": true
+        "exists": true,
+        "notes": "Detected api component (go)"
       },
       {
         "path": "ui/dist",
@@ -243,12 +244,8 @@
       {
         "path": "ui/dist/index.html",
         "type": "ui-entry",
-        "exists": true
-      },
-      {
-        "path": "cli/picker-wheel",
-        "type": "cli-binary",
-        "exists": true
+        "exists": true,
+        "notes": "Detected UI component (javascript)"
       }
     ],
     "dependencies": [
@@ -341,8 +338,8 @@
             "fitness_score": 0.2,
             "reason": "Database should be remote for mobile deployments",
             "alternatives": [
-              "saas-postgres",
-              "cloud-postgres"
+              "saas-variant",
+              "cloud-variant"
             ]
           },
           "saas": {
@@ -376,8 +373,8 @@
             "fitness_score": 0.2,
             "reason": "Database should be remote for mobile deployments",
             "alternatives": [
-              "saas-qdrant",
-              "cloud-qdrant"
+              "saas-variant",
+              "cloud-variant"
             ]
           },
           "saas": {
@@ -390,7 +387,142 @@
           }
         }
       }
-    ]
+    ],
+    "skeleton": {
+      "schema_version": "v0.1",
+      "target": "desktop",
+      "app": {
+        "name": "picker-wheel",
+        "version": "1.0.0",
+        "description": "Fun, interactive decision-making tool with customizable spinning wheels and weighted random selection"
+      },
+      "ipc": {
+        "mode": "loopback-http",
+        "host": "127.0.0.1",
+        "port": 39200,
+        "auth_token_path": "runtime/auth_token"
+      },
+      "telemetry": {
+        "file": "telemetry/deployment-telemetry.jsonl"
+      },
+      "ports": {
+        "default_range": {
+          "min": 20000,
+          "max": 24000
+        }
+      },
+      "services": [
+        {
+          "id": "picker-wheel-api",
+          "type": "api-binary",
+          "description": "Bundled api process for picker-wheel",
+          "binaries": {
+            "darwin-x64": {
+              "path": "bin/api/darwin-x64/picker-wheel-api"
+            },
+            "linux-x64": {
+              "path": "bin/api/linux-x64/picker-wheel-api"
+            },
+            "win-x64": {
+              "path": "bin/api/win-x64/picker-wheel-api.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "api",
+            "entry_point": ".",
+            "output_pattern": "bin/api/{{platform}}/picker-wheel-api{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "API_PORT": "${picker-wheel-api.api}",
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "data_dirs": [
+            "data/api"
+          ],
+          "log_dir": "logs/api",
+          "ports": {
+            "requested": [
+              {
+                "name": "api",
+                "range": {
+                  "min": 23100,
+                  "max": 23200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/health",
+            "port_name": "api",
+            "interval_ms": 2000,
+            "timeout_ms": 15000,
+            "retries": 5
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "api",
+            "timeout_ms": 30000
+          }
+        },
+        {
+          "id": "ui",
+          "type": "ui-bundle",
+          "description": "Production UI bundle for picker-wheel",
+          "binaries": {
+            "darwin-x64": {
+              "path": "ui/dist/index.html"
+            },
+            "linux-x64": {
+              "path": "ui/dist/index.html"
+            },
+            "win-x64": {
+              "path": "ui/dist/index.html"
+            }
+          },
+          "env": {
+            "UI_PORT": "${ui.ui}",
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "log_dir": "logs/ui",
+          "ports": {
+            "requested": [
+              {
+                "name": "ui",
+                "range": {
+                  "min": 24100,
+                  "max": 24200
+                }
+              }
+            ]
+          },
+          "health": {
+            "type": "http",
+            "path": "/health",
+            "port_name": "ui",
+            "interval_ms": 2000,
+            "timeout_ms": 10000,
+            "retries": 3
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "ui",
+            "timeout_ms": 20000
+          },
+          "assets": [
+            {
+              "path": "ui/dist/index.html",
+              "sha256": "pending"
+            }
+          ],
+          "critical": true
+        }
+      ]
+    }
   },
   "metadata_gaps": {
     "total_gaps": 0,

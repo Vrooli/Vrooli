@@ -1,0 +1,622 @@
+package smoketest
+
+import "testing"
+
+func TestOutputParser_ParseResult(t *testing.T) {
+	config := DefaultConfig()
+	parser := NewOutputParser(config)
+
+	tests := []struct {
+		name                     string
+		output                   string
+		wantPassed               bool
+		wantTelemetryUploaded    bool
+		wantTelemetryUploadError bool
+	}{
+		{
+			name:                     "empty output",
+			output:                   "",
+			wantPassed:               false,
+			wantTelemetryUploaded:    false,
+			wantTelemetryUploadError: false,
+		},
+		{
+			name:                     "success only",
+			output:                   "Starting app...\nSMOKE_TEST_RESULT=passed\nDone",
+			wantPassed:               true,
+			wantTelemetryUploaded:    false,
+			wantTelemetryUploadError: false,
+		},
+		{
+			name:                     "success with telemetry uploaded",
+			output:                   "SMOKE_TEST_RESULT=passed\nSMOKE_TEST_UPLOAD=ok",
+			wantPassed:               true,
+			wantTelemetryUploaded:    true,
+			wantTelemetryUploadError: false,
+		},
+		{
+			name:                     "success with telemetry error",
+			output:                   "SMOKE_TEST_RESULT=passed\nSMOKE_TEST_UPLOAD=error",
+			wantPassed:               true,
+			wantTelemetryUploaded:    false,
+			wantTelemetryUploadError: true,
+		},
+		{
+			name:                     "telemetry uploaded without success",
+			output:                   "SMOKE_TEST_UPLOAD=ok",
+			wantPassed:               false,
+			wantTelemetryUploaded:    true,
+			wantTelemetryUploadError: false,
+		},
+		{
+			name:                     "telemetry error only",
+			output:                   "SMOKE_TEST_UPLOAD=error",
+			wantPassed:               false,
+			wantTelemetryUploaded:    false,
+			wantTelemetryUploadError: true,
+		},
+		{
+			name:                     "both telemetry markers present",
+			output:                   "SMOKE_TEST_UPLOAD=ok\nSMOKE_TEST_UPLOAD=error",
+			wantPassed:               false,
+			wantTelemetryUploaded:    true,
+			wantTelemetryUploadError: true,
+		},
+		{
+			name:                     "markers embedded in other text",
+			output:                   "log: SMOKE_TEST_RESULT=passed happened\ntelemetry: SMOKE_TEST_UPLOAD=ok done",
+			wantPassed:               true,
+			wantTelemetryUploaded:    true,
+			wantTelemetryUploadError: false,
+		},
+		{
+			name:                     "partial marker not matched",
+			output:                   "SMOKE_TEST_RESULT=fail\nSMOKE_TEST_UPLOAD=pending",
+			wantPassed:               false,
+			wantTelemetryUploaded:    false,
+			wantTelemetryUploadError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parser.ParseResult(tt.output)
+
+			if result.Passed != tt.wantPassed {
+				t.Errorf("Passed = %v, want %v", result.Passed, tt.wantPassed)
+			}
+			if result.TelemetryUploaded != tt.wantTelemetryUploaded {
+				t.Errorf("TelemetryUploaded = %v, want %v", result.TelemetryUploaded, tt.wantTelemetryUploaded)
+			}
+			if result.TelemetryUploadError != tt.wantTelemetryUploadError {
+				t.Errorf("TelemetryUploadError = %v, want %v", result.TelemetryUploadError, tt.wantTelemetryUploadError)
+			}
+		})
+	}
+}
+
+func TestOutputParser_CustomConfig(t *testing.T) {
+	config := Config{
+		SuccessMarker:       "TEST_OK",
+		UploadSuccessMarker: "UPLOAD_OK",
+		UploadErrorMarker:   "UPLOAD_FAIL",
+	}
+	parser := NewOutputParser(config)
+
+	tests := []struct {
+		name   string
+		output string
+		want   OutputResult
+	}{
+		{
+			name:   "custom success marker",
+			output: "TEST_OK",
+			want:   OutputResult{Passed: true, Warnings: []string{}},
+		},
+		{
+			name:   "custom upload success marker",
+			output: "UPLOAD_OK",
+			want:   OutputResult{TelemetryUploaded: true, Warnings: []string{}},
+		},
+		{
+			name:   "custom upload error marker",
+			output: "UPLOAD_FAIL",
+			want:   OutputResult{TelemetryUploadError: true, Warnings: []string{}},
+		},
+		{
+			name:   "default markers not matched",
+			output: "SMOKE_TEST_RESULT=passed\nSMOKE_TEST_UPLOAD=ok",
+			want:   OutputResult{Warnings: []string{}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parser.ParseResult(tt.output)
+			if result.Passed != tt.want.Passed {
+				t.Errorf("Passed = %v, want %v", result.Passed, tt.want.Passed)
+			}
+			if result.TelemetryUploaded != tt.want.TelemetryUploaded {
+				t.Errorf("TelemetryUploaded = %v, want %v", result.TelemetryUploaded, tt.want.TelemetryUploaded)
+			}
+			if result.TelemetryUploadError != tt.want.TelemetryUploadError {
+				t.Errorf("TelemetryUploadError = %v, want %v", result.TelemetryUploadError, tt.want.TelemetryUploadError)
+			}
+		})
+	}
+}
+
+func TestOutputParser_EnhancedMarkers(t *testing.T) {
+	config := DefaultConfig()
+	parser := NewOutputParser(config)
+
+	tests := []struct {
+		name             string
+		output           string
+		wantInitComplete bool
+		wantCleanExit    bool
+		wantWarningCount int
+	}{
+		{
+			name:             "full sequence",
+			output:           "SMOKE_TEST_INIT=started\nSMOKE_TEST_READY=true\nSMOKE_TEST_RESULT=passed\nSMOKE_TEST_EXIT=clean",
+			wantInitComplete: true,
+			wantCleanExit:    true,
+			wantWarningCount: 0,
+		},
+		{
+			name:             "success without init or exit",
+			output:           "SMOKE_TEST_RESULT=passed",
+			wantInitComplete: false,
+			wantCleanExit:    false,
+			wantWarningCount: 2, // missing init and exit warnings
+		},
+		{
+			name:             "init without success",
+			output:           "SMOKE_TEST_INIT=started",
+			wantInitComplete: true,
+			wantCleanExit:    false,
+			wantWarningCount: 0, // no warnings because no success
+		},
+		{
+			name:             "success with init but no exit",
+			output:           "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
+			wantInitComplete: true,
+			wantCleanExit:    false,
+			wantWarningCount: 1, // missing exit warning
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parser.ParseResult(tt.output)
+			if result.InitComplete != tt.wantInitComplete {
+				t.Errorf("InitComplete = %v, want %v", result.InitComplete, tt.wantInitComplete)
+			}
+			if result.CleanShutdown != tt.wantCleanExit {
+				t.Errorf("CleanShutdown = %v, want %v", result.CleanShutdown, tt.wantCleanExit)
+			}
+			if len(result.Warnings) != tt.wantWarningCount {
+				t.Errorf("Warnings count = %d, want %d; warnings: %v", len(result.Warnings), tt.wantWarningCount, result.Warnings)
+			}
+		})
+	}
+}
+
+func TestOutputParser_ValidateSequence(t *testing.T) {
+	config := DefaultConfig()
+	parser := NewOutputParser(config)
+
+	tests := []struct {
+		name                string
+		output              string
+		wantValid           bool
+		wantStageCount      int
+		wantMissingCount    int
+		wantOutOfOrderCount int
+	}{
+		{
+			name:                "full correct sequence",
+			output:              "SMOKE_TEST_INIT=started\nSMOKE_TEST_READY=true\nSMOKE_TEST_RESULT=passed\nSMOKE_TEST_EXIT=clean",
+			wantValid:           true,
+			wantStageCount:      4,
+			wantMissingCount:    0,
+			wantOutOfOrderCount: 0,
+		},
+		{
+			name:                "minimal valid sequence",
+			output:              "SMOKE_TEST_RESULT=passed",
+			wantValid:           true,
+			wantStageCount:      1,
+			wantMissingCount:    0, // init, ready, exit are optional
+			wantOutOfOrderCount: 0,
+		},
+		{
+			name:                "out of order - passed before init",
+			output:              "SMOKE_TEST_RESULT=passed\nSMOKE_TEST_INIT=started",
+			wantValid:           false,
+			wantStageCount:      2,
+			wantMissingCount:    0,
+			wantOutOfOrderCount: 1,
+		},
+		{
+			name:                "out of order - exit before passed",
+			output:              "SMOKE_TEST_INIT=started\nSMOKE_TEST_EXIT=clean\nSMOKE_TEST_RESULT=passed",
+			wantValid:           false,
+			wantStageCount:      3,
+			wantMissingCount:    0,
+			wantOutOfOrderCount: 1,
+		},
+		{
+			name:                "empty output",
+			output:              "",
+			wantValid:           false, // passed is required
+			wantStageCount:      0,
+			wantMissingCount:    1, // missing "passed"
+			wantOutOfOrderCount: 0,
+		},
+		{
+			name:                "duplicate markers - first wins",
+			output:              "SMOKE_TEST_INIT=started\nSMOKE_TEST_INIT=started again\nSMOKE_TEST_RESULT=passed",
+			wantValid:           true,
+			wantStageCount:      2, // only counts first occurrence
+			wantMissingCount:    0,
+			wantOutOfOrderCount: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parser.ValidateSequence(tt.output)
+			if result.Valid != tt.wantValid {
+				t.Errorf("Valid = %v, want %v; errors: %v", result.Valid, tt.wantValid, result.Errors)
+			}
+			if len(result.Stages) != tt.wantStageCount {
+				t.Errorf("Stages count = %d, want %d; stages: %v", len(result.Stages), tt.wantStageCount, result.Stages)
+			}
+			if len(result.MissingStages) != tt.wantMissingCount {
+				t.Errorf("MissingStages count = %d, want %d; missing: %v", len(result.MissingStages), tt.wantMissingCount, result.MissingStages)
+			}
+			if len(result.OutOfOrderStages) != tt.wantOutOfOrderCount {
+				t.Errorf("OutOfOrderStages count = %d, want %d; out of order: %v", len(result.OutOfOrderStages), tt.wantOutOfOrderCount, result.OutOfOrderStages)
+			}
+		})
+	}
+}
+
+func TestOutputParser_ValidateSequence_LineNumbers(t *testing.T) {
+	config := DefaultConfig()
+	parser := NewOutputParser(config)
+
+	output := "line 1\nSMOKE_TEST_INIT=started\nline 3\nSMOKE_TEST_RESULT=passed\nline 5"
+	result := parser.ValidateSequence(output)
+
+	if len(result.Stages) != 2 {
+		t.Fatalf("Expected 2 stages, got %d", len(result.Stages))
+	}
+
+	if result.Stages[0].Name != "init" || result.Stages[0].LineNumber != 2 {
+		t.Errorf("First stage: got name=%q line=%d, want name=init line=2", result.Stages[0].Name, result.Stages[0].LineNumber)
+	}
+
+	if result.Stages[1].Name != "passed" || result.Stages[1].LineNumber != 4 {
+		t.Errorf("Second stage: got name=%q line=%d, want name=passed line=4", result.Stages[1].Name, result.Stages[1].LineNumber)
+	}
+}
+
+func TestOutputParser_ExtractAppError(t *testing.T) {
+	config := DefaultConfig()
+	parser := NewOutputParser(config)
+
+	tests := []struct {
+		name        string
+		output      string
+		wantError   bool
+		wantKind    string
+		wantMessage string
+	}{
+		{
+			name:      "no error marker",
+			output:    "SMOKE_TEST_RESULT=passed",
+			wantError: false,
+		},
+		{
+			name:        "config error",
+			output:      `SMOKE_TEST_ERROR kind=config msg="Missing bundle.json"`,
+			wantError:   true,
+			wantKind:    "config",
+			wantMessage: "Missing bundle.json",
+		},
+		{
+			name:        "network error",
+			output:      `Starting app...\nSMOKE_TEST_ERROR kind=network msg="Server not ready within timeout"`,
+			wantError:   true,
+			wantKind:    "network",
+			wantMessage: "Server not ready within timeout",
+		},
+		{
+			name:        "validation error",
+			output:      `SMOKE_TEST_ERROR kind=validation msg="Bundle validation failed: missing binary"`,
+			wantError:   true,
+			wantKind:    "validation",
+			wantMessage: "Bundle validation failed: missing binary",
+		},
+		{
+			name:        "runtime error",
+			output:      `SMOKE_TEST_ERROR kind=runtime msg="Unexpected crash during startup"`,
+			wantError:   true,
+			wantKind:    "runtime",
+			wantMessage: "Unexpected crash during startup",
+		},
+		{
+			name:      "malformed error marker",
+			output:    `SMOKE_TEST_ERROR kind=config`,
+			wantError: false, // missing msg field
+		},
+		{
+			name:        "error with escaped quotes",
+			output:      `SMOKE_TEST_ERROR kind=config msg="File \"config.json\" not found"`,
+			wantError:   true,
+			wantKind:    "config",
+			wantMessage: `File "config.json" not found`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parser.ExtractAppError(tt.output)
+			if tt.wantError {
+				if result == nil {
+					t.Fatal("Expected app error, got nil")
+				}
+				if result.Kind != tt.wantKind {
+					t.Errorf("Kind = %q, want %q", result.Kind, tt.wantKind)
+				}
+				if result.Message != tt.wantMessage {
+					t.Errorf("Message = %q, want %q", result.Message, tt.wantMessage)
+				}
+			} else {
+				if result != nil {
+					t.Errorf("Expected nil, got %+v", result)
+				}
+			}
+		})
+	}
+}
+
+func TestOutputParser_ExtractLastLifecycleState(t *testing.T) {
+	config := DefaultConfig()
+	parser := NewOutputParser(config)
+
+	tests := []struct {
+		name      string
+		output    string
+		wantState string
+	}{
+		{
+			name:      "empty output",
+			output:    "",
+			wantState: "",
+		},
+		{
+			name:      "only init marker",
+			output:    "SMOKE_TEST_INIT=started",
+			wantState: "init",
+		},
+		{
+			name:      "init and ready",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_READY=true",
+			wantState: "ready",
+		},
+		{
+			name:      "full success sequence",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_READY=true\nSMOKE_TEST_RESULT=passed\nSMOKE_TEST_EXIT=clean",
+			wantState: "exit",
+		},
+		{
+			name:      "failed result",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=failed some error",
+			wantState: "result",
+		},
+		{
+			name:      "passed result without exit",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_READY=true\nSMOKE_TEST_RESULT=passed",
+			wantState: "result",
+		},
+		{
+			name:      "markers in reverse order still finds last",
+			output:    "SMOKE_TEST_EXIT=clean\nSMOKE_TEST_RESULT=passed\nSMOKE_TEST_INIT=started",
+			wantState: "exit", // exit is the "highest" state
+		},
+		{
+			name:      "unrelated output",
+			output:    "Starting application...\nServer ready\nDone",
+			wantState: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parser.ExtractLastLifecycleState(tt.output)
+			if result != tt.wantState {
+				t.Errorf("ExtractLastLifecycleState() = %q, want %q", result, tt.wantState)
+			}
+		})
+	}
+}
+
+func TestOutputParser_ExtractLastLifecycleState_GranularBundledMode(t *testing.T) {
+	config := DefaultConfig()
+	parser := NewOutputParser(config)
+
+	tests := []struct {
+		name      string
+		output    string
+		wantState string
+	}{
+		{
+			name:      "bundle_resolving stage",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=bundle_resolving",
+			wantState: "bundle_resolving",
+		},
+		{
+			name:      "runtime_starting stage",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=bundle_resolving\nSMOKE_TEST_STAGE=runtime_starting",
+			wantState: "runtime_starting",
+		},
+		{
+			name:      "waiting_for_token stage",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=bundle_resolving\nSMOKE_TEST_STAGE=runtime_starting\nSMOKE_TEST_STAGE=waiting_for_token",
+			wantState: "waiting_for_token",
+		},
+		{
+			name:      "runtime_healthz stage",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=bundle_resolving\nSMOKE_TEST_STAGE=runtime_starting\nSMOKE_TEST_STAGE=waiting_for_token\nSMOKE_TEST_STAGE=runtime_healthz",
+			wantState: "runtime_healthz",
+		},
+		{
+			name:      "runtime_readyz stage",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=runtime_healthz\nSMOKE_TEST_STAGE=runtime_readyz",
+			wantState: "runtime_readyz",
+		},
+		{
+			name:      "runtime_ports stage",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=runtime_readyz\nSMOKE_TEST_STAGE=runtime_ports",
+			wantState: "runtime_ports",
+		},
+		{
+			name:      "granular stages followed by ready",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=bundle_resolving\nSMOKE_TEST_STAGE=runtime_ports\nSMOKE_TEST_READY=true",
+			wantState: "ready",
+		},
+		{
+			name:      "full bundled mode sequence",
+			output:    "SMOKE_TEST_INIT=started\nSMOKE_TEST_STAGE=bundle_resolving\nSMOKE_TEST_STAGE=runtime_starting\nSMOKE_TEST_STAGE=waiting_for_token\nSMOKE_TEST_STAGE=runtime_healthz\nSMOKE_TEST_STAGE=runtime_readyz\nSMOKE_TEST_STAGE=runtime_ports\nSMOKE_TEST_READY=true\nSMOKE_TEST_RESULT=passed\nSMOKE_TEST_EXIT=clean",
+			wantState: "exit",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parser.ExtractLastLifecycleState(tt.output)
+			if result != tt.wantState {
+				t.Errorf("ExtractLastLifecycleState() = %q, want %q", result, tt.wantState)
+			}
+		})
+	}
+}
+
+// TestOutputParser_RealWorldOutput tests with actual output from a failed smoke test.
+func TestOutputParser_RealWorldOutput(t *testing.T) {
+	config := DefaultConfig()
+	parser := NewOutputParser(config)
+
+	// This is the exact output from a real smoke test failure
+	realOutput := `SMOKE_TEST_INIT=started
+[Desktop App] Telemetry initialized at /home/user/.config/app/deployment-telemetry.jsonl
+[Desktop App] Bundle found at: /tmp/.mount_AppXYZ/resources/bundle
+SMOKE_TEST_STAGE=bundle_resolving
+[Desktop App] Bundle found at: /tmp/.mount_AppXYZ/resources/bundle
+[Desktop App] IPC port 39200 was busy; using 41385 instead
+[Desktop App] Performing pre-flight bundle validation...
+[Desktop App] Pre-flight bundle validation passed
+SMOKE_TEST_STAGE=runtime_starting
+runtime ready — IPC listening on 127.0.0.1:41385 (dry-run=false)
+`
+	result := parser.ExtractLastLifecycleState(realOutput)
+	if result != "runtime_starting" {
+		t.Errorf("ExtractLastLifecycleState() = %q, want %q", result, "runtime_starting")
+	}
+}
+
+func TestOutputParser_ExtractSessionID(t *testing.T) {
+	config := DefaultConfig()
+	parser := NewOutputParser(config)
+
+	tests := []struct {
+		name          string
+		output        string
+		wantSessionID string
+	}{
+		{
+			name:          "empty output",
+			output:        "",
+			wantSessionID: "",
+		},
+		{
+			name:          "init marker without session_id (old format)",
+			output:        "SMOKE_TEST_INIT=started",
+			wantSessionID: "",
+		},
+		{
+			name:          "init marker with session_id",
+			output:        "SMOKE_TEST_INIT=started session_id=d41a6b0c-1b88-41bb-abe6-2d89a3538eac",
+			wantSessionID: "d41a6b0c-1b88-41bb-abe6-2d89a3538eac",
+		},
+		{
+			name:          "init marker with session_id embedded in other output",
+			output:        "Starting app...\nSMOKE_TEST_INIT=started session_id=abc12345-6789-0abc-def1-234567890abc\nDone",
+			wantSessionID: "abc12345-6789-0abc-def1-234567890abc",
+		},
+		{
+			name:          "init marker with additional data after session_id",
+			output:        "SMOKE_TEST_INIT=started session_id=d41a6b0c-1b88-41bb-abe6-2d89a3538eac extra=data",
+			wantSessionID: "d41a6b0c-1b88-41bb-abe6-2d89a3538eac",
+		},
+		{
+			name:          "invalid session_id format (uppercase)",
+			output:        "SMOKE_TEST_INIT=started session_id=D41A6B0C-1B88-41BB-ABE6-2D89A3538EAC",
+			wantSessionID: "", // regex only matches lowercase
+		},
+		{
+			name:          "no init marker but has session_id text elsewhere",
+			output:        "session_id=d41a6b0c-1b88-41bb-abe6-2d89a3538eac",
+			wantSessionID: "", // must be part of SMOKE_TEST_INIT marker
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parser.ExtractSessionID(tt.output)
+			if result != tt.wantSessionID {
+				t.Errorf("ExtractSessionID() = %q, want %q", result, tt.wantSessionID)
+			}
+		})
+	}
+}
+
+func TestLifecycleStateDescription(t *testing.T) {
+	tests := []struct {
+		state        string
+		wantSubstr   string
+		wantNonEmpty bool
+	}{
+		// Basic states
+		{"", "crashed before", true},
+		{"init", "crashed during initialization", true},
+		{"ready", "server connectivity", true},
+		{"result", "didn't exit cleanly", true},
+		{"exit", "completed full lifecycle", true},
+		// Granular bundled-mode states
+		{"bundle_resolving", "bundle directory", true},
+		{"runtime_starting", "spawning the bundled runtime", true},
+		{"waiting_for_token", "auth token file", true},
+		{"runtime_healthz", "/healthz endpoint", true},
+		{"runtime_readyz", "/readyz endpoint", true},
+		{"runtime_ports", "/ports endpoint", true},
+		// Unknown state
+		{"unknown_state", "Unknown state", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.state, func(t *testing.T) {
+			got := LifecycleStateDescription(tt.state)
+			if tt.wantNonEmpty && got == "" {
+				t.Error("Expected non-empty description")
+			}
+			if tt.wantSubstr != "" && !containsSubstring(got, tt.wantSubstr) {
+				t.Errorf("LifecycleStateDescription(%q) = %q, want substring %q", tt.state, got, tt.wantSubstr)
+			}
+		})
+	}
+}

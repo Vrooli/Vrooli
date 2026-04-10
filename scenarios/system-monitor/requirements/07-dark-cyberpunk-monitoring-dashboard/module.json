@@ -1,0 +1,64 @@
+{
+  "description": "React + Vite + TypeScript UI in ui/src/. 7 routes, MetricsGrid, sparkline charts (recharts), MatrixBackground, process monitor with kill dialog, infrastructure monitor, investigation agent panel, report generation panel. Share Tech Mono font, #5cff95 primary green.",
+  "module_id": "MOD-P0-007",
+  "prd_ref": "system-monitor-must-have-dark-cyberpunk-monitoring-dashboard-matrix-themed-react-ui",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "System must provide a dark cyberpunk monitoring dashboard with Matrix theme using React",
+      "id": "REQ-P0-007",
+      "prd_ref": "system-monitor-must-have-dark-cyberpunk-monitoring-dashboard-matrix-themed-react-ui",
+      "status": "implemented",
+      "title": "Matrix-Themed Dashboard",
+      "validation": [
+        {
+          "notes": "Test React components",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify theme consistency",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test dashboard data updates",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "UI renders \u003c 2s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Smooth animations",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "UI matches design spec",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Dark cyberpunk monitoring dashboard (Matrix-themed React UI)"
+}

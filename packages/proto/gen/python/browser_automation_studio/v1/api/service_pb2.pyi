@@ -1,12 +1,12 @@
 import datetime
 
-from google.protobuf import timestamp_pb2 as _timestamp_pb2
-from google.api import annotations_pb2 as _annotations_pb2
-from buf.validate import validate_pb2 as _validate_pb2
-from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1.actions import action_pb2 as _action_pb2
-from browser_automation_studio.v1.workflows import definition_pb2 as _definition_pb2
+from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1.execution import execution_pb2 as _execution_pb2
+from browser_automation_studio.v1.workflows import definition_pb2 as _definition_pb2
+from buf.validate import validate_pb2 as _validate_pb2
+from google.api import annotations_pb2 as _annotations_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -16,7 +16,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class WorkflowSummary(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "project_id", "name", "folder_path", "description", "tags", "version", "is_template", "created_by", "last_change_source", "last_change_description", "created_at", "updated_at", "flow_definition")
     ID_FIELD_NUMBER: _ClassVar[int]
     PROJECT_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -48,7 +48,7 @@ class WorkflowSummary(_message.Message):
     def __init__(self, id: _Optional[str] = ..., project_id: _Optional[str] = ..., name: _Optional[str] = ..., folder_path: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., version: _Optional[int] = ..., is_template: _Optional[bool] = ..., created_by: _Optional[str] = ..., last_change_source: _Optional[_Union[_shared_pb2.ChangeSource, str]] = ..., last_change_description: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., flow_definition: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ...) -> None: ...
 
 class WorkflowVersion(_message.Message):
-    __slots__ = ()
+    __slots__ = ("workflow_id", "version", "flow_definition", "change_description", "created_by", "created_at")
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     FLOW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
@@ -64,19 +64,19 @@ class WorkflowVersion(_message.Message):
     def __init__(self, workflow_id: _Optional[str] = ..., version: _Optional[int] = ..., flow_definition: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ..., change_description: _Optional[str] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class WorkflowList(_message.Message):
-    __slots__ = ()
+    __slots__ = ("workflows",)
     WORKFLOWS_FIELD_NUMBER: _ClassVar[int]
     workflows: _containers.RepeatedCompositeFieldContainer[WorkflowSummary]
     def __init__(self, workflows: _Optional[_Iterable[_Union[WorkflowSummary, _Mapping]]] = ...) -> None: ...
 
 class WorkflowVersionList(_message.Message):
-    __slots__ = ()
+    __slots__ = ("versions",)
     VERSIONS_FIELD_NUMBER: _ClassVar[int]
     versions: _containers.RepeatedCompositeFieldContainer[WorkflowVersion]
     def __init__(self, versions: _Optional[_Iterable[_Union[WorkflowVersion, _Mapping]]] = ...) -> None: ...
 
 class ListWorkflowsRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("project_id", "folder_path", "limit", "offset")
     PROJECT_ID_FIELD_NUMBER: _ClassVar[int]
     FOLDER_PATH_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
@@ -88,7 +88,7 @@ class ListWorkflowsRequest(_message.Message):
     def __init__(self, project_id: _Optional[str] = ..., folder_path: _Optional[str] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
 
 class ListWorkflowsResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("workflows", "total", "has_more")
     WORKFLOWS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_FIELD_NUMBER: _ClassVar[int]
     HAS_MORE_FIELD_NUMBER: _ClassVar[int]
@@ -98,7 +98,7 @@ class ListWorkflowsResponse(_message.Message):
     def __init__(self, workflows: _Optional[_Iterable[_Union[WorkflowSummary, _Mapping]]] = ..., total: _Optional[int] = ..., has_more: _Optional[bool] = ...) -> None: ...
 
 class GetWorkflowRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("workflow_id", "version")
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     workflow_id: str
@@ -106,13 +106,13 @@ class GetWorkflowRequest(_message.Message):
     def __init__(self, workflow_id: _Optional[str] = ..., version: _Optional[int] = ...) -> None: ...
 
 class GetWorkflowResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("workflow",)
     WORKFLOW_FIELD_NUMBER: _ClassVar[int]
     workflow: WorkflowSummary
     def __init__(self, workflow: _Optional[_Union[WorkflowSummary, _Mapping]] = ...) -> None: ...
 
 class CreateWorkflowRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("project_id", "name", "folder_path", "flow_definition", "ai_prompt")
     PROJECT_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     FOLDER_PATH_FIELD_NUMBER: _ClassVar[int]
@@ -126,7 +126,7 @@ class CreateWorkflowRequest(_message.Message):
     def __init__(self, project_id: _Optional[str] = ..., name: _Optional[str] = ..., folder_path: _Optional[str] = ..., flow_definition: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ..., ai_prompt: _Optional[str] = ...) -> None: ...
 
 class CreateWorkflowResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("workflow", "flow_definition")
     WORKFLOW_FIELD_NUMBER: _ClassVar[int]
     FLOW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
     workflow: WorkflowSummary
@@ -134,7 +134,7 @@ class CreateWorkflowResponse(_message.Message):
     def __init__(self, workflow: _Optional[_Union[WorkflowSummary, _Mapping]] = ..., flow_definition: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ...) -> None: ...
 
 class UpdateWorkflowRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("name", "description", "folder_path", "tags", "flow_definition", "change_description", "source", "expected_version", "workflow_id")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     FOLDER_PATH_FIELD_NUMBER: _ClassVar[int]
@@ -156,7 +156,7 @@ class UpdateWorkflowRequest(_message.Message):
     def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., folder_path: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., flow_definition: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ..., change_description: _Optional[str] = ..., source: _Optional[_Union[_shared_pb2.ChangeSource, str]] = ..., expected_version: _Optional[int] = ..., workflow_id: _Optional[str] = ...) -> None: ...
 
 class UpdateWorkflowResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("workflow", "flow_definition")
     WORKFLOW_FIELD_NUMBER: _ClassVar[int]
     FLOW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
     workflow: WorkflowSummary
@@ -164,13 +164,13 @@ class UpdateWorkflowResponse(_message.Message):
     def __init__(self, workflow: _Optional[_Union[WorkflowSummary, _Mapping]] = ..., flow_definition: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ...) -> None: ...
 
 class DeleteWorkflowRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("workflow_id",)
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     workflow_id: str
     def __init__(self, workflow_id: _Optional[str] = ...) -> None: ...
 
 class DeleteWorkflowResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("success", "workflow_id")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     success: bool
@@ -178,7 +178,7 @@ class DeleteWorkflowResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., workflow_id: _Optional[str] = ...) -> None: ...
 
 class ExecuteWorkflowRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("wait_for_completion", "workflow_id", "workflow_version", "parameters")
     WAIT_FOR_COMPLETION_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -190,7 +190,7 @@ class ExecuteWorkflowRequest(_message.Message):
     def __init__(self, wait_for_completion: _Optional[bool] = ..., workflow_id: _Optional[str] = ..., workflow_version: _Optional[int] = ..., parameters: _Optional[_Union[_execution_pb2.ExecutionParameters, _Mapping]] = ...) -> None: ...
 
 class ExecuteWorkflowResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("execution_id", "status", "completed_at", "error")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -202,7 +202,7 @@ class ExecuteWorkflowResponse(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[str] = ...) -> None: ...
 
 class ListExecutionsRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("workflow_id", "status", "limit", "offset")
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
@@ -214,7 +214,7 @@ class ListExecutionsRequest(_message.Message):
     def __init__(self, workflow_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
 
 class ListExecutionsResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("executions", "total", "has_more")
     EXECUTIONS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_FIELD_NUMBER: _ClassVar[int]
     HAS_MORE_FIELD_NUMBER: _ClassVar[int]
@@ -224,31 +224,31 @@ class ListExecutionsResponse(_message.Message):
     def __init__(self, executions: _Optional[_Iterable[_Union[_execution_pb2.Execution, _Mapping]]] = ..., total: _Optional[int] = ..., has_more: _Optional[bool] = ...) -> None: ...
 
 class GetExecutionRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("execution_id",)
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     execution_id: str
     def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
 
 class GetExecutionResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("execution",)
     EXECUTION_FIELD_NUMBER: _ClassVar[int]
     execution: _execution_pb2.Execution
     def __init__(self, execution: _Optional[_Union[_execution_pb2.Execution, _Mapping]] = ...) -> None: ...
 
 class ValidateWorkflowRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("workflow",)
     WORKFLOW_FIELD_NUMBER: _ClassVar[int]
     workflow: _definition_pb2.WorkflowDefinitionV2
     def __init__(self, workflow: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ...) -> None: ...
 
 class ValidateWorkflowResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("result",)
     RESULT_FIELD_NUMBER: _ClassVar[int]
     result: WorkflowValidationResult
     def __init__(self, result: _Optional[_Union[WorkflowValidationResult, _Mapping]] = ...) -> None: ...
 
 class WorkflowValidationIssue(_message.Message):
-    __slots__ = ()
+    __slots__ = ("severity", "code", "message", "node_id", "node_type", "field", "pointer", "hint")
     SEVERITY_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
@@ -268,7 +268,7 @@ class WorkflowValidationIssue(_message.Message):
     def __init__(self, severity: _Optional[_Union[_shared_pb2.ValidationSeverity, str]] = ..., code: _Optional[str] = ..., message: _Optional[str] = ..., node_id: _Optional[str] = ..., node_type: _Optional[_Union[_action_pb2.ActionType, str]] = ..., field: _Optional[str] = ..., pointer: _Optional[str] = ..., hint: _Optional[str] = ...) -> None: ...
 
 class WorkflowValidationStats(_message.Message):
-    __slots__ = ()
+    __slots__ = ("node_count", "edge_count", "selector_count", "unique_selector_count", "element_wait_count", "has_metadata", "has_execution_viewport")
     NODE_COUNT_FIELD_NUMBER: _ClassVar[int]
     EDGE_COUNT_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -286,7 +286,7 @@ class WorkflowValidationStats(_message.Message):
     def __init__(self, node_count: _Optional[int] = ..., edge_count: _Optional[int] = ..., selector_count: _Optional[int] = ..., unique_selector_count: _Optional[int] = ..., element_wait_count: _Optional[int] = ..., has_metadata: _Optional[bool] = ..., has_execution_viewport: _Optional[bool] = ...) -> None: ...
 
 class WorkflowValidationResult(_message.Message):
-    __slots__ = ()
+    __slots__ = ("valid", "errors", "warnings", "stats", "schema_version", "checked_at", "duration_ms")
     VALID_FIELD_NUMBER: _ClassVar[int]
     ERRORS_FIELD_NUMBER: _ClassVar[int]
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
@@ -304,7 +304,7 @@ class WorkflowValidationResult(_message.Message):
     def __init__(self, valid: _Optional[bool] = ..., errors: _Optional[_Iterable[_Union[WorkflowValidationIssue, _Mapping]]] = ..., warnings: _Optional[_Iterable[_Union[WorkflowValidationIssue, _Mapping]]] = ..., stats: _Optional[_Union[WorkflowValidationStats, _Mapping]] = ..., schema_version: _Optional[str] = ..., checked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., duration_ms: _Optional[int] = ...) -> None: ...
 
 class RestoreWorkflowVersionResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("workflow", "restored_version")
     WORKFLOW_FIELD_NUMBER: _ClassVar[int]
     RESTORED_VERSION_FIELD_NUMBER: _ClassVar[int]
     workflow: WorkflowSummary

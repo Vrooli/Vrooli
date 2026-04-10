@@ -46,6 +46,23 @@ type Handlers struct {
 	// tickLock prevents concurrent tick executions
 	tickLock    sync.Mutex
 	tickRunning bool
+	tickStarted time.Time
+}
+
+func (h *Handlers) getTickState() (bool, *time.Time) {
+	h.tickLock.Lock()
+	defer h.tickLock.Unlock()
+
+	if !h.tickRunning {
+		return false, nil
+	}
+
+	if h.tickStarted.IsZero() {
+		return true, nil
+	}
+
+	started := h.tickStarted.UTC()
+	return true, &started
 }
 
 // New creates a new Handlers instance
@@ -90,22 +107,29 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		apierrors.LogError("health", "encode_response", err)
+	}
 }
 
 // Platform returns detected platform capabilities
 func (h *Handlers) Platform(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(h.platform)
+	if err := json.NewEncoder(w).Encode(h.platform); err != nil {
+		apierrors.LogError("platform", "encode_response", err)
+	}
 }
 
 // Status returns the current health summary
 func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 	summary := h.registry.GetSummary()
+	tickRunning, tickStartedAt := h.getTickState()
 
 	response := map[string]interface{}{
-		"status":   summary.Status,
-		"platform": h.platform,
+		"status":        summary.Status,
+		"platform":      h.platform,
+		"tickRunning":   tickRunning,
+		"tickStartedAt": tickStartedAt,
 		"summary": map[string]interface{}{
 			"total":    summary.TotalCount,
 			"ok":       summary.OkCount,
@@ -117,33 +141,44 @@ func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		apierrors.LogError("status", "encode_response", err)
+	}
 }
 
 // Tick runs a single health check cycle
 // Uses a lock to prevent concurrent executions - if a tick is already running,
 // returns immediately with a 409 Conflict status.
 func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
+	const maxTickRuntime = 6 * time.Minute
+	compactResponse := r.URL.Query().Get("compact") == "true"
+
 	// Try to acquire the tick lock
 	h.tickLock.Lock()
 	if h.tickRunning {
+		// Safety valve: if a tick appears stuck far beyond normal runtime,
+		// reset the lock to restore service availability.
+		if !h.tickStarted.IsZero() && time.Since(h.tickStarted) > maxTickRuntime {
+			apierrors.LogInfo("tick", "resetting stale tick lock", "age", time.Since(h.tickStarted).String())
+			h.tickRunning = false
+			h.tickStarted = time.Time{}
+		}
+	}
+	if h.tickRunning {
 		h.tickLock.Unlock()
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "tick_in_progress",
-			"message": "A health check cycle is already running. Please wait for it to complete.",
-		})
+		apierrors.LogAndRespond(w, apierrors.NewConflictError("tick",
+			"A health check cycle is already running. Please wait for it to complete."))
 		return
 	}
 	h.tickRunning = true
+	h.tickStarted = time.Now()
 	h.tickLock.Unlock()
 
 	// Ensure we release the lock when done
 	defer func() {
 		h.tickLock.Lock()
 		h.tickRunning = false
+		h.tickStarted = time.Time{}
 		h.tickLock.Unlock()
 	}()
 
@@ -187,6 +222,33 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Re-check any items where autoheal was attempted to update their status
+	// This is critical: autoheal may have fixed issues but check results were from BEFORE the fix
+	// We re-check even if autoheal reports failure, because the action might have actually
+	// started something that just wasn't ready during verification polling
+	var recheckIDs []string
+	for _, ahr := range autoHealResults {
+		if ahr.Attempted {
+			recheckIDs = append(recheckIDs, ahr.CheckID)
+		}
+	}
+	if len(recheckIDs) > 0 {
+		recheckResults := h.registry.RunChecksForIDs(ctx, recheckIDs)
+		for _, result := range recheckResults {
+			// Update results array with new result
+			for i, r := range results {
+				if r.CheckID == result.CheckID {
+					results[i] = result
+					break
+				}
+			}
+			// Persist updated result
+			if err := h.store.SaveResult(ctx, result); err != nil {
+				apierrors.LogError("tick", "save_recheck_result:"+result.CheckID, err)
+			}
+		}
+	}
+
 	// Get updated summary
 	summary := h.registry.GetSummary()
 
@@ -199,9 +261,11 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 			"warning":  summary.WarnCount,
 			"critical": summary.CritCount,
 		},
-		"results":   results,
-		"autoHeal":  autoHealResults,
 		"timestamp": time.Now().UTC(),
+	}
+	if !compactResponse {
+		response["results"] = results
+		response["autoHeal"] = autoHealResults
 	}
 
 	// Include warning about persistence issues without failing the request
@@ -222,7 +286,9 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) ListChecks(w http.ResponseWriter, r *http.Request) {
 	checks := h.registry.ListChecks()
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(checks)
+	if err := json.NewEncoder(w).Encode(checks); err != nil {
+		apierrors.LogError("list_checks", "encode_response", err)
+	}
 }
 
 // CheckResult returns the result for a specific check

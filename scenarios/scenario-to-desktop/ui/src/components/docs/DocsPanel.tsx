@@ -6,6 +6,7 @@ import { fetchDocContent, fetchDocsManifest } from "../../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { cn } from "../../lib/utils";
 import { logger } from "../../lib/logger";
+import { writeToClipboard } from "../../lib/browser";
 
 function findDocTitle(manifest: DocsManifest | undefined, path: string | null): string {
   if (!manifest || !path) return "Document";
@@ -73,25 +74,33 @@ function SectionList({
   );
 }
 
+interface MarkedModule {
+  Renderer: new () => { code: (code: string, infostring: string) => string };
+  marked: (content: string, options: { gfm: boolean; breaks: boolean; renderer: unknown }) => string;
+}
+
+interface MermaidModule {
+  initialize: (config: { startOnLoad: boolean; theme: string }) => void;
+  run: (options: { nodes: NodeListOf<Element> }) => Promise<void>;
+}
+
 const markedLoader = (() => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let markedPromise: Promise<any> | null = null;
+  let markedPromise: Promise<MarkedModule> | null = null;
   return () => {
     if (!markedPromise) {
       // @ts-expect-error CDN dynamic import
-      markedPromise = import("https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js");
+      markedPromise = import("https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js") as Promise<MarkedModule>;
     }
     return markedPromise;
   };
 })();
 
 const mermaidLoader = (() => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mermaidPromise: Promise<any> | null = null;
+  let mermaidPromise: Promise<MermaidModule> | null = null;
   return () => {
     if (!mermaidPromise) {
       // @ts-expect-error CDN dynamic import
-      mermaidPromise = import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs");
+      mermaidPromise = import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs") as Promise<MermaidModule>;
     }
     return mermaidPromise;
   };
@@ -291,7 +300,7 @@ export function DocsPanel({ initialPath, onPathChange }: DocsPanelProps) {
                   className="rounded-md border border-slate-800 bg-slate-900 px-3 py-1 text-xs text-slate-200 hover:border-blue-700 hover:text-white"
                   onClick={() => {
                     if (selectedPath) {
-                      navigator.clipboard?.writeText(selectedPath).catch(() => {});
+                      writeToClipboard(selectedPath);
                     }
                   }}
                   disabled={!selectedPath}

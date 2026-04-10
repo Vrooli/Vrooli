@@ -77,11 +77,11 @@ export function useAppWebSocket(options: WebSocketHookOptions = {}) {
     if (lastJsonMessage !== null) {
       const message = lastJsonMessage as WSMessage;
       
-      // Store message in history
-      messageHistory.current = [...messageHistory.current.slice(-99), message];
-
-      // Debug log
-      logger.debug('[WebSocket] Message received', { type: message.type, payload: message.payload });
+      // Store message in history without allocating a new array for every event.
+      messageHistory.current.push(message);
+      if (messageHistory.current.length > 100) {
+        messageHistory.current.splice(0, messageHistory.current.length - 100);
+      }
 
       // Route message to appropriate handler
       switch (message.type) {

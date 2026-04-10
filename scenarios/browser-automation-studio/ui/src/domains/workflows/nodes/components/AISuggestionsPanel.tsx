@@ -11,6 +11,36 @@ import toast from 'react-hot-toast';
 import type { ElementInfo } from '@/types/elements';
 import { getConfig } from '@/config';
 import { logger } from '@utils/logger';
+import { getAIRequestHeadersSync } from '@/utils/apiHeaders';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isString = (value: unknown): value is string => typeof value === 'string';
+
+const safeJson = async (response: Response): Promise<unknown> => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
+const isElementInfo = (value: unknown): value is ElementInfo => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.text)) return false;
+  if (!isString(value.tagName)) return false;
+  if (!isString(value.type)) return false;
+  if (!Array.isArray(value.selectors)) return false;
+  return true;
+};
+
+const parseElementInfo = (value: unknown): ElementInfo | null => {
+  if (!isElementInfo(value)) return null;
+  return value;
+};
 
 export interface AISuggestionsPanelProps {
   /** Node ID for logging */
@@ -63,9 +93,7 @@ const AISuggestionsPanel: FC<AISuggestionsPanelProps> = ({
       const config = await getConfig();
       const response = await fetch(`${config.API_URL}/ai-analyze-elements`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAIRequestHeadersSync(),
         body: JSON.stringify({ url: effectiveUrl, intent: trimmedIntent }),
       });
 
@@ -74,8 +102,10 @@ const AISuggestionsPanel: FC<AISuggestionsPanelProps> = ({
         throw new Error(message || 'Failed to analyze page');
       }
 
-      const result: ElementInfo[] = await response.json();
-      const normalized = Array.isArray(result) ? result : [];
+      const payload = await safeJson(response);
+      const normalized = Array.isArray(payload)
+        ? payload.map(parseElementInfo).filter((entry): entry is ElementInfo => entry !== null)
+        : [];
       onSuggestionsChange(normalized);
 
       if (normalized.length === 0) {

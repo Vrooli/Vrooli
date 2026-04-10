@@ -19,7 +19,7 @@ CONFIG_SOURCE_ENV: ConfigSource
 CONFIG_SOURCE_DATABASE: ConfigSource
 
 class StripeConfigSnapshot(_message.Message):
-    __slots__ = ()
+    __slots__ = ("publishable_key_preview", "publishable_key_set", "secret_key_set", "webhook_secret_set", "source")
     PUBLISHABLE_KEY_PREVIEW_FIELD_NUMBER: _ClassVar[int]
     PUBLISHABLE_KEY_SET_FIELD_NUMBER: _ClassVar[int]
     SECRET_KEY_SET_FIELD_NUMBER: _ClassVar[int]
@@ -33,7 +33,7 @@ class StripeConfigSnapshot(_message.Message):
     def __init__(self, publishable_key_preview: _Optional[str] = ..., publishable_key_set: _Optional[bool] = ..., secret_key_set: _Optional[bool] = ..., webhook_secret_set: _Optional[bool] = ..., source: _Optional[_Union[ConfigSource, str]] = ...) -> None: ...
 
 class StripeSettings(_message.Message):
-    __slots__ = ()
+    __slots__ = ("publishable_key", "secret_key", "webhook_secret", "dashboard_url", "updated_at")
     PUBLISHABLE_KEY_FIELD_NUMBER: _ClassVar[int]
     SECRET_KEY_FIELD_NUMBER: _ClassVar[int]
     WEBHOOK_SECRET_FIELD_NUMBER: _ClassVar[int]
@@ -51,7 +51,7 @@ class GetStripeSettingsRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class GetStripeSettingsResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("settings", "snapshot")
     SETTINGS_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
     settings: StripeSettings
@@ -59,7 +59,7 @@ class GetStripeSettingsResponse(_message.Message):
     def __init__(self, settings: _Optional[_Union[StripeSettings, _Mapping]] = ..., snapshot: _Optional[_Union[StripeConfigSnapshot, _Mapping]] = ...) -> None: ...
 
 class UpdateStripeSettingsRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("publishable_key", "secret_key", "webhook_secret", "dashboard_url")
     PUBLISHABLE_KEY_FIELD_NUMBER: _ClassVar[int]
     SECRET_KEY_FIELD_NUMBER: _ClassVar[int]
     WEBHOOK_SECRET_FIELD_NUMBER: _ClassVar[int]
@@ -71,7 +71,7 @@ class UpdateStripeSettingsRequest(_message.Message):
     def __init__(self, publishable_key: _Optional[str] = ..., secret_key: _Optional[str] = ..., webhook_secret: _Optional[str] = ..., dashboard_url: _Optional[str] = ...) -> None: ...
 
 class UpdateStripeSettingsResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("settings", "snapshot")
     SETTINGS_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
     settings: StripeSettings

@@ -7,6 +7,17 @@
 import type { AssetStorage } from './types';
 import { IndexedDbAssetStorage } from './indexedDbStorage';
 
+// Type declarations for runtime-injected globals
+// The full DesktopAPI type is defined in src/types/desktop.d.ts
+declare global {
+  interface Window {
+    /** Capacitor native bridge for mobile platforms */
+    Capacitor?: {
+      isNativePlatform?: () => boolean;
+    };
+  }
+}
+
 // Singleton instance
 let storageInstance: AssetStorage | null = null;
 
@@ -26,13 +37,11 @@ export type RuntimeEnvironment = 'electron' | 'capacitor' | 'web';
 export function detectEnvironment(): RuntimeEnvironment {
   if (typeof window !== 'undefined') {
     // Check for scenario-to-desktop bridge
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((window as any).desktop?.storage) {
+    if (window.desktop?.storage) {
       return 'electron';
     }
     // Check for Capacitor native bridge (future)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((window as any).Capacitor?.isNativePlatform?.()) {
+    if (window.Capacitor?.isNativePlatform?.()) {
       return 'capacitor';
     }
   }

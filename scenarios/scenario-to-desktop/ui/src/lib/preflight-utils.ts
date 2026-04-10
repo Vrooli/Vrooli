@@ -111,7 +111,7 @@ export function getListenURL(detail?: string): string | null {
     return null;
   }
   const match = detail.match(/listening on (\d+)/i);
-  if (!match) {
+  if (!match || !match[1]) {
     return null;
   }
   const port = Number.parseInt(match[1], 10);
@@ -149,7 +149,7 @@ export function getServiceURL(
   }
   if (preferredPortName) {
     const port = portMap[preferredPortName];
-    if (Number.isFinite(port) && port > 0) {
+    if (port !== undefined && Number.isFinite(port) && port > 0) {
       return { url: `http://localhost:${port}`, port, portName: preferredPortName };
     }
     return null;
@@ -164,7 +164,7 @@ export function getServiceURL(
     return null;
   }
   const port = portMap[portName];
-  if (!Number.isFinite(port) || port <= 0) {
+  if (port === undefined || !Number.isFinite(port) || port <= 0) {
     return null;
   }
   return { url: `http://localhost:${port}`, port, portName };

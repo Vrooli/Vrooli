@@ -1,0 +1,63 @@
+prompt-manager CLI
+
+Usage:
+  prompt-manager <command> [options]
+
+Global Options:
+  --api-base <url>   Override API base URL (default: auto-detected)
+  --auto-start       Auto-start the scenario if not running
+  --dry-run          Validate without executing mutations
+  --no-color         Disable ANSI color output (or set NO_COLOR)
+  --color            Force-enable ANSI color output
+
+Commands:
+  Meta
+    help                         Show this help message
+    version                      Show CLI version
+
+  Health
+    status                       Check API health and connectivity
+
+  Skills
+    skill                        Manage skills (list|show|read|add|update|delete|use|sync|rate|versions|revert|variants|add-variant|rm-variant)
+
+  Experiments
+    experiment                   Manage experiments (list|show|create|start|conclude|outcomes|delete)
+
+  Tags
+    tag                          Manage tags (list|create)
+
+  Members
+    member                       Manage members (list|show|create|update|delete)
+
+  Agents
+    agent                        Manage agents (list|show|create|update|delete|soul)
+
+  Teams
+    team                         Manage teams (list|show|create|update|delete|add-member|update-member|remove-member|roles|org-*|message-*|heartbeat-*|retention|prune|import-cc|export-cc|trigger)
+
+  Topics
+    topic                        Manage topics (list|show|create|update|delete|skills|search|tree)
+
+  Testing
+    test                         Test skills with Ollama (run|history)
+
+  Metadata
+    metadata                     Fetch Open Graph metadata (fetch)
+
+  Search
+    search                       Search skills (AI-powered by default, --text for text-only)
+    search-status                Check AI search availability and indexed skill count
+    search-reindex               Start full reindex of skills into vector database
+    search-reindex-status        Check progress of ongoing reindex operation
+    search-reindex-cancel        Cancel an active reindex operation
+
+  Discovery
+    discover                     Discover relevant skills via topic + AI search with budget awareness
+
+  Graph
+    graph                        Relationship graph (show|dump|node|regenerate|orphaned-skills|skillless-agents|empty-teams|unaffiliated-agents|cliless-skills|popular|circular-refs|health)
+
+  Configuration
+    configure                    View or update CLI settings (api_base, token)
+

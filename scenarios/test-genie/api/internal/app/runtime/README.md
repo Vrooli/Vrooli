@@ -18,8 +18,7 @@ flowchart TB
 
     subgraph Environment["Environment Variables"]
         port["API_PORT"]
-        dburl["DATABASE_URL"]
-        pgvars["POSTGRES_*"]
+        sqlitePath["TEST_GENIE_SQLITE_PATH / SQLITE_PATH"]
         scenarios["SCENARIOS_ROOT"]
     end
 
@@ -34,8 +33,7 @@ flowchart TB
 
     main --> config
     port --> config
-    dburl --> config
-    pgvars --> config
+    sqlitePath --> config
     scenarios --> config
 
     config --> bootstrap
@@ -72,13 +70,13 @@ sequenceDiagram
     participant Schema as schema.sql
 
     Main->>Config: LoadConfig()
-    Config->>Config: resolveDatabaseURL()
+    Config->>Config: resolveDatabaseConfig()
     Config->>Config: resolveScenariosRoot()
     Config-->>Main: *Config
 
     Main->>Bootstrap: BuildDependencies(cfg)
 
-    Bootstrap->>Bootstrap: sql.Open("postgres", url)
+    Bootstrap->>Bootstrap: sql.Open("sqlite", dsn)
     Bootstrap->>Bootstrap: db.Ping()
     Bootstrap->>DB: ensureDatabaseSchema(db)
     DB->>Schema: execSQLFile(schema.sql)
@@ -100,27 +98,21 @@ sequenceDiagram
 | Variable | Required | Description | Source |
 |----------|----------|-------------|--------|
 | `API_PORT` | Yes | HTTP listen port | Lifecycle |
-| `DATABASE_URL` | No* | Full PostgreSQL connection string | Lifecycle |
-| `POSTGRES_HOST` | No* | Database host | Lifecycle |
-| `POSTGRES_PORT` | No* | Database port | Lifecycle |
-| `POSTGRES_USER` | No* | Database user | Lifecycle |
-| `POSTGRES_PASSWORD` | No* | Database password | Lifecycle |
-| `POSTGRES_DB` | No* | Database name | Lifecycle |
+| `TEST_GENIE_SQLITE_PATH` | No | Scenario-local SQLite file override | Lifecycle |
+| `SQLITE_PATH` / `SQLITE_DB` | No | Generic SQLite path fallback | Lifecycle / tooling |
+| `SCENARIO_DATA_DIR` | No | Default root for embedded state | Lifecycle |
 | `SCENARIOS_ROOT` | No | Path to scenarios directory | Lifecycle |
 
-*Either `DATABASE_URL` or all `POSTGRES_*` variables must be set.
+### SQLite Resolution
 
-### Database URL Resolution
+`LoadConfig()` resolves the embedded SQLite database in this order:
 
-```go
-// Priority 1: Use DATABASE_URL if set
-if DATABASE_URL != "" {
-    return DATABASE_URL
-}
-
-// Priority 2: Build from components
-url := postgres://USER:PASSWORD@HOST:PORT/DB?sslmode=disable
-```
+1. `TEST_GENIE_SQLITE_PATH`
+2. `SQLITE_PATH`
+3. `SQLITE_DB`
+4. `${SCENARIO_DATA_DIR}/test-genie.db`
+5. `${SQLITE_DATABASE_PATH}/test-genie.db`
+6. `<scenario>/data/test-genie.db`
 
 ### Scenarios Root Resolution
 
@@ -145,7 +137,8 @@ Runtime parameters loaded from environment:
 ```go
 type Config struct {
     Port          string // HTTP listen port
-    DatabaseURL   string // PostgreSQL connection string
+    DatabasePath  string // Absolute SQLite file path
+    DatabaseDSN   string // SQLite DSN with WAL/busy-timeout pragmas
     ScenariosRoot string // Absolute path to scenarios/
 }
 ```
@@ -173,7 +166,7 @@ The `ensureDatabaseSchema()` function applies SQL files from the initialization 
 ```
 scenarios/test-genie/
 ├── initialization/
-│   └── postgres/
+│   └── sqlite/
 │       ├── schema.sql   # Table definitions (required)
 │       └── seed.sql     # Initial data (optional)
 ```
@@ -222,9 +215,8 @@ All startup errors are fatal—the API will not start with misconfigured depende
 | Error | Cause | Resolution |
 |-------|-------|------------|
 | `API_PORT is required` | Missing env var | Run via lifecycle system |
-| `DATABASE_URL or POSTGRES_* must be set` | Missing DB config | Check lifecycle exports |
-| `failed to connect to database` | Connection refused | Ensure PostgreSQL is running |
-| `failed to ping database` | Auth/network issue | Verify credentials |
+| `sqlite configuration failed` | Missing DB path envs and fallback path creation failed | Check lifecycle exports or local filesystem permissions |
+| `failed to connect to database` | File/path/open issue | Verify SQLite path permissions |
 | `failed to apply database schema` | Schema error | Check initialization/*.sql |
 | `failed to initialize orchestrator` | Bad scenarios path | Verify SCENARIOS_ROOT |
 
@@ -236,7 +228,7 @@ All startup errors are fatal—the API will not start with misconfigured depende
 | Change DB connection pooling | `bootstrap.go` → `sql.Open()` |
 | Add a new service dependency | `bootstrap.go` → `BuildDependencies()` |
 | Modify schema migration | `database.go` → `ensureDatabaseSchema()` |
-| Add a new SQL file | `initialization/postgres/` |
+| Add a new SQL file | `initialization/sqlite/` |
 
 ## Related Documentation
 

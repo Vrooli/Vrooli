@@ -2,28 +2,34 @@ package server
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"log"
+	"io"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"system-monitor-api/internal/agentmanager"
 	"system-monitor-api/internal/config"
 	"system-monitor-api/internal/handlers"
+	"system-monitor-api/internal/infrastructure"
 	"system-monitor-api/internal/repository"
 	"system-monitor-api/internal/repository/memory"
+	sqliterepo "system-monitor-api/internal/repository/sqlite"
 	"system-monitor-api/internal/services"
+	"system-monitor-api/internal/toolexecution"
+	"system-monitor-api/internal/toolhandlers"
+	"system-monitor-api/internal/toolregistry"
 )
 
 // Run wires dependencies, starts the HTTP server, and blocks until shutdown.
 func Run(cfg *config.Config) error {
 	setupLogging(cfg)
 
-	db, repo := connectRepository(cfg)
+	closer, repo := connectRepository(cfg)
 
-	alertSvc := services.NewAlertService(cfg, repo)
-	monitorSvc := services.NewMonitorService(cfg, repo, alertSvc)
+	_ = services.NewAlertService(cfg, repo) // Alert service available for future wiring //nolint:ineffassign
+	monitorSvc := services.NewMonitorService(cfg, repo, infrastructure.NewStaticProvider())
 
 	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
 		ProfileName: cfg.AgentManager.ProfileName,
@@ -35,13 +41,16 @@ func Run(cfg *config.Config) error {
 	if agentSvc.IsEnabled() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		if err := agentSvc.Initialize(ctx, agentmanager.DefaultProfileConfig()); err != nil {
-			log.Printf("Warning: Failed to initialize agent-manager profile: %v", err)
-			log.Println("Investigations require agent-manager; anomaly checks will fail until it is available")
+			slog.Warn("Failed to initialize agent-manager profile", "error", err)
+			slog.Info("Investigations require agent-manager; anomaly checks will fail until it is available")
 		}
 		cancel()
 	}
 
-	investigationSvc := services.NewInvestigationService(cfg, repo, alertSvc, agentSvc)
+	apiLog := slog.Default()
+
+	investigationSvc := services.NewInvestigationService(cfg, repo, monitorSvc, agentSvc, services.WithLogger(apiLog.With("service", "investigation")))
+	scriptSvc := services.NewScriptService(services.ResolveScriptsDir())
 	reportSvc := services.NewReportService(cfg, repo)
 	settingsMgr := services.NewSettingsManager()
 	monitorSvc.SetActive(settingsMgr.IsActive())
@@ -54,12 +63,34 @@ func Run(cfg *config.Config) error {
 	}
 
 	healthHandler := handlers.NewHealthHandler(cfg, monitorSvc, settingsMgr)
-	metricsHandler := handlers.NewMetricsHandler(cfg, monitorSvc)
-	investigationHandler := handlers.NewInvestigationHandler(cfg, investigationSvc)
-	reportHandler := handlers.NewReportHandler(cfg, reportSvc)
-	settingsHandler := handlers.NewSettingsHandler(settingsMgr)
+	metricsHandler := handlers.NewMetricsHandler(cfg, monitorSvc, apiLog.With("handler", "metrics"))
+	investigationHandler := handlers.NewInvestigationHandler(cfg, investigationSvc, scriptSvc, apiLog.With("handler", "investigations"))
+	reportHandler := handlers.NewReportHandler(cfg, reportSvc, apiLog.With("handler", "reports"))
+	settingsHandler := handlers.NewSettingsHandler(settingsMgr, apiLog.With("handler", "settings"))
 
-	router := buildRouter(healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler)
+	// Initialize Tool Discovery Protocol registry
+	toolRegistry := toolregistry.NewRegistry(toolregistry.RegistryConfig{
+		ScenarioName:        "system-monitor",
+		ScenarioVersion:     cfg.Server.Version,
+		ScenarioDescription: "Real-time system monitoring with AI-driven anomaly detection and automated root cause analysis",
+	})
+	toolRegistry.RegisterProvider(toolregistry.NewMetricsToolProvider())
+	toolRegistry.RegisterProvider(toolregistry.NewInvestigationToolProvider())
+	toolRegistry.RegisterProvider(toolregistry.NewConfigurationToolProvider())
+	slog.Info("Tool registry initialized", "providers", toolRegistry.ProviderCount(), "tools", len(toolRegistry.ListToolNames(context.Background())))
+
+	// Initialize Tool Execution Protocol executor
+	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
+		MonitorSvc:       monitorSvc,
+		InvestigationSvc: investigationSvc,
+		ReportSvc:        reportSvc,
+		SettingsMgr:      settingsMgr,
+		Logger:           slog.Default(),
+	})
+	toolExecHandler := toolexecution.NewHandler(toolExecutor, slog.Default())
+	toolsHandler := toolhandlers.NewToolsHandler(toolRegistry, slog.Default())
+
+	router := buildRouter(healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, toolsHandler, toolExecHandler)
 	handler := buildMiddleware(cfg, router)
 
 	srv := &http.Server{
@@ -71,31 +102,35 @@ func Run(cfg *config.Config) error {
 	}
 
 	go func() {
-		log.Printf("🚀 System Monitor API starting on port %s", cfg.Server.APIPort)
-		log.Printf("   Environment: %s", cfg.Server.Environment)
-		log.Printf("   Version: %s", cfg.Server.Version)
+		slog.Info("System Monitor API starting",
+			"port", cfg.Server.APIPort,
+			"environment", cfg.Server.Environment,
+			"version", cfg.Server.Version,
+		)
 
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+			slog.Error("Failed to start server", "error", err)
+			os.Exit(1)
 		}
 	}()
 
-	waitForShutdown(monitorSvc, srv, db)
+	waitForShutdown(monitorSvc, investigationSvc, srv, closer)
 	return nil
 }
 
-func connectRepository(cfg *config.Config) (*sql.DB, repository.Repository) {
-	if cfg.HasDatabase() {
-		db, err := connectDatabase(cfg)
-		if err != nil {
-			log.Printf("Warning: Failed to connect to database, using in-memory storage: %v", err)
-			return nil, memory.NewRepository()
-		}
-
-		log.Println("Using in-memory repository (PostgreSQL implementation pending)")
-		return db, memory.NewRepository()
+func connectRepository(cfg *config.Config) (io.Closer, repository.Repository) {
+	sqliteRepo, err := connectSQLite()
+	if err != nil {
+		slog.Warn("Failed to initialize SQLite, using in-memory storage", "error", err)
+		return io.NopCloser(nil), memory.NewRepository()
 	}
 
-	log.Println("No database configured, using in-memory storage")
-	return nil, memory.NewRepository()
+	// Start retention cleanup: hourly, delete metrics older than configured retention.
+	maxAge := time.Duration(cfg.Monitoring.RetentionDays) * 24 * time.Hour
+	sqliteRepo.StartRetentionCleanup(1*time.Hour, maxAge)
+
+	return sqliteRepo, sqliteRepo
 }
+
+// Ensure *sqliterepo.Repository satisfies repository.Repository at compile time.
+var _ repository.Repository = (*sqliterepo.Repository)(nil)

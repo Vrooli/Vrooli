@@ -8,15 +8,16 @@
  * - Injection statistics tracking
  */
 
-import { jest, describe, beforeEach, afterEach, it, expect } from '@jest/globals';
+/* eslint-disable @typescript-eslint/unbound-method */
+
 import {
   RecordingContextInitializer,
   createRecordingContextInitializer,
-  type InjectionStats,
   type RecordingEventHandler,
   type RawBrowserEvent,
 } from '../../../src/recording';
-import type { BrowserContext, Route, Request, APIResponse } from 'rebrowser-playwright';
+import type { BrowserContext, Route, Request, APIResponse, Page } from 'rebrowser-playwright';
+import type { Logger as WinstonLogger } from 'winston';
 
 // Mock logger
 const mockLogger = {
@@ -25,6 +26,70 @@ const mockLogger = {
   warn: jest.fn(),
   error: jest.fn(),
 };
+
+type MockPage = jest.Mocked<Page>;
+
+const mockRequestResourceType = (
+  value: ReturnType<Request['resourceType']>
+): Request['resourceType'] =>
+  jest.fn().mockReturnValue(value) as unknown as Request['resourceType'];
+
+const mockRequestUrl = (value: string): Request['url'] =>
+  jest.fn().mockReturnValue(value) as unknown as Request['url'];
+
+const mockRequestMethod = (value: string): Request['method'] =>
+  jest.fn().mockReturnValue(value) as unknown as Request['method'];
+
+const mockRequestPostData = (value: string | null): Request['postData'] =>
+  jest.fn().mockReturnValue(value) as unknown as Request['postData'];
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const getFirstMockCallArgs = <TArgs extends unknown[]>(
+  mockFn: jest.MockInstance<unknown, TArgs>,
+  label: string
+): TArgs => {
+  const call = mockFn.mock.calls[0];
+  if (!call) {
+    throw new Error(`Expected ${label} to have been called`);
+  }
+  return call;
+};
+
+const getFulfillOptions = (route: jest.Mocked<Route>): Record<string, unknown> => {
+  const args = getFirstMockCallArgs(route.fulfill, 'route.fulfill');
+  const options = args[0];
+  if (!isRecord(options)) {
+    throw new Error('Expected route.fulfill to be called with options');
+  }
+  return options;
+};
+
+const getFulfillBody = (route: jest.Mocked<Route>): string => {
+  const options = getFulfillOptions(route);
+  const body = options.body;
+  if (typeof body !== 'string') {
+    throw new Error('Expected fulfill body to be a string');
+  }
+  return body;
+};
+
+const getFetchOptions = (route: jest.Mocked<Route>): Record<string, unknown> => {
+  const args = getFirstMockCallArgs(route.fetch, 'route.fetch');
+  const options = args[0];
+  if (!isRecord(options)) {
+    throw new Error('Expected route.fetch to be called with options');
+  }
+  return options;
+};
+
+function requireDefined<T>(value: T | undefined, message: string): T {
+  if (value === undefined) {
+    throw new Error(message);
+  }
+  return value;
+}
 
 // Helper to create mock route
 function createMockRoute(
@@ -47,7 +112,7 @@ function createMockRoute(
 
   // Ensure status is defined
   if (!mockFetchResult.status) {
-    mockFetchResult.status = () => 200;
+    mockFetchResult.status = (): number => 200;
   }
 
   const mockRoute = {
@@ -69,8 +134,9 @@ function createMockContext(): {
   const routeHandlers = new Map<string, (route: Route) => Promise<void>>();
 
   const mockContext = {
-    route: jest.fn().mockImplementation(async (pattern: string, handler: (route: Route) => Promise<void>) => {
+    route: jest.fn().mockImplementation((pattern: string, handler: (route: Route) => Promise<void>) => {
       routeHandlers.set(pattern, handler);
+      return Promise.resolve();
     }),
     pages: jest.fn().mockReturnValue([]),
     on: jest.fn(),
@@ -82,7 +148,7 @@ function createMockContext(): {
 
 // Helper to create mock page with event listeners
 function createMockPage(): {
-  page: any;
+  page: MockPage;
   pageListeners: Map<string, Array<(...args: unknown[]) => void>>;
   pageRouteHandlers: Map<string, (route: Route) => Promise<void>>;
 } {
@@ -97,10 +163,11 @@ function createMockPage(): {
       pageListeners.set(event, handlers);
     }),
     off: jest.fn(),
-    route: jest.fn().mockImplementation(async (pattern: string, handler: (route: Route) => Promise<void>) => {
+    route: jest.fn().mockImplementation((pattern: string, handler: (route: Route) => Promise<void>) => {
       pageRouteHandlers.set(pattern, handler);
+      return Promise.resolve();
     }),
-  };
+  } as unknown as MockPage;
 
   return { page: mockPage, pageListeners, pageRouteHandlers };
 }
@@ -111,8 +178,9 @@ describe('RecordingContextInitializer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     initializer = createRecordingContextInitializer({
-      logger: mockLogger as any,
+      logger: mockLogger as unknown as WinstonLogger,
       diagnosticsEnabled: true,
+      injectionStrategy: 'route-injection',
     });
   });
 
@@ -184,25 +252,27 @@ describe('RecordingContextInitializer', () => {
       await initializer.initialize(context);
 
       // Get the catch-all handler
-      const handler = routeHandlers.get('**/*');
-      expect(handler).toBeDefined();
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for HTML injection'
+      );
 
       // Create mock route with HTML containing <head>
       const { route } = createMockRoute(
-        { resourceType: jest.fn().mockReturnValue('document') as any },
+        { resourceType: mockRequestResourceType('document') },
         {
           text: () => Promise.resolve('<html><head></head><body>Test</body></html>'),
           headers: () => ({ 'content-type': 'text/html' }),
         }
       );
 
-      await handler!(route);
+      await handler(route);
 
       // Should have fulfilled with modified body
       expect(route.fulfill).toHaveBeenCalled();
-      const fulfillCall = (route.fulfill as jest.Mock).mock.calls[0][0];
-      expect(fulfillCall.body).toContain('<script>');
-      expect(fulfillCall.body).toContain('__vrooli_recording');
+      const fulfillBody = getFulfillBody(route);
+      expect(fulfillBody).toContain('<script>');
+      expect(fulfillBody).toContain('__vrooli_recording');
     });
 
     it('should inject script into HTML responses with <HEAD> tag (uppercase)', async () => {
@@ -210,20 +280,23 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(context);
 
-      const handler = routeHandlers.get('**/*');
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for HTML injection'
+      );
       const { route } = createMockRoute(
-        { resourceType: jest.fn().mockReturnValue('document') as any },
+        { resourceType: mockRequestResourceType('document') },
         {
           text: () => Promise.resolve('<html><HEAD></HEAD><body>Test</body></html>'),
           headers: () => ({ 'content-type': 'text/html' }),
         }
       );
 
-      await handler!(route);
+      await handler(route);
 
       expect(route.fulfill).toHaveBeenCalled();
-      const fulfillCall = (route.fulfill as jest.Mock).mock.calls[0][0];
-      expect(fulfillCall.body).toContain('<HEAD><script>');
+      const fulfillBody = getFulfillBody(route);
+      expect(fulfillBody).toContain('<HEAD><script>');
     });
 
     it('should inject script after doctype when no head tag', async () => {
@@ -231,20 +304,23 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(context);
 
-      const handler = routeHandlers.get('**/*');
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for HTML injection'
+      );
       const { route } = createMockRoute(
-        { resourceType: jest.fn().mockReturnValue('document') as any },
+        { resourceType: mockRequestResourceType('document') },
         {
           text: () => Promise.resolve('<!DOCTYPE html><html><body>Test</body></html>'),
           headers: () => ({ 'content-type': 'text/html' }),
         }
       );
 
-      await handler!(route);
+      await handler(route);
 
       expect(route.fulfill).toHaveBeenCalled();
-      const fulfillCall = (route.fulfill as jest.Mock).mock.calls[0][0];
-      expect(fulfillCall.body).toMatch(/<!DOCTYPE html><script>/);
+      const fulfillBody = getFulfillBody(route);
+      expect(fulfillBody).toMatch(/<!DOCTYPE html><script>/);
     });
 
     it('should prepend script when no head or doctype', async () => {
@@ -252,20 +328,23 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(context);
 
-      const handler = routeHandlers.get('**/*');
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for HTML injection'
+      );
       const { route } = createMockRoute(
-        { resourceType: jest.fn().mockReturnValue('document') as any },
+        { resourceType: mockRequestResourceType('document') },
         {
           text: () => Promise.resolve('<html><body>No head</body></html>'),
           headers: () => ({ 'content-type': 'text/html' }),
         }
       );
 
-      await handler!(route);
+      await handler(route);
 
       expect(route.fulfill).toHaveBeenCalled();
-      const fulfillCall = (route.fulfill as jest.Mock).mock.calls[0][0];
-      expect(fulfillCall.body).toMatch(/^<script>/);
+      const fulfillBody = getFulfillBody(route);
+      expect(fulfillBody).toMatch(/^<script>/);
     });
 
     it('should NOT inject into non-document resources', async () => {
@@ -273,12 +352,15 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(context);
 
-      const handler = routeHandlers.get('**/*');
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for HTML injection'
+      );
       const { route } = createMockRoute({
-        resourceType: jest.fn().mockReturnValue('stylesheet') as any,
+        resourceType: mockRequestResourceType('stylesheet'),
       });
 
-      await handler!(route);
+      await handler(route);
 
       // Should continue without injection
       expect(route.continue).toHaveBeenCalled();
@@ -290,19 +372,23 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(context);
 
-      const handler = routeHandlers.get('**/*');
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for HTML injection'
+      );
       const { route } = createMockRoute(
-        { resourceType: jest.fn().mockReturnValue('document') as any },
+        { resourceType: mockRequestResourceType('document') },
         {
           text: () => Promise.resolve('{"json": "data"}'),
           headers: () => ({ 'content-type': 'application/json' }),
         }
       );
 
-      await handler!(route);
+      await handler(route);
 
       // Should fulfill with original response (no modification)
-      expect(route.fulfill).toHaveBeenCalledWith({ response: expect.anything() });
+      const fulfillOptions = getFulfillOptions(route);
+      expect(fulfillOptions.response).toBeDefined();
     });
   });
 
@@ -312,21 +398,24 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(context);
 
-      const handler = routeHandlers.get('**/*');
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for injection stats'
+      );
       const { route } = createMockRoute(
-        { resourceType: jest.fn().mockReturnValue('document') as any },
+        { resourceType: mockRequestResourceType('document') },
         {
           text: () => Promise.resolve('<html><head></head><body>Test</body></html>'),
           headers: () => ({ 'content-type': 'text/html' }),
         }
       );
 
-      await handler!(route);
+      await handler(route);
 
       const stats = initializer.getInjectionStats();
       expect(stats.attempted).toBe(1);
       expect(stats.successful).toBe(1);
-      expect(stats.methods.head).toBe(1);
+      expect(stats.lastInjectionAt).not.toBeNull();
     });
 
     it('should track skipped requests', async () => {
@@ -334,16 +423,20 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(context);
 
-      const handler = routeHandlers.get('**/*');
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for injection stats'
+      );
       const { route } = createMockRoute({
-        resourceType: jest.fn().mockReturnValue('image') as any,
+        resourceType: mockRequestResourceType('image'),
       });
 
-      await handler!(route);
+      await handler(route);
 
       const stats = initializer.getInjectionStats();
-      expect(stats.skipped).toBe(1);
       expect(stats.attempted).toBe(0);
+      expect(stats.successful).toBe(0);
+      expect(stats.failed).toBe(0);
     });
 
     it('should track injection methods separately', async () => {
@@ -351,31 +444,33 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(context);
 
-      const handler = routeHandlers.get('**/*');
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for injection stats'
+      );
 
       // Test <head> method
       const { route: route1 } = createMockRoute(
-        { resourceType: jest.fn().mockReturnValue('document') as any },
+        { resourceType: mockRequestResourceType('document') },
         {
           text: () => Promise.resolve('<html><head></head></html>'),
           headers: () => ({ 'content-type': 'text/html' }),
         }
       );
-      await handler!(route1);
+      await handler(route1);
 
       // Test <HEAD> method
       const { route: route2 } = createMockRoute(
-        { resourceType: jest.fn().mockReturnValue('document') as any },
+        { resourceType: mockRequestResourceType('document') },
         {
           text: () => Promise.resolve('<html><HEAD></HEAD></html>'),
           headers: () => ({ 'content-type': 'text/html' }),
         }
       );
-      await handler!(route2);
+      await handler(route2);
 
       const stats = initializer.getInjectionStats();
-      expect(stats.methods.head).toBe(1);
-      expect(stats.methods.HEAD).toBe(1);
+      expect(stats.attempted).toBe(2);
       expect(stats.successful).toBe(2);
     });
   });
@@ -398,10 +493,14 @@ describe('RecordingContextInitializer', () => {
       });
 
       // Event route is now on page, not context
-      const eventRoutePattern = Array.from(pageRouteHandlers.keys()).find(
-        (k) => k.includes('__vrooli_recording_event__')
+      const eventRoutePattern = requireDefined(
+        Array.from(pageRouteHandlers.keys()).find((k) => k.includes('__vrooli_recording_event__')),
+        'Event route not registered on page'
       );
-      const handler = pageRouteHandlers.get(eventRoutePattern!);
+      const handler = requireDefined(
+        pageRouteHandlers.get(eventRoutePattern),
+        'Event route handler not registered on page'
+      );
 
       const eventData: RawBrowserEvent = {
         actionType: 'click',
@@ -415,16 +514,20 @@ describe('RecordingContextInitializer', () => {
       };
 
       const { route } = createMockRoute({
-        url: jest.fn().mockReturnValue('https://example.com/__vrooli_recording_event__') as any,
-        method: jest.fn().mockReturnValue('POST') as any,
-        postData: jest.fn().mockReturnValue(JSON.stringify(eventData)) as any,
+        url: mockRequestUrl('https://example.com/__vrooli_recording_event__'),
+        method: mockRequestMethod('POST'),
+        postData: mockRequestPostData(JSON.stringify(eventData)),
       });
 
-      await handler!(route);
+      await handler(route);
 
       expect(receivedEvents).toHaveLength(1);
-      expect(receivedEvents[0].actionType).toBe('click');
-      expect(receivedEvents[0].selector?.primary).toBe('[data-testid="btn"]');
+      const firstEvent = receivedEvents[0];
+      if (!firstEvent) {
+        throw new Error('Expected a recorded event');
+      }
+      expect(firstEvent.actionType).toBe('click');
+      expect(firstEvent.selector?.primary).toBe('[data-testid="btn"]');
     });
 
     it('should call event handler with parsed event', async () => {
@@ -438,26 +541,32 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(mockContext);
 
-      const eventHandler = jest.fn<RecordingEventHandler>();
+      const eventHandler = jest.fn<ReturnType<RecordingEventHandler>, Parameters<RecordingEventHandler>>();
       initializer.setEventHandler(eventHandler);
 
       // Event route is now on page, not context
-      const eventRoutePattern = Array.from(pageRouteHandlers.keys()).find(
-        (k) => k.includes('__vrooli_recording_event__')
+      const eventRoutePattern = requireDefined(
+        Array.from(pageRouteHandlers.keys()).find((k) => k.includes('__vrooli_recording_event__')),
+        'Event route not registered on page'
       );
-      const handler = pageRouteHandlers.get(eventRoutePattern!);
+      const handler = requireDefined(
+        pageRouteHandlers.get(eventRoutePattern),
+        'Event route handler not registered on page'
+      );
 
       const { route } = createMockRoute({
-        url: jest.fn().mockReturnValue('https://example.com/__vrooli_recording_event__') as any,
-        method: jest.fn().mockReturnValue('POST') as any,
-        postData: jest.fn().mockReturnValue(JSON.stringify({
-          actionType: 'type',
-          timestamp: Date.now(),
-          payload: { text: 'hello' },
-        })) as any,
+        url: mockRequestUrl('https://example.com/__vrooli_recording_event__'),
+        method: mockRequestMethod('POST'),
+        postData: mockRequestPostData(
+          JSON.stringify({
+            actionType: 'type',
+            timestamp: Date.now(),
+            payload: { text: 'hello' },
+          })
+        ),
       });
 
-      await handler!(route);
+      await handler(route);
 
       expect(eventHandler).toHaveBeenCalledTimes(1);
       expect(eventHandler).toHaveBeenCalledWith(
@@ -476,23 +585,27 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(mockContext);
 
-      const eventHandler = jest.fn<RecordingEventHandler>();
+      const eventHandler = jest.fn<ReturnType<RecordingEventHandler>, Parameters<RecordingEventHandler>>();
       initializer.setEventHandler(eventHandler);
 
       // Event route is now on page, not context
-      const eventRoutePattern = Array.from(pageRouteHandlers.keys()).find(
-        (k) => k.includes('__vrooli_recording_event__')
+      const eventRoutePattern = requireDefined(
+        Array.from(pageRouteHandlers.keys()).find((k) => k.includes('__vrooli_recording_event__')),
+        'Event route not registered on page'
       );
-      const handler = pageRouteHandlers.get(eventRoutePattern!);
+      const handler = requireDefined(
+        pageRouteHandlers.get(eventRoutePattern),
+        'Event route handler not registered on page'
+      );
 
       const { route } = createMockRoute({
-        url: jest.fn().mockReturnValue('https://example.com/__vrooli_recording_event__') as any,
-        method: jest.fn().mockReturnValue('POST') as any,
-        postData: jest.fn().mockReturnValue('not valid json') as any,
+        url: mockRequestUrl('https://example.com/__vrooli_recording_event__'),
+        method: mockRequestMethod('POST'),
+        postData: mockRequestPostData('not valid json'),
       });
 
       // Should not throw
-      await handler!(route);
+      await handler(route);
 
       // Error should be logged
       expect(mockLogger.error).toHaveBeenCalled();
@@ -509,23 +622,27 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(mockContext);
 
-      const eventHandler = jest.fn<RecordingEventHandler>();
+      const eventHandler = jest.fn<ReturnType<RecordingEventHandler>, Parameters<RecordingEventHandler>>();
       initializer.setEventHandler(eventHandler);
       initializer.clearEventHandler();
 
       // Event route is now on page, not context
-      const eventRoutePattern = Array.from(pageRouteHandlers.keys()).find(
-        (k) => k.includes('__vrooli_recording_event__')
+      const eventRoutePattern = requireDefined(
+        Array.from(pageRouteHandlers.keys()).find((k) => k.includes('__vrooli_recording_event__')),
+        'Event route not registered on page'
       );
-      const handler = pageRouteHandlers.get(eventRoutePattern!);
+      const handler = requireDefined(
+        pageRouteHandlers.get(eventRoutePattern),
+        'Event route handler not registered on page'
+      );
 
       const { route } = createMockRoute({
-        url: jest.fn().mockReturnValue('https://example.com/__vrooli_recording_event__') as any,
-        method: jest.fn().mockReturnValue('POST') as any,
-        postData: jest.fn().mockReturnValue(JSON.stringify({ actionType: 'click' })) as any,
+        url: mockRequestUrl('https://example.com/__vrooli_recording_event__'),
+        method: mockRequestMethod('POST'),
+        postData: mockRequestPostData(JSON.stringify({ actionType: 'click' })),
       });
 
-      await handler!(route);
+      await handler(route);
 
       // Handler should not be called after clearing
       expect(eventHandler).not.toHaveBeenCalled();
@@ -536,7 +653,7 @@ describe('RecordingContextInitializer', () => {
     it('should return the configured binding name', () => {
       const customInitializer = createRecordingContextInitializer({
         bindingName: 'custom_binding',
-        logger: mockLogger as any,
+        logger: mockLogger as unknown as WinstonLogger,
       });
 
       expect(customInitializer.getBindingName()).toBe('custom_binding');
@@ -550,24 +667,28 @@ describe('RecordingContextInitializer', () => {
 
   describe('redirect handling', () => {
     /**
-     * CRITICAL: These tests verify the fix for navigation loops.
+     * CRITICAL: These tests verify correct redirect handling behavior.
      *
-     * When route.fetch() follows redirects, the browser's URL doesn't match
-     * the final content URL. JavaScript checking location.href would see
-     * the original URL, not the redirect destination, causing redirect loops.
+     * With rebrowser-playwright, if we return a 3xx response via route.fulfill(),
+     * the browser follows the redirect but the new request does NOT go through
+     * our route handler again (anti-detection feature). By following redirects
+     * ourselves (maxRedirects: 10), we ensure we can inject into the final HTML.
      *
-     * The fix: Don't follow redirects (maxRedirects: 0). Let the browser
-     * handle redirects naturally - we inject on the final destination.
+     * Note: The browser's URL bar will show the original URL (e.g., wikipedia.com)
+     * not the redirect destination. This is acceptable for recording purposes.
      */
 
-    it('should call route.fetch() with maxRedirects: 0 to prevent URL mismatch loops', async () => {
+    it('should call route.fetch() with maxRedirects: 10 to follow redirects for injection', async () => {
       const { context, routeHandlers } = createMockContext();
 
       await initializer.initialize(context);
 
-      const handler = routeHandlers.get('**/*');
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for redirect handling'
+      );
       const { route } = createMockRoute(
-        { resourceType: jest.fn().mockReturnValue('document') as any },
+        { resourceType: mockRequestResourceType('document') },
         {
           text: () => Promise.resolve('<html><head></head><body>Test</body></html>'),
           headers: () => ({ 'content-type': 'text/html' }),
@@ -575,12 +696,12 @@ describe('RecordingContextInitializer', () => {
         }
       );
 
-      await handler!(route);
+      await handler(route);
 
-      // Verify fetch was called with maxRedirects: 0
+      // Verify fetch follows redirects (anti-detection workaround)
       expect(route.fetch).toHaveBeenCalledWith(
         expect.objectContaining({
-          maxRedirects: 0,
+          maxRedirects: 10,
         })
       );
     });
@@ -590,9 +711,12 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(context);
 
-      const handler = routeHandlers.get('**/*');
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for redirect handling'
+      );
       const { route } = createMockRoute(
-        { resourceType: jest.fn().mockReturnValue('document') as any },
+        { resourceType: mockRequestResourceType('document') },
         {
           text: () => Promise.resolve(''),
           headers: () => ({ 'location': 'https://example.com/new-path' }),
@@ -600,14 +724,12 @@ describe('RecordingContextInitializer', () => {
         }
       );
 
-      await handler!(route);
+      await handler(route);
 
       // Should fulfill with original response (no body modification)
-      expect(route.fulfill).toHaveBeenCalledWith({ response: expect.anything() });
-
-      // Body should NOT be modified (no script injection)
-      const fulfillCall = (route.fulfill as jest.Mock).mock.calls[0][0];
-      expect(fulfillCall.body).toBeUndefined();
+      const fulfillOptions = getFulfillOptions(route);
+      expect(fulfillOptions.response).toBeDefined();
+      expect(fulfillOptions.body).toBeUndefined();
     });
 
     it('should pass 302 redirect responses through without modification', async () => {
@@ -615,9 +737,12 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(context);
 
-      const handler = routeHandlers.get('**/*');
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for redirect handling'
+      );
       const { route } = createMockRoute(
-        { resourceType: jest.fn().mockReturnValue('document') as any },
+        { resourceType: mockRequestResourceType('document') },
         {
           text: () => Promise.resolve(''),
           headers: () => ({ 'location': 'https://example.com/redirected' }),
@@ -625,12 +750,12 @@ describe('RecordingContextInitializer', () => {
         }
       );
 
-      await handler!(route);
+      await handler(route);
 
       // Should fulfill with original response
-      expect(route.fulfill).toHaveBeenCalledWith({ response: expect.anything() });
-      const fulfillCall = (route.fulfill as jest.Mock).mock.calls[0][0];
-      expect(fulfillCall.body).toBeUndefined();
+      const fulfillOptions = getFulfillOptions(route);
+      expect(fulfillOptions.response).toBeDefined();
+      expect(fulfillOptions.body).toBeUndefined();
     });
 
     it('should pass 307 redirect responses through without modification', async () => {
@@ -638,9 +763,12 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(context);
 
-      const handler = routeHandlers.get('**/*');
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for redirect handling'
+      );
       const { route } = createMockRoute(
-        { resourceType: jest.fn().mockReturnValue('document') as any },
+        { resourceType: mockRequestResourceType('document') },
         {
           text: () => Promise.resolve(''),
           headers: () => ({ 'location': 'https://example.com/temp-redirect' }),
@@ -648,12 +776,12 @@ describe('RecordingContextInitializer', () => {
         }
       );
 
-      await handler!(route);
+      await handler(route);
 
       // Should fulfill with original response
-      expect(route.fulfill).toHaveBeenCalledWith({ response: expect.anything() });
-      const fulfillCall = (route.fulfill as jest.Mock).mock.calls[0][0];
-      expect(fulfillCall.body).toBeUndefined();
+      const fulfillOptions = getFulfillOptions(route);
+      expect(fulfillOptions.response).toBeDefined();
+      expect(fulfillOptions.body).toBeUndefined();
     });
 
     it('should track redirects as skipped in injection stats', async () => {
@@ -661,9 +789,12 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(context);
 
-      const handler = routeHandlers.get('**/*');
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for redirect handling'
+      );
       const { route } = createMockRoute(
-        { resourceType: jest.fn().mockReturnValue('document') as any },
+        { resourceType: mockRequestResourceType('document') },
         {
           text: () => Promise.resolve(''),
           headers: () => ({ 'location': 'https://example.com/redirect' }),
@@ -671,11 +802,12 @@ describe('RecordingContextInitializer', () => {
         }
       );
 
-      await handler!(route);
+      await handler(route);
 
       const stats = initializer.getInjectionStats();
-      expect(stats.skipped).toBe(1);
+      expect(stats.attempted).toBe(1);
       expect(stats.successful).toBe(0);
+      expect(stats.failed).toBe(0);
     });
 
     it('should still inject script into 200 OK responses', async () => {
@@ -683,9 +815,12 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(context);
 
-      const handler = routeHandlers.get('**/*');
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for redirect handling'
+      );
       const { route } = createMockRoute(
-        { resourceType: jest.fn().mockReturnValue('document') as any },
+        { resourceType: mockRequestResourceType('document') },
         {
           text: () => Promise.resolve('<html><head></head><body>Success</body></html>'),
           headers: () => ({ 'content-type': 'text/html' }),
@@ -693,12 +828,12 @@ describe('RecordingContextInitializer', () => {
         }
       );
 
-      await handler!(route);
+      await handler(route);
 
       // Should have injected script
       expect(route.fulfill).toHaveBeenCalled();
-      const fulfillCall = (route.fulfill as jest.Mock).mock.calls[0][0];
-      expect(fulfillCall.body).toContain('<script>');
+      const fulfillBody = getFulfillBody(route);
+      expect(fulfillBody).toContain('<script>');
     });
 
     it('should call route.fetch() with a timeout to prevent hanging', async () => {
@@ -706,9 +841,12 @@ describe('RecordingContextInitializer', () => {
 
       await initializer.initialize(context);
 
-      const handler = routeHandlers.get('**/*');
+      const handler = requireDefined(
+        routeHandlers.get('**/*'),
+        'Route handler not registered for redirect handling'
+      );
       const { route } = createMockRoute(
-        { resourceType: jest.fn().mockReturnValue('document') as any },
+        { resourceType: mockRequestResourceType('document') },
         {
           text: () => Promise.resolve('<html><head></head><body>Test</body></html>'),
           headers: () => ({ 'content-type': 'text/html' }),
@@ -716,35 +854,41 @@ describe('RecordingContextInitializer', () => {
         }
       );
 
-      await handler!(route);
+      await handler(route);
 
       // Verify fetch was called with a timeout
-      expect(route.fetch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          timeout: expect.any(Number),
-        })
-      );
+      const fetchOptions = getFetchOptions(route);
+      const timeout = fetchOptions.timeout;
+      expect(typeof timeout).toBe('number');
 
       // Timeout should be reasonable (> 10s to handle slow servers)
-      const fetchCall = (route.fetch as jest.Mock).mock.calls[0][0];
-      expect(fetchCall.timeout).toBeGreaterThanOrEqual(10000);
+      if (typeof timeout === 'number') {
+        expect(timeout).toBeGreaterThanOrEqual(10000);
+      }
     });
   });
 
-  describe('page navigation listener (route persistence fix)', () => {
+  describe('page event route setup (architectural note)', () => {
     /**
-     * CRITICAL: These tests verify the fix for page.route() loss after navigation.
+     * ARCHITECTURAL NOTE: Navigation listener setup was moved to pipeline-manager.ts
      *
      * With rebrowser-playwright, page.route() handlers do NOT persist across navigation.
-     * After a page.goto() or link click, the event route is silently lost, and events
-     * stop flowing through the pipeline.
+     * After a page.goto() or link click, the event route is silently lost.
      *
-     * The fix: Set up a 'load' event listener on each page that re-registers the
-     * event route after every navigation.
+     * The fix is implemented in pipeline-manager.ts (not here) which:
+     * 1. Sets up 'load' event listeners on each page during recording
+     * 2. Re-registers event routes after each navigation
+     *
+     * This separation allows:
+     * - Context initialization to remain simple (one-time setup)
+     * - Navigation listeners to only be active during recording
+     * - No duplicate listeners when recording starts/stops multiple times
+     *
+     * @see pipeline-manager.ts - setupNavigationListeners() method
      */
 
-    it('should set up navigation listener on existing pages during initialization', async () => {
-      const { page, pageListeners } = createMockPage();
+    it('should set up page.route for event URL but NOT navigation listeners', async () => {
+      const { page, pageListeners, pageRouteHandlers } = createMockPage();
       const mockContext = {
         route: jest.fn(),
         pages: jest.fn().mockReturnValue([page]),
@@ -756,12 +900,16 @@ describe('RecordingContextInitializer', () => {
 
       // Should have set up page.route for event URL
       expect(page.route).toHaveBeenCalled();
+      const eventRoutePattern = Array.from(pageRouteHandlers.keys()).find(
+        (k) => k.includes('__vrooli_recording_event__')
+      );
+      expect(eventRoutePattern).toBeDefined();
 
-      // Should have set up 'load' listener
-      expect(pageListeners.has('load')).toBe(true);
+      // Should NOT set up 'load' listener (handled by pipeline-manager during recording)
+      expect(pageListeners.has('load')).toBe(false);
     });
 
-    it('should set up navigation listener on new pages', async () => {
+    it('should set up event route for new pages via context.on("page") but NOT navigation listeners', async () => {
       const contextPageListeners = new Map<string, Array<(...args: unknown[]) => void>>();
       const mockContext = {
         route: jest.fn(),
@@ -777,113 +925,29 @@ describe('RecordingContextInitializer', () => {
       await initializer.initialize(mockContext);
 
       // Simulate new page creation
-      const { page, pageListeners } = createMockPage();
-      const pageHandler = contextPageListeners.get('page')?.[0];
-      expect(pageHandler).toBeDefined();
+      const { page, pageListeners, pageRouteHandlers } = createMockPage();
+      const pageHandler = requireDefined(
+        contextPageListeners.get('page')?.[0],
+        'Page handler not registered on context'
+      );
 
-      await pageHandler!(page);
+      pageHandler(page);
 
       // Should have set up page.route for event URL
       expect(page.route).toHaveBeenCalled();
-
-      // Should have set up 'load' listener on new page
-      expect(pageListeners.has('load')).toBe(true);
-    });
-
-    it('should re-register event route when page load event fires', async () => {
-      const { page, pageListeners, pageRouteHandlers } = createMockPage();
-      const mockContext = {
-        route: jest.fn(),
-        pages: jest.fn().mockReturnValue([page]),
-        on: jest.fn(),
-        off: jest.fn(),
-      } as unknown as jest.Mocked<BrowserContext>;
-
-      await initializer.initialize(mockContext);
-
-      // Initially, page.route should have been called once
-      const initialRouteCallCount = (page.route as jest.Mock).mock.calls.length;
-      expect(initialRouteCallCount).toBeGreaterThan(0);
-
-      // Simulate navigation by firing the 'load' event
-      const loadHandlers = pageListeners.get('load') || [];
-      expect(loadHandlers.length).toBeGreaterThan(0);
-
-      // Fire the load event
-      await loadHandlers[0]!();
-
-      // page.route should have been called again (force re-registration)
-      const afterLoadRouteCallCount = (page.route as jest.Mock).mock.calls.length;
-      expect(afterLoadRouteCallCount).toBeGreaterThan(initialRouteCallCount);
-    });
-
-    it('should NOT set up duplicate navigation listeners (idempotent)', async () => {
-      const { page, pageListeners } = createMockPage();
-      const mockContext = {
-        route: jest.fn(),
-        pages: jest.fn().mockReturnValue([page]),
-        on: jest.fn(),
-        off: jest.fn(),
-      } as unknown as jest.Mocked<BrowserContext>;
-
-      await initializer.initialize(mockContext);
-
-      // Manually call setupPageNavigationListener again
-      initializer.setupPageNavigationListener(page);
-      initializer.setupPageNavigationListener(page);
-
-      // Should only have ONE 'load' listener despite multiple calls
-      const loadHandlers = pageListeners.get('load') || [];
-      expect(loadHandlers.length).toBe(1);
-    });
-
-    it('should handle navigation listener errors gracefully', async () => {
-      const pageListeners = new Map<string, Array<(...args: unknown[]) => void>>();
-      let routeCallCount = 0;
-      const mockPage = {
-        url: jest.fn().mockReturnValue('https://example.com'),
-        on: jest.fn().mockImplementation((event: string, handler: (...args: unknown[]) => void) => {
-          const handlers = pageListeners.get(event) || [];
-          handlers.push(handler);
-          pageListeners.set(event, handlers);
-        }),
-        off: jest.fn(),
-        // First call succeeds (during initialization), subsequent calls fail (simulating navigation issue)
-        route: jest.fn().mockImplementation(async () => {
-          routeCallCount++;
-          if (routeCallCount > 1) {
-            throw new Error('Route setup failed');
-          }
-        }),
-      };
-
-      const mockContext = {
-        route: jest.fn(),
-        pages: jest.fn().mockReturnValue([mockPage]),
-        on: jest.fn(),
-        off: jest.fn(),
-      } as unknown as jest.Mocked<BrowserContext>;
-
-      await initializer.initialize(mockContext);
-
-      // Should have set up 'load' listener
-      const loadHandlers = pageListeners.get('load') || [];
-      expect(loadHandlers.length).toBeGreaterThan(0);
-
-      // Fire the load event - should not throw even though route fails
-      await loadHandlers[0]!();
-
-      // Error should be logged
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('failed to re-register event route'),
-        expect.anything()
+      const eventRoutePattern = Array.from(pageRouteHandlers.keys()).find(
+        (k) => k.includes('__vrooli_recording_event__')
       );
+      expect(eventRoutePattern).toBeDefined();
+
+      // Should NOT set up 'load' listener (handled by pipeline-manager during recording)
+      expect(pageListeners.has('load')).toBe(false);
     });
   });
 
   describe('setupPageEventRoute', () => {
     it('should be idempotent by default (skip if already set up)', async () => {
-      const { page, pageRouteHandlers } = createMockPage();
+      const { page } = createMockPage();
       const mockContext = {
         route: jest.fn(),
         pages: jest.fn().mockReturnValue([page]),

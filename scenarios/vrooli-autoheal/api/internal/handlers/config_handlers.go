@@ -51,13 +51,19 @@ func (h *ConfigHandlers) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		apierrors.LogAndRespond(w, apierrors.NewValidationError("config", "update configuration", err))
 		return
 	}
+	if err := h.syncAutoHealPolicy(); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("config", "apply auto-heal policy", err))
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Configuration updated successfully",
 		"config":  h.configMgr.Get(),
-	})
+	}); err != nil {
+		apierrors.LogError("update_config", "encode_response", err)
+	}
 }
 
 // ValidateConfig validates a configuration without saving
@@ -72,7 +78,9 @@ func (h *ConfigHandlers) ValidateConfig(w http.ResponseWriter, r *http.Request) 
 	result := h.configMgr.Validate(&config)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		apierrors.LogError("validate_config", "encode_response", err)
+	}
 }
 
 // GetSchema returns the JSON schema for configuration
@@ -85,7 +93,9 @@ func (h *ConfigHandlers) GetSchema(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(schema))
+	if _, err := w.Write([]byte(schema)); err != nil {
+		apierrors.LogError("get_schema", "write_response", err)
+	}
 }
 
 // ExportConfig exports the configuration as downloadable JSON
@@ -99,7 +109,9 @@ func (h *ConfigHandlers) ExportConfig(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition", "attachment; filename=autoheal-config.json")
-	w.Write(data)
+	if _, err := w.Write(data); err != nil {
+		apierrors.LogError("export_config", "write_response", err)
+	}
 }
 
 // ImportConfig imports configuration from uploaded JSON
@@ -124,13 +136,31 @@ func (h *ConfigHandlers) ImportConfig(w http.ResponseWriter, r *http.Request) {
 		apierrors.LogAndRespond(w, apierrors.NewInternalError("config", "apply imported configuration", err))
 		return
 	}
+	if err := h.syncAutoHealPolicy(); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewValidationError("config", "apply auto-heal policy", err))
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Configuration imported successfully",
 		"config":  h.configMgr.Get(),
-	})
+	}); err != nil {
+		apierrors.LogError("import_config", "encode_response", err)
+	}
+}
+
+func (h *ConfigHandlers) syncAutoHealPolicy() error {
+	if h.registry == nil {
+		return nil
+	}
+	global := h.configMgr.GetGlobal()
+	policy, err := checks.NewAutoHealPolicyFromGlobal(global.RestartCooldownSeconds, global.MaxRestartAttempts)
+	if err != nil {
+		return err
+	}
+	return h.registry.SetAutoHealPolicy(policy)
 }
 
 // GetCheckConfig returns the effective configuration for a specific check
@@ -142,10 +172,12 @@ func (h *ConfigHandlers) GetCheckConfig(w http.ResponseWriter, r *http.Request) 
 	checkConfig := h.configMgr.GetCheck(checkID)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"checkId": checkID,
 		"config":  checkConfig,
-	})
+	}); err != nil {
+		apierrors.LogError("get_check_config", "encode_response", err)
+	}
 }
 
 // UpdateCheckEnabled enables or disables a check
@@ -168,11 +200,13 @@ func (h *ConfigHandlers) UpdateCheckEnabled(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"checkId": checkID,
 		"enabled": req.Enabled,
-	})
+	}); err != nil {
+		apierrors.LogError("update_check_enabled", "encode_response", err)
+	}
 }
 
 // UpdateCheckAutoHeal enables or disables auto-heal for a check
@@ -195,11 +229,13 @@ func (h *ConfigHandlers) UpdateCheckAutoHeal(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":  true,
 		"checkId":  checkID,
 		"autoHeal": req.AutoHeal,
-	})
+	}); err != nil {
+		apierrors.LogError("update_check_autoheal", "encode_response", err)
+	}
 }
 
 // BulkUpdateChecks updates enabled/autoHeal for all checks
@@ -234,11 +270,13 @@ func (h *ConfigHandlers) BulkUpdateChecks(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"action":  req.Action,
 		"config":  h.configMgr.Get(),
-	})
+	}); err != nil {
+		apierrors.LogError("bulk_update_checks", "encode_response", err)
+	}
 }
 
 // GetGlobalConfig returns the global configuration
@@ -247,7 +285,9 @@ func (h *ConfigHandlers) GetGlobalConfig(w http.ResponseWriter, r *http.Request)
 	global := h.configMgr.GetGlobal()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(global)
+	if err := json.NewEncoder(w).Encode(global); err != nil {
+		apierrors.LogError("get_global_config", "encode_response", err)
+	}
 }
 
 // GetUIConfig returns the UI configuration
@@ -256,7 +296,9 @@ func (h *ConfigHandlers) GetUIConfig(w http.ResponseWriter, r *http.Request) {
 	ui := h.configMgr.GetUI()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ui)
+	if err := json.NewEncoder(w).Encode(ui); err != nil {
+		apierrors.LogError("get_ui_config", "encode_response", err)
+	}
 }
 
 // GetDefaults returns the default check configurations
@@ -273,12 +315,14 @@ func (h *ConfigHandlers) GetDefaults(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"global":     userconfig.DefaultGlobal(),
 		"ui":         userconfig.DefaultUI(),
 		"checks":     defaults,
 		"monitoring": userconfig.DefaultMonitoring(),
-	})
+	}); err != nil {
+		apierrors.LogError("get_defaults", "encode_response", err)
+	}
 }
 
 // GetMonitoring returns the monitoring configuration
@@ -287,7 +331,9 @@ func (h *ConfigHandlers) GetMonitoring(w http.ResponseWriter, r *http.Request) {
 	monitoring := h.configMgr.GetMonitoring()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(monitoring)
+	if err := json.NewEncoder(w).Encode(monitoring); err != nil {
+		apierrors.LogError("get_monitoring", "encode_response", err)
+	}
 }
 
 // UpdateMonitoring replaces the monitoring configuration
@@ -305,11 +351,13 @@ func (h *ConfigHandlers) UpdateMonitoring(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":    true,
 		"message":    "Monitoring configuration updated successfully",
 		"monitoring": h.configMgr.GetMonitoring(),
-	})
+	}); err != nil {
+		apierrors.LogError("update_monitoring", "encode_response", err)
+	}
 }
 
 // AddScenario adds a scenario to monitoring
@@ -341,11 +389,13 @@ func (h *ConfigHandlers) AddScenario(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":    true,
 		"message":    "Scenario added to monitoring",
 		"monitoring": h.configMgr.GetMonitoring(),
-	})
+	}); err != nil {
+		apierrors.LogError("add_scenario", "encode_response", err)
+	}
 }
 
 // RemoveScenario removes a scenario from monitoring
@@ -366,11 +416,13 @@ func (h *ConfigHandlers) RemoveScenario(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":    true,
 		"message":    "Scenario removed from monitoring",
 		"monitoring": h.configMgr.GetMonitoring(),
-	})
+	}); err != nil {
+		apierrors.LogError("remove_scenario", "encode_response", err)
+	}
 }
 
 // SetScenarioCritical sets the criticality of a scenario
@@ -401,13 +453,15 @@ func (h *ConfigHandlers) SetScenarioCritical(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":    true,
 		"message":    "Scenario criticality updated",
 		"name":       name,
 		"critical":   req.Critical,
 		"monitoring": h.configMgr.GetMonitoring(),
-	})
+	}); err != nil {
+		apierrors.LogError("set_scenario_critical", "encode_response", err)
+	}
 }
 
 // AddResource adds a resource to monitoring
@@ -438,11 +492,13 @@ func (h *ConfigHandlers) AddResource(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":    true,
 		"message":    "Resource added to monitoring",
 		"monitoring": h.configMgr.GetMonitoring(),
-	})
+	}); err != nil {
+		apierrors.LogError("add_resource", "encode_response", err)
+	}
 }
 
 // RemoveResource removes a resource from monitoring
@@ -463,9 +519,11 @@ func (h *ConfigHandlers) RemoveResource(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":    true,
 		"message":    "Resource removed from monitoring",
 		"monitoring": h.configMgr.GetMonitoring(),
-	})
+	}); err != nil {
+		apierrors.LogError("remove_resource", "encode_response", err)
+	}
 }

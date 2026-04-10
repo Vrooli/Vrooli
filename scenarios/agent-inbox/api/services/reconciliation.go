@@ -78,41 +78,40 @@ func (s *ReconciliationService) reconcileAgentManagerToolCall(ctx context.Contex
 		return s.markAsCancelled(ctx, tc, "Agent manager unavailable during reconciliation")
 	}
 
-	// Check the agent status
-	status, err := client.CheckAgentStatus(ctx, tc.ExternalRunID)
+	// Check the agent status - returns a proto Run
+	run, err := client.CheckAgentStatus(ctx, tc.ExternalRunID)
 	if err != nil {
 		// Could not reach agent-manager or run not found
 		return s.markAsCancelled(ctx, tc, "Could not verify agent status: "+err.Error())
 	}
 
-	// Parse the status response
-	agentStatus, _ := status["status"].(string)
+	// Convert proto status to local status string
+	localStatus := integrations.ProtoRunStatusToLocal(run.GetStatus())
 
-	switch agentStatus {
-	case "running", "pending":
+	if integrations.IsActiveRunStatus(string(localStatus)) {
 		// Agent is still running - leave as-is but log it
-		log.Printf("reconciliation: agent run %s still running for tool call %s", tc.ExternalRunID, tc.ID)
+		log.Printf("reconciliation: agent run %s still active (status=%s) for tool call %s",
+			tc.ExternalRunID, localStatus, tc.ID)
 		return nil
+	}
 
-	case "completed", "success":
-		// Agent completed successfully - update status
+	// Terminal status - map to local tool call status
+	switch localStatus {
+	case integrations.RunStatusComplete:
 		return s.repo.UpdateToolCallStatus(ctx, tc.ID, domain.StatusCompleted, "")
 
-	case "failed", "error":
-		// Agent failed
-		errorMsg, _ := status["error"].(string)
+	case integrations.RunStatusFailed:
+		errorMsg := run.GetErrorMsg()
 		if errorMsg == "" {
 			errorMsg = "Agent run failed"
 		}
 		return s.repo.UpdateToolCallStatus(ctx, tc.ID, domain.StatusFailed, errorMsg)
 
-	case "cancelled", "stopped":
-		// Agent was cancelled/stopped
+	case integrations.RunStatusCancelled:
 		return s.repo.UpdateToolCallStatus(ctx, tc.ID, domain.StatusCancelled, "Agent run was cancelled")
 
 	default:
-		// Unknown status - mark as cancelled with context
-		return s.markAsCancelled(ctx, tc, "Unknown agent status: "+agentStatus)
+		return s.markAsCancelled(ctx, tc, "Unknown agent status: "+string(localStatus))
 	}
 }
 

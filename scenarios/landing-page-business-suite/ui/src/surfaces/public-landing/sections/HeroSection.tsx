@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Circle,
   Clock,
-  Cpu,
   FileText,
   Globe,
   LayoutGrid,
@@ -21,7 +20,7 @@ import {
   Video,
 } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
-import { useMetrics } from '../../../shared/hooks/useMetrics';
+import { useMetrics } from '../../../shared/hooks/useMetricsHook';
 
 interface HeroSectionProps {
   content: {
@@ -52,21 +51,21 @@ export function HeroSection({ content }: HeroSectionProps) {
   };
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-[#0B0D13] via-[#0E111C] to-[#0B0F1A] text-white">
+    <section className="relative overflow-hidden bg-gradient-to-br from-bg-base via-surface-deep to-surface-primary text-white">
       <div className="absolute inset-0 opacity-30 mix-blend-plus-lighter">
         <div className="noise-overlay absolute inset-0" />
       </div>
-      <div className="absolute left-1/3 top-10 h-64 w-64 rounded-full bg-[#38BDF8]/10 blur-3xl" />
-      <div className="absolute right-10 bottom-10 h-72 w-72 rounded-full bg-[#F97316]/10 blur-3xl" />
+      <div className="absolute left-1/3 top-10 h-64 w-64 rounded-full bg-accent-secondary/10 blur-3xl" />
+      <div className="absolute right-10 bottom-10 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
 
       <div className="container relative mx-auto grid gap-14 px-6 py-24 lg:grid-cols-[1.05fr,0.95fr] lg:items-center">
         <div className="space-y-8">
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs uppercase tracking-[0.35em] text-slate-300">
               Silent Founder OS
-              <Sparkles className="h-3.5 w-3.5 text-[#F97316]" />
+              <Sparkles className="h-3.5 w-3.5 text-accent" />
             </span>
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/10 px-3 py-1 text-[11px] font-semibold text-[#d3f2ff]">
+            <span className="inline-flex items-center gap-2 rounded-full border border-accent-secondary/20 bg-accent-secondary/10 px-3 py-1 text-[11px] font-semibold text-accent-secondary/80">
               Vrooli Ascension · Live today
             </span>
           </div>
@@ -101,17 +100,17 @@ export function HeroSection({ content }: HeroSectionProps) {
             <div className="mt-4 grid gap-3 text-sm text-slate-200">
               {[
                 {
-                  icon: <Video className="h-4 w-4 text-[#38BDF8]" />,
+                  icon: <Video className="h-4 w-4 text-accent-secondary" />,
                   title: 'Replay-ready',
                   copy: 'Passively builds a timeline of your work—convert anything into a reusable workflow.',
                 },
                 {
-                  icon: <ShieldCheck className="h-4 w-4 text-[#10B981]" />,
+                  icon: <ShieldCheck className="h-4 w-4 text-success" />,
                   title: 'Guardrails built-in',
                   copy: 'Waits, retries, and entitlement checks keep ops reliable.',
                 },
                 {
-                  icon: <Clock className="h-4 w-4 text-[#F97316]" />,
+                  icon: <Clock className="h-4 w-4 text-accent" />,
                   title: 'Zero-effort capture',
                   copy: 'Works in the background. Select any moment to become a reusable workflow.',
                 },
@@ -127,15 +126,15 @@ export function HeroSection({ content }: HeroSectionProps) {
             </div>
             <div className="mt-5 flex flex-wrap gap-3 text-xs text-slate-200">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
-                <LineChart className="h-4 w-4 text-[#F97316]" />
+                <LineChart className="h-4 w-4 text-accent" />
                 <span>12–20 hours back weekly</span>
               </div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
-                <ShieldCheck className="h-4 w-4 text-[#10B981]" />
+                <ShieldCheck className="h-4 w-4 text-success" />
                 <span>Ops-safe guardrails</span>
               </div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
-                <Sparkles className="h-4 w-4 text-[#38BDF8]" />
+                <Sparkles className="h-4 w-4 text-accent-secondary" />
                 <span>Ad-ready exports</span>
               </div>
             </div>
@@ -143,37 +142,11 @@ export function HeroSection({ content }: HeroSectionProps) {
         </div>
 
         <div className="relative">
-          <div className="absolute -top-12 -right-10 h-72 w-72 rounded-full bg-[#38BDF8]/10 blur-3xl" />
+          <div className="absolute -top-12 -right-10 h-72 w-72 rounded-full bg-accent-secondary/10 blur-3xl" />
           <FeatureShowcase />
         </div>
       </div>
     </section>
-  );
-}
-
-function MetricCard({ icon, label, value, caption }: { icon: ReactNode; label: string; value: string; caption: string }) {
-  return (
-    <div className="space-y-2 rounded-2xl border border-white/5 bg-white/5 p-4">
-      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-slate-400">
-        {icon}
-        {label}
-      </div>
-      <p className="text-3xl font-semibold text-white">{value}</p>
-      <p className="text-sm text-slate-300">{caption}</p>
-    </div>
-  );
-}
-
-function PlaybookStep({ icon, title, copy, index }: { icon: ReactNode; title: string; copy: string; index: number }) {
-  return (
-    <div className="space-y-2 rounded-2xl border border-white/5 bg-white/5 p-4">
-      <div className="flex items-center gap-2 text-sm font-semibold text-white">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-sm">{index}</span>
-        {icon}
-        {title}
-      </div>
-      <p className="text-sm text-slate-300">{copy}</p>
-    </div>
   );
 }
 
@@ -255,111 +228,6 @@ function PreviewContainer({
         </div>
       )}
     </div>
-  );
-}
-
-const AI_PROMPT = 'Log into Amazon and add the first search result for "wireless mouse" to cart';
-
-function AIPreview({ isActive }: { isActive: boolean }) {
-  const [displayedText, setDisplayedText] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedNodes, setGeneratedNodes] = useState<string[]>([]);
-  const timeoutRef = useRef<TimeoutRef>(null);
-
-  useEffect(() => {
-    if (!isActive) {
-      setDisplayedText('');
-      setIsGenerating(false);
-      setGeneratedNodes([]);
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      return;
-    }
-
-    let charIndex = 0;
-    const typeNextChar = () => {
-      if (charIndex < AI_PROMPT.length) {
-        setDisplayedText(AI_PROMPT.slice(0, charIndex + 1));
-        charIndex += 1;
-        timeoutRef.current = setTimeout(typeNextChar, 35);
-      } else {
-        timeoutRef.current = setTimeout(() => {
-          setIsGenerating(true);
-          const nodes = ['Navigate', 'Search', 'Click', 'Add to Cart'];
-          nodes.forEach((node, i) => {
-            timeoutRef.current = setTimeout(() => {
-              setGeneratedNodes((prev) => [...prev, node]);
-              if (i === nodes.length - 1) {
-                setTimeout(() => setIsGenerating(false), 300);
-              }
-            }, 400 * (i + 1));
-          });
-        }, 500);
-      }
-    };
-
-    timeoutRef.current = setTimeout(typeNextChar, 300);
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [isActive]);
-
-  return (
-    <PreviewContainer
-      headerText="ai-workflow-generator"
-      footerContent={
-        isGenerating ? (
-          <>
-            <Loader2 size={14} className="text-purple-400 animate-spin" />
-            <span className="text-xs text-flow-text-muted">Generating workflow...</span>
-          </>
-        ) : generatedNodes.length > 0 ? (
-          <>
-            <CheckCircle size={14} className="text-green-400" />
-            <span className="text-xs text-flow-text-muted">Workflow generated!</span>
-          </>
-        ) : (
-          <>
-            <Sparkles size={14} className="text-purple-400" />
-            <span className="text-xs text-flow-text-muted">Describe your automation...</span>
-          </>
-        )
-      }
-    >
-      <div className="mb-4">
-        <div className="flex items-start gap-3 p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
-          <Sparkles size={18} className="text-purple-400 mt-0.5 flex-shrink-0" />
-          <div className="flex-1 min-h-[24px]">
-            <span className="text-sm text-purple-200">{displayedText}</span>
-            {displayedText.length < AI_PROMPT.length && (
-              <span className="inline-block w-0.5 h-4 bg-purple-400 ml-0.5 animate-pulse" />
-            )}
-          </div>
-        </div>
-      </div>
-
-      {generatedNodes.length > 0 && (
-        <div className="flex items-center justify-center gap-2 flex-wrap">
-          {generatedNodes.map((node, index) => (
-            <Fragment key={node}>
-              <div
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/20 border border-purple-500/40 rounded-md animate-scale-in"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <span className="text-xs font-medium text-purple-300">{node}</span>
-              </div>
-              {index < generatedNodes.length - 1 && (
-                <ArrowRight size={14} className="text-purple-400/60 animate-fade-in" />
-              )}
-            </Fragment>
-          ))}
-        </div>
-      )}
-    </PreviewContainer>
   );
 }
 
@@ -521,14 +389,15 @@ function VisualBuilderPreview({ isActive }: { isActive: boolean }) {
     };
   }, [isActive]);
 
-  const getNodeColorClasses = (color: string) => {
+  const getNodeColorClasses = (color: string): { bg: string; border: string; text: string } => {
+    const defaultColors = { bg: 'bg-blue-500/20', border: 'border-blue-500/40', text: 'text-blue-300' };
     const colors: Record<string, { bg: string; border: string; text: string }> = {
       green: { bg: 'bg-green-500/20', border: 'border-green-500/40', text: 'text-green-300' },
-      blue: { bg: 'bg-blue-500/20', border: 'border-blue-500/40', text: 'text-blue-300' },
+      blue: defaultColors,
       purple: { bg: 'bg-purple-500/20', border: 'border-purple-500/40', text: 'text-purple-300' },
       emerald: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-300' },
     };
-    return colors[color] || colors.blue;
+    return colors[color] ?? defaultColors;
   };
 
   return (
@@ -688,30 +557,33 @@ function TestMonitorPreview({ isActive }: { isActive: boolean }) {
       </div>
 
       <div className="space-y-1 max-h-[85px] overflow-hidden">
-        {EXECUTION_STEPS.map((step, index) => (
-          <div
-            key={step.name}
-            className={`flex items-center justify-between px-2 py-1 rounded text-xs transition-colors ${
-              stepStatuses[index] === 'running' ? 'bg-blue-500/10' : ''
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              {getStatusIcon(stepStatuses[index])}
-              <span
-                className={`${
-                  stepStatuses[index] === 'passed'
-                    ? 'text-flow-text-secondary'
-                    : stepStatuses[index] === 'running'
-                      ? 'text-blue-300'
-                      : 'text-flow-text-muted'
-                }`}
-              >
-                {step.name}
-              </span>
+        {EXECUTION_STEPS.map((step, index) => {
+          const status = stepStatuses[index] ?? 'pending';
+          return (
+            <div
+              key={step.name}
+              className={`flex items-center justify-between px-2 py-1 rounded text-xs transition-colors ${
+                status === 'running' ? 'bg-blue-500/10' : ''
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {getStatusIcon(status)}
+                <span
+                  className={`${
+                    status === 'passed'
+                      ? 'text-flow-text-secondary'
+                      : status === 'running'
+                        ? 'text-blue-300'
+                        : 'text-flow-text-muted'
+                  }`}
+                >
+                  {step.name}
+                </span>
+              </div>
+              {status === 'passed' && <span className="text-flow-text-muted">{step.duration}</span>}
             </div>
-            {stepStatuses[index] === 'passed' && <span className="text-flow-text-muted">{step.duration}</span>}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </PreviewContainer>
   );
@@ -802,7 +674,10 @@ function FeatureShowcase({ onActiveIndexChange }: { onActiveIndexChange?: (index
   const handleMouseEnter = useCallback(() => setIsPaused(true), []);
   const handleMouseLeave = useCallback(() => setIsPaused(false), []);
 
-  const activeFeature = FEATURE_CONFIGS[activeIndex];
+  const activeFeature = FEATURE_CONFIGS[activeIndex] ?? FEATURE_CONFIGS[0];
+  if (!activeFeature) {
+    return null;
+  }
 
   const previews = [
     <RecordModePreview key="record" isActive={activeIndex === 0 && !isTransitioning} />,
@@ -840,31 +715,34 @@ function FeatureShowcase({ onActiveIndexChange }: { onActiveIndexChange?: (index
 }
 
 function getAccentClasses(color: string): string {
+  const defaultClass = 'text-blue-400 bg-blue-500/10 border border-blue-500/20';
   const classes: Record<string, string> = {
     purple: 'text-purple-400 bg-purple-500/10 border border-purple-500/20',
     red: 'text-red-400 bg-red-500/10 border border-red-500/20',
-    blue: 'text-blue-400 bg-blue-500/10 border border-blue-500/20',
+    blue: defaultClass,
     green: 'text-green-400 bg-green-500/10 border border-green-500/20',
   };
-  return classes[color] || classes.blue;
+  return classes[color] ?? defaultClass;
 }
 
 function getAccentDotClass(color: string): string {
+  const defaultClass = 'bg-blue-400';
   const classes: Record<string, string> = {
     purple: 'bg-purple-400',
     red: 'bg-red-400',
-    blue: 'bg-blue-400',
+    blue: defaultClass,
     green: 'bg-green-400',
   };
-  return classes[color] || classes.blue;
+  return classes[color] ?? defaultClass;
 }
 
 function getGlowClass(color: string): string {
+  const defaultClass = 'bg-gradient-to-r from-blue-500/20 via-cyan-500/20 to-blue-500/20';
   const classes: Record<string, string> = {
     purple: 'bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-purple-500/20',
     red: 'bg-gradient-to-r from-red-500/20 via-orange-500/20 to-red-500/20',
-    blue: 'bg-gradient-to-r from-blue-500/20 via-cyan-500/20 to-blue-500/20',
+    blue: defaultClass,
     green: 'bg-gradient-to-r from-green-500/20 via-emerald-500/20 to-green-500/20',
   };
-  return classes[color] || classes.blue;
+  return classes[color] ?? defaultClass;
 }

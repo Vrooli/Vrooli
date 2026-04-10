@@ -7,7 +7,7 @@
     {
       "id": "KO-HD-001",
       "title": "Dashboard UI framework",
-      "prd_ref": "OT-P0-006",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
       "description": "React + Vite UI with Matrix-style mission control aesthetic per PRD style guidelines",
       "validation": [
         {
@@ -23,7 +23,7 @@
     {
       "id": "KO-HD-002",
       "title": "Health metrics visualization",
-      "prd_ref": "OT-P0-006",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
       "description": "Real-time display of knowledge quality metrics with visual indicators and trends",
       "validation": [
         {
@@ -39,7 +39,7 @@
     {
       "id": "KO-HD-003",
       "title": "Interactive knowledge graph",
-      "prd_ref": "OT-P0-006",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
       "description": "Visual graph component showing concept relationships with interactivity (zoom, pan, click)",
       "validation": [
         {
@@ -55,7 +55,7 @@
     {
       "id": "KO-HD-004",
       "title": "Search interface",
-      "prd_ref": "OT-P0-006",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
       "description": "Search input with real-time results display and semantic similarity scores",
       "validation": [
         {
@@ -71,7 +71,7 @@
     {
       "id": "KO-HD-005",
       "title": "Dashboard accessibility",
-      "prd_ref": "OT-P0-006",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
       "description": "WCAG AA compliance with keyboard navigation support",
       "validation": [
         {
@@ -87,7 +87,7 @@
     {
       "id": "KO-HD-006",
       "title": "UI smoke test",
-      "prd_ref": "OT-P0-006",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
       "description": "Production bundle loads successfully with iframe bridge ready",
       "validation": [
         {

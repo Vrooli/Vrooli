@@ -1,0 +1,278 @@
+/**
+ * Pipeline controller - orchestrates pipeline business logic.
+ * Contains pure functions that can be called from hooks and components.
+ * No React imports - keeps business logic separate from React state.
+ */
+
+import type {
+  PipelineConfig,
+  BundlePreflightResponse,
+} from "../lib/api";
+import type { PipelineRunStatus } from "../store/pipelineTypes";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export type PipelineStageId = "bundle" | "preflight" | "generate" | "build" | "smoketest" | "deploy";
+
+export interface BuildPipelineConfigParams {
+  scenarioName: string;
+  templateType: string;
+  deploymentMode: "bundled" | "proxy";
+  proxyUrl?: string;
+  platforms: string[];
+  stopAfterStage?: PipelineStageId;
+  bundleManifestPath?: string;
+  preflightSecrets?: Record<string, string>;
+}
+
+export interface ValidationBeforeRunParams {
+  scenarioName: string | null;
+  isSubmitting: boolean;
+  isBundled: boolean;
+  bundleManifestPath?: string;
+}
+
+export interface ValidationBeforeRunResult {
+  valid: boolean;
+  error: string | null;
+}
+
+export interface EffectivePreflightParams {
+  storeResult: BundlePreflightResponse | null;
+  serverResult: BundlePreflightResponse | null | undefined;
+}
+
+export interface FormSubmissionParams {
+  scenarioName: string;
+  templateType: string;
+  deploymentMode: "bundled" | "proxy";
+  proxyUrl: string;
+  platforms: string[];
+  bundleManifestPath: string;
+  preflightSecrets?: Record<string, string>;
+}
+
+// ============================================================================
+// Pipeline Configuration
+// ============================================================================
+
+/**
+ * Build a pipeline config object from form/UI state.
+ * This is the canonical way to construct pipeline configs.
+ */
+export function buildPipelineConfig(params: BuildPipelineConfigParams): PipelineConfig {
+  const {
+    scenarioName,
+    templateType,
+    deploymentMode,
+    proxyUrl,
+    platforms,
+    stopAfterStage,
+    bundleManifestPath,
+    preflightSecrets,
+  } = params;
+
+  const config: PipelineConfig = {
+    scenario_name: scenarioName,
+    template_type: templateType,
+    deployment_mode: deploymentMode,
+    platforms,
+  };
+
+  if (stopAfterStage) {
+    config.stop_after_stage = stopAfterStage;
+  }
+
+  if (proxyUrl?.trim()) {
+    config.proxy_url = proxyUrl.trim();
+  }
+
+  if (bundleManifestPath?.trim()) {
+    config.bundle_manifest_path = bundleManifestPath.trim();
+  }
+
+  if (preflightSecrets && Object.keys(preflightSecrets).length > 0) {
+    // Filter out empty secrets
+    const filtered = Object.entries(preflightSecrets)
+      .filter(([, value]) => value.trim())
+      .reduce<Record<string, string>>((acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      }, {});
+    if (Object.keys(filtered).length > 0) {
+      config.preflight_secrets = filtered;
+    }
+  }
+
+  return config;
+}
+
+/**
+ * Build a config specifically for the generate stage.
+ */
+export function buildGenerateConfig(params: FormSubmissionParams): PipelineConfig {
+  return buildPipelineConfig({
+    ...params,
+    stopAfterStage: "generate",
+  });
+}
+
+// ============================================================================
+// Validation
+// ============================================================================
+
+/**
+ * Validate parameters before running a pipeline stage.
+ * Returns validation result with error message if invalid.
+ */
+export function validateBeforeRun(params: ValidationBeforeRunParams): ValidationBeforeRunResult {
+  const { scenarioName, isSubmitting, isBundled, bundleManifestPath } = params;
+
+  if (!scenarioName) {
+    return { valid: false, error: "No scenario selected" };
+  }
+
+  if (isSubmitting) {
+    return { valid: false, error: "A pipeline request is already in progress" };
+  }
+
+  if (isBundled && !bundleManifestPath?.trim()) {
+    return { valid: false, error: "Bundle manifest path is required for bundled mode" };
+  }
+
+  return { valid: true, error: null };
+}
+
+/**
+ * Check if we can proceed to generation based on preflight state.
+ */
+export function canProceedToGeneration(
+  preflightResult: BundlePreflightResponse | null,
+  preflightOverride: boolean,
+  missingSecretsCount: number
+): { canProceed: boolean; reason: string | null } {
+  if (preflightOverride) {
+    return { canProceed: true, reason: null };
+  }
+
+  if (!preflightResult) {
+    return { canProceed: false, reason: "Preflight validation has not been run" };
+  }
+
+  if (!preflightResult.validation?.valid) {
+    return { canProceed: false, reason: "Bundle validation failed" };
+  }
+
+  if (missingSecretsCount > 0) {
+    return { canProceed: false, reason: `Missing ${missingSecretsCount} required secret(s)` };
+  }
+
+  if (!preflightResult.ready?.ready) {
+    return { canProceed: false, reason: "Services are not ready" };
+  }
+
+  return { canProceed: true, reason: null };
+}
+
+// ============================================================================
+// Preflight Resolution
+// ============================================================================
+
+/**
+ * Get the effective preflight result, preferring store state over server state.
+ * This resolves the "which preflight result to use" question.
+ */
+export function getEffectivePreflightResult(
+  params: EffectivePreflightParams
+): BundlePreflightResponse | null {
+  const { storeResult, serverResult } = params;
+
+  // Store result takes priority (it's the most recent)
+  if (storeResult) {
+    return storeResult;
+  }
+
+  // Fall back to server state if available
+  if (serverResult) {
+    return serverResult;
+  }
+
+  return null;
+}
+
+/**
+ * Calculate effective preflight OK status based on result and missing secrets.
+ */
+export function getEffectivePreflightOk(
+  preflightResult: BundlePreflightResponse | null,
+  missingSecretsCount: number
+): boolean {
+  if (!preflightResult) {
+    return false;
+  }
+
+  return (
+    Boolean(preflightResult.validation?.valid) &&
+    Boolean(preflightResult.ready?.ready) &&
+    missingSecretsCount === 0
+  );
+}
+
+// ============================================================================
+// Polling Logic
+// ============================================================================
+
+/**
+ * Determine if polling should auto-start based on pipeline status.
+ */
+export function shouldAutoStartPolling(status: PipelineRunStatus | null): boolean {
+  if (!status) return false;
+  return status === "running" || status === "starting";
+}
+
+/**
+ * Determine if the pipeline is in a terminal state where polling should stop.
+ */
+export function isInTerminalState(status: PipelineRunStatus | null): boolean {
+  if (!status) return false;
+  return status === "completed" || status === "failed" || status === "cancelled";
+}
+
+// ============================================================================
+// Secret Filtering
+// ============================================================================
+
+/**
+ * Filter secrets to only include non-empty values.
+ */
+export function filterNonEmptySecrets(
+  secrets: Record<string, string> | undefined
+): Record<string, string> {
+  if (!secrets) return {};
+
+  return Object.entries(secrets)
+    .filter(([, value]) => value.trim())
+    .reduce<Record<string, string>>((acc, [key, value]) => {
+      acc[key] = value;
+      return acc;
+    }, {});
+}
+
+// ============================================================================
+// Form State Mapping
+// ============================================================================
+
+/**
+ * Map domain validation errors to form errors with field names.
+ */
+export function mapValidationErrorsToFormErrors(
+  errors: Array<{ id: string; message: string; field?: string }>
+): Array<{ field: string; message: string; code: string }> {
+  return errors.map((e) => ({
+    field: e.field || e.id,
+    message: e.message,
+    code: e.id,
+  }));
+}

@@ -1,0 +1,17 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-event-store/module.json",
+    "02-pub-sub/module.json",
+    "03-api/module.json",
+    "04-cli/module.json",
+    "05-ui-dashboard/module.json",
+    "06-policy/module.json",
+    "07-subscriptions/module.json",
+    "08-discovery-integration/module.json"
+  ]
+}

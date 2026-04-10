@@ -227,6 +227,17 @@ func (s *ExecutionState) CopyEnv() map[string]any {
 	return copyMap(s.env)
 }
 
+// HasInterpolatableValues returns true if any namespace (store, params, or env)
+// contains values that could be used for interpolation.
+func (s *ExecutionState) HasInterpolatableValues() bool {
+	if s == nil {
+		return false
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.store) > 0 || len(s.params) > 0 || len(s.env) > 0
+}
+
 // MarkEntryChecked marks that the entry selector check has been performed.
 func (s *ExecutionState) MarkEntryChecked() {
 	if s == nil {

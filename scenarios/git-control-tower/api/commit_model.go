@@ -5,9 +5,13 @@ import "time"
 // CommitRequest contains the parameters for creating a commit.
 // [REQ:GCT-OT-P0-005] Commit composition API
 type CommitRequest struct {
-	// Message is the commit message (required).
+	// Message is the commit message (required unless Amend uses no-edit).
 	// Should follow conventional commit format if ValidateConventional is true.
 	Message string `json:"message"`
+
+	// Amend updates the last commit instead of creating a new one.
+	// Only allowed when the last commit has not been pushed.
+	Amend bool `json:"amend,omitempty"`
 
 	// AuthorName overrides the commit author and committer name.
 	AuthorName string `json:"author_name,omitempty"`
@@ -30,6 +34,9 @@ type CommitResponse struct {
 
 	// Message is the commit message that was used.
 	Message string `json:"message,omitempty"`
+
+	// Amended indicates the operation amended the last commit.
+	Amended bool `json:"amended,omitempty"`
 
 	// ValidationErrors contains any commit message validation errors.
 	ValidationErrors []string `json:"validation_errors,omitempty"`

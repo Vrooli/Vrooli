@@ -6,7 +6,7 @@ Self-healing supervisor that bootstraps, monitors, and auto-repairs Vrooli infra
 
 vrooli-autoheal replaces the legacy bash-based autoheal cronjob with a cross-platform solution featuring:
 
-- **CLI commands** (`vrooli autoheal tick/loop/status`) for health management
+- **CLI commands** (`vrooli-autoheal tick/loop/status`) for health management
 - **Go API** for health status and configuration
 - **React dashboard** for visualization and monitoring
 - **OS-level watchdog** (systemd/launchd/Windows service) to keep autoheal running
@@ -21,22 +21,22 @@ vrooli scenario run vrooli-autoheal --setup
 make start   # or: vrooli scenario run vrooli-autoheal --dev
 
 # Check health status
-vrooli autoheal status
+vrooli-autoheal status
 
 # Run a single health cycle
-vrooli autoheal tick
+vrooli-autoheal tick
 
 # Run continuous health monitoring
-vrooli autoheal loop --interval-seconds=60
+vrooli-autoheal loop --interval-seconds=60
 ```
 
 ## CLI Commands
 
 | Command | Description |
 |---------|-------------|
-| `vrooli autoheal tick` | Single health cycle (bootstrap + checks + watchdog verify) |
-| `vrooli autoheal loop` | Continuous monitoring with configurable interval |
-| `vrooli autoheal status` | Show last-known health summary |
+| `vrooli-autoheal tick` | Single health cycle (bootstrap + checks + watchdog verify) |
+| `vrooli-autoheal loop` | Continuous monitoring with configurable interval |
+| `vrooli-autoheal status` | Show last-known health summary |
 
 ## Architecture
 
@@ -90,8 +90,9 @@ The system detects the current platform and capabilities:
 Health checks and monitored resources/scenarios are configured via:
 
 1. **Environment variables** (e.g., `VROOLI_AUTOHEAL_RESOURCES`, `VROOLI_AUTOHEAL_SCENARIOS`)
-2. **PostgreSQL** (runtime configuration)
-3. **Default values** for common checks
+2. **Local config file** (`~/.vrooli-autoheal/config.json`, override with `VROOLI_AUTOHEAL_CONFIG`)
+3. **SQLite** for persisted health history/action logs (default backend)
+4. **Default values** for common checks
 
 ## Testing
 
@@ -109,10 +110,10 @@ test-genie execute vrooli-autoheal --preset quick
 ## Documentation
 
 - [PRD.md](./PRD.md) - Operational targets and product requirements
-- [docs/PROGRESS.md](./docs/PROGRESS.md) - Development progress log
-- [docs/PROBLEMS.md](./docs/PROBLEMS.md) - Known issues and deferred work
-- [docs/RESEARCH.md](./docs/RESEARCH.md) - Background research and related scenarios
-- [requirements/](./requirements/) - Technical requirements registry
+- [docs/internal/PROGRESS.md](./docs/internal/PROGRESS.md) - Development progress log
+- [docs/internal/PROBLEMS.md](./docs/internal/PROBLEMS.md) - Known issues and deferred work
+- [docs/internal/RESEARCH.md](./docs/internal/RESEARCH.md) - Background research and related scenarios
+- [requirements/README.md](./requirements/README.md) - Technical requirements registry
 
 ## Related Scenarios
 

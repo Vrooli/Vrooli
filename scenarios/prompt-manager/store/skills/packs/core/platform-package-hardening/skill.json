@@ -1,0 +1,25 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "platform-package-hardening",
+  "name": "Platform Package Hardening",
+  "description": "Improve a shared package’s reliability, tests, docs, and output contracts without breaking downstream consumers.",
+  "modes": [
+    "platform",
+    "hardening"
+  ],
+  "tags": [
+    "platform",
+    "packages",
+    "testing",
+    "docs",
+    "compatibility"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "defaultScope": "platform-scope",
+  "revision": 1,
+  "createdAt": "2026-02-10T00:00:00Z",
+  "updatedAt": "2026-02-10T00:00:00Z"
+}
+

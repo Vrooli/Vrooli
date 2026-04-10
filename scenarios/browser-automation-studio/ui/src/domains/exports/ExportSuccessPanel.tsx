@@ -35,7 +35,7 @@ export const ExportSuccessPanel: React.FC<ExportSuccessPanelProps> = ({
     try {
       await navigator.clipboard.writeText(aiCaption);
       toast.success('Caption copied to clipboard');
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to copy caption');
     }
   }, [aiCaption]);
@@ -59,13 +59,15 @@ export const ExportSuccessPanel: React.FC<ExportSuccessPanelProps> = ({
         return;
       }
 
-      const data = await response.json();
-      if (data.caption) {
-        setAiCaption(data.caption);
-        await updateExport(export_.id, { aiCaption: data.caption });
+      const data: unknown = await response.json();
+      const caption =
+        data && typeof data === 'object' ? (data as Record<string, unknown>).caption : null;
+      if (typeof caption === 'string' && caption.length > 0) {
+        setAiCaption(caption);
+        await updateExport(export_.id, { aiCaption: caption });
         toast.success('Caption generated');
       }
-    } catch (error) {
+    } catch (_error) {
       // Fallback to placeholder
       const placeholderCaption = `Check out this ${export_.format.toUpperCase()} replay of "${export_.name}"! Created with Vrooli Ascension.`;
       setAiCaption(placeholderCaption);

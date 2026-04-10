@@ -18,7 +18,7 @@ export function ContinueSection({
   lastFailedExecution,
   actionableRequest,
   recentScenario,
-  hasHistory,
+  hasHistory: _hasHistory,
   onResumeDebugging,
   onRunQueuedTests,
   onContinueScenario,

@@ -24,8 +24,8 @@ func TestIntegration_AutoCampaignViaAPI(t *testing.T) {
 	defer srv.db.Close()
 
 	// Clean up any existing test campaigns
-	srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-%'")
-	defer srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-%'")
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-%'")
+	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'integration-test-%'") }()
 
 	testScenario := "integration-test-scenario-1"
 
@@ -67,7 +67,6 @@ func TestIntegration_AutoCampaignViaAPI(t *testing.T) {
 		FROM campaigns
 		WHERE id = $1
 	`, int(campaignID)).Scan(&dbStatus, &maxSessions, &maxFilesPerSession)
-
 	if err != nil {
 		t.Fatalf("Campaign not found in database: %v", err)
 	}
@@ -91,7 +90,6 @@ func TestIntegration_AutoCampaignViaAPI(t *testing.T) {
 		SET current_session = 2, files_visited = 6, status = 'active'
 		WHERE id = $1
 	`, int(campaignID))
-
 	if err != nil {
 		t.Fatalf("Failed to update campaign progress: %v", err)
 	}
@@ -151,8 +149,8 @@ func TestIntegration_CampaignLifecycleControls(t *testing.T) {
 	testScenario := "integration-test-lifecycle"
 
 	// Create campaign
-	srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
-	defer srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario) }()
 
 	var campaignID int
 	err = srv.db.QueryRow(`
@@ -160,7 +158,6 @@ func TestIntegration_CampaignLifecycleControls(t *testing.T) {
 		VALUES ($1, 'active', 10, 5)
 		RETURNING id
 	`, testScenario).Scan(&campaignID)
-
 	if err != nil {
 		t.Fatalf("Failed to create test campaign: %v", err)
 	}
@@ -213,13 +210,12 @@ func TestIntegration_CampaignLifecycleControls(t *testing.T) {
 		SET status = 'terminated', completed_at = NOW()
 		WHERE id = $1
 	`, campaignID)
-
 	if err != nil {
 		t.Errorf("Failed to terminate campaign: %v", err)
 	}
 
 	// Verify terminated status persists
-	srv.db.QueryRow("SELECT status FROM campaigns WHERE id = $1", campaignID).Scan(&status)
+	_ = srv.db.QueryRow("SELECT status FROM campaigns WHERE id = $1", campaignID).Scan(&status)
 	if status != "terminated" {
 		t.Errorf("Expected status 'terminated', got '%s'", status)
 	}
@@ -240,8 +236,8 @@ func TestIntegration_CampaignErrorHandling(t *testing.T) {
 	defer srv.db.Close()
 
 	testScenario := "integration-test-errors"
-	srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
-	defer srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	_, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario)
+	defer func() { _, _ = srv.db.Exec("DELETE FROM campaigns WHERE scenario = $1", testScenario) }()
 
 	// Create campaign
 	var campaignID int
@@ -250,7 +246,6 @@ func TestIntegration_CampaignErrorHandling(t *testing.T) {
 		VALUES ($1, 'active', 5, 0, NULL)
 		RETURNING id
 	`, testScenario).Scan(&campaignID)
-
 	if err != nil {
 		t.Fatalf("Failed to create campaign: %v", err)
 	}
@@ -262,7 +257,6 @@ func TestIntegration_CampaignErrorHandling(t *testing.T) {
 			SET error_count = $1, error_reason = $2, updated_at = NOW()
 			WHERE id = $3
 		`, i, "Simulated error during session execution", campaignID)
-
 		if err != nil {
 			t.Errorf("Failed to record error %d: %v", i, err)
 		}
@@ -278,7 +272,6 @@ func TestIntegration_CampaignErrorHandling(t *testing.T) {
 		FROM campaigns
 		WHERE id = $1
 	`, campaignID).Scan(&errorCount, &errorReason)
-
 	if err != nil {
 		t.Fatalf("Failed to query error tracking: %v", err)
 	}
@@ -298,7 +291,7 @@ func TestIntegration_CampaignErrorHandling(t *testing.T) {
 	const errorThreshold = 5
 
 	for i := errorCount + 1; i <= errorThreshold; i++ {
-		srv.db.Exec(`
+		_, _ = srv.db.Exec(`
 			UPDATE campaigns
 			SET error_count = $1
 			WHERE id = $2
@@ -308,7 +301,7 @@ func TestIntegration_CampaignErrorHandling(t *testing.T) {
 	// Verify campaign is terminated after exceeding threshold
 	// (This logic should be in the orchestrator, but we test the data flow)
 	var finalStatus string
-	srv.db.QueryRow("SELECT status FROM campaigns WHERE id = $1", campaignID).Scan(&finalStatus)
+	_ = srv.db.QueryRow("SELECT status FROM campaigns WHERE id = $1", campaignID).Scan(&finalStatus)
 
 	// Note: Auto-termination on error threshold may not be implemented yet
 	// So we just verify error tracking works

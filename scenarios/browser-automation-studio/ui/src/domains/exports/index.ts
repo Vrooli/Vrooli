@@ -43,6 +43,7 @@ export {
 // Main components
 export { default as ReplayPlayer } from "./replay/ReplayPlayer";
 export { ExportSuccessPanel } from "./ExportSuccessPanel";
+export { ExportDetailsModal } from "./ExportDetailsModal";
 export { ExportsTab } from "./ExportsTab";
 
 // Replay types, constants, and utilities

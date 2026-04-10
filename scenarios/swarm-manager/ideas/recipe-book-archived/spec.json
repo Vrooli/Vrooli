@@ -1,0 +1,27 @@
+{
+  "archived_at": "2026-02-05T21:22:12Z",
+  "created": "2026-02-05T21:22:12Z",
+  "description": "Intelligent household recipe management with AI-powered search, generation, and multi-tenant sharing",
+  "name": "recipe-book-archived",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "lifestyle",
+    "cooking",
+    "recipes",
+    "meal-planning",
+    "ai-search",
+    "semantic-search",
+    "multi-tenant",
+    "family-sharing",
+    "nutrition",
+    "go-api",
+    "postgres-storage",
+    "qdrant-vectors",
+    "ollama-generation",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] recipe-book",
+  "updated": "2026-02-05T21:22:12Z"
+}

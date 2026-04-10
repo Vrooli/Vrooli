@@ -59,9 +59,7 @@ func (s *Server) getStatsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// getAgentsHandler returns available agents (currently returns current provider configuration)
-// Note: This endpoint returns the configured AI provider, not a list of separate agents.
-// All issues are resolved using the unified workflow with the configured backend (codex or claude-code).
+// getAgentsHandler returns available agents (current agent-manager runner configuration).
 func (s *Server) getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 	settings := GetAgentSettings()
 
@@ -90,12 +88,12 @@ func (s *Server) getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 		successRate = float64(successfulRuns) / float64(totalRuns) * 100
 	}
 
-	// Return the current provider as the active agent
+	// Return the current runner as the active agent
 	agentList := []Agent{
 		{
 			ID:             agents.UnifiedResolverID, // Keep for backwards compatibility
-			Name:           settings.Provider,
-			DisplayName:    formatProviderDisplayName(settings.Provider),
+			Name:           settings.RunnerType,
+			DisplayName:    formatRunnerDisplayName(settings.RunnerType),
 			Description:    "AI agent that triages, investigates, and proposes fixes for issues",
 			Capabilities:   []string{"triage", "investigate", "fix", "test"},
 			IsActive:       true,
@@ -108,9 +106,9 @@ func (s *Server) getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 	response := ApiResponse{
 		Success: true,
 		Data: map[string]interface{}{
-			"agents":   agentList,
-			"count":    len(agentList),
-			"provider": settings.Provider, // Include actual provider for clarity
+			"agents": agentList,
+			"count":  len(agentList),
+			"runner": settings.RunnerType,
 		},
 	}
 
@@ -119,17 +117,19 @@ func (s *Server) getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// formatProviderDisplayName converts provider ID to human-readable name
-func formatProviderDisplayName(provider string) string {
-	switch provider {
+// formatRunnerDisplayName converts runner ID to human-readable name
+func formatRunnerDisplayName(runnerType string) string {
+	switch runnerType {
 	case "codex":
-		return "Codex Agent"
+		return "Codex Runner"
 	case "claude-code":
-		return "Claude Code Agent"
+		return "Claude Code Runner"
+	case "opencode":
+		return "OpenCode Runner"
 	default:
-		// Title case the provider name
+		// Title case the runner name
 		caser := cases.Title(language.English)
-		return caser.String(strings.ReplaceAll(provider, "-", " ")) + " Agent"
+		return caser.String(strings.ReplaceAll(runnerType, "-", " ")) + " Runner"
 	}
 }
 
@@ -180,7 +180,7 @@ func (s *Server) getAppsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// getAgentSettingsHandler returns the current agent backend settings with constraints
+// getAgentSettingsHandler returns the current agent-manager settings with constraints
 func (s *Server) getAgentSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	settingsPath := filepath.Join(s.config.ScenarioRoot, "initialization/configuration/agent-settings.json")
 
@@ -205,7 +205,7 @@ func (s *Server) getAgentSettingsHandler(w http.ResponseWriter, r *http.Request)
 	response := ApiResponse{
 		Success: true,
 		Data: map[string]interface{}{
-			"settings":    settings,
+			"settings":    settings["agent_manager"],
 			"constraints": constraints,
 		},
 	}
@@ -238,11 +238,10 @@ func (s *Server) getIssueStatusesHandler(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-// updateAgentSettingsHandler updates agent backend settings
+// updateAgentSettingsHandler updates agent-manager settings
 func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Provider        string  `json:"provider"`
-		AutoFallback    bool    `json:"auto_fallback"`
+		RunnerType      string  `json:"runner_type"`
 		TimeoutSeconds  *int    `json:"timeout_seconds"`  // Optional timeout update
 		MaxTurns        *int    `json:"max_turns"`        // Optional max turns update
 		AllowedTools    *string `json:"allowed_tools"`    // Optional allowed tools update
@@ -254,15 +253,15 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Validate provider if provided
-	if req.Provider != "" {
-		validProviders := map[string]bool{
-			"codex":       true,
+	// Validate runner_type if provided
+	if req.RunnerType != "" {
+		validRunner := map[string]bool{
 			"claude-code": true,
+			"codex":       true,
+			"opencode":    true,
 		}
-
-		if !validProviders[req.Provider] {
-			handlers.WriteError(w, http.StatusBadRequest, "Invalid provider. Must be 'codex' or 'claude-code'")
+		if !validRunner[req.RunnerType] {
+			handlers.WriteError(w, http.StatusBadRequest, "Invalid runner_type. Must be 'claude-code', 'codex', or 'opencode'")
 			return
 		}
 	}
@@ -302,69 +301,27 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	agentBackendMap, _ := settings["agent_backend"].(map[string]interface{})
-	if agentBackendMap == nil {
-		agentBackendMap = map[string]interface{}{}
-		settings["agent_backend"] = agentBackendMap
+	agentManagerMap, _ := settings["agent_manager"].(map[string]interface{})
+	if agentManagerMap == nil {
+		agentManagerMap = map[string]interface{}{}
+		settings["agent_manager"] = agentManagerMap
 	}
 
-	// Ensure fallback order exists for new configurations
-	if _, ok := agentBackendMap["fallback_order"]; !ok {
-		agentBackendMap["fallback_order"] = []string{"codex", "claude-code"}
+	if req.RunnerType != "" {
+		agentManagerMap["runner_type"] = req.RunnerType
 	}
-
-	// Determine current provider and apply updates
-	currentProvider := "claude-code"
-	if provider, ok := agentBackendMap["provider"].(string); ok && provider != "" {
-		currentProvider = provider
+	if req.TimeoutSeconds != nil && *req.TimeoutSeconds > 0 {
+		agentManagerMap["timeout_seconds"] = *req.TimeoutSeconds
 	}
-
-	if req.Provider != "" {
-		agentBackendMap["provider"] = req.Provider
-		currentProvider = req.Provider
+	if req.MaxTurns != nil && *req.MaxTurns > 0 {
+		agentManagerMap["max_turns"] = *req.MaxTurns
 	}
-
-	agentBackendMap["auto_fallback"] = req.AutoFallback
+	if req.AllowedTools != nil {
+		trimmed := strings.TrimSpace(*req.AllowedTools)
+		agentManagerMap["allowed_tools"] = trimmed
+	}
 	if req.SkipPermissions != nil {
-		agentBackendMap["skip_permissions"] = *req.SkipPermissions
-	}
-
-	targetProvider := currentProvider
-
-	// Update provider operation settings if provided
-	if req.TimeoutSeconds != nil || req.MaxTurns != nil || req.AllowedTools != nil {
-		if providers, ok := settings["providers"].(map[string]interface{}); ok {
-			if providerConfig, ok := providers[targetProvider].(map[string]interface{}); ok {
-				if operations, ok := providerConfig["operations"].(map[string]interface{}); ok {
-					for _, opKey := range []string{"investigate", "fix"} {
-						opMap, ok := operations[opKey].(map[string]interface{})
-						if !ok {
-							continue
-						}
-
-						if req.TimeoutSeconds != nil && *req.TimeoutSeconds > 0 {
-							opMap["timeout_seconds"] = *req.TimeoutSeconds
-							logging.LogInfo(
-								"Updated agent timeout",
-								"provider", targetProvider,
-								"operation", opKey,
-								"timeout_seconds", *req.TimeoutSeconds,
-								"timeout_minutes", *req.TimeoutSeconds/60,
-							)
-						}
-						if req.MaxTurns != nil && *req.MaxTurns > 0 {
-							opMap["max_turns"] = *req.MaxTurns
-							logging.LogInfo("Updated agent max turns", "provider", targetProvider, "operation", opKey, "max_turns", *req.MaxTurns)
-						}
-						if req.AllowedTools != nil {
-							trimmed := strings.TrimSpace(*req.AllowedTools)
-							opMap["allowed_tools"] = trimmed
-							logging.LogInfo("Updated agent allowed tools", "provider", targetProvider, "operation", opKey, "allowed_tools", trimmed)
-						}
-					}
-				}
-			}
-		}
+		agentManagerMap["skip_permissions"] = *req.SkipPermissions
 	}
 
 	// Write back to file with proper formatting
@@ -381,20 +338,24 @@ func (s *Server) updateAgentSettingsHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// CRITICAL: Reload settings into memory so changes take effect immediately
+	// Reload settings into memory so changes take effect immediately
 	if err := ReloadAgentSettings(); err != nil {
 		logging.LogErrorErr("Failed to reload agent settings", err)
 		handlers.WriteError(w, http.StatusInternalServerError, "Failed to reload agent settings")
 		return
 	}
 
-	logging.LogInfo("Agent settings updated", "provider", targetProvider, "auto_fallback", req.AutoFallback)
+	if err := s.updateAgentManagerProfile(); err != nil {
+		logging.LogWarn("Failed to update agent-manager profile", "error", err)
+	}
+
+	logging.LogInfo("Agent settings updated", "runner_type", req.RunnerType)
 
 	response := ApiResponse{
 		Success: true,
 		Message: "Agent settings updated successfully",
 		Data: map[string]interface{}{
-			"agent_backend": settings["agent_backend"],
+			"agent_manager": settings["agent_manager"],
 		},
 	}
 

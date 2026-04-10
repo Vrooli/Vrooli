@@ -1,0 +1,22 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/**"
+  ],
+  "archived_at": "2026-04-09T13:16:17Z",
+  "created": "2026-04-08T04:13:26Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Dimension: codeQuality (score 0/100, violations 379). Readiness: yellow.\nTop issues: complex_functions=107, long_files=48, tech_debt_markers=3, lint_issues=1.\n\nTop affected files (tidiness-manager recommend-refactors):\n- scenarios/swarm-manager/api/internal/backlog/handler_update_test.go (line_count 472, complexity_max 8)\n- scenarios/swarm-manager/api/internal/eventlog/emitter.go (line_count 244, complexity_max 4)\n- scenarios/swarm-manager/api/internal/settings/normalize_test.go (line_count 136, complexity_max 3)\n- scenarios/swarm-manager/api/internal/backlog/validation_test.go (line_count 100, complexity_max 4)\n- scenarios/swarm-manager/api/internal/queue/encode_error_test.go (line_count 39, complexity_max 4)\n\nWorst violation example: api/internal/backlog/handler_update_test.go at 472 lines with complexity_max 8 (long file + complex functions).\n\nSuccess target: code quality score \u003e=70; complex_functions \u003c20; long_files \u003c10; tech_debt_markers=0.\n\nRepro: git-control-tower review-run swarm-manager --json\nTidiness detail: tidiness-manager recommend-refactors swarm-manager --limit 10 --format json\n\nContract:\ntargetScenario: swarm-manager\nproblemOrOpportunity: Code quality score is 0 with heavy counts of complex functions and long files.\nproposedAction: Refactor top priority files to reduce complexity and length, then re-scan.\nevidence: GCT review job 14ca47e3-0748-4480-931e-cf7970a3f481 plus tidiness-manager recommendations for file-level metrics.\nriskLevel: medium\nexecutionModeHint: execute\ncreatedByTeam: scenario-qa\nsourceRunId: 14ca47e3-0748-4480-931e-cf7970a3f481",
+  "kind": "execute",
+  "name": "qa-swarm-manager-code-quality-20260408",
+  "priority": 2,
+  "status": "failed",
+  "tags": [
+    "preemptive-qa",
+    "swarm-manager",
+    "code-quality"
+  ],
+  "title": "Reduce code quality violations in swarm-manager",
+  "updated": "2026-04-09T13:16:17Z"
+}

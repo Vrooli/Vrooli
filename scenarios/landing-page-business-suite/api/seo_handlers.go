@@ -6,74 +6,79 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/gorilla/mux"
 )
 
 // handleGetVariantSEO returns merged SEO config for a variant
 func handleGetVariantSEO(seoService *SEOService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		slug := vars["slug"]
-
-		if slug == "" {
-			http.Error(w, "variant slug required", http.StatusBadRequest)
+		slug, ok := getPathParam(r, "slug")
+		if !ok || slug == "" {
+			writeJSONError(w, http.StatusBadRequest, "variant slug required", ApiErrorTypeValidation)
 			return
 		}
 
 		response, err := seoService.VariantSEO(slug)
 		if err != nil {
 			status := http.StatusInternalServerError
+			errType := ApiErrorTypeServerError
 			if strings.Contains(err.Error(), "not found") {
 				status = http.StatusNotFound
+				errType = ApiErrorTypeNotFound
 			}
 			logStructuredError("get_variant_seo_failed", map[string]interface{}{
 				"slug":  slug,
 				"error": err.Error(),
 			})
-			http.Error(w, "failed to get SEO configuration", status)
+			writeJSONError(w, status, "failed to get SEO configuration", errType)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		writeJSONSuccessData(w, response)
 	}
 }
 
-// handleUpdateVariantSEO updates SEO config for a variant
-func handleUpdateVariantSEO(variantService *VariantService) http.HandlerFunc {
+// NOTE: handleUpdateVariantSEO (database-backed VariantService) has been removed.
+// Variant SEO config is now stored in JSON files (.vrooli/variants/*.json) and accessed via ConfigStore.
+
+// handleUpdateVariantSEOConfigStore updates SEO config for a variant via ConfigStore
+func handleUpdateVariantSEOConfigStore(cs *ConfigStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		slug := vars["slug"]
-
-		if slug == "" {
-			http.Error(w, "variant slug required", http.StatusBadRequest)
+		slug, ok := getPathParam(r, "slug")
+		if !ok || slug == "" {
+			writeJSONError(w, http.StatusBadRequest, "variant slug required", ApiErrorTypeValidation)
 			return
 		}
 
-		var seoConfig VariantSEOConfig
-		if err := json.NewDecoder(r.Body).Decode(&seoConfig); err != nil {
-			http.Error(w, "invalid request body", http.StatusBadRequest)
+		var seoConfig json.RawMessage
+		if !decodeJSONBody(w, r, &seoConfig) {
 			return
 		}
 
-		if err := variantService.UpdateSEOConfigBySlug(slug, seoConfig); err != nil {
+		// Get existing variant
+		variant, err := cs.GetVariant(slug)
+		if err != nil {
 			logStructuredError("update_variant_seo_failed", map[string]interface{}{
 				"slug":  slug,
 				"error": err.Error(),
 			})
-			status := http.StatusInternalServerError
-			if strings.Contains(strings.ToLower(err.Error()), "not found") {
-				status = http.StatusNotFound
-			} else if strings.Contains(err.Error(), "slug") {
-				status = http.StatusBadRequest
-			}
-			http.Error(w, "failed to update SEO config", status)
+			writeJSONError(w, http.StatusNotFound, "variant not found", ApiErrorTypeNotFound)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		// Update SEO config
+		variant.Variant.SEOConfig = seoConfig
+
+		// Save variant
+		if err := cs.SaveVariant(slug, variant); err != nil {
+			logStructuredError("update_variant_seo_save_failed", map[string]interface{}{
+				"slug":  slug,
+				"error": err.Error(),
+			})
+			writeJSONError(w, http.StatusInternalServerError, "failed to save SEO config", ApiErrorTypeServerError)
+			return
+		}
+
+		writeJSONSuccessData(w, map[string]interface{}{
 			"success":    true,
 			"updated_at": time.Now().UTC().Format(time.RFC3339),
 		})
@@ -92,12 +97,16 @@ func handleSitemapXML(seoService *SEOService) http.HandlerFunc {
 		sitemap, err := seoService.SitemapXML(fallbackBase)
 		if err != nil {
 			logStructuredError("sitemap_generate_failed", map[string]interface{}{"error": err.Error()})
-			http.Error(w, "internal error", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "internal error", ApiErrorTypeServerError)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
-		w.Write([]byte(sitemap))
+		if _, err := w.Write([]byte(sitemap)); err != nil {
+			logStructuredError("sitemap_write_failed", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
 	}
 }
 
@@ -117,6 +126,10 @@ func handleRobotsTXT(seoService *SEOService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Write([]byte(robotsTxt))
+		if _, err := w.Write([]byte(robotsTxt)); err != nil {
+			logStructuredError("robots_write_failed", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
 	}
 }

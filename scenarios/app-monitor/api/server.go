@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,9 +15,12 @@ import (
 	"app-monitor-api/middleware"
 	"app-monitor-api/repository"
 	"app-monitor-api/services"
+	"app-monitor-api/toolexecution"
+	"app-monitor-api/toolregistry"
 
 	"github.com/gin-gonic/gin"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/storage"
 )
 
 // Server holds all server dependencies
@@ -28,11 +32,14 @@ type Server struct {
 
 // Handlers holds all handler instances
 type Handlers struct {
-	app        *handlers.AppHandler
-	system     *handlers.SystemHandler
-	docker     *handlers.DockerHandler
-	websocket  *handlers.WebSocketHandler
-	lighthouse *handlers.LighthouseHandler
+	app           *handlers.AppHandler
+	system        *handlers.SystemHandler
+	docker        *handlers.DockerHandler
+	websocket     *handlers.WebSocketHandler
+	lighthouse    *handlers.LighthouseHandler
+	tools         *handlers.ToolsHandler
+	toolExecution *toolexecution.Handler
+	presets       *handlers.PresetHandler
 }
 
 // NewServer creates and configures a new server instance
@@ -66,13 +73,54 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	appService := services.NewAppService(appRepo)
 	metricsService := services.NewMetricsService()
 
+	// Create storage resolver for filesystem-based repositories
+	storageResolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		log.Printf("Warning: Storage resolver init failed: %v", err)
+	}
+
+	// Create preset repository and service (filesystem-based, independent of DB)
+	var presetRepo repository.WorkspacePresetRepository
+	if storageResolver != nil {
+		presetRepo = repository.NewFilePresetRepository(storageResolver)
+	}
+	presetService := services.NewPresetService(presetRepo)
+
+	// Initialize Tool Discovery Protocol registry
+	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
+		ScenarioName:        "app-monitor",
+		ScenarioVersion:     "1.0.0",
+		ScenarioDescription: "Centralized monitoring and control dashboard for the Vrooli ecosystem",
+	})
+
+	// Register all tool providers
+	toolReg.RegisterProvider(toolregistry.NewDiscoveryToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewLifecycleToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewDiagnosticsToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewLogsMetricsToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewIssueToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewDocsToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewResourceToolProvider())
+
+	// Create tool executor
+	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
+		AppService:     appService,
+		MetricsService: metricsService,
+	})
+
 	// Create handlers
 	handlers := &Handlers{
-		app:        handlers.NewAppHandler(appService),
-		system:     handlers.NewSystemHandler(metricsService),
-		docker:     handlers.NewDockerHandler(docker),
-		websocket:  handlers.NewWebSocketHandler(middleware.SecureWebSocketUpgrader(), redis),
-		lighthouse: handlers.NewLighthouseHandler(),
+		app:           handlers.NewAppHandler(appService),
+		system:        handlers.NewSystemHandler(metricsService),
+		docker:        handlers.NewDockerHandler(docker),
+		websocket:     handlers.NewWebSocketHandler(middleware.SecureWebSocketUpgrader(), redis),
+		lighthouse:    handlers.NewLighthouseHandler(),
+		tools:         handlers.NewToolsHandler(toolReg),
+		toolExecution: toolexecution.NewHandler(toolExecutor),
+		presets:       handlers.NewPresetHandler(presetService),
 	}
 
 	// Setup router
@@ -86,7 +134,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 }
 
 // setupRouter configures all routes and middleware
-func setupRouter(h *Handlers, cfg *config.Config, db interface{ Ping() error }) *gin.Engine {
+func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 	// Set Gin mode based on environment
 	if os.Getenv("ENV") == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -103,7 +151,7 @@ func setupRouter(h *Handlers, cfg *config.Config, db interface{ Ping() error }) 
 	// Optional rate limiting
 	if rateLimit := os.Getenv("RATE_LIMIT_PER_MINUTE"); rateLimit != "" {
 		var limit int
-		fmt.Sscanf(rateLimit, "%d", &limit)
+		_, _ = fmt.Sscanf(rateLimit, "%d", &limit)
 		if limit > 0 {
 			r.Use(middleware.RateLimiting(limit))
 		}
@@ -142,6 +190,7 @@ func setupRouter(h *Handlers, cfg *config.Config, db interface{ Ping() error }) 
 		v1.GET("/apps/:id/diagnostics/status", h.app.GetAppScenarioStatus)
 		v1.GET("/apps/:id/diagnostics/health", h.app.CheckAppHealth)
 		v1.GET("/apps/:id/diagnostics/localhost", h.app.CheckAppLocalhostUsage)
+		v1.GET("/apps/:id/diagnostics/interop", h.app.CheckAppInteropCompliance)
 		v1.GET("/apps/:id/completeness", h.app.GetAppCompleteness)
 		v1.GET("/apps/:id/docs", h.app.GetAppDocuments)
 		v1.GET("/apps/:id/docs/*path", h.app.GetAppDocument)
@@ -150,6 +199,12 @@ func setupRouter(h *Handlers, cfg *config.Config, db interface{ Ping() error }) 
 		v1.GET("/apps/:id/logs/lifecycle", h.app.GetAppLifecycleLogs)
 		v1.GET("/apps/:id/logs/background", h.app.GetAppBackgroundLogs)
 		v1.GET("/apps/:id/metrics", h.app.GetAppMetrics)
+
+		// Rules metadata endpoint
+		v1.GET("/rules", h.app.GetRuleDefs)
+
+		// Quality endpoints (scenario-auditor consumption)
+		v1.GET("/quality/scenario/:name/standards", h.app.GetInteropStandards)
 
 		// Log endpoints for scenarios using app name
 		v1.GET("/logs/:appName", h.app.GetAppLogs)
@@ -170,6 +225,18 @@ func setupRouter(h *Handlers, cfg *config.Config, db interface{ Ping() error }) 
 		v1.POST("/scenarios/:scenario/lighthouse/run", h.lighthouse.RunLighthouse)
 		v1.GET("/scenarios/:scenario/lighthouse/history", h.lighthouse.GetLighthouseHistory)
 		v1.GET("/scenarios/:scenario/lighthouse/report/:reportId", h.lighthouse.GetLighthouseReport)
+
+		// Workspace preset endpoints
+		v1.GET("/workspace/presets", h.presets.ListPresets)
+		v1.GET("/workspace/presets/:id", h.presets.GetPreset)
+		v1.POST("/workspace/presets", h.presets.CreatePreset)
+		v1.PUT("/workspace/presets/:id", h.presets.UpdatePreset)
+		v1.DELETE("/workspace/presets/:id", h.presets.DeletePreset)
+
+		// Tool Discovery Protocol endpoints
+		v1.GET("/tools", h.tools.GetManifest)
+		v1.GET("/tools/:name", h.tools.GetTool)
+		v1.POST("/tools/execute", h.toolExecution.Execute)
 	}
 
 	// WebSocket endpoint
@@ -211,6 +278,7 @@ func (s *Server) Run() error {
 	// Start server
 	log.Printf("🚀 App Monitor API server starting on port %s", s.config.API.Port)
 	log.Printf("📊 API endpoints available at http://localhost:%s/api/v1", s.config.API.Port)
+	log.Printf("🔧 Tool Discovery Protocol available at http://localhost:%s/api/v1/tools", s.config.API.Port)
 
 	err := srv.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {

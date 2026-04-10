@@ -138,6 +138,7 @@ func setupTestServerNoData(t *testing.T) *Server {
 		srv.persistDetailedFileMetrics,
 		srv.persistFileMetrics,
 		srv.store.StoreLintTypeIssues,
+		srv.store.ResolveStaleMetricIssues,
 		srv.storeAIIssue,
 		srv.recordScanHistory,
 	)
@@ -153,7 +154,6 @@ func insertTestIssue(t *testing.T, db *sql.DB, scenario, filePath, category, sev
 			scenario, file_path, category, severity, title, description, status, created_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`, scenario, filePath, category, severity, title, description, "open", time.Now())
-
 	if err != nil {
 		t.Fatalf("Failed to insert test issue: %v", err)
 	}
@@ -166,7 +166,7 @@ func setupTestDir(t *testing.T, subDir string) (rootDir, targetDir string) {
 	t.Helper()
 	rootDir = t.TempDir()
 	targetDir = filepath.Join(rootDir, subDir)
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
 		t.Fatalf("Failed to create directory %s: %v", targetDir, err)
 	}
 	return rootDir, targetDir
@@ -175,10 +175,10 @@ func setupTestDir(t *testing.T, subDir string) (rootDir, targetDir string) {
 // writeTestFile writes content to a file path, creating parent dirs as needed
 func writeTestFile(t *testing.T, path, content string) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("Failed to create directory for %s: %v", path, err)
 	}
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to write file %s: %v", path, err)
 	}
 }

@@ -1,0 +1,22 @@
+{
+  "acceptance_allow": [
+    "scenarios/scenario-to-desktop/**"
+  ],
+  "archived_at": "2026-04-09T01:06:12Z",
+  "created": "2026-04-07T22:10:38Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "GCT code quality score 0 with 500 violations (long_files, complex_functions, lint_issues).",
+  "kind": "execute",
+  "name": "qa-scenario-to-desktop-code-quality-20260407",
+  "priority": 2,
+  "status": "failed",
+  "tags": [
+    "preemptive-qa",
+    "scenario-to-desktop",
+    "code-quality"
+  ],
+  "title": "Improve scenario-to-desktop code quality",
+  "updated": "2026-04-09T01:06:12Z"
+}

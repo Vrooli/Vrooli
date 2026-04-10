@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"test-genie/agentmanager"
 	"test-genie/internal/execution"
@@ -25,6 +26,8 @@ import (
 	"test-genie/internal/queue"
 	"test-genie/internal/requirementsimprove"
 	"test-genie/internal/scenarios"
+	"test-genie/internal/toolexecution"
+	"test-genie/internal/toolregistry"
 )
 
 // Config controls the HTTP transport settings.
@@ -45,6 +48,7 @@ type Dependencies struct {
 	SuiteQueue                 suiteRequestQueue
 	Executions                 execution.ExecutionHistory
 	ExecutionSvc               suiteExecutor
+	ExecutionPlanner           executionPlanner
 	Scenarios                  scenarioDirectory
 	PhaseCatalog               phaseCatalog
 	AgentService               *agentmanager.AgentService
@@ -52,6 +56,9 @@ type Dependencies struct {
 	RequirementsImproveService requirementsImproveService
 	RequirementsSyncer         requirementsSyncer
 	Logger                     Logger
+	// Tool Discovery Protocol support
+	ToolRegistry *toolregistry.Registry
+	ToolHandler  *toolexecution.Handler
 }
 
 type suiteRequestQueue interface {
@@ -66,11 +73,15 @@ type suiteExecutor interface {
 	ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error)
 }
 
+type executionPlanner interface {
+	Preview(ctx context.Context, req orchestrator.SuiteExecutionRequest) (*execution.ExecutionPlanPreview, error)
+}
+
 type scenarioDirectory interface {
 	ListSummaries(ctx context.Context) ([]scenarios.ScenarioSummary, error)
 	GetSummary(ctx context.Context, name string) (*scenarios.ScenarioSummary, error)
-	RunScenarioTests(ctx context.Context, name string, preferred string, extraArgs []string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error)
-	RunUISmoke(ctx context.Context, name string, uiURL string, browserlessURL string, timeoutMs int64) (*scenarios.UISmokeResult, error)
+	RunScenarioTests(ctx context.Context, name string, preferred string, extraArgs []string, scenarioDirOverride string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error)
+	RunUISmoke(ctx context.Context, name string, uiURL string, browserlessURL string, timeoutMs int64, scenarioDirOverride string) (*scenarios.UISmokeResult, error)
 	RunUISmokeWithOpts(ctx context.Context, name string, opts scenarios.UISmokeOptions) (*scenarios.UISmokeResult, error)
 	ListFiles(ctx context.Context, name string, opts scenarios.FileListOptions) ([]scenarios.FileNode, error)
 	ListFilesWithMeta(ctx context.Context, name string, opts scenarios.FileListOptions) (scenarios.FileListResult, error)
@@ -113,6 +124,7 @@ type Server struct {
 	suiteRequests              suiteRequestQueue
 	executionHistory           execution.ExecutionHistory
 	executionSvc               suiteExecutor
+	executionPlanner           executionPlanner
 	scenarios                  scenarioDirectory
 	phaseCatalog               phaseCatalog
 	logger                     Logger
@@ -123,6 +135,9 @@ type Server struct {
 	seedSessions               map[string]*seedSession
 	seedSessionsByScenario     map[string]string
 	seedSessionsMu             sync.Mutex
+	// Tool Discovery Protocol support
+	toolRegistry *toolregistry.Registry
+	toolHandler  *toolexecution.Handler
 }
 
 // New creates a configured HTTP server instance.
@@ -141,6 +156,9 @@ func New(config Config, deps Dependencies) (*Server, error) {
 	}
 	if deps.ExecutionSvc == nil {
 		return nil, fmt.Errorf("execution service is required")
+	}
+	if deps.ExecutionPlanner == nil {
+		return nil, fmt.Errorf("execution planner is required")
 	}
 	if deps.Scenarios == nil {
 		return nil, fmt.Errorf("scenario directory service is required")
@@ -164,6 +182,7 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		suiteRequests:              deps.SuiteQueue,
 		executionHistory:           deps.Executions,
 		executionSvc:               deps.ExecutionSvc,
+		executionPlanner:           deps.ExecutionPlanner,
 		scenarios:                  deps.Scenarios,
 		phaseCatalog:               deps.PhaseCatalog,
 		logger:                     logger,
@@ -173,6 +192,8 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		requirementsSyncer:         deps.RequirementsSyncer,
 		seedSessions:               make(map[string]*seedSession),
 		seedSessionsByScenario:     make(map[string]string),
+		toolRegistry:               deps.ToolRegistry,
+		toolHandler:                deps.ToolHandler,
 	}
 
 	srv.setupRoutes()
@@ -194,6 +215,7 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/phases/settings", s.handleGetPhaseSettings).Methods("GET")
 	apiRouter.HandleFunc("/phases/settings", s.handleUpdatePhaseSettings).Methods("PUT")
 	apiRouter.HandleFunc("/executions", s.handleExecuteSuite).Methods("POST")
+	apiRouter.HandleFunc("/executions/plan", s.handlePreviewExecutionPlan).Methods("POST")
 	apiRouter.HandleFunc("/executions/stream", s.handleExecuteSuiteStream).Methods("POST")
 	apiRouter.HandleFunc("/executions", s.handleListExecutions).Methods("GET")
 	apiRouter.HandleFunc("/executions/{id}", s.handleGetExecution).Methods("GET")
@@ -238,6 +260,15 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/active", s.handleGetActiveRequirementsImprove).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/{id}", s.handleGetRequirementsImprove).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/{id}/stop", s.handleStopRequirementsImprove).Methods("POST")
+
+	// Tool Discovery Protocol routes
+	if s.toolRegistry != nil {
+		apiRouter.HandleFunc("/tools", s.handleGetToolManifest).Methods("GET", "OPTIONS")
+		apiRouter.HandleFunc("/tools/{name}", s.handleGetTool).Methods("GET", "OPTIONS")
+	}
+	if s.toolHandler != nil {
+		apiRouter.HandleFunc("/tools/execute", s.toolHandler.Execute).Methods("POST", "OPTIONS")
+	}
 }
 
 // Start launches the HTTP server with graceful shutdown.
@@ -310,4 +341,61 @@ func (s *Server) serviceName() string {
 		return "Test Genie API"
 	}
 	return name
+}
+
+// -----------------------------------------------------------------------------
+// Tool Discovery Protocol Handlers
+// -----------------------------------------------------------------------------
+
+// handleGetToolManifest returns the complete tool manifest for test-genie.
+func (s *Server) handleGetToolManifest(w http.ResponseWriter, r *http.Request) {
+	if s.toolRegistry == nil {
+		http.Error(w, "tool registry not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	manifest := s.toolRegistry.GetManifest(r.Context())
+
+	w.Header().Set("Content-Type", "application/json")
+	marshaler := protojson.MarshalOptions{
+		EmitUnpopulated: true,
+		UseProtoNames:   false,
+	}
+	data, err := marshaler.Marshal(manifest)
+	if err != nil {
+		http.Error(w, "failed to marshal manifest", http.StatusInternalServerError)
+		return
+	}
+	if _, err := w.Write(data); err != nil {
+		s.log("failed to write tool manifest response", map[string]interface{}{"error": err.Error()})
+	}
+}
+
+// handleGetTool returns a specific tool by name.
+func (s *Server) handleGetTool(w http.ResponseWriter, r *http.Request) {
+	if s.toolRegistry == nil {
+		http.Error(w, "tool registry not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	name := mux.Vars(r)["name"]
+	tool := s.toolRegistry.GetTool(r.Context(), name)
+	if tool == nil {
+		http.Error(w, "tool not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	marshaler := protojson.MarshalOptions{
+		EmitUnpopulated: true,
+		UseProtoNames:   false,
+	}
+	data, err := marshaler.Marshal(tool)
+	if err != nil {
+		http.Error(w, "failed to marshal tool", http.StatusInternalServerError)
+		return
+	}
+	if _, err := w.Write(data); err != nil {
+		s.log("failed to write tool response", map[string]interface{}{"error": err.Error()})
+	}
 }

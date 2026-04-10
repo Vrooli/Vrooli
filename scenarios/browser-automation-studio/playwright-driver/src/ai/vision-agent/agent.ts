@@ -30,11 +30,11 @@ import type {
   LoggerInterface,
   ConversationMessageInterface,
 } from './types';
-import type { BrowserAction, DoneAction, ScrollAction, RequestHumanAction } from '../action/types';
+import type { BrowserAction, DoneAction, RequestHumanAction } from '../action/types';
 import { detectCaptcha } from '../detection/captcha-detector';
-import type { HumanInterventionDetails } from './types';
 import type { TokenUsage, ElementLabel } from '../vision-client/types';
 import { extractInteractiveElements, formatElementLabelsForPrompt } from '../screenshot/annotate';
+import { logger } from '../../utils';
 import {
   createLoopDetector,
   createActionContext,
@@ -752,9 +752,13 @@ function trimConversationHistory(
   // Find the indices of system message and goal (usually first 2 messages)
   let systemAndGoalEnd = 0;
   for (let i = 0; i < history.length && i < 3; i++) {
-    if (history[i].role === 'system') {
+    const entry = history[i];
+    if (!entry) {
+      continue;
+    }
+    if (entry.role === 'system') {
       systemAndGoalEnd = i + 1;
-    } else if (i === 1 && history[i].role === 'user' && history[i].content.startsWith('Goal:')) {
+    } else if (i === 1 && entry.role === 'user' && entry.content.startsWith('Goal:')) {
       systemAndGoalEnd = i + 1;
     }
   }
@@ -899,7 +903,7 @@ function waitForHumanIntervention(
     }
 
     // Set up abort handler
-    const onAbort = () => {
+    const onAbort = (): void => {
       setResumeResolver(null);
       resolve('aborted');
     };
@@ -923,7 +927,7 @@ function mergeAbortSignals(
 ): AbortSignal {
   const controller = new AbortController();
 
-  function onAbort() {
+  function onAbort(): void {
     controller.abort();
   }
 
@@ -942,17 +946,17 @@ function mergeAbortSignals(
  */
 export function createConsoleLogger(): LoggerInterface {
   return {
-    debug(message: string, meta?: Record<string, unknown>) {
-      console.debug(`[DEBUG] ${message}`, meta ?? '');
+    debug(message: string, meta?: Record<string, unknown>): void {
+      logger.debug(`[DEBUG] ${message}`, meta ?? {});
     },
-    info(message: string, meta?: Record<string, unknown>) {
-      console.info(`[INFO] ${message}`, meta ?? '');
+    info(message: string, meta?: Record<string, unknown>): void {
+      logger.info(`[INFO] ${message}`, meta ?? {});
     },
-    warn(message: string, meta?: Record<string, unknown>) {
-      console.warn(`[WARN] ${message}`, meta ?? '');
+    warn(message: string, meta?: Record<string, unknown>): void {
+      logger.warn(`[WARN] ${message}`, meta ?? {});
     },
-    error(message: string, meta?: Record<string, unknown>) {
-      console.error(`[ERROR] ${message}`, meta ?? '');
+    error(message: string, meta?: Record<string, unknown>): void {
+      logger.error(`[ERROR] ${message}`, meta ?? {});
     },
   };
 }
@@ -962,10 +966,10 @@ export function createConsoleLogger(): LoggerInterface {
  */
 export function createNoopLogger(): LoggerInterface {
   return {
-    debug() {},
-    info() {},
-    warn() {},
-    error() {},
+    debug(): void {},
+    info(): void {},
+    warn(): void {},
+    error(): void {},
   };
 }
 
@@ -984,7 +988,7 @@ function buildActionContext(
 
   // Add scroll context if available from execution
   if (action.type === 'scroll' && executionContext?.scroll) {
-    const scrollAction = action as ScrollAction;
+    const scrollAction = action;
     const loopConfig = createLoopDetector().getConfig();
     context.scroll = createScrollContext(
       scrollAction.direction,

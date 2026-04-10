@@ -450,7 +450,7 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                 <Loader2 aria-hidden size={14} className="spinning" />
                 <span>
                   {dataLoadingCount === 1
-                    ? `${dataLoadingSources[0].name} still loading…`
+                    ? `${dataLoadingSources[0]?.name} still loading…`
                     : `${dataLoadingCount} data sources still loading…`}
                 </span>
               </div>

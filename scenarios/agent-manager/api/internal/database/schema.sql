@@ -1,34 +1,34 @@
--- Agent Manager PostgreSQL Schema
--- This schema provides persistent storage for agent profiles, tasks, runs, and events.
-
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Agent Manager SQLite Schema
+-- SQLite variant for testing and lightweight deployments.
 
 -- ============================================================================
 -- Agent Profiles - Defines HOW an agent runs
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS agent_profiles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL UNIQUE,
-    profile_key VARCHAR(255) NOT NULL UNIQUE,
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    profile_key TEXT NOT NULL UNIQUE,
     description TEXT,
-    runner_type VARCHAR(50) NOT NULL,
-    model VARCHAR(100),
-    model_preset VARCHAR(20),
+    runner_type TEXT NOT NULL,
+    model TEXT,
+    model_preset TEXT,
     max_turns INTEGER,
-    timeout_ms BIGINT,
-    fallback_runner_types JSONB DEFAULT '[]',
-    allowed_tools JSONB DEFAULT '[]',
-    denied_tools JSONB DEFAULT '[]',
-    skip_permission_prompt BOOLEAN DEFAULT FALSE,
-    requires_sandbox BOOLEAN DEFAULT TRUE,
-    requires_approval BOOLEAN DEFAULT TRUE,
-    sandbox_config JSONB DEFAULT '{}'::jsonb,
-    allowed_paths JSONB DEFAULT '[]',
-    denied_paths JSONB DEFAULT '[]',
-    created_by VARCHAR(255),
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    timeout_ms INTEGER,
+    fallback_runner_types TEXT DEFAULT '[]',
+    allowed_tools TEXT DEFAULT '[]',
+    denied_tools TEXT DEFAULT '[]',
+    skip_permission_prompt INTEGER DEFAULT 0,
+    features TEXT DEFAULT '{}',
+    extra_flags TEXT DEFAULT '{}',
+    requires_sandbox INTEGER DEFAULT 1,
+    requires_approval INTEGER DEFAULT 1,
+    network_access TEXT NOT NULL DEFAULT 'localhost',
+    sandbox_config TEXT DEFAULT '{}',
+    allowed_paths TEXT DEFAULT '[]',
+    denied_paths TEXT DEFAULT '[]',
+    created_by TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_agent_profiles_name ON agent_profiles(name);
@@ -37,55 +37,64 @@ CREATE INDEX IF NOT EXISTS idx_agent_profiles_name ON agent_profiles(name);
 -- Tasks - Defines WHAT needs to be done
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS tasks (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    title VARCHAR(500) NOT NULL,
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
     description TEXT,
-    scope_path VARCHAR(1000) NOT NULL,
-    project_root VARCHAR(1000),
-    phase_prompt_ids JSONB DEFAULT '[]',
-    context_attachments JSONB DEFAULT '[]',
-    status VARCHAR(50) DEFAULT 'queued',
-    created_by VARCHAR(255),
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    scope_path TEXT NOT NULL,
+    project_root TEXT,
+    phase_prompt_ids TEXT DEFAULT '[]',
+    context_attachments TEXT DEFAULT '[]',
+    status TEXT DEFAULT 'queued',
+    created_by TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
-CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
 
 -- ============================================================================
 -- Runs - Concrete execution attempts
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS runs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    agent_profile_id UUID REFERENCES agent_profiles(id) ON DELETE SET NULL,
-    tag VARCHAR(255),
-    sandbox_id UUID,
-    run_mode VARCHAR(50) DEFAULT 'sandboxed',
-    status VARCHAR(50) DEFAULT 'pending',
-    started_at TIMESTAMPTZ,
-    ended_at TIMESTAMPTZ,
-    phase VARCHAR(50) DEFAULT 'queued',
-    last_checkpoint_id UUID,
-    last_heartbeat TIMESTAMPTZ,
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    agent_profile_id TEXT REFERENCES agent_profiles(id) ON DELETE SET NULL,
+    tag TEXT,
+    sandbox_id TEXT,
+    run_mode TEXT DEFAULT 'sandboxed',
+    status TEXT DEFAULT 'pending',
+    started_at TEXT,
+    ended_at TEXT,
+    phase TEXT DEFAULT 'queued',
+    last_checkpoint_id TEXT,
+    last_heartbeat TEXT,
     progress_percent INTEGER DEFAULT 0,
-    idempotency_key VARCHAR(255) UNIQUE,
-    summary JSONB,
+    idempotency_key TEXT UNIQUE,
+    summary TEXT,
     error_msg TEXT,
     exit_code INTEGER,
-    approval_state VARCHAR(50) DEFAULT 'none',
-    approved_by VARCHAR(255),
-    approved_at TIMESTAMPTZ,
-    resolved_config JSONB,
-    diff_path VARCHAR(1000),
-    log_path VARCHAR(1000),
+    approval_state TEXT DEFAULT 'none',
+    approved_by TEXT,
+    approved_at TEXT,
+    resolved_config TEXT,
+    diff_path TEXT,
+    log_path TEXT,
     changed_files INTEGER DEFAULT 0,
-    total_size_bytes BIGINT DEFAULT 0,
-    sandbox_config JSONB DEFAULT '{}'::jsonb,
-    session_id VARCHAR(255),
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    total_size_bytes INTEGER DEFAULT 0,
+    sandbox_config TEXT DEFAULT '{}',
+    session_id TEXT,
+    source_run_ids TEXT DEFAULT '[]',
+    source_investigation_run_id TEXT,
+    recommendation_status TEXT DEFAULT 'none',
+    recommendation_result TEXT,
+    recommendation_attempts INTEGER DEFAULT 0,
+    recommendation_error TEXT,
+    recommendation_queued_at TEXT,
+    identity_token_hash TEXT,
+    identity_token_revoked_at TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_runs_task_id ON runs(task_id);
@@ -93,23 +102,25 @@ CREATE INDEX IF NOT EXISTS idx_runs_session_id ON runs(session_id) WHERE session
 CREATE INDEX IF NOT EXISTS idx_runs_agent_profile_id ON runs(agent_profile_id);
 CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status);
 CREATE INDEX IF NOT EXISTS idx_runs_tag ON runs(tag);
-CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_runs_source_investigation_run_id ON runs(source_investigation_run_id);
+CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at);
 
 -- Stats query indexes
-CREATE INDEX IF NOT EXISTS idx_runs_created_status ON runs(created_at DESC, status);
-CREATE INDEX IF NOT EXISTS idx_runs_runner_type ON runs((resolved_config->>'runnerType'));
-CREATE INDEX IF NOT EXISTS idx_runs_model ON runs((resolved_config->>'model'));
+CREATE INDEX IF NOT EXISTS idx_runs_created_status ON runs(created_at, status);
+CREATE INDEX IF NOT EXISTS idx_runs_recommendation_pending
+    ON runs(recommendation_status, recommendation_queued_at)
+    WHERE recommendation_status IN ('pending', 'failed');
 
 -- ============================================================================
 -- Run Events - Append-only event stream
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS run_events (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    run_id UUID NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
-    sequence BIGINT NOT NULL,
-    event_type VARCHAR(50) NOT NULL,
-    timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    data JSONB NOT NULL,
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    sequence INTEGER NOT NULL,
+    event_type TEXT NOT NULL,
+    timestamp TEXT DEFAULT (datetime('now')),
+    data TEXT NOT NULL,
     UNIQUE(run_id, sequence)
 );
 
@@ -126,17 +137,17 @@ CREATE INDEX IF NOT EXISTS idx_run_events_errors ON run_events(run_id, event_typ
 -- Run Checkpoints - For resumption after interruption
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS run_checkpoints (
-    run_id UUID PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
-    phase VARCHAR(50) NOT NULL,
+    run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
+    phase TEXT NOT NULL,
     step_within_phase INTEGER DEFAULT 0,
-    sandbox_id UUID,
-    work_dir VARCHAR(1000),
-    lock_id UUID,
-    last_event_sequence BIGINT DEFAULT 0,
-    last_heartbeat TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    sandbox_id TEXT,
+    work_dir TEXT,
+    lock_id TEXT,
+    last_event_sequence INTEGER DEFAULT 0,
+    last_heartbeat TEXT DEFAULT (datetime('now')),
     retry_count INTEGER DEFAULT 0,
-    saved_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    metadata JSONB DEFAULT '{}'
+    saved_at TEXT DEFAULT (datetime('now')),
+    metadata TEXT DEFAULT '{}'
 );
 
 CREATE INDEX IF NOT EXISTS idx_run_checkpoints_heartbeat ON run_checkpoints(last_heartbeat);
@@ -145,13 +156,13 @@ CREATE INDEX IF NOT EXISTS idx_run_checkpoints_heartbeat ON run_checkpoints(last
 -- Idempotency Records - For replay-safe operations
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS idempotency_records (
-    key VARCHAR(500) PRIMARY KEY,
-    status VARCHAR(50) NOT NULL,
-    entity_id UUID,
-    entity_type VARCHAR(100),
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMPTZ NOT NULL,
-    response JSONB
+    key TEXT PRIMARY KEY,
+    status TEXT NOT NULL,
+    entity_id TEXT,
+    entity_type TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    expires_at TEXT NOT NULL,
+    response TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_idempotency_expires ON idempotency_records(expires_at);
@@ -161,31 +172,31 @@ CREATE INDEX IF NOT EXISTS idx_idempotency_status ON idempotency_records(status)
 -- Policies - Rules governing execution
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS policies (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
     description TEXT,
     priority INTEGER DEFAULT 0,
-    scope_pattern VARCHAR(500),
-    rules JSONB NOT NULL DEFAULT '{}',
-    enabled BOOLEAN DEFAULT TRUE,
-    created_by VARCHAR(255),
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    scope_pattern TEXT,
+    rules TEXT NOT NULL DEFAULT '{}',
+    enabled INTEGER DEFAULT 1,
+    created_by TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_policies_enabled ON policies(enabled);
-CREATE INDEX IF NOT EXISTS idx_policies_priority ON policies(priority DESC);
+CREATE INDEX IF NOT EXISTS idx_policies_priority ON policies(priority);
 
 -- ============================================================================
 -- Scope Locks - Concurrency control
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS scope_locks (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    run_id UUID NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
-    scope_path VARCHAR(1000) NOT NULL,
-    project_root VARCHAR(1000),
-    acquired_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMPTZ NOT NULL
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    scope_path TEXT NOT NULL,
+    project_root TEXT,
+    acquired_at TEXT DEFAULT (datetime('now')),
+    expires_at TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_scope_locks_run_id ON scope_locks(run_id);
@@ -196,33 +207,33 @@ CREATE INDEX IF NOT EXISTS idx_scope_locks_expires ON scope_locks(expires_at);
 -- Model Pricing - Cached pricing data from providers
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS model_pricing (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    canonical_model_name VARCHAR(255) NOT NULL,
-    provider VARCHAR(100) NOT NULL,
+    id TEXT PRIMARY KEY,
+    canonical_model_name TEXT NOT NULL,
+    provider TEXT NOT NULL,
 
     -- Per-component pricing (USD per token)
-    input_token_price NUMERIC(20, 12),
-    output_token_price NUMERIC(20, 12),
-    cache_read_price NUMERIC(20, 12),
-    cache_creation_price NUMERIC(20, 12),
-    web_search_price NUMERIC(20, 12),
-    server_tool_use_price NUMERIC(20, 12),
+    input_token_price REAL,
+    output_token_price REAL,
+    cache_read_price REAL,
+    cache_creation_price REAL,
+    web_search_price REAL,
+    server_tool_use_price REAL,
 
     -- Per-component sources (manual_override, provider_api, historical_average, unknown)
-    input_token_source VARCHAR(50) DEFAULT 'unknown',
-    output_token_source VARCHAR(50) DEFAULT 'unknown',
-    cache_read_source VARCHAR(50),
-    cache_creation_source VARCHAR(50),
-    web_search_source VARCHAR(50),
-    server_tool_use_source VARCHAR(50),
+    input_token_source TEXT DEFAULT 'unknown',
+    output_token_source TEXT DEFAULT 'unknown',
+    cache_read_source TEXT,
+    cache_creation_source TEXT,
+    web_search_source TEXT,
+    server_tool_use_source TEXT,
 
     -- Metadata
-    fetched_at TIMESTAMPTZ NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    pricing_version VARCHAR(100),
+    fetched_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    pricing_version TEXT,
 
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
 
     UNIQUE(canonical_model_name, provider)
 );
@@ -235,14 +246,14 @@ CREATE INDEX IF NOT EXISTS idx_model_pricing_expires ON model_pricing(expires_at
 -- Model Aliases - Maps runner model names to canonical names
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS model_aliases (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    runner_model VARCHAR(255) NOT NULL,
-    runner_type VARCHAR(100) NOT NULL,
-    canonical_model VARCHAR(255) NOT NULL,
-    provider VARCHAR(100) NOT NULL,
+    id TEXT PRIMARY KEY,
+    runner_model TEXT NOT NULL,
+    runner_type TEXT NOT NULL,
+    canonical_model TEXT NOT NULL,
+    provider TEXT NOT NULL,
 
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
 
     UNIQUE(runner_model, runner_type)
 );
@@ -254,15 +265,15 @@ CREATE INDEX IF NOT EXISTS idx_model_aliases_canonical ON model_aliases(canonica
 -- Manual Price Overrides - User-specified pricing overrides
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS manual_price_overrides (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    canonical_model_name VARCHAR(255) NOT NULL,
-    component VARCHAR(50) NOT NULL,
-    price_usd NUMERIC(20, 12) NOT NULL,
+    id TEXT PRIMARY KEY,
+    canonical_model_name TEXT NOT NULL,
+    component TEXT NOT NULL,
+    price_usd REAL NOT NULL,
     note TEXT,
-    created_by VARCHAR(255),
+    created_by TEXT,
 
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMPTZ,
+    created_at TEXT DEFAULT (datetime('now')),
+    expires_at TEXT,
 
     UNIQUE(canonical_model_name, component)
 );
@@ -278,150 +289,73 @@ CREATE TABLE IF NOT EXISTS pricing_settings (
     historical_average_days INTEGER DEFAULT 7,
     provider_cache_ttl_seconds INTEGER DEFAULT 21600,
 
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    updated_at TEXT DEFAULT (datetime('now'))
 );
 
 -- Insert default settings if not exists
-INSERT INTO pricing_settings (id, historical_average_days, provider_cache_ttl_seconds)
-VALUES (1, 7, 21600)
-ON CONFLICT (id) DO NOTHING;
+INSERT OR IGNORE INTO pricing_settings (id, historical_average_days, provider_cache_ttl_seconds)
+VALUES (1, 7, 21600);
 
 -- ============================================================================
--- Investigation Settings - Configuration for investigation agents (singleton)
+-- Investigation Settings - Global investigation configuration (singleton table)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS investigation_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
-    -- Prompt template is plain text (no variables/templating)
-    -- Dynamic content like depth, scenarios, runs are context attachments
-    prompt_template TEXT NOT NULL,
-    -- Default depth: "quick", "standard", "deep"
-    default_depth VARCHAR(20) NOT NULL DEFAULT 'standard',
-    -- Default context selections (what to include in investigations)
-    default_context JSONB NOT NULL DEFAULT '{"runSummaries":true,"runEvents":true,"runDiffs":true,"scenarioDocs":true,"fullLogs":false}',
+    default_depth TEXT NOT NULL DEFAULT 'standard',
+    default_context TEXT NOT NULL DEFAULT '{}',
+    investigation_tag_allowlist TEXT NOT NULL DEFAULT '[]',
 
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    updated_at TEXT DEFAULT (datetime('now'))
 );
 
--- Insert default settings with the default investigation prompt
-INSERT INTO investigation_settings (id, prompt_template, default_depth, default_context)
-VALUES (
-    1,
-    '# Agent-Manager Investigation
-
-You are an expert debugger. Your job is to ACTIVELY INVESTIGATE why the runs provided in context failed.
-
-**Do NOT just analyze the provided data - EXPLORE THE CODEBASE to find root causes.**
-
-## Required Investigation Steps
-1. **Read the scenario''s CLAUDE.md or README.md** to understand the project structure
-2. **Analyze the error messages** in the attached run events - find the actual failure
-3. **Trace the error to source code** - use grep/read to find the failing code path
-4. **Check related files** - look at imports, dependencies, callers, and configuration
-5. **Identify the root cause** - distinguish symptoms from underlying issues
-
-## Common Failure Patterns to Check
-- **Log/Output Issues**: Large outputs breaking scanners, missing newlines, buffering problems
-- **Path Issues**: Relative vs absolute paths, working directory assumptions
-- **Timeout Issues**: Operations taking longer than expected
-- **Tool Issues**: Missing tools, wrong tool usage, tool not trusted by agent
-- **Prompt Issues**: Agent not understanding instructions, missing context
-- **State Issues**: Stale data, cache invalidation, missing initialization
-
-## How to Fetch Additional Run Data
-If you need full details beyond the attachments, use the agent-manager CLI:
-```bash
-agent-manager run get <run-id>      # Full run details
-agent-manager run events <run-id>  # All events with tool calls
-agent-manager run diff <run-id>    # Code changes made
-```
-
-## Required Report Format
-Provide your findings in this structure:
-
-### 1. Executive Summary
-One-paragraph summary of what went wrong and why.
-
-### 2. Root Cause Analysis
-- **Primary cause** with file:line references
-- **Contributing factors**
-- **Evidence** (run IDs, event sequences, code snippets)
-
-### 3. Recommendations
-- **Immediate fix** (copy-pasteable code if possible)
-- **Preventive measures**
-- **Monitoring suggestions**',
-    'standard',
-    '{"runSummaries":true,"runEvents":true,"runDiffs":true,"scenarioDocs":true,"fullLogs":false}'
-)
-ON CONFLICT (id) DO NOTHING;
-
 -- ============================================================================
--- Triggers for automatic updated_at
+-- Triggers for automatic updated_at (SQLite style)
 -- ============================================================================
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+CREATE TRIGGER IF NOT EXISTS update_agent_profiles_updated_at
+    AFTER UPDATE ON agent_profiles
+    FOR EACH ROW
 BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
+    UPDATE agent_profiles SET updated_at = datetime('now') WHERE id = NEW.id;
 END;
-$$ language 'plpgsql';
 
-DO $$
+CREATE TRIGGER IF NOT EXISTS update_tasks_updated_at
+    AFTER UPDATE ON tasks
+    FOR EACH ROW
 BEGIN
-    -- Agent Profiles
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_agent_profiles_updated_at') THEN
-        CREATE TRIGGER update_agent_profiles_updated_at
-            BEFORE UPDATE ON agent_profiles
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-
-    -- Tasks
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_tasks_updated_at') THEN
-        CREATE TRIGGER update_tasks_updated_at
-            BEFORE UPDATE ON tasks
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-
-    -- Runs
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_runs_updated_at') THEN
-        CREATE TRIGGER update_runs_updated_at
-            BEFORE UPDATE ON runs
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-
-    -- Policies
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_policies_updated_at') THEN
-        CREATE TRIGGER update_policies_updated_at
-            BEFORE UPDATE ON policies
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-
-    -- Model Pricing
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_model_pricing_updated_at') THEN
-        CREATE TRIGGER update_model_pricing_updated_at
-            BEFORE UPDATE ON model_pricing
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-
-    -- Model Aliases
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_model_aliases_updated_at') THEN
-        CREATE TRIGGER update_model_aliases_updated_at
-            BEFORE UPDATE ON model_aliases
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-
-    -- Pricing Settings
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_pricing_settings_updated_at') THEN
-        CREATE TRIGGER update_pricing_settings_updated_at
-            BEFORE UPDATE ON pricing_settings
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
-
-    -- Investigation Settings
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_investigation_settings_updated_at') THEN
-        CREATE TRIGGER update_investigation_settings_updated_at
-            BEFORE UPDATE ON investigation_settings
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
+    UPDATE tasks SET updated_at = datetime('now') WHERE id = NEW.id;
 END;
-$$;
+
+CREATE TRIGGER IF NOT EXISTS update_runs_updated_at
+    AFTER UPDATE ON runs
+    FOR EACH ROW
+BEGIN
+    UPDATE runs SET updated_at = datetime('now') WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS update_policies_updated_at
+    AFTER UPDATE ON policies
+    FOR EACH ROW
+BEGIN
+    UPDATE policies SET updated_at = datetime('now') WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS update_model_pricing_updated_at
+    AFTER UPDATE ON model_pricing
+    FOR EACH ROW
+BEGIN
+    UPDATE model_pricing SET updated_at = datetime('now') WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS update_model_aliases_updated_at
+    AFTER UPDATE ON model_aliases
+    FOR EACH ROW
+BEGIN
+    UPDATE model_aliases SET updated_at = datetime('now') WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS update_pricing_settings_updated_at
+    AFTER UPDATE ON pricing_settings
+    FOR EACH ROW
+BEGIN
+    UPDATE pricing_settings SET updated_at = datetime('now') WHERE id = NEW.id;
+END;

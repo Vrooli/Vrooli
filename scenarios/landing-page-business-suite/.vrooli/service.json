@@ -2,40 +2,12 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "dependencies": {
     "resources": {
-      "browserless": {
-        "description": "Screenshot generation for template previews",
-        "enabled": false,
-        "notes": "Optional for generating template thumbnails and admin portal previews",
-        "required": false,
-        "type": "resource"
-      },
       "postgres": {
         "description": "Primary relational data store for generated landing pages (content, variants, metrics, subscriptions)",
         "enabled": true,
         "required": true,
         "schema": "landing-page-business-suite",
         "type": "postgres"
-      },
-      "qdrant": {
-        "description": "Template recommendations based on user intent",
-        "enabled": false,
-        "notes": "Optional for P2 features (semantic template search)",
-        "required": false,
-        "type": "qdrant"
-      },
-      "redis": {
-        "description": "Session caching for high-traffic landing pages",
-        "enabled": false,
-        "notes": "Optional performance optimization for generated landing pages",
-        "required": false,
-        "type": "redis"
-      },
-      "resource-claude-code": {
-        "description": "Agent-based customization of landing pages",
-        "enabled": false,
-        "notes": "Required for agent customization features (OT-P0-005, OT-P0-006)",
-        "required": false,
-        "type": "resource"
       }
     }
   },
@@ -127,6 +99,13 @@
             "type": "binaries"
           },
           {
+            "command": "landing-page-business-suite",
+            "targets": [
+              "landing-page-business-suite"
+            ],
+            "type": "cli"
+          },
+          {
             "bundle_path": "ui/dist/index.html",
             "source_dir": "ui/src",
             "type": "ui-bundle"
@@ -135,6 +114,14 @@
       },
       "description": "Build API & UI for the generated landing scenario",
       "steps": [
+        {
+          "description": "Install landing-page-business-suite CLI command globally",
+          "name": "install-cli",
+          "run": "bash cli/install.sh",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
         {
           "description": "Build Go API binary (landing-page-business-suite-api) in api/ directory for reuse by start-api step",
           "name": "build-api",
@@ -235,7 +222,56 @@
       "templates"
     ],
     "type": "application-template",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
-  "version": "1.0.0"
+  "deployment": {
+    "tiers": {
+      "tier-1-local": {
+        "status": "ready",
+        "secrets": [
+          {
+            "secret_id": "ADMIN_DEFAULT_EMAIL",
+            "classification": "user",
+            "label": "Admin Email",
+            "description": "Email address for the default admin account. Used for logging into the admin portal.",
+            "required": false,
+            "default_hint": "Defaults to admin@localhost if not set"
+          },
+          {
+            "secret_id": "ADMIN_DEFAULT_PASSWORD",
+            "classification": "user",
+            "label": "Admin Password",
+            "description": "Password for the default admin account. Should be a strong, unique password for production deployments.",
+            "required": false,
+            "default_hint": "Minimum 12 characters with letters and numbers (defaults to 'changeme123' if not set)"
+          },
+          {
+            "secret_id": "SESSION_SECRET",
+            "classification": "service",
+            "label": "Session Secret",
+            "description": "Secret key used for encrypting session cookies. Must be kept private and should be unique per deployment.",
+            "required": true,
+            "default_hint": "Generate with: openssl rand -base64 32"
+          },
+          {
+            "secret_id": "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY",
+            "classification": "service",
+            "label": "Remote Profile Encryption Key",
+            "description": "Encrypts stored remote admin sessions for remote profiles. Required in production deployments.",
+            "required": false,
+            "default_hint": "Generate with: openssl rand -base64 32"
+          },
+          {
+            "secret_id": "LPBS_SERVICE_SECRET",
+            "classification": "service",
+            "label": "Service Auth Secret",
+            "description": "Shared secret used for LPBS service-to-service authentication (for example scenario-to-desktop deploy target auth).",
+            "required": false,
+            "default_hint": "Set with scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain <domain>"
+          }
+        ]
+      }
+    }
+  },
+  "version": "1.1.0"
 }

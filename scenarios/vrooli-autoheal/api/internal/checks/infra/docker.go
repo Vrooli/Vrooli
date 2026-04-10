@@ -73,7 +73,6 @@ func (c *DockerCheck) Run(ctx context.Context) checks.Result {
 
 	// Use injected executor
 	output, err := c.executor.Output(ctx, "docker", "info", "--format", "{{json .}}")
-
 	if err != nil {
 		result.Status = checks.StatusCritical
 		result.Message = "Docker daemon not responsive"

@@ -68,11 +68,11 @@ function getBrowserErrorHint(error: string | undefined): string | undefined {
   return 'Check server logs for detailed error information';
 }
 
-export async function handleHealth(
+export function handleHealth(
   _req: IncomingMessage,
   res: ServerResponse,
   sessionManager: SessionManager
-): Promise<void> {
+): void {
   const sessionCount = sessionManager.getSessionCount();
   const browserStatus = sessionManager.getBrowserStatus();
 

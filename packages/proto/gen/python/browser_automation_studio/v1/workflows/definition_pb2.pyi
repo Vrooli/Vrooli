@@ -1,8 +1,9 @@
-from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
-from browser_automation_studio.v1.base import geometry_pb2 as _geometry_pb2
-from browser_automation_studio.v1.base import browser_profile_pb2 as _browser_profile_pb2
 from browser_automation_studio.v1.actions import action_pb2 as _action_pb2
+from browser_automation_studio.v1.base import browser_profile_pb2 as _browser_profile_pb2
+from browser_automation_studio.v1.base import geometry_pb2 as _geometry_pb2
+from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
@@ -10,8 +11,19 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-class WorkflowDefinitionV2(_message.Message):
+class ExecutionMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
+    EXECUTION_MODE_UNSPECIFIED: _ClassVar[ExecutionMode]
+    EXECUTION_MODE_OBSERVER: _ClassVar[ExecutionMode]
+    EXECUTION_MODE_MUTATING: _ClassVar[ExecutionMode]
+    EXECUTION_MODE_DESTRUCTIVE: _ClassVar[ExecutionMode]
+EXECUTION_MODE_UNSPECIFIED: ExecutionMode
+EXECUTION_MODE_OBSERVER: ExecutionMode
+EXECUTION_MODE_MUTATING: ExecutionMode
+EXECUTION_MODE_DESTRUCTIVE: ExecutionMode
+
+class WorkflowDefinitionV2(_message.Message):
+    __slots__ = ("metadata", "settings", "nodes", "edges")
     METADATA_FIELD_NUMBER: _ClassVar[int]
     SETTINGS_FIELD_NUMBER: _ClassVar[int]
     NODES_FIELD_NUMBER: _ClassVar[int]
@@ -23,9 +35,9 @@ class WorkflowDefinitionV2(_message.Message):
     def __init__(self, metadata: _Optional[_Union[WorkflowMetadataV2, _Mapping]] = ..., settings: _Optional[_Union[WorkflowSettingsV2, _Mapping]] = ..., nodes: _Optional[_Iterable[_Union[WorkflowNodeV2, _Mapping]]] = ..., edges: _Optional[_Iterable[_Union[WorkflowEdgeV2, _Mapping]]] = ...) -> None: ...
 
 class WorkflowMetadataV2(_message.Message):
-    __slots__ = ()
+    __slots__ = ("name", "description", "labels", "version", "requirement", "owner", "execution_mode")
     class LabelsEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -37,16 +49,18 @@ class WorkflowMetadataV2(_message.Message):
     VERSION_FIELD_NUMBER: _ClassVar[int]
     REQUIREMENT_FIELD_NUMBER: _ClassVar[int]
     OWNER_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_MODE_FIELD_NUMBER: _ClassVar[int]
     name: str
     description: str
     labels: _containers.ScalarMap[str, str]
     version: str
     requirement: str
     owner: str
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., labels: _Optional[_Mapping[str, str]] = ..., version: _Optional[str] = ..., requirement: _Optional[str] = ..., owner: _Optional[str] = ...) -> None: ...
+    execution_mode: ExecutionMode
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., labels: _Optional[_Mapping[str, str]] = ..., version: _Optional[str] = ..., requirement: _Optional[str] = ..., owner: _Optional[str] = ..., execution_mode: _Optional[_Union[ExecutionMode, str]] = ...) -> None: ...
 
 class WorkflowSettingsV2(_message.Message):
-    __slots__ = ()
+    __slots__ = ("viewport_width", "viewport_height", "user_agent", "locale", "headless", "entry_selector", "entry_selector_timeout_ms", "timeout_ms", "browser_profile")
     VIEWPORT_WIDTH_FIELD_NUMBER: _ClassVar[int]
     VIEWPORT_HEIGHT_FIELD_NUMBER: _ClassVar[int]
     USER_AGENT_FIELD_NUMBER: _ClassVar[int]
@@ -68,7 +82,7 @@ class WorkflowSettingsV2(_message.Message):
     def __init__(self, viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., headless: _Optional[bool] = ..., entry_selector: _Optional[str] = ..., entry_selector_timeout_ms: _Optional[int] = ..., timeout_ms: _Optional[int] = ..., browser_profile: _Optional[_Union[_browser_profile_pb2.BrowserProfile, _Mapping]] = ...) -> None: ...
 
 class WorkflowNodeV2(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "action", "position", "execution_settings")
     ID_FIELD_NUMBER: _ClassVar[int]
     ACTION_FIELD_NUMBER: _ClassVar[int]
     POSITION_FIELD_NUMBER: _ClassVar[int]
@@ -80,7 +94,7 @@ class WorkflowNodeV2(_message.Message):
     def __init__(self, id: _Optional[str] = ..., action: _Optional[_Union[_action_pb2.ActionDefinition, _Mapping]] = ..., position: _Optional[_Union[_geometry_pb2.NodePosition, _Mapping]] = ..., execution_settings: _Optional[_Union[NodeExecutionSettings, _Mapping]] = ...) -> None: ...
 
 class NodeExecutionSettings(_message.Message):
-    __slots__ = ()
+    __slots__ = ("timeout_ms", "wait_after_ms", "continue_on_error", "resilience")
     TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
     WAIT_AFTER_MS_FIELD_NUMBER: _ClassVar[int]
     CONTINUE_ON_ERROR_FIELD_NUMBER: _ClassVar[int]
@@ -92,7 +106,7 @@ class NodeExecutionSettings(_message.Message):
     def __init__(self, timeout_ms: _Optional[int] = ..., wait_after_ms: _Optional[int] = ..., continue_on_error: _Optional[bool] = ..., resilience: _Optional[_Union[ResilienceConfig, _Mapping]] = ...) -> None: ...
 
 class ResilienceConfig(_message.Message):
-    __slots__ = ()
+    __slots__ = ("max_attempts", "delay_ms", "backoff_factor", "precondition_selector", "precondition_timeout_ms", "precondition_wait_ms", "success_selector", "success_timeout_ms", "success_wait_ms")
     MAX_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
     DELAY_MS_FIELD_NUMBER: _ClassVar[int]
     BACKOFF_FACTOR_FIELD_NUMBER: _ClassVar[int]
@@ -114,7 +128,7 @@ class ResilienceConfig(_message.Message):
     def __init__(self, max_attempts: _Optional[int] = ..., delay_ms: _Optional[int] = ..., backoff_factor: _Optional[float] = ..., precondition_selector: _Optional[str] = ..., precondition_timeout_ms: _Optional[int] = ..., precondition_wait_ms: _Optional[int] = ..., success_selector: _Optional[str] = ..., success_timeout_ms: _Optional[int] = ..., success_wait_ms: _Optional[int] = ...) -> None: ...
 
 class WorkflowEdgeV2(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "source", "target", "type", "label", "source_handle", "target_handle")
     ID_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     TARGET_FIELD_NUMBER: _ClassVar[int]

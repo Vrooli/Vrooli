@@ -1,0 +1,45 @@
+{
+  "generatedAt": "2026-03-26T03:07:03Z",
+  "items": [
+    {
+      "id": "topic-1",
+      "name": "Development",
+      "skillCount": 3,
+      "status": "active"
+    },
+    {
+      "id": "topic-2",
+      "name": "UI",
+      "parentTopicId": "topic-1",
+      "skillCount": 2,
+      "status": "active"
+    },
+    {
+      "id": "topic-3",
+      "name": "Architecture",
+      "parentTopicId": "topic-1",
+      "skillCount": 3,
+      "status": "active"
+    },
+    {
+      "id": "topic-4",
+      "name": "Deployment",
+      "parentTopicId": "topic-1",
+      "skillCount": 2,
+      "status": "active"
+    },
+    {
+      "id": "topic-5",
+      "name": "API",
+      "parentTopicId": "topic-1",
+      "skillCount": 3,
+      "status": "active"
+    },
+    {
+      "id": "topic-6",
+      "name": "Fix",
+      "skillCount": 1,
+      "status": "active"
+    }
+  ]
+}

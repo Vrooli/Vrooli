@@ -136,6 +136,18 @@ func testLogger() *logrus.Logger {
 	return log
 }
 
+// newTestScheduler creates a Scheduler for tests with the given dependencies.
+// CreditService and SettingsRepo are left nil for basic tests.
+func newTestScheduler(repo ScheduleRepository, executor WorkflowExecutor, notifier ScheduleNotifier) *Scheduler {
+	return New(SchedulerOptions{
+		Repo:     repo,
+		Executor: executor,
+		Notifier: notifier,
+		Log:      testLogger(),
+		// CreditService and SettingsRepo left nil for tests
+	})
+}
+
 func newSchedule(id, workflowID uuid.UUID, cronExpr string, active bool) *database.ScheduleIndex {
 	s := &database.ScheduleIndex{
 		ID:             id,
@@ -156,11 +168,15 @@ func TestSchedulerStartWithNoSchedules(t *testing.T) {
 	executor := &fakeExecutor{}
 	notifier := &fakeNotifier{}
 
-	s := New(repo, executor, notifier, testLogger())
+	s := newTestScheduler(repo, executor, notifier)
 	if err := s.Start(); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer s.Stop()
+	t.Cleanup(func() {
+		if err := s.Stop(); err != nil {
+			t.Fatalf("failed to stop scheduler: %v", err)
+		}
+	})
 
 	if got := s.RegisteredCount(); got != 0 {
 		t.Fatalf("expected 0 registered schedules, got %d", got)
@@ -177,11 +193,15 @@ func TestSchedulerStartWithActiveSchedules(t *testing.T) {
 	executor := &fakeExecutor{}
 	notifier := &fakeNotifier{}
 
-	s := New(repo, executor, notifier, testLogger())
+	s := newTestScheduler(repo, executor, notifier)
 	if err := s.Start(); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer s.Stop()
+	t.Cleanup(func() {
+		if err := s.Stop(); err != nil {
+			t.Fatalf("failed to stop scheduler: %v", err)
+		}
+	})
 
 	if got := s.RegisteredCount(); got != 2 {
 		t.Fatalf("expected 2 registered schedules, got %d", got)
@@ -194,12 +214,16 @@ func TestSchedulerStartWithActiveSchedules(t *testing.T) {
 func TestSchedulerCannotStartTwice(t *testing.T) {
 	repo := newMockScheduleRepo()
 	executor := &fakeExecutor{}
-	s := New(repo, executor, nil, testLogger())
+	s := newTestScheduler(repo, executor, nil)
 
 	if err := s.Start(); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer s.Stop()
+	t.Cleanup(func() {
+		if err := s.Stop(); err != nil {
+			t.Fatalf("failed to stop scheduler: %v", err)
+		}
+	})
 
 	if err := s.Start(); err == nil {
 		t.Fatalf("expected error on second start")
@@ -213,7 +237,7 @@ func TestSchedulerRegisterSchedule(t *testing.T) {
 	repo := newMockScheduleRepo()
 	repo.schedules[schedule.ID] = schedule
 
-	s := New(repo, &fakeExecutor{}, nil, testLogger())
+	s := newTestScheduler(repo, &fakeExecutor{}, nil)
 	if err := s.RegisterSchedule(schedule); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -230,7 +254,7 @@ func TestSchedulerRegisterInactiveSchedule(t *testing.T) {
 	repo := newMockScheduleRepo()
 	repo.schedules[schedule.ID] = schedule
 
-	s := New(repo, &fakeExecutor{}, nil, testLogger())
+	s := newTestScheduler(repo, &fakeExecutor{}, nil)
 	if err := s.RegisterSchedule(schedule); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -245,7 +269,7 @@ func TestSchedulerUnregisterSchedule(t *testing.T) {
 	schedule := newSchedule(uuid.New(), workflowID, "*/10 * * * * *", true)
 
 	repo := newMockScheduleRepo(schedule)
-	s := New(repo, &fakeExecutor{}, nil, testLogger())
+	s := newTestScheduler(repo, &fakeExecutor{}, nil)
 	if err := s.RegisterSchedule(schedule); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -263,7 +287,7 @@ func TestSchedulerDeactivateSchedule(t *testing.T) {
 	schedule := newSchedule(uuid.New(), workflowID, "*/10 * * * * *", true)
 
 	repo := newMockScheduleRepo(schedule)
-	s := New(repo, &fakeExecutor{}, nil, testLogger())
+	s := newTestScheduler(repo, &fakeExecutor{}, nil)
 	if err := s.RegisterSchedule(schedule); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -298,11 +322,15 @@ func TestSchedulerCronExecution(t *testing.T) {
 	}
 	notifier := &fakeNotifier{}
 
-	s := New(repo, executor, notifier, testLogger())
+	s := newTestScheduler(repo, executor, notifier)
 	if err := s.Start(); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer s.Stop()
+	t.Cleanup(func() {
+		if err := s.Stop(); err != nil {
+			t.Fatalf("failed to stop scheduler: %v", err)
+		}
+	})
 
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
@@ -334,11 +362,15 @@ func TestSchedulerCronExecutionFailureNotifies(t *testing.T) {
 	executor := &fakeExecutor{err: errors.New("boom")}
 	notifier := &fakeNotifier{}
 
-	s := New(repo, executor, notifier, testLogger())
+	s := newTestScheduler(repo, executor, notifier)
 	if err := s.Start(); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer s.Stop()
+	t.Cleanup(func() {
+		if err := s.Stop(); err != nil {
+			t.Fatalf("failed to stop scheduler: %v", err)
+		}
+	})
 
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
@@ -361,7 +393,7 @@ func TestSchedulerGracefulShutdown(t *testing.T) {
 	schedule := newSchedule(uuid.New(), workflowID, "*/5 * * * * *", true)
 	repo := newMockScheduleRepo(schedule)
 
-	s := New(repo, &fakeExecutor{}, nil, testLogger())
+	s := newTestScheduler(repo, &fakeExecutor{}, nil)
 	if err := s.Start(); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -372,7 +404,7 @@ func TestSchedulerGracefulShutdown(t *testing.T) {
 
 func TestSchedulerConcurrentRegistration(t *testing.T) {
 	repo := newMockScheduleRepo()
-	s := New(repo, &fakeExecutor{}, nil, testLogger())
+	s := newTestScheduler(repo, &fakeExecutor{}, nil)
 
 	const n = 25
 	var wg sync.WaitGroup
@@ -441,4 +473,3 @@ func TestDescribeCronExpression(t *testing.T) {
 		t.Fatalf("expected a description")
 	}
 }
-

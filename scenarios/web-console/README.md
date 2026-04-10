@@ -1,108 +1,141 @@
 # Web Console (web-console scenario)
 
-Web Console provides remote-first terminal access for Vrooli scenarios. The service exposes a secure-by-design shell bridge that runs behind authenticated parents while providing one-click launches for common operator workflows (Codex, Claude, and `vrooli status`). The backend remains Go-based for ecosystem reuse and supervision, and the UI stays dependency-light so it can be embedded anywhere an iframe is allowed.
+Web Console delivers a full-fidelity terminal experience in the browser with pane-based workflows, durable sessions, and AI-assisted input generation for authenticated parent scenarios.
 
-## 🎯 Purpose & Vision
-The console keeps shell access, agent CLIs, and status tooling available wherever operators happen to be. Sessions default to a POSIX shell, but any executable can be targeted per launch. Shortcut buttons fire opinionated commands (`codex --yolo`, `claude --dangerously-skip-permissions`, `vrooli status --verbose`), and the UI will auto-boot a fresh shell if one is not active. Everything still respects the lifecycle system: no direct binaries, no unmanaged processes.
+## Scope Status
 
-## 🏗️ Architecture
+- This document describes the **target rewrite scope**.
+- Current implementation may not match every requirement yet.
+- Product contract is defined by `PRD.md` + `requirements/index.json`.
 
-### Go API & Supervisor
-- REST + WebSocket endpoints under `/api/v1` managing PTY-backed sessions.
-- Supervisor spawns `WEB_CONSOLE_DEFAULT_COMMAND` (defaults to `/bin/bash`) with optional per-session overrides.
-- Transcript writer streams newline-delimited JSON records to scenario-owned storage.
-- **Session buffer**: Keeps last 500 chunks (up to 1MB) for replay on reconnection.
-- Metrics endpoint surfaces session counters (`web_console_*`) alongside panic-stop and timeout data.
+## Product Goals
 
-### Browser UI (Vanilla JS + Xterm)
-- **Offline-first design**: Terminal dependencies are bundled locally (`@xterm/xterm` via Vite, lucide icons + html2canvas in `ui/public/lib/`) so the console never depends on CDNs.
-- Vite handles bundling and transpilation (targeting Safari 13+) to keep mobile Safari working even when modules use modern syntax.
-- Quick command panel issues pre-defined commands into the active terminal and queues them while a session boots.
-- **Automatic reconnection**: Detects WebSocket disconnects and reconnects to running sessions automatically.
-- **Heartbeat keepalive**: Sends heartbeat every 30 seconds to maintain connection when tab is inactive.
-- **Visibility detection**: Reconnects to sessions when browser tab becomes visible after being backgrounded.
-- `proxyToApi` helper maintains lifecycle-compliant networking.
-- `postMessage` bridge mirrors session status and responds to parent requests for transcripts, screenshots, and logs.
+1. Pane-based terminal workspace showing multiple terminals simultaneously.
+2. Full interactive CLI fidelity in browser (Claude Code/Codex-class flows).
+3. Durable sessions with default expiration policy set to never.
+4. AI command input with Ollama primary and OpenRouter fallback.
+5. Mobile usability through floating terminal keyboard controls.
+6. Configurable new-terminal launcher with empty shell and shortcut options.
+7. Sidebar/drawer for operational controls and status.
 
-**Vendor Libraries** (all local):
-- @xterm/xterm@5.5.0 - Terminal emulator
-- @xterm/addon-fit@0.10.0 - Terminal size fitting
-- lucide icons - UI icons
-- html2canvas@1.4.1 - Screenshot capture
+## Single-User Design
 
-### Embedding Model
-1. Parent scenario authenticates the operator, then loads the console via iframe.
-2. Operators can start a fresh shell or tap a shortcut; the UI will open a session automatically when needed.
-3. Terminal output and lifecycle updates stream over WebSocket, while transcripts persist locally under the scenario storage path.
-4. Parents own long-term storage, auditing, and compliance; the console never runs with public exposure.
+Web Console is designed for personal server use — a single operator running their own Vrooli instance. There is no multi-user session isolation, RBAC, or user management. Auth is delegated entirely to `packages/api-base`.
 
-## 🔌 Quick Commands
-| Action | Command | Behavior |
-|--------|---------|----------|
-| Launch Codex | `codex --yolo` | Queues command inside the active shell or boots a new session first. |
-| Launch Claude | `claude --dangerously-skip-permissions` | Same pattern; optimized for fast escalation to Claude. |
-| Check Status | `vrooli status --verbose` | Surfaces platform diagnostics without deeper shell navigation. |
+## Target UX and Behavior
 
-Commands queue if the shell is not ready yet and execute as soon as the PTY handshake completes.
+### Pane Layout
+- Desktop: two-column pane layout by default.
+- Mobile: single-column stacked pane layout.
+- Layout should preserve active session continuity while resizing.
 
-## 🚫 Deployment Warning
-- Never expose the service directly to the internet; it ships with **no authentication**.
-- Always proxy through an authenticated parent scenario (Traefik/Nginx/Caddy/etc.).
-- Treat missing `X-Forwarded-*` headers as deployment blockers; proxy guard enforcement rejects such requests.
+### Terminal Fidelity
+- PTY-backed stream handling with binary-safe input/output.
+- Reliable resize and cursor-report handling.
+- Reconnect-safe input sequencing.
+- Interactive CLIs must remain usable after tab visibility changes and reconnects.
 
-## 🚀 Getting Started
+### Session Continuity
+- Default policy: never expire.
+- Refreshing page or reconnecting should restore session context.
+- Missed output while disconnected must be replayed and visible.
+
+### AI Input
+- Command-generation UI should be available from main shell workspace.
+- Provider policy:
+  1. Try Ollama first.
+  2. Fall back to OpenRouter if Ollama fails or times out.
+- Provider routing must be explicit and observable.
+- Context: user prompt + last N lines of terminal output (no environment injection).
+
+### Launcher and Shortcuts
+- New-terminal action presents:
+  - Empty terminal
+  - Configured shortcut entries
+- Default shortcut entries:
+  - `claude --dangerously-skip-permissions`
+  - `codex --yolo`
+
+### Mobile Toolbar
+- Floating keyboard toolbar should expose keys/chords needed for terminal workflows.
+- Toolbar mode should be configurable per workspace/session context.
+- Mobile is P0 — operators actively use phones for terminal access.
+
+### Drawer/Sidebar
+- Provides session summary, workspace controls, policy controls, and diagnostics.
+- Must not block core terminal operations.
+
+## Architecture Direction
+
+### API Layer (Go)
+- Session lifecycle endpoints for create/list/delete/inspect.
+- WebSocket streaming for terminal IO.
+- SQLite-backed transcript and session persistence.
+- Session policy controls (never/preset/custom expiration).
+- AI provider orchestration endpoint with fallback policy.
+
+### UI Layer (Vite + xterm.js)
+- Pane-based terminal workspace.
+- Launcher flow and shortcut management UI.
+- Drawer with status and controls.
+- Floating keyboard toolbar.
+- Shared `packages/api-base` for all HTTP/WebSocket routing.
+
+### Integration Layer
+- Parent embedding via iframe.
+- `postMessage` bridge for status/events and parent operations.
+- Auth/proxy boundaries enforced by parent stack via api-base.
+
+## Storage Architecture
+
+- **Backend**: SQLite (WAL mode) — no Redis or Postgres.
+- **Schema**: Initialized on first API start; migrations managed via embedded SQL.
+- **Isolation**: Database file scoped to scenario data directory.
+- **Rationale**: Single-user design bounds concurrency; SQLite simplifies deployment and eliminates external resource dependencies.
+
+## Dependencies
+
+### Required
+- Go toolchain
+- POSIX shell runtime
+- `resource-ollama`
+- `packages/api-base`
+- Scenario-managed local storage path
+
+### Optional
+- `resource-openrouter` (fallback AI provider)
+
+## Configuration Model
+
+- Session policy: default `never` expiration, configurable per workspace.
+- Shortcut catalog: configuration-driven (service/workspace/parent context).
+- AI provider policy: provider order and timeout configurable.
+- SQLite database path: configurable via environment variable.
+- Routing: relies on shared api-base resolution behavior.
+
+## Validation and Testing Expectations
+
+- Requirements coverage tracked in `requirements/index.json`.
+- Tests should include `[REQ:WC-...]` tags for stable sync.
+- Acceptance coverage should include:
+  1. Interactive CLI fidelity (Claude Code-class flows)
+  2. Reconnect and offline output replay
+  3. Responsive pane layout behavior
+  4. AI provider fallback behavior
+  5. Launcher + shortcut configuration behavior
+
+## Lifecycle Commands
+
 ```bash
 cd scenarios/web-console
 make setup
-```
-This builds the Go API binary and creates the transcript directory. Install UI dependencies once (`pnpm install --filter web-console-ui`) and run `pnpm --filter web-console-ui run build` whenever you change the frontend so `ui/dist/` stays current.
-
-### Development Lifecycle
-```bash
-make run     # start API + UI via lifecycle
-make logs    # tail aggregated logs
-make stop    # stop everything cleanly
+make start
+make test
+make logs
+make stop
 ```
 
-## ⚙️ Configuration
-Environment variables (managed in `.vrooli/service.json`):
-- `WEB_CONSOLE_DEFAULT_COMMAND` — executable to launch (defaults to `/bin/bash`).
-- `WEB_CONSOLE_DEFAULT_ARGS` — space-separated default arguments for the command.
-- `WEB_CONSOLE_SESSION_TTL` — session lifetime (default `30m`).
-- `WEB_CONSOLE_IDLE_TIMEOUT` — idle termination window (default `5m`).
-- `WEB_CONSOLE_STORAGE_PATH` — transcript output directory (`data/sessions`).
-- `WEB_CONSOLE_EXPECT_PROXY` — set `false` to disable proxy guard (not recommended).
-- Optional adapters: `WEB_CONSOLE_REDIS_URL`, `WEB_CONSOLE_POSTGRES_URL` for external transcript sinks.
+## Notes
 
-Per-session overrides can send `command` and `args` in `POST /api/v1/sessions` to target alternative binaries.
-
-## 📡 iframe Bridge Contract
-Channel: `web-console`
-- **Accepted commands**: `init-session`, `end-session`, `request-transcript`, `request-screenshot`, `request-logs`.
-- **Emitted events**: `bridge-initialized`, `ready`, `session-started`, `session-update`, `session-ended`, `operator-updated`, `error`.
-- Messages are JSON with `type` and `payload`. Parent scenarios are responsible for validation and storage.
-
-## 🧪 Testing
-```bash
-make test  # runs go vet + targeted checks
-```
-(Extend with integration/UI tests once a CLI stub or mock PTY is available.)
-
-## 📡 Monitoring
-- `GET /healthz` → readiness/liveness (notes proxy requirements).
-- `GET /metrics` → Prometheus counters for sessions, panic stops, TTL expirations, and upgrade failures.
-- Structured JSON logs integrate with existing platform collectors.
-
-## 🛣️ Roadmap Thoughts
-1. Harden multi-session queueing and resource pools (Redis/Postgres adapters, rate limits).
-2. Offline-first UX: reconnect/resume, local transcript cache, better mobile latency handling.
-3. Additional shortcuts configurable via service config or parent handshake.
-4. Optional RBAC hooks so parent scenarios can gate which commands/operators are allowed.
-
-## 🤝 Contributing Guidelines
-- Format Go with `gofumpt`, lint with `golangci-lint` before submitting patches.
-- Use the existing Vite pipeline for UI changes; keep third-party libraries vendored in `ui/public/lib/` to preserve offline capability.
-- Update documentation when shortcut commands or iframe contract changes.
-- Preserve the lifecycle guardrails: no direct binary launches outside `make`/`vrooli` wrappers.
-
-**Remember:** this console is infrastructure for trusted scenarios only. Always run it behind an authenticated proxy and treat shortcut commands as privileged operations.
+- Avoid direct process execution outside scenario lifecycle commands.
+- Keep docs and requirements in lockstep as rewrite decisions evolve.

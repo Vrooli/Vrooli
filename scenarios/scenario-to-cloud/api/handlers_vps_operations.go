@@ -97,7 +97,7 @@ func (s *Server) handleVPSDeployApply(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Minute)
 	defer cancel()
 
-	resp := vps.RunDeploy(ctx, manifest, s.sshRunner, s.secretsGenerator)
+	resp := vps.RunDeploy(ctx, manifest, s.sshRunner, s.secretsGenerator, nil)
 	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"result":    resp,
 		"issues":    issues,

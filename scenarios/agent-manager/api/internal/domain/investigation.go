@@ -1,7 +1,34 @@
 // Package domain provides investigation-related domain types.
 package domain
 
-import "time"
+import (
+	"fmt"
+	"regexp"
+	"strings"
+	"time"
+)
+
+// =============================================================================
+// INVESTIGATION TAG CONSTANTS
+// =============================================================================
+
+// Tag constants for identifying investigation runs.
+// These are used across packages to identify investigation and apply runs.
+const (
+	// InvestigationTagPrefix is the prefix for investigation run tags.
+	// Investigation runs have tags like "agent-manager-investigation" (exact match).
+	InvestigationTagPrefix = "agent-manager-investigation"
+
+	// InvestigationApplyTagSuffix is the suffix that distinguishes apply runs from investigation runs.
+	// Apply runs have tags like "agent-manager-investigation-apply".
+	InvestigationApplyTagSuffix = "-apply"
+
+	// InvestigationTag is the exact tag for investigation runs (not apply).
+	InvestigationTag = InvestigationTagPrefix
+
+	// InvestigationApplyTag is the exact tag for apply investigation runs.
+	InvestigationApplyTag = InvestigationTagPrefix + InvestigationApplyTagSuffix
+)
 
 // =============================================================================
 // INVESTIGATION SETTINGS
@@ -9,17 +36,27 @@ import "time"
 
 // InvestigationSettings holds configuration for investigation agents.
 // This is a singleton - only one row exists in the database.
+// Prompt templates are managed externally via prompt-manager skills;
+// the PromptTemplate and ApplyPromptTemplate fields are populated at
+// read time by the orchestration layer (not stored in the DB).
 type InvestigationSettings struct {
 	// PromptTemplate is the base instruction sent to investigation agents.
-	// Plain text with NO variables/templating - all dynamic content is provided
-	// as separate context attachments.
-	PromptTemplate string `json:"promptTemplate" db:"prompt_template"`
+	// Populated from prompt-manager skill "agent-manager-process-investigation"
+	// at read time; not stored in the database.
+	PromptTemplate string `json:"promptTemplate"`
+
+	// ApplyPromptTemplate is the base instruction sent to apply investigation agents.
+	// Populated from prompt-manager skill "agent-manager-process-investigation-apply"
+	// at read time; not stored in the database.
+	ApplyPromptTemplate string `json:"applyPromptTemplate"`
 
 	// DefaultDepth is the default investigation depth: "quick", "standard", or "deep"
 	DefaultDepth InvestigationDepth `json:"defaultDepth" db:"default_depth"`
 
 	// DefaultContext defines which context types are included by default
 	DefaultContext InvestigationContextFlags `json:"defaultContext" db:"default_context"`
+	// InvestigationTagAllowlist defines which run tags are eligible for Apply Fixes and recommendation extraction.
+	InvestigationTagAllowlist []InvestigationTagRule `json:"investigationTagAllowlist" db:"investigation_tag_allowlist"`
 
 	// UpdatedAt is when these settings were last modified
 	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
@@ -55,8 +92,6 @@ type InvestigationContextFlags struct {
 	RunEvents bool `json:"runEvents"`
 	// RunDiffs includes code changes made during runs
 	RunDiffs bool `json:"runDiffs"`
-	// ScenarioDocs includes scenario documentation (CLAUDE.md, README)
-	ScenarioDocs bool `json:"scenarioDocs"`
 	// FullLogs includes full run logs (can be very large)
 	FullLogs bool `json:"fullLogs"`
 }
@@ -67,82 +102,253 @@ func DefaultInvestigationContextFlags() InvestigationContextFlags {
 		RunSummaries: true,
 		RunEvents:    true,
 		RunDiffs:     true,
-		ScenarioDocs: true,
 		FullLogs:     false,
 	}
 }
 
-// =============================================================================
-// DETECTED SCENARIO
-// =============================================================================
+// InvestigationTagRule defines a single allowlist rule for investigation tags.
+type InvestigationTagRule struct {
+	// Pattern is a glob or regex pattern used to match run tags.
+	Pattern string `json:"pattern"`
+	// IsRegex controls whether Pattern is treated as a regex. If false, Pattern is treated as a glob.
+	IsRegex bool `json:"isRegex"`
+	// CaseSensitive controls whether matching is case-sensitive.
+	CaseSensitive bool `json:"caseSensitive"`
+}
 
-// DetectedScenario represents a scenario detected from run data.
-// Used when presenting investigation creation options to the user.
-type DetectedScenario struct {
-	// Name is the scenario name (e.g., "agent-manager")
-	Name string `json:"name"`
-	// ProjectRoot is the full path to the scenario
-	ProjectRoot string `json:"projectRoot"`
-	// KeyFiles are important files found in the scenario (CLAUDE.md, README.md, etc.)
-	KeyFiles []string `json:"keyFiles"`
-	// RunCount is how many of the selected runs are from this scenario
-	RunCount int `json:"runCount"`
+// DefaultInvestigationTagAllowlist returns the default tag allowlist rules.
+func DefaultInvestigationTagAllowlist() []InvestigationTagRule {
+	return []InvestigationTagRule{
+		{
+			Pattern:       "investigation",
+			IsRegex:       false,
+			CaseSensitive: false,
+		},
+		{
+			Pattern:       "*-investigation",
+			IsRegex:       false,
+			CaseSensitive: false,
+		},
+	}
+}
+
+// NormalizeInvestigationTagAllowlist returns a usable allowlist (defaults if empty).
+func NormalizeInvestigationTagAllowlist(rules []InvestigationTagRule) []InvestigationTagRule {
+	if len(rules) == 0 {
+		return DefaultInvestigationTagAllowlist()
+	}
+	return rules
+}
+
+// ValidateInvestigationTagAllowlist ensures regex patterns compile.
+func ValidateInvestigationTagAllowlist(rules []InvestigationTagRule) error {
+	for _, rule := range NormalizeInvestigationTagAllowlist(rules) {
+		if strings.TrimSpace(rule.Pattern) == "" {
+			continue
+		}
+		if rule.IsRegex {
+			if _, err := compileInvestigationTagPattern(rule); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// MatchesInvestigationTag returns true if tag matches any allowlist rule.
+func MatchesInvestigationTag(tag string, rules []InvestigationTagRule) bool {
+	for _, rule := range NormalizeInvestigationTagAllowlist(rules) {
+		if strings.TrimSpace(rule.Pattern) == "" {
+			continue
+		}
+		re, err := compileInvestigationTagPattern(rule)
+		if err != nil {
+			continue
+		}
+		if re.MatchString(tag) {
+			return true
+		}
+	}
+	return false
+}
+
+func compileInvestigationTagPattern(rule InvestigationTagRule) (*regexp.Regexp, error) {
+	pattern := rule.Pattern
+	if !rule.IsRegex {
+		pattern = globToRegex(pattern)
+	}
+	if !rule.CaseSensitive {
+		pattern = "(?i)" + pattern
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, fmt.Errorf("invalid investigation tag pattern %q: %w", rule.Pattern, err)
+	}
+	return re, nil
+}
+
+func globToRegex(pattern string) string {
+	var builder strings.Builder
+	builder.WriteString("^")
+	for _, r := range pattern {
+		switch r {
+		case '*':
+			builder.WriteString(".*")
+		case '?':
+			builder.WriteString(".")
+		default:
+			builder.WriteString(regexp.QuoteMeta(string(r)))
+		}
+	}
+	builder.WriteString("$")
+	return builder.String()
 }
 
 // =============================================================================
 // DEFAULT PROMPT TEMPLATE
 // =============================================================================
 
-// DefaultInvestigationPromptTemplate is the default prompt for investigation agents.
-const DefaultInvestigationPromptTemplate = `# Agent-Manager Investigation
+// DefaultInvestigationPromptTemplate is the fallback prompt for investigation agents
+// when prompt-manager is unavailable. Keep in sync with the SKILL.md file:
+// scenarios/prompt-manager/store/skills/packs/core/agent-manager-process-investigation/SKILL.md
+const DefaultInvestigationPromptTemplate = `## Investigation
 
-You are an expert debugger. Your job is to ACTIVELY INVESTIGATE why the runs provided in context failed.
+Diagnose why the attached agent run(s) failed. Produce a structured report classifying root causes and recommending specific, actionable fixes.
 
-**Do NOT just analyze the provided data - EXPLORE THE CODEBASE to find root causes.**
+### What you have
 
-## Required Investigation Steps
-1. **Read the scenario's CLAUDE.md or README.md** to understand the project structure
-2. **Analyze the error messages** in the attached run events - find the actual failure
-3. **Trace the error to source code** - use grep/read to find the failing code path
-4. **Check related files** - look at imports, dependencies, callers, and configuration
-5. **Identify the root cause** - distinguish symptoms from underlying issues
+Context attachments below contain the key data — read them before exploring further:
+- **Run overview**: status, timing, task description, runner configuration
+- **Event timeline**: chronological tool calls, reasoning, and results
+- **Agent setup paths**: file paths to the agent's prompt-manager configuration
+- **Historical context**: recent runs with the same agent profile (success/fail patterns)
+- **Run diff**: code changes made during the run (if any)
 
-## Common Failure Patterns to Check
-- **Log/Output Issues**: Large outputs breaking scanners, missing newlines, buffering problems
-- **Path Issues**: Relative vs absolute paths, working directory assumptions
-- **Timeout Issues**: Operations taking longer than expected
-- **Tool Issues**: Missing tools, wrong tool usage, tool not trusted by agent
-- **Prompt Issues**: Agent not understanding instructions, missing context
-- **State Issues**: Stale data, cache invalidation, missing initialization
+### What to do
 
-## How to Fetch Additional Run Data
-If you need full details beyond the attachments, use the agent-manager CLI:
-` + "```bash\n" + `agent-manager run get <run-id>      # Full run details
-agent-manager run events <run-id>  # All events with tool calls
-agent-manager run diff <run-id>    # Code changes made
-` + "```\n" + `
-## Required Report Format
-Provide your findings in this structure:
+1. Read the attached timeline and overview to understand what happened
+2. Identify where things went wrong — errors, loops, wrong approaches, stalls
+3. Classify each failure as one or both of:
+   - **Environment/Tooling**: tools broken/missing/misconfigured, config errors, services down, wrong versions, permission issues
+   - **Agent Setup**: prompt unclear or contradictory, missing guardrails, wrong tools listed, insufficient context, scope confusion
+4. If both apply, investigate Environment/Tooling first — a broken environment makes prompt analysis unreliable
+5. For each finding: cite specific evidence (event numbers, file contents, command outputs), assess severity, and recommend a concrete fix naming the specific file and change needed
 
-### 1. Executive Summary
-One-paragraph summary of what went wrong and why.
+### Exploration
 
-### 2. Root Cause Analysis
-- **Primary cause** with file:line references
-- **Contributing factors**
-- **Evidence** (run IDs, event sequences, code snippets)
+- Read agent prompt/instruction files listed in the agent-setup attachment
+- Run diagnostic commands (which, version checks) to verify tools the agent tried to use
+- Check configs and files referenced in error messages
+- For standard/deep depth: do targeted exploration of the primary failure category
+- For deep depth: thoroughly investigate all applicable categories
+- **Do NOT modify any files** — investigation is read-only
 
-### 3. Recommendations
-- **Immediate fix** (copy-pasteable code if possible)
-- **Preventive measures**
-- **Monitoring suggestions**`
+### Output format
+
+` + "```markdown\n" + `# Investigation Report
+
+## Categorization Summary
+- **Primary category**: [Environment/Tooling | Agent Setup | Both]
+- **Confidence**: [High | Medium | Low]
+- **Severity**: [Critical | Major | Gap | Minor]
+
+## Timeline
+| # | Event | Action | Result | Category Signal |
+|---|---|---|---|---|
+| 1 | ... | ... | ... | ... |
+
+## Environment/Tooling Findings
+| ID | Finding | Evidence | Severity | Recommendation |
+|---|---|---|---|---|
+| E1 | ... | ... | ... | ... |
+
+## Agent Setup Findings
+| ID | Finding | Evidence | Severity | Recommendation |
+|---|---|---|---|---|
+| A1 | ... | ... | ... | ... |
+
+## Recommendations Summary
+| Priority | ID | Category | Recommendation | Expected Impact |
+|---|---|---|---|---|
+| 1 | ... | ... | ... | ... |
+
+## Risks and Caveats
+- ...
+` + "```\n\nIf a category has no findings, include the header with \"No findings in this category.\""
+
+// DefaultApplyInvestigationPromptTemplate is the fallback prompt for apply agents
+// when prompt-manager is unavailable. Keep in sync with the SKILL.md file:
+// scenarios/prompt-manager/store/skills/packs/core/agent-manager-process-investigation-apply/SKILL.md
+const DefaultApplyInvestigationPromptTemplate = `## Apply Investigation Fixes
+
+Implement the recommendations from the attached investigation report. Produce a change report documenting what was applied, verified, and deferred.
+
+### What you have
+
+Context attachments contain the investigation report (in the investigation run's events/summary), the original failed run data, and any user-provided guidance.
+
+### What to do
+
+1. Find the investigation report in the attached investigation run events (look for the structured markdown report in the final assistant message)
+2. Extract all recommendations, noting their category and priority
+3. Apply **Environment/Tooling fixes first**, then Agent Setup fixes (each in priority order)
+4. For each fix:
+   - Read the target file to understand its current state
+   - Make the minimal change needed
+   - Verify: configs parse, paths exist, prompts are internally consistent
+5. After all fixes: check that Environment/Tooling changes don't conflict with Agent Setup changes
+
+### Rules
+
+- Only implement recommendations from the investigation report — no extras
+- All changes must be git-revertible
+- Don't remove existing safety checks unless the investigation explicitly recommends it with justification
+- If a recommendation is ambiguous, implement the narrower interpretation
+- If a fix causes a new problem, stop and document it — don't "fix the fix"
+
+### Output format
+
+` + "```markdown\n" + `# Apply Investigation Report
+
+## Summary
+- **Recommendations received**: [count]
+- **Applied successfully**: [count]
+- **Not applied**: [count]
+- **Verification failures**: [count]
+
+## Environment/Tooling Changes
+| ID | Recommendation | File | Change | Verification | Status |
+|---|---|---|---|---|---|
+| E1 | ... | ... | ... | ... | Applied |
+
+## Agent Setup Changes
+| ID | Recommendation | File | Change | Verification | Status |
+|---|---|---|---|---|---|
+| A1 | ... | ... | ... | ... | Applied |
+
+## Not Applied
+| ID | Recommendation | Reason |
+|---|---|---|
+| ... | ... | ... |
+
+## Cross-Category Verification
+- **Conflicts found**: [Yes/No]
+- **Details**: ...
+
+## Follow-Up Actions
+- ...
+` + "```\n\nIf a category has no changes, include the header with \"No changes in this category.\""
 
 // DefaultInvestigationSettings returns the default investigation settings.
+// Prompt templates are populated separately by the orchestration layer from
+// prompt-manager skills (with hardcoded constants as fallback).
 func DefaultInvestigationSettings() *InvestigationSettings {
 	return &InvestigationSettings{
-		PromptTemplate: DefaultInvestigationPromptTemplate,
-		DefaultDepth:   InvestigationDepthStandard,
-		DefaultContext: DefaultInvestigationContextFlags(),
-		UpdatedAt:      time.Now(),
+		PromptTemplate:            DefaultInvestigationPromptTemplate,
+		ApplyPromptTemplate:       DefaultApplyInvestigationPromptTemplate,
+		DefaultDepth:              InvestigationDepthStandard,
+		DefaultContext:            DefaultInvestigationContextFlags(),
+		InvestigationTagAllowlist: DefaultInvestigationTagAllowlist(),
+		UpdatedAt:                 time.Now(),
 	}
 }

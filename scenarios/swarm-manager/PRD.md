@@ -6,54 +6,65 @@
 > **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
 ## 🎯 Overview
-- **Purpose**: The autonomous orchestration engine that coordinates work across all Vrooli scenarios, enabling true self-improvement without human intervention by intelligently prioritizing, dispatching, and learning from task execution outcomes
-- **Primary users/verticals**: System administrators, DevOps teams, autonomous AI agents, Vrooli ecosystem developers
-- **Deployment surfaces**: CLI (task management and monitoring), API (task orchestration and status), UI (Trello-like dashboard with real-time monitoring), n8n workflows (automated task discovery and execution)
-- **Value promise**: Transforms Vrooli from a collection of tools into a self-improving intelligence system that never stops optimizing itself, achieving >50 improvements per day with >80% success rate and zero human intervention for 7+ days
+- **Purpose**: Central command center for managing the Vrooli scenario ecosystem - orchestrating backlog work, scenario lifecycle, execution control, and self-improvement insights
+- **Primary users/verticals**: Vrooli operators, agents, and developers managing the scenario ecosystem
+- **Deployment surfaces**: CLI, API, UI (React + Vite)
+- **Value promise**: Single interface to manage scenarios, backlog pipelines, and governed execution of autonomous change work
 
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | File-based task lifecycle | Create, stage, execute, complete, and fail tasks using file-based storage with proper state transitions
-- [ ] OT-P0-002 | Intelligent priority calculation | Calculate task priority using (Impact × Urgency × Success_Probability) / (Resource_Cost × Cooldown_Factor) formula
-- [ ] OT-P0-003 | CLI-based scenario integration | Dispatch work to scenarios via CLI commands (ecosystem-manager, resource-experimenter, app-debugger, etc.)
-- [ ] OT-P0-004 | Task monitoring dashboard | Trello-like dark theme UI showing tasks across active/backlog/staged/completed/failed columns
-- [ ] OT-P0-005 | Real-time agent monitoring | Display what each agent is working on with live status updates
-- [ ] OT-P0-006 | Manual task creation | Allow humans to create priority tasks by dropping YAML files in tasks/backlog/manual/
+- [x] OT-P0-001 | Backlog file structure | Git-tracked folder-per-item in scenarios/swarm-manager/{ideas,research,fix,execute}/
+- [x] OT-P0-002 | Backlog CRUD | Create, read, update, delete backlog items via API and CLI
+- [x] OT-P0-003 | Backlog details page | File tree view, drag-and-drop upload, preview for markdown/code/images
+- [x] OT-P0-004 | Backlog queue for processing | Queue idea backlog items for initialization/implementation via ecosystem-manager
+- [x] OT-P0-005 | Scenario catalog with priority | List all scenarios with priority ranking, search, and filter
+- [x] OT-P0-006 | Scenario metadata management | Greenfield/brownfield toggle
+- [x] OT-P0-007 | Scenario deletion with safeguards | Strong confirmation dialog + archive-to-backlog option
+- [x] OT-P0-008 | Tabbed navigation UI | Header tabs (desktop) / bottom-nav (mobile) with five tabs: Backlog, Scenarios, Execution, Prompts, Settings
+- [x] OT-P0-009 | agent-manager integration | Spawn agents for all automated work through agent-manager
+- [x] OT-P0-010 | ecosystem-manager integration | Initialize and improve scenarios from backlog ideas via ecosystem-manager
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | Learning and adaptation | Track success/failure rates and adjust priority weights based on actual vs predicted impact
-- [ ] OT-P1-002 | Pattern recognition | Store successful task sequences and failure modes in Qdrant for future reference
-- [ ] OT-P1-003 | Cooldown management | Prevent thrashing on repeatedly failing tasks with exponential backoff
-- [ ] OT-P1-004 | Dependency resolution | Execute tasks in correct order based on dependency chains
-- [ ] OT-P1-005 | PROBLEMS.md scanning | Automatically discover and create tasks from PROBLEMS.md files across resources and scenarios
-- [ ] OT-P1-006 | YOLO mode | Auto-approve AI-generated tasks when enabled in configuration
+- [x] OT-P1-001 | Execution control policy | Manual/scheduled/yolo defaults with configurable delay
+- [x] OT-P1-002 | Execution operations page | View pending/running/completed/failed and govern runs
+- [ ] OT-P1-003 | Insights engine | Self-improvement suggestions based on system patterns
+- [x] OT-P1-004 | Research agent modal | Spawn research agents from backlog details page (Idea Agent: clarify/suggest/enhance workflow)
+- [ ] OT-P1-005 | visited-tracker integration | Campaign management for context cleanup
+- [ ] OT-P1-006 | knowledge-observatory integration | View and prune PROBLEMS.md files
+- [ ] OT-P1-007 | scenario-completeness-scoring integration | Display completeness scores
+- [ ] OT-P1-008 | app-issue-tracker integration | Open and track issues against scenarios
+- [ ] OT-P1-009 | test-genie integration | Run tests and display results
+- [x] OT-P1-010 | Settings modal | Theme, execution policy config, insights config
 
 ### 🟢 P2 – Future / expansion
-- [ ] OT-P2-001 | Distributed tracing | Full execution tracing across multi-step task workflows
-- [ ] OT-P2-002 | Mobile monitoring app | iOS/Android app for task monitoring and approval
-- [ ] OT-P2-003 | Advanced analytics | Success metrics, throughput charts, resource usage graphs, and learning rate visualization
-- [ ] OT-P2-004 | Task templates | Reusable task templates for common improvement patterns
-- [ ] OT-P2-005 | Multi-cluster coordination | Coordinate work across multiple Vrooli installations
+- [ ] OT-P2-001 | Advanced cost formulas | Sophisticated priority calculations based on value/effort
+- [ ] OT-P2-002 | Pattern recognition | Heuristic similarity and pattern detection (filesystem-only)
+- [ ] OT-P2-003 | Analytics dashboard | Usage metrics, agent performance, scenario health trends
+- [ ] OT-P2-004 | Batch operations | Bulk actions on backlog items and scenarios
+- [ ] OT-P2-005 | Webhooks | External integrations for notifications and triggers
 
 ## 🧱 Tech Direction Snapshot
-- Preferred stacks / frameworks: Go API (task orchestration and priority engine), React UI (Trello-inspired dashboard with dark theme), n8n workflows (automated scanning and task generation)
-- Data + storage expectations: PostgreSQL (task metadata and execution history), Redis (task locks and real-time updates), Qdrant (learning patterns and task embeddings for pattern recognition)
-- Integration strategy: CLI-first integration calling scenario CLIs directly (e.g., `ecosystem-manager add scenario`, `app-debugger analyze`), n8n workflows for orchestration, file-based task system for transparency and manual intervention
-- Non-goals / guardrails: No API-based scenario integration (use CLIs instead), no replacement of existing scenario UIs (complement not replace), no task execution within swarm-manager itself (delegate to appropriate scenarios)
+- Preferred stacks / frameworks: Go API (api-core/server with gorilla/mux), React UI (Vite, TypeScript, React Query, Zustand), Go CLI (cli-core with urfave/cli)
+- Data + storage expectations: Filesystem only (git-tracked backlog folders, `.vrooli/settings.json`, `.vrooli/queue.json`)
+- Integration strategy: All agent work via agent-manager, scenario ops via ecosystem-manager and Vrooli CLI, prompt resolution via prompt-manager
+- Non-goals / guardrails: No kanban/Trello UI, no direct agent spawning, no embedded scenario implementation code, no complex workflow builders, no multi-user auth
 
 ## 🤝 Dependencies & Launch Plan
-- Required resources: postgres (task storage), redis (locks and pub/sub), qdrant (pattern storage), n8n (orchestration), claude-code (task analysis and execution)
-- Scenario dependencies: ecosystem-manager (unified resource/scenario management), resource-experimenter (testing resource integrations), app-debugger (error analysis), app-issue-tracker (issue management), system-monitor (health monitoring), task-planner (planning assistance)
-- Operational risks: Claude Code availability and API limits could throttle execution; task priority miscalculation could cause important work to be delayed; infinite task generation loops if backlog generator is too aggressive
-- Launch sequencing: Phase 1 - Deploy alongside auto/ for comparison (2 weeks), Phase 2 - Promote swarm-manager to primary with auto/ as fallback (1 month), Phase 3 - Disable auto/ loops and achieve full autonomy (ongoing validation)
+- Required resources: None (filesystem-only persistence)
+- Scenario dependencies (required): agent-manager, ecosystem-manager, prompt-manager
+- Scenario dependencies (optional P1): knowledge-observatory, visited-tracker, scenario-completeness-scoring, app-issue-tracker, test-genie
+- Operational risks: Tight coupling with ecosystem-manager and agent-manager API stability; filesystem integrity for settings/queue/execution policy
+- Launch sequencing: P0 core CRUD and UI → P0 integrations → P1 execution control policy → P1 integrations → P2 analytics
 
 ## 🎨 UX & Branding
-- Look & feel: Modern dark professional aesthetic with dark blue-black background (#1a1a2e), Trello-inspired kanban board with drag-and-drop, real-time updates, neon accents for status indicators
-- Accessibility: High contrast color coding for priority and severity, keyboard navigation for all task operations, screen reader support for task status, color-blind friendly status indicators
-- Voice & messaging: Technical, authoritative, focused on autonomous intelligence - "The brain of Vrooli that never stops improving"
-- Branding hooks: Task priority badges with color coding (🔥 Critical 1000+, 🚨 User Requests 500-999, 🔧 System Health 200-499, 🌱 Capability Growth 100-199, 📚 Knowledge Building 1-99)
+- Look & feel: Dark theme default, responsive mobile-first, clean minimal interface
+- Tab structure: Backlog (icon: lightbulb), Scenarios (icon: package), Execution (icon: zap), Prompts (icon: scroll-text), Settings (icon: settings)
+- Accessibility: WCAG AA compliance, keyboard navigation, screen reader support
+- Voice & messaging: Technical but approachable, focused on efficiency and clarity
+- Branding hooks: Consistent with Vrooli design system, scenario status indicators with color coding
 
 ## 📎 Appendix
-
-Success metrics, task file format, and reference documentation are maintained in the scenario's README.md and supporting documentation.
+- Additional implemented operator surfaces beyond the core launch targets include prompts management, backlog conversion, prompt tracing, scenario lifecycle controls, and spec-sync-archive orchestration.
+- Backlog items live under `scenarios/swarm-manager/{ideas,research,fix,execute}/` as git-tracked folders with a required `spec.json` and optional supporting files.
+- Settings can draw recommendation context from sources such as `PROBLEMS.md`, completeness scores, test phase results, coverage data, and operator-supplied focus text.

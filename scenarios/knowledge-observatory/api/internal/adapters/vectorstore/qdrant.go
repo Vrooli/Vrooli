@@ -1,5 +1,6 @@
 package vectorstore
 
+// DOC: docs/concepts/ARCHITECTURE.md#integrations
 import (
 	"bytes"
 	"context"
@@ -53,6 +54,46 @@ type createCollectionRequest struct {
 	} `json:"vectors"`
 }
 
+type collectionInfoResponse struct {
+	Result struct {
+		Config struct {
+			Params struct {
+				Vectors interface{} `json:"vectors"`
+			} `json:"params"`
+		} `json:"config"`
+	} `json:"result"`
+}
+
+func extractCollectionVectorSize(value interface{}) (int, bool) {
+	switch v := value.(type) {
+	case map[string]interface{}:
+		// Unnamed vectors collection.
+		if sizeRaw, ok := v["size"]; ok {
+			switch sizeValue := sizeRaw.(type) {
+			case float64:
+				size := int(sizeValue)
+				if size > 0 {
+					return size, true
+				}
+			case int:
+				if sizeValue > 0 {
+					return sizeValue, true
+				}
+			}
+		}
+
+		// Named vectors collection. Pick first vector size.
+		for _, inner := range v {
+			if innerMap, ok := inner.(map[string]interface{}); ok {
+				if size, ok := extractCollectionVectorSize(innerMap); ok {
+					return size, true
+				}
+			}
+		}
+	}
+	return 0, false
+}
+
 func (q *Qdrant) EnsureCollection(ctx context.Context, collection string, vectorSize int) error {
 	collection = strings.TrimSpace(collection)
 	if collection == "" {
@@ -80,10 +121,21 @@ func (q *Qdrant) EnsureCollection(ctx context.Context, collection string, vector
 	if err != nil {
 		return err
 	}
-	_ = getResp.Body.Close()
 	if getResp.StatusCode == http.StatusOK {
+		defer getResp.Body.Close()
+		var decoded collectionInfoResponse
+		if err := json.NewDecoder(getResp.Body).Decode(&decoded); err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return fmt.Errorf("failed to decode collection info: %w", err)
+		}
+		if existingSize, ok := extractCollectionVectorSize(decoded.Result.Config.Params.Vectors); ok && existingSize != vectorSize {
+			return fmt.Errorf("collection %s vector size mismatch: existing=%d requested=%d", collection, existingSize, vectorSize)
+		}
 		return nil
 	}
+	_ = getResp.Body.Close()
 	if getResp.StatusCode != http.StatusNotFound {
 		return fmt.Errorf("qdrant collection info returned status %d", getResp.StatusCode)
 	}

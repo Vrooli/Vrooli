@@ -1,5 +1,7 @@
 package ingest
 
+// DOC: docs/concepts/ARCHITECTURE.md#ingest-flow
+// DOC: docs/reference/api-endpoints.md#upsert-record
 import (
 	"context"
 	"crypto/sha256"

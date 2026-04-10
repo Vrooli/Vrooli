@@ -1,0 +1,269 @@
+{
+  "_metadata": {
+    "description": "LLM Evaluator requirement registry - Links operational targets to technical requirements for evaluation framework",
+    "last_validated_at": "2026-03-09T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": "2026-03-09T00:00:00.000Z"
+  },
+  "meta": {
+    "scenario": "llm-evaluator",
+    "version": "0.0.1",
+    "generated": "2026-03-09",
+    "owners": [
+      {
+        "team": "Vrooli AI Platform",
+        "contact": "ai-platform@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [
+    "01-evaluation-jobs/module.json",
+    "02-core-metrics/module.json",
+    "03-storage-retrieval/module.json",
+    "04-dashboard/module.json",
+    "05-api-integration/module.json"
+  ],
+  "requirements": [
+    {
+      "id": "REQ-P0-001",
+      "category": "core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Evaluation Job Management",
+      "description": "Create, queue, execute, and track evaluation jobs against LLM outputs with comprehensive status monitoring and progress tracking capabilities.",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/jobs_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/01-jobs/e2e/job-lifecycle.json",
+          "phase": "business",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-002",
+      "category": "metrics",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "BLEU Score Calculation",
+      "description": "Calculate BLEU scores measuring n-gram overlap precision between generated and reference text with brevity penalty.",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/metrics/bleu_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-003",
+      "category": "metrics",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "ROUGE Score Calculation",
+      "description": "Calculate ROUGE-1, ROUGE-2, and ROUGE-L scores measuring recall of n-gram overlap for summarization evaluation.",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/metrics/rouge_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-004",
+      "category": "metrics",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Semantic Similarity Metrics",
+      "description": "Calculate embedding-based similarity scores (BERTScore) using vector comparisons via Qdrant integration.",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/metrics/semantic_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-005",
+      "category": "evaluation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "LLM-as-Judge Evaluation",
+      "description": "Implement rubric-based evaluation using LLM reasoning (via Ollama or external APIs) to score outputs against customizable criteria.",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/judge_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/02-judge/e2e/llm-judge-evaluation.json",
+          "phase": "integration",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-006",
+      "category": "storage",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Results Storage & Retrieval",
+      "description": "PostgreSQL storage for evaluation jobs, results, and metrics with query capabilities for scenario, model, time range, and metric type.",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/storage_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-007",
+      "category": "ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "Dashboard Visualization",
+      "description": "Real-time metric displays with charts and graphs, comparison views between models/prompts/scenarios, and quality trend monitoring.",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/components/__tests__/Dashboard.test.tsx",
+          "phase": "unit",
+          "status": "not_implemented"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/03-dashboard/e2e/dashboard-visualization.json",
+          "phase": "business",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-008",
+      "category": "api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-008",
+      "title": "REST API Integration Layer",
+      "description": "API endpoints for submitting evaluation requests, retrieving results, and webhook support for async result delivery.",
+      "criticality": "P0",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        },
+        {
+          "type": "test",
+          "ref": "bas/cases/08-api/e2e/api-integration.json",
+          "phase": "integration",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-001",
+      "category": "rag",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "RAG Context Relevancy",
+      "description": "Evaluate retrieval quality using RAGAs framework context relevancy scoring.",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "REQ-P1-002",
+      "category": "rag",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "RAG Faithfulness Scoring",
+      "description": "Measure if generated answers are grounded in provided context to detect hallucinations.",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "REQ-P1-003",
+      "category": "rag",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "RAG Answer Relevancy",
+      "description": "Score how well generated answers address the original question.",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "REQ-P1-004",
+      "category": "evaluation",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "G-Eval Implementation",
+      "description": "Multi-step rubric-based evaluation with chain-of-thought reasoning for structured scoring.",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "REQ-P1-005",
+      "category": "comparison",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Model Comparison Suite",
+      "description": "Side-by-side output comparison with A/B testing framework and statistical significance testing.",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "REQ-P1-006",
+      "category": "quality",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Quality Gates & Thresholds",
+      "description": "Define minimum quality thresholds per scenario/metric with automatic flagging and CI/CD integration.",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "REQ-P1-007",
+      "category": "reporting",
+      "prd_ref": "Operational Targets > P1 > OT-P1-007",
+      "title": "Export & Reporting",
+      "description": "Generate detailed evaluation reports in PDF, JSON, and CSV formats with scheduled generation.",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    },
+    {
+      "id": "REQ-P1-008",
+      "category": "integration",
+      "prd_ref": "Operational Targets > P1 > OT-P1-008",
+      "title": "Multi-Scenario Integration",
+      "description": "Direct integration with agent-manager, prompt-manager, and knowledge-observatory for ecosystem-wide evaluation.",
+      "criticality": "P1",
+      "status": "pending",
+      "validation": []
+    }
+  ]
+}

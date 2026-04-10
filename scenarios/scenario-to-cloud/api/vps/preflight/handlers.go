@@ -1,3 +1,4 @@
+// DOC: docs/reference/api-endpoints.md#preflight — preflight and fix endpoint documentation
 package preflight
 
 import (
@@ -11,6 +12,7 @@ import (
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 )
 
@@ -23,6 +25,14 @@ type HandlerDeps struct {
 	ValidateManifest func(manifest domain.CloudManifest) (domain.CloudManifest, []domain.ValidationIssue)
 	// HasBlockingIssues checks if issues contain blocking errors.
 	HasBlockingIssues func(issues []domain.ValidationIssue) bool
+}
+
+// HandleRequirements returns canonical VPS requirement metadata.
+// GET /api/v1/preflight/requirements
+func HandleRequirements() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		httputil.WriteJSON(w, http.StatusOK, BuildRequirementsResponse())
+	}
 }
 
 // HandlePreflight creates a handler for running VPS preflight checks.
@@ -53,7 +63,7 @@ func HandlePreflight(deps HandlerDeps) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
 		defer cancel()
 
-		resp := Run(ctx, normalized, deps.DNSService, deps.SSHRunner)
+		resp := Run(ctx, normalized, deps.DNSService, deps.SSHRunner, RunOptions{})
 		resp.Issues = issues
 		httputil.WriteJSON(w, http.StatusOK, resp)
 	}
@@ -219,7 +229,7 @@ func HandleOpenFirewallPorts(sshRunner ssh.Runner) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
 
-		checkRes, checkErr := sshRunner.Run(ctx, cfg, "command -v ufw >/dev/null")
+		checkRes, checkErr := sshRunner.Run(ctx, cfg, "command -v ufw >/dev/null", ssh.DefaultRunOptions())
 		if checkErr != nil || checkRes.ExitCode != 0 {
 			httputil.WriteJSON(w, http.StatusOK, FirewallFixResponse{
 				OK:        false,
@@ -248,7 +258,7 @@ func HandleOpenFirewallPorts(sshRunner ssh.Runner) http.HandlerFunc {
 		}
 
 		allowCmd := strings.Join(commands, " && ")
-		if _, err := sshRunner.Run(ctx, cfg, allowCmd); err != nil {
+		if _, err := sshRunner.Run(ctx, cfg, allowCmd, ssh.DefaultRunOptions()); err != nil {
 			httputil.WriteJSON(w, http.StatusOK, FirewallFixResponse{
 				OK:        false,
 				Message:   "Failed to update UFW rules: " + err.Error(),
@@ -258,7 +268,7 @@ func HandleOpenFirewallPorts(sshRunner ssh.Runner) http.HandlerFunc {
 			return
 		}
 
-		statusRes, _ := sshRunner.Run(ctx, cfg, "ufw status")
+		statusRes, _ := sshRunner.Run(ctx, cfg, "ufw status", ssh.DefaultRunOptions())
 		httputil.WriteJSON(w, http.StatusOK, FirewallFixResponse{
 			OK:        true,
 			Message:   "Firewall rules updated",
@@ -310,7 +320,7 @@ func HandleDiskUsage(sshRunner ssh.Runner) http.HandlerFunc {
 		defer cancel()
 
 		// Get disk usage stats
-		dfRes, err := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $2, $3, $4, $5}'`)
+		dfRes, err := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $2, $3, $4, $5}'`, ssh.DefaultRunOptions())
 		if err != nil {
 			httputil.WriteJSON(w, http.StatusOK, DiskUsageResponse{
 				OK:        false,
@@ -331,7 +341,7 @@ func HandleDiskUsage(sshRunner ssh.Runner) http.HandlerFunc {
 		}
 
 		// Get largest directories
-		duRes, _ := sshRunner.Run(ctx, cfg, `du -sk /var/* /home/* /root/* /opt/* /tmp/* 2>/dev/null | sort -rn | head -10`)
+		duRes, _ := sshRunner.Run(ctx, cfg, `du -sk /var/* /home/* /root/* /opt/* /tmp/* 2>/dev/null | sort -rn | head -10`, ssh.DefaultRunOptions())
 		var largestDirs []DiskUsageEntry
 		for _, line := range strings.Split(duRes.Stdout, "\n") {
 			line = strings.TrimSpace(line)
@@ -373,13 +383,24 @@ type DiskCleanupRequest struct {
 
 // DiskCleanupResponse is the response from disk cleanup.
 type DiskCleanupResponse struct {
-	OK            bool     `json:"ok"`
-	SpaceFreed    string   `json:"space_freed"`
-	SpaceFreedKB  int64    `json:"space_freed_kb"`
-	Message       string   `json:"message"`
-	ActionsRun    []string `json:"actions_run"`
-	ActionsFailed []string `json:"actions_failed,omitempty"`
-	Timestamp     string   `json:"timestamp"`
+	OK            bool                      `json:"ok"`
+	SpaceFreed    string                    `json:"space_freed"`
+	SpaceFreedKB  int64                     `json:"space_freed_kb"`
+	Message       string                    `json:"message"`
+	ActionsRun    []string                  `json:"actions_run"`
+	ActionsFailed []string                  `json:"actions_failed,omitempty"`
+	ActionResults []DiskCleanupActionResult `json:"action_results,omitempty"`
+	Timestamp     string                    `json:"timestamp"`
+}
+
+// DiskCleanupActionResult captures execution details for one cleanup action.
+type DiskCleanupActionResult struct {
+	Action   string `json:"action"`
+	OK       bool   `json:"ok"`
+	ExitCode int    `json:"exit_code"`
+	Summary  string `json:"summary,omitempty"`
+	Stderr   string `json:"stderr,omitempty"`
+	Hint     string `json:"hint,omitempty"`
 }
 
 // HandleDiskCleanup creates a handler for running disk cleanup.
@@ -400,10 +421,14 @@ func HandleDiskCleanup(sshRunner ssh.Runner) http.HandlerFunc {
 		defer cancel()
 
 		// Get initial free space
-		beforeRes, _ := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`)
+		beforeRes, _ := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`, ssh.DefaultRunOptions())
 		beforeKB, _ := strconv.ParseInt(strings.TrimSpace(beforeRes.Stdout), 10, 64)
 
-		var actionsRun, actionsFailed []string
+		var (
+			actionsRun    []string
+			actionsFailed []string
+			actionResults []DiskCleanupActionResult
+		)
 
 		actionCommands := map[string]string{
 			"apt_clean":      "apt-get clean && apt-get autoremove -y",
@@ -411,14 +436,42 @@ func HandleDiskCleanup(sshRunner ssh.Runner) http.HandlerFunc {
 			"docker_prune":   "docker system prune -af 2>/dev/null || true",
 			"tmp_clean":      "find /tmp -type f -atime +7 -delete 2>/dev/null || true",
 		}
+		actionHints := map[string]string{
+			"apt_clean":      "Ensure apt/dpkg locks are clear, then retry apt cleanup.",
+			"journal_vacuum": "Check journalctl permissions and available journal space settings.",
+			"docker_prune":   "Ensure Docker is installed/running, or remove docker_prune from actions.",
+			"tmp_clean":      "Verify /tmp permissions and retry tmp_clean.",
+		}
 
 		for _, action := range req.Actions {
 			cmd, ok := actionCommands[action]
 			if !ok {
+				actionsFailed = append(actionsFailed, action)
+				actionResults = append(actionResults, DiskCleanupActionResult{
+					Action:   action,
+					OK:       false,
+					ExitCode: 1,
+					Summary:  "unsupported cleanup action",
+					Hint:     "Use one of: apt_clean, journal_vacuum, docker_prune, tmp_clean",
+				})
 				continue
 			}
-			_, err := sshRunner.Run(ctx, cfg, cmd)
-			if err != nil {
+			res, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
+			actionOK := err == nil && res.ExitCode == 0
+			summary := summarizeDiskCleanupAction(res.Stdout, res.Stderr)
+			if summary == "" && err != nil {
+				summary = err.Error()
+			}
+			actionResult := DiskCleanupActionResult{
+				Action:   action,
+				OK:       actionOK,
+				ExitCode: res.ExitCode,
+				Summary:  summary,
+				Stderr:   strings.TrimSpace(res.Stderr),
+				Hint:     actionHints[action],
+			}
+			actionResults = append(actionResults, actionResult)
+			if !actionOK {
 				actionsFailed = append(actionsFailed, action)
 			} else {
 				actionsRun = append(actionsRun, action)
@@ -426,7 +479,7 @@ func HandleDiskCleanup(sshRunner ssh.Runner) http.HandlerFunc {
 		}
 
 		// Get final free space
-		afterRes, _ := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`)
+		afterRes, _ := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`, ssh.DefaultRunOptions())
 		afterKB, _ := strconv.ParseInt(strings.TrimSpace(afterRes.Stdout), 10, 64)
 
 		freedKB := afterKB - beforeKB
@@ -446,9 +499,23 @@ func HandleDiskCleanup(sshRunner ssh.Runner) http.HandlerFunc {
 			Message:       msg,
 			ActionsRun:    actionsRun,
 			ActionsFailed: actionsFailed,
+			ActionResults: actionResults,
 			Timestamp:     time.Now().UTC().Format(time.RFC3339),
 		})
 	}
+}
+
+func summarizeDiskCleanupAction(stdout, stderr string) string {
+	for _, source := range []string{stderr, stdout} {
+		lines := strings.Split(source, "\n")
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if trimmed != "" {
+				return trimmed
+			}
+		}
+	}
+	return ""
 }
 
 // StopScenarioProcessesRequest is the request body for stopping stale scenario processes.
@@ -497,7 +564,7 @@ func HandleStopScenarioProcesses(sshRunner ssh.Runner, stopScenario StopScenario
 		defer cancel()
 
 		// Verify SSH connectivity first
-		testResult, testErr := sshRunner.Run(ctx, cfg, "echo ok")
+		testResult, testErr := sshRunner.Run(ctx, cfg, "echo ok", ssh.DefaultRunOptions())
 		if testErr != nil {
 			writeStopScenarioResponse(w, false, "test_ssh",
 				fmt.Sprintf("SSH connection test failed: %v (stdout: %s, stderr: %s)", testErr, testResult.Stdout, testResult.Stderr),
@@ -541,7 +608,7 @@ func writeStopScenarioResponse(w http.ResponseWriter, ok bool, action, message, 
 
 // workdirExists checks if the specified directory exists on the remote VPS.
 func workdirExists(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, workdir string) bool {
-	result, _ := sshRunner.Run(ctx, cfg, fmt.Sprintf("test -d %s && echo exists || echo missing", ssh.QuoteSingle(workdir)))
+	result, _ := sshRunner.Run(ctx, cfg, fmt.Sprintf("test -d %s && echo exists || echo missing", shellutil.QuoteSingle(workdir)), ssh.DefaultRunOptions())
 	return strings.TrimSpace(result.Stdout) == "exists"
 }
 
@@ -550,9 +617,9 @@ func stopAllVrooliProcesses(ctx context.Context, sshRunner ssh.Runner, cfg ssh.C
 	var outputs []string
 
 	// Try vrooli stop first (if CLI available)
-	checkCliResult, _ := sshRunner.Run(ctx, cfg, ssh.VrooliCommand(workdir, "which vrooli || echo notfound"))
+	checkCliResult, _ := sshRunner.Run(ctx, cfg, shellutil.VrooliCommand(workdir, "which vrooli || echo notfound"), ssh.DefaultRunOptions())
 	if !strings.Contains(checkCliResult.Stdout, "notfound") {
-		vrooliResult, _ := sshRunner.Run(ctx, cfg, ssh.VrooliCommand(workdir, "vrooli stop"))
+		vrooliResult, _ := sshRunner.Run(ctx, cfg, shellutil.VrooliCommand(workdir, "vrooli stop"), ssh.DefaultRunOptions())
 		if vrooliResult.Stdout != "" {
 			outputs = append(outputs, vrooliResult.Stdout)
 		}
@@ -560,7 +627,7 @@ func stopAllVrooliProcesses(ctx context.Context, sshRunner ssh.Runner, cfg ssh.C
 
 	// Kill orphaned processes that may not be managed by vrooli lifecycle
 	killOrphansCmd := "pkill -f 'pm2' 2>/dev/null; pkill -f '-api$' 2>/dev/null; pkill -f 'scenario.*api' 2>/dev/null; true"
-	if _, err := sshRunner.Run(ctx, cfg, killOrphansCmd); err != nil {
+	if _, err := sshRunner.Run(ctx, cfg, killOrphansCmd, ssh.DefaultRunOptions()); err != nil {
 		outputs = append(outputs, "Failed to kill orphaned processes: "+err.Error())
 	} else {
 		outputs = append(outputs, "Killed orphaned processes")
@@ -573,7 +640,7 @@ func stopAllVrooliProcesses(ctx context.Context, sshRunner ssh.Runner, cfg ssh.C
 
 func collectPortStopPIDs(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, req StopPortServicesRequest) ([]string, bool, error) {
 	if len(req.Ports) == 0 && len(req.PIDs) == 0 && len(req.Services) == 0 {
-		ssRes, err := sshRunner.Run(ctx, cfg, `ss -ltnpH '( sport = :80 or sport = :443 )' 2>/dev/null || ss -ltnH '( sport = :80 or sport = :443 )'`)
+		ssRes, err := sshRunner.Run(ctx, cfg, `ss -ltnpH '( sport = :80 or sport = :443 )' 2>/dev/null || ss -ltnH '( sport = :80 or sport = :443 )'`, ssh.DefaultRunOptions())
 		if err != nil {
 			return nil, false, err
 		}
@@ -595,7 +662,7 @@ func collectPortStopPIDs(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Conf
 
 	for _, port := range req.Ports {
 		cmd := fmt.Sprintf("ss -ltnpH 'sport = :%d' 2>/dev/null || ss -ltnH 'sport = :%d'", port, port)
-		res, err := sshRunner.Run(ctx, cfg, cmd)
+		res, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 		if err != nil {
 			return nil, true, err
 		}
@@ -612,7 +679,7 @@ func collectPortStopPIDs(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Conf
 
 func resolveUnitForPID(ctx context.Context, runner ssh.Runner, cfg ssh.Config, pid string) string {
 	cmd := fmt.Sprintf("systemctl status %s --no-pager 2>/dev/null | head -n 1", pid)
-	res, err := runner.Run(ctx, cfg, cmd)
+	res, err := runner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		return ""
 	}
@@ -630,7 +697,7 @@ func resolveUnitForPID(ctx context.Context, runner ssh.Runner, cfg ssh.Config, p
 
 func stopUnit(ctx context.Context, runner ssh.Runner, cfg ssh.Config, unit string) bool {
 	cmd := fmt.Sprintf("systemctl stop %s 2>/dev/null", unit)
-	res, err := runner.Run(ctx, cfg, cmd)
+	res, err := runner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		return false
 	}
@@ -639,7 +706,7 @@ func stopUnit(ctx context.Context, runner ssh.Runner, cfg ssh.Config, unit strin
 
 func stopUnitIfActive(ctx context.Context, runner ssh.Runner, cfg ssh.Config, unit string) bool {
 	checkCmd := fmt.Sprintf("systemctl is-active %s 2>/dev/null", unit)
-	checkRes, _ := runner.Run(ctx, cfg, checkCmd)
+	checkRes, _ := runner.Run(ctx, cfg, checkCmd, ssh.DefaultRunOptions())
 	if strings.TrimSpace(checkRes.Stdout) != "active" {
 		return false
 	}
@@ -648,10 +715,10 @@ func stopUnitIfActive(ctx context.Context, runner ssh.Runner, cfg ssh.Config, un
 
 func stopPID(ctx context.Context, runner ssh.Runner, cfg ssh.Config, pid string) bool {
 	killCmd := fmt.Sprintf("kill %s 2>/dev/null && sleep 1 && ! kill -0 %s 2>/dev/null", pid, pid)
-	_, err := runner.Run(ctx, cfg, killCmd)
+	_, err := runner.Run(ctx, cfg, killCmd, ssh.DefaultRunOptions())
 	if err != nil {
 		killCmd = fmt.Sprintf("kill -9 %s 2>/dev/null", pid)
-		_, err = runner.Run(ctx, cfg, killCmd)
+		_, err = runner.Run(ctx, cfg, killCmd, ssh.DefaultRunOptions())
 		if err != nil {
 			return false
 		}

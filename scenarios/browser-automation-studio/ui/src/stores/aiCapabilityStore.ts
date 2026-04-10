@@ -4,6 +4,9 @@ import serviceDefinition from '../../../.vrooli/service.json';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 export interface AICapability {
   available: boolean;
   reason: 'has_credits' | 'has_api_key' | 'disabled' | 'no_credits' | 'no_tier_access' | 'checking' | 'error';
@@ -217,7 +220,8 @@ export const useAICapabilityStore = create<AICapabilityStore>((set, get) => ({
           if (response.ok) {
             let payload: Record<string, unknown> = {};
             try {
-              payload = await response.json();
+              const raw: unknown = await response.json();
+              payload = isRecord(raw) ? raw : {};
             } catch {
               // Some health endpoints return plain text; ignore parse errors
             }

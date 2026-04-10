@@ -1,162 +1,96 @@
 {
-  "requirements": [
+  "_metadata": {
+    "entity": "web-console",
+    "generated_at": "2026-02-18T22:07:36-05:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-pane-based-terminal-workspace/module.json",
+    "02-production-grade-web-terminal-fidelity/module.json",
+    "03-durable-session-continuity/module.json",
+    "04-proxy-correct-networking-via-api-base/module.json",
+    "05-ai-input-with-provider-fallback/module.json",
+    "06-new-terminal-launcher-with-configurable/module.json",
+    "07-mobile-terminal-usability-toolbar/module.json",
+    "08-sidebar-drawer-controls-surface/module.json",
+    "09-session-policy-controls/module.json",
+    "10-shortcut-profile-management/module.json",
+    "11-ai-provider-policy-controls/module.json",
+    "12-operational-observability-coverage/module.json"
+  ],
+  "modules": [
     {
-      "id": "WC-P0-001",
-      "title": "Session Lifecycle API",
-      "description": "Go API providing session lifecycle endpoints, WebSocket streaming, and transcript persistence.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "id": "MOD-P0-001",
+      "path": "01-pane-based-terminal-workspace",
       "priority": "P0",
-      "status": "completed",
-      "validation": [
-        "test",
-        "manual"
-      ]
+      "title": "Pane-Based Terminal Workspace"
     },
     {
-      "id": "WC-P0-002",
-      "title": "Configurable Default Commands",
-      "description": "Configurable default command (`WEB_CONSOLE_DEFAULT_COMMAND`) plus per-session overrides via API.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "id": "MOD-P0-002",
+      "path": "02-production-grade-web-terminal-fidelity",
       "priority": "P0",
-      "status": "completed",
-      "validation": [
-        "test",
-        "manual"
-      ]
+      "title": "Production-Grade Web Terminal Fidelity"
     },
     {
-      "id": "WC-P0-003",
-      "title": "Browser UI with Shortcuts",
-      "description": "Browser UI (vanilla JS + xterm.js) with shortcut buttons for Codex, Claude, and `vrooli status` that queue commands until the PTY is ready.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "id": "MOD-P0-003",
+      "path": "03-durable-session-continuity",
       "priority": "P0",
-      "status": "completed",
-      "validation": [
-        "test",
-        "manual"
-      ]
+      "title": "Durable Session Continuity"
     },
     {
-      "id": "WC-P0-004",
-      "title": "Iframe Bridge Protocol",
-      "description": "iframe bridge that publishes status/metadata via `postMessage` and responds to transcript/log/screenshot requests.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "id": "MOD-P0-004",
+      "path": "04-proxy-correct-networking-via-api-base",
       "priority": "P0",
-      "status": "completed",
-      "validation": [
-        "manual"
-      ]
+      "title": "Proxy-Correct Networking via api-base"
     },
     {
-      "id": "WC-P0-005",
-      "title": "Proxy Guard Enforcement",
-      "description": "Proxy guard enforcement that rejects requests lacking authenticated forwarding headers.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "id": "MOD-P0-005",
+      "path": "05-ai-input-with-provider-fallback",
       "priority": "P0",
-      "status": "completed",
-      "validation": [
-        "test"
-      ]
+      "title": "AI Input with Provider Fallback"
     },
     {
-      "id": "WC-P0-006",
-      "title": "Security Documentation",
-      "description": "Documentation emphasizing proxy-only deployment and shortcut behavior.",
-      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "id": "MOD-P0-006",
+      "path": "06-new-terminal-launcher-with-configurable",
       "priority": "P0",
-      "status": "completed",
-      "validation": [
-        "manual"
-      ]
+      "title": "New Terminal Launcher with Configurable Shortcuts"
     },
     {
-      "id": "WC-P1-001",
-      "title": "Concurrent Session Handling",
-      "description": "Concurrent session handling with queueing when capacity is exhausted.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "id": "MOD-P0-007",
+      "path": "07-mobile-terminal-usability-toolbar",
+      "priority": "P0",
+      "title": "Mobile Terminal Usability Toolbar"
+    },
+    {
+      "id": "MOD-P0-008",
+      "path": "08-sidebar-drawer-controls-surface",
+      "priority": "P0",
+      "title": "Sidebar/Drawer Controls Surface"
+    },
+    {
+      "id": "MOD-P1-009",
+      "path": "09-session-policy-controls",
       "priority": "P1",
-      "status": "pending",
-      "validation": [
-        "test"
-      ]
+      "title": "Session Policy Controls"
     },
     {
-      "id": "WC-P1-002",
-      "title": "Prometheus Metrics",
-      "description": "Prometheus metrics endpoint for session counters and failure modes.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "id": "MOD-P1-010",
+      "path": "10-shortcut-profile-management",
       "priority": "P1",
-      "status": "pending",
-      "validation": [
-        "test"
-      ]
+      "title": "Shortcut Profile Management"
     },
     {
-      "id": "WC-P1-003",
-      "title": "Panic-Stop Endpoint",
-      "description": "Panic-stop endpoint/UI control to terminate runaway commands.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "id": "MOD-P1-011",
+      "path": "11-ai-provider-policy-controls",
       "priority": "P1",
-      "status": "pending",
-      "validation": [
-        "test",
-        "manual"
-      ]
+      "title": "AI Provider Policy Controls"
     },
     {
-      "id": "WC-P1-004",
-      "title": "Mobile-First UI",
-      "description": "Mobile-first UI with reconnect/resume flows and quick command access.",
-      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "id": "MOD-P1-012",
+      "path": "12-operational-observability-coverage",
       "priority": "P1",
-      "status": "completed",
-      "validation": [
-        "manual"
-      ]
-    },
-    {
-      "id": "WC-P2-001",
-      "title": "Configurable Shortcut Palette",
-      "description": "Configurable shortcut palette provided by parent scenario or service config.",
-      "prd_ref": "Operational Targets > P2 > OT-P2-001",
-      "priority": "P2",
-      "status": "pending",
-      "validation": [
-        "manual"
-      ]
-    },
-    {
-      "id": "WC-P2-002",
-      "title": "Distributed Transcript Storage",
-      "description": "Redis/Postgres adapters for distributed transcript storage.",
-      "prd_ref": "Operational Targets > P2 > OT-P2-002",
-      "priority": "P2",
-      "status": "pending",
-      "validation": [
-        "test"
-      ]
-    },
-    {
-      "id": "WC-P2-003",
-      "title": "Voice Dictation/TTS Integration",
-      "description": "Voice dictation/TTS hooks that leverage shared resources.",
-      "prd_ref": "Operational Targets > P2 > OT-P2-003",
-      "priority": "P2",
-      "status": "pending",
-      "validation": [
-        "manual"
-      ]
-    },
-    {
-      "id": "WC-P2-004",
-      "title": "Parent Callbacks",
-      "description": "Parent callbacks for automated post-session archiving or compliance workflows.",
-      "prd_ref": "Operational Targets > P2 > OT-P2-004",
-      "priority": "P2",
-      "status": "pending",
-      "validation": [
-        "test"
-      ]
+      "title": "Operational Observability Coverage"
     }
   ]
 }

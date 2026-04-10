@@ -1,9 +1,12 @@
 /**
  * Download Client
  *
- * Provides a testable seam for download operations.
- * Isolates browser-specific download behavior for easier testing.
+ * Provides a testable seam for file operations.
+ * For Electron apps, supports revealing files in the system file manager
+ * instead of browser downloads (since files are already on the local filesystem).
  */
+
+import { getConfig } from "@/config";
 
 // =============================================================================
 // Types
@@ -17,11 +20,13 @@ export interface DownloadResult {
 export interface DownloadClient {
   /**
    * Downloads a file from a URL.
+   * @deprecated For Electron apps, use revealFile or openFolder instead.
    */
   downloadFromUrl(url: string, fileName: string): Promise<DownloadResult>;
 
   /**
    * Downloads a blob as a file.
+   * @deprecated For Electron apps, use revealFile or openFolder instead.
    */
   downloadBlob(blob: Blob, fileName: string): DownloadResult;
 
@@ -29,6 +34,18 @@ export interface DownloadClient {
    * Copies text to clipboard.
    */
   copyToClipboard(text: string): Promise<DownloadResult>;
+
+  /**
+   * Reveals a file in the system file manager (e.g., "Show in Finder" on macOS).
+   * This opens the containing folder and selects/highlights the file.
+   */
+  revealFile(exportId: string): Promise<DownloadResult>;
+
+  /**
+   * Opens the containing folder in the system file manager.
+   * Unlike revealFile, this just opens the folder without selecting the file.
+   */
+  openFolder(exportId: string): Promise<DownloadResult>;
 }
 
 // =============================================================================
@@ -81,12 +98,60 @@ async function copyToClipboard(text: string): Promise<DownloadResult> {
 }
 
 /**
+ * Reveals a file in the system file manager via the backend API.
+ */
+async function revealFile(exportId: string): Promise<DownloadResult> {
+  try {
+    const { API_URL } = await getConfig();
+    const response = await fetch(`${API_URL}/exports/${exportId}/reveal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      return { success: false, error: text || 'Failed to reveal file' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to reveal file';
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Opens the containing folder in the system file manager via the backend API.
+ */
+async function openFolder(exportId: string): Promise<DownloadResult> {
+  try {
+    const { API_URL } = await getConfig();
+    const response = await fetch(`${API_URL}/exports/${exportId}/open-folder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      return { success: false, error: text || 'Failed to open folder' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to open folder';
+    return { success: false, error: message };
+  }
+}
+
+/**
  * Default download client implementation.
  */
 export const defaultDownloadClient: DownloadClient = {
   downloadFromUrl,
   downloadBlob,
   copyToClipboard,
+  revealFile,
+  openFolder,
 };
 
 // =============================================================================
@@ -103,5 +168,7 @@ export function createMockDownloadClient(
     downloadFromUrl: overrides.downloadFromUrl ?? (async () => ({ success: true })),
     downloadBlob: overrides.downloadBlob ?? (() => ({ success: true })),
     copyToClipboard: overrides.copyToClipboard ?? (async () => ({ success: true })),
+    revealFile: overrides.revealFile ?? (async () => ({ success: true })),
+    openFolder: overrides.openFolder ?? (async () => ({ success: true })),
   };
 }

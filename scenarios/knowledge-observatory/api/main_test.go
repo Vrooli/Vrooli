@@ -139,8 +139,8 @@ func TestHandleHealth(t *testing.T) {
 	srv.handleHealth(w, req)
 
 	resp := w.Result()
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("handleHealth() status = %v, want %v", resp.StatusCode, http.StatusOK)
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("handleHealth() status = %v, want %v", resp.StatusCode, http.StatusServiceUnavailable)
 	}
 
 	var result map[string]interface{}
@@ -163,7 +163,9 @@ func TestLoggingMiddleware(t *testing.T) {
 	// Create a test handler
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test response"))
+		if _, err := w.Write([]byte("test response")); err != nil {
+			t.Fatalf("failed to write response: %v", err)
+		}
 	})
 
 	// Wrap with logging middleware
@@ -310,7 +312,7 @@ func TestHTTPMethodValidation(t *testing.T) {
 				srv := &Server{config: &Config{Port: "8080"}, db: nil}
 				srv.handleHealth(w, r)
 			},
-			wantStatus: http.StatusOK,
+			wantStatus: http.StatusServiceUnavailable,
 		},
 	}
 

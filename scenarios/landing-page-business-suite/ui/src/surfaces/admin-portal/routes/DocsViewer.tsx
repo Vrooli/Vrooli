@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../components/AdminLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
+import { PageHeader } from '../components/PageHeader';
+import { LAYOUT } from '../config/layout.constants';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
-import { getDocsTree, getDocContent, type DocEntry, type DocContent } from '../../../shared/api';
-import { Book, ChevronRight, ChevronDown, FileText, Folder, FolderOpen, RefreshCw, ExternalLink } from 'lucide-react';
+import type { DocEntry } from '../../../shared/api';
+import { useDocsViewer } from '../hooks/useDocsViewer';
+import { Book, ChevronRight, ChevronDown, FileText, Folder, FolderOpen, RefreshCw, PanelLeftClose, PanelLeft, GripVertical } from 'lucide-react';
 
 interface TreeNodeProps {
   entry: DocEntry;
@@ -74,6 +78,29 @@ function TreeNode({ entry, level, selectedPath, expandedPaths, onSelect, onToggl
   );
 }
 
+function buildHeadingId(text: string, counts: Map<string, number>): string {
+  const base = text
+    .toLowerCase()
+    .trim()
+    .replace(/[`*_~]/g, '')
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+
+  if (!base) {
+    const fallback = `section-${counts.size + 1}`;
+    counts.set(fallback, 1);
+    return fallback;
+  }
+
+  const count = counts.get(base) ?? 0;
+  counts.set(base, count + 1);
+  if (count === 0) {
+    return base;
+  }
+  return `${base}-${count + 1}`;
+}
+
 function MarkdownRenderer({ content }: { content: string }) {
   // Simple markdown rendering with basic formatting
   const lines = content.split('\n');
@@ -81,16 +108,20 @@ function MarkdownRenderer({ content }: { content: string }) {
   let i = 0;
   let inCodeBlock = false;
   let codeBlockContent: string[] = [];
-  let codeBlockLang = '';
+  const headingCounts = new Map<string, number>();
 
   while (i < lines.length) {
     const line = lines[i];
+    // Skip undefined lines (shouldn't happen, but TypeScript's noUncheckedIndexedAccess requires this)
+    if (line === undefined) {
+      i++;
+      continue;
+    }
 
     // Code blocks
     if (line.startsWith('```')) {
       if (!inCodeBlock) {
         inCodeBlock = true;
-        codeBlockLang = line.slice(3).trim();
         codeBlockContent = [];
       } else {
         elements.push(
@@ -100,7 +131,6 @@ function MarkdownRenderer({ content }: { content: string }) {
         );
         inCodeBlock = false;
         codeBlockContent = [];
-        codeBlockLang = '';
       }
       i++;
       continue;
@@ -114,20 +144,44 @@ function MarkdownRenderer({ content }: { content: string }) {
 
     // Headings
     if (line.startsWith('# ')) {
+      const headingText = line.slice(2);
+      const headingId = buildHeadingId(headingText, headingCounts);
       elements.push(
-        <h1 key={i} className="text-3xl font-bold text-white mt-8 mb-4 first:mt-0">{formatInlineMarkdown(line.slice(2))}</h1>
+        <h1
+          key={i}
+          id={headingId}
+          className="text-3xl font-bold text-white mt-8 mb-4 first:mt-0 scroll-mt-24"
+        >
+          {formatInlineMarkdown(headingText)}
+        </h1>
       );
     } else if (line.startsWith('## ')) {
+      const headingText = line.slice(3);
+      const headingId = buildHeadingId(headingText, headingCounts);
       elements.push(
-        <h2 key={i} className="text-2xl font-semibold text-white mt-6 mb-3 border-b border-white/10 pb-2">{formatInlineMarkdown(line.slice(3))}</h2>
+        <h2
+          key={i}
+          id={headingId}
+          className="text-2xl font-semibold text-white mt-6 mb-3 border-b border-white/10 pb-2 scroll-mt-24"
+        >
+          {formatInlineMarkdown(headingText)}
+        </h2>
       );
     } else if (line.startsWith('### ')) {
+      const headingText = line.slice(4);
+      const headingId = buildHeadingId(headingText, headingCounts);
       elements.push(
-        <h3 key={i} className="text-xl font-semibold text-white mt-5 mb-2">{formatInlineMarkdown(line.slice(4))}</h3>
+        <h3 key={i} id={headingId} className="text-xl font-semibold text-white mt-5 mb-2 scroll-mt-24">
+          {formatInlineMarkdown(headingText)}
+        </h3>
       );
     } else if (line.startsWith('#### ')) {
+      const headingText = line.slice(5);
+      const headingId = buildHeadingId(headingText, headingCounts);
       elements.push(
-        <h4 key={i} className="text-lg font-medium text-white mt-4 mb-2">{formatInlineMarkdown(line.slice(5))}</h4>
+        <h4 key={i} id={headingId} className="text-lg font-medium text-white mt-4 mb-2 scroll-mt-24">
+          {formatInlineMarkdown(headingText)}
+        </h4>
       );
     }
     // Horizontal rule
@@ -145,9 +199,12 @@ function MarkdownRenderer({ content }: { content: string }) {
     // Unordered lists
     else if (line.match(/^[-*]\s/)) {
       const listItems: string[] = [line.replace(/^[-*]\s/, '')];
-      while (i + 1 < lines.length && lines[i + 1].match(/^[-*]\s/)) {
+      let nextLine = lines[i + 1];
+      while (i + 1 < lines.length && nextLine?.match(/^[-*]\s/)) {
         i++;
-        listItems.push(lines[i].replace(/^[-*]\s/, ''));
+        const currentLine = lines[i];
+        if (currentLine) listItems.push(currentLine.replace(/^[-*]\s/, ''));
+        nextLine = lines[i + 1];
       }
       elements.push(
         <ul key={i} className="my-4 ml-6 list-disc space-y-1">
@@ -160,9 +217,12 @@ function MarkdownRenderer({ content }: { content: string }) {
     // Ordered lists
     else if (line.match(/^\d+\.\s/)) {
       const listItems: string[] = [line.replace(/^\d+\.\s/, '')];
-      while (i + 1 < lines.length && lines[i + 1].match(/^\d+\.\s/)) {
+      let nextLine = lines[i + 1];
+      while (i + 1 < lines.length && nextLine?.match(/^\d+\.\s/)) {
         i++;
-        listItems.push(lines[i].replace(/^\d+\.\s/, ''));
+        const currentLine = lines[i];
+        if (currentLine) listItems.push(currentLine.replace(/^\d+\.\s/, ''));
+        nextLine = lines[i + 1];
       }
       elements.push(
         <ol key={i} className="my-4 ml-6 list-decimal space-y-1">
@@ -175,9 +235,12 @@ function MarkdownRenderer({ content }: { content: string }) {
     // Tables
     else if (line.includes('|') && line.trim().startsWith('|')) {
       const tableLines: string[] = [line];
-      while (i + 1 < lines.length && lines[i + 1].includes('|')) {
+      let nextLine = lines[i + 1];
+      while (i + 1 < lines.length && nextLine?.includes('|')) {
         i++;
-        tableLines.push(lines[i]);
+        const currentLine = lines[i];
+        if (currentLine) tableLines.push(currentLine);
+        nextLine = lines[i + 1];
       }
       elements.push(renderTable(tableLines, i));
     }
@@ -196,12 +259,13 @@ function MarkdownRenderer({ content }: { content: string }) {
 
 function renderTable(lines: string[], key: number): JSX.Element {
   const rows = lines.filter(line => !line.match(/^[\s|:-]+$/));
-  if (rows.length === 0) return <></>;
+  const firstRow = rows[0];
+  if (rows.length === 0 || !firstRow) return <></>;
 
   const parseCells = (row: string) =>
     row.split('|').filter(cell => cell.trim()).map(cell => cell.trim());
 
-  const headers = parseCells(rows[0]);
+  const headers = parseCells(firstRow);
   const bodyRows = rows.slice(1).map(parseCells);
 
   return (
@@ -267,18 +331,20 @@ function formatInlineMarkdown(text: string): (string | JSX.Element)[] {
     // Links
     match = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/);
     if (match && match.index !== undefined) {
+      const linkText = match[1] ?? '';
+      const linkUrl = match[2] ?? '#';
       if (match.index > 0) {
         parts.push(remaining.slice(0, match.index));
       }
       parts.push(
         <a
           key={keyIdx++}
-          href={match[2]}
+          href={linkUrl}
           className="text-blue-400 hover:text-blue-300 underline"
-          target={match[2].startsWith('http') ? '_blank' : undefined}
-          rel={match[2].startsWith('http') ? 'noopener noreferrer' : undefined}
+          target={linkUrl.startsWith('http') ? '_blank' : undefined}
+          rel={linkUrl.startsWith('http') ? 'noopener noreferrer' : undefined}
         >
-          {match[1]}
+          {linkText}
         </a>
       );
       remaining = remaining.slice(match.index + match[0].length);
@@ -304,105 +370,111 @@ function formatInlineMarkdown(text: string): (string | JSX.Element)[] {
   return parts;
 }
 
-export function DocsViewer() {
-  const [tree, setTree] = useState<DocEntry[]>([]);
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [selectedDoc, setSelectedDoc] = useState<DocContent | null>(null);
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const [loadingDoc, setLoadingDoc] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+const MIN_SIDEBAR_WIDTH = 200;
+const MAX_SIDEBAR_WIDTH = 500;
+const DEFAULT_SIDEBAR_WIDTH = 280;
 
-  const loadTree = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getDocsTree();
-      setTree(data);
-      // Auto-expand root level directories
-      const rootDirs = data.filter(e => e.isDir).map(e => e.path);
-      setExpandedPaths(new Set(rootDirs));
-      // Auto-select first markdown file if available
-      const firstFile = findFirstFile(data);
-      if (firstFile) {
-        loadDoc(firstFile);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load documentation');
-    } finally {
-      setLoading(false);
-    }
+export function DocsViewer() {
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const requestedDoc = searchParams.get('doc');
+  const requestedAnchor = location.hash ? location.hash.slice(1) : null;
+  const {
+    tree,
+    selectedPath,
+    selectedDoc,
+    expandedPaths,
+    loading,
+    loadingDoc,
+    error,
+    loadTree,
+    loadDoc,
+    handleToggle,
+  } = useDocsViewer({ requestedPath: requestedDoc });
+
+  // Sidebar state
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Handle resize drag
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
   }, []);
 
-  const findFirstFile = (entries: DocEntry[]): string | null => {
-    for (const entry of entries) {
-      if (!entry.isDir) return entry.path;
-      if (entry.children) {
-        const found = findFirstFile(entry.children);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
-
-  const loadDoc = async (path: string) => {
-    setSelectedPath(path);
-    setLoadingDoc(true);
-    try {
-      const doc = await getDocContent(path);
-      setSelectedDoc(doc);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load document');
-      setSelectedDoc(null);
-    } finally {
-      setLoadingDoc(false);
-    }
-  };
-
-  const handleToggle = (path: string) => {
-    setExpandedPaths(prev => {
-      const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
-  };
-
   useEffect(() => {
-    loadTree();
-  }, [loadTree]);
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newWidth = e.clientX - containerRect.left;
+      setSidebarWidth(Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, newWidth)));
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  // Scroll to anchor when doc loads
+  useEffect(() => {
+    if (!requestedAnchor || loadingDoc || !selectedDoc) {
+      return;
+    }
+
+    const schedule = window.requestAnimationFrame ?? ((cb: FrameRequestCallback) => window.setTimeout(cb, 0));
+    const cancel = window.cancelAnimationFrame ?? window.clearTimeout;
+    const handle = schedule(() => {
+      const element = document.getElementById(requestedAnchor);
+      if (element && contentRef.current) {
+        const elementTop = element.offsetTop;
+        contentRef.current.scrollTo({ top: elementTop - 24, behavior: 'smooth' });
+      }
+    });
+
+    return () => cancel(handle);
+  }, [loadingDoc, requestedAnchor, selectedDoc]);
+
+  const toggleSidebar = useCallback(() => {
+    setIsCollapsed(prev => !prev);
+  }, []);
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-900/90 p-6" data-testid="docs-header">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="flex-1">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Documentation</p>
-              <h1 className="text-2xl font-bold text-white mt-1">Template Documentation</h1>
-              <p className="text-slate-400 text-sm mt-2">
-                Browse the documentation files for this landing page template. Learn about configuration, customization, and deployment.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="ghost" size="sm" onClick={loadTree} className="gap-2" data-testid="docs-refresh">
-                <RefreshCw className="h-4 w-4" />
-                Refresh
-              </Button>
-            </div>
-          </div>
-        </div>
+    <AdminLayout maxWidth="extraWide">
+      <div className={LAYOUT.pageSpacing}>
+        <PageHeader
+          variant="icon-title"
+          title="Template Documentation"
+          description="Browse the documentation files for this landing page template. Learn about configuration, customization, and deployment."
+          icon={Book}
+          iconBgClass="bg-amber-500/10"
+          iconColorClass="text-amber-400"
+          testId="docs-header"
+          actions={
+            <Button variant="ghost" size="sm" onClick={loadTree} className="gap-2" data-testid="docs-refresh">
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
+          }
+        />
 
         {loading ? (
-          <div className="text-slate-400">Loading documentation...</div>
+          <div className="text-slate-400" data-testid="docs-loading">Loading documentation...</div>
         ) : error ? (
-          <div className="text-rose-400">{error}</div>
+          <div className="text-rose-400" data-testid="docs-error">{error}</div>
         ) : tree.length === 0 ? (
-          <Card className="border-white/10 bg-slate-900/60">
+          <Card className={LAYOUT.card.base} data-testid="docs-empty">
             <CardContent className="py-12 text-center">
               <Book className="h-12 w-12 text-slate-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-white mb-2">No Documentation Found</h3>
@@ -412,75 +484,123 @@ export function DocsViewer() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Sidebar - File Tree */}
-            <Card className="border-white/10 bg-slate-900/60 lg:col-span-1">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Folder className="h-4 w-4 text-amber-400" />
-                  Files
+          <Card className={LAYOUT.card.base} data-testid="docs-content">
+            <CardHeader className="border-b border-white/10 py-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Book className="h-5 w-5 text-amber-400" />
+                  Documentation Browser
                 </CardTitle>
-              </CardHeader>
-              <CardContent className="p-2">
-                <div className="space-y-0.5 max-h-[60vh] overflow-y-auto">
-                  {tree.map((entry) => (
-                    <TreeNode
-                      key={entry.path}
-                      entry={entry}
-                      level={0}
-                      selectedPath={selectedPath}
-                      expandedPaths={expandedPaths}
-                      onSelect={loadDoc}
-                      onToggle={handleToggle}
-                    />
-                  ))}
+                <div className="flex items-center gap-2">
+                    <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleSidebar}
+                    className="gap-2"
+                    title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    data-testid="docs-toggle-sidebar"
+                  >
+                    {isCollapsed ? (
+                      <PanelLeft className="h-4 w-4" />
+                    ) : (
+                      <PanelLeftClose className="h-4 w-4" />
+                    )}
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CardHeader>
+            <div
+              ref={containerRef}
+              className="flex relative"
+              style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}
+            >
+              {/* Sidebar - File Tree */}
+              <div
+                className={`flex-shrink-0 border-r border-white/10 overflow-hidden transition-all duration-200 ${
+                  isCollapsed ? 'w-0' : ''
+                }`}
+                style={{ width: isCollapsed ? 0 : sidebarWidth }}
+              >
+                <div className="h-full flex flex-col">
+                  <div className="px-4 py-3 border-b border-white/5">
+                    <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+                      <Folder className="h-4 w-4 text-amber-400" />
+                      Files
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2" data-testid="docs-tree">
+                    <div className="space-y-0.5">
+                      {tree.map((entry) => (
+                        <TreeNode
+                          key={entry.path}
+                          entry={entry}
+                          level={0}
+                          selectedPath={selectedPath}
+                          expandedPaths={expandedPaths}
+                          onSelect={loadDoc}
+                          onToggle={handleToggle}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-            {/* Main Content */}
-            <Card className="border-white/10 bg-slate-900/60 lg:col-span-3">
-              <CardHeader className="border-b border-white/10">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-blue-400" />
+              {/* Resizable Divider */}
+              {!isCollapsed && (
+                <div
+                  className={`w-1 flex-shrink-0 cursor-col-resize group relative ${
+                    isDragging ? 'bg-blue-500/50' : 'hover:bg-blue-500/30'
+                  } transition-colors`}
+                  onMouseDown={handleMouseDown}
+                  data-testid="docs-resize-handle"
+                >
+                  <div className="absolute inset-y-0 -left-1 -right-1" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <GripVertical className="h-6 w-4 text-slate-500" />
+                  </div>
+                </div>
+              )}
+
+              {/* Main Content */}
+              <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                {/* Document Header */}
+                <div className="px-6 py-3 border-b border-white/5 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <FileText className={`h-4 w-4 flex-shrink-0 ${selectedDoc ? 'text-blue-400' : 'text-slate-500'}`} />
+                    <span className="text-sm font-medium text-slate-200 truncate">
                       {selectedDoc?.title || 'Select a document'}
-                    </CardTitle>
+                    </span>
                     {selectedPath && (
-                      <CardDescription className="mt-1 font-mono text-xs">
+                      <span className="text-xs text-slate-500 font-mono ml-2 truncate">
                         docs/{selectedPath}
-                      </CardDescription>
+                      </span>
                     )}
                   </div>
-                  {selectedPath && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => window.open(`vscode://file/${selectedPath}`, '_blank')}
-                      className="gap-2"
-                      title="Open in VS Code"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      Open in editor
-                    </Button>
+                </div>
+
+                {/* Document Content */}
+                <div
+                  ref={contentRef}
+                  className="flex-1 overflow-y-auto px-6 py-4"
+                  data-testid="docs-content-area"
+                >
+                  {loadingDoc ? (
+                    <div className="text-slate-400" data-testid="docs-loading-doc">Loading document...</div>
+                  ) : selectedDoc ? (
+                    <div className="max-w-4xl">
+                      <MarkdownRenderer content={selectedDoc.content} />
+                    </div>
+                  ) : (
+                    <div className="text-center py-12" data-testid="docs-no-selection">
+                      <Book className="h-12 w-12 text-slate-500 mx-auto mb-4" />
+                      <p className="text-slate-400">Select a document from the sidebar to view its contents.</p>
+                    </div>
                   )}
                 </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                {loadingDoc ? (
-                  <div className="text-slate-400">Loading document...</div>
-                ) : selectedDoc ? (
-                  <MarkdownRenderer content={selectedDoc.content} />
-                ) : (
-                  <div className="text-center py-12">
-                    <Book className="h-12 w-12 text-slate-500 mx-auto mb-4" />
-                    <p className="text-slate-400">Select a document from the sidebar to view its contents.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </div>
+          </Card>
         )}
       </div>
     </AdminLayout>

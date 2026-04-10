@@ -69,6 +69,28 @@ interface UseObservabilityReturn {
   isStale: boolean;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isString = (value: unknown): value is string => typeof value === 'string';
+const isNumber = (value: unknown): value is number => typeof value === 'number';
+const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
+
+const isObservabilityResponse = (value: unknown): value is ObservabilityResponse => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.status) || !['ok', 'degraded', 'error'].includes(value.status)) return false;
+  if (!isBoolean(value.ready)) return false;
+  if (!isString(value.timestamp)) return false;
+  if (!isString(value.version)) return false;
+  if (!isNumber(value.uptime_ms)) return false;
+  if (!isString(value.depth) || !['quick', 'standard', 'deep'].includes(value.depth)) return false;
+  if (!isRecord(value.summary)) return false;
+  if (!isNumber(value.summary.sessions)) return false;
+  if (!isNumber(value.summary.recordings)) return false;
+  if (!isBoolean(value.summary.browser_connected)) return false;
+  return true;
+};
+
 async function fetchObservability(
   depth: ObservabilityDepth,
   noCache: boolean
@@ -82,12 +104,21 @@ async function fetchObservability(
 
   const response = await fetch(`${config.API_URL}/observability?${params.toString()}`);
 
+  const payload: unknown = await response.json().catch(() => null);
+
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to fetch observability: ${response.statusText}`);
+    const message =
+      isRecord(payload) && typeof payload.message === 'string'
+        ? payload.message
+        : `Failed to fetch observability: ${response.statusText}`;
+    throw new Error(message);
   }
 
-  return response.json();
+  if (!isObservabilityResponse(payload)) {
+    throw new Error('Invalid observability response');
+  }
+
+  return payload;
 }
 
 export function useObservability(options: UseObservabilityOptions = {}): UseObservabilityReturn {

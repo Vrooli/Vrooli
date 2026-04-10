@@ -1,0 +1,202 @@
+// Uptime trend area chart showing status distribution over time
+// [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
+import { fetchUptimeHistory, UptimeHistoryBucket } from "../../../lib/api";
+import { themeColors } from "../../../shared/theme/colors";
+import { ErrorDisplay } from "../../../shared/components";
+
+interface ChartDataPoint {
+  time: string;
+  timestamp: Date;
+  ok: number;
+  warning: number;
+  critical: number;
+  total: number;
+}
+
+function formatTimeLabel(date: Date): string {
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatTooltipTime(date: Date): string {
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+interface TooltipPayloadItem {
+  name: string;
+  value: number;
+  color: string;
+  payload?: ChartDataPoint;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+  label?: string;
+}
+
+function CustomTooltip({ active, payload }: CustomTooltipProps) {
+  if (!active || !payload || !payload.length) return null;
+
+  const dataPoint = payload[0]?.payload;
+  if (!dataPoint) return null;
+
+  const total = dataPoint.total || (dataPoint.ok + dataPoint.warning + dataPoint.critical);
+  const uptimePercent = total > 0 ? ((dataPoint.ok / total) * 100).toFixed(1) : "100.0";
+
+  return (
+    <div className="rounded-lg border border-border-default/70 bg-surface-base p-3 shadow-xl">
+      <p className="mb-2 text-xs text-text-muted">
+        {formatTooltipTime(dataPoint.timestamp)}
+      </p>
+      <div className="space-y-1 text-sm">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-accent-success">OK</span>
+          <span className="font-medium">{dataPoint.ok}</span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-accent-warning">Warning</span>
+          <span className="font-medium">{dataPoint.warning}</span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-accent-danger">Critical</span>
+          <span className="font-medium">{dataPoint.critical}</span>
+        </div>
+        <div className="mt-1 border-t border-border-default/60 pt-1">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-text-muted">Uptime</span>
+            <span className="font-medium text-accent-success">{uptimePercent}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface UptimeTrendChartProps {
+  windowHours?: number;
+  bucketCount?: number;
+}
+
+export function UptimeTrendChart({ windowHours = 24, bucketCount = 24 }: UptimeTrendChartProps) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["uptime-history", windowHours, bucketCount],
+    queryFn: () => fetchUptimeHistory(windowHours, bucketCount),
+    refetchInterval: 60000,
+    staleTime: 30000,
+  });
+
+  const chartData = useMemo<ChartDataPoint[]>(() => {
+    if (!data?.buckets) return [];
+
+    return data.buckets.map((bucket: UptimeHistoryBucket) => ({
+      time: formatTimeLabel(new Date(bucket.timestamp)),
+      timestamp: new Date(bucket.timestamp),
+      ok: bucket.ok,
+      warning: bucket.warning,
+      critical: bucket.critical,
+      total: bucket.total,
+    }));
+  }, [data?.buckets]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-48 items-center justify-center text-text-muted">
+        Loading trend data...
+      </div>
+    );
+  }
+
+  if (error) {
+    return <ErrorDisplay error={error} onRetry={() => refetch()} compact />;
+  }
+
+  if (chartData.length === 0) {
+    return (
+      <div className="flex h-48 items-center justify-center text-text-muted">
+        <div className="text-center">
+          <p>No historical data available yet</p>
+          <p className="text-xs mt-1">Data will appear after health checks run</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-48" data-testid="autoheal-trends-chart">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="colorOk" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={themeColors.chart.ok} stopOpacity={0.8} />
+              <stop offset="95%" stopColor={themeColors.chart.ok} stopOpacity={0.1} />
+            </linearGradient>
+            <linearGradient id="colorWarning" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={themeColors.chart.warning} stopOpacity={0.8} />
+              <stop offset="95%" stopColor={themeColors.chart.warning} stopOpacity={0.1} />
+            </linearGradient>
+            <linearGradient id="colorCritical" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={themeColors.chart.critical} stopOpacity={0.8} />
+              <stop offset="95%" stopColor={themeColors.chart.critical} stopOpacity={0.1} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke={themeColors.chart.grid} opacity={0.3} />
+          <XAxis
+            dataKey="time"
+            tick={{ fill: themeColors.chart.tick, fontSize: 10 }}
+            tickLine={{ stroke: themeColors.chart.axis }}
+            axisLine={{ stroke: themeColors.chart.axis }}
+            interval="preserveStartEnd"
+            minTickGap={30}
+          />
+          <YAxis
+            tick={{ fill: themeColors.chart.tick, fontSize: 10 }}
+            tickLine={{ stroke: themeColors.chart.axis }}
+            axisLine={{ stroke: themeColors.chart.axis }}
+            width={30}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <Area
+            type="monotone"
+            dataKey="critical"
+            stackId="1"
+            stroke={themeColors.chart.critical}
+            fill="url(#colorCritical)"
+            strokeWidth={2}
+          />
+          <Area
+            type="monotone"
+            dataKey="warning"
+            stackId="1"
+            stroke={themeColors.chart.warning}
+            fill="url(#colorWarning)"
+            strokeWidth={2}
+          />
+          <Area
+            type="monotone"
+            dataKey="ok"
+            stackId="1"
+            stroke={themeColors.chart.ok}
+            fill="url(#colorOk)"
+            strokeWidth={2}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}

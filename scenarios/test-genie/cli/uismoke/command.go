@@ -18,6 +18,10 @@ func Run(client *Client, args []string) error {
 		return err
 	}
 
+	// Resolve the scenario path using sandbox-aware resolution.
+	// See packages/cli-core/cliutil/sandbox.go for the implementation.
+	scenarioPath := cliutil.ResolveScenarioPath(parsed.Scenario)
+
 	req := Request{
 		URL:            parsed.URL,
 		BrowserlessURL: parsed.BrowserlessURL,
@@ -25,6 +29,7 @@ func Run(client *Client, args []string) error {
 		NoRecovery:     parsed.NoRecovery,
 		SharedMode:     parsed.SharedMode,
 		AutoStart:      parsed.AutoStart,
+		ScenarioPath:   scenarioPath,
 	}
 
 	resp, raw, err := client.Run(parsed.Scenario, req)
@@ -72,7 +77,7 @@ func ParseArgs(args []string) (Args, error) {
 	fs.BoolVar(&out.AutoStart, "auto-start", false, "Auto-start the scenario if UI port is not detected")
 	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
 		return Args{}, err
 	}
 	out.JSON = *jsonOutput

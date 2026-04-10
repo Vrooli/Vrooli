@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -28,9 +27,8 @@ type DB struct {
 	dialect Dialect
 }
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
+// Note: As of Go 1.20, the global random generator is automatically seeded.
+// No explicit seeding is needed.
 
 // NewConnection creates a new database connection with exponential backoff
 func NewConnection(log *logrus.Logger) (*DB, error) {
@@ -249,9 +247,17 @@ func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 		return err
 	}
 
+	rollback := func(reason string) {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
+			if db.log != nil {
+				db.log.WithError(rollbackErr).WithField("reason", reason).Warn("Failed to rollback transaction")
+			}
+		}
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
-			tx.Rollback()
+			rollback("panic")
 			// Log the panic but don't re-panic - let the error propagate gracefully
 			if db.log != nil {
 				db.log.WithField("panic", r).Error("Panic recovered during database transaction")
@@ -260,7 +266,7 @@ func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 	}()
 
 	if err := fn(tx); err != nil {
-		tx.Rollback()
+		rollback("error")
 		return err
 	}
 
@@ -273,7 +279,24 @@ func (db *DB) initSchema() error {
 	if db.dialect == DialectSQLite {
 		filename = "schema_sqlite.sql"
 	}
-	schemaPath := filepath.Join(filepath.Dir(getCurrentFilePath()), filename)
+
+	// Resolve schema path from standard location: initialization/postgres/
+	// This uses the scenario root, resolved from VROOLI_ROOT or executable path
+	scenarioRoot := os.Getenv("VROOLI_ROOT")
+	if scenarioRoot != "" {
+		scenarioRoot = filepath.Join(scenarioRoot, "scenarios", "browser-automation-studio")
+	} else {
+		// Fallback: resolve from executable location
+		// Expected structure: {scenario}/api/binary -> go up 1 level to scenario root
+		if execPath, err := os.Executable(); err == nil {
+			scenarioRoot = filepath.Join(filepath.Dir(execPath), "..")
+			scenarioRoot, _ = filepath.Abs(scenarioRoot)
+		} else {
+			// Last resort: use relative path from current working directory
+			scenarioRoot = "."
+		}
+	}
+	schemaPath := filepath.Join(scenarioRoot, "initialization", "postgres", filename)
 
 	schemaBytes, err := os.ReadFile(schemaPath)
 	if err != nil {
@@ -300,6 +323,22 @@ func (db *DB) initSchema() error {
 }
 
 func (db *DB) applyIndexSchemaMigrations(ctx context.Context) error {
+	// Check if we're using the new comprehensive schema (has workflow_folders table).
+	// If so, skip legacy migrations designed for the old simplified schema.
+	var hasNewSchema bool
+	if db.dialect == DialectPostgres {
+		err := db.QueryRowContext(ctx,
+			`SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'workflow_folders')`).Scan(&hasNewSchema)
+		if err != nil {
+			db.log.WithError(err).Warn("Failed to check for new schema, skipping legacy migrations")
+			return nil
+		}
+		if hasNewSchema {
+			db.log.Debug("Using comprehensive schema, skipping legacy migrations")
+			return nil
+		}
+	}
+
 	// Legacy database instances may already have tables created without newer index columns.
 	// Avoid SELECT * scan breakages by ensuring expected columns exist.
 
@@ -352,11 +391,6 @@ func (db *DB) applyIndexSchemaMigrations(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func getCurrentFilePath() string {
-	_, filename, _, _ := runtime.Caller(0)
-	return filename
 }
 
 // migrateWorkflowUniqueConstraint migrates the workflows table unique constraint
@@ -451,7 +485,17 @@ func (db *DB) migrateWorkflowUniqueConstraintSQLite(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	committed := false
+	defer func() {
+		if committed {
+			return
+		}
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
+			if db.log != nil {
+				db.log.WithError(rollbackErr).Warn("Failed to rollback workflow constraint migration")
+			}
+		}
+	}()
 
 	migrationStatements := []string{
 		// Rename old table
@@ -487,6 +531,7 @@ func (db *DB) migrateWorkflowUniqueConstraintSQLite(ctx context.Context) error {
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit migration: %w", err)
 	}
+	committed = true
 
 	if db.log != nil {
 		db.log.Info("Migrated SQLite workflow unique constraint to include project_id")

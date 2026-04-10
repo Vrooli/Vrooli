@@ -27,7 +27,18 @@ func TestStandardScenarioEnv(t *testing.T) {
 	expectContains(env.APIEnvVars, "SCENARIO_COMPLETENESS_SCORING_API_URL")
 	expectContains(env.APIEnvVars, "SCORING_API_BASE")
 
-	expectContains(env.APIPortEnvVars, "API_PORT")
+	// StandardScenarioEnv intentionally avoids generic API_PORT to prevent
+	// cross-scenario leakage. Port resolution should rely on the scenario-specific
+	// env var(s) and/or a detector (e.g. `vrooli scenario port`).
+	expectNotContains := func(list []string, value string) {
+		for _, v := range list {
+			if v == value {
+				t.Fatalf("expected %s to NOT contain %s", list, value)
+			}
+		}
+	}
+
+	expectNotContains(env.APIPortEnvVars, "API_PORT")
 	expectContains(env.APIPortEnvVars, "SCENARIO_COMPLETENESS_SCORING_API_PORT")
 	if env.APIPortEnvVars[0] != "SCENARIO_COMPLETENESS_SCORING_API_PORT" {
 		t.Fatalf("expected scenario-specific API port env first, got %s", env.APIPortEnvVars[0])

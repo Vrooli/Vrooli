@@ -1,0 +1,20 @@
+{
+  "created": "2026-03-24T22:24:18Z",
+  "depends_on": [
+    "fix/dtv-validation-api",
+    "fix/dtv-report-generation"
+  ],
+  "description": "Add the missing CLI commands that the meta-optimization team needs to invoke DTV.\n\nCommands to implement:\n- development-toolchain-validator validate \u003creference\u003e — Trigger validation run for a reference, display results\n- development-toolchain-validator report --conflicts — Show cross-skill contradictions\n- development-toolchain-validator report --drift — Show skills with content drift\n- development-toolchain-validator report --maturity — Show skill maturity scores\n- development-toolchain-validator report --tool-baselines — Show tool accuracy regressions\n- development-toolchain-validator expectation structural list|create|get|delete — CRUD for structural expectations\n- development-toolchain-validator expectation cli list|create|get|delete — CRUD for CLI assertions\n\nAll commands are thin wrappers over the API following the existing reference/connection command patterns. Depends on both validation API and report generation being complete.",
+  "initiative": "dtv-meta-optimization-readiness",
+  "kind": "fix",
+  "name": "dtv-cli-validate-and-report",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "cli",
+    "commands",
+    "meta-optimization"
+  ],
+  "title": "CLI Commands: validate, report, expectation",
+  "updated": "2026-03-24T22:24:18Z"
+}

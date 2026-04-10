@@ -1,0 +1,85 @@
+{
+  "profiles": [
+    {
+      "id": "balanced",
+      "name": "Balanced",
+      "description": "Well-rounded improvement across all dimensions. Suitable for most scenarios.",
+      "tags": [
+        "balanced",
+        "recommended",
+        "complete"
+      ],
+      "kind": "template",
+      "file": "balanced/profile.json"
+    },
+    {
+      "id": "8c3e5043-0b33-44e1-aa73-a044f6ac22c2",
+      "name": "From Scratch",
+      "description": "The entire scenario development lifecycle, after initial setup",
+      "tags": [
+        "Fullstack"
+      ],
+      "kind": "profile",
+      "file": "8c3e5043-0b33-44e1-aa73-a044f6ac22c2/profile.json"
+    },
+    {
+      "id": "production-ready",
+      "name": "Production Ready",
+      "description": "Comprehensive quality assurance for production deployment. Covers all quality dimensions thoroughly.",
+      "tags": [
+        "production",
+        "comprehensive",
+        "enterprise"
+      ],
+      "kind": "template",
+      "file": "production-ready/profile.json"
+    },
+    {
+      "id": "rapid-mvp",
+      "name": "Rapid MVP",
+      "description": "Fast iteration to minimum viable product. Focuses on getting features working quickly with basic testing.",
+      "tags": [
+        "rapid",
+        "mvp",
+        "quick"
+      ],
+      "kind": "template",
+      "file": "rapid-mvp/profile.json"
+    },
+    {
+      "id": "refactor-test-focus",
+      "name": "Refactor \u0026 Test Focus",
+      "description": "For scenarios that work but need quality improvement. Focuses on testing and code quality.",
+      "tags": [
+        "quality",
+        "testing",
+        "refactor"
+      ],
+      "kind": "template",
+      "file": "refactor-test-focus/profile.json"
+    },
+    {
+      "id": "ux-excellence",
+      "name": "UX Excellence",
+      "description": "Maximum focus on user experience and design. Creates delightful, accessible interfaces.",
+      "tags": [
+        "ux",
+        "design",
+        "accessibility",
+        "creative"
+      ],
+      "kind": "template",
+      "file": "ux-excellence/profile.json"
+    },
+    {
+      "id": "58c06210-5f1b-4cfb-a5fa-6c0b8a1e64b5",
+      "name": "UX refactoring - major",
+      "description": "Use when the UX becomes hard to work with, and needs significant refactoring",
+      "tags": [
+        "UX"
+      ],
+      "kind": "profile",
+      "file": "58c06210-5f1b-4cfb-a5fa-6c0b8a1e64b5/profile.json"
+    }
+  ]
+}

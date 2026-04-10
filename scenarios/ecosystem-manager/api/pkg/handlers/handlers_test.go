@@ -13,12 +13,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/autosteer"
+	"github.com/ecosystem-manager/api/pkg/insights"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
 	"github.com/ecosystem-manager/api/pkg/recycler"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
 	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -111,7 +114,11 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 	}
 
 	broadcast := make(chan any, 10)
-	processor := queue.NewProcessor(storage, assembler, broadcast, nil)
+	processor := queue.NewProcessor(queue.ProcessorDeps{
+		Storage:   storage,
+		Assembler: assembler,
+		Broadcast: broadcast,
+	})
 	t.Cleanup(processor.Stop)
 	wsManager := websocket.NewManager()
 	testRecycler := &recycler.Recycler{}
@@ -124,7 +131,7 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 	}
 	testRecycler.SetCoordinator(coord)
 
-	taskHandlers := NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord)
+	taskHandlers := NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord, nil, nil)
 	queueHandlers := NewQueueHandlers(processor, wsManager, storage, coord)
 	healthHandlers := NewHealthHandlers(processor, nil, queueDir, nil, "test-version")
 	discoveryHandlers := NewDiscoveryHandlers(assembler)
@@ -133,7 +140,7 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 	return taskHandlers, queueHandlers, healthHandlers, discoveryHandlers, settingsHandlers
 }
 
-func mustSaveTask(t *testing.T, storage *tasks.Storage, status string, task tasks.TaskItem) tasks.TaskItem {
+func mustSaveTask(t *testing.T, storage tasks.StorageAPI, status string, task tasks.TaskItem) tasks.TaskItem {
 	t.Helper()
 	now := time.Now().Format(time.RFC3339)
 
@@ -167,6 +174,23 @@ type fakeProcessor struct {
 	lastForceStartOverflow bool
 }
 
+// Lifecycle management
+func (f *fakeProcessor) Start()                                    {}
+func (f *fakeProcessor) Stop()                                     {}
+func (f *fakeProcessor) Pause()                                    {}
+func (f *fakeProcessor) ResumeWithReset() queue.ResumeResetSummary { return queue.ResumeResetSummary{} }
+func (f *fakeProcessor) ResumeWithoutReset()                       {}
+func (f *fakeProcessor) Wake()                                     { f.wakeCalled++ }
+
+// Queue status and diagnostics
+func (f *fakeProcessor) GetQueueStatus() map[string]any { return map[string]any{} }
+
+func (f *fakeProcessor) GetResumeDiagnostics() queue.ResumeDiagnostics {
+	return queue.ResumeDiagnostics{}
+}
+func (f *fakeProcessor) ProcessQueue() {}
+
+// Task execution control
 func (f *fakeProcessor) TerminateRunningProcess(taskID string) error {
 	f.terminateCalled++
 	f.lastTerminateID = taskID
@@ -186,22 +210,23 @@ func (f *fakeProcessor) StartTaskIfSlotAvailable(taskID string) error {
 	return nil
 }
 
-func (f *fakeProcessor) Wake() {
-	f.wakeCalled++
-}
-
 func (f *fakeProcessor) GetRunningProcessesInfo() []queue.ProcessInfo {
 	return nil
 }
 
-func (f *fakeProcessor) AutoSteerIntegration() *queue.AutoSteerIntegration {
-	return nil
-}
-
+// Task logs
 func (f *fakeProcessor) GetTaskLogs(taskID string, afterSeq int64) ([]queue.LogEntry, int64, bool, string, bool, int) {
 	return nil, 0, false, "", false, 0
 }
+func (f *fakeProcessor) ResetTaskLogs(taskID string) {}
 
+// Rate limiting
+func (f *fakeProcessor) ResetRateLimitPause() {}
+
+// Auto Steer integration
+func (f *fakeProcessor) AutoSteerIntegration() *queue.AutoSteerIntegration { return nil }
+
+// Execution history
 func (f *fakeProcessor) LoadExecutionHistory(taskID string) ([]queue.ExecutionHistory, error) {
 	return nil, nil
 }
@@ -214,15 +239,16 @@ func (f *fakeProcessor) GetExecutionFilePath(taskID, executionID, filename strin
 	return ""
 }
 
-func (f *fakeProcessor) LoadInsightReports(taskID string) ([]queue.InsightReport, error) {
+// Insight-related methods
+func (f *fakeProcessor) LoadInsightReports(taskID string) ([]insights.InsightReport, error) {
 	return nil, nil
 }
 
-func (f *fakeProcessor) LoadInsightReport(taskID, reportID string) (*queue.InsightReport, error) {
+func (f *fakeProcessor) LoadInsightReport(taskID, reportID string) (*insights.InsightReport, error) {
 	return nil, nil
 }
 
-func (f *fakeProcessor) SaveInsightReport(report queue.InsightReport) error {
+func (f *fakeProcessor) SaveInsightReport(report insights.InsightReport) error {
 	return nil
 }
 
@@ -230,11 +256,7 @@ func (f *fakeProcessor) UpdateSuggestionStatus(taskID, reportID, suggestionID, s
 	return nil
 }
 
-func (f *fakeProcessor) LoadAllInsightReports(sinceTime time.Time) ([]queue.InsightReport, error) {
-	return nil, nil
-}
-
-func (f *fakeProcessor) GenerateInsightReportForTask(taskID string, limit int, statusFilter string) (*queue.InsightReport, error) {
+func (f *fakeProcessor) LoadAllInsightReports(sinceTime time.Time) ([]insights.InsightReport, error) {
 	return nil, nil
 }
 
@@ -242,13 +264,20 @@ func (f *fakeProcessor) BuildInsightPrompt(taskID string, limit int, statusFilte
 	return "", nil
 }
 
-func (f *fakeProcessor) GenerateInsightReportWithCustomPrompt(taskID string, limit int, statusFilter string, customPrompt string) (*queue.InsightReport, error) {
+func (f *fakeProcessor) GenerateInsightReportForTask(taskID string, limit int, statusFilter string) (*insights.InsightReport, error) {
 	return nil, nil
 }
 
-func (f *fakeProcessor) GenerateSystemInsightReport(sinceTime time.Time) (*queue.SystemInsightReport, error) {
+func (f *fakeProcessor) GenerateInsightReportWithCustomPrompt(taskID string, limit int, statusFilter string, customPrompt string) (*insights.InsightReport, error) {
 	return nil, nil
 }
+
+func (f *fakeProcessor) GenerateSystemInsightReport(sinceTime time.Time) (*insights.SystemInsightReport, error) {
+	return nil, nil
+}
+
+// Verify fakeProcessor implements ProcessorAPI
+var _ ProcessorAPI = (*fakeProcessor)(nil)
 
 // TestHealthCheckHandler tests the health check endpoint
 func TestHealthCheckHandler(t *testing.T) {
@@ -526,6 +555,203 @@ func TestTaskHandlers_CreateTask(t *testing.T) {
 			t.Errorf("Expected status 400, got %d", w.Code)
 		}
 	})
+
+	t.Run("PersistsNotesAndOriginContext", func(t *testing.T) {
+		taskBody := map[string]any{
+			"type":      "scenario",
+			"operation": "generator",
+			"target":    "alpha",
+			"notes":     "brief content",
+			"origin": map[string]any{
+				"source":                    "swarm-manager",
+				"backlog_item":              "idea/alpha",
+				"item_folder":               "/tmp/ideas/alpha",
+				"handoff_dir":               "/tmp/ideas/alpha/handoff",
+				"handoff_brief_path":        "/tmp/ideas/alpha/handoff/brief.md",
+				"handoff_manifest_path":     "/tmp/ideas/alpha/handoff/manifest.json",
+				"handoff_source_index_path": "/tmp/ideas/alpha/handoff/source-index.json",
+			},
+		}
+
+		bodyBytes, _ := json.Marshal(taskBody)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlers.CreateTaskHandler(w, req)
+
+		if w.Code != http.StatusCreated {
+			t.Fatalf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
+		}
+
+		var resp struct {
+			Task tasks.TaskItem `json:"task"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("parse response: %v", err)
+		}
+		if resp.Task.Notes != "brief content" {
+			t.Fatalf("notes = %q", resp.Task.Notes)
+		}
+		if resp.Task.Origin == nil || resp.Task.Origin.HandoffManifestPath == "" {
+			t.Fatalf("origin not persisted: %#v", resp.Task.Origin)
+		}
+		if resp.Task.Origin.BacklogItem != "idea/alpha" {
+			t.Fatalf("backlog item = %q", resp.Task.Origin.BacklogItem)
+		}
+	})
+}
+
+func TestTaskHandlers_CreateTask_TargetValidation(t *testing.T) {
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	// Create a real scenario directory so "existing-scenario" passes validation
+	scenariosDir := filepath.Join(tempDir, "scenarios", "existing-scenario")
+	if err := os.MkdirAll(scenariosDir, 0o755); err != nil {
+		t.Fatalf("Failed to create scenario dir: %v", err)
+	}
+
+	validator := NewFSTargetValidator(tempDir)
+
+	queueDir := filepath.Join(tempDir, "queue")
+	promptsDir := filepath.Join(tempDir, "prompts")
+	storage := tasks.NewStorage(queueDir)
+	assembler, err := prompts.NewAssembler(promptsDir, tempDir)
+	if err != nil {
+		t.Fatalf("Failed to create assembler: %v", err)
+	}
+	wsManager := websocket.NewManager()
+	fp := &fakeProcessor{}
+	taskHandlers := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil, nil, validator)
+
+	t.Run("RejectsNonexistentTarget", func(t *testing.T) {
+		body := map[string]any{
+			"type":      "scenario",
+			"operation": "improver",
+			"target":    "nonexistent-scenario",
+		}
+		bodyBytes, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlers.CreateTaskHandler(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d. Response: %s", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "not found") {
+			t.Errorf("Expected 'not found' in error, got: %s", w.Body.String())
+		}
+	})
+
+	t.Run("AcceptsExistingTarget", func(t *testing.T) {
+		body := map[string]any{
+			"type":      "scenario",
+			"operation": "improver",
+			"target":    "existing-scenario",
+		}
+		bodyBytes, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlers.CreateTaskHandler(w, req)
+
+		if w.Code != http.StatusCreated {
+			t.Errorf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("DryRunAlsoValidatesTarget", func(t *testing.T) {
+		body := map[string]any{
+			"type":      "scenario",
+			"operation": "improver",
+			"target":    "nonexistent-scenario",
+		}
+		bodyBytes, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Dry-Run", "true")
+
+		w := httptest.NewRecorder()
+		taskHandlers.CreateTaskHandler(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400 for dry-run with bad target, got %d. Response: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("GeneratorSkipsTargetValidation", func(t *testing.T) {
+		body := map[string]any{
+			"type":      "scenario",
+			"operation": "generator",
+			"target":    "brand-new-scenario",
+		}
+		bodyBytes, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlers.CreateTaskHandler(w, req)
+
+		// Generator tasks should succeed even for nonexistent targets
+		if w.Code != http.StatusCreated {
+			t.Errorf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("RejectsUnknownAutoSteerProfile", func(t *testing.T) {
+		profiles := autosteer.NewMockProfileRepository()
+		taskHandlersWithProfiles := NewTaskHandlers(storage, assembler, fp, wsManager, profiles, nil, nil, validator)
+
+		body := map[string]any{
+			"type":                  "scenario",
+			"operation":             "generator",
+			"target":                "brand-new-scenario",
+			"auto_steer_profile_id": "does-not-exist",
+		}
+		bodyBytes, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlersWithProfiles.CreateTaskHandler(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d. Response: %s", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "not found") {
+			t.Errorf("Expected profile not found error, got: %s", w.Body.String())
+		}
+	})
+
+	t.Run("AcceptsExistingAutoSteerProfile", func(t *testing.T) {
+		profiles := autosteer.NewMockProfileRepository()
+		_ = profiles.CreateProfile(&autosteer.AutoSteerProfile{
+			ID:   "rapid-mvp",
+			Name: "Rapid MVP",
+		})
+		taskHandlersWithProfiles := NewTaskHandlers(storage, assembler, fp, wsManager, profiles, nil, nil, validator)
+
+		body := map[string]any{
+			"type":                  "scenario",
+			"operation":             "generator",
+			"target":                "another-new-scenario",
+			"auto_steer_profile_id": "rapid-mvp",
+		}
+		bodyBytes, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlersWithProfiles.CreateTaskHandler(w, req)
+
+		if w.Code != http.StatusCreated {
+			t.Errorf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
+		}
+	})
 }
 
 func TestTaskHandlers_CreateTask_MultiTarget(t *testing.T) {
@@ -568,6 +794,77 @@ func TestTaskHandlers_CreateTask_MultiTarget(t *testing.T) {
 	if resp.Created[0].Title != expectedAlpha || resp.Created[1].Title != expectedBeta {
 		t.Fatalf("expected derived titles %q and %q, got %q and %q", expectedAlpha, expectedBeta, resp.Created[0].Title, resp.Created[1].Title)
 	}
+}
+
+// TestTaskHandlers_CreateTask_AutoRequeueEnabled verifies that newly created tasks
+// have ProcessorAutoRequeue set to true so the queue processor will pick them up.
+func TestTaskHandlers_CreateTask_AutoRequeueEnabled(t *testing.T) {
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+
+	t.Run("SingleTarget", func(t *testing.T) {
+		taskBody := map[string]any{
+			"type":      "resource",
+			"operation": "generator",
+			"target":    "auto-requeue-test",
+		}
+
+		bodyBytes, _ := json.Marshal(taskBody)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlers.CreateTaskHandler(w, req)
+
+		if w.Code != http.StatusCreated {
+			t.Fatalf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
+		}
+
+		var resp struct {
+			Task tasks.TaskItem `json:"task"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		if !resp.Task.ProcessorAutoRequeue {
+			t.Fatalf("expected ProcessorAutoRequeue=true for newly created task, got false")
+		}
+	})
+
+	t.Run("MultiTarget", func(t *testing.T) {
+		body := map[string]any{
+			"type":      "resource",
+			"operation": "generator",
+			"targets":   []string{"requeue-alpha", "requeue-beta"},
+		}
+
+		bodyBytes, _ := json.Marshal(body)
+		req := httptest.NewRequest("POST", "/api/tasks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		taskHandlers.CreateTaskHandler(w, req)
+
+		if w.Code != http.StatusCreated {
+			t.Fatalf("Expected status 201, got %d. Response: %s", w.Code, w.Body.String())
+		}
+
+		var resp struct {
+			Created []tasks.TaskItem `json:"created"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		for _, task := range resp.Created {
+			if !task.ProcessorAutoRequeue {
+				t.Fatalf("expected ProcessorAutoRequeue=true for multi-target task %s, got false", task.ID)
+			}
+		}
+	})
 }
 
 // TestTaskHandlers_GetTask tests the get single task endpoint
@@ -787,6 +1084,60 @@ func TestTaskHandlers_UpdateTask(t *testing.T) {
 	}
 }
 
+func TestTaskHandlers_UpdateTask_PreservesOriginWhenOmitted(t *testing.T) {
+	tempDir, cleanup := setupTestEnv(t)
+	defer cleanup()
+
+	taskHandlers, _, _, _, _ := createTestHandlers(t, tempDir)
+
+	current := mustSaveTask(t, taskHandlers.storage, "pending", tasks.TaskItem{
+		ID:        "update-origin-task",
+		Type:      "scenario",
+		Operation: "generator",
+		Target:    "delta",
+		Title:     "Original Title",
+		Origin: &tasks.TaskOrigin{
+			Source:              "swarm-manager",
+			BacklogItem:         "idea/delta",
+			HandoffManifestPath: "/tmp/ideas/delta/handoff/manifest.json",
+		},
+	})
+
+	updateBody := map[string]any{
+		"notes": "updated notes only",
+	}
+	bodyBytes, _ := json.Marshal(updateBody)
+
+	req := httptest.NewRequest("PUT", "/api/tasks/update-origin-task", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": current.ID})
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	taskHandlers.UpdateTaskHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool           `json:"success"`
+		Task    tasks.TaskItem `json:"task"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if resp.Task.Origin == nil {
+		t.Fatal("expected origin to be preserved")
+	}
+	if resp.Task.Origin.BacklogItem != "idea/delta" {
+		t.Fatalf("backlog item = %q", resp.Task.Origin.BacklogItem)
+	}
+	if resp.Task.Notes != "updated notes only" {
+		t.Fatalf("notes = %q", resp.Task.Notes)
+	}
+}
+
 func TestTaskHandlers_UpdateTaskStatus_BackwardsTransition(t *testing.T) {
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
@@ -800,7 +1151,7 @@ func TestTaskHandlers_UpdateTaskStatus_BackwardsTransition(t *testing.T) {
 	}
 	fp := &fakeProcessor{}
 	wsManager := websocket.NewManager()
-	taskHandlers := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil)
+	taskHandlers := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil, nil, nil)
 
 	completed := mustSaveTask(t, taskHandlers.storage, "completed", tasks.TaskItem{
 		ID:        "status-task",
@@ -830,19 +1181,29 @@ func TestTaskHandlers_UpdateTaskStatus_BackwardsTransition(t *testing.T) {
 		t.Fatalf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
 	}
 
-	var updated tasks.TaskItem
-	if err := json.Unmarshal(w.Body.Bytes(), &updated); err != nil {
+	var envelope struct {
+		Success   bool           `json:"success"`
+		Task      tasks.TaskItem `json:"task"`
+		NextSteps []string       `json:"next_steps"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &envelope); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
 
-	if updated.Status != "pending" {
-		t.Fatalf("expected status pending, got %s", updated.Status)
+	if !envelope.Success {
+		t.Fatalf("expected success=true")
 	}
-	if updated.Results != nil {
-		t.Fatalf("expected results to be cleared on backwards transition, got %v", updated.Results)
+	if envelope.Task.Status != "pending" {
+		t.Fatalf("expected status pending, got %s", envelope.Task.Status)
 	}
-	if updated.CurrentPhase == "archived" {
+	if envelope.Task.Results != nil {
+		t.Fatalf("expected results to be cleared on backwards transition, got %v", envelope.Task.Results)
+	}
+	if envelope.Task.CurrentPhase == "archived" {
 		t.Fatalf("current phase should not be archived on backwards transition")
+	}
+	if len(envelope.NextSteps) == 0 {
+		t.Fatalf("expected next_steps in response")
 	}
 }
 
@@ -859,7 +1220,7 @@ func TestTaskHandlers_UpdateTaskStatus_CooldownConflict(t *testing.T) {
 	}
 
 	wsManager := websocket.NewManager()
-	handler := NewTaskHandlers(storage, assembler, &fakeProcessor{}, wsManager, nil, nil)
+	handler := NewTaskHandlers(storage, assembler, &fakeProcessor{}, wsManager, nil, nil, nil, nil)
 
 	future := time.Now().Add(10 * time.Minute).Format(time.RFC3339)
 	task := mustSaveTask(t, storage, "failed", tasks.TaskItem{
@@ -915,8 +1276,19 @@ func TestTaskHandlers_DeleteTask(t *testing.T) {
 
 	taskHandlers.DeleteTaskHandler(w, req)
 
-	if w.Code != http.StatusNoContent {
-		t.Fatalf("expected 204 response, got %d", w.Code)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 response, got %d", w.Code)
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+	if resp["success"] != true {
+		t.Fatalf("expected success=true, got %v", resp["success"])
+	}
+	if resp["next_steps"] == nil {
+		t.Fatalf("expected next_steps in response")
 	}
 
 	if _, _, err := taskHandlers.storage.GetTaskByID(task.ID); err == nil {
@@ -937,7 +1309,7 @@ func TestUpdateTaskHandler_ActiveToPendingTriggersProcessStopsAndWake(t *testing
 	}
 	fp := &fakeProcessor{}
 	wsManager := websocket.NewManager()
-	handler := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil)
+	handler := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil, nil, nil)
 
 	task := mustSaveTask(t, storage, "in-progress", tasks.TaskItem{
 		ID:                   "active-task",
@@ -993,7 +1365,7 @@ func TestUpdateTaskHandler_PendingToActiveTriggersForceStart(t *testing.T) {
 	}
 	fp := &fakeProcessor{}
 	wsManager := websocket.NewManager()
-	handler := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil)
+	handler := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil, nil, nil)
 
 	task := mustSaveTask(t, storage, "pending", tasks.TaskItem{
 		ID:                   "pending-task",

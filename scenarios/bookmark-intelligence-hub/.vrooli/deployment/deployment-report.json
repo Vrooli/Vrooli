@@ -36,38 +36,6 @@
       "source": "declared"
     },
     {
-      "name": "huginn",
-      "type": "resource",
-      "tier_support": {
-        "desktop": {
-          "supported": true,
-          "fitness_score": 0.6
-        },
-        "enterprise": {
-          "supported": true,
-          "fitness_score": 0.98
-        },
-        "local": {
-          "supported": true,
-          "fitness_score": 1
-        },
-        "mobile": {
-          "supported": false,
-          "fitness_score": 0.1,
-          "reason": "Heavy operations not suitable for mobile"
-        },
-        "saas": {
-          "supported": true,
-          "fitness_score": 0.85
-        },
-        "server": {
-          "supported": true,
-          "fitness_score": 0.95
-        }
-      },
-      "source": "declared"
-    },
-    {
       "name": "ollama",
       "type": "resource",
       "tier_support": {
@@ -183,8 +151,6 @@
       "fitness_score": 0.6599999999999999,
       "dependency_count": 5,
       "blocking_dependencies": [
-        "browserless",
-        "huginn",
         "ollama",
         "postgres"
       ],
@@ -216,8 +182,6 @@
       "fitness_score": 0.12000000000000002,
       "dependency_count": 5,
       "blocking_dependencies": [
-        "browserless",
-        "huginn",
         "ollama",
         "postgres",
         "qdrant"
@@ -286,68 +250,6 @@
       }
     ],
     "dependencies": [
-      {
-        "name": "browserless",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.6
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": false,
-            "fitness_score": 0.1,
-            "reason": "Heavy operations not suitable for mobile"
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.85
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
-      {
-        "name": "huginn",
-        "type": "resource",
-        "tier_support": {
-          "desktop": {
-            "supported": true,
-            "fitness_score": 0.6
-          },
-          "enterprise": {
-            "supported": true,
-            "fitness_score": 0.98
-          },
-          "local": {
-            "supported": true,
-            "fitness_score": 1
-          },
-          "mobile": {
-            "supported": false,
-            "fitness_score": 0.1,
-            "reason": "Heavy operations not suitable for mobile"
-          },
-          "saas": {
-            "supported": true,
-            "fitness_score": 0.85
-          },
-          "server": {
-            "supported": true,
-            "fitness_score": 0.95
-          }
-        }
-      },
       {
         "name": "ollama",
         "type": "resource",
@@ -463,27 +365,6 @@
     "gaps_by_scenario": {},
     "missing_tiers": null,
     "secret_requirements": [
-      {
-        "dependency_name": "browserless",
-        "dependency_type": "resource",
-        "secret_type": "browser_automation_token",
-        "required_secrets": [
-          "browserless_token"
-        ],
-        "playbook_reference": "secrets-manager/playbooks/browser-automation.md",
-        "priority": "required"
-      },
-      {
-        "dependency_name": "huginn",
-        "dependency_type": "resource",
-        "secret_type": "automation_credentials",
-        "required_secrets": [
-          "huginn_api_key",
-          "huginn_webhook_secret"
-        ],
-        "playbook_reference": "secrets-manager/playbooks/automation-platform.md",
-        "priority": "required"
-      },
       {
         "dependency_name": "postgres",
         "dependency_type": "resource",

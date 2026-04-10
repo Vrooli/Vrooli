@@ -1,0 +1,61 @@
+{
+  "description": "6 collectors (CPU, memory, disk, network, process, GPU) in api/internal/collectors/. Exposed via /api/v1/metrics/current and /api/v1/metrics/detailed endpoints.",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "system-monitor-must-have-real-time-cpu-memory-disk-network-gpu-monitoring",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "System must collect and expose real-time metrics for CPU, memory, disk, network, and GPU utilization with \u003c 100ms latency",
+      "id": "REQ-P0-001",
+      "prd_ref": "system-monitor-must-have-real-time-cpu-memory-disk-network-gpu-monitoring",
+      "status": "implemented",
+      "title": "Real-time System Metrics Collection",
+      "validation": [
+        {
+          "notes": "Test metric collector functions",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify all metric types are collected",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate metrics flow through storage pipeline",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Collection latency \u003c 100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Handle 1000+ metrics/second",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Metrics visible in dashboard within 5s",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Real-time CPU, memory, disk, network, GPU monitoring"
+}

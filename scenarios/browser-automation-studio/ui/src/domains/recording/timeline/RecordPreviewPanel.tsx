@@ -19,11 +19,11 @@
 
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Globe, Loader2 } from 'lucide-react';
-import { loadHistory, type HistoryEntry } from '../capture/BrowserUrlBar';
+import { loadHistory, type HistoryEntry } from '../capture/browserUrlHistory';
 import { useLinkPreviewsBatch, type LinkPreviewData } from '../hooks/useLinkPreview';
 import type { RecordedAction } from '../types/types';
 import { PlaywrightView, type FrameStats, type PageMetadata, type StreamConnectionStatus } from '../capture/PlaywrightView';
-import { useStreamSettings } from '../capture/StreamSettings';
+import { useStreamSettings } from '../capture/streamSettingsState';
 import { useViewportOptional } from '../context';
 
 interface RecordPreviewPanelProps {
@@ -178,9 +178,9 @@ function getDomainGradient(domain: string): string {
     'from-orange-500 to-red-600',
     'from-cyan-500 to-blue-600',
     'from-rose-500 to-purple-600',
-  ];
+  ] as const;
   const hash = domain.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return gradients[hash % gradients.length];
+  return gradients[hash % gradients.length] ?? gradients[0];
 }
 
 /** Individual site card with preview data */

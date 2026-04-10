@@ -1,0 +1,17 @@
+{
+  "acceptance_allow": [
+    "scenarios/brand-manager/api/**",
+    "scenarios/brand-manager/ui/**"
+  ],
+  "created": "2026-03-26T22:02:39Z",
+  "description": "## Goal\n\nTransform the Standards page from a passive rule list into an actionable audit tool. Each rule should be understandable (what it checks, what files, examples) and executable (run against a specific scenario).\n\n## Current State\n\nThe Standards page shows 5 rules:\n- Logo Present (warning) — checks `b.Identity.LogoPath != \"\"`\n- Favicon Present (warning) — checks `b.Identity.FaviconPath != \"\"`\n- Color System Defined (warning) — checks 4 colors are non-empty\n- Display Name Set (error) — checks `b.Identity.DisplayName != \"\"`\n- Typography Defined (info) — checks heading + body fonts\n\nEach rule shows only: name, one-line description, severity badge. No detail on what files are involved, what passing/failing looks like, or how to fix violations.\n\n## Implementation\n\n### Expandable Rule Cards\nClick/tap a rule to expand and show:\n- **What it checks:** Detailed explanation of the validation logic\n- **Target files:** Which files in a scenario this rule inspects or expects to be modified (e.g., `ui/public/manifest.json`, `ui/src/styles/brand.css`, `ui/public/logo.png`)\n- **Passing example:** What a compliant scenario looks like (code snippet or visual)\n- **Failing example:** What a non-compliant scenario looks like\n- **How to fix:** Step-by-step instructions to resolve the violation\n- **Severity explanation:** Why this rule is warning/error/info level\n\n### Per-Rule Execution\n- Each rule card gets a \"Check Scenario\" button\n- Opens a small inline form: scenario name input + \"Run\" button\n- Calls the audit endpoint for just that rule\n- Shows pass/fail result inline with specific details\n\n### Batch Execution\n- \"Scan All Rules\" button at the top of the Standards page\n- Scenario name input → runs all rules at once\n- Results displayed per-rule with pass/fail badges\n- Summary: X/5 rules passing, overall compliance score\n\n### API Changes\n- Enhance `GET /api/v1/standards` to return additional metadata per rule:\n  - `target_files[]` — glob patterns of files the rule checks\n  - `passing_example` — code/config snippet showing compliance\n  - `failing_example` — code/config snippet showing violation\n  - `fix_instructions` — markdown remediation guide\n- Add `POST /api/v1/audit/evaluate/{scenario}?rule={ruleId}` — single-rule evaluation\n\n## Key Files\n\n- Standards handler: `scenarios/brand-manager/api/handlers/standards.go` (rule definitions)\n- Standards page: `scenarios/brand-manager/ui/src/pages/StandardsPage.tsx`\n- Audit handler: `scenarios/brand-manager/api/handlers/` (EvaluateScenario)\n- Scanner page: `scenarios/brand-manager/ui/src/pages/ScannerPage.tsx` (reference for scan UX)",
+  "effort": "M",
+  "initiative": "brand-manager-readiness",
+  "kind": "execute",
+  "name": "brand-manager-rule-detail-ux",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [],
+  "title": "Add Detailed Rule Documentation and Per-Rule Execution to Standards Page",
+  "updated": "2026-03-26T22:02:39Z"
+}

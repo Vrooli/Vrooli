@@ -138,7 +138,7 @@ func TestPersistDetailedFileMetrics_DBConnectionFailure(t *testing.T) {
 	db.Close()
 
 	srv := &Server{
-		config: &Config{DatabaseURL: dbURL},
+		config: &Config{},
 		db:     db,
 	}
 

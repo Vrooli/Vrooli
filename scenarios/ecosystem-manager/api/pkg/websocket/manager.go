@@ -58,11 +58,13 @@ func (m *Manager) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	log.Printf("WebSocket client connected. Total clients: %d", clientCount)
 
 	// Send initial state
-	conn.WriteJSON(map[string]any{
+	if err := conn.WriteJSON(map[string]any{
 		"type":      "connected",
 		"message":   "Connected to Ecosystem Manager",
 		"timestamp": time.Now().Unix(),
-	})
+	}); err != nil {
+		log.Printf("WebSocket initial state send failed: %v", err)
+	}
 
 	// Cleanup on disconnect
 	defer func() {

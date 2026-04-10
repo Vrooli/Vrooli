@@ -1,0 +1,29 @@
+{
+  "archived_at": "2026-02-06T03:07:14Z",
+  "created": "2026-02-06T03:07:14Z",
+  "description": "Gamified chore tracking with points, achievements, and cute quirky UX for making cleaning fun",
+  "name": "chore-tracking-archived",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "personal-assistant",
+    "lifestyle",
+    "chores",
+    "gamification",
+    "cleaning",
+    "tasks",
+    "points",
+    "achievements",
+    "family",
+    "javascript-ui",
+    "fun",
+    "nodejs-ui",
+    "go-api",
+    "postgres-storage",
+    "redis-cache",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] chore-tracking",
+  "updated": "2026-02-06T03:07:14Z"
+}

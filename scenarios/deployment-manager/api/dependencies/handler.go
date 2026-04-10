@@ -37,7 +37,7 @@ func (h *Handler) AnalyzeDependencies(w http.ResponseWriter, r *http.Request) {
 	// Resolve analyzer URL
 	analyzerBaseURL, err := shared.GetConfigResolver().ResolveAnalyzerURL()
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusServiceUnavailable)
+		shared.JSONError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 
@@ -54,19 +54,19 @@ func (h *Handler) AnalyzeDependencies(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := shared.GetHTTPClient(ctx).Do(req)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"failed to call dependency analyzer: %s"}`, err.Error()), http.StatusServiceUnavailable)
+		shared.JSONError(w, fmt.Sprintf("failed to call dependency analyzer: %s", err.Error()), http.StatusServiceUnavailable)
 		return
 	}
 	defer resp.Body.Close()
 
 	// Pass through error status codes from dependency analyzer
 	if resp.StatusCode == http.StatusNotFound {
-		http.Error(w, fmt.Sprintf(`{"error":"scenario '%s' not found"}`, scenarioName), http.StatusNotFound)
+		shared.JSONError(w, fmt.Sprintf("scenario '%s' not found", scenarioName), http.StatusNotFound)
 		return
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		http.Error(w, fmt.Sprintf(`{"error":"dependency analyzer returned status %d"}`, resp.StatusCode), resp.StatusCode)
+		shared.JSONError(w, fmt.Sprintf("dependency analyzer returned status %d", resp.StatusCode), resp.StatusCode)
 		return
 	}
 
@@ -88,7 +88,7 @@ func (h *Handler) AnalyzeDependencies(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 		return
 	}
 
@@ -119,5 +119,5 @@ func (h *Handler) AnalyzeDependencies(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }

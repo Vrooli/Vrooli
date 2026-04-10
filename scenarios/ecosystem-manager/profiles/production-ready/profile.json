@@ -1,0 +1,200 @@
+{
+  "id": "production-ready",
+  "name": "Production Ready",
+  "description": "Comprehensive quality assurance for production deployment. Covers all quality dimensions thoroughly.",
+  "phases": [
+    {
+      "id": "production-ready-progress",
+      "skill_ids": ["progress"],
+      "skill_name": "Progress",
+      "modes": [],
+      "stop_conditions": [
+        {
+          "type": "simple",
+          "metric": "operational_targets_percentage",
+          "compare_operator": ">=",
+          "value": 100
+        }
+      ],
+      "max_iterations": 15
+    },
+    {
+      "id": "production-ready-ux",
+      "skill_ids": ["ux"],
+      "skill_name": "UX",
+      "modes": [],
+      "stop_conditions": [
+        {
+          "type": "compound",
+          "operator": "AND",
+          "conditions": [
+            {
+              "type": "simple",
+              "metric": "accessibility_score",
+              "compare_operator": ">",
+              "value": 95
+            },
+            {
+              "type": "simple",
+              "metric": "ui_test_coverage",
+              "compare_operator": ">",
+              "value": 80
+            },
+            {
+              "type": "simple",
+              "metric": "responsive_breakpoints",
+              "compare_operator": ">=",
+              "value": 3
+            }
+          ]
+        }
+      ],
+      "max_iterations": 15
+    },
+    {
+      "id": "production-ready-test",
+      "skill_ids": ["test"],
+      "skill_name": "Test",
+      "modes": [],
+      "stop_conditions": [
+        {
+          "type": "compound",
+          "operator": "AND",
+          "conditions": [
+            {
+              "type": "simple",
+              "metric": "unit_test_coverage",
+              "compare_operator": ">",
+              "value": 90
+            },
+            {
+              "type": "simple",
+              "metric": "integration_test_coverage",
+              "compare_operator": ">",
+              "value": 80
+            },
+            {
+              "type": "simple",
+              "metric": "ui_test_coverage",
+              "compare_operator": ">",
+              "value": 70
+            },
+            {
+              "type": "simple",
+              "metric": "flaky_tests",
+              "compare_operator": "==",
+              "value": 0
+            }
+          ]
+        }
+      ],
+      "max_iterations": 20
+    },
+    {
+      "id": "production-ready-refactor",
+      "skill_ids": ["refactor"],
+      "skill_name": "Refactor",
+      "modes": [],
+      "stop_conditions": [
+        {
+          "type": "compound",
+          "operator": "AND",
+          "conditions": [
+            {
+              "type": "simple",
+              "metric": "tidiness_score",
+              "compare_operator": ">",
+              "value": 90
+            },
+            {
+              "type": "simple",
+              "metric": "cyclomatic_complexity_avg",
+              "compare_operator": "<",
+              "value": 8
+            },
+            {
+              "type": "simple",
+              "metric": "tech_debt_items",
+              "compare_operator": "<",
+              "value": 10
+            }
+          ]
+        }
+      ],
+      "max_iterations": 12
+    },
+    {
+      "id": "production-ready-security",
+      "skill_ids": ["security"],
+      "skill_name": "Security",
+      "modes": [],
+      "stop_conditions": [
+        {
+          "type": "compound",
+          "operator": "AND",
+          "conditions": [
+            {
+              "type": "simple",
+              "metric": "vulnerability_count",
+              "compare_operator": "==",
+              "value": 0
+            },
+            {
+              "type": "simple",
+              "metric": "input_validation_coverage",
+              "compare_operator": ">",
+              "value": 95
+            }
+          ]
+        }
+      ],
+      "max_iterations": 10
+    },
+    {
+      "id": "production-ready-performance",
+      "skill_ids": ["performance"],
+      "skill_name": "Performance",
+      "modes": [],
+      "stop_conditions": [
+        {
+          "type": "simple",
+          "metric": "bundle_size_kb",
+          "compare_operator": "<",
+          "value": 3000
+        }
+      ],
+      "max_iterations": 8
+    },
+    {
+      "id": "production-ready-polish",
+      "skill_ids": ["polish"],
+      "skill_name": "Polish",
+      "modes": [],
+      "stop_conditions": [
+        {
+          "type": "simple",
+          "metric": "loops",
+          "compare_operator": ">=",
+          "value": 5
+        }
+      ],
+      "max_iterations": 5
+    }
+  ],
+  "quality_gates": [
+    {
+      "name": "build_health",
+      "condition": {
+        "type": "simple",
+        "metric": "build_status",
+        "compare_operator": "==",
+        "value": 1
+      },
+      "failure_action": "halt",
+      "message": "Build must be passing"
+    }
+  ],
+  "created_at": "2026-01-27T00:00:00Z",
+  "updated_at": "2026-01-27T00:00:00Z",
+  "tags": ["production", "comprehensive", "enterprise"]
+}

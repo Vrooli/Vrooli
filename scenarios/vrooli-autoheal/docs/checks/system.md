@@ -64,7 +64,7 @@ Inode exhaustion prevents file creation even with free disk space:
    ```bash
    find / -xdev -type d -size +100k 2>/dev/null
    ```
-3. Clean up old files in /tmp, /var/log
+3. Clean up old temporary and log files
 
 ---
 

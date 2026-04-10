@@ -7,8 +7,6 @@
 
 export {
   ViewportProvider,
-  useViewport,
-  useViewportOptional,
   type ViewportProviderProps,
   type ViewportContextState,
   type ViewportContextActions,
@@ -16,3 +14,5 @@ export {
   type ViewportDimensions,
   type ViewportSyncState,
 } from './ViewportProvider';
+
+export { useViewport, useViewportOptional } from './viewportHooks';

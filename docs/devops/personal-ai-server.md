@@ -202,7 +202,6 @@ Automate with Proxmox **Scheduled Jobs** or a simple cron.
 
 ## 5. Monitoring
 
-1. **node-exporter** on host & guests.
 2. **dcgm-exporter** inside `/plan-hq` for GPU metrics.
 3. **pve\_exporter** on host for VM/CT stats.
 4. Dashboards: import *Proxmox VE*, *NVIDIA DCGM*, *ZFS* premade boards into Grafana.

@@ -7,7 +7,7 @@
     {
       "id": "KO-API-001",
       "title": "Health check endpoint",
-      "prd_ref": "OT-P0-004",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "description": "GET /health returns service status and basic metrics for lifecycle management",
       "validation": [
         {
@@ -23,7 +23,7 @@
     {
       "id": "KO-API-002",
       "title": "API versioning and contract stability",
-      "prd_ref": "OT-P0-004",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "description": "All endpoints use /api/v1 prefix and maintain backward compatibility within version",
       "validation": [
         {
@@ -39,7 +39,7 @@
     {
       "id": "KO-API-003",
       "title": "CORS configuration",
-      "prd_ref": "OT-P0-004",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "description": "Properly configured CORS headers for UI access with secure origin validation",
       "validation": [
         {
@@ -55,7 +55,7 @@
     {
       "id": "KO-API-004",
       "title": "Error handling and status codes",
-      "prd_ref": "OT-P0-004",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "description": "Consistent error responses with appropriate HTTP status codes and error messages",
       "validation": [
         {
@@ -71,7 +71,7 @@
     {
       "id": "KO-API-005",
       "title": "API documentation",
-      "prd_ref": "OT-P0-004",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "description": "API endpoints documented with request/response schemas and example usage",
       "validation": [
         {

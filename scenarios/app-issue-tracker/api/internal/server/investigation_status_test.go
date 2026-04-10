@@ -31,7 +31,16 @@ func TestPersistInvestigationStartSetsRunningStatus(t *testing.T) {
 	}
 
 	startedAt := time.Now().UTC().Format(time.RFC3339)
-	if err := env.Server.investigations.persistInvestigationStart(loadedIssue, issueDir, agents.UnifiedResolverID, startedAt); err != nil {
+	if err := env.Server.investigations.persistInvestigationStart(
+		loadedIssue,
+		issueDir,
+		agents.UnifiedResolverID,
+		"run-test",
+		agentManagerProfileKey,
+		"claude-code",
+		"session-test",
+		startedAt,
+	); err != nil {
 		t.Fatalf("persistInvestigationStart failed: %v", err)
 	}
 

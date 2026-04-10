@@ -18,11 +18,11 @@ func TestSaveUsesCurrentProfile(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/profiles/demo":
-			io.WriteString(w, `{"id":"demo","tiers":[2],"swaps":{"a":"b"},"secrets":{},"settings":{"env":{"X":"Y"}}}`)
+			_, _ = io.WriteString(w, `{"id":"demo","tiers":[2],"swaps":{"a":"b"},"secrets":{},"settings":{"env":{"X":"Y"}}}`)
 		case r.Method == http.MethodPut && r.URL.Path == "/api/v1/profiles/demo":
 			data, _ := io.ReadAll(r.Body)
 			captured = data
-			w.Write(data)
+			_, _ = w.Write(data)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -33,8 +33,9 @@ func TestSaveUsesCurrentProfile(t *testing.T) {
 	if err := cmd.Save([]string{"demo"}); err != nil {
 		t.Fatalf("save failed: %v", err)
 	}
-	if !bytes.Contains(captured, []byte(`"swaps":{"a":"b"}`)) {
-		t.Fatalf("expected swap to persist, got %s", string(captured))
+	// Swaps are normalized from map {"a":"b"} to array [{"from":"a","to":"b"}] by the Swaps type
+	if !bytes.Contains(captured, []byte(`"from":"a"`)) || !bytes.Contains(captured, []byte(`"to":"b"`)) {
+		t.Fatalf("expected swap to persist (as array), got %s", string(captured))
 	}
 }
 
@@ -44,7 +45,7 @@ func TestDiffRequiresHistory(t *testing.T) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		io.WriteString(w, `{"profile_id":"demo","versions":[{"version":1}]}`)
+		_, _ = io.WriteString(w, `{"profile_id":"demo","versions":[{"version":1}]}`)
 	}))
 	defer server.Close()
 	cmd := New(testAPIClient(server.URL))
@@ -59,11 +60,11 @@ func TestRollbackUsesSelectedVersion(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/v1/profiles/demo/versions":
-			io.WriteString(w, `{"profile_id":"demo","versions":[{"version":2,"tiers":[3],"swaps":{},"secrets":{},"settings":{}}]}`)
+			_, _ = io.WriteString(w, `{"profile_id":"demo","versions":[{"version":2,"tiers":[3],"swaps":{},"secrets":{},"settings":{}}]}`)
 		case r.URL.Path == "/api/v1/profiles/demo" && r.Method == http.MethodPut:
 			data, _ := io.ReadAll(r.Body)
 			_ = json.Unmarshal(data, &payload)
-			w.Write(data)
+			_, _ = w.Write(data)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -90,7 +91,7 @@ func TestSecretsIdentifyCallsEndpoint(t *testing.T) {
 	var path string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path = r.URL.Path
-		io.WriteString(w, `{}`)
+		_, _ = io.WriteString(w, `{}`)
 	}))
 	defer server.Close()
 
@@ -105,7 +106,7 @@ func TestSecretsIdentifyCallsEndpoint(t *testing.T) {
 
 func TestSecretsTemplatePrintsEnvTemplate(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, `{"template":"FOO=bar\nBAZ=qux\n"}`)
+		_, _ = io.WriteString(w, `{"template":"FOO=bar\nBAZ=qux\n"}`)
 	}))
 	defer server.Close()
 
@@ -135,7 +136,7 @@ func TestSecretsValidatePosts(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		method = r.Method
 		path = r.URL.Path
-		io.WriteString(w, `{}`)
+		_, _ = io.WriteString(w, `{}`)
 	}))
 	defer server.Close()
 

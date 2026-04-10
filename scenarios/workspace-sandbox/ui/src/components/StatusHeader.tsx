@@ -38,7 +38,7 @@ export function StatusHeader({
 }: StatusHeaderProps) {
   const isHealthy = health?.status === "healthy";
   const driverAvailable = health?.dependencies?.driver === "available";
-  const dbConnected = health?.dependencies?.database === "connected";
+  const _dbConnected = health?.dependencies?.database === "connected";
 
   return (
     <header

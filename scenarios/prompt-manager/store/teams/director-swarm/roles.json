@@ -1,0 +1,22 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "director-swarm",
+  "roles": [
+    {
+      "id": "portfolio-manager",
+      "name": "Portfolio Manager",
+      "description": "Maintains portfolio flow in Swarm Manager, applies approved decisions, and proposes bounded corrective actions."
+    },
+    {
+      "id": "outcome-strategy",
+      "name": "Outcome Strategy",
+      "description": "Interprets Command Center metrics and gaps to recommend outcome-driven portfolio shifts."
+    },
+    {
+      "id": "vision-walk-prep",
+      "name": "Vision Walk Prep",
+      "description": "Synthesizes a daily structured briefing from all director-swarm outputs and swarm-manager state for the human's morning vision walk."
+    }
+  ]
+}

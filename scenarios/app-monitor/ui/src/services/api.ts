@@ -11,6 +11,7 @@ import type {
   AppProxyMetadata,
   LocalhostUsageReport,
   CompleteDiagnostics,
+  LighthouseHistory,
   AppDocument,
   AppDocumentsList,
   AppDocumentMatch,
@@ -177,7 +178,7 @@ export interface BrowserlessFallbackPageStatus {
   emptyBody: boolean;
   resourceCount: number;
   loadTimeMs: number;
-  performanceMetrics?: Record<string, any>;
+  performanceMetrics?: Record<string, unknown>;
   detectedIssues?: string[];
 }
 
@@ -508,6 +509,21 @@ export const appService = {
     }
   },
 
+  async getLighthouseHistory(appId: string): Promise<LighthouseHistory | null> {
+    const trimmed = appId.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    try {
+      const { data } = await api.get<LighthouseHistory>(`/scenarios/${encodeURIComponent(trimmed)}/lighthouse/history`);
+      return data;
+    } catch (error) {
+      logger.warn(`Failed to fetch Lighthouse history for ${trimmed}`, error);
+      return null;
+    }
+  },
+
   // Get completeness score for an app
   async getAppCompleteness(appId: string): Promise<import('@/types').CompletenessScore | null> {
     try {
@@ -660,7 +676,7 @@ export const logService = {
     
     eventSource.onmessage = (event) => {
       try {
-        const log = JSON.parse(event.data) as LogEntry;
+        const log: LogEntry = JSON.parse(event.data as string) as LogEntry;
         onMessage(log);
       } catch (error) {
         logger.error('Failed to parse log stream message', error);
@@ -783,5 +799,52 @@ export const healthService = {
 };
 
 // Terminal service removed - functionality not needed
+
+// Workspace Preset types
+export interface WorkspacePreset {
+  id: string;
+  name: string;
+  color: string;
+  interaction_mode: 'browse' | 'arrange';
+  workspace_zoom: number;
+  pane_apps: (string | null)[];
+  pane_preview_urls: (string | null)[];
+  column_fractions: number[];
+  row_fractions: number[];
+  pinned_pane_index: number | null;
+  pinned_column: 'left' | 'right' | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Workspace Preset Management
+export const presetService = {
+  async listPresets(): Promise<WorkspacePreset[]> {
+    return fetchArrayWithFallback(
+      () => api.get<WorkspacePreset[]>('/workspace/presets'),
+      'Failed to fetch workspace presets',
+    );
+  },
+
+  async createPreset(preset: Omit<WorkspacePreset, 'id' | 'created_at' | 'updated_at'>): Promise<WorkspacePreset | null> {
+    try {
+      const { data } = await api.post<ApiResponse<WorkspacePreset>>('/workspace/presets', preset);
+      return data?.data ?? null;
+    } catch (error) {
+      logger.error('Failed to create workspace preset', error);
+      return null;
+    }
+  },
+
+  async deletePreset(id: string): Promise<boolean> {
+    try {
+      await api.delete(`/workspace/presets/${encodeURIComponent(id)}`);
+      return true;
+    } catch (error) {
+      logger.error(`Failed to delete workspace preset ${id}`, error);
+      return false;
+    }
+  },
+};
 
 export default api;

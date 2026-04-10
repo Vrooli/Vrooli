@@ -1,0 +1,113 @@
+{
+  "description": "Bats-based CLI integration tests. API integration tests using httptest. At least one end-to-end flow tested across API, CLI, and UI.",
+  "module_id": "MOD-P1-018",
+  "prd_ref": "OT-P1-006",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "children": [
+        "REQ-P1-006a",
+        "REQ-P1-006b"
+      ],
+      "description": "Complete integration test coverage across CLI, API, and E2E flows.",
+      "id": "REQ-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "passed",
+      "title": "Integration Tests"
+    },
+    {
+      "category": "integration",
+      "children": [
+        "REQ-P1-006a-1",
+        "REQ-P1-006a-2"
+      ],
+      "description": "Bats-based CLI integration tests covering all CLI commands.",
+      "id": "REQ-P1-006a",
+      "prd_ref": "OT-P1-006",
+      "status": "passed",
+      "title": "CLI Integration Tests"
+    },
+    {
+      "category": "integration",
+      "description": "CLI command parsing and validation tests.",
+      "id": "REQ-P1-006a-1",
+      "prd_ref": "OT-P1-006",
+      "status": "passed",
+      "title": "Command Validation",
+      "validation": [
+        {
+          "notes": "CLI tests via Go test (command validation, response types)",
+          "phase": "integration",
+          "ref": "cli/app_test.go",
+          "status": "passed",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "integration",
+      "description": "CLI response type parsing tests.",
+      "id": "REQ-P1-006a-2",
+      "prd_ref": "OT-P1-006",
+      "status": "passed",
+      "title": "Response Types",
+      "validation": [
+        {
+          "notes": "CLI response types in app.go",
+          "phase": "unit",
+          "ref": "cli/app.go",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "integration",
+      "children": [
+        "REQ-P1-006b-1",
+        "REQ-P1-006b-2"
+      ],
+      "description": "API integration tests using httptest with at least one end-to-end flow tested across API, CLI, and UI.",
+      "id": "REQ-P1-006b",
+      "prd_ref": "OT-P1-006",
+      "status": "passed",
+      "title": "API and E2E Integration Tests"
+    },
+    {
+      "category": "integration",
+      "description": "CRUD workflow integration tests.",
+      "id": "REQ-P1-006b-1",
+      "prd_ref": "OT-P1-006",
+      "status": "passed",
+      "title": "CRUD Workflow Tests",
+      "validation": [
+        {
+          "notes": "Dedicated integration tests for CRUD workflow",
+          "phase": "integration",
+          "ref": "api/handlers/integration_test.go",
+          "status": "passed",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "integration",
+      "description": "Error consistency across integration flows.",
+      "id": "REQ-P1-006b-2",
+      "prd_ref": "OT-P1-006",
+      "status": "passed",
+      "title": "Error Consistency",
+      "validation": [
+        {
+          "notes": "Error consistency in integration tests",
+          "phase": "integration",
+          "ref": "api/handlers/errors_test.go",
+          "status": "passed",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Integration Tests"
+}

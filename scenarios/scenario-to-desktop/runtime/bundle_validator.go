@@ -16,7 +16,7 @@ func sha256Sum(data []byte) [32]byte {
 }
 
 // ErrorSummary returns a human-readable summary of validation errors.
-func errorSummary(r *api.BundleValidationResult) string {
+func ErrorSummary(r *api.BundleValidationResult) string {
 	if r.Valid {
 		return ""
 	}

@@ -70,8 +70,8 @@ importers:
         specifier: ^2.1.4
         version: 2.1.9(vitest@2.1.9(jsdom@27.2.0))
       '@vrooli/vitest-requirement-reporter':
-        specifier: workspace:^
-        version: link:../../../packages/vitest-requirement-reporter
+        specifier: file:../../../packages/vitest-requirement-reporter
+        version: file:../../../packages/vitest-requirement-reporter(vitest@2.1.9(jsdom@27.2.0))
       autoprefixer:
         specifier: ^10.4.20
         version: 10.4.22(postcss@8.5.6)
@@ -793,6 +793,11 @@ packages:
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
+
+  '@vrooli/vitest-requirement-reporter@file:../../../packages/vitest-requirement-reporter':
+    resolution: {directory: ../../../packages/vitest-requirement-reporter, type: directory}
+    peerDependencies:
+      vitest: '>=1.0.0'
 
   accepts@1.3.8:
     resolution: {integrity: sha512-PYAthTa2m2VKxuvSD3DPC/Gy+U+sOA1LAuT8mkmRuvw+NACSaeXEQ+NHcVF7rONl6qcaxV3Uuemwawk+7+SJLw==}
@@ -2836,6 +2841,10 @@ snapshots:
       ws: 8.18.3
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
+
+  '@vrooli/vitest-requirement-reporter@file:../../../packages/vitest-requirement-reporter(vitest@2.1.9(jsdom@27.2.0))':
+    dependencies:
+      vitest: 2.1.9(jsdom@27.2.0)
 
   accepts@1.3.8:
     dependencies:

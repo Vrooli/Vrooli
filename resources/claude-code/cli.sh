@@ -49,7 +49,7 @@ else
 fi
 
 # Load other libraries in dependency order (common.sh is already loaded)
-for lib in status install session mcp settings execute error-handling content agents; do
+for lib in status install session mcp settings execute error-handling content agents hooks; do
     lib_file="${CLAUDE_CODE_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -89,6 +89,8 @@ cli::register_subcommand "content" "inject" "Inject templates/prompts (legacy)" 
 cli::register_subcommand "manage" "session" "Session management" "claude_code_session"
 cli::register_subcommand "manage" "mcp" "MCP server management" "claude_code_mcp"
 cli::register_subcommand "manage" "settings" "Settings management" "claude_code_settings"
+cli::register_subcommand "manage" "hooks" "Hook management" "claude_code_hooks"
+cli::register_command "hooks" "Hook management" "claude_code_hooks" "modifies-system"
 
 # TOP-LEVEL CUSTOM COMMANDS - Essential for auto/ folder functionality
 cli::register_command "run" "Run prompt with Claude Code (CRITICAL for auto/)" "claude_code_run" "modifies-system"
@@ -371,10 +373,38 @@ claude_code_settings() {
     esac
 }
 
+# Hook management wrapper
+claude_code_hooks() {
+    local action="${1:-}"
+    shift || true
+    case "$action" in
+        add)
+            claude_code::hooks_add "$@"
+            ;;
+        remove)
+            claude_code::hooks_remove "$@"
+            ;;
+        reconcile)
+            claude_code::hooks_reconcile "$@"
+            ;;
+        *)
+            log::error "Unknown hooks action: $action"
+            echo "Usage: resource-claude-code manage hooks <action>"
+            echo ""
+            echo "Available actions:"
+            echo "  add <event> <identifier> <hook_json> <scope>    Add or update a hook"
+            echo "  remove <event> <identifier> <scope>             Remove a hook"
+            echo "  reconcile <event> <identifier> <hook_json> <scope>  Idempotently heal a hook and emit JSON status"
+            return 1
+            ;;
+    esac
+}
+
 # Run command - CRITICAL for auto/ folder functionality
 claude_code_run() {
     local agent_tag=""
     local prompt=""
+    local resume_session=""
     
     # Parse arguments properly
     while [[ $# -gt 0 ]]; do
@@ -383,11 +413,15 @@ claude_code_run() {
                 agent_tag="$2"
                 shift 2
                 ;;
+            --resume|--session-id|--session)
+                resume_session="$2"
+                shift 2
+                ;;
             -)
                 prompt="-"
                 shift
                 break
-                ;;
+            ;;
             *)
                 prompt="$*"
                 break
@@ -450,6 +484,9 @@ claude_code_run() {
     export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
     export ALLOWED_TOOLS="${ALLOWED_TOOLS:-Read,Write,Edit,Bash,LS,Glob,Grep}"
     export SKIP_PERMISSIONS="${SKIP_PERMISSIONS:-yes}"
+    if [[ -n "$resume_session" ]]; then
+        export CLAUDE_RESUME_SESSION="$resume_session"
+    fi
     
     # Always use non-interactive mode for autonomous platform
     export CLAUDE_NON_INTERACTIVE="true"

@@ -84,6 +84,7 @@ func (c *GPUCheck) Title() string { return "GPU Health" }
 func (c *GPUCheck) Description() string {
 	return "Monitors NVIDIA GPU memory, temperature, and utilization for AI/ML workloads"
 }
+
 func (c *GPUCheck) Importance() string {
 	return "GPU health affects AI model performance - overheating or memory exhaustion degrades ML inference"
 }
@@ -111,7 +112,6 @@ func (c *GPUCheck) Run(ctx context.Context) checks.Result {
 	output, err := c.executor.Output(ctx, "nvidia-smi",
 		"--query-gpu=index,name,memory.total,memory.used,memory.free,temperature.gpu,utilization.gpu,utilization.memory,power.draw,power.limit,fan.speed,driver_version,compute_cap",
 		"--format=csv,noheader,nounits")
-
 	if err != nil {
 		result.Status = checks.StatusWarning
 		result.Message = "Failed to query GPU information"

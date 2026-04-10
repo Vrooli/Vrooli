@@ -45,6 +45,7 @@ type CheckSettings struct {
 	CleanPortsBeforeRestart *bool  `json:"cleanPortsBeforeRestart,omitempty"`
 	CaptureLogsOnFailure    *bool  `json:"captureLogsOnFailure,omitempty"`
 	LogLinesToCapture       *int   `json:"logLinesToCapture,omitempty"`
+	AutoHealOn              string `json:"autoHealOn,omitempty"` // critical | warning+critical
 }
 
 // UIConfig contains UI display preferences

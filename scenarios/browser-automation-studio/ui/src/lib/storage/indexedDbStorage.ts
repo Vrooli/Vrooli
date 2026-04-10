@@ -142,12 +142,12 @@ export class IndexedDbAssetStorage implements AssetStorage {
       let assetRecord: AssetRecord | undefined;
       let blobRecord: BlobRecord | undefined;
 
-      const assetRequest = tx.objectStore(ASSETS_STORE).get(id);
+      const assetRequest = tx.objectStore(ASSETS_STORE).get(id) as IDBRequest<AssetRecord | undefined>;
       assetRequest.onsuccess = () => {
         assetRecord = assetRequest.result;
       };
 
-      const blobRequest = tx.objectStore(BLOBS_STORE).get(id);
+      const blobRequest = tx.objectStore(BLOBS_STORE).get(id) as IDBRequest<BlobRecord | undefined>;
       blobRequest.onsuccess = () => {
         blobRecord = blobRequest.result;
       };

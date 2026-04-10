@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"sync"
 
 	"scenario-to-cloud/domain"
@@ -30,6 +30,9 @@ import (
 // FakeSSHRunner provides a controllable ssh.Runner for testing.
 // Configure expected command responses, or set default error behavior.
 type FakeSSHRunner struct {
+	// Handler is called first for every command. If nil or returns false,
+	// falls through to map-based matching.
+	Handler func(command string) (ssh.Result, error, bool)
 	// Responses maps commands to their ssh.Result responses
 	Responses map[string]ssh.Result
 	// Errs maps commands to errors (takes precedence over Responses)
@@ -45,11 +48,19 @@ type FakeSSHRunner struct {
 var _ ssh.Runner = (*FakeSSHRunner)(nil)
 
 // Run returns the configured response for a command, or an error.
-func (f *FakeSSHRunner) Run(_ context.Context, _ ssh.Config, command string) (ssh.Result, error) {
+func (f *FakeSSHRunner) Run(_ context.Context, _ ssh.Config, command string, _ ssh.RunOptions) (ssh.Result, error) {
 	f.mu.Lock()
 	f.Calls = append(f.Calls, command)
 	f.mu.Unlock()
 
+	// Try handler first (supports prefix/regex matching)
+	if f.Handler != nil {
+		if res, err, handled := f.Handler(command); handled {
+			return res, err
+		}
+	}
+
+	// Fall back to exact-match maps (backward compatible)
 	if err, ok := f.Errs[command]; ok {
 		return ssh.Result{ExitCode: 255}, err
 	}
@@ -57,9 +68,9 @@ func (f *FakeSSHRunner) Run(_ context.Context, _ ssh.Config, command string) (ss
 		return res, nil
 	}
 	if f.DefaultErr != nil {
-		return ssh.Result{ExitCode: 255}, f.DefaultErr
+		return ssh.Result{ExitCode: 1}, f.DefaultErr
 	}
-	return ssh.Result{ExitCode: 127, Stderr: "unknown command: " + command}, errors.New("unknown command")
+	return ssh.Result{Stdout: "", ExitCode: 127}, fmt.Errorf("unknown command: %s", command)
 }
 
 // FakeSCPRunner provides a controllable ssh.SCPRunner for testing.
@@ -78,7 +89,7 @@ type FakeSCPRunner struct {
 var _ ssh.SCPRunner = (*FakeSCPRunner)(nil)
 
 // Copy records the operation and returns any configured error.
-func (f *FakeSCPRunner) Copy(_ context.Context, _ ssh.Config, localPath, remotePath string) error {
+func (f *FakeSCPRunner) Copy(_ context.Context, _ ssh.Config, localPath, remotePath string, _ ssh.SCPOptions) error {
 	f.mu.Lock()
 	f.Calls = append(f.Calls, struct{ Local, Remote string }{localPath, remotePath})
 	f.mu.Unlock()
@@ -144,6 +155,20 @@ type FakeSecretsGenerator struct {
 	// Calls records all GenerateSecrets calls (for verification)
 	Calls [][]domain.BundleSecretPlan
 	mu    sync.Mutex
+}
+
+// FakeDeploymentRepo provides a controllable DeploymentRepository for testing.
+type FakeDeploymentRepo struct {
+	Deployment *domain.Deployment
+	Err        error
+}
+
+// GetDeployment returns the configured deployment or error.
+func (f *FakeDeploymentRepo) GetDeployment(_ context.Context, _ string) (*domain.Deployment, error) {
+	if f.Err != nil {
+		return nil, f.Err
+	}
+	return f.Deployment, nil
 }
 
 // Ensure FakeSecretsGenerator implements secrets.GeneratorFunc at compile time.

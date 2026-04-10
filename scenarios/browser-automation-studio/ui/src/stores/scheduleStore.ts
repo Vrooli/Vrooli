@@ -1,6 +1,32 @@
 import { create } from 'zustand';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
+import { safeParse } from '../shared/api/safeParse';
+import {
+  ListSchedulesResponseSchema,
+  ScheduleResponseSchema,
+  OccurrencesResponseSchema,
+  TriggerScheduleResponseSchema,
+} from '../shared/api/schemas';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseJson = async (response: Response): Promise<unknown> => {
+  try {
+    const data: unknown = await response.json();
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+const extractMessage = (payload: unknown, fallback: string): string => {
+  if (isRecord(payload) && typeof payload.message === 'string') {
+    return payload.message;
+  }
+  return fallback;
+};
 
 export interface WorkflowSchedule {
   id: string;
@@ -113,10 +139,13 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
         throw new Error(message || `Failed to load schedules (${response.status})`);
       }
 
-      const payload = await response.json();
-      const schedules = Array.isArray(payload?.schedules) ? payload.schedules : [];
+      const rawData: unknown = await response.json();
+      const result = safeParse(ListSchedulesResponseSchema, rawData, 'ListSchedules');
+      if (!result.success) {
+        throw new Error(result.error);
+      }
 
-      set({ schedules, isLoading: false });
+      set({ schedules: result.data.schedules, isLoading: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to load schedules';
       logger.error('Failed to load schedules', { component: 'ScheduleStore', action: 'fetchSchedules' }, error);
@@ -136,10 +165,13 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
         throw new Error(message || `Failed to load workflow schedules (${response.status})`);
       }
 
-      const payload = await response.json();
-      const schedules = Array.isArray(payload?.schedules) ? payload.schedules : [];
+      const rawData: unknown = await response.json();
+      const result = safeParse(ListSchedulesResponseSchema, rawData, 'ListWorkflowSchedules');
+      if (!result.success) {
+        throw new Error(result.error);
+      }
 
-      set({ schedules, isLoading: false });
+      set({ schedules: result.data.schedules, isLoading: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to load workflow schedules';
       logger.error('Failed to load workflow schedules', { component: 'ScheduleStore', action: 'fetchSchedulesByWorkflow' }, error);
@@ -167,11 +199,17 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
         throw new Error(message || `Failed to load schedule occurrences (${response.status})`);
       }
 
-      const payload = await response.json();
-      const occurrences = Array.isArray(payload?.occurrences) ? payload.occurrences : [];
-      const aggregates = payload?.aggregates || {};
+      const rawData: unknown = await response.json();
+      const result = safeParse(OccurrencesResponseSchema, rawData, 'ScheduleOccurrences');
+      if (!result.success) {
+        throw new Error(result.error);
+      }
 
-      set({ occurrences, aggregates, isLoadingOccurrences: false });
+      set({
+        occurrences: result.data.occurrences,
+        aggregates: result.data.aggregates || {},
+        isLoadingOccurrences: false,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to load schedule occurrences';
       logger.error('Failed to load schedule occurrences', { component: 'ScheduleStore', action: 'fetchOccurrences' }, error);
@@ -191,12 +229,16 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to create schedule (${response.status})`);
+        const errorData = await parseJson(response);
+        throw new Error(extractMessage(errorData, `Failed to create schedule (${response.status})`));
       }
 
-      const payload = await response.json();
-      const newSchedule = payload.schedule as WorkflowSchedule;
+      const rawData: unknown = await response.json();
+      const result = safeParse(ScheduleResponseSchema, rawData, 'CreateSchedule');
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      const newSchedule = result.data.schedule;
 
       // Add to local state
       set((state) => ({
@@ -225,12 +267,16 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to update schedule (${response.status})`);
+        const errorData = await parseJson(response);
+        throw new Error(extractMessage(errorData, `Failed to update schedule (${response.status})`));
       }
 
-      const payload = await response.json();
-      const updatedSchedule = payload.schedule as WorkflowSchedule;
+      const rawData: unknown = await response.json();
+      const result = safeParse(ScheduleResponseSchema, rawData, 'UpdateSchedule');
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      const updatedSchedule = result.data.schedule;
 
       // Update in local state
       set((state) => ({
@@ -259,8 +305,8 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to delete schedule (${response.status})`);
+        const errorData = await parseJson(response);
+        throw new Error(extractMessage(errorData, `Failed to delete schedule (${response.status})`));
       }
 
       // Remove from local state
@@ -289,12 +335,16 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to toggle schedule (${response.status})`);
+        const errorData = await parseJson(response);
+        throw new Error(extractMessage(errorData, `Failed to toggle schedule (${response.status})`));
       }
 
-      const payload = await response.json();
-      const updatedSchedule = payload.schedule as WorkflowSchedule;
+      const rawData: unknown = await response.json();
+      const result = safeParse(ScheduleResponseSchema, rawData, 'ToggleSchedule');
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      const updatedSchedule = result.data.schedule;
 
       // Update in local state
       set((state) => ({
@@ -323,23 +373,27 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to trigger schedule (${response.status})`);
+        const errorData = await parseJson(response);
+        throw new Error(extractMessage(errorData, `Failed to trigger schedule (${response.status})`));
       }
 
-      const payload = await response.json();
+      const rawData: unknown = await response.json();
+      const result = safeParse(TriggerScheduleResponseSchema, rawData, 'TriggerSchedule');
+      if (!result.success) {
+        throw new Error(result.error);
+      }
 
       // Update last_run_at in local state
       set((state) => ({
         schedules: state.schedules.map((s) =>
           s.id === scheduleId
-            ? { ...s, last_run_at: payload.triggered_at, last_run_status: 'running' }
+            ? { ...s, last_run_at: result.data.triggered_at, last_run_status: 'running' }
             : s
         ),
         isLoading: false,
       }));
 
-      return { execution_id: payload.execution_id };
+      return { execution_id: result.data.execution_id };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to trigger schedule';
       logger.error('Failed to trigger schedule', { component: 'ScheduleStore', action: 'triggerSchedule' }, error);

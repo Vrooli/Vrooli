@@ -172,6 +172,24 @@ func TestValidateAndNormalizeManifest_DefaultsAreApplied(t *testing.T) {
 			t.Errorf("expected dns_policy required, got %q", normalized.Edge.DNSPolicy)
 		}
 	})
+
+	t.Run("preserve_paths are normalized", func(t *testing.T) {
+		m := testManifestBase("test", []string{"test"})
+		m.Target.VPS.PreservePaths = []string{
+			"scenarios/test/api/uploads",
+			"scenarios/test/api/uploads",
+			"scenarios/test/data",
+		}
+		normalized, issues := manifest.ValidateAndNormalize(m)
+		for _, issue := range issues {
+			if issue.Severity == domain.SeverityError {
+				t.Fatalf("unexpected error: %+v", issue)
+			}
+		}
+		if len(normalized.Target.VPS.PreservePaths) != 2 {
+			t.Fatalf("expected 2 unique preserve paths, got %v", normalized.Target.VPS.PreservePaths)
+		}
+	})
 }
 
 func TestValidateAndNormalizeManifest_StableOutput(t *testing.T) {

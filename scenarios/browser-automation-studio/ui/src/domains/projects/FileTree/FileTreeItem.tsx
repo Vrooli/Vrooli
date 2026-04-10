@@ -17,18 +17,12 @@ import {
   Trash2,
   PencilLine,
   ListChecks,
-  FolderOpen,
-  FileCode,
-  FileText,
   GripVertical,
   Plus,
-  Zap,
-  GitBranch,
-  ClipboardCheck,
-  Image,
-  type LucideIcon,
+  FolderOpen,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { fileKindIcon, fileTypeLabelFromPath } from "./fileTreeUtils";
 
 // ============================================================================
 // Types
@@ -49,30 +43,6 @@ export type FileTreeDragPayload = {
   path: string;
   kind: FileTreeNodeKind;
 };
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Folder type icon mapping for semantic differentiation
- */
-const FOLDER_TYPE_ICONS: Record<string, { icon: LucideIcon; color: string }> = {
-  actions: { icon: Zap, color: "text-yellow-400" },
-  flows: { icon: GitBranch, color: "text-blue-400" },
-  workflows: { icon: GitBranch, color: "text-blue-400" },
-  cases: { icon: ClipboardCheck, color: "text-green-400" },
-  tests: { icon: ClipboardCheck, color: "text-green-400" },
-  assets: { icon: Image, color: "text-purple-400" },
-};
-
-/**
- * Gets the appropriate icon and color for a folder based on its name
- */
-function getFolderIcon(folderName: string): { icon: LucideIcon; color: string } {
-  const lower = folderName.toLowerCase();
-  return FOLDER_TYPE_ICONS[lower] ?? { icon: FolderOpen, color: "text-yellow-500" };
-}
 
 /**
  * Renders VS Code-style indent guides using CSS borders
@@ -95,31 +65,6 @@ export function TreeIndentGuides({ prefixParts }: { prefixParts: boolean[] }): R
       })}
     </div>
   );
-}
-
-/**
- * Gets a human-readable label for workflow file types based on extension
- */
-export function fileTypeLabelFromPath(relPath: string): string | null {
-  const normalized = relPath.toLowerCase();
-  if (normalized.endsWith(".action.json")) return "Action";
-  if (normalized.endsWith(".flow.json")) return "Flow";
-  if (normalized.endsWith(".case.json")) return "Case";
-  return null;
-}
-
-/**
- * Returns the appropriate icon component for a file tree node
- */
-export function fileKindIcon(node: FileTreeNode): ReactNode {
-  if (node.kind === "folder") {
-    const { icon: FolderIcon, color } = getFolderIcon(node.name);
-    return <FolderIcon size={16} className={`${color} flex-shrink-0`} />;
-  }
-  if (node.kind === "workflow_file") {
-    return <FileCode size={16} className="text-green-400 flex-shrink-0" />;
-  }
-  return <FileText size={16} className="text-gray-400 flex-shrink-0" />;
 }
 
 // ============================================================================
@@ -167,6 +112,8 @@ export interface FileTreeItemProps {
   onDeleteNode: (path: string) => Promise<void>;
   /** Rename/move a node */
   onRenameNode: (path: string) => Promise<void>;
+  /** Open a node in the system file manager */
+  onOpenInFolder: (path: string) => Promise<void>;
   /** Show inline add menu for a folder */
   onShowInlineAddMenu?: (folderPath: string, e?: React.MouseEvent) => void;
   /** Preview an asset file (single click) */
@@ -199,6 +146,7 @@ export function FileTreeItem({
   onExecuteWorkflow,
   onDeleteNode,
   onRenameNode,
+  onOpenInFolder,
   onShowInlineAddMenu,
   onPreviewAsset,
 }: FileTreeItemProps) {
@@ -229,8 +177,16 @@ export function FileTreeItem({
     }
     try {
       await onOpenWorkflowFile(node.workflowId);
-    } catch {
-      toast.error("Failed to open workflow");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to open workflow";
+      // Check for common error patterns to provide helpful messages
+      if (message.includes("404") || message.includes("not found")) {
+        toast.error("Workflow not found. It may have been deleted.");
+      } else if (message.includes("network") || message.includes("fetch")) {
+        toast.error("Network error. Please check your connection and try again.");
+      } else {
+        toast.error(`Failed to open workflow: ${message}`);
+      }
     }
   };
 
@@ -250,6 +206,11 @@ export function FileTreeItem({
       return;
     }
     await onExecuteWorkflow(e, node.workflowId);
+  };
+
+  const handleOpenInFolder = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await onOpenInFolder(node.path);
   };
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -374,7 +335,9 @@ export function FileTreeItem({
         {fileKindIcon(node)}
 
         {/* Name and type badge */}
-        <span className={`text-base truncate ${isTopLevel ? "text-flow-text-secondary" : "text-gray-300"}`}>
+        <span
+          className={`text-base truncate min-w-0 ${isTopLevel ? "text-flow-text-secondary" : "text-gray-300"}`}
+        >
           {node.name}
         </span>
         {typeLabel ? (
@@ -384,7 +347,7 @@ export function FileTreeItem({
         ) : null}
 
         {/* Action buttons - positioned close to name, visible on hover */}
-        <div className="ml-auto flex items-center gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
+        <div className="ml-2 flex items-center gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-shrink-0">
           {/* Add button for folders */}
           {isFolder && onShowInlineAddMenu ? (
             <button
@@ -409,6 +372,14 @@ export function FileTreeItem({
               {typeLabel === "Case" ? <ListChecks size={16} /> : <Play size={16} />}
             </button>
           ) : null}
+          <button
+            onClick={handleOpenInFolder}
+            className="p-1 rounded text-subtle hover:text-surface hover:bg-gray-700 transition-colors"
+            title="Open in folder"
+            aria-label="Open in folder"
+          >
+            <FolderOpen size={16} />
+          </button>
           <button
             onClick={handleRenameNode}
             className="p-1 rounded text-subtle hover:text-surface hover:bg-gray-700 transition-colors"
@@ -455,6 +426,7 @@ export function FileTreeItem({
                 onExecuteWorkflow={onExecuteWorkflow}
                 onDeleteNode={onDeleteNode}
                 onRenameNode={onRenameNode}
+                onOpenInFolder={onOpenInFolder}
                 onShowInlineAddMenu={onShowInlineAddMenu}
                 onPreviewAsset={onPreviewAsset}
               />

@@ -11,10 +11,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
-	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 )
 
-// createTestHandlerWithSessionProfiles creates a handler with a real SessionProfileStore in a temp directory.
+// createTestHandlerWithSessionProfiles creates a handler with a real session profile service in a temp directory.
 func createTestHandlerWithSessionProfiles(t *testing.T) (*Handler, string) {
 	t.Helper()
 
@@ -26,11 +26,11 @@ func createTestHandlerWithSessionProfiles(t *testing.T) (*Handler, string) {
 	log := logrus.New()
 	log.SetLevel(logrus.ErrorLevel)
 
-	store := archiveingestion.NewSessionProfileStore(tempDir, log)
+	svc := sessionprofile.NewServiceWithPath(tempDir, log)
 
 	handler := &Handler{
-		sessionProfiles: store,
-		log:             log,
+		sessionProfileService: svc,
+		log:                   log,
 	}
 
 	return handler, tempDir
@@ -69,11 +69,11 @@ func TestListRecordingSessionProfiles_Success_WithProfiles(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create some profiles
-	_, err := handler.sessionProfiles.Create("Profile 1")
+	_, err := handler.sessionProfileService.CreateProfile("Profile 1")
 	if err != nil {
 		t.Fatalf("failed to create profile: %v", err)
 	}
-	_, err = handler.sessionProfiles.Create("Profile 2")
+	_, err = handler.sessionProfileService.CreateProfile("Profile 2")
 	if err != nil {
 		t.Fatalf("failed to create profile: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestListRecordingSessionProfiles_ServiceUnavailable(t *testing.T) {
 	log.SetLevel(logrus.ErrorLevel)
 
 	handler := &Handler{
-		sessionProfiles: nil, // No store configured
+		sessionProfileService: nil, // No service configured
 		log:             log,
 	}
 
@@ -196,7 +196,7 @@ func TestCreateRecordingSessionProfile_ServiceUnavailable(t *testing.T) {
 	log.SetLevel(logrus.ErrorLevel)
 
 	handler := &Handler{
-		sessionProfiles: nil,
+		sessionProfileService: nil,
 		log:             log,
 	}
 
@@ -221,16 +221,16 @@ func TestUpdateRecordingSessionProfile_Success(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create a profile first
-	profile, err := handler.sessionProfiles.Create("Original Name")
+	profile, err := handler.sessionProfileService.CreateProfile("Original Name")
 	if err != nil {
 		t.Fatalf("failed to create profile: %v", err)
 	}
 
 	body := `{"name": "Updated Name"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/session-profiles/"+profile.ID, strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/session-profiles/"+string(profile.ID), strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("profileId", profile.ID)
+	rctx.URLParams.Add("profileId", string(profile.ID))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	rr := httptest.NewRecorder()
 
@@ -273,16 +273,16 @@ func TestUpdateRecordingSessionProfile_MissingName(t *testing.T) {
 	handler, tempDir := createTestHandlerWithSessionProfiles(t)
 	defer os.RemoveAll(tempDir)
 
-	profile, err := handler.sessionProfiles.Create("Original")
+	profile, err := handler.sessionProfileService.CreateProfile("Original")
 	if err != nil {
 		t.Fatalf("failed to create profile: %v", err)
 	}
 
 	body := `{"name": ""}`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/session-profiles/"+profile.ID, strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/session-profiles/"+string(profile.ID), strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("profileId", profile.ID)
+	rctx.URLParams.Add("profileId", string(profile.ID))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	rr := httptest.NewRecorder()
 
@@ -316,16 +316,16 @@ func TestUpdateRecordingSessionProfile_InvalidJSON(t *testing.T) {
 	handler, tempDir := createTestHandlerWithSessionProfiles(t)
 	defer os.RemoveAll(tempDir)
 
-	profile, err := handler.sessionProfiles.Create("Original")
+	profile, err := handler.sessionProfileService.CreateProfile("Original")
 	if err != nil {
 		t.Fatalf("failed to create profile: %v", err)
 	}
 
 	body := `{invalid json`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/session-profiles/"+profile.ID, strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/session-profiles/"+string(profile.ID), strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("profileId", profile.ID)
+	rctx.URLParams.Add("profileId", string(profile.ID))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	rr := httptest.NewRecorder()
 
@@ -341,7 +341,7 @@ func TestUpdateRecordingSessionProfile_ServiceUnavailable(t *testing.T) {
 	log.SetLevel(logrus.ErrorLevel)
 
 	handler := &Handler{
-		sessionProfiles: nil,
+		sessionProfileService: nil,
 		log:             log,
 	}
 
@@ -369,14 +369,14 @@ func TestDeleteRecordingSessionProfile_Success(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create a profile first
-	profile, err := handler.sessionProfiles.Create("To Delete")
+	profile, err := handler.sessionProfileService.CreateProfile("To Delete")
 	if err != nil {
 		t.Fatalf("failed to create profile: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/session-profiles/"+profile.ID, nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/session-profiles/"+string(profile.ID), nil)
 	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("profileId", profile.ID)
+	rctx.URLParams.Add("profileId", string(profile.ID))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	rr := httptest.NewRecorder()
 
@@ -387,7 +387,7 @@ func TestDeleteRecordingSessionProfile_Success(t *testing.T) {
 	}
 
 	// Verify it's gone
-	_, err = handler.sessionProfiles.Get(profile.ID)
+	_, err = handler.sessionProfileService.GetProfile(profile.ID)
 	if err == nil {
 		t.Fatal("expected profile to be deleted")
 	}
@@ -432,7 +432,7 @@ func TestDeleteRecordingSessionProfile_ServiceUnavailable(t *testing.T) {
 	log.SetLevel(logrus.ErrorLevel)
 
 	handler := &Handler{
-		sessionProfiles: nil,
+		sessionProfileService: nil,
 		log:             log,
 	}
 
@@ -454,23 +454,23 @@ func TestDeleteRecordingSessionProfile_ClearsActiveSessions(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create a profile and associate a session with it
-	profile, err := handler.sessionProfiles.Create("To Delete")
+	profile, err := handler.sessionProfileService.CreateProfile("To Delete")
 	if err != nil {
 		t.Fatalf("failed to create profile: %v", err)
 	}
 
 	// Associate a browser session with this profile
-	handler.sessionProfiles.SetActiveSession("browser-session-123", profile.ID)
+	handler.sessionProfileService.SetActiveSession("browser-session-123", string(profile.ID))
 
 	// Verify the association exists
-	if got := handler.sessionProfiles.GetActiveSession("browser-session-123"); got != profile.ID {
+	if got := handler.sessionProfileService.GetActiveSession("browser-session-123"); got != string(profile.ID) {
 		t.Fatalf("expected active session to be associated with profile, got %q", got)
 	}
 
 	// Delete the profile
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/session-profiles/"+profile.ID, nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/session-profiles/"+string(profile.ID), nil)
 	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("profileId", profile.ID)
+	rctx.URLParams.Add("profileId", string(profile.ID))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	rr := httptest.NewRecorder()
 
@@ -481,7 +481,7 @@ func TestDeleteRecordingSessionProfile_ClearsActiveSessions(t *testing.T) {
 	}
 
 	// Verify the session association was cleared
-	if got := handler.sessionProfiles.GetActiveSession("browser-session-123"); got != "" {
+	if got := handler.sessionProfileService.GetActiveSession("browser-session-123"); got != "" {
 		t.Fatalf("expected active session to be cleared, got %q", got)
 	}
 }

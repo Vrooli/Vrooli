@@ -51,6 +51,7 @@ type Runner interface {
     Type() domain.RunnerType
     Capabilities() Capabilities
     Execute(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error)
+    Continue(ctx context.Context, req ContinueRequest) (*ExecuteResult, error)
     Stop(ctx context.Context, runID uuid.UUID) error
     IsAvailable(ctx context.Context) (bool, string)
 }
@@ -77,6 +78,37 @@ type Runner interface {
 - Receives: `ExecuteRequest` with profile, task, working directory
 - Produces: `ExecuteResult` with summary, metrics, exit code
 - Side effects: Streams `RunEvent` to `EventSink`
+
+---
+
+### 1b. Flag Validator (`adapters/runner`)
+
+**Purpose:** Validate runner-specific CLI flags against runner allowlists without coupling orchestration to runner internals.
+
+**Interface:** `runner.FlagValidator`
+```go
+type FlagValidator interface {
+    ValidateFlags(runnerType domain.RunnerType, flags []string) error
+    AllowedFlags(runnerType domain.RunnerType) []string
+    SupportedFeatures(runnerType domain.RunnerType) []string
+}
+```
+
+**Why it's a seam:**
+- Decouples flag validation from runner execution
+- Orchestration validates without knowing runner internals
+- Runners declare capabilities (features + allowed flags) via `Capabilities()`
+- `MockFlagValidator` for testing, `RegistryFlagValidator` for production
+
+**Implementations:**
+- `RegistryFlagValidator` — Derives allowlists from `Capabilities()` (production)
+- `MockFlagValidator` — Configurable validation via func fields (testing)
+
+**Related types:**
+- `domain.FeatureFlags` — Typed feature flags (e.g., `EnableBrowser`) mapped to runner-specific CLI args
+- `domain.RunnerExtraFlags` — Per-runner validated extra CLI flags (`map[RunnerType][]string`)
+- `Capabilities.SupportedFeatures` — Which typed features a runner supports
+- `Capabilities.AllowedExtraFlags` — Allowlist of extra CLI flags a runner accepts
 
 ---
 
@@ -158,9 +190,7 @@ type Collector interface {
 - Runners produce events without knowing how they're stored
 
 **Implementations:**
-- `MemoryStore` - In-memory event storage with streaming support (implemented)
-- PostgreSQL-backed store (planned)
-- Redis-backed store for high-throughput (planned)
+- `SQLiteStore` - SQLite-backed event storage with streaming support (implemented, `adapters/event/sqlite.go`)
 
 ---
 
@@ -222,27 +252,24 @@ type Collector interface {
 **Interfaces:**
 - `ProfileRepository` - AgentProfile CRUD
 - `TaskRepository` - Task CRUD
-- `RunRepository` - Run CRUD with status filtering
+- `RunRepository` - Run CRUD with status filtering and recommendation extraction
 - `EventRepository` - Append-only event log
 - `PolicyRepository` - Policy CRUD with scope matching
 - `LockRepository` - Scope lock management
 - `CheckpointRepository` - Run checkpoint persistence
 - `IdempotencyRepository` - Idempotency key tracking
+- `StatsRepository` - Aggregation queries for analytics (status counts, cost, duration, breakdowns)
+- `InvestigationSettingsRepository` - Investigation settings singleton
 
 **Why it's a seam:**
 - Decouples domain logic from storage technology
-- Enables testing with in-memory repositories
-- Supports different databases (PostgreSQL, SQLite)
+- Enables testing with mock/stub repositories
 - Migration-safe: schema changes don't affect domain code
 
 **Implementations:**
-- `MemoryProfileRepository` - In-memory AgentProfile storage (development/testing)
-- `MemoryTaskRepository` - In-memory Task storage (development/testing)
-- `MemoryRunRepository` - In-memory Run storage (development/testing)
-- `MemoryEventRepository` - In-memory event log (development/testing)
-- `MemoryCheckpointRepository` - In-memory checkpoints (development/testing)
-- `MemoryIdempotencyRepository` - In-memory idempotency keys (development/testing)
-- PostgreSQL implementations (planned)
+- SQLite-backed implementations in `database/` package (`repository.go`, `repository_run.go`, `repository_stats.go`, `repository_pricing.go`, `repository_support.go`)
+- Single embedded SQLite database file at `~/.vrooli/data/sqlite/databases/agent-manager.db`
+- Schema auto-initialized on connection via `database/schema.sql`
 
 ---
 
@@ -288,6 +315,7 @@ Each seam enables specific testing patterns:
 | Seam | Test Approach |
 |------|---------------|
 | Runner | Mock runner returns controlled results; test execution flow |
+| Flag Validator | MockFlagValidator with configurable validation; test flag rejection |
 | Sandbox | Mock provider skips isolation; test orchestration logic |
 | Events | In-memory store; verify event sequences |
 | Policy | Test policy rules in isolation; mock for orchestration tests |
@@ -502,14 +530,23 @@ api/internal/
 │   │   └── workspace_sandbox.go # WorkspaceSandboxProvider implementation
 │   ├── event/
 │   │   ├── interface.go   # Event store and collector interfaces
-│   │   └── memory.go      # MemoryStore implementation
+│   │   └── sqlite.go      # SQLiteStore implementation
 │   └── artifact/
 │       └── interface.go   # Artifact collector and validation
+├── database/
+│   ├── connection.go      # SQLite connection, DSN resolution, schema init
+│   ├── schema.sql         # Full database schema (idempotent)
+│   ├── repository.go      # Profile, Task, Event, Policy, Lock, Checkpoint, Idempotency repos
+│   ├── repository_run.go  # Run repository (CRUD + recommendation extraction)
+│   ├── repository_stats.go    # Stats aggregation queries (analytics)
+│   ├── repository_pricing.go  # Model pricing and alias repositories
+│   ├── repository_support.go  # Investigation settings repository
+│   ├── json_types.go      # Custom SQL scanner/valuer for JSON columns
+│   └── errors.go          # Database error wrapping
 ├── policy/
 │   └── interface.go       # Policy evaluator interface
 ├── repository/
-│   ├── interface.go       # All repository interfaces
-│   └── memory.go          # In-memory implementations
+│   └── interface.go       # All repository interfaces (no implementations here)
 ├── handlers/
 │   └── handlers.go        # HTTP handlers (thin presentation layer)
 └── config/

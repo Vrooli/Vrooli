@@ -9,16 +9,24 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 
-	"prompt-manager/cli/campaigns"
+	"prompt-manager/cli/agents"
+	"prompt-manager/cli/discover"
+	"prompt-manager/cli/experiments"
+	"prompt-manager/cli/graph"
 	"prompt-manager/cli/internal/appctx"
-	"prompt-manager/cli/prompts"
+	"prompt-manager/cli/members"
+	"prompt-manager/cli/metadata"
 	"prompt-manager/cli/search"
-	"prompt-manager/cli/versions"
+	"prompt-manager/cli/skills"
+	"prompt-manager/cli/tags"
+	"prompt-manager/cli/teams"
+	"prompt-manager/cli/testing"
+	"prompt-manager/cli/topics"
 )
 
 const (
 	appName        = "prompt-manager"
-	appVersion     = "1.0.0"
+	appVersion     = "2.0.0"
 	defaultAPIBase = ""
 )
 
@@ -39,13 +47,12 @@ var _ appctx.Context = (*App)(nil)
 // NewApp creates a new prompt-manager CLI application.
 func NewApp() (*App, error) {
 	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
-		ExtraAPIEnvVars:     []string{"API_BASE_URL", "VITE_API_BASE_URL"},
-		ExtraAPIPortEnvVars: []string{"API_PORT"},
+		ExtraAPIEnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL"},
 	})
 	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
 		Name:              appName,
 		Version:           appVersion,
-		Description:       "Personal Prompt Manager CLI - manage prompts organized by campaigns",
+		Description:       "Personal Prompt Manager CLI - manage skills, tags, members, and more",
 		DefaultAPIBase:    defaultAPIBase,
 		APIEnvVars:        env.APIEnvVars,
 		APIPortEnvVars:    env.APIPortEnvVars,
@@ -89,11 +96,21 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 
 	groups := []cliapp.CommandGroup{
 		health,
-		campaigns.Commands(a),
 	}
-	groups = append(groups, prompts.Commands(a)...)
-	groups = append(groups, search.Commands(a))
-	groups = append(groups, versions.Commands(a))
+
+	// Domain commands (noun-verb pattern)
+	groups = append(groups, skills.Commands(a)...)   // prompt-manager skill <verb>
+	groups = append(groups, experiments.Commands(a)) // prompt-manager experiment <verb>
+	groups = append(groups, tags.Commands(a))        // prompt-manager tag <verb>
+	groups = append(groups, members.Commands(a))     // prompt-manager member <verb>
+	groups = append(groups, agents.Commands(a))      // prompt-manager agent <verb>
+	groups = append(groups, teams.Commands(a))       // prompt-manager team <verb>
+	groups = append(groups, topics.Commands(a))      // prompt-manager topic <verb>
+	groups = append(groups, testing.Commands(a))     // prompt-manager test <verb>
+	groups = append(groups, metadata.Commands(a))    // prompt-manager metadata <verb>
+	groups = append(groups, search.Commands(a))      // prompt-manager search (standalone)
+	groups = append(groups, discover.Commands(a))    // prompt-manager discover
+	groups = append(groups, graph.Commands(a))       // prompt-manager graph <verb>
 	groups = append(groups, config)
 
 	return groups

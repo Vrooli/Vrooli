@@ -3,8 +3,11 @@
  *
  * Manages recording state and API interactions for Record Mode.
  * Responsibilities are split into two layers:
- * - Transport: API/WebSocket/polling + recording lifecycle
+ * - Transport: API calls for recording lifecycle (start/stop/generate/validate/replay)
  * - Editing: local action mutations and confidence bookkeeping
+ *
+ * Note: Timeline data (actions + page events) is now managed by useTimeline hook.
+ * This hook focuses on recording lifecycle and action editing.
  */
 
 import {
@@ -16,25 +19,18 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import { getApiBase } from '@/config';
-import { useWebSocket } from '@/contexts/WebSocketContext';
+import toast from 'react-hot-toast';
+import { recordingApi } from '../api';
+import type { RecordedAction, SelectorSet } from '../types/types';
 import type {
-  RecordedAction,
-  StartRecordingResponse,
-  StopRecordingResponse,
-  GetActionsResponse,
   GenerateWorkflowResponse,
   SelectorValidation,
-  SelectorSet,
   ReplayPreviewResponse,
-} from '../types/types';
+} from '../api/schemas';
 import type { WorkflowSettingsTyped } from '@/types/workflow';
 
 interface UseRecordModeOptions {
   sessionId: string | null;
-  pollInterval?: number;
-  onActionsReceived?: (actions: RecordedAction[]) => void;
-  useWebSocketUpdates?: boolean;
 }
 
 /** Minimal action data for inserting a new step */
@@ -59,7 +55,6 @@ interface UseRecordModeReturn {
   updatePayload: (index: number, payload: Record<string, unknown>) => void;
   generateWorkflow: (name: string, projectId?: string, actionsOverride?: RecordedAction[], settings?: WorkflowSettingsTyped) => Promise<GenerateWorkflowResponse>;
   validateSelector: (selector: string) => Promise<SelectorValidation>;
-  refreshActions: () => Promise<void>;
   replayPreview: (options?: { limit?: number; stopOnFailure?: boolean }, actionsOverride?: RecordedAction[]) => Promise<ReplayPreviewResponse>;
   isReplaying: boolean;
   lowConfidenceCount: number;
@@ -73,9 +68,7 @@ const CONFIDENCE = {
 
 type ActionSetter = Dispatch<SetStateAction<RecordedAction[]>>;
 
-interface UseRecordingTransportOptions extends UseRecordModeOptions {
-  apiUrl: string;
-}
+type UseRecordingTransportOptions = UseRecordModeOptions;
 
 interface UseRecordingTransportReturn {
   isRecording: boolean;
@@ -89,16 +82,11 @@ interface UseRecordingTransportReturn {
   stopRecording: () => Promise<void>;
   generateWorkflow: (name: string, projectId?: string, actionsOverride?: RecordedAction[], settings?: WorkflowSettingsTyped) => Promise<GenerateWorkflowResponse>;
   validateSelector: (selector: string) => Promise<SelectorValidation>;
-  refreshActions: () => Promise<void>;
   replayPreview: (options?: { limit?: number; stopOnFailure?: boolean }, actionsOverride?: RecordedAction[]) => Promise<ReplayPreviewResponse>;
 }
 
 function useRecordingTransport({
   sessionId,
-  pollInterval,
-  onActionsReceived,
-  useWebSocketUpdates,
-  apiUrl,
 }: UseRecordingTransportOptions): UseRecordingTransportReturn {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingId, setRecordingId] = useState<string | null>(null);
@@ -109,128 +97,32 @@ function useRecordingTransport({
 
   const sessionIdRef = useRef<string | null>(sessionId ?? null);
   sessionIdRef.current = sessionId ?? null;
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastActionCountRef = useRef(0);
-  const wsSubscribedRef = useRef(false);
 
-  const { isConnected, lastMessage, send } = useWebSocket();
+  // AbortController for request cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const setActionsWithSync = useCallback<ActionSetter>(
-    (next) => {
-      setActions((prev) => {
-        const resolved = typeof next === 'function' ? (next as (p: RecordedAction[]) => RecordedAction[])(prev) : next;
-        lastActionCountRef.current = resolved.length;
-        return resolved;
-      });
-    },
-    []
-  );
-
+  // Clean up abort controller on unmount
   useEffect(() => {
-    setActionsWithSync([]);
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
+  // Reset state when session changes
+  useEffect(() => {
+    // Abort any pending requests when session changes
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+
+    setActions([]);
     setRecordingId(null);
     setIsRecording(false);
     setError(null);
-  }, [sessionId, setActionsWithSync]);
-
-  const refreshActions = useCallback(async () => {
-    const currentSessionId = sessionIdRef.current;
-    if (!currentSessionId) return;
-
-    try {
-      const previousCount = lastActionCountRef.current;
-      const response = await fetch(`${apiUrl}/recordings/live/${currentSessionId}/actions`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch actions: ${response.statusText}`);
-      }
-
-      const data: GetActionsResponse = await response.json();
-      const actionsFromApi = Array.isArray(data.actions) ? data.actions : [];
-      setActionsWithSync(actionsFromApi);
-
-      if (actionsFromApi.length > previousCount && onActionsReceived) {
-        const newActions = actionsFromApi.slice(previousCount);
-        onActionsReceived(newActions);
-      }
-    } catch (err) {
-      console.error('Failed to refresh actions:', err);
-    }
-  }, [apiUrl, onActionsReceived, setActionsWithSync]);
-
-  useEffect(() => {
-    const currentSessionId = sessionIdRef.current;
-    if (isRecording && useWebSocketUpdates && isConnected && currentSessionId && !wsSubscribedRef.current) {
-      send({ type: 'subscribe_recording', session_id: currentSessionId });
-      wsSubscribedRef.current = true;
-      console.log('[useRecordMode] Subscribed to recording WebSocket updates');
-    }
-
-    if (!isRecording && wsSubscribedRef.current) {
-      send({ type: 'unsubscribe_recording' });
-      wsSubscribedRef.current = false;
-      console.log('[useRecordMode] Unsubscribed from recording WebSocket updates');
-    }
-
-    return () => {
-      if (wsSubscribedRef.current) {
-        send({ type: 'unsubscribe_recording' });
-        wsSubscribedRef.current = false;
-      }
-    };
-  }, [isRecording, useWebSocketUpdates, isConnected, sessionId, send]);
-
-  useEffect(() => {
-    if (!lastMessage) return;
-
-    const msg = lastMessage as { type: string; action?: unknown; session_id?: string };
-    if (msg.type === 'recording_action' && msg.action) {
-      const action = msg.action as RecordedAction;
-
-      setActionsWithSync((prev) => {
-        const exists = prev.some((a) => a.id === action.id);
-        if (exists) return prev;
-
-        const newActions = [...prev, action];
-        if (onActionsReceived) {
-          onActionsReceived([action]);
-        }
-        return newActions;
-      });
-
-      console.log('[useRecordMode] Received action via WebSocket:', action.actionType);
-    }
-  }, [lastMessage, onActionsReceived, setActionsWithSync]);
-
-  // Only poll if WebSocket is NOT connected/subscribed (fallback mode)
-  // When WebSocket is working, we get real-time action updates without polling
-  useEffect(() => {
-    const wsActive = useWebSocketUpdates && isConnected && wsSubscribedRef.current;
-    const shouldPoll = isRecording && (pollInterval ?? 0) > 0 && !wsActive;
-    const intervalMs = pollInterval && pollInterval > 0 ? pollInterval : 2000;
-
-    if (shouldPoll) {
-      pollTimerRef.current = setInterval(() => {
-        void refreshActions();
-      }, intervalMs);
-      console.log('[useRecordMode] Started action polling (WebSocket fallback)');
-    } else if (wsActive && pollTimerRef.current) {
-      // Clear polling if WebSocket became active
-      clearInterval(pollTimerRef.current);
-      pollTimerRef.current = null;
-      console.log('[useRecordMode] Stopped action polling (WebSocket active)');
-    }
-
-    return () => {
-      if (pollTimerRef.current) {
-        clearInterval(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
-    };
-  }, [isRecording, pollInterval, refreshActions, useWebSocketUpdates, isConnected]);
+  }, [sessionId]);
 
   const startRecording = useCallback(async (sessionIdOverride?: string) => {
     const currentSessionId = sessionIdOverride ?? sessionIdRef.current;
-    if (!currentSessionId || currentSessionId.trim() === '') {
+    if (!currentSessionId?.trim()) {
       setError('No session ID provided');
       return;
     }
@@ -238,29 +130,30 @@ function useRecordingTransport({
     setIsLoading(true);
     setError(null);
 
-    try {
-      const response = await fetch(`${apiUrl}/recordings/live/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: currentSessionId }),
-      });
+    const result = await recordingApi.startRecording(currentSessionId, {
+      signal: abortControllerRef.current?.signal,
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to start recording: ${response.statusText}`);
-      }
+    setIsLoading(false);
 
-      const data: StartRecordingResponse = await response.json();
-      setRecordingId(data.recording_id);
-      setIsRecording(true);
-      setActionsWithSync([]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start recording');
-      throw err;
-    } finally {
-      setIsLoading(false);
+    if (!result.success) {
+      setError(result.error);
+      return;
     }
-  }, [apiUrl, setActionsWithSync]);
+
+    // Handle 409 case - recording was already in progress
+    setRecordingId(result.data.recording_id);
+    setIsRecording(true);
+
+    // Only clear actions for new recordings, not for 409 reconnections
+    // (check if we were already recording - if so, don't clear)
+    if (!isRecording) {
+      setActions([]);
+      toast.success('Recording started', { duration: 2000 });
+    } else {
+      toast.success('Reconnected to existing session', { duration: 2000 });
+    }
+  }, [isRecording]);
 
   const stopRecording = useCallback(async () => {
     const currentSessionId = sessionIdRef.current;
@@ -272,76 +165,56 @@ function useRecordingTransport({
     setIsLoading(true);
     setError(null);
 
-    try {
-      const response = await fetch(`${apiUrl}/recordings/live/${currentSessionId}/stop`, {
-        method: 'POST',
-      });
+    const result = await recordingApi.stopRecording(currentSessionId, {
+      signal: abortControllerRef.current?.signal,
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to stop recording: ${response.statusText}`);
-      }
+    setIsLoading(false);
 
-      const data: StopRecordingResponse = await response.json();
-
-      await refreshActions();
-      setIsRecording(false);
-      console.log('Recording stopped:', data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to stop recording');
-      throw err;
-    } finally {
-      setIsLoading(false);
+    if (!result.success) {
+      setError(result.error);
+      return;
     }
-  }, [apiUrl, refreshActions]);
+
+    setIsRecording(false);
+    console.log('Recording stopped:', result.data);
+  }, []);
 
   const generateWorkflow = useCallback(
     async (name: string, projectId?: string, actionsOverride?: RecordedAction[], settings?: WorkflowSettingsTyped): Promise<GenerateWorkflowResponse> => {
       const currentSessionId = sessionIdRef.current;
       if (!currentSessionId) {
-        throw new Error('No session ID provided');
+        const error = 'No session ID provided';
+        setError(error);
+        throw new Error(error);
       }
 
       const actionsToSend = actionsOverride ?? actions;
       if (actionsToSend.length === 0) {
-        throw new Error('No actions to generate workflow from');
+        const error = 'No actions to generate workflow from';
+        setError(error);
+        throw new Error(error);
       }
 
       setIsLoading(true);
       setError(null);
 
-      try {
-        const response = await fetch(
-          `${apiUrl}/recordings/live/${currentSessionId}/generate-workflow`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name,
-              project_id: projectId,
-              actions: actionsToSend,
-              settings,
-            }),
-          }
-        );
+      const result = await recordingApi.generateWorkflow(
+        currentSessionId,
+        { name, projectId, actions: actionsToSend, settings },
+        { signal: abortControllerRef.current?.signal }
+      );
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(
-            errorData.message || `Failed to generate workflow: ${response.statusText}`
-          );
-        }
+      setIsLoading(false);
 
-        return response.json();
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to generate workflow';
-        setError(message);
-        throw err;
-      } finally {
-        setIsLoading(false);
+      if (!result.success) {
+        setError(result.error);
+        throw new Error(result.error);
       }
+
+      return result.data;
     },
-    [apiUrl, actions]
+    [actions]
   );
 
   const validateSelector = useCallback(
@@ -351,77 +224,65 @@ function useRecordingTransport({
         throw new Error('No session ID provided');
       }
 
-      const response = await fetch(
-        `${apiUrl}/recordings/live/${currentSessionId}/validate-selector`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ selector }),
-        }
-      );
+      const result = await recordingApi.validateSelector(currentSessionId, selector, {
+        signal: abortControllerRef.current?.signal,
+      });
 
-      if (!response.ok) {
-        throw new Error(`Failed to validate selector: ${response.statusText}`);
+      if (!result.success) {
+        throw new Error(result.error);
       }
 
-      return response.json();
+      return result.data;
     },
-    [apiUrl]
+    []
   );
 
   const replayPreview = useCallback(
     async (options?: { limit?: number; stopOnFailure?: boolean }, actionsOverride?: RecordedAction[]): Promise<ReplayPreviewResponse> => {
       const currentSessionId = sessionIdRef.current;
       if (!currentSessionId) {
-        throw new Error('No session ID provided');
+        const error = 'No session ID provided';
+        setError(error);
+        throw new Error(error);
       }
 
       const actionsToSend = actionsOverride ?? actions;
       if (actionsToSend.length === 0) {
-        throw new Error('No actions to replay');
+        const error = 'No actions to replay';
+        setError(error);
+        throw new Error(error);
       }
 
       setIsReplaying(true);
       setError(null);
 
-      try {
-        const response = await fetch(
-          `${apiUrl}/recordings/live/${currentSessionId}/replay-preview`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              actions: actionsToSend,
-              limit: options?.limit,
-              stop_on_failure: options?.stopOnFailure ?? true,
-            }),
-          }
-        );
+      const result = await recordingApi.replayPreview(
+        currentSessionId,
+        {
+          actions: actionsToSend,
+          limit: options?.limit,
+          stopOnFailure: options?.stopOnFailure,
+        },
+        { signal: abortControllerRef.current?.signal }
+      );
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(
-            errorData.message || `Failed to replay recording: ${response.statusText}`
-          );
-        }
+      setIsReplaying(false);
 
-        return response.json();
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to replay recording';
-        setError(message);
-        throw err;
-      } finally {
-        setIsReplaying(false);
+      if (!result.success) {
+        setError(result.error);
+        throw new Error(result.error);
       }
+
+      return result.data;
     },
-    [apiUrl, actions]
+    [actions]
   );
 
   return {
     isRecording,
     recordingId,
     actions,
-    setActions: setActionsWithSync,
+    setActions,
     isLoading,
     isReplaying,
     error,
@@ -429,7 +290,6 @@ function useRecordingTransport({
     stopRecording,
     generateWorkflow,
     validateSelector,
-    refreshActions,
     replayPreview,
   };
 }
@@ -532,18 +392,9 @@ function useActionEditing(actions: RecordedAction[], setActions: ActionSetter): 
 
 export function useRecordMode({
   sessionId,
-  pollInterval = 5000,
-  onActionsReceived,
-  useWebSocketUpdates = true,
 }: UseRecordModeOptions): UseRecordModeReturn {
-  const apiUrl = getApiBase();
-
   const transport = useRecordingTransport({
     sessionId,
-    pollInterval,
-    onActionsReceived,
-    useWebSocketUpdates,
-    apiUrl,
   });
 
   const editing = useActionEditing(transport.actions, transport.setActions);
@@ -563,7 +414,6 @@ export function useRecordMode({
     updatePayload: editing.updatePayload,
     generateWorkflow: transport.generateWorkflow,
     validateSelector: transport.validateSelector,
-    refreshActions: transport.refreshActions,
     replayPreview: transport.replayPreview,
     isReplaying: transport.isReplaying,
     lowConfidenceCount: editing.lowConfidenceCount,

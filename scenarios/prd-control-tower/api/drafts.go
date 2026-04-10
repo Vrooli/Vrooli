@@ -193,7 +193,6 @@ func handleUpdateDraft(w http.ResponseWriter, r *http.Request) {
 		SET content = $1, updated_at = $2
 		WHERE id = $3
 	`, req.Content, now, draftID)
-
 	if err != nil {
 		respondInternalError(w, "Failed to update draft", err)
 		return
@@ -383,12 +382,12 @@ func saveDraftToFile(entityType string, entityName string, content string) error
 
 	// Create directory if it doesn't exist
 	draftDir := filepath.Dir(draftPath)
-	if err := os.MkdirAll(draftDir, 0755); err != nil {
+	if err := os.MkdirAll(draftDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create draft directory: %w", err)
 	}
 
 	// Write file
-	if err := os.WriteFile(draftPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(draftPath, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("failed to write draft file: %w", err)
 	}
 
@@ -427,7 +426,6 @@ func getDraftByID(draftID string) (Draft, error) {
 		&draft.UpdatedAt,
 		&draft.Status,
 	)
-
 	if err != nil {
 		return Draft{}, err
 	}

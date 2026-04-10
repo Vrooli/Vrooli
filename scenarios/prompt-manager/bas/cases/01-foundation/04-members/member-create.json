@@ -1,0 +1,184 @@
+{
+  "metadata": {
+    "name": "member-create",
+    "description": "Validate agent creation adds a new agent row",
+    "labels": {
+      "reset": "none"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prompt-manager",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Prompt Manager"
+        }
+      }
+    },
+    {
+      "id": "wait-sidebar",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/sidebar.container",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for sidebar"
+        }
+      }
+    },
+    {
+      "id": "click-agents-tab",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/sidebar.tabAgents"
+        },
+        "metadata": {
+          "label": "Switch to agents tab"
+        }
+      }
+    },
+    {
+      "id": "wait-agents-list",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/agents.list",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for agents list"
+        }
+      }
+    },
+    {
+      "id": "count-initial-agents",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const count = document.querySelectorAll('[data-testid=\"agent-row\"]').length; window.__basInitialAgentCount = count; return count; })()",
+          "store_result": "initialAgentCount"
+        },
+        "metadata": {
+          "label": "Count initial agents"
+        }
+      }
+    },
+    {
+      "id": "click-new-agent",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/agents.newButton"
+        },
+        "metadata": {
+          "label": "Create new agent"
+        }
+      }
+    },
+    {
+      "id": "wait-agent-create",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1500
+        },
+        "metadata": {
+          "label": "Wait for agent creation"
+        }
+      }
+    },
+    {
+      "id": "count-final-agents",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const count = document.querySelectorAll('[data-testid=\"agent-row\"]').length; window.__basFinalAgentCount = count; return count; })()",
+          "store_result": "finalAgentCount"
+        },
+        "metadata": {
+          "label": "Count final agents"
+        }
+      }
+    },
+    {
+      "id": "verify-agent-count",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const initial = Number(window.__basInitialAgentCount || 0); const final = Number(window.__basFinalAgentCount || 0); if (!(final === initial + 1)) { throw new Error('Expected agent count to increase by 1 (initial=' + initial + ', final=' + final + ')'); } return true; })()"
+        },
+        "metadata": {
+          "label": "Verify agent count increased"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-sidebar",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-sidebar",
+      "target": "click-agents-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "click-agents-tab",
+      "target": "wait-agents-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "wait-agents-list",
+      "target": "count-initial-agents",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "count-initial-agents",
+      "target": "click-new-agent",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "click-new-agent",
+      "target": "wait-agent-create",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "wait-agent-create",
+      "target": "count-final-agents",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "count-final-agents",
+      "target": "verify-agent-count",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

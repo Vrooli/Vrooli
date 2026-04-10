@@ -229,13 +229,7 @@ func buildVarList(vars map[string]templateVarDefinition) []ScenarioTemplateVar {
 	list := make([]ScenarioTemplateVar, 0, len(keys))
 	for _, key := range keys {
 		def := vars[key]
-		list = append(list, ScenarioTemplateVar{
-			Name:        def.Name,
-			Flag:        def.Flag,
-			Description: def.Description,
-			Default:     def.Default,
-			Required:    def.Required,
-		})
+		list = append(list, ScenarioTemplateVar(def))
 	}
 
 	return list

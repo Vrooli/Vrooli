@@ -82,7 +82,7 @@ export function generateRecordingInitScript(bindingName: string = DEFAULT_RECORD
   // Replace placeholders in the template
   // Note: BINDING_NAME and MESSAGE_TYPE are string literals in the template (with quotes around them)
   // so we replace the placeholder with just the value (the quotes are already in the template)
-  let script = template
+  const script = template
     .replace('__INJECTED_CONFIG__', serializedConfig)
     .replace(/__INJECTED_BINDING_NAME__/g, bindingName)
     .replace(/__RECORDING_CONTROL_MESSAGE_TYPE__/g, RECORDING_CONTROL_MESSAGE_TYPE);

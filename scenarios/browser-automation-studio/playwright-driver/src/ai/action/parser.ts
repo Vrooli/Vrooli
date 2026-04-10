@@ -91,7 +91,10 @@ function parseActionSyntax(response: string): BrowserAction | null {
   }
 
   const [, actionType, argsString] = actionMatch;
-  const args = parseArguments(argsString);
+  if (!actionType) {
+    return null;
+  }
+  const args = parseArguments(argsString ?? '');
 
   switch (actionType.toLowerCase()) {
     case 'click':
@@ -424,7 +427,11 @@ function parseJSONBlock(response: string): BrowserAction | null {
 
   if (codeBlockMatch) {
     try {
-      return JSON.parse(codeBlockMatch[1].trim()) as BrowserAction;
+      const rawJson = codeBlockMatch[1];
+      if (!rawJson) {
+        return null;
+      }
+      return JSON.parse(rawJson.trim()) as BrowserAction;
     } catch {
       return null;
     }
@@ -443,7 +450,11 @@ function parseClaudeXML(response: string): BrowserAction | null {
 
   if (xmlMatch) {
     try {
-      return JSON.parse(xmlMatch[1].trim()) as BrowserAction;
+      const rawJson = xmlMatch[1];
+      if (!rawJson) {
+        return null;
+      }
+      return JSON.parse(rawJson.trim()) as BrowserAction;
     } catch {
       return null;
     }

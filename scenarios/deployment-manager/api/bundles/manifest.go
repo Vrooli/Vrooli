@@ -139,6 +139,7 @@ type ServicePorts struct {
 // RequestedPort defines a requested port.
 type RequestedPort struct {
 	Name           string    `json:"name"`
+	EnvVar         string    `json:"env_var,omitempty"` // Environment variable name (e.g., "API_PORT")
 	Range          PortRange `json:"range"`
 	RequiresSocket bool      `json:"requires_socket"`
 }

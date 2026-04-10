@@ -11,10 +11,14 @@ const { mockAdminLogin, mockCheckAdminSession } = vi.hoisted(() => ({
   mockCheckAdminSession: vi.fn(),
 }));
 
-vi.mock('../../../shared/api', () => ({
-  adminLogin: mockAdminLogin,
-  checkAdminSession: mockCheckAdminSession,
-}));
+vi.mock('../../../shared/api', async () => {
+  const actual = await vi.importActual('../../../shared/api');
+  return {
+    ...actual,
+    adminLogin: mockAdminLogin,
+    checkAdminSession: mockCheckAdminSession,
+  };
+});
 
 const mockNavigate = vi.fn();
 
@@ -26,18 +30,26 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-const renderWithRouter = (component: React.ReactElement) => {
-  return render(
+const renderWithRouter = (component: React.ReactElement) =>
+  render(
     <BrowserRouter>
       <AdminAuthProvider>
         {component}
       </AdminAuthProvider>
     </BrowserRouter>
   );
+
+const renderWithAuth = async (component: React.ReactElement) => {
+  const utils = renderWithRouter(component);
+  await waitFor(() => expect(mockCheckAdminSession).toHaveBeenCalled());
+  return utils;
 };
 
 describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
   const originalLocation = window.location;
+  const setLocation = (next: Location) => {
+    Object.defineProperty(window, 'location', { value: next, writable: true });
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -46,16 +58,15 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
     mockAdminLogin.mockResolvedValue({ authenticated: true, email: 'admin@test.com' });
 
     // Mock location to avoid session check trigger
-    delete (window as { location?: Location }).location;
-    window.location = { ...originalLocation, pathname: '/admin/login' };
+    setLocation({ ...originalLocation, pathname: '/admin/login' } as Location);
   });
 
   afterEach(() => {
-    window.location = originalLocation;
+    setLocation(originalLocation);
   });
 
-  it('[REQ:ADMIN-AUTH] should render login form with email and password fields', () => {
-    renderWithRouter(<AdminLogin />);
+  it('[REQ:ADMIN-AUTH] should render login form with email and password fields', async () => {
+    await renderWithAuth(<AdminLogin />);
 
     expect(screen.getByLabelText(/Email Address/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
@@ -65,7 +76,7 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
   it('[REQ:ADMIN-AUTH] should call login API with email and password on form submit', async () => {
     const user = userEvent.setup();
     mockAdminLogin.mockResolvedValue({ authenticated: true, email: 'admin@test.com' });
-    renderWithRouter(<AdminLogin />);
+    await renderWithAuth(<AdminLogin />);
 
     const emailInput = screen.getByTestId('admin-login-email');
     const passwordInput = screen.getByTestId('admin-login-password');
@@ -84,7 +95,7 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
     const user = userEvent.setup();
     mockAdminLogin.mockResolvedValue({ authenticated: true, email: 'admin@test.com' });
 
-    renderWithRouter(<AdminLogin />);
+    await renderWithAuth(<AdminLogin />);
 
     const emailInput = screen.getByTestId('admin-login-email');
     const passwordInput = screen.getByTestId('admin-login-password');
@@ -101,9 +112,9 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
 
   it('[REQ:ADMIN-AUTH] should display error message on login failure', async () => {
     const user = userEvent.setup();
-    mockAdminLogin.mockRejectedValue(new Error('Invalid'));
+    mockAdminLogin.mockImplementation(() => Promise.reject(new Error('Invalid')));
 
-    renderWithRouter(<AdminLogin />);
+    await renderWithAuth(<AdminLogin />);
 
     const emailInput = screen.getByTestId('admin-login-email');
     const passwordInput = screen.getByTestId('admin-login-password');
@@ -115,7 +126,8 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('admin-login-error')).toBeInTheDocument();
-      expect(screen.getByText('Invalid email or password')).toBeInTheDocument();
+      // Text includes period from component
+      expect(screen.getByText('Invalid email or password.')).toBeInTheDocument();
     });
   });
 
@@ -123,7 +135,7 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
     const user = userEvent.setup();
     mockAdminLogin.mockImplementation(() => new Promise(() => {})); // Never resolves
 
-    renderWithRouter(<AdminLogin />);
+    await renderWithAuth(<AdminLogin />);
 
     const emailInput = screen.getByTestId('admin-login-email');
     const passwordInput = screen.getByTestId('admin-login-password');
@@ -145,7 +157,7 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
       .mockRejectedValueOnce(new Error('Invalid'))
       .mockResolvedValueOnce({ authenticated: true, email: 'admin@test.com' });
 
-    renderWithRouter(<AdminLogin />);
+    await renderWithAuth(<AdminLogin />);
 
     const emailInput = screen.getByTestId('admin-login-email');
     const passwordInput = screen.getByTestId('admin-login-password');
@@ -172,16 +184,16 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
     });
   });
 
-  it('should display security notice about bcrypt hashing', () => {
-    renderWithRouter(<AdminLogin />);
+  it('should display security notice about bcrypt hashing', async () => {
+    await renderWithAuth(<AdminLogin />);
 
     expect(
       screen.getByText(/Secured with bcrypt password hashing and httpOnly cookies/i)
     ).toBeInTheDocument();
   });
 
-  it('should have proper input types for email and password', () => {
-    renderWithRouter(<AdminLogin />);
+  it('should have proper input types for email and password', async () => {
+    await renderWithAuth(<AdminLogin />);
 
     const emailInput = screen.getByTestId('admin-login-email');
     const passwordInput = screen.getByTestId('admin-login-password');

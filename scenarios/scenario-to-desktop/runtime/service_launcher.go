@@ -152,7 +152,6 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 		return nil
 	}
 
-	// Serve static UI bundles without requiring an executable.
 	if strings.EqualFold(svc.Type, "ui-bundle") {
 		return s.startUIBundleService(ctx, svc)
 	}
@@ -162,51 +161,20 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 		return fmt.Errorf("resolve binary for service %s", svc.ID)
 	}
 
-	cmdPath := manifest.ResolvePath(s.opts.BundlePath, bin.Path)
-
-	// Prepare directories.
-	if err := s.prepareServiceDirs(svc); err != nil {
-		return err
-	}
-
-	// Build environment.
-	envMap, err := s.renderEnvMap(svc, bin)
+	envMap, err := s.prepareServiceEnv(ctx, svc, bin)
 	if err != nil {
 		return err
 	}
 
-	// Apply secrets, GPU settings, and Playwright conventions.
-	if err := s.applySecrets(envMap, svc); err != nil {
-		return err
-	}
-	if err := s.applyPlaywrightConventions(svc, envMap); err != nil {
-		return err
-	}
-	if err := s.applyGPURequirement(envMap, svc); err != nil {
-		return err
-	}
-
-	// Verify assets.
-	if err := s.ensureAssets(svc); err != nil {
-		return err
-	}
-
-	// Run migrations.
-	if err := s.runMigrations(ctx, svc, bin, envMap); err != nil {
-		return err
-	}
-
-	// Create the command context.
+	cmdPath := manifest.ResolvePath(s.opts.BundlePath, bin.Path)
 	cmdCtx, cancel := context.WithCancel(ctx)
 	args := s.renderArgs(bin.Args)
 
-	// Determine working directory.
 	workDir := s.opts.BundlePath
 	if bin.CWD != "" {
 		workDir = manifest.ResolvePath(s.opts.BundlePath, bin.CWD)
 	}
 
-	// Set up logging.
 	logWriter, logPath, err := s.logWriter(svc)
 	if err != nil {
 		cancel()
@@ -218,7 +186,6 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 		}
 	}()
 
-	// Start the process using the injected ProcessRunner.
 	proc, err := s.procRunner.Start(cmdCtx, cmdPath, args, strutil.EnvMapToList(envMap), workDir, logWriter, logWriter)
 	if err != nil {
 		cancel()
@@ -237,23 +204,70 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 	s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: "starting"})
 	_ = s.recordTelemetry("service_start", map[string]interface{}{"service_id": svc.ID})
 
-	// Monitor readiness in background.
+	s.monitorReadiness(cmdCtx, svc.ID, nil)
+	s.monitorExit(svcProc, proc)
+
+	return nil
+}
+
+// prepareServiceEnv handles all pre-launch preparation: dirs, env, secrets, assets, migrations.
+func (s *Supervisor) prepareServiceEnv(ctx context.Context, svc manifest.Service, bin manifest.Binary) (map[string]string, error) {
+	if err := s.prepareServiceDirs(svc); err != nil {
+		return nil, err
+	}
+
+	envMap, err := s.renderEnvMap(svc, bin)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.applySecrets(envMap, svc); err != nil {
+		return nil, err
+	}
+	if err := s.applyPlaywrightConventions(svc, envMap); err != nil {
+		return nil, err
+	}
+	if err := s.applyGPURequirement(envMap, svc); err != nil {
+		return nil, err
+	}
+
+	if err := s.ensureAssets(svc); err != nil {
+		return nil, err
+	}
+
+	if err := s.runMigrations(ctx, svc, bin, envMap); err != nil {
+		return nil, err
+	}
+
+	return envMap, nil
+}
+
+// monitorReadiness watches for service readiness in a background goroutine.
+// extraFields are appended to telemetry events.
+func (s *Supervisor) monitorReadiness(ctx context.Context, svcID string, extraFields map[string]interface{}) {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		if err := s.healthChecker.WaitForReadiness(cmdCtx, svc.ID); err != nil {
-			s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: err.Error()})
-			_ = s.recordTelemetry("service_not_ready", map[string]interface{}{
-				"service_id": svc.ID,
-				"error":      err.Error(),
-			})
-		} else {
-			s.setStatus(svc.ID, ServiceStatus{Ready: true, Message: "ready"})
-			_ = s.recordTelemetry("service_ready", map[string]interface{}{"service_id": svc.ID})
+		if err := s.healthChecker.WaitForReadiness(ctx, svcID); err != nil {
+			s.setStatus(svcID, ServiceStatus{Ready: false, Message: err.Error()})
+			fields := map[string]interface{}{"service_id": svcID, "error": err.Error()}
+			for k, v := range extraFields {
+				fields[k] = v
+			}
+			_ = s.recordTelemetry("service_not_ready", fields)
+			return
 		}
+		s.setStatus(svcID, ServiceStatus{Ready: true, Message: "ready"})
+		fields := map[string]interface{}{"service_id": svcID}
+		for k, v := range extraFields {
+			fields[k] = v
+		}
+		_ = s.recordTelemetry("service_ready", fields)
 	}()
+}
 
-	// Monitor for unexpected exits.
+// monitorExit watches for unexpected process exits in a background goroutine.
+func (s *Supervisor) monitorExit(svcProc *serviceProcess, proc Process) {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
@@ -263,19 +277,16 @@ func (s *Supervisor) startService(ctx context.Context, svc manifest.Service) err
 		if err != nil {
 			msg = err.Error()
 		}
-		s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: msg, ExitCode: code})
+		s.setStatus(svcProc.service.ID, ServiceStatus{Ready: false, Message: msg, ExitCode: code})
 		_ = s.recordTelemetry("service_exit", map[string]interface{}{
-			"service_id": svc.ID,
+			"service_id": svcProc.service.ID,
 			"exit_code":  code,
 			"error":      msg,
 		})
-		// Close log file when process exits.
 		if svcProc.logFile != nil {
 			_ = svcProc.logFile.Close()
 		}
 	}()
-
-	return nil
 }
 
 // startUIBundleService serves UI assets from the bundle using an embedded static server.
@@ -284,41 +295,18 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 		return err
 	}
 
-	// Resolve port (default to "ui", otherwise first requested port)
-	portName := "ui"
-	if svc.Health.PortName != "" {
-		portName = svc.Health.PortName
-	} else if svc.Readiness.PortName != "" {
-		portName = svc.Readiness.PortName
-	} else if svc.Ports != nil && len(svc.Ports.Requested) > 0 {
-		portName = svc.Ports.Requested[0].Name
-	}
-	port, err := s.portAllocator.Resolve(svc.ID, portName)
+	port, err := s.resolveUIPort(svc)
 	if err != nil {
-		return fmt.Errorf("allocate port for %s: %w", svc.ID, err)
-	}
-
-	// Determine asset root from first asset entry.
-	if len(svc.Assets) == 0 || svc.Assets[0].Path == "" {
-		return fmt.Errorf("ui-bundle %s has no assets defined", svc.ID)
-	}
-	assetRoot := filepath.Dir(svc.Assets[0].Path)
-	if assetRoot == "" || assetRoot == "." {
-		assetRoot = filepath.Dir(svc.Assets[0].Path)
-	}
-	serveRoot := manifest.ResolvePath(s.opts.BundlePath, assetRoot)
-
-	// Verify assets exist.
-	if err := s.ensureAssets(svc); err != nil {
 		return err
 	}
 
-	// Try to resolve API service port for proxying /api and /ws.
-	apiPort := s.resolveAPIPort()
-	var apiProxy *httputil.ReverseProxy
-	if apiPort > 0 {
-		target, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", apiPort))
-		apiProxy = httputil.NewSingleHostReverseProxy(target)
+	serveRoot, err := s.resolveUIDistRoot(svc)
+	if err != nil {
+		return err
+	}
+
+	if err := s.ensureAssets(svc); err != nil {
+		return err
 	}
 
 	logWriter, logPath, err := s.logWriter(svc)
@@ -331,33 +319,10 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 		return fmt.Errorf("listen on %d: %w", port, err)
 	}
 
-	// SPA-friendly file server: serve files when they exist; otherwise fallback to index.html for SPA routes.
-	fileServer := http.FileServer(http.Dir(serveRoot))
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Proxy API/WS to the backend service if available.
-		if apiProxy != nil && (strings.HasPrefix(r.URL.Path, "/api") || strings.HasPrefix(strings.ToLower(r.URL.Path), "/ws")) {
-			apiProxy.ServeHTTP(w, r)
-			return
-		}
-
-		path := filepath.Join(serveRoot, filepath.Clean(r.URL.Path))
-		if info, err := os.Stat(path); err == nil && !info.IsDir() {
-			fileServer.ServeHTTP(w, r)
-			return
-		}
-		// Fallback to index.html for SPA routes only when index exists.
-		indexPath := filepath.Join(serveRoot, "index.html")
-		if _, err := os.Stat(indexPath); err == nil {
-			http.ServeFile(w, r, indexPath)
-			return
-		}
-		http.NotFound(w, r)
-	})
-
+	handler := s.buildUIHandler(svc, serveRoot)
 	server := &http.Server{Handler: handler}
 	serverCtx, cancel := context.WithCancel(ctx)
 
-	// Track service for shutdown.
 	svcProc := &serviceProcess{
 		proc:    nil, // managed in-process
 		logPath: logPath,
@@ -368,17 +333,14 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 	}
 	s.setProc(svc.ID, svcProc)
 
-	// Start serving.
 	go func() {
-		_ = server.Serve(ln) // server shutdown errors are ignored here
+		_ = server.Serve(ln)
 	}()
-
-	// Shutdown on context cancel.
 	go func() {
 		<-serverCtx.Done()
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-		_ = server.Shutdown(ctx)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer shutdownCancel()
+		_ = server.Shutdown(shutdownCtx)
 	}()
 
 	s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: "starting"})
@@ -388,27 +350,75 @@ func (s *Supervisor) startUIBundleService(ctx context.Context, svc manifest.Serv
 		"type":       "ui-bundle",
 	})
 
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
-		if err := s.healthChecker.WaitForReadiness(serverCtx, svc.ID); err != nil {
-			s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: err.Error()})
-			_ = s.recordTelemetry("service_not_ready", map[string]interface{}{
-				"service_id": svc.ID,
-				"error":      err.Error(),
-				"type":       "ui-bundle",
-			})
-			return
-		}
-		s.setStatus(svc.ID, ServiceStatus{Ready: true, Message: "ready"})
-		_ = s.recordTelemetry("service_ready", map[string]interface{}{
-			"service_id": svc.ID,
-			"port":       port,
-			"type":       "ui-bundle",
-		})
-	}()
+	extraFields := map[string]interface{}{"port": port, "type": "ui-bundle"}
+	s.monitorReadiness(serverCtx, svc.ID, extraFields)
 
 	return nil
+}
+
+// resolveUIPort determines which port name to use for a UI bundle service.
+func (s *Supervisor) resolveUIPort(svc manifest.Service) (int, error) {
+	portName := "ui"
+	switch {
+	case svc.Health.PortName != "":
+		portName = svc.Health.PortName
+	case svc.Readiness.PortName != "":
+		portName = svc.Readiness.PortName
+	case svc.Ports != nil && len(svc.Ports.Requested) > 0:
+		portName = svc.Ports.Requested[0].Name
+	}
+	port, err := s.portAllocator.Resolve(svc.ID, portName)
+	if err != nil {
+		return 0, fmt.Errorf("allocate port for %s: %w", svc.ID, err)
+	}
+	return port, nil
+}
+
+// buildUIHandler creates the HTTP handler for a UI bundle service with health, API proxy, and SPA fallback.
+func (s *Supervisor) buildUIHandler(svc manifest.Service, serveRoot string) http.Handler {
+	healthPath := svc.Health.Path
+	if healthPath == "" {
+		healthPath = "/health"
+	}
+
+	apiProxy := s.buildAPIProxy()
+	fileServer := http.FileServer(http.Dir(serveRoot))
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == healthPath {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
+
+		if apiProxy != nil && (strings.HasPrefix(r.URL.Path, "/api") || strings.HasPrefix(strings.ToLower(r.URL.Path), "/ws")) {
+			apiProxy.ServeHTTP(w, r)
+			return
+		}
+
+		path := filepath.Join(serveRoot, filepath.Clean(r.URL.Path))
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+		indexPath := filepath.Join(serveRoot, "index.html")
+		if _, err := os.Stat(indexPath); err == nil {
+			http.ServeFile(w, r, indexPath)
+			return
+		}
+		http.NotFound(w, r)
+	})
+}
+
+// buildAPIProxy creates a reverse proxy to the API service, or nil if no API port is found.
+func (s *Supervisor) buildAPIProxy() *httputil.ReverseProxy {
+	apiPort := s.resolveAPIPort()
+	if apiPort <= 0 {
+		return nil
+	}
+	target, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", apiPort))
+	return httputil.NewSingleHostReverseProxy(target)
 }
 
 // resolveAPIPort attempts to find a service that exposes an "api" port and returns its allocated value.
@@ -431,6 +441,37 @@ func (s *Supervisor) resolveAPIPort() int {
 		}
 	}
 	return 0
+}
+
+// resolveUIDistRoot determines the directory to serve static files from for a ui-bundle service.
+// It uses the following priority:
+//  1. Explicit dist_root field in the service config
+//  2. Automatic detection by finding index.html in the assets list
+//  3. Error if neither works
+//
+// This approach ensures the serve root is always correct regardless of how assets are organized
+// (e.g., assets in a subdirectory like "ui/dist/assets/").
+func (s *Supervisor) resolveUIDistRoot(svc manifest.Service) (string, error) {
+	// Priority 1: Explicit dist_root takes precedence
+	if svc.DistRoot != "" {
+		return manifest.ResolvePath(s.opts.BundlePath, svc.DistRoot), nil
+	}
+
+	// Priority 2: Find index.html in assets - its parent directory is the dist root
+	for _, asset := range svc.Assets {
+		if filepath.Base(asset.Path) == "index.html" {
+			distRoot := filepath.Dir(asset.Path)
+			return manifest.ResolvePath(s.opts.BundlePath, distRoot), nil
+		}
+	}
+
+	// Priority 3: Error with clear guidance
+	return "", fmt.Errorf(
+		"ui-bundle %s: cannot determine dist root. "+
+			"Either add 'dist_root' to the service config, or ensure index.html is in the assets list. "+
+			"Assets found: %d",
+		svc.ID, len(svc.Assets),
+	)
 }
 
 // stopServices stops all services in reverse dependency order.

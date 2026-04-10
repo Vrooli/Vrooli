@@ -10,41 +10,6 @@ import (
 	"vrooli-autoheal/internal/platform"
 )
 
-// mockCheck is a test implementation of Check interface
-type mockCheck struct {
-	id        string
-	desc      string
-	interval  int
-	platforms []platform.Type
-	result    Result
-}
-
-func (m *mockCheck) ID() string                 { return m.id }
-func (m *mockCheck) Title() string              { return "Mock Check" }
-func (m *mockCheck) Description() string        { return m.desc }
-func (m *mockCheck) Importance() string         { return "Test importance" }
-func (m *mockCheck) IntervalSeconds() int       { return m.interval }
-func (m *mockCheck) Platforms() []platform.Type { return m.platforms }
-func (m *mockCheck) Category() Category         { return CategoryInfrastructure }
-func (m *mockCheck) Run(ctx context.Context) Result {
-	return m.result
-}
-
-// testPlatform returns a mock platform for testing
-func testPlatform() *platform.Capabilities {
-	return &platform.Capabilities{
-		Platform:            platform.Linux,
-		HasDocker:           true,
-		SupportsSystemd:     true,
-		SupportsLaunchd:     false,
-		SupportsWindowsSvc:  false,
-		SupportsRDP:         false,
-		IsWSL:               false,
-		IsHeadlessServer:    true,
-		SupportsCloudflared: true,
-	}
-}
-
 // TestNewRegistry verifies registry initialization
 // [REQ:HEALTH-REGISTRY-001]
 func TestNewRegistry(t *testing.T) {
@@ -79,7 +44,7 @@ func TestNewRegistry(t *testing.T) {
 // TestRegisterUnregister verifies check registration and removal
 // [REQ:HEALTH-REGISTRY-001]
 func TestRegisterUnregister(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	check := &mockCheck{
 		id:       "test-check",
@@ -112,7 +77,7 @@ func TestRegisterUnregister(t *testing.T) {
 // TestRunAll verifies running all checks
 // [REQ:HEALTH-REGISTRY-002]
 func TestRunAll(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	check1 := &mockCheck{
 		id:       "check-1",
@@ -139,7 +104,7 @@ func TestRunAll(t *testing.T) {
 // TestPlatformFiltering verifies platform-based check filtering
 // [REQ:HEALTH-REGISTRY-003]
 func TestPlatformFiltering(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	currentPlatform := reg.platform.Platform
 
@@ -216,7 +181,7 @@ func TestPlatformFiltering(t *testing.T) {
 // TestIntervalFiltering verifies interval-based check filtering
 // [REQ:HEALTH-REGISTRY-003]
 func TestIntervalFiltering(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	check := &mockCheck{
 		id:       "interval-check",
@@ -250,7 +215,7 @@ func TestIntervalFiltering(t *testing.T) {
 // TestGetResult verifies result retrieval
 // [REQ:HEALTH-REGISTRY-004]
 func TestGetResult(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	check := &mockCheck{
 		id:       "result-check",
@@ -287,7 +252,7 @@ func TestGetResult(t *testing.T) {
 
 // TestGetAllResults verifies bulk result retrieval
 func TestGetAllResults(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	check1 := &mockCheck{
 		id:       "bulk-1",
@@ -315,7 +280,7 @@ func TestGetAllResults(t *testing.T) {
 // TestGetSummary verifies health summary calculation
 // [REQ:HEALTH-REGISTRY-004]
 func TestGetSummary(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	checks := []*mockCheck{
 		{id: "ok-1", result: Result{CheckID: "ok-1", Status: StatusOK}},
@@ -371,7 +336,7 @@ func TestSummaryStatusCalculation(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			reg := NewRegistry(testPlatform())
+			reg := newTestRegistry()
 
 			for i, status := range tc.statuses {
 				check := &mockCheck{
@@ -394,7 +359,7 @@ func TestSummaryStatusCalculation(t *testing.T) {
 
 // TestRunCheckSetsTimestamp verifies timestamp is set correctly
 func TestRunCheckSetsTimestamp(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	check := &mockCheck{
 		id:       "timestamp-check",
@@ -422,7 +387,7 @@ func TestRunCheckSetsTimestamp(t *testing.T) {
 
 // TestContextCancellation verifies checks stop on context cancellation
 func TestContextCancellation(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	// Add several checks
 	for i := 0; i < 10; i++ {
@@ -446,7 +411,7 @@ func TestContextCancellation(t *testing.T) {
 
 // TestListChecks verifies check metadata listing
 func TestListChecks(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	check := &mockCheck{
 		id:        "list-check",
@@ -478,60 +443,10 @@ func TestListChecks(t *testing.T) {
 	}
 }
 
-// mockHealableCheck implements both Check and HealableCheck for testing
-type mockHealableCheck struct {
-	id              string
-	result          Result
-	actions         []RecoveryAction
-	executeResult   ActionResult
-	executedActions []string
-}
-
-func (m *mockHealableCheck) ID() string                 { return m.id }
-func (m *mockHealableCheck) Title() string              { return "Healable Check" }
-func (m *mockHealableCheck) Description() string        { return "Test healable check" }
-func (m *mockHealableCheck) Importance() string         { return "Test importance" }
-func (m *mockHealableCheck) IntervalSeconds() int       { return 60 }
-func (m *mockHealableCheck) Platforms() []platform.Type { return nil }
-func (m *mockHealableCheck) Category() Category         { return CategoryInfrastructure }
-func (m *mockHealableCheck) Run(ctx context.Context) Result {
-	return m.result
-}
-func (m *mockHealableCheck) RecoveryActions(lastResult *Result) []RecoveryAction {
-	return m.actions
-}
-func (m *mockHealableCheck) ExecuteAction(ctx context.Context, actionID string) ActionResult {
-	m.executedActions = append(m.executedActions, actionID)
-	m.executeResult.ActionID = actionID
-	m.executeResult.CheckID = m.id
-	return m.executeResult
-}
-
-// mockConfigProvider implements ConfigProvider for testing
-type mockConfigProvider struct {
-	enabledChecks  map[string]bool
-	autoHealChecks map[string]bool
-}
-
-func (m *mockConfigProvider) IsCheckEnabled(checkID string) bool {
-	if m.enabledChecks == nil {
-		return true
-	}
-	enabled, exists := m.enabledChecks[checkID]
-	return !exists || enabled
-}
-
-func (m *mockConfigProvider) IsAutoHealEnabled(checkID string) bool {
-	if m.autoHealChecks == nil {
-		return false
-	}
-	return m.autoHealChecks[checkID]
-}
-
 // TestIsHealable verifies check healability detection
 // [REQ:HEAL-ACTION-001]
 func TestIsHealable(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	// Register a non-healable check
 	regularCheck := &mockCheck{
@@ -563,7 +478,7 @@ func TestIsHealable(t *testing.T) {
 // TestGetHealableCheck verifies retrieving healable checks
 // [REQ:HEAL-ACTION-001]
 func TestGetHealableCheck(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	healableCheck := &mockHealableCheck{
 		id: "healable-check",
@@ -587,7 +502,7 @@ func TestGetHealableCheck(t *testing.T) {
 // TestIsAutoHealEnabled verifies auto-heal config integration
 // [REQ:CONFIG-CHECK-001]
 func TestIsAutoHealEnabled(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	healableCheck := &mockHealableCheck{
 		id: "healable-check",
@@ -626,7 +541,7 @@ func TestIsAutoHealEnabled(t *testing.T) {
 // TestRunAutoHeal_SkipsNonCriticalChecks verifies only critical checks are auto-healed
 // [REQ:HEAL-ACTION-001]
 func TestRunAutoHeal_SkipsNonCriticalChecks(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	healableCheck := &mockHealableCheck{
 		id:     "healable-check",
@@ -657,10 +572,52 @@ func TestRunAutoHeal_SkipsNonCriticalChecks(t *testing.T) {
 	}
 }
 
+func TestRunAutoHeal_SkipsIneligibleResultEvenWhenPolicyMatches(t *testing.T) {
+	reg := newTestRegistry()
+
+	healableCheck := &mockHealableCheck{
+		id: "scenario-app-monitor",
+		actions: []RecoveryAction{
+			{ID: "restart", Available: true, Dangerous: true},
+		},
+		executeResult: ActionResult{Success: true},
+	}
+	reg.Register(healableCheck)
+
+	config := &mockConfigProvider{
+		autoHealChecks: map[string]bool{
+			"scenario-app-monitor": true,
+		},
+		autoHealOn: map[string]string{
+			"scenario-app-monitor": "warning+critical",
+		},
+	}
+	reg.SetConfigProvider(config)
+
+	results := []Result{
+		{
+			CheckID: "scenario-app-monitor",
+			Status:  StatusWarning,
+			Details: map[string]interface{}{
+				"autoHealEligible": false,
+				"fallback":         "direct-health-check",
+			},
+		},
+	}
+
+	autoHealResults := reg.RunAutoHeal(context.Background(), results)
+	if len(autoHealResults) != 0 {
+		t.Fatalf("expected no auto-heal attempts for ineligible result, got %d", len(autoHealResults))
+	}
+	if len(healableCheck.executedActions) != 0 {
+		t.Fatalf("expected no actions executed, got %v", healableCheck.executedActions)
+	}
+}
+
 // TestRunAutoHeal_SkipsDisabledAutoHeal verifies auto-heal respects config
 // [REQ:CONFIG-CHECK-001]
 func TestRunAutoHeal_SkipsDisabledAutoHeal(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	healableCheck := &mockHealableCheck{
 		id:     "healable-check",
@@ -700,7 +657,7 @@ func TestRunAutoHeal_SkipsDisabledAutoHeal(t *testing.T) {
 // TestRunAutoHeal_SkipsDangerousActions verifies dangerous actions are not auto-executed
 // [REQ:HEAL-ACTION-001]
 func TestRunAutoHeal_SkipsDangerousActions(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	healableCheck := &mockHealableCheck{
 		id:     "healable-check",
@@ -732,7 +689,7 @@ func TestRunAutoHeal_SkipsDangerousActions(t *testing.T) {
 	if autoHealResults[0].Attempted {
 		t.Error("expected auto-heal to not be attempted with only dangerous/unavailable actions")
 	}
-	if autoHealResults[0].Reason != "no safe recovery action available" {
+	if autoHealResults[0].Reason != "no auto-heal recovery action available" {
 		t.Errorf("unexpected reason: %s", autoHealResults[0].Reason)
 	}
 }
@@ -740,7 +697,7 @@ func TestRunAutoHeal_SkipsDangerousActions(t *testing.T) {
 // TestRunAutoHeal_ExecutesSafeAction verifies safe actions are executed
 // [REQ:HEAL-ACTION-001]
 func TestRunAutoHeal_ExecutesSafeAction(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	healableCheck := &mockHealableCheck{
 		id:     "healable-check",
@@ -783,7 +740,7 @@ func TestRunAutoHeal_ExecutesSafeAction(t *testing.T) {
 // TestRunAutoHeal_SelectsFirstSafeAction verifies action selection order
 // [REQ:HEAL-ACTION-001]
 func TestRunAutoHeal_SelectsFirstSafeAction(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	healableCheck := &mockHealableCheck{
 		id:     "healable-check",
@@ -814,10 +771,166 @@ func TestRunAutoHeal_SelectsFirstSafeAction(t *testing.T) {
 	}
 }
 
+func TestRunAutoHeal_ScenarioSharedPackageDriftPrefersSetupRestart(t *testing.T) {
+	reg := newTestRegistry()
+
+	healableCheck := &mockHealableCheck{
+		id:     "scenario-example",
+		result: Result{CheckID: "scenario-example", Status: StatusCritical},
+		actions: []RecoveryAction{
+			{ID: "restart", Available: true, Dangerous: true},
+			{ID: "setup-restart", Available: true, Dangerous: true},
+		},
+		executeResult: ActionResult{Success: true},
+	}
+	reg.Register(healableCheck)
+
+	config := &mockConfigProvider{
+		autoHealChecks: map[string]bool{
+			"scenario-example": true,
+		},
+	}
+	reg.SetConfigProvider(config)
+
+	results := []Result{
+		{
+			CheckID: "scenario-example",
+			Status:  StatusCritical,
+			Details: map[string]interface{}{
+				"rootCause": "shared-package-drift",
+			},
+		},
+	}
+
+	reg.RunAutoHeal(context.Background(), results)
+
+	if len(healableCheck.executedActions) != 1 || healableCheck.executedActions[0] != "setup-restart" {
+		t.Fatalf("expected setup-restart to be selected, got %v", healableCheck.executedActions)
+	}
+}
+
+func TestRunAutoHeal_OrphanCheckPrefersKillSafe(t *testing.T) {
+	reg := newTestRegistry()
+
+	healableCheck := &mockHealableCheck{
+		id:     "vrooli-orphans",
+		result: Result{CheckID: "vrooli-orphans", Status: StatusCritical},
+		actions: []RecoveryAction{
+			{ID: "list", Available: true, Dangerous: false},
+			{ID: "kill-safe", Available: true, Dangerous: false},
+			{ID: "kill", Available: true, Dangerous: true},
+		},
+		executeResult: ActionResult{Success: true},
+	}
+	reg.Register(healableCheck)
+
+	config := &mockConfigProvider{
+		autoHealChecks: map[string]bool{
+			"vrooli-orphans": true,
+		},
+	}
+	reg.SetConfigProvider(config)
+
+	results := []Result{
+		{CheckID: "vrooli-orphans", Status: StatusCritical},
+	}
+
+	autoHealResults := reg.RunAutoHeal(context.Background(), results)
+	if len(autoHealResults) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(autoHealResults))
+	}
+	if !autoHealResults[0].Attempted {
+		t.Fatal("expected auto-heal to be attempted")
+	}
+	if len(healableCheck.executedActions) != 1 || healableCheck.executedActions[0] != "kill-safe" {
+		t.Errorf("expected kill-safe to be selected, got %v", healableCheck.executedActions)
+	}
+}
+
+// TestRunAutoHeal_ScenarioCriticalAllowsRestart verifies controlled dangerous restart
+// is allowed for scenario checks.
+func TestRunAutoHeal_ScenarioCriticalAllowsRestart(t *testing.T) {
+	reg := newTestRegistry()
+
+	healableCheck := &mockHealableCheck{
+		id:     "scenario-app-monitor",
+		result: Result{CheckID: "scenario-app-monitor", Status: StatusCritical},
+		actions: []RecoveryAction{
+			{ID: "restart", Available: true, Dangerous: true},
+			{ID: "logs", Available: true, Dangerous: false},
+		},
+		executeResult: ActionResult{Success: true, Message: "Restarted"},
+	}
+	reg.Register(healableCheck)
+
+	config := &mockConfigProvider{
+		autoHealChecks: map[string]bool{
+			"scenario-app-monitor": true,
+		},
+	}
+	reg.SetConfigProvider(config)
+
+	results := []Result{
+		{CheckID: "scenario-app-monitor", Status: StatusCritical},
+	}
+
+	autoHealResults := reg.RunAutoHeal(context.Background(), results)
+	if len(autoHealResults) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(autoHealResults))
+	}
+	if !autoHealResults[0].Attempted {
+		t.Fatal("expected auto-heal to be attempted")
+	}
+	if len(healableCheck.executedActions) != 1 || healableCheck.executedActions[0] != "restart" {
+		t.Errorf("expected restart to be executed, got %v", healableCheck.executedActions)
+	}
+}
+
+// TestRunAutoHeal_WarningPolicyCanTrigger verifies warning+critical policy.
+func TestRunAutoHeal_WarningPolicyCanTrigger(t *testing.T) {
+	reg := newTestRegistry()
+
+	healableCheck := &mockHealableCheck{
+		id:     "scenario-app-monitor",
+		result: Result{CheckID: "scenario-app-monitor", Status: StatusWarning},
+		actions: []RecoveryAction{
+			{ID: "restart", Available: true, Dangerous: true},
+			{ID: "logs", Available: true, Dangerous: false},
+		},
+		executeResult: ActionResult{Success: true, Message: "Restarted"},
+	}
+	reg.Register(healableCheck)
+
+	config := &mockConfigProvider{
+		autoHealChecks: map[string]bool{
+			"scenario-app-monitor": true,
+		},
+		autoHealOn: map[string]string{
+			"scenario-app-monitor": "warning+critical",
+		},
+	}
+	reg.SetConfigProvider(config)
+
+	results := []Result{
+		{CheckID: "scenario-app-monitor", Status: StatusWarning},
+	}
+
+	autoHealResults := reg.RunAutoHeal(context.Background(), results)
+	if len(autoHealResults) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(autoHealResults))
+	}
+	if !autoHealResults[0].Attempted {
+		t.Fatal("expected auto-heal to be attempted for warning+critical policy")
+	}
+	if len(healableCheck.executedActions) != 1 || healableCheck.executedActions[0] != "restart" {
+		t.Errorf("expected restart to be executed, got %v", healableCheck.executedActions)
+	}
+}
+
 // TestRunAutoHeal_HandlesMultipleCriticalChecks verifies multiple checks are handled
 // [REQ:HEAL-ACTION-001]
 func TestRunAutoHeal_HandlesMultipleCriticalChecks(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	check1 := &mockHealableCheck{
 		id:     "check-1",
@@ -872,7 +985,7 @@ func TestRunAutoHeal_HandlesMultipleCriticalChecks(t *testing.T) {
 // TestRunAutoHeal_HandlesMissingCheck verifies graceful handling of missing checks
 // [REQ:HEAL-ACTION-001]
 func TestRunAutoHeal_HandlesMissingCheck(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	config := &mockConfigProvider{
 		autoHealChecks: map[string]bool{
@@ -898,7 +1011,7 @@ func TestRunAutoHeal_HandlesMissingCheck(t *testing.T) {
 
 // TestSetResult verifies pre-populating results
 func TestSetResult(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	check := &mockCheck{
 		id:       "test-check",
@@ -939,7 +1052,7 @@ func TestSetResult(t *testing.T) {
 // TestConcurrentRegisterUnregister verifies thread-safe registration
 // [REQ:HEALTH-REGISTRY-001]
 func TestConcurrentRegisterUnregister(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	// Create multiple goroutines registering and unregistering
 	const numWorkers = 10
@@ -980,7 +1093,7 @@ func TestConcurrentRegisterUnregister(t *testing.T) {
 // TestConcurrentRunAllAndGetResult verifies thread-safe execution
 // [REQ:HEALTH-REGISTRY-002]
 func TestConcurrentRunAllAndGetResult(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	// Register several checks
 	for i := 0; i < 5; i++ {
@@ -1039,7 +1152,7 @@ func TestConcurrentRunAllAndGetResult(t *testing.T) {
 // TestConcurrentAutoHeal verifies thread-safe auto-healing
 // [REQ:HEAL-ACTION-001]
 func TestConcurrentAutoHeal(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	// Register healable checks
 	for i := 0; i < 3; i++ {
@@ -1090,7 +1203,7 @@ func TestConcurrentAutoHeal(t *testing.T) {
 
 // TestRunAllWithManyChecks verifies performance with many checks
 func TestRunAllWithManyChecks(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	const numChecks = 100
 
@@ -1118,7 +1231,7 @@ func TestRunAllWithManyChecks(t *testing.T) {
 
 // TestRunAllContextTimeout verifies timeout handling
 func TestRunAllContextTimeout(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	// Add a check that respects context (mock doesn't actually block)
 	check := &mockCheck{
@@ -1142,7 +1255,7 @@ func TestRunAllContextTimeout(t *testing.T) {
 // TestGetCheck verifies retrieving a registered check
 // [REQ:HEALTH-REGISTRY-001]
 func TestGetCheck(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	check := &mockCheck{
 		id:       "single-check",
@@ -1162,7 +1275,7 @@ func TestGetCheck(t *testing.T) {
 
 // TestGetCheckNotFound verifies error handling for missing check
 func TestGetCheckNotFound(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	_, exists := reg.GetCheck("nonexistent")
 	if exists {
@@ -1172,7 +1285,7 @@ func TestGetCheckNotFound(t *testing.T) {
 
 // TestListChecksMetadata verifies retrieving check metadata via ListChecks
 func TestListChecksMetadata(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	check := &mockCheck{
 		id:        "info-check",
@@ -1200,7 +1313,7 @@ func TestListChecksMetadata(t *testing.T) {
 
 // TestListChecksEmpty verifies handling when no checks registered
 func TestListChecksEmpty(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	infos := reg.ListChecks()
 	if len(infos) != 0 {
@@ -1210,7 +1323,7 @@ func TestListChecksEmpty(t *testing.T) {
 
 // TestRegistryThreadSafetyWithSetResult verifies SetResult is thread-safe
 func TestRegistryThreadSafetyWithSetResult(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	check := &mockCheck{
 		id:       "thread-check",
@@ -1259,7 +1372,7 @@ func TestRegistryThreadSafetyWithSetResult(t *testing.T) {
 // TestConfigProviderIntegration verifies config provider is used correctly
 // [REQ:CONFIG-CHECK-001]
 func TestConfigProviderIntegration(t *testing.T) {
-	reg := NewRegistry(testPlatform())
+	reg := newTestRegistry()
 
 	check1 := &mockCheck{
 		id:       "enabled-check",
@@ -1295,4 +1408,301 @@ func TestConfigProviderIntegration(t *testing.T) {
 	// The current implementation may not filter by enabled status in RunAll
 	// Just verify it doesn't crash
 	t.Logf("With config provider, got %d results", len(results))
+}
+
+func TestNewAutoHealPolicyFromGlobal(t *testing.T) {
+	policy, err := NewAutoHealPolicyFromGlobal(300, 3)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if policy.BaseCooldown != 5*time.Minute {
+		t.Fatalf("BaseCooldown = %v, want %v", policy.BaseCooldown, 5*time.Minute)
+	}
+	if policy.MaxRestartAttempts != 3 {
+		t.Fatalf("MaxRestartAttempts = %d, want 3", policy.MaxRestartAttempts)
+	}
+}
+
+func TestNewAutoHealPolicyFromGlobal_InvalidValues(t *testing.T) {
+	if _, err := NewAutoHealPolicyFromGlobal(0, 3); err == nil {
+		t.Fatal("expected error for zero restart cooldown")
+	}
+	if _, err := NewAutoHealPolicyFromGlobal(60, 0); err == nil {
+		t.Fatal("expected error for max restart attempts < 1")
+	}
+}
+
+func TestSetAutoHealPolicy_RejectsInvalidPolicy(t *testing.T) {
+	reg := NewRegistry(testPlatform())
+	err := reg.SetAutoHealPolicy(AutoHealPolicy{
+		BaseCooldown:       0,
+		MaxRestartAttempts: 1,
+	})
+	if err == nil {
+		t.Fatal("expected invalid policy to be rejected")
+	}
+}
+
+func TestHealTrackerCooldownHelpers(t *testing.T) {
+	now := time.Now()
+	tracker := HealTracker{
+		CooldownUntil: now.Add(2 * time.Second),
+	}
+
+	if !tracker.IsInCooldown() {
+		t.Fatal("expected tracker to be in cooldown")
+	}
+	if tracker.CooldownRemaining() <= 0 {
+		t.Fatal("expected positive cooldown remaining")
+	}
+
+	tracker.CooldownUntil = now.Add(-1 * time.Second)
+	if tracker.IsInCooldown() {
+		t.Fatal("expected tracker cooldown to be expired")
+	}
+	if tracker.CooldownRemaining() != 0 {
+		t.Fatalf("expected zero cooldown remaining, got %v", tracker.CooldownRemaining())
+	}
+}
+
+func TestRunAutoHeal_RequiresPolicy(t *testing.T) {
+	reg := NewRegistry(testPlatform())
+	check := &mockHealableCheck{
+		id: "healable-check",
+		actions: []RecoveryAction{
+			{ID: "start", Available: true, Dangerous: false},
+		},
+		executeResult: ActionResult{Success: true},
+	}
+	reg.Register(check)
+	reg.SetConfigProvider(&mockConfigProvider{
+		autoHealChecks: map[string]bool{"healable-check": true},
+	})
+
+	results := reg.RunAutoHeal(context.Background(), []Result{
+		{CheckID: "healable-check", Status: StatusCritical},
+	})
+
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].Attempted {
+		t.Fatal("expected no attempt without policy")
+	}
+	if results[0].Reason != "auto-heal policy not configured" {
+		t.Fatalf("unexpected reason: %s", results[0].Reason)
+	}
+}
+
+func TestAutoHealCooldown_UsesConfiguredPolicy(t *testing.T) {
+	reg := NewRegistry(testPlatform())
+	if err := reg.SetAutoHealPolicy(AutoHealPolicy{
+		BaseCooldown:       5 * time.Minute,
+		MaxRestartAttempts: 3,
+	}); err != nil {
+		t.Fatalf("set policy: %v", err)
+	}
+
+	clk := &fixedClock{current: time.Date(2026, 2, 19, 2, 0, 0, 0, time.UTC)}
+	reg.SetClock(clk)
+
+	check := &mockHealableCheck{
+		id: "healable-check",
+		actions: []RecoveryAction{
+			{ID: "start", Available: true, Dangerous: false},
+		},
+		executeResult: ActionResult{Success: true},
+	}
+	reg.Register(check)
+	reg.SetConfigProvider(&mockConfigProvider{
+		autoHealChecks: map[string]bool{"healable-check": true},
+	})
+
+	first := reg.RunAutoHeal(context.Background(), []Result{
+		{CheckID: "healable-check", Status: StatusCritical},
+	})
+	if len(first) != 1 || !first[0].Attempted {
+		t.Fatalf("expected first attempt to run, got %+v", first)
+	}
+
+	clk.current = clk.current.Add(4 * time.Minute)
+	second := reg.RunAutoHeal(context.Background(), []Result{
+		{CheckID: "healable-check", Status: StatusCritical},
+	})
+	if len(second) != 1 {
+		t.Fatalf("expected second result, got %d", len(second))
+	}
+	if second[0].Attempted {
+		t.Fatalf("expected cooldown skip, got attempt: %+v", second[0])
+	}
+	if second[0].CooldownRemaining <= 0 {
+		t.Fatalf("expected positive cooldown remaining, got %v", second[0].CooldownRemaining)
+	}
+}
+
+func TestAutoHealBackoff_UsesConfiguredMaxRestartAttempts(t *testing.T) {
+	reg := NewRegistry(testPlatform())
+	if err := reg.SetAutoHealPolicy(AutoHealPolicy{
+		BaseCooldown:       60 * time.Second,
+		MaxRestartAttempts: 2,
+	}); err != nil {
+		t.Fatalf("set policy: %v", err)
+	}
+
+	clk := &fixedClock{current: time.Date(2026, 2, 19, 2, 0, 0, 0, time.UTC)}
+	reg.SetClock(clk)
+
+	check := &mockHealableCheck{
+		id: "failing-check",
+		actions: []RecoveryAction{
+			{ID: "start", Available: true, Dangerous: false},
+		},
+		executeResult: ActionResult{Success: false, Error: "failed"},
+	}
+	reg.Register(check)
+	reg.SetConfigProvider(&mockConfigProvider{
+		autoHealChecks: map[string]bool{"failing-check": true},
+	})
+
+	// Failure #1: base cooldown (60s).
+	r1 := reg.RunAutoHeal(context.Background(), []Result{
+		{CheckID: "failing-check", Status: StatusCritical},
+	})
+	if len(r1) != 1 || !r1[0].Attempted {
+		t.Fatalf("first failure should attempt heal, got %+v", r1)
+	}
+
+	clk.current = clk.current.Add(61 * time.Second)
+	// Failure #2: threshold reached -> 120s cooldown.
+	r2 := reg.RunAutoHeal(context.Background(), []Result{
+		{CheckID: "failing-check", Status: StatusCritical},
+	})
+	if len(r2) != 1 || !r2[0].Attempted {
+		t.Fatalf("second failure should attempt heal, got %+v", r2)
+	}
+
+	tracker, ok := reg.GetHealTracker("failing-check")
+	if !ok {
+		t.Fatal("expected heal tracker")
+	}
+	if tracker.ConsecutiveFailures != 2 {
+		t.Fatalf("ConsecutiveFailures = %d, want 2", tracker.ConsecutiveFailures)
+	}
+	if got := tracker.CooldownUntil.Sub(clk.current); got != 120*time.Second {
+		t.Fatalf("cooldown after 2nd failure = %v, want 120s", got)
+	}
+
+	clk.current = clk.current.Add(121 * time.Second)
+	// Failure #3: exponential growth -> 240s cooldown.
+	r3 := reg.RunAutoHeal(context.Background(), []Result{
+		{CheckID: "failing-check", Status: StatusCritical},
+	})
+	if len(r3) != 1 || !r3[0].Attempted {
+		t.Fatalf("third failure should attempt heal, got %+v", r3)
+	}
+
+	tracker, ok = reg.GetHealTracker("failing-check")
+	if !ok {
+		t.Fatal("expected heal tracker")
+	}
+	if tracker.ConsecutiveFailures != 3 {
+		t.Fatalf("ConsecutiveFailures = %d, want 3", tracker.ConsecutiveFailures)
+	}
+	if got := tracker.CooldownUntil.Sub(clk.current); got != 240*time.Second {
+		t.Fatalf("cooldown after 3rd failure = %v, want 240s", got)
+	}
+}
+
+type mockHealTrackerStore struct {
+	trackers map[string]*HealTracker
+	saveCh   chan string
+}
+
+func (m *mockHealTrackerStore) SaveHealTracker(ctx context.Context, checkID string, tracker *HealTracker) error {
+	if m.trackers == nil {
+		m.trackers = make(map[string]*HealTracker)
+	}
+	copyTracker := *tracker
+	m.trackers[checkID] = &copyTracker
+	if m.saveCh != nil {
+		select {
+		case m.saveCh <- checkID:
+		default:
+		}
+	}
+	return nil
+}
+
+func (m *mockHealTrackerStore) GetAllHealTrackers(ctx context.Context) (map[string]*HealTracker, error) {
+	out := make(map[string]*HealTracker, len(m.trackers))
+	for k, v := range m.trackers {
+		copyTracker := *v
+		out[k] = &copyTracker
+	}
+	return out, nil
+}
+
+func (m *mockHealTrackerStore) DeleteHealTracker(ctx context.Context, checkID string) error {
+	delete(m.trackers, checkID)
+	return nil
+}
+
+func TestLoadHealTrackers_RestoresState(t *testing.T) {
+	reg := newTestRegistry()
+	store := &mockHealTrackerStore{
+		trackers: map[string]*HealTracker{
+			"resource-postgres": {
+				ConsecutiveFailures: 4,
+				CooldownUntil:       time.Now().Add(5 * time.Minute),
+			},
+		},
+	}
+	reg.SetHealTrackerStore(store)
+
+	if err := reg.LoadHealTrackers(context.Background()); err != nil {
+		t.Fatalf("LoadHealTrackers failed: %v", err)
+	}
+
+	tracker, ok := reg.GetHealTracker("resource-postgres")
+	if !ok {
+		t.Fatal("expected tracker to be loaded")
+	}
+	if tracker.ConsecutiveFailures != 4 {
+		t.Fatalf("ConsecutiveFailures = %d, want 4", tracker.ConsecutiveFailures)
+	}
+}
+
+func TestUpdateHealTracker_PersistsToStore(t *testing.T) {
+	reg := newTestRegistry()
+	clk := &fixedClock{current: time.Date(2026, 2, 19, 2, 0, 0, 0, time.UTC)}
+	reg.SetClock(clk)
+
+	store := &mockHealTrackerStore{saveCh: make(chan string, 1)}
+	reg.SetHealTrackerStore(store)
+
+	check := &mockHealableCheck{
+		id: "resource-postgres",
+		actions: []RecoveryAction{
+			{ID: "start", Available: true, Dangerous: false},
+		},
+		executeResult: ActionResult{Success: false},
+	}
+	reg.Register(check)
+	reg.SetConfigProvider(&mockConfigProvider{
+		autoHealChecks: map[string]bool{"resource-postgres": true},
+	})
+
+	_ = reg.RunAutoHeal(context.Background(), []Result{
+		{CheckID: "resource-postgres", Status: StatusCritical},
+	})
+
+	select {
+	case <-store.saveCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected heal tracker save to be called")
+	}
+
+	if _, ok := store.trackers["resource-postgres"]; !ok {
+		t.Fatal("expected stored tracker for resource-postgres")
+	}
 }

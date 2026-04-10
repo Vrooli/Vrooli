@@ -142,9 +142,3 @@ func deriveFrameDuration(frames []recordingFrame, index int) int {
 	}
 	return recordingDefaultFrameDurationMs()
 }
-
-// intPointer creates a pointer to an int value (helper for optional fields).
-func intPointer(v int) *int {
-	value := v
-	return &value
-}

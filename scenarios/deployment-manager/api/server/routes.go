@@ -67,6 +67,31 @@ func (s *Server) setupRoutes() {
 	s.Router.HandleFunc("/api/v1/signing/prerequisites", s.SigningHandler.CheckPrerequisites).Methods("GET")
 	s.Router.HandleFunc("/api/v1/signing/discover/{platform}", s.SigningHandler.DiscoverCertificates).Methods("GET")
 
+	// Deployment approval endpoints
+	if s.ApprovalsHandler != nil {
+		s.Router.HandleFunc("/api/v1/profiles/{id}/approvals", s.ApprovalsHandler.Create).Methods("POST")
+		s.Router.HandleFunc("/api/v1/profiles/{id}/approvals", s.ApprovalsHandler.ListByProfile).Methods("GET")
+		s.Router.HandleFunc("/api/v1/approvals/{id}", s.ApprovalsHandler.Get).Methods("GET")
+		s.Router.HandleFunc("/api/v1/approvals/{id}/decide", s.ApprovalsHandler.Decide).Methods("POST")
+		s.Router.HandleFunc("/api/v1/profiles/{id}/release-gate", s.ApprovalsHandler.CheckReleaseGate).Methods("GET")
+		s.Router.HandleFunc("/api/v1/profiles/{id}/required-platforms", s.ApprovalsHandler.SetRequiredPlatforms).Methods("PUT")
+		s.Router.HandleFunc("/api/v1/profiles/{id}/required-platforms", s.ApprovalsHandler.GetRequiredPlatforms).Methods("GET")
+	}
+
+	// Published versions endpoints
+	if s.PublishedVersionsHandler != nil {
+		s.Router.HandleFunc("/api/v1/profiles/{id}/published-versions", s.PublishedVersionsHandler.GetPublishedVersions).Methods("GET")
+	}
+
+	// Visual validation endpoints
+	if s.ValidationHandler != nil {
+		s.Router.HandleFunc("/api/v1/validations", s.ValidationHandler.Create).Methods("POST")
+		s.Router.HandleFunc("/api/v1/validations/{id}", s.ValidationHandler.Get).Methods("GET")
+		s.Router.HandleFunc("/api/v1/validations/{id}/video", s.ValidationHandler.StreamVideo).Methods("GET")
+		s.Router.HandleFunc("/api/v1/validations/{id}/review", s.ValidationHandler.SubmitReview).Methods("POST")
+		s.Router.HandleFunc("/api/v1/profiles/{id}/validations", s.ValidationHandler.ListByProfile).Methods("GET")
+	}
+
 	// Build endpoints (cross-compilation)
 	s.Router.HandleFunc("/api/v1/build", s.BuildHandler.Build).Methods("POST")
 	s.Router.HandleFunc("/api/v1/build/auto", s.BuildHandler.AutoBuild).Methods("POST")

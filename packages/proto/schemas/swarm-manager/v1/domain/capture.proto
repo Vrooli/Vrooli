@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+// =============================================================================
+// CAPTURE DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain capture
+// @imports none (external only: buf.validate)
+// @stability alpha
+//
+// Captures represent raw, unclassified thoughts entered by the user.
+// They are automatically classified by an AI agent into one or more
+// suggested backlog items for user confirmation.
+//
+// USAGE CONTEXTS:
+//   - API responses for capture CRUD endpoints
+//   - UI data models (unified action feed)
+//
+// =============================================================================
+
+// Capture represents a raw, unclassified thought from the user.
+message Capture {
+  // Unique identifier.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Raw text content from the user.
+  string text = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Optional file attachments (paths relative to capture folder).
+  repeated string attachments = 3;
+
+  // RFC3339 timestamp of creation.
+  // @format rfc3339
+  string created = 4 [(buf.validate.field).string.min_len = 1];
+
+  // Lifecycle status of the capture.
+  string status = 5 [(buf.validate.field).string = { in: ["classifying", "classified", "failed"] }];
+
+  // Classification result (populated after agent completes).
+  optional CaptureClassification classification = 6;
+
+  // Personal annotation — a user note for tracking context.
+  optional string note = 7;
+}
+
+// CaptureClassification contains the AI-generated classification of a capture.
+// A single capture may produce multiple suggested backlog items.
+message CaptureClassification {
+  // Suggested backlog items extracted from the capture text.
+  repeated CaptureClassificationItem items = 1;
+
+  // RFC3339 timestamp when classification completed.
+  // @format rfc3339
+  string classified_at = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// CaptureClassificationItem represents one suggested backlog item.
+message CaptureClassificationItem {
+  // Suggested backlog kind.
+  string kind = 1 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore"] }];
+
+  // Suggested title.
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Suggested description.
+  string description = 3;
+
+  // Suggested priority (1-10).
+  int32 priority = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+
+  // Suggested tags.
+  repeated string tags = 5;
+
+  // Agent confidence score (0.0-1.0).
+  double confidence = 6;
+}

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 
@@ -22,6 +23,14 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		return err
 	}
 
+	// Resolve the scenario path using sandbox-aware resolution. When running
+	// inside a sandboxed agent (VROOLI_SANDBOX_* env vars present), this
+	// returns the path within the sandbox overlay so the API operates on the
+	// agent's modified files. Outside a sandbox, this falls back to the
+	// standard VROOLI_ROOT-based path.
+	// See packages/cli-core/cliutil/sandbox.go for the implementation.
+	scenarioPath := cliutil.ResolveScenarioPath(parsed.Scenario)
+
 	req := Request{
 		ScenarioName:   parsed.Scenario,
 		Preset:         parsed.Preset,
@@ -31,20 +40,27 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		SuiteRequestID: parsed.RequestID,
 		UIURL:          parsed.UIURL,
 		BrowserlessURL: parsed.BrowserlessURL,
+		ScenarioPath:   scenarioPath,
 	}
 
-	var phaseDescriptors []phases.Descriptor
-	var phaseToggles map[string]execTypes.PhaseToggle
-	if desc, err := client.ListPhases(); err == nil {
-		phaseDescriptors = desc.Items
-		phaseToggles = desc.Toggles
-	} else {
-		fmt.Fprintf(os.Stderr, "Warning: unable to load phase catalog (%v)\n", err)
+	var (
+		preview         execTypes.PlanPreview
+		previewReady    bool
+		progressPhases  []string
+		estimateTargets map[string]time.Duration
+		timeoutTargets  map[string]time.Duration
+	)
+	if planned, err := client.PreviewPlan(req); err == nil {
+		preview = planned
+		previewReady = true
+		progressPhases = plannedPhaseNames(planned)
+		estimateTargets, timeoutTargets = phaseTimingTargets(planned)
+	} else if !parsed.JSON {
+		fmt.Fprintf(os.Stderr, "Warning: unable to preview execution plan (%v)\n", err)
+		if len(parsed.Phases) > 0 {
+			progressPhases = append([]string(nil), parsed.Phases...)
+		}
 	}
-	durationTargets := phases.TargetDurations(phaseDescriptors)
-
-	// Determine which phases will run (for pre-execution display)
-	progressPhases := planPhaseOrder(parsed.Phases, parsed.Skip, phaseDescriptors, phaseToggles)
 
 	// Create printer early for pre-execution output
 	pr := report.New(
@@ -54,9 +70,12 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		parsed.Phases,
 		parsed.Skip,
 		req.FailFast,
-		phaseDescriptors,
-		phaseToggles,
+		nil,
+		nil,
 	)
+	if previewReady {
+		pr.SetPlanPreview(preview)
+	}
 
 	// Print header and test plan IMMEDIATELY (before API call)
 	// This gives users instant feedback about what will run
@@ -96,8 +115,8 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		// Used for CI, piped output, or when --no-stream is specified
 		var stopProgress func()
 		var tailer *LogTailer
-		if !parsed.JSON {
-			stopProgress = StartProgress(os.Stderr, progressPhases, durationTargets)
+		if !parsed.JSON && previewReady && len(progressPhases) > 0 {
+			stopProgress = StartProgress(os.Stderr, progressPhases, estimateTargets, timeoutTargets)
 		}
 
 		var err error
@@ -160,7 +179,7 @@ func ParseArgs(args []string) (Args, error) {
 	fs.StringVar(&out.BrowserlessURL, "browserless-url", "", "Browserless URL (default: BROWSERLESS_URL env or http://localhost:4110)")
 	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
 		return Args{}, err
 	}
 	out.JSON = *jsonOutput
@@ -180,38 +199,6 @@ func ParseArgs(args []string) (Args, error) {
 	out.Phases = normalizedPhases
 	out.Skip = normalizedSkip
 	return out, nil
-}
-
-func planPhaseOrder(requested, skip []string, descriptors []phases.Descriptor, toggles map[string]execTypes.PhaseToggle) []string {
-	disabled := make(map[string]bool, len(toggles))
-	for name, toggle := range toggles {
-		if toggle.Disabled {
-			disabled[phases.NormalizeAlias(phases.NormalizeName(name))] = true
-		}
-	}
-
-	// If user requested explicit phases, honor their order first.
-	if len(requested) > 0 {
-		return phases.ApplySkip(requested, skip)
-	}
-
-	// Prefer the server-provided catalog for ordering to avoid drift.
-	ordered := phases.NamesFromDescriptors(descriptors)
-	if len(ordered) == 0 {
-		ordered = phases.AllowedPhases
-	}
-	var filtered []string
-	for _, name := range ordered {
-		key := phases.NormalizeAlias(phases.NormalizeName(name))
-		if key == "" {
-			continue
-		}
-		if disabled[key] {
-			continue
-		}
-		filtered = append(filtered, key)
-	}
-	return phases.ApplySkip(filtered, skip)
 }
 
 // PrintError displays a formatted error box with debugging hints.
@@ -251,4 +238,33 @@ func PrintError(w io.Writer, err error, req Request, httpClient *cliutil.HTTPCli
 
 func usageError(msg string) error {
 	return errors.New(msg)
+}
+
+func plannedPhaseNames(preview execTypes.PlanPreview) []string {
+	names := make([]string, 0, len(preview.Phases))
+	for _, phase := range preview.Phases {
+		if phase.Name == "" {
+			continue
+		}
+		names = append(names, phase.Name)
+	}
+	return names
+}
+
+func phaseTimingTargets(preview execTypes.PlanPreview) (map[string]time.Duration, map[string]time.Duration) {
+	estimates := make(map[string]time.Duration, len(preview.Phases))
+	timeouts := make(map[string]time.Duration, len(preview.Phases))
+	for _, phase := range preview.Phases {
+		key := phases.NormalizeAlias(phases.NormalizeName(phase.Name))
+		if key == "" {
+			continue
+		}
+		if phase.EstimatedDurationSeconds > 0 {
+			estimates[key] = time.Duration(phase.EstimatedDurationSeconds) * time.Second
+		}
+		if phase.TimeoutSeconds > 0 {
+			timeouts[key] = time.Duration(phase.TimeoutSeconds) * time.Second
+		}
+	}
+	return estimates, timeouts
 }

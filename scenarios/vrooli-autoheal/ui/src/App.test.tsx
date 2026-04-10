@@ -1,72 +1,87 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import App from './App';
 import * as api from './lib/api';
+import {
+  createCheckHistoryResponse,
+  createCheckInfo,
+  createHealthResult,
+  renderWithProviders,
+  createStatusResponse,
+  createTimelineResponse,
+  createUptimeStatsResponse,
+} from './test-utils';
 
-// Mock the API module - include helper functions that are used directly in App.tsx
-vi.mock('./lib/api', () => ({
-  fetchStatus: vi.fn(),
-  fetchChecks: vi.fn(),
-  runTick: vi.fn(),
-  fetchTimeline: vi.fn(),
-  fetchUptimeStats: vi.fn(),
-  fetchCheckHistory: vi.fn(),
-  // Include the helper functions that App.tsx uses
-  groupChecksByStatus: (checks: { status: string }[]) => ({
-    critical: checks.filter((c) => c.status === "critical"),
-    warning: checks.filter((c) => c.status === "warning"),
-    ok: checks.filter((c) => c.status === "ok"),
-  }),
-  statusToEmoji: (status: string) => {
-    switch (status) {
-      case "ok": return "\u2713";
-      case "warning": return "\u26A0";
-      case "critical": return "\u2717";
-      default: return "\u2753";
-    }
-  },
-}));
+vi.mock("./shared/contexts/CheckMetadataContext", async () => {
+  const { useMockCheckMetadata } = await import(
+    "./test-utils/mocks/checkMetadataContext"
+  );
+  return {
+    useCheckMetadata: useMockCheckMetadata,
+  };
+});
 
-const mockTimelineResponse: api.TimelineResponse = {
+// Mock API calls used by App while preserving the rest of the module exports.
+vi.mock('./lib/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./lib/api")>();
+  return {
+    ...actual,
+    fetchStatus: vi.fn(),
+    fetchChecks: vi.fn(),
+    runTick: vi.fn(),
+    fetchTimeline: vi.fn(),
+    fetchUptimeStats: vi.fn(),
+    fetchCheckHistory: vi.fn(),
+  };
+});
+
+const mockTimelineResponse = createTimelineResponse({
   events: [
     { checkId: 'infra-network', status: 'ok', message: 'Network OK', timestamp: new Date().toISOString() },
     { checkId: 'infra-dns', status: 'ok', message: 'DNS OK', timestamp: new Date().toISOString() },
   ],
-  count: 2,
   summary: { ok: 2, warning: 0, critical: 0 },
-};
+});
 
-const mockUptimeStatsResponse: api.UptimeStatsResponse = {
-  totalEvents: 100,
+const mockUptimeStatsResponse = createUptimeStatsResponse({
   okEvents: 90,
   warningEvents: 10,
   criticalEvents: 0,
   uptimePercentage: 90.0,
-  windowHours: 24,
-};
+});
 
 const mockChecksMetadata: api.CheckInfo[] = [
-  { id: 'infra-network', title: 'Internet Connection', description: 'Network connectivity check', importance: 'Required for external API calls', category: 'infrastructure', intervalSeconds: 30 },
-  { id: 'infra-dns', title: 'DNS Resolution', description: 'DNS resolution check', importance: 'Required for hostname resolution', category: 'infrastructure', intervalSeconds: 30 },
-  { id: 'infra-docker', title: 'Docker Engine', description: 'Docker daemon health', importance: 'Required for containers', category: 'infrastructure', intervalSeconds: 60 },
-  { id: 'infra-cloudflared', title: 'Cloudflare Tunnel', description: 'Cloudflared tunnel health', importance: 'Required for external access', category: 'infrastructure', intervalSeconds: 60 },
-  { id: 'infra-rdp', title: 'Remote Desktop', description: 'Remote desktop service health', importance: 'Required for RDP access', category: 'infrastructure', intervalSeconds: 60 },
+  createCheckInfo({ id: 'infra-network' }),
+  createCheckInfo({
+    id: 'infra-dns',
+    title: 'DNS Resolution',
+    description: 'DNS resolution check',
+    importance: 'Required for hostname resolution',
+  }),
+  createCheckInfo({
+    id: 'infra-docker',
+    title: 'Docker Engine',
+    description: 'Docker daemon health',
+    importance: 'Required for containers',
+    intervalSeconds: 60,
+  }),
+  createCheckInfo({
+    id: 'infra-cloudflared',
+    title: 'Cloudflare Tunnel',
+    description: 'Cloudflared tunnel health',
+    importance: 'Required for external access',
+    intervalSeconds: 60,
+  }),
+  createCheckInfo({
+    id: 'infra-rdp',
+    title: 'Remote Desktop',
+    description: 'Remote desktop service health',
+    importance: 'Required for RDP access',
+    intervalSeconds: 60,
+  }),
 ];
 
-const mockStatusResponse: api.StatusResponse = {
-  status: 'ok',
-  platform: {
-    platform: 'linux',
-    supportsRdp: false,
-    supportsSystemd: true,
-    supportsLaunchd: false,
-    supportsWindowsServices: false,
-    isHeadlessServer: false,
-    hasDocker: true,
-    isWsl: false,
-    supportsCloudflared: true,
-  },
+const mockStatusResponse = createStatusResponse({
   summary: {
     total: 5,
     ok: 4,
@@ -74,64 +89,34 @@ const mockStatusResponse: api.StatusResponse = {
     critical: 0,
   },
   checks: [
-    {
+    createHealthResult({
       checkId: 'infra-network',
-      status: 'ok',
       message: 'Network connectivity OK',
-      timestamp: new Date().toISOString(),
       duration: 10,
-    },
-    {
+    }),
+    createHealthResult({
       checkId: 'infra-dns',
-      status: 'ok',
       message: 'DNS resolution OK',
-      timestamp: new Date().toISOString(),
       duration: 15,
-    },
-    {
+    }),
+    createHealthResult({
       checkId: 'infra-docker',
-      status: 'ok',
       message: 'Docker daemon is healthy',
-      timestamp: new Date().toISOString(),
       duration: 30,
-    },
-    {
+    }),
+    createHealthResult({
       checkId: 'infra-cloudflared',
-      status: 'ok',
       message: 'Cloudflared is healthy',
-      timestamp: new Date().toISOString(),
       duration: 5,
-    },
-    {
+    }),
+    createHealthResult({
       checkId: 'infra-rdp',
       status: 'warning',
       message: 'xrdp service not active',
-      timestamp: new Date().toISOString(),
       duration: 3,
-    },
+    }),
   ],
-  timestamp: new Date().toISOString(),
-};
-
-function createTestQueryClient() {
-  return new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-        gcTime: 0,
-      },
-    },
-  });
-}
-
-function renderWithProviders(ui: React.ReactElement) {
-  const queryClient = createTestQueryClient();
-  return render(
-    <QueryClientProvider client={queryClient}>
-      {ui}
-    </QueryClientProvider>
-  );
-}
+});
 
 describe('App', () => {
   beforeEach(() => {
@@ -140,7 +125,14 @@ describe('App', () => {
     vi.mocked(api.fetchChecks).mockResolvedValue(mockChecksMetadata);
     vi.mocked(api.fetchTimeline).mockResolvedValue(mockTimelineResponse);
     vi.mocked(api.fetchUptimeStats).mockResolvedValue(mockUptimeStatsResponse);
-    vi.mocked(api.fetchCheckHistory).mockResolvedValue({ checkId: 'test', history: [], count: 0 });
+    vi.mocked(api.fetchCheckHistory).mockResolvedValue(createCheckHistoryResponse({ checkId: 'test' }));
+    vi.mocked(api.runTick).mockResolvedValue({
+      success: true,
+      status: 'ok',
+      summary: { total: 1, ok: 1, warning: 0, critical: 0 },
+      results: [createHealthResult()],
+      timestamp: new Date().toISOString(),
+    });
   });
 
   it('[REQ:UI-HEALTH-001] renders loading state initially', () => {
@@ -190,13 +182,16 @@ describe('App', () => {
     expect(screen.getAllByText('Warnings').length).toBeGreaterThan(0);
   });
 
-  it('[REQ:UI-REFRESH-001] shows auto-refresh toggle button', async () => {
+  it('[REQ:UI-REFRESH-001] removes header auto-refresh toggle and keeps settings access', async () => {
     vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
 
     renderWithProviders(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('Auto')).toBeInTheDocument();
+      expect(screen.getByTestId('settings-button')).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /enable auto refresh|disable auto refresh/i }),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -207,6 +202,45 @@ describe('App', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Run Tick')).toBeInTheDocument();
+    });
+  });
+
+  it('shows running indicator when a tick is active externally', async () => {
+    vi.mocked(api.fetchStatus).mockResolvedValue(
+      createStatusResponse({ ...mockStatusResponse, tickRunning: true, tickStartedAt: new Date().toISOString() }),
+    );
+
+    renderWithProviders(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Health check cycle is currently running.')).toBeInTheDocument();
+      expect(screen.getByText('Tick Running')).toBeInTheDocument();
+    });
+  });
+
+  it('shows conflict feedback when tick is already running', async () => {
+    vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
+    vi.mocked(api.runTick).mockRejectedValue(
+      new api.APIError(
+        'A health check cycle is already running. Please wait for it to complete.',
+        'CONFLICT',
+        409,
+        'req-1',
+        { action: 'wait', retryable: true, hint: 'Wait for the current operation to complete, then try again.' }
+      ),
+    );
+
+    renderWithProviders(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Run Tick')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /run tick/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('A health check cycle is already running.')).toBeInTheDocument();
+      expect(screen.getByText('Wait for the current operation to complete, then try again.')).toBeInTheDocument();
     });
   });
 

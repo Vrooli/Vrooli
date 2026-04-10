@@ -1,4 +1,4 @@
-import type { Page, Browser, BrowserContext, Frame, Response, Request } from 'playwright';
+import type { Page, Browser, BrowserContext, Frame, Response, Request } from 'rebrowser-playwright';
 
 /**
  * Mock Playwright Page
@@ -51,7 +51,7 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     title: jest.fn().mockResolvedValue('Test Page'),
     viewport: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
     viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
-    context: jest.fn(),
+    context: jest.fn().mockReturnValue({}),
     frames: jest.fn().mockReturnValue([]),
     mainFrame: jest.fn(),
     isVisible: jest.fn().mockResolvedValue(true),
@@ -61,6 +61,10 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     getAttribute: jest.fn().mockResolvedValue(''),
     route: jest.fn().mockResolvedValue(undefined),
     unroute: jest.fn().mockResolvedValue(undefined),
+    video: jest.fn().mockReturnValue(null),
+    accessibility: {
+      snapshot: jest.fn().mockResolvedValue(null),
+    },
     ...overrides,
   } as unknown as jest.Mocked<Page>;
 
@@ -171,7 +175,7 @@ export function createMockRequest(overrides?: Partial<Request>): jest.Mocked<Req
 /**
  * Setup common Playwright mocks for tests
  */
-export function setupPlaywrightMocks() {
+export function setupPlaywrightMocks(): void {
   jest.mock('playwright', () => ({
     chromium: {
       launch: jest.fn().mockResolvedValue(createMockBrowser()),

@@ -1,0 +1,5 @@
+{"version":1,"timestamp":"2026-02-04T23:30:00Z","action":"created","summary":"Created landing-page desktop upload skill"}
+{"version":2,"timestamp":"2026-02-05T02:19:59Z","action":"updated","summary":"Updated skill"}
+{"version":3,"timestamp":"2026-02-05T14:46:43Z","action":"updated","summary":"Updated skill"}
+{"version":4,"timestamp":"2026-02-08T00:00:00Z","action":"updated","summary":"Refactored skill into orchestrator flow across scenario-to-cloud, landing-page-deploy-setup, and scenario-to-desktop with explicit gate checks"}
+{"version":5,"timestamp":"2026-02-08T00:20:00Z","action":"updated","summary":"Updated orchestration inputs to treat APP_NAME as conditional and app gate as optional onboarding"}

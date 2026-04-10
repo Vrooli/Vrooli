@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "progress",
+  "name": "Progress",
+  "description": "Focus on advancing operational targets in a stable, test-driven manner",
+  "modes": [
+    "steer",
+    "progress"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "rocket",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 43,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2026-02-04T13:13:54Z"
+}

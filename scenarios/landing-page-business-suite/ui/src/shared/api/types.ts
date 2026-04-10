@@ -48,19 +48,24 @@ export interface VariantSnapshotMeta {
   slug: string;
   name: string;
   description?: string;
-  weight: number;
-  status: 'active' | 'archived' | 'deleted';
   axes: VariantAxes;
-  header_config: LandingHeaderConfig;
+  header_config?: LandingHeaderConfig;
   seo_config?: Record<string, unknown>;
+}
+
+export interface VariantSnapshotMetadata {
+  mode?: 'content-only' | 'full';
+  updated_at?: string;
 }
 
 export interface VariantSnapshot {
   variant: VariantSnapshotMeta;
   sections: LandingSection[];
+  _metadata?: VariantSnapshotMetadata;
 }
 
 export interface BundleProduct {
+  id?: number;
   bundle_key: string;
   name: string;
   stripe_product_id: string;
@@ -142,6 +147,10 @@ export interface DownloadAsset {
   checksum?: string;
   requires_entitlement: boolean;
   metadata?: Record<string, unknown>;
+  // Artifact metadata (populated when artifact_source is 'managed')
+  artifact_filename?: string;
+  artifact_size_bytes?: number;
+  artifact_count?: number;
 }
 
 export interface DownloadStorageSettingsSnapshot {
@@ -177,6 +186,8 @@ export interface DownloadArtifact {
   created_at: string;
   updated_at: string;
   stable_object_uri?: string;
+  app_key?: string;
+  is_current?: boolean;
 }
 
 export interface DownloadStorefront {
@@ -200,6 +211,49 @@ export interface DownloadApp {
   metadata?: Record<string, unknown>;
   display_order?: number;
   platforms: DownloadAsset[];
+}
+
+export type RemoteProfileStatus = 'unknown' | 'active' | 'expired' | 'error';
+
+export interface RemoteProfile {
+  id: number;
+  tag: string;
+  label?: string | null;
+  api_base: string;
+  connector_id?: string;
+  remote_session_id?: string | null;
+  status: RemoteProfileStatus;
+  has_session: boolean;
+  session_expires_at?: string;
+  last_login_at?: string;
+  last_used_at?: string;
+  created_by?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IncomingRemoteProfileSession {
+  session_id: string;
+  admin_email: string;
+  connector_id: string;
+  profile_tag?: string;
+  origin?: string;
+  created_at: string;
+  last_activity: string;
+  expires_at: string;
+  ip_address?: string | null;
+  user_agent?: string | null;
+}
+
+export interface RemoteProfileSessionLinks {
+  profile_id: number;
+  profile_tag: string;
+  connector_id: string;
+  local_has_session: boolean;
+  local_status: string;
+  local_session_expires_at?: string;
+  remote_session_id?: string | null;
+  remote_sessions?: IncomingRemoteProfileSession[];
 }
 
 export type SectionType =
@@ -300,7 +354,14 @@ export interface LandingBranding {
   theme_primary_color?: string | null;
   theme_background_color?: string | null;
   support_chat_url?: string | null;
+  coming_soon_enabled?: boolean | null;
+  coming_soon_message?: string | null;
 }
+
+// Note: StripeCoupon type is exported from ./billing.ts via schema inference
+// Re-export here for convenience in types-only imports
+import type { StripeCoupon } from './schemas/billing.schema';
+export type { StripeCoupon };
 
 export interface LandingConfigResponse {
   variant: {
@@ -315,6 +376,8 @@ export interface LandingConfigResponse {
   downloads: DownloadApp[];
   header: LandingHeaderConfig;
   branding?: LandingBranding;
+  coupon_mappings?: Record<string, string>;
+  intro_offers?: StripeCoupon[];
   fallback: boolean;
 }
 
@@ -403,6 +466,8 @@ export interface SiteBranding {
   smtp_username?: string | null;
   smtp_password?: string | null;
   smtp_from?: string | null;
+  coming_soon_enabled?: boolean | null;
+  coming_soon_message?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -429,6 +494,15 @@ export interface SiteBrandingUpdate {
   smtp_username?: string;
   smtp_password?: string;
   smtp_from?: string;
+  coming_soon_enabled?: boolean;
+  coming_soon_message?: string;
+}
+
+export interface WaitlistEmail {
+  id: number;
+  email: string;
+  source: string;
+  created_at: string;
 }
 
 export interface PublicBranding {
@@ -440,6 +514,8 @@ export interface PublicBranding {
   theme_primary_color?: string | null;
   theme_background_color?: string | null;
   support_chat_url?: string | null;
+  coming_soon_enabled?: boolean | null;
+  coming_soon_message?: string | null;
 }
 
 // Uploaded asset

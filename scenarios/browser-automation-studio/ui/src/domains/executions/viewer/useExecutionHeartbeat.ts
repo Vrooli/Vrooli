@@ -36,7 +36,7 @@ const deriveHeartbeatTimestamp = (execution: Execution) => {
 };
 
 export const useExecutionHeartbeat = (execution: Execution) => {
-  const [heartbeatTick, setHeartbeatTick] = useState(0);
+  const [, setHeartbeatTick] = useState(0);
   const heartbeatTimestamp = execution.lastHeartbeat?.timestamp?.valueOf();
   const inStepSeconds =
     execution.lastHeartbeat?.elapsedMs != null
@@ -55,18 +55,15 @@ export const useExecutionHeartbeat = (execution: Execution) => {
     };
   }, [execution.status, heartbeatTimestamp]);
 
-  const derivedHeartbeatTimestamp = useMemo(
-    () => deriveHeartbeatTimestamp(execution),
-    [execution, execution.timeline],
-  );
+  const derivedHeartbeatTimestamp = deriveHeartbeatTimestamp(execution);
 
-  const heartbeatAgeSeconds = useMemo(() => {
+  const heartbeatAgeSeconds = (() => {
     if (!derivedHeartbeatTimestamp) {
       return null;
     }
     const age = (Date.now() - derivedHeartbeatTimestamp.getTime()) / 1000;
     return age < 0 ? 0 : age;
-  }, [derivedHeartbeatTimestamp, heartbeatTick]);
+  })();
 
   const heartbeatAgeLabel =
     heartbeatAgeSeconds == null

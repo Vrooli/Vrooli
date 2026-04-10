@@ -5,7 +5,8 @@
     "labels": {
       "reset": "none",
       "requirements_json": "[\"SCS-CORE-001B\"]"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,
@@ -19,7 +20,9 @@
         "http_request": {
           "method": "GET",
           "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring",
-          "headers": {"Content-Type": "application/json"},
+          "headers": {
+            "Content-Type": "application/json"
+          },
           "expected_status": 200
         },
         "metadata": {

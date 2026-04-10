@@ -36,7 +36,9 @@ func TestClient_Health_Success(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"pressure":{"running":0}}`))
+		if _, err := w.Write([]byte(`{"pressure":{"running":0}}`)); err != nil {
+			t.Fatalf("write response: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -89,7 +91,9 @@ func TestClient_ExecuteFunction_Success(t *testing.T) {
 			t.Errorf("unexpected Content-Type: %s", ct)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Fatalf("encode response: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -110,7 +114,9 @@ func TestClient_ExecuteFunction_Success(t *testing.T) {
 func TestClient_ExecuteFunction_ServerError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("internal error"))
+		if _, err := w.Write([]byte("internal error")); err != nil {
+			t.Fatalf("write error response: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -769,7 +775,9 @@ func TestClient_ExecuteFunction_Timeout(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(500 * time.Millisecond) // Respond slowly
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true, "handshake": {"signaled": true}}`))
+		if _, err := w.Write([]byte(`{"success": true, "handshake": {"signaled": true}}`)); err != nil {
+			t.Fatalf("write timeout response: %v", err)
+		}
 	}))
 	defer server.Close()
 

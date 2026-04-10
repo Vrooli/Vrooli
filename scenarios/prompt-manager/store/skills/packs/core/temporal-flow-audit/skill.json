@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "temporal-flow-audit",
+  "name": "Temporal Flow Audit",
+  "description": "Audit time-dependent logic and async flows",
+  "modes": [
+    "steer",
+    "audits"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "clock",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 43,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2026-02-04T13:13:54Z"
+}

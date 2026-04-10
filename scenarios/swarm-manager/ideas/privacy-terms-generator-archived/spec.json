@@ -1,0 +1,24 @@
+{
+  "archived_at": "2026-02-06T02:34:36Z",
+  "created": "2026-02-06T02:34:36Z",
+  "description": "Generate legally compliant privacy policies, terms of service, and other legal documents for businesses",
+  "name": "privacy-terms-generator-archived",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "legal",
+    "compliance",
+    "privacy",
+    "terms",
+    "GDPR",
+    "CCPA",
+    "document-generation",
+    "business-tools",
+    "postgres-storage",
+    "ollama-ai",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] privacy-terms-generator",
+  "updated": "2026-02-06T02:34:36Z"
+}

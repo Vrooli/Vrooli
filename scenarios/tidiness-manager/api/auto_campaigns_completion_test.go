@@ -205,7 +205,7 @@ func setupAutoCampaignCompletionTest(t *testing.T) (*sql.DB, *AutoCampaignOrches
 
 	cleanup := func() {
 		// Clean up test data
-		db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'test-%'")
+		_, _ = db.Exec("DELETE FROM campaigns WHERE scenario LIKE 'test-%'")
 		db.Close()
 	}
 

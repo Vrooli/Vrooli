@@ -2,11 +2,13 @@ package autosteer
 
 import (
 	"fmt"
+	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 func TestTemplates_AllTemplatesValid(t *testing.T) {
-	templates := GetBuiltInTemplates()
+	templates := loadTemplateProfiles(t)
 
 	if len(templates) == 0 {
 		t.Fatal("Expected at least one built-in template")
@@ -54,9 +56,12 @@ func validatePhase(t *testing.T, phase SteerPhase, index int, templateName strin
 		return "Template '" + templateName + "' phase " + string(rune('0'+index))
 	}
 
-	// Validate mode
-	if !phase.Mode.IsValid() {
-		t.Errorf("%s: invalid mode %s", prefix(), phase.Mode)
+	// Validate skill identifiers
+	if firstSkill(phase.SkillIDs) == "" {
+		t.Errorf("%s: missing skill_ids", prefix())
+	}
+	if phase.SkillName == "" {
+		t.Errorf("%s: missing skill_name", prefix())
 	}
 
 	// Validate max iterations
@@ -163,6 +168,13 @@ func newValidationError(format string, args ...interface{}) error {
 	return &validationError{format: format, args: args}
 }
 
+func firstSkill(skillIDs []string) string {
+	if len(skillIDs) == 0 {
+		return ""
+	}
+	return skillIDs[0]
+}
+
 type validationError struct {
 	format string
 	args   []interface{}
@@ -176,7 +188,7 @@ func (e *validationError) Error() string {
 }
 
 func TestTemplates_BalancedTemplate(t *testing.T) {
-	template := getBalancedTemplate()
+	template := findTemplateByName(t, loadTemplateProfiles(t), "Balanced")
 
 	if template.Name != "Balanced" {
 		t.Errorf("Expected name 'Balanced', got %s", template.Name)
@@ -195,7 +207,7 @@ func TestTemplates_BalancedTemplate(t *testing.T) {
 	// Should include progress phase
 	hasProgress := false
 	for _, phase := range template.Phases {
-		if phase.Mode == ModeProgress {
+		if firstSkill(phase.SkillIDs) == "progress" {
 			hasProgress = true
 			break
 		}
@@ -206,7 +218,7 @@ func TestTemplates_BalancedTemplate(t *testing.T) {
 }
 
 func TestTemplates_RapidMVPTemplate(t *testing.T) {
-	template := getRapidMVPTemplate()
+	template := findTemplateByName(t, loadTemplateProfiles(t), "Rapid MVP")
 
 	if template.Name != "Rapid MVP" {
 		t.Errorf("Expected name 'Rapid MVP', got %s", template.Name)
@@ -218,7 +230,7 @@ func TestTemplates_RapidMVPTemplate(t *testing.T) {
 	}
 
 	// Should start with progress phase
-	if len(template.Phases) > 0 && template.Phases[0].Mode != ModeProgress {
+	if len(template.Phases) > 0 && firstSkill(template.Phases[0].SkillIDs) != "progress" {
 		t.Error("Expected Rapid MVP to start with Progress phase")
 	}
 
@@ -231,7 +243,7 @@ func TestTemplates_RapidMVPTemplate(t *testing.T) {
 }
 
 func TestTemplates_ProductionReadyTemplate(t *testing.T) {
-	template := getProductionReadyTemplate()
+	template := findTemplateByName(t, loadTemplateProfiles(t), "Production Ready")
 
 	if template.Name != "Production Ready" {
 		t.Errorf("Expected name 'Production Ready', got %s", template.Name)
@@ -246,10 +258,10 @@ func TestTemplates_ProductionReadyTemplate(t *testing.T) {
 	hasSecurity := false
 	hasTesting := false
 	for _, phase := range template.Phases {
-		if phase.Mode == ModeSecurity {
+		if firstSkill(phase.SkillIDs) == "security" {
 			hasSecurity = true
 		}
-		if phase.Mode == ModeTest {
+		if firstSkill(phase.SkillIDs) == "test" {
 			hasTesting = true
 		}
 	}
@@ -268,7 +280,7 @@ func TestTemplates_ProductionReadyTemplate(t *testing.T) {
 }
 
 func TestTemplates_RefactorTestFocusTemplate(t *testing.T) {
-	template := getRefactorTestFocusTemplate()
+	template := findTemplateByName(t, loadTemplateProfiles(t), "Refactor & Test Focus")
 
 	if template.Name != "Refactor & Test Focus" {
 		t.Errorf("Expected name 'Refactor & Test Focus', got %s", template.Name)
@@ -278,10 +290,10 @@ func TestTemplates_RefactorTestFocusTemplate(t *testing.T) {
 	hasTest := false
 	hasRefactor := false
 	for _, phase := range template.Phases {
-		if phase.Mode == ModeTest {
+		if firstSkill(phase.SkillIDs) == "test" {
 			hasTest = true
 		}
-		if phase.Mode == ModeRefactor {
+		if firstSkill(phase.SkillIDs) == "refactor" {
 			hasRefactor = true
 		}
 	}
@@ -295,7 +307,7 @@ func TestTemplates_RefactorTestFocusTemplate(t *testing.T) {
 }
 
 func TestTemplates_UXExcellenceTemplate(t *testing.T) {
-	template := getUXExcellenceTemplate()
+	template := findTemplateByName(t, loadTemplateProfiles(t), "UX Excellence")
 
 	if template.Name != "UX Excellence" {
 		t.Errorf("Expected name 'UX Excellence', got %s", template.Name)
@@ -305,7 +317,7 @@ func TestTemplates_UXExcellenceTemplate(t *testing.T) {
 	hasUX := false
 	uxPhaseIndex := -1
 	for i, phase := range template.Phases {
-		if phase.Mode == ModeUX {
+		if firstSkill(phase.SkillIDs) == "ux" {
 			hasUX = true
 			uxPhaseIndex = i
 			break
@@ -327,7 +339,7 @@ func TestTemplates_UXExcellenceTemplate(t *testing.T) {
 	// Should likely include explore phase for creativity
 	hasExplore := false
 	for _, phase := range template.Phases {
-		if phase.Mode == ModeExplore {
+		if firstSkill(phase.SkillIDs) == "explore" {
 			hasExplore = true
 			break
 		}
@@ -338,13 +350,13 @@ func TestTemplates_UXExcellenceTemplate(t *testing.T) {
 }
 
 func TestTemplates_ModeCoverage(t *testing.T) {
-	templates := GetBuiltInTemplates()
+	templates := loadTemplateProfiles(t)
 
 	// Track which modes are used across all templates
-	modeUsage := make(map[SteerMode]int)
+	modeUsage := make(map[string]int)
 	for _, template := range templates {
 		for _, phase := range template.Phases {
-			modeUsage[phase.Mode]++
+			modeUsage[firstSkill(phase.SkillIDs)]++
 		}
 	}
 
@@ -354,7 +366,7 @@ func TestTemplates_ModeCoverage(t *testing.T) {
 	}
 
 	// Ensure common modes are represented
-	importantModes := []SteerMode{ModeProgress, ModeUX, ModeTest, ModeRefactor}
+	importantModes := []string{"progress", "ux", "test", "refactor"}
 	for _, mode := range importantModes {
 		if modeUsage[mode] == 0 {
 			t.Errorf("Important mode %s is not used in any template", mode)
@@ -363,7 +375,7 @@ func TestTemplates_ModeCoverage(t *testing.T) {
 }
 
 func TestTemplates_TagsPresent(t *testing.T) {
-	templates := GetBuiltInTemplates()
+	templates := loadTemplateProfiles(t)
 
 	for _, template := range templates {
 		if len(template.Tags) == 0 {
@@ -373,7 +385,7 @@ func TestTemplates_TagsPresent(t *testing.T) {
 }
 
 func TestTemplates_UniqueIDs(t *testing.T) {
-	templates := GetBuiltInTemplates()
+	templates := loadTemplateProfiles(t)
 
 	// Collect all phase IDs across all templates
 	phaseIDs := make(map[string]string) // ID -> template name
@@ -390,7 +402,7 @@ func TestTemplates_UniqueIDs(t *testing.T) {
 }
 
 func TestTemplates_ReasonableStopConditions(t *testing.T) {
-	templates := GetBuiltInTemplates()
+	templates := loadTemplateProfiles(t)
 
 	for _, template := range templates {
 		for phaseIdx, phase := range template.Phases {
@@ -434,4 +446,39 @@ func checkReasonableCondition(t *testing.T, condition StopCondition, templateNam
 			checkReasonableCondition(t, subCondition, templateName, phaseIdx, i)
 		}
 	}
+}
+
+func loadTemplateProfiles(t *testing.T) []*AutoSteerProfile {
+	t.Helper()
+
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("failed to resolve current file path")
+	}
+	profilesDir := filepath.Join(filepath.Dir(file), "..", "..", "..", "profiles")
+
+	repo, err := NewFileProfileRepository(profilesDir)
+	if err != nil {
+		t.Fatalf("failed to load profile registry: %v", err)
+	}
+
+	templates := repo.GetTemplates()
+	if len(templates) == 0 {
+		t.Fatal("expected at least one template in registry")
+	}
+
+	return templates
+}
+
+func findTemplateByName(t *testing.T, templates []*AutoSteerProfile, name string) *AutoSteerProfile {
+	t.Helper()
+
+	for _, template := range templates {
+		if template.Name == name {
+			return template
+		}
+	}
+
+	t.Fatalf("template %q not found", name)
+	return nil
 }

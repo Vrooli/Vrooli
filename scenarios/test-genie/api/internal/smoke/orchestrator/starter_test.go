@@ -22,12 +22,15 @@ func TestNewDefaultScenarioStarter(t *testing.T) {
 func TestMockScenarioStarter_Start(t *testing.T) {
 	mock := &MockScenarioStarter{}
 
-	port, err := mock.Start(context.Background(), "test-scenario")
+	result, err := mock.Start(context.Background(), "test-scenario")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if port != 8080 {
-		t.Errorf("expected port 8080, got %d", port)
+	if result == nil {
+		t.Fatal("expected non-nil start result")
+	}
+	if result.UIPort != 8080 {
+		t.Errorf("expected port 8080, got %d", result.UIPort)
 	}
 	if len(mock.StartedScenarios) != 1 {
 		t.Errorf("expected 1 started scenario, got %d", len(mock.StartedScenarios))
@@ -39,17 +42,23 @@ func TestMockScenarioStarter_Start(t *testing.T) {
 
 func TestMockScenarioStarter_Start_CustomFunc(t *testing.T) {
 	mock := &MockScenarioStarter{
-		StartFunc: func(ctx context.Context, name string) (int, error) {
-			return 9090, nil
+		StartFunc: func(ctx context.Context, name string) (*ScenarioStartResult, error) {
+			return &ScenarioStartResult{
+				Started: true,
+				UIPort:  9090,
+			}, nil
 		},
 	}
 
-	port, err := mock.Start(context.Background(), "custom-scenario")
+	result, err := mock.Start(context.Background(), "custom-scenario")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if port != 9090 {
-		t.Errorf("expected port 9090, got %d", port)
+	if result == nil {
+		t.Fatal("expected non-nil start result")
+	}
+	if result.UIPort != 9090 {
+		t.Errorf("expected port 9090, got %d", result.UIPort)
 	}
 }
 
@@ -71,8 +80,11 @@ func TestMockScenarioStarter_Stop(t *testing.T) {
 func TestOrchestrator_Run_AutoStart_Success(t *testing.T) {
 	// Create mock scenario starter
 	mockStarter := &MockScenarioStarter{
-		StartFunc: func(ctx context.Context, name string) (int, error) {
-			return 3000, nil
+		StartFunc: func(ctx context.Context, name string) (*ScenarioStartResult, error) {
+			return &ScenarioStartResult{
+				Started: true,
+				UIPort:  3000,
+			}, nil
 		},
 	}
 
@@ -131,6 +143,14 @@ func TestOrchestrator_Run_AutoStart_Success(t *testing.T) {
 		t.Errorf("expected 'test-scenario' to be started, got '%s'", mockStarter.StartedScenarios[0])
 	}
 
+	// Verify scenario was cleaned up when test completed.
+	if len(mockStarter.StoppedScenarios) != 1 {
+		t.Errorf("expected 1 auto-stopped scenario, got %d", len(mockStarter.StoppedScenarios))
+	}
+	if len(mockStarter.StoppedScenarios) == 1 && mockStarter.StoppedScenarios[0] != "test-scenario" {
+		t.Errorf("expected 'test-scenario' to be stopped, got '%s'", mockStarter.StoppedScenarios[0])
+	}
+
 	// Verify the UI URL was set correctly
 	if result.UIURL != "http://localhost:3000" {
 		t.Errorf("expected UIURL 'http://localhost:3000', got '%s'", result.UIURL)
@@ -181,11 +201,68 @@ func TestOrchestrator_Run_AutoStart_Disabled(t *testing.T) {
 	}
 }
 
+func TestOrchestrator_Run_AutoStart_AlreadyRunning_DoesNotStop(t *testing.T) {
+	mockStarter := &MockScenarioStarter{
+		StartFunc: func(ctx context.Context, name string) (*ScenarioStartResult, error) {
+			return &ScenarioStartResult{
+				Started: false,
+				UIPort:  3001,
+			}, nil
+		},
+	}
+
+	mockPreflight := &MockPreflightChecker{
+		checkUIDirectory: true,
+		browserlessAvail: true,
+		bundleStatus:     &BundleStatus{Fresh: true},
+		uiPortDefined:    &UIPortDefinition{Defined: true, EnvVar: "UI_PORT"},
+		uiPort:           0,
+	}
+
+	mockBrowser := &MockBrowserClient{
+		response: &BrowserResponse{
+			Success:   true,
+			Handshake: HandshakeRaw{Signaled: true, DurationMs: 100},
+		},
+	}
+
+	cfg := Config{
+		ScenarioName:     "test-scenario",
+		ScenarioDir:      "/tmp/test",
+		BrowserlessURL:   "http://localhost:3000",
+		Timeout:          30 * time.Second,
+		HandshakeTimeout: 10 * time.Second,
+		Viewport:         Viewport{Width: 1280, Height: 720},
+		AutoStart:        true,
+	}
+
+	orch := New(cfg,
+		WithPreflightChecker(mockPreflight),
+		WithBrowserClient(mockBrowser),
+		WithPayloadGenerator(&MockPayloadGenerator{}),
+		WithScenarioStarter(mockStarter),
+	)
+
+	result, err := orch.Run(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Status != StatusPassed {
+		t.Fatalf("expected status passed, got %s: %s", result.Status, result.Message)
+	}
+	if len(mockStarter.StartedScenarios) != 1 {
+		t.Errorf("expected 1 start call, got %d", len(mockStarter.StartedScenarios))
+	}
+	if len(mockStarter.StoppedScenarios) != 0 {
+		t.Errorf("expected no stop calls for pre-running scenario, got %d", len(mockStarter.StoppedScenarios))
+	}
+}
+
 func TestOrchestrator_Run_AutoStart_Fails(t *testing.T) {
 	// Create mock scenario starter that fails
 	mockStarter := &MockScenarioStarter{
-		StartFunc: func(ctx context.Context, name string) (int, error) {
-			return 0, context.DeadlineExceeded
+		StartFunc: func(ctx context.Context, name string) (*ScenarioStartResult, error) {
+			return nil, context.DeadlineExceeded
 		},
 	}
 
@@ -225,6 +302,11 @@ func TestOrchestrator_Run_AutoStart_Fails(t *testing.T) {
 	// Verify auto-start was attempted
 	if len(mockStarter.StartedScenarios) != 1 {
 		t.Errorf("expected 1 auto-start attempt, got %d", len(mockStarter.StartedScenarios))
+	}
+
+	// Start failed, so cleanup stop should not run.
+	if len(mockStarter.StoppedScenarios) != 0 {
+		t.Errorf("expected no auto-stop calls when start fails, got %d", len(mockStarter.StoppedScenarios))
 	}
 }
 

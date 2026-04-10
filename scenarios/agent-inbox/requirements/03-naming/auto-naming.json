@@ -52,9 +52,39 @@
         },
         {
           "type": "implementation",
+          "phase": "api",
+          "status": "implemented",
+          "ref": "api/handlers/chat_naming.go::maybeAutoNameChat"
+        },
+        {
+          "type": "implementation",
           "phase": "ui",
           "status": "implemented",
           "ref": "ui/src/lib/api.ts::autoNameChat"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/agent_mode_test.go::TestAddMessage_AutoNamesDefaultChat"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/agent_mode_test.go::TestStartAgentMode_AutoNamesDefaultChat"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/handlers/agent_mode_test.go::TestSendAgentMessage_AutoNamesDefaultChat"
+        },
+        {
+          "type": "test",
+          "phase": "ui-unit",
+          "status": "implemented",
+          "ref": "ui/src/hooks/useChats.test.ts::does not trigger frontend auto-name during sendMessage"
         }
       ]
     },

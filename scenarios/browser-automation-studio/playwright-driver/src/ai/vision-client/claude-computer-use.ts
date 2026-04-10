@@ -29,6 +29,27 @@ import { VisionModelError } from './types';
 import { getModelSpec } from './model-registry';
 import type { BrowserAction } from '../action/types';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function extractErrorMessage(payload: unknown): string | null {
+  if (!isRecord(payload)) {
+    return null;
+  }
+
+  const errorValue = payload.error;
+  if (isRecord(errorValue) && typeof errorValue.message === 'string') {
+    return errorValue.message;
+  }
+
+  if (typeof payload.message === 'string') {
+    return payload.message;
+  }
+
+  return null;
+}
+
 /**
  * Configuration for Claude Computer Use client.
  */
@@ -378,8 +399,11 @@ Analyze the screenshot and take the next action to achieve the goal. If the goal
   private handleAPIError(status: number, body: string): never {
     let errorMessage = body;
     try {
-      const parsed = JSON.parse(body);
-      errorMessage = parsed.error?.message ?? parsed.message ?? body;
+      const parsed = JSON.parse(body) as unknown;
+      const parsedMessage = extractErrorMessage(parsed);
+      if (parsedMessage) {
+        errorMessage = parsedMessage;
+      }
     } catch {
       // Use raw body if not JSON
     }

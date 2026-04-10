@@ -1,0 +1,101 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-05T15:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "EventNotification: embed full EventEnvelope vs reference + selected fields",
+      "context": "EventNotification wraps events for SSE delivery to subscribers. Two approaches: (1) embed the full EventEnvelope message directly — simple, clients get everything in one message, but uses more bandwidth for subscribers who only care about metadata. (2) Include event_id + event_type + timestamp as top-level fields plus the full envelope — redundant but allows clients to filter/route without unpacking. Since SSE is text-based (JSON-serialized) and events are typically small, bandwidth is unlikely to be an issue. The key question is whether EventNotification adds any SSE-specific fields beyond the envelope itself.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Embed full EventEnvelope + SSE stream fields",
+          "rationale": "EventNotification contains: stream_sequence (int64, monotonic per-subscription for Last-Event-ID resume), EventEnvelope envelope (the full event). Simple — clients get the complete event. stream_sequence enables SSE resume without modifying the envelope itself. Recommended because it cleanly separates transport concerns (sequence) from domain data (envelope).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Flatten envelope fields into EventNotification",
+          "rationale": "Copy all EventEnvelope fields into EventNotification directly (no nesting). Simpler for clients (no .envelope.event_id, just .event_id). But duplicates the schema, and any envelope changes require updating EventNotification too."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "PolicySnapshot: include version/sequence for cache ordering",
+      "context": "PolicySnapshot pushes the full ruleset to clients via SSE. Clients atomically replace their local cache. If snapshots arrive out of order (unlikely with SSE but possible during reconnection), clients need to know which is newer. A version field lets clients compare and discard stale snapshots.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Include version (int64) and generated_at (Timestamp)",
+          "rationale": "version is a monotonically increasing integer set by the server when policy changes. generated_at provides human-readable context. Clients compare version numbers — if received version \u003c= cached version, discard. Recommended for robustness during reconnection scenarios.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "No version field — rely on SSE ordering",
+          "rationale": "SSE guarantees ordering within a single connection. On reconnect, Last-Event-ID ensures no gaps. Simpler schema. Risk: if a client processes events out of order due to a bug, stale policy could overwrite fresh."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Policy rule pattern fields: per-rule vs shared pattern message",
+      "context": "All three policy rule types (AccessRule, RateLimit, CircuitBreaker) share the same three pattern fields: source_pattern, target_pattern, action_pattern. These define which inter-scenario calls the rule matches. Two approaches: (1) duplicate the fields in each message, or (2) extract a shared PolicyMatcher message that each rule embeds.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Shared PolicyMatcher message",
+          "rationale": "Define PolicyMatcher { source_pattern, target_pattern, action_pattern } once. Each rule type has a PolicyMatcher matcher field. DRY — adding a new pattern field (e.g., metadata_pattern) only changes one place. Recommended because the duplication is real (3 identical field sets) and a matcher is a natural concept in policy evaluation.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Duplicate fields in each rule message",
+          "rationale": "Each of AccessRule, RateLimit, CircuitBreaker has its own source_pattern, target_pattern, action_pattern fields. Simpler to read each message in isolation. No nesting. Proto fields are cheap."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round 1 decisions have been incorporated into the plan: subdirectory structure (v1/domain/ for all 3 files), typed repeated fields for PolicySnapshot, structured SubscriptionRequest with source/target patterns, and pre-computed specificity_score. The plan now reflects these as settled contract decisions."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Skill discovery found no highly relevant domain-specific skills (all scores \u003c 0.65). The existing agent-manager proto files serve as the primary pattern reference, which is sufficient for this schema-only task. No additional Required Reading needed beyond the plan-authoring skill and the reference proto files listed in the plan."
+    }
+  ],
+  "plan_updates": "Incorporated all 4 round-1 decisions: updated directory structure from flat v1/ to v1/domain/, filled Contract Decisions section with settled choices, refined implementation phases to reflect subdirectory paths and go_package convention, added cross-file import detail to sse.proto phase, expanded testing plan with field spot-checks."
+}

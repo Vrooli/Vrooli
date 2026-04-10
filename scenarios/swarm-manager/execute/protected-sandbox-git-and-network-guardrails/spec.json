@@ -1,0 +1,25 @@
+{
+  "acceptance_allow": [
+    "scenarios/agent-manager/**",
+    "scenarios/workspace-sandbox/**"
+  ],
+  "created": "2026-04-09T17:33:13Z",
+  "depends_on": [
+    "execute/protected-sandbox-agent-launch"
+  ],
+  "description": "## Goal\n\nLayer meaningful runtime guardrails on top of protected sandbox execution without breaking the seamless default workflow.\n\n## Design intent\n\nDirect commands issued by the agent inside the protected sandbox should be constrained. Carefully controlled scenario APIs called over localhost should remain allowed. This is especially important for git: the platform wants direct git usage from the agent to be effectively read-only by default, while scenario-driven operations such as Git Control Tower continue to own higher-trust git mutations.\n\n## Required outcomes\n\n- Support network modes that meaningfully distinguish `none`, `localhost`, and `full` as far as the underlying sandbox/runtime allows.\n- Preserve localhost access so scenario CLIs that talk to local scenario APIs continue to work.\n- Enforce a direct git allowlist in protected mode. The default allowlist should be read-only commands such as `status`, `diff`, `log`, `show`, and `rev-parse`.\n- Block side-effecting git commands such as branch creation, commits, checkout/reset, rebase, merge, push, pull, clean, and similar operations.\n- Denial messages should explain why the action is blocked and warn the agent not to try to work around the restriction.\n\n## Expected deliverables\n\n1. Protected-mode runtime wiring for git command interception and network policy selection.\n2. Denial UX/messages that are understandable to both operators and agents.\n3. Regression tests showing that scenario CLIs still work over localhost while direct disallowed git verbs are blocked.\n4. Documentation that clearly distinguishes advisory runner flags from real protected-mode enforcement.\n\n## Key references\n\n- `scenarios/workspace-sandbox/api/internal/driver/bwrap.go`\n- `scenarios/workspace-sandbox/docs/EXECUTION_MODES.md`\n- `scenarios/agent-manager/api/internal/domain/types.go`\n- `scenarios/agent-manager/api/internal/adapters/runner/**`",
+  "effort": "L",
+  "initiative": "protected-agent-sandboxing",
+  "kind": "execute",
+  "name": "protected-sandbox-git-and-network-guardrails",
+  "priority": 7,
+  "status": "backlog",
+  "tags": [
+    "protected-mode",
+    "git",
+    "network",
+    "guardrails"
+  ],
+  "title": "Add protected-mode git and network guardrails with human-readable denials",
+  "updated": "2026-04-09T17:33:13Z"
+}

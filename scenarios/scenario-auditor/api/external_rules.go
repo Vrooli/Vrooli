@@ -25,6 +25,25 @@ type externalRuleProvider interface {
 	Run(ctx context.Context, scenarioName string, ruleIDs []string) ([]StandardsViolation, error)
 }
 
+// externalRuleFixer is an optional interface for providers that support deterministic fixes.
+type externalRuleFixer interface {
+	Fix(ctx context.Context, scenarioNames []string, ruleIDs []string, dryRun bool) ([]ExternalFixResult, error)
+}
+
+type ExternalFixResult struct {
+	ScenarioName string              `json:"scenario_name"`
+	RuleID       string              `json:"rule_id"`
+	Fixed        bool                `json:"fixed"`
+	FilePath     string              `json:"file_path"`
+	Changes      []ExternalFixChange `json:"changes"`
+	Error        string              `json:"error,omitempty"`
+}
+
+type ExternalFixChange struct {
+	Type   string `json:"type"`
+	Detail string `json:"detail"`
+}
+
 var (
 	externalProvidersMu sync.RWMutex
 	externalProviders   = make(map[string]externalRuleProvider)
@@ -92,6 +111,17 @@ func externalRuleProviderFor(ruleID string) (externalRuleProvider, bool) {
 		return nil, false
 	}
 	return entry.provider, true
+}
+
+func externalFixerForRule(ruleID string) (externalRuleFixer, bool) {
+	externalProvidersMu.RLock()
+	defer externalProvidersMu.RUnlock()
+	info, ok := externalRulesIndex[ruleID]
+	if !ok {
+		return nil, false
+	}
+	fixer, ok := info.provider.(externalRuleFixer)
+	return fixer, ok
 }
 
 func mergeWithExternalRules(ruleInfos map[string]RuleInfo) map[string]RuleInfo {

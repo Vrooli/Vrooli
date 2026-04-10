@@ -10,12 +10,15 @@ import (
 // ProgressEvent represents a single progress update sent via SSE.
 // This mirrors the main package's ProgressEvent to allow decoupled progress tracking.
 type ProgressEvent struct {
-	Type            string                    `json:"type"`                 // "step_started", "step_completed", "error", "completed", "progress_update"
-	Step            string                    `json:"step"`                 // Step ID (e.g., "upload", "setup")
-	StepTitle       string                    `json:"step_title,omitempty"` // Human-readable title
-	Progress        float64                   `json:"progress"`             // 0-100 percentage
-	Message         string                    `json:"message,omitempty"`    // Optional message
-	Error           string                    `json:"error,omitempty"`      // Error details if type is "error"
+	Type            string                    `json:"type"`                     // "step_started", "step_completed", "error", "completed", "progress_update"
+	Step            string                    `json:"step"`                     // Step ID (e.g., "upload", "setup")
+	StepTitle       string                    `json:"step_title,omitempty"`     // Human-readable title
+	Progress        float64                   `json:"progress"`                 // 0-100 percentage
+	Message         string                    `json:"message,omitempty"`        // Optional message
+	Error           string                    `json:"error,omitempty"`          // Error details if type is "error"
+	ErrorCategory   string                    `json:"error_category,omitempty"` // Machine-readable error category (e.g. "disk_full")
+	Retryable       bool                      `json:"retryable,omitempty"`      // Whether the error is retryable
+	Hint            string                    `json:"hint,omitempty"`           // Actionable recovery suggestion
 	PreflightResult *domain.PreflightResponse `json:"preflight_result,omitempty"`
 	Timestamp       string                    `json:"timestamp"` // ISO8601 timestamp
 }
@@ -47,13 +50,15 @@ func (NoopProgressRepo) UpdateDeploymentProgress(context.Context, string, string
 // StepWeights defines the percentage weight for each deployment step.
 // These sum to 100%.
 var StepWeights = map[string]float64{
+	"manifest_refresh":  2, // Fast operation - re-fetch dependencies and ports
 	"preflight":         2,
 	"bundle_build":      5,
 	"mkdir":             0, // Trivial, no weight
 	"bootstrap":         5, // apt update + install prereqs
-	"upload":            17,
+	"upload":            16,
+	"cleanup_scenarios": 3, // Remove stale scenario code while preserving declared mutable paths
 	"extract":           5,
-	"setup":             11, // Reduced from 15 (bootstrap handles some work now)
+	"setup":             10, // Reduced from 15 (bootstrap handles some work now)
 	"autoheal":          2,
 	"verify_setup":      1, // Reduced from 3
 	"scenario_stop":     3, // Stop existing scenario before deployment
@@ -69,6 +74,47 @@ var StepWeights = map[string]float64{
 	"verify_https":      1,
 	"verify_origin":     1,
 	"verify_public":     2,
+}
+
+// CalculateWeightsForSteps returns normalized weights for a subset of steps.
+// The weights are scaled so they sum to 100%.
+func CalculateWeightsForSteps(steps []string) map[string]float64 {
+	if len(steps) == 0 {
+		return StepWeights
+	}
+	// Calculate total weight of selected steps
+	var total float64
+	for _, step := range steps {
+		if w, ok := StepWeights[step]; ok {
+			total += w
+		}
+	}
+	if total == 0 {
+		return nil
+	}
+	// Normalize weights to sum to 100%
+	normalized := make(map[string]float64, len(steps))
+	for _, step := range steps {
+		if w, ok := StepWeights[step]; ok {
+			normalized[step] = (w / total) * 100
+		}
+	}
+	return normalized
+}
+
+// StartSteps defines the steps to run when starting/resuming a stopped deployment.
+// These skip setup steps (Caddy, firewall) and focus on starting services.
+var StartSteps = []string{
+	"scenario_stop",
+	"secrets_provision",
+	"resource_start",
+	"scenario_deps",
+	"scenario_target",
+	"wait_for_ui",
+	"verify_local",
+	"verify_https",
+	"verify_origin",
+	"verify_public",
 }
 
 // NewProgressEvent creates a new ProgressEvent with the current timestamp.
@@ -92,4 +138,22 @@ func NewErrorEvent(stepID, stepTitle string, progress float64, errMsg string) Pr
 		Error:     errMsg,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
+}
+
+// NewStructuredErrorEvent creates a ProgressEvent with structured error metadata.
+func NewStructuredErrorEvent(stepID, stepTitle string, progress float64, errMsg string, info *domain.ErrorInfo) ProgressEvent {
+	event := ProgressEvent{
+		Type:      "deployment_error",
+		Step:      stepID,
+		StepTitle: stepTitle,
+		Progress:  progress,
+		Error:     errMsg,
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	}
+	if info != nil {
+		event.ErrorCategory = info.Category
+		event.Retryable = info.Retryable
+		event.Hint = info.Hint
+	}
+	return event
 }

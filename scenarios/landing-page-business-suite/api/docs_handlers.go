@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -65,8 +64,7 @@ func handleDocsTree() http.HandlerFunc {
 				"path":  docsRoot,
 				"error": err.Error(),
 			})
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode([]DocEntry{})
+			writeJSONSuccessData(w, []DocEntry{})
 			return
 		}
 
@@ -76,7 +74,7 @@ func handleDocsTree() http.HandlerFunc {
 				"path":  docsRoot,
 				"error": err.Error(),
 			})
-			http.Error(w, "Failed to read docs directory", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to read docs directory", ApiErrorTypeServerError)
 			return
 		}
 
@@ -85,30 +83,28 @@ func handleDocsTree() http.HandlerFunc {
 			"entry_count": len(entries),
 		})
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(entries)
+		writeJSONSuccessData(w, entries)
 	}
 }
 
 // handleDocsContent returns the content of a specific doc file
 func handleDocsContent() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		docPath := r.URL.Query().Get("path")
-		if docPath == "" {
-			http.Error(w, "Missing path parameter", http.StatusBadRequest)
+		docPath, ok := requireQueryParam(w, r, "path")
+		if !ok {
 			return
 		}
 
 		// Sanitize path to prevent directory traversal
 		cleanPath := filepath.Clean(docPath)
 		if strings.Contains(cleanPath, "..") {
-			http.Error(w, "Invalid path", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid path", ApiErrorTypeValidation)
 			return
 		}
 
 		// Only allow .md files
 		if !strings.HasSuffix(strings.ToLower(cleanPath), ".md") {
-			http.Error(w, "Only markdown files are allowed", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Only markdown files are allowed", ApiErrorTypeValidation)
 			return
 		}
 
@@ -118,24 +114,24 @@ func handleDocsContent() http.HandlerFunc {
 		// Resolve to absolute for security comparison
 		absFullPath, err := filepath.Abs(fullPath)
 		if err != nil {
-			http.Error(w, "Invalid path", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid path", ApiErrorTypeValidation)
 			return
 		}
 		absDocsRoot, _ := filepath.Abs(docsRoot)
 
 		// Verify the file is within docs directory
 		if !strings.HasPrefix(absFullPath, absDocsRoot) {
-			http.Error(w, "Invalid path", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid path", ApiErrorTypeValidation)
 			return
 		}
 
 		content, err := os.ReadFile(fullPath)
 		if err != nil {
 			if os.IsNotExist(err) {
-				http.Error(w, "File not found", http.StatusNotFound)
+				writeJSONError(w, http.StatusNotFound, "File not found", ApiErrorTypeNotFound)
 				return
 			}
-			http.Error(w, "Failed to read file", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to read file", ApiErrorTypeServerError)
 			return
 		}
 
@@ -148,8 +144,7 @@ func handleDocsContent() http.HandlerFunc {
 			Title:   title,
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(doc)
+		writeJSONSuccessData(w, doc)
 	}
 }
 

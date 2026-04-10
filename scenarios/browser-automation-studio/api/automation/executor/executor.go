@@ -12,7 +12,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/config"
-	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 )
 
@@ -52,13 +52,28 @@ type Request struct {
 
 	// BrowserProfile configures anti-detection and human-like behavior settings.
 	// When nil, the driver uses default settings (no special behaviors applied).
-	BrowserProfile *archiveingestion.BrowserProfile
+	BrowserProfile *sessionprofilepersistence.BrowserProfile
 
 	// StorageState is the session profile's storage state (cookies, localStorage).
 	// When set, injects the profile's authenticated state into the browser context
 	// before workflow execution begins. This enables running workflows in an
 	// authenticated state without requiring login steps.
 	StorageState json.RawMessage
+
+	// RestoreTabs indicates whether to restore tabs from session profile.
+	// When true and OpenTabs are provided, navigates to saved tab URLs
+	// before workflow execution begins.
+	RestoreTabs bool
+
+	// OpenTabs contains the saved tab states to restore.
+	// Only used when RestoreTabs is true.
+	OpenTabs []sessionprofilepersistence.TabState
+
+	// SaveStorageStateCallback is called after successful execution to capture
+	// and save the browser's final storage state. The callback receives the
+	// storage state JSON and should return an error if saving fails.
+	// Used for --save-session functionality.
+	SaveStorageStateCallback func(storageState json.RawMessage) error
 
 	// NavigationWaitUntil is the default wait condition for navigate actions.
 	// When set, overrides the workflow default but can be further overridden by

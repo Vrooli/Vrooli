@@ -70,3 +70,41 @@ export interface SecretsManifest {
  * Keys are secret target names (env var or file path).
  */
 export type ProvidedSecrets = Record<string, string>;
+
+/**
+ * A custom secret manually added by the user during deployment.
+ * These are secrets that weren't auto-detected by secrets-manager.
+ */
+export interface CustomSecret {
+  /** Unique identifier for this custom secret entry */
+  id: string;
+  /** Secret key (environment variable name). Must be uppercase + underscore format. */
+  key: string;
+  /** Secret value */
+  value: string;
+  /** Optional description of what this secret is for */
+  description?: string;
+}
+
+/**
+ * Validates a secret key follows the uppercase + underscore format.
+ * @param key The key to validate
+ * @returns True if valid, false otherwise
+ */
+export function isValidSecretKey(key: string): boolean {
+  return /^[A-Z][A-Z0-9_]*$/.test(key);
+}
+
+/**
+ * Reserved key prefixes that cannot be used for custom secrets.
+ */
+export const RESERVED_KEY_PREFIXES = ["VROOLI_INTERNAL_", "_"];
+
+/**
+ * Checks if a key uses a reserved prefix.
+ * @param key The key to check
+ * @returns True if the key uses a reserved prefix
+ */
+export function isReservedKey(key: string): boolean {
+  return RESERVED_KEY_PREFIXES.some((prefix) => key.startsWith(prefix));
+}

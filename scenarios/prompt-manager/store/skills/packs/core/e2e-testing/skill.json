@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "e2e-testing",
+  "name": "E2E Testing",
+  "description": "Strategy and implementation guide for end-to-end testing using BAS workflows and requirement integration",
+  "modes": [
+    "steer",
+    "test"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "checkcircle",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 48,
+  "createdAt": "2026-01-25T00:00:00Z",
+  "updatedAt": "2026-02-05T01:01:07Z"
+}

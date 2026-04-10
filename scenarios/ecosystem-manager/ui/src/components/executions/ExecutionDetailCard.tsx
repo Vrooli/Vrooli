@@ -1,5 +1,6 @@
-import { cn } from '@/lib/utils';
-import type { ExecutionHistory } from '@/types/api';
+import { cn, formatSkillSetLabel } from '@/lib/utils';
+import { MarkdownDisplay } from '@/components/shared/MarkdownDisplay';
+import type { AutoSteerProfile, ExecutionHistory, PhaseInfo } from '@/types/api';
 
 interface ExecutionDetailCardProps {
   execution: ExecutionHistory | null;
@@ -7,6 +8,8 @@ interface ExecutionDetailCardProps {
   outputText?: string;
   isLoadingPrompt?: boolean;
   isLoadingOutput?: boolean;
+  profilesById?: Record<string, AutoSteerProfile | undefined>;
+  phaseNames?: PhaseInfo[];
   className?: string;
 }
 
@@ -93,12 +96,29 @@ const formatExecutionDuration = (execution?: ExecutionHistory | null) => {
   return '—';
 };
 
-const formatSteerInfo = (execution?: ExecutionHistory | null) => {
+const formatSteerInfo = (
+  execution?: ExecutionHistory | null,
+  profilesById: Record<string, AutoSteerProfile | undefined> = {},
+  phaseNames: PhaseInfo[] = [],
+) => {
   if (!execution) return '—';
-  const mode = execution.steer_mode || execution.steering_source || '';
-  const phase = execution.steer_phase_index ? ` • phase ${execution.steer_phase_index}` : '';
+  const phaseIndex = typeof execution.steer_phase_index === 'number' ? execution.steer_phase_index : undefined;
+  const phaseArrayIndex = typeof phaseIndex === 'number' && phaseIndex > 0 ? phaseIndex - 1 : undefined;
+
+  let setLabel: string | undefined;
+  if (execution.auto_steer_profile_id && typeof phaseArrayIndex === 'number') {
+    const profile = profilesById[execution.auto_steer_profile_id];
+    const skillIds = profile?.phases?.[phaseArrayIndex]?.skill_ids ?? [];
+    setLabel = formatSkillSetLabel(skillIds, phaseNames, { maxVisible: 1, emptyLabel: '' });
+  }
+  if (!setLabel && execution.steer_skill_ids && execution.steer_skill_ids.length > 0) {
+    setLabel = formatSkillSetLabel(execution.steer_skill_ids, phaseNames, { maxVisible: 1, emptyLabel: '' });
+  }
+
+  const label = setLabel ?? execution.steer_set_label ?? execution.steering_source ?? '';
+  const phase = phaseIndex ? ` • phase ${phaseIndex}` : '';
   const iteration = execution.steer_phase_iteration ? ` • iteration ${execution.steer_phase_iteration}` : '';
-  return mode ? `${mode}${phase}${iteration}` : '—';
+  return label ? `${label}${phase}${iteration}` : '—';
 };
 
 const MetaItem = ({ label, value }: { label: string; value?: string | number | null }) => (
@@ -114,6 +134,8 @@ export function ExecutionDetailCard({
   outputText,
   isLoadingPrompt,
   isLoadingOutput,
+  profilesById,
+  phaseNames,
   className,
 }: ExecutionDetailCardProps) {
   if (!execution) {
@@ -177,7 +199,7 @@ export function ExecutionDetailCard({
         <MetaItem label="Prompt size" value={execution.prompt_size ?? '—'} />
         <MetaItem label="Agent" value={execution.agent_tag || '—'} />
         <MetaItem label="Process" value={execution.process_id ? `PID ${execution.process_id}` : '—'} />
-        <MetaItem label="Steer" value={formatSteerInfo(execution)} />
+        <MetaItem label="Steer" value={formatSteerInfo(execution, profilesById, phaseNames)} />
         <MetaItem label="Auto Steer profile" value={execution.auto_steer_profile_id ?? '—'} />
       </div>
 
@@ -200,9 +222,13 @@ export function ExecutionDetailCard({
         {isLoadingOutput ? (
           <div className="text-xs text-slate-500">Loading output...</div>
         ) : outputText ? (
-          <pre className="bg-slate-950/60 border border-white/10 rounded p-3 text-xs text-slate-100 max-h-48 overflow-y-auto whitespace-pre-wrap">
-            {outputText}
-          </pre>
+          <MarkdownDisplay
+            value={outputText}
+            readOnly
+            defaultMode="preview"
+            storageKey="ecosystem-manager.execution.output"
+            className="h-[360px]"
+          />
         ) : (
           <div className="text-xs text-slate-500">No output captured for this execution.</div>
         )}
@@ -213,9 +239,13 @@ export function ExecutionDetailCard({
         {isLoadingPrompt ? (
           <div className="text-xs text-slate-500">Loading prompt...</div>
         ) : promptText ? (
-          <pre className="bg-slate-950/60 border border-white/10 rounded p-3 text-xs text-slate-100 max-h-48 overflow-y-auto whitespace-pre-wrap">
-            {promptText}
-          </pre>
+          <MarkdownDisplay
+            value={promptText}
+            readOnly
+            defaultMode="preview"
+            storageKey="ecosystem-manager.execution.prompt"
+            className="h-[360px]"
+          />
         ) : (
           <div className="text-xs text-slate-500">Prompt not captured for this execution.</div>
         )}

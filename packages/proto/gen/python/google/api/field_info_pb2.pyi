@@ -11,7 +11,7 @@ FIELD_INFO_FIELD_NUMBER: _ClassVar[int]
 field_info: _descriptor.FieldDescriptor
 
 class FieldInfo(_message.Message):
-    __slots__ = ()
+    __slots__ = ("format", "referenced_types")
     class Format(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = ()
         FORMAT_UNSPECIFIED: _ClassVar[FieldInfo.Format]
@@ -31,7 +31,7 @@ class FieldInfo(_message.Message):
     def __init__(self, format: _Optional[_Union[FieldInfo.Format, str]] = ..., referenced_types: _Optional[_Iterable[_Union[TypeReference, _Mapping]]] = ...) -> None: ...
 
 class TypeReference(_message.Message):
-    __slots__ = ()
+    __slots__ = ("type_name",)
     TYPE_NAME_FIELD_NUMBER: _ClassVar[int]
     type_name: str
     def __init__(self, type_name: _Optional[str] = ...) -> None: ...

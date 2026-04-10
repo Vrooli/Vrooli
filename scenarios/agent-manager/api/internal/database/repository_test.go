@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -18,28 +17,10 @@ import (
 	_ "modernc.org/sqlite" // SQLite driver for tests
 )
 
-// testBackend returns the test database backend from environment.
-// Defaults to "sqlite" for fast, isolated tests.
-func testBackend() string {
-	backend := strings.ToLower(strings.TrimSpace(os.Getenv("AM_TEST_BACKEND")))
-	if backend == "" {
-		backend = strings.ToLower(strings.TrimSpace(os.Getenv("AM_DB_BACKEND")))
-	}
-	if backend == "" {
-		backend = "sqlite"
-	}
-	return backend
-}
-
 // setupTestDB creates a fresh SQLite database for testing.
 // Returns the DB wrapper and a cleanup function.
 func setupTestDB(t *testing.T) (*DB, func()) {
 	t.Helper()
-
-	backend := testBackend()
-	if backend != "sqlite" {
-		t.Skipf("unsupported test backend %q (set AM_TEST_BACKEND=sqlite)", backend)
-	}
 
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "agent-manager-test.db")
@@ -58,9 +39,8 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 	log.SetLevel(logrus.PanicLevel) // Suppress logs during tests
 
 	wrapped := &DB{
-		DB:      sqlDB,
-		log:     log,
-		dialect: DialectSQLite,
+		DB:  sqlDB,
+		log: log,
 	}
 	if err := wrapped.initSchema(); err != nil {
 		_ = sqlDB.Close()
@@ -69,6 +49,67 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 
 	return wrapped, func() {
 		_ = sqlDB.Close()
+	}
+}
+
+func TestInitSchema_WithLegacyRunsTable_AddsInvestigationColumns(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "agent-manager-legacy.db")
+	dsn := fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)",
+		dbPath,
+	)
+
+	sqlDB, err := sqlx.Connect("sqlite", dsn)
+	if err != nil {
+		t.Fatalf("connect sqlite: %v", err)
+	}
+	defer func() { _ = sqlDB.Close() }()
+
+	log := logrus.New()
+	log.SetOutput(os.Stdout)
+	log.SetLevel(logrus.PanicLevel)
+
+	legacySchema := `
+		CREATE TABLE IF NOT EXISTS runs (
+			id TEXT PRIMARY KEY,
+			task_id TEXT NOT NULL,
+			agent_profile_id TEXT,
+			tag TEXT,
+			status TEXT DEFAULT 'pending',
+			session_id TEXT,
+			recommendation_status TEXT DEFAULT 'none',
+			recommendation_queued_at TEXT,
+			created_at TEXT DEFAULT (datetime('now'))
+		);
+	`
+	if _, err := sqlDB.Exec(legacySchema); err != nil {
+		t.Fatalf("seed legacy runs schema: %v", err)
+	}
+
+	wrapped := &DB{DB: sqlDB, log: log}
+	if err := wrapped.initSchema(); err != nil {
+		t.Fatalf("init schema with legacy runs table: %v", err)
+	}
+
+	var hasSourceRunIDs int
+	if err := sqlDB.Get(&hasSourceRunIDs, `
+		SELECT COUNT(*) FROM pragma_table_info('runs') WHERE name = 'source_run_ids'
+	`); err != nil {
+		t.Fatalf("check source_run_ids column: %v", err)
+	}
+	if hasSourceRunIDs != 1 {
+		t.Fatalf("expected source_run_ids column to exist, got count %d", hasSourceRunIDs)
+	}
+
+	var hasSourceInvestigationRunID int
+	if err := sqlDB.Get(&hasSourceInvestigationRunID, `
+		SELECT COUNT(*) FROM pragma_table_info('runs') WHERE name = 'source_investigation_run_id'
+	`); err != nil {
+		t.Fatalf("check source_investigation_run_id column: %v", err)
+	}
+	if hasSourceInvestigationRunID != 1 {
+		t.Fatalf("expected source_investigation_run_id column to exist, got count %d", hasSourceInvestigationRunID)
 	}
 }
 
@@ -210,6 +251,223 @@ func TestProfileListPagination(t *testing.T) {
 	}
 	if len(profiles) != 3 {
 		t.Errorf("expected 3 profiles with offset 2, got %d", len(profiles))
+	}
+}
+
+// ============================================================================
+// Profile Feature Flags & Extra Flags Persistence Tests
+// ============================================================================
+
+func TestProfileWithFeatureFlags(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	// Create a profile with features enabled
+	profile := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "features-profile",
+		ProfileKey: "features-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		Features:   domain.FeatureFlags{EnableBrowser: true},
+	}
+
+	if err := repos.Profiles.Create(ctx, profile); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Profiles.Get(ctx, profile.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got == nil {
+		t.Fatal("Get returned nil")
+	}
+	if !got.Features.EnableBrowser {
+		t.Error("expected Features.EnableBrowser to be true")
+	}
+
+	// Update: disable feature
+	profile.Features.EnableBrowser = false
+	if err := repos.Profiles.Update(ctx, profile); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	got, err = repos.Profiles.Get(ctx, profile.ID)
+	if err != nil {
+		t.Fatalf("Get after update: %v", err)
+	}
+	if got.Features.EnableBrowser {
+		t.Error("expected Features.EnableBrowser to be false after update")
+	}
+}
+
+func TestProfileWithZeroFeatureFlags(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	// Create a profile with zero (default) features
+	profile := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "zero-features-profile",
+		ProfileKey: "zero-features-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		Features:   domain.FeatureFlags{}, // Zero value
+	}
+
+	if err := repos.Profiles.Create(ctx, profile); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Profiles.Get(ctx, profile.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got == nil {
+		t.Fatal("Get returned nil")
+	}
+	if got.Features.EnableBrowser {
+		t.Error("expected Features.EnableBrowser to be false for zero-value profile")
+	}
+}
+
+func TestProfileWithExtraFlags(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	// Create a profile with extra flags
+	profile := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "extra-flags-profile",
+		ProfileKey: "extra-flags-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		ExtraFlags: domain.RunnerExtraFlags{
+			domain.RunnerTypeClaudeCode: []string{"--verbose", "--allowedTools=Read,Write"},
+			domain.RunnerTypeCodex:      []string{"--verbose"},
+		},
+	}
+
+	if err := repos.Profiles.Create(ctx, profile); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Profiles.Get(ctx, profile.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got == nil {
+		t.Fatal("Get returned nil")
+	}
+
+	// Verify extra flags round-trip
+	if len(got.ExtraFlags) != 2 {
+		t.Fatalf("expected 2 runner types in ExtraFlags, got %d", len(got.ExtraFlags))
+	}
+
+	ccFlags, ok := got.ExtraFlags[domain.RunnerTypeClaudeCode]
+	if !ok {
+		t.Fatal("missing claude-code in ExtraFlags")
+	}
+	if len(ccFlags) != 2 {
+		t.Errorf("expected 2 claude-code flags, got %d", len(ccFlags))
+	}
+	if len(ccFlags) >= 1 && ccFlags[0] != "--verbose" {
+		t.Errorf("expected first flag '--verbose', got %q", ccFlags[0])
+	}
+	if len(ccFlags) >= 2 && ccFlags[1] != "--allowedTools=Read,Write" {
+		t.Errorf("expected second flag '--allowedTools=Read,Write', got %q", ccFlags[1])
+	}
+
+	codexFlags, ok := got.ExtraFlags[domain.RunnerTypeCodex]
+	if !ok {
+		t.Fatal("missing codex in ExtraFlags")
+	}
+	if len(codexFlags) != 1 {
+		t.Errorf("expected 1 codex flag, got %d", len(codexFlags))
+	}
+}
+
+func TestProfileWithNilExtraFlags(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	// Create a profile with nil extra flags
+	profile := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "nil-extras-profile",
+		ProfileKey: "nil-extras-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		ExtraFlags: nil,
+	}
+
+	if err := repos.Profiles.Create(ctx, profile); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Profiles.Get(ctx, profile.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got == nil {
+		t.Fatal("Get returned nil")
+	}
+
+	// Nil or empty should round-trip as nil/empty
+	if len(got.ExtraFlags) != 0 {
+		t.Errorf("expected nil/empty ExtraFlags, got %v", got.ExtraFlags)
+	}
+}
+
+func TestProfileWithFeaturesAndExtraFlags(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	// Create a profile with both features and extra flags
+	profile := &domain.AgentProfile{
+		ID:         uuid.New(),
+		Name:       "full-flags-profile",
+		ProfileKey: "full-flags-profile",
+		RunnerType: domain.RunnerTypeClaudeCode,
+		Features:   domain.FeatureFlags{EnableBrowser: true},
+		ExtraFlags: domain.RunnerExtraFlags{
+			domain.RunnerTypeClaudeCode: []string{"--verbose"},
+		},
+	}
+
+	if err := repos.Profiles.Create(ctx, profile); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Profiles.Get(ctx, profile.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got == nil {
+		t.Fatal("Get returned nil")
+	}
+
+	if !got.Features.EnableBrowser {
+		t.Error("expected Features.EnableBrowser to be true")
+	}
+	if len(got.ExtraFlags) != 1 {
+		t.Errorf("expected 1 runner type in ExtraFlags, got %d", len(got.ExtraFlags))
+	}
+	if flags, ok := got.ExtraFlags[domain.RunnerTypeClaudeCode]; !ok || len(flags) != 1 || flags[0] != "--verbose" {
+		t.Errorf("expected ExtraFlags[claude-code] = [--verbose], got %v", got.ExtraFlags)
 	}
 }
 
@@ -455,9 +713,11 @@ func TestRunListFilters(t *testing.T) {
 	}
 
 	// Create runs with different tags and statuses
+	sourceRunID := uuid.New()
+	investigationRunID := uuid.New()
 	runs := []*domain.Run{
-		{ID: uuid.New(), TaskID: task.ID, AgentProfileID: &profile.ID, Tag: "batch-1", Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, ApprovalState: domain.ApprovalStateNone, IdempotencyKey: "filter-key-1"},
-		{ID: uuid.New(), TaskID: task.ID, Tag: "batch-2", Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, ApprovalState: domain.ApprovalStateNone, IdempotencyKey: "filter-key-2"},
+		{ID: uuid.New(), TaskID: task.ID, AgentProfileID: &profile.ID, Tag: "batch-1", Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, ApprovalState: domain.ApprovalStateNone, IdempotencyKey: "filter-key-1", SourceRunIDs: []uuid.UUID{sourceRunID}},
+		{ID: uuid.New(), TaskID: task.ID, Tag: "batch-2", Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, ApprovalState: domain.ApprovalStateNone, IdempotencyKey: "filter-key-2", SourceInvestigationRunID: &investigationRunID},
 		{ID: uuid.New(), TaskID: task.ID, Tag: "batch-1-sub", Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, ApprovalState: domain.ApprovalStateNone, IdempotencyKey: "filter-key-3"},
 	}
 	for _, run := range runs {
@@ -498,6 +758,28 @@ func TestRunListFilters(t *testing.T) {
 	}
 	if len(profileRuns) != 1 {
 		t.Errorf("expected 1 run with profile, got %d", len(profileRuns))
+	}
+
+	// Filter by source run ID lineage
+	investigationRuns, err := repos.Runs.List(ctx, repository.RunListFilter{
+		InvestigatesRunID: &sourceRunID,
+	})
+	if err != nil {
+		t.Fatalf("List by source run ID: %v", err)
+	}
+	if len(investigationRuns) != 1 {
+		t.Errorf("expected 1 investigation run for source run ID, got %d", len(investigationRuns))
+	}
+
+	// Filter by source investigation run ID lineage
+	applyRuns, err := repos.Runs.List(ctx, repository.RunListFilter{
+		AppliesInvestigationRunID: &investigationRunID,
+	})
+	if err != nil {
+		t.Fatalf("List by source investigation run ID: %v", err)
+	}
+	if len(applyRuns) != 1 {
+		t.Errorf("expected 1 apply run for source investigation run ID, got %d", len(applyRuns))
 	}
 }
 
@@ -1232,5 +1514,186 @@ func TestRunWithComplexFields(t *testing.T) {
 	}
 	if len(got.ResolvedConfig.AllowedTools) != 3 {
 		t.Errorf("expected 3 allowed tools, got %d", len(got.ResolvedConfig.AllowedTools))
+	}
+}
+
+// ============================================================================
+// Stats Repository Time Scanning Tests
+// ============================================================================
+
+func TestStatsGetTimeSeries_DailyBucketParsesTimestamp(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Stats Task",
+		ScopePath: "/stats",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	run := &domain.Run{
+		ID:            uuid.New(),
+		TaskID:        task.ID,
+		Tag:           "stats-time-series",
+		Status:        domain.RunStatusComplete,
+		Phase:         domain.RunPhaseCompleted,
+		ApprovalState: domain.ApprovalStateApproved,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Model:      "claude-sonnet-4-20250514",
+		},
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("Create run: %v", err)
+	}
+
+	now := time.Now()
+	filter := repository.StatsFilter{
+		Window: repository.StatsTimeWindow{
+			Start: now.Add(-24 * time.Hour),
+			End:   now.Add(24 * time.Hour),
+		},
+	}
+
+	buckets, err := repos.Stats.GetTimeSeries(ctx, filter, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("GetTimeSeries: %v", err)
+	}
+	if len(buckets) == 0 {
+		t.Fatal("expected at least one time-series bucket")
+	}
+	if buckets[0].Timestamp.IsZero() {
+		t.Fatal("expected non-zero timestamp in first bucket")
+	}
+}
+
+func TestStatsUsageQueries_ParseCreatedAtTimestamps(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Usage Stats Task",
+		ScopePath: "/stats/usage",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	run := &domain.Run{
+		ID:            uuid.New(),
+		TaskID:        task.ID,
+		Tag:           "stats-usage",
+		Status:        domain.RunStatusComplete,
+		Phase:         domain.RunPhaseCompleted,
+		ApprovalState: domain.ApprovalStateApproved,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Model:      "claude-sonnet-4-20250514",
+		},
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("Create run: %v", err)
+	}
+
+	toolCall := domain.NewToolCallEvent(run.ID, "read", "call-1", map[string]interface{}{"path": "README.md"})
+	toolResult := domain.NewToolResultEvent(run.ID, "read", "call-1", "ok", nil)
+	if err := repos.Events.Append(ctx, run.ID, toolCall, toolResult); err != nil {
+		t.Fatalf("Append events: %v", err)
+	}
+
+	now := time.Now()
+	filter := repository.StatsFilter{
+		Window: repository.StatsTimeWindow{
+			Start: now.Add(-24 * time.Hour),
+			End:   now.Add(24 * time.Hour),
+		},
+	}
+
+	modelRuns, err := repos.Stats.GetModelRunUsage(ctx, filter, "claude-sonnet-4-20250514", 10)
+	if err != nil {
+		t.Fatalf("GetModelRunUsage: %v", err)
+	}
+	if len(modelRuns) == 0 {
+		t.Fatal("expected model usage rows")
+	}
+	if modelRuns[0].CreatedAt.IsZero() {
+		t.Fatal("expected model usage created_at to be parsed")
+	}
+
+	toolRuns, err := repos.Stats.GetToolRunUsage(ctx, filter, "read", 10)
+	if err != nil {
+		t.Fatalf("GetToolRunUsage: %v", err)
+	}
+	if len(toolRuns) == 0 {
+		t.Fatal("expected tool usage rows")
+	}
+	if toolRuns[0].CreatedAt.IsZero() {
+		t.Fatal("expected tool usage created_at to be parsed")
+	}
+}
+
+func TestStatsGetErrorPatterns_ParsesLastSeenTimestamp(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Error Stats Task",
+		ScopePath: "/stats/errors",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	run := &domain.Run{
+		ID:            uuid.New(),
+		TaskID:        task.ID,
+		Tag:           "stats-errors",
+		Status:        domain.RunStatusFailed,
+		Phase:         domain.RunPhaseCompleted,
+		ApprovalState: domain.ApprovalStateNone,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("Create run: %v", err)
+	}
+
+	errEvent := domain.NewErrorEvent(run.ID, "TOOL_FAILED", "tool execution failed", true)
+	if err := repos.Events.Append(ctx, run.ID, errEvent); err != nil {
+		t.Fatalf("Append error event: %v", err)
+	}
+
+	now := time.Now()
+	filter := repository.StatsFilter{
+		Window: repository.StatsTimeWindow{
+			Start: now.Add(-24 * time.Hour),
+			End:   now.Add(24 * time.Hour),
+		},
+	}
+
+	patterns, err := repos.Stats.GetErrorPatterns(ctx, filter, 10)
+	if err != nil {
+		t.Fatalf("GetErrorPatterns: %v", err)
+	}
+	if len(patterns) == 0 {
+		t.Fatal("expected error patterns rows")
+	}
+	if patterns[0].LastSeen.IsZero() {
+		t.Fatal("expected non-zero last_seen timestamp")
 	}
 }

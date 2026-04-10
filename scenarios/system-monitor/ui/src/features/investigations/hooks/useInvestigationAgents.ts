@@ -1,214 +1,67 @@
-import { useCallback, useEffect, useState } from 'react';
-import { buildApiUrl } from '../../../shared/api/apiBase';
+// DOC: docs/internal/COHERENCE-NOTES.md#bugs-found
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { apiFetch, extractErrorMessage, isApiError, protoFetch } from '../../../shared/api/apiFetch';
+import {
+  parseInvestigation,
+  parseTriggerInvestigationResponse,
+} from '../../../shared/api/proto-contracts';
+import { protoToAgentState } from '../../../shared/api/proto-converters';
+import { usePolling } from '../../../shared/hooks/usePolling';
 import type { InvestigationAgentState } from '../../../types';
+import { INVESTIGATION_TERMINAL_STATUSES } from '../../../types/api';
 
-const TERMINAL_AGENT_STATUSES = new Set(['completed', 'error', 'failed', 'cancelled', 'canceled', 'stopped']);
 const AGENT_POLL_INTERVAL_MS = 4000;
-
-const mapAgentPayload = (payload: unknown): InvestigationAgentState | null => {
-  if (!payload || typeof payload !== 'object') {
-    return null;
-  }
-
-  const payloadRecord = payload as Record<string, unknown>;
-
-  const rawDetails = typeof payloadRecord.details === 'object' && payloadRecord.details !== null
-    ? payloadRecord.details as Record<string, unknown>
-    : undefined;
-
-  const idCandidate = typeof payloadRecord.id === 'string'
-    ? payloadRecord.id
-    : typeof payloadRecord.investigation_id === 'string'
-    ? payloadRecord.investigation_id as string
-    : typeof payloadRecord.agent_id === 'string'
-    ? payloadRecord.agent_id as string
-    : undefined;
-
-  if (!idCandidate) {
-    return null;
-  }
-
-  const extractString = (value: unknown): string | undefined => {
-    return typeof value === 'string' ? value : undefined;
-  };
-
-  const extractBoolean = (value: unknown): boolean | undefined => {
-    return typeof value === 'boolean' ? value : undefined;
-  };
-
-  const extractNumber = (value: unknown): number | undefined => {
-    return typeof value === 'number' ? value : undefined;
-  };
-
-  const statusCandidate = extractString(payloadRecord.status) ?? extractString(payloadRecord.state) ?? 'investigating';
-  const startTime = extractString(payloadRecord.start_time)
-    ?? extractString(payloadRecord.startTime)
-    ?? extractString(payloadRecord.started_at)
-    ?? new Date().toISOString();
-  const autoFixValue = extractBoolean(payloadRecord.auto_fix)
-    ?? extractBoolean(payloadRecord.autoFix)
-    ?? (rawDetails ? extractBoolean(rawDetails['auto_fix']) : undefined)
-    ?? false;
-  const operationModeValue = extractString(payloadRecord.operation_mode)
-    ?? (rawDetails ? extractString(rawDetails['operation_mode']) : undefined);
-  const modelValue = extractString(payloadRecord.agent_model)
-    ?? (rawDetails ? extractString(rawDetails['agent_model']) : undefined);
-  const resourceValue = extractString(payloadRecord.agent_resource)
-    ?? (rawDetails ? extractString(rawDetails['agent_resource']) : undefined);
-  const progressValue = extractNumber(payloadRecord.progress)
-    ?? (rawDetails ? extractNumber(rawDetails['progress']) : undefined);
-  const riskLevelValue = extractString(payloadRecord.risk_level)
-    ?? (rawDetails ? extractString(rawDetails['risk_level']) : undefined);
-  const noteValue = extractString(payloadRecord.note)
-    ?? (rawDetails ? extractString((rawDetails['user_note'] ?? rawDetails['note'])) : undefined);
-  const labelValue = extractString(payloadRecord.label)
-    ?? extractString(payloadRecord.name)
-    ?? (rawDetails ? extractString(rawDetails['label']) : undefined);
-  const anomalyIdValue = extractString(payloadRecord.anomaly_id)
-    ?? (rawDetails ? extractString(rawDetails['anomaly_id']) : undefined);
-  const completedAt = extractString(payloadRecord.completed_at)
-    ?? extractString(payloadRecord.completedAt);
-  const lastUpdated = extractString(payloadRecord.updated_at)
-    ?? extractString(payloadRecord.last_updated)
-    ?? extractString(payloadRecord.timestamp);
-  const errorMessage = extractString(payloadRecord.error)
-    ?? extractString(payloadRecord.failure_reason)
-    ?? (rawDetails ? extractString(rawDetails['error']) : undefined);
-
-  return {
-    id: idCandidate,
-    status: statusCandidate,
-    startTime,
-    autoFix: autoFixValue,
-    operationMode: operationModeValue,
-    model: modelValue,
-    resource: resourceValue,
-    progress: progressValue,
-    riskLevel: riskLevelValue,
-    note: noteValue,
-    label: labelValue,
-    anomalyId: anomalyIdValue,
-    details: rawDetails,
-    lastUpdated,
-    completedAt,
-    error: errorMessage
-  };
-};
-
-const parseAgentsResponse = (data: unknown): InvestigationAgentState[] => {
-  if (!data) {
-    return [];
-  }
-
-  const candidates: unknown[] = [];
-
-  if (Array.isArray(data)) {
-    candidates.push(...data);
-  } else if (typeof data === 'object' && data !== null) {
-    const maybeObject = data as Record<string, unknown>;
-    if (Array.isArray(maybeObject.agents)) {
-      candidates.push(...maybeObject.agents);
-    } else if (maybeObject.agent) {
-      candidates.push(maybeObject.agent);
-    } else if (typeof maybeObject.id === 'string' || typeof maybeObject.investigation_id === 'string') {
-      candidates.push(maybeObject);
-    }
-  }
-
-  return candidates
-    .map(candidate => mapAgentPayload(candidate))
-    .filter((agent): agent is InvestigationAgentState => Boolean(agent));
-};
 
 export const useInvestigationAgents = () => {
   const [agents, setAgents] = useState<InvestigationAgentState[]>([]);
+  const agentsRef = useRef(agents);
+  agentsRef.current = agents;
   const [isSpawningAgent, setIsSpawningAgent] = useState(false);
+  const isSpawningRef = useRef(false);
   const [stoppingAgents, setStoppingAgents] = useState<Set<string>>(() => new Set());
   const [agentErrors, setAgentErrors] = useState<Record<string, string>>({});
   const [spawnAgentError, setSpawnAgentError] = useState<string | null>(null);
 
   const fetchActiveAgents = useCallback(async () => {
     try {
-      const response = await fetch(buildApiUrl('/investigations/agent/current'));
-      if (response.status === 404) {
+      const inv = await protoFetch('/investigations/agent/current', parseInvestigation);
+      // Server returns null JSON when no active agent
+      if (!inv.id) {
         setAgents([]);
         return;
       }
-
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
+      const mapped = protoToAgentState(inv);
+      setAgents(mapped ? [mapped] : []);
+    } catch (err) {
+      // Parse failures or empty responses mean no active agent
+      if (err instanceof SyntaxError || (isApiError(err) && err.detail?.code === 'not_found')) {
+        setAgents([]);
+        return;
       }
-
-      let payload: unknown = null;
-      if (response.status !== 204) {
-        try {
-          payload = await response.json();
-        } catch (parseError) {
-          console.error('Failed to parse active agent response:', parseError);
-        }
-      }
-
-      setAgents(parseAgentsResponse(payload));
-    } catch (fetchError) {
-      console.error('Failed to fetch active agents:', fetchError);
+      // Re-throw server/network errors so callers can handle them
+      throw err;
     }
   }, []);
 
   const spawnInvestigationAgent = useCallback(async ({ autoFix, note }: { autoFix: boolean; note?: string }) => {
+    if (isSpawningRef.current) return undefined;
+    isSpawningRef.current = true;
     setSpawnAgentError(null);
     setIsSpawningAgent(true);
     try {
-      const response = await fetch(buildApiUrl('/investigations/agent/spawn'), {
+      const resp = await protoFetch('/investigations/agent/spawn', parseTriggerInvestigationResponse, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ auto_fix: autoFix, note })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auto_fix: autoFix, note }),
       });
 
-      if (!response.ok) {
-        let message = `Request failed with status ${response.status}`;
-        try {
-          const errorPayload = await response.json();
-          if (typeof errorPayload?.error === 'string') {
-            message = errorPayload.error;
-          }
-        } catch {
-          // Ignore JSON parse failure for error payloads
-        }
-        throw new Error(message);
-      }
-
-      let data: Record<string, unknown> = {};
-      try {
-        data = await response.json() as Record<string, unknown>;
-      } catch {
-        data = {};
-      }
-
-      const resolvedId = typeof data.investigation_id === 'string'
-        ? data.investigation_id
-        : typeof data.id === 'string'
-        ? data.id
-        : undefined;
-
-      const payload = {
-        ...data,
-        id: resolvedId,
-        start_time: typeof data.start_time === 'string'
-          ? data.start_time
-          : typeof data.started_at === 'string'
-          ? data.started_at
-          : new Date().toISOString(),
-        auto_fix: typeof data.auto_fix === 'boolean' ? data.auto_fix : autoFix,
-        note: typeof data.note === 'string' ? data.note : note
-      } as Record<string, unknown>;
-
-      const mapped = mapAgentPayload(payload);
-
-      if (!mapped) {
-        throw new Error('Agent response missing identifier');
-      }
+      const mapped: InvestigationAgentState = {
+        id: resp.investigationId,
+        status: 'queued',
+        startTime: new Date().toISOString(),
+        autoFix: resp.autoFix,
+        note: resp.note || note,
+      };
 
       setAgents(prev => {
         const existingIndex = prev.findIndex(agent => agent.id === mapped.id);
@@ -222,11 +75,12 @@ export const useInvestigationAgents = () => {
 
       return mapped;
     } catch (spawnError) {
-      const message = spawnError instanceof Error ? spawnError.message : 'Unknown error spawning investigation agent';
+      const message = extractErrorMessage(spawnError, 'Unknown error spawning investigation agent');
       setSpawnAgentError(message);
       throw spawnError;
     } finally {
       setIsSpawningAgent(false);
+      isSpawningRef.current = false;
     }
   }, []);
 
@@ -252,26 +106,12 @@ export const useInvestigationAgents = () => {
     });
 
     try {
-      const response = await fetch(buildApiUrl(`/investigations/agent/${encodeURIComponent(agentId)}/stop`), {
-        method: 'POST'
+      await apiFetch<{ status: string; id: string }>(`/investigations/agent/${encodeURIComponent(agentId)}/stop`, {
+        method: 'POST',
       });
-
-      if (!response.ok) {
-        let message = `Request failed with status ${response.status}`;
-        try {
-          const payload = await response.json() as Record<string, unknown>;
-          if (typeof payload.error === 'string') {
-            message = payload.error;
-          }
-        } catch {
-          // Ignore
-        }
-        throw new Error(message);
-      }
-
       setAgents(prev => prev.filter(agent => agent.id !== agentId));
     } catch (stopError) {
-      const message = stopError instanceof Error ? stopError.message : 'Failed to stop agent';
+      const message = extractErrorMessage(stopError, 'Failed to stop agent');
       setAgentErrors(prev => ({ ...prev, [agentId]: message }));
       throw stopError;
     } finally {
@@ -284,73 +124,71 @@ export const useInvestigationAgents = () => {
   }, []);
 
   useEffect(() => {
-    void fetchActiveAgents();
+    fetchActiveAgents().catch(() => {
+      // Initial fetch failure is non-fatal — polling will retry
+    });
   }, [fetchActiveAgents]);
 
-  useEffect(() => {
-    const activeAgents = agents.filter(agent => {
+  const hasActiveAgents = agents.some(agent => {
+    const status = agent.status?.toLowerCase?.();
+    return !status || !INVESTIGATION_TERMINAL_STATUSES.has(status);
+  });
+
+  const pollAgentStatuses = useCallback(async () => {
+    const currentAgents = agentsRef.current.filter(agent => {
       const status = agent.status?.toLowerCase?.();
-      if (!status) {
-        return true;
-      }
-      return !TERMINAL_AGENT_STATUSES.has(status);
+      return !status || !INVESTIGATION_TERMINAL_STATUSES.has(status);
     });
 
-    if (activeAgents.length === 0) {
-      return;
-    }
+    if (currentAgents.length === 0) return;
 
-    let isMounted = true;
+    const removals = new Set<string>();
+    const updates = new Map<string, InvestigationAgentState>();
 
-    const pollOnce = async () => {
-      await Promise.all(activeAgents.map(async agent => {
-        try {
-          const response = await fetch(buildApiUrl(`/investigations/agent/${encodeURIComponent(agent.id)}/status`));
-          if (response.status === 404) {
-            if (isMounted) {
-              setAgents(prev => prev.filter(existing => existing.id !== agent.id));
-            }
-            return;
+    await Promise.all(currentAgents.map(async agent => {
+      try {
+        const inv = await protoFetch(
+          `/investigations/agent/${encodeURIComponent(agent.id)}/status`,
+          parseInvestigation,
+        );
+        const mapped = protoToAgentState(inv);
+        if (mapped) {
+          const normalizedStatus = mapped.status?.toLowerCase?.();
+          if (normalizedStatus && INVESTIGATION_TERMINAL_STATUSES.has(normalizedStatus)) {
+            removals.add(mapped.id);
+          } else {
+            updates.set(mapped.id, mapped);
           }
-          if (!response.ok) {
-            return;
-          }
-
-          let payload: unknown = null;
-          try {
-            payload = await response.json();
-          } catch (parseError) {
-            console.error('Failed to parse agent status payload:', parseError);
-          }
-
-          const parsed = parseAgentsResponse(payload);
-          const mapped = parsed.find(item => item.id === agent.id)
-            ?? mapAgentPayload({ ...(payload as Record<string, unknown>), id: agent.id });
-
-          if (mapped && isMounted) {
-            const normalizedStatus = mapped.status?.toLowerCase?.();
-            if (normalizedStatus && TERMINAL_AGENT_STATUSES.has(normalizedStatus)) {
-              setAgents(prev => prev.filter(existing => existing.id !== mapped.id));
-            } else {
-              setAgents(prev => prev.map(existing => existing.id === mapped.id ? { ...existing, ...mapped } : existing));
-            }
-          }
-        } catch (pollError) {
-          console.error('Failed to poll agent status:', pollError);
         }
-      }));
-    };
+      } catch (pollErr) {
+        // 404 / parse error means agent was removed — treat as removal
+        if (pollErr instanceof SyntaxError || (isApiError(pollErr) && pollErr.detail?.code === 'not_found')) {
+          removals.add(agent.id);
+        }
+        // Network/5xx errors are silently ignored per-agent during polling
+        // (the polling backoff in usePolling will handle systemic failures)
+      }
+    }));
 
-    void pollOnce();
-    const interval = setInterval(() => {
-      void pollOnce();
-    }, AGENT_POLL_INTERVAL_MS);
+    if (removals.size > 0 || updates.size > 0) {
+      setAgents(prev => prev
+        .filter(existing => !removals.has(existing.id))
+        .map(existing => {
+          const update = updates.get(existing.id);
+          return update ? { ...existing, ...update } : existing;
+        })
+      );
+    }
+  }, []);
 
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [agents]);
+  // Initial poll when agents become active
+  useEffect(() => {
+    if (hasActiveAgents) {
+      void pollAgentStatuses();
+    }
+  }, [hasActiveAgents, pollAgentStatuses]);
+
+  usePolling(pollAgentStatuses, AGENT_POLL_INTERVAL_MS, hasActiveAgents);
 
   return {
     agents,
@@ -360,6 +198,6 @@ export const useInvestigationAgents = () => {
     agentErrors,
     refreshAgents: fetchActiveAgents,
     spawnAgent,
-    stopAgent
+    stopAgent,
   };
 };

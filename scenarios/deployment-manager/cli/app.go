@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"deployment-manager/cli/approvals"
 	"deployment-manager/cli/bundles"
 	"deployment-manager/cli/cmdutil"
 	"deployment-manager/cli/deployments"
@@ -12,6 +13,7 @@ import (
 	"deployment-manager/cli/profiles"
 	"deployment-manager/cli/signing"
 	"deployment-manager/cli/swaps"
+	"deployment-manager/cli/validations"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -40,6 +42,8 @@ type App struct {
 	deployments *deployments.Commands
 	bundles     *bundles.Commands
 	signing     *signing.Commands
+	validations *validations.Commands
+	approvals   *approvals.Commands
 }
 
 // NewApp constructs the CLI application.
@@ -78,6 +82,8 @@ func NewApp() (*App, error) {
 		deployments: deployments.New(core.APIClient),
 		bundles:     bundles.New(core.APIClient),
 		signing:     signing.New(core.APIClient),
+		validations: validations.New(core.APIClient),
+		approvals:   approvals.New(core.APIClient),
 	}
 	app.core.SetCommands(app.registerCommands())
 	return app, nil
@@ -191,7 +197,21 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{overview, profiles, swaps, deployments, secrets, signing, config}
+	validationsGroup := cliapp.CommandGroup{
+		Title: "Validations",
+		Commands: []cliapp.Command{
+			{Name: "validations", NeedsAPI: true, Description: "Visual validation quality gate (run, status, video, review, list)", Run: a.validations.Run},
+		},
+	}
+
+	approvalsGroup := cliapp.CommandGroup{
+		Title: "Approvals",
+		Commands: []cliapp.Command{
+			{Name: "approvals", NeedsAPI: true, Description: "Deployment approval gate (list, get, create, decide, gate, platforms)", Run: a.approvals.Run},
+		},
+	}
+
+	return []cliapp.CommandGroup{overview, profiles, swaps, deployments, secrets, signing, validationsGroup, approvalsGroup, config}
 }
 
 // applyGlobalFormat consumes leading global format flags (--json, --format <fmt>)

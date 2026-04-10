@@ -22,7 +22,7 @@ import {
 import { Button } from "./ui/button";
 import { Input, Label } from "./ui/input";
 import { Select } from "./ui/select";
-import type { CreateRequest, OwnerType, Sandbox, PathValidationResult } from "../lib/api";
+import type { CreateRequest, OwnerType, Sandbox } from "../lib/api";
 import { validatePath } from "../lib/api";
 import { SELECTORS } from "../consts/selectors";
 
@@ -162,7 +162,7 @@ function useReservedPathValidation(
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [reservedPath, projectRoot, defaultProjectRoot, existingReservedPathsKey]);
+  }, [reservedPath, projectRoot, defaultProjectRoot, existingReservedPaths, existingReservedPathsKey]);
 
   return validation;
 }
@@ -350,6 +350,7 @@ export function CreateSandboxDialog({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [mountScopePath, setMountScopePath] = useState("");
   const [noLock, setNoLock] = useState(false);
+  const [name, setName] = useState("");
 
   useEffect(() => {
     if (!noLock) return;
@@ -462,6 +463,7 @@ export function CreateSandboxDialog({
     const scopePath = effectiveScopePath;
 
     onCreate({
+      name: name.trim() || undefined,
       scopePath,
       reservedPath: noLock ? undefined : effectiveReservedPaths[0],
       reservedPaths: noLock ? undefined : effectiveReservedPaths,
@@ -484,6 +486,7 @@ export function CreateSandboxDialog({
       setShowAdvanced(false);
       setMountScopePath("");
       setNoLock(false);
+      setName("");
     }
   };
 
@@ -544,6 +547,22 @@ export function CreateSandboxDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          {/* Name - Optional */}
+          <div className="space-y-2">
+            <Label htmlFor="name">Name (optional)</Label>
+            <Input
+              id="name"
+              placeholder="e.g., Feature X implementation"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="bg-slate-900 border-slate-700"
+              data-testid={SELECTORS.nameInput}
+            />
+            <p className="text-xs text-slate-500">
+              A friendly name to identify this sandbox
+            </p>
+          </div>
+
           {/* Reserved Directory - Required */}
           <div className="space-y-2">
             <Label htmlFor="reservedPath">

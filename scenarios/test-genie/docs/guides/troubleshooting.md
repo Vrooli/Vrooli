@@ -138,7 +138,7 @@ getaddrinfo: Name or service not known
 
 **Solutions:**
 ```bash
-# Use IP addresses instead of hostnames
+# For networked databases/services, use IPs instead of hostnames
 export DATABASE_URL="postgresql://user:pass@127.0.0.1:5432/db"
 
 # Check /etc/hosts
@@ -178,28 +178,34 @@ sudo ufw disable
 
 **Symptoms:**
 ```
-Error: DATABASE_URL is required but not set
+Error: sqlite configuration failed
 ```
 
 **Diagnosis:**
 ```bash
 # Check current environment
-env | grep -E "DATABASE|REDIS|API"
+env | grep -E "DATABASE|SQLITE|REDIS|API"
 
 # Check .env files
 cat .env .env.local 2>/dev/null
 
 # Check shell exports
-declare -x | grep -E "DATABASE|REDIS|API"
+declare -x | grep -E "DATABASE|SQLITE|REDIS|API"
 ```
 
 **Solutions:**
 ```bash
-# Set missing variables
+# Embedded SQLite scenarios
+export TEST_GENIE_SQLITE_PATH="$PWD/data/test-genie.db"
+
+# Generic SQLite fallback
+export SQLITE_PATH="$PWD/data/test-genie.db"
+
+# Networked database scenarios
 export DATABASE_URL="postgresql://localhost:5432/testdb"
 
 # Use .env file
-echo "DATABASE_URL=postgresql://localhost:5432/testdb" >> .env
+echo "TEST_GENIE_SQLITE_PATH=$PWD/data/test-genie.db" >> .env
 ```
 
 ### Path Resolution Issues
@@ -339,7 +345,7 @@ Error: Docker daemon not available
 
 **Solutions:**
 ```yaml
-# Use services for databases
+# Use services only for scenarios that require a networked database
 services:
   postgres:
     image: postgres:13
@@ -350,6 +356,8 @@ services:
 - name: Wait for PostgreSQL
   run: |
     timeout 30 bash -c 'until pg_isready; do sleep 1; done'
+
+# Embedded SQLite scenarios usually do not need a service container
 
 # Use setup-* actions
 - uses: actions/setup-node@v3
@@ -1032,7 +1040,7 @@ zip -r debug-info.zip debug-info/
 - [QUICKSTART](../QUICKSTART.md) - Start with basics
 - [Safety Guidelines](../safety/GUIDELINES.md) - Prevent common mistakes
 - [Phased Testing](phased-testing.md) - Complete workflow
-- [Performance Testing](performance-testing.md) - Performance phase details
+- [Performance Testing](../phases/performance/performance-testing.md) - Performance phase details
 - [Dashboard Guide](dashboard-guide.md) - UI troubleshooting
 - [Custom Presets](custom-presets.md) - Preset configuration
 

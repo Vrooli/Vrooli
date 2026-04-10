@@ -193,6 +193,17 @@ const ALIASES = {
 };
 
 export default defineConfig({
+  // ╔══════════════════════════════════════════════════════════════╗
+  // ║  INTEROP-CRITICAL: Relative base for proxy/tunnel contexts  ║
+  // ║                                                              ║
+  // ║  When served through app-monitor's proxy at                  ║
+  // ║  /apps/<name>/proxy/, absolute asset URLs (base: '/')        ║
+  // ║  resolve to the domain root, breaking all JS/CSS loading.    ║
+  // ║  Relative base ('./') makes assets resolve from the          ║
+  // ║  current directory, which works in all three contexts.       ║
+  // ║                                                              ║
+  // ║  DO NOT change to '/' or remove this setting.                ║
+  // ╚══════════════════════════════════════════════════════════════╝
   base: './',
   plugins: [react(), healthEndpointPlugin()],
   resolve: {
@@ -337,6 +348,16 @@ export default defineConfig({
         resolve: { alias: ALIASES },
         test: {
           ...PROJECT_BASE_TEST_CONFIG,
+          name: 'subscription',
+          include: ['src/views/SettingsView/sections/subscription/**/*.test.{ts,tsx}'],
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
+        },
+      }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
           name: 'components',
           include: ['src/components/**/*.test.{ts,tsx}'],
           pool: 'threads',
@@ -359,6 +380,20 @@ export default defineConfig({
           ...PROJECT_BASE_TEST_CONFIG,
           name: 'exports-domain',
           include: ['src/domains/exports/**/*.test.{ts,tsx}'],
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
+        },
+      }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
+          name: 'shared',
+          include: [
+            'src/shared/**/*.test.{ts,tsx}',
+            'src/domains/**/services/**/*.test.{ts,tsx}',
+            'src/views/**/controllers/**/*.test.{ts,tsx}',
+          ],
           pool: 'threads',
           poolOptions: THREADS_TWO,
         },

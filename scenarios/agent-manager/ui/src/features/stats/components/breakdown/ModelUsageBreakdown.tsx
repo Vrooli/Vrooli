@@ -15,10 +15,20 @@ import {
 import { ChevronLeft } from "lucide-react";
 import { Badge } from "../../../../components/ui/badge";
 import { Button } from "../../../../components/ui/button";
-import { formatRelativeTime } from "../../../../lib/utils";
+import { formatStatusLabel, formatUnknownLabel, statusBadgeVariant } from "../../../../lib/display";
+import { formatStandardRelativeTime } from "../../../../lib/dateTime";
+import { formatUsdFixed } from "../../../../lib/currency";
 import { useModelBreakdown, useModelUsageRuns } from "../../hooks/useModelBreakdown";
-import { formatNumber, formatCurrency, formatPercent, formatTokens } from "../../utils/formatters";
+import { formatNumber, formatPercent, formatTokens } from "../../utils/formatters";
 import { CHART_COLORS, TOOLTIP_STYLE, getSeriesColor } from "../../utils/chartConfig";
+
+interface ModelChartDatum {
+  name: string;
+  runs: number;
+  successRate: number;
+  cost: number;
+  tokens: number;
+}
 
 export function ModelUsageBreakdown() {
   const { data, isLoading, error } = useModelBreakdown();
@@ -27,7 +37,7 @@ export function ModelUsageBreakdown() {
   const models = data?.models ?? [];
 
   // Prepare data for chart - sort by run count descending
-  const chartData = [...models]
+  const chartData: ModelChartDatum[] = [...models]
     .sort((a, b) => b.runCount - a.runCount)
     .map((model) => ({
       name: model.model || "unknown",
@@ -54,16 +64,16 @@ export function ModelUsageBreakdown() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card/50 p-6">
-        <div className="mb-4 h-5 w-32 animate-pulse rounded bg-muted/30" />
-        <div className="h-[250px] animate-pulse rounded bg-muted/20" />
+      <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
+        <div className="mb-2 sm:mb-4 h-5 w-32 animate-pulse rounded bg-muted/30" />
+        <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-6">
+      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 sm:p-6">
         <h3 className="text-sm font-semibold">Model Usage</h3>
         <p className="mt-2 text-sm text-red-500">Failed to load: {error.message}</p>
       </div>
@@ -71,10 +81,10 @@ export function ModelUsageBreakdown() {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card/50 p-6">
+    <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
       {selectedModel && selectedStats ? (
         <>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="mb-2 sm:mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
@@ -86,11 +96,11 @@ export function ModelUsageBreakdown() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                <h3 className="text-sm font-semibold text-muted-foreground">
                   Model Usage
                 </h3>
                 <p className="text-sm font-medium text-foreground">
-                  {formatModelName(selectedStats.name)}
+                  {formatUnknownLabel(selectedStats.name)}
                 </p>
               </div>
             </div>
@@ -102,7 +112,7 @@ export function ModelUsageBreakdown() {
                 Success <span className="ml-1 font-semibold text-foreground">{formatPercent(selectedStats.successRate)}</span>
               </div>
               <div className="rounded-md border border-border/60 bg-muted/30 px-2 py-1">
-                Cost <span className="ml-1 font-semibold text-foreground">{formatCurrency(selectedStats.cost)}</span>
+                Cost <span className="ml-1 font-semibold text-foreground">{formatUsdFixed(selectedStats.cost, 2)}</span>
               </div>
               <div className="rounded-md border border-border/60 bg-muted/30 px-2 py-1">
                 Tokens <span className="ml-1 font-semibold text-foreground">{formatTokens(selectedStats.tokens)}</span>
@@ -110,17 +120,17 @@ export function ModelUsageBreakdown() {
             </div>
           </div>
           {runsLoading ? (
-            <div className="h-[250px] animate-pulse rounded bg-muted/20" />
+            <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
           ) : runsError ? (
             <div className="rounded border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-500">
               Failed to load runs: {runsError.message}
             </div>
           ) : (modelRuns?.runs?.length ?? 0) === 0 ? (
-            <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-[200px] sm:h-[250px] items-center justify-center text-sm text-muted-foreground">
               No runs found for this model in the selected window
             </div>
           ) : (
-            <div className="max-h-[260px] overflow-y-auto pr-2 divide-y divide-border/60">
+            <div className="max-h-[200px] sm:max-h-[260px] overflow-y-auto pr-2 divide-y divide-border/60">
               {modelRuns?.runs.map((run) => (
                 <div key={run.runId} className="flex flex-wrap items-center justify-between gap-4 py-3">
                   <div>
@@ -131,13 +141,13 @@ export function ModelUsageBreakdown() {
                       {run.taskTitle || "Untitled Task"}
                     </Link>
                     <div className="text-xs text-muted-foreground">
-                      {run.profileName} • {formatRelativeTime(run.createdAt)} • {run.runId.slice(0, 8)}
+                      {run.profileName} • {formatStandardRelativeTime(run.createdAt)} • {run.runId.slice(0, 8)}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge variant={statusVariant(run.status)}>{statusLabel(run.status)}</Badge>
+                    <Badge variant={statusBadgeVariant(run.status)}>{formatStatusLabel(run.status)}</Badge>
                     <div className="text-right text-xs text-muted-foreground">
-                      <div>{formatCurrency(run.totalCostUsd)}</div>
+                      <div>{formatUsdFixed(run.totalCostUsd, 2)}</div>
                       <div>{formatTokens(run.totalTokens)}</div>
                     </div>
                   </div>
@@ -148,18 +158,18 @@ export function ModelUsageBreakdown() {
         </>
       ) : (
         <>
-          <div className="mb-4 flex items-baseline justify-between">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="mb-2 sm:mb-4 flex items-baseline justify-between">
+            <h3 className="text-sm font-semibold text-muted-foreground">
               Model Usage
             </h3>
             <span className="text-xs text-muted-foreground">Click a bar to view runs</span>
           </div>
           {chartData.length === 0 ? (
-            <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-[200px] sm:h-[250px] items-center justify-center text-sm text-muted-foreground">
               No model data available
             </div>
           ) : (
-            <div className="h-[250px]">
+            <div className="h-[200px] sm:h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={chartData}
@@ -180,30 +190,29 @@ export function ModelUsageBreakdown() {
                     tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
                     tickLine={{ stroke: CHART_COLORS.axis }}
                     width={75}
-                    tickFormatter={(value) => {
-                      const label = formatModelName(value);
+                    tickFormatter={(value: string) => {
+                      const label = formatUnknownLabel(value);
                       return label.length > 12 ? `${label.slice(0, 12)}...` : label;
                     }}
                   />
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
-                    formatter={(value: number, name: string, props) => {
-                      const item = props.payload;
+                    formatter={(value: number, name: string) => {
                       if (name === "runs") {
                         const pct = totalRuns > 0 ? (value / totalRuns) * 100 : 0;
                         return [`${formatNumber(value)} (${pct.toFixed(1)}%)`, "Runs"];
                       }
                       return [value, name];
                     }}
-                    labelFormatter={(label) => (
-                      <span className="font-medium">{formatModelName(label)}</span>
+                    labelFormatter={(label: string) => (
+                      <span className="font-medium">{formatUnknownLabel(label)}</span>
                     )}
                     content={({ active, payload }) => {
                       if (!active || !payload?.[0]) return null;
-                      const item = payload[0].payload;
+                      const item = payload[0].payload as ModelChartDatum;
                       return (
                         <div className="rounded border border-border bg-card p-3 text-xs shadow-lg">
-                          <div className="mb-2 font-medium">{formatModelName(item.name)}</div>
+                          <div className="mb-2 font-medium">{formatUnknownLabel(item.name)}</div>
                           <div className="space-y-1 text-muted-foreground">
                             <div className="flex justify-between gap-4">
                               <span>Runs:</span>
@@ -233,7 +242,7 @@ export function ModelUsageBreakdown() {
                             <div className="flex justify-between gap-4">
                               <span>Cost:</span>
                               <span className="font-medium text-foreground">
-                                {formatCurrency(item.cost)}
+                                {formatUsdFixed(item.cost, 2)}
                               </span>
                             </div>
                             <div className="flex justify-between gap-4">
@@ -273,31 +282,4 @@ export function ModelUsageBreakdown() {
       )}
     </div>
   );
-}
-
-function statusVariant(status: string) {
-  switch (status) {
-    case "pending":
-    case "starting":
-    case "running":
-    case "needs_review":
-    case "complete":
-    case "failed":
-    case "cancelled":
-      return status;
-    default:
-      return "secondary";
-  }
-}
-
-function statusLabel(status: string) {
-  return status
-    .split("_")
-    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : word))
-    .join(" ");
-}
-
-function formatModelName(value: string) {
-  if (!value || value === "unknown") return "Unknown";
-  return value;
 }

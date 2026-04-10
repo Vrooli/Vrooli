@@ -14,7 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Repositories holds all PostgreSQL repository implementations.
+// Repositories holds all repository implementations.
 type Repositories struct {
 	Profiles              repository.ProfileRepository
 	Tasks                 repository.TaskRepository
@@ -50,6 +50,9 @@ func appendLimitOffset(query string, limit, offset int) (string, []interface{}) 
 	if limit > 0 {
 		query += " LIMIT ?"
 		args = append(args, limit)
+	} else if offset > 0 {
+		// SQLite requires LIMIT before OFFSET; use -1 for unlimited
+		query += " LIMIT -1"
 	}
 	if offset > 0 {
 		query += " OFFSET ?"
@@ -71,27 +74,30 @@ var _ repository.ProfileRepository = (*profileRepository)(nil)
 
 // profileRow is the database row representation for agent_profiles.
 type profileRow struct {
-	ID                   uuid.UUID             `db:"id"`
-	Name                 string                `db:"name"`
-	ProfileKey           string                `db:"profile_key"`
-	Description          string                `db:"description"`
-	RunnerType           string                `db:"runner_type"`
-	Model                string                `db:"model"`
-	ModelPreset          sql.NullString        `db:"model_preset"`
-	MaxTurns             int                   `db:"max_turns"`
-	TimeoutMs            int64                 `db:"timeout_ms"`
-	FallbackRunnerTypes  StringSlice           `db:"fallback_runner_types"`
-	AllowedTools         StringSlice           `db:"allowed_tools"`
-	DeniedTools          StringSlice           `db:"denied_tools"`
-	SkipPermissionPrompt bool                  `db:"skip_permission_prompt"`
-	RequiresSandbox      bool                  `db:"requires_sandbox"`
-	RequiresApproval     bool                  `db:"requires_approval"`
-	SandboxConfig        NullableSandboxConfig `db:"sandbox_config"`
-	AllowedPaths         StringSlice           `db:"allowed_paths"`
-	DeniedPaths          StringSlice           `db:"denied_paths"`
-	CreatedBy            string                `db:"created_by"`
-	CreatedAt            SQLiteTime            `db:"created_at"`
-	UpdatedAt            SQLiteTime            `db:"updated_at"`
+	ID                   uuid.UUID                `db:"id"`
+	Name                 string                   `db:"name"`
+	ProfileKey           string                   `db:"profile_key"`
+	Description          string                   `db:"description"`
+	RunnerType           string                   `db:"runner_type"`
+	Model                string                   `db:"model"`
+	ModelPreset          sql.NullString           `db:"model_preset"`
+	MaxTurns             int                      `db:"max_turns"`
+	TimeoutMs            int64                    `db:"timeout_ms"`
+	FallbackRunnerTypes  StringSlice              `db:"fallback_runner_types"`
+	AllowedTools         StringSlice              `db:"allowed_tools"`
+	DeniedTools          StringSlice              `db:"denied_tools"`
+	SkipPermissionPrompt bool                     `db:"skip_permission_prompt"`
+	Features             NullableFeatureFlags     `db:"features"`
+	ExtraFlags           NullableRunnerExtraFlags `db:"extra_flags"`
+	RequiresSandbox      bool                     `db:"requires_sandbox"`
+	RequiresApproval     bool                     `db:"requires_approval"`
+	NetworkAccess        string                   `db:"network_access"`
+	SandboxConfig        NullableSandboxConfig    `db:"sandbox_config"`
+	AllowedPaths         StringSlice              `db:"allowed_paths"`
+	DeniedPaths          StringSlice              `db:"denied_paths"`
+	CreatedBy            string                   `db:"created_by"`
+	CreatedAt            SQLiteTime               `db:"created_at"`
+	UpdatedAt            SQLiteTime               `db:"updated_at"`
 }
 
 func (r *profileRow) toDomain() *domain.AgentProfile {
@@ -113,8 +119,11 @@ func (r *profileRow) toDomain() *domain.AgentProfile {
 		AllowedTools:         r.AllowedTools,
 		DeniedTools:          r.DeniedTools,
 		SkipPermissionPrompt: r.SkipPermissionPrompt,
+		Features:             r.Features.V,
+		ExtraFlags:           r.ExtraFlags.V,
 		RequiresSandbox:      r.RequiresSandbox,
 		RequiresApproval:     r.RequiresApproval,
+		NetworkAccess:        domain.NetworkAccess(r.NetworkAccess),
 		SandboxConfig:        r.SandboxConfig.V,
 		AllowedPaths:         r.AllowedPaths,
 		DeniedPaths:          r.DeniedPaths,
@@ -143,8 +152,11 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 		AllowedTools:         p.AllowedTools,
 		DeniedTools:          p.DeniedTools,
 		SkipPermissionPrompt: p.SkipPermissionPrompt,
+		Features:             NullableFeatureFlags{V: p.Features},
+		ExtraFlags:           NullableRunnerExtraFlags{V: p.ExtraFlags},
 		RequiresSandbox:      p.RequiresSandbox,
 		RequiresApproval:     p.RequiresApproval,
+		NetworkAccess:        string(p.NetworkAccess),
 		SandboxConfig:        NullableSandboxConfig{V: p.SandboxConfig},
 		AllowedPaths:         p.AllowedPaths,
 		DeniedPaths:          p.DeniedPaths,
@@ -183,8 +195,8 @@ func fromRunnerTypes(values []domain.RunnerType) StringSlice {
 }
 
 const profileColumns = `id, name, profile_key, description, runner_type, model, model_preset, max_turns, timeout_ms,
-	fallback_runner_types, allowed_tools, denied_tools, skip_permission_prompt, requires_sandbox, requires_approval,
-	sandbox_config, allowed_paths, denied_paths, created_by, created_at, updated_at`
+	fallback_runner_types, allowed_tools, denied_tools, skip_permission_prompt, features, extra_flags,
+	requires_sandbox, requires_approval, network_access, sandbox_config, allowed_paths, denied_paths, created_by, created_at, updated_at`
 
 func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentProfile) error {
 	if profile.ID == uuid.Nil {
@@ -196,11 +208,11 @@ func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentPro
 
 	row := profileFromDomain(profile)
 	query := `INSERT INTO agent_profiles (id, name, profile_key, description, runner_type, model, model_preset, max_turns, timeout_ms,
-		fallback_runner_types, allowed_tools, denied_tools, skip_permission_prompt, requires_sandbox, requires_approval,
-		sandbox_config, allowed_paths, denied_paths, created_by, created_at, updated_at)
+		fallback_runner_types, allowed_tools, denied_tools, skip_permission_prompt, features, extra_flags,
+		requires_sandbox, requires_approval, network_access, sandbox_config, allowed_paths, denied_paths, created_by, created_at, updated_at)
 		VALUES (:id, :name, :profile_key, :description, :runner_type, :model, :model_preset, :max_turns, :timeout_ms,
-		:fallback_runner_types, :allowed_tools, :denied_tools, :skip_permission_prompt, :requires_sandbox, :requires_approval,
-		:sandbox_config, :allowed_paths, :denied_paths, :created_by, :created_at, :updated_at)`
+		:fallback_runner_types, :allowed_tools, :denied_tools, :skip_permission_prompt, :features, :extra_flags,
+		:requires_sandbox, :requires_approval, :network_access, :sandbox_config, :allowed_paths, :denied_paths, :created_by, :created_at, :updated_at)`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
@@ -211,7 +223,7 @@ func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentPro
 }
 
 func (r *profileRepository) Get(ctx context.Context, id uuid.UUID) (*domain.AgentProfile, error) {
-	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM agent_profiles WHERE id = ?", profileColumns))
+	query := fmt.Sprintf("SELECT %s FROM agent_profiles WHERE id = ?", profileColumns)
 	var row profileRow
 	if err := r.db.GetContext(ctx, &row, query, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -223,7 +235,7 @@ func (r *profileRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Agen
 }
 
 func (r *profileRepository) GetByName(ctx context.Context, name string) (*domain.AgentProfile, error) {
-	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM agent_profiles WHERE name = ?", profileColumns))
+	query := fmt.Sprintf("SELECT %s FROM agent_profiles WHERE name = ?", profileColumns)
 	var row profileRow
 	if err := r.db.GetContext(ctx, &row, query, name); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -235,7 +247,7 @@ func (r *profileRepository) GetByName(ctx context.Context, name string) (*domain
 }
 
 func (r *profileRepository) GetByKey(ctx context.Context, key string) (*domain.AgentProfile, error) {
-	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM agent_profiles WHERE profile_key = ?", profileColumns))
+	query := fmt.Sprintf("SELECT %s FROM agent_profiles WHERE profile_key = ?", profileColumns)
 	var row profileRow
 	if err := r.db.GetContext(ctx, &row, query, key); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -249,7 +261,7 @@ func (r *profileRepository) GetByKey(ctx context.Context, key string) (*domain.A
 func (r *profileRepository) List(ctx context.Context, filter repository.ListFilter) ([]*domain.AgentProfile, error) {
 	base := fmt.Sprintf("SELECT %s FROM agent_profiles ORDER BY updated_at DESC", profileColumns)
 	queryWithPaging, args := appendLimitOffset(base, filter.Limit, filter.Offset)
-	query := r.db.Rebind(queryWithPaging)
+	query := queryWithPaging
 
 	var rows []profileRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
@@ -270,9 +282,9 @@ func (r *profileRepository) Update(ctx context.Context, profile *domain.AgentPro
 	query := `UPDATE agent_profiles SET name = :name, profile_key = :profile_key, description = :description,
 		runner_type = :runner_type, model = :model, model_preset = :model_preset, max_turns = :max_turns, timeout_ms = :timeout_ms,
 		fallback_runner_types = :fallback_runner_types, allowed_tools = :allowed_tools, denied_tools = :denied_tools,
-		skip_permission_prompt = :skip_permission_prompt, requires_sandbox = :requires_sandbox,
-		requires_approval = :requires_approval, sandbox_config = :sandbox_config,
-		allowed_paths = :allowed_paths, denied_paths = :denied_paths,
+		skip_permission_prompt = :skip_permission_prompt, features = :features, extra_flags = :extra_flags,
+		requires_sandbox = :requires_sandbox, requires_approval = :requires_approval, network_access = :network_access,
+		sandbox_config = :sandbox_config, allowed_paths = :allowed_paths, denied_paths = :denied_paths,
 		created_by = :created_by, updated_at = :updated_at
 		WHERE id = :id`
 
@@ -284,7 +296,7 @@ func (r *profileRepository) Update(ctx context.Context, profile *domain.AgentPro
 }
 
 func (r *profileRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := r.db.Rebind(`DELETE FROM agent_profiles WHERE id = ?`)
+	query := `DELETE FROM agent_profiles WHERE id = ?`
 	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return wrapDBError("delete", "AgentProfile", id.String(), err)
@@ -376,7 +388,7 @@ func (r *taskRepository) Create(ctx context.Context, task *domain.Task) error {
 }
 
 func (r *taskRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Task, error) {
-	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM tasks WHERE id = ?", taskColumns))
+	query := fmt.Sprintf("SELECT %s FROM tasks WHERE id = ?", taskColumns)
 	var row taskRow
 	if err := r.db.GetContext(ctx, &row, query, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -390,7 +402,7 @@ func (r *taskRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Task, e
 func (r *taskRepository) List(ctx context.Context, filter repository.ListFilter) ([]*domain.Task, error) {
 	base := fmt.Sprintf("SELECT %s FROM tasks ORDER BY updated_at DESC", taskColumns)
 	queryWithPaging, args := appendLimitOffset(base, filter.Limit, filter.Offset)
-	query := r.db.Rebind(queryWithPaging)
+	query := queryWithPaging
 
 	var rows []taskRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
@@ -408,7 +420,7 @@ func (r *taskRepository) ListByStatus(ctx context.Context, status domain.TaskSta
 	base := fmt.Sprintf("SELECT %s FROM tasks WHERE status = ? ORDER BY updated_at DESC", taskColumns)
 	queryWithPaging, args := appendLimitOffset(base, filter.Limit, filter.Offset)
 	args = append([]interface{}{string(status)}, args...)
-	query := r.db.Rebind(queryWithPaging)
+	query := queryWithPaging
 
 	var rows []taskRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
@@ -440,7 +452,7 @@ func (r *taskRepository) Update(ctx context.Context, task *domain.Task) error {
 }
 
 func (r *taskRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := r.db.Rebind(`DELETE FROM tasks WHERE id = ?`)
+	query := `DELETE FROM tasks WHERE id = ?`
 	_, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return wrapDBError("delete", "Task", id.String(), err)
@@ -460,10 +472,11 @@ type investigationSettingsRepository struct {
 var _ repository.InvestigationSettingsRepository = (*investigationSettingsRepository)(nil)
 
 // investigationSettingsRow is the database row representation for investigation_settings.
+// Prompt templates are no longer stored in the DB — they live in prompt-manager skills.
 type investigationSettingsRow struct {
-	PromptTemplate string                        `db:"prompt_template"`
 	DefaultDepth   string                        `db:"default_depth"`
 	DefaultContext InvestigationContextFlagsJSON `db:"default_context"`
+	TagAllowlist   InvestigationTagAllowlistJSON `db:"investigation_tag_allowlist"`
 	UpdatedAt      SQLiteTime                    `db:"updated_at"`
 }
 
@@ -472,6 +485,42 @@ type InvestigationContextFlagsJSON domain.InvestigationContextFlags
 
 func (j InvestigationContextFlagsJSON) Value() (interface{}, error) {
 	return json.Marshal(domain.InvestigationContextFlags(j))
+}
+
+// InvestigationTagAllowlistJSON handles JSON serialization for tag allowlist rules.
+type InvestigationTagAllowlistJSON []domain.InvestigationTagRule
+
+func (j InvestigationTagAllowlistJSON) Value() (interface{}, error) {
+	return json.Marshal([]domain.InvestigationTagRule(j))
+}
+
+func (j *InvestigationTagAllowlistJSON) Scan(src interface{}) error {
+	if src == nil {
+		*j = InvestigationTagAllowlistJSON(domain.DefaultInvestigationTagAllowlist())
+		return nil
+	}
+
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		*j = InvestigationTagAllowlistJSON(domain.DefaultInvestigationTagAllowlist())
+		return nil
+	}
+
+	var rules []domain.InvestigationTagRule
+	if err := json.Unmarshal(data, &rules); err != nil {
+		*j = InvestigationTagAllowlistJSON(domain.DefaultInvestigationTagAllowlist())
+		return nil
+	}
+	if len(rules) == 0 {
+		rules = domain.DefaultInvestigationTagAllowlist()
+	}
+	*j = InvestigationTagAllowlistJSON(rules)
+	return nil
 }
 
 func (j *InvestigationContextFlagsJSON) Scan(src interface{}) error {
@@ -503,15 +552,19 @@ func (j *InvestigationContextFlagsJSON) Scan(src interface{}) error {
 
 func (row *investigationSettingsRow) toDomain() *domain.InvestigationSettings {
 	return &domain.InvestigationSettings{
-		PromptTemplate: row.PromptTemplate,
-		DefaultDepth:   domain.InvestigationDepth(row.DefaultDepth),
-		DefaultContext: domain.InvestigationContextFlags(row.DefaultContext),
-		UpdatedAt:      row.UpdatedAt.Time(),
+		// PromptTemplate and ApplyPromptTemplate are populated by the orchestration
+		// layer from prompt-manager skills (with hardcoded constants as fallback).
+		PromptTemplate:            domain.DefaultInvestigationPromptTemplate,
+		ApplyPromptTemplate:       domain.DefaultApplyInvestigationPromptTemplate,
+		DefaultDepth:              domain.InvestigationDepth(row.DefaultDepth),
+		DefaultContext:            domain.InvestigationContextFlags(row.DefaultContext),
+		InvestigationTagAllowlist: []domain.InvestigationTagRule(row.TagAllowlist),
+		UpdatedAt:                 row.UpdatedAt.Time(),
 	}
 }
 
 func (r *investigationSettingsRepository) Get(ctx context.Context) (*domain.InvestigationSettings, error) {
-	query := `SELECT prompt_template, default_depth, default_context, updated_at
+	query := `SELECT default_depth, default_context, investigation_tag_allowlist, updated_at
 		FROM investigation_settings WHERE id = 1`
 
 	var row investigationSettingsRow
@@ -532,22 +585,26 @@ func (r *investigationSettingsRepository) Update(ctx context.Context, settings *
 	if err != nil {
 		return wrapDBError("update", "InvestigationSettings", "singleton", err)
 	}
+	allowlistJSON, err := json.Marshal(domain.NormalizeInvestigationTagAllowlist(settings.InvestigationTagAllowlist))
+	if err != nil {
+		return wrapDBError("update", "InvestigationSettings", "singleton", err)
+	}
 
-	query := r.db.Rebind(`
-		INSERT INTO investigation_settings (id, prompt_template, default_depth, default_context, updated_at)
+	query := `
+		INSERT INTO investigation_settings (id, default_depth, default_context, investigation_tag_allowlist, updated_at)
 		VALUES (1, ?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET
-			prompt_template = EXCLUDED.prompt_template,
 			default_depth = EXCLUDED.default_depth,
 			default_context = EXCLUDED.default_context,
+			investigation_tag_allowlist = EXCLUDED.investigation_tag_allowlist,
 			updated_at = EXCLUDED.updated_at
-	`)
+	`
 
 	_, err = r.db.ExecContext(ctx, query,
-		settings.PromptTemplate,
 		string(settings.DefaultDepth),
 		contextJSON,
-		time.Now(),
+		allowlistJSON,
+		time.Now().UTC().Format("2006-01-02 15:04:05.999999999"),
 	)
 	if err != nil {
 		return wrapDBError("update", "InvestigationSettings", "singleton", err)

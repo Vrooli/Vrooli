@@ -1,19 +1,22 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
+// GetRepoStatus gathers the full repository status by running git operations
+// concurrently where possible. The initial `git status --porcelain=v2` must
+// complete first because subsequent steps depend on the parsed file lists.
+// After that, author resolution, diff stats, and optional hotspots all run
+// in parallel via an errgroup.
 func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error) {
 	if deps.Git == nil {
 		return nil, fmt.Errorf("git runner is required")
@@ -23,6 +26,7 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 		return nil, fmt.Errorf("repo dir is required")
 	}
 
+	// Phase 1: git status (must complete before anything else).
 	out, err := deps.Git.StatusPorcelainV2(ctx, repoDir)
 	if err != nil {
 		return nil, err
@@ -34,13 +38,6 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	}
 	parsed.RepoDir = repoDir
 	parsed.Timestamp = time.Now().UTC()
-	parsed.Author = RepoAuthorStatus{}
-	if name, err := deps.Git.ConfigGet(ctx, repoDir, "user.name"); err == nil {
-		parsed.Author.Name = name
-	}
-	if email, err := deps.Git.ConfigGet(ctx, repoDir, "user.email"); err == nil {
-		parsed.Author.Email = email
-	}
 
 	parsed.Summary = RepoStatusSummary{
 		Staged:    len(parsed.Files.Staged),
@@ -51,24 +48,61 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 	}
 	parsed.Scopes = detectScopes(parsed.Files)
 
-	stagedStats := map[string]DiffStats{}
-	if numstat, err := deps.Git.DiffNumstat(ctx, repoDir, true); err == nil {
-		stagedStats = parseNumstatOutput(numstat)
+	// Pre-detect binary files so we can exclude them from git diff --numstat.
+	// This is a critical performance optimization: git diff --numstat must read
+	// the full content of each file to compute line stats, which is extremely
+	// slow for large compiled binaries (e.g., 14 Go binaries at 7-18MB each
+	// turned a 34ms diff into a 1,700ms diff). By checking the first 512 bytes
+	// for null bytes (the same heuristic git uses internally), we can skip
+	// binaries before invoking the expensive diff and report them directly.
+	stagedText, stagedPreBinaries := partitionBinaryPaths(repoDir, parsed.Files.Staged)
+	unstagedText, unstagedPreBinaries := partitionBinaryPaths(repoDir, parsed.Files.Unstaged)
+
+	// Phase 2: run independent git operations concurrently.
+	var (
+		author           RepoAuthorStatus
+		stagedStats      map[string]DiffStats
+		stagedBinaries   []string
+		unstagedStats    map[string]DiffStats
+		unstagedBinaries []string
+		untrackedStats   map[string]DiffStats
+		fileHotspots     map[string]int
+	)
+
+	g, gctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		author = resolveAuthor(gctx, deps, repoDir)
+		return nil
+	})
+
+	g.Go(func() error {
+		stagedStats, stagedBinaries = collectDiffStats(gctx, deps, repoDir, true, stagedText)
+		return nil
+	})
+
+	g.Go(func() error {
+		unstagedStats, unstagedBinaries = collectDiffStats(gctx, deps, repoDir, false, unstagedText)
+		return nil
+	})
+
+	g.Go(func() error {
+		untrackedStats = collectUntrackedStats(repoDir, parsed.Files.Untracked)
+		return nil
+	})
+
+	if deps.IncludeHotspots {
+		g.Go(func() error {
+			fileHotspots = computeFileHotspots(gctx, deps, repoDir, parsed.Files)
+			return nil
+		})
 	}
 
-	unstagedStats := map[string]DiffStats{}
-	if numstat, err := deps.Git.DiffNumstat(ctx, repoDir, false); err == nil {
-		unstagedStats = parseNumstatOutput(numstat)
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 
-	untrackedStats := map[string]DiffStats{}
-	for _, path := range parsed.Files.Untracked {
-		stats, err := buildUntrackedStats(repoDir, path)
-		if err != nil {
-			continue
-		}
-		untrackedStats[path] = stats
-	}
+	parsed.Author = author
 
 	if len(stagedStats) > 0 || len(unstagedStats) > 0 || len(untrackedStats) > 0 {
 		parsed.FileStats = RepoFileStats{
@@ -78,283 +112,156 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 		}
 	}
 
-	binarySet := map[string]struct{}{}
-	if numstat, err := deps.Git.DiffNumstat(ctx, repoDir, true); err == nil {
-		addBinaryFiles(binarySet, numstat)
-	}
-	if numstat, err := deps.Git.DiffNumstat(ctx, repoDir, false); err == nil {
-		addBinaryFiles(binarySet, numstat)
-	}
-	if len(binarySet) > 0 {
-		parsed.Files.Binary = make([]string, 0, len(binarySet))
-		for path := range binarySet {
-			parsed.Files.Binary = append(parsed.Files.Binary, path)
-		}
-	}
-
-	sort.Strings(parsed.Files.Staged)
-	sort.Strings(parsed.Files.Unstaged)
-	sort.Strings(parsed.Files.Untracked)
-	sort.Strings(parsed.Files.Conflicts)
-	sort.Strings(parsed.Files.Ignored)
-	sort.Strings(parsed.Files.Binary)
-	for key := range parsed.Scopes {
-		sort.Strings(parsed.Scopes[key])
-	}
+	parsed.Files.Binary = collectBinaryFiles(
+		append(stagedBinaries, stagedPreBinaries...),
+		append(unstagedBinaries, unstagedPreBinaries...),
+		untrackedStats,
+	)
+	parsed.FileHotspots = fileHotspots
+	sortFileStatus(&parsed.Files, parsed.Scopes)
 
 	return parsed, nil
 }
 
-func addBinaryFiles(out map[string]struct{}, numstat []byte) {
-	lines := strings.Split(strings.TrimSpace(string(numstat)), "\n")
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			continue
+// resolveAuthor reads user.name and user.email from git config.
+// Uses the config cache when available to avoid spawning git processes.
+func resolveAuthor(ctx context.Context, deps RepoStatusDeps, repoDir string) RepoAuthorStatus {
+	author := RepoAuthorStatus{}
+	if deps.ConfigCache != nil {
+		if name, err := deps.ConfigCache.ConfigGet(ctx, deps.Git, repoDir, "user.name"); err == nil {
+			author.Name = name
 		}
-		parts := strings.SplitN(line, "\t", 3)
-		if len(parts) < 3 {
-			continue
+		if email, err := deps.ConfigCache.ConfigGet(ctx, deps.Git, repoDir, "user.email"); err == nil {
+			author.Email = email
 		}
-		additions := strings.TrimSpace(parts[0])
-		deletions := strings.TrimSpace(parts[1])
-		path := strings.TrimSpace(parts[2])
-		if path == "" {
-			continue
+	} else {
+		if name, err := deps.Git.ConfigGet(ctx, repoDir, "user.name"); err == nil {
+			author.Name = name
 		}
-		if additions == "-" || deletions == "-" {
-			out[path] = struct{}{}
+		if email, err := deps.Git.ConfigGet(ctx, repoDir, "user.email"); err == nil {
+			author.Email = email
 		}
 	}
+	return author
 }
 
-func parseNumstatOutput(out []byte) map[string]DiffStats {
-	stats := map[string]DiffStats{}
-	raw := strings.TrimSpace(string(out))
-	if raw == "" {
-		return stats
+func collectDiffStats(ctx context.Context, deps RepoStatusDeps, repoDir string, staged bool, paths []string) (map[string]DiffStats, []string) {
+	numstat, err := deps.Git.DiffNumstat(ctx, repoDir, staged, paths...)
+	if err != nil {
+		return map[string]DiffStats{}, nil
 	}
-	lines := strings.Split(raw, "\n")
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
+	return parseNumstatOutput(numstat)
+}
+
+func collectUntrackedStats(repoDir string, untracked []string) map[string]DiffStats {
+	stats := map[string]DiffStats{}
+	for _, path := range untracked {
+		s, err := buildUntrackedStats(repoDir, path)
+		if err != nil {
 			continue
 		}
-		parts := strings.SplitN(line, "\t", 3)
-		if len(parts) < 3 {
-			continue
-		}
-		path := strings.TrimSpace(parts[2])
-		if path == "" {
-			continue
-		}
-		stats[path] = DiffStats{
-			Additions: parseNumstatValue(parts[0]),
-			Deletions: parseNumstatValue(parts[1]),
-			Files:     1,
-		}
+		stats[path] = s
 	}
 	return stats
 }
 
-func parseNumstatValue(value string) int {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" || trimmed == "-" {
-		return 0
+func collectBinaryFiles(stagedBinaries, unstagedBinaries []string, untrackedStats map[string]DiffStats) []string {
+	binarySet := map[string]struct{}{}
+	for _, p := range stagedBinaries {
+		binarySet[p] = struct{}{}
 	}
-	num, err := strconv.Atoi(trimmed)
-	if err != nil {
-		return 0
+	for _, p := range unstagedBinaries {
+		binarySet[p] = struct{}{}
 	}
-	if num < 0 {
-		return 0
+	for path, stats := range untrackedStats {
+		if stats.IsBinary {
+			binarySet[path] = struct{}{}
+		}
 	}
-	return num
+	if len(binarySet) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(binarySet))
+	for path := range binarySet {
+		result = append(result, path)
+	}
+	return result
 }
 
-func buildUntrackedStats(repoDir string, path string) (DiffStats, error) {
-	fullPath := path
-	if !filepath.IsAbs(path) {
-		fullPath = filepath.Join(repoDir, path)
+// partitionBinaryPaths splits file paths into text and binary lists by
+// reading the first 512 bytes and checking for null bytes (the same
+// heuristic git itself uses in buffer_is_binary). This is cheap — at most
+// 512 bytes of I/O per file — and lets us skip expensive diff computation
+// on large compiled artifacts.
+func partitionBinaryPaths(repoDir string, paths []string) (text, binary []string) {
+	for _, p := range paths {
+		if isBinaryFile(filepath.Join(repoDir, p)) {
+			binary = append(binary, p)
+		} else {
+			text = append(text, p)
+		}
 	}
-	lines, isBinary, err := countFileLines(fullPath)
-	if err != nil {
-		return DiffStats{}, err
-	}
-	stats := DiffStats{Files: 1}
-	if !isBinary {
-		stats.Additions = lines
-	}
-	return stats, nil
+	return text, binary
 }
 
-func countFileLines(path string) (int, bool, error) {
-	file, err := os.Open(path)
+// isBinaryFile returns true if the file appears to contain binary content.
+// It reads up to 512 bytes and checks for null bytes, matching the heuristic
+// git uses internally (see buffer_is_binary in the git source).
+func isBinaryFile(path string) bool {
+	f, err := os.Open(path)
 	if err != nil {
-		return 0, false, err
+		return false
 	}
-	defer file.Close()
+	defer f.Close()
 
-	buf := make([]byte, 32*1024)
-	lines := 0
-	hasContent := false
-	var lastByte byte
-
-	for {
-		n, readErr := file.Read(buf)
-		if n > 0 {
-			hasContent = true
-			if bytes.IndexByte(buf[:n], 0) >= 0 {
-				return 0, true, nil
-			}
-			for _, b := range buf[:n] {
-				if b == '\n' {
-					lines++
-				}
-			}
-			lastByte = buf[n-1]
-		}
-		if readErr == io.EOF {
-			break
-		}
-		if readErr != nil {
-			return 0, false, readErr
+	buf := make([]byte, 512)
+	n, err := f.Read(buf)
+	if n == 0 {
+		return false
+	}
+	for _, b := range buf[:n] {
+		if b == 0 {
+			return true
 		}
 	}
-
-	if hasContent && lastByte != '\n' {
-		lines++
-	}
-
-	return lines, false, nil
+	return false
 }
 
-func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, error) {
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
-	}
-
-	limit := deps.Limit
-	if limit <= 0 {
-		limit = 30
-	}
-
-	out, err := deps.Git.LogGraph(ctx, repoDir, limit)
+func computeFileHotspots(ctx context.Context, deps RepoStatusDeps, repoDir string, files RepoFilesStatus) map[string]int {
+	hotspots, err := deps.Git.LogFileFrequency(ctx, repoDir, 50)
 	if err != nil {
-		return nil, err
+		return nil
 	}
-
-	raw := strings.TrimRight(string(out), "\n")
-	lines := []string{}
-	if raw != "" {
-		lines = strings.Split(raw, "\n")
+	changedFiles := map[string]struct{}{}
+	for _, p := range files.Staged {
+		changedFiles[p] = struct{}{}
 	}
-	if len(lines) > 0 {
-		lines = filterHistoryLines(lines)
+	for _, p := range files.Unstaged {
+		changedFiles[p] = struct{}{}
 	}
-
-	history := &RepoHistory{
-		RepoDir:   repoDir,
-		Lines:     lines,
-		Limit:     limit,
-		Timestamp: time.Now().UTC(),
+	for _, p := range files.Untracked {
+		changedFiles[p] = struct{}{}
 	}
-
-	if deps.IncludeFiles {
-		detailsRaw, err := deps.Git.LogDetails(ctx, repoDir, limit)
-		if err != nil {
-			return nil, err
+	filtered := map[string]int{}
+	for path, count := range hotspots {
+		if _, ok := changedFiles[path]; ok {
+			filtered[path] = count
 		}
-		entries := parseHistoryDetails(detailsRaw)
-		history.Entries = entries
 	}
-
-	return history, nil
-}
-
-var commitHashPattern = regexp.MustCompile(`[0-9a-f]{7,}`)
-
-func filterHistoryLines(lines []string) []string {
-	filtered := make([]string, 0, len(lines))
-	for _, line := range lines {
-		if commitHashPattern.MatchString(line) {
-			filtered = append(filtered, line)
-		}
+	if len(filtered) == 0 {
+		return nil
 	}
 	return filtered
 }
 
-func parseHistoryDetails(out []byte) []RepoHistoryEntry {
-	raw := strings.TrimSpace(string(out))
-	if raw == "" {
-		return []RepoHistoryEntry{}
+func sortFileStatus(files *RepoFilesStatus, scopes map[string][]string) {
+	sort.Strings(files.Staged)
+	sort.Strings(files.Unstaged)
+	sort.Strings(files.Untracked)
+	sort.Strings(files.Conflicts)
+	sort.Strings(files.Ignored)
+	sort.Strings(files.Binary)
+	for key := range scopes {
+		sort.Strings(scopes[key])
 	}
-
-	blocks := strings.Split(raw, "\n\n")
-	entries := make([]RepoHistoryEntry, 0, len(blocks))
-	for _, block := range blocks {
-		block = strings.TrimSpace(block)
-		if block == "" {
-			continue
-		}
-		lines := strings.Split(block, "\n")
-		if len(lines) == 0 {
-			continue
-		}
-		header := lines[0]
-		parts := strings.Split(header, "\x00")
-		if len(parts) < 4 {
-			continue
-		}
-		entry := RepoHistoryEntry{
-			Hash:    strings.TrimSpace(parts[0]),
-			Author:  strings.TrimSpace(parts[1]),
-			Date:    strings.TrimSpace(parts[2]),
-			Subject: strings.TrimSpace(parts[3]),
-			Files:   []string{},
-		}
-		for _, line := range lines[1:] {
-			path := strings.TrimSpace(line)
-			if path == "" {
-				continue
-			}
-			entry.Files = append(entry.Files, path)
-		}
-		if entry.Hash == "" {
-			continue
-		}
-		entries = append(entries, entry)
-	}
-
-	return entries
-}
-
-func detectScopes(files RepoFilesStatus) map[string][]string {
-	scopes := map[string][]string{}
-	for _, path := range append(append(append(files.Staged, files.Unstaged...), files.Untracked...), files.Conflicts...) {
-		key := scopeKeyForPath(path)
-		scopes[key] = append(scopes[key], path)
-	}
-	for _, path := range files.Ignored {
-		key := scopeKeyForPath(path)
-		scopes[key] = append(scopes[key], path)
-	}
-	return scopes
-}
-
-func scopeKeyForPath(path string) string {
-	trimmed := strings.TrimLeft(path, "/")
-	parts := strings.Split(trimmed, "/")
-	if len(parts) >= 2 && parts[0] == "scenarios" {
-		return "scenario:" + parts[1]
-	}
-	if len(parts) >= 2 && parts[0] == "resources" {
-		return "resource:" + parts[1]
-	}
-	if len(parts) >= 2 && parts[0] == "packages" {
-		return "package:" + parts[1]
-	}
-	return "other"
 }

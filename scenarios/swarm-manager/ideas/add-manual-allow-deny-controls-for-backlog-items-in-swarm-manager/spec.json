@@ -1,0 +1,16 @@
+{
+  "created": "2026-03-30T21:22:04Z",
+  "description": "Currently there is no way to manually set the allow/deny status for backlog items in swarm-manager. This would be useful as a fallback when workshop agents forget to set the status during their processing.",
+  "kind": "idea",
+  "name": "add-manual-allow-deny-controls-for-backlog-items-in-swarm-manager",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "swarm-manager",
+    "backlog",
+    "workshop",
+    "ux"
+  ],
+  "title": "Add manual allow/deny controls for backlog items in swarm-manager",
+  "updated": "2026-03-30T22:02:15Z"
+}

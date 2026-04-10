@@ -1,0 +1,274 @@
+{
+  "selectors": {
+    "app.container": {
+      "testId": "inbox-container",
+      "selector": "[data-testid=\"inbox-container\"]"
+    },
+    "app.mobileMenuButton": {
+      "testId": "mobile-menu-button",
+      "selector": "[data-testid=\"mobile-menu-button\"]"
+    },
+    "app.mobileBackButton": {
+      "testId": "mobile-back-button",
+      "selector": "[data-testid=\"mobile-back-button\"]"
+    },
+    "app.mobileStarButton": {
+      "testId": "mobile-star-button",
+      "selector": "[data-testid=\"mobile-star-button\"]"
+    },
+    "app.mobileSidebarOverlay": {
+      "testId": "mobile-sidebar-overlay",
+      "selector": "[data-testid=\"mobile-sidebar-overlay\"]"
+    },
+    "app.closeSidebarButton": {
+      "testId": "close-sidebar-button",
+      "selector": "[data-testid=\"close-sidebar-button\"]"
+    },
+    "sidebar.container": {
+      "testId": "sidebar",
+      "selector": "[data-testid=\"sidebar\"]"
+    },
+    "sidebar.newChatButton": {
+      "testId": "new-chat-button",
+      "selector": "[data-testid=\"new-chat-button\"]"
+    },
+    "sidebar.nav": {
+      "testId": "sidebar-nav",
+      "selector": "[data-testid=\"sidebar-nav\"]"
+    },
+    "sidebar.manageLabelsButton": {
+      "testId": "manage-labels-button",
+      "selector": "[data-testid=\"manage-labels-button\"]"
+    },
+    "sidebar.addLabelsButton": {
+      "testId": "add-labels-button",
+      "selector": "[data-testid=\"add-labels-button\"]"
+    },
+    "sidebar.mobileActionsButton": {
+      "testId": "sidebar-mobile-actions",
+      "selector": "[data-testid=\"sidebar-mobile-actions\"]"
+    },
+    "nav.inbox": {
+      "testId": "nav-inbox",
+      "selector": "[data-testid=\"nav-inbox\"]"
+    },
+    "nav.starred": {
+      "testId": "nav-starred",
+      "selector": "[data-testid=\"nav-starred\"]"
+    },
+    "nav.archived": {
+      "testId": "nav-archived",
+      "selector": "[data-testid=\"nav-archived\"]"
+    },
+    "chatListPanel.container": {
+      "testId": "chat-list-panel",
+      "selector": "[data-testid=\"chat-list-panel\"]"
+    },
+    "chatListPanel.searchInput": {
+      "testId": "chat-search-input",
+      "selector": "[data-testid=\"chat-search-input\"]"
+    },
+    "chatListPanel.clearSearchButton": {
+      "testId": "clear-search-button",
+      "selector": "[data-testid=\"clear-search-button\"]"
+    },
+    "chatListPanel.searchModeToggle": {
+      "testId": "search-mode-toggle",
+      "selector": "[data-testid=\"search-mode-toggle\"]"
+    },
+    "chatListPanel.searchModeQuick": {
+      "testId": "search-mode-quick",
+      "selector": "[data-testid=\"search-mode-quick\"]"
+    },
+    "chatListPanel.searchModeContent": {
+      "testId": "search-mode-content",
+      "selector": "[data-testid=\"search-mode-content\"]"
+    },
+    "chatListPanel.switchToContentSearchButton": {
+      "testId": "switch-to-content-search",
+      "selector": "[data-testid=\"switch-to-content-search\"]"
+    },
+    "chatListPanel.list": {
+      "testId": "chat-list",
+      "selector": "[data-testid=\"chat-list\"]"
+    },
+    "chatView.container": {
+      "testId": "chat-view",
+      "selector": "[data-testid=\"chat-view\"]"
+    },
+    "chatView.loading": {
+      "testId": "chat-view-loading",
+      "selector": "[data-testid=\"chat-view-loading\"]"
+    },
+    "chatView.header": {
+      "testId": "chat-header",
+      "selector": "[data-testid=\"chat-header\"]"
+    },
+    "chatView.messageList": {
+      "testId": "message-list",
+      "selector": "[data-testid=\"message-list\"]"
+    },
+    "chatView.emptyMessages": {
+      "testId": "empty-messages",
+      "selector": "[data-testid=\"empty-messages\"]"
+    },
+    "chatView.streamingMessage": {
+      "testId": "streaming-message",
+      "selector": "[data-testid=\"streaming-message\"]"
+    },
+    "chatHeader.renameChatButton": {
+      "testId": "rename-chat-button",
+      "selector": "[data-testid=\"rename-chat-button\"]"
+    },
+    "chatHeader.modelSelectorButton": {
+      "testId": "model-selector-button",
+      "selector": "[data-testid=\"model-selector-button\"]"
+    },
+    "chatHeader.addLabelButton": {
+      "testId": "add-label-button",
+      "selector": "[data-testid=\"add-label-button\"]"
+    },
+    "chatHeader.toggleReadButton": {
+      "testId": "toggle-read-button",
+      "selector": "[data-testid=\"toggle-read-button\"]"
+    },
+    "chatHeader.toggleStarButton": {
+      "testId": "toggle-star-button",
+      "selector": "[data-testid=\"toggle-star-button\"]"
+    },
+    "chatHeader.toggleArchiveButton": {
+      "testId": "toggle-archive-button",
+      "selector": "[data-testid=\"toggle-archive-button\"]"
+    },
+    "chatHeader.moreActionsButton": {
+      "testId": "chat-more-actions",
+      "selector": "[data-testid=\"chat-more-actions\"]"
+    },
+    "chatHeader.mobileActionsButton": {
+      "testId": "chat-mobile-actions",
+      "selector": "[data-testid=\"chat-mobile-actions\"]"
+    },
+    "chatHeader.confirmDeleteButton": {
+      "testId": "confirm-delete-button",
+      "selector": "[data-testid=\"confirm-delete-button\"]"
+    },
+    "messageInput.container": {
+      "testId": "message-input-container",
+      "selector": "[data-testid=\"message-input-container\"]"
+    },
+    "messageInput.input": {
+      "testId": "message-input",
+      "selector": "[data-testid=\"message-input\"]"
+    },
+    "messageInput.suggestionsToggle": {
+      "testId": "suggestions-toggle",
+      "selector": "[data-testid=\"suggestions-toggle\"]"
+    },
+    "messageInput.sendButton": {
+      "testId": "send-message-button",
+      "selector": "[data-testid=\"send-message-button\"]"
+    },
+    "emptyState.container": {
+      "testId": "empty-state",
+      "selector": "[data-testid=\"empty-state\"]"
+    },
+    "emptyState.title": {
+      "testId": "empty-state-title",
+      "selector": "[data-testid=\"empty-state-title\"]"
+    },
+    "emptyState.subtitle": {
+      "testId": "empty-state-subtitle",
+      "selector": "[data-testid=\"empty-state-subtitle\"]"
+    },
+    "emptyState.modeHint": {
+      "testId": "empty-state-mode-hint",
+      "selector": "[data-testid=\"empty-state-mode-hint\"]"
+    },
+    "emptyState.mobileTips": {
+      "testId": "empty-state-mobile-tips",
+      "selector": "[data-testid=\"empty-state-mobile-tips\"]"
+    },
+    "dialog.overlay": {
+      "testId": "dialog-overlay",
+      "selector": "[data-testid=\"dialog-overlay\"]"
+    },
+    "dialog.content": {
+      "testId": "dialog-content",
+      "selector": "[data-testid=\"dialog-content\"]"
+    },
+    "dialog.closeButton": {
+      "testId": "dialog-close-button",
+      "selector": "[data-testid=\"dialog-close-button\"]"
+    },
+    "renameDialog.input": {
+      "testId": "rename-chat-input",
+      "selector": "[data-testid=\"rename-chat-input\"]"
+    },
+    "labelManager.newLabelInput": {
+      "testId": "new-label-input",
+      "selector": "[data-testid=\"new-label-input\"]"
+    },
+    "labelManager.createButton": {
+      "testId": "create-label-button",
+      "selector": "[data-testid=\"create-label-button\"]"
+    },
+    "dropdown.menu": {
+      "testId": "dropdown-menu",
+      "selector": "[data-testid=\"dropdown-menu\"]"
+    },
+    "indicators.unread": {
+      "testId": "unread-indicator",
+      "selector": "[data-testid=\"unread-indicator\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "chat.item": {
+      "description": "Chat list item by chat ID",
+      "selectorPattern": "[data-testid=\"chat-item-${chatId}\"]",
+      "testIdPattern": "chat-item-${chatId}",
+      "params": [{"name": "chatId", "type": "string"}]
+    },
+    "chat.message": {
+      "description": "Message by message ID",
+      "selectorPattern": "[data-testid=\"message-${messageId}\"]",
+      "testIdPattern": "message-${messageId}",
+      "params": [{"name": "messageId", "type": "string"}]
+    },
+    "label.filterButton": {
+      "description": "Label filter button in sidebar",
+      "selectorPattern": "[data-testid=\"label-filter-${labelId}\"]",
+      "testIdPattern": "label-filter-${labelId}",
+      "params": [{"name": "labelId", "type": "string"}]
+    },
+    "label.item": {
+      "description": "Label item in label manager",
+      "selectorPattern": "[data-testid=\"label-item-${labelId}\"]",
+      "testIdPattern": "label-item-${labelId}",
+      "params": [{"name": "labelId", "type": "string"}]
+    },
+    "label.deleteButton": {
+      "description": "Delete label button",
+      "selectorPattern": "[data-testid=\"delete-label-${labelId}\"]",
+      "testIdPattern": "delete-label-${labelId}",
+      "params": [{"name": "labelId", "type": "string"}]
+    },
+    "label.confirmDeleteButton": {
+      "description": "Confirm delete label button",
+      "selectorPattern": "[data-testid=\"confirm-delete-label-${labelId}\"]",
+      "testIdPattern": "confirm-delete-label-${labelId}",
+      "params": [{"name": "labelId", "type": "string"}]
+    },
+    "model.option": {
+      "description": "Model option in dropdown",
+      "selectorPattern": "[data-testid=\"model-option-${modelId}\"]",
+      "testIdPattern": "model-option-${modelId}",
+      "params": [{"name": "modelId", "type": "string"}]
+    },
+    "color.button": {
+      "description": "Color picker button",
+      "selectorPattern": "[data-testid=\"color-${color}\"]",
+      "testIdPattern": "color-${color}",
+      "params": [{"name": "color", "type": "string"}]
+    }
+  }
+}

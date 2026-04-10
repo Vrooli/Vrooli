@@ -22,15 +22,15 @@
 - Errors: Structured error types with recovery hints and user messages ✅
 
 **Repository Layer (100%)**
-- Interface definitions for all repositories (ProfileRepository, TaskRepository, RunRepository, etc.) ✅
-- In-memory implementations for development/testing ✅
+- Interface definitions for all repositories (ProfileRepository, TaskRepository, RunRepository, StatsRepository, etc.) ✅
+- SQLite-backed implementations in `database/` package ✅
 - List filters and pagination support ✅
 
 **Adapter Layer (100%)**
 - Runner interface and registry ✅
 - Mock runner for testing ✅
 - Stub runners for unavailable runner types ✅
-- Event store interface and in-memory implementation ✅
+- Event store interface and SQLite implementation ✅
 - Sandbox provider interface ✅
 - **ClaudeCodeRunner** - Via resource-claude-code wrapper ✅
   - Uses `resource-claude-code run` with --tag for agent tracking
@@ -63,7 +63,7 @@
 
 **Wiring (100%)**
 - main.go wired to orchestration service ✅
-- Graceful fallback to in-memory when DB unavailable ✅
+- SQLite database with auto-schema initialization ✅
 - Preflight checks integrated ✅
 
 ### Tests
@@ -175,10 +175,8 @@
   - 11-health-check-api: 3 tests linked
 
 ### Next Steps
-1. Implement PostgreSQL repositories for persistence
-2. Add more runner adapters (codex, opencode)
-3. Add CLI for agent-manager operations
-4. Implement approval workflow UI with diff viewer
-5. Wire WebSocket broadcasts to run executor events
-6. Address "ungrouped operational targets" by grouping related requirements under shared OTs
-7. Set up __test folder for test-genie integration
+1. Add CLI for agent-manager operations
+2. Implement approval workflow UI with diff viewer
+3. Wire WebSocket broadcasts to run executor events
+4. Address "ungrouped operational targets" by grouping related requirements under shared OTs
+5. Set up __test folder for test-genie integration

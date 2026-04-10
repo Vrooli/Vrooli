@@ -1,4 +1,11 @@
+import { chromium } from 'rebrowser-playwright';
 import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
+
+jest.mock('rebrowser-playwright', () => ({
+  chromium: {
+    launch: jest.fn(),
+  },
+}));
 
 describe('Session Reset Route', () => {
   let handleSessionReset: typeof import('../../../src/routes/session-reset').handleSessionReset;
@@ -6,6 +13,7 @@ describe('Session Reset Route', () => {
   let sessionManager: InstanceType<typeof SessionManager>;
 
   beforeAll(async () => {
+    const chromiumMock = chromium as unknown as { launch: jest.Mock };
     const mockBrowser = {
       newContext: jest.fn().mockResolvedValue({
         newPage: jest.fn().mockResolvedValue({
@@ -13,12 +21,22 @@ describe('Session Reset Route', () => {
           goto: jest.fn().mockResolvedValue(null),
           close: jest.fn().mockResolvedValue(undefined),
           evaluate: jest.fn().mockResolvedValue(undefined),
+          waitForLoadState: jest.fn().mockResolvedValue(undefined),
           viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
           unroute: jest.fn().mockResolvedValue(undefined),
           route: jest.fn().mockResolvedValue(undefined),
+          context: jest.fn(),
         }),
+        addInitScript: jest.fn().mockResolvedValue(undefined),
         clearCookies: jest.fn().mockResolvedValue(undefined),
         clearPermissions: jest.fn().mockResolvedValue(undefined),
+        pages: jest.fn().mockReturnValue([]),
+        on: jest.fn(),
+        off: jest.fn(),
+        newCDPSession: jest.fn().mockResolvedValue({
+          send: jest.fn().mockResolvedValue({ result: { type: 'string', value: '{}' } }),
+          detach: jest.fn().mockResolvedValue(undefined),
+        }),
         close: jest.fn().mockResolvedValue(undefined),
         tracing: {
           start: jest.fn().mockResolvedValue(undefined),
@@ -29,12 +47,7 @@ describe('Session Reset Route', () => {
       isConnected: jest.fn().mockReturnValue(true),
       version: jest.fn().mockReturnValue('mock-version'),
     };
-
-    await (jest as any).unstable_mockModule('playwright', () => ({
-      chromium: {
-        launch: jest.fn().mockResolvedValue(mockBrowser),
-      },
-    }));
+    chromiumMock.launch.mockResolvedValue(mockBrowser);
 
     ({ handleSessionReset } = await import('../../../src/routes/session-reset'));
     ({ SessionManager } = await import('../../../src/session/manager'));
@@ -66,7 +79,7 @@ describe('Session Reset Route', () => {
     await handleSessionReset(mockReq, mockRes, sessionId, sessionManager);
 
     expect(mockRes.statusCode).toBe(200);
-    const json = (mockRes as any).getJSON();
+    const json = mockRes.getJSON();
     expect(json.success).toBe(true);
   });
 

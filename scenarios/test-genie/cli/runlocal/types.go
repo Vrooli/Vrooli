@@ -7,6 +7,12 @@ type Request struct {
 	Paths     []string `json:"paths,omitempty"`
 	Playbooks []string `json:"playbooks,omitempty"`
 	Filter    string   `json:"filter,omitempty"`
+
+	// ScenarioPath overrides the scenario directory path. Set by the CLI
+	// when running inside a sandboxed agent, pointing to the overlay's merged
+	// directory. When empty, the API resolves via VROOLI_ROOT + scenario name.
+	// See packages/cli-core/cliutil/sandbox.go for sandbox path resolution.
+	ScenarioPath string `json:"scenarioPath,omitempty"`
 }
 
 // Response represents the local test run response.

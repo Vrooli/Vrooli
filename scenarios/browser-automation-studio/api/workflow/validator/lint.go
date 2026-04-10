@@ -275,8 +275,37 @@ func runLint(definition map[string]any) (Stats, []Issue, []Issue) {
 		}
 	}
 
-	if _, ok := toMap(definition["metadata"]); ok {
+	if meta, ok := toMap(definition["metadata"]); ok {
 		stats.HasMetadata = true
+
+		// Check execution_mode
+		if emRaw, exists := meta["execution_mode"]; exists {
+			em := strings.TrimSpace(getString(emRaw))
+			if em != "" {
+				switch em {
+				case "observer", "mutating", "destructive":
+					stats.HasExecutionMode = true
+					stats.ExecutionMode = em
+				default:
+					errorsList = append(errorsList, Issue{
+						Severity: SeverityError,
+						Code:     "WF_EXECUTION_MODE_INVALID",
+						Message:  fmt.Sprintf("Invalid execution_mode '%s'; must be one of: observer, mutating, destructive", em),
+						Pointer:  "/metadata/execution_mode",
+						Hint:     "Use 'observer' for read-only workflows, 'mutating' for state-changing, 'destructive' for hard-to-reverse operations",
+					})
+				}
+			}
+		}
+		if !stats.HasExecutionMode {
+			warningsList = append(warningsList, Issue{
+				Severity: SeverityWarning,
+				Code:     "WF_EXECUTION_MODE_MISSING",
+				Message:  "Workflow metadata is missing execution_mode; external systems cannot determine safety level",
+				Pointer:  "/metadata/execution_mode",
+				Hint:     "Add execution_mode with one of: observer, mutating, destructive",
+			})
+		}
 	}
 
 	if settings, ok := toMap(definition["settings"]); ok {

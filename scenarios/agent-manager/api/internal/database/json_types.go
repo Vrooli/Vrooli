@@ -1,3 +1,4 @@
+// Package database provides SQLite persistence for agent-manager entities.
 package database
 
 import (
@@ -176,6 +177,40 @@ type NullableSandboxConfig struct {
 	V *domain.SandboxConfig
 }
 
+// NullableExtractionResult wraps *domain.ExtractionResult for JSONB scanning.
+type NullableExtractionResult struct {
+	V *domain.ExtractionResult
+}
+
+// Scan implements sql.Scanner for NullableExtractionResult.
+func (n *NullableExtractionResult) Scan(src interface{}) error {
+	if src == nil {
+		n.V = nil
+		return nil
+	}
+
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return scanTypeError("NullableExtractionResult", src)
+	}
+
+	n.V = &domain.ExtractionResult{}
+	return wrapScanError("NullableExtractionResult", json.Unmarshal(data, n.V))
+}
+
+// Value implements driver.Valuer for NullableExtractionResult.
+func (n NullableExtractionResult) Value() (driver.Value, error) {
+	if n.V == nil {
+		return nil, nil
+	}
+	return json.Marshal(n.V)
+}
+
 // Scan implements sql.Scanner for NullableSandboxConfig.
 func (n *NullableSandboxConfig) Scan(src interface{}) error {
 	if src == nil {
@@ -201,6 +236,71 @@ func (n *NullableSandboxConfig) Scan(src interface{}) error {
 func (n NullableSandboxConfig) Value() (driver.Value, error) {
 	if n.V == nil {
 		return nil, nil
+	}
+	return json.Marshal(n.V)
+}
+
+// NullableFeatureFlags wraps domain.FeatureFlags for JSONB scanning.
+type NullableFeatureFlags struct {
+	V domain.FeatureFlags
+}
+
+// Scan implements sql.Scanner for NullableFeatureFlags.
+func (n *NullableFeatureFlags) Scan(src interface{}) error {
+	if src == nil {
+		n.V = domain.FeatureFlags{}
+		return nil
+	}
+
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return scanTypeError("NullableFeatureFlags", src)
+	}
+
+	n.V = domain.FeatureFlags{}
+	return wrapScanError("NullableFeatureFlags", json.Unmarshal(data, &n.V))
+}
+
+// Value implements driver.Valuer for NullableFeatureFlags.
+func (n NullableFeatureFlags) Value() (driver.Value, error) {
+	return json.Marshal(n.V)
+}
+
+// NullableRunnerExtraFlags wraps domain.RunnerExtraFlags for JSONB scanning.
+type NullableRunnerExtraFlags struct {
+	V domain.RunnerExtraFlags
+}
+
+// Scan implements sql.Scanner for NullableRunnerExtraFlags.
+func (n *NullableRunnerExtraFlags) Scan(src interface{}) error {
+	if src == nil {
+		n.V = nil
+		return nil
+	}
+
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return scanTypeError("NullableRunnerExtraFlags", src)
+	}
+
+	n.V = nil
+	return wrapScanError("NullableRunnerExtraFlags", json.Unmarshal(data, &n.V))
+}
+
+// Value implements driver.Valuer for NullableRunnerExtraFlags.
+func (n NullableRunnerExtraFlags) Value() (driver.Value, error) {
+	if n.V == nil {
+		return "{}", nil
 	}
 	return json.Marshal(n.V)
 }
@@ -312,7 +412,7 @@ type NullableTime struct {
 	Valid bool
 }
 
-// Common SQLite/PostgreSQL time formats to try when parsing strings
+// Common SQLite time formats to try when parsing strings
 var timeFormats = []string{
 	"2006-01-02 15:04:05.999999999-07:00",
 	"2006-01-02 15:04:05.999999999Z07:00",
@@ -324,6 +424,7 @@ var timeFormats = []string{
 	"2006-01-02T15:04:05Z",
 	"2006-01-02T15:04:05",
 	"2006-01-02 15:04:05",
+	"2006-01-02",
 	time.RFC3339Nano,
 	time.RFC3339,
 }
@@ -445,9 +546,6 @@ func (n NullableTime) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	// Convert to UTC before formatting to ensure consistent timezone handling.
-	// Without this, local times (e.g., 18:35:40-05:00) would be stored without
-	// timezone info (18:35:40), causing PostgreSQL to interpret them as UTC
-	// and creating a timezone offset bug.
 	return n.Time.UTC().Format("2006-01-02 15:04:05.999999999"), nil
 }
 

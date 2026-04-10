@@ -8,6 +8,8 @@
 package typeconv
 
 import (
+	"strings"
+
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
@@ -33,7 +35,9 @@ func StringToNavigateWaitEvent(s string) basactions.NavigateWaitEvent {
 
 // StringToWaitState converts a string to WaitState enum.
 func StringToWaitState(s string) basactions.WaitState {
-	switch s {
+	normalized := strings.TrimSpace(strings.ToLower(s))
+	normalized = strings.TrimPrefix(normalized, "wait_state_")
+	switch normalized {
 	case "attached":
 		return basactions.WaitState_WAIT_STATE_ATTACHED
 	case "detached":
@@ -81,6 +85,20 @@ func BuildNavigateParams(data map[string]any) *basactions.NavigateParams {
 	if url, ok := data["url"].(string); ok {
 		p.Url = url
 	}
+
+	// Handle scenario-based navigation
+	if scenario, ok := data["scenario"].(string); ok && scenario != "" {
+		p.Scenario = &scenario
+		destType := basactions.NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO
+		p.DestinationType = &destType
+	}
+	// Support both "path" (CLI) and "scenarioPath" (proto camelCase)
+	if path, ok := data["path"].(string); ok {
+		p.ScenarioPath = &path
+	} else if path, ok := data["scenarioPath"].(string); ok {
+		p.ScenarioPath = &path
+	}
+
 	if wfs, ok := data["waitForSelector"].(string); ok {
 		p.WaitForSelector = &wfs
 	}
@@ -173,30 +191,57 @@ func BuildWaitParams(data map[string]any) *basactions.WaitParams {
 }
 
 // BuildAssertParams converts a data map to AssertParams proto.
-// Supports "assertMode" as alias for "mode".
+// Supports both camelCase (CLI/UI) and snake_case (proto/compiler) field names.
+// Field name aliases:
+// - mode: "mode", "assertMode", "assert_mode"
+// - expected: "expected", "expectedText", "expected_text", "expectedValue", "expected_value"
+// - attributeName: "attributeName", "attribute_name"
+// - caseSensitive: "caseSensitive", "case_sensitive"
+// - failureMessage: "failureMessage", "failure_message"
 func BuildAssertParams(data map[string]any) *basactions.AssertParams {
 	p := &basactions.AssertParams{}
 	if selector, ok := data["selector"].(string); ok {
 		p.Selector = selector
 	}
+	// Mode: check camelCase first, then snake_case
 	if mode, ok := data["mode"].(string); ok {
 		p.Mode = enums.StringToAssertionMode(mode)
 	} else if mode, ok := data["assertMode"].(string); ok {
-		p.Mode = enums.StringToAssertionMode(mode) // "assertMode" alias
+		p.Mode = enums.StringToAssertionMode(mode)
+	} else if mode, ok := data["assert_mode"].(string); ok {
+		p.Mode = enums.StringToAssertionMode(mode)
 	}
+	// Expected: check proto field first, then CLI aliases (camelCase and snake_case)
 	if exp := data["expected"]; exp != nil {
+		p.Expected = AnyToJsonValue(exp)
+	} else if exp := data["expectedText"]; exp != nil {
+		p.Expected = AnyToJsonValue(exp)
+	} else if exp := data["expected_text"]; exp != nil {
+		p.Expected = AnyToJsonValue(exp)
+	} else if exp := data["expectedValue"]; exp != nil {
+		p.Expected = AnyToJsonValue(exp)
+	} else if exp := data["expected_value"]; exp != nil {
 		p.Expected = AnyToJsonValue(exp)
 	}
 	if negated, ok := data["negated"].(bool); ok {
 		p.Negated = &negated
 	}
+	// CaseSensitive: camelCase and snake_case
 	if caseSensitive, ok := data["caseSensitive"].(bool); ok {
 		p.CaseSensitive = &caseSensitive
+	} else if caseSensitive, ok := data["case_sensitive"].(bool); ok {
+		p.CaseSensitive = &caseSensitive
 	}
+	// AttributeName: camelCase and snake_case (critical for attribute assertions)
 	if attrName, ok := data["attributeName"].(string); ok {
 		p.AttributeName = &attrName
+	} else if attrName, ok := data["attribute_name"].(string); ok {
+		p.AttributeName = &attrName
 	}
+	// FailureMessage: camelCase and snake_case
 	if failureMsg, ok := data["failureMessage"].(string); ok {
+		p.FailureMessage = &failureMsg
+	} else if failureMsg, ok := data["failure_message"].(string); ok {
 		p.FailureMessage = &failureMsg
 	}
 	return p
@@ -429,4 +474,74 @@ func BuildActionMetadata(data map[string]any) *basactions.ActionMetadata {
 		return nil
 	}
 	return meta
+}
+
+// BuildExtractParams converts a data map to ExtractParams proto.
+// CLI field mappings:
+// - selector (positional) -> Selector
+// - attribute/attributeName -> AttributeName + ExtractType=ATTRIBUTE
+// - outputKey/storeAs -> StoreAs
+// - timeoutMs -> TimeoutMs
+func BuildExtractParams(data map[string]any) *basactions.ExtractParams {
+	p := &basactions.ExtractParams{}
+	if selector, ok := data["selector"].(string); ok {
+		p.Selector = selector
+	}
+	// If attribute is specified, set extract_type to ATTRIBUTE
+	if attr, ok := data["attribute"].(string); ok {
+		p.AttributeName = &attr
+		extractType := basactions.ExtractType_EXTRACT_TYPE_ATTRIBUTE
+		p.ExtractType = &extractType
+	} else if attrName, ok := data["attributeName"].(string); ok {
+		p.AttributeName = &attrName
+		extractType := basactions.ExtractType_EXTRACT_TYPE_ATTRIBUTE
+		p.ExtractType = &extractType
+	} else if attrName, ok := data["attribute_name"].(string); ok {
+		p.AttributeName = &attrName
+		extractType := basactions.ExtractType_EXTRACT_TYPE_ATTRIBUTE
+		p.ExtractType = &extractType
+	}
+	// outputKey maps to store_as (proto field)
+	if outputKey, ok := data["outputKey"].(string); ok {
+		p.StoreAs = &outputKey
+	} else if storeAs, ok := data["storeAs"].(string); ok {
+		p.StoreAs = &storeAs
+	} else if storeAs, ok := data["store_as"].(string); ok {
+		p.StoreAs = &storeAs
+	}
+	// Property name for PROPERTY extraction
+	if propName, ok := data["propertyName"].(string); ok {
+		p.PropertyName = &propName
+		extractType := basactions.ExtractType_EXTRACT_TYPE_PROPERTY
+		p.ExtractType = &extractType
+	} else if propName, ok := data["property_name"].(string); ok {
+		p.PropertyName = &propName
+		extractType := basactions.ExtractType_EXTRACT_TYPE_PROPERTY
+		p.ExtractType = &extractType
+	}
+	if tm, ok := ToInt32(data["timeoutMs"]); ok {
+		p.TimeoutMs = &tm
+	} else if tm, ok := ToInt32(data["timeout_ms"]); ok {
+		p.TimeoutMs = &tm
+	}
+	return p
+}
+
+// BuildShortcutParams converts a data map to ShortcutParams proto.
+// CLI field mappings:
+// - keys (positional) or shortcut -> Shortcut
+// - selector (optional) -> Selector
+// Example shortcuts: "Control+a", "Meta+Shift+s"
+func BuildShortcutParams(data map[string]any) *basactions.ShortcutParams {
+	p := &basactions.ShortcutParams{}
+	// CLI uses "keys" as positional, proto uses "shortcut"
+	if keys, ok := data["keys"].(string); ok {
+		p.Shortcut = keys
+	} else if shortcut, ok := data["shortcut"].(string); ok {
+		p.Shortcut = shortcut
+	}
+	if selector, ok := data["selector"].(string); ok {
+		p.Selector = &selector
+	}
+	return p
 }

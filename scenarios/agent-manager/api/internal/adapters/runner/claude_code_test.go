@@ -1,6 +1,7 @@
 package runner_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -413,6 +414,205 @@ func TestExecuteRequest_WithEnvironment(t *testing.T) {
 }
 
 // =============================================================================
+// CLAUDE CODE BUILD ARGS TESTS
+// =============================================================================
+
+func TestClaudeCodeRunner_BuildArgs_EnableBrowser(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+
+	tests := []struct {
+		name       string
+		config     *domain.RunConfig
+		wantChrome bool
+	}{
+		{
+			name: "EnableBrowser true adds --chrome",
+			config: &domain.RunConfig{
+				RunnerType: domain.RunnerTypeClaudeCode,
+				Features:   domain.FeatureFlags{EnableBrowser: true},
+			},
+			wantChrome: true,
+		},
+		{
+			name: "EnableBrowser false omits --chrome",
+			config: &domain.RunConfig{
+				RunnerType: domain.RunnerTypeClaudeCode,
+				Features:   domain.FeatureFlags{EnableBrowser: false},
+			},
+			wantChrome: false,
+		},
+		{
+			name: "zero features omits --chrome",
+			config: &domain.RunConfig{
+				RunnerType: domain.RunnerTypeClaudeCode,
+				Features:   domain.FeatureFlags{},
+			},
+			wantChrome: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := runner.ExecuteRequest{
+				RunID:          uuid.New(),
+				ResolvedConfig: tt.config,
+			}
+			args := r.BuildArgsForTest(req)
+
+			hasChrome := false
+			for _, arg := range args {
+				if arg == "--chrome" {
+					hasChrome = true
+					break
+				}
+			}
+			if hasChrome != tt.wantChrome {
+				t.Errorf("args = %v, wantChrome = %v, hasChrome = %v", args, tt.wantChrome, hasChrome)
+			}
+		})
+	}
+}
+
+func TestClaudeCodeRunner_BuildArgs_ExtraFlags(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+
+	tests := []struct {
+		name      string
+		config    *domain.RunConfig
+		wantFlags []string
+	}{
+		{
+			name: "extra flags appended",
+			config: &domain.RunConfig{
+				RunnerType: domain.RunnerTypeClaudeCode,
+				ExtraFlags: domain.RunnerExtraFlags{
+					domain.RunnerTypeClaudeCode: []string{"--verbose", "--allowedTools=Read,Write"},
+				},
+			},
+			wantFlags: []string{"--verbose", "--allowedTools=Read,Write"},
+		},
+		{
+			name: "no extra flags for this runner",
+			config: &domain.RunConfig{
+				RunnerType: domain.RunnerTypeClaudeCode,
+				ExtraFlags: domain.RunnerExtraFlags{
+					domain.RunnerTypeCodex: []string{"--verbose"},
+				},
+			},
+			wantFlags: nil,
+		},
+		{
+			name: "nil extra flags",
+			config: &domain.RunConfig{
+				RunnerType: domain.RunnerTypeClaudeCode,
+				ExtraFlags: nil,
+			},
+			wantFlags: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := runner.ExecuteRequest{
+				RunID:          uuid.New(),
+				ResolvedConfig: tt.config,
+			}
+			args := r.BuildArgsForTest(req)
+
+			for _, wantFlag := range tt.wantFlags {
+				found := false
+				for _, arg := range args {
+					if arg == wantFlag {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected flag %q in args %v", wantFlag, args)
+				}
+			}
+		})
+	}
+}
+
+func TestClaudeCodeRunner_BuildArgs_FeaturesAndExtraFlags(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+
+	config := &domain.RunConfig{
+		RunnerType: domain.RunnerTypeClaudeCode,
+		Features:   domain.FeatureFlags{EnableBrowser: true},
+		ExtraFlags: domain.RunnerExtraFlags{
+			domain.RunnerTypeClaudeCode: []string{"--verbose"},
+		},
+	}
+
+	req := runner.ExecuteRequest{
+		RunID:          uuid.New(),
+		ResolvedConfig: config,
+	}
+	args := r.BuildArgsForTest(req)
+
+	hasChrome := false
+	hasVerbose := false
+	for _, arg := range args {
+		if arg == "--chrome" {
+			hasChrome = true
+		}
+		if arg == "--verbose" {
+			hasVerbose = true
+		}
+	}
+
+	if !hasChrome {
+		t.Errorf("expected --chrome in args %v", args)
+	}
+	if !hasVerbose {
+		t.Errorf("expected --verbose in args %v", args)
+	}
+}
+
+func TestClaudeCodeRunner_Capabilities_SupportedFeatures(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+	caps := r.Capabilities()
+
+	if len(caps.SupportedFeatures) == 0 {
+		t.Fatal("expected SupportedFeatures to be non-empty")
+	}
+	found := false
+	for _, f := range caps.SupportedFeatures {
+		if f == "EnableBrowser" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'EnableBrowser' in SupportedFeatures %v", caps.SupportedFeatures)
+	}
+}
+
+func TestClaudeCodeRunner_Capabilities_AllowedExtraFlags(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+	caps := r.Capabilities()
+
+	if len(caps.AllowedExtraFlags) == 0 {
+		t.Fatal("expected AllowedExtraFlags to be non-empty")
+	}
+	expected := map[string]bool{
+		"--disallowedTools": false,
+	}
+	for _, f := range caps.AllowedExtraFlags {
+		if _, ok := expected[f]; ok {
+			expected[f] = true
+		}
+	}
+	for flag, found := range expected {
+		if !found {
+			t.Errorf("expected %q in AllowedExtraFlags %v", flag, caps.AllowedExtraFlags)
+		}
+	}
+}
+
+// =============================================================================
 // NIL SAFETY TESTS
 // =============================================================================
 
@@ -453,6 +653,333 @@ func TestExecuteRequest_NilSafety(t *testing.T) {
 
 		if req.Task != nil {
 			t.Error("expected Task to be nil")
+		}
+	})
+}
+
+// =============================================================================
+// COMPACTION DETECTION TESTS
+// =============================================================================
+
+func TestParseCompactCommand(t *testing.T) {
+	tests := []struct {
+		input     string
+		isCompact bool
+		focus     string
+	}{
+		{"/compact", true, ""},
+		{"/compact focus on auth", true, "auth"},
+		{"/compact focus on API changes", true, "API changes"},
+		{"/compact authentication flow", true, "authentication flow"},
+		{"  /compact  ", true, ""},
+		{"regular message", false, ""},
+		{"/compacting", false, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			isCompact, focus := runner.ParseCompactCommandForTest(tt.input)
+			if isCompact != tt.isCompact {
+				t.Errorf("isCompact = %v, want %v", isCompact, tt.isCompact)
+			}
+			if focus != tt.focus {
+				t.Errorf("focus = %q, want %q", focus, tt.focus)
+			}
+		})
+	}
+}
+
+func TestIsCompactionSummary(t *testing.T) {
+	tests := []struct {
+		content  string
+		expected bool
+	}{
+		{"<summary>We worked on auth...</summary>", true},
+		{"Summary of the conversation so far...", true},
+		{"Here is what we did...", false},
+	}
+
+	for _, tt := range tests {
+		name := tt.content
+		if len(name) > 30 {
+			name = name[:30]
+		}
+		t.Run(name, func(t *testing.T) {
+			result := runner.IsCompactionSummaryForTest(tt.content)
+			if result != tt.expected {
+				t.Errorf("isCompactionSummary = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestExtractSummaryContent(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{
+			"<summary>Auth bug was fixed by updating token validation</summary>",
+			"Auth bug was fixed by updating token validation",
+		},
+		{
+			"Some preamble\n<summary>The actual summary</summary>\nSome epilogue",
+			"The actual summary",
+		},
+		{
+			"No tags here, just plain text",
+			"No tags here, just plain text",
+		},
+	}
+
+	for _, tt := range tests {
+		name := tt.expected
+		if len(name) > 20 {
+			name = name[:20]
+		}
+		t.Run(name, func(t *testing.T) {
+			result := runner.ExtractSummaryContentForTest(tt.input)
+			if result != tt.expected {
+				t.Errorf("extractSummaryContent = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestParseStreamEvents_CompactionFlow(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+	runID := uuid.New()
+
+	// Step 1: User sends /compact command via "message" event type
+	events1, err := r.ParseStreamEventsForTest(
+		runID,
+		`{"type":"message","message":{"role":"user","content":"/compact focus on auth"}}`,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(events1) != 0 {
+		t.Errorf("expected 0 events for /compact command, got %d", len(events1))
+	}
+
+	// Step 2: Assistant responds with summary
+	events2, err := r.ParseStreamEventsForTest(
+		runID,
+		`{"type":"message","message":{"role":"assistant","content":"<summary>We fixed the auth bug...</summary>"}}`,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(events2) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events2))
+	}
+
+	event := events2[0]
+	if event.EventType != domain.EventTypeCompaction {
+		t.Errorf("EventType = %s, want %s", event.EventType, domain.EventTypeCompaction)
+	}
+
+	data, ok := event.Data.(*domain.CompactionEventData)
+	if !ok {
+		t.Fatalf("Data type = %T, want *CompactionEventData", event.Data)
+	}
+	if data.Summary != "We fixed the auth bug..." {
+		t.Errorf("Summary = %q, want %q", data.Summary, "We fixed the auth bug...")
+	}
+	if data.Trigger != "manual" {
+		t.Errorf("Trigger = %s, want manual", data.Trigger)
+	}
+	if data.Focus != "auth" {
+		t.Errorf("Focus = %s, want auth", data.Focus)
+	}
+	if data.OriginalCommand != "/compact focus on auth" {
+		t.Errorf("OriginalCommand = %s, want '/compact focus on auth'", data.OriginalCommand)
+	}
+}
+
+// =============================================================================
+// EFFECTIVE PROMPT TESTS
+// =============================================================================
+
+func TestExecuteRequest_EffectivePrompt(t *testing.T) {
+	tests := []struct {
+		name         string
+		req          runner.ExecuteRequest
+		wantContains []string
+		wantExact    string
+	}{
+		{
+			name: "no system prompt returns prompt unchanged",
+			req: runner.ExecuteRequest{
+				Prompt:       "user message",
+				SystemPrompt: "",
+			},
+			wantExact: "user message",
+		},
+		{
+			name: "no user prompt returns system prompt unchanged",
+			req: runner.ExecuteRequest{
+				Prompt:       "",
+				SystemPrompt: "instructions",
+			},
+			wantExact: "instructions",
+		},
+		{
+			name: "both prompts wraps system in XML tags",
+			req: runner.ExecuteRequest{
+				Prompt:       "user data here",
+				SystemPrompt: "you are an investigator",
+			},
+			wantContains: []string{
+				"<system-instructions>",
+				"you are an investigator",
+				"</system-instructions>",
+				"user data here",
+			},
+		},
+		{
+			name: "system prompt appears before user prompt",
+			req: runner.ExecuteRequest{
+				Prompt:       "user data",
+				SystemPrompt: "system instructions",
+			},
+			wantContains: []string{
+				"<system-instructions>",
+				"</system-instructions>",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.req.EffectivePrompt()
+
+			if tt.wantExact != "" {
+				if got != tt.wantExact {
+					t.Errorf("EffectivePrompt() = %q, want %q", got, tt.wantExact)
+				}
+				return
+			}
+
+			for _, want := range tt.wantContains {
+				if !strings.Contains(got, want) {
+					t.Errorf("EffectivePrompt() missing %q, got:\n%s", want, got)
+				}
+			}
+
+			// Verify ordering: system-instructions tag appears before user data
+			if tt.req.SystemPrompt != "" && tt.req.Prompt != "" {
+				sysIdx := strings.Index(got, "<system-instructions>")
+				userIdx := strings.Index(got, tt.req.Prompt)
+				if sysIdx >= userIdx {
+					t.Errorf("system prompt should appear before user prompt, sys=%d user=%d", sysIdx, userIdx)
+				}
+			}
+		})
+	}
+}
+
+// =============================================================================
+// CLAUDE CODE SYSTEM PROMPT CLI ARG TESTS
+// =============================================================================
+
+func TestClaudeCodeRunner_BuildArgs_SystemPrompt(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+
+	t.Run("includes --append-system-prompt when set", func(t *testing.T) {
+		req := runner.ExecuteRequest{
+			RunID:        uuid.New(),
+			SystemPrompt: "You are an investigation agent.",
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeClaudeCode,
+			},
+		}
+		args := r.BuildArgsForTest(req)
+		found := false
+		for i, a := range args {
+			if a == "--append-system-prompt" && i+1 < len(args) {
+				found = true
+				if args[i+1] != "You are an investigation agent." {
+					t.Errorf("--append-system-prompt value = %q, want %q", args[i+1], "You are an investigation agent.")
+				}
+			}
+		}
+		if !found {
+			t.Error("expected --append-system-prompt in args")
+		}
+	})
+
+	t.Run("omits --append-system-prompt when empty", func(t *testing.T) {
+		req := runner.ExecuteRequest{
+			RunID:        uuid.New(),
+			SystemPrompt: "",
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeClaudeCode,
+			},
+		}
+		args := r.BuildArgsForTest(req)
+		for _, a := range args {
+			if a == "--append-system-prompt" {
+				t.Error("expected no --append-system-prompt when system prompt is empty")
+			}
+		}
+	})
+}
+
+// =============================================================================
+// CLAUDE CODE TAG ENV VAR TESTS
+// =============================================================================
+
+func TestClaudeCodeRunner_BuildEnv_AgentTag(t *testing.T) {
+	r := runner.NewTestClaudeCodeRunner()
+
+	t.Run("includes CLAUDE_CODE_AGENT_TAG from request tag", func(t *testing.T) {
+		runID := uuid.New()
+		req := runner.ExecuteRequest{
+			RunID: runID,
+			Tag:   "heartbeat-team1-agent1-2026-01-01T00-00-00Z",
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeClaudeCode,
+			},
+		}
+		env := r.BuildEnvForTest(req)
+		found := false
+		for _, e := range env {
+			if strings.HasPrefix(e, "CLAUDE_CODE_AGENT_TAG=") {
+				found = true
+				val := strings.TrimPrefix(e, "CLAUDE_CODE_AGENT_TAG=")
+				if val != "heartbeat-team1-agent1-2026-01-01T00-00-00Z" {
+					t.Errorf("CLAUDE_CODE_AGENT_TAG = %q, want %q", val, "heartbeat-team1-agent1-2026-01-01T00-00-00Z")
+				}
+			}
+		}
+		if !found {
+			t.Error("expected CLAUDE_CODE_AGENT_TAG in env vars")
+		}
+	})
+
+	t.Run("defaults to RunID when no explicit tag", func(t *testing.T) {
+		runID := uuid.New()
+		req := runner.ExecuteRequest{
+			RunID: runID,
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeClaudeCode,
+			},
+		}
+		env := r.BuildEnvForTest(req)
+		expected := runID.String()
+		found := false
+		for _, e := range env {
+			if strings.HasPrefix(e, "CLAUDE_CODE_AGENT_TAG=") {
+				found = true
+				val := strings.TrimPrefix(e, "CLAUDE_CODE_AGENT_TAG=")
+				if val != expected {
+					t.Errorf("CLAUDE_CODE_AGENT_TAG = %q, want %q", val, expected)
+				}
+			}
+		}
+		if !found {
+			t.Error("expected CLAUDE_CODE_AGENT_TAG in env vars")
 		}
 	})
 }

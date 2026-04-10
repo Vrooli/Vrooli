@@ -12,7 +12,8 @@ import {
 } from "recharts";
 import { useRunTrends } from "../../hooks/useRunTrends";
 import { useTimeWindow } from "../../hooks/useTimeWindow";
-import { formatChartAxisByPreset, formatDateTime, formatNumber } from "../../utils/formatters";
+import { formatNumber } from "../../utils/formatters";
+import { formatChartAxisByPreset, formatStatsDateTime } from "../../../../lib/dateTime";
 import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE } from "../../utils/chartConfig";
 
 export function RunStatusTrends() {
@@ -21,16 +22,16 @@ export function RunStatusTrends() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card/50 p-6">
-        <div className="mb-4 h-5 w-32 animate-pulse rounded bg-muted/30" />
-        <div className="h-[300px] animate-pulse rounded bg-muted/20" />
+      <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
+        <div className="mb-2 sm:mb-4 h-5 w-32 animate-pulse rounded bg-muted/30" />
+        <div className="h-[200px] sm:h-[300px] animate-pulse rounded bg-muted/20" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-6">
+      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 sm:p-6">
         <h3 className="text-sm font-semibold">Run Trends</h3>
         <p className="mt-2 text-sm text-red-500">Failed to load: {error.message}</p>
       </div>
@@ -48,18 +49,18 @@ export function RunStatusTrends() {
   }));
 
   return (
-    <div className="rounded-lg border border-border bg-card/50 p-6">
-      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
+      <h3 className="mb-2 sm:mb-4 text-sm font-semibold text-muted-foreground">
         Run Trends
       </h3>
       {chartData.length === 0 ? (
-        <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
+        <div className="flex h-[200px] sm:h-[300px] items-center justify-center text-sm text-muted-foreground">
           No data available for this time period
         </div>
       ) : (
-        <div className="h-[300px]">
+        <div className="h-[200px] sm:h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={CHART_MARGINS}>
+            <AreaChart data={chartData} margin={{ ...CHART_MARGINS, bottom: 5, left: 5 }}>
               <defs>
                 <linearGradient id="gradientCompleted" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={CHART_COLORS.complete} stopOpacity={0.8} />
@@ -73,7 +74,7 @@ export function RunStatusTrends() {
               <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
               <XAxis
                 dataKey="time"
-                tickFormatter={(value) => formatChartAxisByPreset(value, preset)}
+                tickFormatter={(value: string) => formatChartAxisByPreset(value, preset)}
                 stroke={CHART_COLORS.axis}
                 tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
                 tickLine={{ stroke: CHART_COLORS.axis }}
@@ -86,7 +87,7 @@ export function RunStatusTrends() {
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
-                labelFormatter={formatDateTime}
+                labelFormatter={(label: string) => formatStatsDateTime(label)}
                 formatter={(value: number, name: string) => [
                   formatNumber(value),
                   name.charAt(0).toUpperCase() + name.slice(1),

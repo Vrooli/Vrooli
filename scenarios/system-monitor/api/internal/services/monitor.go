@@ -1,5 +1,7 @@
 package services
 
+// DOC: docs/concepts/ARCHITECTURE.md#monitoring-service
+
 import (
 	"context"
 	"log"
@@ -18,8 +20,8 @@ type MonitorService struct {
 	config     *config.Config
 	repo       repository.MetricsRepository
 	collectors *collectors.CollectorRegistry
-	alertSvc   interface{} // Can be *AlertService or mock
 	infra      infrastructure.Provider
+	clock      Clock
 	active     bool
 	lastRun    map[string]time.Time
 	mu         sync.RWMutex
@@ -27,24 +29,47 @@ type MonitorService struct {
 	cancel     context.CancelFunc
 }
 
+// MonitorOption configures a MonitorService.
+type MonitorOption func(*MonitorService)
+
+// WithMonitorClock sets the clock used by the monitor service.
+func WithMonitorClock(c Clock) MonitorOption {
+	return func(s *MonitorService) { s.clock = c }
+}
+
+// WithCollectors injects collectors, skipping the default registerCollectors call.
+func WithCollectors(cs ...collectors.Collector) MonitorOption {
+	return func(s *MonitorService) {
+		for _, c := range cs {
+			s.collectors.Register(c)
+		}
+	}
+}
+
 // NewMonitorService creates a new monitor service
-func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, alertSvc interface{}) *MonitorService {
+func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, infra infrastructure.Provider, opts ...MonitorOption) *MonitorService {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	svc := &MonitorService{
 		config:     cfg,
 		repo:       repo,
 		collectors: collectors.NewCollectorRegistry(),
-		alertSvc:   alertSvc,
-		infra:      infrastructure.NewStaticProvider(),
+		infra:      infra,
+		clock:      RealClock{},
 		active:     true,
 		lastRun:    make(map[string]time.Time),
 		ctx:        ctx,
 		cancel:     cancel,
 	}
 
-	// Register collectors
-	svc.registerCollectors()
+	for _, opt := range opts {
+		opt(svc)
+	}
+
+	// Register default collectors only if none were injected via options
+	if len(svc.collectors.GetAll()) == 0 {
+		svc.registerCollectors()
+	}
 
 	return svc
 }
@@ -161,7 +186,7 @@ func (s *MonitorService) collectMetrics() {
 	ctx, cancel := context.WithTimeout(s.ctx, 30*time.Second)
 	defer cancel()
 
-	now := time.Now()
+	now := s.clock.Now()
 	var metricsData []*collectors.MetricData
 	var errors []error
 
@@ -200,7 +225,7 @@ func (s *MonitorService) GetCurrentMetrics(ctx context.Context) (*models.Metrics
 	metrics, err := s.repo.GetLatestMetrics(ctx)
 	if err != nil {
 		// Fallback to real-time collection
-		return s.collectCurrentMetrics(ctx)
+		return s.GetCurrentMetricsFresh(ctx)
 	}
 
 	return metrics, nil
@@ -247,7 +272,7 @@ func (s *MonitorService) GetCurrentMetricsFresh(ctx context.Context) (*models.Me
 		MemoryUsage:    memUsage,
 		TCPConnections: tcpConnections,
 		GPUUsage:       gpuUsagePtr,
-		Timestamp:      time.Now(),
+		Timestamp:      s.clock.Now(),
 	}, nil
 }
 
@@ -259,71 +284,54 @@ func (s *MonitorService) collectFromRegistry(ctx context.Context, name string) (
 	return collector.Collect(ctx)
 }
 
-// collectCurrentMetrics performs real-time metric collection
-func (s *MonitorService) collectCurrentMetrics(ctx context.Context) (*models.MetricsResponse, error) {
-	cpuData, _ := s.collectFromRegistry(ctx, "cpu")
-	memData, _ := s.collectFromRegistry(ctx, "memory")
-	netData, _ := s.collectFromRegistry(ctx, "network")
-	var gpuData *collectors.MetricData
-	gpuData, _ = s.collectFromRegistry(ctx, "gpu")
-
-	cpuUsage := 0.0
-	if cpuData != nil {
-		if val, ok := cpuData.Values["usage_percent"].(float64); ok {
-			cpuUsage = val
-		}
+// GetMetricsTimeline retrieves a windowed timeline of metric samples.
+func (s *MonitorService) GetMetricsTimeline(ctx context.Context, windowSeconds, sampleIntervalSeconds int) (*models.MetricsTimelineResponse, error) {
+	if windowSeconds <= 0 {
+		windowSeconds = 120
+	}
+	if sampleIntervalSeconds <= 0 {
+		sampleIntervalSeconds = 5
 	}
 
-	memUsage := 0.0
-	if memData != nil {
-		if val, ok := memData.Values["usage_percent"].(float64); ok {
-			memUsage = val
-		}
+	now := s.clock.Now()
+	start := now.Add(-time.Duration(windowSeconds) * time.Second)
+
+	results, err := s.repo.GetMetrics(ctx, repository.MetricsFilter{
+		TimeRange: repository.TimeRange{
+			StartTime: start,
+			EndTime:   now,
+		},
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	tcpConnections := 0
-	if netData != nil {
-		if val, ok := netData.Values["tcp_connections"].(int); ok {
-			tcpConnections = val
-		}
+	samples := make([]models.MetricTimelineSample, 0, len(results))
+	for _, m := range results {
+		samples = append(samples, models.MetricTimelineSample{
+			Timestamp:      m.Timestamp,
+			CPUUsage:       m.CPUUsage,
+			MemoryUsage:    m.MemoryUsage,
+			TCPConnections: m.TCPConnections,
+			GPUUsage:       m.GPUUsage,
+		})
 	}
 
-	var gpuUsagePtr *float64
-	if gpuData != nil {
-		if val, ok := gpuData.Values["total_usage_percent"].(float64); ok {
-			usage := val
-			gpuUsagePtr = &usage
-		}
-	}
-
-	return &models.MetricsResponse{
-		CPUUsage:       cpuUsage,
-		MemoryUsage:    memUsage,
-		TCPConnections: tcpConnections,
-		GPUUsage:       gpuUsagePtr,
-		Timestamp:      time.Now(),
+	return &models.MetricsTimelineResponse{
+		WindowSeconds:         windowSeconds,
+		SampleIntervalSeconds: sampleIntervalSeconds,
+		Samples:               samples,
 	}, nil
 }
 
 // GetDetailedMetrics retrieves comprehensive system metrics
 func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.DetailedMetrics, error) {
-	// Collect detailed metrics from all collectors
-	cpuCollector := collectors.NewCPUCollector()
-	memCollector := collectors.NewMemoryCollector()
-	netCollector := collectors.NewNetworkCollector()
-	diskCollector := collectors.NewDiskCollector()
-	processCollector := collectors.NewProcessCollector()
-	gpuCollector := collectors.NewGPUCollector()
-
-	cpuData, _ := cpuCollector.Collect(ctx)
-	memData, _ := memCollector.Collect(ctx)
-	netData, _ := netCollector.Collect(ctx)
-	diskData, _ := diskCollector.Collect(ctx)
-	_, _ = processCollector.Collect(ctx) // Collected but not used here
-	var gpuData *collectors.MetricData
-	if gpuCollector.IsEnabled() {
-		gpuData, _ = gpuCollector.Collect(ctx)
-	}
+	// Collect detailed metrics from registered collectors
+	cpuData, _ := s.collectFromRegistry(ctx, "cpu")
+	memData, _ := s.collectFromRegistry(ctx, "memory")
+	netData, _ := s.collectFromRegistry(ctx, "network")
+	diskData, _ := s.collectFromRegistry(ctx, "disk")
+	gpuData, _ := s.collectFromRegistry(ctx, "gpu")
 
 	// Get top processes
 	topCPUProcs, _ := collectors.GetTopProcessesByCPU(5)
@@ -331,7 +339,7 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 
 	// Build detailed metrics response
 	detailed := &models.DetailedMetrics{
-		Timestamp: time.Now(),
+		Timestamp: s.clock.Now(),
 	}
 
 	// CPU Details
@@ -369,9 +377,17 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 			detailed.MemoryDetails.TopProcesses = append(detailed.MemoryDetails.TopProcesses, convertToProcessInfo(proc))
 		}
 
-		// Add mock growth patterns
-		detailed.MemoryDetails.GrowthPatterns = []models.MemoryGrowth{
-			{Process: "scenario-api-1", GrowthMBPerHour: 15.0, RiskLevel: "medium"},
+		detailed.MemoryDetails.GrowthPatterns = nil
+
+		// Add disk usage from disk collector (stored under MemoryMetrics in proto)
+		if diskData != nil {
+			if diskUsage, ok := diskData.Values["usage"].(map[string]interface{}); ok {
+				detailed.MemoryDetails.DiskUsage = models.DiskInfo{
+					Used:    getInt64Value(diskUsage, "used"),
+					Total:   getInt64Value(diskUsage, "total"),
+					Percent: getFloat64Value(diskUsage, "percent"),
+				}
+			}
 		}
 	}
 
@@ -396,13 +412,12 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 			}
 		}
 
-		// Network Stats
-		detailed.NetworkDetails.NetworkStats = models.NetworkStatistics{
-			BandwidthInMbps:  12.5,
-			BandwidthOutMbps: 8.2,
-			PacketLoss:       0.1,
-			DNSSuccessRate:   99.2,
-			DNSLatencyMs:     15.0,
+		// Network Stats - populated from collector data when available
+		if bw, ok := netData.Values["bandwidth"].(map[string]interface{}); ok {
+			detailed.NetworkDetails.NetworkStats = models.NetworkStatistics{
+				BandwidthInMbps:  getFloat64Value(bw, "in_mbps"),
+				BandwidthOutMbps: getFloat64Value(bw, "out_mbps"),
+			}
 		}
 	}
 
@@ -458,14 +473,17 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 
 // GetProcessMonitorData retrieves process monitoring information
 func (s *MonitorService) GetProcessMonitorData(ctx context.Context) (*models.ProcessMonitorData, error) {
-	collector := collectors.NewProcessCollector()
-	data, err := collector.Collect(ctx)
+	data, err := s.collectFromRegistry(ctx, "process")
 	if err != nil {
 		return nil, err
 	}
 
 	result := &models.ProcessMonitorData{
-		Timestamp: time.Now(),
+		Timestamp: s.clock.Now(),
+	}
+
+	if data == nil {
+		return result, nil
 	}
 
 	// Extract process health information

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/vrooli/cli-core/cliutil"
+
 	reqservice "test-genie/internal/requirements"
 )
 
@@ -14,7 +16,7 @@ func runValidate(args []string) error {
 	quiet := fs.Bool("quiet", false, "Suppress success output (errors still print)")
 	dirFlag, scenarioFlag := parseCommonFlags(fs)
 
-	if err := fs.Parse(args); err != nil {
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 

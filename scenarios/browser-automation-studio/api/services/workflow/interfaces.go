@@ -30,7 +30,7 @@ type CatalogService interface {
 	GetProjectByName(ctx context.Context, name string) (*database.ProjectIndex, error)
 	GetProjectByFolderPath(ctx context.Context, folderPath string) (*database.ProjectIndex, error)
 	UpdateProject(ctx context.Context, project *database.ProjectIndex, description string) error
-	DeleteProject(ctx context.Context, id uuid.UUID) error
+	DeleteProject(ctx context.Context, id uuid.UUID, deleteFiles bool) error
 	ListProjects(ctx context.Context, limit, offset int) ([]*database.ProjectIndex, error)
 	GetProjectStats(ctx context.Context, projectID uuid.UUID) (*database.ProjectStats, error)
 	GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]*database.ProjectStats, error)

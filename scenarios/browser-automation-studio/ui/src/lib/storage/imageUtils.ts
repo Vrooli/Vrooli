@@ -216,7 +216,8 @@ export async function resizeIfNeeded(file: File): Promise<Blob> {
  */
 export function getFileExtension(filename: string): string {
   const parts = filename.split('.');
-  return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : 'png';
+  const lastPart = parts[parts.length - 1];
+  return parts.length > 1 && lastPart ? lastPart.toLowerCase() : 'png';
 }
 
 /**

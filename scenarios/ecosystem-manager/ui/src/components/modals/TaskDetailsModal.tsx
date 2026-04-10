@@ -28,18 +28,25 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Save, Archive, Trash2, RefreshCw, ChevronsUpDown, AlertCircle, Database, Calendar, Loader2, ExternalLink, RotateCcw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useUpdateTask, useDeleteTask } from '@/hooks/useTaskMutations';
-import { useAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExecution, useSeekAutoSteerExecution } from '@/hooks/useAutoSteer';
-import { usePhaseNames } from '@/hooks/usePromptFiles';
-import { api } from '@/lib/api';
-import { markdownToHtml } from '@/lib/markdown';
+import { useAllAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExecution, useSeekAutoSteerExecution } from '@/hooks/useAutoSteer';
+import { api, ApiError } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard';
 import { ExecutionFeedbackDialog } from '@/components/executions/ExecutionFeedbackPanel';
 import { SteerFocusBadge, getExecutionSteerFocus } from '@/components/steer/SteerFocusBadge';
 import type { SteerFocusInfo } from '@/components/steer/SteerFocusBadge';
+import { MarkdownDisplay } from '@/components/shared/MarkdownDisplay';
+import {
+  SteeringConfigPicker,
+  deriveSteeringConfig,
+  extractSteeringFields,
+} from '@/components/steer/SteeringConfigPicker';
 import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfileEditorModal';
 import { InsightsTab } from '@/components/insights/InsightsTab';
-import type { Task, Priority, ExecutionHistory, UpdateTaskInput, SteerMode, Campaign } from '@/types/api';
+import { QueuePanel } from '@/components/steer/panels/QueuePanel';
+import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
+import { formatSkillSetLabel, formatSkillSetTooltip } from '@/lib/utils';
+import type { Task, Priority, ExecutionHistory, UpdateTaskInput, Campaign, SteeringConfig } from '@/types/api';
 
 interface TaskDetailsModalProps {
   task: Task | null;
@@ -50,6 +57,7 @@ interface TaskDetailsModalProps {
 
 const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low'];
 const AUTO_STEER_NONE = 'none';
+const DEFAULT_STEERING_CONFIG: SteeringConfig = { strategy: 'none' };
 
 // Campaigns Tab Component
 function CampaignsTab({ task }: { task: Task }) {
@@ -246,33 +254,40 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const [priority, setPriority] = useState<Priority>('medium');
   const [notes, setNotes] = useState('');
   const [notesDirty, setNotesDirty] = useState(false);
-  const [steerMode, setSteerMode] = useState<SteerMode | 'none'>('none');
-  const [autoSteerProfileId, setAutoSteerProfileId] = useState<string>(AUTO_STEER_NONE);
+  const [steeringConfig, setSteeringConfig] = useState<SteeringConfig>(DEFAULT_STEERING_CONFIG);
+  // Derive autoSteerProfileId from steeringConfig for Auto Steer state management
+  const autoSteerProfileId = steeringConfig.strategy === 'profile' ? (steeringConfig.profileId ?? AUTO_STEER_NONE) : AUTO_STEER_NONE;
   const [autoRequeue, setAutoRequeue] = useState(false);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
   const [autoSteerExpanded, setAutoSteerExpanded] = useState(false);
   const [phaseDraft, setPhaseDraft] = useState(0);
   const [iterationDraft, setIterationDraft] = useState(0);
+  const [autoSteerInitError, setAutoSteerInitError] = useState<string | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [pendingQueuePosition, setPendingQueuePosition] = useState<number | null>(null);
+  // Track the expected position after a successful API call (separate from pending for timing)
+  const expectedQueuePositionRef = useRef<number | null>(null);
   const lastTaskIdRef = useRef<string | null>(null);
   const lastSyncedNotesRef = useRef<string>('');
 
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
-  const { data: profiles = [] } = useAutoSteerProfiles();
+  const { data: profiles = [] } = useAllAutoSteerProfiles();
   const autoSteerProfilesById = useMemo(
     () => Object.fromEntries((profiles ?? []).map((profile) => [profile.id, profile])),
     [profiles],
   );
-  const { data: phaseNames = [], isLoading: phasesLoading } = usePhaseNames();
+  const hasAutoSteerProfile = autoSteerProfileId !== AUTO_STEER_NONE;
   const {
     data: autoSteerState,
     isFetching: isAutoSteerStateLoading,
-    isError: autoSteerStateError,
+    isError: isAutoSteerStateError,
+    error: autoSteerStateError,
     refetch: refetchAutoSteerState,
-  } = useAutoSteerExecutionState(task && autoSteerProfileId !== AUTO_STEER_NONE ? task.id : undefined);
+  } = useAutoSteerExecutionState(task && hasAutoSteerProfile ? task.id : undefined);
   const resetAutoSteer = useResetAutoSteerExecution();
   const seekAutoSteer = useSeekAutoSteerExecution();
+  const { data: phaseNames = [] } = useMergedPhaseNames();
 
   // Fetch task prompt
   const { data: promptData } = useQuery({
@@ -294,10 +309,10 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     enabled: !!task,
     staleTime: 10000,
   });
-  const executions = Array.isArray(rawExecutions)
-    ? rawExecutions
-    : (rawExecutions as any)?.executions ?? [];
   const sortedExecutions = useMemo(() => {
+    const executions = Array.isArray(rawExecutions)
+      ? rawExecutions
+      : (rawExecutions as any)?.executions ?? [];
     return [...executions].sort((a, b) => {
       const aTime = a?.start_time ? new Date(a.start_time).getTime() : 0;
       const bTime = b?.start_time ? new Date(b.start_time).getTime() : 0;
@@ -306,7 +321,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
       }
       return bTime - aTime;
     });
-  }, [executions]);
+  }, [rawExecutions]);
   const latestExecution = sortedExecutions[0] ?? null;
   const selectedExecution = sortedExecutions.find(exec => exec.id === selectedExecutionId) || null;
   const canSeekAutoSteer = Boolean(task && autoSteerState);
@@ -319,23 +334,27 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   };
 
   // Initialize form when the task identity changes (avoid clobbering in-flight edits)
-  useEffect(() => {
-    if (!task) return;
-
+  const taskSeed = useMemo(() => {
+    if (!task) return null;
     const derivedTarget = (Array.isArray(task.target) && task.target.length > 0)
       ? task.target[0]
       : task.title;
-    setTargetName(derivedTarget || '');
-    setPriority(task.priority);
+    return {
+      id: task.id,
+      derivedTarget,
+      priority: task.priority,
+      autoRequeue: task.auto_requeue || false,
+      steeringConfig: deriveSteeringConfig(task),
+    };
+  }, [task]);
 
-    const initialMode: SteerMode | 'none' =
-      task.auto_steer_profile_id && task.auto_steer_profile_id !== AUTO_STEER_NONE
-        ? 'none'
-        : (task.steer_mode as SteerMode) || 'none';
-    setSteerMode(initialMode);
-    setAutoSteerProfileId(task.auto_steer_profile_id || AUTO_STEER_NONE);
-    setAutoRequeue(task.auto_requeue || false);
-  }, [task?.id]);
+  useEffect(() => {
+    if (!taskSeed) return;
+    setTargetName(taskSeed.derivedTarget || '');
+    setPriority(taskSeed.priority);
+    setSteeringConfig(taskSeed.steeringConfig);
+    setAutoRequeue(taskSeed.autoRequeue);
+  }, [taskSeed]);
 
   // Keep notes in sync without clobbering in-progress edits
   useEffect(() => {
@@ -364,6 +383,17 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     }
   }, [task, autoSteerProfileId, refetchAutoSteerState]);
 
+  // Clear pending queue position when task data reflects the expected change
+  useEffect(() => {
+    if (
+      expectedQueuePositionRef.current !== null &&
+      task?.steering_queue_index === expectedQueuePositionRef.current
+    ) {
+      expectedQueuePositionRef.current = null;
+      setPendingQueuePosition(null);
+    }
+  }, [task?.steering_queue_index]);
+
   // Reset when modal closes
   useEffect(() => {
     if (!open) {
@@ -373,6 +403,8 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
       lastTaskIdRef.current = null;
       lastSyncedNotesRef.current = '';
       setAutoSteerExpanded(false);
+      setPendingQueuePosition(null);
+      expectedQueuePositionRef.current = null;
     }
   }, [open, initialTab]);
 
@@ -383,11 +415,6 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     }
   }, [initialTab, open]);
 
-  useEffect(() => {
-    if (autoSteerProfileId !== AUTO_STEER_NONE && steerMode !== 'none') {
-      setSteerMode('none');
-    }
-  }, [autoSteerProfileId, steerMode]);
 
   useEffect(() => {
     if (sortedExecutions.length > 0 && !selectedExecutionId) {
@@ -486,9 +513,9 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const formatSteerSummary = (focus?: SteerFocusInfo) => {
     if (!focus) return '';
     if (focus.autoSteerProfileName) {
-      return focus.phaseMode ? `${focus.autoSteerProfileName} • ${focus.phaseMode}` : focus.autoSteerProfileName;
+      return focus.phaseSetLabel ? `${focus.autoSteerProfileName} • ${focus.phaseSetLabel}` : focus.autoSteerProfileName;
     }
-    return focus.manualSteerMode ?? '';
+    return focus.manualSetLabel ?? '';
   };
 
   const formatExecutionSummary = (execution: ExecutionHistory, focus?: SteerFocusInfo) => {
@@ -529,7 +556,6 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     (latestExecutionOutput as any)?.output ??
     (latestExecutionOutput as any)?.content ??
     '';
-  const assembledPromptHtml = useMemo(() => markdownToHtml(assembledPrompt), [assembledPrompt]);
 
   const activeProfile = profiles.find(profile => profile.id === autoSteerProfileId);
   const toNumber = (val: unknown): number =>
@@ -538,8 +564,12 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const currentPhaseNumber = autoSteerState ? toNumber(autoSteerState.current_phase_index) + 1 : 0;
   const totalPhases = activeProfile?.phases?.length ?? 0;
   const currentMode =
-    activeProfile?.phases?.[autoSteerState?.current_phase_index ?? 0]?.mode ??
-    (activeProfile?.phases?.[0]?.mode ?? undefined);
+    formatSkillSetLabel(
+      activeProfile?.phases?.[autoSteerState?.current_phase_index ?? 0]?.skill_ids ??
+        (activeProfile?.phases?.[0]?.skill_ids ?? []),
+      phaseNames,
+      { maxVisible: 1, emptyLabel: '' }
+    ) || undefined;
   const completedPhaseIterations =
     autoSteerState?.phase_history?.reduce((sum, phase) => sum + toNumber(phase?.iterations), 0) ?? 0;
   const currentPhaseIteration = toNumber(autoSteerState?.current_phase_iteration);
@@ -562,6 +592,15 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const currentPhaseIterationRaw = autoSteerState?.current_phase_iteration ?? 0;
   const selectedPhase = activeProfile?.phases?.[phaseDraft];
   const selectedPhaseMaxIterations = selectedPhase?.max_iterations ?? 1;
+  const autoSteerStateMissing =
+    hasAutoSteerProfile && !autoSteerState && !isAutoSteerStateLoading && !isAutoSteerStateError;
+  const autoSteerStateErrorMessage = isAutoSteerStateError
+    ? autoSteerStateError instanceof ApiError
+      ? autoSteerStateError.message
+      : autoSteerStateError instanceof Error
+        ? autoSteerStateError.message
+        : 'Unable to load Auto Steer state.'
+    : null;
 
   useEffect(() => {
     if (!autoSteerState) return;
@@ -574,6 +613,12 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   }, [autoSteerState, activeProfile?.phases?.length]);
 
   useEffect(() => {
+    if (autoSteerState) {
+      setAutoSteerInitError(null);
+    }
+  }, [autoSteerState]);
+
+  useEffect(() => {
     if (!selectedPhase) return;
     if (iterationDraft > selectedPhaseMaxIterations) {
       setIterationDraft(selectedPhaseMaxIterations);
@@ -581,6 +626,48 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   }, [selectedPhase, selectedPhaseMaxIterations, iterationDraft]);
 
   if (!task) return null;
+
+  const resolveScenarioName = () => {
+    if (normalizedTarget) {
+      return normalizedTarget;
+    }
+    if (Array.isArray(task.target) && task.target.length > 0) {
+      return task.target[0];
+    }
+    return '';
+  };
+
+  const initializeAutoSteerIfMissing = async () => {
+    if (!task || !hasAutoSteerProfile || autoSteerState) return false;
+    const scenarioName = resolveScenarioName();
+    if (!scenarioName) {
+      setAutoSteerInitError('Unable to determine scenario name for Auto Steer initialization.');
+      return false;
+    }
+
+    const resolvedPhaseIndex = Math.min(
+      Math.max(phaseDraft, 0),
+      Math.max((activeProfile?.phases?.length ?? 1) - 1, 0)
+    );
+    const resolvedPhaseIteration = Math.min(iterationDraft, selectedPhaseMaxIterations);
+
+    setAutoSteerInitError(null);
+    try {
+      await seekAutoSteer.mutateAsync({
+        taskId: task.id,
+        phaseIndex: resolvedPhaseIndex,
+        phaseIteration: resolvedPhaseIteration,
+        profileId: autoSteerProfileId !== AUTO_STEER_NONE ? autoSteerProfileId : undefined,
+        scenarioName,
+      });
+      await refetchAutoSteerState();
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setAutoSteerInitError(message);
+      return false;
+    }
+  };
 
   const handleResetAutoSteer = async () => {
     if (!task) return;
@@ -594,11 +681,13 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
       return;
     }
 
+    // Extract steering fields from unified config
+    const steeringFields = extractSteeringFields(steeringConfig);
+
     const updates: UpdateTaskInput = {
       priority,
       notes: notes.trim(),
-      steer_mode: autoSteerProfileId === AUTO_STEER_NONE && steerMode !== 'none' ? steerMode : undefined,
-      auto_steer_profile_id: autoSteerProfileId === AUTO_STEER_NONE ? undefined : autoSteerProfileId,
+      ...steeringFields,
       auto_requeue: autoRequeue,
     };
 
@@ -631,6 +720,13 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
         id: task.id,
         updates,
       });
+
+      if (hasAutoSteerProfile && !autoSteerState) {
+        const initialized = await initializeAutoSteerIfMissing();
+        if (!initialized) {
+          alert('Auto Steer did not initialize. Check system logs for details.');
+        }
+      }
 
       lastSyncedNotesRef.current = updates.notes ?? notes.trim();
       setNotesDirty(false);
@@ -676,7 +772,11 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as typeof activeTab)}
+          className="w-full"
+        >
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="prompt">Prompt</TabsTrigger>
@@ -733,64 +833,61 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
               </Select>
             </div>
 
+            {/* Steering Configuration */}
             {task?.type === 'scenario' && task?.operation === 'improver' && (
               <div className="space-y-2">
-                <Label htmlFor="detail-steer-mode">Steering focus (manual)</Label>
-                <Select
-                  value={steerMode}
-                  onValueChange={(val: string) => {
-                    const mode = val as SteerMode | 'none';
-                    setSteerMode(mode);
-                    if (mode !== 'none') {
-                      setAutoSteerProfileId(AUTO_STEER_NONE);
+                <Label>Steering Configuration</Label>
+                <SteeringConfigPicker
+                  value={steeringConfig}
+                  onChange={setSteeringConfig}
+                  queueIndex={task.steering_queue_index}
+                  queueExhausted={task.steering_queue_exhausted}
+                  onQueuePositionChange={async (position) => {
+                    setPendingQueuePosition(position);
+                    try {
+                      await api.setQueuePosition(task.id, position);
+                      // Set expected position - pending will clear when task data updates
+                      expectedQueuePositionRef.current = position;
+                    } catch (err) {
+                      console.error('Failed to set queue position:', err);
+                      alert(`Failed to set queue position: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                      // Only clear pending on error - success waits for task data update
+                      setPendingQueuePosition(null);
                     }
                   }}
-                  disabled={autoSteerProfileId !== AUTO_STEER_NONE}
-                >
-                  <SelectTrigger id="detail-steer-mode">
-                    <SelectValue placeholder={phasesLoading ? 'Loading phases...' : 'None (use Progress)'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None (use Progress)</SelectItem>
-                    {phaseNames.map(phase => (
-                      <SelectItem key={phase.name} value={phase.name}>
-                        {phase.name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-slate-500">
-                  Pick a manual focus OR an Auto Steer profile. Selecting a profile disables manual steering until cleared.
-                </p>
+                  pendingQueuePosition={pendingQueuePosition}
+                />
               </div>
             )}
 
-            {(profiles && profiles.length > 0) && (
+            {/* Queue Progress - show when task has a steering queue */}
+            {task?.steering_queue && task.steering_queue.length > 0 && (
               <div className="space-y-2">
-                <Label htmlFor="detail-auto-steer">Auto Steer Profile</Label>
-                <Select
-                  value={autoSteerProfileId}
-                  onValueChange={(val: string) => {
-                    setAutoSteerProfileId(val);
-                    if (val !== AUTO_STEER_NONE) {
-                      setSteerMode('none');
+                <Label>Queue Progress</Label>
+                <QueuePanel
+                  value={task.steering_queue}
+                  onChange={() => {}}
+                  phaseNames={phaseNames}
+                  currentIndex={task.steering_queue_index}
+                  isExhausted={task.steering_queue_exhausted}
+                  readOnly
+                  onPositionChange={async (position) => {
+                    setPendingQueuePosition(position);
+                    try {
+                      await api.setQueuePosition(task.id, position);
+                      // Set expected position - pending will clear when task data updates
+                      expectedQueuePositionRef.current = position;
+                    } catch (err) {
+                      console.error('Failed to set queue position:', err);
+                      alert(`Failed to set queue position: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                      // Only clear pending on error - success waits for task data update
+                      setPendingQueuePosition(null);
                     }
                   }}
-                >
-                  <SelectTrigger id="detail-auto-steer">
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                        <SelectItem value={AUTO_STEER_NONE}>None</SelectItem>
-                        {profiles.map(profile => (
-                          <SelectItem key={profile.id} value={profile.id}>
-                            {profile.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                  pendingPosition={pendingQueuePosition}
+                />
+              </div>
+            )}
 
                 {autoSteerProfileId !== AUTO_STEER_NONE && (
                   <div className="rounded-md border border-slate-800 bg-slate-900/50 p-3 text-xs text-slate-200 space-y-3">
@@ -815,7 +912,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                           {currentMode && (
                             <>
                               <span className="hidden sm:inline text-slate-500">•</span>
-                              <span className="uppercase tracking-wide text-[11px]">{currentMode}</span>
+                              <span className="tracking-wide text-[11px]">{currentMode}</span>
                             </>
                           )}
                         </div>
@@ -826,16 +923,19 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                           variant="ghost"
                           className="p-2"
                           onClick={async () => {
-                            if (task) {
-                              await Promise.allSettled([
-                                refetchAutoSteerState(),
-                                refetchExecutions?.(),
-                              ]);
-                            } else {
+                            if (!task) {
                               await refetchAutoSteerState();
+                              return;
                             }
+                            if (autoSteerStateMissing) {
+                              await initializeAutoSteerIfMissing();
+                            }
+                            await Promise.allSettled([
+                              refetchAutoSteerState(),
+                              refetchExecutions?.(),
+                            ]);
                           }}
-                          disabled={isAutoSteerStateLoading || isFetchingExecutions}
+                          disabled={isAutoSteerStateLoading || isFetchingExecutions || seekAutoSteer.isPending}
                           aria-label="Refresh Auto Steer status"
                         >
                           <RefreshCw className="h-4 w-4" />
@@ -876,7 +976,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                             const isActive = idx === phaseDraft;
                             return (
                               <button
-                                key={phase.id ?? `${phase.mode}-${idx}`}
+                                key={phase.id ?? `${(phase.skill_ids || []).join('-')}-${idx}`}
                                 type="button"
                                 className={`
                                   px-3 py-2 rounded-md border text-left transition-all
@@ -888,7 +988,12 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                                 }}
                               >
                                 <div className="text-[11px] uppercase text-slate-400">Phase {idx + 1}</div>
-                                <div className="text-sm font-semibold">{phase.mode.toUpperCase()}</div>
+                                <div
+                                  className="text-sm font-semibold"
+                                  title={formatSkillSetTooltip(phase.skill_ids, phaseNames)}
+                                >
+                                  {formatSkillSetLabel(phase.skill_ids, phaseNames, { maxVisible: 1, emptyLabel: 'Skill set' })}
+                                </div>
                                 <div className="text-[11px] text-slate-500">
                                   Max iterations: {phase.max_iterations}
                                 </div>
@@ -957,9 +1062,34 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                       </div>
                     )}
 
-                    {autoSteerStateError && (
-                      <div className="text-amber-400 text-[11px]">
-                        No active Auto Steer state yet. It will initialize on next run.
+                    {autoSteerStateErrorMessage && (
+                      <div className="text-red-400 text-[11px]">
+                        Failed to load Auto Steer state: {autoSteerStateErrorMessage}
+                      </div>
+                    )}
+                    {autoSteerStateMissing && (
+                      <div className="flex flex-wrap items-center gap-2 text-amber-400 text-[11px]">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        <span>No active Auto Steer state yet. Click initialize or run the task to create it.</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-[11px]"
+                          disabled={seekAutoSteer.isPending}
+                          onClick={async () => {
+                            const initialized = await initializeAutoSteerIfMissing();
+                            if (!initialized) {
+                              alert('Auto Steer did not initialize. Check system logs for details.');
+                            }
+                          }}
+                        >
+                          Initialize now
+                        </Button>
+                      </div>
+                    )}
+                    {autoSteerInitError && (
+                      <div className="text-red-400 text-[11px]">
+                        Auto Steer initialization failed: {autoSteerInitError}
                       </div>
                     )}
                   </div>
@@ -1028,9 +1158,13 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                         {isLoadingLatestOutput ? (
                           <div className="text-xs text-slate-500">Loading output...</div>
                         ) : latestOutputText ? (
-                          <pre className="rounded-md border border-white/5 bg-slate-800/60 p-2 text-xs text-slate-100 whitespace-pre-wrap max-h-52 overflow-y-auto">
-                            {latestOutputText}
-                          </pre>
+                          <MarkdownDisplay
+                            value={latestOutputText}
+                            readOnly
+                            defaultMode="preview"
+                            storageKey="ecosystem-manager.taskDetails.lastExecutionOutput"
+                            className="h-72"
+                          />
                         ) : (
                           <div className="text-xs text-slate-500">No output captured yet.</div>
                         )}
@@ -1059,22 +1193,14 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
 
           {/* Prompt Tab */}
           <TabsContent value="prompt" className="mt-4">
-            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-              <div className="border rounded-md p-4 max-h-[420px] overflow-y-auto bg-slate-900 font-mono text-xs whitespace-pre-wrap">
-                {assembledPrompt || 'No prompt available'}
-              </div>
-              <div className="border rounded-md p-4 max-h-[420px] overflow-y-auto bg-card">
-                <div className="text-xs uppercase text-slate-400 mb-2">Preview</div>
-                {assembledPrompt ? (
-                  <div
-                    className="text-sm leading-relaxed space-y-3 [&_code]:bg-black/40 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_pre]:text-xs [&_pre]:leading-relaxed [&_ul]:list-disc [&_ul]:pl-5"
-                    dangerouslySetInnerHTML={{ __html: assembledPromptHtml }}
-                  />
-                ) : (
-                  <div className="text-slate-500 text-sm">No prompt available</div>
-                )}
-              </div>
-            </div>
+            <MarkdownDisplay
+              value={assembledPrompt}
+              readOnly
+              defaultMode="preview"
+              placeholder="No prompt available"
+              storageKey="ecosystem-manager.taskDetails.promptTab"
+              className="h-[520px]"
+            />
           </TabsContent>
 
           {/* Executions Tab */}
@@ -1088,7 +1214,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                 <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
                   {sortedExecutions.map((exec, idx) => {
                     const isSelected = exec.id === selectedExecutionId;
-                    const steerFocus = getExecutionSteerFocus(exec, autoSteerProfilesById);
+                    const steerFocus = getExecutionSteerFocus(exec, autoSteerProfilesById, phaseNames);
                     const summaryLabel = formatExecutionSummary(exec, steerFocus);
                     return (
                       <div
@@ -1139,7 +1265,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                             </Button>
                           </div>
                         </div>
-                        {(steerFocus.autoSteerProfileName || steerFocus.manualSteerMode) && (
+                        {(steerFocus.autoSteerProfileName || steerFocus.manualSetLabel) && (
                           <div className="mt-3">
                             <SteerFocusBadge {...steerFocus} />
                           </div>
@@ -1160,6 +1286,8 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                   outputText={selectedOutputText}
                   isLoadingPrompt={isLoadingSelectedPrompt}
                   isLoadingOutput={isLoadingSelectedOutput}
+                  profilesById={autoSteerProfilesById}
+                  phaseNames={phaseNames}
                 />
                 {selectedExecution && (
                   <div className="flex justify-end mt-3">

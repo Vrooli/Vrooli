@@ -38,7 +38,6 @@ func TestMockExecutorOutput(t *testing.T) {
 
 	ctx := context.Background()
 	output, err := exec.Output(ctx, "echo", "hello")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -63,7 +62,6 @@ func TestMockExecutorOutputDefault(t *testing.T) {
 
 	ctx := context.Background()
 	output, err := exec.Output(ctx, "unknown", "command")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -98,7 +96,6 @@ func TestMockExecutorCombinedOutput(t *testing.T) {
 
 	ctx := context.Background()
 	output, err := exec.CombinedOutput(ctx, "test", "cmd")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -117,7 +114,6 @@ func TestMockExecutorRun(t *testing.T) {
 
 	ctx := context.Background()
 	err := exec.Run(ctx, "run", "cmd")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -194,7 +190,6 @@ func TestMockHTTPClientDo(t *testing.T) {
 
 	req, _ := http.NewRequest("GET", "http://example.com/api", nil)
 	resp, err := client.Do(req)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -219,7 +214,6 @@ func TestMockHTTPClientDoDefault(t *testing.T) {
 
 	req, _ := http.NewRequest("GET", "http://unknown.com", nil)
 	resp, err := client.Do(req)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -269,7 +263,6 @@ func TestMockDialerDialTimeout(t *testing.T) {
 	}
 
 	conn, err := dialer.DialTimeout("tcp", "127.0.0.1:8080", 5*time.Second)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -304,7 +297,6 @@ func TestMockDialerDefault(t *testing.T) {
 	}
 
 	conn, err := dialer.DialTimeout("tcp", "any.addr:80", 5*time.Second)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -400,7 +392,6 @@ func TestMockFileSystemReaderStatfs(t *testing.T) {
 	}
 
 	result, err := reader.Statfs("/custom/path")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -417,7 +408,6 @@ func TestMockFileSystemReaderStatfsDefault(t *testing.T) {
 	reader := NewMockFileSystemReader()
 
 	result, err := reader.Statfs("/any/path")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -462,7 +452,6 @@ func TestMockProcReaderReadMeminfo(t *testing.T) {
 	}
 
 	info, err := reader.ReadMeminfo()
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -479,7 +468,6 @@ func TestMockProcReaderReadMeminfoDefault(t *testing.T) {
 	reader := NewMockProcReader()
 
 	info, err := reader.ReadMeminfo()
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -509,7 +497,6 @@ func TestMockProcReaderListProcesses(t *testing.T) {
 	}
 
 	procs, err := reader.ListProcesses()
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -526,7 +513,6 @@ func TestMockProcReaderListProcessesDefault(t *testing.T) {
 	reader := NewMockProcReader()
 
 	procs, err := reader.ListProcesses()
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -571,7 +557,6 @@ func TestMockPortReaderReadPortStats(t *testing.T) {
 	}
 
 	info, err := reader.ReadPortStats()
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -588,7 +573,6 @@ func TestMockPortReaderReadPortStatsDefault(t *testing.T) {
 	reader := NewMockPortReader()
 
 	info, err := reader.ReadPortStats()
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -628,7 +612,6 @@ func TestMockCacheCheckerGetCacheSize(t *testing.T) {
 	checker.Size = 1024 * 1024 // 1MB
 
 	size, err := checker.GetCacheSize("/path/to/cache")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -659,7 +642,6 @@ func TestMockCacheCheckerCleanCache(t *testing.T) {
 	checker.CleanSize = 5000
 
 	count, size, err := checker.CleanCache("/path/to/cache", 30)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -708,7 +690,6 @@ func TestMockDNSResolverLookupHost(t *testing.T) {
 	resolver.Responses["example.com"] = []string{"192.168.1.1", "192.168.1.2"}
 
 	addrs, err := resolver.LookupHost("example.com")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -738,7 +719,6 @@ func TestMockDNSResolverLookupHostDefault(t *testing.T) {
 	resolver.DefaultAddresses = []string{"8.8.8.8"}
 
 	addrs, err := resolver.LookupHost("any.host")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -753,7 +733,6 @@ func TestMockDNSResolverLookupHostDefaultFallback(t *testing.T) {
 	// No configured response, no default addresses
 
 	addrs, err := resolver.LookupHost("any.host")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -804,7 +783,6 @@ func TestMockTLSDialerGetCertificate(t *testing.T) {
 	}
 
 	cert, err := dialer.GetCertificate("example.com:443")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -837,7 +815,6 @@ func TestMockTLSDialerGetCertificateDefault(t *testing.T) {
 	}
 
 	cert, err := dialer.GetCertificate("any.host:443")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -852,7 +829,6 @@ func TestMockTLSDialerGetCertificateFallback(t *testing.T) {
 	// No configured response, no default cert
 
 	cert, err := dialer.GetCertificate("any.host:443")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}

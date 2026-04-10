@@ -1,15 +1,16 @@
 # Prompt Manager
 
-AI maintenance task management system for Vrooli, organizing automated code quality and maintenance prompts with web interface, API, and CLI access.
+**Skills + Agents + Teams** management system for Vrooli, providing reusable AI skills, agent coordination, and markdown-based skill references with 3D world visualization.
 
 ## Features
 
-- **AI Maintenance Tasks**: Pre-configured maintenance prompts for code quality, testing, performance, and security
-- **Campaign Organization**: Tasks grouped by purpose (Testing, Performance, Security, UX, Code Health, etc.)
-- **Task ID System**: Track AI maintenance work with standardized IDs (TEST_QUALITY, REACT_PERF, etc.)
-- **Multiple Interfaces**: Web UI, REST API, and command-line tool for accessing maintenance tasks
-- **Quick Access Keys**: Fast access to frequently used maintenance tasks
-- **Usage Tracking**: Monitor which maintenance tasks are performed most often
+- **Skills Management**: Full CRUD, versioning, AI search, testing, and pack organization (core/local/drafts)
+- **Agents**: Entities with appearance, SOUL.md + agent files, capabilities, connectors, and heartbeat
+- **Teams**: Organizational units with roles, members, org chart, and shared docs
+- **3D World Visualization**: Interactive React Three Fiber visualization for agent coordination
+- **Multiple Interfaces**: Web UI, REST API, and command-line tool
+- **Text-Only Skills**: Agents and teams reference skills directly in markdown
+- **Relations**: Team-member memberships
 
 ## Quick Start
 
@@ -24,7 +25,7 @@ AI maintenance task management system for Vrooli, organizing automated code qual
 3. **Use the CLI:**
    ```bash
    prompt-manager help
-   prompt-manager add "My first prompt" debugging
+   prompt-manager add "My first skill" debugging
    prompt-manager list
    ```
 
@@ -33,50 +34,80 @@ AI maintenance task management system for Vrooli, organizing automated code qual
 
 ## Architecture
 
+```
+┌─────────────────────────────────────────────────────────┐
+│                    prompt-manager                        │
+├─────────────┬─────────────┬─────────────┬───────────────┤
+│   Skills    │   Agents    │   Teams     │   Relations   │
+│  (packs)    │  (souls)    │  (roles)    │ (memberships) │
+└─────────────┴─────────────┴─────────────┴───────────────┘
+                            │
+            ┌───────────────┼───────────────┐
+            ▼               ▼               ▼
+      File Store      PostgreSQL       Qdrant
+      (entities)      (metrics)       (vectors)
+```
+
 ### Components
 
-- **Go API Server** (port allocated by lifecycle): RESTful backend with campaign and prompt management
-- **React UI** (port allocated by lifecycle): Web interface with campaign sidebar and prompt editor  
-- **Bash CLI**: Command-line tool for quick operations
-- **PostgreSQL**: Primary data storage
+- **Go API Server** (port allocated by lifecycle): RESTful backend with skills, agents, and teams management
+- **React UI** (port allocated by lifecycle): Web interface with pack navigation, skill editor, and 3D world
+- **Go CLI**: Command-line tool for quick operations
+- **File-based Store**: Primary entity storage (store/skills/, store/agents/, store/teams/)
+- **PostgreSQL** (optional): Analytics and metrics storage
 - **Qdrant** (optional): Vector database for semantic search
-- **Ollama** (optional): Local LLM for prompt testing
+- **Ollama** (optional): Local LLM for skill testing
 
-### Database Schema
+### Storage Structure
 
-- **campaigns**: Organizing containers (debugging, UX, coding, etc.)
-- **prompts**: Individual prompt content with metadata
-- **tags**: Labeling system for prompts
-- **templates**: Reusable prompt patterns
-- **test_results**: History of prompt testing with LLMs
+```
+store/
+├── skills/packs/
+│   ├── core/           # System skills
+│   ├── local/          # User-created skills
+│   └── drafts/         # Work-in-progress
+├── agents/             # Agent entities
+├── teams/              # Team entities with roles
+├── relations/          # Team-member mappings
+└── indexes/            # Generated lookup indexes
+```
 
 ## API Endpoints
 
-### Campaigns
-- `GET /api/campaigns` - List all campaigns
-- `POST /api/campaigns` - Create new campaign
-- `GET /api/campaigns/{id}` - Get campaign details
-- `GET /api/campaigns/{id}/prompts` - Get prompts in campaign
+### Skills
+- `GET /api/v1/skills` - List skills with filters (folder, tag, mode)
+- `POST /api/v1/skills` - Create new skill
+- `GET /api/v1/skills/{id}` - Get skill details
+- `PUT /api/v1/skills/{id}` - Update skill
+- `DELETE /api/v1/skills/{id}` - Delete skill
+- `POST /api/v1/skills/{id}/use` - Record usage
+- `GET /api/v1/skills/{id}/versions` - Version history
+- `POST /api/v1/skills/{id}/revert/{ver}` - Revert to version
 
-### Prompts
-- `GET /api/prompts` - List prompts with filters
-- `POST /api/prompts` - Create new prompt
-- `GET /api/prompts/{id}` - Get prompt details
-- `PUT /api/prompts/{id}` - Update prompt
-- `POST /api/prompts/{id}/use` - Record usage
+### Agents
+- `GET /api/v1/agents` - List all agents
+- `POST /api/v1/agents` - Create agent
+- `GET /api/v1/agents/{id}` - Get agent details
+- `PUT /api/v1/agents/{id}` - Update agent
+- `DELETE /api/v1/agents/{id}` - Delete agent
+
+### Teams
+- `GET /api/v1/teams` - List all teams
+- `POST /api/v1/teams` - Create team
+- `GET /api/v1/teams/{id}` - Get team with roles and members
+- `PUT /api/v1/teams/{id}` - Update team
+- `DELETE /api/v1/teams/{id}` - Delete team
+- `POST /api/v1/teams/{id}/members` - Add member
+- `PUT /api/v1/teams/{id}/members/{agentId}` - Update member
+- `DELETE /api/v1/teams/{id}/members/{agentId}` - Remove member
 
 ### Search & Discovery
-- `GET /api/search/prompts?q={query}` - Full-text search
-- `POST /api/prompts/semantic` - Vector similarity search
-- `GET /api/prompts/recent` - Recently used prompts
-- `GET /api/prompts/favorites` - Favorite prompts
+- `GET /api/v1/search/skills?q={query}` - Full-text search
+- `POST /api/v1/search/ai` - Vector similarity search
 
-### Export/Import
-- `GET /api/v1/export` - Export all data to JSON
-  - Query params: `campaign_id` (filter by campaign), `include_archived` (include archived prompts)
-- `POST /api/v1/import` - Import data from JSON
-  - Body: JSON export file content
-  - Returns: Summary of imported items and any errors
+### Tags
+- `GET /api/v1/tags` - List all tags
+- `POST /api/v1/tags` - Create tag
 
 ## CLI Commands
 
@@ -84,23 +115,33 @@ AI maintenance task management system for Vrooli, organizing automated code qual
 # Status and health
 prompt-manager status
 
-# Campaign management
-prompt-manager campaigns list
-prompt-manager campaigns create "My Campaign" "Description"
+# Skill operations
+prompt-manager skill list [--folder=core|local|drafts] [--tag=TAG]
+prompt-manager skill show <id>
+prompt-manager skill add <name> [--folder=local] [--tags=...]
+prompt-manager skill update <id> [--name=...] [--tags=...]
+prompt-manager skill delete <id> [--force]
+prompt-manager skill use <id>                    # Copy and record usage
+prompt-manager skill versions <id>               # View version history
+prompt-manager skill revert <id> <version>       # Revert to version
 
-# Prompt operations
-prompt-manager add "Prompt title" campaign-name
-prompt-manager list [campaign] [filter]
-prompt-manager search "query"
-prompt-manager show <prompt-id>
-prompt-manager use <prompt-id>  # Copy and record usage
+# Agent operations
+prompt-manager agent list
+prompt-manager agent show <id>
+prompt-manager agent create <name> [--body-color=...]
+prompt-manager agent update <id> [--name=...]
+prompt-manager agent delete <id> [--force]
 
-# Version control (NEW)
-prompt-manager versions <prompt-id>           # View version history
-prompt-manager revert <prompt-id> <version>   # Revert to previous version
+# Search
+prompt-manager search <query> [--folder=...] [--tag=...]
 
-# Quick access
-prompt-manager quick <key>      # Access by quick key
+# Tag operations
+prompt-manager tag list
+prompt-manager tag create <name> [--color=...]
+
+# Testing (requires Ollama)
+prompt-manager test run <skill-id> [--model=...]
+prompt-manager test history <skill-id>
 ```
 
 ## Configuration
@@ -167,28 +208,31 @@ bash deployment/validate.sh
 ## Optional Enhancements
 
 ### Semantic Search (requires Qdrant)
-- Vector embeddings for prompt content
+- Vector embeddings for skill content
 - Similarity-based discovery
-- Related prompt suggestions
+- Related skill suggestions
 
-### Prompt Testing (requires Ollama)  
-- Test prompts with local LLMs
+### Skill Testing (requires Ollama)
+- Test skills with local LLMs
 - Performance and quality metrics
 - Effectiveness ratings
 
 ## Use Cases
 
+- **Agent Swarms**: Coordinate teams of agents (Debug, Feature, QA, Refactor) that analyze codebases and produce plans
+- **Staging Plans via Swarm Manager**: Teams deposit their plans as backlog items into the `swarm-manager` scenario, where operators review and refine them with the Idea Agent before execution
+- **Skill Libraries**: Build reusable AI capabilities with versioning and search
+- **Team Coordination**: Organize agents into teams with shared context and roles
 - **Developers**: Debug patterns, code review templates, architecture decisions
-- **Designers**: UX research methods, design system components, user journey analysis  
-- **Writers**: Content templates, documentation patterns, communication frameworks
-- **General**: Personal AI prompt library with organized access
+- **Designers**: UX research methods, design system components, user journey analysis
 
 ## Data Flow
 
 ```
-CLI/UI → Go API → PostgreSQL (metadata) 
-                 → Qdrant (embeddings)
-                 → Ollama (testing)
+CLI/UI → Go API → File Store (skills, agents, teams)
+                → PostgreSQL (metrics, analytics)
+                → Qdrant (embeddings)
+                → Ollama (testing)
 ```
 
-All interfaces interact through the central Go API server, ensuring consistent data handling and business logic.
+All interfaces interact through the central Go API server, ensuring consistent data handling and business logic. The 3D world visualization connects via React Query for real-time agent state.

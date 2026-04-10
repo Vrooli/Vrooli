@@ -1,0 +1,26 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "leader-research-analyze-plan",
+  "name": "Leader: Research-Analyze-Plan Pipeline",
+  "description": "Leader-focused pipeline that orchestrates ecosystem capability research, gap analysis with structured decision trees, and cross-cutting implementation planning across skills, scenarios, and CLIs. Composes skill-improvement-suggestions and systematic-exploration into a four-phase workflow for identifying and addressing capability gaps in the Vrooli ecosystem.",
+  "modes": [
+    "practice"
+  ],
+  "tags": [
+    "practice",
+    "pipeline",
+    "leadership",
+    "delegation",
+    "coordination",
+    "methodology",
+    "ecosystem",
+    "meta-optimization"
+  ],
+  "icon": "search",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-02-11T00:00:00Z",
+  "updatedAt": "2026-02-11T00:00:00Z"
+}

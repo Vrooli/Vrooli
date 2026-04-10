@@ -1,4 +1,5 @@
 #!/bin/bash
+# DOC: docs/reference/cli-commands.md
 
 # System Monitor CLI
 # A command-line interface for system monitoring operations

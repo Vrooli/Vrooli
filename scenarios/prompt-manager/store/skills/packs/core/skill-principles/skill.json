@@ -1,0 +1,19 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "skill-principles",
+  "name": "Skill Principles",
+  "description": "General guidance for skill purpose, category selection, and baseline quality standards.",
+  "modes": [
+    "meta"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "bookopen",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 44,
+  "createdAt": "2026-01-28T00:00:00Z",
+  "updatedAt": "2026-02-04T13:13:54Z"
+}

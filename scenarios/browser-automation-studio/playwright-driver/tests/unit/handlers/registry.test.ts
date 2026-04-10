@@ -6,7 +6,8 @@ import { UnsupportedInstructionError } from '../../../src/utils/errors';
 describe('HandlerRegistry', () => {
   beforeEach(() => {
     // Clear registry before each test
-    (handlerRegistry as any).handlers.clear();
+    const registry = handlerRegistry as unknown as { handlers: Map<string, unknown> };
+    registry.handlers.clear();
   });
 
   describe('register', () => {

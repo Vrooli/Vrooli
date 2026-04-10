@@ -1,0 +1,57 @@
+{
+  "description": "Agent-manager integration in api/internal/agentmanager/. Investigation service in api/internal/services/investigation.go. Spawns, monitors, and stops AI agents via agent-manager API.",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "system-monitor-must-have-automated-investigation-of-system-anomalies-via-agent-manager",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-002"
+      ],
+      "description": "System must automatically investigate anomalies using the agent-manager to analyze root causes and suggest remediation",
+      "id": "REQ-P0-003",
+      "prd_ref": "system-monitor-must-have-automated-investigation-of-system-anomalies-via-agent-manager",
+      "status": "implemented",
+      "title": "AI-Powered Anomaly Investigation",
+      "validation": [
+        {
+          "notes": "Test investigation workflow",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify agent-manager integration",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end investigation flow",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Investigation starts within 60s of anomaly",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Investigation results provided within 5 minutes",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Automated investigation of system anomalies via agent-manager"
+}

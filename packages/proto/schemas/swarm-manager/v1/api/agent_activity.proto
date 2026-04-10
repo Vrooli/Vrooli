@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "swarm-manager/v1/domain/agent_activity.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+message ListAgentActivitiesResponse {
+  repeated AgentActivity items = 1;
+}
+
+message AgentActivityResponse {
+  AgentActivity activity = 1;
+}

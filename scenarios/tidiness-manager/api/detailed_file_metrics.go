@@ -8,22 +8,26 @@ import (
 
 // DetailedFileMetrics contains comprehensive per-file metrics for refactor prioritization
 type DetailedFileMetrics struct {
-	FilePath       string   `json:"file_path"`
-	Language       string   `json:"language"`
-	FileExtension  string   `json:"file_extension"`
-	LineCount      int      `json:"line_count"`
-	TodoCount      int      `json:"todo_count"`
-	FixmeCount     int      `json:"fixme_count"`
-	HackCount      int      `json:"hack_count"`
-	ImportCount    int      `json:"import_count"`
-	FunctionCount  int      `json:"function_count"`
-	CodeLines      int      `json:"code_lines"`
-	CommentLines   int      `json:"comment_lines"`
-	CommentRatio   float64  `json:"comment_to_code_ratio"`
-	HasTestFile    bool     `json:"has_test_file"`
-	ComplexityAvg  *float64 `json:"complexity_avg,omitempty"`
-	ComplexityMax  *int     `json:"complexity_max,omitempty"`
-	DuplicationPct *float64 `json:"duplication_pct,omitempty"`
+	FilePath              string   `json:"file_path"`
+	Language              string   `json:"language"`
+	FileExtension         string   `json:"file_extension"`
+	LineCount             int      `json:"line_count"`
+	TodoCount             int      `json:"todo_count"`
+	FixmeCount            int      `json:"fixme_count"`
+	HackCount             int      `json:"hack_count"`
+	ImportCount           int      `json:"import_count"`
+	FunctionCount         int      `json:"function_count"`
+	CodeLines             int      `json:"code_lines"`
+	CommentLines          int      `json:"comment_lines"`
+	CommentRatio          float64  `json:"comment_to_code_ratio"`
+	HasTestFile           bool     `json:"has_test_file"`
+	ComplexityAvg         *float64 `json:"complexity_avg,omitempty"`
+	ComplexityMax         *int     `json:"complexity_max,omitempty"`
+	DuplicationPct        *float64 `json:"duplication_pct,omitempty"`
+	AsAnyCount            int      `json:"as_any_count,omitempty"`
+	AsTypeAssertionCount  int      `json:"as_type_assertion_count,omitempty"`
+	TsIgnoreCount         int      `json:"ts_ignore_count,omitempty"`
+	NonNullAssertionCount int      `json:"non_null_assertion_count,omitempty"`
 }
 
 // CollectDetailedFileMetrics analyzes files and returns detailed per-file metrics
@@ -58,9 +62,18 @@ func CollectDetailedFileMetricsWithLangMetrics(scenarioPath string, files []stri
 	// Maps file path -> (avgComplexity, maxComplexity) for functions in that file
 	fileComplexity := buildFileComplexityMap(langMetrics)
 
+	// Build per-file line counts for accurate duplication percentage calculation
+	fileLineCounts := make(map[string]int, len(files))
+	for _, relPath := range files {
+		absPath := filepath.Join(scenarioPath, relPath)
+		if lc, err := countLines(absPath); err == nil {
+			fileLineCounts[relPath] = lc
+		}
+	}
+
 	// Build per-file duplication map from language metrics
 	// Maps file path -> percentage of lines that are duplicated
-	fileDuplication := buildFileDuplicationMap(langMetrics, languages)
+	fileDuplication := buildFileDuplicationMap(langMetrics, languages, fileLineCounts)
 
 	// Collect metrics per file
 	results := make([]DetailedFileMetrics, 0, len(files))
@@ -97,19 +110,23 @@ func CollectDetailedFileMetricsWithLangMetrics(scenarioPath string, files []stri
 		hasTest := testFiles[relPath] || codeMetricsAnalyzer.hasTestFile(relPath, testFiles, lang)
 
 		detailed := DetailedFileMetrics{
-			FilePath:      relPath,
-			Language:      string(lang),
-			FileExtension: filepath.Ext(relPath),
-			LineCount:     fileMetrics.CodeLines + fileMetrics.CommentLines,
-			TodoCount:     fileMetrics.TodoCount,
-			FixmeCount:    fileMetrics.FixmeCount,
-			HackCount:     fileMetrics.HackCount,
-			ImportCount:   fileMetrics.ImportCount,
-			FunctionCount: fileMetrics.FunctionCount,
-			CodeLines:     fileMetrics.CodeLines,
-			CommentLines:  fileMetrics.CommentLines,
-			CommentRatio:  fileMetrics.CommentToCodeRatio,
-			HasTestFile:   hasTest,
+			FilePath:              relPath,
+			Language:              string(lang),
+			FileExtension:         filepath.Ext(relPath),
+			LineCount:             fileMetrics.CodeLines + fileMetrics.CommentLines,
+			TodoCount:             fileMetrics.TodoCount,
+			FixmeCount:            fileMetrics.FixmeCount,
+			HackCount:             fileMetrics.HackCount,
+			ImportCount:           fileMetrics.ImportCount,
+			FunctionCount:         fileMetrics.FunctionCount,
+			CodeLines:             fileMetrics.CodeLines,
+			CommentLines:          fileMetrics.CommentLines,
+			CommentRatio:          fileMetrics.CommentToCodeRatio,
+			HasTestFile:           hasTest,
+			AsAnyCount:            fileMetrics.AsAnyCount,
+			AsTypeAssertionCount:  fileMetrics.AsTypeAssertionCount,
+			TsIgnoreCount:         fileMetrics.TsIgnoreCount,
+			NonNullAssertionCount: fileMetrics.NonNullAssertionCount,
 		}
 
 		// Add complexity metrics if available for this file
@@ -191,8 +208,9 @@ func buildFileComplexityMap(langMetrics map[Language]*LanguageMetrics) map[strin
 }
 
 // buildFileDuplicationMap calculates per-file duplication percentage
-// by analyzing duplicate blocks that involve each file
-func buildFileDuplicationMap(langMetrics map[Language]*LanguageMetrics, languages map[Language]*LanguageInfo) map[string]float64 {
+// by analyzing duplicate blocks that involve each file.
+// fileLineCounts provides actual line counts for accurate percentage calculation.
+func buildFileDuplicationMap(langMetrics map[Language]*LanguageMetrics, languages map[Language]*LanguageInfo, fileLineCounts map[string]int) map[string]float64 {
 	result := make(map[string]float64)
 
 	if langMetrics == nil {
@@ -203,13 +221,10 @@ func buildFileDuplicationMap(langMetrics map[Language]*LanguageMetrics, language
 	fileDupLines := make(map[string]int)
 
 	// Get file line counts for percentage calculation
+	// Use actual line counts when available
 	fileLines := make(map[string]int)
-	for _, langInfo := range languages {
-		for _, file := range langInfo.Files {
-			// We don't have per-file line counts in LanguageInfo, so we'll estimate
-			// from the duplicate block data or skip percentage calculation
-			fileLines[file] = 0
-		}
+	for path, count := range fileLineCounts {
+		fileLines[path] = count
 	}
 
 	for _, lm := range langMetrics {
@@ -222,9 +237,11 @@ func buildFileDuplicationMap(langMetrics map[Language]*LanguageMetrics, language
 			for _, loc := range block.Files {
 				lines := loc.EndLine - loc.StartLine + 1
 				fileDupLines[loc.Path] += lines
-				// Track total lines seen in this file from duplication info
-				if fileLines[loc.Path] < loc.EndLine {
-					fileLines[loc.Path] = loc.EndLine
+				// Only use EndLine as fallback if the file isn't in fileLineCounts
+				if _, hasActual := fileLineCounts[loc.Path]; !hasActual {
+					if fileLines[loc.Path] < loc.EndLine {
+						fileLines[loc.Path] = loc.EndLine
+					}
 				}
 			}
 		}

@@ -2,349 +2,444 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
+	"fmt"
+	"net/http"
 	"net/http/httptest"
-	"os"
-	"strings"
 	"testing"
+
+	"github.com/gorilla/mux"
 )
 
-// TestLocalProcessingHelpers ensures local enrichment helpers behave safely.
-func TestLocalProcessingHelpers(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
+// --- Handler JSON encoding tests ---
 
-	title := generateTitle("short thought about focus")
-	if title == "" {
-		t.Error("Expected non-empty title")
+// [REQ:P0-001] Test that writeJSON produces valid JSON responses
+func TestWriteJSON(t *testing.T) {
+	w := httptest.NewRecorder()
+	data := map[string]string{"status": "ok"}
+	writeJSON(w, http.StatusOK, data)
+
+	assertStatus(t, w, http.StatusOK)
+	if ct := w.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("expected application/json, got %s", ct)
+	}
+	result := decodeJSON[map[string]string](t, w)
+	if result["status"] != "ok" {
+		t.Errorf("expected status=ok, got %s", result["status"])
+	}
+}
+
+// [REQ:P0-001] Test structured validation error response format from handlers
+func TestWriteValidationError_HandlerLevel(t *testing.T) {
+	w := httptest.NewRecorder()
+	writeValidationError(w, "invalid input")
+
+	assertStatus(t, w, http.StatusBadRequest)
+	result := decodeJSON[APIError](t, w)
+	if result.Category != ErrCategoryValidation {
+		t.Errorf("expected category=validation, got %s", result.Category)
+	}
+	if result.Message != "invalid input" {
+		t.Errorf("expected message=invalid input, got %s", result.Message)
+	}
+}
+
+// --- decodeBody tests ---
+
+// [REQ:P0-001] Test that decodeBody decodes valid JSON
+func TestDecodeBody_Success(t *testing.T) {
+	req := httptest.NewRequest("POST", "/", bytes.NewBufferString(`{"name":"test"}`))
+	w := httptest.NewRecorder()
+	input, ok := decodeBody[CreateSchemeInput](w, req)
+	if !ok {
+		t.Fatal("expected ok=true")
+	}
+	if input.Name != "test" {
+		t.Errorf("expected name=test, got %s", input.Name)
+	}
+}
+
+// [REQ:P0-001] Test that decodeBody writes validation error on bad JSON
+func TestDecodeBody_BadJSON(t *testing.T) {
+	req := httptest.NewRequest("POST", "/", bytes.NewBufferString("not json"))
+	w := httptest.NewRecorder()
+	_, ok := decodeBody[CreateSchemeInput](w, req)
+	if ok {
+		t.Fatal("expected ok=false for bad JSON")
+	}
+	assertStatus(t, w, http.StatusBadRequest)
+	result := decodeJSON[APIError](t, w)
+	if result.Category != ErrCategoryValidation {
+		t.Errorf("expected validation category, got %s", result.Category)
+	}
+}
+
+// --- handleDelete tests ---
+
+// [REQ:P0-001] Test that handleDelete returns 204 on success
+func TestHandleDelete_Success(t *testing.T) {
+	called := false
+	deleter := func(id string) error {
+		called = true
+		if id != "abc" {
+			t.Errorf("expected id=abc, got %s", id)
+		}
+		return nil
+	}
+	handler := handleDelete("id", "thing", deleter)
+	req := httptest.NewRequest("DELETE", "/thing/abc", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "abc"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	assertStatus(t, w, http.StatusNoContent)
+	if !called {
+		t.Error("expected deleter to be called")
+	}
+}
+
+// [REQ:P0-001] Test that handleDelete classifies errors
+func TestHandleDelete_Error(t *testing.T) {
+	handler := handleDelete("id", "widget", func(string) error {
+		return fmt.Errorf("boom")
+	})
+	req := httptest.NewRequest("DELETE", "/widget/x", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "x"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	assertStatus(t, w, http.StatusInternalServerError)
+}
+
+// --- Scheme Handler Behavioral Tests ---
+
+// [REQ:P0-001] [REQ:P0-002] Test listing schemes returns correct data
+func TestHandleListSchemes_Success(t *testing.T) {
+	store := newMockSchemes()
+	store.seed("Alpha")
+	store.seed("Beta")
+
+	handler := handleListSchemes(store)
+	req := httptest.NewRequest("GET", "/api/v1/schemes", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusOK)
+	schemes := decodeJSON[[]Scheme](t, w)
+	if len(schemes) != 2 {
+		t.Errorf("expected 2 schemes, got %d", len(schemes))
+	}
+}
+
+// [REQ:P0-001] Test listing schemes returns empty array when none exist
+func TestHandleListSchemes_Empty(t *testing.T) {
+	store := newMockSchemes()
+	handler := handleListSchemes(store)
+	req := httptest.NewRequest("GET", "/api/v1/schemes", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusOK)
+	schemes := decodeJSON[[]Scheme](t, w)
+	if len(schemes) != 0 {
+		t.Errorf("expected 0 schemes, got %d", len(schemes))
+	}
+}
+
+// [REQ:P0-001] Test listing schemes returns 500 on service error
+func TestHandleListSchemes_Error(t *testing.T) {
+	store := newMockSchemes().WithListError(fmt.Errorf("db failure"))
+	handler := handleListSchemes(store)
+	req := httptest.NewRequest("GET", "/api/v1/schemes", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusInternalServerError)
+}
+
+// [REQ:P0-002] Test creating a scheme with valid input
+func TestHandleCreateScheme_Success(t *testing.T) {
+	store := newMockSchemes()
+	handler := handleCreateScheme(store)
+
+	body := `{"name":"My Scheme"}`
+	req := httptest.NewRequest("POST", "/api/v1/schemes", bytes.NewBufferString(body))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusCreated)
+	scheme := decodeJSON[Scheme](t, w)
+	if scheme.Name != "My Scheme" {
+		t.Errorf("expected name=My Scheme, got %s", scheme.Name)
+	}
+	if scheme.ID == "" {
+		t.Error("expected non-empty ID")
+	}
+}
+
+// [REQ:P0-002] Test that text capture handler rejects invalid JSON
+func TestHandleCreateScheme_BadJSON(t *testing.T) {
+	handler := handleCreateScheme(newMockSchemes())
+	req := httptest.NewRequest("POST", "/api/v1/schemes", bytes.NewBufferString("not json"))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusBadRequest)
+}
+
+// [REQ:P0-001] Test getting a scheme by ID
+func TestHandleGetScheme_Success(t *testing.T) {
+	store := newMockSchemes()
+	s := store.seed("Found Me")
+
+	handler := handleGetScheme(store)
+	req := httptest.NewRequest("GET", "/api/v1/schemes/"+s.ID, nil)
+	req = mux.SetURLVars(req, map[string]string{"id": s.ID})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusOK)
+	scheme := decodeJSON[Scheme](t, w)
+	if scheme.Name != "Found Me" {
+		t.Errorf("expected name=Found Me, got %s", scheme.Name)
+	}
+}
+
+// [REQ:P0-001] Test getting a nonexistent scheme returns 404
+func TestHandleGetScheme_NotFound(t *testing.T) {
+	handler := handleGetScheme(newMockSchemes())
+	req := httptest.NewRequest("GET", "/api/v1/schemes/missing", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "missing"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusNotFound)
+}
+
+// [REQ:P0-001] Test updating a scheme
+func TestHandleUpdateScheme_Success(t *testing.T) {
+	store := newMockSchemes()
+	s := store.seed("Old Name")
+
+	handler := handleUpdateScheme(store)
+	body := `{"name":"New Name"}`
+	req := httptest.NewRequest("PUT", "/api/v1/schemes/"+s.ID, bytes.NewBufferString(body))
+	req = mux.SetURLVars(req, map[string]string{"id": s.ID})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusOK)
+	scheme := decodeJSON[Scheme](t, w)
+	if scheme.Name != "New Name" {
+		t.Errorf("expected name=New Name, got %s", scheme.Name)
+	}
+}
+
+// [REQ:P0-001] Test updating a nonexistent scheme returns 404
+func TestHandleUpdateScheme_NotFound(t *testing.T) {
+	handler := handleUpdateScheme(newMockSchemes())
+	body := `{"name":"Nope"}`
+	req := httptest.NewRequest("PUT", "/api/v1/schemes/missing", bytes.NewBufferString(body))
+	req = mux.SetURLVars(req, map[string]string{"id": "missing"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusNotFound)
+}
+
+// [REQ:P0-001] Test deleting a scheme
+func TestHandleDeleteScheme_Success(t *testing.T) {
+	store := newMockSchemes()
+	s := store.seed("Doomed")
+
+	handler := handleDeleteScheme(store)
+	req := httptest.NewRequest("DELETE", "/api/v1/schemes/"+s.ID, nil)
+	req = mux.SetURLVars(req, map[string]string{"id": s.ID})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusNoContent)
+}
+
+// [REQ:P0-001] Test deleting a nonexistent scheme returns 404
+func TestHandleDeleteScheme_NotFound(t *testing.T) {
+	handler := handleDeleteScheme(newMockSchemes())
+	req := httptest.NewRequest("DELETE", "/api/v1/schemes/missing", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "missing"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusNotFound)
+}
+
+// [REQ:P0-002] Test creating a scheme returns 500 on service error
+func TestHandleCreateScheme_ServiceError(t *testing.T) {
+	store := newMockSchemes().WithCreateError(fmt.Errorf("db write failed"))
+	handler := handleCreateScheme(store)
+	req := httptest.NewRequest("POST", "/api/v1/schemes", bytes.NewBufferString(`{"name":"Test"}`))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusInternalServerError)
+}
+
+// [REQ:P0-001] Test updating a scheme returns 500 on service error
+func TestHandleUpdateScheme_ServiceError(t *testing.T) {
+	store := newMockSchemes().WithUpdateError(fmt.Errorf("db update failed"))
+	store.seed("Exists")
+	handler := handleUpdateScheme(store)
+	req := httptest.NewRequest("PUT", "/api/v1/schemes/any", bytes.NewBufferString(`{"name":"New"}`))
+	req = mux.SetURLVars(req, map[string]string{"id": "any"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusInternalServerError)
+}
+
+// --- Information Handler Behavioral Tests ---
+
+// [REQ:P0-003] Test listing information items for a scheme
+func TestHandleListInformation_Success(t *testing.T) {
+	store := newMockInfo()
+	store.seed("s1", "note A")
+	store.seed("s1", "note B")
+	store.seed("s2", "other scheme")
+
+	handler := handleListInformation(store)
+	req := httptest.NewRequest("GET", "/api/v1/schemes/s1/information", nil)
+	req = mux.SetURLVars(req, map[string]string{"schemeId": "s1"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusOK)
+	items := decodeJSON[[]Information](t, w)
+	if len(items) != 2 {
+		t.Errorf("expected 2 items for scheme s1, got %d", len(items))
+	}
+}
+
+// [REQ:P0-003] Test creating an information item
+func TestHandleCreateInformation_Success(t *testing.T) {
+	store := newMockInfo()
+	handler := handleCreateInformation(store)
+
+	body := `{"type":"text","content":"quick note","canvas_x":100,"canvas_y":200}`
+	req := httptest.NewRequest("POST", "/api/v1/schemes/s1/information", bytes.NewBufferString(body))
+	req = mux.SetURLVars(req, map[string]string{"schemeId": "s1"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusCreated)
+	info := decodeJSON[Information](t, w)
+	if info.Content != "quick note" {
+		t.Errorf("expected content=quick note, got %s", info.Content)
+	}
+	if info.CanvasX != 100 || info.CanvasY != 200 {
+		t.Errorf("expected canvas coords 100,200, got %f,%f", info.CanvasX, info.CanvasY)
+	}
+}
+
+// [REQ:P0-003] Test that canvas node update handler rejects invalid JSON
+func TestHandleUpdateInformation_BadJSON(t *testing.T) {
+	handler := handleUpdateInformation(newMockInfo())
+	req := httptest.NewRequest("PUT", "/api/v1/schemes/test/information/test", bytes.NewBufferString("{bad"))
+	req = mux.SetURLVars(req, map[string]string{"schemeId": "test", "infoId": "test"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusBadRequest)
+}
+
+// [REQ:P0-003] Test updating an information item
+func TestHandleUpdateInformation_Success(t *testing.T) {
+	store := newMockInfo()
+	info := store.seed("s1", "old content")
+
+	handler := handleUpdateInformation(store)
+	body := `{"content":"new content"}`
+	req := httptest.NewRequest("PUT", "/api/v1/schemes/s1/information/"+info.ID, bytes.NewBufferString(body))
+	req = mux.SetURLVars(req, map[string]string{"schemeId": "s1", "infoId": info.ID})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusOK)
+	updated := decodeJSON[Information](t, w)
+	if updated.Content != "new content" {
+		t.Errorf("expected content=new content, got %s", updated.Content)
+	}
+}
+
+// [REQ:P0-003] Test updating a nonexistent information item returns 404
+func TestHandleUpdateInformation_NotFound(t *testing.T) {
+	handler := handleUpdateInformation(newMockInfo())
+	body := `{"content":"nope"}`
+	req := httptest.NewRequest("PUT", "/api/v1/schemes/s1/information/missing", bytes.NewBufferString(body))
+	req = mux.SetURLVars(req, map[string]string{"schemeId": "s1", "infoId": "missing"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusNotFound)
+}
+
+// [REQ:P0-003] Test deleting an information item
+func TestHandleDeleteInformation_Success(t *testing.T) {
+	store := newMockInfo()
+	info := store.seed("s1", "doomed")
+
+	handler := handleDeleteInformation(store)
+	req := httptest.NewRequest("DELETE", "/api/v1/schemes/s1/information/"+info.ID, nil)
+	req = mux.SetURLVars(req, map[string]string{"schemeId": "s1", "infoId": info.ID})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusNoContent)
+}
+
+// [REQ:P0-003] Test deleting a nonexistent information item returns 404
+func TestHandleDeleteInformation_NotFound(t *testing.T) {
+	handler := handleDeleteInformation(newMockInfo())
+	req := httptest.NewRequest("DELETE", "/api/v1/schemes/s1/information/missing", nil)
+	req = mux.SetURLVars(req, map[string]string{"schemeId": "s1", "infoId": "missing"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	assertStatus(t, w, http.StatusNotFound)
+}
+
+// --- Route registration test ---
+
+// [REQ:P0-001] [REQ:P0-002] [REQ:P0-003] [REQ:P0-004]
+// Test that all expected routes are registered via interface-backed handlers
+func TestRouteRegistration(t *testing.T) {
+	schemes := newMockSchemes()
+	info := newMockInfo()
+	thoughts := newMockThoughts()
+	export := newMockExport()
+	suggestions := newMockSuggestions()
+
+	handlers := []http.HandlerFunc{
+		handleListSchemes(schemes),
+		handleCreateScheme(schemes),
+		handleGetScheme(schemes),
+		handleUpdateScheme(schemes),
+		handleDeleteScheme(schemes),
+		handleListInformation(info),
+		handleCreateInformation(info),
+		handleUpdateInformation(info),
+		handleDeleteInformation(info),
+		handleListThoughts(thoughts),
+		handleCreateThought(thoughts),
+		handleGetThought(thoughts),
+		handleUpdateThought(thoughts),
+		handleDeleteThought(thoughts),
+		handleCreateEdge(thoughts),
+		handleListEdges(thoughts),
+		handleDeleteEdge(thoughts),
+		handleExportScheme(export),
+		handleGetProviders(suggestions),
+		handleGenerateSuggestions(suggestions),
 	}
 
-	summary := generateSummary(strings.Repeat("a", 200))
-	if len(summary) == 0 {
-		t.Error("Expected non-empty summary")
+	for i, h := range handlers {
+		if h == nil {
+			t.Errorf("handler %d is nil", i)
+		}
 	}
-	if len(summary) > 190 {
-		t.Log("Summary was truncated as expected")
-	}
-}
-
-// TestHealthCheckWithoutDB tests health check when database is unavailable
-func TestHealthCheckWithoutDB(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	// This test validates the handler structure without requiring a database
-	_ = httptest.NewRequest("GET", "/health", nil)
-	_ = httptest.NewRecorder()
-
-	// We can't call healthCheck directly without a valid db connection
-	// But we can verify the handler is properly structured
-	t.Log("healthCheck handler exists and is callable")
-}
-
-// TestCORSConfiguration tests that CORS is properly configured
-func TestCORSConfiguration(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("CORSHeaders", func(t *testing.T) {
-		// CORS configuration is part of main()
-		// We verify it's properly structured by checking the package imports
-		t.Log("CORS package (github.com/rs/cors) is properly imported")
-	})
-}
-
-// TestEnvironmentVariableValidation tests environment variable validation
-func TestEnvironmentVariableValidation(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("LifecycleManagementCheck", func(t *testing.T) {
-		// Verify lifecycle management check is present
-		originalVal := os.Getenv("VROOLI_LIFECYCLE_MANAGED")
-		os.Unsetenv("VROOLI_LIFECYCLE_MANAGED")
-
-		// The main() function checks this variable
-		// We can't test main() directly, but we verify the logic exists
-		t.Log("Lifecycle management check is present in main()")
-
-		if originalVal != "" {
-			os.Setenv("VROOLI_LIFECYCLE_MANAGED", originalVal)
-		}
-	})
-
-	t.Run("PortConfiguration", func(t *testing.T) {
-		// Verify port configuration logic
-		testCases := []struct {
-			name     string
-			apiPort  string
-			port     string
-			expected string
-		}{
-			{"API_PORT set", "8080", "", "8080"},
-			{"PORT fallback", "", "8081", "8081"},
-			{"Both set", "8080", "8081", "8080"},
-		}
-
-		for _, tc := range testCases {
-			t.Run(tc.name, func(t *testing.T) {
-				os.Unsetenv("API_PORT")
-				os.Unsetenv("PORT")
-
-				if tc.apiPort != "" {
-					os.Setenv("API_PORT", tc.apiPort)
-				}
-				if tc.port != "" {
-					os.Setenv("PORT", tc.port)
-				}
-
-				// The actual logic is in main(), we're verifying the pattern
-				t.Logf("Port configuration tested: API_PORT=%s, PORT=%s", tc.apiPort, tc.port)
-			})
-		}
-	})
-}
-
-// TestDatabaseConfiguration tests database URL construction
-func TestDatabaseConfiguration(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("PostgresURLDirect", func(t *testing.T) {
-		os.Setenv("POSTGRES_URL", "postgres://user:pass@host:5432/db")
-		defer os.Unsetenv("POSTGRES_URL")
-
-		// The initDB() function uses this variable
-		t.Log("POSTGRES_URL direct configuration supported")
-	})
-
-	t.Run("PostgresComponentBased", func(t *testing.T) {
-		os.Setenv("POSTGRES_HOST", "localhost")
-		os.Setenv("POSTGRES_PORT", "5432")
-		os.Setenv("POSTGRES_USER", "testuser")
-		os.Setenv("POSTGRES_PASSWORD", "testpass")
-		os.Setenv("POSTGRES_DB", "testdb")
-
-		defer func() {
-			os.Unsetenv("POSTGRES_HOST")
-			os.Unsetenv("POSTGRES_PORT")
-			os.Unsetenv("POSTGRES_USER")
-			os.Unsetenv("POSTGRES_PASSWORD")
-			os.Unsetenv("POSTGRES_DB")
-		}()
-
-		// Component-based construction is supported
-		t.Log("Component-based database configuration supported")
-	})
-}
-
-// TestRouterConfiguration tests that all routes are properly defined
-func TestRouterConfiguration(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("RequiredRoutes", func(t *testing.T) {
-		routes := []string{
-			"/health",
-			"/api/campaigns",
-			"/api/stream/capture",
-			"/api/process-stream",
-			"/api/organize-thoughts",
-			"/api/extract-insights",
-			"/api/notes",
-			"/api/insights",
-			"/api/search",
-		}
-
-		// Verify all required routes exist in main.go
-		// This is a structural test
-		for _, route := range routes {
-			t.Logf("Route %s should be defined", route)
-		}
-	})
-
-	t.Run("HTTPMethods", func(t *testing.T) {
-		methods := []struct {
-			route  string
-			method string
-		}{
-			{"/health", "GET"},
-			{"/api/campaigns", "GET"},
-			{"/api/campaigns", "POST"},
-			{"/api/stream/capture", "POST"},
-			{"/api/process-stream", "POST"},
-			{"/api/organize-thoughts", "POST"},
-			{"/api/extract-insights", "POST"},
-			{"/api/notes", "GET"},
-			{"/api/insights", "GET"},
-			{"/api/search", "GET"},
-		}
-
-		for _, m := range methods {
-			t.Logf("Route %s should support %s method", m.route, m.method)
-		}
-	})
-}
-
-// TestJSONMarshaling tests JSON encoding/decoding for all data types
-func TestJSONMarshaling(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("CampaignWithNullFields", func(t *testing.T) {
-		jsonData := `{"id":"test-id","name":"Test","description":"","context_prompt":"","color":"","icon":"","active":false}`
-		var campaign Campaign
-		err := json.Unmarshal([]byte(jsonData), &campaign)
-		if err != nil {
-			t.Fatalf("Failed to unmarshal campaign: %v", err)
-		}
-
-		if campaign.ID != "test-id" {
-			t.Errorf("Expected ID 'test-id', got '%s'", campaign.ID)
-		}
-	})
-
-	t.Run("StreamEntryWithMetadata", func(t *testing.T) {
-		metadata := map[string]interface{}{
-			"duration": 30,
-			"language": "en",
-		}
-		metadataJSON, _ := json.Marshal(metadata)
-
-		entry := StreamEntry{
-			ID:       "entry-id",
-			Metadata: json.RawMessage(metadataJSON),
-		}
-
-		data, err := json.Marshal(entry)
-		if err != nil {
-			t.Fatalf("Failed to marshal stream entry: %v", err)
-		}
-
-		var decoded StreamEntry
-		err = json.Unmarshal(data, &decoded)
-		if err != nil {
-			t.Fatalf("Failed to unmarshal stream entry: %v", err)
-		}
-
-		// Verify metadata is preserved
-		if !bytes.Equal(decoded.Metadata, entry.Metadata) {
-			t.Error("Metadata not preserved in JSON round-trip")
-		}
-	})
-
-	t.Run("OrganizedNoteWithArrays", func(t *testing.T) {
-		note := OrganizedNote{
-			ID:    "note-id",
-			Tags:  []string{"tag1", "tag2", "tag3"},
-			Title: "Test Note",
-		}
-
-		data, err := json.Marshal(note)
-		if err != nil {
-			t.Fatalf("Failed to marshal note: %v", err)
-		}
-
-		var decoded OrganizedNote
-		err = json.Unmarshal(data, &decoded)
-		if err != nil {
-			t.Fatalf("Failed to unmarshal note: %v", err)
-		}
-
-		if len(decoded.Tags) != len(note.Tags) {
-			t.Errorf("Tags array length mismatch: expected %d, got %d", len(note.Tags), len(decoded.Tags))
-		}
-
-		for i, tag := range note.Tags {
-			if decoded.Tags[i] != tag {
-				t.Errorf("Tag mismatch at index %d: expected '%s', got '%s'", i, tag, decoded.Tags[i])
-			}
-		}
-	})
-
-	t.Run("InsightWithNoteIDs", func(t *testing.T) {
-		insight := Insight{
-			ID:         "insight-id",
-			NoteIDs:    []string{"note1", "note2", "note3"},
-			Confidence: 0.95,
-		}
-
-		data, err := json.Marshal(insight)
-		if err != nil {
-			t.Fatalf("Failed to marshal insight: %v", err)
-		}
-
-		var decoded Insight
-		err = json.Unmarshal(data, &decoded)
-		if err != nil {
-			t.Fatalf("Failed to unmarshal insight: %v", err)
-		}
-
-		if len(decoded.NoteIDs) != len(insight.NoteIDs) {
-			t.Errorf("NoteIDs length mismatch: expected %d, got %d", len(insight.NoteIDs), len(decoded.NoteIDs))
-		}
-	})
-
-	t.Run("EmptyArraysNotNull", func(t *testing.T) {
-		note := OrganizedNote{
-			ID:   "note-id",
-			Tags: []string{},
-		}
-
-		data, err := json.Marshal(note)
-		if err != nil {
-			t.Fatalf("Failed to marshal note: %v", err)
-		}
-
-		// Verify empty array is marshaled as [] not null
-		if !bytes.Contains(data, []byte(`"tags":[]`)) {
-			t.Log("Empty tags array should serialize as []")
-		}
-	})
-}
-
-// TestErrorHandling tests error handling in handlers
-func TestErrorHandling(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("InvalidJSONBody", func(t *testing.T) {
-		// All POST endpoints should handle invalid JSON
-		invalidJSON := "{ invalid json }"
-		t.Logf("Handlers should reject invalid JSON: %s", invalidJSON)
-	})
-
-	t.Run("MissingContentType", func(t *testing.T) {
-		// Handlers should work with or without explicit Content-Type
-		t.Log("Handlers should be lenient with Content-Type header")
-	})
-
-	t.Run("DatabaseErrors", func(t *testing.T) {
-		// Handlers should gracefully handle database errors
-		t.Log("Handlers should return 500 on database errors")
-	})
-}
-
-// TestConnectionPoolSettings tests database connection pool configuration
-func TestConnectionPoolSettings(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	t.Run("PoolConfiguration", func(t *testing.T) {
-		// Verify connection pool settings exist in initDB()
-		expectedSettings := map[string]int{
-			"MaxOpenConns":    25,
-			"MaxIdleConns":    5,
-			"ConnMaxLifetime": 300, // 5 minutes in seconds
-		}
-
-		for setting, value := range expectedSettings {
-			t.Logf("Connection pool setting %s should be configured to %d", setting, value)
-		}
-	})
-
-	t.Run("ExponentialBackoffParameters", func(t *testing.T) {
-		// Verify exponential backoff parameters
-		t.Log("Exponential backoff configured with maxRetries=10, baseDelay=1s, maxDelay=30s")
-	})
 }

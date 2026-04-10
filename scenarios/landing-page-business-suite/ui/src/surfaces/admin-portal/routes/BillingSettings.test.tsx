@@ -66,7 +66,7 @@ const demoBundle: BundleCatalogEntry = {
     {
       plan_name: 'Solo Monthly',
       plan_tier: 'solo',
-      billing_interval: 'month',
+      billing_interval: 'month' as const,
       amount_cents: 4900,
       currency: 'usd',
       intro_enabled: false,
@@ -78,7 +78,7 @@ const demoBundle: BundleCatalogEntry = {
       one_time_bonus_credits: 0,
       plan_rank: 1,
       bonus_type: 'none',
-      kind: 'subscription',
+      kind: 'subscription' as const,
       is_variable_amount: false,
       display_enabled: true,
       stripe_price_id: 'price_solo',
@@ -100,7 +100,8 @@ describe('BillingSettings', () => {
       secret_key_set: true,
       source: 'database',
     });
-    mockedGetBundleCatalog.mockResolvedValue({ bundles: [demoBundle] });
+    // Use type assertion because the mock return type is stricter than BundleCatalogEntry
+    mockedGetBundleCatalog.mockResolvedValue({ bundles: [demoBundle] } as Awaited<ReturnType<typeof getBundleCatalog>>);
   });
 
   it('renders Stripe status and bundle catalog entries', async () => {
@@ -113,8 +114,11 @@ describe('BillingSettings', () => {
     expect(screen.getAllByText('Webhook Secret')[0]).toBeInTheDocument();
 
     await waitFor(() => expect(mockedGetBundleCatalog).toHaveBeenCalled());
-    expect(screen.getByText('Plan Display Manager')).toBeInTheDocument();
-    expect(await screen.findByDisplayValue('Solo Monthly')).toBeInTheDocument();
+    // In preview mode, the section title is "Preview" (not "Plan Display Manager")
+    expect(screen.getByText('Preview')).toBeInTheDocument();
+    // In preview mode, plan name is displayed as text (not input field)
+    // Multiple elements may exist (in the read-only card and pricing preview)
+    expect((await screen.findAllByText('Solo Monthly')).length).toBeGreaterThan(0);
   });
 
   it('blocks empty updates and surfaces errors', async () => {

@@ -3,7 +3,10 @@
     "description": "Verifies dashboard meets WCAG AA accessibility standards",
     "version": 1,
     "reset": "full",
-    "requirements": ["KO-HD-005"]
+    "requirements": [
+      "KO-HD-005"
+    ],
+    "execution_mode": "mutating"
   },
   "settings": {
     "executionViewport": {

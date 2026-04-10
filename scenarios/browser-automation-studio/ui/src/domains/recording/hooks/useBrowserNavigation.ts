@@ -15,6 +15,42 @@ import { useCallback, useState } from 'react';
 import { getConfig } from '@/config';
 import type { NavigationStackData } from '../capture/BrowserChrome';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseNavigationState = (
+  value: unknown
+): { url?: string; can_go_back?: boolean; can_go_forward?: boolean } => {
+  if (!isRecord(value)) return {};
+  const url = typeof value.url === 'string' ? value.url : undefined;
+  const canGoBack = typeof value.can_go_back === 'boolean' ? value.can_go_back : undefined;
+  const canGoForward = typeof value.can_go_forward === 'boolean' ? value.can_go_forward : undefined;
+  return { url, can_go_back: canGoBack, can_go_forward: canGoForward };
+};
+
+const parseNavigationStackData = (value: unknown): NavigationStackData | null => {
+  if (!isRecord(value)) return null;
+  const parseEntry = (entry: unknown) => {
+    if (!isRecord(entry)) return null;
+    const url = typeof entry.url === 'string' ? entry.url : null;
+    const title = typeof entry.title === 'string' ? entry.title : null;
+    const timestamp = typeof entry.timestamp === 'string' ? entry.timestamp : null;
+    if (!url || !title || !timestamp) return null;
+    return { url, title, timestamp };
+  };
+
+  const parseEntries = (entries: unknown): NavigationStackData['backStack'] => {
+    if (!Array.isArray(entries)) return [];
+    return entries.map(parseEntry).filter((entry): entry is NavigationStackData['backStack'][number] => entry !== null);
+  };
+
+  return {
+    backStack: parseEntries(value.back_stack),
+    current: parseEntry(value.current),
+    forwardStack: parseEntries(value.forward_stack),
+  };
+};
+
 interface UseBrowserNavigationOptions {
   /** Session ID for API calls */
   sessionId: string | null;
@@ -83,8 +119,8 @@ export function useBrowserNavigation({
         body: JSON.stringify({}),
       });
       if (response.ok) {
-        const data = await response.json();
-        updateNavigationState(data);
+        const data: unknown = await response.json();
+        updateNavigationState(parseNavigationState(data));
       }
     } catch (err) {
       console.warn('Failed to go back:', err);
@@ -102,8 +138,8 @@ export function useBrowserNavigation({
         body: JSON.stringify({}),
       });
       if (response.ok) {
-        const data = await response.json();
-        updateNavigationState(data);
+        const data: unknown = await response.json();
+        updateNavigationState(parseNavigationState(data));
       }
     } catch (err) {
       console.warn('Failed to go forward:', err);
@@ -121,9 +157,10 @@ export function useBrowserNavigation({
         body: JSON.stringify({}),
       });
       if (response.ok) {
-        const data = await response.json();
-        setCanGoBack(data.can_go_back ?? false);
-        setCanGoForward(data.can_go_forward ?? false);
+        const data: unknown = await response.json();
+        const parsed = parseNavigationState(data);
+        setCanGoBack(parsed.can_go_back ?? false);
+        setCanGoForward(parsed.can_go_forward ?? false);
         // Trigger a refresh of the frame display
         setRefreshToken((t) => t + 1);
       }
@@ -139,12 +176,8 @@ export function useBrowserNavigation({
       const config = await getConfig();
       const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/navigation-stack`);
       if (!response.ok) return null;
-      const data = await response.json();
-      return {
-        backStack: data.back_stack || [],
-        current: data.current || null,
-        forwardStack: data.forward_stack || [],
-      };
+      const data: unknown = await response.json();
+      return parseNavigationStackData(data);
     } catch (err) {
       console.warn('Failed to fetch navigation stack:', err);
       return null;
@@ -170,7 +203,8 @@ export function useBrowserNavigation({
             body: JSON.stringify({}),
           });
           if (!response.ok) break;
-          lastResponse = await response.json();
+          const data: unknown = await response.json();
+          lastResponse = parseNavigationState(data);
         }
 
         if (lastResponse) {

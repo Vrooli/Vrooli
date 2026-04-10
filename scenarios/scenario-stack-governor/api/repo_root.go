@@ -26,4 +26,3 @@ func FindRepoRoot(start string) (string, error) {
 	}
 	return "", fmt.Errorf("repo root not found from %q", start)
 }
-

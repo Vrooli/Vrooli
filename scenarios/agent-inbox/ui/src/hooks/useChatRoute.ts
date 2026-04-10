@@ -11,7 +11,7 @@ export function useChatRoute() {
   const getChatIdFromUrl = useCallback((): string => {
     const path = window.location.pathname;
     const match = path.match(/^\/chat\/([a-zA-Z0-9-]+)$/);
-    return match ? match[1] : "";
+    return match?.[1] ?? "";
   }, []);
 
   const [initialChatId] = useState<string>(getChatIdFromUrl);
@@ -54,7 +54,7 @@ export function usePopStateListener(onNavigate: (chatId: string) => void) {
     const handlePopState = () => {
       const path = window.location.pathname;
       const match = path.match(/^\/chat\/([a-zA-Z0-9-]+)$/);
-      const chatId = match ? match[1] : "";
+      const chatId = match?.[1] ?? "";
       onNavigate(chatId);
     };
 

@@ -1,0 +1,472 @@
+syntax = "proto3";
+
+package ecosystem_manager.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/domain;domain";
+
+// =============================================================================
+// AUTO STEER DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain autosteer
+// @imports none (external only: buf.validate, google.protobuf.Struct)
+// @stability beta
+//
+// Auto Steer profile and execution types. Maps from
+// pkg/autosteer/types.go. Includes profiles, phases, metrics,
+// execution state, and performance tracking.
+//
+// USAGE CONTEXTS:
+//   - API responses for Auto Steer endpoints
+//   - UI Auto Steer configuration and monitoring
+//
+// =============================================================================
+
+// StopCondition represents a condition for stopping a phase.
+// Can be either simple (metric comparison) or compound (recursive AND/OR).
+message StopCondition {
+  // Condition type.
+  // @constraint one of: simple, compound
+  string type = 1 [(buf.validate.field).string = { in: ["simple", "compound"] }];
+
+  // Logical operator for compound conditions.
+  // @constraint one of: AND, OR
+  string operator = 2;
+
+  // Child conditions for compound conditions.
+  repeated StopCondition conditions = 3;
+
+  // Metric name for simple conditions.
+  string metric = 4;
+
+  // Comparison operator for simple conditions.
+  // @constraint one of: >, <, >=, <=, ==, !=
+  string compare_operator = 5;
+
+  // Threshold value for simple conditions.
+  double value = 6;
+}
+
+// SteerPhase represents a single phase in an Auto Steer profile.
+message SteerPhase {
+  // Phase identifier.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Skill identifiers to use as a set.
+  repeated string skill_ids = 2;
+
+  // Skill display name.
+  string skill_name = 3;
+
+  // Whether to include default scope from skill.
+  bool with_scope = 4;
+
+  // Explicit scope skill override.
+  string scope = 5;
+
+  // Conditions that trigger phase completion.
+  repeated StopCondition stop_conditions = 6;
+
+  // Maximum iterations before forced phase completion.
+  int32 max_iterations = 7 [(buf.validate.field).int32.gte = 1];
+
+  // Phase description.
+  string description = 8;
+}
+
+// QualityGate represents a validation check between phases.
+message QualityGate {
+  // Gate name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Condition to evaluate.
+  StopCondition condition = 2;
+
+  // Action on failure.
+  // @constraint one of: halt, skip_phase, warn
+  string failure_action = 3 [(buf.validate.field).string = { in: ["halt", "skip_phase", "warn"] }];
+
+  // Message to display on gate evaluation.
+  string message = 4;
+}
+
+// AutoSteerProfile represents a reusable improvement profile.
+message AutoSteerProfile {
+  // Profile identifier.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Profile display name.
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Profile description.
+  string description = 3;
+
+  // Ordered phases to execute.
+  repeated SteerPhase phases = 4;
+
+  // Quality gates between phases.
+  repeated QualityGate quality_gates = 5;
+
+  // RFC3339 timestamp of creation.
+  // @format rfc3339
+  string created_at = 6;
+
+  // RFC3339 timestamp of last update.
+  // @format rfc3339
+  string updated_at = 7;
+
+  // Categorization tags.
+  repeated string tags = 8;
+}
+
+// UXMetrics captures user experience quality metrics.
+message UXMetrics {
+  // Accessibility score (0-100).
+  double accessibility_score = 1;
+
+  // UI test coverage percentage (0-100).
+  double ui_test_coverage = 2;
+
+  // Count of responsive breakpoints.
+  int32 responsive_breakpoints = 3;
+
+  // Count of complete user flows.
+  int32 user_flows_implemented = 4;
+
+  // Count of loading state implementations.
+  int32 loading_states_count = 5;
+
+  // Error handling coverage percentage (0-100).
+  double error_handling_coverage = 6;
+}
+
+// RefactorMetrics captures code quality metrics.
+message RefactorMetrics {
+  // Average cyclomatic complexity.
+  double cyclomatic_complexity_avg = 1;
+
+  // Code duplication percentage (0-100).
+  double duplication_percentage = 2;
+
+  // Count of standards violations.
+  int32 standards_violations = 3;
+
+  // Tidiness score (0-100).
+  double tidiness_score = 4;
+
+  // Count of tech debt items.
+  int32 tech_debt_items = 5;
+}
+
+// TestMetrics captures testing quality metrics.
+message TestMetrics {
+  // Unit test coverage percentage (0-100).
+  double unit_test_coverage = 1;
+
+  // Integration test coverage percentage (0-100).
+  double integration_test_coverage = 2;
+
+  // UI test coverage percentage (0-100).
+  double ui_test_coverage = 3;
+
+  // Count of edge cases covered.
+  int32 edge_cases_covered = 4;
+
+  // Count of flaky tests.
+  int32 flaky_tests = 5;
+
+  // Overall test quality score (0-100).
+  double test_quality_score = 6;
+}
+
+// PerformanceMetrics captures performance metrics.
+message PerformanceMetrics {
+  // Bundle size in kilobytes.
+  double bundle_size_kb = 1;
+
+  // Initial load time in milliseconds.
+  int32 initial_load_time_ms = 2;
+
+  // Largest Contentful Paint in milliseconds.
+  int32 lcp_ms = 3;
+
+  // First Input Delay in milliseconds.
+  int32 fid_ms = 4;
+
+  // Cumulative Layout Shift score.
+  double cls_score = 5;
+}
+
+// SecurityMetrics captures security quality metrics.
+message SecurityMetrics {
+  // Count of vulnerabilities found.
+  int32 vulnerability_count = 1;
+
+  // Input validation coverage percentage (0-100).
+  double input_validation_coverage = 2;
+
+  // Authentication implementation score (0-100).
+  double auth_implementation_score = 3;
+
+  // Security scan score (0-100).
+  double security_scan_score = 4;
+}
+
+// MetricsSnapshot captures all metrics at a point in time.
+message MetricsSnapshot {
+  // RFC3339 timestamp of snapshot.
+  // @format rfc3339
+  string timestamp = 1;
+
+  // Iterations within the current phase (resets when a phase advances).
+  int32 phase_loops = 2;
+
+  // Global iteration counter across all phases.
+  int32 total_loops = 3;
+
+  // Build status (0 = failing, 1 = passing).
+  int32 build_status = 4;
+
+  // Total operational targets.
+  int32 operational_targets_total = 5;
+
+  // Passing operational targets.
+  int32 operational_targets_passing = 6;
+
+  // Percentage of passing operational targets.
+  double operational_targets_percentage = 7;
+
+  // Mode-specific metrics (optional, populated based on scenario capabilities).
+  optional UXMetrics ux = 8;
+  optional RefactorMetrics refactor = 9;
+  optional TestMetrics test = 10;
+  optional PerformanceMetrics performance = 11;
+  optional SecurityMetrics security = 12;
+}
+
+// PhaseExecution represents the execution of a single phase.
+message PhaseExecution {
+  // Phase identifier.
+  string phase_id = 1;
+
+  // Skill identifiers used.
+  repeated string skill_ids = 2;
+
+  // Skill display name.
+  string skill_name = 3;
+
+  // Whether scope was included.
+  bool with_scope = 4;
+
+  // Scope skill that was used.
+  string scope = 5;
+
+  // Number of iterations executed.
+  int32 iterations = 6;
+
+  // Metrics at phase start.
+  MetricsSnapshot start_metrics = 7;
+
+  // Metrics at phase end.
+  MetricsSnapshot end_metrics = 8;
+
+  // Git commits made during phase.
+  repeated string commits = 9;
+
+  // RFC3339 timestamp when phase started.
+  // @format rfc3339
+  string started_at = 10;
+
+  // RFC3339 timestamp when phase completed (empty if still running).
+  // @format rfc3339
+  string completed_at = 11;
+
+  // Reason the phase stopped.
+  // @constraint one of: max_iterations, condition_met, quality_gate_failed
+  string stop_reason = 12;
+}
+
+// ProfileExecutionState tracks the current state of an active profile execution.
+message ProfileExecutionState {
+  // Task being executed.
+  string task_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Profile being executed.
+  string profile_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Current phase index (0-based).
+  int32 current_phase_index = 3;
+
+  // Current iteration within the active phase.
+  int32 current_phase_iteration = 4;
+
+  // Global Auto Steer iteration counter.
+  int32 auto_steer_iteration = 5;
+
+  // RFC3339 timestamp when the current phase started.
+  // @format rfc3339
+  string phase_started_at = 6;
+
+  // History of completed phases.
+  repeated PhaseExecution phase_history = 7;
+
+  // Current metrics snapshot.
+  MetricsSnapshot metrics = 8;
+
+  // Metrics at start of current phase.
+  MetricsSnapshot phase_start_metrics = 9;
+
+  // RFC3339 timestamp when execution started.
+  // @format rfc3339
+  string started_at = 10;
+
+  // RFC3339 timestamp of last update.
+  // @format rfc3339
+  string last_updated = 11;
+}
+
+// PhasePerformance tracks metrics for a completed phase.
+message PhasePerformance {
+  // Skill identifiers.
+  repeated string skill_ids = 1;
+
+  // Skill display name.
+  string skill_name = 2;
+
+  // Number of iterations.
+  int32 iterations = 3;
+
+  // Metric deltas (metric_name -> change).
+  map<string, double> metric_deltas = 4;
+
+  // Duration in milliseconds.
+  int64 duration = 5;
+
+  // Calculated effectiveness score.
+  double effectiveness = 6;
+}
+
+// UserFeedback represents user rating and comments for an execution.
+message UserFeedback {
+  // Rating (1-5).
+  int32 rating = 1 [(buf.validate.field).int32 = { gte: 1, lte: 5 }];
+
+  // User comments.
+  string comments = 2;
+
+  // RFC3339 timestamp of submission.
+  // @format rfc3339
+  string submitted_at = 3;
+}
+
+// ExecutionFeedbackEntry represents structured feedback attached to an Auto Steer execution.
+message ExecutionFeedbackEntry {
+  // Entry identifier.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Feedback category.
+  string category = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Severity level.
+  string severity = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Suggested action.
+  string suggested_action = 4;
+
+  // Additional comments.
+  string comments = 5;
+
+  // Arbitrary metadata.
+  google.protobuf.Struct metadata = 6;
+
+  // RFC3339 timestamp of creation.
+  // @format rfc3339
+  string created_at = 7;
+}
+
+// ProfilePerformance represents historical performance data for a completed execution.
+message ProfilePerformance {
+  // Performance record identifier.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Profile that was executed.
+  string profile_id = 2;
+
+  // Scenario name.
+  string scenario_name = 3;
+
+  // Execution identifier.
+  string execution_id = 4;
+
+  // Metrics at execution start.
+  MetricsSnapshot start_metrics = 5;
+
+  // Metrics at execution end.
+  MetricsSnapshot end_metrics = 6;
+
+  // Per-phase breakdown.
+  repeated PhasePerformance phase_breakdown = 7;
+
+  // Total iterations across all phases.
+  int32 total_iterations = 8;
+
+  // Total duration in milliseconds.
+  int64 total_duration = 9;
+
+  // Optional user feedback.
+  optional UserFeedback user_feedback = 10;
+
+  // Structured feedback entries.
+  repeated ExecutionFeedbackEntry feedback_entries = 11;
+
+  // RFC3339 timestamp of execution.
+  // @format rfc3339
+  string executed_at = 12;
+}
+
+// IterationEvaluation represents the result of evaluating iteration conditions.
+message IterationEvaluation {
+  // Whether the phase should stop.
+  bool should_stop = 1;
+
+  // Reason for stopping.
+  string reason = 2;
+
+  // Next phase index to advance to.
+  int32 next_phase = 3;
+}
+
+// PhaseAdvanceResult represents the result of advancing to the next phase.
+message PhaseAdvanceResult {
+  // Whether the advance succeeded.
+  bool success = 1;
+
+  // Index of the next phase.
+  int32 next_phase_index = 2;
+
+  // Whether all phases are completed.
+  bool completed = 3;
+
+  // Descriptive message.
+  string message = 4;
+}
+
+// QualityGateResult represents the result of evaluating a quality gate.
+message QualityGateResult {
+  // Gate name.
+  string gate_name = 1;
+
+  // Whether the gate passed.
+  bool passed = 2;
+
+  // Descriptive message.
+  string message = 3;
+
+  // Action taken on failure.
+  // @constraint one of: halt, skip_phase, warn
+  string action = 4;
+}

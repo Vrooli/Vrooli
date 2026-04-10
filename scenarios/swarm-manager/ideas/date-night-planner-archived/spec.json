@@ -1,0 +1,32 @@
+{
+  "archived_at": "2026-02-05T20:43:11Z",
+  "created": "2026-02-05T20:43:11Z",
+  "description": "AI-powered date planning with couple personalization and local integration",
+  "name": "date-night-planner-archived",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "personal-life",
+    "relationships",
+    "dating",
+    "planning",
+    "personalization",
+    "local-events",
+    "couples",
+    "romantic",
+    "multi-scenario-integration",
+    "preference-learning",
+    "nodejs-ui",
+    "go-api",
+    "n8n-workflows",
+    "postgres-storage",
+    "redis-cache",
+    "qdrant-vectors",
+    "ollama-ai",
+    "pastel-aesthetic",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] date-night-planner",
+  "updated": "2026-02-05T20:43:11Z"
+}

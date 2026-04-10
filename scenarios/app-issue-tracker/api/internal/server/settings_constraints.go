@@ -47,8 +47,8 @@ type SettingConstraint struct {
 	Description string `json:"description"`
 }
 
-// ProviderOption describes an available AI provider option
-type ProviderOption struct {
+// RunnerOption describes an available agent runner option
+type RunnerOption struct {
 	Value       string `json:"value"`
 	Label       string `json:"label"`
 	Description string `json:"description"`
@@ -56,8 +56,8 @@ type ProviderOption struct {
 
 // SettingsConstraints contains all validation constraints and options
 type SettingsConstraints struct {
-	Numeric   map[string]SettingConstraint `json:"numeric"`
-	Providers []ProviderOption             `json:"providers"`
+	Numeric map[string]SettingConstraint `json:"numeric"`
+	Runners []RunnerOption               `json:"runners"`
 }
 
 // GetSettingsConstraints returns all setting constraints for the UI
@@ -89,16 +89,21 @@ func GetSettingsConstraints() SettingsConstraints {
 				Description: "How often the processor checks for new issues (in seconds)",
 			},
 		},
-		Providers: []ProviderOption{
-			{
-				Value:       "codex",
-				Label:       "Codex",
-				Description: "Anthropic's Codex agent - optimized for longer tasks and complex problem solving",
-			},
+		Runners: []RunnerOption{
 			{
 				Value:       "claude-code",
 				Label:       "Claude Code",
-				Description: "Claude Code CLI - standard agent for general purpose tasks",
+				Description: "Claude Code runner via agent-manager",
+			},
+			{
+				Value:       "codex",
+				Label:       "Codex",
+				Description: "Codex runner via agent-manager",
+			},
+			{
+				Value:       "opencode",
+				Label:       "OpenCode",
+				Description: "OpenCode runner via agent-manager",
 			},
 		},
 	}

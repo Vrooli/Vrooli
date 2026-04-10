@@ -25,7 +25,6 @@ func TestEnsureTablesExist(t *testing.T) {
 		}
 
 		expectedTables := []string{
-			"auto_steer_profiles",
 			"profile_executions",
 			"profile_execution_state",
 		}
@@ -43,37 +42,5 @@ func TestEnsureTablesExist(t *testing.T) {
 
 			t.Logf("Table %s has %d records", table, count)
 		}
-	})
-
-	t.Run("counts increase after adding profile", func(t *testing.T) {
-		// Get initial counts
-		initialCounts, err := GetTableCounts(pg.db)
-		if err != nil {
-			t.Fatalf("GetTableCounts() error = %v", err)
-		}
-
-		// Create a test profile
-		profileService := NewProfileService(pg.db)
-		profile := CreateTestProfile(t, "Count Test", ModeProgress, 10)
-		if err := profileService.CreateProfile(profile); err != nil {
-			t.Fatalf("Failed to create profile: %v", err)
-		}
-
-		// Get new counts
-		newCounts, err := GetTableCounts(pg.db)
-		if err != nil {
-			t.Fatalf("GetTableCounts() after insert error = %v", err)
-		}
-
-		// Verify profile count increased
-		if newCounts["auto_steer_profiles"] != initialCounts["auto_steer_profiles"]+1 {
-			t.Errorf("Expected profile count to increase by 1, got %d -> %d",
-				initialCounts["auto_steer_profiles"],
-				newCounts["auto_steer_profiles"])
-		}
-
-		t.Logf("Profile count correctly increased from %d to %d",
-			initialCounts["auto_steer_profiles"],
-			newCounts["auto_steer_profiles"])
 	})
 }

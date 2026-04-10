@@ -1,0 +1,31 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-01T21:30:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "All 7 workshop decisions (4 from round 1, 3 from round 2) have been incorporated into plan.md. All decisions selected option A (the recommended option). Key synthesis changes: (1) Verification endpoint now returns 200 with run_status for completed/cancelled/failed runs — 401 only for expired/invalid/malformed tokens. This matches the user's requirement from the round 1 d2 clarification that identity should remain retrievable after run completion. (2) Token generation happens in RunExecutor.Execute() during phase transition to Executing, with hash stored in DB, then passed to MergedEnvVars() as a simple accessor — cleanly separates the DB write from the env-building concern. (3) Startup fails hard if HMAC secret cannot be loaded or created, with an added risk row explaining why this is intentional."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "All 5 readiness dimensions score 3/3. Problem clarity: well-defined gap between spoofable CreatedBy and cryptographic identity. Scope: clear in/out boundaries with explicit out-of-scope items for consumer adoption and secret rotation. Approach: all implementation decisions settled — package structure, generation point, persistence timing, verification semantics, failure handling. Testable: 15 specific test cases covering unit and integration layers with clear expected outcomes. Risk awareness: 7 risks identified with mitigations, including the new startup-failure risk from the round 2 d3 decision."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "No remaining gaps. The plan is ready for execution. All contract decisions (wire format, claims JSON, endpoint response shape, env var name, schema additions) are fully specified with no ambiguity."
+    }
+  ],
+  "plan_updates": "Removed all '(pending dN)' markers from plan.md. Settled verification endpoint to return 200+run_status for non-expired tokens (round 2 d1). Settled token generation in Execute() with hash persistence (round 2 d2). Settled fail-startup on secret init failure with added risk row (round 2 d3). Added cancelled-run test case to testing plan. Updated Definition of Done item 2 to reflect the run_status semantics and added item 4 for startup failure behavior."
+}

@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "test",
+  "name": "Test",
+  "description": "Test suite strengthening - coverage, reliability, signal strength",
+  "modes": [
+    "steer",
+    "test"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "testtube",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 46,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2026-02-05T01:02:53Z"
+}

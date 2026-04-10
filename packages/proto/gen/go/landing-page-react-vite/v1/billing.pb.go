@@ -1328,7 +1328,7 @@ var File_landing_page_react_vite_v1_billing_proto protoreflect.FileDescriptor
 
 const file_landing_page_react_vite_v1_billing_proto_rawDesc = "" +
 	"\n" +
-	"(landing-page-react-vite/v1/billing.proto\x12\x1alanding_page_react_vite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\x1a(landing-page-react-vite/v1/pricing.proto\x1a)landing-page-react-vite/v1/settings.proto\"\x8c\a\n" +
+	"(landing-page-react-vite/v1/billing.proto\x12\x1alanding_page_react_vite.v1\x1a\x15common/v1/types.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a(landing-page-react-vite/v1/pricing.proto\x1a)landing-page-react-vite/v1/settings.proto\"\x8c\a\n" +
 	"\x0fCheckoutSession\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12J\n" +

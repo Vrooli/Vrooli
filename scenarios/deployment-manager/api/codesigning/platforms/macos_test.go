@@ -102,7 +102,6 @@ func TestMacOSDetector_ListKeychainIdentities(t *testing.T) {
 
 	detector := newTestableMacOSDetector(fs, cmd, env)
 	certs, err := detector.DiscoverCertificates(ctx)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

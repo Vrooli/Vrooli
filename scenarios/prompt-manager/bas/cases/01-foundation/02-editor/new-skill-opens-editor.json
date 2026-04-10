@@ -1,0 +1,169 @@
+{
+  "metadata": {
+    "name": "new-skill-opens-editor",
+    "description": "Validate sidebar tabs and new skill action opens the editor",
+    "labels": {
+      "reset": "none"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prompt-manager",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Prompt Manager"
+        }
+      }
+    },
+    {
+      "id": "wait-sidebar",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/sidebar.container",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for sidebar"
+        }
+      }
+    },
+    {
+      "id": "click-agents-tab",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/sidebar.tabAgents"
+        },
+        "metadata": {
+          "label": "Switch to agents tab"
+        }
+      }
+    },
+    {
+      "id": "wait-agents-list",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/agents.list",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for agents list"
+        }
+      }
+    },
+    {
+      "id": "click-skills-tab",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/sidebar.tabSkills"
+        },
+        "metadata": {
+          "label": "Switch back to skills tab"
+        }
+      }
+    },
+    {
+      "id": "wait-new-skill",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/sidebar.newSkillButton",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for new skill button"
+        }
+      }
+    },
+    {
+      "id": "click-new-skill",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/sidebar.newSkillButton"
+        },
+        "metadata": {
+          "label": "Create new skill"
+        }
+      }
+    },
+    {
+      "id": "assert-editor-header",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/editor.header",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "Skill editor should open after creating a new skill"
+        },
+        "metadata": {
+          "label": "Editor header visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-sidebar",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-sidebar",
+      "target": "click-agents-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "click-agents-tab",
+      "target": "wait-agents-list",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "wait-agents-list",
+      "target": "click-skills-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "click-skills-tab",
+      "target": "wait-new-skill",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "wait-new-skill",
+      "target": "click-new-skill",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "click-new-skill",
+      "target": "assert-editor-header",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "acceptance_allow": [
+    "scenarios/deployment-manager/**"
+  ],
+  "created": "2026-04-04T00:00:00Z",
+  "depends_on": [
+    "execute/qa-deployment-manager-code-quality-20260407",
+    "fix/qa-deployment-manager-tests-20260407",
+    "research/release-record-contract-and-history-model"
+  ],
+  "description": "Create migration `004_add_releases.sql` with `releases` and `release_platforms` tables. Add Go types (Release, ReleasePlatform, channel/status constants), repository layer (CRUD + promotion + supersede logic), and handler scaffolding for release history API endpoints.\n\nThe supersede step must run in the same transaction as the publish status update: when a new release reaches `published` status for a given (profile, channel), the previous `published` release for that same (profile, channel) is atomically set to `superseded`.\n\nKey schema details:\n- `releases` table: UUID PK, profile_id FK, deployment_id FK, profile_version snapshot, git_commit_hash, release_version (semver), channel, status, release_notes, promoted_from_release_id self-FK, timestamps.\n- `release_platforms` table: composite PK (release_id, platform), per-platform status tracking, approval_id FK, lpbs_artifact_id correlation, error field.\n- Unique constraint: (profile_id, git_commit_hash, channel) on releases.",
+  "effort": "L",
+  "initiative": "desktop-release-governance",
+  "kind": "execute",
+  "name": "dm-releases-and-release-platforms-tables",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "deployment-manager",
+    "release-record",
+    "schema",
+    "migration",
+    "desktop-release"
+  ],
+  "title": "Add Releases And Release Platforms Tables To Deployment Manager",
+  "updated": "2026-04-07T22:13:30Z"
+}

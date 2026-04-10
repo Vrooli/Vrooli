@@ -581,7 +581,7 @@ export function WorkflowPreviewPane({
   );
 
   return (
-    <div data-testid="workflow-preview-pane" className="bg-flow-node border border-gray-700 rounded-lg h-full flex flex-col">
+    <div data-testid="workflow-preview-pane" className="bg-flow-node h-full flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-gray-700 flex items-start justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">

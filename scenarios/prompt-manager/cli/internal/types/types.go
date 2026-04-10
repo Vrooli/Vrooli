@@ -3,7 +3,7 @@ package types
 
 import "time"
 
-// Campaign represents a collection of related prompts.
+// Campaign represents a collection of related skills.
 type Campaign struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
@@ -13,14 +13,14 @@ type Campaign struct {
 	ParentID    *string    `json:"parent_id"`
 	SortOrder   int        `json:"sort_order"`
 	IsFavorite  bool       `json:"is_favorite"`
-	PromptCount int        `json:"prompt_count"`
+	SkillCount  int        `json:"skill_count"`
 	LastUsed    *time.Time `json:"last_used"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
-// Prompt represents a saved prompt with metadata.
-type Prompt struct {
+// Skill represents a saved skill with metadata.
+type Skill struct {
 	ID                  string     `json:"id"`
 	CampaignID          string     `json:"campaign_id"`
 	Title               string     `json:"title"`
@@ -45,10 +45,10 @@ type Prompt struct {
 	Tags         []string `json:"tags,omitempty"`
 }
 
-// PromptVersion represents a historical version of a prompt.
-type PromptVersion struct {
+// SkillVersion represents a historical version of a skill.
+type SkillVersion struct {
 	ID            string    `json:"id"`
-	PromptID      string    `json:"prompt_id"`
+	SkillID       string    `json:"skill_id"`
 	VersionNumber int       `json:"version_number"`
 	FilePath      string    `json:"file_path"`
 	ContentCache  *string   `json:"content_cache"`
@@ -68,8 +68,8 @@ type CreateCampaignRequest struct {
 	IsFavorite  *bool   `json:"is_favorite,omitempty"`
 }
 
-// CreatePromptRequest is the payload for creating a new prompt.
-type CreatePromptRequest struct {
+// CreateSkillRequest is the payload for creating a new skill.
+type CreateSkillRequest struct {
 	CampaignID          string   `json:"campaign_id"`
 	Title               string   `json:"title"`
 	Content             string   `json:"content"`
@@ -81,8 +81,8 @@ type CreatePromptRequest struct {
 	Tags                []string `json:"tags,omitempty"`
 }
 
-// UpdatePromptRequest is the payload for updating an existing prompt.
-type UpdatePromptRequest struct {
+// UpdateSkillRequest is the payload for updating an existing skill.
+type UpdateSkillRequest struct {
 	Title               *string  `json:"title,omitempty"`
 	Content             *string  `json:"content,omitempty"`
 	Description         *string  `json:"description,omitempty"`

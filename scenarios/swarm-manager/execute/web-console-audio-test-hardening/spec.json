@@ -1,0 +1,22 @@
+{
+  "acceptance_allow": [
+    "scenarios/web-console/ui/src/hooks/voice/**",
+    "scenarios/web-console/ui/src/hooks/tts/**",
+    "scenarios/web-console/api/**"
+  ],
+  "created": "2026-03-26T20:54:35Z",
+  "depends_on": [
+    "fix/web-console-vad-false-silence",
+    "fix/web-console-tts-summarization-bug"
+  ],
+  "description": "## Goal\n\nImprove test coverage and reliability for the web-console continuous audio system. After fixing the VAD and summarization bugs, ensure the entire audio pipeline has robust tests that prevent regressions.\n\n## Scope\n\n### Voice Input Testing\n- Expand VAD tests with outdoor noise profiles (wind, traffic, crowd noise patterns)\n- Add persistent mode segment boundary detection tests with realistic audio level sequences\n- Test WebSocket streaming reconnection and fallback to HTTP batch\n- Test speaker verification accept/reject flows\n- Add integration tests for the full voice input pipeline: mic → VAD → transcription → segment-final\n\n### TTS Output Testing\n- Add integration tests for the summarization pipeline: event → summarize → cache → broadcast\n- Test Kokoro → browser TTS fallback chain\n- Test pre-synthesis caching with version switching (summarized vs. original)\n- Test markdown normalization edge cases (deeply nested code blocks, large tables, mixed content)\n- Test paragraph splitting boundary conditions (exactly 4500 chars, sentence boundary detection)\n\n### End-to-End Testing\n- Test the full loop: agent response hook → conversation event → TTS pre-synthesis → summarization → client broadcast → playback\n- Test auto-TTS on tab switch (catch-up + immediate paths)\n- Test configuration changes mid-session\n\n## Existing Test Inventory\n\n34 test files already exist across frontend and backend. This item focuses on filling gaps identified during the VAD and summarization bug fixes, not rewriting existing tests.\n\n## Key Files\n\n- Frontend tests: `scenarios/web-console/ui/src/hooks/voice/*.test.ts`, `scenarios/web-console/ui/src/hooks/tts/*.test.ts`\n- Backend tests: `scenarios/web-console/api/*_test.go` (tts_*, voice_*)",
+  "effort": "M",
+  "initiative": "continuous-audio-platform",
+  "kind": "execute",
+  "name": "web-console-audio-test-hardening",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [],
+  "title": "Harden Test Coverage and Reliability for Continuous Audio Features",
+  "updated": "2026-03-26T20:54:35Z"
+}

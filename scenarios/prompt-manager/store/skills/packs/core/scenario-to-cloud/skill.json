@@ -1,0 +1,26 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "scenario-to-cloud",
+  "name": "Scenario to Cloud",
+  "description": "Deploy any Vrooli scenario to a VPS with full lifecycle management, state inspection, edge/TLS management, and remote process control using the scenario-to-cloud CLI",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "cloud",
+    "vps",
+    "deployment",
+    "infrastructure",
+    "dns",
+    "tls",
+    "ssh",
+    "caddy"
+  ],
+  "icon": "cloud",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 9,
+  "createdAt": "2026-02-06T12:00:00Z",
+  "updatedAt": "2026-02-07T20:05:00Z"
+}

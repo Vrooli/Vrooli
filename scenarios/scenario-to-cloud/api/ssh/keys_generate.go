@@ -1,15 +1,15 @@
 package ssh
 
 import (
-	"bytes"
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
-	"os/exec"
 	"path/filepath"
 )
 
 // GenerateKey generates a new SSH key pair.
-func GenerateKey(req GenerateKeyRequest) (KeyInfo, error) {
+func (ks *KeyService) GenerateKey(req GenerateKeyRequest) (KeyInfo, error) {
 	// Validate key type
 	if req.Type != KeyTypeEd25519 && req.Type != KeyTypeRSA {
 		return KeyInfo{}, fmt.Errorf("key type must be 'ed25519' or 'rsa'")
@@ -33,7 +33,7 @@ func GenerateKey(req GenerateKeyRequest) (KeyInfo, error) {
 	}
 
 	// Determine output path
-	sshDir, err := GetSSHDir()
+	sshDir, err := ks.getSSHDir()
 	if err != nil {
 		return KeyInfo{}, err
 	}
@@ -64,16 +64,15 @@ func GenerateKey(req GenerateKeyRequest) (KeyInfo, error) {
 	// Passphrase (empty string means no passphrase)
 	args = append(args, "-N", req.Password)
 
-	cmd := exec.Command("ssh-keygen", args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		return KeyInfo{}, fmt.Errorf("ssh-keygen failed: %s", stderr.String())
+	_, stderr, err := ks.cmd.Run(context.Background(), "ssh-keygen", args...)
+	if err != nil {
+		return KeyInfo{}, fmt.Errorf("ssh-keygen failed: %s", string(stderr))
 	}
 
+	slog.Info("ssh.key_generated", "key_type", string(req.Type), "filename", req.Filename)
+
 	// Read the generated key info
-	keyInfo, err := parseKeyFile(keyPath)
+	keyInfo, err := ks.parseKeyFile(keyPath)
 	if err != nil {
 		return KeyInfo{}, fmt.Errorf("failed to read generated key: %w", err)
 	}

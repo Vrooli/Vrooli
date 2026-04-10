@@ -1,6 +1,7 @@
 package protoconv
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,6 +40,9 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 		AllowedTools:         p.AllowedTools,
 		DeniedTools:          p.DeniedTools,
 		SkipPermissionPrompt: p.SkipPermissionPrompt,
+		Features:             FeatureFlagsToProto(p.Features),
+		ExtraFlags:           RunnerExtraFlagsToProto(p.ExtraFlags),
+		NetworkAccess:        NetworkAccessToProto(p.NetworkAccess),
 		RequiresSandbox:      p.RequiresSandbox,
 		RequiresApproval:     p.RequiresApproval,
 		SandboxConfig:        SandboxConfigToProto(p.SandboxConfig),
@@ -76,6 +80,9 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 		AllowedTools:         p.AllowedTools,
 		DeniedTools:          p.DeniedTools,
 		SkipPermissionPrompt: p.SkipPermissionPrompt,
+		Features:             FeatureFlagsFromProto(p.Features),
+		ExtraFlags:           RunnerExtraFlagsFromProto(p.ExtraFlags),
+		NetworkAccess:        NetworkAccessFromProto(p.NetworkAccess),
 		RequiresSandbox:      p.RequiresSandbox,
 		RequiresApproval:     p.RequiresApproval,
 		SandboxConfig:        SandboxConfigFromProto(p.SandboxConfig),
@@ -114,13 +121,17 @@ func TaskToProto(t *domain.Task) *pb.Task {
 	attachments := make([]*pb.ContextAttachment, len(t.ContextAttachments))
 	for i, a := range t.ContextAttachments {
 		attachments[i] = &pb.ContextAttachment{
-			Type:    a.Type,
-			Key:     a.Key,
-			Tags:    a.Tags,
-			Path:    a.Path,
-			Url:     a.URL,
-			Content: a.Content,
-			Label:   a.Label,
+			Type:         a.Type,
+			Key:          a.Key,
+			Tags:         a.Tags,
+			Path:         a.Path,
+			Url:          a.URL,
+			Content:      a.Content,
+			Label:        a.Label,
+			Summary:      a.Summary,
+			Format:       a.Format,
+			Priority:     a.Priority,
+			AttachmentId: a.AttachmentID,
 		}
 	}
 
@@ -153,13 +164,17 @@ func TaskFromProto(t *pb.Task) *domain.Task {
 	attachments := make([]domain.ContextAttachment, len(t.ContextAttachments))
 	for i, a := range t.ContextAttachments {
 		attachments[i] = domain.ContextAttachment{
-			Type:    a.Type,
-			Key:     a.Key,
-			Tags:    a.Tags,
-			Path:    a.Path,
-			URL:     a.Url,
-			Content: a.Content,
-			Label:   a.Label,
+			Type:         a.Type,
+			Key:          a.Key,
+			Tags:         a.Tags,
+			Path:         a.Path,
+			URL:          a.Url,
+			Content:      a.Content,
+			Label:        a.Label,
+			Summary:      a.Summary,
+			Format:       a.Format,
+			Priority:     a.Priority,
+			AttachmentID: a.AttachmentId,
 		}
 	}
 
@@ -214,6 +229,7 @@ func RunToProto(r *domain.Run) *pb.Run {
 		LogPath:         r.LogPath,
 		ChangedFiles:    int32(r.ChangedFiles),
 		TotalSizeBytes:  r.TotalSizeBytes,
+		PromptPreview:   r.PromptPreview,
 		CreatedAt:       TimestampToProto(r.CreatedAt),
 		UpdatedAt:       TimestampToProto(r.UpdatedAt),
 	}
@@ -257,11 +273,28 @@ func RunToProto(r *domain.Run) *pb.Run {
 			TokensUsed:    int32(r.Summary.TokensUsed),
 			TurnsUsed:     int32(r.Summary.TurnsUsed),
 			CostEstimate:  r.Summary.CostEstimate,
+			ContextTokens: int32(r.Summary.ContextTokens),
 		}
 	}
 
 	if r.ResolvedConfig != nil {
 		run.ResolvedConfig = RunConfigToProto(r.ResolvedConfig)
+	}
+	if r.Actions != nil {
+		run.Actions = &pb.RunActions{
+			CanInvestigate:               r.Actions.CanInvestigate,
+			CanApplyInvestigation:        r.Actions.CanApplyInvestigation,
+			CanDelete:                    r.Actions.CanDelete,
+			CanStop:                      r.Actions.CanStop,
+			CanRetry:                     r.Actions.CanRetry,
+			CanContinue:                  r.Actions.CanContinue,
+			CanContinueReason:            r.Actions.CanContinueReason,
+			CanApprove:                   r.Actions.CanApprove,
+			CanReject:                    r.Actions.CanReject,
+			CanReview:                    r.Actions.CanReview,
+			CanExtractRecommendations:    r.Actions.CanExtractRecommendations,
+			CanRegenerateRecommendations: r.Actions.CanRegenerateRecommendations,
+		}
 	}
 
 	return run
@@ -330,11 +363,28 @@ func RunFromProto(r *pb.Run) *domain.Run {
 			TokensUsed:    int(r.Summary.TokensUsed),
 			TurnsUsed:     int(r.Summary.TurnsUsed),
 			CostEstimate:  r.Summary.CostEstimate,
+			ContextTokens: int(r.Summary.ContextTokens),
 		}
 	}
 
 	if r.ResolvedConfig != nil {
 		run.ResolvedConfig = RunConfigFromProto(r.ResolvedConfig)
+	}
+	if r.Actions != nil {
+		run.Actions = &domain.RunActions{
+			CanInvestigate:               r.Actions.CanInvestigate,
+			CanApplyInvestigation:        r.Actions.CanApplyInvestigation,
+			CanDelete:                    r.Actions.CanDelete,
+			CanStop:                      r.Actions.CanStop,
+			CanRetry:                     r.Actions.CanRetry,
+			CanContinue:                  r.Actions.CanContinue,
+			CanContinueReason:            r.Actions.CanContinueReason,
+			CanApprove:                   r.Actions.CanApprove,
+			CanReject:                    r.Actions.CanReject,
+			CanReview:                    r.Actions.CanReview,
+			CanExtractRecommendations:    r.Actions.CanExtractRecommendations,
+			CanRegenerateRecommendations: r.Actions.CanRegenerateRecommendations,
+		}
 	}
 
 	return run
@@ -372,6 +422,9 @@ func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
 		AllowedTools:         c.AllowedTools,
 		DeniedTools:          c.DeniedTools,
 		SkipPermissionPrompt: c.SkipPermissionPrompt,
+		Features:             FeatureFlagsToProto(c.Features),
+		ExtraFlags:           RunnerExtraFlagsToProto(c.ExtraFlags),
+		NetworkAccess:        NetworkAccessToProto(c.NetworkAccess),
 		RequiresSandbox:      c.RequiresSandbox,
 		RequiresApproval:     c.RequiresApproval,
 		SandboxConfig:        SandboxConfigToProto(c.SandboxConfig),
@@ -402,12 +455,61 @@ func RunConfigFromProto(c *pb.RunConfig) *domain.RunConfig {
 		AllowedTools:         c.AllowedTools,
 		DeniedTools:          c.DeniedTools,
 		SkipPermissionPrompt: c.SkipPermissionPrompt,
+		Features:             FeatureFlagsFromProto(c.Features),
+		ExtraFlags:           RunnerExtraFlagsFromProto(c.ExtraFlags),
+		NetworkAccess:        NetworkAccessFromProto(c.NetworkAccess),
 		RequiresSandbox:      c.RequiresSandbox,
 		RequiresApproval:     c.RequiresApproval,
 		SandboxConfig:        SandboxConfigFromProto(c.SandboxConfig),
 		AllowedPaths:         c.AllowedPaths,
 		DeniedPaths:          c.DeniedPaths,
 	}
+}
+
+// =============================================================================
+// FEATURE FLAGS
+// =============================================================================
+
+// FeatureFlagsToProto converts domain FeatureFlags to proto FeatureFlags.
+func FeatureFlagsToProto(f domain.FeatureFlags) *pb.FeatureFlags {
+	if f.IsZero() {
+		return nil
+	}
+	return &pb.FeatureFlags{EnableBrowser: f.EnableBrowser}
+}
+
+// FeatureFlagsFromProto converts proto FeatureFlags to domain FeatureFlags.
+func FeatureFlagsFromProto(f *pb.FeatureFlags) domain.FeatureFlags {
+	if f == nil {
+		return domain.FeatureFlags{}
+	}
+	return domain.FeatureFlags{EnableBrowser: f.EnableBrowser}
+}
+
+// RunnerExtraFlagsToProto converts domain RunnerExtraFlags to proto map.
+func RunnerExtraFlagsToProto(flags domain.RunnerExtraFlags) map[string]*pb.ExtraFlagList {
+	if len(flags) == 0 {
+		return nil
+	}
+	result := make(map[string]*pb.ExtraFlagList, len(flags))
+	for rt, flagList := range flags {
+		result[string(rt)] = &pb.ExtraFlagList{Flags: flagList}
+	}
+	return result
+}
+
+// RunnerExtraFlagsFromProto converts proto map to domain RunnerExtraFlags.
+func RunnerExtraFlagsFromProto(flags map[string]*pb.ExtraFlagList) domain.RunnerExtraFlags {
+	if len(flags) == 0 {
+		return nil
+	}
+	result := make(domain.RunnerExtraFlags, len(flags))
+	for rt, flagList := range flags {
+		if flagList != nil && len(flagList.Flags) > 0 {
+			result[domain.RunnerType(rt)] = flagList.Flags
+		}
+	}
+	return result
 }
 
 // =============================================================================
@@ -438,10 +540,26 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 			},
 		}
 	case *domain.MessageEventData:
+		var pbAttachments []*pb.MessageAttachmentInfo
+		for _, att := range data.Attachments {
+			pbAttachments = append(pbAttachments, &pb.MessageAttachmentInfo{
+				Id:          att.ID,
+				FileName:    att.FileName,
+				ContentType: att.ContentType,
+				Url:         att.URL,
+			})
+		}
 		event.Data = &pb.RunEvent_Message{
 			Message: &pb.MessageEventData{
-				Role:    data.Role,
-				Content: data.Content,
+				Role:        data.Role,
+				Content:     data.Content,
+				Attachments: pbAttachments,
+			},
+		}
+	case *domain.MessageDeletedEventData:
+		event.Data = &pb.RunEvent_MessageDeleted{
+			MessageDeleted: &pb.MessageDeletedEventData{
+				TargetEventId: data.TargetEventID,
 			},
 		}
 	case *domain.ToolCallEventData:
@@ -453,8 +571,9 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 		}
 		event.Data = &pb.RunEvent_ToolCall{
 			ToolCall: &pb.ToolCallEventData{
-				ToolName: data.ToolName,
-				Input:    input,
+				ToolName:   data.ToolName,
+				ToolCallId: data.ToolCallID,
+				Input:      input,
 			},
 		}
 	case *domain.ToolResultEventData:
@@ -625,6 +744,8 @@ func ApproveResultToProto(r *ApproveResult) *pb.ApproveResult {
 		FilesApplied: int32(r.Applied),
 		CommitHash:   r.CommitHash,
 		Message:      r.ErrorMsg,
+		Remaining:    int32(r.Remaining),
+		IsPartial:    r.IsPartial,
 	}
 }
 
@@ -677,14 +798,24 @@ func DiffResultToProto(runID uuid.UUID, r *DiffResult) *pb.RunDiff {
 	if r == nil {
 		return nil
 	}
+
+	// Extract per-file patches from the unified diff.
+	patchByPath := splitUnifiedDiff(r.UnifiedDiff)
+
 	files := make([]*pb.FileDiff, len(r.Files))
 	for i, f := range r.Files {
+		patch := f.Patch
+		if patch == "" {
+			patch = lookupPatch(patchByPath, f.FilePath)
+		}
 		files[i] = &pb.FileDiff{
+			Id:         UUIDToString(f.ID),
 			Path:       f.FilePath,
 			ChangeType: string(f.ChangeType),
 			Additions:  int32(f.LinesAdded),
 			Deletions:  int32(f.LinesRemoved),
 			IsBinary:   false,
+			Patch:      patch,
 		}
 	}
 	return &pb.RunDiff{
@@ -693,6 +824,70 @@ func DiffResultToProto(runID uuid.UUID, r *DiffResult) *pb.RunDiff {
 		Files:       files,
 		GeneratedAt: TimestampToProto(r.Generated),
 	}
+}
+
+// lookupPatch finds a patch for filePath in the map. It first tries an exact
+// match, then falls back to a suffix match. This handles the common case where
+// the unified diff uses project-root-relative paths (e.g.
+// "scenarios/foo/api/main.go") but file metadata uses sandbox-scope-relative
+// paths (e.g. "api/main.go").
+func lookupPatch(patchByPath map[string]string, filePath string) string {
+	if p, ok := patchByPath[filePath]; ok {
+		return p
+	}
+	suffix := "/" + filePath
+	for k, v := range patchByPath {
+		if strings.HasSuffix(k, suffix) {
+			return v
+		}
+	}
+	return ""
+}
+
+// splitUnifiedDiff splits a unified diff string into per-file patches.
+// It looks for "diff --git a/... b/..." markers and maps each section
+// to the file path (the "b/" side).
+func splitUnifiedDiff(unified string) map[string]string {
+	if unified == "" {
+		return nil
+	}
+
+	result := make(map[string]string)
+	lines := strings.Split(unified, "\n")
+
+	var currentPath string
+	var currentStart int
+	inSection := false
+
+	for i, line := range lines {
+		if strings.HasPrefix(line, "diff --git ") {
+			// Flush previous section.
+			if inSection && currentPath != "" {
+				result[currentPath] = strings.Join(lines[currentStart:i], "\n")
+			}
+			// Extract the "b/" path from "diff --git a/foo b/foo".
+			currentPath = extractDiffPath(line)
+			currentStart = i
+			inSection = true
+		}
+	}
+	// Flush last section.
+	if inSection && currentPath != "" {
+		result[currentPath] = strings.Join(lines[currentStart:], "\n")
+	}
+
+	return result
+}
+
+// extractDiffPath extracts the file path from a "diff --git a/X b/Y" line.
+// Returns Y without the "b/" prefix.
+func extractDiffPath(line string) string {
+	// Format: "diff --git a/path/to/file b/path/to/file"
+	idx := strings.LastIndex(line, " b/")
+	if idx < 0 {
+		return ""
+	}
+	return line[idx+3:]
 }
 
 // DiffResult mirrors sandbox.DiffResult for import avoidance.
@@ -711,6 +906,7 @@ type FileChange struct {
 	FileSize     int64
 	LinesAdded   int
 	LinesRemoved int
+	Patch        string
 }
 
 // =============================================================================
@@ -734,6 +930,8 @@ func OrchestratorRunnerStatusToProto(r *OrchestratorRunnerStatus) *pb.RunnerStat
 			SupportsCostTracking: r.Capabilities.SupportsCostTracking,
 			SupportsCancellation: r.Capabilities.SupportsCancellation,
 			MaxTurns:             int32(r.Capabilities.MaxTurns),
+			SupportedFeatures:    r.Capabilities.SupportedFeatures,
+			AllowedExtraFlags:    r.Capabilities.AllowedExtraFlags,
 		},
 		SupportedModels: r.Capabilities.SupportedModels,
 	}
@@ -765,4 +963,6 @@ type RunnerCapabilities struct {
 	SupportsCancellation bool
 	MaxTurns             int
 	SupportedModels      []string
+	SupportedFeatures    []string
+	AllowedExtraFlags    []string
 }

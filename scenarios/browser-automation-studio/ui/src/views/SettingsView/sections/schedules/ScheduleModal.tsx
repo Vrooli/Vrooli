@@ -123,7 +123,8 @@ export function ScheduleModal({
         setName('');
         setDescription('');
         // Set project: use initial if provided, otherwise default to first project
-        const defaultProjectId = initialProjectId ?? (projects.length === 1 ? projects[0].id : '');
+        const firstProject = projects[0];
+        const defaultProjectId = initialProjectId ?? (projects.length === 1 && firstProject ? firstProject.id : '');
         setSelectedProjectId(defaultProjectId);
         // Set workflow: use initial if provided, otherwise auto-select if only one in project
         if (initialWorkflowId) {
@@ -132,7 +133,8 @@ export function ScheduleModal({
           const projectWorkflows = defaultProjectId
             ? workflows.filter(w => w.projectId === defaultProjectId)
             : workflows;
-          setSelectedWorkflowId(projectWorkflows.length === 1 ? projectWorkflows[0].id : '');
+          const firstWorkflow = projectWorkflows[0];
+          setSelectedWorkflowId(projectWorkflows.length === 1 && firstWorkflow ? firstWorkflow.id : '');
         }
 
         // Set timezone first

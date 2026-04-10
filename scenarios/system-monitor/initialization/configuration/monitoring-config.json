@@ -95,7 +95,10 @@
         "enabled": true,
         "ai_investigation": {
             "enabled": true,
-            "trigger_on_severity": ["warning", "critical"],
+            "trigger_on_severity": [
+                "warning",
+                "critical"
+            ],
             "model": "llama3.2:3b",
             "timeout_seconds": 300,
             "max_concurrent": 2
@@ -163,14 +166,19 @@
             }
         ],
         "delivery": {
-            "methods": ["local_storage", "email"],
+            "methods": [
+                "local_storage",
+                "email"
+            ],
             "local_path": "/var/log/system-monitor/reports/",
             "email": {
                 "enabled": false,
                 "smtp_host": "localhost",
                 "smtp_port": 587,
                 "from": "system-monitor@localhost",
-                "to": ["admin@localhost"]
+                "to": [
+                    "admin@localhost"
+                ]
             }
         }
     },
@@ -228,14 +236,6 @@
             "model": "codex-mini-latest",
             "investigation_templates": [
                 "initialization/claude-code/anomaly-check.md"
-            ]
-        },
-        "grafana": {
-            "enabled": false,
-            "url": "http://localhost:3004",
-            "dashboards": [
-                "system-overview",
-                "anomaly-analysis"
             ]
         }
     },

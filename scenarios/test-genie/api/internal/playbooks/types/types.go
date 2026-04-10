@@ -2,20 +2,65 @@
 package types
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	"test-genie/internal/shared"
 )
 
+const (
+	// ExecutionModeObserver indicates workflows only observe an already-running system
+	// and should not trigger playbooks-managed isolation or lifecycle restarts.
+	ExecutionModeObserver = "observer"
+)
+
 // Registry represents the playbook registry file structure.
 type Registry struct {
-	Note       string  `json:"_note,omitempty"`
-	Scenario   string  `json:"scenario"`
-	Generated  string  `json:"generated_at"`
-	Playbooks  []Entry `json:"playbooks"`
-	Deprecated []Entry `json:"deprecated_playbooks,omitempty"`
+	Note       string           `json:"_note,omitempty"`
+	Scenario   string           `json:"scenario"`
+	Generated  string           `json:"generated_at"`
+	Playbooks  []Entry          `json:"playbooks"`
+	Deprecated []Entry          `json:"deprecated_playbooks,omitempty"`
+	Metadata   RegistryMetadata `json:"metadata,omitempty"`
+}
+
+// MarshalJSON omits empty metadata so regenerated registries stay stable when
+// no scenario-wide execution mode is inferred.
+func (r Registry) MarshalJSON() ([]byte, error) {
+	type alias Registry
+
+	aux := struct {
+		alias
+		Metadata *RegistryMetadata `json:"metadata,omitempty"`
+	}{
+		alias: alias(r),
+	}
+
+	if strings.TrimSpace(r.Metadata.ExecutionMode) != "" {
+		metadata := r.Metadata
+		aux.Metadata = &metadata
+	}
+
+	return json.Marshal(aux)
+}
+
+// RegistryMetadata captures phase-wide execution hints for the playbooks registry.
+type RegistryMetadata struct {
+	ExecutionMode string `json:"execution_mode,omitempty"`
+}
+
+// NormalizedExecutionMode returns the registry execution mode in lowercase form.
+func (r Registry) NormalizedExecutionMode() string {
+	return strings.ToLower(strings.TrimSpace(r.Metadata.ExecutionMode))
+}
+
+// UsesObserverMode reports whether the registry explicitly opts out of
+// playbooks-managed isolation and scenario restarts.
+func (r Registry) UsesObserverMode() bool {
+	return r.NormalizedExecutionMode() == ExecutionModeObserver
 }
 
 // Entry represents a single playbook entry in the registry.

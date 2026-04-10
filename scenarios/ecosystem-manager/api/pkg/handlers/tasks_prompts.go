@@ -58,7 +58,7 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 		return
 	}
 	prompt := assembly.Prompt
-	var manualSteerMode autosteer.SteerMode
+	var manualSteerSet []string
 
 	// Check for cached prompt content (legacy behavior)
 	promptPath := filepath.Join(os.TempDir(), fmt.Sprintf("%s%s.txt", queue.PromptFilePrefix, taskID))
@@ -78,8 +78,8 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 		assembly.Prompt = prompt
 		if strings.TrimSpace(section) != "" {
 			defaultProgressApplied = true
-			if mode := normalizeSteerMode(task.SteerMode); mode.IsValid() {
-				manualSteerMode = mode
+			if len(task.SteerSet) > 0 {
+				manualSteerSet = append([]string(nil), task.SteerSet...)
 			}
 		}
 	}
@@ -99,8 +99,8 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 		"task_details":      task,
 		"default_progress":  defaultProgressApplied,
 	}
-	if manualSteerMode.IsValid() {
-		response["manual_steer_mode"] = manualSteerMode
+	if len(manualSteerSet) > 0 {
+		response["manual_steer_set"] = manualSteerSet
 	}
 
 	writeJSON(w, response, http.StatusOK)
@@ -118,7 +118,7 @@ type promptPreviewRequest struct {
 	Tags               []string        `json:"tags,omitempty"`
 	Target             string          `json:"target,omitempty"`
 	Targets            []string        `json:"targets,omitempty"`
-	SteerMode          string          `json:"steer_mode,omitempty"`
+	SteerSet           []string        `json:"steer_set,omitempty"`
 	AutoSteerProfileID string          `json:"auto_steer_profile_id,omitempty"`
 	AutoSteerPhaseIdx  *int            `json:"auto_steer_phase_index,omitempty"`
 }
@@ -142,8 +142,8 @@ func (r promptPreviewRequest) buildTask(defaultID string) tasks.TaskItem {
 	if r.Priority != "" {
 		task.Priority = r.Priority
 	}
-	if r.SteerMode != "" {
-		task.SteerMode = r.SteerMode
+	if len(r.SteerSet) > 0 {
+		task.SteerSet = r.SteerSet
 	}
 	if r.Notes != "" {
 		task.Notes = r.Notes
@@ -279,17 +279,17 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 					LastUpdated:           time.Now(),
 				}
 
-				enhancer := autosteer.NewPromptEnhancer(filepath.Join(h.assembler.PromptsDir, "phases"))
+				enhancer := autosteer.NewPromptEnhancer()
 				evaluator := autosteer.NewConditionEvaluator()
 				autoSteerSection := enhancer.GenerateAutoSteerSection(&state, profile, evaluator)
 				prompt = autosteer.InjectSteeringSection(prompt, autoSteerSection)
 				if strings.TrimSpace(autoSteerSection) != "" {
 					response["auto_steer_applied"] = true
-					response["auto_steer_mode"] = profile.Phases[phaseIdx].Mode
+					response["auto_steer_set"] = profile.Phases[phaseIdx].SkillIDs
 					response["auto_steer_phase_label"] = fmt.Sprintf("Phase %d", phaseIdx+1)
 				} else {
 					response["auto_steer_applied"] = false
-					response["auto_steer_error"] = "Auto Steer section was empty"
+					response["auto_steer_error"] = "Auto Steer section was empty (prompt-manager may be unavailable)"
 				}
 			}
 		}
@@ -314,8 +314,8 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 				response["auto_steer_applied"] = true
 			}
 
-			if engine := autoSteer.ExecutionEngine(); engine != nil {
-				if err := engine.DeleteExecutionState(tempTask.ID); err != nil {
+			if orchestrator := autoSteer.ExecutionOrchestrator(); orchestrator != nil {
+				if err := orchestrator.DeleteExecutionState(tempTask.ID); err != nil {
 					systemlog.Warnf("Prompt preview: failed to clean up Auto Steer state for temp task %s: %v", tempTask.ID, err)
 				}
 			}
@@ -335,8 +335,8 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 		prompt = autosteer.InjectSteeringSection(prompt, section)
 		if strings.TrimSpace(section) != "" {
 			response["default_progress_applied"] = true
-			if mode := normalizeSteerMode(tempTask.SteerMode); mode.IsValid() {
-				response["manual_steer_mode"] = mode
+			if len(tempTask.SteerSet) > 0 {
+				response["manual_steer_set"] = tempTask.SteerSet
 			}
 		}
 	}
@@ -380,17 +380,17 @@ func previewMetricsSnapshot() autosteer.MetricsSnapshot {
 	}
 }
 
-// manualOrDefaultSteeringSection renders the manual steer mode (if provided) or defaults to Progress.
+// manualOrDefaultSteeringSection renders the manual steer set (if provided) or defaults to Progress.
 func (h *TaskHandlers) manualOrDefaultSteeringSection(task tasks.TaskItem) string {
 	if h == nil || h.assembler == nil {
 		return ""
 	}
 
-	mode := normalizeSteerMode(task.SteerMode)
-	if !mode.IsValid() {
-		mode = autosteer.ModeProgress
+	skillSet := task.SteerSet
+	if len(skillSet) == 0 {
+		skillSet = []string{string(autosteer.ModeProgress)}
 	}
 
-	phasesDir := filepath.Join(h.assembler.PromptsDir, "phases")
-	return strings.TrimSpace(autosteer.NewPromptEnhancer(phasesDir).GenerateModeSection(mode))
+	enhancer := autosteer.NewPromptEnhancer()
+	return strings.TrimSpace(enhancer.GenerateSkillSetSection(skillSet, false, ""))
 }

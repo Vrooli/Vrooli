@@ -255,11 +255,17 @@ manage::main() {
     # Remove phase from arguments
     shift
     
+    # Setup is a global operation — clear scenario context so lifecycle
+    # doesn't try scenario-specific port allocation for an inherited env var.
+    if [[ "$phase" == "setup" ]]; then
+        unset SCENARIO_NAME SCENARIO_MODE SCENARIO_PATH 2>/dev/null || true
+    fi
+
     # Execute phase directly (no more external executor!)
     [[ "$dry_run_flag" == "true" ]] && \
         log::info "[DRY RUN] Executing phase '$phase'..." || \
         log::info "Executing phase '$phase'..."
-    
+
     # Route develop phase through auto-setup logic
     if [[ "$phase" == "develop" ]]; then
         lifecycle::develop_with_auto_setup "$phase" "$@"

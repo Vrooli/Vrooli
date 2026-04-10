@@ -9,7 +9,8 @@
       "reset": "none",
       "requirements_json": "[\"BAS-WORKFLOW-DEMO-SEED\"]",
       "parameters_json": "[{\"name\":\"projectId\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectId\",\"description\":\"Project identifier created by the seed script\"},{\"name\":\"projectName\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectName\",\"description\":\"Project name created by the seed script\"},{\"name\":\"projectFolder\",\"type\":\"string\",\"required\":true,\"default\":\"@seed/projectFolder\",\"description\":\"Seed project folder path\"}]"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {},
   "nodes": [
@@ -20,14 +21,26 @@
         "subflow": {
           "workflow_path": "actions/load-seed-state.json",
           "args": {
-            "projectId": { "string_value": "${@params/projectId}" },
-            "projectName": { "string_value": "${@params/projectName}" },
-            "projectFolder": { "string_value": "${@params/projectFolder}" },
-            "workflowId": { "string_value": "${@params/workflowId}" },
-            "workflowName": { "string_value": "${@params/workflowName}" }
+            "projectId": {
+              "string_value": "${@params/projectId}"
+            },
+            "projectName": {
+              "string_value": "${@params/projectName}"
+            },
+            "projectFolder": {
+              "string_value": "${@params/projectFolder}"
+            },
+            "workflowId": {
+              "string_value": "${@params/workflowId}"
+            },
+            "workflowName": {
+              "string_value": "${@params/workflowName}"
+            }
           }
         },
-        "metadata": { "label": "Load seed metadata" }
+        "metadata": {
+          "label": "Load seed metadata"
+        }
       }
     },
     {
@@ -42,7 +55,9 @@
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 45000
         },
-        "metadata": { "label": "Open BAS dashboard" }
+        "metadata": {
+          "label": "Open BAS dashboard"
+        }
       },
       "execution_settings": {
         "wait_after_ms": 2000
@@ -55,15 +70,21 @@
         "subflow": {
           "workflow_path": "actions/dismiss-tutorial.json"
         },
-        "metadata": { "label": "Dismiss onboarding tutorial if present" }
+        "metadata": {
+          "label": "Dismiss onboarding tutorial if present"
+        }
       }
     },
     {
       "id": "fixture-click-projects-tab",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "@selector/dashboard.tabs.projects" },
-        "metadata": { "label": "Navigate to Projects tab" }
+        "click": {
+          "selector": "@selector/dashboard.tabs.projects"
+        },
+        "metadata": {
+          "label": "Navigate to Projects tab"
+        }
       },
       "execution_settings": {
         "timeout_ms": 5000,
@@ -79,7 +100,9 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Wait for Projects tab to load" }
+        "metadata": {
+          "label": "Wait for Projects tab to load"
+        }
       },
       "execution_settings": {
         "wait_after_ms": 1000
@@ -95,15 +118,21 @@
           "timeout_ms": 10000,
           "failure_message": "Seed project with ID ${@params/projectId} should exist. Ensure seed script ran successfully."
         },
-        "metadata": { "label": "Verify seed project exists" }
+        "metadata": {
+          "label": "Verify seed project exists"
+        }
       }
     },
     {
       "id": "fixture-click-demo",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "@selector/projects.cardById(id=\"${@params/projectId}\")" },
-        "metadata": { "label": "Select demo project" }
+        "click": {
+          "selector": "@selector/projects.cardById(id=\"${@params/projectId}\")"
+        },
+        "metadata": {
+          "label": "Select demo project"
+        }
       },
       "execution_settings": {
         "timeout_ms": 10000,
@@ -123,7 +152,9 @@
           "timeout_ms": 5000,
           "failure_message": "Project header should be visible"
         },
-        "metadata": { "label": "Verify project header" }
+        "metadata": {
+          "label": "Verify project header"
+        }
       }
     },
     {
@@ -134,7 +165,9 @@
           "selector": "@selector/workflows.tab",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Wait for project tabs" }
+        "metadata": {
+          "label": "Wait for project tabs"
+        }
       },
       "execution_settings": {
         "wait_after_ms": 500

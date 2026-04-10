@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/state"
@@ -84,6 +85,7 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 	if strings.EqualFold(strings.TrimSpace(stepType), "workflowcall") {
 		return contracts.StepOutcome{}, session, fmt.Errorf("unsupported step type 'workflowCall'; use 'subflow' instead")
 	}
+	step = e.interpolatePlanStep(step, execState)
 	if isSubflowPlanStep(step) {
 		logrus.WithFields(logrus.Fields{
 			"execution_id": req.Plan.ExecutionID,
@@ -109,8 +111,6 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 		}
 		session = newSession
 	}
-
-	step = e.interpolatePlanStep(step, execState)
 
 	if IsPlanStepActionType(step, basactions.ActionType_ACTION_TYPE_LOOP) && step.Loop != nil {
 		return e.executeLoop(ctx, req, execCtx, eng, spec, session, step, execState, reuseMode)
@@ -462,7 +462,11 @@ func (e *SimpleExecutor) runSubflow(ctx context.Context, req Request, execCtx ex
 		"workflow_name":       childWorkflow.GetName(),
 	}).Debug("About to compile subflow")
 
-	childPlan, _, err := BuildContractsPlanWithCompiler(ctx, req.Plan.ExecutionID, childWorkflow, execCtx.compiler)
+	subflowCompileCtx := ctx
+	if strings.TrimSpace(req.ProjectRoot) != "" {
+		subflowCompileCtx = autocompiler.WithProjectRoot(ctx, req.ProjectRoot)
+	}
+	childPlan, _, err := BuildContractsPlanWithCompiler(subflowCompileCtx, req.Plan.ExecutionID, childWorkflow, execCtx.compiler)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"execution_id":      req.Plan.ExecutionID,
@@ -607,13 +611,6 @@ func (e *SimpleExecutor) executeGraphIteration(ctx context.Context, req Request,
 	return loopControl{LastOutcome: last}, session, nil
 }
 
-// isSetVariableStep checks if a step type represents a set_variable action.
-// Accepts either a string type or uses Action-aware matching when available.
-func isSetVariableStep(stepType string) bool {
-	normalized := strings.ToLower(strings.ReplaceAll(stepType, "_", ""))
-	return normalized == "setvariable"
-}
-
 // isSetVariableInstruction checks if an instruction is a set_variable action.
 // Prefers Action.Type over the deprecated Type field.
 func isSetVariableInstruction(instr contracts.CompiledInstruction) bool {
@@ -624,11 +621,6 @@ func isSetVariableInstruction(instr contracts.CompiledInstruction) bool {
 // Prefers Action.Type over the deprecated Type field.
 func isSetVariablePlanStep(step contracts.PlanStep) bool {
 	return IsPlanStepActionType(step, basactions.ActionType_ACTION_TYPE_SET_VARIABLE)
-}
-
-// isSubflowStep checks if a step type represents a subflow action.
-func isSubflowStep(stepType string) bool {
-	return strings.EqualFold(strings.TrimSpace(stepType), "subflow")
 }
 
 // isSubflowInstruction checks if an instruction is a subflow action.
@@ -749,7 +741,16 @@ func parseSubflowSpec(step contracts.PlanStep) (subflowSpec, error) {
 	}
 	if rawParams, ok := stepParams["parameters"]; ok {
 		if params, ok := rawParams.(map[string]any); ok && len(params) > 0 {
-			spec.params = params
+			// Unwrap JsonValue wrapper format from proto serialization
+			spec.params = unwrapJsonValueArgs(params)
+		}
+	}
+	// Also check "args" key - used when workflow is compiled from JSON
+	if spec.params == nil {
+		if rawArgs, ok := stepParams["args"]; ok {
+			if args, ok := rawArgs.(map[string]any); ok && len(args) > 0 {
+				spec.params = unwrapJsonValueArgs(args)
+			}
 		}
 	}
 	if spec.workflowID == nil && spec.workflowPath == "" && spec.inlineDef == nil && step.Action != nil {
@@ -800,6 +801,59 @@ func parseSubflowSpec(step contracts.PlanStep) (subflowSpec, error) {
 		return spec, fmt.Errorf("subflow %s missing workflowId, workflowPath, or workflowDefinition", step.NodeID)
 	}
 	return spec, nil
+}
+
+// unwrapJsonValueArgs converts {"string_value": "..."} wrapped args to plain values.
+// This is needed when args come from JSON files where values are wrapped in JsonValue format.
+func unwrapJsonValueArgs(args map[string]any) map[string]any {
+	result := make(map[string]any, len(args))
+	for k, v := range args {
+		result[k] = unwrapJsonValue(v)
+	}
+	return result
+}
+
+// unwrapJsonValue unwraps a single value that may be in JsonValue format.
+func unwrapJsonValue(v any) any {
+	m, ok := v.(map[string]any)
+	if !ok || len(m) != 1 {
+		return v
+	}
+	// Check for JsonValue wrapper keys
+	if sv, ok := m["string_value"]; ok {
+		return sv
+	}
+	if sv, ok := m["stringValue"]; ok {
+		return sv
+	}
+	if bv, ok := m["bool_value"]; ok {
+		return bv
+	}
+	if bv, ok := m["boolValue"]; ok {
+		return bv
+	}
+	if iv, ok := m["int_value"]; ok {
+		return iv
+	}
+	if iv, ok := m["intValue"]; ok {
+		return iv
+	}
+	if dv, ok := m["double_value"]; ok {
+		return dv
+	}
+	if dv, ok := m["doubleValue"]; ok {
+		return dv
+	}
+	if nv, ok := m["null_value"]; ok {
+		_ = nv
+		return nil
+	}
+	if nv, ok := m["nullValue"]; ok {
+		_ = nv
+		return nil
+	}
+	// Not a JsonValue wrapper, return as-is
+	return v
 }
 
 func resolveSubflowWorkflow(ctx context.Context, req Request, spec subflowSpec) (*basapi.WorkflowSummary, uuid.UUID, error) {

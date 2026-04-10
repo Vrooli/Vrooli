@@ -339,7 +339,6 @@ func TestScenarioAuditorCLINotFound(t *testing.T) {
 	os.Setenv("PATH", "")
 
 	result, err := runScenarioAuditorCLI("test-scenario")
-
 	// Should not return an error, but a graceful message
 	if err != nil {
 		t.Errorf("runScenarioAuditorCLI() should not error when CLI not found, got: %v", err)

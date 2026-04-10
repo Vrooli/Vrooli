@@ -1,13 +1,14 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/discovery"
+
+	httputil "scenario-to-desktop-api/shared/http"
 )
 
 type scenarioPortResponse struct {
@@ -44,6 +45,5 @@ func (s *Server) getScenarioPortHandler(w http.ResponseWriter, r *http.Request) 
 		URL:      fmt.Sprintf("http://127.0.0.1:%d", port),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	httputil.WriteJSON(w, http.StatusOK, resp)
 }

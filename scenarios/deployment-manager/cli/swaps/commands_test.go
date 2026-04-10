@@ -23,7 +23,7 @@ func TestApplyCallsAPI(t *testing.T) {
 		if r.URL.Path == "/api/v1/profiles/demo/swaps" && r.Method == http.MethodPost {
 			called = true
 		}
-		io.WriteString(w, `{}`)
+		_, _ = io.WriteString(w, `{}`)
 	}))
 	defer server.Close()
 

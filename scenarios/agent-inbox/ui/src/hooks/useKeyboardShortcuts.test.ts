@@ -145,6 +145,48 @@ describe("useKeyboardShortcuts", () => {
     document.body.removeChild(input);
   });
 
+  it("allows modifier shortcuts when typing in input", () => {
+    const action = vi.fn();
+    const shortcuts: KeyboardShortcut[] = [
+      { key: "k", ctrlKey: true, description: "Focus search", action },
+    ];
+
+    renderHook(() => useKeyboardShortcuts(shortcuts));
+
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    const event = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true });
+    Object.defineProperty(event, "target", { value: input, writable: false });
+    document.dispatchEvent(event);
+
+    expect(action).toHaveBeenCalledTimes(1);
+
+    document.body.removeChild(input);
+  });
+
+  it("allows non-modifier shortcuts in input when allowInInput is true", () => {
+    const action = vi.fn();
+    const shortcuts: KeyboardShortcut[] = [
+      { key: "/", description: "Focus search", action, allowInInput: true },
+    ];
+
+    renderHook(() => useKeyboardShortcuts(shortcuts));
+
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    const event = new KeyboardEvent("keydown", { key: "/", bubbles: true });
+    Object.defineProperty(event, "target", { value: input, writable: false });
+    document.dispatchEvent(event);
+
+    expect(action).toHaveBeenCalledTimes(1);
+
+    document.body.removeChild(input);
+  });
+
   it("does not call action when disabled", () => {
     const action = vi.fn();
     const shortcuts: KeyboardShortcut[] = [
@@ -198,6 +240,23 @@ describe("useKeyboardShortcuts", () => {
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "/" }));
     expect(action).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls onUnhandledShortcut when action returns false", () => {
+    const action = vi.fn(() => false);
+    const onUnhandledShortcut = vi.fn();
+    const shortcuts: KeyboardShortcut[] = [
+      { key: "k", ctrlKey: true, description: "Focus search", action },
+    ];
+
+    renderHook(() => useKeyboardShortcuts(shortcuts, { onUnhandledShortcut }));
+
+    const event = new KeyboardEvent("keydown", { key: "k", ctrlKey: true });
+    document.dispatchEvent(event);
+
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(onUnhandledShortcut).toHaveBeenCalledTimes(1);
+    expect(onUnhandledShortcut.mock.calls[0]?.[0]).toMatchObject({ key: "k", ctrlKey: true });
   });
 });
 

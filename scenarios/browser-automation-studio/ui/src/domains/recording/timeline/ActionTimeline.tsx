@@ -127,9 +127,10 @@ export function ActionTimeline({
   const handleEditMergedSelector = useCallback(
     (mergedIndex: number, newSelector: string) => {
       if (!onEditSelector) return;
-      const originalIndices = mergedToOriginalMap.get(mergedIndex) || [];
-      if (originalIndices.length > 0) {
-        onEditSelector(originalIndices[0], newSelector);
+      const originalIndices = mergedToOriginalMap.get(mergedIndex) ?? [];
+      const firstIndex = originalIndices[0];
+      if (firstIndex !== undefined) {
+        onEditSelector(firstIndex, newSelector);
       }
       setEditingIndex(null);
       setEditMode(null);

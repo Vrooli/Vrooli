@@ -60,10 +60,10 @@ type DiscoveredCertificate struct {
 
 // DiscoveryResult contains the result of platform discovery.
 type DiscoveryResult struct {
-	Platform     string                           `json:"platform"`
+	Platform     string                            `json:"platform"`
 	Tools        []codesigning.ToolDetectionResult `json:"tools"`
-	Certificates []DiscoveredCertificate          `json:"certificates"`
-	Errors       []string                         `json:"errors,omitempty"`
+	Certificates []DiscoveredCertificate           `json:"certificates"`
+	Errors       []string                          `json:"errors,omitempty"`
 }
 
 // MultiPlatformDetector runs detection across multiple platforms.

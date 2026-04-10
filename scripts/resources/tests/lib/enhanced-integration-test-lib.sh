@@ -567,9 +567,6 @@ enhanced_test_lib::discover_resource_fixtures() {
                 "claude-code")
                     echo "documents/code"
                     ;;
-                "agent-s2")
-                    echo "images/real-world documents/web"
-                    ;;
             esac
             ;;
         "search")

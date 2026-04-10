@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { X } from "lucide-react";
+import { emitShortcutIntent, HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER } from "@vrooli/iframe-bridge";
 import { StatusHeader } from "./components/StatusHeader";
 import { MobileHeader } from "./components/MobileHeader";
 import { MobileNav } from "./components/MobileNav";
@@ -8,26 +10,22 @@ import { HistoryFileList } from "./components/HistoryFileList";
 import { DiffViewer } from "./components/DiffViewer";
 import { CommitPanel } from "./components/CommitPanel";
 import { GitHistory } from "./components/GitHistory";
-import { GroupingSettingsModal } from "./components/GroupingSettingsModal";
+import { DiscardConfirmationModal, type DiscardFile } from "./components/DiscardConfirmationModal";
+import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
 import { UpstreamInfoModal } from "./components/UpstreamInfoModal";
-import {
-  LayoutSettingsModal,
-  type LayoutPreset,
-  type LayoutSection
-} from "./components/LayoutSettingsModal";
-import { useIsMobile } from "./hooks";
+import { FileSearchModal } from "./components/FileSearchModal";
+import { MobileFileSearch } from "./components/MobileFileSearch";
+import { RelatedFilesPanel } from "./components/RelatedFilesPanel";
+import { type LayoutPreset, type LayoutSection } from "./components/LayoutSettingsModal";
+import { SettingsModal } from "./components/SettingsModal";
+import { ScenarioReviewPanel } from "./components/ScenarioReviewPanel";
+import { useIsMobile, useUrlState, parseUrlState, useScenarioReviewState } from "./hooks";
+import type { UrlState, ReviewTab } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
 import { fetchSyncStatus } from "./lib/api";
-import type { RepoHistoryEntry, ViewMode } from "./lib/api";
-
-/** State for viewing a historical commit (read-only mode) */
-export interface ViewingCommit {
-  hash: string;
-  subject: string;
-  files: string[];
-  author?: string;
-  date?: string;
-}
+import type { RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig } from "./lib/api";
+import { getFileTypeInfo } from "./lib/fileTypes";
+import type { ViewingCommit } from "./components/HistoryModeHeader";
 import {
   useHealth,
   useRepoStatus,
@@ -43,17 +41,69 @@ import {
   useIgnoreFile,
   usePush,
   usePull,
+  useSaveFileContent,
   useBranches,
   useCreateBranch,
   useSwitchBranch,
   usePublishBranch,
+  useDeletePath,
+  useRepos,
+  useOpenRepo,
+  useCloneRepo,
+  useSetActiveRepo,
+  useRemoveRepo,
+  useRepoSelection,
+  useGroupingRules,
+  useSaveGroupingRules,
   queryKeys
 } from "./lib/hooks";
 
 const layoutOrder: LayoutSection[] = ["changes", "history", "diff", "commit"];
 
+type SelectionEntry = { path: string; staged: boolean };
+
+/** Pure helper: compute the next selection given a mode ("single" | "toggle" | "range"). */
+function computeNextSelection(
+  nextKey: string,
+  lastKey: string | null,
+  mode: "single" | "toggle" | "range",
+  currentSelection: SelectionEntry[],
+  orderedIndexMap: Map<string, number>,
+  orderedKeys: string[],
+  orderedKeyToEntry: Map<string, SelectionEntry>,
+  selectionKey: (entry: SelectionEntry) => string,
+): SelectionEntry[] {
+  const nextEntry = orderedKeyToEntry.get(nextKey) ?? { path: nextKey.slice(2), staged: nextKey.startsWith("1:") };
+
+  if (mode === "range" && lastKey && orderedIndexMap.has(lastKey) && orderedIndexMap.has(nextKey)) {
+    const start = orderedIndexMap.get(lastKey) ?? 0;
+    const end = orderedIndexMap.get(nextKey) ?? 0;
+    const [from, to] = start < end ? [start, end] : [end, start];
+    return orderedKeys
+      .slice(from, to + 1)
+      .map((key) => orderedKeyToEntry.get(key))
+      .filter((entry): entry is SelectionEntry => Boolean(entry));
+  }
+
+  if (mode === "toggle") {
+    const hasEntry = currentSelection.some((entry) => selectionKey(entry) === nextKey);
+    if (hasEntry) {
+      return currentSelection.filter((entry) => selectionKey(entry) !== nextKey);
+    }
+    return [...currentSelection, nextEntry].sort((a, b) => {
+      const aIndex = orderedIndexMap.get(selectionKey(a)) ?? 0;
+      const bIndex = orderedIndexMap.get(selectionKey(b)) ?? 0;
+      return aIndex - bIndex;
+    });
+  }
+
+  // single
+  return [nextEntry];
+}
+
 export default function App() {
   const queryClient = useQueryClient();
+  const { repoId, setRepoId } = useRepoSelection();
   const isMobile = useIsMobile();
   const mainRef = useRef<HTMLDivElement | null>(null);
   const stackRef = useRef<HTMLDivElement | null>(null);
@@ -84,6 +134,7 @@ export default function App() {
   const [historySearch, setHistorySearch] = useState("");
   const [historyScopeFilter, setHistoryScopeFilter] = useState<string | null>(null);
   const [historyWorkingSetOnly, setHistoryWorkingSetOnly] = useState(false);
+  const [historyGrepPrefix, setHistoryGrepPrefix] = useState<string | null>(null);
   const [isHistoryFiltersOpen, setIsHistoryFiltersOpen] = useState(false);
   const stackResize = useRef<
     | { mode: "left" | "right"; start: number; max: number }
@@ -94,11 +145,10 @@ export default function App() {
   const historyResize = useRef<{ bottom: number } | null>(null);
   const sidebarMinWidth = 200;
   const diffMinWidth = 320;
-  const [groupingEnabled, setGroupingEnabled] = useState(false);
+  const [fileViewMode, setFileViewMode] = useState<FileViewMode>("flat");
   const [groupingRules, setGroupingRules] = useState<GroupingRule[]>([]);
   const [groupingLoadedKey, setGroupingLoadedKey] = useState<string | null>(null);
   const [groupingDefaultsPending, setGroupingDefaultsPending] = useState(false);
-  const [isGroupingSettingsOpen, setIsGroupingSettingsOpen] = useState(false);
   const [layoutPreset, setLayoutPreset] = useState<LayoutPreset>("classic");
   const [primaryPanel, setPrimaryPanel] = useState<LayoutSection>("diff");
   const [layoutLoadedKey, setLayoutLoadedKey] = useState<string | null>(null);
@@ -107,20 +157,58 @@ export default function App() {
     const stored = Number(localStorage.getItem("gct.stackHeight"));
     return Number.isFinite(stored) && stored > 0 ? stored : 320;
   });
-  const [isLayoutSettingsOpen, setIsLayoutSettingsOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [reviewScenarioSlug, setReviewScenarioSlug] = useState("");
+  // URL overrides are captured once on mount so the hook can prioritize URL params
+  const urlInitOverridesRef = useRef<{ activeTab?: ReviewTab; agentRunId?: string | null } | undefined>(undefined);
+  const scenarioReview = useScenarioReviewState(reviewScenarioSlug, {
+    urlOverrides: urlInitOverridesRef.current,
+  });
   // Mobile-specific state: which panel is currently active on mobile
-  const [mobileActivePanel, setMobileActivePanel] = useState<LayoutSection>("changes");
+  const [mobileActivePanel, setMobileActivePanel] = useState<LayoutSection>(() => {
+    if (typeof window === "undefined") return "changes";
+    const stored = localStorage.getItem("gct.mobileActivePanel");
+    const validPanels: LayoutSection[] = ["changes", "diff", "commit", "history", "review"];
+    if (stored && validPanels.includes(stored as LayoutSection)) {
+      return stored as LayoutSection;
+    }
+    return "changes";
+  });
   const [pushNotice, setPushNotice] = useState<{
     tone: "success" | "info" | "warning";
     message: string;
   } | null>(null);
+  const [warningNotice, setWarningNotice] = useState<{
+    message: string;
+    details?: string;
+  } | null>(null);
   const [isUpstreamInfoOpen, setIsUpstreamInfoOpen] = useState(false);
+  // File search state
+  const [isFileSearchOpen, setIsFileSearchOpen] = useState(false);
+  // Track if viewing a non-changed file (any file from search)
+  const [isViewingAnyFile, setIsViewingAnyFile] = useState(false);
+  // Related files panel state
+  const [showRelatedFiles, setShowRelatedFiles] = useState(false);
+  const [relatedFilesForPath, setRelatedFilesForPath] = useState<string | undefined>();
+  const [scrollToFile, setScrollToFile] = useState<string | undefined>();
+  // File blame mode (viewing history for a specific file)
+  const [viewingFileBlame, setViewingFileBlame] = useState<{
+    path: string;
+    filename: string;
+  } | null>(null);
+  // Pending file/folder delete confirmation
+  const [pendingDeletePath, setPendingDeletePath] = useState<{
+    path: string;
+    isDir: boolean;
+  } | null>(null);
+  // Track whether URL initialization is complete (state variable, not ref, for proper batching)
+  const [urlInitComplete, setUrlInitComplete] = useState(false);
 
   useEffect(() => {
-    if (!groupingEnabled || groupingRules.length === 0) {
+    if (fileViewMode !== "grouped" || groupingRules.length === 0) {
       setHistoryScopeFilter(null);
     }
-  }, [groupingEnabled, groupingRules.length]);
+  }, [fileViewMode, groupingRules.length]);
 
   useEffect(() => {
     if (!pushNotice) return;
@@ -129,6 +217,14 @@ export default function App() {
     }, 4000);
     return () => window.clearTimeout(timeout);
   }, [pushNotice]);
+
+  useEffect(() => {
+    if (!warningNotice) return;
+    const timeout = window.setTimeout(() => {
+      setWarningNotice(null);
+    }, 4000);
+    return () => window.clearTimeout(timeout);
+  }, [warningNotice]);
 
   // Selected file state
   const selectionKey = useCallback(
@@ -141,25 +237,155 @@ export default function App() {
   const [selectedFiles, setSelectedFiles] = useState<Array<{ path: string; staged: boolean }>>([]);
   const lastSelectedKeyRef = useRef<string | null>(null);
   const [confirmingDiscard, setConfirmingDiscard] = useState<string | null>(null);
+  const [pendingDiscardFiles, setPendingDiscardFiles] = useState<DiscardFile[] | null>(null);
   const [confirmingIgnore, setConfirmingIgnore] = useState<string | null>(null);
-  const [lastCommitHash, setLastCommitHash] = useState<string | undefined>();
+  const [_lastCommitHash, setLastCommitHash] = useState<string | undefined>();
   const [commitError, setCommitError] = useState<string | undefined>();
-  const [commitMessage, setCommitMessage] = useState("");
+  const [commitMessage, setCommitMessage] = useState(
+    () => localStorage.getItem("gct.commitMessage") ?? ""
+  );
   // History mode: when viewing a previous commit
   const [viewingCommit, setViewingCommit] = useState<ViewingCommit | null>(null);
   // View mode for diff viewer
   const [viewMode, setViewMode] = useState<ViewMode>("diff");
+
+  // Track whether we've initialized from URL (prevents clearing URL on first render)
+  const initializedFromUrlRef = useRef(false);
+  // Track whether URL specified a primary panel (prevents localStorage from overriding it)
+  const urlSetPrimaryRef = useRef(false);
+
+  // URL state management - handle browser back/forward and initial state
+  const handleUrlStateChange = useCallback((state: UrlState) => {
+    if (state.file) {
+      const isAnyFile = state.anyFile === true;
+      setSelectedFile(state.file);
+      setSelectedIsStaged(state.staged ?? false);
+      setSelectedIsUntracked(false);
+      setSelectedFiles([]);
+      setIsViewingAnyFile(isAnyFile);
+      setViewingCommit(null);
+      // Default mode: "source" for anyFile, "diff" for changed files
+      if (!state.mode) {
+        setViewMode(isAnyFile ? "source" : "diff");
+      }
+    }
+    if (state.mode) {
+      setViewMode(state.mode);
+    }
+    if (state.panel === "related" && state.file) {
+      setShowRelatedFiles(true);
+      setRelatedFilesForPath(state.file);
+    } else if (state.panel === "changes") {
+      setShowRelatedFiles(false);
+      setRelatedFilesForPath(undefined);
+    }
+    if (state.commit) {
+      // Note: Full history mode restoration would require fetching commit details
+      // For now, we just store the hash - user can click on the commit in history to fully restore
+    }
+    if (state.primary) {
+      const validPrimary: LayoutSection[] = ["changes", "diff", "commit", "history", "review"];
+      if (validPrimary.includes(state.primary as LayoutSection)) {
+        setPrimaryPanel(state.primary as LayoutSection);
+      }
+    } else {
+      setPrimaryPanel("diff");
+    }
+    if (state.reviewScenario) {
+      setReviewScenarioSlug(state.reviewScenario);
+    }
+    if (state.reviewTab) {
+      scenarioReview.update({ activeTab: state.reviewTab });
+    }
+    if (state.agentRunId) {
+      scenarioReview.update({ agentRunId: state.agentRunId });
+    }
+  }, [scenarioReview]);
+
+  const { updateState: updateUrlState } = useUrlState({
+    onStateChange: handleUrlStateChange
+  });
+
+  // Initialize state from URL on mount
+  useEffect(() => {
+    const initialState = parseUrlState(window.location.search);
+    if (initialState.primary) {
+      urlSetPrimaryRef.current = true;
+    }
+    // Capture URL overrides for the scenario review hook
+    if (initialState.reviewTab || initialState.agentRunId) {
+      urlInitOverridesRef.current = {
+        activeTab: initialState.reviewTab,
+        agentRunId: initialState.agentRunId ?? null,
+      };
+    }
+    if (initialState.file || initialState.commit || initialState.primary || initialState.reviewScenario || initialState.agentRunId) {
+      handleUrlStateChange(initialState);
+    }
+    // Mark as initialized so URL update effect can run
+    initializedFromUrlRef.current = true;
+    // Mark URL init complete (batched with other state updates from handleUrlStateChange)
+    setUrlInitComplete(true);
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update URL when relevant state changes (skip until initialized from URL)
+  useEffect(() => {
+    // Don't update URL until we've processed initial URL state
+    if (!initializedFromUrlRef.current) return;
+
+    const urlState: UrlState = {};
+
+    if (selectedFile) {
+      urlState.file = selectedFile;
+    }
+    if (selectedIsStaged) {
+      urlState.staged = true;
+    }
+    if (viewMode && viewMode !== "diff") {
+      urlState.mode = viewMode;
+    }
+    if (showRelatedFiles) {
+      urlState.panel = "related";
+    }
+    if (viewingCommit?.hash) {
+      urlState.commit = viewingCommit.hash;
+    }
+
+    if (primaryPanel !== "diff") {
+      urlState.primary = primaryPanel;
+    }
+    if (reviewScenarioSlug) {
+      urlState.reviewScenario = reviewScenarioSlug;
+    }
+    if (scenarioReview.state.activeTab && scenarioReview.state.activeTab !== "overview") {
+      urlState.reviewTab = scenarioReview.state.activeTab;
+    }
+    if (isViewingAnyFile) {
+      urlState.anyFile = true;
+    }
+    if (scenarioReview.state.agentRunId) {
+      urlState.agentRunId = scenarioReview.state.agentRunId;
+    }
+
+    updateUrlState(urlState);
+  }, [selectedFile, selectedIsStaged, viewMode, showRelatedFiles, viewingCommit?.hash, primaryPanel, reviewScenarioSlug, scenarioReview.state.activeTab, isViewingAnyFile, scenarioReview.state.agentRunId, updateUrlState]);
+
   const stackPosition: "left" | "right" | "bottom" =
     layoutPreset === "bottom" ? "bottom" : layoutPreset === "split" ? "right" : "left";
   const stackPanels = useMemo(
-    () => layoutOrder.filter((section) => section !== primaryPanel),
+    () => primaryPanel === "review" ? layoutOrder : layoutOrder.filter((section) => section !== primaryPanel),
     [primaryPanel]
   );
   const stackSlots = useMemo(() => {
     const remaining = new Set(stackPanels);
-    const middle = remaining.has("history") ? "history" : stackPanels[0];
+    const fallbackPanel: LayoutSection = "diff";
+    const middle = remaining.has("history") ? "history" : stackPanels[0] ?? fallbackPanel;
     remaining.delete(middle);
-    const bottom = remaining.has("commit") ? "commit" : stackPanels[1] ?? stackPanels[0];
+    const bottom = remaining.has("commit")
+      ? "commit"
+      : stackPanels[1] ?? stackPanels[0] ?? fallbackPanel;
     remaining.delete(bottom);
     const top = Array.from(remaining)[0] ?? middle;
     return { top, middle, bottom };
@@ -169,7 +395,8 @@ export default function App() {
       changes: changesCollapsed,
       history: historyCollapsed,
       commit: commitCollapsed,
-      diff: false
+      diff: false,
+      review: false
     }),
     [changesCollapsed, historyCollapsed, commitCollapsed]
   );
@@ -183,44 +410,62 @@ export default function App() {
 
   // Queries
   const healthQuery = useHealth();
-  const statusQuery = useRepoStatus();
-  const historyNeedsDetails = Boolean(
-    historySearch.trim() ||
-      historyScopeFilter ||
-      historyWorkingSetOnly ||
-      (groupingEnabled && groupingRules.length > 0)
-  );
-  const historyQuery = useRepoHistory(historyLimit, historyNeedsDetails);
-  const syncStatusQuery = useSyncStatus();
-  const approvedChangesQuery = useApprovedChanges();
+  const statusQuery = useRepoStatus(repoId);
+  // Always fetch entry details for commit viewing and blame mode filtering
+  const historyNeedsDetails = true;
+  const historyGrepPattern = historyGrepPrefix ? `${historyGrepPrefix} p` : undefined;
+  const historyEffectiveLimit = historyGrepPrefix ? 1000 : historyLimit;
+  const historyQuery = useRepoHistory(historyEffectiveLimit, historyNeedsDetails, repoId, historyGrepPattern);
+  const syncStatusQuery = useSyncStatus(repoId);
+  const approvedChangesQuery = useApprovedChanges(repoId);
   const diffQuery = useDiff(
     selectedFile,
-    viewingCommit ? false : selectedIsStaged,
-    viewingCommit ? false : selectedIsUntracked,
+    viewingCommit || isViewingAnyFile ? false : selectedIsStaged,
+    viewingCommit || isViewingAnyFile ? false : selectedIsUntracked,
     viewingCommit?.hash,
-    viewMode
+    isViewingAnyFile || viewMode === "preview" ? "source" : viewMode,
+    isViewingAnyFile,
+    repoId
   );
   const pushTargetRef =
     syncStatusQuery.data?.upstream ?? statusQuery.data?.branch.upstream;
   const pushSourceBranch = statusQuery.data?.branch.head;
   const upstreamAhead = syncStatusQuery.data?.ahead ?? statusQuery.data?.branch.ahead ?? 0;
   const upstreamBehind = syncStatusQuery.data?.behind ?? statusQuery.data?.branch.behind ?? 0;
+  const hasUpstream =
+    syncStatusQuery.data?.has_upstream ?? Boolean(statusQuery.data?.branch.upstream);
+  const canAmend = hasUpstream && upstreamAhead > 0;
+  const amendDisabledReason = hasUpstream
+    ? upstreamAhead > 0
+      ? undefined
+      : "Last commit already on upstream"
+    : "Set upstream before amending";
 
   // Mutations
-  const stageMutation = useStageFiles();
-  const unstageMutation = useUnstageFiles();
-  const commitMutation = useCommit();
-  const discardMutation = useDiscardFiles();
-  const ignoreMutation = useIgnoreFile();
-  const pushMutation = usePush();
-  const pullMutation = usePull();
-  const approvedPreviewMutation = useApprovedChangesPreview();
-  const branchesQuery = useBranches();
-  const createBranchMutation = useCreateBranch();
-  const switchBranchMutation = useSwitchBranch();
-  const publishBranchMutation = usePublishBranch();
+  const stageMutation = useStageFiles(repoId);
+  const unstageMutation = useUnstageFiles(repoId);
+  const commitMutation = useCommit(repoId);
+  const discardMutation = useDiscardFiles(repoId);
+  const ignoreMutation = useIgnoreFile(repoId);
+  const pushMutation = usePush(repoId);
+  const pullMutation = usePull(repoId);
+  const saveFileContentMutation = useSaveFileContent(repoId);
+  const approvedPreviewMutation = useApprovedChangesPreview(repoId);
+  const branchesQuery = useBranches(repoId);
+  const createBranchMutation = useCreateBranch(repoId);
+  const switchBranchMutation = useSwitchBranch(repoId);
+  const publishBranchMutation = usePublishBranch(repoId);
+  const deletePathMutation = useDeletePath(repoId);
+  const reposQuery = useRepos();
+  const openRepoMutation = useOpenRepo();
+  const cloneRepoMutation = useCloneRepo();
+  const setActiveRepoMutation = useSetActiveRepo();
+  const removeRepoMutation = useRemoveRepo();
+  const groupingRulesQuery = useGroupingRules(repoId);
+  const saveGroupingRulesMutation = useSaveGroupingRules(repoId);
 
   const isStaging = stageMutation.isPending || unstageMutation.isPending;
+  const isDeleting = deletePathMutation.isPending;
   const isDiscarding = discardMutation.isPending;
   const isIgnoring = ignoreMutation.isPending;
   const repoDir = statusQuery.data?.repo_dir;
@@ -232,25 +477,22 @@ export default function App() {
   // Handlers
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: queryKeys.health });
-    queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+    queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
     queryClient.invalidateQueries({
-      queryKey: queryKeys.repoHistory(historyLimit, historyNeedsDetails)
+      queryKey: queryKeys.repoHistory(historyLimit, historyNeedsDetails, repoId)
     });
-    queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
-    queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges });
-    queryClient.invalidateQueries({ queryKey: queryKeys.branches });
+    queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus(repoId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges(repoId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.branches(repoId) });
     if (selectedFile) {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.diff(selectedFile, selectedIsStaged, selectedIsUntracked)
-      });
+      queryClient.invalidateQueries({ queryKey: ["repo", "diff", repoId ?? "default"] });
     }
   }, [
     historyLimit,
     historyNeedsDetails,
     queryClient,
-    selectedFile,
-    selectedIsStaged,
-    selectedIsUntracked
+    repoId,
+    selectedFile
   ]);
 
   const branchActions = useMemo(
@@ -274,6 +516,55 @@ export default function App() {
       publishBranchMutation.isPending,
       publishBranchMutation.mutateAsync
     ]
+  );
+
+  const repoActions = useMemo(
+    () => ({
+      repos: reposQuery.data,
+      isLoading: reposQuery.isLoading,
+      openRepo: openRepoMutation.mutateAsync,
+      cloneRepo: cloneRepoMutation.mutateAsync,
+      setActiveRepo: setActiveRepoMutation.mutateAsync,
+      removeRepo: removeRepoMutation.mutateAsync,
+      isOpening: openRepoMutation.isPending,
+      isCloning: cloneRepoMutation.isPending,
+      isSettingActive: setActiveRepoMutation.isPending,
+      isRemoving: removeRepoMutation.isPending
+    }),
+    [
+      reposQuery.data,
+      reposQuery.isLoading,
+      openRepoMutation.isPending,
+      openRepoMutation.mutateAsync,
+      cloneRepoMutation.isPending,
+      cloneRepoMutation.mutateAsync,
+      setActiveRepoMutation.isPending,
+      setActiveRepoMutation.mutateAsync,
+      removeRepoMutation.isPending,
+      removeRepoMutation.mutateAsync
+    ]
+  );
+
+  useEffect(() => {
+    if (repoId || !reposQuery.data?.active_id) return;
+    setRepoId(String(reposQuery.data.active_id));
+  }, [repoId, reposQuery.data?.active_id, setRepoId]);
+
+  useEffect(() => {
+    setSelectedFile(undefined);
+    setSelectedFiles([]);
+    setSelectedIsStaged(false);
+    setSelectedIsUntracked(false);
+    setViewingCommit(null);
+    setIsViewingAnyFile(false);
+    setShowRelatedFiles(false);
+  }, [repoId]);
+
+  const handleRepoChange = useCallback(
+    (nextRepoId: string | null) => {
+      setRepoId(nextRepoId);
+    },
+    [setRepoId]
   );
 
   const orderedFiles = useMemo(() => {
@@ -318,7 +609,7 @@ export default function App() {
   const createGroupingRule = useCallback(
     (label: string, prefix: string, mode: GroupingRule["mode"] = "prefix"): GroupingRule => {
       return {
-        id: `group-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        id: `group-${prefix}`,
         label,
         prefixes: [prefix],
         mode: mode ?? "prefix"
@@ -345,13 +636,33 @@ export default function App() {
           const id =
             typeof rule?.id === "string" && rule.id.trim()
               ? rule.id.trim()
-              : `group-${Date.now()}-${index}`;
+              : `group-${prefixes[0] ?? index}`;
           return { id, label, prefixes, mode } as GroupingRule;
         })
         .filter((rule): rule is GroupingRule => Boolean(rule));
     },
     []
   );
+
+  // Check if grouping rules are available (have valid prefixes)
+  const groupingAvailable = useMemo(() => {
+    return groupingRules.some((rule) => {
+      const rawPrefixes = Array.isArray(rule?.prefixes)
+        ? rule.prefixes
+        : typeof rule?.prefix === "string"
+          ? [rule.prefix]
+          : [];
+      return rawPrefixes.some((prefix) => prefix.trim());
+    });
+  }, [groupingRules]);
+
+  const handleCycleViewMode = useCallback(() => {
+    setFileViewMode((prev) => {
+      if (prev === "flat") return groupingAvailable ? "grouped" : "tree";
+      if (prev === "grouped") return "tree";
+      return "flat";
+    });
+  }, [groupingAvailable]);
 
   const approvedStagedPaths = useMemo(() => {
     const staged = statusQuery.data?.files?.staged ?? [];
@@ -377,38 +688,9 @@ export default function App() {
     [selectedFiles, selectionKey]
   );
 
-  const handleSelectFile = useCallback(
-    (path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => {
-      const nextEntry = orderedKeyToEntry.get(selectionKey({ path, staged })) ?? { path, staged };
-      const nextKey = selectionKey(nextEntry);
-      const lastKey = lastSelectedKeyRef.current;
-      const isToggle = event.metaKey || event.ctrlKey;
-      const isRange = event.shiftKey && lastKey && orderedIndexMap.has(lastKey);
-      let nextSelection: Array<{ path: string; staged: boolean }>;
-
-      if (isRange && orderedIndexMap.has(nextKey)) {
-        const start = orderedIndexMap.get(lastKey) ?? 0;
-        const end = orderedIndexMap.get(nextKey) ?? 0;
-        const [from, to] = start < end ? [start, end] : [end, start];
-        nextSelection = orderedKeys
-          .slice(from, to + 1)
-          .map((key) => orderedKeyToEntry.get(key))
-          .filter((entry): entry is { path: string; staged: boolean } => Boolean(entry));
-      } else if (isToggle) {
-        const hasEntry = selectedFiles.some((entry) => selectionKey(entry) === nextKey);
-        if (hasEntry) {
-          nextSelection = selectedFiles.filter((entry) => selectionKey(entry) !== nextKey);
-        } else {
-          nextSelection = [...selectedFiles, nextEntry].sort((a, b) => {
-            const aIndex = orderedIndexMap.get(selectionKey(a)) ?? 0;
-            const bIndex = orderedIndexMap.get(selectionKey(b)) ?? 0;
-            return aIndex - bIndex;
-          });
-        }
-      } else {
-        nextSelection = [nextEntry];
-      }
-
+  /** Apply a computed selection and update primary-file state */
+  const applySelection = useCallback(
+    (nextSelection: SelectionEntry[], nextKey: string) => {
       setSelectedFiles(nextSelection);
       lastSelectedKeyRef.current = nextKey;
 
@@ -419,13 +701,37 @@ export default function App() {
         return;
       }
 
+      const clickedEntry = orderedKeyToEntry.get(nextKey) ?? { path: nextKey.slice(2), staged: nextKey.startsWith("1:") };
       const clickedStillSelected = nextSelection.some((entry) => selectionKey(entry) === nextKey);
       const primary = clickedStillSelected
-        ? nextEntry
-        : nextSelection[nextSelection.length - 1];
+        ? clickedEntry
+        : nextSelection[nextSelection.length - 1] ?? clickedEntry;
       setSelectedFile(primary.path);
       setSelectedIsStaged(primary.staged);
       setSelectedIsUntracked(!primary.staged && untrackedSet.has(primary.path));
+      setIsViewingAnyFile(false);
+      if (showRelatedFiles) {
+        setRelatedFilesForPath(primary.path);
+      } else {
+        setRelatedFilesForPath(undefined);
+      }
+    },
+    [orderedKeyToEntry, selectionKey, untrackedSet, showRelatedFiles],
+  );
+
+  const handleSelectFile = useCallback(
+    (path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => {
+      const nextKey = selectionKey({ path, staged });
+      const lastKey = lastSelectedKeyRef.current;
+      const isToggle = event.metaKey || event.ctrlKey;
+      const isRange = event.shiftKey && lastKey && orderedIndexMap.has(lastKey);
+      const mode: "single" | "toggle" | "range" = isRange ? "range" : isToggle ? "toggle" : "single";
+
+      const nextSelection = computeNextSelection(
+        nextKey, lastKey, mode, selectedFiles,
+        orderedIndexMap, orderedKeys, orderedKeyToEntry, selectionKey,
+      );
+      applySelection(nextSelection, nextKey);
     },
     [
       orderedIndexMap,
@@ -433,9 +739,55 @@ export default function App() {
       orderedKeys,
       selectionKey,
       selectedFiles,
-      untrackedSet
+      applySelection,
     ]
   );
+
+  // --- Mobile multi-select ---
+  const [mobileSelectionMode, setMobileSelectionMode] = useState(false);
+
+  const handleMobileSelectFile = useCallback(
+    (path: string, staged: boolean, mode: "toggle" | "range") => {
+      const nextKey = selectionKey({ path, staged });
+      const lastKey = lastSelectedKeyRef.current;
+      const nextSelection = computeNextSelection(
+        nextKey, lastKey, mode, selectedFiles,
+        orderedIndexMap, orderedKeys, orderedKeyToEntry, selectionKey,
+      );
+      applySelection(nextSelection, nextKey);
+    },
+    [orderedIndexMap, orderedKeyToEntry, orderedKeys, selectionKey, selectedFiles, applySelection],
+  );
+
+  const handleEnterSelectionMode = useCallback(
+    (path: string, staged: boolean) => {
+      setMobileSelectionMode(true);
+      const nextKey = selectionKey({ path, staged });
+      const entry = orderedKeyToEntry.get(nextKey) ?? { path, staged };
+      setSelectedFiles([entry]);
+      lastSelectedKeyRef.current = nextKey;
+      setSelectedFile(path);
+      setSelectedIsStaged(staged);
+      setSelectedIsUntracked(!staged && untrackedSet.has(path));
+    },
+    [selectionKey, orderedKeyToEntry, untrackedSet],
+  );
+
+  const handleExitSelectionMode = useCallback(() => {
+    setMobileSelectionMode(false);
+    setSelectedFiles([]);
+    setSelectedFile(undefined);
+    setSelectedIsStaged(false);
+    setSelectedIsUntracked(false);
+    lastSelectedKeyRef.current = null;
+  }, []);
+
+  // Auto-exit mobile selection mode when entering history or tree view
+  useEffect(() => {
+    if (mobileSelectionMode && (viewingCommit || fileViewMode === "tree")) {
+      setMobileSelectionMode(false);
+    }
+  }, [mobileSelectionMode, viewingCommit, fileViewMode]);
 
   const handleStageFile = useCallback(
     (path: string) => {
@@ -448,28 +800,39 @@ export default function App() {
       stageMutation.mutate(
         { paths: pathsToStage },
         {
-          onSuccess: () => {
+          onSuccess: (data) => {
             // If we were viewing this file's unstaged diff, switch to staged
             if (selectedFile === path && !selectedIsStaged) {
               setSelectedIsStaged(true);
               setSelectedIsUntracked(false);
             }
+            // On mobile, return to Changes tab so user isn't stranded on empty diff
+            if (isMobile) {
+              setMobileActivePanel("changes");
+            }
             pathsToStage.forEach((stagedPath) => {
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(stagedPath, false, false)
+                queryKey: queryKeys.diff(stagedPath, false, false, undefined, "diff", false, repoId)
               });
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(stagedPath, false, true)
+                queryKey: queryKeys.diff(stagedPath, false, true, undefined, "diff", false, repoId)
               });
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(stagedPath, true, false)
+                queryKey: queryKeys.diff(stagedPath, true, false, undefined, "diff", false, repoId)
               });
             });
+            // Show warning notice if there were warnings (e.g., ignored files)
+            if (data.warnings && data.warnings.length > 0) {
+              setWarningNotice({
+                message: "Some files were skipped",
+                details: data.warnings.join("\n")
+              });
+            }
           }
         }
       );
     },
-    [stageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles]
+    [stageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel]
   );
 
   const handleUnstageFile = useCallback(
@@ -489,22 +852,26 @@ export default function App() {
               setSelectedIsStaged(false);
               setSelectedIsUntracked(false);
             }
+            // On mobile, return to Changes tab so user isn't stranded on empty diff
+            if (isMobile) {
+              setMobileActivePanel("changes");
+            }
             pathsToUnstage.forEach((unstagedPath) => {
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(unstagedPath, false, false)
+                queryKey: queryKeys.diff(unstagedPath, false, false, undefined, "diff", false, repoId)
               });
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(unstagedPath, false, true)
+                queryKey: queryKeys.diff(unstagedPath, false, true, undefined, "diff", false, repoId)
               });
               queryClient.invalidateQueries({
-                queryKey: queryKeys.diff(unstagedPath, true, false)
+                queryKey: queryKeys.diff(unstagedPath, true, false, undefined, "diff", false, repoId)
               });
             });
           }
         }
       );
     },
-    [unstageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles]
+    [unstageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel]
   );
 
   const handleStageAll = useCallback(() => {
@@ -518,13 +885,37 @@ export default function App() {
     ];
     if (allUnstaged.length === 0) return;
 
-    stageMutation.mutate({ paths: allUnstaged });
+    stageMutation.mutate(
+      { paths: allUnstaged },
+      {
+        onSuccess: (data) => {
+          if (data.warnings && data.warnings.length > 0) {
+            setWarningNotice({
+              message: "Some files were skipped",
+              details: data.warnings.join("\n")
+            });
+          }
+        }
+      }
+    );
   }, [stageMutation, statusQuery.data]);
 
   const handleStagePaths = useCallback(
     (paths: string[]) => {
       if (paths.length === 0) return;
-      stageMutation.mutate({ paths });
+      stageMutation.mutate(
+        { paths },
+        {
+          onSuccess: (data) => {
+            if (data.warnings && data.warnings.length > 0) {
+              setWarningNotice({
+                message: "Some files were skipped",
+                details: data.warnings.join("\n")
+              });
+            }
+          }
+        }
+      );
     },
     [stageMutation]
   );
@@ -536,9 +927,15 @@ export default function App() {
     stageMutation.mutate(
       { paths: approvedPendingPaths },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           if (suggestedMessage) {
             setCommitMessage(suggestedMessage);
+          }
+          if (data.warnings && data.warnings.length > 0) {
+            setWarningNotice({
+              message: "Some files were skipped",
+              details: data.warnings.join("\n")
+            });
           }
         }
       }
@@ -565,12 +962,12 @@ export default function App() {
             setSelectedFiles((prev) =>
               prev.filter((entry) => entry.staged || !paths.includes(entry.path))
             );
-            queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+            queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
           }
         }
       );
     },
-    [discardMutation, queryClient, selectedFile]
+    [discardMutation, queryClient, selectedFile, repoId]
   );
 
   const handleDiscardFile = useCallback(
@@ -586,38 +983,100 @@ export default function App() {
             setSelectedFiles((prev) =>
               prev.filter((entry) => !(entry.path === path && !entry.staged))
             );
-            queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+            queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
           }
         }
       );
     },
-    [discardMutation, queryClient, selectedFile]
+    [discardMutation, queryClient, selectedFile, repoId]
   );
 
+  const handleDiscardMultiple = useCallback(() => {
+    if (!pendingDiscardFiles || pendingDiscardFiles.length === 0) return;
+
+    const trackedPaths = pendingDiscardFiles.filter((f) => !f.untracked).map((f) => f.path);
+    const untrackedPaths = pendingDiscardFiles.filter((f) => f.untracked).map((f) => f.path);
+    const allPaths = pendingDiscardFiles.map((f) => f.path);
+
+    const cleanup = () => {
+      // Clear selection for discarded files
+      if (selectedFile && allPaths.includes(selectedFile)) {
+        setSelectedFile(undefined);
+      }
+      setSelectedFiles((prev) => prev.filter((entry) => entry.staged || !allPaths.includes(entry.path)));
+      setPendingDiscardFiles(null);
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
+    };
+
+    // Handle tracked and untracked separately since API requires specific untracked flag
+    if (trackedPaths.length > 0 && untrackedPaths.length > 0) {
+      // Both types - chain the mutations
+      discardMutation.mutate(
+        { paths: trackedPaths, untracked: false },
+        {
+          onSuccess: () => {
+            discardMutation.mutate(
+              { paths: untrackedPaths, untracked: true },
+              { onSuccess: cleanup }
+            );
+          }
+        }
+      );
+    } else if (trackedPaths.length > 0) {
+      discardMutation.mutate({ paths: trackedPaths, untracked: false }, { onSuccess: cleanup });
+    } else if (untrackedPaths.length > 0) {
+      discardMutation.mutate({ paths: untrackedPaths, untracked: true }, { onSuccess: cleanup });
+    }
+  }, [pendingDiscardFiles, discardMutation, queryClient, selectedFile, repoId]);
+
   const handleIgnoreFile = useCallback(
-    (path: string) => {
+    (path: string, level?: "project" | "group", groupDir?: string) => {
       ignoreMutation.mutate(
-        { path },
+        { path, level, group_dir: groupDir },
         {
           onSuccess: () => {
             if (selectedFile === path) {
               setSelectedFile(undefined);
             }
             setSelectedFiles((prev) => prev.filter((entry) => entry.path !== path));
-            queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+            queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus(repoId) });
           }
         }
       );
     },
-    [ignoreMutation, queryClient, selectedFile]
+    [ignoreMutation, queryClient, selectedFile, repoId]
   );
 
-  const handleConfirmDiscard = useCallback((path: string | null) => {
-    setConfirmingDiscard(path);
-    if (path) {
-      setConfirmingIgnore(null);
-    }
-  }, []);
+  const handleConfirmDiscard = useCallback(
+    (path: string | null) => {
+      if (!path) {
+        setConfirmingDiscard(null);
+        return;
+      }
+
+      // Check if this file is part of a multi-selection
+      const selectedDiscardable = selectedFiles
+        .filter((entry) => !entry.staged)
+        .map((entry) => entry.path);
+      const isInMultiSelection =
+        selectedDiscardable.length > 1 && selectedDiscardable.includes(path);
+
+      if (isInMultiSelection) {
+        // Show modal with all selected files
+        const filesToDiscard: DiscardFile[] = selectedDiscardable.map((p) => ({
+          path: p,
+          untracked: untrackedSet.has(p)
+        }));
+        setPendingDiscardFiles(filesToDiscard);
+        setConfirmingIgnore(null);
+      } else {
+        // Single file - use inline confirmation
+        setConfirmingDiscard(path);
+        setConfirmingIgnore(null);
+      }
+    },
+    [selectedFiles, untrackedSet]
+  );
 
   const handleConfirmIgnore = useCallback((path: string | null) => {
     setConfirmingIgnore(path);
@@ -629,7 +1088,7 @@ export default function App() {
   const handleCommit = useCallback(
     (
       message: string,
-      options: { conventional: boolean; authorName?: string; authorEmail?: string }
+      options: { conventional: boolean; amend: boolean; authorName?: string; authorEmail?: string }
     ) => {
       setCommitError(undefined);
       setLastCommitHash(undefined);
@@ -638,6 +1097,7 @@ export default function App() {
         {
           message,
           validate_conventional: options.conventional,
+          amend: options.amend,
           author_name: options.authorName,
           author_email: options.authorEmail
         },
@@ -684,9 +1144,9 @@ export default function App() {
 
   const handlePush = useCallback(() => {
     setPushNotice(null);
-    fetchSyncStatus(true)
+    fetchSyncStatus(true, repoId ?? undefined)
       .then((freshStatus) => {
-        queryClient.setQueryData(queryKeys.syncStatus, freshStatus);
+        queryClient.setQueryData(queryKeys.syncStatus(repoId), freshStatus);
         if (freshStatus.fetch_error) {
           setPushNotice({
             tone: "warning",
@@ -746,11 +1206,22 @@ export default function App() {
       .catch(() => {
         pushMutation.mutate({});
       });
-  }, [pushMutation, queryClient, statusQuery.data?.branch.head]);
+  }, [pushMutation, queryClient, statusQuery.data?.branch.head, repoId]);
 
   const handlePull = useCallback(() => {
     pullMutation.mutate({});
   }, [pullMutation]);
+
+  const handleSaveFileContent = useCallback(
+    async (path: string, content: string, expectedHash?: string) => {
+      return saveFileContentMutation.mutateAsync({
+        path,
+        content,
+        expected_hash: expectedHash
+      });
+    },
+    [saveFileContentMutation]
+  );
 
   const handleLoadMoreHistory = useCallback(() => {
     setHistoryLimit((prev) => Math.min(historyMaxLimit, prev + 50));
@@ -785,12 +1256,30 @@ export default function App() {
     []
   );
 
+  // Handle "continue" action: pre-fill commit message with incremented pN
+  const handleContinueCommit = useCallback((message: string) => {
+    setCommitMessage(message);
+    setViewingCommit(null);
+    setSelectedFile(undefined);
+    setSelectedFiles([]);
+    if (isMobile) setMobileActivePanel("commit");
+  }, [isMobile]);
+
+  // Computed group filter info for the active grep prefix
+  const activeGroupFilter = useMemo(() => {
+    if (!historyGrepPrefix) return null;
+    const count = historyQuery.data?.entries?.length ?? historyQuery.data?.lines?.length ?? 0;
+    return { prefix: historyGrepPrefix, count };
+  }, [historyGrepPrefix, historyQuery.data]);
+
   // Handle selecting a file when in history mode
   const handleSelectHistoryFile = useCallback(
     (path: string) => {
       setSelectedFile(path);
       setSelectedIsStaged(false);
       setSelectedIsUntracked(false);
+      setShowRelatedFiles(false);
+      setRelatedFilesForPath(undefined);
     },
     []
   );
@@ -802,7 +1291,160 @@ export default function App() {
     setSelectedFiles([]);
     setSelectedIsStaged(false);
     setSelectedIsUntracked(false);
+    setIsViewingAnyFile(false);
+    setShowRelatedFiles(false);
+    setRelatedFilesForPath(undefined);
   }, []);
+
+  // Handle selecting a file from file search (view any file in source mode)
+  // Optional lineNumber for content search results - can be used to scroll to that line
+  const handleSelectAnyFile = useCallback((path: string, _lineNumber?: number) => {
+    setSelectedFile(path);
+    setSelectedIsStaged(false);
+    setSelectedIsUntracked(false);
+    setSelectedFiles([]);
+    setIsViewingAnyFile(true);
+    setViewingCommit(null);
+    setViewMode("source"); // Force source mode for any file
+    // If related files panel is open, update it to show relations for the new file
+    if (showRelatedFiles) {
+      setRelatedFilesForPath(path);
+    } else {
+      setRelatedFilesForPath(undefined);
+    }
+    if (isMobile) {
+      setMobileActivePanel("diff");
+    } else {
+      setPrimaryPanel("diff");
+    }
+    // Scrolling to a specific lineNumber would require adding state and passing it to DiffViewer
+  }, [isMobile, showRelatedFiles]);
+
+  // Handle showing related files panel
+  const handleShowRelatedFiles = useCallback((path: string) => {
+    setRelatedFilesForPath(path);
+    setShowRelatedFiles(true);
+  }, []);
+
+  // Handle back from related files panel
+  const handleBackFromRelatedFiles = useCallback(() => {
+    // Set scrollToFile before hiding related files so we scroll to the current selection
+    if (selectedFile) {
+      setScrollToFile(selectedFile);
+    }
+    setShowRelatedFiles(false);
+    setRelatedFilesForPath(undefined);
+  }, [selectedFile]);
+
+  // Clear scrollToFile after scroll completes
+  const handleScrollComplete = useCallback(() => {
+    setScrollToFile(undefined);
+  }, []);
+
+  // Handle selecting a file from the related files panel
+  const handleSelectRelatedFile = useCallback((path: string) => {
+    setSelectedFile(path);
+    setSelectedIsStaged(false);
+    setSelectedIsUntracked(false);
+    setSelectedFiles([]);
+    setIsViewingAnyFile(true);
+    setViewingCommit(null);
+    setViewMode("source");
+    // Keep related files panel open so user can explore related files of the new selection
+    setRelatedFilesForPath(path);
+    if (isMobile) {
+      setMobileActivePanel("diff");
+    }
+  }, [isMobile]);
+
+  // Handle request to delete file/folder (shows confirmation modal)
+  const handleRequestDeletePath = useCallback((path: string, isDir: boolean) => {
+    setPendingDeletePath({ path, isDir });
+  }, []);
+
+  // Handle confirmed delete
+  const handleConfirmDelete = useCallback(() => {
+    if (!pendingDeletePath) return;
+    deletePathMutation.mutate(
+      { path: pendingDeletePath.path },
+      {
+        onSuccess: () => {
+          setPendingDeletePath(null);
+          // Clear selection if we deleted the selected file
+          if (selectedFile === pendingDeletePath.path) {
+            setSelectedFile(undefined);
+          }
+        }
+      }
+    );
+  }, [pendingDeletePath, deletePathMutation, selectedFile]);
+
+  // Handle cancel delete
+  const handleCancelDelete = useCallback(() => {
+    setPendingDeletePath(null);
+  }, []);
+
+  // Handle blame file (view file history)
+  const handleBlameFile = useCallback((path: string) => {
+    const filename = path.split("/").pop() || path;
+    setViewingFileBlame({ path, filename });
+    if (isMobile) {
+      setMobileActivePanel("history");
+    }
+  }, [isMobile]);
+
+  // Handle exit blame mode
+  const handleExitBlameMode = useCallback(() => {
+    setViewingFileBlame(null);
+  }, []);
+
+  // Keyboard shortcut for file search (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        if (isFileSearchOpen) {
+          emitShortcutIntent({
+            action: HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
+            outcome: "noop",
+            chord: "mod+k",
+            source: "keyboard",
+          });
+          return;
+        }
+        setIsFileSearchOpen(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFileSearchOpen]);
+
+  // View mode fallback: when selectedFile changes, ensure viewMode is valid for the new file
+  useEffect(() => {
+    if (!selectedFile) return;
+
+    const fileType = getFileTypeInfo(selectedFile);
+    const availableModes: ViewMode[] = ["diff", "full_diff", "source"];
+    if (fileType.canPreview) {
+      availableModes.push("preview");
+    }
+
+    // Check if this file has any git changes
+    const hasGitChanges = orderedFiles.some((entry) => entry.path === selectedFile);
+
+    // If current mode is not available for this file, fallback
+    if (!availableModes.includes(viewMode)) {
+      // For files from search (isViewingAnyFile) or without changes, prefer "source"
+      // For git changes, prefer "diff"
+      const fallbackMode = isViewingAnyFile || !hasGitChanges ? "source" : "diff";
+      setViewMode(fallbackMode);
+    }
+    // If viewing a file without changes in diff mode, switch to source
+    else if (!hasGitChanges && (viewMode === "diff" || viewMode === "full_diff")) {
+      setViewMode("source");
+    }
+  }, [selectedFile, viewMode, isViewingAnyFile, orderedFiles]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -820,29 +1462,92 @@ export default function App() {
   }, [historyHeight]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("gct.mobileActivePanel", mobileActivePanel);
+  }, [mobileActivePanel]);
+
+  useEffect(() => {
+    if (commitMessage) {
+      localStorage.setItem("gct.commitMessage", commitMessage);
+    } else {
+      localStorage.removeItem("gct.commitMessage");
+    }
+  }, [commitMessage]);
+
+  useEffect(() => {
     if (!repoDir) return;
     if (groupingLoadedKey === repoKey) return;
 
-    const enabledKey = `gct.grouping.${repoKey}.enabled`;
-    const rulesKey = `gct.grouping.${repoKey}.rules`;
-    const storedEnabled = localStorage.getItem(enabledKey);
-    const storedRules = localStorage.getItem(rulesKey);
-    setGroupingEnabled(storedEnabled === "true");
-    if (storedRules) {
-      try {
-        const parsed = JSON.parse(storedRules) as GroupingRule[];
-        setGroupingRules(Array.isArray(parsed) ? normalizeGroupingRules(parsed) : []);
-        setGroupingDefaultsPending(false);
-      } catch {
+    // View mode still from localStorage (it's a UI-only preference)
+    const viewModeKey = `gct.viewMode.${repoKey}`;
+    const storedViewMode = localStorage.getItem(viewModeKey);
+    const legacyEnabledKey = `gct.grouping.${repoKey}.enabled`;
+    const legacyEnabled = localStorage.getItem(legacyEnabledKey);
+    if (storedViewMode === "flat" || storedViewMode === "grouped" || storedViewMode === "tree") {
+      setFileViewMode(storedViewMode);
+    } else if (legacyEnabled === "true") {
+      setFileViewMode("grouped");
+    } else {
+      setFileViewMode("flat");
+    }
+
+    // Load grouping rules from API
+    if (groupingRulesQuery.data) {
+      const apiRules = groupingRulesQuery.data.rules ?? [];
+      // Convert API format to UI format
+      const uiRules: GroupingRule[] = apiRules.map(r => ({
+        id: r.id,
+        label: r.label,
+        prefixes: r.prefixes,
+        mode: r.mode as "prefix" | "segment",
+      }));
+      setGroupingRules(normalizeGroupingRules(uiRules));
+      setGroupingDefaultsPending(apiRules.length === 0);
+      setGroupingLoadedKey(repoKey);
+    } else if (!groupingRulesQuery.isLoading) {
+      // API returned no data and isn't loading - check localStorage for migration
+      const rulesKey = `gct.grouping.${repoKey}.rules`;
+      const storedRules = localStorage.getItem(rulesKey);
+      if (storedRules) {
+        try {
+          const parsed = JSON.parse(storedRules) as GroupingRule[];
+          const normalized = Array.isArray(parsed) ? normalizeGroupingRules(parsed) : [];
+          setGroupingRules(normalized);
+          setGroupingDefaultsPending(false);
+          // Migrate to API
+          if (normalized.length > 0) {
+            const apiConfig: GroupingRulesConfig = {
+              enabled: true,
+              rules: normalized.map(r => ({
+                id: r.id,
+                label: r.label,
+                prefixes: r.prefixes ?? (r.prefix ? [r.prefix] : []),
+                mode: r.mode ?? "prefix",
+              })),
+            };
+            saveGroupingRulesMutation.mutate(apiConfig, {
+              onSuccess: () => {
+                // Clear localStorage after successful migration
+                localStorage.removeItem(rulesKey);
+              },
+            });
+          }
+        } catch {
+          setGroupingRules([]);
+          setGroupingDefaultsPending(true);
+        }
+      } else {
         setGroupingRules([]);
         setGroupingDefaultsPending(true);
       }
-    } else {
-      setGroupingRules([]);
-      setGroupingDefaultsPending(true);
+      setGroupingLoadedKey(repoKey);
     }
-    setGroupingLoadedKey(repoKey);
-  }, [repoDir, repoKey, groupingLoadedKey, normalizeGroupingRules]);
+    // When groupingRulesQuery is still loading (data=undefined, isLoading=true),
+    // we intentionally do NOT set groupingLoadedKey. This allows the effect to
+    // re-run when the data arrives, preventing a race condition where slow API
+    // responses (e.g. cold proxy cache) would cause grouping rules to be missed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repoDir, repoKey, groupingLoadedKey, normalizeGroupingRules, groupingRulesQuery.data, groupingRulesQuery.isLoading]);
 
   useEffect(() => {
     if (!repoDir) return;
@@ -858,14 +1563,19 @@ export default function App() {
         ? storedPreset
         : "classic"
     );
-    setPrimaryPanel(
-      storedPrimary === "changes" ||
-        storedPrimary === "history" ||
-        storedPrimary === "commit" ||
-        storedPrimary === "diff"
-        ? storedPrimary
-        : "diff"
-    );
+    if (!urlSetPrimaryRef.current) {
+      setPrimaryPanel(
+        storedPrimary === "changes" ||
+          storedPrimary === "history" ||
+          storedPrimary === "commit" ||
+          storedPrimary === "diff" ||
+          storedPrimary === "review"
+          ? storedPrimary
+          : "diff"
+      );
+    }
+    // Clear the URL override flag — localStorage can take over for future repo switches
+    urlSetPrimaryRef.current = false;
     if (Number.isFinite(storedStackHeight) && storedStackHeight > 0) {
       setStackHeight(storedStackHeight);
     }
@@ -874,11 +1584,20 @@ export default function App() {
 
   useEffect(() => {
     if (!repoDir || groupingLoadedKey !== repoKey) return;
-    const enabledKey = `gct.grouping.${repoKey}.enabled`;
-    const rulesKey = `gct.grouping.${repoKey}.rules`;
-    localStorage.setItem(enabledKey, String(groupingEnabled));
-    localStorage.setItem(rulesKey, JSON.stringify(groupingRules));
-  }, [repoDir, repoKey, groupingLoadedKey, groupingEnabled, groupingRules]);
+    const viewModeKey = `gct.viewMode.${repoKey}`;
+    localStorage.setItem(viewModeKey, fileViewMode);
+    // Save grouping rules to API (instead of localStorage)
+    saveGroupingRulesMutation.mutate({
+      enabled: groupingRules.length > 0,
+      rules: groupingRules.map(r => ({
+        id: r.id,
+        label: r.label,
+        prefixes: r.prefixes ?? (r.prefix ? [r.prefix] : []),
+        mode: r.mode ?? "prefix",
+      })),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repoDir, repoKey, groupingLoadedKey, fileViewMode, groupingRules]);
 
   useEffect(() => {
     if (!repoDir || layoutLoadedKey !== repoKey) return;
@@ -912,14 +1631,17 @@ export default function App() {
   }, [groupingDefaultsPending, repoDir, statusQuery.data?.files, createGroupingRule]);
 
   useEffect(() => {
-    if (groupingRules.length === 0 && groupingEnabled) {
-      setGroupingEnabled(false);
+    // If in grouped mode but no rules available, fall back to flat
+    if (groupingRules.length === 0 && fileViewMode === "grouped") {
+      setFileViewMode("flat");
     }
-  }, [groupingRules, groupingEnabled]);
+  }, [groupingRules, fileViewMode]);
 
   useEffect(() => {
-    // Skip working directory cleanup when in history mode
-    if (viewingCommit) return;
+    // Skip until URL initialization is complete (state batched together)
+    if (!urlInitComplete) return;
+    // Skip working directory cleanup when in history mode or viewing any file
+    if (viewingCommit || isViewingAnyFile) return;
 
     if (!orderedKeySet.size) {
       setSelectedFiles([]);
@@ -931,11 +1653,13 @@ export default function App() {
     }
 
     setSelectedFiles((prev) => prev.filter((entry) => orderedKeySet.has(selectionKey(entry))));
-  }, [orderedKeySet, selectionKey, viewingCommit]);
+  }, [urlInitComplete, orderedKeySet, selectionKey, viewingCommit, isViewingAnyFile]);
 
   useEffect(() => {
-    // Skip working directory cleanup when in history mode
-    if (viewingCommit) return;
+    // Skip until URL initialization is complete (state batched together)
+    if (!urlInitComplete) return;
+    // Skip working directory cleanup when in history mode or viewing any file
+    if (viewingCommit || isViewingAnyFile) return;
 
     if (!selectedFile) return;
     const activeKey = selectionKey({ path: selectedFile, staged: selectedIsStaged });
@@ -943,6 +1667,12 @@ export default function App() {
 
     if (selectedFiles.length > 0) {
       const fallback = selectedFiles[selectedFiles.length - 1];
+      if (!fallback) {
+        setSelectedFile(undefined);
+        setSelectedIsStaged(false);
+        setSelectedIsUntracked(false);
+        return;
+      }
       setSelectedFile(fallback.path);
       setSelectedIsStaged(fallback.staged);
       setSelectedIsUntracked(!fallback.staged && untrackedSet.has(fallback.path));
@@ -952,13 +1682,15 @@ export default function App() {
       setSelectedIsUntracked(false);
     }
   }, [
+    urlInitComplete,
     orderedKeySet,
     selectedFile,
     selectedFiles,
     selectedIsStaged,
     selectionKey,
     untrackedSet,
-    viewingCommit
+    viewingCommit,
+    isViewingAnyFile
   ]);
 
   useEffect(() => {
@@ -1175,6 +1907,17 @@ export default function App() {
 
     switch (panel) {
       case "changes":
+        // Show related files panel when active
+        if (showRelatedFiles && relatedFilesForPath) {
+          return (
+            <RelatedFilesPanel
+              forPath={relatedFilesForPath}
+              onBack={handleBackFromRelatedFiles}
+              onSelectFile={handleSelectRelatedFile}
+              repoId={repoId}
+            />
+          );
+        }
         // In history mode, show HistoryFileList instead of FileList
         if (isHistoryMode && viewingCommit) {
           return (
@@ -1185,6 +1928,7 @@ export default function App() {
               collapsed={changesCollapsed}
               onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
               fillHeight={isMain || !changesCollapsed}
+              onDeletePath={handleRequestDeletePath}
             />
           );
         }
@@ -1195,17 +1939,6 @@ export default function App() {
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}
-            syncStatus={
-              syncStatusQuery.data
-                ? {
-                    ahead: syncStatusQuery.data.ahead,
-                    behind: syncStatusQuery.data.behind,
-                    canPush: syncStatusQuery.data.can_push,
-                    canPull: syncStatusQuery.data.can_pull,
-                    warning: syncStatusQuery.data.safety_warnings?.join("; ")
-                  }
-                : undefined
-            }
             approvedChanges={
               approvedChangesQuery.data
                 ? {
@@ -1218,11 +1951,10 @@ export default function App() {
             approvedPaths={approvedPendingSet}
             onStageApproved={handleStageApproved}
             isStagingApproved={isStaging}
-            onPush={handlePush}
-            onPull={handlePull}
-            isPushing={pushMutation.isPending}
-            isPulling={pullMutation.isPending}
-            onSelectFile={handleSelectFile}
+            onSelectFile={(path, staged, event) => {
+              handleSelectFile(path, staged, event);
+              if (primaryPanel === "review") setPrimaryPanel("diff");
+            }}
             onStageFile={handleStageFile}
             onUnstageFile={handleUnstageFile}
             onDiscardFile={handleDiscardFile}
@@ -1239,12 +1971,24 @@ export default function App() {
             collapsed={changesCollapsed}
             onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
             fillHeight={isMain || !changesCollapsed}
-            groupingEnabled={groupingEnabled}
+            fileViewMode={fileViewMode}
             groupingRules={groupingRules}
-            onToggleGrouping={() => setGroupingEnabled((prev) => !prev)}
-            onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
+            groupingAvailable={groupingAvailable}
+            onCycleViewMode={handleCycleViewMode}
+
             onStagePaths={handleStagePaths}
             onDiscardPaths={handleDiscardPaths}
+            scrollToFile={scrollToFile}
+            onScrollComplete={handleScrollComplete}
+            onDeletePath={handleRequestDeletePath}
+            onBlameFile={handleBlameFile}
+            repoId={repoId}
+            onOpenReview={(slug) => { if (reviewScenarioSlug && slug !== reviewScenarioSlug) { scenarioReview.switchScenario(reviewScenarioSlug, slug); } setReviewScenarioSlug(slug); setPrimaryPanel("review"); }}
+            mobileSelectionMode={mobileSelectionMode}
+            onEnterSelectionMode={handleEnterSelectionMode}
+            onExitSelectionMode={handleExitSelectionMode}
+            onMobileSelectFile={handleMobileSelectFile}
+            fileHotspots={statusQuery.data?.file_hotspots}
           />
         );
       case "history":
@@ -1261,6 +2005,7 @@ export default function App() {
             onLoadMore={handleLoadMoreHistory}
             isFetching={historyQuery.isFetching}
             hasMore={
+              !historyGrepPrefix &&
               (historyQuery.data?.lines?.length ?? 0) >= historyLimit &&
               historyLimit < historyMaxLimit
             }
@@ -1268,7 +2013,7 @@ export default function App() {
             onSearchQueryChange={setHistorySearch}
             scopeFilter={historyScopeFilter}
             onScopeFilterChange={setHistoryScopeFilter}
-            groupingEnabled={groupingEnabled}
+            groupingEnabled={fileViewMode === "grouped"}
             groupingRules={groupingRules}
             workingSetPaths={workingSetPaths}
             workingSetOnly={historyWorkingSetOnly}
@@ -1277,7 +2022,17 @@ export default function App() {
             onOpenFilters={() => setIsHistoryFiltersOpen(true)}
             onCloseFilters={() => setIsHistoryFiltersOpen(false)}
             selectedCommitHash={viewingCommit?.hash}
-            onSelectCommit={handleSelectCommit}
+            onSelectCommit={(entry) => {
+              handleSelectCommit(entry);
+              if (entry && primaryPanel === "review") setPrimaryPanel("diff");
+            }}
+            blameFilePath={viewingFileBlame?.path}
+            blameFileName={viewingFileBlame?.filename}
+            onExitBlameMode={handleExitBlameMode}
+            onContinueCommit={handleContinueCommit}
+            activeGroupFilter={activeGroupFilter}
+            onFilterGroup={setHistoryGrepPrefix}
+            onClearGroupFilter={() => setHistoryGrepPrefix(null)}
           />
         );
       case "commit":
@@ -1291,10 +2046,11 @@ export default function App() {
             isUsingApprovedMessage={approvedPreviewMutation.isPending}
             onCommit={handleCommit}
             isCommitting={commitMutation.isPending}
-            lastCommitHash={lastCommitHash}
             commitError={commitError}
             defaultAuthorName={statusQuery.data?.author?.name}
             defaultAuthorEmail={statusQuery.data?.author?.email}
+            canAmend={canAmend}
+            amendDisabledReason={amendDisabledReason}
             collapsed={commitCollapsed}
             onToggleCollapse={() => setCommitCollapsed((prev) => !prev)}
             fillHeight={isMain || !commitCollapsed}
@@ -1305,6 +2061,21 @@ export default function App() {
             pushTarget={pushTargetRef}
             sourceBranch={pushSourceBranch}
             isHistoryMode={isHistoryMode}
+          />
+        );
+      case "review":
+        return (
+          <ScenarioReviewPanel
+            scenarioSlug={reviewScenarioSlug}
+            repoId={repoId}
+            fileStats={statusQuery.data?.file_stats}
+            onChangeScenario={(slug) => { if (reviewScenarioSlug && slug !== reviewScenarioSlug) { scenarioReview.switchScenario(reviewScenarioSlug, slug); } setReviewScenarioSlug(slug); }}
+            activeTab={scenarioReview.state.activeTab}
+            onActiveTabChange={(tab) => scenarioReview.update({ activeTab: tab })}
+            agentRunId={scenarioReview.state.agentRunId}
+            onAgentRunIdChange={(id) => scenarioReview.update({ agentRunId: id })}
+            scenarioState={scenarioReview.state}
+            onScenarioStateChange={scenarioReview.update}
           />
         );
       case "diff":
@@ -1323,6 +2094,14 @@ export default function App() {
               onViewModeChange={setViewMode}
               isHistoryMode={isHistoryMode}
               commitHash={viewingCommit?.hash}
+              onShowRelatedFiles={handleShowRelatedFiles}
+              onOpenSearch={() => setIsFileSearchOpen(true)}
+              onOpenReview={() => setPrimaryPanel("review")}
+              isReadOnly={isViewingAnyFile}
+              onSaveFileContent={handleSaveFileContent}
+              isSavingFile={saveFileContentMutation.isPending}
+              onDeletePath={handleRequestDeletePath}
+              isDeleting={isDeleting}
             />
           </div>
         );
@@ -1393,6 +2172,21 @@ export default function App() {
 
     switch (panel) {
       case "changes":
+        // Show related files panel when active
+        if (showRelatedFiles && relatedFilesForPath) {
+          return (
+            <RelatedFilesPanel
+              forPath={relatedFilesForPath}
+              onBack={handleBackFromRelatedFiles}
+              onSelectFile={(path) => {
+                handleSelectRelatedFile(path);
+                // On mobile, switch to diff view after selecting a file
+                setMobileActivePanel("diff");
+              }}
+              repoId={repoId}
+            />
+          );
+        }
         // In history mode, show HistoryFileList instead of FileList
         if (isHistoryMode && viewingCommit) {
           return (
@@ -1406,6 +2200,7 @@ export default function App() {
               }}
               collapsed={false}
               fillHeight={true}
+              onDeletePath={handleRequestDeletePath}
             />
           );
         }
@@ -1416,17 +2211,6 @@ export default function App() {
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}
-            syncStatus={
-              syncStatusQuery.data
-                ? {
-                    ahead: syncStatusQuery.data.ahead,
-                    behind: syncStatusQuery.data.behind,
-                    canPush: syncStatusQuery.data.can_push,
-                    canPull: syncStatusQuery.data.can_pull,
-                    warning: syncStatusQuery.data.safety_warnings?.join("; ")
-                  }
-                : undefined
-            }
             approvedChanges={
               approvedChangesQuery.data
                 ? {
@@ -1439,10 +2223,6 @@ export default function App() {
             approvedPaths={approvedPendingSet}
             onStageApproved={handleStageApproved}
             isStagingApproved={isStaging}
-            onPush={handlePush}
-            onPull={handlePull}
-            isPushing={pushMutation.isPending}
-            isPulling={pullMutation.isPending}
             onSelectFile={(path, staged, event) => {
               handleSelectFile(path, staged, event);
               // On mobile, switch to diff view after selecting a file
@@ -1463,12 +2243,24 @@ export default function App() {
             onConfirmIgnore={handleConfirmIgnore}
             collapsed={false}
             fillHeight={true}
-            groupingEnabled={groupingEnabled}
+            fileViewMode={fileViewMode}
             groupingRules={groupingRules}
-            onToggleGrouping={() => setGroupingEnabled((prev) => !prev)}
-            onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
+            groupingAvailable={groupingAvailable}
+            onCycleViewMode={handleCycleViewMode}
+
             onStagePaths={handleStagePaths}
             onDiscardPaths={handleDiscardPaths}
+            scrollToFile={scrollToFile}
+            onScrollComplete={handleScrollComplete}
+            onDeletePath={handleRequestDeletePath}
+            onBlameFile={handleBlameFile}
+            repoId={repoId}
+            onOpenReview={(slug) => { setReviewScenarioSlug(slug); setMobileActivePanel("review"); }}
+            mobileSelectionMode={mobileSelectionMode}
+            onEnterSelectionMode={handleEnterSelectionMode}
+            onExitSelectionMode={handleExitSelectionMode}
+            onMobileSelectFile={handleMobileSelectFile}
+            fileHotspots={statusQuery.data?.file_hotspots}
           />
         );
       case "diff":
@@ -1490,6 +2282,18 @@ export default function App() {
             isDiscarding={isDiscarding}
             isHistoryMode={isHistoryMode}
             commitHash={viewingCommit?.hash}
+            onShowRelatedFiles={(path) => {
+              handleShowRelatedFiles(path);
+              // On mobile, switch to changes view to see the related files panel
+              setMobileActivePanel("changes");
+            }}
+            onOpenSearch={() => setIsFileSearchOpen(true)}
+            onOpenReview={() => setMobileActivePanel("review")}
+            isReadOnly={isViewingAnyFile}
+            onSaveFileContent={handleSaveFileContent}
+            isSavingFile={saveFileContentMutation.isPending}
+            onDeletePath={handleRequestDeletePath}
+            isDeleting={isDeleting}
           />
         );
       case "commit":
@@ -1503,10 +2307,11 @@ export default function App() {
             isUsingApprovedMessage={approvedPreviewMutation.isPending}
             onCommit={handleCommit}
             isCommitting={commitMutation.isPending}
-            lastCommitHash={lastCommitHash}
             commitError={commitError}
             defaultAuthorName={statusQuery.data?.author?.name}
             defaultAuthorEmail={statusQuery.data?.author?.email}
+            canAmend={canAmend}
+            amendDisabledReason={amendDisabledReason}
             collapsed={false}
             fillHeight={true}
             onPush={handlePush}
@@ -1530,6 +2335,7 @@ export default function App() {
             onLoadMore={handleLoadMoreHistory}
             isFetching={historyQuery.isFetching}
             hasMore={
+              !historyGrepPrefix &&
               (historyQuery.data?.lines?.length ?? 0) >= historyLimit &&
               historyLimit < historyMaxLimit
             }
@@ -1537,7 +2343,7 @@ export default function App() {
             onSearchQueryChange={setHistorySearch}
             scopeFilter={historyScopeFilter}
             onScopeFilterChange={setHistoryScopeFilter}
-            groupingEnabled={groupingEnabled}
+            groupingEnabled={fileViewMode === "grouped"}
             groupingRules={groupingRules}
             workingSetPaths={workingSetPaths}
             workingSetOnly={historyWorkingSetOnly}
@@ -1553,6 +2359,29 @@ export default function App() {
                 setMobileActivePanel("changes");
               }
             }}
+            blameFilePath={viewingFileBlame?.path}
+            blameFileName={viewingFileBlame?.filename}
+            onExitBlameMode={handleExitBlameMode}
+            onContinueCommit={handleContinueCommit}
+            activeGroupFilter={activeGroupFilter}
+            onFilterGroup={setHistoryGrepPrefix}
+            onClearGroupFilter={() => setHistoryGrepPrefix(null)}
+          />
+        );
+      case "review":
+        return (
+          <ScenarioReviewPanel
+            scenarioSlug={reviewScenarioSlug}
+            repoId={repoId}
+            fileStats={statusQuery.data?.file_stats}
+            onChangeScenario={(slug) => { if (reviewScenarioSlug && slug !== reviewScenarioSlug) { scenarioReview.switchScenario(reviewScenarioSlug, slug); } setReviewScenarioSlug(slug); }}
+            activeTab={scenarioReview.state.activeTab}
+            onActiveTabChange={(tab) => scenarioReview.update({ activeTab: tab })}
+            agentRunId={scenarioReview.state.agentRunId}
+            onAgentRunIdChange={(id) => scenarioReview.update({ agentRunId: id })}
+            scenarioState={scenarioReview.state}
+            onScenarioStateChange={scenarioReview.update}
+            isMobile
           />
         );
     }
@@ -1586,13 +2415,23 @@ export default function App() {
           health={healthQuery.data}
           syncStatus={syncStatusQuery.data}
           branchActions={branchActions}
+          repoActions={repoActions}
+          onRepoChange={handleRepoChange}
           isLoading={statusQuery.isLoading || healthQuery.isLoading}
           onRefresh={handleRefresh}
-          onOpenLayoutSettings={() => setIsLayoutSettingsOpen(true)}
-          onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+
           onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
+          onOpenFileSearch={() => setIsFileSearchOpen(true)}
+          onOpenReview={() => setMobileActivePanel("review")}
           viewingCommit={viewingCommit}
           onExitHistoryMode={handleExitHistoryMode}
+          viewingFileBlame={viewingFileBlame}
+          onExitBlameMode={handleExitBlameMode}
+          onPush={handlePush}
+          onPull={handlePull}
+          isPushing={pushMutation.isPending}
+          isPulling={pullMutation.isPending}
         />
 
         {/* Main Content - Single Panel at a time */}
@@ -1619,23 +2458,71 @@ export default function App() {
           switchBranchMutation.error ||
           publishBranchMutation.error) && (
           <div
-            className="fixed bottom-20 left-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm"
+            className="fixed bottom-20 left-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm shadow-lg"
             data-testid="error-toast"
           >
-            <p className="font-medium">Operation failed</p>
-            <p className="text-xs mt-1 text-red-300">
-              {(
-                stageMutation.error ||
-                unstageMutation.error ||
-                discardMutation.error ||
-                ignoreMutation.error ||
-                pushMutation.error ||
-                pullMutation.error ||
-                createBranchMutation.error ||
-                switchBranchMutation.error ||
-                publishBranchMutation.error
-              )?.message}
-            </p>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-medium">Operation failed</p>
+                <p className="text-xs mt-1 text-red-300">
+                  {(
+                    stageMutation.error ||
+                    unstageMutation.error ||
+                    discardMutation.error ||
+                    ignoreMutation.error ||
+                    pushMutation.error ||
+                    pullMutation.error ||
+                    createBranchMutation.error ||
+                    switchBranchMutation.error ||
+                    publishBranchMutation.error
+                  )?.message}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  stageMutation.reset();
+                  unstageMutation.reset();
+                  discardMutation.reset();
+                  ignoreMutation.reset();
+                  pushMutation.reset();
+                  pullMutation.reset();
+                  createBranchMutation.reset();
+                  switchBranchMutation.reset();
+                  publishBranchMutation.reset();
+                }}
+                className="text-red-400 hover:text-red-200 p-1"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+        {/* Warning Toast - positioned above bottom nav */}
+        {warningNotice && (
+          <div
+            className="fixed bottom-20 left-4 right-4 px-4 py-3 rounded-lg bg-amber-950 border border-amber-800 text-amber-200 text-sm shadow-lg"
+            data-testid="warning-toast"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-medium">{warningNotice.message}</p>
+                {warningNotice.details && (
+                  <p className="text-xs mt-1 text-amber-300 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                    {warningNotice.details}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setWarningNotice(null)}
+                className="text-amber-400 hover:text-amber-200 p-1"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         )}
         {pushNotice && (
@@ -1649,28 +2536,25 @@ export default function App() {
         )}
 
         {/* Modals */}
-        <GroupingSettingsModal
-          isOpen={isGroupingSettingsOpen}
+        <SettingsModal
+          isOpen={isSettingsOpen}
           repoDir={repoDir}
-          groupingEnabled={groupingEnabled}
-          onToggleGrouping={() => setGroupingEnabled((prev) => !prev)}
-          rules={groupingRules}
-          onChangeRules={setGroupingRules}
-          onClose={() => setIsGroupingSettingsOpen(false)}
-        />
-        <LayoutSettingsModal
-          isOpen={isLayoutSettingsOpen}
-          repoDir={repoDir}
+          repoId={repoId}
+          syncStatus={syncStatusQuery.data}
           preset={layoutPreset}
           primaryPanel={primaryPanel}
           onChangePreset={setLayoutPreset}
           onChangePrimary={setPrimaryPanel}
-          onReset={() => {
+          onResetLayout={() => {
             setLayoutPreset("classic");
             setPrimaryPanel("diff");
             setStackHeight(320);
           }}
-          onClose={() => setIsLayoutSettingsOpen(false)}
+          groupingEnabled={fileViewMode === "grouped"}
+          onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
+          groupingRules={groupingRules}
+          onChangeGroupingRules={setGroupingRules}
+          onClose={() => setIsSettingsOpen(false)}
         />
         <UpstreamInfoModal
           isOpen={isUpstreamInfoOpen}
@@ -1678,7 +2562,29 @@ export default function App() {
           upstreamRef={pushTargetRef}
           ahead={upstreamAhead}
           behind={upstreamBehind}
+          repoId={repoId}
           onClose={() => setIsUpstreamInfoOpen(false)}
+        />
+        <DiscardConfirmationModal
+          isOpen={pendingDiscardFiles !== null}
+          files={pendingDiscardFiles ?? []}
+          isLoading={discardMutation.isPending}
+          onConfirm={handleDiscardMultiple}
+          onCancel={() => setPendingDiscardFiles(null)}
+        />
+        <DeleteConfirmationModal
+          isOpen={pendingDeletePath !== null}
+          path={pendingDeletePath?.path ?? ""}
+          isDirectory={pendingDeletePath?.isDir ?? false}
+          isLoading={isDeleting}
+          onConfirm={handleConfirmDelete}
+          onCancel={handleCancelDelete}
+        />
+        <MobileFileSearch
+          isOpen={isFileSearchOpen}
+          onClose={() => setIsFileSearchOpen(false)}
+          onSelectFile={handleSelectAnyFile}
+          repoId={repoId}
         />
       </div>
     );
@@ -1696,12 +2602,22 @@ export default function App() {
         health={healthQuery.data}
         syncStatus={syncStatusQuery.data}
         branchActions={branchActions}
+        repoActions={repoActions}
+        onRepoChange={handleRepoChange}
         isLoading={statusQuery.isLoading || healthQuery.isLoading}
         onRefresh={handleRefresh}
-        onOpenLayoutSettings={() => setIsLayoutSettingsOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
+        onOpenFileSearch={() => setIsFileSearchOpen(true)}
+        onOpenReview={() => setPrimaryPanel("review")}
         viewingCommit={viewingCommit}
         onExitHistoryMode={handleExitHistoryMode}
+        viewingFileBlame={viewingFileBlame}
+        onExitBlameMode={handleExitBlameMode}
+        onPush={handlePush}
+        onPull={handlePull}
+        isPushing={pushMutation.isPending}
+        isPulling={pullMutation.isPending}
       />
 
       {/* Main Content - Layout */}
@@ -1758,23 +2674,71 @@ export default function App() {
         switchBranchMutation.error ||
         publishBranchMutation.error) && (
         <div
-          className="fixed bottom-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm max-w-md"
+          className="fixed bottom-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm max-w-md shadow-lg"
           data-testid="error-toast"
         >
-          <p className="font-medium">Operation failed</p>
-          <p className="text-xs mt-1 text-red-300">
-            {(
-              stageMutation.error ||
-              unstageMutation.error ||
-              discardMutation.error ||
-              ignoreMutation.error ||
-              pushMutation.error ||
-              pullMutation.error ||
-              createBranchMutation.error ||
-              switchBranchMutation.error ||
-              publishBranchMutation.error
-            )?.message}
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="font-medium">Operation failed</p>
+              <p className="text-xs mt-1 text-red-300">
+                {(
+                  stageMutation.error ||
+                  unstageMutation.error ||
+                  discardMutation.error ||
+                  ignoreMutation.error ||
+                  pushMutation.error ||
+                  pullMutation.error ||
+                  createBranchMutation.error ||
+                  switchBranchMutation.error ||
+                  publishBranchMutation.error
+                )?.message}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                stageMutation.reset();
+                unstageMutation.reset();
+                discardMutation.reset();
+                ignoreMutation.reset();
+                pushMutation.reset();
+                pullMutation.reset();
+                createBranchMutation.reset();
+                switchBranchMutation.reset();
+                publishBranchMutation.reset();
+              }}
+              className="text-red-400 hover:text-red-200 p-1"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Warning Toast */}
+      {warningNotice && (
+        <div
+          className="fixed bottom-4 right-4 max-w-md px-4 py-3 rounded-lg bg-amber-950 border border-amber-800 text-amber-200 text-sm shadow-lg"
+          data-testid="warning-toast"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="font-medium">{warningNotice.message}</p>
+              {warningNotice.details && (
+                <p className="text-xs mt-1 text-amber-300 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                  {warningNotice.details}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setWarningNotice(null)}
+              className="text-amber-400 hover:text-amber-200 p-1"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
       {pushNotice && (
@@ -1786,28 +2750,25 @@ export default function App() {
           <p className="text-xs mt-1">{pushNotice.message}</p>
         </div>
       )}
-      <GroupingSettingsModal
-        isOpen={isGroupingSettingsOpen}
+      <SettingsModal
+        isOpen={isSettingsOpen}
         repoDir={repoDir}
-        groupingEnabled={groupingEnabled}
-        onToggleGrouping={() => setGroupingEnabled((prev) => !prev)}
-        rules={groupingRules}
-        onChangeRules={setGroupingRules}
-        onClose={() => setIsGroupingSettingsOpen(false)}
-      />
-      <LayoutSettingsModal
-        isOpen={isLayoutSettingsOpen}
-        repoDir={repoDir}
+        repoId={repoId}
+        syncStatus={syncStatusQuery.data}
         preset={layoutPreset}
         primaryPanel={primaryPanel}
         onChangePreset={setLayoutPreset}
         onChangePrimary={setPrimaryPanel}
-        onReset={() => {
+        onResetLayout={() => {
           setLayoutPreset("classic");
           setPrimaryPanel("diff");
           setStackHeight(320);
         }}
-        onClose={() => setIsLayoutSettingsOpen(false)}
+        groupingEnabled={fileViewMode === "grouped"}
+        onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
+        groupingRules={groupingRules}
+        onChangeGroupingRules={setGroupingRules}
+        onClose={() => setIsSettingsOpen(false)}
       />
       <UpstreamInfoModal
         isOpen={isUpstreamInfoOpen}
@@ -1815,7 +2776,29 @@ export default function App() {
         upstreamRef={pushTargetRef}
         ahead={upstreamAhead}
         behind={upstreamBehind}
+        repoId={repoId}
         onClose={() => setIsUpstreamInfoOpen(false)}
+      />
+      <DiscardConfirmationModal
+        isOpen={pendingDiscardFiles !== null}
+        files={pendingDiscardFiles ?? []}
+        isLoading={discardMutation.isPending}
+        onConfirm={handleDiscardMultiple}
+        onCancel={() => setPendingDiscardFiles(null)}
+      />
+      <DeleteConfirmationModal
+        isOpen={pendingDeletePath !== null}
+        path={pendingDeletePath?.path ?? ""}
+        isDirectory={pendingDeletePath?.isDir ?? false}
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
+      <FileSearchModal
+        isOpen={isFileSearchOpen}
+        onClose={() => setIsFileSearchOpen(false)}
+        onSelectFile={handleSelectAnyFile}
+        repoId={repoId}
       />
     </div>
   );

@@ -396,8 +396,13 @@ type ToolMetadata struct {
 	// Whether the tool output may contain sensitive data.
 	// Used for logging and display decisions.
 	SensitiveOutput bool `protobuf:"varint,12,opt,name=sensitive_output,json=sensitiveOutput,proto3" json:"sensitive_output,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Whether this tool is internal-only and should be hidden from AI.
+	// Internal tools (like status polling and cancellation) are used by the
+	// async tracker but should not be visible in the AI's tool list.
+	// @default false
+	InternalOnly  bool `protobuf:"varint,13,opt,name=internal_only,json=internalOnly,proto3" json:"internal_only,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ToolMetadata) Reset() {
@@ -510,6 +515,13 @@ func (x *ToolMetadata) GetModifiesState() bool {
 func (x *ToolMetadata) GetSensitiveOutput() bool {
 	if x != nil {
 		return x.SensitiveOutput
+	}
+	return false
+}
+
+func (x *ToolMetadata) GetInternalOnly() bool {
+	if x != nil {
+		return x.InternalOnly
 	}
 	return false
 }
@@ -1278,7 +1290,7 @@ const file_agent_inbox_v1_domain_tool_proto_rawDesc = "" +
 	"\n" +
 	"\b_maximumB\r\n" +
 	"\v_min_lengthB\r\n" +
-	"\v_max_length\"\x92\x04\n" +
+	"\v_max_length\"\xb7\x04\n" +
 	"\fToolMetadata\x12,\n" +
 	"\x12enabled_by_default\x18\x01 \x01(\bR\x10enabledByDefault\x12+\n" +
 	"\x11requires_approval\x18\x02 \x01(\bR\x10requiresApproval\x12'\n" +
@@ -1294,7 +1306,8 @@ const file_agent_inbox_v1_domain_tool_proto_rawDesc = "" +
 	"\x0easync_behavior\x18\n" +
 	" \x01(\v2\x1d.agent_inbox.v1.AsyncBehaviorR\rasyncBehavior\x12%\n" +
 	"\x0emodifies_state\x18\v \x01(\bR\rmodifiesState\x12)\n" +
-	"\x10sensitive_output\x18\f \x01(\bR\x0fsensitiveOutput\"\x9c\x01\n" +
+	"\x10sensitive_output\x18\f \x01(\bR\x0fsensitiveOutput\x12#\n" +
+	"\rinternal_only\x18\r \x01(\bR\finternalOnly\"\x9c\x01\n" +
 	"\vToolExample\x12 \n" +
 	"\vdescription\x18\x01 \x01(\tR\vdescription\x12+\n" +
 	"\x05input\x18\x02 \x01(\v2\x15.common.v1.JsonObjectR\x05input\x12>\n" +

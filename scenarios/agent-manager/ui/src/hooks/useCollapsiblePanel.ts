@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback } from "react";
 export interface UseCollapsiblePanelOptions {
   /** Storage key for localStorage persistence (will be prefixed with "agm.") */
   storageKey: string;
+  /** Optional full localStorage key override (for legacy key compatibility) */
+  persistKey?: string;
   /** Default collapsed state */
   defaultCollapsed?: boolean;
 }
@@ -25,9 +27,10 @@ const STORAGE_PREFIX = "agm.panel.";
  */
 export function useCollapsiblePanel({
   storageKey,
+  persistKey,
   defaultCollapsed = false,
 }: UseCollapsiblePanelOptions): UseCollapsiblePanelReturn {
-  const fullStorageKey = `${STORAGE_PREFIX}${storageKey}.collapsed`;
+  const fullStorageKey = persistKey ?? `${STORAGE_PREFIX}${storageKey}.collapsed`;
 
   // Initialize from localStorage or default
   const [isCollapsed, setIsCollapsed] = useState(() => {

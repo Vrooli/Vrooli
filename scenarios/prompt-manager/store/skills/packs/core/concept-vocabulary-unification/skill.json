@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "concept-vocabulary-unification",
+  "name": "Concept Vocabulary Unification",
+  "description": "Standardize naming and terminology across the codebase",
+  "modes": [
+    "steer",
+    "naming"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "bookopen",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 43,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2026-02-04T13:13:54Z"
+}

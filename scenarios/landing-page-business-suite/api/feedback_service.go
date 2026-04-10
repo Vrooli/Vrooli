@@ -7,6 +7,20 @@ import (
 	"time"
 )
 
+// FeedbackServicer defines the interface for feedback operations.
+// This interface allows for easy mocking in tests.
+type FeedbackServicer interface {
+	Create(input *CreateFeedbackInput) (*FeedbackRequest, error)
+	List(status string) ([]FeedbackRequest, error)
+	GetByID(id int) (*FeedbackRequest, error)
+	UpdateStatus(id int, status string) (*FeedbackRequest, error)
+	Delete(id int) error
+	DeleteBulk(ids []int) (int64, error)
+}
+
+// Compile-time check that FeedbackService implements FeedbackServicer
+var _ FeedbackServicer = (*FeedbackService)(nil)
+
 // FeedbackRequest represents a user feedback submission
 type FeedbackRequest struct {
 	ID        int       `json:"id"`

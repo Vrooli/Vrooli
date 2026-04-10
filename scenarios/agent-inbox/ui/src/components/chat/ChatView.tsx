@@ -1,22 +1,28 @@
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { Loader2 } from "lucide-react";
+import { ErrorBoundary } from "../ErrorBoundary";
 import { ChatHeader } from "./ChatHeader";
 import { MessageList } from "./MessageList";
-import { MessageInput, type MessagePayload } from "./MessageInput";
-import { AsyncOperationsPanel } from "./AsyncOperationCard";
+import type { MessagePayload } from "./MessageInput";
+import { AsyncStatusBar } from "./AsyncStatusBar";
+import { AsyncOperationDrawer } from "./AsyncOperationDrawer";
+import { AgentEventList } from "./agent/AgentEventList";
+import type { AsyncResultReference } from "./AsyncResultChip";
 import type { ChatWithMessages, Model, Label, Message } from "../../lib/api";
 import type { ActiveToolCall } from "../../hooks/useChats";
 import type { AsyncStatusUpdate } from "../../hooks/useAsyncStatus";
 import type { ViewMode } from "../settings/Settings";
 import { computeVisibleMessages } from "../../lib/messageTree";
+import { useAgentChatMode } from "./useAgentChatMode";
+import { ChatViewFooter } from "./ChatViewFooter";
 
-// Stable empty arrays for default prop values and useMemo returns
-// CRITICAL: Using `= []` or `return []` creates a NEW array on every render/recalculation,
-// which changes references and triggers infinite re-render loops via useMemo dependencies
+// Stable empty arrays for default prop values
 const EMPTY_TOOL_CALLS: ActiveToolCall[] = [];
 const EMPTY_IMAGES: string[] = [];
 const EMPTY_ASYNC_OPS: AsyncStatusUpdate[] = [];
 const EMPTY_MESSAGES: Message[] = [];
+const EMPTY_TOOL_RECORDS: import("../../lib/api").ToolCallRecord[] = [];
+const EMPTY_ASYNC_REFS: AsyncResultReference[] = [];
 
 interface ChatViewProps {
   chatData: ChatWithMessages | null;
@@ -38,72 +44,100 @@ interface ChatViewProps {
   onAssignLabel: (labelId: string) => void;
   onRemoveLabel: (labelId: string) => void;
   viewMode?: ViewMode;
-  // Branching operations
   onRegenerateMessage?: (messageId: string) => void;
   onSelectBranch?: (messageId: string) => void;
   onForkConversation?: (messageId: string) => void;
   isRegenerating?: boolean;
   isForking?: boolean;
-  // Edit operations
   editingMessage?: Message | null;
   onEditMessage?: (message: Message) => void;
   onCancelEdit?: () => void;
   onSubmitEdit?: (payload: MessagePayload) => void;
-  // Async operations
   asyncOperations?: AsyncStatusUpdate[];
+  activeAsyncOperations?: AsyncStatusUpdate[];
+  completedAsyncOperations?: AsyncStatusUpdate[];
   onCancelAsyncOperation?: (toolCallId: string) => Promise<void>;
+  onRefreshAsyncOperation?: (toolCallId: string) => Promise<AsyncStatusUpdate>;
+  onFetchAsyncHistory?: () => Promise<void>;
+  hasMoreAsyncHistory?: boolean;
+  asyncReferences?: AsyncResultReference[];
+  onInsertAsyncReference?: (operation: AsyncStatusUpdate) => void;
+  onRemoveAsyncReference?: (toolCallId: string) => void;
+  onTemplateActivated?: (templateId: string, toolIds: string[]) => Promise<void>;
+  activeTemplateId?: string | null;
+  onTemplateDeactivate?: () => void;
+  onRefreshChat?: () => void;
+  onOpenAgentSettings?: () => void;
+  onBackToList?: () => void;
+  isMobile?: boolean;
+  onOpenSidebar?: () => void;
 }
 
 export function ChatView({
-  chatData,
-  models,
-  labels,
-  isLoading,
-  isGenerating,
-  streamingContent,
-  activeToolCalls = EMPTY_TOOL_CALLS,
-  generatedImages = EMPTY_IMAGES,
-  scrollToMessageId,
-  onScrollComplete,
-  onSendMessage,
-  onUpdateChat,
-  onToggleRead,
-  onToggleStar,
-  onToggleArchive,
-  onDeleteChat,
-  onAssignLabel,
-  onRemoveLabel,
-  viewMode,
-  onRegenerateMessage,
-  onSelectBranch,
-  onForkConversation,
-  isRegenerating = false,
-  isForking = false,
-  editingMessage,
-  onEditMessage,
-  onCancelEdit,
-  onSubmitEdit,
+  chatData, models, labels, isLoading, isGenerating, streamingContent,
+  activeToolCalls = EMPTY_TOOL_CALLS, generatedImages = EMPTY_IMAGES,
+  scrollToMessageId, onScrollComplete, onSendMessage, onUpdateChat,
+  onToggleRead, onToggleStar, onToggleArchive, onDeleteChat,
+  onAssignLabel, onRemoveLabel, viewMode,
+  onRegenerateMessage, onSelectBranch, onForkConversation,
+  isRegenerating = false, isForking = false,
+  editingMessage, onEditMessage, onCancelEdit, onSubmitEdit,
   asyncOperations = EMPTY_ASYNC_OPS,
-  onCancelAsyncOperation,
+  activeAsyncOperations = EMPTY_ASYNC_OPS,
+  completedAsyncOperations = EMPTY_ASYNC_OPS,
+  onCancelAsyncOperation, onRefreshAsyncOperation,
+  onFetchAsyncHistory, hasMoreAsyncHistory = false,
+  asyncReferences: _asyncReferences = EMPTY_ASYNC_REFS,
+  onInsertAsyncReference, onRemoveAsyncReference: _onRemoveAsyncReference,
+  onTemplateActivated, activeTemplateId, onTemplateDeactivate,
+  onRefreshChat, onOpenAgentSettings: _onOpenAgentSettings,
+  onBackToList, isMobile, onOpenSidebar,
 }: ChatViewProps) {
-  // Compute visible messages based on the active branch
-  // This filters the full message tree to only show the active path
-  // NOTE: Must be called before any early returns to satisfy React's rules of hooks
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedOperation, setSelectedOperation] = useState<AsyncStatusUpdate | null>(null);
+  const [statusBarCollapsed, setStatusBarCollapsed] = useState(false);
 
-  // Memoize allMessages to avoid creating new array references on each render
-  // when chatData?.messages is undefined (which would cause infinite re-renders)
-  // CRITICAL: Must use stable EMPTY_MESSAGES, not inline [] which creates new reference each time
-  const allMessages = useMemo(
-    () => chatData?.messages ?? EMPTY_MESSAGES,
-    [chatData?.messages]
-  );
+  const agent = useAgentChatMode({ chatData, onRefreshChat, onSendLlmMessage: onSendMessage });
+
+  const handleOpenDrawer = useCallback((operation?: AsyncStatusUpdate) => {
+    setSelectedOperation(operation ?? null);
+    setDrawerOpen(true);
+  }, []);
+
+  const handleInsertReference = useCallback((operation: AsyncStatusUpdate) => {
+    onInsertAsyncReference?.(operation);
+    setDrawerOpen(false);
+  }, [onInsertAsyncReference]);
+
+  const handleRefreshOperation = useCallback(async (toolCallId: string) => {
+    if (onRefreshAsyncOperation) await onRefreshAsyncOperation(toolCallId);
+  }, [onRefreshAsyncOperation]);
+
+  const handleCancelOperation = useCallback(async (toolCallId: string) => {
+    if (onCancelAsyncOperation) await onCancelAsyncOperation(toolCallId);
+  }, [onCancelAsyncOperation]);
+
+  const handleLoadMoreHistory = useCallback(async () => {
+    if (onFetchAsyncHistory) await onFetchAsyncHistory();
+  }, [onFetchAsyncHistory]);
+
+  const allMessages = useMemo(() => {
+    const messages = chatData?.messages;
+    if (!messages || messages.length === 0) return EMPTY_MESSAGES;
+    return messages;
+  }, [chatData?.messages]);
   const activeLeafId = chatData?.chat?.active_leaf_message_id ?? null;
 
-  // CRITICAL: Must use stable EMPTY_MESSAGES, not inline [] which creates new reference each time
   const visibleMessages = useMemo(() => {
-    if (!chatData || allMessages.length === 0) return EMPTY_MESSAGES;
+    if (allMessages.length === 0) return EMPTY_MESSAGES;
     return computeVisibleMessages(allMessages, activeLeafId ?? undefined);
-  }, [chatData, allMessages, activeLeafId]);
+  }, [allMessages, activeLeafId]);
+
+  const stableToolCallRecords = useMemo(() => {
+    const records = chatData?.tool_call_records;
+    if (!records || records.length === 0) return EMPTY_TOOL_RECORDS;
+    return records;
+  }, [chatData?.tool_call_records]);
 
   if (isLoading) {
     return (
@@ -116,64 +150,78 @@ export function ChatView({
     );
   }
 
-  if (!chatData) {
-    return null;
-  }
+  if (!chatData) return null;
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-slate-950" data-testid="chat-view">
-      <ChatHeader
-        chat={chatData.chat}
-        models={models}
-        labels={labels}
-        onUpdateChat={(data) => onUpdateChat(data)}
-        onToggleRead={onToggleRead}
-        onToggleStar={onToggleStar}
-        onToggleArchive={onToggleArchive}
-        onDelete={onDeleteChat}
-        onAssignLabel={onAssignLabel}
-        onRemoveLabel={onRemoveLabel}
-      />
-
-      {/* Async Operations Panel - shows active long-running tool operations */}
-      {asyncOperations.length > 0 && (
-        <AsyncOperationsPanel
-          operations={asyncOperations}
-          onCancel={onCancelAsyncOperation}
+    <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-slate-950" data-testid="chat-view">
+      <ErrorBoundary name="ChatHeader">
+        <ChatHeader
+          chat={chatData.chat} models={models} labels={labels}
+          chatMode={agent.chatMode} onUpdateChat={onUpdateChat}
+          onToggleRead={onToggleRead} onToggleStar={onToggleStar}
+          onToggleArchive={onToggleArchive} onDelete={onDeleteChat}
+          onAssignLabel={onAssignLabel} onRemoveLabel={onRemoveLabel}
+          isAgentActive={agent.isAgentActive} agentStatus={agent.agentStatus}
+          agentMetrics={agent.agentMetrics} agentError={agent.agentError}
+          onStopAgent={agent.handleStopAgent} onBackToList={onBackToList}
+          isMobile={isMobile} onOpenSidebar={onOpenSidebar}
+          hasMessages={visibleMessages.length > 0}
+          onModeChange={agent.setChatMode} onOpenAgentSettings={_onOpenAgentSettings}
         />
+      </ErrorBoundary>
+
+      {!agent.isAgentActive && (activeAsyncOperations.length > 0 || completedAsyncOperations.length > 0) && (
+        <ErrorBoundary name="AsyncStatusBar">
+          <AsyncStatusBar
+            operations={asyncOperations}
+            completedCount={completedAsyncOperations.length}
+            onRefresh={handleRefreshOperation} onCancel={handleCancelOperation}
+            onOpenDrawer={handleOpenDrawer} isCollapsed={statusBarCollapsed}
+            onToggleCollapse={() => setStatusBarCollapsed(!statusBarCollapsed)}
+          />
+        </ErrorBoundary>
       )}
 
-      <MessageList
-        messages={visibleMessages}
-        allMessages={allMessages}
-        isGenerating={isGenerating}
-        streamingContent={streamingContent}
-        activeToolCalls={activeToolCalls}
-        generatedImages={generatedImages}
-        toolCallRecords={chatData.tool_call_records}
-        scrollToMessageId={scrollToMessageId}
-        onScrollComplete={onScrollComplete}
-        viewMode={viewMode}
-        onRegenerateMessage={onRegenerateMessage}
-        onSelectBranch={onSelectBranch}
-        onForkConversation={onForkConversation}
-        onEditMessage={onEditMessage}
-        isRegenerating={isRegenerating}
-        isForking={isForking}
+      <AsyncOperationDrawer
+        isOpen={drawerOpen} onClose={() => setDrawerOpen(false)}
+        operation={selectedOperation} completedOperations={completedAsyncOperations}
+        onRefresh={handleRefreshOperation} onCancel={handleCancelOperation}
+        onInsertReference={handleInsertReference}
+        onLoadMoreHistory={handleLoadMoreHistory} hasMoreHistory={hasMoreAsyncHistory}
       />
 
-      <div className="border-t border-white/10 bg-slate-950/50">
-        <MessageInput
-          onSend={onSendMessage}
-          isLoading={isGenerating}
-          currentModel={models.find((m) => m.id === chatData.chat.model) || null}
-          chatId={chatData.chat.id}
-          chatWebSearchDefault={chatData.chat.web_search_enabled || false}
-          editingMessage={editingMessage}
-          onCancelEdit={onCancelEdit}
-          onSubmitEdit={onSubmitEdit}
-        />
-      </div>
+      {agent.isAgentActive ? (
+        <ErrorBoundary name="AgentEventList">
+          <AgentEventList
+            events={agent.agentEvents} autoScroll={!scrollToMessageId}
+            viewMode={viewMode} initialMessages={visibleMessages}
+            scrollToMessageId={scrollToMessageId} onScrollComplete={onScrollComplete}
+          />
+        </ErrorBoundary>
+      ) : (
+        <ErrorBoundary name="MessageList">
+          <MessageList
+            messages={visibleMessages} allMessages={allMessages}
+            isGenerating={isGenerating} streamingContent={streamingContent}
+            activeToolCalls={activeToolCalls} generatedImages={generatedImages}
+            toolCallRecords={stableToolCallRecords} asyncOperations={asyncOperations}
+            scrollToMessageId={scrollToMessageId} onScrollComplete={onScrollComplete}
+            viewMode={viewMode} onRegenerateMessage={onRegenerateMessage}
+            onSelectBranch={onSelectBranch} onForkConversation={onForkConversation}
+            onEditMessage={onEditMessage} onOpenAsyncDrawer={handleOpenDrawer}
+            isRegenerating={isRegenerating} isForking={isForking}
+          />
+        </ErrorBoundary>
+      )}
+
+      <ChatViewFooter
+        agent={agent} isGenerating={isGenerating} models={models}
+        chatModel={chatData.chat.model} chatId={chatData.chat.id}
+        chatWebSearchEnabled={chatData.chat.web_search_enabled || false}
+        editingMessage={editingMessage} onCancelEdit={onCancelEdit}
+        onSubmitEdit={onSubmitEdit} onTemplateActivated={onTemplateActivated}
+        activeTemplateId={activeTemplateId} onTemplateDeactivate={onTemplateDeactivate}
+      />
     </div>
   );
 }

@@ -242,7 +242,8 @@ func (s *AgentService) SpawnBatch(ctx context.Context, req BatchSpawnRequest) (*
 	results := make([]SpawnResult, len(req.Prompts))
 	var errors []string
 
-	// Determine working directory
+	// Determine working directory. Use repoRootOverride if provided
+	// (e.g., from a sandboxed agent's CLI), otherwise fall back to VROOLI_ROOT.
 	repoRoot := os.Getenv("VROOLI_ROOT")
 	if repoRoot == "" {
 		repoRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")

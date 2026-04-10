@@ -24,23 +24,45 @@ interface SEOHeadProps {
  */
 export function SEOHead({ branding, seoConfig, baseUrl }: SEOHeadProps) {
   useEffect(() => {
+    const existingDescription = document
+      .querySelector('meta[name="description"]')
+      ?.getAttribute('content')
+      ?? undefined;
+    const existingOgTitle = document
+      .querySelector('meta[property="og:title"]')
+      ?.getAttribute('content')
+      ?? undefined;
+    const existingOgDescription = document
+      .querySelector('meta[property="og:description"]')
+      ?.getAttribute('content')
+      ?? undefined;
+    const existingOgImage = document
+      .querySelector('meta[property="og:image"]')
+      ?.getAttribute('content')
+      ?? undefined;
+    const existingTwitterCard = document
+      .querySelector('meta[name="twitter:card"]')
+      ?.getAttribute('content') as SEOConfig['twitterCard'] | undefined;
+
     // Merge SEO config (variant overrides branding defaults)
-    const title = seoConfig?.title || branding?.site_name || undefined;
-    const description = seoConfig?.description || undefined;
+    const title = seoConfig?.title || branding?.site_name || document.title || undefined;
+    const description = seoConfig?.description || branding?.tagline || existingDescription || undefined;
 
     const config: SEOConfig = {
       title,
       description,
-      ogTitle: seoConfig?.og_title || title,
-      ogDescription: seoConfig?.og_description || description,
-      ogImage: seoConfig?.og_image_url || undefined,
-      twitterCard: seoConfig?.twitter_card || 'summary_large_image',
+      ogTitle: seoConfig?.og_title || title || existingOgTitle,
+      ogDescription: seoConfig?.og_description || description || existingOgDescription,
+      ogImage: seoConfig?.og_image_url || existingOgImage || undefined,
+      twitterCard: seoConfig?.twitter_card || existingTwitterCard || 'summary_large_image',
       noindex: seoConfig?.noindex || false,
     };
 
     // Build canonical URL
-    if (baseUrl && seoConfig?.canonical_path) {
-      config.canonical = baseUrl.replace(/\/$/, '') + seoConfig.canonical_path;
+    const resolvedBaseUrl = baseUrl || (typeof window !== 'undefined' ? window.location.origin : undefined);
+    const canonicalPath = seoConfig?.canonical_path || (typeof window !== 'undefined' ? window.location.pathname : '');
+    if (resolvedBaseUrl && canonicalPath) {
+      config.canonical = resolvedBaseUrl.replace(/\/$/, '') + canonicalPath;
     }
 
     updateMetaTags(config);

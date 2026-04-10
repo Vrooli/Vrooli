@@ -67,7 +67,9 @@ describe("ActionButtons", () => {
     const copyButton = screen.getByText("Copy prompt").closest("button");
     fireEvent.click(copyButton!);
 
-    expect(mockClipboard.writeText).toHaveBeenCalledWith("test prompt content");
+    await waitFor(() => {
+      expect(mockClipboard.writeText).toHaveBeenCalledWith("test prompt content");
+    });
   });
 
   it("shows copied feedback after clicking", async () => {

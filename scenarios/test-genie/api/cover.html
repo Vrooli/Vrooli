@@ -1,0 +1,1425 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>docs: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">test-genie/internal/docs/config.go (72.4%)</option>
+				
+				<option value="file1">test-genie/internal/docs/runner.go (89.4%)</option>
+				
+				<option value="file2">test-genie/internal/docs/types.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package docs
+
+import (
+        "time"
+
+        "test-genie/internal/shared"
+)
+
+// DOC: docs/phases/docs/README.md#configuration
+// Settings holds configuration for docs validation loaded from .vrooli/testing.json (docs section).
+type Settings struct {
+        Markdown   MarkdownSettings  `json:"markdown"`
+        Mermaid    MermaidSettings   `json:"mermaid"`
+        Links      LinkSettings      `json:"links"`
+        Paths      PathSettings      `json:"absolute_paths"`
+        References *ReferencesConfig `json:"references"`
+        Manifest   *ManifestConfig   `json:"manifest"`
+}
+
+type MarkdownSettings struct {
+        // Enabled controls markdown validations (syntax fences, link extraction). Default: true.
+        Enabled *bool `json:"enabled"`
+}
+
+type MermaidSettings struct {
+        // Enabled controls mermaid validation. Default: true when mermaid code fences exist.
+        Enabled *bool `json:"enabled"`
+        // Strict controls whether mermaid parse errors fail the phase (default true).
+        Strict *bool `json:"strict"`
+}
+
+type LinkSettings struct {
+        // Enabled toggles link validation. Default: true.
+        Enabled *bool `json:"enabled"`
+        // Ignore lists link prefixes/globs to skip (e.g., "http://localhost:*").
+        Ignore []string `json:"ignore"`
+        // MaxConcurrency sets concurrent external link checks. Default: 6.
+        MaxConcurrency int `json:"max_concurrency"`
+        // TimeoutMs is per-request timeout for external link checks. Default: 5000ms.
+        TimeoutMs int `json:"timeout_ms"`
+        // StrictExternal fails on external timeouts/connection errors when true. Default: false.
+        StrictExternal *bool `json:"strict_external"`
+}
+
+type PathSettings struct {
+        // Enabled toggles absolute path detection. Default: true.
+        Enabled *bool `json:"enabled"`
+        // Allow lists absolute path prefixes that are permitted (e.g., "/api/").
+        Allow []string `json:"allow"`
+}
+
+// ReferencesConfig controls bidirectional code↔documentation reference validation.
+type ReferencesConfig struct {
+        // Enabled toggles reference validation. Default: true.
+        Enabled *bool `json:"enabled"`
+        // ValidateCodeRefs checks [CODE: ...] references in docs point to valid files. Default: true.
+        ValidateCodeRefs *bool `json:"validate_code_refs"`
+        // ValidateDocRefs checks // DOC: comments in code point to valid docs. Default: true.
+        ValidateDocRefs *bool `json:"validate_doc_refs"`
+        // CodeExtensions lists file extensions to scan for DOC: comments.
+        CodeExtensions []string `json:"code_extensions"`
+        // Strict fails on broken references (default: false = warnings only).
+        Strict *bool `json:"strict"`
+        // SkipDirs lists additional directories to skip when scanning code files.
+        SkipDirs []string `json:"skip_dirs"`
+}
+
+// ManifestConfig controls docs manifest coverage tracking.
+type ManifestConfig struct {
+        // Enabled toggles manifest coverage checking. Default: false.
+        Enabled *bool `json:"enabled"`
+        // RequireAllDocsRegistered warns when docs exist but aren't in manifest. Default: false.
+        RequireAllDocsRegistered *bool `json:"require_all_docs_registered"`
+        // ManifestPath is the path to the manifest file relative to scenario dir.
+        ManifestPath string `json:"manifest_path"`
+}
+
+// LoadSettings reads the docs section from testing.json.
+func LoadSettings(scenarioDir string) (*Settings, error) <span class="cov8" title="1">{
+        settings := DefaultSettings()
+        if err := shared.MergePhaseConfig(scenarioDir, "docs", settings); err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return settings, nil</span>
+}
+
+// DefaultSettings returns sensible defaults.
+func DefaultSettings() *Settings <span class="cov8" title="1">{
+        return &amp;Settings{
+                Markdown: MarkdownSettings{},
+                Mermaid: MermaidSettings{
+                        Enabled: boolPtr(true),
+                        Strict:  boolPtr(true),
+                },
+                Links: LinkSettings{
+                        Enabled:        boolPtr(true),
+                        MaxConcurrency: 6,
+                        TimeoutMs:      5000,
+                },
+                Paths: PathSettings{
+                        Enabled: boolPtr(true),
+                },
+                References: &amp;ReferencesConfig{
+                        Enabled:          boolPtr(true),
+                        ValidateCodeRefs: boolPtr(true),
+                        ValidateDocRefs:  boolPtr(true),
+                        CodeExtensions:   []string{".ts", ".tsx", ".js", ".jsx", ".go", ".py", ".rs", ".java", ".kt"},
+                        Strict:           boolPtr(false),
+                        SkipDirs:         nil,
+                },
+                Manifest: &amp;ManifestConfig{
+                        Enabled:                  boolPtr(false),
+                        RequireAllDocsRegistered: boolPtr(false),
+                        ManifestPath:             "docs/manifest.json",
+                },
+        }
+}</span>
+
+func (s *Settings) mermaidEnabled() bool <span class="cov8" title="1">{
+        if s == nil || s.Mermaid.Enabled == nil </span><span class="cov0" title="0">{
+                return true
+        }</span>
+        <span class="cov8" title="1">return *s.Mermaid.Enabled</span>
+}
+
+func (s *Settings) mermaidStrict() bool <span class="cov8" title="1">{
+        if s == nil || s.Mermaid.Strict == nil </span><span class="cov0" title="0">{
+                return true
+        }</span>
+        <span class="cov8" title="1">return *s.Mermaid.Strict</span>
+}
+
+func (s *Settings) linksEnabled() bool <span class="cov8" title="1">{
+        if s == nil || s.Links.Enabled == nil </span><span class="cov0" title="0">{
+                return true
+        }</span>
+        <span class="cov8" title="1">return *s.Links.Enabled</span>
+}
+
+func (s *Settings) linksTimeout() time.Duration <span class="cov8" title="1">{
+        timeout := time.Duration(s.Links.TimeoutMs) * time.Millisecond
+        if timeout &lt;= 0 </span><span class="cov0" title="0">{
+                return 5 * time.Second
+        }</span>
+        <span class="cov8" title="1">return timeout</span>
+}
+
+func (s *Settings) linksConcurrency() int <span class="cov8" title="1">{
+        if s.Links.MaxConcurrency &lt;= 0 </span><span class="cov0" title="0">{
+                return 6
+        }</span>
+        <span class="cov8" title="1">return s.Links.MaxConcurrency</span>
+}
+
+func (s *Settings) linksStrictExternal() bool <span class="cov8" title="1">{
+        if s == nil || s.Links.StrictExternal == nil </span><span class="cov0" title="0">{
+                return false
+        }</span>
+        <span class="cov8" title="1">return *s.Links.StrictExternal</span>
+}
+
+func (s *Settings) pathsEnabled() bool <span class="cov8" title="1">{
+        if s == nil || s.Paths.Enabled == nil </span><span class="cov0" title="0">{
+                return true
+        }</span>
+        <span class="cov8" title="1">return *s.Paths.Enabled</span>
+}
+
+func (s *Settings) markdownEnabled() bool <span class="cov8" title="1">{
+        if s == nil || s.Markdown.Enabled == nil </span><span class="cov8" title="1">{
+                return true
+        }</span>
+        <span class="cov8" title="1">return *s.Markdown.Enabled</span>
+}
+
+func (s *Settings) referencesEnabled() bool <span class="cov8" title="1">{
+        if s == nil || s.References == nil || s.References.Enabled == nil </span><span class="cov0" title="0">{
+                return true
+        }</span>
+        <span class="cov8" title="1">return *s.References.Enabled</span>
+}
+
+func (s *Settings) codeRefsEnabled() bool <span class="cov8" title="1">{
+        if s == nil || s.References == nil || s.References.ValidateCodeRefs == nil </span><span class="cov0" title="0">{
+                return true
+        }</span>
+        <span class="cov8" title="1">return *s.References.ValidateCodeRefs</span>
+}
+
+func (s *Settings) docRefsEnabled() bool <span class="cov8" title="1">{
+        if s == nil || s.References == nil || s.References.ValidateDocRefs == nil </span><span class="cov0" title="0">{
+                return true
+        }</span>
+        <span class="cov8" title="1">return *s.References.ValidateDocRefs</span>
+}
+
+func (s *Settings) referencesStrict() bool <span class="cov8" title="1">{
+        if s == nil || s.References == nil || s.References.Strict == nil </span><span class="cov0" title="0">{
+                return false
+        }</span>
+        <span class="cov8" title="1">return *s.References.Strict</span>
+}
+
+func (s *Settings) codeExtensions() []string <span class="cov8" title="1">{
+        if s == nil || s.References == nil || len(s.References.CodeExtensions) == 0 </span><span class="cov0" title="0">{
+                return []string{".ts", ".tsx", ".js", ".jsx", ".go", ".py", ".rs", ".java", ".kt"}
+        }</span>
+        <span class="cov8" title="1">return s.References.CodeExtensions</span>
+}
+
+func (s *Settings) referencesSkipDirs() []string <span class="cov8" title="1">{
+        if s == nil || s.References == nil </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+        <span class="cov8" title="1">return s.References.SkipDirs</span>
+}
+
+func (s *Settings) manifestEnabled() bool <span class="cov8" title="1">{
+        if s == nil || s.Manifest == nil || s.Manifest.Enabled == nil </span><span class="cov0" title="0">{
+                return false
+        }</span>
+        <span class="cov8" title="1">return *s.Manifest.Enabled</span>
+}
+
+func (s *Settings) manifestRequireAll() bool <span class="cov8" title="1">{
+        if s == nil || s.Manifest == nil || s.Manifest.RequireAllDocsRegistered == nil </span><span class="cov0" title="0">{
+                return false
+        }</span>
+        <span class="cov8" title="1">return *s.Manifest.RequireAllDocsRegistered</span>
+}
+
+func (s *Settings) manifestPath() string <span class="cov8" title="1">{
+        if s == nil || s.Manifest == nil || s.Manifest.ManifestPath == "" </span><span class="cov0" title="0">{
+                return "docs/manifest.json"
+        }</span>
+        <span class="cov8" title="1">return s.Manifest.ManifestPath</span>
+}
+
+func boolPtr(v bool) *bool <span class="cov8" title="1">{
+        return &amp;v
+}</span>
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package docs
+
+import (
+        "bufio"
+        "context"
+        "encoding/json"
+        "errors"
+        "fmt"
+        "io"
+        "net/http"
+        "net/url"
+        "os"
+        "path/filepath"
+        "regexp"
+        "strings"
+        "sync"
+
+        "test-genie/internal/shared"
+)
+
+// Config controls docs validation.
+type Config struct {
+        ScenarioDir  string
+        ScenarioName string
+        Settings     *Settings
+        HTTPClient   *http.Client
+}
+
+// LinkIgnoreChecker determines if a URL should be skipped during external link validation.
+// This is a seam that allows tests to bypass the default localhost detection.
+type LinkIgnoreChecker func(url string) bool
+
+// Runner executes docs validations.
+type Runner struct {
+        config        Config
+        settings      *Settings
+        log           io.Writer
+        client        *http.Client
+        ignoreChecker LinkIgnoreChecker
+}
+
+// Option configures a Runner.
+type Option func(*Runner)
+
+// WithLogger sets a log writer.
+func WithLogger(w io.Writer) Option <span class="cov8" title="1">{
+        return func(r *Runner) </span><span class="cov8" title="1">{ r.log = w }</span>
+}
+
+// WithHTTPClient overrides the HTTP client used for external link checks.
+func WithHTTPClient(client *http.Client) Option <span class="cov8" title="1">{
+        return func(r *Runner) </span><span class="cov8" title="1">{ r.client = client }</span>
+}
+
+// WithLinkIgnoreChecker overrides the function that determines which URLs to skip.
+// This is primarily useful for testing external link validation without the
+// default localhost/127.0.0.1 bypass.
+func WithLinkIgnoreChecker(checker LinkIgnoreChecker) Option <span class="cov8" title="1">{
+        return func(r *Runner) </span><span class="cov8" title="1">{ r.ignoreChecker = checker }</span>
+}
+
+// New creates a Runner.
+func New(config Config, opts ...Option) *Runner <span class="cov8" title="1">{
+        settings := config.Settings
+        if settings == nil </span><span class="cov8" title="1">{
+                settings = DefaultSettings()
+        }</span>
+
+        <span class="cov8" title="1">r := &amp;Runner{
+                config:   config,
+                settings: settings,
+                log:      io.Discard,
+                client: &amp;http.Client{
+                        Timeout: settings.linksTimeout(),
+                },
+        }
+        for _, opt := range opts </span><span class="cov8" title="1">{
+                opt(r)
+        }</span>
+        <span class="cov8" title="1">if r.client == nil </span><span class="cov0" title="0">{
+                r.client = &amp;http.Client{Timeout: settings.linksTimeout()}
+        }</span>
+        // Set default ignore checker after options so it can access settings
+        <span class="cov8" title="1">if r.ignoreChecker == nil </span><span class="cov8" title="1">{
+                r.ignoreChecker = r.shouldIgnoreLink
+        }</span>
+        <span class="cov8" title="1">return r</span>
+}
+
+// resolvePath resolves a target path relative to the scenario directory or a base file.
+// If base is empty, resolves relative to scenario root.
+// If base is a file path, resolves relative to that file's directory.
+func (r *Runner) resolvePath(target, base string) string <span class="cov8" title="1">{
+        if filepath.IsAbs(target) </span><span class="cov8" title="1">{
+                return target
+        }</span>
+        <span class="cov8" title="1">if base == "" </span><span class="cov8" title="1">{
+                return filepath.Join(r.config.ScenarioDir, target)
+        }</span>
+        <span class="cov8" title="1">return filepath.Clean(filepath.Join(filepath.Dir(base), target))</span>
+}
+
+// DOC: docs/phases/docs/README.md#validation-flow
+// Run executes docs validation and returns the aggregated result.
+func (r *Runner) Run(ctx context.Context) *RunResult <span class="cov8" title="1">{
+        if err := ctx.Err(); err != nil </span><span class="cov8" title="1">{
+                return &amp;RunResult{
+                        Success:      false,
+                        Error:        err,
+                        FailureClass: FailureClassSystem,
+                }
+        }</span>
+
+        <span class="cov8" title="1">shared.LogInfo(r.log, "Starting docs validation for %s", r.config.ScenarioName)
+
+        files, err := r.collectMarkdownFiles()
+        if err != nil </span><span class="cov0" title="0">{
+                return &amp;RunResult{
+                        Success:      false,
+                        Error:        err,
+                        FailureClass: FailureClassMisconfiguration,
+                        Remediation:  "Ensure docs files are readable",
+                }
+        }</span>
+        <span class="cov8" title="1">if len(files) == 0 </span><span class="cov0" title="0">{
+                shared.LogInfo(r.log, "Docs scan: no Markdown files found")
+                return &amp;RunResult{
+                        Success: true,
+                        Observations: []Observation{
+                                NewInfoObservation("No Markdown files found"),
+                        },
+                        Summary: Summary{},
+                }
+        }</span>
+        <span class="cov8" title="1">shared.LogInfo(r.log, "Docs scan: %d Markdown file(s) detected", len(files))
+
+        var (
+                obs       []Observation
+                summary   Summary
+                allErrors []string
+        )
+
+        linkTasks := make([]linkTarget, 0)
+
+        for _, file := range files </span><span class="cov8" title="1">{
+                fileObs, fileSummary, fileLinks, fileErrors := r.inspectFile(file)
+                obs = append(obs, fileObs...)
+                summary.FilesChecked++
+                summary.MermaidValidated += fileSummary.MermaidValidated
+                summary.MermaidFailures += fileSummary.MermaidFailures
+                summary.MarkdownWarnings += fileSummary.MarkdownWarnings
+                summary.MarkdownFailures += fileSummary.MarkdownFailures
+                summary.AbsoluteFailures += fileSummary.AbsoluteFailures
+                summary.AbsolutePathHits += fileSummary.AbsoluteHits
+                if len(fileLinks) &gt; 0 </span><span class="cov8" title="1">{
+                        linkTasks = append(linkTasks, fileLinks...)
+                }</span>
+                <span class="cov8" title="1">allErrors = append(allErrors, fileErrors...)</span>
+        }
+
+        // Process links after scanning all files so we can deduplicate and parallelize.
+        <span class="cov8" title="1">linkObs, linkSummary := r.validateLinks(ctx, linkTasks)
+        obs = append(obs, linkObs...)
+        summary.LocalLinks += linkSummary.LocalLinks
+        summary.ExternalLinks += linkSummary.ExternalLinks
+        summary.BrokenLinks += linkSummary.BrokenLinks
+        summary.ExternalWarnings += linkSummary.ExternalWarnings
+        summary.ExternalFailures += linkSummary.ExternalFailures
+
+        // Bidirectional reference validation
+        if r.settings.referencesEnabled() </span><span class="cov8" title="1">{
+                refObs, refSummary := r.validateBidirectionalRefs(ctx, files)
+                obs = append(obs, refObs...)
+                summary.CodeRefsFound = refSummary.CodeRefsFound
+                summary.CodeRefsBroken = refSummary.CodeRefsBroken
+                summary.DocRefsFound = refSummary.DocRefsFound
+                summary.DocRefsBroken = refSummary.DocRefsBroken
+                summary.CodeFilesScanned = refSummary.CodeFilesScanned
+        }</span>
+
+        // Manifest coverage check
+        <span class="cov8" title="1">if r.settings.manifestEnabled() </span><span class="cov8" title="1">{
+                coverage, err := r.checkManifestCoverage(files)
+                if err != nil </span><span class="cov8" title="1">{
+                        shared.LogInfo(r.log, "Warning: manifest check failed: %v", err)
+                }</span> else<span class="cov8" title="1"> {
+                        summary.DocsInManifest = coverage.InManifest
+                        summary.DocsNotInManifest = coverage.NotInManifest
+
+                        for _, missing := range coverage.MissingDocs </span><span class="cov0" title="0">{
+                                obs = append(obs, NewWarningObservation(fmt.Sprintf("manifest references missing doc: %s", missing)))
+                        }</span>
+                        <span class="cov8" title="1">if r.settings.manifestRequireAll() </span><span class="cov8" title="1">{
+                                for _, orphan := range coverage.OrphanedDocs </span><span class="cov8" title="1">{
+                                        obs = append(obs, NewWarningObservation(fmt.Sprintf("doc not in manifest: %s", orphan)))
+                                }</span>
+                        }
+                }
+        }
+
+        // Calculate reference failures based on strict mode
+        <span class="cov8" title="1">referenceFailures := 0
+        if r.settings.referencesEnabled() &amp;&amp; r.settings.referencesStrict() </span><span class="cov8" title="1">{
+                referenceFailures = summary.CodeRefsBroken + summary.DocRefsBroken
+        }</span>
+
+        <span class="cov8" title="1">success := summary.MarkdownFailures == 0 &amp;&amp;
+                summary.MermaidFailures == 0 &amp;&amp;
+                summary.BrokenLinks == 0 &amp;&amp;
+                summary.AbsoluteFailures == 0 &amp;&amp;
+                referenceFailures == 0 &amp;&amp;
+                len(allErrors) == 0
+
+        summaryLine := fmt.Sprintf(
+                "Docs summary: files=%d mermaid=%d validated (%d failures) markdown(warn=%d, fail=%d) links(local=%d external=%d broken=%d) absolute(hits=%d blocked=%d) refs(code=%d/%d doc=%d/%d)",
+                summary.FilesChecked,
+                summary.MermaidValidated, summary.MermaidFailures,
+                summary.MarkdownWarnings, summary.MarkdownFailures,
+                summary.LocalLinks, summary.ExternalLinks, summary.BrokenLinks,
+                summary.AbsolutePathHits, summary.AbsoluteFailures,
+                summary.CodeRefsFound, summary.CodeRefsBroken,
+                summary.DocRefsFound, summary.DocRefsBroken,
+        )
+        shared.LogInfo(r.log, "%s", summaryLine)
+        fmt.Fprintln(r.log, summaryLine)
+
+        if success </span><span class="cov8" title="1">{
+                obs = append(obs, NewSuccessObservation(fmt.Sprintf("Docs validation passed (%s)", summary.String())))
+                return &amp;RunResult{
+                        Success:      true,
+                        Observations: obs,
+                        Summary:      summary,
+                }
+        }</span>
+
+        <span class="cov8" title="1">msg := "Docs validation failed"
+        if len(allErrors) &gt; 0 </span><span class="cov0" title="0">{
+                msg = fmt.Sprintf("%s: %s", msg, strings.Join(allErrors, "; "))
+        }</span>
+        <span class="cov8" title="1">return &amp;RunResult{
+                Success:      false,
+                Error:        errors.New(msg),
+                FailureClass: FailureClassMisconfiguration,
+                Remediation:  "Fix docs issues and re-run",
+                Observations: obs,
+                Summary:      summary,
+        }</span>
+}
+
+type fileSummary struct {
+        MermaidValidated int
+        MermaidFailures  int
+        MarkdownWarnings int
+        MarkdownFailures int
+        AbsoluteFailures int
+        AbsoluteHits     int
+}
+
+type linkTarget struct {
+        File     string
+        Line     int
+        Dest     string
+        isImage  bool
+        location string
+}
+
+var (
+        markdownLinkPattern   = regexp.MustCompile(`!?\[[^\]]*\]\(([^)]+)\)`)
+        codeFencePattern      = regexp.MustCompile("^(```|~~~)([a-zA-Z0-9_-]+)?")
+        absUnixPathPattern    = regexp.MustCompile(`/(Users|home|var|etc|opt|srv|private|Volumes)/`)
+        absWindowsPathPattern = regexp.MustCompile(`^[A-Za-z]:\\`)
+        mermaidHeaderPattern  = regexp.MustCompile(`^(graph|flowchart|flowchart\s+(TB|TD|LR|RL)|sequenceDiagram|classDiagram|stateDiagram|stateDiagram-v2|gantt|journey|erDiagram|pie)\b`)
+
+        // Bidirectional reference patterns
+        // Matches [CODE: path/to/file.go] or [CODE: path/to/file.go#FunctionName] or [CODE: path/to/file.go:42]
+        codeRefPattern = regexp.MustCompile(`\[CODE:\s*([^\]]+)\]`)
+        // Matches // DOC: path/to/doc.md or /* DOC: path/to/doc.md */ or # DOC: path/to/doc.md
+        docRefPattern = regexp.MustCompile(`(?://|/\*|#)\s*DOC:\s*([^\s\*\n]+)`)
+)
+
+// codeRefTarget represents a [CODE: ...] reference found in documentation.
+type codeRefTarget struct {
+        File     string // The markdown file containing the reference
+        Ref      string // The raw reference string
+        FilePath string // Extracted file path (without anchor/line number)
+        Line     int    // Line number in the markdown file
+}
+
+// docRefTarget represents a // DOC: comment found in code.
+type docRefTarget struct {
+        File    string // The code file containing the comment
+        Ref     string // The raw reference string
+        DocPath string // Extracted doc path (without anchor)
+        Line    int    // Line number in the code file
+}
+
+func (r *Runner) collectMarkdownFiles() ([]string, error) <span class="cov8" title="1">{
+        var files []string
+        skipDirs := map[string]struct{}{
+                ".git": {}, "node_modules": {}, "dist": {}, "build": {}, ".turbo": {}, ".next": {},
+                ".pnpm-store": {}, "coverage": {}, ".cache": {}, "tmp": {}, "logs": {},
+        }
+        err := filepath.WalkDir(r.config.ScenarioDir, func(path string, d os.DirEntry, err error) error </span><span class="cov8" title="1">{
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov8" title="1">if d.IsDir() </span><span class="cov8" title="1">{
+                        if _, skip := skipDirs[d.Name()]; skip </span><span class="cov8" title="1">{
+                                return filepath.SkipDir
+                        }</span>
+                        <span class="cov8" title="1">return nil</span>
+                }
+                <span class="cov8" title="1">if strings.HasSuffix(d.Name(), ".md") || strings.HasSuffix(d.Name(), ".mdx") </span><span class="cov8" title="1">{
+                        files = append(files, path)
+                }</span>
+                <span class="cov8" title="1">return nil</span>
+        })
+        <span class="cov8" title="1">return files, err</span>
+}
+
+func (r *Runner) inspectFile(path string) ([]Observation, fileSummary, []linkTarget, []string) <span class="cov8" title="1">{
+        var (
+                obs     []Observation
+                summary fileSummary
+                links   []linkTarget
+                errors  []string
+        )
+
+        if !r.settings.markdownEnabled() </span><span class="cov8" title="1">{
+                obs = append(obs, NewSkipObservation(fmt.Sprintf("%s: markdown validation disabled", path)))
+                return obs, summary, links, errors
+        }</span>
+
+        <span class="cov8" title="1">f, err := os.Open(path)
+        if err != nil </span><span class="cov0" title="0">{
+                errors = append(errors, fmt.Sprintf("cannot read %s: %v", path, err))
+                return obs, summary, links, errors
+        }</span>
+        <span class="cov8" title="1">defer f.Close()
+
+        scanner := bufio.NewScanner(f)
+        lineNum := 0
+        inFence := false
+        fenceLang := ""
+        fenceMarker := ""
+        var mermaidBuf []string
+        var mermaidStart int
+
+        for scanner.Scan() </span><span class="cov8" title="1">{
+                lineNum++
+                line := scanner.Text()
+                trim := strings.TrimSpace(line)
+
+                // Detect code fences for markdown syntax sanity.
+                if matches := codeFencePattern.FindStringSubmatch(trim); len(matches) &gt; 0 </span><span class="cov8" title="1">{
+                        marker := matches[1]
+                        lang := strings.TrimSpace(matches[2])
+                        if !inFence </span><span class="cov8" title="1">{
+                                inFence = true
+                                fenceMarker = marker
+                                fenceLang = lang
+                                mermaidBuf = mermaidBuf[:0]
+                                mermaidStart = lineNum
+                        }</span> else<span class="cov8" title="1"> if marker == fenceMarker </span><span class="cov8" title="1">{
+                                // Closing fence
+                                if fenceLang == "mermaid" || fenceLang == "mermaidjs" </span><span class="cov8" title="1">{
+                                        if r.settings.mermaidEnabled() </span><span class="cov8" title="1">{
+                                                r.validateMermaidBlock(path, mermaidStart, strings.Join(mermaidBuf, "\n"), &amp;obs, &amp;summary)
+                                        }</span> else<span class="cov8" title="1"> {
+                                                obs = append(obs, NewSkipObservation(fmt.Sprintf("%s:%d mermaid validation disabled", path, mermaidStart)))
+                                        }</span>
+                                }
+                                <span class="cov8" title="1">inFence = false
+                                fenceLang = ""
+                                fenceMarker = ""
+                                mermaidBuf = mermaidBuf[:0]</span>
+                        }
+                        <span class="cov8" title="1">continue</span>
+                }
+
+                <span class="cov8" title="1">if inFence </span><span class="cov8" title="1">{
+                        if fenceLang == "mermaid" || fenceLang == "mermaidjs" </span><span class="cov8" title="1">{
+                                mermaidBuf = append(mermaidBuf, line)
+                        }</span>
+                        <span class="cov8" title="1">continue</span>
+                }
+
+                // Link extraction outside code fences.
+                <span class="cov8" title="1">for _, match := range markdownLinkPattern.FindAllStringSubmatchIndex(line, -1) </span><span class="cov8" title="1">{
+                        if len(match) &lt; 4 </span><span class="cov0" title="0">{
+                                continue</span>
+                        }
+                        <span class="cov8" title="1">start, end := match[2], match[3]
+                        dest := strings.TrimSpace(line[start:end])
+                        if dest == "" </span><span class="cov0" title="0">{
+                                continue</span>
+                        }
+                        // Strip angle brackets
+                        <span class="cov8" title="1">dest = strings.Trim(dest, "&lt;&gt;")
+                        isImage := line[match[0]] == '!'
+                        links = append(links, linkTarget{
+                                File:     path,
+                                Line:     lineNum,
+                                Dest:     dest,
+                                isImage:  isImage,
+                                location: fmt.Sprintf("%s:%d", path, lineNum),
+                        })</span>
+                }
+
+                // Absolute path detection
+                <span class="cov8" title="1">if r.settings.pathsEnabled() </span><span class="cov8" title="1">{
+                        var absMatch string
+                        switch </span>{
+                        case absUnixPathPattern.MatchString(line):<span class="cov8" title="1">
+                                absMatch = absUnixPathPattern.FindString(line)</span>
+                        case absWindowsPathPattern.MatchString(line):<span class="cov0" title="0">
+                                absMatch = absWindowsPathPattern.FindString(line)</span>
+                        }
+                        <span class="cov8" title="1">if absMatch != "" </span><span class="cov8" title="1">{
+                                summary.AbsoluteHits++
+                                if allowedPrefix(absMatch, r.settings.Paths.Allow) </span><span class="cov8" title="1">{
+                                        continue</span>
+                                }
+                                <span class="cov0" title="0">summary.AbsoluteFailures++
+                                obs = append(obs, NewErrorObservation(fmt.Sprintf("%s:%d contains absolute filesystem path", path, lineNum)))
+                                fmt.Fprintf(r.log, "ABSOLUTE_PATH %s:%d -&gt; %s\n", path, lineNum, trim)</span>
+                        }
+                }
+        }
+        <span class="cov8" title="1">if err := scanner.Err(); err != nil </span><span class="cov0" title="0">{
+                errors = append(errors, fmt.Sprintf("failed to read %s: %v", path, err))
+        }</span>
+
+        <span class="cov8" title="1">if inFence </span><span class="cov8" title="1">{
+                summary.MarkdownFailures++
+                msg := fmt.Sprintf("%s:%d code fence not closed", path, mermaidStart)
+                obs = append(obs, NewErrorObservation(msg))
+        }</span>
+
+        <span class="cov8" title="1">return obs, summary, links, errors</span>
+}
+
+func (r *Runner) validateMermaidBlock(file string, line int, content string, obs *[]Observation, summary *fileSummary) <span class="cov8" title="1">{
+        summary.MermaidValidated++
+        if mermaidHeaderPattern.MatchString(strings.TrimSpace(content)) &amp;&amp; balancedBrackets(content) </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        <span class="cov8" title="1">message := fmt.Sprintf("%s:%d mermaid diagram appears invalid", file, line)
+        if r.settings.mermaidStrict() </span><span class="cov0" title="0">{
+                summary.MermaidFailures++
+                *obs = append(*obs, NewErrorObservation(message))
+        }</span> else<span class="cov8" title="1"> {
+                summary.MarkdownWarnings++
+                *obs = append(*obs, NewWarningObservation(message))
+        }</span>
+}
+
+func balancedBrackets(content string) bool <span class="cov8" title="1">{
+        var stack []rune
+        pairs := map[rune]rune{')': '(', ']': '[', '}': '{'}
+        for _, r := range content </span><span class="cov8" title="1">{
+                switch r </span>{
+                case '(', '[', '{':<span class="cov8" title="1">
+                        stack = append(stack, r)</span>
+                case ')', ']', '}':<span class="cov8" title="1">
+                        if len(stack) == 0 || stack[len(stack)-1] != pairs[r] </span><span class="cov8" title="1">{
+                                return false
+                        }</span>
+                        <span class="cov8" title="1">stack = stack[:len(stack)-1]</span>
+                }
+        }
+        <span class="cov8" title="1">return len(stack) == 0</span>
+}
+
+type linkSummary struct {
+        LocalLinks       int
+        ExternalLinks    int
+        BrokenLinks      int
+        ExternalWarnings int
+        ExternalFailures int
+}
+
+func (r *Runner) validateLinks(ctx context.Context, links []linkTarget) ([]Observation, linkSummary) <span class="cov8" title="1">{
+        if len(links) == 0 || !r.settings.linksEnabled() </span><span class="cov8" title="1">{
+                return nil, linkSummary{}
+        }</span>
+
+        <span class="cov8" title="1">var (
+                obs     []Observation
+                summary linkSummary
+        )
+
+        seen := make(map[string]struct{})
+        var external []linkTarget
+        for _, link := range links </span><span class="cov8" title="1">{
+                parsed, err := url.Parse(link.Dest)
+                if err != nil </span><span class="cov0" title="0">{
+                        summary.BrokenLinks++
+                        obs = append(obs, NewErrorObservation(fmt.Sprintf("%s invalid link target '%s': %v", link.location, link.Dest, err)))
+                        continue</span>
+                }
+                <span class="cov8" title="1">if parsed.Scheme == "http" || parsed.Scheme == "https" </span><span class="cov8" title="1">{
+                        key := parsed.String()
+                        if _, ok := seen[key]; ok </span><span class="cov8" title="1">{
+                                continue</span>
+                        }
+                        <span class="cov8" title="1">seen[key] = struct{}{}
+                        external = append(external, link)
+                        continue</span>
+                }
+
+                // local link
+                <span class="cov8" title="1">summary.LocalLinks++
+                if ok := r.validateLocalLink(link, parsed); !ok </span><span class="cov8" title="1">{
+                        summary.BrokenLinks++
+                        obs = append(obs, NewErrorObservation(fmt.Sprintf("%s broken local link '%s'", link.location, link.Dest)))
+                }</span>
+        }
+
+        <span class="cov8" title="1">if len(external) == 0 </span><span class="cov8" title="1">{
+                return obs, summary
+        }</span>
+
+        // External link checking with concurrency.
+        <span class="cov8" title="1">concurrency := r.settings.linksConcurrency()
+        if concurrency &lt; 1 </span><span class="cov0" title="0">{
+                concurrency = 1
+        }</span>
+        <span class="cov8" title="1">sem := make(chan struct{}, concurrency)
+        var wg sync.WaitGroup
+        var mu sync.Mutex
+
+        for _, link := range external </span><span class="cov8" title="1">{
+                link := link
+                wg.Add(1)
+                sem &lt;- struct{}{}
+                go func() </span><span class="cov8" title="1">{
+                        defer wg.Done()
+                        defer func() </span><span class="cov8" title="1">{ &lt;-sem }</span>()
+                        <span class="cov8" title="1">ctxReq, cancel := context.WithTimeout(ctx, r.settings.linksTimeout())
+                        defer cancel()
+
+                        status, err := r.checkExternalLink(ctxReq, link.Dest)
+                        mu.Lock()
+                        summary.ExternalLinks++
+                        switch status </span>{
+                        case "ok":<span class="cov8" title="1"></span>
+                        case "warn":<span class="cov8" title="1">
+                                summary.ExternalWarnings++
+                                obs = append(obs, NewWarningObservation(fmt.Sprintf("%s external link warning for '%s': %v", link.location, link.Dest, err)))</span>
+                        case "fail":<span class="cov8" title="1">
+                                summary.ExternalFailures++
+                                summary.BrokenLinks++
+                                obs = append(obs, NewErrorObservation(fmt.Sprintf("%s broken external link '%s': %v", link.location, link.Dest, err)))</span>
+                        }
+                        <span class="cov8" title="1">mu.Unlock()</span>
+                }()
+        }
+        <span class="cov8" title="1">wg.Wait()
+
+        return obs, summary</span>
+}
+
+func (r *Runner) validateLocalLink(link linkTarget, parsed *url.URL) bool <span class="cov8" title="1">{
+        dest := parsed.Path
+        if dest == "" || dest == "#" </span><span class="cov8" title="1">{
+                return true
+        }</span>
+
+        // guard against absolute paths
+        <span class="cov8" title="1">if r.settings.pathsEnabled() &amp;&amp; strings.HasPrefix(dest, "/") </span><span class="cov0" title="0">{
+                // Treat OS-rooted paths as failures unless explicitly allowed
+                if absUnixPathPattern.MatchString(dest) || absWindowsPathPattern.MatchString(dest) </span><span class="cov0" title="0">{
+                        return allowedPrefix(dest, r.settings.Paths.Allow)
+                }</span>
+                // Root-relative site paths are treated as portable by default.
+                <span class="cov0" title="0">return true</span>
+        }
+
+        <span class="cov8" title="1">target := dest
+        if strings.HasPrefix(dest, "#") </span><span class="cov0" title="0">{
+                target = ""
+        }</span>
+
+        <span class="cov8" title="1">if target != "" </span><span class="cov8" title="1">{
+                target = strings.TrimPrefix(target, "./")
+                target = r.resolvePath(target, link.File)
+                info, err := os.Stat(target)
+                if err != nil || info.IsDir() </span><span class="cov8" title="1">{
+                        return false
+                }</span>
+        }
+        <span class="cov8" title="1">return true</span>
+}
+
+func (r *Runner) checkExternalLink(ctx context.Context, target string) (string, error) <span class="cov8" title="1">{
+        if r.ignoreChecker(target) </span><span class="cov8" title="1">{
+                return "ok", nil
+        }</span>
+        <span class="cov8" title="1">req, err := http.NewRequestWithContext(ctx, http.MethodHead, target, nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return "fail", err
+        }</span>
+        <span class="cov8" title="1">resp, err := r.client.Do(req)
+        if err != nil || resp.StatusCode &gt;= http.StatusBadRequest </span><span class="cov8" title="1">{
+                // fallback to GET if HEAD blocked
+                req.Method = http.MethodGet
+                resp, err = r.client.Do(req)
+        }</span>
+        <span class="cov8" title="1">if err != nil </span><span class="cov8" title="1">{
+                if r.settings.linksStrictExternal() </span><span class="cov8" title="1">{
+                        return "fail", err
+                }</span>
+                <span class="cov8" title="1">return "warn", err</span>
+        }
+        <span class="cov8" title="1">defer resp.Body.Close()
+        if resp.StatusCode &gt;= http.StatusBadRequest </span><span class="cov8" title="1">{
+                return "fail", fmt.Errorf("status %d", resp.StatusCode)
+        }</span>
+        <span class="cov8" title="1">return "ok", nil</span>
+}
+
+func (r *Runner) shouldIgnoreLink(target string) bool <span class="cov8" title="1">{
+        for _, pattern := range r.settings.Links.Ignore </span><span class="cov8" title="1">{
+                if pattern == "" </span><span class="cov8" title="1">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">if matchPattern(pattern, target) </span><span class="cov8" title="1">{
+                        return true
+                }</span>
+        }
+        <span class="cov8" title="1">return strings.Contains(target, "localhost") || strings.Contains(target, "127.0.0.1")</span>
+}
+
+// refSummary tracks bidirectional reference validation metrics.
+type refSummary struct {
+        CodeRefsFound    int
+        CodeRefsBroken   int
+        DocRefsFound     int
+        DocRefsBroken    int
+        CodeFilesScanned int
+}
+
+// DOC: docs/phases/docs/README.md#bidirectional-reference-validation
+// validateBidirectionalRefs validates both [CODE: ...] references in docs and // DOC: comments in code.
+func (r *Runner) validateBidirectionalRefs(ctx context.Context, markdownFiles []string) ([]Observation, refSummary) <span class="cov8" title="1">{
+        var obs []Observation
+        var summary refSummary
+
+        // Validate [CODE: ...] references in markdown files
+        if r.settings.codeRefsEnabled() </span><span class="cov8" title="1">{
+                for _, file := range markdownFiles </span><span class="cov8" title="1">{
+                        content, err := os.ReadFile(file)
+                        if err != nil </span><span class="cov0" title="0">{
+                                continue</span>
+                        }
+                        <span class="cov8" title="1">refs := extractCodeRefs(file, string(content))
+                        summary.CodeRefsFound += len(refs)
+
+                        for _, ref := range refs </span><span class="cov8" title="1">{
+                                if err := r.validateCodeRef(ref); err != nil </span><span class="cov8" title="1">{
+                                        summary.CodeRefsBroken++
+                                        location := fmt.Sprintf("%s:%d", ref.File, ref.Line)
+                                        if r.settings.referencesStrict() </span><span class="cov8" title="1">{
+                                                obs = append(obs, NewErrorObservation(fmt.Sprintf("%s broken code reference [CODE: %s]: %v", location, ref.Ref, err)))
+                                        }</span> else<span class="cov8" title="1"> {
+                                                obs = append(obs, NewWarningObservation(fmt.Sprintf("%s broken code reference [CODE: %s]: %v", location, ref.Ref, err)))
+                                        }</span>
+                                }
+                        }
+                }
+        }
+
+        // Validate // DOC: comments in code files
+        <span class="cov8" title="1">if r.settings.docRefsEnabled() </span><span class="cov8" title="1">{
+                docRefs, filesScanned, err := r.scanCodeFilesForDocRefs(ctx)
+                if err != nil &amp;&amp; ctx.Err() == nil </span><span class="cov0" title="0">{
+                        shared.LogInfo(r.log, "Warning: code file scan failed: %v", err)
+                }</span>
+                <span class="cov8" title="1">summary.CodeFilesScanned = filesScanned
+                summary.DocRefsFound = len(docRefs)
+
+                for _, ref := range docRefs </span><span class="cov8" title="1">{
+                        if err := r.validateDocRef(ref); err != nil </span><span class="cov8" title="1">{
+                                summary.DocRefsBroken++
+                                location := fmt.Sprintf("%s:%d", ref.File, ref.Line)
+                                if r.settings.referencesStrict() </span><span class="cov0" title="0">{
+                                        obs = append(obs, NewErrorObservation(fmt.Sprintf("%s broken doc reference // DOC: %s: %v", location, ref.Ref, err)))
+                                }</span> else<span class="cov8" title="1"> {
+                                        obs = append(obs, NewWarningObservation(fmt.Sprintf("%s broken doc reference // DOC: %s: %v", location, ref.Ref, err)))
+                                }</span>
+                        }
+                }
+        }
+
+        <span class="cov8" title="1">return obs, summary</span>
+}
+
+func allowedPrefix(path string, allow []string) bool <span class="cov8" title="1">{
+        if len(allow) == 0 </span><span class="cov0" title="0">{
+                return false
+        }</span>
+        <span class="cov8" title="1">for _, prefix := range allow </span><span class="cov8" title="1">{
+                if strings.HasPrefix(path, prefix) </span><span class="cov8" title="1">{
+                        return true
+                }</span>
+        }
+        <span class="cov0" title="0">return false</span>
+}
+
+func matchPattern(pattern, value string) bool <span class="cov8" title="1">{
+        if strings.Contains(pattern, "*") </span><span class="cov8" title="1">{
+                ok, _ := filepath.Match(pattern, value)
+                return ok
+        }</span>
+        <span class="cov8" title="1">return strings.HasPrefix(value, pattern)</span>
+}
+
+// extractCodeRefs extracts [CODE: ...] references from markdown content.
+func extractCodeRefs(file, content string) []codeRefTarget <span class="cov8" title="1">{
+        var refs []codeRefTarget
+        lines := strings.Split(content, "\n")
+        for i, line := range lines </span><span class="cov8" title="1">{
+                for _, match := range codeRefPattern.FindAllStringSubmatch(line, -1) </span><span class="cov8" title="1">{
+                        if len(match) &lt; 2 </span><span class="cov0" title="0">{
+                                continue</span>
+                        }
+                        <span class="cov8" title="1">rawRef := strings.TrimSpace(match[1])
+                        filePath := extractFilePath(rawRef)
+                        refs = append(refs, codeRefTarget{
+                                File:     file,
+                                Ref:      rawRef,
+                                FilePath: filePath,
+                                Line:     i + 1,
+                        })</span>
+                }
+        }
+        <span class="cov8" title="1">return refs</span>
+}
+
+// extractFilePath extracts the file path from a reference, handling path#func and path:line formats.
+func extractFilePath(ref string) string <span class="cov8" title="1">{
+        // Strip anchor (#section or #FunctionName)
+        if idx := strings.Index(ref, "#"); idx != -1 </span><span class="cov8" title="1">{
+                ref = ref[:idx]
+        }</span>
+        // Strip line number (:42)
+        <span class="cov8" title="1">if idx := strings.LastIndex(ref, ":"); idx != -1 </span><span class="cov8" title="1">{
+                // Make sure it's actually a line number (digits after colon)
+                suffix := ref[idx+1:]
+                if len(suffix) &gt; 0 &amp;&amp; isDigits(suffix) </span><span class="cov8" title="1">{
+                        ref = ref[:idx]
+                }</span>
+        }
+        <span class="cov8" title="1">return strings.TrimSpace(ref)</span>
+}
+
+func isDigits(s string) bool <span class="cov8" title="1">{
+        for _, r := range s </span><span class="cov8" title="1">{
+                if r &lt; '0' || r &gt; '9' </span><span class="cov0" title="0">{
+                        return false
+                }</span>
+        }
+        <span class="cov8" title="1">return true</span>
+}
+
+// extractDocRefsFromFile reads a code file and extracts DOC: comments.
+func extractDocRefsFromFile(path string) ([]docRefTarget, error) <span class="cov8" title="1">{
+        content, err := os.ReadFile(path)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">var refs []docRefTarget
+        lines := strings.Split(string(content), "\n")
+        for i, line := range lines </span><span class="cov8" title="1">{
+                for _, match := range docRefPattern.FindAllStringSubmatch(line, -1) </span><span class="cov8" title="1">{
+                        if len(match) &lt; 2 </span><span class="cov0" title="0">{
+                                continue</span>
+                        }
+                        <span class="cov8" title="1">rawRef := strings.TrimSpace(match[1])
+                        // Strip anchor if present
+                        docPath := rawRef
+                        if idx := strings.Index(docPath, "#"); idx != -1 </span><span class="cov8" title="1">{
+                                docPath = docPath[:idx]
+                        }</span>
+                        <span class="cov8" title="1">refs = append(refs, docRefTarget{
+                                File:    path,
+                                Ref:     rawRef,
+                                DocPath: docPath,
+                                Line:    i + 1,
+                        })</span>
+                }
+        }
+        <span class="cov8" title="1">return refs, nil</span>
+}
+
+// validateCodeRef checks if the referenced code file exists.
+func (r *Runner) validateCodeRef(ref codeRefTarget) error <span class="cov8" title="1">{
+        target := r.resolvePath(ref.FilePath, "")
+
+        info, err := os.Stat(target)
+        if err != nil </span><span class="cov8" title="1">{
+                return fmt.Errorf("file not found: %s", ref.FilePath)
+        }</span>
+        <span class="cov8" title="1">if info.IsDir() </span><span class="cov0" title="0">{
+                return fmt.Errorf("reference points to directory, not file: %s", ref.FilePath)
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// validateDocRef checks if the referenced documentation file exists.
+func (r *Runner) validateDocRef(ref docRefTarget) error <span class="cov8" title="1">{
+        target := r.resolvePath(ref.DocPath, "")
+
+        info, err := os.Stat(target)
+        if err != nil </span><span class="cov8" title="1">{
+                return fmt.Errorf("doc not found: %s", ref.DocPath)
+        }</span>
+        <span class="cov8" title="1">if info.IsDir() </span><span class="cov0" title="0">{
+                return fmt.Errorf("reference points to directory, not file: %s", ref.DocPath)
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// Hard-coded directories to always skip when scanning for DOC: comments.
+var defaultSkipDirs = map[string]struct{}{
+        ".git":         {},
+        "node_modules": {},
+        "dist":         {},
+        "build":        {},
+        ".turbo":       {},
+        ".next":        {},
+        ".pnpm-store":  {},
+        "coverage":     {},
+        ".cache":       {},
+        "tmp":          {},
+        "logs":         {},
+        "vendor":       {},
+        "__pycache__":  {},
+        ".venv":        {},
+        "venv":         {},
+        "target":       {},
+}
+
+// scanCodeFilesForDocRefs walks the scenario directory and extracts DOC: references from code files.
+func (r *Runner) scanCodeFilesForDocRefs(ctx context.Context) ([]docRefTarget, int, error) <span class="cov8" title="1">{
+        var refs []docRefTarget
+        var filesScanned int
+
+        extensions := make(map[string]struct{})
+        for _, ext := range r.settings.codeExtensions() </span><span class="cov8" title="1">{
+                extensions[ext] = struct{}{}
+        }</span>
+
+        <span class="cov8" title="1">customSkipDirs := make(map[string]struct{})
+        for _, dir := range r.settings.referencesSkipDirs() </span><span class="cov8" title="1">{
+                customSkipDirs[dir] = struct{}{}
+        }</span>
+
+        <span class="cov8" title="1">err := filepath.WalkDir(r.config.ScenarioDir, func(path string, d os.DirEntry, err error) error </span><span class="cov8" title="1">{
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+
+                // Check for context cancellation
+                <span class="cov8" title="1">if ctx.Err() != nil </span><span class="cov0" title="0">{
+                        return ctx.Err()
+                }</span>
+
+                <span class="cov8" title="1">if d.IsDir() </span><span class="cov8" title="1">{
+                        name := d.Name()
+                        if _, skip := defaultSkipDirs[name]; skip </span><span class="cov8" title="1">{
+                                return filepath.SkipDir
+                        }</span>
+                        <span class="cov8" title="1">if _, skip := customSkipDirs[name]; skip </span><span class="cov8" title="1">{
+                                return filepath.SkipDir
+                        }</span>
+                        <span class="cov8" title="1">return nil</span>
+                }
+
+                <span class="cov8" title="1">ext := filepath.Ext(d.Name())
+                if _, ok := extensions[ext]; !ok </span><span class="cov8" title="1">{
+                        return nil
+                }</span>
+
+                <span class="cov8" title="1">filesScanned++
+                fileRefs, err := extractDocRefsFromFile(path)
+                if err != nil </span><span class="cov0" title="0">{
+                        // Log but don't fail on unreadable files
+                        shared.LogInfo(r.log, "Warning: could not read %s: %v", path, err)
+                        return nil
+                }</span>
+                <span class="cov8" title="1">refs = append(refs, fileRefs...)
+                return nil</span>
+        })
+
+        <span class="cov8" title="1">return refs, filesScanned, err</span>
+}
+
+// manifestCoverage tracks which docs are in/out of the manifest.
+type manifestCoverage struct {
+        InManifest    int
+        NotInManifest int
+        MissingDocs   []string // docs in manifest but not on disk
+        OrphanedDocs  []string // docs on disk but not in manifest
+}
+
+// checkManifestCoverage reads the manifest and compares against found docs.
+func (r *Runner) checkManifestCoverage(foundDocs []string) (manifestCoverage, error) <span class="cov8" title="1">{
+        var coverage manifestCoverage
+
+        manifestPath := filepath.Join(r.config.ScenarioDir, r.settings.manifestPath())
+        data, err := os.ReadFile(manifestPath)
+        if err != nil </span><span class="cov8" title="1">{
+                if os.IsNotExist(err) </span><span class="cov8" title="1">{
+                        // No manifest file - nothing to check
+                        return coverage, nil
+                }</span>
+                <span class="cov0" title="0">return coverage, err</span>
+        }
+
+        // Parse manifest - expect a JSON array of paths or an object with a "docs" array
+        <span class="cov8" title="1">var manifestDocs []string
+
+        // Try parsing as simple array first
+        if err := parseJSONArray(data, &amp;manifestDocs); err != nil </span><span class="cov8" title="1">{
+                // Try parsing as object with "docs" key
+                if err := parseJSONDocsField(data, &amp;manifestDocs); err != nil </span><span class="cov8" title="1">{
+                        return coverage, fmt.Errorf("invalid manifest format: %v", err)
+                }</span>
+        }
+
+        // Build set of manifest docs
+        <span class="cov8" title="1">manifestSet := make(map[string]struct{})
+        for _, doc := range manifestDocs </span><span class="cov8" title="1">{
+                manifestSet[doc] = struct{}{}
+        }</span>
+
+        // Build set of found docs (relative to scenario dir)
+        <span class="cov8" title="1">foundSet := make(map[string]struct{})
+        for _, doc := range foundDocs </span><span class="cov8" title="1">{
+                rel, err := filepath.Rel(r.config.ScenarioDir, doc)
+                if err != nil </span><span class="cov0" title="0">{
+                        rel = doc
+                }</span>
+                <span class="cov8" title="1">foundSet[rel] = struct{}{}</span>
+        }
+
+        // Check coverage
+        <span class="cov8" title="1">for doc := range manifestSet </span><span class="cov8" title="1">{
+                fullPath := filepath.Join(r.config.ScenarioDir, doc)
+                if _, err := os.Stat(fullPath); err != nil </span><span class="cov0" title="0">{
+                        coverage.MissingDocs = append(coverage.MissingDocs, doc)
+                }</span> else<span class="cov8" title="1"> {
+                        coverage.InManifest++
+                }</span>
+        }
+
+        <span class="cov8" title="1">for doc := range foundSet </span><span class="cov8" title="1">{
+                if _, ok := manifestSet[doc]; !ok </span><span class="cov8" title="1">{
+                        coverage.OrphanedDocs = append(coverage.OrphanedDocs, doc)
+                        coverage.NotInManifest++
+                }</span>
+        }
+
+        <span class="cov8" title="1">return coverage, nil</span>
+}
+
+// parseJSONArray attempts to parse data as a JSON array of strings.
+func parseJSONArray(data []byte, out *[]string) error <span class="cov8" title="1">{
+        // Simple check - if it starts with [, try to parse as array
+        trimmed := strings.TrimSpace(string(data))
+        if !strings.HasPrefix(trimmed, "[") </span><span class="cov8" title="1">{
+                return fmt.Errorf("not a JSON array")
+        }</span>
+
+        // Use encoding/json for proper parsing
+        <span class="cov8" title="1">return json.Unmarshal(data, out)</span>
+}
+
+// parseJSONDocsField attempts to parse data as a JSON object with a "docs" field.
+func parseJSONDocsField(data []byte, out *[]string) error <span class="cov8" title="1">{
+        var obj struct {
+                Docs []string `json:"docs"`
+        }
+        if err := json.Unmarshal(data, &amp;obj); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+        <span class="cov0" title="0">*out = obj.Docs
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package docs
+
+import (
+        "fmt"
+
+        "test-genie/internal/shared"
+)
+
+// Re-export shared types for consistency.
+type (
+        FailureClass    = shared.FailureClass
+        ObservationType = shared.ObservationType
+        Observation     = shared.Observation
+        RunResult       = shared.RunResult[Summary]
+)
+
+const (
+        FailureClassNone              = shared.FailureClassNone
+        FailureClassMisconfiguration  = shared.FailureClassMisconfiguration
+        FailureClassSystem            = shared.FailureClassSystem
+        FailureClassMissingDependency = shared.FailureClassMissingDependency
+
+        ObservationSection = shared.ObservationSection
+        ObservationSuccess = shared.ObservationSuccess
+        ObservationWarning = shared.ObservationWarning
+        ObservationError   = shared.ObservationError
+        ObservationInfo    = shared.ObservationInfo
+        ObservationSkip    = shared.ObservationSkip
+)
+
+var (
+        NewSectionObservation = shared.NewSectionObservation
+        NewSuccessObservation = shared.NewSuccessObservation
+        NewWarningObservation = shared.NewWarningObservation
+        NewErrorObservation   = shared.NewErrorObservation
+        NewInfoObservation    = shared.NewInfoObservation
+        NewSkipObservation    = shared.NewSkipObservation
+)
+
+// DOC: docs/phases/docs/README.md#summary-metrics
+// Summary aggregates key counts for docs validation.
+type Summary struct {
+        FilesChecked     int `json:"filesChecked"`
+        ExternalLinks    int `json:"externalLinks"`
+        LocalLinks       int `json:"localLinks"`
+        BrokenLinks      int `json:"brokenLinks"`
+        MermaidValidated int `json:"mermaidValidated"`
+        AbsolutePathHits int `json:"absolutePathHits"`
+        MarkdownWarnings int `json:"markdownWarnings"`
+        MarkdownFailures int `json:"markdownFailures"`
+        ExternalWarnings int `json:"externalWarnings"`
+        ExternalFailures int `json:"externalFailures"`
+        MermaidFailures  int `json:"mermaidFailures"`
+        AbsoluteFailures int `json:"absoluteFailures"`
+
+        // Bidirectional reference tracking
+        CodeRefsFound    int `json:"codeRefsFound"`
+        CodeRefsBroken   int `json:"codeRefsBroken"`
+        DocRefsFound     int `json:"docRefsFound"`
+        DocRefsBroken    int `json:"docRefsBroken"`
+        CodeFilesScanned int `json:"codeFilesScanned"`
+
+        // Manifest tracking
+        DocsInManifest    int `json:"docsInManifest"`
+        DocsNotInManifest int `json:"docsNotInManifest"`
+}
+
+// String returns a short human-readable summary.
+func (s Summary) String() string <span class="cov8" title="1">{
+        base := fmt.Sprintf("%d files, %d broken links, %d mermaid errors, %d markdown errors",
+                s.FilesChecked, s.BrokenLinks, s.MermaidFailures, s.MarkdownFailures)
+
+        // Add reference metrics if any were found
+        if s.CodeRefsFound &gt; 0 || s.DocRefsFound &gt; 0 </span><span class="cov8" title="1">{
+                base += fmt.Sprintf(", code refs: %d found/%d broken, doc refs: %d found/%d broken",
+                        s.CodeRefsFound, s.CodeRefsBroken, s.DocRefsFound, s.DocRefsBroken)
+        }</span>
+
+        <span class="cov8" title="1">return base</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

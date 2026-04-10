@@ -1,0 +1,207 @@
+/**
+ * Domain Detail Page
+ *
+ * Shows detailed information about a specific domain including events,
+ * health status, and capabilities.
+ *
+ * [REQ:LD-DOMAIN-HEALTH] - Domain health status tracking
+ */
+import { useQuery } from "@tanstack/react-query";
+import { ChevronLeft, RefreshCw, Activity, Heart } from "lucide-react";
+import { Link, useParams, useNavigate } from "react-router-dom";
+
+import { StatusBadge, EventRow } from "../components/dashboard";
+import { Card } from "../components/ui";
+import { ErrorAlert } from "../components/ErrorAlert";
+import { fetchDomain, fetchDomainHealth, fetchEvents, APIError } from "../lib/api";
+import { formatRelativeTime, formatDateTime } from "../lib/format";
+
+export default function DomainDetailPage() {
+  const { name } = useParams<{ name: string }>();
+  const navigate = useNavigate();
+
+  const domainQuery = useQuery({
+    queryKey: ["domain", name],
+    // Query is only enabled when name exists, so we can safely assert it's defined in queryFn
+    queryFn: () => fetchDomain(name ?? ""),
+    enabled: !!name,
+    refetchInterval: 30000,
+  });
+
+  const healthQuery = useQuery({
+    queryKey: ["domain-health", name],
+    // Query is only enabled when name exists, so we can safely assert it's defined in queryFn
+    queryFn: () => fetchDomainHealth(name ?? ""),
+    enabled: !!name,
+    refetchInterval: 60000,
+  });
+
+  const eventsQuery = useQuery({
+    queryKey: ["events", { domain: name }],
+    queryFn: () => fetchEvents({ domain: name, limit: 20 }),
+    enabled: !!name,
+    refetchInterval: 30000,
+  });
+
+  const domain = domainQuery.data;
+  const health = healthQuery.data;
+
+  const handleRetry = () => {
+    domainQuery.refetch();
+    healthQuery.refetch();
+    eventsQuery.refetch();
+  };
+
+  const handleBack = () => {
+    navigate("/domains");
+  };
+
+  if (domainQuery.isLoading) {
+    return (
+      <div className="text-center py-12 text-slate-500">
+        Loading domain details...
+      </div>
+    );
+  }
+
+  // Handle error state with structured error display
+  if (domainQuery.error || !domain) {
+    const error = domainQuery.error as Error;
+    const isNotFound = error instanceof APIError && error.isNotFound;
+
+    return (
+      <div className="space-y-6">
+        <Link to="/domains" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+          <ChevronLeft className="w-5 h-5" />
+          Back to domains
+        </Link>
+        <ErrorAlert
+          error={error || new Error(`Domain "${name}" not found`)}
+          onRetry={isNotFound ? undefined : handleRetry}
+          onBack={handleBack}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-start gap-4">
+        <Link to="/domains" className="mt-1 text-slate-400 hover:text-white transition-colors">
+          <ChevronLeft className="w-5 h-5" />
+        </Link>
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold">{domain.display_name}</h1>
+            <StatusBadge status={domain.status} />
+          </div>
+          <p className="text-slate-400">{domain.name}</p>
+        </div>
+        <button
+          onClick={handleRetry}
+          className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+          disabled={domainQuery.isFetching}
+        >
+          <RefreshCw className={`w-5 h-5 ${domainQuery.isFetching ? "animate-spin" : ""}`} />
+        </button>
+      </div>
+
+      {/* Description and capabilities */}
+      {(domain.description || (domain.capabilities && domain.capabilities.length > 0)) && (
+        <Card padding="lg">
+          {domain.description && (
+            <p className="text-slate-300">{domain.description}</p>
+          )}
+          {domain.capabilities && domain.capabilities.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-sm font-medium text-slate-400 mb-2">Capabilities</h3>
+              <div className="flex flex-wrap gap-2">
+                {domain.capabilities.map((cap: string) => (
+                  <span key={cap} className="px-3 py-1 text-sm rounded-full bg-blue-500/10 text-blue-400">
+                    {cap}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Info grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Health status */}
+        <Card padding="lg">
+          <h3 className="text-sm font-medium text-slate-400 mb-3">Health Status</h3>
+          <div className="flex items-center gap-3">
+            <Heart className={`w-8 h-8 ${
+              health?.status === "healthy" ? "text-green-400" :
+              health?.status === "unhealthy" ? "text-red-400" :
+              "text-slate-500"
+            }`} />
+            <div>
+              <p className="font-medium capitalize">{health?.status ?? domain.status}</p>
+              {health?.last_check && (
+                <p className="text-sm text-slate-500">
+                  Checked {formatRelativeTime(health.last_check)}
+                </p>
+              )}
+            </div>
+          </div>
+          {health?.message && (
+            <p className="mt-2 text-sm text-amber-400">{health.message}</p>
+          )}
+          {domain.health_url && (
+            <p className="mt-3 text-xs text-slate-500 truncate" title={domain.health_url}>
+              {domain.health_url}
+            </p>
+          )}
+        </Card>
+
+        {/* Registration info */}
+        <Card padding="lg">
+          <h3 className="text-sm font-medium text-slate-400 mb-3">Registered</h3>
+          <p className="font-medium">{formatDateTime(domain.registered_at)}</p>
+          <p className="text-sm text-slate-500">
+            {formatRelativeTime(domain.registered_at)}
+          </p>
+        </Card>
+
+        {/* Last updated */}
+        <Card padding="lg">
+          <h3 className="text-sm font-medium text-slate-400 mb-3">Last Updated</h3>
+          <p className="font-medium">{formatDateTime(domain.updated_at)}</p>
+          <p className="text-sm text-slate-500">
+            {formatRelativeTime(domain.updated_at)}
+          </p>
+        </Card>
+      </div>
+
+      {/* Events from this domain */}
+      <Card padding="lg">
+        <h2 className="text-lg font-medium mb-4">
+          Recent Events
+          {eventsQuery.data?.count !== undefined && (
+            <span className="ml-2 text-sm text-slate-500">
+              ({eventsQuery.data.count} total)
+            </span>
+          )}
+        </h2>
+        {eventsQuery.isLoading ? (
+          <div className="text-slate-500">Loading events...</div>
+        ) : eventsQuery.data?.events && eventsQuery.data.events.length > 0 ? (
+          <div className="divide-y divide-white/5">
+            {eventsQuery.data.events.map((event) => (
+              <EventRow key={event.id} event={event} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <Activity className="w-12 h-12 mx-auto text-slate-700 mb-3" />
+            <p className="text-slate-400">No events from this domain</p>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}

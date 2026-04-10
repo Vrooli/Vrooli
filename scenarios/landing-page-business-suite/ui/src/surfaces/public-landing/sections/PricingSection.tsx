@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
-import { useMetrics } from '../../../shared/hooks/useMetrics';
-import { createCheckoutSession, type PlanOption, type PricingOverview } from '../../../shared/api';
+import { useMetrics } from '../../../shared/hooks/useMetricsHook';
+import { createCheckoutSession, type PlanOption, type PricingOverview, type StripeCoupon } from '../../../shared/api';
 import { isDemoPlanOption } from '../../../shared/lib/pricingPlaceholders';
 import { normalizeInterval } from '../../../shared/lib/pricingIntervals';
 import { getFallbackLandingConfig } from '../../../shared/lib/fallbackLandingConfig';
+import { formatDiscountBadge, getCouponSummary } from '../../../shared/lib/pricingCalculations';
 
 interface PricingTier {
   name: string;
@@ -26,6 +27,10 @@ interface PricingSectionProps {
     tiers?: PricingTier[];
   };
   pricingOverview?: PricingOverview;
+  /** Optional coupon mappings (priceID -> couponID) for showing discount badges */
+  couponMappings?: Record<string, string>;
+  /** Optional available coupons for looking up coupon details */
+  availableCoupons?: StripeCoupon[];
 }
 
 function formatCurrency(amount: number, currency = 'usd') {
@@ -67,7 +72,16 @@ function ensureFreeTier(pricing: PricingOverview | null, fallbackPricing: Pricin
   return merged;
 }
 
-function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle'], fallbackHighlight: boolean, interval: 'month' | 'year') {
+interface BuildTierOptions {
+  option: PlanOption;
+  bundle: PricingOverview['bundle'];
+  fallbackHighlight: boolean;
+  interval: 'month' | 'year';
+  /** Optional coupon assigned to this plan for discount badge display */
+  assignedCoupon?: StripeCoupon;
+}
+
+function buildTierFromPlan({ option, bundle, fallbackHighlight, interval, assignedCoupon }: BuildTierOptions) {
   const amount = typeof option.amount_cents === 'number' ? option.amount_cents : 0;
   const hasAmount = amount > 0;
   const isFree = amount === 0;
@@ -81,11 +95,18 @@ function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle']
     typeof option.bonus_type === 'string' && option.bonus_type.trim().toLowerCase() !== 'none'
       ? option.bonus_type.replace('_', ' ')
       : undefined;
-  const badge =
-    badgeOverride ||
-    (option.intro_enabled && introAmount
-      ? `${formatCurrency(introAmount, option.currency)} intro for ${option.intro_periods || 1} month${option.intro_periods === 1 ? '' : 's'}`
-      : bonusLabel);
+
+  // Determine intro pricing badge - prioritize assigned coupon, then plan's intro settings
+  let introBadge: string | undefined;
+  if (assignedCoupon && hasAmount) {
+    // Use shared utility to format coupon discount badge
+    introBadge = formatDiscountBadge(amount, assignedCoupon, interval);
+  } else if (option.intro_enabled && introAmount !== undefined && introAmount !== null) {
+    // Fall back to plan's native intro pricing config
+    introBadge = `${formatCurrency(introAmount, option.currency)} intro for ${option.intro_periods || 1} month${option.intro_periods === 1 ? '' : 's'}`;
+  }
+
+  const badge = badgeOverride || introBadge || bonusLabel;
 
   const features = [
     `${formatCredits(option.monthly_included_credits, bundle.display_credits_multiplier, creditsLabel)} included`,
@@ -103,12 +124,19 @@ function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle']
       : Number.isFinite(option.plan_rank)
         ? `Plan rank #${option.plan_rank}`
         : 'Flexible access';
-  const ctaText =
-    typeof metadata.cta_label === 'string' && metadata.cta_label.trim().length > 0
-      ? (metadata.cta_label as string)
-      : option.intro_enabled
-        ? `Start ${formatCurrency(introAmount ?? option.amount_cents, option.currency)} intro`
-        : 'Choose plan';
+
+  // Determine CTA text - prioritize assigned coupon info
+  let ctaText: string;
+  if (typeof metadata.cta_label === 'string' && metadata.cta_label.trim().length > 0) {
+    ctaText = metadata.cta_label as string;
+  } else if (assignedCoupon && hasAmount) {
+    // Show coupon-aware CTA
+    ctaText = `Start with ${getCouponSummary(assignedCoupon)}`;
+  } else if (option.intro_enabled && introAmount !== undefined && introAmount !== null) {
+    ctaText = `Start ${formatCurrency(introAmount, option.currency)} intro`;
+  } else {
+    ctaText = 'Choose plan';
+  }
 
   const highlighted = metadata.highlight === true ? true : fallbackHighlight;
   const directDownloadCTA = isFree || option.kind === 'supporter_contribution';
@@ -138,7 +166,7 @@ function getTierFeatures(tier: PricingTier): string[] {
   return [];
 }
 
-export function PricingSection({ content, pricingOverview }: PricingSectionProps) {
+export function PricingSection({ content, pricingOverview, couponMappings, availableCoupons }: PricingSectionProps) {
   const { trackCTAClick } = useMetrics();
   const [activeInterval, setActiveInterval] = useState<'monthly' | 'yearly'>('monthly');
   const [stickyDismissed, setStickyDismissed] = useState(false);
@@ -163,7 +191,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://example.com';
       const url = new URL(ctaUrl, baseUrl);
       return url.searchParams.get('price_id');
-    } catch (err) {
+    } catch {
       return null;
     }
   };
@@ -208,18 +236,18 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
       <div
         className={`relative h-full overflow-visible rounded-3xl border p-8 pt-10 transition-all duration-300 ${
           highlight
-            ? 'border-[#F97316]/50 bg-gradient-to-b from-[#0F172A] via-[#0D162C] to-[#0B1326] text-white shadow-[0_30px_80px_-40px_rgba(249,115,22,0.45)]'
+            ? 'border-accent/50 bg-gradient-to-b from-surface-primary via-surface-deep to-surface-darker text-white shadow-[0_30px_80px_-40px_rgba(var(--color-accent),0.45)]'
             : 'border-slate-200 bg-white text-slate-900 hover:-translate-y-1 shadow-[0_20px_60px_-48px_rgba(0,0,0,0.4)]'
         }`}
         data-testid={`pricing-tier-${index}`}
       >
-        {highlight && <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(249,115,22,0.12),transparent_32%)]" />}
+        {highlight && <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(var(--color-accent),0.12),transparent_32%)]" />}
         {tier.badge && (
           <div
             className={`absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full px-4 py-1 text-sm font-semibold ${
               highlight
-                ? 'bg-[#0F172A] text-white ring-2 ring-[#F97316]/40'
-                : 'bg-[#0F172A] text-white'
+                ? 'bg-surface-primary text-white ring-2 ring-accent/40'
+                : 'bg-surface-primary text-white'
             }`}
             style={{ zIndex: 5 }}
           >
@@ -231,7 +259,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
           <div className="space-y-2">
             <h3 className={`text-2xl font-bold ${highlight ? 'text-white' : 'text-slate-900'}`}>{tier.name}</h3>
             {tier.subtitle && (
-              <p className={`text-xs uppercase tracking-[0.3em] ${highlight ? 'text-[#F97316]' : 'text-slate-500'}`}>
+              <p className={`text-xs uppercase tracking-[0.3em] ${highlight ? 'text-accent' : 'text-slate-500'}`}>
                 {tier.subtitle}
               </p>
             )}
@@ -255,7 +283,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
           <ul className="space-y-3">
             {getTierFeatures(tier).map((feature, featureIndex) => (
               <li key={`${feature}-${featureIndex}`} className="flex items-start gap-3">
-                <Check className={`w-5 h-5 flex-shrink-0 mt-0.5 ${highlight ? 'text-[#10B981]' : 'text-[#F97316]'}`} />
+                <Check className={`w-5 h-5 flex-shrink-0 mt-0.5 ${highlight ? 'text-success' : 'text-accent'}`} />
                 <span className={highlight ? 'text-slate-200' : 'text-slate-600'}>{feature}</span>
               </li>
             ))}
@@ -298,13 +326,37 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
       return a.amount_cents - b.amount_cents;
     });
 
+  // Helper to find assigned coupon for a plan
+  const findAssignedCoupon = (priceId: string): StripeCoupon | undefined => {
+    if (!couponMappings || !availableCoupons) return undefined;
+    const couponId = couponMappings[priceId];
+    if (!couponId) return undefined;
+    return availableCoupons.find((c) => c.id === couponId);
+  };
+
   const monthlyTiers =
     bundle && monthlyPlans.length > 0
-      ? sortByAmount(monthlyPlans).map((option, index) => buildTierFromPlan(option, bundle, index === 0, 'month'))
+      ? sortByAmount(monthlyPlans).map((option, index) =>
+          buildTierFromPlan({
+            option,
+            bundle,
+            fallbackHighlight: index === 0,
+            interval: 'month',
+            assignedCoupon: findAssignedCoupon(option.stripe_price_id),
+          })
+        )
       : [];
   const yearlyTiers =
     bundle && yearlyPlans.length > 0
-      ? sortByAmount(yearlyPlans).map((option, index) => buildTierFromPlan(option, bundle, index === 0, 'year'))
+      ? sortByAmount(yearlyPlans).map((option, index) =>
+          buildTierFromPlan({
+            option,
+            bundle,
+            fallbackHighlight: index === 0,
+            interval: 'year',
+            assignedCoupon: findAssignedCoupon(option.stripe_price_id),
+          })
+        )
       : [];
 
   const freeTier: PricingTier = {
@@ -416,10 +468,20 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
         : monthlyWithFree
       : monthlyWithFree
     : fallbackTiers.slice(0, 4);
-  const featuredTier = tiersToRender.find((tier) => tier.highlighted) || tiersToRender[0];
+
+  const paddedTiers = useMemo(() => {
+    if (!bundle || tiersToRender.length >= 3) {
+      return tiersToRender;
+    }
+    const existing = new Set(tiersToRender.map((tier) => tier.name.toLowerCase()));
+    const fillers = fallbackTiers.filter((tier) => !existing.has(tier.name.toLowerCase()));
+    return [...tiersToRender, ...fillers].slice(0, 3);
+  }, [bundle, tiersToRender, fallbackTiers]);
+
+  const featuredTier = paddedTiers.find((tier) => tier.highlighted) || paddedTiers[0];
 
   return (
-    <section className="bg-[#F6F5F2] py-24 text-slate-900">
+    <section className="bg-surface-alt py-24 text-slate-900">
       <div className="container mx-auto px-6">
         <div className="max-w-4xl space-y-4 text-left">
           <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Pricing</p>
@@ -456,7 +518,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
         )}
 
         <div className="mt-12 -mx-6 flex snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-visible pb-6 pt-4 md:mx-0">
-          {tiersToRender.map((tier, index) => (
+          {paddedTiers.map((tier, index) => (
             <div
               key={`${tier.name}-${tier.price ?? 'n/a'}-${index}`}
               className="min-w-[82%] flex-shrink-0 snap-center md:min-w-[360px] lg:min-w-[380px]"

@@ -32,9 +32,6 @@ import {
 import {
   ElementFocusSchema,
 } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
-import {
-  ElementMetaSchema,
-} from '@vrooli/proto-types/browser-automation-studio/v1/domain/selectors_pb';
 
 import { safeDuration, validateStepIndex, safeSerializable } from '../utils';
 import type { BaseExecutionResult, ExecutionError, HandlerError } from './types';
@@ -392,10 +389,19 @@ export function buildStepOutcome(params: BuildOutcomeParams): StepOutcome {
 export function toDriverOutcome(
   outcome: StepOutcome,
   screenshotData?: { base64?: string; media_type?: string; width?: number; height?: number },
-  domSnapshot?: DOMSnapshot
+  domSnapshot?: DOMSnapshot,
+  rawExtractedData?: Record<string, unknown>
 ): DriverOutcome {
   // Serialize proto to JSON (produces camelCase field names per proto3 canonical JSON)
   const json = toJson(StepOutcomeSchema, outcome) as Record<string, unknown>;
+
+  // The Go API expects plain JSON for extracted_data, not proto JsonValue wrappers.
+  // Pass raw extracted_data directly to avoid the proto wrapper structure.
+  if (rawExtractedData && Object.keys(rawExtractedData).length > 0) {
+    json['extracted_data'] = rawExtractedData;
+    // Remove the proto-wrapped version
+    delete json['extractedData'];
+  }
 
   // For backward compatibility, add flat screenshot fields
   // The Go API expects these flat fields in addition to the nested screenshot object
@@ -432,8 +438,11 @@ function base64ToUint8Array(base64: string): Uint8Array {
  */
 function objectToJsonValueMap(obj: Record<string, unknown>): Record<string, import('@vrooli/proto-types/common/v1/types_pb').JsonValue> {
   // Dynamic require to avoid circular dependency issues
-  const { create: createProto } = require('@bufbuild/protobuf');
-  const { JsonValueSchema: JVS, JsonObjectSchema: JOS, JsonListSchema: JLS } = require('@vrooli/proto-types/common/v1/types_pb');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires -- avoid circular dependency issues
+  const { create: createProto } = require('@bufbuild/protobuf') as typeof import('@bufbuild/protobuf');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires -- avoid circular dependency issues
+  const protoSchemas = require('@vrooli/proto-types/common/v1/types_pb') as typeof import('@vrooli/proto-types/common/v1/types_pb');
+  const { JsonValueSchema: JVS, JsonObjectSchema: JOS, JsonListSchema: JLS } = protoSchemas;
 
   function toJsonValue(value: unknown): import('@vrooli/proto-types/common/v1/types_pb').JsonValue {
     if (value === null || value === undefined) {

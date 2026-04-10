@@ -1,0 +1,105 @@
+{
+  "_metadata": {
+    "description": "Domain registration and discovery requirements",
+    "domain": "domains",
+    "last_updated": "2026-03-10"
+  },
+  "requirements": [
+    {
+      "id": "LD-DOMAIN-REGISTER",
+      "category": "domains.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "linked_operational_target_ids": ["OT-P0-002"],
+      "title": "Domain registration endpoint",
+      "description": "POST /api/v1/domains/register accepts domain name, capabilities list, UI route, and health endpoint. Returns registration confirmation with assigned domain ID.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestDomainRegistration_Success",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests POST /api/v1/domains accepts domain name and capabilities"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestDomainRegistration_Idempotent",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests registration idempotency via upsert"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestDomainUpdate_PATCH",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests domain update via PATCH endpoint"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/domains_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests domain registration through handler layer"
+        }
+      ]
+    },
+    {
+      "id": "LD-DOMAIN-DISCOVER",
+      "category": "domains.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "linked_operational_target_ids": ["OT-P0-002"],
+      "title": "Domain discovery endpoint",
+      "description": "GET /api/v1/domains returns list of registered domains with capabilities, health status, and last event timestamp. Supports filtering by status (active/inactive).",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestDomainDiscovery_ListAll",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests GET /api/v1/domains returns list of registered domains"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestDomainDiscovery_GetByName",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests single domain retrieval by name"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestDomainDiscovery_UnknownReturns404",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests unknown domains return 404"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/domains_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests domain discovery through handler layer"
+        }
+      ]
+    },
+    {
+      "id": "LD-DOMAIN-HEALTH",
+      "category": "domains.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "linked_operational_target_ids": ["OT-P0-002"],
+      "title": "Domain health tracking",
+      "description": "Dashboard periodically polls domain health endpoints. Domains not responding for 5 minutes marked inactive. Health status visible in UI and affects daily brief content.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestDomainHealth_HealthEndpoint",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests health status tracking endpoint"
+        }
+      ]
+    }
+  ]
+}

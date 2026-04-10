@@ -1,0 +1,142 @@
+{
+  "description": "List all scenarios with priority ranking, search, and filter",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "Implement API endpoints for listing, searching, and filtering scenarios with priority ranking",
+      "id": "REQ-P0-006-API",
+      "prd_ref": "OT-P0-005",
+      "status": "implemented",
+      "title": "Scenario Catalog API",
+      "validation": [
+        {
+          "notes": "API test - empty scenario list",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestList_Empty",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "API test - scenario list with data",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestList_WithScenarios",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "API test - search functionality",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestList_Search",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "API test - tag filtering",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestList_FilterByTags",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "API test - sorting",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestList_Sorting",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "API test - get single scenario",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestGet_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "API test - scenario not found",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestGet_NotFound",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "API test - scenario data structure",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestScenario_Structure",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": ["REQ-P0-006-API"],
+      "description": "Implement searchable and filterable UI for scenario catalog with priority ranking display",
+      "id": "REQ-P0-006-UI",
+      "prd_ref": "OT-P0-005",
+      "status": "implemented",
+      "title": "Scenario Catalog UI",
+      "validation": [
+        {
+          "notes": "Test search by name functionality",
+          "phase": "unit",
+          "ref": "ui/src/pages/ScenariosPage.test.tsx::filters scenarios by search term in name",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test search by description functionality",
+          "phase": "unit",
+          "ref": "ui/src/pages/ScenariosPage.test.tsx::filters scenarios by search term in description",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test search case insensitivity",
+          "phase": "unit",
+          "ref": "ui/src/pages/ScenariosPage.test.tsx::search is case insensitive",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test filter dropdown opens",
+          "phase": "unit",
+          "ref": "ui/src/pages/ScenariosPage.test.tsx::opens filter dropdown when filter button is clicked",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test priority sorting display",
+          "phase": "unit",
+          "ref": "ui/src/pages/ScenariosPage.test.tsx::displays scenarios sorted by priority",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test scenario count display",
+          "phase": "unit",
+          "ref": "ui/src/pages/ScenariosPage.test.tsx::displays scenario count",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test no results state shows clear filters button",
+          "phase": "unit",
+          "ref": "ui/src/pages/ScenariosPage.test.tsx::shows no results state when search matches nothing",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test clear filters resets search",
+          "phase": "unit",
+          "ref": "ui/src/pages/ScenariosPage.test.tsx::clear filters button resets search",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Scenario catalog with priority"
+}

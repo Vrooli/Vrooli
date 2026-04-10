@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md
+// DOC: docs/reference/api-endpoints.md
 package handlers
 
 import (
@@ -56,6 +58,10 @@ func (h *SettingsHandlers) GetSettingsHandler(w http.ResponseWriter, r *http.Req
 			"cooldown_seconds": map[string]int{
 				"min": settings.MinCooldownSeconds,
 				"max": settings.MaxCooldownSeconds,
+			},
+			"execution_limit": map[string]int{
+				"min": settings.MinExecutionLimit,
+				"max": settings.MaxExecutionLimit,
 			},
 			"max_turns": map[string]int{
 				"min": settings.MinMaxTurns,

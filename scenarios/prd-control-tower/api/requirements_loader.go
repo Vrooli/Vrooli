@@ -18,8 +18,12 @@ type requirementsCacheEntry struct {
 	loadedAt time.Time
 }
 
-func loadRequirementsForEntity(entityType, entityName string) ([]RequirementGroup, error) {
-	key := fmt.Sprintf("%s:%s", entityType, entityName)
+func loadRequirementsForEntity(entityType, entityName string, customPath ...string) ([]RequirementGroup, error) {
+	cp := ""
+	if len(customPath) > 0 {
+		cp = customPath[0]
+	}
+	key := fmt.Sprintf("%s:%s:%s", entityType, entityName, cp)
 	if entry, ok := requirementsCache.Load(key); ok {
 		cacheEntry := entry.(requirementsCacheEntry)
 		if time.Since(cacheEntry.loadedAt) < 2*time.Minute {
@@ -27,11 +31,11 @@ func loadRequirementsForEntity(entityType, entityName string) ([]RequirementGrou
 		}
 	}
 
-	vrooliRoot, err := getVrooliRoot()
+	entityBaseDir, err := resolveEntityBaseDir(entityType, entityName, cp)
 	if err != nil {
 		return nil, err
 	}
-	baseDir := filepath.Join(vrooliRoot, entityType+"s", entityName, "requirements")
+	baseDir := filepath.Join(entityBaseDir, "requirements")
 	indexPath := filepath.Join(baseDir, "index.json")
 	if _, err := os.Stat(indexPath); errors.Is(err, os.ErrNotExist) {
 		return []RequirementGroup{}, nil

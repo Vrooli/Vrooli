@@ -1,0 +1,95 @@
+{
+  "_metadata": {
+    "description": "Brand Assignment domain - linking brands to scenarios with tracking",
+    "domain": "brand-assignment",
+    "last_updated": "2026-03-26"
+  },
+  "requirements": [
+    {
+      "id": "BM-REQ-ASSIGN-LINK",
+      "category": "brand-assignment",
+      "prd_ref": "Operational Targets > P0 > OT-P0-009",
+      "title": "Link brands to scenarios",
+      "description": "Link brands to scenarios with tracking",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/repository/sqlite_assignments_test.go:TestAssignmentCreate",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests creating brand-to-scenario assignment"
+        },
+        {
+          "type": "test",
+          "ref": "api/repository/sqlite_assignments_test.go:TestAssignmentGetByScenario",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests retrieving assignment by scenario name"
+        },
+        {
+          "type": "test",
+          "ref": "api/repository/sqlite_assignments_test.go:TestAssignmentReplaceOnSameScenario",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests replacing assignment for same scenario"
+        },
+        {
+          "type": "test",
+          "ref": "api/repository/sqlite_assignments_test.go:TestAssignmentDelete",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests assignment deletion"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/brands_mock_test.go:TestMockCreateAssignment",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests HTTP POST /assignments endpoint"
+        }
+      ]
+    },
+    {
+      "id": "BM-REQ-ASSIGN-TRACK",
+      "category": "brand-assignment",
+      "prd_ref": "Operational Targets > P0 > OT-P0-009",
+      "title": "Track application history",
+      "description": "Track what was applied, when, and what version",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/repository/sqlite_assignments_test.go:TestAssignmentCreate",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Assignment records include brand_version and applied_at timestamp"
+        },
+        {
+          "type": "test",
+          "ref": "api/repository/sqlite_assignments_test.go:TestAssignmentGetByScenario",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Retrieval includes full tracking metadata"
+        }
+      ]
+    },
+    {
+      "id": "BM-REQ-ASSIGN-MULTI",
+      "category": "brand-assignment",
+      "prd_ref": "Operational Targets > P0 > OT-P0-009",
+      "title": "One brand to multiple scenarios",
+      "description": "Support assigning one brand to multiple scenarios",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/repository/sqlite_assignments_test.go:TestAssignmentListByBrandID",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests listing all scenarios assigned to one brand"
+        }
+      ]
+    }
+  ]
+}

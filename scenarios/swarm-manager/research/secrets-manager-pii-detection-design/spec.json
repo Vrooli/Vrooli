@@ -1,0 +1,17 @@
+{
+  "acceptance_allow": [
+    "scenarios/secrets-manager/**"
+  ],
+  "archived_at": "2026-04-09T15:13:30Z",
+  "created": "2026-04-06T18:43:38Z",
+  "description": "Design the PII detection subsystem for Secrets Manager: custom watchlist support (user uploads personal values like email, phone, home directory path), allowlist system for test files/fixtures (path pattern exemptions), and a file-list-based scan endpoint that accepts arbitrary file paths rather than scanning entire directories. Evaluate whether Secrets Manager needs modernization before integration. Define the API contract for the new scan endpoint so Git Control Tower can call it with staged file paths.",
+  "effort": "M",
+  "initiative": "gct-pre-commit-security",
+  "kind": "research",
+  "name": "secrets-manager-pii-detection-design",
+  "priority": 1,
+  "status": "completed",
+  "tags": [],
+  "title": "Design PII detection system for Secrets Manager",
+  "updated": "2026-04-09T15:13:30Z"
+}

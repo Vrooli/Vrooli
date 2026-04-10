@@ -109,12 +109,12 @@ type Issue struct {
 	Attachments []Attachment `yaml:"attachments,omitempty" json:"attachments,omitempty"`
 
 	ManualReview struct {
-		MarkedAsFailed   bool   `yaml:"marked_as_failed" json:"marked_as_failed"`
-		FailureReason    string `yaml:"failure_reason,omitempty" json:"failure_reason,omitempty"`
-		ReviewedBy       string `yaml:"reviewed_by,omitempty" json:"reviewed_by,omitempty"`
-		ReviewedAt       string `yaml:"reviewed_at,omitempty" json:"reviewed_at,omitempty"`
-		ReviewNotes      string `yaml:"review_notes,omitempty" json:"review_notes,omitempty"`
-		OriginalStatus   string `yaml:"original_status,omitempty" json:"original_status,omitempty"`
+		MarkedAsFailed bool   `yaml:"marked_as_failed" json:"marked_as_failed"`
+		FailureReason  string `yaml:"failure_reason,omitempty" json:"failure_reason,omitempty"`
+		ReviewedBy     string `yaml:"reviewed_by,omitempty" json:"reviewed_by,omitempty"`
+		ReviewedAt     string `yaml:"reviewed_at,omitempty" json:"reviewed_at,omitempty"`
+		ReviewNotes    string `yaml:"review_notes,omitempty" json:"review_notes,omitempty"`
+		OriginalStatus string `yaml:"original_status,omitempty" json:"original_status,omitempty"`
 	} `yaml:"manual_review,omitempty" json:"manual_review,omitempty"`
 
 	Metadata struct {
@@ -158,12 +158,12 @@ type PromptPreviewResponse struct {
 }
 
 type UpdateIssueRequest struct {
-	Title         *string   `json:"title"`
-	Description   *string   `json:"description"`
-	Type          *string   `json:"type"`
-	Priority      *string   `json:"priority"`
-	Targets       *[]Target `json:"targets"`
-	Status        *string   `json:"status"`
+	Title         *string            `json:"title"`
+	Description   *string            `json:"description"`
+	Type          *string            `json:"type"`
+	Priority      *string            `json:"priority"`
+	Targets       *[]Target          `json:"targets"`
+	Status        *string            `json:"status"`
 	Tags          *[]string          `json:"tags"`
 	Labels        *map[string]string `json:"labels"`
 	Watchers      *[]string          `json:"watchers"`
@@ -290,12 +290,12 @@ type AgentConversationEntry struct {
 type AgentConversationPayload struct {
 	IssueID             string                   `json:"issue_id"`
 	Available           bool                     `json:"available"`
-	Provider            string                   `json:"provider,omitempty"`
+	RunnerType          string                   `json:"runner_type,omitempty"`
+	ProfileKey          string                   `json:"profile_key,omitempty"`
+	RunID               string                   `json:"run_id,omitempty"`
 	SessionID           string                   `json:"session_id,omitempty"`
-	Prompt              string                   `json:"prompt,omitempty"`
 	Metadata            map[string]interface{}   `json:"metadata,omitempty"`
 	Entries             []AgentConversationEntry `json:"entries,omitempty"`
-	LastMessage         string                   `json:"last_message,omitempty"`
 	TranscriptTimestamp string                   `json:"transcript_timestamp,omitempty"`
 }
 

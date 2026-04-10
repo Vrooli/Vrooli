@@ -159,7 +159,7 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*bastimeline.TimelineEntr
 
 	// Add assertion to context if present
 	if frame.Assertion != nil {
-		assertion, err := convertAssertion(frame.Assertion)
+		assertion, err := ConvertAssertion(frame.Assertion)
 		if err != nil {
 			return nil, err
 		}
@@ -382,7 +382,9 @@ func convertArtifact(artifact typeconv.TimelineArtifact) (*bastimeline.TimelineA
 	return pb, nil
 }
 
-func convertAssertion(assertion *autocontracts.AssertionOutcome) (*basbase.AssertionResult, error) {
+// ConvertAssertion converts an AssertionOutcome contract to a proto AssertionResult.
+// Used by the execution writer to persist assertion data in timeline entries.
+func ConvertAssertion(assertion *autocontracts.AssertionOutcome) (*basbase.AssertionResult, error) {
 	if assertion == nil {
 		return nil, nil
 	}
@@ -406,144 +408,4 @@ func convertAssertion(assertion *autocontracts.AssertionOutcome) (*basbase.Asser
 	}
 
 	return pb, nil
-}
-
-
-// mapToTriggerMetadata converts a map to the typed TriggerMetadata proto.
-func mapToTriggerMetadata(source map[string]any) *basexecution.TriggerMetadata {
-	if len(source) == 0 {
-		return nil
-	}
-	meta := &basexecution.TriggerMetadata{}
-	if v, ok := source["user_id"].(string); ok && v != "" {
-		meta.UserId = &v
-	}
-	if v, ok := source["client_id"].(string); ok && v != "" {
-		meta.ClientId = &v
-	}
-	if v, ok := source["schedule_id"].(string); ok && v != "" {
-		meta.ScheduleId = &v
-	}
-	if v, ok := source["webhook_id"].(string); ok && v != "" {
-		meta.WebhookId = &v
-	}
-	if v, ok := source["external_request_id"].(string); ok && v != "" {
-		meta.ExternalRequestId = &v
-	}
-	if v, ok := source["source_ip"].(string); ok && v != "" {
-		meta.SourceIp = &v
-	}
-	if v, ok := source["user_agent"].(string); ok && v != "" {
-		meta.UserAgent = &v
-	}
-	return meta
-}
-
-// mapToExecutionParameters converts a map to the typed ExecutionParameters proto.
-func mapToExecutionParameters(source map[string]any) *basexecution.ExecutionParameters {
-	if len(source) == 0 {
-		return nil
-	}
-	params := &basexecution.ExecutionParameters{}
-	if v, ok := source["start_url"].(string); ok && v != "" {
-		params.StartUrl = &v
-	}
-	if v, ok := source["variables"].(map[string]any); ok {
-		params.Variables = make(map[string]string)
-		for k, val := range v {
-			if s, ok := val.(string); ok {
-				params.Variables[k] = s
-			}
-		}
-	}
-	if v, ok := source["viewport_width"]; ok {
-		if i := typeconv.ToInt32Val(v); i != 0 {
-			params.ViewportWidth = &i
-		}
-	}
-	if v, ok := source["viewport_height"]; ok {
-		if i := typeconv.ToInt32Val(v); i != 0 {
-			params.ViewportHeight = &i
-		}
-	}
-	if v, ok := source["timeout_ms"]; ok {
-		if i := typeconv.ToInt32Val(v); i != 0 {
-			params.TimeoutMs = &i
-		}
-	}
-	if v, ok := source["headless"].(bool); ok {
-		params.Headless = &v
-	}
-	if v, ok := source["user_agent"].(string); ok && v != "" {
-		params.UserAgent = &v
-	}
-	if v, ok := source["locale"].(string); ok && v != "" {
-		params.Locale = &v
-	}
-	// Extract navigation_wait_until
-	if v, ok := source["navigation_wait_until"].(string); ok && v != "" {
-		waitEvent := parseNavigateWaitEvent(v)
-		params.NavigationWaitUntil = &waitEvent
-	}
-	// Extract continue_on_error
-	if v, ok := source["continue_on_error"].(bool); ok {
-		params.ContinueOnError = &v
-	}
-	return params
-}
-
-// parseNavigateWaitEvent converts a string value to the NavigateWaitEvent enum.
-func parseNavigateWaitEvent(s string) basactions.NavigateWaitEvent {
-	switch s {
-	case "load":
-		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_LOAD
-	case "domcontentloaded":
-		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED
-	case "networkidle":
-		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_NETWORKIDLE
-	default:
-		return basactions.NavigateWaitEvent_NAVIGATE_WAIT_EVENT_UNSPECIFIED
-	}
-}
-
-// mapToExecutionResult converts a map to the typed ExecutionResult proto.
-func mapToExecutionResult(source map[string]any) *basexecution.ExecutionResult {
-	if len(source) == 0 {
-		return nil
-	}
-	result := &basexecution.ExecutionResult{}
-	if v, ok := source["success"].(bool); ok {
-		result.Success = v
-	}
-	if v, ok := source["steps_executed"]; ok {
-		result.StepsExecuted = typeconv.ToInt32Val(v)
-	}
-	if v, ok := source["steps_failed"]; ok {
-		result.StepsFailed = typeconv.ToInt32Val(v)
-	}
-	if v, ok := source["final_url"].(string); ok && v != "" {
-		result.FinalUrl = &v
-	}
-	if v, ok := source["error"].(string); ok && v != "" {
-		result.Error = &v
-	}
-	if v, ok := source["error_code"].(string); ok && v != "" {
-		result.ErrorCode = &v
-	}
-	if v, ok := source["extracted_data"].(map[string]any); ok {
-		result.ExtractedData = typeconv.ToJsonValueMap(v)
-	}
-	if v, ok := source["screenshot_artifacts"].(map[string]any); ok {
-		result.ScreenshotArtifacts = make(map[int32]string)
-		for k, val := range v {
-			if s, ok := val.(string); ok {
-				// Parse key as int
-				var idx int
-				if _, err := fmt.Sscanf(k, "%d", &idx); err == nil {
-					result.ScreenshotArtifacts[int32(idx)] = s
-				}
-			}
-		}
-	}
-	return result
 }

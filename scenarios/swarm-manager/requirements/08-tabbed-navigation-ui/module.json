@@ -1,0 +1,78 @@
+{
+  "description": "Header tabs (desktop) / bottom-nav (mobile) with four tabs: Backlog, Scenarios, Execution, Settings",
+  "module_id": "MOD-P0-008",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "ui",
+      "description": "Implement desktop header navigation with tabbed layout containing Backlog, Scenarios, Execution, and Settings tabs",
+      "id": "REQ-P0-009-DESKTOP",
+      "prd_ref": "OT-P0-008",
+      "status": "implemented",
+      "title": "Desktop Tab Navigation",
+      "validation": [
+        {
+          "notes": "Test desktop tab rendering with all 4 navigation items",
+          "phase": "unit",
+          "ref": "ui/src/components/layout/MainLayout.test.tsx::renders desktop tabs with all navigation items",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Validate desktop tab click navigation",
+          "phase": "integration",
+          "ref": "ui/src/components/layout/MainLayout.test.tsx::navigates when clicking desktop tabs",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Verify active tab highlighting on Backlog page",
+          "phase": "unit",
+          "ref": "ui/src/components/layout/MainLayout.test.tsx::highlights Backlog tab when on /backlog route",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Header displays app name",
+          "phase": "unit",
+          "ref": "ui/src/components/layout/MainLayout.test.tsx::displays Swarm Manager header",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "description": "Implement mobile bottom navigation with tab icons for Backlog, Scenarios, Execution, and Settings",
+      "id": "REQ-P0-009-MOBILE",
+      "prd_ref": "OT-P0-008",
+      "status": "implemented",
+      "title": "Mobile Bottom Navigation",
+      "validation": [
+        {
+          "notes": "Test mobile navigation renders with all tabs",
+          "phase": "unit",
+          "ref": "ui/src/components/layout/MainLayout.test.tsx::renders mobile navigation with all tabs",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Validate mobile tab click navigation",
+          "phase": "integration",
+          "ref": "ui/src/components/layout/MainLayout.test.tsx::navigates when clicking mobile tabs",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Verify active tab highlighting on Scenarios page",
+          "phase": "unit",
+          "ref": "ui/src/components/layout/MainLayout.test.tsx::highlights Scenarios tab when on /scenarios route",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Tabbed navigation UI"
+}

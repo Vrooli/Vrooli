@@ -7,50 +7,60 @@
  * @module export/components
  */
 
-import { Download, FolderOutput, Loader, X } from "lucide-react";
+import { useMemo } from "react";
+import { Download, FolderOpen, Loader, X } from "lucide-react";
 import clsx from "clsx";
 import { ResponsiveDialog } from "@shared/layout";
 import { selectors } from "@constants/selectors";
+import ReplayPlayer from "@/domains/exports/replay/ReplayPlayer";
+import { normalizeReplayStyle } from "@/domains/replay-style";
 import {
   useExportDialogContext,
   useExportFormatState,
   useExportDimensionState,
   useExportFileState,
   useExportRenderSourceState,
+  useExportStylizationState,
   useExportPreviewState,
   useExportProgressState,
   useExportMetricsState,
   useExportDialogActions,
 } from "../context";
-import { EXPORT_EXTENSIONS, isBinaryFormat } from "../config";
+import { EXPORT_EXTENSIONS, EXPORT_STYLIZATION_OPTIONS } from "../config";
+import { ExportStylizationSidebar } from "./ExportStylizationSidebar";
 
 // =============================================================================
 // Sub-components for each section
 // =============================================================================
 
 function FormatSection() {
-  const { format, setFormat, isBinaryExport, formatOptions } = useExportFormatState();
+  const { formats, toggleFormat, formatOptions } = useExportFormatState();
+
+  const selectedCount = formats.length;
+  const formatLabel = selectedCount === 1
+    ? formatOptions.find((o) => o.id === formats[0])?.label ?? formats[0]
+    : `${selectedCount} formats`;
 
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-white">Format</h3>
-          <p className="text-xs text-gray-400">Pick the export target that fits your workflow.</p>
+          <p className="text-xs text-gray-400">Select one or more export formats.</p>
         </div>
         <span className="text-[11px] uppercase tracking-[0.2em] text-gray-500">
-          {isBinaryExport ? "Direct download" : "Data bundle"}
+          {formatLabel}
         </span>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         {formatOptions.map((option) => {
-          const isSelected = option.id === format;
+          const isSelected = formats.includes(option.id);
           const Icon = option.icon;
           return (
             <button
               key={option.id}
               type="button"
-              onClick={() => setFormat(option.id)}
+              onClick={() => toggleFormat(option.id)}
               className={clsx(
                 "flex flex-col items-start gap-3 rounded-xl border px-4 py-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-900",
                 isSelected
@@ -67,16 +77,39 @@ function FormatSection() {
                 >
                   <Icon size={18} />
                 </span>
-                {option.badge && (
+                <span className="flex items-center gap-2">
+                  {option.badge && (
+                    <span
+                      className={clsx(
+                        "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em]",
+                        isSelected ? "bg-white/20 text-white" : "bg-slate-800 text-slate-300",
+                      )}
+                    >
+                      {option.badge}
+                    </span>
+                  )}
+                  {/* Checkbox indicator */}
                   <span
                     className={clsx(
-                      "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em]",
-                      isSelected ? "bg-white/20 text-white" : "bg-slate-800 text-slate-300",
+                      "flex h-5 w-5 items-center justify-center rounded border",
+                      isSelected
+                        ? "border-flow-accent bg-flow-accent text-white"
+                        : "border-gray-500 bg-slate-900/70",
                     )}
                   >
-                    {option.badge}
+                    {isSelected && (
+                      <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none">
+                        <path
+                          d="M2 6L5 9L10 3"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
                   </span>
-                )}
+                </span>
               </span>
               <div>
                 <div className="text-sm font-semibold">{option.label}</div>
@@ -91,7 +124,6 @@ function FormatSection() {
 }
 
 function RenderSourceSection() {
-  const { format } = useExportFormatState();
   const {
     source,
     setSource,
@@ -100,11 +132,6 @@ function RenderSourceSection() {
     recordedVideoCount,
     recordedVideoLoading,
   } = useExportRenderSourceState();
-
-  // Only show for binary exports
-  if (!isBinaryFormat(format)) {
-    return null;
-  }
 
   return (
     <section className="space-y-3">
@@ -166,69 +193,145 @@ function RenderSourceSection() {
   );
 }
 
-function PreviewSection() {
-  const { selectedDimensions } = useExportDimensionState();
-  const {
-    movieSpec,
-    composerPreviewUrl,
-    firstFramePreviewUrl,
-    firstFrameLabel,
-    composerRef,
-    composerWindowRef,
-    composerOriginRef,
-    isComposerReady,
-    setIsComposerReady,
-    composerError,
-    setComposerError,
-  } = useExportPreviewState();
+function StylizationSection() {
+  const { stylization, setStylization, isStylized } = useExportStylizationState();
 
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white">First frame preview</h3>
+        <div>
+          <h3 className="text-sm font-semibold text-white">Style</h3>
+          <p className="text-xs text-gray-400">Choose how the output looks.</p>
+        </div>
+        <span className="text-[11px] uppercase tracking-[0.2em] text-gray-500">
+          {isStylized ? "Enhanced" : "Original"}
+        </span>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {EXPORT_STYLIZATION_OPTIONS.map((option) => {
+          const isSelected = option.id === stylization;
+          const Icon = option.icon;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setStylization(option.id)}
+              className={clsx(
+                "flex flex-col items-start gap-3 rounded-xl border px-4 py-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-900",
+                isSelected
+                  ? "border-flow-accent/70 bg-flow-accent/20 text-white shadow-[0_20px_45px_rgba(59,130,246,0.25)]"
+                  : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white",
+              )}
+            >
+              <span
+                className={clsx(
+                  "flex h-10 w-10 items-center justify-center rounded-lg",
+                  isSelected
+                    ? "bg-flow-accent/80 text-white"
+                    : "bg-slate-900/70 text-flow-accent",
+                )}
+              >
+                <Icon size={18} />
+              </span>
+              <div>
+                <div className="text-sm font-semibold">{option.label}</div>
+                <div className="text-xs text-slate-400">{option.description}</div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function PreviewSection() {
+  const { selectedDimensions } = useExportDimensionState();
+  const { source, recordedVideoAvailable } = useExportRenderSourceState();
+  const { isStylized } = useExportStylizationState();
+  const {
+    replayFrames,
+    replayStyle,
+    recordedVideoUrl,
+    firstFramePreviewUrl,
+    firstFrameLabel,
+  } = useExportPreviewState();
+
+  // Determine effective source (resolve "auto" to recording or slideshow)
+  const effectiveSource = useMemo(() => {
+    if (source === "auto") {
+      return recordedVideoAvailable ? "recorded_video" : "replay_frames";
+    }
+    return source;
+  }, [source, recordedVideoAvailable]);
+
+  // Build preview style based on stylization toggle
+  // When stylized, use full replayStyle; when raw, use minimal style
+  const previewStyle = useMemo(() => {
+    if (isStylized) {
+      return replayStyle;
+    }
+    // Raw style: no chrome, no background, no cursor styling
+    return normalizeReplayStyle({
+      chromeTheme: "none",
+      presentation: "plain",
+      background: "none",
+      cursorTheme: "system",
+      cursorClickAnimation: "none",
+    });
+  }, [isStylized, replayStyle]);
+
+  // Determine what type of preview we're showing
+  const showRecordedVideo = effectiveSource === "recorded_video" && recordedVideoUrl;
+  const showReplayPlayer = replayFrames.length > 0;
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-white">Preview</h3>
+          <p className="text-xs text-gray-400">
+            {effectiveSource === "recorded_video" ? "Screen recording" : "Slideshow replay"}
+          </p>
+        </div>
         {firstFrameLabel && <span className="text-xs text-slate-400">{firstFrameLabel}</span>}
       </div>
       <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-900/60">
-        {movieSpec ? (
+        {showRecordedVideo ? (
+          // Video player for recorded video
           <div
             className="relative w-full"
             style={{
               aspectRatio: `${selectedDimensions.width} / ${selectedDimensions.height}`,
             }}
           >
-            <iframe
-              key={`${movieSpec?.execution?.execution_id ?? "preview"}-composer`}
-              ref={(node) => {
-                composerRef.current = node;
-                const nextWindow = node?.contentWindow ?? null;
-                if (composerWindowRef.current !== nextWindow) {
-                  composerWindowRef.current = nextWindow;
-                  if (!nextWindow) {
-                    setIsComposerReady(false);
-                    setComposerError(null);
-                    composerOriginRef.current = null;
-                  }
-                }
-              }}
-              src={composerPreviewUrl}
-              title="Replay preview"
-              className="absolute inset-0 h-full w-full border-0"
-              allow="clipboard-read; clipboard-write"
+            <video
+              src={recordedVideoUrl}
+              controls
+              autoPlay={false}
+              loop
+              className="absolute inset-0 h-full w-full object-contain bg-black"
             />
-            {!isComposerReady && firstFramePreviewUrl && (
-              <img
-                src={firstFramePreviewUrl}
-                alt="First frame snapshot"
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-            )}
-            {!isComposerReady && (
-              <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60 text-xs uppercase tracking-[0.3em] text-slate-300">
-                {composerError ?? "Loading preview…"}
-              </div>
-            )}
+          </div>
+        ) : showReplayPlayer ? (
+          // ReplayPlayer for slideshow
+          <div
+            className="relative w-full"
+            style={{
+              aspectRatio: `${selectedDimensions.width} / ${selectedDimensions.height}`,
+            }}
+          >
+            <ReplayPlayer
+              frames={replayFrames}
+              replayStyle={previewStyle}
+              presentationMode="default"
+              presentationFit="contain"
+              autoPlay={false}
+              loop={true}
+            />
           </div>
         ) : firstFramePreviewUrl ? (
+          // Fallback to static image
           <img
             src={firstFramePreviewUrl}
             alt="First frame preview"
@@ -238,6 +341,7 @@ function PreviewSection() {
             }}
           />
         ) : (
+          // No preview available
           <div className="flex h-40 items-center justify-center text-sm text-slate-400">
             Preview unavailable
           </div>
@@ -246,7 +350,7 @@ function PreviewSection() {
           <span>
             {selectedDimensions.width}×{selectedDimensions.height} px
           </span>
-          <span>Canvas</span>
+          <span>{effectiveSource === "recorded_video" ? "Recording" : "Slideshow"}</span>
         </div>
       </div>
     </section>
@@ -338,92 +442,66 @@ function DimensionsSection() {
 }
 
 function FileNameSection() {
-  const { format } = useExportFormatState();
-  const { fileStem, setFileStem, defaultFileStem, finalFileName } = useExportFileState();
+  const { formats } = useExportFormatState();
+  const { fileStem, setFileStem, defaultFileStem, outputDir } = useExportFileState();
+
+  // Build list of all files that will be created with full paths
+  const effectiveStem = fileStem || defaultFileStem;
+  const dir = outputDir.endsWith('/') ? outputDir.slice(0, -1) : outputDir;
+  const filesToShow = formats.map((fmt) => `${dir}/${effectiveStem}.${EXPORT_EXTENSIONS[fmt]}`);
 
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-white">File name</h3>
-        <span className="text-xs text-gray-500">Extension follows format</span>
-      </div>
-      <div className="flex items-center gap-3">
-        <input
-          type="text"
-          value={fileStem}
-          onChange={(event) => setFileStem(event.target.value)}
-          className="flex-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-flow-accent focus:outline-none focus:ring-2 focus:ring-flow-accent/40"
-          placeholder={defaultFileStem}
-        />
-        <span className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-xs text-gray-300">
-          .{EXPORT_EXTENSIONS[format]}
+        <span className="text-xs text-gray-500">
+          {formats.length === 1 ? "1 file" : `${formats.length} files`}
         </span>
       </div>
-      <p className="text-xs text-gray-500">
-        Final file name: <code className="text-gray-300">{finalFileName}</code>
-      </p>
+      <input
+        type="text"
+        value={fileStem}
+        onChange={(event) => setFileStem(event.target.value)}
+        className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-flow-accent focus:outline-none focus:ring-2 focus:ring-flow-accent/40"
+        placeholder={defaultFileStem}
+      />
+      <div className="space-y-1">
+        <ul className="space-y-0.5">
+          {filesToShow.map((filePath) => (
+            <li key={filePath} className="text-xs text-gray-300 font-mono truncate" title={filePath}>
+              {filePath}
+            </li>
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }
 
 function DestinationSection() {
-  const { format } = useExportFormatState();
-  const { supportsFileSystemAccess, useNativeFilePicker, setUseNativeFilePicker } =
-    useExportFileState();
-
-  const isJsonExport = format === "json";
-
-  if (isJsonExport) {
-    return (
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white">Destination</h3>
-          {!supportsFileSystemAccess && (
-            <span className="text-xs text-amber-400">Browser will download to defaults</span>
-          )}
-        </div>
-        <label
-          className={clsx(
-            "flex items-center gap-3 rounded-lg border px-4 py-3 text-sm transition",
-            useNativeFilePicker && supportsFileSystemAccess
-              ? "border-flow-accent/60 bg-flow-accent/10 text-white"
-              : "border-white/10 bg-slate-900/60 text-slate-300",
-            !supportsFileSystemAccess && "opacity-60",
-          )}
-        >
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-white/20 bg-slate-900 text-flow-accent focus:ring-flow-accent"
-            checked={useNativeFilePicker && supportsFileSystemAccess}
-            onChange={(event) => setUseNativeFilePicker(event.target.checked)}
-            disabled={!supportsFileSystemAccess}
-          />
-          <div className="flex flex-col">
-            <span className="font-medium">
-              {supportsFileSystemAccess
-                ? "Choose save location on export"
-                : "Use browser default download folder"}
-            </span>
-            <span className="text-xs text-slate-400">
-              {supportsFileSystemAccess
-                ? "Open your OS save dialog to pick the destination each time."
-                : "Your browser will download using its configured destination."}
-            </span>
-          </div>
-        </label>
-      </section>
-    );
-  }
+  const { outputDir, setOutputDir } = useExportFileState();
 
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white">Download</h3>
-        <span className="text-xs text-slate-400">Server-rendered</span>
+        <h3 className="text-sm font-semibold text-white">Save location</h3>
+        <span className="text-[10px] uppercase tracking-wider text-gray-500">Server</span>
       </div>
-      <div className="space-y-2 rounded-lg border border-white/10 bg-slate-900/60 p-3 text-xs text-slate-300">
-        <p>Your replay renders on the API using the same metadata that powers the in-app player.</p>
-        <p>We'll trigger a download automatically once rendering finishes.</p>
+
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <FolderOpen size={14} className="text-gray-400 flex-shrink-0" />
+          <input
+            type="text"
+            value={outputDir}
+            onChange={(event) => setOutputDir(event.target.value)}
+            placeholder="data/exports"
+            className="flex-1 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white font-mono placeholder:text-gray-500 focus:border-flow-accent focus:outline-none focus:ring-2 focus:ring-flow-accent/40"
+          />
+        </div>
+        <p className="text-[10px] text-gray-500 pl-6">
+          Enter the path where exports should be saved. Directory will be created if it doesn't exist.
+        </p>
       </div>
     </section>
   );
@@ -475,6 +553,86 @@ function SummarySection() {
   );
 }
 
+/**
+ * Export progress bar - shows real-time progress during export rendering.
+ */
+function ExportProgressSection() {
+  const { isExporting, exportProgress, activeExportId } = useExportProgressState();
+
+  // Only show when actively exporting
+  if (!isExporting || !activeExportId) {
+    return null;
+  }
+
+  const stage = exportProgress?.stage ?? "preparing";
+  const percent = exportProgress?.progress_percent ?? 0;
+  const status = exportProgress?.status ?? "processing";
+
+  // Stage labels for display
+  const stageLabels: Record<string, string> = {
+    preparing: "Preparing export…",
+    capturing: "Capturing frames…",
+    encoding: "Encoding video…",
+    finalizing: "Finalizing…",
+    completed: "Export complete",
+    failed: "Export failed",
+  };
+
+  const stageLabel = stageLabels[stage] ?? "Processing…";
+  const isComplete = status === "completed";
+  const isFailed = status === "failed";
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-white">Export progress</h3>
+        <span className="text-xs text-gray-500">
+          {isComplete ? "Done" : isFailed ? "Error" : `${Math.round(percent)}%`}
+        </span>
+      </div>
+
+      <div className="rounded-lg border border-white/10 bg-slate-900/60 p-4">
+        {/* Progress bar */}
+        <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-800">
+          <div
+            className={clsx(
+              "absolute left-0 top-0 h-full rounded-full transition-all duration-300",
+              isComplete
+                ? "bg-green-500"
+                : isFailed
+                  ? "bg-red-500"
+                  : "bg-flow-accent",
+            )}
+            style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
+          />
+        </div>
+
+        {/* Stage label */}
+        <div className="mt-3 flex items-center justify-between">
+          <span className={clsx(
+            "text-sm",
+            isComplete ? "text-green-400" : isFailed ? "text-red-400" : "text-slate-300",
+          )}>
+            {stageLabel}
+          </span>
+          {exportProgress?.error && (
+            <span className="text-xs text-red-400 max-w-xs truncate" title={exportProgress.error}>
+              {exportProgress.error}
+            </span>
+          )}
+        </div>
+
+        {/* File info when complete */}
+        {isComplete && exportProgress?.storage_url && (
+          <div className="mt-2 text-xs text-slate-400 font-mono truncate" title={exportProgress.storage_url}>
+            Saved to: {exportProgress.storage_url}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 // =============================================================================
 // Main Component
 // =============================================================================
@@ -493,20 +651,28 @@ interface ExportDialogProps {
  * in ExportDialogProvider.
  */
 export function ExportDialog({ isOpen }: ExportDialogProps) {
-  const { titleId, descriptionId } = useExportDialogContext();
-  const { format } = useExportFormatState();
+  const { titleId, descriptionId, isEditMode } = useExportDialogContext();
+  const { formats, isBinaryExport } = useExportFormatState();
+  const { isStylized } = useExportStylizationState();
   const { isExporting, isPreviewLoading } = useExportProgressState();
   const { replayFramesLength } = useExportMetricsState();
   const { onClose, onConfirm } = useExportDialogActions();
 
-  const isJsonExport = format === "json";
+  // Format type checks for conditional rendering
+  const hasJsonFormat = formats.includes("json");
+
+  // Sidebar visibility only depends on stylization toggle - not format
+  // This prevents the confusing behavior where selecting JSON closes the sidebar
+  const showSidebar = isStylized;
+  // Whether stylization will actually apply: true if ANY selected format is binary
+  const stylizationApplies = isBinaryExport;
 
   return (
     <ResponsiveDialog
       isOpen={isOpen}
       onDismiss={onClose}
       ariaLabelledBy={titleId}
-      size="wide"
+      size={showSidebar ? "export" : "wide"}
       overlayClassName="z-50"
       className="bg-flow-node border border-gray-800 shadow-2xl max-h-[90vh] flex flex-col"
     >
@@ -518,10 +684,12 @@ export function ExportDialog({ isOpen }: ExportDialogProps) {
           </span>
           <div>
             <h2 id={titleId} className="text-lg font-semibold text-white">
-              Export replay
+              {isEditMode ? 'Edit export' : 'Export replay'}
             </h2>
             <p id={descriptionId} className="text-sm text-gray-400">
-              Choose format, naming, and destination for this execution.
+              {isEditMode
+                ? 'Modify settings and re-export. A new file will be generated.'
+                : 'Choose format, naming, and destination for this execution.'}
             </p>
           </div>
         </div>
@@ -535,23 +703,35 @@ export function ExportDialog({ isOpen }: ExportDialogProps) {
         </button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6" aria-describedby={descriptionId}>
-        <FormatSection />
-        <RenderSourceSection />
-        <PreviewSection />
-        <DimensionsSection />
-        <FileNameSection />
-        <DestinationSection />
-        <SummarySection />
+      {/* Content with optional sidebar */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Sidebar - shown when stylization is enabled */}
+        {showSidebar && <ExportStylizationSidebar stylizationApplies={stylizationApplies} />}
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6" aria-describedby={descriptionId}>
+          <FormatSection />
+          {/* Render source and stylization only apply to binary formats (mp4/gif) */}
+          {isBinaryExport && (
+            <>
+              <RenderSourceSection />
+              <StylizationSection />
+            </>
+          )}
+          <PreviewSection />
+          <DimensionsSection />
+          <FileNameSection />
+          <DestinationSection />
+          <SummarySection />
+          <ExportProgressSection />
+        </div>
       </div>
 
       {/* Footer */}
       <div className="flex items-center justify-between border-t border-gray-800 bg-flow-bg/60 px-6 py-4">
         <div className="text-xs text-gray-400">
-          {isJsonExport
-            ? "Exports the replay package with chosen theming so tooling can recreate animations."
-            : "Rendering runs on the API and downloads the finished media when ready."}
+          {formats.length} {formats.length === 1 ? "format" : "formats"} selected
+          {isBinaryExport && " · Video renders on server"}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -567,36 +747,28 @@ export function ExportDialog({ isOpen }: ExportDialogProps) {
             onClick={onConfirm}
             className={clsx(
               "flex items-center gap-2 rounded-lg bg-flow-accent px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60",
-              !isJsonExport && "bg-gradient-to-r from-flow-accent to-sky-500",
+              isBinaryExport && "bg-gradient-to-r from-flow-accent to-sky-500",
             )}
-            disabled={isJsonExport ? isExporting || isPreviewLoading : isExporting || replayFramesLength === 0}
+            disabled={
+              isExporting ||
+              (hasJsonFormat && isPreviewLoading) ||
+              (isBinaryExport && replayFramesLength === 0)
+            }
             data-testid={
               isExporting
                 ? selectors.executions.export.inProgress
                 : selectors.executions.actions.exportConfirmButton
             }
           >
-            {isJsonExport ? (
-              isExporting || isPreviewLoading ? (
-                <>
-                  <Loader size={16} className="animate-spin" />
-                  {isPreviewLoading ? "Preparing…" : "Exporting…"}
-                </>
-              ) : (
-                <>
-                  <FolderOutput size={16} />
-                  Export replay
-                </>
-              )
-            ) : isExporting ? (
+            {isExporting || isPreviewLoading ? (
               <>
                 <Loader size={16} className="animate-spin" />
-                Rendering…
+                {isPreviewLoading ? "Preparing…" : isBinaryExport ? "Rendering…" : "Exporting…"}
               </>
             ) : (
               <>
                 <Download size={16} />
-                Export replay
+                Export {formats.length === 1 ? "replay" : `${formats.length} formats`}
               </>
             )}
           </button>

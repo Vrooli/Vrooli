@@ -1,0 +1,21 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "r3f-coherence",
+  "name": "React Three Fiber (R3F)",
+  "description": "React Three Fiber performance patterns - prevent re-renders, optimize useFrame, and maintain 60fps rendering in 3D scenes",
+  "modes": [
+    "steer",
+    "react",
+    "performance"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "box",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 46,
+  "createdAt": "2026-01-25T00:00:00Z",
+  "updatedAt": "2026-02-05T01:02:03Z"
+}

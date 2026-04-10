@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "contrarian",
+  "displayName": "Contrarian",
+  "description": "Challenges assumptions, identifies failure modes, and prevents groupthink in research.",
+  "status": "active",
+  "appearance": {
+    "body": "#042F2E",
+    "head": "#0F766E",
+    "accent": "#99F6E4"
+  },
+  "tags": [
+    "research",
+    "critical-thinking",
+    "risk",
+    "assumptions"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

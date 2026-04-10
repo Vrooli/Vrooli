@@ -9,6 +9,8 @@ Store BAS workflows here. Keep it short.
 
 test-genie does **not** rewrite workflows. BAS resolves scenario navigation, tokens, and subflow paths at runtime. test-genie’s job is orchestration: provision isolated DB/Redis, run seeds once, restart the scenario against those resources, then execute the `bas/cases/**` workflows.
 
+If `bas/registry.json` declares `"metadata": { "execution_mode": "observer" }`, test-genie skips playbooks-managed isolation and scenario restarts and runs the workflows against the currently running environment instead. Use observer mode for self-tests and read-only checks that would otherwise restart the scenario under test.
+
 ## Workflow Contract
 
 Workflows must use **V2 proto-JSON format**. Legacy V1 format (with `node.type` + `node.data`) and steps format (with `steps[]` array) are rejected by preflight validation.
@@ -87,11 +89,17 @@ test-genie registry build
 
 This regenerates `bas/registry.json` (tracked), which test-genie uses to determine which `bas/cases/**` files to execute.
 
+When every playbook declares the same `metadata.execution_mode`, the registry builder carries that mode into `bas/registry.json` automatically.
+
+The registry builder prefers requirement refs declared in `requirements/**/*.json`, then falls back to `metadata.labels.requirements_json` for legacy BAS packs that have not yet linked those refs in the requirement registry.
+
+If a scenario does not need custom seed setup, do not keep an empty `bas/seeds/` directory around. Omit the directory entirely until `seed.go` or `seed.sh` exists.
+
 ## Playbooks isolation quickstart
 
-- Playbooks automatically start the scenario against temporary Postgres/Redis for this phase. Seeds run once and write `coverage/runtime/seed-state.json`.
+- Playbooks automatically start the scenario against temporary Postgres, Redis, and/or SQLite resources for this phase, depending on the target scenario manifest. Seeds run once and write `coverage/runtime/seed-state.json`.
 - Retain for debugging: `TEST_GENIE_PLAYBOOKS_RETAIN=1 test-genie execute my-scenario --preset comprehensive`
-  - Observations will include ready-to-run `psql`/`redis-cli` commands to inspect the retained DB/Redis.
+  - Observations will include ready-to-run `psql`/`redis-cli` commands and the retained SQLite database path when those resources are provisioned.
 - Normal runs drop the temp resources and restart the scenario on its usual resources after Playbooks finishes.
 
-See [Directory Structure](../../docs/phases/playbooks/directory-structure.md) for complete documentation on playbooks layout, fixtures, and naming conventions.
+See [Directory Structure](../docs/phases/playbooks/directory-structure.md) for complete documentation on playbooks layout, fixtures, and naming conventions.

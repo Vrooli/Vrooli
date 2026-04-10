@@ -1,0 +1,25 @@
+{
+  "id": "research-codebase-structure",
+  "name": "Explore Codebase Structure",
+  "description": "Understand how a codebase or feature area is organized",
+  "icon": "FolderTree",
+  "modes": ["Research", "Codebase Structure"],
+  "content": "I need to understand the structure and organization of {{area}}.\n\nPlease:\n1. Map out the directory structure and key files\n2. Identify the main entry points and how data flows\n3. Document the relationships between components/modules\n4. Note any patterns or conventions being followed\n5. Highlight any areas that seem unusual or could be improved\n\n{{context}}",
+  "variables": [
+    {
+      "name": "area",
+      "label": "Area to Explore",
+      "type": "text",
+      "placeholder": "e.g., authentication system, API layer, src/features/checkout",
+      "required": true
+    },
+    {
+      "name": "context",
+      "label": "Additional Context",
+      "type": "textarea",
+      "placeholder": "What specifically are you trying to learn? Any particular concerns?",
+      "required": false
+    }
+  ],
+  "suggestedSkillIds": ["screaming-arch"]
+}

@@ -577,7 +577,7 @@ Align preset names with CI terminology:
 ### Related Guides
 - [Phased Testing](phased-testing.md) - Understanding phases
 - [Sync Execution](sync-execution.md) - API-based execution
-- [Performance Testing](performance-testing.md) - Performance phase details
+- [Performance Testing](../phases/performance/performance-testing.md) - Performance phase details
 
 ### Reference
 - [Presets Reference](../reference/presets.md) - Built-in preset definitions

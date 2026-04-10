@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 )
 
@@ -27,7 +25,8 @@ type GitRunner interface {
 	Diff(ctx context.Context, repoDir string, path string, staged bool) ([]byte, error)
 
 	// Stage adds the specified paths to the git index.
-	Stage(ctx context.Context, repoDir string, paths []string) error
+	// Returns warnings (e.g., for ignored files) and an error if staging failed.
+	Stage(ctx context.Context, repoDir string, paths []string) (warnings []string, err error)
 
 	// Unstage removes the specified paths from the git index (git reset HEAD).
 	Unstage(ctx context.Context, repoDir string, paths []string) error
@@ -40,6 +39,9 @@ type GitRunner interface {
 	// Used for repository validation (e.g., --is-inside-work-tree).
 	RevParse(ctx context.Context, repoDir string, args ...string) ([]byte, error)
 
+	// LastCommitMessage returns the subject of the last commit.
+	LastCommitMessage(ctx context.Context, repoDir string) (string, error)
+
 	// LookPath checks if the git binary is available.
 	// Returns the full path to git if found, or an error if not.
 	LookPath() (string, error)
@@ -51,7 +53,8 @@ type GitRunner interface {
 
 	// FetchRemote fetches updates from the remote without merging.
 	// Used to get accurate ahead/behind counts.
-	FetchRemote(ctx context.Context, repoDir string, remote string) error
+	// If cred is provided, uses it for authentication (SSH key or HTTPS token).
+	FetchRemote(ctx context.Context, repoDir string, remote string, cred *StoredCredential) error
 
 	// GetRemoteURL returns the URL for the specified remote (e.g., "origin").
 	GetRemoteURL(ctx context.Context, repoDir string, remote string) (string, error)
@@ -65,23 +68,33 @@ type GitRunner interface {
 	Discard(ctx context.Context, repoDir string, paths []string, untracked bool) error
 
 	// Push pushes commits to the remote repository.
-	// Returns an error if the push fails.
-	Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool) error
+	// If cred is provided, uses it for authentication.
+	Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool, cred *StoredCredential) error
 
 	// Pull pulls commits from the remote repository.
-	// Returns an error if the pull fails (e.g., conflicts).
-	Pull(ctx context.Context, repoDir string, remote string, branch string) error
+	// If cred is provided, uses it for authentication.
+	Pull(ctx context.Context, repoDir string, remote string, branch string, cred *StoredCredential) error
+
+	// Clone clones a remote repository into the destination directory.
+	// If cred is provided, uses it for authentication.
+	Clone(ctx context.Context, destination string, url string, cred *StoredCredential) error
 
 	// LogGraph returns a git log graph for recent commits.
 	// Use a limit to cap the number of log entries.
-	LogGraph(ctx context.Context, repoDir string, limit int) ([]byte, error)
+	// When grep is non-empty, only commits whose message contains the string are returned.
+	LogGraph(ctx context.Context, repoDir string, limit int, grep string) ([]byte, error)
 
 	// LogDetails returns structured log details including file lists.
-	LogDetails(ctx context.Context, repoDir string, limit int) ([]byte, error)
+	// When grep is non-empty, only commits whose message contains the string are returned.
+	LogDetails(ctx context.Context, repoDir string, limit int, grep string) ([]byte, error)
 
 	// DiffNumstat returns numstat output for changes.
 	// If staged is true, returns staged stats (--cached).
-	DiffNumstat(ctx context.Context, repoDir string, staged bool) ([]byte, error)
+	// If paths is non-empty, limits the diff to those specific paths via
+	// pathspec (appended after "--"). This is used to skip large binary files
+	// whose content comparison dominates diff time in repos with tracked
+	// compiled artifacts (see GetRepoStatus binary pre-detection).
+	DiffNumstat(ctx context.Context, repoDir string, staged bool, paths ...string) ([]byte, error)
 
 	// RemoveFromIndex removes paths from the git index without deleting working files.
 	RemoveFromIndex(ctx context.Context, repoDir string, paths []string) error
@@ -109,556 +122,143 @@ type GitRunner interface {
 
 	// CheckRefFormat validates a branch name using git check-ref-format.
 	CheckRefFormat(ctx context.Context, repoDir string, name string) error
+
+	// SetUpstream sets the upstream tracking branch for a local branch.
+	SetUpstream(ctx context.Context, repoDir string, branch string, upstream string) error
+
+	// ListStagedFiles returns file paths that are currently staged in the index.
+	// Uses git diff --cached --name-only.
+	ListStagedFiles(ctx context.Context, repoDir string) ([]string, error)
+
+	// ListTrackedFiles returns all tracked files in the repository.
+	// Uses git ls-files --cached.
+	ListTrackedFiles(ctx context.Context, repoDir string) ([]string, error)
+
+	// ListUntrackedFiles returns all untracked files (respects .gitignore).
+	// Uses git ls-files --others --exclude-standard.
+	ListUntrackedFiles(ctx context.Context, repoDir string) ([]string, error)
+
+	// CatFile returns the content of a file in the working tree.
+	// Used for reading file content for import scanning.
+	CatFile(ctx context.Context, repoDir string, path string) ([]byte, error)
+
+	// SetRemoteURL updates the URL for a remote.
+	// Uses git remote set-url <remote> <url>.
+	SetRemoteURL(ctx context.Context, repoDir string, remote string, url string) error
+
+	// LsRemote lists references from a remote repository.
+	// Used to test connectivity and authentication.
+	// If cred is provided, uses GIT_ASKPASS for authentication.
+	LsRemote(ctx context.Context, repoDir string, remote string, cred *StoredCredential) error
+
+	// GrepContent searches file contents using git grep.
+	// Returns raw output in format: file:line:content
+	GrepContent(ctx context.Context, repoDir string, opts GrepOptions) ([]byte, error)
+
+	// LogFileFrequency returns a map of file paths to the number of commits
+	// they appeared in over the last commitLimit commits.
+	LogFileFrequency(ctx context.Context, repoDir string, commitLimit int) (map[string]int, error)
+}
+
+// GrepOptions configures the git grep search.
+type GrepOptions struct {
+	Pattern       string   // Search pattern (required)
+	CaseSensitive bool     // Match case exactly (-i flag inverted)
+	WholeWord     bool     // Match whole words only (-w)
+	ExtendedRegex bool     // Treat pattern as extended regex (-E)
+	IncludeGlobs  []string // Glob patterns to include (--include)
+	ExcludeGlobs  []string // Glob patterns to exclude (--exclude)
+	ContextLines  int      // Lines of context (-C)
+	MaxCount      int      // Max matches per file (-m)
 }
 
 // CommitOptions configures author overrides for commit operations.
 type CommitOptions struct {
 	AuthorName  string
 	AuthorEmail string
+	Amend       bool
+	NoEdit      bool
 }
 
-// ExecGitRunner implements GitRunner by executing the real git binary.
-// This is the production implementation used when the API is running.
-type ExecGitRunner struct {
-	// GitPath is the path to the git binary. Defaults to "git" if empty.
-	GitPath string
-}
+// gitCredentialEnv builds environment variables and a cleanup function for
+// authenticated git operations. It supports both SSH and HTTPS credentials.
+//
+//   - nil cred: returns os.Environ() + GIT_TERMINAL_PROMPT=0, noop cleanup
+//   - SSH cred: sets GIT_SSH_COMMAND with -i <key> -o IdentitiesOnly=yes
+//   - HTTPS cred: creates a temp askpass script, returns cleanup that removes it
+func gitCredentialEnv(cred *StoredCredential) (env []string, cleanup func(), err error) {
+	base := os.Environ()
+	noop := func() {}
+	defaultEnv := append(base, "GIT_TERMINAL_PROMPT=0")
 
-// gitPath returns the configured git path or "git" as default.
-func (r *ExecGitRunner) gitPath() string {
-	p := strings.TrimSpace(r.GitPath)
-	if p == "" {
-		return "git"
+	if cred == nil {
+		return defaultEnv, noop, nil
 	}
-	return p
+
+	switch cred.Type {
+	case CredentialTypeSSH:
+		return sshCredentialEnv(base, cred.SSHKeyPath)
+	case CredentialTypeHTTPS:
+		return httpsCredentialEnv(base, cred.Username, cred.Token)
+	default:
+		return defaultEnv, noop, nil
+	}
 }
 
-func (r *ExecGitRunner) StatusPorcelainV2(ctx context.Context, repoDir string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx,
-		r.gitPath(),
-		"-C", repoDir,
-		"status",
-		"--porcelain=v2",
-		"--branch",
-		"--untracked-files=all",
-		"-z",
+// sshCredentialEnv builds environment variables for SSH-based git authentication.
+func sshCredentialEnv(base []string, keyPath string) ([]string, func(), error) {
+	noop := func() {}
+	keyPath = strings.TrimSpace(keyPath)
+	if keyPath == "" {
+		return append(base, "GIT_TERMINAL_PROMPT=0"), noop, nil
+	}
+	if _, statErr := os.Stat(keyPath); statErr != nil {
+		return nil, noop, fmt.Errorf("SSH key not found: %s", keyPath)
+	}
+	sshCmd := fmt.Sprintf("ssh -i %s -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new", keyPath)
+	env := append(base,
+		fmt.Sprintf("GIT_SSH_COMMAND=%s", sshCmd),
+		"GIT_TERMINAL_PROMPT=0",
 	)
-	out, err := cmd.Output()
-	if err == nil {
-		return out, nil
-	}
-
-	exitErr := &exec.ExitError{}
-	if errors.As(err, &exitErr) {
-		return nil, fmt.Errorf("git status failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
-	}
-	return nil, fmt.Errorf("git status failed: %w", err)
+	return env, noop, nil
 }
 
-func (r *ExecGitRunner) Diff(ctx context.Context, repoDir string, path string, staged bool) ([]byte, error) {
-	args := []string{"-C", repoDir, "diff", "--no-color"}
-	if staged {
-		args = append(args, "--cached")
+// httpsCredentialEnv builds environment variables and a temp askpass script for HTTPS-based git authentication.
+func httpsCredentialEnv(base []string, username, token string) ([]string, func(), error) {
+	noop := func() {}
+	if username == "" || token == "" {
+		return append(base, "GIT_TERMINAL_PROMPT=0"), noop, nil
 	}
-	if path != "" {
-		args = append(args, "--", path)
-	}
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.Output()
-	if err == nil {
-		return out, nil
-	}
-
-	exitErr := &exec.ExitError{}
-	if errors.As(err, &exitErr) {
-		return nil, fmt.Errorf("git diff failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
-	}
-	return nil, fmt.Errorf("git diff failed: %w", err)
-}
-
-func (r *ExecGitRunner) Stage(ctx context.Context, repoDir string, paths []string) error {
-	args := []string{"-C", repoDir, "add", "--"}
-	args = append(args, paths...)
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.CombinedOutput()
+	env := append(base,
+		fmt.Sprintf("GIT_USERNAME=%s", username),
+		fmt.Sprintf("GIT_PASSWORD=%s", token),
+		"GIT_TERMINAL_PROMPT=0",
+	)
+	askpassPath, err := createAskpassScript()
 	if err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return fmt.Errorf("git add failed: %w (%s)", err, strings.TrimSpace(string(out)))
-		}
-		return fmt.Errorf("git add failed: %w", err)
+		return nil, noop, err
 	}
-	return nil
+	env = append(env, fmt.Sprintf("GIT_ASKPASS=%s", askpassPath))
+	return env, func() { os.Remove(askpassPath) }, nil
 }
 
-func (r *ExecGitRunner) Unstage(ctx context.Context, repoDir string, paths []string) error {
-	args := []string{"-C", repoDir, "reset", "HEAD", "--"}
-	args = append(args, paths...)
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.CombinedOutput()
+// createAskpassScript writes a temporary shell script that echoes GIT_USERNAME/GIT_PASSWORD.
+func createAskpassScript() (string, error) {
+	askpassScript := "#!/bin/sh\ncase \"$1\" in\n  *[Uu]sername*) echo \"$GIT_USERNAME\" ;;\n  *[Pp]assword*) echo \"$GIT_PASSWORD\" ;;\nesac"
+	tmpFile, err := os.CreateTemp("", "git-askpass-*.sh")
 	if err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return fmt.Errorf("git reset failed: %w (%s)", err, strings.TrimSpace(string(out)))
-		}
-		return fmt.Errorf("git reset failed: %w", err)
+		return "", fmt.Errorf("failed to create askpass script: %w", err)
 	}
-	return nil
-}
-
-func (r *ExecGitRunner) Commit(ctx context.Context, repoDir string, message string, options CommitOptions) (string, error) {
-	// Create the commit
-	args := []string{"-C", repoDir, "commit", "-m", message}
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	if options.AuthorName != "" || options.AuthorEmail != "" {
-		env := os.Environ()
-		if options.AuthorName != "" {
-			env = append(env,
-				fmt.Sprintf("GIT_AUTHOR_NAME=%s", options.AuthorName),
-				fmt.Sprintf("GIT_COMMITTER_NAME=%s", options.AuthorName),
-			)
-		}
-		if options.AuthorEmail != "" {
-			env = append(env,
-				fmt.Sprintf("GIT_AUTHOR_EMAIL=%s", options.AuthorEmail),
-				fmt.Sprintf("GIT_COMMITTER_EMAIL=%s", options.AuthorEmail),
-			)
-		}
-		cmd.Env = env
+	tmpPath := tmpFile.Name()
+	if _, wErr := tmpFile.WriteString(askpassScript); wErr != nil {
+		tmpFile.Close()
+		os.Remove(tmpPath)
+		return "", fmt.Errorf("failed to write askpass script: %w", wErr)
 	}
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return "", fmt.Errorf("git commit failed: %w (%s)", err, strings.TrimSpace(string(out)))
-		}
-		return "", fmt.Errorf("git commit failed: %w", err)
+	tmpFile.Close()
+	if chErr := os.Chmod(tmpPath, 0o700); chErr != nil {
+		os.Remove(tmpPath)
+		return "", fmt.Errorf("failed to make askpass script executable: %w", chErr)
 	}
-
-	// Get the commit hash using rev-parse HEAD
-	hashCmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "rev-parse", "--short", "HEAD")
-	hashOut, err := hashCmd.Output()
-	if err != nil {
-		// Commit succeeded but couldn't get hash - return empty string
-		return "", nil
-	}
-
-	return strings.TrimSpace(string(hashOut)), nil
-}
-
-func (r *ExecGitRunner) RevParse(ctx context.Context, repoDir string, args ...string) ([]byte, error) {
-	cmdArgs := []string{"-C", repoDir, "rev-parse"}
-	cmdArgs = append(cmdArgs, args...)
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), cmdArgs...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return nil, fmt.Errorf("git rev-parse failed: %w (%s)", err, strings.TrimSpace(string(out)))
-		}
-		return nil, fmt.Errorf("git rev-parse failed: %w", err)
-	}
-	return out, nil
-}
-
-func (r *ExecGitRunner) LookPath() (string, error) {
-	return exec.LookPath(r.gitPath())
-}
-
-// ResolveRepoRoot returns the repository root directory.
-// Priority: VROOLI_ROOT env var > git rev-parse --show-toplevel > empty string.
-// DECISION BOUNDARY: This determines which repository the API operates on.
-func (r *ExecGitRunner) ResolveRepoRoot(ctx context.Context) string {
-	// First, check for explicit VROOLI_ROOT configuration
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
-		return root
-	}
-
-	// Fall back to git's repository detection
-	cmd := exec.CommandContext(ctx, r.gitPath(), "rev-parse", "--show-toplevel")
-	out, err := cmd.Output()
-	if err == nil {
-		return strings.TrimSpace(string(out))
-	}
-
-	return ""
-}
-
-func (r *ExecGitRunner) FetchRemote(ctx context.Context, repoDir string, remote string) error {
-	if remote == "" {
-		remote = "origin"
-	}
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "fetch", remote)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return fmt.Errorf("git fetch failed: %w (%s)", err, strings.TrimSpace(string(out)))
-		}
-		return fmt.Errorf("git fetch failed: %w", err)
-	}
-	return nil
-}
-
-func (r *ExecGitRunner) GetRemoteURL(ctx context.Context, repoDir string, remote string) (string, error) {
-	if remote == "" {
-		remote = "origin"
-	}
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "remote", "get-url", remote)
-	out, err := cmd.Output()
-	if err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return "", fmt.Errorf("git remote get-url failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
-		}
-		return "", fmt.Errorf("git remote get-url failed: %w", err)
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
-func (r *ExecGitRunner) ConfigGet(ctx context.Context, repoDir string, key string) (string, error) {
-	if strings.TrimSpace(key) == "" {
-		return "", fmt.Errorf("config key is required")
-	}
-	cmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "config", "--get", key)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return "", fmt.Errorf("git config failed: %w (%s)", err, strings.TrimSpace(string(out)))
-		}
-		return "", fmt.Errorf("git config failed: %w", err)
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
-func (r *ExecGitRunner) Discard(ctx context.Context, repoDir string, paths []string, untracked bool) error {
-	if len(paths) == 0 {
-		return nil
-	}
-
-	if untracked {
-		// For untracked files, use git clean -f
-		args := []string{"-C", repoDir, "clean", "-f", "--"}
-		args = append(args, paths...)
-		cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			exitErr := &exec.ExitError{}
-			if errors.As(err, &exitErr) {
-				return fmt.Errorf("git clean failed: %w (%s)", err, strings.TrimSpace(string(out)))
-			}
-			return fmt.Errorf("git clean failed: %w", err)
-		}
-	} else {
-		// For tracked files, use git checkout -- <paths>
-		args := []string{"-C", repoDir, "checkout", "--"}
-		args = append(args, paths...)
-		cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			exitErr := &exec.ExitError{}
-			if errors.As(err, &exitErr) {
-				return fmt.Errorf("git checkout failed: %w (%s)", err, strings.TrimSpace(string(out)))
-			}
-			return fmt.Errorf("git checkout failed: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func (r *ExecGitRunner) Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool) error {
-	if remote == "" {
-		remote = "origin"
-	}
-
-	args := []string{"-C", repoDir, "push"}
-	if setUpstream {
-		args = append(args, "-u")
-	}
-	args = append(args, remote)
-	if branch != "" {
-		args = append(args, branch)
-	}
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return fmt.Errorf("git push failed: %w (%s)", err, strings.TrimSpace(string(out)))
-		}
-		return fmt.Errorf("git push failed: %w", err)
-	}
-	return nil
-}
-
-func (r *ExecGitRunner) Pull(ctx context.Context, repoDir string, remote string, branch string) error {
-	if remote == "" {
-		remote = "origin"
-	}
-
-	args := []string{"-C", repoDir, "pull", remote}
-	if branch != "" {
-		args = append(args, branch)
-	}
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return fmt.Errorf("git pull failed: %w (%s)", err, strings.TrimSpace(string(out)))
-		}
-		return fmt.Errorf("git pull failed: %w", err)
-	}
-	return nil
-}
-
-func (r *ExecGitRunner) LogGraph(ctx context.Context, repoDir string, limit int) ([]byte, error) {
-	if limit <= 0 {
-		limit = 30
-	}
-	args := []string{
-		"-C", repoDir,
-		"log",
-		"--graph",
-		"--oneline",
-		"--decorate",
-		"--color=never",
-		"-n", fmt.Sprintf("%d", limit),
-	}
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.Output()
-	if err == nil {
-		return out, nil
-	}
-
-	exitErr := &exec.ExitError{}
-	if errors.As(err, &exitErr) {
-		return nil, fmt.Errorf("git log failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
-	}
-	return nil, fmt.Errorf("git log failed: %w", err)
-}
-
-func (r *ExecGitRunner) LogDetails(ctx context.Context, repoDir string, limit int) ([]byte, error) {
-	if limit <= 0 {
-		limit = 30
-	}
-	args := []string{
-		"-C", repoDir,
-		"log",
-		"--name-only",
-		"--pretty=format:%H%x00%an%x00%ad%x00%s",
-		"--date=iso",
-		"-n", fmt.Sprintf("%d", limit),
-	}
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.Output()
-	if err == nil {
-		return out, nil
-	}
-
-	exitErr := &exec.ExitError{}
-	if errors.As(err, &exitErr) {
-		return nil, fmt.Errorf("git log --name-only failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
-	}
-	return nil, fmt.Errorf("git log --name-only failed: %w", err)
-}
-
-func (r *ExecGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool) ([]byte, error) {
-	args := []string{"-C", repoDir, "diff", "--numstat", "--no-color"}
-	if staged {
-		args = append(args, "--cached")
-	}
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.Output()
-	if err == nil {
-		return out, nil
-	}
-
-	exitErr := &exec.ExitError{}
-	if errors.As(err, &exitErr) {
-		return nil, fmt.Errorf("git diff --numstat failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
-	}
-	return nil, fmt.Errorf("git diff --numstat failed: %w", err)
-}
-
-func (r *ExecGitRunner) RemoveFromIndex(ctx context.Context, repoDir string, paths []string) error {
-	args := []string{"-C", repoDir, "rm", "--cached", "--ignore-unmatch", "--"}
-	args = append(args, paths...)
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return fmt.Errorf("git rm --cached failed: %w (%s)", err, strings.TrimSpace(string(out)))
-		}
-		return fmt.Errorf("git rm --cached failed: %w", err)
-	}
-	return nil
-}
-
-func (r *ExecGitRunner) ShowCommitDiff(ctx context.Context, repoDir string, commit string, path string) ([]byte, error) {
-	if strings.TrimSpace(commit) == "" {
-		return nil, fmt.Errorf("commit hash is required")
-	}
-
-	// Use git diff with explicit parent reference instead of git show.
-	// git show produces "combined diffs" for merge commits which often show
-	// empty diffs for files that came cleanly from one parent.
-	// git diff <commit>^..<commit> explicitly shows changes from first parent.
-
-	// First, check if this commit has a parent
-	parentCheck := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "rev-parse", "--verify", "--quiet", commit+"^")
-	hasParent := parentCheck.Run() == nil
-
-	var args []string
-	if hasParent {
-		// Normal commit with parent - use git diff
-		args = []string{"-C", repoDir, "diff", "--no-color", commit + "^", commit}
-	} else {
-		// Root commit (no parent) - use git show
-		args = []string{"-C", repoDir, "show", "--no-color", "--format=", commit}
-	}
-
-	if path != "" {
-		args = append(args, "--", path)
-	}
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.Output()
-	if err == nil {
-		return out, nil
-	}
-
-	exitErr := &exec.ExitError{}
-	if errors.As(err, &exitErr) {
-		return nil, fmt.Errorf("git diff/show failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
-	}
-	return nil, fmt.Errorf("git diff/show failed: %w", err)
-}
-
-func (r *ExecGitRunner) ShowFileAtCommit(ctx context.Context, repoDir string, commit string, path string) ([]byte, error) {
-	if strings.TrimSpace(commit) == "" {
-		return nil, fmt.Errorf("commit hash is required")
-	}
-	if strings.TrimSpace(path) == "" {
-		return nil, fmt.Errorf("file path is required")
-	}
-
-	// Use git show <commit>:<path> to get file content at that commit
-	args := []string{"-C", repoDir, "show", fmt.Sprintf("%s:%s", commit, path)}
-
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.Output()
-	if err == nil {
-		return out, nil
-	}
-
-	exitErr := &exec.ExitError{}
-	if errors.As(err, &exitErr) {
-		return nil, fmt.Errorf("git show failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
-	}
-	return nil, fmt.Errorf("git show failed: %w", err)
-}
-
-func (r *ExecGitRunner) Branches(ctx context.Context, repoDir string) ([]byte, error) {
-	args := []string{
-		"-C", repoDir,
-		"for-each-ref",
-		"--format=" + branchRefFormat,
-		"refs/heads",
-		"refs/remotes",
-	}
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.Output()
-	if err == nil {
-		return out, nil
-	}
-
-	exitErr := &exec.ExitError{}
-	if errors.As(err, &exitErr) {
-		return nil, fmt.Errorf("git for-each-ref failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
-	}
-	return nil, fmt.Errorf("git for-each-ref failed: %w", err)
-}
-
-func (r *ExecGitRunner) CreateBranch(ctx context.Context, repoDir string, name string, from string) error {
-	args := []string{"-C", repoDir, "branch", name}
-	if strings.TrimSpace(from) != "" {
-		args = append(args, from)
-	}
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return fmt.Errorf("git branch failed: %w (%s)", err, strings.TrimSpace(string(out)))
-		}
-		return fmt.Errorf("git branch failed: %w", err)
-	}
-	return nil
-}
-
-func (r *ExecGitRunner) CheckoutBranch(ctx context.Context, repoDir string, name string) error {
-	args := []string{"-C", repoDir, "checkout", name}
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return fmt.Errorf("git checkout failed: %w (%s)", err, strings.TrimSpace(string(out)))
-		}
-		return fmt.Errorf("git checkout failed: %w", err)
-	}
-	return nil
-}
-
-func (r *ExecGitRunner) TrackRemoteBranch(ctx context.Context, repoDir string, remote string, name string) error {
-	remote = strings.TrimSpace(remote)
-	branch := strings.TrimSpace(name)
-	if remote == "" || branch == "" {
-		return fmt.Errorf("remote and branch are required")
-	}
-
-	args := []string{"-C", repoDir, "checkout", "-b", branch, "--track", fmt.Sprintf("%s/%s", remote, branch)}
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return fmt.Errorf("git checkout --track failed: %w (%s)", err, strings.TrimSpace(string(out)))
-		}
-		return fmt.Errorf("git checkout --track failed: %w", err)
-	}
-	return nil
-}
-
-func (r *ExecGitRunner) CheckRefFormat(ctx context.Context, repoDir string, name string) error {
-	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("branch name is required")
-	}
-	args := []string{"-C", repoDir, "check-ref-format", "--branch", name}
-	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return fmt.Errorf("git check-ref-format failed: %w (%s)", err, strings.TrimSpace(string(out)))
-		}
-		return fmt.Errorf("git check-ref-format failed: %w", err)
-	}
-	return nil
+	return tmpPath, nil
 }

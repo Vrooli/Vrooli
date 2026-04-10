@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/stringutil"
 )
 
 // MiniBundleSpec describes what to include in a mini-Vrooli bundle.
@@ -77,12 +78,29 @@ func BuildMiniVrooliBundle(repoRoot, outDir string, manifest domain.CloudManifes
 	}, nil
 }
 
+// CalculateBundleSHA computes the deterministic bundle SHA256 and size without writing a bundle file.
+// This is useful for freshness checks where we only need a fingerprint comparison.
+func CalculateBundleSHA(repoRoot string, manifest domain.CloudManifest) (string, int64, error) {
+	spec, err := MiniVrooliBundleSpec(repoRoot, manifest)
+	if err != nil {
+		return "", 0, err
+	}
+
+	hasher := sha256.New()
+	size, err := WriteDeterministicTarGz(io.MultiWriter(io.Discard, hasher), repoRoot, spec)
+	if err != nil {
+		return "", 0, err
+	}
+
+	return hex.EncodeToString(hasher.Sum(nil)), size, nil
+}
+
 // MiniVrooliBundleSpec builds the specification for a mini-Vrooli bundle.
 func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniBundleSpec, error) {
-	scenarioIDs := stableUniqueStrings(manifest.Bundle.Scenarios)
-	resourceIDs := stableUniqueStrings(manifest.Bundle.Resources)
+	scenarioIDs := stringutil.SortedUnique(manifest.Bundle.Scenarios)
+	resourceIDs := stringutil.SortedUnique(manifest.Bundle.Resources)
 
-	if manifest.Bundle.IncludeAutoheal && !sliceContainsString(scenarioIDs, "vrooli-autoheal") {
+	if manifest.Bundle.IncludeAutoheal && !stringutil.Contains(scenarioIDs, "vrooli-autoheal") {
 		scenarioIDs = append(scenarioIDs, "vrooli-autoheal")
 		sort.Strings(scenarioIDs)
 	}
@@ -132,7 +150,13 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 
 	excludes := DefaultExcludes()
 
-	manifestBytes, err := json.MarshalIndent(manifest, "", "  ")
+	manifestForBundle := manifest
+	// Secrets are fetched/provisioned during deployment execution and do not need to be
+	// embedded in bundle metadata. Excluding them keeps bundle fingerprinting reproducible
+	// for freshness checks that operate on stored deployment manifests.
+	manifestForBundle.Secrets = nil
+
+	manifestBytes, err := json.MarshalIndent(manifestForBundle, "", "  ")
 	if err != nil {
 		return MiniBundleSpec{}, err
 	}
@@ -211,6 +235,7 @@ func DefaultExcludes() []string {
 		"**/.next/**",
 		// NEVER bundle mothership secrets - these are generated on the target VPS
 		".vrooli/secrets.json",
+		"**/.vrooli/secrets.json",
 		// Exclude scenario templates - they have placeholder go.mod files that break go.work
 		"scripts/scenarios/templates/**",
 	}
@@ -529,10 +554,10 @@ func buildMiniServiceJSON(repoRoot string, manifest domain.CloudManifest) ([]byt
 	}
 
 	// Build set of required resources from manifest
-	requiredResources := toStringSet(stableUniqueStrings(manifest.Bundle.Resources))
+	requiredResources := toStringSet(stringutil.SortedUnique(manifest.Bundle.Resources))
 
 	// Build set of required scenarios from manifest (including main scenario)
-	requiredScenarios := toStringSet(stableUniqueStrings(manifest.Bundle.Scenarios))
+	requiredScenarios := toStringSet(stringutil.SortedUnique(manifest.Bundle.Scenarios))
 	if manifest.Scenario.ID != "" {
 		requiredScenarios[manifest.Scenario.ID] = struct{}{}
 	}
@@ -710,28 +735,4 @@ func (cw countingWriter) Write(p []byte) (int, error) {
 	n, err := cw.w.Write(p)
 	*cw.n += int64(n)
 	return n, err
-}
-
-// sliceContainsString checks if value is in the slice (used by bundle building).
-func sliceContainsString(slice []string, value string) bool {
-	for _, v := range slice {
-		if v == value {
-			return true
-		}
-	}
-	return false
-}
-
-// stableUniqueStrings returns a sorted slice with duplicates removed.
-func stableUniqueStrings(slice []string) []string {
-	seen := make(map[string]struct{}, len(slice))
-	result := make([]string, 0, len(slice))
-	for _, s := range slice {
-		if _, ok := seen[s]; !ok {
-			seen[s] = struct{}{}
-			result = append(result, s)
-		}
-	}
-	sort.Strings(result)
-	return result
 }

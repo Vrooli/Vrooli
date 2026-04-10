@@ -25,20 +25,29 @@ type CodeMetrics struct {
 	FilesWithTests    int     `json:"files_with_tests"`
 	FilesWithoutTests int     `json:"files_without_tests"`
 	TestCoverageRatio float64 `json:"test_coverage_ratio"` // FilesWithTests / TotalFiles
+	// Type safety pattern counts (TS/JS only)
+	AsAnyCount            int `json:"as_any_count"`
+	AsTypeAssertionCount  int `json:"as_type_assertion_count"`
+	TsIgnoreCount         int `json:"ts_ignore_count"`
+	NonNullAssertionCount int `json:"non_null_assertion_count"`
 }
 
 // FileCodeMetrics contains metrics for a single file
 type FileCodeMetrics struct {
-	FilePath           string  `json:"file_path"`
-	TodoCount          int     `json:"todo_count"`
-	FixmeCount         int     `json:"fixme_count"`
-	HackCount          int     `json:"hack_count"`
-	ImportCount        int     `json:"import_count"`
-	FunctionCount      int     `json:"function_count"`
-	CodeLines          int     `json:"code_lines"`
-	CommentLines       int     `json:"comment_lines"`
-	CommentToCodeRatio float64 `json:"comment_to_code_ratio"`
-	HasTestFile        bool    `json:"has_test_file"`
+	FilePath              string  `json:"file_path"`
+	TodoCount             int     `json:"todo_count"`
+	FixmeCount            int     `json:"fixme_count"`
+	HackCount             int     `json:"hack_count"`
+	ImportCount           int     `json:"import_count"`
+	FunctionCount         int     `json:"function_count"`
+	CodeLines             int     `json:"code_lines"`
+	CommentLines          int     `json:"comment_lines"`
+	CommentToCodeRatio    float64 `json:"comment_to_code_ratio"`
+	HasTestFile           bool    `json:"has_test_file"`
+	AsAnyCount            int     `json:"as_any_count"`
+	AsTypeAssertionCount  int     `json:"as_type_assertion_count"`
+	TsIgnoreCount         int     `json:"ts_ignore_count"`
+	NonNullAssertionCount int     `json:"non_null_assertion_count"`
 }
 
 // CodeMetricsAnalyzer computes language-agnostic code metrics
@@ -64,6 +73,7 @@ func (cma *CodeMetricsAnalyzer) AnalyzeFiles(files []string, lang Language) (*Co
 	var maxImports, maxFunctions int
 	var totalCodeLines, totalCommentLines int
 	var filesWithTests, filesWithoutTests int
+	var totalAsAny, totalAsType, totalTsIgnore, totalNonNull int
 
 	// Build test file map for this language
 	testFiles := cma.buildTestFileMap(files, lang)
@@ -86,6 +96,10 @@ func (cma *CodeMetricsAnalyzer) AnalyzeFiles(files []string, lang Language) (*Co
 		totalTodos += fileMetrics.TodoCount
 		totalFixmes += fileMetrics.FixmeCount
 		totalHacks += fileMetrics.HackCount
+		totalAsAny += fileMetrics.AsAnyCount
+		totalAsType += fileMetrics.AsTypeAssertionCount
+		totalTsIgnore += fileMetrics.TsIgnoreCount
+		totalNonNull += fileMetrics.NonNullAssertionCount
 		totalImports += fileMetrics.ImportCount
 		totalFunctions += fileMetrics.FunctionCount
 		totalCodeLines += fileMetrics.CodeLines
@@ -120,19 +134,23 @@ func (cma *CodeMetricsAnalyzer) AnalyzeFiles(files []string, lang Language) (*Co
 	}
 
 	return &CodeMetrics{
-		TodoCount:           totalTodos,
-		FixmeCount:          totalFixmes,
-		HackCount:           totalHacks,
-		AvgImportsPerFile:   float64(totalImports) / fileCount,
-		AvgFunctionsPerFile: float64(totalFunctions) / fileCount,
-		MaxImportsInFile:    maxImports,
-		MaxFunctionsInFile:  maxFunctions,
-		TotalCodeLines:      totalCodeLines,
-		TotalCommentLines:   totalCommentLines,
-		CommentToCodeRatio:  commentToCodeRatio,
-		FilesWithTests:      filesWithTests,
-		FilesWithoutTests:   filesWithoutTests,
-		TestCoverageRatio:   testCoverageRatio,
+		TodoCount:             totalTodos,
+		FixmeCount:            totalFixmes,
+		HackCount:             totalHacks,
+		AvgImportsPerFile:     float64(totalImports) / fileCount,
+		AvgFunctionsPerFile:   float64(totalFunctions) / fileCount,
+		MaxImportsInFile:      maxImports,
+		MaxFunctionsInFile:    maxFunctions,
+		TotalCodeLines:        totalCodeLines,
+		TotalCommentLines:     totalCommentLines,
+		CommentToCodeRatio:    commentToCodeRatio,
+		FilesWithTests:        filesWithTests,
+		FilesWithoutTests:     filesWithoutTests,
+		TestCoverageRatio:     testCoverageRatio,
+		AsAnyCount:            totalAsAny,
+		AsTypeAssertionCount:  totalAsType,
+		TsIgnoreCount:         totalTsIgnore,
+		NonNullAssertionCount: totalNonNull,
 	}, nil
 }
 
@@ -152,6 +170,16 @@ func (cma *CodeMetricsAnalyzer) analyzeFile(path string, lang Language) (*FileCo
 	todoPattern := regexp.MustCompile(`(?i)\bTODO\b`)
 	fixmePattern := regexp.MustCompile(`(?i)\bFIXME\b`)
 	hackPattern := regexp.MustCompile(`(?i)\bHACK\b`)
+
+	// Type safety patterns (TS/JS only)
+	isTS := lang == LanguageTypeScript || lang == LanguageJavaScript
+	var asAnyPattern, asTypePattern, tsIgnorePattern, nonNullPattern *regexp.Regexp
+	if isTS {
+		asAnyPattern = regexp.MustCompile(`\bas\s+any\b|\bas\s+unknown\s+as\b`)
+		asTypePattern = regexp.MustCompile(`\bas\s+[A-Z]\w+`)
+		tsIgnorePattern = regexp.MustCompile(`@ts-ignore|@ts-expect-error`)
+		nonNullPattern = regexp.MustCompile(`[a-zA-Z0-9_)\]]\s*!\s*[.\[]`)
+	}
 
 	inMultiLineComment := false
 	inGoImportBlock := false // Track Go grouped import blocks
@@ -186,6 +214,14 @@ func (cma *CodeMetricsAnalyzer) analyzeFile(path string, lang Language) (*FileCo
 			metrics.HackCount++
 		}
 
+		// Type safety pattern detection (TS/JS only)
+		if isTS {
+			// @ts-ignore/@ts-expect-error can appear in comments
+			if tsIgnorePattern.MatchString(line) {
+				metrics.TsIgnoreCount++
+			}
+		}
+
 		// Only count imports/functions in code lines
 		if !isComment {
 			// Handle Go grouped import blocks: import ( ... )
@@ -216,6 +252,19 @@ func (cma *CodeMetricsAnalyzer) analyzeFile(path string, lang Language) (*FileCo
 			// Count function definitions (language-specific)
 			if cma.isFunctionDefinition(line, lang) {
 				metrics.FunctionCount++
+			}
+
+			// Type safety patterns (non-comment lines only)
+			if isTS {
+				if asAnyPattern.MatchString(line) {
+					metrics.AsAnyCount++
+				}
+				if asTypePattern.MatchString(line) {
+					metrics.AsTypeAssertionCount++
+				}
+				if nonNullPattern.MatchString(line) && !strings.Contains(line, "!==") && !strings.Contains(line, "!=") {
+					metrics.NonNullAssertionCount++
+				}
 			}
 		}
 	}
@@ -401,6 +450,26 @@ func (cma *CodeMetricsAnalyzer) buildTestFileMap(files []string, lang Language) 
 		}
 	}
 	return testFiles
+}
+
+// IsTestFilePath checks if a file path looks like a test file based on common
+// naming conventions across languages. Unlike the method variant, this does not
+// require a Language parameter — it checks all known patterns.
+func IsTestFilePath(filePath string) bool {
+	base := filepath.Base(filePath)
+	return strings.HasSuffix(base, "_test.go") ||
+		strings.HasSuffix(base, ".test.ts") ||
+		strings.HasSuffix(base, ".test.tsx") ||
+		strings.HasSuffix(base, ".spec.ts") ||
+		strings.HasSuffix(base, ".spec.tsx") ||
+		strings.HasSuffix(base, ".test.js") ||
+		strings.HasSuffix(base, ".test.jsx") ||
+		strings.HasSuffix(base, ".spec.js") ||
+		strings.HasSuffix(base, ".spec.jsx") ||
+		strings.HasPrefix(base, "test_") && strings.HasSuffix(base, ".py") ||
+		strings.HasSuffix(base, "_test.py") ||
+		strings.Contains(filePath, "__tests__") ||
+		strings.Contains(filePath, "/tests/")
 }
 
 // isTestFile checks if a file is a test file based on language conventions

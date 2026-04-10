@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/capture.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// =============================================================================
+// CAPTURE API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports capture
+// @stability alpha
+//
+// HTTP API contracts for Swarm Manager capture operations.
+//
+// USAGE CONTEXTS:
+//   - UI services validating API responses
+//   - API handlers enforcing request constraints
+//
+// =============================================================================
+
+// CreateCaptureRequest defines the payload for creating a new capture.
+message CreateCaptureRequest {
+  // Raw text content.
+  string text = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// CaptureResponse returns a single capture.
+message CaptureResponse {
+  Capture capture = 1;
+
+  // Agent run identifiers (populated when auto-classification is triggered).
+  optional string task_id = 2;
+  optional string run_id = 3;
+  optional string base_url = 4;
+}
+
+// ListCapturesResponse returns all captures.
+message ListCapturesResponse {
+  repeated Capture captures = 1;
+}
+
+// ClassifyCaptureResponse returns agent-manager identifiers for classification runs.
+message ClassifyCaptureResponse {
+  string task_id = 1 [(buf.validate.field).string.min_len = 1];
+  string run_id = 2 [(buf.validate.field).string.min_len = 1];
+  string base_url = 3 [(buf.validate.field).string.min_len = 1];
+  string created = 4 [(buf.validate.field).string.min_len = 1];
+}

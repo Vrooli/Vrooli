@@ -5,10 +5,10 @@ import { Link } from "react-router-dom";
 import { useProfileBreakdown } from "../../hooks/useProfileBreakdown";
 import {
   formatPercent,
-  formatCurrency,
   formatNumber,
 } from "../../utils/formatters";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { formatUsdFixed } from "../../../../lib/currency";
 
 type SortField = "profileName" | "runCount" | "successRate" | "totalCostUsd";
 type SortDirection = "asc" | "desc";
@@ -40,7 +40,7 @@ export function ProfileActivityTable() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-card/50 p-6">
+      <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
         <div className="mb-4 h-5 w-36 animate-pulse rounded bg-muted/30" />
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
@@ -53,7 +53,7 @@ export function ProfileActivityTable() {
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-6">
+      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 sm:p-6">
         <h3 className="text-sm font-semibold">Profile Activity</h3>
         <p className="mt-2 text-sm text-red-500">Failed to load: {error.message}</p>
       </div>
@@ -96,21 +96,21 @@ export function ProfileActivityTable() {
   });
 
   return (
-    <div className="rounded-lg border border-border bg-card/50 p-6">
-      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6 overflow-hidden">
+      <h3 className="mb-2 sm:mb-4 text-sm font-semibold text-muted-foreground">
         Profile Activity
       </h3>
       {profiles.length === 0 ? (
         <p className="text-sm text-muted-foreground">No profile data available</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[360px] text-sm">
             <thead>
               <tr className="border-b border-border text-left">
                 <th className="pb-2 pr-4">
                   <button
                     onClick={() => handleSort("profileName")}
-                    className="flex items-center gap-1 text-xs font-semibold uppercase text-muted-foreground hover:text-foreground"
+                    className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
                   >
                     Profile {getSortIcon("profileName")}
                   </button>
@@ -118,7 +118,7 @@ export function ProfileActivityTable() {
                 <th className="pb-2 pr-4">
                   <button
                     onClick={() => handleSort("runCount")}
-                    className="flex items-center gap-1 text-xs font-semibold uppercase text-muted-foreground hover:text-foreground"
+                    className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
                   >
                     Runs {getSortIcon("runCount")}
                   </button>
@@ -126,7 +126,7 @@ export function ProfileActivityTable() {
                 <th className="pb-2 pr-4">
                   <button
                     onClick={() => handleSort("successRate")}
-                    className="flex items-center gap-1 text-xs font-semibold uppercase text-muted-foreground hover:text-foreground"
+                    className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
                   >
                     Success {getSortIcon("successRate")}
                   </button>
@@ -134,7 +134,7 @@ export function ProfileActivityTable() {
                 <th className="pb-2">
                   <button
                     onClick={() => handleSort("totalCostUsd")}
-                    className="flex items-center gap-1 text-xs font-semibold uppercase text-muted-foreground hover:text-foreground"
+                    className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
                   >
                     Cost {getSortIcon("totalCostUsd")}
                   </button>
@@ -176,7 +176,7 @@ export function ProfileActivityTable() {
                       </span>
                     </td>
                     <td className="py-2 tabular-nums">
-                      {formatCurrency(profile.totalCostUsd)}
+                      {formatUsdFixed(profile.totalCostUsd, 2)}
                     </td>
                   </tr>
                 );

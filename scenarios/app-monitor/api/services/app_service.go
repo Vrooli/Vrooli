@@ -1,10 +1,12 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -39,6 +41,8 @@ func NewAppServiceWithOptions(repo repository.AppRepository, httpClient HTTPClie
 		issueCacheTTL:      issueTrackerCacheTTL,
 		repoRoot:           repoRoot,
 		browserlessService: NewBrowserlessService(),
+		enrichmentCache:    make(map[string]*enrichmentCacheEntry),
+		uiServerPort:       os.Getenv("UI_PORT"),
 	}
 }
 
@@ -161,7 +165,7 @@ func (s *AppService) GetApp(ctx context.Context, id string) (*repository.App, er
 			if lastErr != nil {
 				return nil, lastErr
 			}
-			return nil, fmt.Errorf("app not found: %s", id)
+			return nil, fmt.Errorf("%w: %s", ErrAppNotFound, id)
 		}
 	}
 
@@ -220,10 +224,12 @@ func (s *AppService) StartApp(ctx context.Context, appName string) error {
 
 	// Update status in database if available
 	if s.hasRepo() {
-		s.repo.UpdateAppStatus(ctx, appName, "running")
+		_ = s.repo.UpdateAppStatus(ctx, appName, "running")
 	}
 
 	s.invalidateCache()
+	s.invalidateEnrichment(appName)
+	s.invalidateProxyCache(appName)
 
 	return nil
 }
@@ -238,10 +244,12 @@ func (s *AppService) StopApp(ctx context.Context, appName string) error {
 
 	// Update status in database if available
 	if s.hasRepo() {
-		s.repo.UpdateAppStatus(ctx, appName, "stopped")
+		_ = s.repo.UpdateAppStatus(ctx, appName, "stopped")
 	}
 
 	s.invalidateCache()
+	s.invalidateEnrichment(appName)
+	s.invalidateProxyCache(appName)
 
 	return nil
 }
@@ -255,12 +263,74 @@ func (s *AppService) RestartApp(ctx context.Context, appName string) error {
 	}
 
 	if s.hasRepo() {
-		s.repo.UpdateAppStatus(ctx, appName, "running")
+		_ = s.repo.UpdateAppStatus(ctx, appName, "running")
 	}
 
 	s.invalidateCache()
+	s.invalidateEnrichment(appName)
+	s.invalidateProxyCache(appName)
 
 	return nil
+}
+
+// invalidateProxyCache notifies the UI server to clear its proxy metadata cache.
+// Fire-and-forget with retry: up to 3 attempts with backoff [0, 200ms, 500ms].
+// Failures are logged but don't block the caller (proxy TTL is the fallback).
+func (s *AppService) invalidateProxyCache(appName string) {
+	if s.uiServerPort == "" {
+		return
+	}
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		url := fmt.Sprintf("http://127.0.0.1:%s/__cache/invalidate", s.uiServerPort)
+		body := []byte(fmt.Sprintf(`{"appId":%q}`, appName))
+		backoffs := [3]time.Duration{0, 200 * time.Millisecond, 500 * time.Millisecond}
+
+		var lastErr error
+		for attempt, delay := range backoffs {
+			if delay > 0 {
+				select {
+				case <-time.After(delay):
+				case <-ctx.Done():
+					logger.Warn(fmt.Sprintf("proxy cache invalidation for %s timed out after %d attempt(s)", appName, attempt), ctx.Err())
+					return
+				}
+			}
+
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+			if err != nil {
+				logger.Warn("failed to create proxy cache invalidation request", err)
+				return
+			}
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := s.httpClient.Do(req)
+			if err != nil {
+				lastErr = err
+				if attempt < len(backoffs)-1 {
+					logger.Warn(fmt.Sprintf("proxy cache invalidation for %s attempt %d/%d failed, retrying", appName, attempt+1, len(backoffs)), err)
+				}
+				continue
+			}
+			resp.Body.Close()
+
+			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				return
+			}
+
+			lastErr = fmt.Errorf("unexpected status %d", resp.StatusCode)
+			if attempt < len(backoffs)-1 {
+				logger.Warn(fmt.Sprintf("proxy cache invalidation for %s attempt %d/%d returned %d, retrying", appName, attempt+1, len(backoffs), resp.StatusCode), nil)
+			}
+		}
+
+		if lastErr != nil {
+			logger.Warn(fmt.Sprintf("proxy cache invalidation for %s failed after %d attempts", appName, len(backoffs)), lastErr)
+		}
+	}()
 }
 
 // =============================================================================

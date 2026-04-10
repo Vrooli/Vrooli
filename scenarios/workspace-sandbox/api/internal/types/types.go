@@ -76,6 +76,39 @@ const (
 	ChangeTypeDeleted  ChangeType = "deleted"
 )
 
+// ViewMode specifies how to display file content in the diff viewer.
+type ViewMode string
+
+const (
+	ViewModeDiff     ViewMode = "diff"      // Show only changed lines (hunks)
+	ViewModeFullDiff ViewMode = "full_diff" // Show full file with changes highlighted
+	ViewModeSource   ViewMode = "source"    // Show file content only (no diff markers)
+)
+
+// LineChange indicates what type of change occurred on a line.
+type LineChange string
+
+const (
+	LineChangeNone    LineChange = ""        // Context line (unchanged)
+	LineChangeAdded   LineChange = "added"   // Line was added
+	LineChangeDeleted LineChange = "deleted" // Line was deleted
+)
+
+// AnnotatedLine represents a single line with its change status.
+// Used in full_diff mode to show the complete file with inline change markers.
+type AnnotatedLine struct {
+	Number    int        `json:"number"`              // Current line number (0 for deleted lines)
+	Content   string     `json:"content"`             // Line content
+	Change    LineChange `json:"change,omitempty"`    // Type of change
+	OldNumber int        `json:"oldNumber,omitempty"` // Original line number (for deleted lines)
+}
+
+// FileViewData holds per-file content for full_diff and source view modes.
+type FileViewData struct {
+	FullContent    string          `json:"fullContent,omitempty"`    // Complete file content
+	AnnotatedLines []AnnotatedLine `json:"annotatedLines,omitempty"` // Lines with change annotations
+}
+
 // AcceptanceStatus describes how a file change maps to acceptance rules.
 type AcceptanceStatus string
 
@@ -140,6 +173,7 @@ const (
 // Sandbox represents a workspace sandbox with all its metadata.
 type Sandbox struct {
 	ID            uuid.UUID  `json:"id" db:"id"`
+	Name          string     `json:"name,omitempty" db:"name"`
 	ScopePath     string     `json:"scopePath" db:"scope_path"`
 	ReservedPath  string     `json:"reservedPath" db:"reserved_path"`
 	ReservedPaths []string   `json:"reservedPaths,omitempty" db:"reserved_paths"`
@@ -254,10 +288,11 @@ type AuditEvent struct {
 //
 // If no IdempotencyKey is provided, each request creates a new sandbox.
 type CreateRequest struct {
+	Name          string                 `json:"name,omitempty"`
 	ScopePath     string                 `json:"scopePath"`
 	ReservedPath  string                 `json:"reservedPath,omitempty"`
 	ReservedPaths []string               `json:"reservedPaths,omitempty"`
-	NoLock        bool                   `json:"noLock,omitempty"`
+	NoLock        *bool                  `json:"noLock,omitempty"`
 	ProjectRoot   string                 `json:"projectRoot,omitempty"`
 	Owner         string                 `json:"owner,omitempty"`
 	OwnerType     OwnerType              `json:"ownerType,omitempty"`
@@ -273,6 +308,7 @@ type CreateRequest struct {
 
 // ListFilter contains filters for listing sandboxes.
 type ListFilter struct {
+	Name        string    `json:"name,omitempty"`
 	Status      []Status  `json:"status,omitempty"`
 	Owner       string    `json:"owner,omitempty"`
 	ProjectRoot string    `json:"projectRoot,omitempty"`
@@ -301,6 +337,10 @@ type DiffResult struct {
 	TotalAdded    int           `json:"totalAdded"`
 	TotalDeleted  int           `json:"totalDeleted"`
 	TotalModified int           `json:"totalModified"`
+
+	// View mode support for full_diff and source modes
+	Mode         ViewMode                `json:"mode,omitempty"`         // Requested view mode
+	FileContents map[string]FileViewData `json:"fileContents,omitempty"` // Per-file content, keyed by file path
 }
 
 // ApprovalRequest contains the parameters for approving changes.
@@ -681,18 +721,19 @@ type ConflictCheckResponse struct {
 // AppliedChange represents a file change that was applied from a sandbox.
 // Used for provenance tracking - knowing which sandbox modified which files.
 type AppliedChange struct {
-	ID               uuid.UUID  `json:"id" db:"id"`
-	SandboxID        uuid.UUID  `json:"sandboxId" db:"sandbox_id"`
-	SandboxOwner     string     `json:"sandboxOwner" db:"sandbox_owner"`
-	SandboxOwnerType string     `json:"sandboxOwnerType" db:"sandbox_owner_type"`
-	FilePath         string     `json:"filePath" db:"file_path"`
-	ProjectRoot      string     `json:"projectRoot" db:"project_root"`
-	ChangeType       string     `json:"changeType" db:"change_type"`
-	FileSize         int64      `json:"fileSize" db:"file_size"`
-	AppliedAt        time.Time  `json:"appliedAt" db:"applied_at"`
-	CommittedAt      *time.Time `json:"committedAt,omitempty" db:"committed_at"`
-	CommitHash       string     `json:"commitHash,omitempty" db:"commit_hash"`
-	CommitMessage    string     `json:"commitMessage,omitempty" db:"commit_message"`
+	ID                uuid.UUID  `json:"id" db:"id"`
+	SandboxID         uuid.UUID  `json:"sandboxId" db:"sandbox_id"`
+	SandboxOwner      string     `json:"sandboxOwner" db:"sandbox_owner"`
+	SandboxOwnerType  string     `json:"sandboxOwnerType" db:"sandbox_owner_type"`
+	FilePath          string     `json:"filePath" db:"file_path"`
+	ProjectRoot       string     `json:"projectRoot" db:"project_root"`
+	ChangeType        string     `json:"changeType" db:"change_type"`
+	FileSize          int64      `json:"fileSize" db:"file_size"`
+	AgentManagerRunID string     `json:"agentManagerRunId,omitempty" db:"agent_manager_run_id"`
+	AppliedAt         time.Time  `json:"appliedAt" db:"applied_at"`
+	CommittedAt       *time.Time `json:"committedAt,omitempty" db:"committed_at"`
+	CommitHash        string     `json:"commitHash,omitempty" db:"commit_hash"`
+	CommitMessage     string     `json:"commitMessage,omitempty" db:"commit_message"`
 }
 
 // PendingChangesSummary summarizes pending changes from a single sandbox.
@@ -737,12 +778,13 @@ type CommitPendingResult struct {
 
 // CommitPreviewFile represents a single file in the commit preview.
 type CommitPreviewFile struct {
-	FilePath     string    `json:"filePath"`
-	RelativePath string    `json:"relativePath"`
-	ChangeType   string    `json:"changeType"`
-	SandboxID    uuid.UUID `json:"sandboxId"`
-	SandboxOwner string    `json:"sandboxOwner"`
-	AppliedAt    time.Time `json:"appliedAt"`
+	FilePath          string    `json:"filePath"`
+	RelativePath      string    `json:"relativePath"`
+	ChangeType        string    `json:"changeType"`
+	SandboxID         uuid.UUID `json:"sandboxId"`
+	SandboxOwner      string    `json:"sandboxOwner"`
+	AgentManagerRunID string    `json:"agentManagerRunId,omitempty"`
+	AppliedAt         time.Time `json:"appliedAt"`
 	// Status indicates the file's current state relative to git
 	// "pending" = still uncommitted, "already_committed" = committed externally
 	Status string `json:"status"`
@@ -783,4 +825,40 @@ type CommitPreviewSandboxGroup struct {
 	Added        int       `json:"added"`
 	Modified     int       `json:"modified"`
 	Deleted      int       `json:"deleted"`
+}
+
+// --- External Commit Notification Types ---
+
+// MarkCommittedRequest is sent by external tools (e.g., git-control-tower) to notify
+// workspace-sandbox that files have been committed outside its own commit flow.
+type MarkCommittedRequest struct {
+	ProjectRoot   string   `json:"projectRoot"`
+	FilePaths     []string `json:"filePaths"`
+	CommitHash    string   `json:"commitHash"`
+	CommitMessage string   `json:"commitMessage"`
+}
+
+// MarkCommittedResult reports the outcome of marking files as committed.
+type MarkCommittedResult struct {
+	MarkedCount   int `json:"markedCount"`
+	NotFoundCount int `json:"notFoundCount"`
+}
+
+// --- Provenance By Run Types ---
+
+// ProvenanceRunGroup groups pending applied changes by agent-manager run ID.
+type ProvenanceRunGroup struct {
+	RunID           string           `json:"runId"`
+	SandboxID       string           `json:"sandboxId"`
+	SandboxOwner    string           `json:"sandboxOwner"`
+	Files           []ProvenanceFile `json:"files"`
+	LatestAppliedAt time.Time        `json:"latestAppliedAt"`
+}
+
+// ProvenanceFile represents a single file within a provenance run group.
+type ProvenanceFile struct {
+	FilePath     string    `json:"filePath"`
+	RelativePath string    `json:"relativePath"`
+	ChangeType   string    `json:"changeType"`
+	AppliedAt    time.Time `json:"appliedAt"`
 }

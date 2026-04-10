@@ -1,0 +1,146 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-29T12:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 1,
+    "problem_clarity": 2,
+    "risk_awareness": 1,
+    "scope_defined": 2,
+    "testable": 1
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Agent-manager is HTTP-only (gorilla/mux). No gRPC dependency or service definitions exist. Adding gRPC for verification would require introducing the full gRPC stack (grpc-go, protoc service generation, etc.)."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "packages/cli-core has zero external dependencies (stdlib only). JWT libraries like golang-jwt/jwt would be the first external dep, propagating to every scenario that imports cli-core. HMAC-SHA256 verification uses only crypto/hmac + crypto/sha256 from stdlib."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "The injection point is ready: RunExecutor.SandboxEnvVars() returns map[string]string merged into ExecuteRequest.Environment. A parallel IdentityEnvVars() method would slot in alongside it with no structural changes needed."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Downstream execute items already exist (agent-manager-identity-tokens, swarm-manager-identity-adoption) waiting on this research. The conclusions here directly feed their implementation plans."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Token format: JWT vs custom HMAC-signed payload",
+      "context": "JWT brings standard tooling, well-known structure, and ecosystem interop — but adds golang-jwt as a dependency to cli-core (breaking its zero-external-deps stance) and is slightly oversized for this use case. A custom HMAC-SHA256 signed payload (base64-encoded JSON + HMAC signature) uses only stdlib, keeps tokens compact, and is simpler to implement — but is non-standard and requires documenting the format ourselves. Both are ~300-500 bytes in env vars.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Custom HMAC-SHA256 signed payload (stdlib only)",
+          "rationale": "Preserves cli-core's zero-external-deps property. Simpler implementation. Format: base64(json_claims) + '.' + base64(hmac_sha256). Downside: non-standard, must document format ourselves.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "JWT with HMAC-SHA256 (HS256)",
+          "rationale": "Industry standard, well-understood claims structure, ecosystem of debugging tools (jwt.io). Downside: adds golang-jwt dependency to cli-core or requires a separate verification package."
+        },
+        {
+          "key": "C",
+          "label": "JWT but only in agent-manager; cli-core gets opaque token + REST verification",
+          "rationale": "Agent-manager uses golang-jwt internally for signing. cli-core never parses the token — it just passes it to a verification endpoint. Preserves cli-core's zero-dep stance while using standard JWT format. Downside: every verification requires a network call."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Verification model: self-verifiable vs server-side",
+      "context": "Self-verifiable tokens let consumers check signatures locally without network calls (requires sharing a secret or public key). Server-side verification means consumers send the token to agent-manager which confirms validity and returns claims. Since HMAC is symmetric, sharing the secret with every scenario is a security concern. Asymmetric signing (RS256/Ed25519) enables local verification without sharing private keys but adds complexity.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Server-side verification (opaque to consumers)",
+          "rationale": "Simplest and most secure — consumers never see the signing key. Verification is a single HTTP call to agent-manager. Downside: adds latency and requires agent-manager to be reachable.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Self-verifiable with shared HMAC secret",
+          "rationale": "No network calls needed. But sharing the HMAC secret with every scenario means any scenario could forge tokens. Only viable if all scenarios are fully trusted."
+        },
+        {
+          "key": "C",
+          "label": "Self-verifiable with asymmetric keys (Ed25519)",
+          "rationale": "Agent-manager signs with private key, scenarios verify with public key. No secret sharing, no network calls. But adds asymmetric crypto complexity and key distribution."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Verification endpoint protocol",
+      "context": "Given that agent-manager is HTTP-only today, should the verification endpoint be REST (consistent with existing API) or should we introduce gRPC for this? CLI consumers currently interact with agent-manager via REST through packages/cli-core/apiclient.go.",
+      "options": [
+        {
+          "key": "A",
+          "label": "REST endpoint (POST /api/v1/identity/verify)",
+          "rationale": "Consistent with existing HTTP API. cli-core already has an HTTP client (apiclient.go). No new dependencies. Simple to implement and test.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "gRPC endpoint",
+          "rationale": "Strongly typed contract, efficient binary protocol. But requires introducing gRPC stack to both agent-manager and cli-core — significant new dependency for a single endpoint."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Token claims: minimal vs extended",
+      "context": "The spec suggests minimum claims of run_id, task_id, profile_key, scope_path, issued_at, expires_at. Extended claims could include spawning_scenario (which scenario spawned the agent), initiative (for swarm-manager provenance), and agent_capabilities. More claims = more useful but also more coupling between agent-manager and consuming scenarios.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Minimal core claims + extensible metadata field",
+          "rationale": "Core: run_id, task_id, profile_key, scope_path, issued_at, expires_at. Plus a generic 'metadata' map for scenario-specific claims like initiative or spawning_scenario. Keeps the standard lean while allowing extension.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Fixed extended claims set",
+          "rationale": "Include all known useful claims: run_id, task_id, profile_key, scope_path, spawning_scenario, initiative, issued_at, expires_at. Simple and predictable but requires standard updates to add new claims."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    }
+  ],
+  "plan_updates": "Created initial conclusion.md scaffold with research question, methodology, and 6 findings from codebase investigation. Findings cover: HTTP-only architecture, cli-core zero-dep constraint, sandbox.go consumer pattern, injection point readiness, current string-only attribution, and token size analysis."
+}

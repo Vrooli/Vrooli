@@ -1,0 +1,29 @@
+{
+  "archived_at": "2026-02-05T20:44:23Z",
+  "created": "2026-02-05T20:44:23Z",
+  "description": "Track competitor websites and repositories for relevant changes with AI-powered analysis and alerting",
+  "name": "competitor-change-monitor-archived",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "monitoring-application",
+    "business-intelligence",
+    "monitoring",
+    "competitor-analysis",
+    "change-detection",
+    "web-scraping",
+    "github-tracking",
+    "alerts",
+    "javascript-ui",
+    "nodejs-ui",
+    "go-api",
+    "n8n-workflows",
+    "postgres-storage",
+    "redis-cache",
+    "ollama-ai",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] competitor-change-monitor",
+  "updated": "2026-02-05T20:44:23Z"
+}

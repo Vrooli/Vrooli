@@ -307,7 +307,7 @@ app.listen(process.env.API_PORT)
     "preview": "node server.js"
   },
   "dependencies": {
-    "@vrooli/api-base": "workspace:*",
+    "@vrooli/api-base": "file:../../../packages/api-base",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

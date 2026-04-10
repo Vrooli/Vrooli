@@ -1,5 +1,13 @@
 import { create } from 'zustand';
 import { API_BASE } from '../config';
+import { safeParse } from '../shared/api/safeParse';
+import {
+  EntitlementStatusResponseSchema,
+  UsageHistoryResponseSchema,
+  OperationLogPageSchema,
+  IdentityResponseSchema,
+  ApiSourceResponseSchema,
+} from '../shared/api/schemas';
 
 const joinApi = (base: string, path: string): string => {
   const normalizedBase = base.replace(/\/+$/, '');
@@ -7,9 +15,44 @@ const joinApi = (base: string, path: string): string => {
   return `${normalizedBase}/${normalizedPath}`;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseJson = async (response: Response): Promise<unknown> => {
+  try {
+    const data: unknown = await response.json();
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+const extractErrorMessage = (payload: unknown, fallback: string): string => {
+  if (!isRecord(payload)) {
+    return fallback;
+  }
+  const errorValue = payload.error;
+  if (typeof errorValue === 'string') {
+    return errorValue;
+  }
+  const message = payload.message;
+  if (typeof message === 'string') {
+    return message;
+  }
+  return fallback;
+};
+
 // Subscription tier types
 export type SubscriptionTier = 'free' | 'solo' | 'pro' | 'studio' | 'business';
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'inactive';
+
+// API source types for dev mode switching
+export type ApiSource = 'production' | 'local' | 'disabled';
+
+export interface ApiSourceConfig {
+  source: ApiSource;
+  localPort: number;
+}
 
 // API response type from backend
 export interface EntitlementStatusResponse {
@@ -44,6 +87,40 @@ export interface FeatureAccessSummary {
   has_access: boolean;
 }
 
+// Usage history types
+export interface UsagePeriod {
+  billing_month: string;
+  total_credits_used: number;
+  total_operations: number;
+  by_operation: Record<string, number>;
+  operation_counts: Record<string, number>;
+  credits_limit: number;
+  credits_remaining: number;
+  period_start: string;
+  period_end: string;
+  reset_date: string;
+}
+
+export interface OperationLogEntry {
+  id: string;
+  operation_type: string;
+  credits_charged: number;
+  success: boolean;
+  created_at: string;
+  metadata?: Record<string, unknown>;
+  error_message?: string;
+}
+
+export interface OperationLogPage {
+  user_identity: string;
+  billing_month: string;
+  operations: OperationLogEntry[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+}
+
 interface EntitlementState {
   // State
   userEmail: string;
@@ -54,6 +131,19 @@ interface EntitlementState {
   lastFetched: Date | null;
   isOffline: boolean;
 
+  // API source state (for dev mode)
+  apiSource: ApiSource;
+  localApiPort: number;
+
+  // Usage history state
+  usageHistory: UsagePeriod[];
+  historyLoading: boolean;
+  selectedPeriod: string | null; // YYYY-MM format
+  operationLog: OperationLogEntry[];
+  operationLogLoading: boolean;
+  operationLogTotal: number;
+  operationLogHasMore: boolean;
+
   // Actions
   fetchStatus: () => Promise<void>;
   setUserEmail: (email: string) => Promise<void>;
@@ -61,6 +151,16 @@ interface EntitlementState {
   refreshEntitlement: () => Promise<void>;
   getUserEmail: () => Promise<string>;
   setOverrideTier: (tier: SubscriptionTier | null) => Promise<void>;
+
+  // API source actions (for dev mode)
+  getApiSource: () => Promise<void>;
+  setApiSource: (source: ApiSource, localPort?: number) => Promise<void>;
+
+  // Usage history actions
+  fetchUsageHistory: (months?: number, offset?: number) => Promise<void>;
+  fetchOperationLog: (month: string, category?: string, limit?: number, offset?: number) => Promise<void>;
+  setSelectedPeriod: (month: string | null) => void;
+  clearOperationLog: () => void;
 }
 
 // Helper to check if email is valid (basic client-side validation)
@@ -125,6 +225,19 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
   lastFetched: null,
   isOffline: false,
 
+  // API source state (for dev mode)
+  apiSource: 'production' as ApiSource,
+  localApiPort: 15000, // Default LPBS API port range start
+
+  // Usage history state
+  usageHistory: [],
+  historyLoading: false,
+  selectedPeriod: null,
+  operationLog: [],
+  operationLogLoading: false,
+  operationLogTotal: 0,
+  operationLogHasMore: false,
+
   fetchStatus: async () => {
     set({ isLoading: true, error: null });
     try {
@@ -137,11 +250,17 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to fetch entitlement status: ${response.status}`);
+        const errorData = await parseJson(response);
+        throw new Error(extractErrorMessage(errorData, `Failed to fetch entitlement status: ${response.status}`));
       }
 
-      const data: EntitlementStatusResponse = await response.json();
+      const rawData: unknown = await response.json();
+      const result = safeParse(EntitlementStatusResponseSchema, rawData, 'EntitlementStatus');
+      if (!result.success) {
+        set({ error: result.error, isLoading: false });
+        return;
+      }
+      const data = result.data;
       set({
         status: data,
         userEmail: data.user_identity || '',
@@ -185,8 +304,8 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to set email: ${response.status}`);
+        const errorData = await parseJson(response);
+        throw new Error(extractErrorMessage(errorData, `Failed to set email: ${response.status}`));
       }
 
       // After setting email, fetch the updated status
@@ -212,8 +331,8 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to clear email: ${response.status}`);
+        const errorData = await parseJson(response);
+        throw new Error(extractErrorMessage(errorData, `Failed to clear email: ${response.status}`));
       }
 
       set({
@@ -244,11 +363,17 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to refresh entitlement: ${response.status}`);
+        const errorData = await parseJson(response);
+        throw new Error(extractErrorMessage(errorData, `Failed to refresh entitlement: ${response.status}`));
       }
 
-      const data: EntitlementStatusResponse = await response.json();
+      const rawData: unknown = await response.json();
+      const result = safeParse(EntitlementStatusResponseSchema, rawData, 'EntitlementRefresh');
+      if (!result.success) {
+        set({ error: result.error, isLoading: false });
+        return;
+      }
+      const data = result.data;
       set({
         status: data,
         userEmail: data.user_identity || '',
@@ -282,8 +407,12 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         return '';
       }
 
-      const data = await response.json();
-      const email = data.email || '';
+      const rawData: unknown = await response.json();
+      const result = safeParse(IdentityResponseSchema, rawData, 'Identity');
+      if (!result.success) {
+        return '';
+      }
+      const email = result.data.email || '';
       set({ userEmail: email });
       return email;
     } catch {
@@ -304,8 +433,8 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       });
 
       if (!response.ok && response.status !== 204) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to set override tier: ${response.status}`);
+        const errorData = await parseJson(response);
+        throw new Error(extractErrorMessage(errorData, `Failed to set override tier: ${response.status}`));
       }
 
       await get().fetchStatus();
@@ -316,6 +445,181 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         isLoading: false,
       });
     }
+  },
+
+  // API source actions (for dev mode)
+  getApiSource: async () => {
+    try {
+      const response = await fetch(joinApi(API_BASE, 'entitlement/api-source'), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        // Default to production if endpoint doesn't exist or fails
+        return;
+      }
+
+      const rawData: unknown = await response.json();
+      const result = safeParse(ApiSourceResponseSchema, rawData, 'ApiSource');
+      if (!result.success) {
+        // Default to production if validation fails
+        return;
+      }
+      set({
+        apiSource: result.data.source,
+        localApiPort: result.data.local_port || 15000,
+      });
+    } catch {
+      // Silently fail - defaults are fine
+    }
+  },
+
+  setApiSource: async (source: ApiSource, localPort?: number) => {
+    set({ isLoading: true, error: null });
+    try {
+      const body: Record<string, unknown> = { source };
+      if (localPort !== undefined) {
+        body.local_port = localPort;
+      }
+
+      const response = await fetch(joinApi(API_BASE, 'entitlement/api-source'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok && response.status !== 204) {
+        const errorData = await parseJson(response);
+        throw new Error(extractErrorMessage(errorData, `Failed to set API source: ${response.status}`));
+      }
+
+      set({
+        apiSource: source,
+        localApiPort: localPort ?? get().localApiPort,
+        isLoading: false,
+      });
+
+      // Refresh entitlement status with new API source
+      await get().fetchStatus();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to set API source';
+      set({
+        error: errorMessage,
+        isLoading: false,
+      });
+    }
+  },
+
+  // Usage history actions
+  fetchUsageHistory: async (months = 6, offset = 0) => {
+    set({ historyLoading: true });
+    try {
+      const params = new URLSearchParams();
+      params.set('months', months.toString());
+      if (offset > 0) params.set('offset', offset.toString());
+
+      const response = await fetch(joinApi(API_BASE, `entitlement/usage/history?${params.toString()}`), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch usage history: ${response.status}`);
+      }
+
+      const rawData: unknown = await response.json();
+      const result = safeParse(UsageHistoryResponseSchema, rawData, 'UsageHistory');
+      if (!result.success) {
+        console.error('Failed to validate usage history:', result.error);
+        set({ historyLoading: false });
+        return;
+      }
+      set({
+        usageHistory: result.data.periods,
+        historyLoading: false,
+      });
+    } catch (err) {
+      console.error('Failed to fetch usage history:', err);
+      set({
+        historyLoading: false,
+      });
+    }
+  },
+
+  fetchOperationLog: async (month: string, category?: string, limit = 20, offset = 0) => {
+    set({ operationLogLoading: true });
+    try {
+      const params = new URLSearchParams();
+      params.set('month', month);
+      if (category) params.set('category', category);
+      params.set('limit', limit.toString());
+      if (offset > 0) params.set('offset', offset.toString());
+
+      const response = await fetch(joinApi(API_BASE, `entitlement/usage/operations?${params.toString()}`), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch operation log: ${response.status}`);
+      }
+
+      const rawData: unknown = await response.json();
+      const result = safeParse(OperationLogPageSchema, rawData, 'OperationLog');
+      if (!result.success) {
+        console.error('Failed to validate operation log:', result.error);
+        set({ operationLogLoading: false });
+        return;
+      }
+      const data = result.data;
+
+      // If offset > 0, append to existing operations
+      if (offset > 0) {
+        set((state) => ({
+          operationLog: [...state.operationLog, ...data.operations],
+          operationLogTotal: data.total,
+          operationLogHasMore: data.has_more,
+          operationLogLoading: false,
+        }));
+      } else {
+        set({
+          operationLog: data.operations,
+          operationLogTotal: data.total,
+          operationLogHasMore: data.has_more,
+          operationLogLoading: false,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch operation log:', err);
+      set({
+        operationLogLoading: false,
+      });
+    }
+  },
+
+  setSelectedPeriod: (month: string | null) => {
+    set({ selectedPeriod: month });
+  },
+
+  clearOperationLog: () => {
+    set({
+      operationLog: [],
+      operationLogTotal: 0,
+      operationLogHasMore: false,
+    });
   },
 }));
 

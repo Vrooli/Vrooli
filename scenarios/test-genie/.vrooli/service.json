@@ -41,7 +41,8 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "range": "35000-39999"
+      "range": "35000-39999",
+      "port": 36223
     },
     "websocket": {
       "env_var": "WS_PORT",
@@ -106,12 +107,12 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o test-genie-api ./cmd/test-genie-api",
-          "description": "Compile Go API server binary (test-genie-api)"
+          "run": "cd api && go mod download && go build -o test-genie-api .",
+          "description": "Build the Go API binary at api/test-genie-api so lifecycle setup checks and start-api reuse the same executable"
         },
         {
           "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies"
         },
         {
@@ -121,7 +122,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83e\uddea Test Genie ready!\\n  \ud83c\udf10 API: http://localhost:${API_PORT}\\n  \ud83d\udda5\ufe0f  UI: http://localhost:${UI_PORT}\\n  \ud83d\udee0\ufe0f CLI: test-genie --help\\n  \ud83d\udce6 Queue Postgres URL: ${DATABASE_URL}'",
+          "run": "echo '\ud83e\uddea Test Genie ready!\\n  \ud83c\udf10 API: http://localhost:${API_PORT}\\n  \ud83d\udda5\ufe0f  UI: http://localhost:${UI_PORT}\\n  \ud83d\udee0\ufe0f CLI: test-genie --help\\n  \ud83d\udce6 SQLite DB: data/test-genie.db (override with TEST_GENIE_SQLITE_PATH)'",
           "description": "Display service entrypoints after setup completes"
         }
       ]
@@ -180,15 +181,7 @@
       ]
     }
   },
-  "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Primary relational data store",
-        "schema": "test-genie"
-      }
-    }
+  "environment": {
+    "TEST_GENIE_SQLITE_PATH": "${SCENARIO_DATA_DIR}/test-genie.db"
   }
 }

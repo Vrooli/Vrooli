@@ -376,23 +376,22 @@ func TestCollectFileMetrics_UnreadableFiles(t *testing.T) {
 
 	// Create readable file
 	readablePath := filepath.Join(tmpDir, "api", "readable.go")
-	if err := os.MkdirAll(filepath.Dir(readablePath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(readablePath), 0o755); err != nil {
 		t.Fatalf("Failed to create directory: %v", err)
 	}
-	if err := os.WriteFile(readablePath, []byte("package main\n"), 0644); err != nil {
+	if err := os.WriteFile(readablePath, []byte("package main\n"), 0o644); err != nil {
 		t.Fatalf("Failed to write readable file: %v", err)
 	}
 
 	// Create unreadable file (permission denied)
 	unreadablePath := filepath.Join(tmpDir, "api", "unreadable.go")
-	if err := os.WriteFile(unreadablePath, []byte("package main\n"), 0000); err != nil {
+	if err := os.WriteFile(unreadablePath, []byte("package main\n"), 0o000); err != nil {
 		t.Fatalf("Failed to write unreadable file: %v", err)
 	}
-	defer os.Chmod(unreadablePath, 0644) // Cleanup
+	defer func() { _ = os.Chmod(unreadablePath, 0o644) }() // Cleanup
 
 	scanner := NewLightScanner(tmpDir, 0)
 	metrics, err := scanner.collectFileMetrics()
-
 	// Should complete despite unreadable file (may skip it or return error)
 	if err != nil {
 		t.Logf("collectFileMetrics returned error (acceptable): %v", err)
@@ -421,10 +420,10 @@ func TestCollectFileMetrics_DeepNesting(t *testing.T) {
 
 	// Create deeply nested file
 	deepPath := filepath.Join(tmpDir, "api", "v1", "handlers", "users", "profile", "avatar", "upload.go")
-	if err := os.MkdirAll(filepath.Dir(deepPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(deepPath), 0o755); err != nil {
 		t.Fatalf("Failed to create deep directory: %v", err)
 	}
-	if err := os.WriteFile(deepPath, []byte("package avatar\nfunc Upload() {}\n"), 0644); err != nil {
+	if err := os.WriteFile(deepPath, []byte("package avatar\nfunc Upload() {}\n"), 0o644); err != nil {
 		t.Fatalf("Failed to write deep file: %v", err)
 	}
 
@@ -494,7 +493,7 @@ func TestCollectFileMetrics_LargeFile(t *testing.T) {
 
 	// Create a very large file (10,000 lines)
 	largePath := filepath.Join(tmpDir, "api", "large.go")
-	if err := os.MkdirAll(filepath.Dir(largePath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(largePath), 0o755); err != nil {
 		t.Fatalf("Failed to create directory: %v", err)
 	}
 
@@ -503,7 +502,7 @@ func TestCollectFileMetrics_LargeFile(t *testing.T) {
 	for i := 0; i < lineCount; i++ {
 		content += "// Line comment to make file larger\n"
 	}
-	if err := os.WriteFile(largePath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(largePath, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to write large file: %v", err)
 	}
 
@@ -535,10 +534,10 @@ func TestCollectFileMetrics_Symlinks(t *testing.T) {
 
 	// Create a real file
 	realPath := filepath.Join(tmpDir, "api", "real.go")
-	if err := os.MkdirAll(filepath.Dir(realPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(realPath), 0o755); err != nil {
 		t.Fatalf("Failed to create directory: %v", err)
 	}
-	if err := os.WriteFile(realPath, []byte("package main\nfunc main() {}\n"), 0644); err != nil {
+	if err := os.WriteFile(realPath, []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
 		t.Fatalf("Failed to write real file: %v", err)
 	}
 
@@ -606,10 +605,10 @@ func TestCollectFileMetrics_LineEndings(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			filePath := filepath.Join(tmpDir, "api", tc.name+".go")
-			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
 				t.Fatalf("Failed to create directory: %v", err)
 			}
-			if err := os.WriteFile(filePath, []byte(tc.content), 0644); err != nil {
+			if err := os.WriteFile(filePath, []byte(tc.content), 0o644); err != nil {
 				t.Fatalf("Failed to write file: %v", err)
 			}
 
@@ -648,7 +647,7 @@ func TestLongFileThreshold_BoundaryConditions(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			filePath := filepath.Join(tmpDir, "api", tc.name+".go")
-			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
 				t.Fatalf("Failed to create directory: %v", err)
 			}
 
@@ -656,7 +655,7 @@ func TestLongFileThreshold_BoundaryConditions(t *testing.T) {
 			for i := 0; i < tc.lineCount; i++ {
 				content += "line\n"
 			}
-			if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+			if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
 				t.Fatalf("Failed to write file: %v", err)
 			}
 
@@ -691,14 +690,14 @@ func BenchmarkCollectFileMetrics_Small(b *testing.B) {
 	// Create 10 files
 	for i := 0; i < 10; i++ {
 		filePath := filepath.Join(tmpDir, "api", fmt.Sprintf("file%d.go", i))
-		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
 			b.Fatalf("Failed to create directory: %v", err)
 		}
 		content := ""
 		for j := 0; j < 100; j++ {
 			content += "line\n"
 		}
-		if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
 			b.Fatalf("Failed to write file: %v", err)
 		}
 	}
@@ -720,14 +719,14 @@ func BenchmarkCollectFileMetrics_Large(b *testing.B) {
 	// Create 100 files
 	for i := 0; i < 100; i++ {
 		filePath := filepath.Join(tmpDir, "api", fmt.Sprintf("file%d.go", i))
-		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
 			b.Fatalf("Failed to create directory: %v", err)
 		}
 		content := ""
 		for j := 0; j < 500; j++ {
 			content += "line\n"
 		}
-		if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
 			b.Fatalf("Failed to write file: %v", err)
 		}
 	}
@@ -749,7 +748,7 @@ func BenchmarkLongFileDetection(b *testing.B) {
 	// Create mix of short and long files
 	for i := 0; i < 20; i++ {
 		filePath := filepath.Join(tmpDir, "api", fmt.Sprintf("file%d.go", i))
-		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
 			b.Fatalf("Failed to create directory: %v", err)
 		}
 		lineCount := 100
@@ -760,7 +759,7 @@ func BenchmarkLongFileDetection(b *testing.B) {
 		for j := 0; j < lineCount; j++ {
 			content += "line\n"
 		}
-		if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
 			b.Fatalf("Failed to write file: %v", err)
 		}
 	}

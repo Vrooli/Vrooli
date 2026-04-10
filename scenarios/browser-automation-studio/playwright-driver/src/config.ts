@@ -740,7 +740,7 @@ export function logConfigTierWarnings(logFn: (msg: string, data?: Record<string,
   if (tier2Options.length > 0) {
     logFn('[config] Advanced options configured (Tier 2):', {
       count: tier2Options.length,
-      options: tier2Options.map(o => `${o.envVar}=${o.currentValue}`),
+      options: tier2Options.map((o) => `${o.envVar}=${String(o.currentValue)}`),
       hint: 'These are fine-tuning options. See CONFIG-TIERS.md for guidance.',
     });
   }
@@ -749,7 +749,7 @@ export function logConfigTierWarnings(logFn: (msg: string, data?: Record<string,
   if (tier3Options.length > 0) {
     logFn('[config] Internal options configured (Tier 3):', {
       count: tier3Options.length,
-      options: tier3Options.map(o => `${o.envVar}=${o.currentValue}`),
+      options: tier3Options.map((o) => `${o.envVar}=${String(o.currentValue)}`),
       hint: 'These are rarely-needed internal options. Consider if they are necessary.',
     });
   }

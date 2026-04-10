@@ -36,6 +36,11 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *basapi.Create
 		return nil, fmt.Errorf("resolve project: %w", err)
 	}
 
+	// Validate folder path is a logical category, not an absolute filesystem path
+	if err := validateFolderPath(req.FolderPath); err != nil {
+		return nil, err
+	}
+
 	if existing, err := s.repo.GetWorkflowByName(ctx, name, normalizeFolderPath(req.FolderPath)); err == nil && existing != nil && existing.ProjectID != nil && *existing.ProjectID == projectID {
 		return nil, ErrWorkflowNameConflict
 	} else if err != nil && !errors.Is(err, sql.ErrNoRows) && !errors.Is(err, database.ErrNotFound) {
@@ -243,6 +248,11 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, req *basapi.Update
 		return nil, fmt.Errorf("%w: expected %d, found %d", ErrWorkflowVersionConflict, expected, currentSummary.Version)
 	}
 
+	// Validate folder path is a logical category, not an absolute filesystem path
+	if err := validateFolderPath(req.FolderPath); err != nil {
+		return nil, err
+	}
+
 	updated := proto.Clone(currentSummary).(*basapi.WorkflowSummary)
 	updated.Name = strings.TrimSpace(req.Name)
 	if updated.Name == "" {
@@ -331,7 +341,8 @@ func (s *WorkflowService) hydrateWorkflowSummary(ctx context.Context, wf *databa
 		return nil, err
 	}
 
-	abs := filepath.Join(ProjectWorkflowsDir(project), filepath.FromSlash(wf.FilePath))
+	// Use project folder directly - file paths are stored relative to project root, not workflows subdir
+	abs := filepath.Join(project.FolderPath, filepath.FromSlash(wf.FilePath))
 	snapshot, err := ReadWorkflowSummaryFile(ctx, project, abs)
 	if err != nil {
 		return nil, err

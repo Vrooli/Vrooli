@@ -95,7 +95,6 @@ func (h *LighthouseHandler) RunLighthouse(c *gin.Context) {
 		req.Pages = nil
 	}
 
-	scenarioPath := h.scenarioPath(scenarioName)
 	configPath := h.configPath(scenarioName)
 	if _, err := os.Stat(configPath); err != nil {
 		if os.IsNotExist(err) {
@@ -256,7 +255,6 @@ func fileModTime(path string) time.Time {
 }
 
 func (h *LighthouseHandler) respondMissingConfig(c *gin.Context, scenarioName string) {
-	scenarioDir := filepath.Join("scenarios", scenarioName)
 	createConfig := fmt.Sprintf("Create %s (see scenarios/test-genie/docs/phases/performance/lighthouse.md)", h.configPath(scenarioName))
 
 	c.JSON(http.StatusNotFound, gin.H{

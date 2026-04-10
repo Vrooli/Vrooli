@@ -371,9 +371,8 @@ func TestRunner_LighthouseFails(t *testing.T) {
 	if result.Success {
 		t.Fatal("expected failure when Lighthouse fails")
 	}
-	if !result.Summary.LighthousePassed {
-		// LighthousePassed is only set to false when we reach the lighthouse section
-		// but since it failed, it should be false
+	if result.Summary.LighthousePassed {
+		t.Error("expected LighthousePassed to remain false when Lighthouse validation fails")
 	}
 }
 

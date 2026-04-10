@@ -4,17 +4,20 @@ import { createMockPage, createTestConfig } from '../../helpers';
 describe('Screenshot', () => {
   let mockPage: ReturnType<typeof createMockPage>;
   let config: ReturnType<typeof createTestConfig>;
+  let screenshotMock: jest.MockedFunction<typeof mockPage.screenshot>;
 
   beforeEach(() => {
     mockPage = createMockPage();
     config = createTestConfig();
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- jest mock does not use this
+    screenshotMock = mockPage.screenshot as jest.MockedFunction<typeof mockPage.screenshot>;
   });
 
   describe('captureScreenshot', () => {
     it('should capture PNG screenshot', async () => {
       const screenshot = await captureScreenshot(mockPage, config);
 
-      expect(mockPage.screenshot).toHaveBeenCalledWith(
+      expect(screenshotMock).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'png',
         })
@@ -32,7 +35,6 @@ describe('Screenshot', () => {
             quality: 80,
             maxSizeBytes: 5 * 1024 * 1024,
           },
-          video: { enabled: false },
           dom: { enabled: true, maxSizeBytes: 1 * 1024 * 1024 },
           console: { enabled: true, maxEntries: 100 },
           network: { enabled: true, maxEvents: 500 },
@@ -43,7 +45,7 @@ describe('Screenshot', () => {
 
       await captureScreenshot(mockPage, configFullPage);
 
-      expect(mockPage.screenshot).toHaveBeenCalledWith(
+      expect(screenshotMock).toHaveBeenCalledWith(
         expect.objectContaining({
           fullPage: true,
         })
@@ -52,7 +54,7 @@ describe('Screenshot', () => {
 
     it('should return base64 encoded screenshot', async () => {
       const mockBuffer = Buffer.from('fake-screenshot');
-      mockPage.screenshot.mockResolvedValue(mockBuffer);
+      screenshotMock.mockResolvedValue(mockBuffer);
 
       const screenshot = await captureScreenshot(mockPage, config);
 
@@ -77,7 +79,6 @@ describe('Screenshot', () => {
             quality: 80,
             maxSizeBytes: 100, // Very small limit
           },
-          video: { enabled: false },
           dom: { enabled: true, maxSizeBytes: 1 * 1024 * 1024 },
           console: { enabled: true, maxEntries: 100 },
           network: { enabled: true, maxEvents: 500 },
@@ -89,21 +90,18 @@ describe('Screenshot', () => {
       const largeBuffer = Buffer.alloc(200); // Exceeds max
       const smallBuffer = Buffer.from('small');
 
-      mockPage.screenshot
+      screenshotMock
         .mockResolvedValueOnce(largeBuffer) // First call (full page) too large
         .mockResolvedValueOnce(smallBuffer); // Second call (viewport) acceptable
 
       const screenshot = await captureScreenshot(mockPage, configSmallMax);
 
-      expect(mockPage.screenshot).toHaveBeenCalledTimes(2);
-      expect(mockPage.screenshot).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({ fullPage: true })
-      );
-      expect(mockPage.screenshot).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({ fullPage: false })
-      );
+      expect(screenshotMock).toHaveBeenCalledTimes(2);
+      const firstCall = screenshotMock.mock.calls[0]?.[0];
+      const secondCall = screenshotMock.mock.calls[1]?.[0];
+
+      expect(firstCall?.fullPage).toBe(true);
+      expect(secondCall?.clip).toMatchObject({ x: 0, y: 0 });
       expect(screenshot?.base64).toBe(smallBuffer.toString('base64'));
     });
 
@@ -116,7 +114,6 @@ describe('Screenshot', () => {
             quality: 80,
             maxSizeBytes: 100,
           },
-          video: { enabled: false },
           dom: { enabled: true, maxSizeBytes: 1 * 1024 * 1024 },
           console: { enabled: true, maxEntries: 100 },
           network: { enabled: true, maxEvents: 500 },
@@ -126,7 +123,7 @@ describe('Screenshot', () => {
       });
 
       const largeBuffer = Buffer.alloc(200);
-      mockPage.screenshot.mockResolvedValue(largeBuffer);
+      screenshotMock.mockResolvedValue(largeBuffer);
 
       const screenshot = await captureScreenshot(mockPage, configSmallMax);
 
@@ -142,7 +139,6 @@ describe('Screenshot', () => {
             quality: 80,
             maxSizeBytes: 5 * 1024 * 1024,
           },
-          video: { enabled: false },
           dom: { enabled: true, maxSizeBytes: 1 * 1024 * 1024 },
           console: { enabled: true, maxEntries: 100 },
           network: { enabled: true, maxEvents: 500 },
@@ -153,12 +149,12 @@ describe('Screenshot', () => {
 
       const screenshot = await captureScreenshot(mockPage, configDisabled);
 
-      expect(mockPage.screenshot).not.toHaveBeenCalled();
+      expect(screenshotMock).not.toHaveBeenCalled();
       expect(screenshot).toBeUndefined();
     });
 
     it('should handle screenshot errors gracefully', async () => {
-      mockPage.screenshot.mockRejectedValue(new Error('Screenshot failed'));
+      screenshotMock.mockRejectedValue(new Error('Screenshot failed'));
 
       const screenshot = await captureScreenshot(mockPage, config);
 
@@ -178,11 +174,11 @@ describe('Screenshot', () => {
   describe('captureCompressedScreenshot', () => {
     it('should capture JPEG screenshot', async () => {
       const mockBuffer = Buffer.from('jpeg-screenshot');
-      mockPage.screenshot.mockResolvedValue(mockBuffer);
+      screenshotMock.mockResolvedValue(mockBuffer);
 
       const screenshot = await captureCompressedScreenshot(mockPage, 80, false);
 
-      expect(mockPage.screenshot).toHaveBeenCalledWith(
+      expect(screenshotMock).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'jpeg',
           quality: 80,
@@ -195,20 +191,20 @@ describe('Screenshot', () => {
       const largeBuffer = Buffer.alloc(200);
       const smallBuffer = Buffer.from('small');
 
-      mockPage.screenshot
+      screenshotMock
         .mockResolvedValueOnce(largeBuffer) // First call with quality 80
         .mockResolvedValueOnce(smallBuffer); // Second call with quality 60
 
       const screenshot = await captureCompressedScreenshot(mockPage, 80, false, 100);
 
-      expect(mockPage.screenshot).toHaveBeenCalledTimes(2);
+      expect(screenshotMock).toHaveBeenCalledTimes(2);
       expect(screenshot?.base64).toBe(smallBuffer.toString('base64'));
     });
 
     it('should return undefined when still too large after quality reduction', async () => {
       const largeBuffer = Buffer.alloc(200);
 
-      mockPage.screenshot.mockResolvedValue(largeBuffer);
+      screenshotMock.mockResolvedValue(largeBuffer);
 
       const screenshot = await captureCompressedScreenshot(mockPage, 50, false, 100);
 

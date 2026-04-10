@@ -1,0 +1,313 @@
+{
+  "items": [
+    {
+      "kind": "research",
+      "name": "agent-sandbox-auditability-contract",
+      "title": "Define the canonical sandbox auditability contract for agent-manager",
+      "description": "## Goal\n\nDefine the authoritative product and implementation contract for agent-manager sandboxing so the platform can make sandboxing the default path for agent-created code changes without losing clarity about what the sandbox is for.\n\n## Why this matters\n\nThe primary selling point of sandboxing is not security. The primary selling point is that sandboxing gives Vrooli a canonical, per-run record of what an agent changed so Git Control Tower can correlate repo changes back to the exact agent-manager run, conversation context, cost, and execution metadata that produced them. The platform wants as many coding runs as possible to flow through sandboxing so the AI Changes experience becomes a trustworthy audit trail instead of a niche workflow.\n\nSecurity and containment still matter, but they are a follow-on layer. The first priority is to make sandboxing seamless and reliable enough that teams want to use it by default.\n\n## Contract decisions this item must lock down\n\n- Sandbox should be the default execution path for agent-manager coding runs once the reliability foundation is ready.\n- Manual review is opt-in. It is not the default operator path.\n- Accepted changes should auto-apply by default at the end of a run, including runs that fail after making useful changes.\n- Acceptance rules control what is eligible to apply. Changes outside acceptance can exist in the sandbox during execution, but they should not auto-apply by default.\n- Locking and acceptance are different concerns. Multiple sandboxes targeting the same area should be allowed by default, while acceptance filtering still applies during apply/review.\n- The coding agent should not need prompt changes or behavior changes based on sandbox mode. Sandbox behavior should be transparent from the agent's perspective.\n- The long-term model supports two modes: a tracking-first mode and a protected mode. Both share the same auditability contract; protected mode adds stronger runtime controls later.\n- Network modes should support `none`, `localhost`, and `full`, because scenario CLIs depend on localhost APIs.\n- Direct git usage from the agent should eventually be restricted to read-only operations in protected mode, while carefully controlled scenario APIs remain allowed.\n\n## Known mismatches to document and reconcile\n\n- Current workspace-sandbox semantics conflate `noLock` with acceptance bypass, which conflicts with the intended contract that locking and acceptance are independent concerns.\n- Current sandboxed runs with `RequiresApproval=false` can complete without auto-applying sandbox changes, which breaks the desired auditability path.\n- Agent-manager already injects sandbox env vars and downstream restart/test flows are partly sandbox-aware, but the end-to-end contract is not documented in one place.\n- Git Control Tower already has pending provenance-by-run plumbing and an AI Changes tab, but the intended lifecycle for pending vs committed provenance is not yet formally defined.\n- The policy/guardrail surface in agent-manager exists only partially today and should not be treated as the primary contract.\n\n## Expected deliverables\n\n1. A written contract covering defaults, terminology, and state transitions for sandbox creation, execution, apply, review, failure handling, and provenance retention.\n2. A precise configuration surface for `manualReview`, `autoApply`, `applyOnFailure`, locking, network mode, and future protected-mode guardrails.\n3. A source-of-truth matrix showing how agent-manager, workspace-sandbox, test-genie, cli-core, scenario restart flows, and Git Control Tower interact in sandboxed runs.\n4. A validation matrix for the behaviors that must work before sandboxing becomes the default in major spawn surfaces.\n5. A rollout recommendation that sequences auditability first and hardened protection second.\n\n## Key references\n\n- `scenarios/agent-manager/api/internal/orchestration/run_executor.go`\n- `scenarios/workspace-sandbox/api/internal/sandbox/service.go`\n- `scenarios/workspace-sandbox/api/internal/config/config.go`\n- `packages/cli-core/cliutil/sandbox.go`\n- `scenarios/test-genie/cli/execute/command.go`\n- `scripts/lib/scenario/runner.sh`\n- `scenarios/git-control-tower/api/approved_changes_handler.go`\n- `scenarios/git-control-tower/ui/src/components/AIProvenanceTab.tsx`",
+      "priority": 1,
+      "effort": "M",
+      "initiative": "agent-sandbox-audit-foundation",
+      "acceptance_allow": [
+        "scenarios/agent-manager/**",
+        "scenarios/workspace-sandbox/**",
+        "scenarios/test-genie/**",
+        "scenarios/git-control-tower/**",
+        "packages/cli-core/**",
+        "scripts/lib/scenario/**",
+        "cli/commands/scenario/**"
+      ],
+      "tags": [
+        "agent-manager",
+        "workspace-sandbox",
+        "git-control-tower",
+        "auditability",
+        "contract"
+      ]
+    },
+    {
+      "kind": "fix",
+      "name": "workspace-sandbox-lock-and-acceptance-semantics",
+      "title": "Decouple workspace-sandbox locking from acceptance filtering",
+      "description": "## Goal\n\nFix the workspace-sandbox semantics so exclusivity and acceptance behave the way the product actually intends.\n\n## Problem\n\nThe intended model is that `lock` reserves a target area exclusively when requested, while acceptance rules define which changes are eligible to apply. Most sandboxes should not lock by default, because abandoned sandboxes should not block new work. However, acceptance filtering still needs to work even when locking is disabled.\n\nThe current implementation appears to bypass acceptance filtering when `noLock` is true. That undermines the core sandbox contract and makes it hard to trust sandbox apply behavior.\n\n## Required outcomes\n\n- `noLock` only controls reservation/exclusivity.\n- Acceptance allow/deny continues to govern what can be applied or approved even when locking is disabled.\n- Multiple sandboxes can target the same scope by default without silently broadening apply behavior.\n- Agent-manager can still request locking explicitly for workflows that need exclusivity.\n- The corrected semantics are reflected consistently in API docs, config defaults, and tests.\n\n## Expected deliverables\n\n1. Workspace-sandbox code changes that separate reservation logic from apply filtering.\n2. Agent-manager request behavior updated so it no longer relies on accidental acceptance bypass semantics.\n3. Regression coverage proving that acceptance filtering still works with `noLock=true`.\n4. Documentation updates so future contributors do not reintroduce this coupling.\n\n## Key references\n\n- `scenarios/workspace-sandbox/api/internal/sandbox/service.go`\n- `scenarios/workspace-sandbox/api/internal/config/config.go`\n- `scenarios/agent-manager/api/internal/orchestration/run_executor.go`",
+      "priority": 1,
+      "effort": "M",
+      "initiative": "agent-sandbox-audit-foundation",
+      "depends_on": [
+        "research/agent-sandbox-auditability-contract"
+      ],
+      "acceptance_allow": [
+        "scenarios/workspace-sandbox/**",
+        "scenarios/agent-manager/**"
+      ],
+      "tags": [
+        "workspace-sandbox",
+        "acceptance",
+        "locking",
+        "semantics"
+      ]
+    },
+    {
+      "kind": "execute",
+      "name": "agent-manager-sandbox-auto-apply-defaults",
+      "title": "Make sandboxed agent-manager runs auto-apply accepted changes by default",
+      "description": "## Goal\n\nAlign agent-manager's sandbox lifecycle with the intended default operator experience: sandboxing should happen automatically, accepted changes should auto-apply automatically, and manual review should only happen when explicitly requested.\n\n## Desired behavior\n\n- When a run is sandboxed and manual review is not requested, accepted changes should auto-apply at the end of the run.\n- The same auto-apply behavior should happen even if the run ultimately fails, because a failed run can still contain useful accepted changes.\n- Acceptance filters still determine which files are eligible to apply.\n- Manual review remains available as an explicit gate when requested ahead of time.\n- Every applied change should retain the agent-manager run id and any provenance needed by Git Control Tower.\n\n## Current gap\n\nSandboxed runs that do not require approval can currently finish without actually applying sandbox changes. That breaks the auditability model because the run is complete but no canonical applied-change provenance is recorded.\n\n## Expected deliverables\n\n1. Update the sandboxed completion path so non-review runs auto-apply through workspace-sandbox instead of merely marking the run complete.\n2. Make the default semantics explicit in config and API surfaces. If naming like `RequiresApproval` is now misleading, rename or supplement it with clearer concepts such as `manualReview`, `autoApply`, and `applyOnFailure`.\n3. Preserve and verify `agent_manager_run_id` attribution on every auto-applied file.\n4. Add tests for success and failure cases, including partial acceptance filtering.\n5. Ensure manual review remains a supported opt-in flow with clear state transitions.\n\n## Key references\n\n- `scenarios/agent-manager/api/internal/orchestration/run_executor.go`\n- `scenarios/agent-manager/api/internal/orchestration/run_executor_test.go`\n- `scenarios/workspace-sandbox/api/internal/sandbox/service.go`\n- `scenarios/workspace-sandbox/api/internal/types/types.go`",
+      "priority": 1,
+      "effort": "L",
+      "initiative": "agent-sandbox-audit-foundation",
+      "depends_on": [
+        "research/agent-sandbox-auditability-contract",
+        "fix/workspace-sandbox-lock-and-acceptance-semantics"
+      ],
+      "acceptance_allow": [
+        "scenarios/agent-manager/**",
+        "scenarios/workspace-sandbox/**"
+      ],
+      "tags": [
+        "agent-manager",
+        "workspace-sandbox",
+        "auto-apply",
+        "provenance"
+      ]
+    },
+    {
+      "kind": "execute",
+      "name": "sandbox-runtime-e2e-verification",
+      "title": "Add end-to-end verification for seamless sandbox execution and restart flows",
+      "description": "## Goal\n\nProve that sandboxing already behaves seamlessly enough to support the auditability rollout, and close the gaps where it does not.\n\n## Why this matters\n\nThe platform has already invested in sandbox-aware restart and test flows, but confidence is low because the coverage story is unclear. This item is about converting scattered assumptions into trustworthy automated verification.\n\n## Behaviors that must be covered\n\n- Agent-manager creates sandboxed runs with the expected environment injection.\n- Scenario restart flows operate against the sandbox view rather than the real repo when a sandboxed run requests them.\n- Test-genie and related scenario CLI paths execute against sandbox changes, not the underlying repo state.\n- Auto-apply respects acceptance rules after the run ends.\n- Auto-apply still occurs on failed runs when valid accepted changes exist.\n- Manual review opt-in still works when requested.\n- Multiple sandboxes can target the same area without acceptance semantics regressing.\n- Healing/cleanup paths do not accidentally discard or misattribute sandbox changes.\n\n## Expected deliverables\n\n1. Integration and scenario-level tests for the full sandboxed edit -> restart -> test -> apply lifecycle.\n2. Focused regression tests around cli-core sandbox path resolution and scenario runner behavior.\n3. Documentation of any gaps that cannot yet be covered automatically, plus the shortest path to cover them later.\n4. A pass/fail readiness checklist that other backlog items can rely on before default rollout.\n\n## Key references\n\n- `packages/cli-core/cliutil/sandbox.go`\n- `scripts/lib/scenario/runner.sh`\n- `scenarios/test-genie/cli/execute/command.go`\n- `cli/commands/scenario/modules/heal.sh`\n- `scenarios/agent-manager/api/internal/orchestration/run_executor.go`",
+      "priority": 2,
+      "effort": "L",
+      "initiative": "agent-sandbox-audit-foundation",
+      "depends_on": [
+        "research/agent-sandbox-auditability-contract",
+        "fix/workspace-sandbox-lock-and-acceptance-semantics",
+        "execute/agent-manager-sandbox-auto-apply-defaults"
+      ],
+      "acceptance_allow": [
+        "scenarios/agent-manager/**",
+        "scenarios/workspace-sandbox/**",
+        "scenarios/test-genie/**",
+        "packages/cli-core/**",
+        "scripts/lib/scenario/**",
+        "cli/commands/scenario/**"
+      ],
+      "tags": [
+        "sandbox",
+        "verification",
+        "test-genie",
+        "scenario-restart"
+      ]
+    },
+    {
+      "kind": "execute",
+      "name": "agent-manager-default-sandboxing-rollout",
+      "title": "Roll out sandboxing as the default path in major agent-manager spawn surfaces",
+      "description": "## Goal\n\nMake sandboxing the default path for the main agent-manager entry points once the auditability foundation and provenance surfaces are trustworthy.\n\n## Why this is a separate item\n\nDefault rollout should not happen until the platform can trust the execution semantics and operator-facing provenance story. This item is specifically about productizing the new default after the underlying lifecycle and review surfaces are ready.\n\n## Required outcomes\n\n- Main agent-manager creation flows default to sandboxed runs.\n- The default network mode is compatible with normal scenario CLI usage, which likely means `localhost` rather than unrestricted `full`.\n- Operators still have an intentional escape hatch for non-sandboxed runs if a workflow is not ready yet.\n- The UI and API copy explain the default clearly without making sandboxing sound like a burdensome extra step.\n- Adoption can be measured so the team knows whether default sandboxing is actually increasing run-to-change attribution.\n\n## Expected deliverables\n\n1. Default-setting changes in the main agent-manager spawn/config surfaces.\n2. Product copy and operator-facing messaging that explain sandboxing as the normal audit path, not an expert-only feature.\n3. Metrics or reporting that let the team see how many runs are sandboxed and how many applied changes are successfully attributed to runs.\n4. Rollout safeguards for scenarios or entry points that are not yet compatible.\n\n## Key references\n\n- `scenarios/agent-manager/**`\n- `scenarios/git-control-tower/**`\n- `scenarios/swarm-manager/**`\n- `scenarios/ecosystem-manager/**`",
+      "priority": 3,
+      "effort": "M",
+      "initiative": "agent-sandbox-audit-foundation",
+      "depends_on": [
+        "execute/agent-manager-sandbox-auto-apply-defaults",
+        "execute/sandbox-runtime-e2e-verification",
+        "execute/gct-pending-ai-provenance-hardening"
+      ],
+      "acceptance_allow": [
+        "scenarios/agent-manager/**",
+        "scenarios/git-control-tower/**",
+        "scenarios/swarm-manager/**",
+        "scenarios/ecosystem-manager/**"
+      ],
+      "tags": [
+        "agent-manager",
+        "sandbox",
+        "rollout",
+        "defaults"
+      ]
+    },
+    {
+      "kind": "execute",
+      "name": "gct-pending-ai-provenance-hardening",
+      "title": "Harden Git Control Tower's pending AI provenance and AI Changes experience",
+      "description": "## Goal\n\nMake Git Control Tower's existing pending provenance-by-run flow trustworthy and intuitive enough to serve as the operator-facing proof that sandbox auditability is working.\n\n## Current state\n\nGit Control Tower already has an AI Changes tab and an API path that groups pending applied changes by agent-manager run id. Workspace-sandbox already records run-linked applied changes. This item is not greenfield. It is about auditing, validating, and refining the current pending-state experience so operators can trust it.\n\n## Required outcomes\n\n- AI Changes clearly shows which pending changes came from which agent-manager run.\n- Empty or missing run metadata is handled gracefully and does not make the UI confusing.\n- Provenance dimension counts in review surfaces correctly distinguish traced vs untraced files.\n- The operator can understand who initiated a run, when it happened, and which files are currently associated with it.\n- Manual review and auto-apply flows both show up coherently when those changes are still pending in Git Control Tower.\n\n## Expected deliverables\n\n1. Audit the existing API/UI path for pending run provenance and fix data-shape or labeling gaps.\n2. Tighten the AI Changes tab UX so it is obvious that this is a per-run attribution surface, not just another generic file list.\n3. Validate provenance counts and empty-state behavior across realistic repo states.\n4. Add tests that protect the pending provenance path from regressions as sandboxing becomes the default.\n\n## Key references\n\n- `scenarios/git-control-tower/api/approved_changes_handler.go`\n- `scenarios/git-control-tower/api/review_handler_dimensions.go`\n- `scenarios/git-control-tower/api/workspace_sandbox_client.go`\n- `scenarios/git-control-tower/ui/src/components/AIProvenanceTab.tsx`\n- `scenarios/workspace-sandbox/api/internal/repository/sandbox_repo.go`",
+      "priority": 2,
+      "effort": "M",
+      "initiative": "git-control-tower-ai-provenance",
+      "depends_on": [
+        "execute/agent-manager-sandbox-auto-apply-defaults"
+      ],
+      "acceptance_allow": [
+        "scenarios/git-control-tower/**",
+        "scenarios/workspace-sandbox/**"
+      ],
+      "tags": [
+        "git-control-tower",
+        "provenance",
+        "ui",
+        "auditability"
+      ]
+    },
+    {
+      "kind": "execute",
+      "name": "gct-committed-ai-provenance-history",
+      "title": "Surface committed AI provenance history so run attribution survives after commit",
+      "description": "## Goal\n\nExtend Git Control Tower from showing only pending run attribution to showing the committed history of run-linked changes as well.\n\n## Why this matters\n\nIf sandboxing becomes the default path for agent-made changes, the audit trail should not disappear once a human commits the work. Workspace-sandbox already stores commit metadata alongside applied changes. Git Control Tower should expose that so the platform can answer questions like \"which agent-manager run produced the code in this commit?\" even after the pending state is gone.\n\n## Required outcomes\n\n- The provenance story survives beyond the pending review surface.\n- Operators can inspect committed file history and see which agent-manager run introduced or last modified the change.\n- Commit metadata such as commit hash, commit time, and commit message are tied back to the originating run where possible.\n- The UI and API avoid implying a stronger guarantee than the stored provenance actually provides.\n\n## Expected deliverables\n\n1. API support for committed provenance history, either by extending existing endpoints or adding a dedicated committed-history surface.\n2. Git Control Tower UI changes that let operators inspect committed run provenance without mixing it up with pending change review.\n3. Tests for commit-marking and provenance retention behavior.\n4. Clear UX language for cases where a file has mixed provenance or no tracked run history.\n\n## Key references\n\n- `scenarios/workspace-sandbox/api/internal/repository/sandbox_repo.go`\n- `scenarios/workspace-sandbox/api/internal/types/types.go`\n- `scenarios/git-control-tower/api/workspace_sandbox_client.go`\n- `scenarios/git-control-tower/ui/**`",
+      "priority": 3,
+      "effort": "L",
+      "initiative": "git-control-tower-ai-provenance",
+      "depends_on": [
+        "execute/gct-pending-ai-provenance-hardening"
+      ],
+      "acceptance_allow": [
+        "scenarios/git-control-tower/**",
+        "scenarios/workspace-sandbox/**"
+      ],
+      "tags": [
+        "git-control-tower",
+        "provenance",
+        "history",
+        "commits"
+      ]
+    },
+    {
+      "kind": "execute",
+      "name": "protected-sandbox-agent-launch",
+      "title": "Launch coding agents through workspace-sandbox execution APIs in protected mode",
+      "description": "## Goal\n\nIntroduce a protected sandbox mode where the coding agent process itself is launched through workspace-sandbox execution APIs instead of simply running in the merged overlay directory on the host.\n\n## Critical constraint\n\nThis must not rely on prompt changes or special agent behavior. The orchestration layer should change how the process is launched; the agent should not need to know that it is in a sandbox.\n\n## Why this matters\n\nWorkspace-sandbox already has `/exec`, long-running `/processes`, and interactive execution support. Agent-manager currently creates the sandboxed workspace but still launches Claude/Codex/OpenCode directly in that merged directory. That is good enough for tracking, but it is not a contained execution model. Protected mode should use the existing execution surfaces so future guardrails can apply to the actual agent process tree.\n\n## Expected deliverables\n\n1. A protected-mode launch path in agent-manager that starts supported coding agents through workspace-sandbox process execution rather than direct host execution.\n2. Compatibility for the runner patterns agent-manager already needs, including streaming output, interactive sessions when required, environment injection, working directory control, and cleanup.\n3. A capability matrix for Claude, Codex, and OpenCode so protected mode does not silently regress one runner while helping another.\n4. End-to-end tests that prove protected-mode launch still preserves the same sandbox auditability contract as the tracking-first mode.\n\n## Key references\n\n- `scenarios/workspace-sandbox/api/internal/handlers/process.go`\n- `scenarios/workspace-sandbox/api/internal/handlers/interactive.go`\n- `scenarios/workspace-sandbox/docs/EXECUTION_MODES.md`\n- `scenarios/agent-manager/api/internal/adapters/runner/claude_code.go`\n- `scenarios/agent-manager/api/internal/adapters/runner/codex_runner.go`\n- `scenarios/agent-manager/api/internal/adapters/runner/opencode_runner.go`\n- `scenarios/agent-manager/api/internal/orchestration/run_executor.go`",
+      "priority": 6,
+      "effort": "XL",
+      "initiative": "protected-agent-sandboxing",
+      "depends_on": [
+        "research/agent-sandbox-auditability-contract",
+        "execute/agent-manager-sandbox-auto-apply-defaults",
+        "execute/sandbox-runtime-e2e-verification"
+      ],
+      "acceptance_allow": [
+        "scenarios/agent-manager/**",
+        "scenarios/workspace-sandbox/**"
+      ],
+      "tags": [
+        "agent-manager",
+        "workspace-sandbox",
+        "protected-mode",
+        "process-launch"
+      ]
+    },
+    {
+      "kind": "execute",
+      "name": "protected-sandbox-git-and-network-guardrails",
+      "title": "Add protected-mode git and network guardrails with human-readable denials",
+      "description": "## Goal\n\nLayer meaningful runtime guardrails on top of protected sandbox execution without breaking the seamless default workflow.\n\n## Design intent\n\nDirect commands issued by the agent inside the protected sandbox should be constrained. Carefully controlled scenario APIs called over localhost should remain allowed. This is especially important for git: the platform wants direct git usage from the agent to be effectively read-only by default, while scenario-driven operations such as Git Control Tower continue to own higher-trust git mutations.\n\n## Required outcomes\n\n- Support network modes that meaningfully distinguish `none`, `localhost`, and `full` as far as the underlying sandbox/runtime allows.\n- Preserve localhost access so scenario CLIs that talk to local scenario APIs continue to work.\n- Enforce a direct git allowlist in protected mode. The default allowlist should be read-only commands such as `status`, `diff`, `log`, `show`, and `rev-parse`.\n- Block side-effecting git commands such as branch creation, commits, checkout/reset, rebase, merge, push, pull, clean, and similar operations.\n- Denial messages should explain why the action is blocked and warn the agent not to try to work around the restriction.\n\n## Expected deliverables\n\n1. Protected-mode runtime wiring for git command interception and network policy selection.\n2. Denial UX/messages that are understandable to both operators and agents.\n3. Regression tests showing that scenario CLIs still work over localhost while direct disallowed git verbs are blocked.\n4. Documentation that clearly distinguishes advisory runner flags from real protected-mode enforcement.\n\n## Key references\n\n- `scenarios/workspace-sandbox/api/internal/driver/bwrap.go`\n- `scenarios/workspace-sandbox/docs/EXECUTION_MODES.md`\n- `scenarios/agent-manager/api/internal/domain/types.go`\n- `scenarios/agent-manager/api/internal/adapters/runner/**`",
+      "priority": 7,
+      "effort": "L",
+      "initiative": "protected-agent-sandboxing",
+      "depends_on": [
+        "execute/protected-sandbox-agent-launch"
+      ],
+      "acceptance_allow": [
+        "scenarios/agent-manager/**",
+        "scenarios/workspace-sandbox/**"
+      ],
+      "tags": [
+        "protected-mode",
+        "git",
+        "network",
+        "guardrails"
+      ]
+    },
+    {
+      "kind": "fix",
+      "name": "protected-sandbox-policy-enforcement-surface",
+      "title": "Make protected-mode policy controls real instead of advisory",
+      "description": "## Goal\n\nClean up the existing policy/control surface so protected mode enforces real runtime boundaries rather than relying on cooperative agent behavior or partially wired runner flags.\n\n## Problem\n\nAgent-manager already has concepts such as allowed tools, denied tools, allowed paths, denied paths, and a policy seam, but the current implementation is partial and inconsistent. Some controls are merely passed to runners. Some are stored but not meaningfully enforced. That is acceptable for a tracking-first mode, but it is not a sound protected-mode story.\n\n## Required outcomes\n\n- Decide which controls remain advisory and which become true protected-mode enforcement.\n- Either wire the policy engine seam fully or remove/replace it so the code does not imply protections that do not exist.\n- Enforce path and resource boundaries at the sandbox/runtime layer where possible, not through prompts.\n- Keep protected-mode policy implementation consistent with the broader contract that scenario APIs remain the preferred high-trust path for side-effecting operations.\n\n## Expected deliverables\n\n1. A cleaned-up policy model for protected mode with explicit ownership boundaries between agent-manager and workspace-sandbox.\n2. Real enforcement for the selected protected-mode controls, especially path boundaries and resource limits.\n3. Tests proving the enforced controls work as documented.\n4. Removal or de-emphasis of misleading controls that cannot be enforced reliably.\n\n## Key references\n\n- `scenarios/agent-manager/api/internal/policy/**`\n- `scenarios/agent-manager/api/main.go`\n- `scenarios/agent-manager/api/internal/domain/types.go`\n- `scenarios/workspace-sandbox/**`",
+      "priority": 7,
+      "effort": "L",
+      "initiative": "protected-agent-sandboxing",
+      "depends_on": [
+        "execute/protected-sandbox-agent-launch"
+      ],
+      "acceptance_allow": [
+        "scenarios/agent-manager/**",
+        "scenarios/workspace-sandbox/**"
+      ],
+      "tags": [
+        "protected-mode",
+        "policy",
+        "paths",
+        "enforcement"
+      ]
+    },
+    {
+      "kind": "research",
+      "name": "run-level-undo-and-revert-design",
+      "title": "Design run-level undo and revert for auto-applied sandbox changes",
+      "description": "## Goal\n\nDesign a first-class undo story for the new default model where sandboxed runs auto-apply accepted changes immediately.\n\n## Why this matters\n\nIf the platform wants sandboxing to be the default and wants accepted changes to land automatically even on failed runs, operators need a trustworthy way to inspect and undo those changes later. That undo story should build on provenance rather than destructive git operations.\n\n## Questions this item must resolve\n\n- What is the canonical unit of undo: a full run, a selected subset of files from a run, or both?\n- How should undo behave before commit vs after commit?\n- How should the system handle partial overlap, mixed provenance, merge conflicts, or files touched by multiple runs?\n- Where should operators initiate undo: Git Control Tower, workspace-sandbox APIs, or both?\n- How should undo itself be recorded so the system keeps an audit trail of who reverted what and why?\n\n## Expected deliverables\n\n1. A design for run-based undo/revert built on provenance and applied-change history.\n2. Clear separation between safe revert-by-run workflows and forbidden destructive git history rewrites.\n3. API and data-model recommendations for representing undo operations and their audit trail.\n4. UX guidance for exposing undo in Git Control Tower without making provenance ambiguous.\n\n## Key references\n\n- `scenarios/workspace-sandbox/api/internal/types/types.go`\n- `scenarios/workspace-sandbox/api/internal/repository/sandbox_repo.go`\n- `scenarios/git-control-tower/**`\n- `scenarios/agent-manager/**`",
+      "priority": 4,
+      "effort": "M",
+      "initiative": "run-level-undo-and-revert",
+      "depends_on": [
+        "execute/agent-manager-sandbox-auto-apply-defaults",
+        "execute/gct-committed-ai-provenance-history"
+      ],
+      "acceptance_allow": [
+        "scenarios/workspace-sandbox/**",
+        "scenarios/git-control-tower/**",
+        "scenarios/agent-manager/**"
+      ],
+      "tags": [
+        "undo",
+        "revert",
+        "provenance",
+        "design"
+      ]
+    },
+    {
+      "kind": "execute",
+      "name": "run-level-undo-and-revert",
+      "title": "Implement operator-facing undo and revert for run-linked changes",
+      "description": "## Goal\n\nImplement the run-level undo/revert workflow designed in `research/run-level-undo-and-revert-design` so operators can safely back out accepted sandbox changes after the default auto-apply rollout.\n\n## Scope\n\nThis work should focus on provenance-based undo of agent-linked changes rather than history-rewriting git operations. The first usable version can prioritize the safest and most deterministic cases, as long as the product is explicit about its limits.\n\n## Required outcomes\n\n- Operators can identify a run and trigger a revert/undo flow for the changes attributed to it.\n- The workflow is auditable: the platform records that a revert happened, who initiated it, and which run/file history it affected.\n- The UX makes it clear when a revert is exact, when it is partial, and when human intervention is required.\n- The feature integrates cleanly with Git Control Tower, since that is where operators are already reviewing AI-originated changes.\n\n## Expected deliverables\n\n1. API and data-layer support for creating revert operations from run provenance.\n2. Git Control Tower UI for selecting and applying supported revert actions.\n3. Tests for common and edge-case revert scenarios, especially mixed-provenance files.\n4. Audit logging so run-level undo strengthens rather than weakens traceability.\n\n## Key references\n\n- `scenarios/workspace-sandbox/**`\n- `scenarios/git-control-tower/**`\n- `scenarios/agent-manager/**`",
+      "priority": 5,
+      "effort": "L",
+      "initiative": "run-level-undo-and-revert",
+      "depends_on": [
+        "research/run-level-undo-and-revert-design"
+      ],
+      "acceptance_allow": [
+        "scenarios/workspace-sandbox/**",
+        "scenarios/git-control-tower/**",
+        "scenarios/agent-manager/**"
+      ],
+      "tags": [
+        "undo",
+        "revert",
+        "git-control-tower",
+        "implementation"
+      ]
+    }
+  ],
+  "initiatives": [
+    {
+      "name": "agent-sandbox-audit-foundation",
+      "title": "Agent Sandbox Audit Foundation",
+      "description": "Make workspace-sandbox the reliable, default audit path for agent-manager coding runs by fixing sandbox semantics, auto-applying accepted changes by default, validating seamless sandbox-aware restart/test flows, and rolling the model out only after Git Control Tower can surface the resulting provenance clearly.",
+      "status": "active"
+    },
+    {
+      "name": "git-control-tower-ai-provenance",
+      "title": "Git Control Tower AI Provenance",
+      "description": "Turn Git Control Tower into the primary operator surface for understanding which agent-manager runs produced the current repository state, both for pending changes and for committed history that should retain run attribution.",
+      "status": "active"
+    },
+    {
+      "name": "protected-agent-sandboxing",
+      "title": "Protected Agent Sandboxing",
+      "description": "Add a stronger protected-mode execution path where agent processes run through workspace-sandbox containment and can gain real git, network, path, and resource guardrails without changing agent prompt behavior.",
+      "status": "active"
+    },
+    {
+      "name": "run-level-undo-and-revert",
+      "title": "Run-Level Undo And Revert",
+      "description": "Add provenance-based undo and revert workflows so the platform can safely auto-apply sandbox changes by default while preserving an operator-friendly path to inspect and back out run-linked work later.",
+      "status": "active"
+    }
+  ]
+}

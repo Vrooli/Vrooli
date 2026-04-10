@@ -180,7 +180,7 @@ describe('WorkflowStore [REQ:BAS-WORKFLOW-STATE]', () => {
 | Check | Description | Example |
 |-------|-------------|---------|
 | API endpoints | HTTP responses correct | POST /projects returns 201 |
-| Database integration | Data persists correctly | Project saved to Postgres |
+| Database integration | Data persists correctly | Project saved to the scenario's configured datastore (for example, embedded SQLite) |
 | UI workflows | User flows complete | Create project via form |
 | Cross-scenario | Inter-scenario communication | BAS executes Browserless |
 

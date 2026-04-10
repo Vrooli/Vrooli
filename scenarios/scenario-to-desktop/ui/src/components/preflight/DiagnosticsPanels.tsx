@@ -7,6 +7,7 @@ import { Copy } from "lucide-react";
 import type { BundlePreflightLogTail, BundlePreflightServiceFingerprint } from "../../lib/api";
 import { Button } from "../ui/button";
 import { countLines, formatBytes, formatTimestamp } from "../../lib/preflight-utils";
+import { writeToClipboard } from "../../lib/browser";
 
 // ============================================================================
 // Log Tails Panel
@@ -24,14 +25,14 @@ export function LogTailsPanel({ logTails }: LogTailsPanelProps) {
   }
 
   const handleCopy = async (tail: BundlePreflightLogTail, key: string) => {
-    try {
-      await navigator.clipboard.writeText(tail.content || "");
+    const result = await writeToClipboard(tail.content || "");
+    if (result.success) {
       setCopyStatus((prev) => ({ ...prev, [key]: "copied" }));
       window.setTimeout(() => {
         setCopyStatus((prev) => ({ ...prev, [key]: "idle" }));
       }, 1500);
-    } catch (error) {
-      console.warn("Failed to copy log tail", error);
+    } else {
+      console.warn("Failed to copy log tail", result.error);
       setCopyStatus((prev) => ({ ...prev, [key]: "error" }));
     }
   };

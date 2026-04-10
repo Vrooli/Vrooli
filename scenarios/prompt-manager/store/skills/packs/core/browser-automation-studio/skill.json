@@ -1,0 +1,19 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "browser-automation-studio",
+  "name": "Browser Automation Studio",
+  "description": "Reference for using BAS CLI to execute workflows, analyze artifacts, and debug UI automation failures",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "play",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 46,
+  "createdAt": "2026-01-25T00:00:00Z",
+  "updatedAt": "2026-02-04T13:13:54Z"
+}

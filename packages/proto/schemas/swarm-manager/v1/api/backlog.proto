@@ -1,0 +1,551 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/backlog.proto";
+import "swarm-manager/v1/domain/execution.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// =============================================================================
+// BACKLOG API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports backlog
+// @stability beta
+//
+// HTTP API contracts for Swarm Manager backlog operations.
+//
+// USAGE CONTEXTS:
+//   - UI services validating API responses
+//   - API handlers enforcing request constraints
+//
+// =============================================================================
+
+// CreateBacklogItemRequest defines the payload for creating a new backlog item.
+message CreateBacklogItemRequest {
+  // Unique identifier (folder name).
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable title.
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Optional description.
+  optional string description = 3;
+
+  // Optional priority level (1-10).
+  optional int32 priority = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+
+  // Optional tags for categorization.
+  repeated string tags = 5 [(buf.validate.field).repeated = { unique: true }];
+
+  // Required backlog kind.
+  string kind = 6 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute", "chore"] }];
+
+  reserved 7; // research_target — removed; research items execute directly.
+
+  // Dependencies as "kind/name" references.
+  repeated string depends_on = 8;
+
+  // Initiative this item belongs to.
+  optional string initiative = 9;
+
+  reserved 10; // auto_workshop removed — use settings.auto_initialize_workshop instead.
+
+  // Effort estimate: XS, S, M, L, XL.
+  optional string effort = 11 [(buf.validate.field).string = { in: ["XS", "S", "M", "L", "XL"] }];
+
+  reserved 12; // scope — removed; acceptance_allow/deny are the sole boundary definitions.
+
+  // Glob patterns for file paths expected to be modified.
+  repeated string acceptance_allow = 13;
+
+  // Glob patterns for file paths that must NOT be modified.
+  repeated string acceptance_deny = 14;
+
+  // Origin reference in "kind/name" format, tracking which item spawned this one.
+  optional string spawned_from = 15;
+
+  // Personal annotation — a user note for tracking context.
+  optional string note = 16;
+}
+
+// UpdateBacklogItemRequest defines the payload for updating a backlog item.
+//
+// PATCH semantics:
+// - omitted fields remain unchanged
+// - provided scalar/optional fields replace the stored value
+// - provided repeated fields replace the stored list
+// - providing an empty repeated list clears that field
+message UpdateBacklogItemRequest {
+  // Human-readable title.
+  optional string title = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Description. Set to the empty string to clear.
+  optional string description = 2;
+
+  // Lifecycle status.
+  // @constraint one of: backlog, researching, ready, queued, in_progress, completed, failed
+  optional string status = 3 [(buf.validate.field).string = { in: [
+    "backlog",
+    "researching",
+    "ready",
+    "queued",
+    "in_progress",
+    "completed",
+    "failed"
+  ] }];
+
+  // Priority level (1-10).
+  optional int32 priority = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+
+  // Tags for categorization.
+  repeated string tags = 5 [(buf.validate.field).repeated = { unique: true }];
+
+  reserved 6; // research_target — removed; research items execute directly.
+
+  // Dependencies as "kind/name" references.
+  repeated string depends_on = 7;
+
+  // Initiative this item belongs to. Set to the empty string to clear.
+  optional string initiative = 8;
+
+  // Effort estimate: XS, S, M, L, XL. Set to the empty string to clear.
+  optional string effort = 9 [(buf.validate.field).string = { in: ["", "XS", "S", "M", "L", "XL"] }];
+
+  reserved 10; // scope — removed; acceptance_allow/deny are the sole boundary definitions.
+
+  // Glob patterns for file paths expected to be modified.
+  repeated string acceptance_allow = 11;
+
+  // Glob patterns for file paths that must NOT be modified.
+  repeated string acceptance_deny = 12;
+
+  // Origin reference in "kind/name" format. Set to empty string to clear.
+  optional string spawned_from = 13;
+
+  // Personal annotation. Set to empty string to clear.
+  optional string note = 14;
+}
+
+// A single blocking reason with forceability metadata.
+message BlockingReason {
+  // Human-readable description of the blocking condition.
+  string message = 1;
+  // Whether this reason can be overridden with force=true.
+  bool forceable = 2;
+}
+
+// Per-item blocking summary for list views.
+message ItemBlockingInfo {
+  // Whether the item is currently blocked by dependencies.
+  bool blocked = 1;
+  // The "kind/name" keys of dependencies causing the block.
+  repeated string blocking_dep_keys = 2;
+  // Whether all blocking reasons are forceable (override available).
+  bool all_forceable = 3;
+}
+
+// ListBacklogItemsResponse returns all backlog items.
+message ListBacklogItemsResponse {
+  repeated BacklogItem items = 1;
+  // Per-item blocking state keyed by "kind/name". Only includes items that
+  // have dependencies; items without deps are omitted (not blocked).
+  map<string, ItemBlockingInfo> blocking = 2;
+}
+
+// BacklogItemResponse returns a single backlog item.
+message BacklogItemResponse {
+  BacklogItem item = 1;
+}
+
+// BacklogFilesResponse returns the file tree for a backlog item.
+message BacklogFilesResponse {
+  repeated BacklogFile files = 1;
+}
+
+// BacklogFileResponse returns a single file node.
+message BacklogFileResponse {
+  BacklogFile file = 1;
+}
+
+// BacklogFileOperationRequest applies a filesystem operation within a backlog item.
+message BacklogFileOperationRequest {
+  // Operation to apply.
+  // @constraint one of: rename, move, copy, delete
+  string operation = 1 [(buf.validate.field).string = { in: [
+    "rename",
+    "move",
+    "copy",
+    "delete"
+  ] }];
+
+  // Source path relative to backlog item root.
+  string source_path = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Destination path relative to backlog item root.
+  // Required for rename/move/copy. Ignored for delete.
+  optional string destination_path = 3;
+}
+
+// BacklogFileOperationResponse reports the result of a file operation.
+message BacklogFileOperationResponse {
+  // Result file node for rename/move/copy operations.
+  optional BacklogFile file = 1;
+
+  // Deleted path for delete operations.
+  optional string deleted_path = 2;
+}
+
+// QueueBacklogItemRequest queues a backlog item for processing.
+message QueueBacklogItemRequest {
+  // Optional operation hint for idea processing.
+  optional string operation = 1 [(buf.validate.field).string = { in: ["generator", "improver"] }];
+  // Execution mode override (defaults to policy default).
+  optional string mode = 2 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  reserved 3;
+  // Human or agent identifier that initiated the queue action.
+  optional string started_by = 4;
+  // Explicit confirmation to execute queue mutation. If false or unset, request
+  // is treated as a preview/dry-run and no mutation occurs.
+  optional bool confirm = 5;
+  // Override queue readiness feedback gates (unanswered questions / pending
+  // suggestions). API-level safety checks remain for non-overridable constraints.
+  optional bool force = 6;
+}
+
+// QueueBacklogItemResponse returns queue results.
+message QueueBacklogItemResponse {
+  BacklogItem item = 1;
+  string task_id = 2;
+  string run_id = 3;
+  string base_url = 4;
+  string created = 5;
+  // True when request ran in preview mode and no mutation occurred.
+  bool dry_run = 6;
+  // True when a queue mutation actually occurred.
+  bool queued = 7;
+  // Human-readable summary of outcome.
+  string message = 8;
+  // Blocking reasons when queue did not execute.
+  repeated BlockingReason blocking_reasons = 9;
+  // Number of unanswered clarification questions detected.
+  int32 unanswered_questions = 10;
+  // Number of suggestions still pending user decision.
+  int32 pending_suggestions = 11;
+}
+
+// BacklogResearchRequest captures optional fields for spawning a research agent.
+message BacklogResearchRequest {
+  // Additional prompt context.
+  optional string prompt = 1;
+
+  reserved 2; // scope_path — removed; sandbox always uses project root.
+
+  // Optional project root override.
+  optional string project_root = 3;
+
+  // Optional research mode.
+  optional string mode = 4 [(buf.validate.field).string = { in: [
+    "clarify",
+    "suggest",
+    "enhance",
+    "finalize",
+    "initialize",
+    "workshop"
+  ] }];
+
+  reserved 5; // target_kind — removed; research items execute directly.
+
+  // File paths within the backlog item to include as agent context (by reference).
+  repeated string context_paths = 6;
+
+  // Operational target IDs to attach as agent context.
+  repeated string context_target_ids = 7;
+
+  // Requirement IDs to attach as agent context.
+  repeated string context_requirement_ids = 8;
+
+  // Explicit confirmation to execute research. If false/unset, request is
+  // treated as a preview/dry-run and no agent is spawned.
+  optional bool confirm = 9;
+  // Override forceable blocking reasons (e.g. unmet dependencies).
+  optional bool force = 10;
+}
+
+// BacklogResearchResponse returns agent-manager identifiers for research runs.
+message BacklogResearchResponse {
+  string task_id = 1;
+  string run_id = 2;
+  string base_url = 3;
+  string created = 4;
+  // True when request ran in preview mode and no agent was spawned.
+  bool dry_run = 5;
+  // True when an agent was actually spawned.
+  bool started = 6;
+  // Human-readable summary of outcome.
+  string message = 7;
+  // Blocking reasons when research did not execute.
+  repeated BlockingReason blocking_reasons = 8;
+}
+
+// ExportBacklogRequest defines filter criteria for exporting backlog items to markdown.
+message ExportBacklogRequest {
+  // Optional kinds to include (empty = all).
+  repeated string kinds = 1;
+
+  // Optional statuses to include (empty = all non-archived).
+  repeated string statuses = 2;
+
+  // Optional specific item keys (kind/name pairs) to export.
+  repeated string names = 3;
+
+  // Only include items with priority <= this value.
+  optional int32 priority_max = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+
+  // Only include items with any of these tags.
+  repeated string tags = 5;
+
+  // Whether to include PRD content in the export (default true).
+  optional bool include_prd = 6;
+
+  // Whether to include requirements in the export (default false).
+  optional bool include_requirements = 7;
+
+  // Whether to include clarify questions in the export (default true).
+  optional bool include_clarify_questions = 8;
+
+  // Whether to include suggestions in the export (default true).
+  optional bool include_suggestions = 9;
+
+  // Whether to include notes in the export (default true).
+  optional bool include_notes = 10;
+
+  // Whether to include the new-item template in the export (default true).
+  optional bool include_template = 11;
+}
+
+// ImportBacklogResponse reports the results of importing an edited markdown export.
+message ImportBacklogResponse {
+  // Whether this was a dry-run (no changes applied).
+  bool dry_run = 1;
+
+  // List of changes detected or applied.
+  repeated ImportChange changes = 2;
+
+  // Any errors encountered during parsing.
+  repeated string errors = 3;
+
+  // Human-readable summary of the import.
+  string summary = 4;
+}
+
+// ImportChange describes a single change from an import operation.
+message ImportChange {
+  // Item key (kind/name).
+  string item = 1;
+
+  // Action taken: "update" or "create".
+  string action = 2;
+
+  // Details of what changed.
+  repeated string details = 3;
+}
+
+// =============================================================================
+// WORKSHOP SAVE
+// =============================================================================
+
+// WorkshopSaveRequest saves a workshop round's responses and optionally
+// auto-triggers the next round if the item is not yet ready.
+message WorkshopSaveRequest {
+  // The round number being saved.
+  int32 round_number = 1 [(buf.validate.field).int32.gte = 1];
+
+  // The round content as a JSON string.
+  string content = 2 [(buf.validate.field).string.min_len = 1];
+
+  reserved 3; // auto_workshop removed — use settings.auto_advance_workshop instead.
+}
+
+// WorkshopSaveResponse returns the result of saving a workshop round.
+message WorkshopSaveResponse {
+  // The saved file node.
+  BacklogFile file = 1;
+
+  // Auto-advance decision metadata.
+  WorkshopAutoAdvance auto_advance = 2;
+}
+
+// WorkshopAutoAdvance reports whether and why auto-advance was triggered.
+message WorkshopAutoAdvance {
+  // Whether the next round was auto-triggered.
+  bool triggered = 1;
+
+  // Agent-manager run ID (set only when triggered=true).
+  optional string run_id = 2;
+
+  // Agent-manager task ID (set only when triggered=true).
+  optional string task_id = 3;
+
+  // Reason for the decision: "not_ready", "finalizing", "max_rounds",
+  // "pending_decisions", "disabled", "error", "no_rounds".
+  string reason = 4;
+
+  // The recommended next mode when manual follow-up is required.
+  optional string next_mode = 5 [(buf.validate.field).string = { in: ["workshop", "finalize"] }];
+
+  // Whether an advance is pending (countdown active, not yet spawned).
+  bool pending = 6;
+
+  // When the pending advance will fire (RFC 3339 timestamp). Set when pending=true.
+  optional string advance_at = 7;
+
+  // Configured delay in seconds. Set when pending=true.
+  int32 delay_seconds = 8;
+}
+
+// WorkshopCancelPendingAdvanceResponse is the response from cancelling a pending advance.
+message WorkshopCancelPendingAdvanceResponse {
+  bool cancelled = 1;
+}
+
+// WorkshopDeleteRoundRequest deletes an entire workshop round and renumbers
+// subsequent rounds to maintain contiguous numbering.
+message WorkshopDeleteRoundRequest {
+  // The round number to delete.
+  int32 round_number = 1 [(buf.validate.field).int32.gte = 1];
+}
+
+// WorkshopDeleteRoundResponse reports the result of deleting a workshop round.
+message WorkshopDeleteRoundResponse {
+  // The round number that was deleted.
+  int32 deleted_round = 1;
+
+  // Total rounds remaining after deletion.
+  int32 remaining_rounds = 2;
+}
+
+// WorkshopResetRequest resets an entire workshop, deleting all rounds,
+// clarifications, attachments, and deliverables while preserving spec.json.
+// Kind and name come from the URL path.
+message WorkshopResetRequest {}
+
+// WorkshopResetResponse reports the result of resetting a workshop.
+message WorkshopResetResponse {
+  // Number of rounds that were deleted.
+  int32 deleted_rounds = 1;
+
+  // Whether the item status was reverted from "ready" to "backlog".
+  bool status_reverted = 2;
+}
+
+// =============================================================================
+// CLARIFICATION API
+// =============================================================================
+
+// CreateClarificationRequest starts a new clarification thread for a decision.
+message CreateClarificationRequest {
+  // Workshop round number containing the decision.
+  int32 round_number = 1 [(buf.validate.field).int32.gte = 1];
+
+  // Decision item ID within the round.
+  string item_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // User's clarification question. Empty triggers a generic "explain this decision" prompt.
+  string message = 3;
+
+  // Optional attachment IDs (uploaded via agent-manager).
+  repeated string attachment_ids = 4;
+}
+
+// CreateClarificationResponse returns the newly created thread.
+message CreateClarificationResponse {
+  ClarificationThread thread = 1;
+}
+
+// ContinueClarificationRequest sends a follow-up message in an existing thread.
+message ContinueClarificationRequest {
+  // Follow-up message text.
+  string message = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Optional attachment IDs.
+  repeated string attachment_ids = 2;
+}
+
+// ContinueClarificationResponse returns the updated thread.
+message ContinueClarificationResponse {
+  ClarificationThread thread = 1;
+}
+
+// GetClarificationResponse returns an existing clarification thread.
+message GetClarificationResponse {
+  ClarificationThread thread = 1;
+}
+
+// ClarificationActionRequest applies a post-clarification action.
+message ClarificationActionRequest {
+  // Action to apply.
+  // @constraint one of: got_it, update_decision, remove_decision, invalidate_round
+  string action = 1 [(buf.validate.field).string = { in: [
+    "got_it",
+    "update_decision",
+    "remove_decision",
+    "invalidate_round"
+  ] }];
+
+  // For update_decision: JSON-encoded updated item (topic, context, options).
+  optional string updated_item_json = 2;
+}
+
+// ClarificationActionResponse reports the result of a clarification action.
+message ClarificationActionResponse {
+  // The action that was applied.
+  string action = 1;
+
+  // Whether the action succeeded.
+  bool success = 2;
+
+  // Human-readable result message.
+  string message = 3;
+
+  // Agent-manager run ID (set when invalidate_round spawns a new agent).
+  optional string run_id = 4;
+
+  // Agent-manager task ID (set when invalidate_round spawns a new agent).
+  optional string task_id = 5;
+}
+
+// =============================================================================
+// REVIEW EVIDENCE API
+// =============================================================================
+
+// ListReviewRoundsResponse returns all review evidence rounds for a backlog item.
+message ListReviewRoundsResponse {
+  repeated swarm_manager.v1.ReviewEvidenceRound rounds = 1;
+}
+
+// VerifyEvidenceRequest marks an evidence item as verified or unverified.
+message VerifyEvidenceRequest {
+  bool verified = 1;
+}
+
+// RequestMoreEvidenceRequest asks the review agent for additional evidence.
+message RequestMoreEvidenceRequest {
+  string message = 1 [(buf.validate.field).string.min_len = 1];
+  // Optionally scope the request to a specific evidence item.
+  optional string evidence_id = 2;
+}
+
+// RequestMoreEvidenceResponse returns the created thread ID.
+message RequestMoreEvidenceResponse {
+  string thread_id = 1;
+}
+
+// ContinueEvidenceRequestRequest sends a follow-up message in a request thread.
+message ContinueEvidenceRequestRequest {
+  string message = 1 [(buf.validate.field).string.min_len = 1];
+}

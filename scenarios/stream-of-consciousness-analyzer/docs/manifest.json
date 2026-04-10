@@ -1,0 +1,86 @@
+{
+  "version": "1.0.0",
+  "title": "Stream of Consciousness Analyzer Documentation",
+  "description": "Documentation for the thought-capture app with graph-structured cognition",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Get the scenario running in under 5 minutes",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "High-level system design and data flow"
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "reference/api-endpoints.md",
+          "title": "API Reference",
+          "description": "REST API endpoint documentation"
+        },
+        {
+          "path": "reference/configuration.md",
+          "title": "Configuration",
+          "description": "Tunable levers, constants, and environment variables"
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Integration Seams",
+          "description": "Testability boundaries and responsibility zones",
+          "internal": true
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Known Issues",
+          "description": "Known problems, risks, and tech debt",
+          "internal": true
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "title": "Progress Log",
+          "description": "Development history and completion status",
+          "internal": true
+        },
+        {
+          "path": "internal/RESEARCH.md",
+          "title": "Research Notes",
+          "description": "Technical research on canvas, sync, and voice patterns",
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "reference"],
+    "secondary": ["internal"]
+  }
+}

@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/settings.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// =============================================================================
+// SETTINGS API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports settings
+// @stability beta
+//
+// HTTP API contracts for Swarm Manager settings.
+//
+// USAGE CONTEXTS:
+//   - UI services validating API responses
+//   - API handlers enforcing request constraints
+//
+// =============================================================================
+
+// SettingsResponse returns current settings.
+message SettingsResponse {
+  Settings settings = 1;
+}
+
+// UpdateSettingsRequest applies partial settings updates.
+message UpdateSettingsRequest {
+  // Optional theme override.
+  optional string theme = 1 [(buf.validate.field).string = { in: ["", "dark", "light", "system"] }];
+
+  reserved 2, 3, 4;
+
+  // Execution defaults.
+  optional string default_mode = 5 [(buf.validate.field).string = { in: ["", "manual", "yolo"] }];
+  reserved 6;
+  optional bool auto_fixup = 7;
+  optional int32 max_fixup_attempts = 8;
+  optional bool review_agent_enabled = 31;
+
+  // Workshop settings.
+  optional int32 max_auto_rounds = 9;
+  optional bool auto_initialize_workshop = 16;
+  optional bool auto_advance_workshop = 17;
+  optional bool auto_cascade_workshop = 18;
+
+  // Agent behavior settings.
+  optional int32 agent_max_turns = 10;
+  optional int32 agent_timeout_seconds = 11;
+  optional bool agent_requires_approval = 12;
+
+  // UI preference settings.
+  optional int32 search_debounce_ms = 13;
+  optional int32 toast_duration_ms = 14;
+  reserved 15;
+  reserved "confirm_destructive_actions";
+  // Per-entity-type delete confirmation levels.
+  DeleteConfirmationSettings delete_confirmation = 33;
+
+  // Review thresholds.
+  optional double review_code_quality_min_score = 19;
+  optional double review_test_min_pass_rate = 20;
+  optional int32 review_max_blocking_violations = 21;
+  optional int32 review_max_warnings = 22;
+  optional bool review_require_screenshots = 23;
+  optional bool review_require_tests = 24;
+
+  // Concurrency and governance settings.
+  optional int32 max_concurrent_executions = 25;
+  optional int32 max_queue_depth = 26;
+  optional int32 circuit_breaker_threshold = 27;
+  optional int32 circuit_breaker_cooldown_minutes = 28;
+  optional double execution_cost_cap_per_run = 29;
+  optional double cost_per_turn_estimate = 30;
+}

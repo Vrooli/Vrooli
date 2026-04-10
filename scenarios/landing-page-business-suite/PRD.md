@@ -124,8 +124,6 @@
 
 **Data + storage expectations**:
 - **postgres**: Required for each generated landing page (content, A/B variants, metrics, subscriptions)
-- **redis** (optional): Session caching for high-traffic landing pages
-- **qdrant** (optional): Semantic search for template recommendations
 
 **Integration strategy**:
 - **Vrooli CLI**: Primary interface for template listing and scenario generation
@@ -142,12 +140,6 @@
 
 **Required resources**:
 - **postgres**: Essential for all generated landing pages (content, variants, metrics, subscriptions)
-- **resource-claude-code**: Agent-based customization of landing pages
-
-**Optional resources**:
-- **redis**: Session caching for high-traffic scenarios
-- **qdrant**: Template recommendations based on user intent
-- **browserless**: Screenshot generation for template previews
 
 **Scenario dependencies**:
 - **scenario-authenticator** (future): Multi-tenant admin portal support
@@ -192,13 +184,13 @@
 
 #### Landing Page Best Practices
 - [Unbounce Landing Page Guide](https://unbounce.com/landing-page-articles/)
-- [CXL Landing Page Optimization](https://cxl.com/blog/landing-page-optimization/)
-- [Nielsen Norman Group - Landing Pages](https://www.nngroup.com/articles/landing-pages/)
+- [Optimizely Landing Page Optimization](https://www.optimizely.com/optimization-glossary/landing-page-optimization/)
+- [Nielsen Norman Group Articles](https://www.nngroup.com/articles/)
 
 #### A/B Testing Resources
 - [Optimizely AB Testing Guide](https://www.optimizely.com/optimization-glossary/ab-testing/)
 - [VWO A/B Test Duration Calculator](https://vwo.com/tools/ab-test-duration-calculator/)
-- [Bayesian vs Frequentist Testing](https://cxl.com/blog/bayesian-frequentist-ab-testing/)
+- [Bayesian vs Frequentist Testing](https://www.evanmiller.org/bayesian-ab-testing.html)
 
 #### Design Inspiration (Distinctive Aesthetics)
 - [Vercel](https://vercel.com) - Clean, fast, modern
@@ -213,7 +205,6 @@
 
 ### Internal References
 - **Resource postgres**: `scripts/resources/resource-postgres/`
-- **Resource claude-code**: `scripts/resources/resource-claude-code/`
 - **Lifecycle system**: `scripts/lib/lifecycle/`
 - **Testing architecture**: `docs/testing/architecture/PHASED_TESTING.md`
 - **Template system**: `scripts/scenarios/templates/`

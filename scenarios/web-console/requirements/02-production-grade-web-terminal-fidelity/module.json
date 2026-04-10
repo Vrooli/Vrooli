@@ -1,0 +1,166 @@
+{
+  "description": "Browser terminal supports interactive CLIs with PTY resize, cursor reporting, binary-safe I/O, and reconnect-safe input handling",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "children": ["REQ-P0-002b", "REQ-P0-002c", "REQ-P0-002d"],
+      "description": "Go API manages PTY sessions: create shell process with pty.StartWithSize, track sessions by ID, support concurrent sessions, clean up on termination.",
+      "id": "REQ-P0-002a",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "PTY Session Backend",
+      "validation": [
+        {
+          "notes": "Session create returns valid ID and starts shell",
+          "phase": "unit",
+          "ref": "api/session_test.go:TestSessionManager_Create",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Concurrent sessions do not interfere",
+          "phase": "unit",
+          "ref": "api/session_test.go:TestSessionManager_ConcurrentSessions",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "PTY factory creates and manages process lifecycle",
+          "phase": "unit",
+          "ref": "api/pty_test.go:TestFakePTY_CreateAndGet",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Shell resolution falls back to $SHELL env",
+          "phase": "unit",
+          "ref": "api/config_test.go:TestResolveShell_FallbackToSHELL",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "children": ["REQ-P0-002b-i"],
+      "description": "WebSocket endpoint streams bidirectional I/O between browser and PTY. JSON message protocol with stdin, stdout, resize, exit, error, ping/pong types.",
+      "id": "REQ-P0-002b",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "WebSocket I/O Streaming",
+      "validation": [
+        {
+          "notes": "Subscribe/broadcast delivers PTY output to connected clients",
+          "phase": "unit",
+          "ref": "api/session_test.go:TestSession_SubscribeAndBroadcast",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "WebSocket hook manages connection lifecycle",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/useTerminalSocket.test.ts",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Hook behavioral tests: open/resize/stdout/exit/error/close/input/cleanup/malformed messages",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/useTerminalSocket.hook.test.ts",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "BAS case launches terminal command and verifies websocket traffic plus rendered command marker",
+          "phase": "integration",
+          "ref": "bas/cases/01-foundation/01-terminal/launch-custom-command-executes.json",
+          "status": "implemented",
+          "type": "automation"
+        },
+        {
+          "notes": "BAS case sends keyboard stdin to an empty shell and verifies stdout round-trip marker",
+          "phase": "integration",
+          "ref": "bas/cases/01-foundation/01-terminal/interactive-stdin-roundtrip.json",
+          "status": "implemented",
+          "type": "automation"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "Binary-safe I/O protocol transmits raw bytes without encoding corruption. JSON message framing preserves binary payloads.",
+      "id": "REQ-P0-002b-i",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Binary-Safe I/O Protocol",
+      "validation": [
+        {
+          "notes": "WebSocket message types defined and parsed correctly",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/useTerminalSocket.test.ts",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "description": "Terminal resize messages propagate from browser to PTY via pty.Setsize. SIGWINCH handling ensures interactive CLIs (vim, htop) reflow correctly.",
+      "id": "REQ-P0-002c",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Terminal Resize Handling",
+      "validation": [
+        {
+          "notes": "Test PTY resize handling with Setsize",
+          "phase": "unit",
+          "ref": "api/session_test.go:TestSessionManager_Resize",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Fake PTY resize delegates to SetSize",
+          "phase": "unit",
+          "ref": "api/pty_test.go:TestFakePTY_Resize",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "description": "xterm.js terminal emulator renders PTY output with full ANSI/cursor support. Addon fitAddon auto-sizes terminal to container.",
+      "id": "REQ-P0-002d",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "xterm.js Terminal Rendering",
+      "validation": [
+        {
+          "notes": "ANSI escape codes available for terminal output formatting",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/ansi.test.ts:all values are non-empty strings",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Terminal pane selector registered in selector registry",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/selectors.test.ts:exposes terminal pane selector",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "ErrorBoundary renders fallback on crash, resets on Try Again click",
+          "phase": "unit",
+          "ref": "ui/src/__tests__/error-boundary.test.tsx",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Production-Grade Web Terminal Fidelity"
+}

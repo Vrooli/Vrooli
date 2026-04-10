@@ -134,10 +134,10 @@ func (r *PostgresRepository) GetApp(ctx context.Context, id string) (*App, error
 		return nil, fmt.Errorf("failed to get app: %w", err)
 	}
 
-	// Parse JSON fields
-	json.Unmarshal([]byte(portMappingsJSON), &app.PortMappings)
-	json.Unmarshal([]byte(environmentJSON), &app.Environment)
-	json.Unmarshal([]byte(configJSON), &app.Config)
+	// Parse JSON fields (best-effort: malformed values leave zero-value defaults)
+	_ = json.Unmarshal([]byte(portMappingsJSON), &app.PortMappings)
+	_ = json.Unmarshal([]byte(environmentJSON), &app.Environment)
+	_ = json.Unmarshal([]byte(configJSON), &app.Config)
 
 	app.ViewCount = viewCount
 	if firstViewed.Valid {
@@ -565,7 +565,7 @@ func (r *PostgresRepository) GetMetrics(ctx context.Context, appID string, metri
 		}
 
 		var metadata map[string]interface{}
-		json.Unmarshal([]byte(metadataJSON), &metadata)
+		_ = json.Unmarshal([]byte(metadataJSON), &metadata)
 
 		metric := map[string]interface{}{
 			"id":          id,

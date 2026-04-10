@@ -1,67 +1,21 @@
 package queue
 
-import (
-	"log"
-	"time"
-)
+import "time"
 
-// handleRateLimitPause pauses the queue processor due to rate limiting
+// handleRateLimitPause pauses the queue processor due to rate limiting.
+// Delegates to the RateLimiter component.
 func (qp *Processor) handleRateLimitPause(retryAfterSeconds int) {
-	qp.pauseMutex.Lock()
-	defer qp.pauseMutex.Unlock()
-
-	// Cap the pause duration at 4 hours
-	if retryAfterSeconds > 14400 {
-		retryAfterSeconds = 14400
-	}
-
-	// Minimum pause of 5 minutes
-	if retryAfterSeconds < 300 {
-		retryAfterSeconds = 300
-	}
-
-	pauseDuration := time.Duration(retryAfterSeconds) * time.Second
-	qp.rateLimitPaused = true
-	qp.pauseUntil = time.Now().Add(pauseDuration)
-
-	log.Printf("🛑 RATE LIMIT HIT: Pausing queue processor for %v (until %s)",
-		pauseDuration, qp.pauseUntil.Format(time.RFC3339))
-
-	// Broadcast the pause event
-	qp.broadcastUpdate("rate_limit_pause_started", map[string]any{
-		"pause_duration": retryAfterSeconds,
-		"pause_until":    qp.pauseUntil.Format(time.RFC3339),
-		"reason":         "API rate limit reached",
-	})
+	qp.rateLimiter.HandlePause(retryAfterSeconds)
 }
 
-// IsRateLimitPaused checks if the processor is currently paused due to rate limits
+// IsRateLimitPaused checks if the processor is currently paused due to rate limits.
+// Delegates to the RateLimiter component.
 func (qp *Processor) IsRateLimitPaused() (bool, time.Time) {
-	qp.pauseMutex.Lock()
-	defer qp.pauseMutex.Unlock()
-
-	if qp.rateLimitPaused && time.Now().Before(qp.pauseUntil) {
-		return true, qp.pauseUntil
-	}
-	return false, time.Time{}
+	return qp.rateLimiter.IsPaused()
 }
 
-// ResetRateLimitPause manually resets the rate limit pause
+// ResetRateLimitPause manually resets the rate limit pause.
+// Delegates to the RateLimiter component.
 func (qp *Processor) ResetRateLimitPause() {
-	qp.pauseMutex.Lock()
-	defer qp.pauseMutex.Unlock()
-
-	wasRateLimited := qp.rateLimitPaused
-	qp.rateLimitPaused = false
-	qp.pauseUntil = time.Time{}
-
-	if wasRateLimited {
-		log.Printf("✅ Rate limit pause manually reset. Queue processing resumed.")
-
-		// Broadcast the resume event
-		qp.broadcastUpdate("rate_limit_manual_reset", map[string]any{
-			"paused": false,
-			"manual": true,
-		})
-	}
+	qp.rateLimiter.Reset()
 }

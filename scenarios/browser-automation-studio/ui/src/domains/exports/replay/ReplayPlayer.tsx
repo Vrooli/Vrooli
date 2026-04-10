@@ -340,7 +340,7 @@ export function ReplayPlayer({
   });
 
   // Current frame
-  const currentFrame = normalizedFrames.length > 0 ? normalizedFrames[currentIndex] : null;
+  const currentFrame = normalizedFrames[currentIndex] ?? null;
 
   const replayStyleOverrides = useMemo(
     () => ({
@@ -469,22 +469,9 @@ export function ReplayPlayer({
     return undefined;
   }, [currentFrame]);
 
-  // Early return for empty frames
-  if (normalizedFrames.length === 0 || !currentFrame) {
-    return <ReplayEmptyState backgroundDecor={presentationModel.backgroundDecor} />;
-  }
-
-  const viewportDimensions: Dimensions = {
-    width: currentFrame.screenshot?.width || FALLBACK_DIMENSIONS.width,
-    height: currentFrame.screenshot?.height || FALLBACK_DIMENSIONS.height,
-  };
-  const aspectRatio = viewportDimensions.width > 0
-    ? (viewportDimensions.height / viewportDimensions.width) * 100
-    : 56.25;
-
-  // Controller
+  // Controller - must be called unconditionally (before early return)
   const controller = useMemo<ReplayPlayerController | null>(() => {
-    if (!exposeController) return null;
+    if (!exposeController || normalizedFrames.length === 0 || !currentFrame) return null;
     return {
       seek: ({ frameIndex, progress }) => seekToFrame(frameIndex, progress),
       play: () => setIsPlaying(true),
@@ -504,13 +491,26 @@ export function ReplayPlayer({
       getLayout: () => presentationModel.layout,
       getFrameCount: () => normalizedFramesRef.current.length,
     };
-  }, [exposeController, isExportPresentation, seekToFrame, setIsPlaying, normalizedFramesRef, presentationModel.layout]);
+  }, [exposeController, isExportPresentation, seekToFrame, setIsPlaying, normalizedFramesRef, presentationModel.layout, normalizedFrames.length, currentFrame]);
 
   useEffect(() => {
     if (!exposeController) return;
     exposeController(controller);
     return () => exposeController(null);
   }, [controller, exposeController]);
+
+  // Early return for empty frames
+  if (normalizedFrames.length === 0 || !currentFrame) {
+    return <ReplayEmptyState backgroundDecor={presentationModel.backgroundDecor} />;
+  }
+
+  const viewportDimensions: Dimensions = {
+    width: currentFrame.screenshot?.width || FALLBACK_DIMENSIONS.width,
+    height: currentFrame.screenshot?.height || FALLBACK_DIMENSIONS.height,
+  };
+  const aspectRatio = viewportDimensions.width > 0
+    ? (viewportDimensions.height / viewportDimensions.width) * 100
+    : 56.25;
 
   // Zoom
   const zoom = currentFrame.zoomFactor && currentFrame.zoomFactor > 1 ? Math.min(currentFrame.zoomFactor, 3) : 1;

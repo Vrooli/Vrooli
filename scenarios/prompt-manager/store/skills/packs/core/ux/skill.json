@@ -1,0 +1,23 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "ux",
+  "name": "UX Improvement",
+  "description": "User experience quality across all interfaces",
+  "modes": [
+    "steer",
+    "ux"
+  ],
+  "tags": [
+    "skill",
+    "mobile",
+    "responsive"
+  ],
+  "icon": "users",
+  "status": "active",
+  "entry": "SKILL.md",
+  "defaultScope": "refactor-scope",
+  "revision": 50,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2026-02-17T17:17:26Z"
+}

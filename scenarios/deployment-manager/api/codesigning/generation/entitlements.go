@@ -15,12 +15,12 @@ type EntitlementKey string
 // Standard macOS entitlements for Electron apps.
 const (
 	// Security entitlements
-	EntitlementAllowJIT                    EntitlementKey = "com.apple.security.cs.allow-jit"
-	EntitlementAllowUnsignedExecutableMemory EntitlementKey = "com.apple.security.cs.allow-unsigned-executable-memory"
-	EntitlementDisableLibraryValidation    EntitlementKey = "com.apple.security.cs.disable-library-validation"
+	EntitlementAllowJIT                        EntitlementKey = "com.apple.security.cs.allow-jit"
+	EntitlementAllowUnsignedExecutableMemory   EntitlementKey = "com.apple.security.cs.allow-unsigned-executable-memory"
+	EntitlementDisableLibraryValidation        EntitlementKey = "com.apple.security.cs.disable-library-validation"
 	EntitlementDisableExecutablePageProtection EntitlementKey = "com.apple.security.cs.disable-executable-page-protection"
-	EntitlementAllowDYLDEnvironmentVariables EntitlementKey = "com.apple.security.cs.allow-dyld-environment-variables"
-	EntitlementDebugger                    EntitlementKey = "com.apple.security.cs.debugger"
+	EntitlementAllowDYLDEnvironmentVariables   EntitlementKey = "com.apple.security.cs.allow-dyld-environment-variables"
+	EntitlementDebugger                        EntitlementKey = "com.apple.security.cs.debugger"
 
 	// App functionality entitlements
 	EntitlementAppleEvents                 EntitlementKey = "com.apple.security.automation.apple-events"
@@ -35,7 +35,7 @@ const (
 	EntitlementFilesDownloads              EntitlementKey = "com.apple.security.files.downloads.read-write"
 
 	// Hardened runtime specific
-	EntitlementInheritSecurityScope        EntitlementKey = "com.apple.security.inherit"
+	EntitlementInheritSecurityScope EntitlementKey = "com.apple.security.inherit"
 )
 
 // DefaultElectronEntitlements are the entitlements typically needed for Electron apps.

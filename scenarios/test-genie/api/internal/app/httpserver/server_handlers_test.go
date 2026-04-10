@@ -337,7 +337,7 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 	}{
 		{
 			name: "success",
-			body: `{"scenarioName":"demo","suiteRequestId":"11111111-1111-1111-1111-111111111111","phases":["unit"],"failFast":true}`,
+			body: `{"scenarioName":"demo","suiteRequestId":"11111111-1111-1111-1111-111111111111","phases":["unit"],"failFast":true,"uiUrl":"http://localhost:35771","apiUrl":"http://localhost:17551","browserlessUrl":"http://localhost:4110"}`,
 			executor: &stubSuiteExecutor{
 				result: &orchestrator.SuiteExecutionResult{
 					ExecutionID:  uuid.New(),
@@ -353,6 +353,15 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 				}
 				if exec.input.SuiteRequestID == nil {
 					t.Fatal("expected suite request ID to be set")
+				}
+				if exec.input.Request.UIURL != "http://localhost:35771" {
+					t.Fatalf("expected uiUrl to pass through, got %s", exec.input.Request.UIURL)
+				}
+				if exec.input.Request.APIURL != "http://localhost:17551" {
+					t.Fatalf("expected apiUrl to pass through, got %s", exec.input.Request.APIURL)
+				}
+				if exec.input.Request.BrowserlessURL != "http://localhost:4110" {
+					t.Fatalf("expected browserlessUrl to pass through, got %s", exec.input.Request.BrowserlessURL)
 				}
 			},
 		},
@@ -425,6 +434,7 @@ func TestServer_handleHealthReportsOperations(t *testing.T) {
 			Total:          5,
 			Queued:         3,
 			Delegated:      1,
+			Stale:          1,
 			Running:        1,
 			Completed:      0,
 			Failed:         0,
@@ -480,6 +490,9 @@ func TestServer_handleHealthReportsOperations(t *testing.T) {
 	}
 	if queuePayload["pending"].(float64) != 4 {
 		t.Fatalf("expected pending count 4, got %v", queuePayload["pending"])
+	}
+	if queuePayload["stale"].(float64) != 1 {
+		t.Fatalf("expected stale count 1, got %v", queuePayload["stale"])
 	}
 	executionPayload, ok := operations["lastExecution"].(map[string]interface{})
 	if !ok {
@@ -601,7 +614,7 @@ func (s *stubScenarioDirectory) GetSummary(ctx context.Context, name string) (*s
 	return s.getResp, nil
 }
 
-func (s *stubScenarioDirectory) RunScenarioTests(ctx context.Context, name string, preferred string, extraArgs []string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error) {
+func (s *stubScenarioDirectory) RunScenarioTests(ctx context.Context, name string, preferred string, extraArgs []string, scenarioDirOverride string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error) {
 	s.runName = name
 	s.runPreferred = preferred
 	if len(extraArgs) > 0 {
@@ -621,7 +634,7 @@ func (s *stubScenarioDirectory) ListFilesWithMeta(ctx context.Context, name stri
 	return scenarios.FileListResult{}, nil
 }
 
-func (s *stubScenarioDirectory) RunUISmoke(ctx context.Context, name string, uiURL string, browserlessURL string, timeoutMs int64) (*scenarios.UISmokeResult, error) {
+func (s *stubScenarioDirectory) RunUISmoke(ctx context.Context, name string, uiURL string, browserlessURL string, timeoutMs int64, scenarioDirOverride string) (*scenarios.UISmokeResult, error) {
 	s.uiSmokeName = name
 	s.uiSmokeUIURL = uiURL
 	s.uiSmokeBrowserlessURL = browserlessURL

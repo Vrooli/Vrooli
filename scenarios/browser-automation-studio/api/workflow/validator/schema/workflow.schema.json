@@ -27,6 +27,10 @@
         },
         "owner": {
           "type": "string"
+        },
+        "execution_mode": {
+          "type": "string",
+          "enum": ["observer", "mutating", "destructive"]
         }
       },
       "additionalProperties": true

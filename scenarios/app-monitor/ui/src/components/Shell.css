@@ -10,7 +10,8 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding-bottom: 76px;
+  /* Mobile: exact nav height (64px) + safe area + gap */
+  padding-bottom: calc(64px + env(safe-area-inset-bottom) + 12px);
 }
 
 .shell__bottom-nav {
@@ -76,24 +77,18 @@
   font-weight: 600;
 }
 
-.shell__nav-badge {
-  position: absolute;
-  top: -6px;
-  right: 18px;
-  min-width: 20px;
-  padding: 2px 6px;
-  border-radius: 12px;
-  background: #ff5f6d;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+body.preview-pane-fullscreen-active .shell__bottom-nav {
+  display: none;
+}
+
+body.preview-pane-fullscreen-active .shell__content {
+  padding-bottom: 0;
 }
 
 
 .shell__dialog {
   background: rgba(16, 16, 28, 0.94);
-  border-radius: inherit;
+  border-radius: 18px;
   padding: 24px;
   box-shadow: 0 24px 48px rgba(8, 12, 26, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.08);
   color: #f5f5ff;
@@ -108,26 +103,59 @@
   padding: 24px 24px 24px;
 }
 
+.shell__dialog--workspace-floating {
+  width: min(440px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+}
+
 @media (min-width: 768px) {
+  /* Desktop: remove padding since nav is draggable and doesn't need reserved space */
+  .shell__content {
+    padding-bottom: 0;
+  }
+
   .shell__bottom-nav {
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
-    width: min(480px, 92%);
-    border-radius: 22px;
+    width: auto;
+    border-radius: 16px;
   }
 
+  /* Draggable nav state - position controlled by JS translate3d */
+  .shell__bottom-nav--draggable {
+    top: 0;
+    left: 0;
+    right: auto;
+    bottom: auto;
+    transform: none;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    will-change: transform;
+  }
+
+  .shell__bottom-nav--dragging {
+    cursor: grabbing;
+  }
+
+  /* Icon-only buttons on desktop */
   .shell__nav-btn {
-    position: relative;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
   }
 
-  .shell__nav-badge {
-    top: 4px;
-    right: 12px;
+  .shell__nav-label {
+    display: none;
   }
 }
 
 @media (max-width: 640px) {
+  .shell__dialog {
+    border-radius: inherit;
+  }
+
   .shell__nav-label {
     display: none;
   }
@@ -141,12 +169,4 @@
   .shell__dialog--wide {
     padding: 20px 14px;
   }
-}
-
-body.app-preview-immersive .shell__content {
-  padding-bottom: 0;
-}
-
-body.app-preview-immersive .shell__bottom-nav {
-  display: none;
 }

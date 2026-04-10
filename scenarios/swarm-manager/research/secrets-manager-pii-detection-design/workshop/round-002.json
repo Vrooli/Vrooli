@@ -1,0 +1,122 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-08T19:15:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 2,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "GCT already uses a scan-run ID pattern with scenario-auditor (AuditorCheckJobResponse.JobID + polling via GET /api/v1/standards/check/jobs/{jobID}). However, the review engine currently discards service-side jobIDs from fire-and-forget triggers and fetches results later via aggregate queries. The scan-run model chosen for secrets-manager aligns perfectly with the auditor pattern — GCT can poll scan status by ID."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Secrets Manager already has security_scan_runs and security_vulnerabilities tables with fingerprinting (componentType|componentName|filePath|lineNumber|type). The existing persistSecurityScan() function (security_scan.go:608-674) handles INSERT with ON CONFLICT for fingerprint deduplication and status transitions (open→in_progress→resolved/accepted/regressed). The file-list scan endpoint can reuse this persistence layer — no new scan/vulnerability tables needed, just new tables for watchlist and allowlist."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Watchlist values are personal data (email, phone, home directory path). These should be stored encrypted at rest in PostgreSQL since they're the exact sensitive values users want to protect. The existing schema has no encryption pattern — this would be a new concern. Options: application-level AES encryption with a server key, or PostgreSQL pgcrypto extension."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "The existing scanFileForVulnerabilities() (security_scanner.go:173-227) reads the entire file into memory, compiles regex patterns, and runs FindAllStringIndex. For file-list scans, the same function can be called per-file — no walkAndScan() needed. A new scanFileList() function would iterate the provided paths, apply allowlist filtering, then call the existing pattern matcher plus a new literal-string matcher for watchlist values."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Scan-run endpoint: synchronous vs asynchronous",
+      "context": "The scan-run model (chosen in round 1) persists results with an ID. But should the POST /api/v1/security/scan-files endpoint block until scanning completes and return results inline, or return a jobID immediately and require polling? For pre-commit use, GCT scans staged files (typically 1-50 files) — scans should be fast (under 2s). But large commits could have hundreds of files.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Synchronous with timeout — POST blocks, returns full results inline. If scan exceeds 10s, returns partial results with a scan-run ID for polling the rest.",
+          "rationale": "Best UX for typical commits (fast response). Graceful fallback for large scans. GCT gets results in one call for 95% of cases. Scan run is still persisted for history/dedup regardless.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Always asynchronous — POST returns jobID immediately, GCT polls GET /api/v1/security/scan-runs/{id} for results.",
+          "rationale": "Simpler server implementation, consistent behavior. But adds latency for small scans (extra round-trip) and complexity on GCT side (polling loop)."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Watchlist value encryption",
+      "context": "Custom watchlist entries contain the exact personal values users want to protect (their actual email, phone number, home directory path). Storing these in plaintext in PostgreSQL means the database itself becomes a PII target. However, the values need to be used for literal-string matching during scans, so they must be decryptable (not hashed).",
+      "options": [
+        {
+          "key": "A",
+          "label": "Application-level AES-256-GCM encryption — encrypt values before DB insert, decrypt at scan time. Key from environment variable.",
+          "rationale": "Protects data at rest. Key rotation possible. No PostgreSQL extension dependency. Small performance cost at scan time (decrypt N watchlist values per scan). Standard Go crypto/aes.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Store plaintext — rely on PostgreSQL access controls and disk encryption for protection.",
+          "rationale": "Simpler implementation. Acceptable if the server environment is trusted. Watchlist values are low-sensitivity (email, paths) not high-sensitivity (SSNs, passwords)."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "PII pattern severity classification",
+      "context": "Built-in PII patterns need severity levels. Existing vulnerability patterns range from critical (hardcoded secrets) to low (debug code). PII findings in committed code have different risk profiles depending on the data type.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Tiered: SSN/credit card = critical, email/phone = high, IP address/home directory = medium, custom watchlist = high (user explicitly flagged it)",
+          "rationale": "Reflects regulatory risk — SSN/CC exposure has legal consequences (PCI, GDPR). Email/phone are sensitive but lower impact. Custom watchlist items are high because the user specifically asked to detect them.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "All PII findings are high severity — let the user configure severity per pattern",
+          "rationale": "Simpler default. Users can tune if needed. Avoids opinionated severity assignments that may not match their context."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own severity scheme"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "Proposed DB schema for new tables: (1) pii_watchlist — id UUID PK, label TEXT, encrypted_value BYTEA, value_type TEXT (email/phone/path/custom), created_at TIMESTAMPTZ. (2) scan_allowlist_rules — id UUID PK, path_pattern TEXT (glob), excluded_types TEXT[] (array of vulnerability/PII types to skip, or '*' for all), description TEXT, enabled BOOLEAN DEFAULT true, created_at TIMESTAMPTZ. Both tables are simple and follow existing schema conventions."
+    }
+  ],
+  "plan_updates": "Updated conclusion.md: incorporated all 3 resolved decisions from round 1, added new findings on GCT scan-run alignment, persistence layer reuse, watchlist encryption considerations, and proposed DB schema. Actions section now has concrete action items. Limitations section updated with new identified gaps."
+}

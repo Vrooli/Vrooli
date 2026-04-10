@@ -1,0 +1,23 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "deployment-coordinator",
+  "name": "Deployment Coordinator",
+  "description": "Intelligent deployment routing and advisory for Vrooli scenarios. Determines deployment target, checks readiness, routes to the appropriate target-specific skill, and gracefully handles unavailable targets. Supports action mode (deploy now), advisory mode (what's possible), and graceful degradation (target not ready yet).",
+  "modes": [
+    "practice"
+  ],
+  "tags": [
+    "practice",
+    "deployment",
+    "routing",
+    "coordination",
+    "methodology"
+  ],
+  "icon": "rocket",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-03-20T00:00:00Z",
+  "updatedAt": "2026-03-20T00:00:00Z"
+}

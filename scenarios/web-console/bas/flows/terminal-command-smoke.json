@@ -1,0 +1,103 @@
+{
+  "metadata": {
+    "name": "terminal-command-smoke",
+    "description": "Open workspace and run a command in a newly launched terminal",
+    "labels": {
+      "reset": "none",
+      "parameters_json": "[{\"name\":\"command\",\"type\":\"string\",\"required\":true,\"description\":\"Command to execute in the launched terminal\"}]"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "open-workspace",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/open-workspace.json"
+        },
+        "metadata": {
+          "label": "Open workspace"
+        }
+      }
+    },
+    {
+      "id": "reset-sessions",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/reset-sessions-best-effort.json"
+        },
+        "metadata": {
+          "label": "Reset sessions (best effort)"
+        }
+      }
+    },
+    {
+      "id": "capture-baseline-session-ids",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const ids = Array.from(document.querySelectorAll('[data-testid=\"terminal-pane\"][data-session-id]')).map((pane) => pane.getAttribute('data-session-id') || '').filter(Boolean); localStorage.setItem('bas.terminalSmoke.baselineSessionIds', JSON.stringify(ids)); })()"
+        },
+        "metadata": {
+          "label": "Capture baseline session IDs"
+        }
+      }
+    },
+    {
+      "id": "launch-command",
+      "action": {
+        "type": "ACTION_TYPE_SUBFLOW",
+        "subflow": {
+          "workflow_path": "actions/launch-custom-command.json",
+          "args": {
+            "command": "${@params/command}"
+          }
+        },
+        "metadata": {
+          "label": "Launch custom command"
+        }
+      }
+    },
+    {
+      "id": "capture-launched-session-id",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const baseline = new Set(JSON.parse(localStorage.getItem('bas.terminalSmoke.baselineSessionIds') || '[]')); const ids = Array.from(document.querySelectorAll('[data-testid=\"terminal-pane\"][data-session-id]')).map((pane) => pane.getAttribute('data-session-id') || '').filter(Boolean); const created = ids.filter((id) => !baseline.has(id)); const selected = created[created.length - 1] || ''; if (selected) { localStorage.setItem('bas.terminalSmoke.sessionId', selected); document.body.setAttribute('data-terminal-smoke-session-id-captured', 'true'); return; } localStorage.removeItem('bas.terminalSmoke.sessionId'); document.body.setAttribute('data-terminal-smoke-session-id-captured', 'false'); })()"
+        },
+        "metadata": {
+          "label": "Capture launched session ID"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "open-workspace",
+      "target": "reset-sessions",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "reset-sessions",
+      "target": "capture-baseline-session-ids",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "capture-baseline-session-ids",
+      "target": "launch-command",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "launch-command",
+      "target": "capture-launched-session-id",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

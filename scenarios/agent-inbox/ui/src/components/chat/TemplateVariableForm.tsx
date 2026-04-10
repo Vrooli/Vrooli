@@ -57,11 +57,13 @@ export function TemplateVariableForm({
     [onTabOut]
   );
 
-  if (template.variables.length === 0) {
+  // Defensive: guard against undefined/empty variables array
+  const variables = template.variables ?? [];
+  if (variables.length === 0) {
     return null;
   }
 
-  const lastIndex = template.variables.length - 1;
+  const lastIndex = variables.length - 1;
 
   return (
     <div
@@ -77,8 +79,8 @@ export function TemplateVariableForm({
         <span className="flex items-center gap-2">
           <span className="font-medium text-blue-400">{template.name}</span>
           <span className="text-slate-500">
-            ({template.variables.length} variable
-            {template.variables.length !== 1 ? "s" : ""})
+            ({variables.length} variable
+            {variables.length !== 1 ? "s" : ""})
           </span>
           {missingFields.length > 0 && (
             <span className="text-xs text-red-400">
@@ -96,7 +98,7 @@ export function TemplateVariableForm({
       {/* Form fields */}
       {isExpanded && (
         <div className="px-4 pb-4 space-y-3" data-testid="template-form-fields">
-          {template.variables.map((variable, index) => {
+          {variables.map((variable, index) => {
             const value = variableValues[variable.name] || "";
             const isMissing = missingFields.includes(variable.label);
             const isFirst = index === 0;

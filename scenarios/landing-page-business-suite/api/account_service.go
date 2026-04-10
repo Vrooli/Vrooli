@@ -26,12 +26,13 @@ type AccountService struct {
 
 // EntitlementPayload is used by bundled apps to unlock features.
 type EntitlementPayload struct {
-	Status       string                                         `json:"status"`
-	PlanTier     string                                         `json:"plan_tier,omitempty"`
-	PriceID      string                                         `json:"price_id,omitempty"`
-	Features     []string                                       `json:"features,omitempty"`
-	Credits      *landing_page_react_vite_v1.CreditsBalance     `json:"credits,omitempty"`
-	Subscription *landing_page_react_vite_v1.SubscriptionStatus `json:"subscription,omitempty"`
+	Status            string                                         `json:"status"`
+	PlanTier          string                                         `json:"plan_tier,omitempty"`
+	PriceID           string                                         `json:"price_id,omitempty"`
+	Features          []string                                       `json:"features,omitempty"`
+	BillingCycleStart int                                            `json:"billing_cycle_start,omitempty"`
+	Credits           *landing_page_react_vite_v1.CreditsBalance     `json:"credits,omitempty"`
+	Subscription      *landing_page_react_vite_v1.SubscriptionStatus `json:"subscription,omitempty"`
 }
 
 type CreditsEnvelope struct {
@@ -71,7 +72,7 @@ func loadCacheTTL() time.Duration {
 }
 
 func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_react_vite_v1.SubscriptionStatus, error) {
-	user := strings.TrimSpace(userIdentity)
+	user := NormalizeEmail(userIdentity)
 	if user == "" {
 		return &landing_page_react_vite_v1.SubscriptionStatus{
 			State:        landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE,
@@ -85,7 +86,7 @@ func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_rea
 	}
 
 	query := `
-		SELECT subscription_id, status, customer_email, plan_tier, price_id, bundle_key, canceled_at, updated_at
+		SELECT subscription_id, status, customer_email, plan_tier, price_id, bundle_key, billing_cycle_start, canceled_at, updated_at
 		FROM subscriptions
 		WHERE (customer_email = $1 OR customer_id = $1)
 		ORDER BY updated_at DESC
@@ -93,7 +94,9 @@ func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_rea
 	`
 
 	row := s.db.QueryRow(query, user)
-	var subID, status, customerEmail, planTier, priceID, bundleKey string
+	var subID, status, customerEmail string
+	var planTier, priceID, bundleKey sql.NullString
+	var billingCycleStart int
 	var canceledAt sql.NullTime
 	var updatedAt time.Time
 	if err := row.Scan(
@@ -103,6 +106,7 @@ func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_rea
 		&planTier,
 		&priceID,
 		&bundleKey,
+		&billingCycleStart,
 		&canceledAt,
 		&updatedAt,
 	); err != nil {
@@ -112,9 +116,34 @@ func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_rea
 		return nil, err
 	}
 
-	if planTier == "" && priceID != "" {
-		if plan, err := s.planService.GetPlanByPriceID(priceID); err == nil {
-			planTier = plan.PlanTier
+	planTierStr := planTier.String
+	priceIDStr := priceID.String
+	bundleKeyStr := bundleKey.String
+
+	if planTierStr == "" && priceIDStr != "" {
+		if plan, err := s.planService.GetPlanByPriceID(priceIDStr); err == nil {
+			planTierStr = plan.PlanTier
+			if bundleKeyStr == "" {
+				bundleKeyStr = plan.BundleKey
+			}
+		}
+	}
+	if planTierStr != "" {
+		if _, err := normalizePlanTier(planTierStr); err != nil {
+			logStructured("subscription_plan_tier_invalid", map[string]interface{}{
+				"level":     "warn",
+				"plan_tier": planTierStr,
+				"price_id":  priceIDStr,
+			})
+			planTierStr = ""
+		} else if planTier.String == "" || bundleKey.String == "" {
+			_, _ = s.db.Exec(`
+				UPDATE subscriptions
+				SET plan_tier = COALESCE(NULLIF($1,''), plan_tier),
+					bundle_key = COALESCE(NULLIF($2,''), bundle_key),
+					updated_at = NOW()
+				WHERE subscription_id = $3
+			`, planTierStr, bundleKeyStr, subID)
 		}
 	}
 
@@ -127,14 +156,14 @@ func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_rea
 		CachedAt:       timestamppb.New(updatedAt),
 		CacheAgeMs:     cacheAge.Milliseconds(),
 	}
-	if planTier != "" {
-		result.PlanTier = proto.String(planTier)
+	if planTierStr != "" {
+		result.PlanTier = proto.String(planTierStr)
 	}
-	if priceID != "" {
-		result.StripePriceId = proto.String(priceID)
+	if priceIDStr != "" {
+		result.StripePriceId = proto.String(priceIDStr)
 	}
-	if bundleKey != "" {
-		result.BundleKey = proto.String(bundleKey)
+	if bundleKeyStr != "" {
+		result.BundleKey = proto.String(bundleKeyStr)
 	}
 	if canceledAt.Valid {
 		result.CanceledAt = timestamppb.New(canceledAt.Time)
@@ -146,7 +175,8 @@ func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_rea
 }
 
 func (s *AccountService) GetCredits(userIdentity string) (*CreditsEnvelope, error) {
-	if strings.TrimSpace(userIdentity) == "" {
+	userIdentity = NormalizeEmail(userIdentity)
+	if userIdentity == "" {
 		return &CreditsEnvelope{
 			Balance: &landing_page_react_vite_v1.CreditsBalance{
 				CustomerEmail:  "",
@@ -208,7 +238,29 @@ func (s *AccountService) GetCredits(userIdentity string) (*CreditsEnvelope, erro
 	}, nil
 }
 
+// getBillingCycleStart retrieves billing cycle start for a user.
+func (s *AccountService) getBillingCycleStart(userIdentity string) int {
+	userIdentity = NormalizeEmail(userIdentity)
+	if userIdentity == "" {
+		return 0
+	}
+
+	var billingCycleStart int
+	err := s.db.QueryRow(`
+		SELECT COALESCE(billing_cycle_start, 0)
+		FROM subscriptions
+		WHERE (customer_email = $1 OR customer_id = $1)
+		ORDER BY updated_at DESC
+		LIMIT 1
+	`, userIdentity).Scan(&billingCycleStart)
+	if err != nil {
+		return 0
+	}
+	return billingCycleStart
+}
+
 func (s *AccountService) GetEntitlements(userIdentity string) (*EntitlementPayload, error) {
+	userIdentity = NormalizeEmail(userIdentity)
 	subscription, err := s.GetSubscription(userIdentity)
 	if err != nil {
 		return nil, err
@@ -220,11 +272,12 @@ func (s *AccountService) GetEntitlements(userIdentity string) (*EntitlementPaylo
 	}
 
 	payload := &EntitlementPayload{
-		Status:       legacyStateLabel(subscription.State),
-		PlanTier:     subscription.GetPlanTier(),
-		PriceID:      subscription.GetStripePriceId(),
-		Credits:      flattenCredits(credits),
-		Subscription: subscription,
+		Status:            legacyStateLabel(subscription.State),
+		PlanTier:          subscription.GetPlanTier(),
+		PriceID:           subscription.GetStripePriceId(),
+		BillingCycleStart: s.getBillingCycleStart(userIdentity),
+		Credits:           flattenCredits(credits),
+		Subscription:      subscription,
 	}
 
 	if subscription.GetStripePriceId() != "" {
@@ -266,7 +319,7 @@ func (s *AccountService) cacheSubscription(user string, status *landing_page_rea
 		status:    &landing_page_react_vite_v1.SubscriptionStatus{},
 		expiresAt: time.Now().Add(s.cacheTTL),
 	}
-	*entry.status = *status
+	entry.status = proto.Clone(status).(*landing_page_react_vite_v1.SubscriptionStatus)
 
 	s.cacheMutex.Lock()
 	s.cache[user] = entry
@@ -333,3 +386,6 @@ func legacyStateLabel(state landing_page_react_vite_v1.SubscriptionState) string
 		return "inactive"
 	}
 }
+
+// Compile-time interface check for AccountServicer
+var _ AccountServicer = (*AccountService)(nil)

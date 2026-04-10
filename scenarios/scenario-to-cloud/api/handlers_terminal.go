@@ -20,6 +20,7 @@ import (
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/manifest"
+	stcssh "scenario-to-cloud/ssh"
 )
 
 var upgrader = websocket.Upgrader{
@@ -290,10 +291,9 @@ func createSSHClient(manifest domain.CloudManifest) (*ssh.Client, error) {
 	}
 
 	config := &ssh.ClientConfig{
-		User:            vps.User,
-		Auth:            authMethods,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // TODO: Use known_hosts in production
-		Timeout:         30 * time.Second,
+		User:    vps.User,
+		Auth:    authMethods,
+		Timeout: 30 * time.Second,
 	}
 
 	// Connect
@@ -302,6 +302,12 @@ func createSSHClient(manifest domain.CloudManifest) (*ssh.Client, error) {
 		port = 22
 	}
 	addr := vps.Host + ":" + intToStr(port)
+	hostKeyCallback, err := stcssh.NewTOFUHostKeyCallback(vps.Host, port)
+	if err != nil {
+		return nil, err
+	}
+	config.HostKeyCallback = hostKeyCallback
+
 	client, err := ssh.Dial("tcp", addr, config)
 	if err != nil {
 		return nil, err

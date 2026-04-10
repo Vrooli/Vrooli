@@ -1,5 +1,7 @@
 # Bundle System
 
+> [CODE: api/bundle/builder.go] — Bundle creation logic
+
 How mini-Vrooli bundles work.
 
 ## What is a Bundle?

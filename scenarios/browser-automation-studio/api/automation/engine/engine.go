@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
-	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
 // SessionReuseMode controls how engines treat state between instructions.
@@ -39,7 +39,7 @@ type SessionSpec struct {
 	Labels         map[string]string
 	Capabilities   contracts.CapabilityRequirement  // Required capabilities derived from plan.
 	FrameStreaming *FrameStreamingConfig            // Optional: enables live frame streaming during execution.
-	BrowserProfile *archiveingestion.BrowserProfile // Optional: anti-detection and human-like behavior settings.
+	BrowserProfile *sessionprofilepersistence.BrowserProfile // Optional: anti-detection and human-like behavior settings.
 	StorageState   json.RawMessage                  // Optional: session profile's storage state (cookies, localStorage) for authenticated execution.
 }
 
@@ -55,6 +55,9 @@ type EngineSession interface {
 	Run(ctx context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error)
 	Reset(ctx context.Context) error
 	Close(ctx context.Context) error
+	// GetStorageState retrieves the current browser storage state (cookies, localStorage).
+	// Returns the storage state as JSON or an error if capture fails.
+	GetStorageState(ctx context.Context) (json.RawMessage, error)
 }
 
 // Factory resolves engine implementations by name/config.

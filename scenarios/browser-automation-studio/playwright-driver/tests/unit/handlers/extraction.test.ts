@@ -1,4 +1,9 @@
-import { createTypedInstruction, createMockPage, createTestConfig } from '../../helpers';
+import {
+  createTypedInstruction,
+  createMockPage,
+  createMockContext,
+  createTestConfig,
+} from '../../helpers';
 import { ExtractionHandler } from '../../../src/handlers/extraction';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
@@ -13,7 +18,7 @@ describe('ExtractionHandler', () => {
     mockPage = createMockPage();
     context = {
       page: mockPage,
-      context: {} as any,
+      browserContext: createMockContext(),
       config: createTestConfig(),
       logger,
       metrics,
@@ -30,7 +35,9 @@ describe('ExtractionHandler', () => {
 
     const result = await handler.execute(instruction, context);
 
-    expect(mockPage.textContent).toHaveBeenCalledWith('#content', expect.any(Object));
+    const [selector, options] = mockPage.textContent.mock.calls[0] ?? [];
+    expect(selector).toBe('#content');
+    expect(options).toEqual(expect.any(Object));
     expect(result.success).toBe(true);
     expect(result.extracted_data).toEqual({ '#content': 'Extracted text' });
   });

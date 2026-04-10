@@ -16,7 +16,7 @@ import { PromptDialog } from '@shared/ui';
 import { useGuidedTour } from '@shared/onboarding';
 import { selectors } from '@constants/selectors';
 import { logger } from '@utils/logger';
-import { getConfig } from '@/config';
+import { fetchWorkflowProjectId } from '@/domains/workflows/services/workflowApi';
 import toast from 'react-hot-toast';
 
 interface DashboardViewWrapperProps {
@@ -146,16 +146,7 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
         await loadExecution(executionId);
 
         // Find the workflow's project and navigate to the workflow view
-        const config = await getConfig();
-        const workflowsResponse = await fetch(`${config.API_URL}/workflows/${workflowId}`);
-        if (!workflowsResponse.ok) {
-          throw new Error(`Failed to fetch workflow: ${workflowsResponse.status}`);
-        }
-        const workflowData = await workflowsResponse.json();
-        const projectId = workflowData.project_id ?? workflowData.projectId;
-        if (!projectId) {
-          throw new Error('Workflow has no associated project');
-        }
+        const projectId = await fetchWorkflowProjectId(workflowId);
         navigate(`/projects/${projectId}/workflows/${workflowId}`);
       } catch (error) {
         logger.error('Failed to view execution', { executionId, workflowId }, error);
@@ -191,6 +182,10 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
         } else {
           // Use first project
           const targetProject = projects[0];
+          if (!targetProject) {
+            toast.error('No project available. Please create one first.');
+            return;
+          }
           setCurrentProject(targetProject);
 
           // Generate workflow

@@ -14,16 +14,81 @@ import (
 	"time"
 
 	"browser-automation-studio/cli/internal/appctx"
+	"browser-automation-studio/cli/internal/export"
 
 	"github.com/vrooli/api-core/discovery"
 )
 
+func printExecuteHelp(cliName string) {
+	fmt.Printf("Usage: %s workflow execute [workflow-id|name] [options]\n\n", cliName)
+	fmt.Println("Execute a browser automation workflow.")
+	fmt.Println()
+	fmt.Println("Workflow Sources (use one):")
+	fmt.Println("  <workflow-id|name>       Execute a stored workflow by ID or name")
+	fmt.Println("  --from-file <path>       Execute workflow from a JSON file")
+	fmt.Println("  --step <type> [args...]  Build and execute inline workflow (repeatable)")
+	fmt.Println()
+	fmt.Println("Execution Options:")
+	fmt.Println("  --wait                   Wait for execution to complete")
+	fmt.Println("  --output <dir>           Export results to directory (implies --wait)")
+	fmt.Println("  --project-root <path>    Base path for resolving subflow workflow_path")
+	fmt.Println("  --start-url <url>        Starting URL for workflows without navigate step")
+	fmt.Println()
+	fmt.Println("Parameters:")
+	fmt.Println("  --params <json>          Execution parameters (top-level fields)")
+	fmt.Println("  --initial-params <json>  Workflow input parameters (@params/ namespace)")
+	fmt.Println("  --initial-store <json>   Pre-seeded runtime store (@store/ namespace)")
+	fmt.Println("  --env <json>             Environment variables (@env/ namespace)")
+	fmt.Println()
+	fmt.Println("Session Management:")
+	fmt.Println("  --session-profile <name> Load session profile's cookies/localStorage")
+	fmt.Println("  --save-session <name>    Save browser state to profile after execution")
+	fmt.Println("  --fresh-session          Ignore any saved session state")
+	fmt.Println("  --restore-tabs           Restore tabs from session profile (default: false)")
+	fmt.Println()
+	fmt.Println("Artifact Collection:")
+	fmt.Println("  --record-video           Capture video during execution")
+	fmt.Println("  --record-trace           Capture Playwright trace")
+	fmt.Println("  --record-har             Capture HAR network archive")
+	fmt.Println()
+	fmt.Println("Test Data:")
+	fmt.Println("  --seed <mode>            Seed data mode: 'applied' or 'needs-applying'")
+	fmt.Println("  --seed-scenario <name>   Scenario to apply seed from")
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Printf("  %s workflow execute my-workflow --wait\n", cliName)
+	fmt.Printf("  %s workflow execute --from-file bas/cases/login.json --output /tmp/results\n", cliName)
+	fmt.Printf("  %s workflow execute --step navigate \"http://example.com\" --step screenshot\n", cliName)
+	fmt.Printf("  %s workflow execute --from-file bas/flows/checkout.json --session-profile \"Dev Account\"\n", cliName)
+	fmt.Printf("  %s workflow execute --from-file bas/actions/login.json --save-session \"Dev Account\"\n", cliName)
+	fmt.Println()
+}
+
 func runExecute(ctx *appctx.Context, args []string) error {
+	// Check for help flag first (before step parsing)
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			printExecuteHelp(ctx.Name)
+			return nil
+		}
+	}
+
+	// Parse --step flags first (before other flag parsing)
+	steps, remainingArgs, err := ParseSteps(args)
+	if err != nil {
+		return fmt.Errorf("invalid step: %w", err)
+	}
+	args = remainingArgs
+
 	workflow := ""
 
 	paramsRaw := "{}"
+	initialParamsRaw := ""
+	initialStoreRaw := ""
+	envRaw := ""
 	wait := false
-	outputDir := ""
+	outputDir := ""  // Legacy: for --output-screenshots (deprecated)
+	outputPath := "" // New: for --output (export results to folder)
 	projectRoot := ""
 	adhoc := false
 	requiresVideo := false
@@ -33,6 +98,10 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	startURL := ""
 	seedMode := ""
 	seedScenario := ""
+	sessionProfile := ""
+	saveSession := ""
+	freshSession := false
+	restoreTabs := false
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -41,6 +110,24 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				return fmt.Errorf("--params requires a value")
 			}
 			paramsRaw = args[i+1]
+			i++
+		case "--initial-params":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--initial-params requires a value")
+			}
+			initialParamsRaw = args[i+1]
+			i++
+		case "--initial-store":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--initial-store requires a value")
+			}
+			initialStoreRaw = args[i+1]
+			i++
+		case "--env":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--env requires a value")
+			}
+			envRaw = args[i+1]
 			i++
 		case "--from-file":
 			if i+1 >= len(args) {
@@ -55,6 +142,12 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				return fmt.Errorf("--output-screenshots requires a value")
 			}
 			outputDir = args[i+1]
+			i++
+		case "--output":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--output requires a value")
+			}
+			outputPath = args[i+1]
 			i++
 		case "--project-root":
 			if i+1 >= len(args) {
@@ -96,6 +189,22 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			}
 			seedScenario = strings.TrimSpace(args[i+1])
 			i++
+		case "--session-profile":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--session-profile requires a value (profile ID or name)")
+			}
+			sessionProfile = strings.TrimSpace(args[i+1])
+			i++
+		case "--save-session":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--save-session requires a value (profile ID or name)")
+			}
+			saveSession = strings.TrimSpace(args[i+1])
+			i++
+		case "--fresh-session":
+			freshSession = true
+		case "--restore-tabs":
+			restoreTabs = true
 		default:
 			if strings.HasPrefix(args[i], "--") {
 				return fmt.Errorf("unknown option: %s", args[i])
@@ -108,11 +217,74 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		}
 	}
 
-	if strings.TrimSpace(fromFile) == "" && strings.TrimSpace(workflow) == "" {
-		return fmt.Errorf("workflow ID/name or --from-file is required")
+	// Validate that we have a workflow source (steps, file, or ID)
+	hasSteps := len(steps) > 0
+	if !hasSteps && strings.TrimSpace(fromFile) == "" && strings.TrimSpace(workflow) == "" {
+		return fmt.Errorf("workflow ID/name, --from-file, or --step flags are required")
 	}
 
-	if fromFile != "" {
+	// Validate that we don't mix --step with other sources
+	if hasSteps {
+		if strings.TrimSpace(workflow) != "" {
+			return fmt.Errorf("cannot use --step with workflow ID")
+		}
+		if strings.TrimSpace(fromFile) != "" {
+			return fmt.Errorf("cannot use --step with --from-file")
+		}
+	}
+
+	// Force wait mode if --output is specified (export requires completion)
+	if outputPath != "" {
+		wait = true
+	}
+
+	// Force wait mode if --save-session is specified (need execution to complete to save state)
+	if saveSession != "" {
+		wait = true
+	}
+
+	// Validate session profile flags
+	if sessionProfile != "" && freshSession {
+		return fmt.Errorf("cannot use --session-profile with --fresh-session")
+	}
+	if restoreTabs && sessionProfile == "" {
+		return fmt.Errorf("--restore-tabs requires --session-profile")
+	}
+
+	// Resolve session profile IDs if names were provided
+	var sessionProfileID string
+	var saveSessionProfileID string
+	if sessionProfile != "" {
+		resolved, err := resolveSessionProfile(ctx, sessionProfile)
+		if err != nil {
+			return fmt.Errorf("--session-profile: %w", err)
+		}
+		sessionProfileID = resolved.ID
+		printSessionProfileLoadInfo(ctx, resolved)
+	}
+	if saveSession != "" {
+		resolved, err := resolveSessionProfile(ctx, saveSession)
+		if err != nil {
+			// For --save-session, create profile if it doesn't exist
+			if strings.Contains(err.Error(), "not found") {
+				created, err := createSessionProfile(ctx, saveSession)
+				if err != nil {
+					return fmt.Errorf("--save-session: failed to create profile: %w", err)
+				}
+				saveSessionProfileID = created.ID
+				fmt.Printf("Created new session profile: %s (%s)\n", created.Name, created.ID[:8])
+			} else {
+				return fmt.Errorf("--save-session: %w", err)
+			}
+		} else {
+			saveSessionProfileID = resolved.ID
+			printSaveSessionProfileInfo(ctx, resolved)
+		}
+	}
+
+	if hasSteps {
+		fmt.Printf("Executing inline workflow with %d steps\n", len(steps))
+	} else if fromFile != "" {
 		fmt.Printf("Executing workflow file: %s\n", fromFile)
 	} else {
 		fmt.Printf("Executing workflow: %s\n", workflow)
@@ -166,9 +338,54 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		return fmt.Errorf("invalid JSON for --params")
 	}
 
+	// Normalize params: move unknown fields to initial_params
+	params = normalizeExecutionParams(params)
+
+	// Merge --initial-params if provided
+	if initialParamsRaw != "" {
+		var initialParams map[string]any
+		if err := json.Unmarshal([]byte(initialParamsRaw), &initialParams); err != nil {
+			return fmt.Errorf("invalid JSON for --initial-params")
+		}
+		params = mergeIntoInitialParams(params, initialParams)
+	}
+
+	// Merge --initial-store if provided
+	if initialStoreRaw != "" {
+		var initialStore map[string]any
+		if err := json.Unmarshal([]byte(initialStoreRaw), &initialStore); err != nil {
+			return fmt.Errorf("invalid JSON for --initial-store")
+		}
+		params = mergeIntoInitialStore(params, initialStore)
+	}
+
+	// Merge --env if provided
+	if envRaw != "" {
+		var envVars map[string]any
+		if err := json.Unmarshal([]byte(envRaw), &envVars); err != nil {
+			return fmt.Errorf("invalid JSON for --env")
+		}
+		params = mergeIntoEnv(params, envVars)
+	}
+
 	if projectRoot != "" {
 		params["projectRoot"] = projectRoot
 		fmt.Println("Project root injected into parameters as projectRoot.")
+	}
+
+	// Inject session profile ID if specified (and not --fresh-session)
+	if sessionProfileID != "" && !freshSession {
+		params["session_profile_id"] = sessionProfileID
+	}
+
+	// Inject restore_tabs flag (only meaningful with session profile)
+	if restoreTabs {
+		params["restore_tabs"] = true
+	}
+
+	// Inject save session profile ID if specified
+	if saveSessionProfileID != "" {
+		params["save_session_profile_id"] = saveSessionProfileID
 	}
 	startURLFromParams := false
 	if startURL == "" {
@@ -236,9 +453,15 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	}
 
 	var response []byte
+
+	// Force adhoc mode for inline steps
+	if hasSteps {
+		adhoc = true
+	}
+
 	if adhoc {
 		workflowID, err := resolveWorkflowID(ctx, workflow)
-		if fromFile == "" {
+		if fromFile == "" && !hasSteps {
 			if err != nil {
 				return err
 			}
@@ -249,17 +472,49 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			"parameters":          params,
 		}
 
-		if fromFile != "" {
-			data, err := os.ReadFile(fromFile)
+		if hasSteps {
+			// Build workflow from inline steps
+			flowDef, err := BuildWorkflowFromSteps(steps)
 			if err != nil {
-				return fmt.Errorf("file not found: %s", fromFile)
-			}
-			var flowDef any
-			if err := json.Unmarshal(data, &flowDef); err != nil {
-				return fmt.Errorf("invalid JSON in %s", fromFile)
+				return fmt.Errorf("build workflow from steps: %w", err)
 			}
 			payload["flow_definition"] = flowDef
-			payload["metadata"] = buildAdhocMetadata(flowDef, fromFile)
+			payload["metadata"] = flowDef["metadata"]
+		} else if fromFile != "" {
+			// If --project-root was explicitly provided and fromFile is relative,
+			// try resolving against project-root
+			resolvedFile := fromFile
+			projectRootCandidate := ""
+			if projectRoot != "" && !filepath.IsAbs(fromFile) {
+				projectRootCandidate = filepath.Join(projectRoot, fromFile)
+				if _, err := os.Stat(projectRootCandidate); err == nil {
+					resolvedFile = projectRootCandidate
+				}
+			}
+
+			data, err := os.ReadFile(resolvedFile)
+			if err != nil {
+				if projectRootCandidate != "" && projectRootCandidate != resolvedFile {
+					return fmt.Errorf("file not found: %s (also tried: %s)", fromFile, projectRootCandidate)
+				}
+				return fmt.Errorf("file not found: %s", fromFile)
+			}
+			var rawContent map[string]any
+			if err := json.Unmarshal(data, &rawContent); err != nil {
+				return fmt.Errorf("invalid JSON in %s", fromFile)
+			}
+
+			// Extract flow_definition if present (wrapper format from flows/ directory)
+			// Otherwise use the entire file content (direct format from actions/, cases/)
+			var flowDef any
+			if nestedDef, ok := rawContent["flow_definition"]; ok {
+				flowDef = nestedDef
+			} else {
+				flowDef = rawContent
+			}
+
+			payload["flow_definition"] = flowDef
+			payload["metadata"] = buildAdhocMetadata(rawContent, fromFile)
 		} else {
 			workflowDetail, err := getWorkflow(ctx, workflowID)
 			if err != nil {
@@ -335,6 +590,12 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		}
 	}
 
+	var waitFailed bool
+	var waitTimedOut bool
+	var waitMissingExecution bool
+	var waitLastStatus string
+	var waitFailureMessage string
+
 	if wait {
 		fmt.Println("Waiting for completion...")
 		maxAttempts := 60
@@ -399,6 +660,7 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				if errorMessage != "" {
 					fmt.Printf("Error: %s\n", errorMessage)
 				}
+				waitFailureMessage = errorMessage
 				failed = true
 				completed = true
 				break
@@ -407,7 +669,20 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			time.Sleep(5 * time.Second)
 		}
 		if completed {
-			if !missingExecution {
+			// Export results if --output was specified (works for both success and failure)
+			if outputPath != "" && !missingExecution {
+				if err := export.ExportExecution(ctx, executionID, outputPath); err != nil {
+					fmt.Printf("WARN: Export failed: %v\n", err)
+					// Fall back to printing artifact URLs if export fails
+					if !missingExecution {
+						printCollectedArtifacts(ctx, executionID, recordingsRoot, failed, requiresVideo, requiresTrace, requiresHAR)
+					}
+				} else {
+					fmt.Printf("\nResults exported to: %s\n", outputPath)
+					fmt.Printf("Read %s/README.md for details\n", outputPath)
+				}
+			} else if !missingExecution {
+				// No --output specified, print artifact URLs as before
 				printCollectedArtifacts(ctx, executionID, recordingsRoot, failed, requiresVideo, requiresTrace, requiresHAR)
 			}
 			if seedCleanupToken != "" && !seedCleanupScheduled {
@@ -441,12 +716,33 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				fmt.Println("Seed cleanup already scheduled; no manual cleanup needed.")
 			}
 		}
+
+		waitFailed = failed
+		waitTimedOut = !completed
+		waitMissingExecution = missingExecution
+		waitLastStatus = lastStatus
 	}
 
 	if outputDir != "" {
 		if err := os.MkdirAll(outputDir, 0o755); err == nil {
 			fmt.Printf("Screenshots saved to: %s\n", outputDir)
 		}
+	}
+
+	if waitFailed {
+		if waitMissingExecution {
+			return fmt.Errorf("execution %s failed: execution record unavailable", executionID)
+		}
+		if waitFailureMessage != "" {
+			return fmt.Errorf("execution %s failed: %s", executionID, waitFailureMessage)
+		}
+		return fmt.Errorf("execution %s failed", executionID)
+	}
+	if waitTimedOut {
+		if waitLastStatus == "" {
+			waitLastStatus = "unknown"
+		}
+		return fmt.Errorf("execution %s timed out (last status: %s)", executionID, waitLastStatus)
 	}
 
 	return nil
@@ -923,5 +1219,282 @@ func waitForScenarioHealth(ctx context.Context, base string) error {
 			return fmt.Errorf("timeout waiting for API health at %s", base)
 		case <-ticker.C:
 		}
+	}
+}
+
+// knownExecutionParamFields is the set of fields that are part of the ExecutionParameters proto.
+var knownExecutionParamFields = map[string]bool{
+	"initial_params":          true,
+	"initial_store":           true,
+	"env":                     true,
+	"projectRoot":             true,
+	"startUrl":                true,
+	"start_url":               true,
+	"session_profile_id":      true,
+	"save_session_profile_id": true,
+	"restore_tabs":            true, // Tab restoration from session profile
+}
+
+// normalizeExecutionParams moves unknown fields to initial_params.
+// This allows users to pass custom workflow parameters directly in --params
+// without needing to nest them in initial_params.
+func normalizeExecutionParams(params map[string]any) map[string]any {
+	if params == nil {
+		return params
+	}
+
+	// Find unknown fields
+	unknownFields := make(map[string]any)
+	for key, value := range params {
+		if !knownExecutionParamFields[key] {
+			unknownFields[key] = value
+		}
+	}
+
+	// If no unknown fields, return as-is
+	if len(unknownFields) == 0 {
+		return params
+	}
+
+	// Move unknown fields to initial_params
+	initialParams, _ := params["initial_params"].(map[string]any)
+	if initialParams == nil {
+		initialParams = make(map[string]any)
+	}
+
+	for key, value := range unknownFields {
+		// Don't overwrite existing values in initial_params
+		if _, exists := initialParams[key]; !exists {
+			initialParams[key] = value
+		}
+		delete(params, key)
+	}
+
+	params["initial_params"] = initialParams
+	return params
+}
+
+// mergeIntoInitialParams merges additional values into params["initial_params"].
+func mergeIntoInitialParams(params map[string]any, values map[string]any) map[string]any {
+	if params == nil {
+		params = make(map[string]any)
+	}
+	initialParams, _ := params["initial_params"].(map[string]any)
+	if initialParams == nil {
+		initialParams = make(map[string]any)
+	}
+	for k, v := range values {
+		initialParams[k] = v
+	}
+	params["initial_params"] = initialParams
+	return params
+}
+
+// mergeIntoInitialStore merges additional values into params["initial_store"].
+func mergeIntoInitialStore(params map[string]any, values map[string]any) map[string]any {
+	if params == nil {
+		params = make(map[string]any)
+	}
+	initialStore, _ := params["initial_store"].(map[string]any)
+	if initialStore == nil {
+		initialStore = make(map[string]any)
+	}
+	for k, v := range values {
+		initialStore[k] = v
+	}
+	params["initial_store"] = initialStore
+	return params
+}
+
+// mergeIntoEnv merges additional values into params["env"].
+func mergeIntoEnv(params map[string]any, values map[string]any) map[string]any {
+	if params == nil {
+		params = make(map[string]any)
+	}
+	env, _ := params["env"].(map[string]any)
+	if env == nil {
+		env = make(map[string]any)
+	}
+	for k, v := range values {
+		env[k] = v
+	}
+	params["env"] = env
+	return params
+}
+
+// sessionProfileInfo holds basic session profile information for resolution.
+type sessionProfileInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type sessionProfileListResponse struct {
+	Profiles []sessionProfileInfo `json:"profiles"`
+}
+
+// resolveSessionProfile resolves a profile identifier (ID, short ID prefix, or name) to a profile.
+// Resolution order: exact ID match → short ID prefix match → exact name match.
+func resolveSessionProfile(ctx *appctx.Context, identifier string) (*sessionProfileInfo, error) {
+	identifier = strings.TrimSpace(identifier)
+	if identifier == "" {
+		return nil, fmt.Errorf("profile identifier is required")
+	}
+
+	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/recordings/sessions"), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list profiles: %w", err)
+	}
+
+	var resp sessionProfileListResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse profiles: %w", err)
+	}
+
+	// First, try exact ID match
+	for _, p := range resp.Profiles {
+		if p.ID == identifier {
+			return &p, nil
+		}
+	}
+
+	// Then try short ID prefix match (minimum 4 characters to avoid accidental matches)
+	if len(identifier) >= 4 && len(identifier) < 36 && !strings.Contains(identifier, " ") {
+		var prefixMatches []sessionProfileInfo
+		for _, p := range resp.Profiles {
+			if strings.HasPrefix(p.ID, identifier) {
+				prefixMatches = append(prefixMatches, p)
+			}
+		}
+		if len(prefixMatches) == 1 {
+			return &prefixMatches[0], nil
+		}
+		if len(prefixMatches) > 1 {
+			return nil, fmt.Errorf("ambiguous short ID '%s': %d profiles match. Use full ID or more characters", identifier, len(prefixMatches))
+		}
+	}
+
+	// Finally, try exact name match
+	var nameMatches []sessionProfileInfo
+	for _, p := range resp.Profiles {
+		if p.Name == identifier {
+			nameMatches = append(nameMatches, p)
+		}
+	}
+
+	if len(nameMatches) == 0 {
+		return nil, fmt.Errorf("session profile not found: %s", identifier)
+	}
+	if len(nameMatches) > 1 {
+		return nil, fmt.Errorf("ambiguous profile name '%s': %d profiles match. Use profile ID instead", identifier, len(nameMatches))
+	}
+
+	return &nameMatches[0], nil
+}
+
+// createSessionProfile creates a new session profile.
+func createSessionProfile(ctx *appctx.Context, name string) (*sessionProfileInfo, error) {
+	payload := map[string]string{"name": name}
+	body, err := ctx.Core.APIClient.Request("POST", ctx.APIPath("/recordings/sessions"), nil, payload)
+	if err != nil {
+		return nil, err
+	}
+	var profile sessionProfileInfo
+	if err := json.Unmarshal(body, &profile); err != nil {
+		return nil, err
+	}
+	return &profile, nil
+}
+
+// sessionStorageState holds storage state information for a session profile.
+type sessionStorageState struct {
+	Cookies []sessionCookie     `json:"cookies"`
+	Origins []sessionOrigin     `json:"origins"`
+	Stats   sessionStorageStats `json:"stats"`
+}
+
+type sessionCookie struct {
+	Name    string  `json:"name"`
+	Domain  string  `json:"domain"`
+	Expires float64 `json:"expires"`
+}
+
+type sessionOrigin struct {
+	Origin       string                    `json:"origin"`
+	LocalStorage []sessionLocalStorageItem `json:"localStorage"`
+}
+
+type sessionLocalStorageItem struct {
+	Name string `json:"name"`
+}
+
+type sessionStorageStats struct {
+	CookieCount       int `json:"cookieCount"`
+	LocalStorageCount int `json:"localStorageCount"`
+	OriginCount       int `json:"originCount"`
+}
+
+// getSessionStorageState retrieves the storage state for a session profile.
+func getSessionStorageState(ctx *appctx.Context, profileID string) (*sessionStorageState, error) {
+	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/recordings/sessions/"+profileID+"/storage"), nil)
+	if err != nil {
+		return nil, err
+	}
+	var state sessionStorageState
+	if err := json.Unmarshal(body, &state); err != nil {
+		return nil, err
+	}
+	return &state, nil
+}
+
+// countExpiredSessionCookies returns the number of expired cookies in the storage state.
+func countExpiredSessionCookies(cookies []sessionCookie) int {
+	now := float64(time.Now().Unix())
+	count := 0
+	for _, c := range cookies {
+		// Session cookies (expires <= 0) don't expire
+		if c.Expires > 0 && c.Expires < now {
+			count++
+		}
+	}
+	return count
+}
+
+// printSessionProfileLoadInfo prints information about the loaded session profile.
+func printSessionProfileLoadInfo(ctx *appctx.Context, profile *sessionProfileInfo) {
+	state, err := getSessionStorageState(ctx, profile.ID)
+	if err != nil {
+		// Silently continue if we can't get storage state - profile will still be used
+		fmt.Printf("Using session profile: %s (%s)\n", profile.Name, profile.ID[:8])
+		return
+	}
+
+	// Print basic load confirmation
+	fmt.Printf("Using session profile: %s (%s) - %d cookies, %d localStorage items\n",
+		profile.Name, profile.ID[:8], state.Stats.CookieCount, state.Stats.LocalStorageCount)
+
+	// Warn about expired cookies
+	expiredCount := countExpiredSessionCookies(state.Cookies)
+	if expiredCount > 0 {
+		fmt.Printf("WARN: Session profile has %d expired cookie(s). Authentication may fail.\n", expiredCount)
+		fmt.Printf("      Consider re-authenticating with --save-session %q\n", profile.Name)
+	}
+}
+
+// printSaveSessionProfileInfo prints information about the existing profile that will be updated.
+func printSaveSessionProfileInfo(ctx *appctx.Context, profile *sessionProfileInfo) {
+	state, err := getSessionStorageState(ctx, profile.ID)
+	if err != nil {
+		// Silently continue if we can't get storage state
+		fmt.Printf("Will update existing profile: %s (%s)\n", profile.Name, profile.ID[:8])
+		return
+	}
+
+	// Show what will be overwritten
+	if state.Stats.CookieCount > 0 || state.Stats.LocalStorageCount > 0 {
+		fmt.Printf("Will update existing profile: %s (%s) - replacing %d cookies, %d localStorage items\n",
+			profile.Name, profile.ID[:8], state.Stats.CookieCount, state.Stats.LocalStorageCount)
+	} else {
+		fmt.Printf("Will update existing profile: %s (%s) - currently empty\n",
+			profile.Name, profile.ID[:8])
 	}
 }

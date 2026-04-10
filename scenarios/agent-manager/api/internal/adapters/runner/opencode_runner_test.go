@@ -7,6 +7,7 @@ package runner
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -366,7 +367,7 @@ func TestOpenCodeRunner_UpdateMetrics(t *testing.T) {
 	}
 
 	// Test tool call event updates
-	toolEvent := domain.NewToolCallEvent(runID, "bash", map[string]interface{}{"cmd": "ls"})
+	toolEvent := domain.NewToolCallEvent(runID, "bash", "", map[string]interface{}{"cmd": "ls"})
 	runner.updateMetrics(toolEvent, metrics, &lastAssistant)
 	if metrics.ToolCallCount != 1 {
 		t.Errorf("expected 1 tool call, got %d", metrics.ToolCallCount)
@@ -450,4 +451,203 @@ func TestResolveOpenCodeLogError(t *testing.T) {
 	if msg != "Insufficient credits" {
 		t.Fatalf("expected newest log error, got %q", msg)
 	}
+}
+
+// =============================================================================
+// ANSI Sanitization Regression Tests
+// =============================================================================
+
+// TestOpenCodeRunner_ANSIStrippedFromTextMessage verifies ANSI escape sequences
+// are removed from assistant text messages.
+func TestOpenCodeRunner_ANSIStrippedFromTextMessage(t *testing.T) {
+	runner := &OpenCodeRunner{}
+	runID := uuid.New()
+
+	line := `{"type":"text","timestamp":1766204180782,"sessionID":"ses_test","part":{"id":"prt_test","sessionID":"ses_test","messageID":"msg_test","type":"text","text":"\u001b[1mBold\u001b[0m and \u001b[32mgreen\u001b[0m text"}}`
+	events, err := runner.parseStreamEvents(runID, line)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+	msgData, ok := events[0].Data.(*domain.MessageEventData)
+	if !ok {
+		t.Fatalf("expected MessageEventData, got %T", events[0].Data)
+	}
+	if msgData.Content != "Bold and green text" {
+		t.Errorf("ANSI not stripped from text message: got %q", msgData.Content)
+	}
+}
+
+// TestOpenCodeRunner_ANSIStrippedFromToolResult verifies ANSI escape sequences
+// are removed from tool result output.
+func TestOpenCodeRunner_ANSIStrippedFromToolResult(t *testing.T) {
+	runner := &OpenCodeRunner{}
+	runID := uuid.New()
+
+	line := `{"type":"tool_result","timestamp":1766204179000,"sessionID":"ses_test","part":{"id":"prt_test","sessionID":"ses_test","messageID":"msg_test","type":"tool-result","tool":"bash","callID":"call_test","output":"\u001b[34mdir1\u001b[0m  \u001b[32mfile.txt\u001b[0m"}}`
+	events, err := runner.parseStreamEvents(runID, line)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(events) == 0 {
+		t.Fatal("expected at least 1 event")
+	}
+
+	found := false
+	for _, event := range events {
+		if resultData, ok := event.Data.(*domain.ToolResultEventData); ok {
+			found = true
+			if resultData.Output != "dir1  file.txt" {
+				t.Errorf("ANSI not stripped from tool result: got %q", resultData.Output)
+			}
+		}
+	}
+	if !found {
+		t.Error("no ToolResultEventData found")
+	}
+}
+
+// TestOpenCodeRunner_ANSIStrippedFromCompletedToolUse verifies ANSI sequences
+// are stripped from completed tool_use events (bundled call + result).
+func TestOpenCodeRunner_ANSIStrippedFromCompletedToolUse(t *testing.T) {
+	runner := &OpenCodeRunner{}
+	runID := uuid.New()
+
+	line := `{"type":"tool_use","timestamp":1766204179000,"sessionID":"ses_test","part":{"id":"prt_test","sessionID":"ses_test","messageID":"msg_test","type":"tool","callID":"call_test","tool":"bash","state":{"status":"completed","input":{"command":"ls --color"},"output":"\u001b[34mdir1\u001b[0m\n\u001b[32mfile.txt\u001b[0m"}}}`
+	events, err := runner.parseStreamEvents(runID, line)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Find the tool result event (should have call + result)
+	for _, event := range events {
+		if resultData, ok := event.Data.(*domain.ToolResultEventData); ok {
+			if resultData.Output != "dir1\nfile.txt" {
+				t.Errorf("ANSI not stripped from completed tool_use output: got %q", resultData.Output)
+			}
+			return
+		}
+	}
+	t.Error("no ToolResultEventData found in completed tool_use events")
+}
+
+// TestOpenCodeRunner_ANSIStrippedFromSnapshot verifies ANSI sequences are
+// stripped from the step_finish Snapshot field used for assistant messages.
+func TestOpenCodeRunner_ANSIStrippedFromSnapshot(t *testing.T) {
+	runner := &OpenCodeRunner{}
+	runID := uuid.New()
+
+	part := &OpenCodePart{
+		Snapshot: "\x1b[1mDone!\x1b[0m The file was created.",
+	}
+	event := runner.extractAssistantMessage(runID, part)
+	if event == nil {
+		t.Fatal("expected event, got nil")
+	}
+	msgData, ok := event.Data.(*domain.MessageEventData)
+	if !ok {
+		t.Fatalf("expected MessageEventData, got %T", event.Data)
+	}
+	if msgData.Content != "Done! The file was created." {
+		t.Errorf("ANSI not stripped from snapshot: got %q", msgData.Content)
+	}
+}
+
+// TestOpenCodeRunner_ANSIStrippedFromErrorMessage verifies ANSI sequences
+// are stripped from error event messages.
+func TestOpenCodeRunner_ANSIStrippedFromErrorMessage(t *testing.T) {
+	runner := &OpenCodeRunner{}
+	runID := uuid.New()
+
+	line := `{"type":"error","timestamp":1766204200000,"sessionID":"ses_test","error":{"code":"exec_error","message":"\u001b[31mFailed\u001b[0m: command not found"}}`
+	events, err := runner.parseStreamEvents(runID, line)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+	errData, ok := events[0].Data.(*domain.ErrorEventData)
+	if !ok {
+		t.Fatalf("expected ErrorEventData, got %T", events[0].Data)
+	}
+	if errData.Message != "Failed: command not found" {
+		t.Errorf("ANSI not stripped from error message: got %q", errData.Message)
+	}
+}
+
+// TestOpenCodeRunner_NonJSONANSILinesSkipped verifies pure ANSI lines
+// that aren't valid JSON are silently skipped.
+func TestOpenCodeRunner_NonJSONANSILinesSkipped(t *testing.T) {
+	runner := &OpenCodeRunner{}
+	runID := uuid.New()
+
+	ansiLines := []string{
+		"\x1b[39;49m\x1b[K\x1b[2m\u2514\x1b[39m\x1b[49m\x1b[0m",
+		"\x1b[1m\x1b[34m>\x1b[0m",
+		"\x1b[H\x1b[2J",
+	}
+
+	for _, line := range ansiLines {
+		events, err := runner.parseStreamEvents(runID, line)
+		if err != nil {
+			t.Errorf("unexpected error for line %q: %v", line, err)
+		}
+		if len(events) != 0 {
+			t.Errorf("expected 0 events for ANSI line %q, got %d", line, len(events))
+		}
+	}
+}
+
+// =============================================================================
+// OPENCODE SYSTEM PROMPT FALLBACK TESTS
+// =============================================================================
+
+func TestOpenCodeRunner_BuildArgs_SystemPrompt(t *testing.T) {
+	r := NewTestOpenCodeRunner()
+
+	t.Run("no system prompt passes prompt directly", func(t *testing.T) {
+		req := ExecuteRequest{
+			RunID:  uuid.New(),
+			Prompt: "fix the tests",
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeOpenCode,
+			},
+		}
+		args := r.BuildArgsForTest(req)
+		// Third arg (index 2) is the prompt
+		if len(args) < 3 {
+			t.Fatalf("expected at least 3 args, got %d", len(args))
+		}
+		if args[2] != "fix the tests" {
+			t.Errorf("prompt arg = %q, want %q", args[2], "fix the tests")
+		}
+	})
+
+	t.Run("system prompt is prepended with tags", func(t *testing.T) {
+		req := ExecuteRequest{
+			RunID:        uuid.New(),
+			Prompt:       "user data",
+			SystemPrompt: "system instructions",
+			Profile: &domain.AgentProfile{
+				RunnerType: domain.RunnerTypeOpenCode,
+			},
+		}
+		args := r.BuildArgsForTest(req)
+		if len(args) < 3 {
+			t.Fatalf("expected at least 3 args, got %d", len(args))
+		}
+		prompt := args[2]
+		if !strings.Contains(prompt, "<system-instructions>") {
+			t.Error("expected <system-instructions> tag in prompt arg")
+		}
+		if !strings.Contains(prompt, "system instructions") {
+			t.Error("expected system prompt content in prompt arg")
+		}
+		if !strings.Contains(prompt, "user data") {
+			t.Error("expected user prompt content in prompt arg")
+		}
+	})
 }

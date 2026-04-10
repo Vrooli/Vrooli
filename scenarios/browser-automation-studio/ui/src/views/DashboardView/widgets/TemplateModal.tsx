@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { X, Play, Globe } from 'lucide-react';
 import ResponsiveDialog from '@shared/layout/ResponsiveDialog';
 import { BrowserUrlBar } from '@/domains/recording';
-import type { Template, TemplateField } from './TemplatesGallery';
+import type { Template, TemplateField } from './templates';
 
 interface TemplateModalProps {
   isOpen: boolean;

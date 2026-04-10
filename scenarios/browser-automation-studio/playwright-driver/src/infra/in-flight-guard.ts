@@ -209,11 +209,11 @@ export function createSetGuard<K>(_config: { name: string }): SetGuard<K> {
   const set = new Set<K>();
 
   return {
-    has: (key: K) => set.has(key),
-    add: (key: K) => { set.add(key); },
-    delete: (key: K) => set.delete(key),
-    size: () => set.size,
-    clear: () => set.clear(),
+    has: (key: K): boolean => set.has(key),
+    add: (key: K): void => { set.add(key); },
+    delete: (key: K): boolean => set.delete(key),
+    size: (): number => set.size,
+    clear: (): void => set.clear(),
   };
 }
 
@@ -246,8 +246,8 @@ export function createWeakSetGuard<K extends WeakKey>(): WeakSetGuard<K> {
   const set = new WeakSet<K>();
 
   return {
-    has: (key: K) => set.has(key),
-    add: (key: K) => { set.add(key); },
-    delete: (key: K) => set.delete(key),
+    has: (key: K): boolean => set.has(key),
+    add: (key: K): void => { set.add(key); },
+    delete: (key: K): boolean => set.delete(key),
   };
 }

@@ -36,7 +36,8 @@ export class SelectHandler extends BaseHandler {
     try {
       // Get typed params from instruction.action (required after migration)
       const typedParams = instruction.action ? getSelectParams(instruction.action) : undefined;
-      const params = this.requireTypedParams(typedParams, 'select', instruction.nodeId);
+      type SelectParams = NonNullable<ReturnType<typeof getSelectParams>>;
+      const params: SelectParams = this.requireTypedParams(typedParams, 'select', instruction.nodeId);
 
       if (!params.selector) {
         return {
@@ -108,8 +109,10 @@ export class SelectHandler extends BaseHandler {
         });
       } else if (params.label !== undefined) {
         // Select by label (string or use first from array)
-        const label = Array.isArray(params.label) ? params.label[0] : params.label;
-        selectedValue = await page.selectOption(params.selector, { label }, { timeout });
+        const label = typeof params.label === 'string' ? params.label : undefined;
+        if (label !== undefined) {
+          selectedValue = await page.selectOption(params.selector, { label }, { timeout });
+        }
         logger.info('Selected by label', {
           selector: params.selector,
           label: params.label,
@@ -117,8 +120,10 @@ export class SelectHandler extends BaseHandler {
         });
       } else if (params.index !== undefined) {
         // Select by index (number or number array)
-        const index = Array.isArray(params.index) ? params.index[0] : params.index;
-        selectedValue = await page.selectOption(params.selector, { index }, { timeout });
+        const index = typeof params.index === 'number' ? params.index : undefined;
+        if (index !== undefined) {
+          selectedValue = await page.selectOption(params.selector, { index }, { timeout });
+        }
         logger.info('Selected by index', {
           selector: params.selector,
           index: params.index,

@@ -23,7 +23,7 @@ import { PromptTesterTab } from './settings/PromptTesterTab';
 import { RateLimitsTab } from './settings/RateLimitsTab';
 import { RecyclerTab } from './settings/RecyclerTab';
 import { AutoSteerTab } from './settings/AutoSteerTab';
-import type { Settings } from '@/types/api';
+import type { Settings, SettingsConstraints } from '@/types/api';
 import { useAppState } from '@/contexts/AppStateContext';
 
 interface SettingsModalProps {
@@ -32,7 +32,9 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
-  const { data: settings, isLoading } = useSettings();
+  const { data: settingsData, isLoading } = useSettings();
+  const settings = settingsData?.settings;
+  const constraints = settingsData?.constraints;
   const saveSettings = useSaveSettings();
   const resetSettings = useResetSettings();
   const { setCachedSettings } = useAppState();
@@ -50,8 +52,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const handleSave = () => {
     if (localSettings) {
       saveSettings.mutate(localSettings, {
-        onSuccess: (updated) => {
-          setCachedSettings(updated);
+        onSuccess: (result) => {
+          setCachedSettings(result.settings);
           onOpenChange(false);
         },
       });
@@ -60,9 +62,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   const handleReset = () => {
     resetSettings.mutate(undefined, {
-      onSuccess: (resetData) => {
-        setLocalSettings(JSON.parse(JSON.stringify(resetData)));
-        setCachedSettings(resetData);
+      onSuccess: (result) => {
+        setLocalSettings(JSON.parse(JSON.stringify(result.settings)));
+        setCachedSettings(result.settings);
       },
     });
   };
@@ -126,6 +128,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               <ProcessorTab
                 settings={localSettings.processor}
                 onChange={(updates) => updateLocalSettings('processor', updates)}
+                constraints={constraints}
               />
             </TabsContent>
 
@@ -133,6 +136,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               <AgentTab
                 settings={localSettings.agent}
                 onChange={(updates) => updateLocalSettings('agent', updates)}
+                constraints={constraints}
               />
             </TabsContent>
 
@@ -151,6 +155,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               <RateLimitsTab
                 settings={localSettings.processor}
                 onChange={(updates) => updateLocalSettings('processor', updates)}
+                constraints={constraints}
               />
             </TabsContent>
 
@@ -158,6 +163,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               <RecyclerTab
                 settings={localSettings.recycler}
                 onChange={(updates) => updateLocalSettings('recycler', updates)}
+                constraints={constraints}
               />
             </TabsContent>
 

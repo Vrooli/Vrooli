@@ -1,0 +1,22 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "documentation-health",
+  "name": "Documentation Health",
+  "description": "Ensure documentation quality, consistency, and bidirectional traceability between code and docs. Includes audit checklist and reference format standards.",
+  "modes": [
+    "steer",
+    "documentation",
+    "audits"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "filetext",
+  "status": "active",
+  "entry": "SKILL.md",
+  "defaultScope": "architecture-scope",
+  "revision": 47,
+  "createdAt": "2026-01-24T00:00:00Z",
+  "updatedAt": "2026-02-06T19:42:45Z"
+}

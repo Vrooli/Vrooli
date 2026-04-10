@@ -1,3 +1,6 @@
+// Package websocket provides WebSocket hub for real-time communication.
+//
+// DOC: docs/architecture/recording.md#manual-recording-websocket-flow
 package websocket
 
 import (
@@ -23,6 +26,20 @@ type Client struct {
 	RecordingSessionID     *string    // Optional: client can subscribe to recording session updates
 	ExecutionFrameStreamID *string    // Optional: client can subscribe to execution frame streaming
 	DriverStatusSubscribed bool       // Optional: client can subscribe to driver status updates
+	ExportSubscriptionID   *string    // Optional: client can subscribe to export progress updates (export ID or execution ID)
+}
+
+// ExportProgress represents progress updates during export rendering.
+// Sent to clients subscribed to export progress via WebSocket.
+type ExportProgress struct {
+	ExportID        string  `json:"export_id"`
+	ExecutionID     string  `json:"execution_id"`
+	Stage           string  `json:"stage"`            // preparing, capturing, encoding, finalizing, completed, failed
+	ProgressPercent float64 `json:"progress_percent"` // 0-100
+	Status          string  `json:"status"`           // processing, completed, failed
+	StorageURL      string  `json:"storage_url,omitempty"`
+	FileSizeBytes   int64   `json:"file_size_bytes,omitempty"`
+	Error           string  `json:"error,omitempty"`
 }
 
 // InputForwarder is a function that forwards input events to the playwright-driver.
@@ -155,12 +172,58 @@ func (h *Hub) BroadcastEnvelope(event any) {
 	h.broadcast <- event
 }
 
-// BroadcastRecordingAction sends a recording action to clients subscribed to a specific session.
-func (h *Hub) BroadcastRecordingAction(sessionID string, action any) {
+// TimelineAction represents an action in the unified timeline format.
+// This matches the UI's expected format for timeline entries.
+type TimelineAction struct {
+	ID          string         `json:"id"`
+	ActionType  string         `json:"actionType"`
+	SequenceNum int            `json:"sequenceNum"`
+	Timestamp   string         `json:"timestamp"`
+	Confidence  float64        `json:"confidence"`
+	URL         string         `json:"url,omitempty"`
+	PageTitle   string         `json:"pageTitle,omitempty"`
+	Selector    map[string]any `json:"selector,omitempty"`
+	Payload     map[string]any `json:"payload,omitempty"`
+}
+
+// UnifiedTimelineEntry represents a unified timeline entry for WebSocket broadcast.
+// This is the single format used for recording actions, replacing the legacy dual-format.
+type UnifiedTimelineEntry struct {
+	ID        string          `json:"id"`
+	Type      string          `json:"type"` // "action" or "page_event"
+	Timestamp string          `json:"timestamp"`
+	PageID    string          `json:"pageId"`
+	Action    *TimelineAction `json:"action,omitempty"`
+}
+
+// BroadcastResult contains metrics from a broadcast operation.
+// Used for observability to track whether broadcasts succeed and reach subscribers.
+//
+// DOC: docs/architecture/recording.md#broadcastresult-metrics
+type BroadcastResult struct {
+	// SubscriberCount is the number of clients subscribed to this session.
+	SubscriberCount int
+	// SentCount is the number of clients that successfully received the message.
+	SentCount int
+	// DroppedCount is the number of clients whose buffers were full (message dropped).
+	DroppedCount int
+}
+
+// BroadcastRecordingEntry sends a unified timeline entry to clients subscribed to a recording session.
+// This replaces the legacy dual-format broadcasting (action + timeline_entry).
+// Returns BroadcastResult with metrics for observability.
+func (h *Hub) BroadcastRecordingEntry(sessionID string, entry *UnifiedTimelineEntry) BroadcastResult {
+	result := BroadcastResult{}
+
+	if entry == nil {
+		h.log.WithField("session_id", sessionID).Warn("BroadcastRecordingEntry: nil entry")
+		return result
+	}
+
 	message := map[string]any{
 		"type":       "recording_action",
 		"session_id": sessionID,
-		"action":     action,
+		"entry":      entry,
 		"timestamp":  getCurrentTimestamp(),
 	}
 
@@ -170,39 +233,30 @@ func (h *Hub) BroadcastRecordingAction(sessionID string, action any) {
 	for client := range h.clients {
 		// Only send to clients subscribed to this recording session
 		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
+			result.SubscriberCount++
 			select {
 			case client.Send <- message:
+				result.SentCount++
 			default:
 				// Client buffer full, skip
+				result.DroppedCount++
+				h.log.WithFields(logrus.Fields{
+					"client_id":  client.ID,
+					"session_id": sessionID,
+					"entry_id":   entry.ID,
+				}).Warn("BroadcastRecordingEntry: client buffer full, message dropped")
 			}
 		}
 	}
-}
 
-// BroadcastRecordingActionWithTimeline sends a recording action with a TimelineEntry.
-// The message includes both the action (for compatibility) and the timeline_entry field.
-func (h *Hub) BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEntry map[string]any) {
-	message := map[string]any{
-		"type":           "recording_action",
-		"session_id":     sessionID,
-		"action":         action,
-		"timeline_entry": timelineEntry,
-		"timestamp":      getCurrentTimestamp(),
+	if result.SubscriberCount == 0 {
+		h.log.WithFields(logrus.Fields{
+			"session_id": sessionID,
+			"entry_id":   entry.ID,
+		}).Debug("BroadcastRecordingEntry: no subscribers")
 	}
 
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-
-	for client := range h.clients {
-		// Only send to clients subscribed to this recording session
-		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
-			select {
-			case client.Send <- message:
-			default:
-				// Client buffer full, skip
-			}
-		}
-	}
+	return result
 }
 
 // RecordingFrame represents a frame pushed from the playwright-driver.
@@ -413,6 +467,51 @@ func (h *Hub) BroadcastPageSwitch(sessionID, activePageID string) {
 	}
 }
 
+// BroadcastExportProgress sends export progress updates to subscribed clients.
+// Clients can subscribe to either a specific export ID or an execution ID.
+func (h *Hub) BroadcastExportProgress(progress *ExportProgress) {
+	if progress == nil {
+		return
+	}
+
+	message := map[string]any{
+		"type":             "export_progress",
+		"export_id":        progress.ExportID,
+		"execution_id":     progress.ExecutionID,
+		"stage":            progress.Stage,
+		"progress_percent": progress.ProgressPercent,
+		"status":           progress.Status,
+		"timestamp":        getCurrentTimestamp(),
+	}
+
+	if progress.StorageURL != "" {
+		message["storage_url"] = progress.StorageURL
+	}
+	if progress.FileSizeBytes > 0 {
+		message["file_size_bytes"] = progress.FileSizeBytes
+	}
+	if progress.Error != "" {
+		message["error"] = progress.Error
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		// Send to clients subscribed to this export or execution
+		if client.ExportSubscriptionID != nil {
+			subID := *client.ExportSubscriptionID
+			if subID == progress.ExportID || subID == progress.ExecutionID {
+				select {
+				case client.Send <- message:
+				default:
+					// Client buffer full, skip (non-blocking)
+				}
+			}
+		}
+	}
+}
+
 // BroadcastDriverStatus sends driver health status to clients subscribed to driver status updates.
 // This enables real-time visibility into the playwright-driver sidecar health.
 func (h *Hub) BroadcastDriverStatus(driverHealth health.DriverHealth) {
@@ -617,6 +716,34 @@ func (c *Client) readPump() {
 			case "unsubscribe_driver_status":
 				c.DriverStatusSubscribed = false
 				c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from driver status")
+			case "subscribe_export":
+				// Subscribe to export progress updates
+				// Can subscribe by export_id or execution_id
+				var subID string
+				if exportID, ok := msg["export_id"].(string); ok && exportID != "" {
+					subID = exportID
+				} else if execID, ok := msg["execution_id"].(string); ok && execID != "" {
+					subID = execID
+				}
+				if subID != "" {
+					c.ExportSubscriptionID = &subID
+					c.Hub.log.WithFields(logrus.Fields{
+						"client_id":       c.ID,
+						"subscription_id": subID,
+					}).Info("Client subscribed to export progress")
+					// Send confirmation
+					select {
+					case c.Send <- map[string]any{
+						"type":            "export_subscribed",
+						"subscription_id": subID,
+						"timestamp":       getCurrentTimestamp(),
+					}:
+					default:
+					}
+				}
+			case "unsubscribe_export":
+				c.ExportSubscriptionID = nil
+				c.Hub.log.WithField("client_id", c.ID).Info("Client unsubscribed from export progress")
 			}
 		}
 	}

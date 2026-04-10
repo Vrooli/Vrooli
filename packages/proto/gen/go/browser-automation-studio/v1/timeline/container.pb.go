@@ -142,7 +142,7 @@ var File_browser_automation_studio_v1_timeline_container_proto protoreflect.File
 
 const file_browser_automation_studio_v1_timeline_container_proto_rawDesc = "" +
 	"\n" +
-	"5browser-automation-studio/v1/timeline/container.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a1browser-automation-studio/v1/timeline/entry.proto\"\xd0\x03\n" +
+	"5browser-automation-studio/v1/timeline/container.proto\x12\x1cbrowser_automation_studio.v1\x1a.browser-automation-studio/v1/base/shared.proto\x1a1browser-automation-studio/v1/timeline/entry.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd0\x03\n" +
 	"\x11ExecutionTimeline\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +

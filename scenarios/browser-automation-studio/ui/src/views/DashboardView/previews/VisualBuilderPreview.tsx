@@ -55,7 +55,7 @@ export const VisualBuilderPreview: React.FC<{ isActive: boolean }> = ({ isActive
       purple: { bg: 'bg-purple-500/20', border: 'border-purple-500/40', text: 'text-purple-300' },
       emerald: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-300' },
     };
-    return colors[color] || colors.blue;
+    return colors[color] ?? { bg: 'bg-blue-500/20', border: 'border-blue-500/40', text: 'text-blue-300' };
   };
 
   return (

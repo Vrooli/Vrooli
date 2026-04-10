@@ -207,7 +207,9 @@ func (s *syncer) Sync(ctx context.Context, index *parsing.ModuleIndex, evidence 
 
 		// Write sync metadata
 		if opts.ScenarioRoot != "" {
-			s.writeSyncMetadata(ctx, opts.ScenarioRoot, result)
+			if err := s.writeSyncMetadata(ctx, opts.ScenarioRoot, result); err != nil {
+				result.Errors = append(result.Errors, err)
+			}
 			if err := s.updatePRDOperationalTargets(ctx, index, opts.ScenarioRoot, result.SyncedAt); err != nil {
 				result.Errors = append(result.Errors, err)
 			}
@@ -251,14 +253,14 @@ func (s *syncer) updatePRDOperationalTargets(ctx context.Context, index *parsing
 	}
 
 	backupDir := filepath.Join(scenarioRoot, "coverage", "requirements-sync", "prd-backups")
-	if err := s.writer.MkdirAll(backupDir, 0755); err != nil {
+	if err := s.writer.MkdirAll(backupDir, 0o755); err != nil {
 		return err
 	}
 	backupPath := filepath.Join(backupDir, "PRD.md."+ts.Format("20060102-150405"))
-	if err := s.writer.WriteFile(backupPath, raw, 0644); err != nil {
+	if err := s.writer.WriteFile(backupPath, raw, 0o644); err != nil {
 		return err
 	}
-	return s.writer.WriteFile(prdPath, []byte(updated), 0644)
+	return s.writer.WriteFile(prdPath, []byte(updated), 0o644)
 }
 
 func desiredOperationalTargetCheckboxes(index *parsing.ModuleIndex) map[string]bool {
@@ -386,7 +388,7 @@ func (s *syncer) writeSyncMetadata(ctx context.Context, scenarioRoot string, res
 
 	// Create sync directory
 	syncDir := filepath.Join(scenarioRoot, sharedartifacts.SyncDir)
-	if err := s.writer.MkdirAll(syncDir, 0755); err != nil {
+	if err := s.writer.MkdirAll(syncDir, 0o755); err != nil {
 		return err
 	}
 

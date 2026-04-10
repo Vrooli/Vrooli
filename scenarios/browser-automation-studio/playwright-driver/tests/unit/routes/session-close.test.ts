@@ -61,7 +61,7 @@ describe('Session Close Route', () => {
     await handleSessionClose(mockReq, mockRes, sessionId, sessionManager);
 
     expect(mockRes.statusCode).toBe(200);
-    const json = (mockRes as any).getJSON();
+    const json = mockRes.getJSON();
     expect(json.success).toBe(true);
   });
 
@@ -95,13 +95,7 @@ describe('Session Close Route', () => {
   });
 
   it('should return video paths when available', async () => {
-    const config = createTestConfig({
-      telemetry: {
-        video: {
-          enabled: true,
-        },
-      },
-    });
+    const config = createTestConfig();
     sessionManager = new SessionManager(config);
 
     const executionId = 'exec-video-123';
@@ -121,8 +115,11 @@ describe('Session Close Route', () => {
       await fs.writeFile(sourcePath, 'fake-video');
 
       session.videoDir = tempDir;
-      (session.pages[0] as any).video = () => ({
-        path: async () => sourcePath,
+      const pageWithVideo = session.pages[0] as unknown as {
+        video: () => { path: () => Promise<string | null> };
+      };
+      pageWithVideo.video = (): { path: () => Promise<string | null> } => ({
+        path: (): Promise<string | null> => Promise.resolve(sourcePath),
       });
 
       const mockReq = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/close` });
@@ -131,7 +128,7 @@ describe('Session Close Route', () => {
       await handleSessionClose(mockReq, mockRes, sessionId, sessionManager);
 
       expect(mockRes.statusCode).toBe(200);
-      const json = (mockRes as any).getJSON();
+      const json = mockRes.getJSON();
       const expectedPath = path.join(tempDir, `execution-${executionId}-page-1.webm`);
       expect(json.video_paths).toEqual([expectedPath]);
     } finally {

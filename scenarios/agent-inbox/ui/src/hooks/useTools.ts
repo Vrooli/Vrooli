@@ -6,29 +6,26 @@
  *
  * ARCHITECTURE:
  * - Uses react-query for caching and state management
- * - Separate queries for global vs chat-specific tool sets
- * - Optimistic updates for responsive UI
- * - Automatic cache invalidation on mutations
+ * - Mutations extracted to useToolMutations.ts
+ * - This file handles queries, derived data, and action wrappers
  *
  * TESTING SEAMS:
  * - All API calls go through the api.ts module
  * - Query client can be mocked in tests
  */
 
-import { useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   fetchToolSet,
   fetchScenarioStatuses,
-  setToolEnabled,
-  setToolApproval,
-  resetToolConfig,
-  refreshTools,
   type ToolSet,
   type ScenarioStatus,
   type EffectiveTool,
   type ApprovalOverride,
+  type DiscoveryResult,
 } from "../lib/api";
+import { useToolMutations } from "./useToolMutations";
 
 // Query keys for cache management
 export const toolQueryKeys = {
@@ -37,55 +34,40 @@ export const toolQueryKeys = {
   scenarios: () => [...toolQueryKeys.all, "scenarios"] as const,
 };
 
+// Stable empty arrays/maps to prevent creating new references on every render.
+const EMPTY_TOOLS: EffectiveTool[] = [];
+const EMPTY_SCENARIO_MAP: Map<string, EffectiveTool[]> = new Map();
+const EMPTY_CATEGORY_MAP: Map<string, EffectiveTool[]> = new Map();
+
 export interface UseToolsOptions {
-  /** Chat ID for chat-specific tool configurations */
   chatId?: string;
-  /** Whether to fetch tools on mount (default: true) */
   enabled?: boolean;
 }
 
 export interface UseToolsReturn {
-  // Data
   toolSet: ToolSet | undefined;
   scenarios: ScenarioStatus[] | undefined;
   enabledTools: EffectiveTool[];
   toolsByScenario: Map<string, EffectiveTool[]>;
   toolsByCategory: Map<string, EffectiveTool[]>;
-
-  // Loading states
   isLoading: boolean;
   isLoadingScenarios: boolean;
-  isRefreshing: boolean;
+  isSyncing: boolean;
   isUpdating: boolean;
-
-  // Error states
   error: Error | null;
   scenariosError: Error | null;
-
-  // Actions
   toggleTool: (scenario: string, toolName: string, enabled: boolean) => Promise<void>;
   setApproval: (scenario: string, toolName: string, override: ApprovalOverride) => Promise<void>;
   resetTool: (scenario: string, toolName: string) => Promise<void>;
-  refreshToolRegistry: () => Promise<void>;
+  syncDiscoveredTools: () => Promise<DiscoveryResult>;
   refetch: () => void;
+  enableToolsByIds: (toolIds: string[]) => Promise<void>;
 }
 
-/**
- * Hook for managing tool configurations.
- *
- * @example
- * // Global tools (Settings modal)
- * const { toolSet, toggleTool } = useTools();
- *
- * @example
- * // Chat-specific tools
- * const { toolSet, toggleTool } = useTools({ chatId: "abc-123" });
- */
 export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
   const { chatId, enabled = true } = options;
-  const queryClient = useQueryClient();
 
-  // Fetch tool set (global or chat-specific)
+  // Fetch tool set
   const {
     data: toolSet,
     isLoading,
@@ -95,7 +77,11 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     queryKey: toolQueryKeys.toolSet(chatId),
     queryFn: () => fetchToolSet(chatId),
     enabled,
-    staleTime: 60_000, // 1 minute
+    staleTime: 60_000,
+    gcTime: 300_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   // Fetch scenario statuses
@@ -107,151 +93,31 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     queryKey: toolQueryKeys.scenarios(),
     queryFn: fetchScenarioStatuses,
     enabled,
-    staleTime: 30_000, // 30 seconds
+    staleTime: 30_000,
+    gcTime: 300_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
-  // Toggle tool enabled state
-  const toggleMutation = useMutation({
-    mutationFn: async ({
-      scenario,
-      toolName,
-      enabled: newEnabled,
-    }: {
-      scenario: string;
-      toolName: string;
-      enabled: boolean;
-    }) => {
-      await setToolEnabled({
-        chat_id: chatId,
-        scenario,
-        tool_name: toolName,
-        enabled: newEnabled,
-      });
-    },
-    onMutate: async ({ scenario, toolName, enabled: newEnabled }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
-
-      // Snapshot previous value
-      const previousToolSet = queryClient.getQueryData<ToolSet>(toolQueryKeys.toolSet(chatId));
-
-      // Optimistically update
-      if (previousToolSet) {
-        queryClient.setQueryData<ToolSet>(toolQueryKeys.toolSet(chatId), {
-          ...previousToolSet,
-          tools: previousToolSet.tools.map((t) =>
-            t.scenario === scenario && t.tool.name === toolName
-              ? { ...t, enabled: newEnabled, source: chatId ? "chat" : "global" }
-              : t
-          ),
-        });
-      }
-
-      return { previousToolSet };
-    },
-    onError: (_err, _variables, context) => {
-      // Rollback on error
-      if (context?.previousToolSet) {
-        queryClient.setQueryData(toolQueryKeys.toolSet(chatId), context.previousToolSet);
-      }
-    },
-    onSettled: () => {
-      // Refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
-    },
-  });
-
-  // Set tool approval override
-  const approvalMutation = useMutation({
-    mutationFn: async ({
-      scenario,
-      toolName,
-      override,
-    }: {
-      scenario: string;
-      toolName: string;
-      override: ApprovalOverride;
-    }) => {
-      await setToolApproval(scenario, toolName, override, chatId);
-    },
-    onMutate: async ({ scenario, toolName, override }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
-
-      // Snapshot previous value
-      const previousToolSet = queryClient.getQueryData<ToolSet>(toolQueryKeys.toolSet(chatId));
-
-      // Optimistically update
-      if (previousToolSet) {
-        queryClient.setQueryData<ToolSet>(toolQueryKeys.toolSet(chatId), {
-          ...previousToolSet,
-          tools: previousToolSet.tools.map((t) => {
-            if (t.scenario === scenario && t.tool.name === toolName) {
-              // Compute effective requires_approval based on override
-              let requiresApproval = t.tool.metadata.requires_approval;
-              if (override === "require") {
-                requiresApproval = true;
-              } else if (override === "skip") {
-                requiresApproval = false;
-              }
-              return {
-                ...t,
-                requires_approval: requiresApproval,
-                approval_override: override,
-                approval_source: chatId ? "chat" : "global",
-              };
-            }
-            return t;
-          }),
-        });
-      }
-
-      return { previousToolSet };
-    },
-    onError: (_err, _variables, context) => {
-      // Rollback on error
-      if (context?.previousToolSet) {
-        queryClient.setQueryData(toolQueryKeys.toolSet(chatId), context.previousToolSet);
-      }
-    },
-    onSettled: () => {
-      // Refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
-    },
-  });
-
-  // Reset tool to default
-  const resetMutation = useMutation({
-    mutationFn: async ({ scenario, toolName }: { scenario: string; toolName: string }) => {
-      await resetToolConfig(scenario, toolName, chatId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
-    },
-  });
-
-  // Refresh tool registry
-  const refreshMutation = useMutation({
-    mutationFn: refreshTools,
-    onSuccess: () => {
-      // Invalidate all tool queries
-      queryClient.invalidateQueries({ queryKey: toolQueryKeys.all });
-    },
-  });
+  // Mutations from extracted module
+  const { toggleMutation, approvalMutation, resetMutation, syncMutation } =
+    useToolMutations({ chatId });
 
   // Derived data: enabled tools only
-  // CRITICAL: Must memoize to prevent creating new arrays on every render
-  // which would cause infinite re-render loops in consuming components
-  const enabledTools = useMemo(
-    () => toolSet?.tools.filter((t) => t.enabled) ?? [],
-    [toolSet?.tools]
-  );
+  const enabledTools = useMemo(() => {
+    const tools = toolSet?.tools;
+    if (!tools || tools.length === 0) return EMPTY_TOOLS;
+    const filtered = tools.filter((t) => t.enabled);
+    return filtered.length === 0 ? EMPTY_TOOLS : filtered;
+  }, [toolSet?.tools]);
 
   // Derived data: tools grouped by scenario
-  // CRITICAL: Must memoize Map creation to prevent new references on every render
   const toolsByScenario = useMemo(() => {
+    const tools = toolSet?.tools;
+    if (!tools || tools.length === 0) return EMPTY_SCENARIO_MAP;
     const map = new Map<string, EffectiveTool[]>();
-    for (const tool of toolSet?.tools ?? []) {
+    for (const tool of tools) {
       const existing = map.get(tool.scenario) ?? [];
       map.set(tool.scenario, [...existing, tool]);
     }
@@ -259,10 +125,11 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
   }, [toolSet?.tools]);
 
   // Derived data: tools grouped by category
-  // CRITICAL: Must memoize Map creation to prevent new references on every render
   const toolsByCategory = useMemo(() => {
+    const tools = toolSet?.tools;
+    if (!tools || tools.length === 0) return EMPTY_CATEGORY_MAP;
     const map = new Map<string, EffectiveTool[]>();
-    for (const tool of toolSet?.tools ?? []) {
+    for (const tool of tools) {
       const category = tool.tool.category ?? "uncategorized";
       const existing = map.get(category) ?? [];
       map.set(category, [...existing, tool]);
@@ -270,41 +137,113 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     return map;
   }, [toolSet?.tools]);
 
-  return {
-    // Data
-    toolSet,
-    scenarios,
-    enabledTools,
-    toolsByScenario,
-    toolsByCategory,
-
-    // Loading states
-    isLoading,
-    isLoadingScenarios,
-    isRefreshing: refreshMutation.isPending,
-    isUpdating: toggleMutation.isPending || approvalMutation.isPending || resetMutation.isPending,
-
-    // Error states
-    error: error as Error | null,
-    scenariosError: scenariosError as Error | null,
-
-    // Actions
-    toggleTool: async (scenario, toolName, enabled) => {
+  // Memoized action functions
+  const toggleTool = useCallback(
+    async (scenario: string, toolName: string, enabled: boolean) => {
       await toggleMutation.mutateAsync({ scenario, toolName, enabled });
     },
-    setApproval: async (scenario, toolName, override) => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [toggleMutation.mutateAsync]
+  );
+
+  const setApproval = useCallback(
+    async (scenario: string, toolName: string, override: ApprovalOverride) => {
       await approvalMutation.mutateAsync({ scenario, toolName, override });
     },
-    resetTool: async (scenario, toolName) => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [approvalMutation.mutateAsync]
+  );
+
+  const resetTool = useCallback(
+    async (scenario: string, toolName: string) => {
       await resetMutation.mutateAsync({ scenario, toolName });
     },
-    refreshToolRegistry: async () => {
-      await refreshMutation.mutateAsync();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resetMutation.mutateAsync]
+  );
+
+  const syncDiscoveredTools = useCallback(async () => {
+    return await syncMutation.mutateAsync();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncMutation.mutateAsync]);
+
+  const refetchTools = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
+  const enableToolsByIds = useCallback(
+    async (toolIds: string[]) => {
+      for (const toolId of toolIds) {
+        const parts = toolId.split(':');
+        let scenario: string | undefined;
+        let toolName: string | undefined;
+
+        if (parts.length === 2) {
+          [scenario, toolName] = parts;
+        } else {
+          toolName = toolId;
+          for (const [scenarioKey, tools] of toolsByScenario.entries()) {
+            if (tools.some(t => t.tool.name === toolId)) {
+              scenario = scenarioKey;
+              break;
+            }
+          }
+        }
+
+        if (scenario && toolName) {
+          await toggleMutation.mutateAsync({ scenario, toolName, enabled: true });
+        }
+      }
     },
-    refetch: () => {
-      refetch();
-    },
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [toolsByScenario, toggleMutation.mutateAsync]
+  );
+
+  const isSyncing = syncMutation.isPending;
+  const isUpdating = toggleMutation.isPending || approvalMutation.isPending || resetMutation.isPending;
+  const errorValue = error as Error | null;
+  const scenariosErrorValue = scenariosError as Error | null;
+
+  return useMemo(
+    () => ({
+      toolSet,
+      scenarios,
+      enabledTools,
+      toolsByScenario,
+      toolsByCategory,
+      isLoading,
+      isLoadingScenarios,
+      isSyncing,
+      isUpdating,
+      error: errorValue,
+      scenariosError: scenariosErrorValue,
+      toggleTool,
+      setApproval,
+      resetTool,
+      syncDiscoveredTools,
+      refetch: refetchTools,
+      enableToolsByIds,
+    }),
+    [
+      toolSet,
+      scenarios,
+      enabledTools,
+      toolsByScenario,
+      toolsByCategory,
+      isLoading,
+      isLoadingScenarios,
+      isSyncing,
+      isUpdating,
+      errorValue,
+      scenariosErrorValue,
+      toggleTool,
+      setApproval,
+      resetTool,
+      syncDiscoveredTools,
+      refetchTools,
+      enableToolsByIds,
+    ]
+  );
 }
 
 /**

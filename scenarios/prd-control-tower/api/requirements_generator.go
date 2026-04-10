@@ -22,17 +22,21 @@ type PRDPreValidationResult struct {
 
 // validatePRDForRequirements checks if the PRD is properly formatted for requirements generation
 // It validates that operational targets exist and use the correct format
-func validatePRDForRequirements(entityType, entityName string) PRDPreValidationResult {
-	vrooliRoot, err := getVrooliRoot()
+func validatePRDForRequirements(entityType, entityName string, customPath ...string) PRDPreValidationResult {
+	cp := ""
+	if len(customPath) > 0 {
+		cp = customPath[0]
+	}
+	entityBaseDir, err := resolveEntityBaseDir(entityType, entityName, cp)
 	if err != nil {
 		return PRDPreValidationResult{
 			Valid:   false,
-			Issues:  []string{"Failed to determine Vrooli root directory"},
-			FixHint: "Ensure VROOLI_ROOT is set or you're in the Vrooli project",
+			Issues:  []string{"Failed to determine entity base directory"},
+			FixHint: "Ensure VROOLI_ROOT is set or use --path to specify a custom directory",
 		}
 	}
 
-	prdPath := filepath.Join(vrooliRoot, entityType+"s", entityName, "PRD.md")
+	prdPath := filepath.Join(entityBaseDir, "PRD.md")
 	content, err := os.ReadFile(prdPath)
 	if err != nil {
 		return PRDPreValidationResult{
@@ -161,8 +165,9 @@ func validateModernTargetFormat(content string) []string {
 type RequirementsGenerateRequest struct {
 	EntityType string `json:"entity_type"`
 	EntityName string `json:"entity_name"`
-	Context    string `json:"context,omitempty"` // Additional context for AI generation
-	Model      string `json:"model,omitempty"`   // Override OpenRouter model
+	Context    string `json:"context,omitempty"`     // Additional context for AI generation
+	Model      string `json:"model,omitempty"`       // Override OpenRouter model
+	CustomPath string `json:"custom_path,omitempty"` // Override base directory for PRD/requirements
 }
 
 // RequirementsGenerateResponse represents the result of requirements generation
@@ -182,15 +187,15 @@ type RequirementsGenerateResponse struct {
 
 // GeneratedRequirement represents a single requirement from AI generation
 type GeneratedRequirement struct {
-	ID          string                      `json:"id"`
-	Title       string                      `json:"title"`
-	Description string                      `json:"description"`
-	PRDRef      string                      `json:"prd_ref"`
-	Criticality string                      `json:"criticality"`
-	Category    string                      `json:"category"`
-	Status      string                      `json:"status"`
-	Validation  GeneratedValidation         `json:"validation"`
-	Dependencies []string                   `json:"dependencies,omitempty"`
+	ID           string              `json:"id"`
+	Title        string              `json:"title"`
+	Description  string              `json:"description"`
+	PRDRef       string              `json:"prd_ref"`
+	Criticality  string              `json:"criticality"`
+	Category     string              `json:"category"`
+	Status       string              `json:"status"`
+	Validation   GeneratedValidation `json:"validation"`
+	Dependencies []string            `json:"dependencies,omitempty"`
 }
 
 // GeneratedValidation represents validation phases for a requirement
@@ -236,18 +241,18 @@ func handleRequirementsGenerate(w http.ResponseWriter, r *http.Request) {
 }
 
 func executeRequirementsGenerate(req RequirementsGenerateRequest) (RequirementsGenerateResponse, int) {
-	vrooliRoot, err := getVrooliRoot()
+	entityBaseDir, err := resolveEntityBaseDir(req.EntityType, req.EntityName, req.CustomPath)
 	if err != nil {
 		return RequirementsGenerateResponse{
 			EntityType: req.EntityType,
 			EntityName: req.EntityName,
 			Success:    false,
-			Message:    fmt.Sprintf("Failed to get Vrooli root: %v", err),
+			Message:    fmt.Sprintf("Failed to resolve entity directory: %v", err),
 		}, http.StatusInternalServerError
 	}
 
 	// Step 0: Validate PRD format before proceeding
-	prdValidation := validatePRDForRequirements(req.EntityType, req.EntityName)
+	prdValidation := validatePRDForRequirements(req.EntityType, req.EntityName, req.CustomPath)
 	if !prdValidation.Valid {
 		message := "PRD validation failed. Fix PRD issues before generating requirements.\n\nIssues:\n"
 		for _, issue := range prdValidation.Issues {
@@ -265,7 +270,7 @@ func executeRequirementsGenerate(req RequirementsGenerateRequest) (RequirementsG
 	}
 
 	// Step 1: Extract operational targets from PRD
-	targets, err := extractOperationalTargets(req.EntityType, req.EntityName)
+	targets, err := extractOperationalTargets(req.EntityType, req.EntityName, req.CustomPath)
 	if err != nil {
 		return RequirementsGenerateResponse{
 			EntityType: req.EntityType,
@@ -341,13 +346,7 @@ func executeRequirementsGenerate(req RequirementsGenerateRequest) (RequirementsG
 	}
 
 	// Step 4: Write requirements files
-	var entityDir string
-	if req.EntityType == EntityTypeScenario {
-		entityDir = "scenarios"
-	} else {
-		entityDir = "resources"
-	}
-	requirementsDir := filepath.Join(vrooliRoot, entityDir, req.EntityName, "requirements")
+	requirementsDir := filepath.Join(entityBaseDir, "requirements")
 
 	filesCreated, err := writeRequirementsFiles(requirementsDir, requirements, req.EntityName, targets)
 	if err != nil {
@@ -447,14 +446,14 @@ func buildFollowUpRequirementsPrompt(entityType, entityName string, uncoveredTar
 		parts := strings.Split(req.ID, "-")
 		if len(parts) >= 3 {
 			var num int
-			fmt.Sscanf(parts[2], "%d", &num)
+			_, _ = fmt.Sscanf(parts[2], "%d", &num)
 			if num > maxNums[crit] {
 				maxNums[crit] = num
 			}
 		}
 	}
 
-	prompt.WriteString(fmt.Sprintf("## Starting Requirement Numbers\n"))
+	prompt.WriteString("## Starting Requirement Numbers\n")
 	prompt.WriteString(fmt.Sprintf("- P0: Start from REQ-P0-%03d\n", maxNums["P0"]+1))
 	prompt.WriteString(fmt.Sprintf("- P1: Start from REQ-P1-%03d\n", maxNums["P1"]+1))
 	prompt.WriteString(fmt.Sprintf("- P2: Start from REQ-P2-%03d\n\n", maxNums["P2"]+1))
@@ -663,7 +662,7 @@ func parseAIRequirementsResponse(response string) ([]GeneratedRequirement, error
 
 func writeRequirementsFiles(requirementsDir string, requirements []GeneratedRequirement, entityName string, targets []OperationalTarget) ([]string, error) {
 	// Create requirements directory if it doesn't exist
-	if err := os.MkdirAll(requirementsDir, 0755); err != nil {
+	if err := os.MkdirAll(requirementsDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create requirements directory: %w", err)
 	}
 
@@ -689,7 +688,7 @@ func writeRequirementsFiles(requirementsDir string, requirements []GeneratedRequ
 		folderName := fmt.Sprintf("%02d-%s", moduleIndex, sanitizeFolderName(target.Title))
 		moduleDir := filepath.Join(requirementsDir, folderName)
 
-		if err := os.MkdirAll(moduleDir, 0755); err != nil {
+		if err := os.MkdirAll(moduleDir, 0o755); err != nil {
 			return filesCreated, fmt.Errorf("failed to create module directory %s: %w", folderName, err)
 		}
 
@@ -709,7 +708,7 @@ func writeRequirementsFiles(requirementsDir string, requirements []GeneratedRequ
 			return filesCreated, fmt.Errorf("failed to marshal module.json: %w", err)
 		}
 
-		if err := os.WriteFile(moduleFile, moduleJSON, 0644); err != nil {
+		if err := os.WriteFile(moduleFile, moduleJSON, 0o644); err != nil {
 			return filesCreated, fmt.Errorf("failed to write module.json: %w", err)
 		}
 		filesCreated = append(filesCreated, moduleFile)
@@ -733,10 +732,10 @@ func writeRequirementsFiles(requirementsDir string, requirements []GeneratedRequ
 	}
 	indexData := map[string]any{
 		"_metadata": map[string]any{
-			"generated_at":    time.Now().Format(time.RFC3339),
-			"generator":       "prd-control-tower",
-			"entity":          entityName,
-			"schema_version":  "1.0",
+			"generated_at":   time.Now().Format(time.RFC3339),
+			"generator":      "prd-control-tower",
+			"entity":         entityName,
+			"schema_version": "1.0",
 		},
 		"imports": imports,
 		"modules": moduleMeta,
@@ -747,7 +746,7 @@ func writeRequirementsFiles(requirementsDir string, requirements []GeneratedRequ
 		return filesCreated, fmt.Errorf("failed to marshal index.json: %w", err)
 	}
 
-	if err := os.WriteFile(indexFile, indexJSON, 0644); err != nil {
+	if err := os.WriteFile(indexFile, indexJSON, 0o644); err != nil {
 		return filesCreated, fmt.Errorf("failed to write index.json: %w", err)
 	}
 	filesCreated = append(filesCreated, indexFile)
@@ -755,7 +754,7 @@ func writeRequirementsFiles(requirementsDir string, requirements []GeneratedRequ
 	// Create README.md
 	readmeFile := filepath.Join(requirementsDir, "README.md")
 	readmeContent := generateRequirementsReadme(entityName, requirements, targets)
-	if err := os.WriteFile(readmeFile, []byte(readmeContent), 0644); err != nil {
+	if err := os.WriteFile(readmeFile, []byte(readmeContent), 0o644); err != nil {
 		return filesCreated, fmt.Errorf("failed to write README.md: %w", err)
 	}
 	filesCreated = append(filesCreated, readmeFile)
@@ -869,9 +868,9 @@ func sanitizeFolderName(name string) string {
 	name = strings.ToLower(name)
 	// Remove common noise words and patterns
 	name = regexp.MustCompile(`\s*\([^)]*\)\s*`).ReplaceAllString(name, "") // Remove parenthetical content
-	name = regexp.MustCompile(`\*[^*]*\*`).ReplaceAllString(name, "")      // Remove *italics*
-	name = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(name, "-")    // Replace non-alphanumeric with dash
-	name = regexp.MustCompile(`-+`).ReplaceAllString(name, "-")            // Collapse multiple dashes
+	name = regexp.MustCompile(`\*[^*]*\*`).ReplaceAllString(name, "")       // Remove *italics*
+	name = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(name, "-")     // Replace non-alphanumeric with dash
+	name = regexp.MustCompile(`-+`).ReplaceAllString(name, "-")             // Collapse multiple dashes
 	name = strings.Trim(name, "-")                                          // Trim leading/trailing dashes
 
 	// Truncate to reasonable length
@@ -916,7 +915,8 @@ func handleRequirementsValidate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	useCache := parseBoolQuery(r, "use_cache", false)
-	response := executeRequirementsValidate(entityType, entityName, useCache)
+	customPath := r.URL.Query().Get("custom_path")
+	response := executeRequirementsValidate(entityType, entityName, useCache, customPath)
 	respondJSON(w, http.StatusOK, response)
 }
 
@@ -926,6 +926,7 @@ type RequirementsFixRequest struct {
 	EntityName string `json:"entity_name"`
 	Context    string `json:"context,omitempty"`
 	Model      string `json:"model,omitempty"`
+	CustomPath string `json:"custom_path,omitempty"` // Override base directory for PRD/requirements
 }
 
 // RequirementsFixResponse represents the result of requirements fix operation
@@ -973,19 +974,18 @@ func handleRequirementsFix(w http.ResponseWriter, r *http.Request) {
 }
 
 func executeRequirementsFix(req RequirementsFixRequest) (RequirementsFixResponse, int) {
-	vrooliRoot, err := getVrooliRoot()
+	entityBaseDir, err := resolveEntityBaseDir(req.EntityType, req.EntityName, req.CustomPath)
 	if err != nil {
 		return RequirementsFixResponse{
 			EntityType: req.EntityType,
 			EntityName: req.EntityName,
 			Success:    false,
-			Message:    fmt.Sprintf("Failed to get Vrooli root: %v", err),
+			Message:    fmt.Sprintf("Failed to resolve entity directory: %v", err),
 		}, http.StatusInternalServerError
 	}
-	_ = vrooliRoot // Used for context, validation uses its own path resolution
 
 	// Step 0: Validate PRD format before proceeding
-	prdValidation := validatePRDForRequirements(req.EntityType, req.EntityName)
+	prdValidation := validatePRDForRequirements(req.EntityType, req.EntityName, req.CustomPath)
 	if !prdValidation.Valid {
 		message := "PRD validation failed. Fix PRD issues before fixing requirements.\n\nIssues:\n"
 		for _, issue := range prdValidation.Issues {
@@ -1003,7 +1003,7 @@ func executeRequirementsFix(req RequirementsFixRequest) (RequirementsFixResponse
 	}
 
 	// Step 1: Get current validation state
-	validation := executeRequirementsValidate(req.EntityType, req.EntityName, false)
+	validation := executeRequirementsValidate(req.EntityType, req.EntityName, false, req.CustomPath)
 
 	// If no requirements exist, suggest using generate instead
 	if validation.Status == "missing" {
@@ -1031,7 +1031,7 @@ func executeRequirementsFix(req RequirementsFixRequest) (RequirementsFixResponse
 	}
 
 	// Step 2: Load existing requirements and targets
-	targets, err := extractOperationalTargets(req.EntityType, req.EntityName)
+	targets, err := extractOperationalTargets(req.EntityType, req.EntityName, req.CustomPath)
 	if err != nil {
 		return RequirementsFixResponse{
 			EntityType: req.EntityType,
@@ -1041,7 +1041,7 @@ func executeRequirementsFix(req RequirementsFixRequest) (RequirementsFixResponse
 		}, http.StatusInternalServerError
 	}
 
-	existingGroups, err := loadRequirementsForEntity(req.EntityType, req.EntityName)
+	existingGroups, err := loadRequirementsForEntity(req.EntityType, req.EntityName, req.CustomPath)
 	if err != nil {
 		return RequirementsFixResponse{
 			EntityType: req.EntityType,
@@ -1101,13 +1101,7 @@ func executeRequirementsFix(req RequirementsFixRequest) (RequirementsFixResponse
 	// Step 5: Merge and write
 	allReqs := mergeRequirements(existingReqs, newReqs)
 
-	var entityDir string
-	if req.EntityType == EntityTypeScenario {
-		entityDir = "scenarios"
-	} else {
-		entityDir = "resources"
-	}
-	requirementsDir := filepath.Join(vrooliRoot, entityDir, req.EntityName, "requirements")
+	requirementsDir := filepath.Join(entityBaseDir, "requirements")
 
 	filesModified, err := writeRequirementsFiles(requirementsDir, allReqs, req.EntityName, targets)
 	if err != nil {
@@ -1121,7 +1115,7 @@ func executeRequirementsFix(req RequirementsFixRequest) (RequirementsFixResponse
 	}
 
 	// Step 6: Re-validate to check remaining issues
-	postValidation := executeRequirementsValidate(req.EntityType, req.EntityName, false)
+	postValidation := executeRequirementsValidate(req.EntityType, req.EntityName, false, req.CustomPath)
 	remainingViolations := len(postValidation.Violations)
 
 	targetsFixed := len(uncoveredTargets) - len(postValidation.UnlinkedTargets)
@@ -1161,20 +1155,24 @@ func convertRecordsToGenerated(records []RequirementRecord) []GeneratedRequireme
 	return result
 }
 
-func executeRequirementsValidate(entityType, entityName string, useCache bool) RequirementsValidateResponse {
+func executeRequirementsValidate(entityType, entityName string, useCache bool, customPath ...string) RequirementsValidateResponse {
+	cp := ""
+	if len(customPath) > 0 {
+		cp = customPath[0]
+	}
 	// Get full quality report which includes requirements validation
-	report, _ := buildQualityReport(entityType, entityName, useCache)
+	report, _ := buildQualityReport(entityType, entityName, useCache, cp)
 
 	// Filter violations to only requirements-related ones
 	var reqViolations []StandardsViolation
 	allViolations := buildStandardsViolationsFromReport(report)
 
 	reqRuleIDs := map[string]bool{
-		"prd_missing_requirements":       true,
-		"requirements_readme":            true,
-		"prd_operational_target_linkage": true,
+		"prd_missing_requirements":         true,
+		"requirements_readme":              true,
+		"prd_operational_target_linkage":   true,
 		"prd_requirements_without_targets": true,
-		"prd_prd_ref_integrity":          true,
+		"prd_prd_ref_integrity":            true,
 	}
 
 	for _, v := range allViolations {

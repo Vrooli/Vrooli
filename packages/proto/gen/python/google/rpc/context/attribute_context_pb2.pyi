@@ -13,11 +13,11 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class AttributeContext(_message.Message):
-    __slots__ = ()
+    __slots__ = ("origin", "source", "destination", "request", "response", "resource", "api", "extensions")
     class Peer(_message.Message):
-        __slots__ = ()
+        __slots__ = ("ip", "port", "labels", "principal", "region_code")
         class LabelsEntry(_message.Message):
-            __slots__ = ()
+            __slots__ = ("key", "value")
             KEY_FIELD_NUMBER: _ClassVar[int]
             VALUE_FIELD_NUMBER: _ClassVar[int]
             key: str
@@ -35,7 +35,7 @@ class AttributeContext(_message.Message):
         region_code: str
         def __init__(self, ip: _Optional[str] = ..., port: _Optional[int] = ..., labels: _Optional[_Mapping[str, str]] = ..., principal: _Optional[str] = ..., region_code: _Optional[str] = ...) -> None: ...
     class Api(_message.Message):
-        __slots__ = ()
+        __slots__ = ("service", "operation", "protocol", "version")
         SERVICE_FIELD_NUMBER: _ClassVar[int]
         OPERATION_FIELD_NUMBER: _ClassVar[int]
         PROTOCOL_FIELD_NUMBER: _ClassVar[int]
@@ -46,7 +46,7 @@ class AttributeContext(_message.Message):
         version: str
         def __init__(self, service: _Optional[str] = ..., operation: _Optional[str] = ..., protocol: _Optional[str] = ..., version: _Optional[str] = ...) -> None: ...
     class Auth(_message.Message):
-        __slots__ = ()
+        __slots__ = ("principal", "audiences", "presenter", "claims", "access_levels")
         PRINCIPAL_FIELD_NUMBER: _ClassVar[int]
         AUDIENCES_FIELD_NUMBER: _ClassVar[int]
         PRESENTER_FIELD_NUMBER: _ClassVar[int]
@@ -59,9 +59,9 @@ class AttributeContext(_message.Message):
         access_levels: _containers.RepeatedScalarFieldContainer[str]
         def __init__(self, principal: _Optional[str] = ..., audiences: _Optional[_Iterable[str]] = ..., presenter: _Optional[str] = ..., claims: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., access_levels: _Optional[_Iterable[str]] = ...) -> None: ...
     class Request(_message.Message):
-        __slots__ = ()
+        __slots__ = ("id", "method", "headers", "path", "host", "scheme", "query", "time", "size", "protocol", "reason", "auth")
         class HeadersEntry(_message.Message):
-            __slots__ = ()
+            __slots__ = ("key", "value")
             KEY_FIELD_NUMBER: _ClassVar[int]
             VALUE_FIELD_NUMBER: _ClassVar[int]
             key: str
@@ -93,9 +93,9 @@ class AttributeContext(_message.Message):
         auth: AttributeContext.Auth
         def __init__(self, id: _Optional[str] = ..., method: _Optional[str] = ..., headers: _Optional[_Mapping[str, str]] = ..., path: _Optional[str] = ..., host: _Optional[str] = ..., scheme: _Optional[str] = ..., query: _Optional[str] = ..., time: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., size: _Optional[int] = ..., protocol: _Optional[str] = ..., reason: _Optional[str] = ..., auth: _Optional[_Union[AttributeContext.Auth, _Mapping]] = ...) -> None: ...
     class Response(_message.Message):
-        __slots__ = ()
+        __slots__ = ("code", "size", "headers", "time", "backend_latency")
         class HeadersEntry(_message.Message):
-            __slots__ = ()
+            __slots__ = ("key", "value")
             KEY_FIELD_NUMBER: _ClassVar[int]
             VALUE_FIELD_NUMBER: _ClassVar[int]
             key: str
@@ -113,16 +113,16 @@ class AttributeContext(_message.Message):
         backend_latency: _duration_pb2.Duration
         def __init__(self, code: _Optional[int] = ..., size: _Optional[int] = ..., headers: _Optional[_Mapping[str, str]] = ..., time: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., backend_latency: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ...) -> None: ...
     class Resource(_message.Message):
-        __slots__ = ()
+        __slots__ = ("service", "name", "type", "labels", "uid", "annotations", "display_name", "create_time", "update_time", "delete_time", "etag", "location")
         class LabelsEntry(_message.Message):
-            __slots__ = ()
+            __slots__ = ("key", "value")
             KEY_FIELD_NUMBER: _ClassVar[int]
             VALUE_FIELD_NUMBER: _ClassVar[int]
             key: str
             value: str
             def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
         class AnnotationsEntry(_message.Message):
-            __slots__ = ()
+            __slots__ = ("key", "value")
             KEY_FIELD_NUMBER: _ClassVar[int]
             VALUE_FIELD_NUMBER: _ClassVar[int]
             key: str

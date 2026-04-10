@@ -1,8 +1,21 @@
 {
   "_metadata": {
-    "description": "Parent registry linking operational targets to technical requirements",
+    "description": "Knowledge Observatory requirement registry mapping operational targets to implementation requirements",
+    "last_validated_at": "2026-01-26T00:00:00.000Z",
     "auto_sync_enabled": true,
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "last_synced_at": "2026-01-26T00:00:00.000Z"
+  },
+  "meta": {
+    "scenario": "knowledge-observatory",
+    "version": "1.0.0",
+    "generated": "2026-01-26",
+    "owners": [
+      {
+        "platform": "knowledge-observatory",
+        "contact": "support@vrooli.com"
+      }
+    ]
   },
   "imports": [
     "01-semantic-search/module.json",
@@ -12,5 +25,203 @@
     "05-cli-commands/module.json",
     "06-health-dashboard/module.json"
   ],
-  "requirements": []
+  "requirements": [
+    {
+      "id": "KO-P0-001",
+      "category": "search",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Semantic search across Qdrant",
+      "description": "Natural-language search returning ranked results across collections",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/search_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Search handler and service tests validate query flow"
+        },
+        {
+          "type": "manual",
+          "ref": "ui/src/surfaces/search/SearchPage.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Search workflow rendered in UI"
+        }
+      ]
+    },
+    {
+      "id": "KO-P0-002",
+      "category": "metrics",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Knowledge quality metrics",
+      "description": "Coherence, freshness, redundancy, and coverage metrics per collection",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/metrics_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Metrics calculations verified in API tests"
+        },
+        {
+          "type": "manual",
+          "ref": "ui/src/surfaces/metrics/MetricsPage.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Metrics panel renders with quality cards"
+        }
+      ]
+    },
+    {
+      "id": "KO-P0-003",
+      "category": "graph",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Knowledge graph access",
+      "description": "API-powered graph endpoint for semantic relationships",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/graph_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Graph service behavior covered by tests"
+        }
+      ]
+    },
+    {
+      "id": "KO-P0-004",
+      "category": "api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "API endpoints for knowledge queries",
+      "description": "Stable REST endpoints for search, health, and graph queries",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Route registration and health handler coverage"
+        }
+      ]
+    },
+    {
+      "id": "KO-P0-005",
+      "category": "cli",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "CLI exploration commands",
+      "description": "CLI workflows for search, health, and graph inspection",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/knowledge-observatory.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "CLI command behavior validated via Bats"
+        }
+      ]
+    },
+    {
+      "id": "KO-P0-006",
+      "category": "ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Operator dashboard UI",
+      "description": "Matrix-style monitoring UI with search, metrics, and health views",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/App.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "UI renders and smoke checks covered"
+        }
+      ]
+    },
+    {
+      "id": "KO-P1-001",
+      "category": "timeline",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Knowledge timeline visualization",
+      "description": "Timeline view of knowledge ingestion and evolution",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "KO-P1-002",
+      "category": "operations",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Bulk knowledge operations",
+      "description": "Prune, merge, and export operations at collection scale",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "KO-P1-003",
+      "category": "lineage",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Scenario contribution tracking",
+      "description": "Trace knowledge entries back to source scenarios",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "KO-P1-004",
+      "category": "diff",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Semantic diffing",
+      "description": "Compare concept evolution over time",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "KO-P1-005",
+      "category": "analysis",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Coverage gap analysis",
+      "description": "Highlight missing topics by collection and scenario",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "KO-P2-001",
+      "category": "visualization",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "3D graph visualization",
+      "description": "Clustered graph UI with 3D layouts",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "KO-P2-002",
+      "category": "recommendations",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "AI-driven recommendations",
+      "description": "Suggest knowledge updates and curation actions",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "KO-P2-003",
+      "category": "export",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Knowledge export/import",
+      "description": "Snapshot and restore knowledge bundles",
+      "status": "planned",
+      "validation": []
+    },
+    {
+      "id": "KO-P2-004",
+      "category": "filters",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "title": "Advanced metadata filtering",
+      "description": "Filter by source, age, quality, and tags",
+      "status": "planned",
+      "validation": []
+    }
+  ]
 }

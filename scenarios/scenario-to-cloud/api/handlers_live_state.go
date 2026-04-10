@@ -10,7 +10,10 @@ import (
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/sshidentity"
+	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
 )
 
@@ -32,12 +35,43 @@ func (s *Server) handleGetLiveState(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
+	identity := s.resolveCanonicalIdentity(dc.Manifest, dc.Deployment)
 
-	result := vps.RunLiveStateInspection(ctx, dc.Manifest, s.sshRunner)
+	result := vps.RunLiveStateInspection(ctx, dc.Manifest, identity, s.sshRunner)
+	if result.OK && result.System != nil {
+		verified := sshidentity.ApplyVerificationResult(
+			identity,
+			sshidentity.VerificationState(result.System.SSH.VerificationState),
+			time.Now().UTC(),
+		)
+		s.persistCanonicalIdentity(ctx, dc.Deployment.ID, verified)
+	}
+	s.enrichCaddyTLS(ctx, &result)
 
 	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
-		"result":    result,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"deployment_id": dc.Deployment.ID,
+		"result":        result,
+		"timestamp":     time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+// handleGetMetricsDebug returns raw system metric command output plus parsed metrics.
+// GET /api/v1/deployments/{id}/metrics-debug
+func (s *Server) handleGetMetricsDebug(w http.ResponseWriter, r *http.Request) {
+	dc := s.FetchDeploymentContext(w, r)
+	if dc == nil {
+		return // Error already written
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+	defer cancel()
+
+	result := vps.RunSystemMetricsDebug(ctx, dc.Manifest, s.sshRunner)
+
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"deployment_id": dc.Deployment.ID,
+		"result":        result,
+		"timestamp":     time.Now().UTC().Format(time.RFC3339),
 	})
 }
 
@@ -68,8 +102,8 @@ func (s *Server) handleGetFiles(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Execute ls -la
-	cmd := "ls -la " + ssh.QuoteSingle(requestedPath)
-	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd)
+	cmd := "ls -la " + shellutil.QuoteSingle(requestedPath)
+	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "ssh_failed",
@@ -135,8 +169,8 @@ func (s *Server) handleGetFileContent(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Get file size first
-	sizeCmd := "stat -c %s " + ssh.QuoteSingle(requestedPath) + " 2>/dev/null || echo -1"
-	sizeResult, _ := s.sshRunner.Run(ctx, dc.SSHConfig, sizeCmd)
+	sizeCmd := "stat -c %s " + shellutil.QuoteSingle(requestedPath) + " 2>/dev/null || echo -1"
+	sizeResult, _ := s.sshRunner.Run(ctx, dc.SSHConfig, sizeCmd, ssh.DefaultRunOptions())
 	fileSize := -1
 	if sizeResult.Stdout != "" {
 		fileSize, _ = parseInt(sizeResult.Stdout)
@@ -145,13 +179,13 @@ func (s *Server) handleGetFileContent(w http.ResponseWriter, r *http.Request) {
 	// Limit file size (1MB max)
 	const maxFileSize = 1024 * 1024
 	truncated := false
-	readCmd := "cat " + ssh.QuoteSingle(requestedPath)
+	readCmd := "cat " + shellutil.QuoteSingle(requestedPath)
 	if fileSize > maxFileSize {
-		readCmd = "head -c " + intToStr(maxFileSize) + " " + ssh.QuoteSingle(requestedPath)
+		readCmd = "head -c " + intToStr(maxFileSize) + " " + shellutil.QuoteSingle(requestedPath)
 		truncated = true
 	}
 
-	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, readCmd)
+	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, readCmd, ssh.DefaultRunOptions())
 	if err != nil {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "ssh_failed",
@@ -181,8 +215,10 @@ func (s *Server) handleGetDrift(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
+	identity := s.resolveCanonicalIdentity(dc.Manifest, dc.Deployment)
 
-	liveState := vps.RunLiveStateInspection(ctx, dc.Manifest, s.sshRunner)
+	liveState := vps.RunLiveStateInspection(ctx, dc.Manifest, identity, s.sshRunner)
+	s.enrichCaddyTLS(ctx, &liveState)
 	if !liveState.OK {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "live_state_failed",
@@ -198,6 +234,21 @@ func (s *Server) handleGetDrift(w http.ResponseWriter, r *http.Request) {
 		"result":    driftReport,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	})
+}
+
+func (s *Server) enrichCaddyTLS(ctx context.Context, result *domain.LiveStateResult) {
+	if result == nil || result.Caddy == nil {
+		return
+	}
+	domainName := strings.TrimSpace(result.Caddy.Domain)
+	if domainName == "" {
+		return
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	snapshot, err := tlsinfo.RunSnapshot(probeCtx, domainName, s.tlsService, s.tlsALPNRunner)
+	result.Caddy.TLS = buildDomainTLSInfo(snapshot, err)
 }
 
 // handleKillProcess kills a specific process on VPS.
@@ -235,7 +286,7 @@ func (s *Server) handleKillProcess(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmd := "kill -" + signal + " " + intToStr(req.PID)
-	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd)
+	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
 			Code:    "kill_failed",
@@ -290,9 +341,9 @@ func (s *Server) handleRestartProcess(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	cmd := ssh.VrooliCommand(dc.Workdir, "vrooli "+req.Type+" restart "+ssh.QuoteSingle(req.ID))
+	cmd := shellutil.VrooliCommand(dc.Workdir, "vrooli "+req.Type+" restart "+shellutil.QuoteSingle(req.ID))
 
-	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd)
+	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd, ssh.DefaultRunOptions())
 	if err != nil {
 		s.appendHistoryEvent(ctx, dc.ID, domain.HistoryEvent{
 			Type:      domain.EventRestarted,
@@ -353,8 +404,8 @@ func (s *Server) handleProcessControl(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	cmd := ssh.VrooliCommand(dc.Workdir, "vrooli "+req.Type+" "+req.Action+" "+ssh.QuoteSingle(req.ID))
-	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd)
+	cmd := shellutil.VrooliCommand(dc.Workdir, "vrooli "+req.Type+" "+req.Action+" "+shellutil.QuoteSingle(req.ID))
+	result, err := s.sshRunner.Run(ctx, dc.SSHConfig, cmd, ssh.DefaultRunOptions())
 
 	response := ProcessControlResponse{
 		Action:    req.Action,

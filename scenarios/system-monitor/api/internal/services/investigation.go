@@ -1,12 +1,13 @@
 package services
+// DOC: docs/concepts/ARCHITECTURE.md#investigation-flow
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"system-monitor-api/internal/agentmanager"
+	"system-monitor-api/internal/apierrors"
 	"system-monitor-api/internal/config"
 	"system-monitor-api/internal/models"
 	"system-monitor-api/internal/repository"
@@ -23,26 +25,71 @@ import (
 
 // InvestigationService handles anomaly investigations
 type InvestigationService struct {
+	log            *slog.Logger
 	config         *config.Config
 	repo           repository.InvestigationRepository
-	alertSvc       *AlertService
-	agentSvc       *agentmanager.AgentService
+	metricsSrc     MetricsSource
+	agentSvc       AgentExecutor
+	clock          Clock
+	configStore    ConfigStore
+	promptStore    ConfigStore
 	mu             sync.RWMutex
 	cooldownPeriod time.Duration
 	lastTrigger    time.Time
 	triggers       map[string]*models.TriggerConfig
+	shutdownCtx    context.Context
+	shutdownCancel context.CancelFunc
+}
+
+// InvestigationOption configures an InvestigationService.
+type InvestigationOption func(*InvestigationService)
+
+// WithInvestigationClock sets the clock used by the investigation service.
+func WithInvestigationClock(c Clock) InvestigationOption {
+	return func(s *InvestigationService) { s.clock = c }
+}
+
+// WithConfigStore sets the config store used by the investigation service.
+func WithConfigStore(cs ConfigStore) InvestigationOption {
+	return func(s *InvestigationService) { s.configStore = cs }
+}
+
+// WithPromptStore sets the prompt template store used by the investigation service.
+func WithPromptStore(cs ConfigStore) InvestigationOption {
+	return func(s *InvestigationService) { s.promptStore = cs }
+}
+
+// WithLogger sets the structured logger used by the investigation service.
+func WithLogger(l *slog.Logger) InvestigationOption {
+	return func(s *InvestigationService) { s.log = l }
 }
 
 // NewInvestigationService creates a new investigation service
-func NewInvestigationService(cfg *config.Config, repo repository.InvestigationRepository, alertSvc *AlertService, agentSvc *agentmanager.AgentService) *InvestigationService {
+func NewInvestigationService(cfg *config.Config, repo repository.InvestigationRepository, metricsSrc MetricsSource, agentSvc AgentExecutor, opts ...InvestigationOption) *InvestigationService {
+	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
 	s := &InvestigationService{
 		config:         cfg,
 		repo:           repo,
-		alertSvc:       alertSvc,
+		metricsSrc:     metricsSrc,
 		agentSvc:       agentSvc,
+		clock:          RealClock{},
 		cooldownPeriod: 5 * time.Minute, // Default 5 minutes
 		lastTrigger:    time.Time{},     // Start with zero time - no cooldown initially
 		triggers:       make(map[string]*models.TriggerConfig),
+		shutdownCtx:    shutdownCtx,
+		shutdownCancel: shutdownCancel,
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	if s.log == nil {
+		s.log = slog.Default()
+	}
+	if s.configStore == nil {
+		s.configStore = &FileConfigStore{basePath: ResolveConfigBasePath()}
+	}
+	if s.promptStore == nil {
+		s.promptStore = &FileConfigStore{basePath: ResolvePromptBasePath()}
 	}
 
 	// Load triggers from configuration file, fallback to defaults if not found
@@ -59,50 +106,55 @@ func NewInvestigationService(cfg *config.Config, repo repository.InvestigationRe
 	return s
 }
 
+// Shutdown cancels the shutdown context, causing any in-flight investigations
+// to be cancelled.
+func (s *InvestigationService) Shutdown() {
+	s.shutdownCancel()
+}
+
 // initializeAgentProfile ensures the agent profile exists in agent-manager.
 func (s *InvestigationService) initializeAgentProfile() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := s.agentSvc.Initialize(ctx, agentmanager.DefaultProfileConfig()); err != nil {
-		log.Printf("[investigation] Warning: failed to initialize agent profile: %v", err)
+		s.log.Warn("failed to initialize agent profile", "error", err)
 	}
 }
 
 // TriggerInvestigation starts a new investigation
 func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix bool, note string) (*models.Investigation, error) {
 	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
-		return nil, fmt.Errorf("agent-manager not enabled")
+		return nil, apierrors.Unavailable("agent-manager")
 	}
 	availabilityCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	if !s.agentSvc.IsAvailable(availabilityCtx) {
-		return nil, fmt.Errorf("agent-manager not available")
+		return nil, apierrors.Unavailable("agent-manager")
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	// Check cooldown
-	if s.lastTrigger.IsZero() == false {
-		elapsed := time.Since(s.lastTrigger)
+	if !s.lastTrigger.IsZero() {
+		elapsed := s.clock.Since(s.lastTrigger)
 		if elapsed < s.cooldownPeriod {
-			return nil, fmt.Errorf("investigation is in cooldown period. Please wait %d seconds", int((s.cooldownPeriod - elapsed).Seconds()))
+			return nil, apierrors.Cooldown(int((s.cooldownPeriod - elapsed).Seconds()))
 		}
 	}
 
-	// Update last trigger time
-	s.lastTrigger = time.Now()
+	now := s.clock.Now()
 
 	// Generate investigation ID
-	investigationID := fmt.Sprintf("inv_%d", time.Now().Unix())
+	investigationID := fmt.Sprintf("inv_%d", now.Unix())
 
 	// Create investigation
 	investigation := &models.Investigation{
 		ID:        investigationID,
-		Status:    "queued",
-		AnomalyID: fmt.Sprintf("ai_investigation_%d", time.Now().Unix()),
-		StartTime: time.Now(),
+		Status:    models.StatusQueued,
+		AnomalyID: fmt.Sprintf("ai_investigation_%d", now.Unix()),
+		StartTime: now,
 		Findings:  "Investigation queued for processing...",
 		Progress:  0,
 		Details:   make(map[string]interface{}),
@@ -119,32 +171,56 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 
 	// Save to repository
 	if err := s.repo.CreateInvestigation(ctx, investigation); err != nil {
-		return nil, fmt.Errorf("failed to create investigation: %w", err)
+		return nil, apierrors.Internal("failed to create investigation", err)
 	}
 
-	// Start investigation in background
-	go s.runInvestigation(investigationID, autoFix, note)
+	// Update last trigger time only after successful creation
+	s.lastTrigger = now
+
+	// Start investigation in background with panic recovery
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.log.Error("investigation panicked", "investigation_id", investigationID, "panic", r)
+				bgCtx := context.Background()
+				_ = s.UpdateInvestigationStatus(bgCtx, investigationID, models.StatusFailed)
+				_ = s.UpdateInvestigationFindings(bgCtx, investigationID,
+					fmt.Sprintf("Investigation failed due to internal error: %v", r), nil)
+			}
+		}()
+		s.runInvestigation(investigationID, autoFix, note)
+	}()
 
 	return investigation, nil
 }
 
 // GetInvestigation retrieves an investigation by ID
 func (s *InvestigationService) GetInvestigation(ctx context.Context, id string) (*models.Investigation, error) {
-	return s.repo.GetInvestigation(ctx, id)
+	inv, err := s.repo.GetInvestigation(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, apierrors.NotFound("investigation", id)
+		}
+		return nil, apierrors.Internal("Unable to retrieve investigation", err)
+	}
+	return inv, nil
 }
 
 // GetLatestInvestigation retrieves the most recent investigation
 func (s *InvestigationService) GetLatestInvestigation(ctx context.Context) (*models.Investigation, error) {
 	investigation, err := s.repo.GetLatestInvestigation(ctx)
 	if err != nil {
-		// Return default if none exists
-		return &models.Investigation{
-			ID:        "inv_default",
-			Status:    "pending",
-			AnomalyID: "none",
-			StartTime: time.Now(),
-			Findings:  "No investigations have been triggered yet. Click 'RUN ANOMALY CHECK' to start an investigation.",
-		}, nil
+		// Only return default for "no investigations found"; propagate real errors
+		if errors.Is(err, repository.ErrNotFound) {
+			return &models.Investigation{
+				ID:        "inv_default",
+				Status:    models.StatusQueued,
+				AnomalyID: "none",
+				StartTime: s.clock.Now(),
+				Findings:  "No investigations have been triggered yet. Click 'RUN ANOMALY CHECK' to start an investigation.",
+			}, nil
+		}
+		return nil, apierrors.Internal("Unable to retrieve latest investigation", err)
 	}
 	return investigation, nil
 }
@@ -157,7 +233,7 @@ func (s *InvestigationService) ListInvestigations(ctx context.Context, limit int
 
 	investigations, err := s.repo.ListInvestigations(ctx, repository.InvestigationFilter{})
 	if err != nil {
-		return nil, err
+		return nil, apierrors.Internal("Unable to list investigations", err)
 	}
 
 	sort.Slice(investigations, func(i, j int) bool {
@@ -175,83 +251,129 @@ func (s *InvestigationService) ListInvestigations(ctx context.Context, limit int
 func (s *InvestigationService) UpdateInvestigationStatus(ctx context.Context, id string, status string) error {
 	investigation, err := s.repo.GetInvestigation(ctx, id)
 	if err != nil {
-		return err
+		if errors.Is(err, repository.ErrNotFound) {
+			return apierrors.NotFound("investigation", id)
+		}
+		return apierrors.Internal("Unable to update investigation status", err)
 	}
 
 	investigation.Status = status
-	if status == "completed" || status == "failed" {
-		now := time.Now()
+	if status == models.StatusCompleted || status == models.StatusFailed {
+		now := s.clock.Now()
 		investigation.EndTime = &now
 	}
 
-	return s.repo.UpdateInvestigation(ctx, investigation)
+	if err := s.repo.UpdateInvestigation(ctx, investigation); err != nil {
+		return apierrors.Internal("Unable to update investigation status", err)
+	}
+	return nil
 }
 
 // UpdateInvestigationFindings updates the findings of an investigation
 func (s *InvestigationService) UpdateInvestigationFindings(ctx context.Context, id string, findings string, details map[string]interface{}) error {
 	investigation, err := s.repo.GetInvestigation(ctx, id)
 	if err != nil {
-		return err
+		if errors.Is(err, repository.ErrNotFound) {
+			return apierrors.NotFound("investigation", id)
+		}
+		return apierrors.Internal("Unable to update investigation findings", err)
 	}
 
 	investigation.Findings = findings
-	if details != nil {
-		for k, v := range details {
-			investigation.Details[k] = v
-		}
+	for k, v := range details {
+		investigation.Details[k] = v
 	}
 
-	return s.repo.UpdateInvestigation(ctx, investigation)
+	if err := s.repo.UpdateInvestigation(ctx, investigation); err != nil {
+		return apierrors.Internal("Unable to update investigation findings", err)
+	}
+	return nil
 }
 
 // UpdateInvestigationProgress updates the progress of an investigation
 func (s *InvestigationService) UpdateInvestigationProgress(ctx context.Context, id string, progress int) error {
 	investigation, err := s.repo.GetInvestigation(ctx, id)
 	if err != nil {
-		return err
+		if errors.Is(err, repository.ErrNotFound) {
+			return apierrors.NotFound("investigation", id)
+		}
+		return apierrors.Internal("Unable to update investigation progress", err)
 	}
 
 	investigation.Progress = progress
-	return s.repo.UpdateInvestigation(ctx, investigation)
+	if err := s.repo.UpdateInvestigation(ctx, investigation); err != nil {
+		return apierrors.Internal("Unable to update investigation progress", err)
+	}
+	return nil
 }
 
 // AddInvestigationStep adds a step to an investigation
 func (s *InvestigationService) AddInvestigationStep(ctx context.Context, id string, step models.InvestigationStep) error {
-	step.StartTime = time.Now()
-	return s.repo.SaveInvestigationStep(ctx, id, &step)
+	step.StartTime = s.clock.Now()
+	if err := s.repo.SaveInvestigationStep(ctx, id, &step); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return apierrors.NotFound("investigation", id)
+		}
+		return apierrors.Internal("Unable to add investigation step", err)
+	}
+	return nil
 }
 
 // runInvestigation performs the actual investigation
 func (s *InvestigationService) runInvestigation(investigationID string, autoFix bool, note string) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(s.shutdownCtx, 10*time.Minute)
 
 	// Update status to in_progress
-	s.UpdateInvestigationStatus(ctx, investigationID, "in_progress")
-	s.UpdateInvestigationProgress(ctx, investigationID, 10)
+	if err := s.UpdateInvestigationStatus(ctx, investigationID, models.StatusInProgress); err != nil {
+		s.log.Error("failed to update investigation status", "investigation_id", investigationID, "error", err)
+	}
+	if err := s.UpdateInvestigationProgress(ctx, investigationID, 10); err != nil {
+		s.log.Error("failed to update investigation progress", "investigation_id", investigationID, "error", err)
+	}
 
 	// Collect current metrics for context
-	cpuUsage := s.getCPUUsage()
-	memoryUsage := s.getMemoryUsage()
-	tcpConnections := s.getTCPConnections()
-	timestamp := time.Now().Format(time.RFC3339)
+	cpuUsage := 15.0
+	memoryUsage := 45.0
+	tcpConnections := 50
+	if s.metricsSrc != nil {
+		if fresh, err := s.metricsSrc.GetCurrentMetricsFresh(ctx); err == nil && fresh != nil {
+			cpuUsage = fresh.CPUUsage
+			memoryUsage = fresh.MemoryUsage
+			tcpConnections = fresh.TCPConnections
+		}
+	}
+	timestamp := s.clock.Now().Format(time.RFC3339)
 
 	// Execute investigation via agent-manager
 	findings, details, ok := s.performInvestigation(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp, autoFix, note)
 
+	// Cancel the long-running context and create a fresh one for final updates
+	cancel()
+	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	// Update investigation with findings
-	s.UpdateInvestigationFindings(ctx, investigationID, findings, details)
-	s.UpdateInvestigationProgress(ctx, investigationID, 100)
+	if err := s.UpdateInvestigationFindings(ctx, investigationID, findings, details); err != nil {
+		s.log.Error("failed to update investigation findings", "investigation_id", investigationID, "error", err)
+	}
+	if err := s.UpdateInvestigationProgress(ctx, investigationID, 100); err != nil {
+		s.log.Error("failed to update investigation progress", "investigation_id", investigationID, "error", err)
+	}
 	current, err := s.repo.GetInvestigation(ctx, investigationID)
 	if err == nil && current != nil {
 		status := strings.ToLower(strings.TrimSpace(current.Status))
-		if status == "stopped" || status == "cancelled" || status == "canceled" {
+		if models.IsTerminalStatus(status) {
 			return
 		}
 	}
 	if ok {
-		s.UpdateInvestigationStatus(ctx, investigationID, "completed")
+		if err := s.UpdateInvestigationStatus(ctx, investigationID, models.StatusCompleted); err != nil {
+			s.log.Error("failed to update investigation status", "investigation_id", investigationID, "status", models.StatusCompleted, "error", err)
+		}
 	} else {
-		s.UpdateInvestigationStatus(ctx, investigationID, "failed")
+		if err := s.UpdateInvestigationStatus(ctx, investigationID, models.StatusFailed); err != nil {
+			s.log.Error("failed to update investigation status", "investigation_id", investigationID, "status", models.StatusFailed, "error", err)
+		}
 	}
 }
 
@@ -303,7 +425,7 @@ func (s *InvestigationService) performAgentManagerInvestigation(ctx context.Cont
 	}
 
 	if err != nil {
-		log.Printf("[investigation] agent-manager execution failed: %v", err)
+		s.log.Error("agent-manager execution failed", "investigation_id", investigationID, "error", err)
 		baseDetails["agent_error"] = truncateAgentLog(err.Error(), 400)
 		return fmt.Sprintf("Investigation failed: %v", err), baseDetails, false
 	}
@@ -368,30 +490,7 @@ Analyze system for anomalies and provide findings.`,
 
 // loadPromptTemplate loads and processes the prompt template
 func (s *InvestigationService) loadPromptTemplate(investigationID string, cpuUsage, memoryUsage float64, tcpConnections int, timestamp, operationMode, note string, autoFix bool) (string, error) {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		homeDir := os.Getenv("HOME")
-		if homeDir == "" {
-			homeDir = "/root"
-		}
-		vrooliRoot = filepath.Join(homeDir, "Vrooli")
-	}
-
-	promptPaths := []string{
-		filepath.Join(vrooliRoot, "scenarios", "system-monitor", "initialization", "claude-code", "anomaly-check.md"),
-		filepath.Join("initialization", "claude-code", "anomaly-check.md"),
-	}
-
-	var promptContent []byte
-	var err error
-
-	for _, path := range promptPaths {
-		promptContent, err = os.ReadFile(path)
-		if err == nil {
-			break
-		}
-	}
-
+	promptContent, err := s.promptStore.ReadConfig("anomaly-check.md")
 	if err != nil {
 		return "", fmt.Errorf("could not read prompt file: %v", err)
 	}
@@ -488,54 +587,7 @@ func removeConditionalSection(input, startToken, endToken string) string {
 }
 
 func (s *InvestigationService) resolveAPIBaseURL() string {
-	port := strings.TrimSpace(s.config.Server.APIPort)
-	if port == "" {
-		port = "8080"
-	}
-	return fmt.Sprintf("http://localhost:%s", port)
-}
-
-// Helper methods to get system metrics
-func (s *InvestigationService) getCPUUsage() float64 {
-	cmd := exec.Command("bash", "-c", "grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$3+$4+$5)} END {print usage}'")
-	output, err := cmd.Output()
-	if err != nil {
-		return 15.0 // Default value
-	}
-
-	usage, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
-	if err != nil {
-		return 15.0
-	}
-	return usage
-}
-
-func (s *InvestigationService) getMemoryUsage() float64 {
-	cmd := exec.Command("bash", "-c", "free | grep Mem | awk '{print ($3/$2) * 100.0}'")
-	output, err := cmd.Output()
-	if err != nil {
-		return 45.0 // Default value
-	}
-
-	usage, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
-	if err != nil {
-		return 45.0
-	}
-	return usage
-}
-
-func (s *InvestigationService) getTCPConnections() int {
-	cmd := exec.Command("bash", "-c", "netstat -tn 2>/dev/null | grep ESTABLISHED | wc -l")
-	output, err := cmd.Output()
-	if err != nil {
-		return 50 // Default value
-	}
-
-	count, err := strconv.Atoi(strings.TrimSpace(string(output)))
-	if err != nil {
-		return 50
-	}
-	return count
+	return s.config.Server.APIBaseURL
 }
 
 // initializeDefaultTriggers sets up default trigger configurations
@@ -610,7 +662,7 @@ func (s *InvestigationService) GetCooldownStatus(ctx context.Context) (*models.C
 	isReady := true
 
 	if !s.lastTrigger.IsZero() {
-		elapsed := time.Since(s.lastTrigger)
+		elapsed := s.clock.Since(s.lastTrigger)
 		if elapsed < s.cooldownPeriod {
 			remainingSeconds = int((s.cooldownPeriod - elapsed).Seconds())
 			isReady = false
@@ -636,17 +688,27 @@ func (s *InvestigationService) ResetCooldown(ctx context.Context) error {
 
 // GetInvestigationAgentStatus returns the investigation for an agent ID.
 func (s *InvestigationService) GetInvestigationAgentStatus(ctx context.Context, id string) (*models.Investigation, error) {
-	return s.repo.GetInvestigation(ctx, id)
+	inv, err := s.repo.GetInvestigation(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, apierrors.NotFound("investigation", id)
+		}
+		return nil, apierrors.Internal("Unable to retrieve investigation status", err)
+	}
+	return inv, nil
 }
 
 // StopInvestigationAgent attempts to stop a running investigation agent.
 func (s *InvestigationService) StopInvestigationAgent(ctx context.Context, id string) error {
 	investigation, err := s.repo.GetInvestigation(ctx, id)
 	if err != nil {
-		return err
+		if errors.Is(err, repository.ErrNotFound) {
+			return apierrors.NotFound("investigation", id)
+		}
+		return apierrors.Internal("Unable to stop investigation", err)
 	}
 
-	if investigation.Status == "completed" || investigation.Status == "failed" || investigation.Status == "stopped" || investigation.Status == "cancelled" {
+	if models.IsTerminalStatus(investigation.Status) {
 		return nil
 	}
 
@@ -660,7 +722,7 @@ func (s *InvestigationService) StopInvestigationAgent(ctx context.Context, id st
 		}
 	}
 
-	return s.UpdateInvestigationStatus(ctx, id, "stopped")
+	return s.UpdateInvestigationStatus(ctx, id, models.StatusStopped)
 }
 
 // GetTriggers returns all trigger configurations
@@ -694,7 +756,7 @@ func (s *InvestigationService) UpdateTrigger(ctx context.Context, id string, ena
 
 	trigger, exists := s.triggers[id]
 	if !exists {
-		return fmt.Errorf("trigger not found: %s", id)
+		return apierrors.NotFound("trigger", id)
 	}
 
 	if enabled != nil {
@@ -708,7 +770,10 @@ func (s *InvestigationService) UpdateTrigger(ctx context.Context, id string, ena
 	}
 
 	// Save to configuration file
-	return s.saveTriggersToConfig()
+	if err := s.saveTriggersToConfig(); err != nil {
+		return apierrors.Internal("Unable to save trigger configuration", err)
+	}
+	return nil
 }
 
 // UpdateCooldownPeriod updates the cooldown period for investigations
@@ -719,17 +784,15 @@ func (s *InvestigationService) UpdateCooldownPeriod(ctx context.Context, periodS
 	s.cooldownPeriod = time.Duration(periodSeconds) * time.Second
 
 	// Save to configuration file
-	return s.saveTriggersToConfig()
+	if err := s.saveTriggersToConfig(); err != nil {
+		return apierrors.Internal("Unable to save cooldown configuration", err)
+	}
+	return nil
 }
 
 // loadTriggersFromConfig loads trigger configuration from JSON file
 func (s *InvestigationService) loadTriggersFromConfig() error {
-	configPath := filepath.Join(os.Getenv("VROOLI_ROOT"), "scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
-	if configPath == "scenarios/system-monitor/initialization/configuration/investigation-triggers.json" {
-		configPath = filepath.Join(os.Getenv("HOME"), "Vrooli/scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
-	}
-
-	data, err := os.ReadFile(configPath)
+	data, err := s.configStore.ReadConfig("investigation-triggers.json")
 	if err != nil {
 		return err
 	}
@@ -889,7 +952,7 @@ func (s *InvestigationService) GetAvailableRunners(ctx context.Context) ([]Runne
 
 	runners, err := s.agentSvc.GetAvailableRunners(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("get runners from agent-manager: %w", err)
+		return nil, apierrors.Internal("Unable to retrieve available runners", err)
 	}
 
 	result := make([]RunnerResponse, 0, len(runners))
@@ -910,7 +973,7 @@ func (s *InvestigationService) GetAvailableRunners(ctx context.Context) ([]Runne
 // UpdateAgentConfig updates the agent profile configuration.
 func (s *InvestigationService) UpdateAgentConfig(ctx context.Context, runnerType, model string, maxTurns, timeoutSeconds int32, allowedTools []string, skipPermissions, requiresSandbox, requiresApproval bool) (*AgentConfigResponse, error) {
 	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
-		return nil, fmt.Errorf("agent-manager not enabled")
+		return nil, apierrors.Unavailable("agent-manager")
 	}
 
 	cfg := &agentmanager.ProfileConfig{
@@ -941,7 +1004,7 @@ func (s *InvestigationService) UpdateAgentConfig(ctx context.Context, runnerType
 
 	profile, err := s.agentSvc.UpdateProfile(ctx, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("update profile: %w", err)
+		return nil, apierrors.Internal("Failed to update agent configuration", err)
 	}
 
 	timeoutSecs := int32(600)
@@ -967,7 +1030,7 @@ func (s *InvestigationService) UpdateAgentConfig(ctx context.Context, runnerType
 // GetAgentStatus returns the current agent-manager status.
 func (s *InvestigationService) GetAgentStatus(ctx context.Context) (*AgentStatusResponse, error) {
 	status := &AgentStatusResponse{
-		Enabled:      s.agentSvc != nil && s.agentSvc.IsEnabled(),
+		Enabled: s.agentSvc != nil && s.agentSvc.IsEnabled(),
 	}
 
 	if !status.Enabled {
@@ -1038,16 +1101,14 @@ func stringToRunnerType(s string) domainpb.RunnerType {
 
 // saveTriggersToConfig saves trigger configuration to JSON file
 func (s *InvestigationService) saveTriggersToConfig() error {
-	configPath := filepath.Join(os.Getenv("VROOLI_ROOT"), "scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
-	if configPath == "scenarios/system-monitor/initialization/configuration/investigation-triggers.json" {
-		configPath = filepath.Join(os.Getenv("HOME"), "Vrooli/scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
-	}
-
 	// Read existing configuration to preserve extra fields
-	existingData, err := os.ReadFile(configPath)
+	existingData, err := s.configStore.ReadConfig("investigation-triggers.json")
 	var existingConfig map[string]interface{}
 	if err == nil {
-		json.Unmarshal(existingData, &existingConfig)
+		if err := json.Unmarshal(existingData, &existingConfig); err != nil {
+			s.log.Warn("failed to unmarshal existing config", "error", err)
+			existingConfig = make(map[string]interface{})
+		}
 	} else {
 		existingConfig = make(map[string]interface{})
 	}
@@ -1101,10 +1162,10 @@ func (s *InvestigationService) saveTriggersToConfig() error {
 
 	// Update metadata
 	if metadata, ok := config["metadata"].(map[string]interface{}); ok {
-		metadata["last_modified"] = time.Now().Format(time.RFC3339)
+		metadata["last_modified"] = s.clock.Now().Format(time.RFC3339)
 	} else {
 		config["metadata"] = map[string]interface{}{
-			"last_modified":  time.Now().Format(time.RFC3339),
+			"last_modified":  s.clock.Now().Format(time.RFC3339),
 			"config_version": "1.0.0",
 		}
 	}
@@ -1114,5 +1175,5 @@ func (s *InvestigationService) saveTriggersToConfig() error {
 		return err
 	}
 
-	return os.WriteFile(configPath, data, 0644)
+	return s.configStore.WriteConfig("investigation-triggers.json", data)
 }

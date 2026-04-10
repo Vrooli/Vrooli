@@ -25,7 +25,7 @@ func TestGenerateLogoDerivatives(t *testing.T) {
 	}
 
 	logoDir := filepath.Join(tmpDir, "logos")
-	if err := os.MkdirAll(logoDir, 0755); err != nil {
+	if err := os.MkdirAll(logoDir, 0o755); err != nil {
 		t.Fatalf("setup dir: %v", err)
 	}
 
@@ -82,7 +82,7 @@ func TestGenerateLogoDerivativesJpeg(t *testing.T) {
 	}
 
 	logoDir := filepath.Join(tmpDir, "logos")
-	if err := os.MkdirAll(logoDir, 0755); err != nil {
+	if err := os.MkdirAll(logoDir, 0o755); err != nil {
 		t.Fatalf("setup dir: %v", err)
 	}
 
@@ -114,11 +114,11 @@ func TestGenerateLogoDerivativesJpeg(t *testing.T) {
 func TestGenerateDerivativesSvgFallback(t *testing.T) {
 	tmpDir := t.TempDir()
 	logoDir := filepath.Join(tmpDir, "logos")
-	if err := os.MkdirAll(logoDir, 0755); err != nil {
+	if err := os.MkdirAll(logoDir, 0o755); err != nil {
 		t.Fatalf("setup dir: %v", err)
 	}
 	srcPath := filepath.Join(logoDir, "logo.svg")
-	if err := os.WriteFile(srcPath, []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"></svg>`), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"></svg>`), 0o644); err != nil {
 		t.Fatalf("write svg: %v", err)
 	}
 
@@ -138,7 +138,7 @@ func TestGenerateDerivativesSvgFallback(t *testing.T) {
 func TestGenerateFaviconDerivatives(t *testing.T) {
 	tmpDir := t.TempDir()
 	favDir := filepath.Join(tmpDir, "favicons")
-	if err := os.MkdirAll(favDir, 0755); err != nil {
+	if err := os.MkdirAll(favDir, 0o755); err != nil {
 		t.Fatalf("setup dir: %v", err)
 	}
 
@@ -175,7 +175,7 @@ func TestGenerateFaviconDerivatives(t *testing.T) {
 func TestGenerateOgDerivatives(t *testing.T) {
 	tmpDir := t.TempDir()
 	ogDir := filepath.Join(tmpDir, "og-images")
-	if err := os.MkdirAll(ogDir, 0755); err != nil {
+	if err := os.MkdirAll(ogDir, 0o755); err != nil {
 		t.Fatalf("setup dir: %v", err)
 	}
 
@@ -224,12 +224,12 @@ func TestGenerateOgDerivatives(t *testing.T) {
 func TestGenerateDerivatives_InvalidImageFailsFast(t *testing.T) {
 	tmpDir := t.TempDir()
 	logoDir := filepath.Join(tmpDir, "logos")
-	if err := os.MkdirAll(logoDir, 0755); err != nil {
+	if err := os.MkdirAll(logoDir, 0o755); err != nil {
 		t.Fatalf("setup dir: %v", err)
 	}
 
 	srcPath := filepath.Join(logoDir, "logo.png")
-	if err := os.WriteFile(srcPath, []byte("not a real image"), 0644); err != nil {
+	if err := os.WriteFile(srcPath, []byte("not a real image"), 0o644); err != nil {
 		t.Fatalf("write corrupt source: %v", err)
 	}
 
@@ -238,7 +238,7 @@ func TestGenerateDerivatives_InvalidImageFailsFast(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected decode error, got nil")
 	}
-	if derivatives != nil && len(derivatives) > 0 {
+	if len(derivatives) > 0 {
 		t.Fatalf("expected no derivatives on failure, got %v", derivatives)
 	}
 
@@ -253,14 +253,14 @@ func TestGenerateDerivatives_InvalidImageFailsFast(t *testing.T) {
 
 func TestAssetsServiceUpload_DisallowedMimeRejectsAndCleansUp(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	tmpDir := t.TempDir()
 	t.Setenv("UPLOAD_DIR", tmpDir)
 
 	svc := NewAssetsService(db)
 	payloadPath := filepath.Join(tmpDir, "payload.txt")
-	if err := os.WriteFile(payloadPath, []byte("not an image"), 0644); err != nil {
+	if err := os.WriteFile(payloadPath, []byte("not an image"), 0o644); err != nil {
 		t.Fatalf("write payload: %v", err)
 	}
 	file, err := os.Open(payloadPath)
@@ -301,7 +301,7 @@ func TestAssetsServiceUpload_DisallowedMimeRejectsAndCleansUp(t *testing.T) {
 
 func TestAssetsServiceUpload_RespectsSizeLimit(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	tmpDir := t.TempDir()
 	t.Setenv("UPLOAD_DIR", tmpDir)
@@ -310,7 +310,7 @@ func TestAssetsServiceUpload_RespectsSizeLimit(t *testing.T) {
 	svc.maxSize = 16
 
 	payloadPath := filepath.Join(tmpDir, "small.png")
-	if err := os.WriteFile(payloadPath, []byte{0, 1, 2, 3}, 0644); err != nil {
+	if err := os.WriteFile(payloadPath, []byte{0, 1, 2, 3}, 0o644); err != nil {
 		t.Fatalf("write payload: %v", err)
 	}
 	file, err := os.Open(payloadPath)
@@ -336,7 +336,7 @@ func TestAssetsServiceUpload_RespectsSizeLimit(t *testing.T) {
 
 func TestAssetsServiceUpload_PersistsBaseFileWhenDerivativesFail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	uploadDir := t.TempDir()
 	t.Setenv("UPLOAD_DIR", uploadDir)
@@ -345,7 +345,7 @@ func TestAssetsServiceUpload_PersistsBaseFileWhenDerivativesFail(t *testing.T) {
 
 	sourceDir := t.TempDir()
 	payloadPath := filepath.Join(sourceDir, "corrupt.png")
-	if err := os.WriteFile(payloadPath, []byte("not a real png"), 0644); err != nil {
+	if err := os.WriteFile(payloadPath, []byte("not a real png"), 0o644); err != nil {
 		t.Fatalf("write corrupt payload: %v", err)
 	}
 	file, err := os.Open(payloadPath)
@@ -370,7 +370,9 @@ func TestAssetsServiceUpload_PersistsBaseFileWhenDerivativesFail(t *testing.T) {
 		t.Fatalf("upload should tolerate derivative failure: %v", err)
 	}
 	t.Cleanup(func() {
-		db.Exec(`DELETE FROM assets WHERE id = $1`, asset.ID)
+		if _, err := db.Exec(`DELETE FROM assets WHERE id = $1`, asset.ID); err != nil {
+			t.Fatalf("failed to cleanup asset: %v", err)
+		}
 	})
 
 	if asset == nil {
@@ -407,7 +409,7 @@ func TestAssetsServiceUpload_PersistsBaseFileWhenDerivativesFail(t *testing.T) {
 
 func TestAssetsServiceUpload_GeneratesDerivativesAndThumbnail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	tmpDir := t.TempDir()
 	t.Setenv("UPLOAD_DIR", tmpDir)
@@ -422,7 +424,7 @@ func TestAssetsServiceUpload_GeneratesDerivativesAndThumbnail(t *testing.T) {
 	}
 
 	logoDir := filepath.Join(tmpDir, "logos")
-	if err := os.MkdirAll(logoDir, 0755); err != nil {
+	if err := os.MkdirAll(logoDir, 0o755); err != nil {
 		t.Fatalf("mkdir logos: %v", err)
 	}
 	srcPath := filepath.Join(logoDir, "upload-logo.png")
@@ -485,7 +487,7 @@ func TestAssetsServiceUpload_GeneratesDerivativesAndThumbnail(t *testing.T) {
 
 func TestAssetsServiceUpload_DetectsMimeAndStoresGeneralAssets(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 
 	tmpDir := t.TempDir()
 	t.Setenv("UPLOAD_DIR", tmpDir)

@@ -1,0 +1,101 @@
+{
+  "round": 2,
+  "generated_at": "2026-03-31T12:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round 1 d1 clarification incorporated: the 'ops tab' is the operations graph lens (a graph projection rendered by GraphCanvas), not the ExecutionsTab sidebar list. The entire plan has been rewritten around modifying buildOperations() in projection.go to add activity nodes to the graph. The frontend already renders AgentActivity nodes in the flow lens, so no UI changes are expected."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The existing addActivityNodesAndEdges() helper (used by buildFlowForBacklogItem()) creates activity nodes plus activity_for, records_activity, and spawned_run/continued_run edges. This can likely be reused in buildOperations() with minimal adaptation."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Include standalone activities (not tied to an execution or actionable backlog item)",
+      "context": "Activities can be owned by backlog items, captures, or scenarios. Some activities may not be tied to an execution currently shown in the operations graph (e.g., a 'classify' activity on a capture, or a 'workshop' activity on a completed backlog item). Including these would show ALL active agent work; excluding them keeps the graph focused on actionable items only.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Include all active activities regardless of owner presence in graph",
+          "rationale": "Shows the complete picture of active agent work — which is the stated goal. Activities whose owners aren't in the graph appear as disconnected nodes (or we pull in their owners). Most comprehensive."
+        },
+        {
+          "key": "B",
+          "label": "Only include activities whose owner is already in the operations graph",
+          "rationale": "Keeps the graph focused on actionable backlog items and their associated work. Avoids introducing disconnected nodes or pulling in non-actionable entities. Recommended because it aligns with the operations lens design philosophy (only actionable entities) while still achieving the goal for the common case — most active activities belong to in-progress backlog items.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Include Run nodes alongside activity nodes",
+      "context": "Each activity may have an associated agent-manager Run (via RunID). The flow lens includes run nodes to show the full execution chain: execution → activity → run. Adding run nodes to operations gives visibility into the actual agent process, but adds more nodes to the graph.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Include run nodes when activities have a RunID",
+          "rationale": "Full visibility into the agent execution chain. Operators can see which agent-manager runs are active. Adds spawned_run/continued_run edges.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Activity nodes only, no run nodes",
+          "rationale": "Simpler graph with fewer nodes. Activity status already indicates whether the agent is running. Run details can be found by clicking through to the flow lens."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "How to handle the addActivityNodesAndEdges() helper reuse",
+      "context": "The existing addActivityNodesAndEdges() helper creates nodes and edges for a set of activities. In the flow lens, it's called with activities scoped to a single focused backlog item. In the operations lens, we'd call it with all active activities across the entire system. Need to decide whether to reuse it directly or extract a simpler path.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Reuse addActivityNodesAndEdges() directly",
+          "rationale": "Least code duplication. The helper already handles node creation, edge wiring, and run node inclusion. Just pass all active activities instead of item-scoped ones. Recommended for simplicity — if edge targets are missing, edges are simply not created.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Call buildActivityNode() directly with custom edge logic",
+          "rationale": "More control over which edges to create in the operations context. Avoids potential issues if the helper makes assumptions about the flow lens context."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    }
+  ],
+  "plan_updates": "Rewrote plan from scratch based on round 1 d1 clarification (ops tab = operations graph lens, not sidebar list). Plan now targets buildOperations() in projection.go with reuse of addActivityNodesAndEdges(). Scope, technical context, implementation approach, testing strategy, and risks all updated. Required Reading trimmed to implementation-plan-authoring only (react-coherence dropped since work is backend-focused)."
+}

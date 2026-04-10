@@ -14,120 +14,85 @@ type StagingDeps struct {
 	RepoDir string
 }
 
-// StageFiles stages the specified files
-func StageFiles(ctx context.Context, deps StagingDeps, req StageRequest) (*StageResponse, error) {
+// validateStagingDeps validates common staging operation preconditions and resolves paths.
+// Returns (repoDir, validPaths, originalPaths, error). If originalPaths is empty,
+// the caller should return a success-with-empty-list response.
+func validateStagingDeps(deps StagingDeps, paths []string, scope string) (string, []string, []string, error) {
 	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
+		return "", nil, nil, fmt.Errorf("git runner is required")
 	}
 	repoDir := strings.TrimSpace(deps.RepoDir)
 	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+		return "", nil, nil, fmt.Errorf("repo dir is required")
 	}
 
-	paths := req.Paths
-	if req.Scope != "" && len(paths) == 0 {
-		paths = expandScope(req.Scope)
+	if scope != "" && len(paths) == 0 {
+		paths = expandScope(scope)
 	}
 
 	if len(paths) == 0 {
-		return &StageResponse{
-			Success:   true,
-			Staged:    []string{},
-			Timestamp: time.Now().UTC(),
-		}, nil
+		return repoDir, nil, nil, nil
 	}
 
-	// Validate paths are within repo
-	validPaths := []string{}
+	validPaths := filterValidPaths(paths)
+	return repoDir, validPaths, paths, nil
+}
+
+func filterValidPaths(paths []string) []string {
+	var valid []string
 	for _, p := range paths {
 		cleanPath := cleanFilePath(p)
 		if cleanPath != "" && !strings.HasPrefix(cleanPath, "..") {
-			validPaths = append(validPaths, cleanPath)
+			valid = append(valid, cleanPath)
 		}
+	}
+	return valid
+}
+
+// StageFiles stages the specified files
+func StageFiles(ctx context.Context, deps StagingDeps, req StageRequest) (*StageResponse, error) {
+	repoDir, validPaths, origPaths, err := validateStagingDeps(deps, req.Paths, req.Scope)
+	if err != nil {
+		return nil, err
+	}
+
+	if origPaths == nil {
+		return &StageResponse{Success: true, Staged: []string{}, Timestamp: time.Now().UTC()}, nil
 	}
 
 	if len(validPaths) == 0 {
-		return &StageResponse{
-			Success:   false,
-			Failed:    paths,
-			Errors:    []string{"no valid paths provided"},
-			Timestamp: time.Now().UTC(),
-		}, nil
+		return &StageResponse{Success: false, Failed: origPaths, Errors: []string{"no valid paths provided"}, Timestamp: time.Now().UTC()}, nil
 	}
 
-	err := deps.Git.Stage(ctx, repoDir, validPaths)
-	if err != nil {
-		return &StageResponse{
-			Success:   false,
-			Failed:    validPaths,
-			Errors:    []string{err.Error()},
-			Timestamp: time.Now().UTC(),
-		}, nil
+	warnings, stageErr := deps.Git.Stage(ctx, repoDir, validPaths)
+	if stageErr != nil {
+		return &StageResponse{Success: false, Failed: validPaths, Errors: []string{stageErr.Error()}, Warnings: warnings, Timestamp: time.Now().UTC()}, nil
 	}
 
-	return &StageResponse{
-		Success:   true,
-		Staged:    validPaths,
-		Timestamp: time.Now().UTC(),
-	}, nil
+	return &StageResponse{Success: true, Staged: validPaths, Warnings: warnings, Timestamp: time.Now().UTC()}, nil
 }
 
 // UnstageFiles unstages the specified files
 func UnstageFiles(ctx context.Context, deps StagingDeps, req UnstageRequest) (*UnstageResponse, error) {
-	if deps.Git == nil {
-		return nil, fmt.Errorf("git runner is required")
-	}
-	repoDir := strings.TrimSpace(deps.RepoDir)
-	if repoDir == "" {
-		return nil, fmt.Errorf("repo dir is required")
+	repoDir, validPaths, origPaths, err := validateStagingDeps(deps, req.Paths, req.Scope)
+	if err != nil {
+		return nil, err
 	}
 
-	paths := req.Paths
-	if req.Scope != "" && len(paths) == 0 {
-		paths = expandScope(req.Scope)
-	}
-
-	if len(paths) == 0 {
-		return &UnstageResponse{
-			Success:   true,
-			Unstaged:  []string{},
-			Timestamp: time.Now().UTC(),
-		}, nil
-	}
-
-	// Validate paths are within repo
-	validPaths := []string{}
-	for _, p := range paths {
-		cleanPath := cleanFilePath(p)
-		if cleanPath != "" && !strings.HasPrefix(cleanPath, "..") {
-			validPaths = append(validPaths, cleanPath)
-		}
+	if origPaths == nil {
+		return &UnstageResponse{Success: true, Unstaged: []string{}, Timestamp: time.Now().UTC()}, nil
 	}
 
 	if len(validPaths) == 0 {
-		return &UnstageResponse{
-			Success:   false,
-			Failed:    paths,
-			Errors:    []string{"no valid paths provided"},
-			Timestamp: time.Now().UTC(),
-		}, nil
+		return &UnstageResponse{Success: false, Failed: origPaths, Errors: []string{"no valid paths provided"}, Timestamp: time.Now().UTC()}, nil
 	}
 
-	err := deps.Git.Unstage(ctx, repoDir, validPaths)
-	if err != nil {
-		return &UnstageResponse{
-			Success:   false,
-			Failed:    validPaths,
-			Errors:    []string{err.Error()},
-			Timestamp: time.Now().UTC(),
-		}, nil
+	unstageErr := deps.Git.Unstage(ctx, repoDir, validPaths)
+	if unstageErr != nil {
+		return &UnstageResponse{Success: false, Failed: validPaths, Errors: []string{unstageErr.Error()}, Timestamp: time.Now().UTC()}, nil
 	}
 
-	return &UnstageResponse{
-		Success:   true,
-		Unstaged:  validPaths,
-		Timestamp: time.Now().UTC(),
-	}, nil
+	return &UnstageResponse{Success: true, Unstaged: validPaths, Timestamp: time.Now().UTC()}, nil
 }
 
 // expandScope converts a scope (scenario:name, resource:name) to a glob pattern

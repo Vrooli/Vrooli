@@ -1,9 +1,49 @@
 {
   "version": "1.0.0",
   "title": "Vrooli Autoheal Documentation",
-  "description": "Health check documentation and troubleshooting guides",
-  "defaultDocument": "checks/overview.md",
+  "description": "Health monitoring, auto-recovery, and watchdog documentation",
+  "defaultDocument": "QUICKSTART.md",
   "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Get vrooli-autoheal running in minutes",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts & Architecture",
+      "icon": "lightbulb",
+      "documents": [
+        {
+          "path": "concepts/architecture.md",
+          "title": "Architecture",
+          "description": "High-level system design and component overview"
+        },
+        {
+          "path": "concepts/health-check-flow.md",
+          "title": "Health Check Flow",
+          "description": "How checks execute from request to result"
+        },
+        {
+          "path": "concepts/watchdog-design.md",
+          "title": "Watchdog Design",
+          "description": "OS-level boot recovery and self-protection"
+        },
+        {
+          "path": "concepts/GLOSSARY.md",
+          "title": "Glossary",
+          "description": "Domain vocabulary and key terms"
+        }
+      ]
+    },
     {
       "id": "checks",
       "title": "Health Checks",
@@ -44,6 +84,91 @@
           "description": "Available recovery actions and how to use them"
         }
       ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "book-open",
+      "documents": [
+        {
+          "path": "guides/adding-checks.md",
+          "title": "Adding Checks",
+          "description": "How to implement a new health check"
+        },
+        {
+          "path": "guides/dashboard-guide.md",
+          "title": "Dashboard Guide",
+          "description": "Using the web dashboard"
+        },
+        {
+          "path": "guides/troubleshooting.md",
+          "title": "Troubleshooting",
+          "description": "Common issues and how to resolve them"
+        },
+        {
+          "path": "guides/watchdog-installation.md",
+          "title": "Watchdog Installation",
+          "description": "Setting up the OS-level watchdog service"
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "reference/api-endpoints.md",
+          "title": "API Reference",
+          "description": "Complete REST API documentation"
+        },
+        {
+          "path": "reference/check-catalog.md",
+          "title": "Check Catalog",
+          "description": "Detailed reference for every health check"
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "title": "CLI Commands",
+          "description": "Command-line interface reference"
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Seams & Boundaries",
+          "description": "Integration boundaries and testability zones",
+          "internal": true
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Known Issues",
+          "description": "Tech debt, risks, and deferred work",
+          "internal": true
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "title": "Progress Log",
+          "description": "Development history and completed milestones",
+          "internal": true
+        },
+        {
+          "path": "internal/RESEARCH.md",
+          "title": "Research",
+          "description": "Background research and related work",
+          "internal": true
+        }
+      ]
     }
-  ]
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "checks", "recovery", "guides", "reference"],
+    "secondary": ["internal"]
+  }
 }

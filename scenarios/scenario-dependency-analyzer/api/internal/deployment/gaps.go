@@ -3,6 +3,7 @@ package deployment
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 
 	"scenario-dependency-analyzer/internal/config"
 	types "scenario-dependency-analyzer/internal/types"
@@ -17,9 +18,17 @@ import (
 // - Missing tier definitions
 // - Resource dependencies without metadata
 // - Scenario dependencies without metadata
-func AnalyzeGaps(scenarioName, scenariosDir string, nodes []types.DeploymentDependencyNode, knownTiers []string) *types.DeploymentMetadataGaps {
+func AnalyzeGaps(scenarioName, scenarioPath, scenariosDir string, nodes []types.DeploymentDependencyNode, knownTiers []string) *types.DeploymentMetadataGaps {
 	tierSet := buildTierSet(knownTiers)
 	gapsByScenario := collectScenarioGaps(scenariosDir, nodes, tierSet)
+	if rootGap, ok := buildScenarioGap(types.DeploymentDependencyNode{
+		Name:   scenarioName,
+		Type:   "scenario",
+		Path:   scenarioPath,
+		Source: "root",
+	}, scenariosDir, tierSet); ok {
+		gapsByScenario[scenarioName] = rootGap
+	}
 
 	totalGaps, scenariosMissingAll, missingTiersSet := summarizeGaps(gapsByScenario)
 	secretRequirements := DetectSecretRequirements(nodes)
@@ -116,7 +125,10 @@ func buildScenarioGap(node types.DeploymentDependencyNode, scenariosDir string, 
 	}
 
 	resources := config.ResolvedResourceMap(cfg)
-	for resName := range resources {
+	for resName, resource := range resources {
+		if !(resource.Required || resource.Enabled) {
+			continue
+		}
 		if cfg.Deployment.Dependencies.Resources == nil {
 			gap.MissingResourceMetadata = append(gap.MissingResourceMetadata, resName)
 		} else if _, exists := cfg.Deployment.Dependencies.Resources[resName]; !exists {
@@ -125,7 +137,10 @@ func buildScenarioGap(node types.DeploymentDependencyNode, scenariosDir string, 
 	}
 
 	if cfg.Dependencies.Scenarios != nil {
-		for scenName := range cfg.Dependencies.Scenarios {
+		for scenName, dep := range cfg.Dependencies.Scenarios {
+			if !(dep.Required || dep.Enabled) {
+				continue
+			}
 			if cfg.Deployment.Dependencies.Scenarios == nil {
 				gap.MissingScenarioMetadata = append(gap.MissingScenarioMetadata, scenName)
 			} else if _, exists := cfg.Deployment.Dependencies.Scenarios[scenName]; !exists {
@@ -133,6 +148,10 @@ func buildScenarioGap(node types.DeploymentDependencyNode, scenariosDir string, 
 			}
 		}
 	}
+
+	sort.Strings(gap.MissingTierDefinitions)
+	sort.Strings(gap.MissingResourceMetadata)
+	sort.Strings(gap.MissingScenarioMetadata)
 
 	return gap, gapHasFindings(gap)
 }

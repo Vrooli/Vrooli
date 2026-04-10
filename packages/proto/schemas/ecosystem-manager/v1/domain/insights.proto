@@ -1,0 +1,269 @@
+syntax = "proto3";
+
+package ecosystem_manager.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/domain;domain";
+
+// =============================================================================
+// INSIGHTS DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain insights
+// @imports none (external only: buf.validate, google.protobuf.Struct)
+// @stability beta
+//
+// Insight analysis types for execution patterns and suggestions.
+// Maps from pkg/insights/types.go.
+//
+// USAGE CONTEXTS:
+//   - API responses for insight endpoints
+//   - UI insight reports and suggestions
+//
+// =============================================================================
+
+// AnalysisWindow describes the scope of executions analyzed.
+message AnalysisWindow {
+  // RFC3339 timestamp of analysis start.
+  // @format rfc3339
+  string start_time = 1;
+
+  // RFC3339 timestamp of analysis end.
+  // @format rfc3339
+  string end_time = 2;
+
+  // How many executions were analyzed.
+  int32 limit = 3;
+
+  // Status filter applied (e.g., "failed,timeout").
+  string status_filter = 4;
+}
+
+// Pattern represents a recurring issue or behavior.
+message Pattern {
+  // Pattern identifier.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Pattern type.
+  // @constraint e.g.: failure_mode, timeout, rate_limit, stuck_state
+  string type = 2 [(buf.validate.field).string.min_len = 1];
+
+  // How many executions exhibit this pattern.
+  int32 frequency = 3;
+
+  // Severity level.
+  // @constraint one of: critical, high, medium, low
+  string severity = 4 [(buf.validate.field).string = { in: ["critical", "high", "medium", "low"] }];
+
+  // Human-readable description.
+  string description = 5;
+
+  // Execution IDs showing this pattern.
+  repeated string examples = 6;
+
+  // Specific log excerpts as evidence.
+  repeated string evidence = 7;
+}
+
+// ProposedChange describes a specific change to apply.
+message ProposedChange {
+  // Relative path from scenario root.
+  string file = 1;
+
+  // Change type.
+  // @constraint one of: edit, create, config_update
+  string type = 2 [(buf.validate.field).string = { in: ["edit", "create", "config_update"] }];
+
+  // Change description.
+  string description = 3;
+
+  // Before content (for edits).
+  string before = 4;
+
+  // After content (for edits).
+  string after = 5;
+
+  // Content (for creates).
+  string content = 6;
+
+  // Config path for config updates (e.g., "phases[0].timeout").
+  string config_path = 7;
+
+  // New config value (any JSON-compatible value).
+  google.protobuf.Value config_value = 8;
+}
+
+// ImpactEstimate describes expected impact of a suggestion.
+message ImpactEstimate {
+  // Expected success rate improvement (e.g., "+15-25%").
+  string success_rate_improvement = 1;
+
+  // Expected time reduction (e.g., "-10m avg").
+  string time_reduction = 2;
+
+  // Confidence level.
+  // @constraint one of: high, medium, low
+  string confidence = 3 [(buf.validate.field).string = { in: ["high", "medium", "low"] }];
+
+  // Rationale for the estimate.
+  string rationale = 4;
+}
+
+// Suggestion represents an actionable improvement.
+message Suggestion {
+  // Suggestion identifier.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Which pattern this addresses.
+  string pattern_id = 2;
+
+  // Suggestion type.
+  // @constraint e.g.: prompt, timeout, code, autosteer_profile
+  string type = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Priority level.
+  // @constraint one of: critical, high, medium, low
+  string priority = 4 [(buf.validate.field).string = { in: ["critical", "high", "medium", "low"] }];
+
+  // Suggestion title.
+  string title = 5 [(buf.validate.field).string.min_len = 1];
+
+  // Detailed description.
+  string description = 6;
+
+  // Proposed changes.
+  repeated ProposedChange changes = 7;
+
+  // Expected impact.
+  ImpactEstimate impact = 8;
+
+  // Suggestion status.
+  // @constraint one of: pending, applied, rejected, superseded
+  string status = 9 [(buf.validate.field).string = { in: ["pending", "applied", "rejected", "superseded"] }];
+
+  // RFC3339 timestamp when applied (empty if not yet applied).
+  // @format rfc3339
+  string applied_at = 10;
+}
+
+// ExecutionStatistics provides aggregate stats for analyzed executions.
+message ExecutionStatistics {
+  // Total executions analyzed.
+  int32 total_executions = 1;
+
+  // Number of successful executions.
+  int32 success_count = 2;
+
+  // Number of failed executions.
+  int32 failure_count = 3;
+
+  // Number of timed out executions.
+  int32 timeout_count = 4;
+
+  // Number of rate-limited executions.
+  int32 rate_limit_count = 5;
+
+  // Success rate (0-1).
+  double success_rate = 6;
+
+  // Average duration string.
+  string avg_duration = 7;
+
+  // Median duration string.
+  string median_duration = 8;
+
+  // Most common exit reason.
+  string most_common_exit_reason = 9;
+}
+
+// InsightReport represents an analysis of execution patterns and suggested improvements.
+message InsightReport {
+  // Report identifier.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Task this report analyzes.
+  string task_id = 2 [(buf.validate.field).string.min_len = 1];
+
+  // RFC3339 timestamp of generation.
+  // @format rfc3339
+  string generated_at = 3;
+
+  // Analysis scope.
+  AnalysisWindow analysis_window = 4;
+
+  // Number of executions analyzed.
+  int32 execution_count = 5;
+
+  // Detected patterns.
+  repeated Pattern patterns = 6;
+
+  // Actionable suggestions.
+  repeated Suggestion suggestions = 7;
+
+  // Aggregate statistics.
+  ExecutionStatistics statistics = 8;
+
+  // Task ID of the insight generator that created this report.
+  string generated_by = 9;
+}
+
+// TaskTypeStats provides aggregate stats by task type or operation.
+message TaskTypeStats {
+  // Number of tasks.
+  int32 count = 1;
+
+  // Success rate (0-1).
+  double success_rate = 2;
+
+  // Average duration string.
+  string avg_duration = 3;
+
+  // Top pattern identifier.
+  string top_pattern = 4;
+}
+
+// CrossTaskPattern represents a pattern affecting multiple tasks.
+message CrossTaskPattern {
+  // Embedded pattern data.
+  Pattern pattern = 1;
+
+  // Task IDs affected by this pattern.
+  repeated string affected_tasks = 2;
+
+  // Task types that show this pattern.
+  repeated string task_types = 3;
+}
+
+// SystemInsightReport represents system-wide analysis across all tasks.
+message SystemInsightReport {
+  // Report identifier.
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // RFC3339 timestamp of generation.
+  // @format rfc3339
+  string generated_at = 2;
+
+  // Analysis time window.
+  AnalysisWindow time_window = 3;
+
+  // Number of tasks analyzed.
+  int32 task_count = 4;
+
+  // Total executions across all tasks.
+  int32 total_executions = 5;
+
+  // Patterns spanning multiple tasks.
+  repeated CrossTaskPattern cross_task_patterns = 6;
+
+  // System-wide suggestions.
+  repeated Suggestion system_suggestions = 7;
+
+  // Stats by task type (key = task type string).
+  map<string, TaskTypeStats> by_task_type = 8;
+
+  // Stats by operation (key = operation string).
+  map<string, TaskTypeStats> by_operation = 9;
+}

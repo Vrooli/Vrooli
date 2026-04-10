@@ -1,0 +1,86 @@
+{
+  "description": "Version history system for tracking skill changes over time with history.jsonl files",
+  "module_id": "MOD-P2-015",
+  "prd_ref": "prompt-manager-nice-to-have-version-history-for-skills",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-012"
+      ],
+      "description": "Implement version history system for tracking skill changes over time using history.jsonl",
+      "id": "REQ-P2-004",
+      "prd_ref": "prompt-manager-nice-to-have-version-history-for-skills",
+      "status": "draft",
+      "title": "Skill Version Control",
+      "validation": [
+        {
+          "notes": "Version creation on skill update",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "History tracking via history.jsonl",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Rollback functionality",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Version control system integration",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "API endpoint functionality (versions, revert)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CLI commands (skill versions, skill revert)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Version operations under 500ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Changes are tracked effectively",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Version history is maintainable",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Version history for skills (COMPLETE)"
+}

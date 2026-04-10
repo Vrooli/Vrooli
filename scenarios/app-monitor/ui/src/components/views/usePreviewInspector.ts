@@ -3,6 +3,7 @@ import type { MutableRefObject } from 'react';
 import type { ChangeEvent, MouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { ensureDataUrl } from '@/utils/dataUrl';
 import { logger } from '@/services/logger';
+import { useKeyboardScope } from '@/hooks/useKeyboardScopes';
 import { usePreviewBackgroundColor } from '@/hooks/usePreviewBackgroundColor';
 import { INSPECTOR_UI, PREVIEW_TIMEOUTS } from './previewConstants';
 import type { ReportElementCapture } from '../report/reportTypes';
@@ -849,44 +850,45 @@ export const usePreviewInspector = ({
     }
   }, [inspectState.active]);
 
-  useEffect(() => {
-    if (!isInspectorDialogOpen || !inspectState.active) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
+  useKeyboardScope({
+    id: 'preview-inspector-ancestor-keys',
+    priority: 650,
+    enabled: isInspectorDialogOpen && inspectState.active,
+    onKeyDown: (event) => {
       const target = event.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
-        return;
+        return false;
       }
 
       if (event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
         if (event.key === 'ArrowUp') {
           event.preventDefault();
           handleInspectorAncestorStep(1);
-        } else if (event.key === 'ArrowDown') {
+          return true;
+        }
+        if (event.key === 'ArrowDown') {
           event.preventDefault();
           handleInspectorAncestorStep(-1);
+          return true;
         }
-        return;
+        return false;
       }
 
       if (!event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
         if (event.key === '[') {
           event.preventDefault();
           handleInspectorAncestorStep(1);
-        } else if (event.key === ']') {
+          return true;
+        }
+        if (event.key === ']') {
           event.preventDefault();
           handleInspectorAncestorStep(-1);
+          return true;
         }
       }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleInspectorAncestorStep, inspectState.active, isInspectorDialogOpen]);
+      return false;
+    },
+  });
 
   useEffect(() => {
     if (!inspectState.result || inspectState.lastReason !== 'complete') {
@@ -1073,23 +1075,19 @@ export const usePreviewInspector = ({
     }
   }, [inspectState.active, previewUrl, stopInspect]);
 
-  useEffect(() => {
-    if (!inspectState.active || typeof window === 'undefined') {
-      return () => {};
-    }
-
-    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        stopInspect();
+  useKeyboardScope({
+    id: 'preview-inspector-escape',
+    priority: 700,
+    enabled: inspectState.active,
+    onKeyDown: (event) => {
+      if (event.key !== 'Escape') {
+        return false;
       }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [inspectState.active, stopInspect]);
+      event.preventDefault();
+      stopInspect();
+      return true;
+    },
+  });
 
   useEffect(() => {
     return () => {

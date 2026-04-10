@@ -20,7 +20,7 @@ func TestCopyFile(t *testing.T) {
 				tmpDir := t.TempDir()
 				src := filepath.Join(tmpDir, "source.txt")
 				dst := filepath.Join(tmpDir, "dest.txt")
-				if err := os.WriteFile(src, []byte("Hello, World!"), 0644); err != nil {
+				if err := os.WriteFile(src, []byte("Hello, World!"), 0o644); err != nil {
 					t.Fatalf("Failed to create source file: %v", err)
 				}
 				return src, dst
@@ -51,7 +51,7 @@ This is a test PRD.
 - Feature 1
 - Feature 2
 `
-				if err := os.WriteFile(src, []byte(content), 0644); err != nil {
+				if err := os.WriteFile(src, []byte(content), 0o644); err != nil {
 					t.Fatalf("Failed to create source file: %v", err)
 				}
 				return src, dst
@@ -78,7 +78,7 @@ This is a test PRD.
 				tmpDir := t.TempDir()
 				src := filepath.Join(tmpDir, "empty.txt")
 				dst := filepath.Join(tmpDir, "empty-copy.txt")
-				if err := os.WriteFile(src, []byte(""), 0644); err != nil {
+				if err := os.WriteFile(src, []byte(""), 0o644); err != nil {
 					t.Fatalf("Failed to create source file: %v", err)
 				}
 				return src, dst
@@ -105,7 +105,7 @@ This is a test PRD.
 				for i := range largeContent {
 					largeContent[i] = byte(i % 256)
 				}
-				if err := os.WriteFile(src, largeContent, 0644); err != nil {
+				if err := os.WriteFile(src, largeContent, 0o644); err != nil {
 					t.Fatalf("Failed to create source file: %v", err)
 				}
 				return src, dst
@@ -138,7 +138,7 @@ This is a test PRD.
 				tmpDir := t.TempDir()
 				src := filepath.Join(tmpDir, "source.txt")
 				dst := filepath.Join(tmpDir, "nonexistent-dir", "dest.txt")
-				if err := os.WriteFile(src, []byte("test"), 0644); err != nil {
+				if err := os.WriteFile(src, []byte("test"), 0o644); err != nil {
 					t.Fatalf("Failed to create source file: %v", err)
 				}
 				return src, dst
@@ -179,7 +179,7 @@ func TestCopyFilePreservesContent(t *testing.T) {
 
 	// Create binary content with various byte values
 	originalContent := []byte{0, 1, 2, 127, 128, 255, 10, 13, 9}
-	if err := os.WriteFile(src, originalContent, 0644); err != nil {
+	if err := os.WriteFile(src, originalContent, 0o644); err != nil {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
 
@@ -212,10 +212,10 @@ func TestCopyFileOverwritesExisting(t *testing.T) {
 	dst := filepath.Join(tmpDir, "dest.txt")
 
 	// Create source and existing destination
-	if err := os.WriteFile(src, []byte("New Content"), 0644); err != nil {
+	if err := os.WriteFile(src, []byte("New Content"), 0o644); err != nil {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
-	if err := os.WriteFile(dst, []byte("Old Content"), 0644); err != nil {
+	if err := os.WriteFile(dst, []byte("Old Content"), 0o644); err != nil {
 		t.Fatalf("Failed to create destination file: %v", err)
 	}
 
@@ -241,12 +241,12 @@ func TestValidateOperationalTargetsLinkage_EmptyRequirementsIndexSkips(t *testin
 	entityType := "scenario"
 	entityName := "sample-scenario"
 	reqsDir := filepath.Join(vrooliRoot, "scenarios", entityName, "requirements")
-	if err := os.MkdirAll(reqsDir, 0755); err != nil {
+	if err := os.MkdirAll(reqsDir, 0o755); err != nil {
 		t.Fatalf("mkdir requirements dir: %v", err)
 	}
 
 	// Empty registry (typical scaffold output).
-	if err := os.WriteFile(filepath.Join(reqsDir, "index.json"), []byte(`{"imports":[]}`), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(reqsDir, "index.json"), []byte(`{"imports":[]}`), 0o644); err != nil {
 		t.Fatalf("write requirements index: %v", err)
 	}
 
@@ -273,12 +273,12 @@ func TestValidateOperationalTargetsLinkage_NonEmptyRequirementsIndexEnforcesLink
 	entityType := "scenario"
 	entityName := "sample-scenario"
 	reqsDir := filepath.Join(vrooliRoot, "scenarios", entityName, "requirements")
-	if err := os.MkdirAll(reqsDir, 0755); err != nil {
+	if err := os.MkdirAll(reqsDir, 0o755); err != nil {
 		t.Fatalf("mkdir requirements dir: %v", err)
 	}
 
 	// Non-empty imports triggers enforcement.
-	if err := os.WriteFile(filepath.Join(reqsDir, "index.json"), []byte(`{"imports":["01-core/requirements.json"]}`), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(reqsDir, "index.json"), []byte(`{"imports":["01-core/requirements.json"]}`), 0o644); err != nil {
 		t.Fatalf("write requirements index: %v", err)
 	}
 
@@ -302,11 +302,11 @@ func TestValidateOperationalTargetsLinkage_InvalidRequirementsIndexErrors(t *tes
 	entityType := "scenario"
 	entityName := "sample-scenario"
 	reqsDir := filepath.Join(vrooliRoot, "scenarios", entityName, "requirements")
-	if err := os.MkdirAll(reqsDir, 0755); err != nil {
+	if err := os.MkdirAll(reqsDir, 0o755); err != nil {
 		t.Fatalf("mkdir requirements dir: %v", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(reqsDir, "index.json"), []byte(`not-json`), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(reqsDir, "index.json"), []byte(`not-json`), 0o644); err != nil {
 		t.Fatalf("write requirements index: %v", err)
 	}
 

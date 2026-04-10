@@ -18,9 +18,7 @@
       "react-ui",
       "go-api",
       "node-red",
-      "postgres",
-      "questdb",
-      "redis",
+      "sqlite",
       "ollama"
     ],
     "maintainers": [
@@ -148,7 +146,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.cjs",
+          "run": "cd ui && node server.js",
           "background": true,
           "description": "Serve production UI bundle",
           "condition": {
@@ -182,7 +180,7 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f 'node server.cjs' || true",
+          "run": "pkill -f 'node server.js' || true",
           "description": "Stop UI server"
         }
       ]
@@ -190,47 +188,11 @@
   },
   "dependencies": {
     "resources": {
-      "postgres": {
-        "type": "postgres",
+      "sqlite": {
+        "type": "sqlite",
         "enabled": true,
         "required": true,
-        "description": "Store thresholds, investigations, and reports",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
-      },
-      "questdb": {
-        "type": "questdb",
-        "enabled": true,
-        "required": true,
-        "description": "Time-series metrics storage",
-        "initialization": [
-          {
-            "file": "initialization/questdb/server.conf",
-            "type": "config"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "description": "Real-time alerts and caching",
-        "initialization": [
-          {
-            "file": "initialization/redis/redis.conf",
-            "type": "config"
-          }
-        ]
-      },
-      "node-red": {
-        "type": "node-red",
-        "enabled": true,
-        "required": true,
-        "description": "Metric collection and anomaly detection workflows"
+        "description": "Persistent storage for metrics, investigations, reports, and alerts"
       },
       "ollama": {
         "type": "ollama",
@@ -240,21 +202,6 @@
           "llama3.2:3b"
         ],
         "description": "AI analysis for anomaly investigations"
-      },
-      "codex": {
-        "type": "codex",
-        "enabled": true,
-        "required": false,
-        "models": [
-          "codex-mini-latest"
-        ],
-        "description": "Deep system investigations using Codex tooling"
-      },
-      "grafana": {
-        "type": "grafana",
-        "enabled": true,
-        "required": false,
-        "description": "Optional dashboards for advanced visualization"
       }
     },
     "scenarios": {

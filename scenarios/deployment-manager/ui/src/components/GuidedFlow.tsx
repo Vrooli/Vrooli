@@ -59,7 +59,6 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
     isError,
     error,
     refetch,
-    isFetched,
   } = useQuery({
     queryKey: ["guided-analyze", submittedScenario],
     queryFn: () => analyzeDependencies(submittedScenario || ""),

@@ -91,6 +91,7 @@ type Deployment struct {
 	DeployResult      NullRawMessage `json:"deploy_result,omitempty"`
 	PreflightResult   NullRawMessage `json:"preflight_result,omitempty"`
 	LastInspectResult NullRawMessage `json:"last_inspect_result,omitempty"`
+	SSHIdentity       NullRawMessage `json:"ssh_identity,omitempty"`
 
 	// Deployment history (timeline of events)
 	DeploymentHistory NullRawMessage `json:"deployment_history,omitempty"`
@@ -173,6 +174,7 @@ type HistoryEventType string
 
 const (
 	EventDeploymentCreated  HistoryEventType = "deployment_created"
+	EventManifestRefreshed  HistoryEventType = "manifest_refreshed"
 	EventBundleBuilt        HistoryEventType = "bundle_built"
 	EventPreflightStarted   HistoryEventType = "preflight_started"
 	EventPreflightCompleted HistoryEventType = "preflight_completed"
@@ -183,8 +185,11 @@ const (
 	EventDeployFailed       HistoryEventType = "deploy_failed"
 	EventInspection         HistoryEventType = "inspection"
 	EventStopped            HistoryEventType = "stopped"
+	EventStarted            HistoryEventType = "started"
 	EventRestarted          HistoryEventType = "restarted"
 	EventAutohealTriggered  HistoryEventType = "autoheal_triggered"
+	// EventVPSBundleGC records automatic or manual garbage collection of VPS bundle cache.
+	EventVPSBundleGC HistoryEventType = "vps_bundle_gc"
 )
 
 // HistoryEvent represents a single event in the deployment timeline.

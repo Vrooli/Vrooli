@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { AdminAnalytics } from './AdminAnalytics';
 import { AdminAuthProvider } from '../../../app/providers/AdminAuthProvider';
 import * as api from '../../../shared/api';
+import { isRecord, safeParseJson } from '../../../shared/lib/utils';
 
 vi.mock('../../../shared/api');
 vi.mock('../components/RuntimeSignalStrip', () => ({
@@ -31,7 +32,7 @@ const mockSummary = {
   top_cta_ctr: 12.5,
   variant_stats: [
     {
-      variant_id: 'v1',
+      variant_id: 1,
       variant_slug: 'control',
       variant_name: 'Control',
       views: 500,
@@ -42,7 +43,7 @@ const mockSummary = {
       trend: 'up' as const,
     },
     {
-      variant_id: 'v2',
+      variant_id: 2,
       variant_slug: 'variant-a',
       variant_name: 'Variant A',
       views: 750,
@@ -55,25 +56,32 @@ const mockSummary = {
   ],
 };
 
-const renderWithRouter = (component: React.ReactElement) => {
-  return render(
+const renderWithRouter = (component: React.ReactElement) =>
+  render(
     <BrowserRouter>
       <AdminAuthProvider>
         {component}
       </AdminAuthProvider>
     </BrowserRouter>
   );
+
+const renderWithAuth = async (component: React.ReactElement) => {
+  const utils = renderWithRouter(component);
+  await waitFor(() => expect(vi.mocked(api.checkAdminSession)).toHaveBeenCalled());
+  return utils;
 };
 
 describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () => {
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
   const originalLocation = window.location;
+  const setLocation = (next: Location) => {
+    Object.defineProperty(window, 'location', { value: next, writable: true });
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn().mockResolvedValue({ ok: false } as Response);
-    delete (window as { location?: Location }).location;
-    window.location = { ...originalLocation, pathname: '/admin/analytics' };
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false } as Response);
+    setLocation({ ...originalLocation, pathname: '/admin/analytics' } as Location);
     window.localStorage.clear();
 
     vi.mocked(api.getMetricsSummary).mockResolvedValue(mockSummary);
@@ -81,13 +89,13 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
-    window.location = originalLocation;
+    globalThis.fetch = originalFetch;
+    setLocation(originalLocation);
     window.localStorage.clear();
   });
 
   it('[REQ:METRIC-SUMMARY] should display total visitors metric', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-total-visitors')).toBeInTheDocument();
@@ -96,7 +104,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   });
 
   it('[REQ:METRIC-SUMMARY] should display average conversion rate across variants', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-conversion-rate')).toBeInTheDocument();
@@ -105,7 +113,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   });
 
   it('[REQ:METRIC-SUMMARY] should display top CTA with CTR', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-top-cta')).toBeInTheDocument();
@@ -115,7 +123,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   });
 
   it('[REQ:METRIC-SUMMARY] should display downloads metric', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       const downloadsCard = screen.getByTestId('analytics-total-downloads');
@@ -125,48 +133,48 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   });
 
   it('[REQ:METRIC-DETAIL] should display variant performance table', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-variant-performance')).toBeInTheDocument();
-      expect(within(screen.getByTestId('analytics-variant-row-v1')).getByText('Control')).toBeInTheDocument();
-      expect(within(screen.getByTestId('analytics-variant-row-v2')).getByText('Variant A')).toBeInTheDocument();
-      expect(within(screen.getByTestId('analytics-variant-row-v1')).getByText('500')).toBeInTheDocument();
-      expect(within(screen.getByTestId('analytics-variant-row-v2')).getByText('750')).toBeInTheDocument();
-      expect(screen.getByTestId('analytics-downloads-v1')).toHaveTextContent('12');
+      expect(within(screen.getByTestId('analytics-variant-row-1')).getByText('Control')).toBeInTheDocument();
+      expect(within(screen.getByTestId('analytics-variant-row-2')).getByText('Variant A')).toBeInTheDocument();
+      expect(within(screen.getByTestId('analytics-variant-row-1')).getByText('500')).toBeInTheDocument();
+      expect(within(screen.getByTestId('analytics-variant-row-2')).getByText('750')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-downloads-1')).toHaveTextContent('12');
     });
   });
 
-  it('should handle loading state', () => {
+  it('should handle loading state', async () => {
     vi.mocked(api.getMetricsSummary).mockImplementation(
       () => new Promise(() => {}) // Never resolves
     );
 
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
     expect(screen.getByText('Loading analytics...')).toBeInTheDocument();
   });
 
   it('should render customize shortcut per variant row', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('analytics-edit-v1')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-edit-1')).toBeInTheDocument();
     });
   });
 
   it('should persist recent analytics filters to localStorage', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       const raw = window.localStorage.getItem('landing_admin_experience');
       expect(raw).toBeTruthy();
-      const snapshot = JSON.parse(raw ?? '{}');
-      expect(snapshot.lastAnalytics).toBeTruthy();
+      const parsed = safeParseJson(raw ?? '{}');
+      expect(isRecord(parsed) ? parsed.lastAnalytics : undefined).toBeTruthy();
     });
   });
 
   it('surfaces focus banner with current view context', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       const banner = screen.getByTestId('analytics-focus-banner');
@@ -177,10 +185,10 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   });
 
   it('provides hero edit actions from analytics table', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('analytics-edit-hero-v1')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-edit-hero-1')).toBeInTheDocument();
     });
   });
 });

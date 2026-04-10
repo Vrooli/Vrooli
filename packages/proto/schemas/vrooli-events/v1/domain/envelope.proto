@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package vrooli_events.v1;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domain";
+
+// =============================================================================
+// EVENT ENVELOPE
+// =============================================================================
+//
+// @layer 0
+// @domain vrooli-events
+// @imports none (external only: google.protobuf)
+// @stability stable
+//
+// EventEnvelope is the canonical envelope for all inter-scenario communication
+// in the Vrooli ecosystem. Every event published to the central event bus is
+// wrapped in this message.
+//
+// USAGE CONTEXTS:
+//   - Event Bus: Publish/subscribe between scenarios
+//   - SSE Streaming: Real-time event delivery to subscribers
+//   - Event Store: Persistent event history
+//
+// =============================================================================
+
+// EventEnvelope wraps every event on the vrooli-events bus.
+//
+// The event_type field uses a structured format:
+//   {scenario}.{domain}.{action}.{version}
+// Examples: "agent-manager.run.completed.v1", "lpbs.download.created.v1"
+//
+// @usage Event bus publish/subscribe, SSE streaming
+message EventEnvelope {
+  // Unique identifier for this event.
+  // @format uuid
+  string event_id = 1;
+
+  // Scenario that produced this event.
+  string source_scenario = 2;
+
+  // Scenario this event is addressed to (empty for broadcast).
+  string target_scenario = 3;
+
+  // Structured event type: {scenario}.{domain}.{action}.{version}.
+  string event_type = 4;
+
+  // When the event was created.
+  google.protobuf.Timestamp timestamp = 5;
+
+  // Correlation ID for tracing related events across scenarios.
+  // @format uuid
+  string correlation_id = 6;
+
+  // Type-specific event payload.
+  google.protobuf.Any payload = 7;
+
+  // Arbitrary key-value metadata for routing, filtering, or debugging.
+  map<string, string> metadata = 8;
+}

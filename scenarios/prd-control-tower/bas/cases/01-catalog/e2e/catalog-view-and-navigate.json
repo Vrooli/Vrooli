@@ -5,7 +5,8 @@
     "labels": {
       "reset": "full",
       "requirements_json": "[\"PCT-FUNC-001\", \"PCT-CATALOG-ENUMERATE\", \"PCT-CATALOG-VIEW-PRD\", \"PCT-CATALOG-STATUS\"]"
-    }
+    },
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,

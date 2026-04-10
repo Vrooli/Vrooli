@@ -49,7 +49,7 @@ export function KeyboardShortcutsContent() {
                 {category}
               </h3>
               <div className="space-y-2">
-                {shortcutsByCategory[category].map(
+                {(shortcutsByCategory[category] ?? []).map(
                   (shortcut: ShortcutDefinition, index: number) => (
                     <div
                       key={`${shortcut.id}-${index}`}

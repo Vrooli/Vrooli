@@ -57,7 +57,7 @@ func (s *Server) getIssueAttachmentHandler(w http.ResponseWriter, r *http.Reques
 	http.ServeContent(w, r, resource.DownloadName, resource.ModTime, resource.File)
 }
 
-// getIssueAgentConversationHandler streams the captured agent transcript for UI rendering
+// getIssueAgentConversationHandler streams agent-manager events for UI rendering
 func (s *Server) getIssueAgentConversationHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	issueID := strings.TrimSpace(vars["id"])
@@ -91,8 +91,4 @@ func (s *Server) getIssueAgentConversationHandler(w http.ResponseWriter, r *http
 	if err := handlers.WriteJSON(w, http.StatusOK, response); err != nil {
 		logging.LogErrorErr("Failed to encode conversation response", err, "issue_id", issueID)
 	}
-}
-
-func (s *Server) resolveAgentFilePath(raw string) (string, error) {
-	return services.ResolveScenarioPath(s.config.ScenarioRoot, raw, "tmp")
 }

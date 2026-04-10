@@ -1,6 +1,6 @@
 // Model Pricing Tab - displays and manages model pricing data with per-component sources
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Pencil, RefreshCw, X } from "lucide-react";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
@@ -27,6 +27,13 @@ import {
   useSetOverride,
   useDeleteOverride,
 } from "../../../hooks/usePricing";
+import {
+  formatPricingDisplay,
+  formatPricingTimestamp,
+  pricingSourceBadgeClass,
+  pricingSourceLabel,
+} from "../pricingDisplay";
+import { cn } from "../../../lib/utils";
 import type {
   ModelPricingListItem,
   PricingComponent,
@@ -42,50 +49,21 @@ import type {
 type SortField = "model" | "input" | "output" | "cacheRead" | "fetched";
 type SortDirection = "asc" | "desc";
 
+const HEADER_ALIGN_CLASS: Record<"left" | "center" | "right", string> = {
+  left: "text-left",
+  center: "text-center",
+  right: "text-right",
+};
+
+const HEADER_JUSTIFY_CLASS: Record<"left" | "center" | "right", string> = {
+  left: "justify-start",
+  center: "justify-center",
+  right: "justify-end",
+};
+
 // =============================================================================
 // Helper Functions
 // =============================================================================
-
-function sourceColor(source: PricingSource): string {
-  switch (source) {
-    case "manual_override":
-      return "bg-purple-500/20 text-purple-300 border-purple-500/30";
-    case "provider_api":
-      return "bg-green-500/20 text-green-300 border-green-500/30";
-    case "historical_average":
-      return "bg-blue-500/20 text-blue-300 border-blue-500/30";
-    default:
-      return "bg-gray-500/20 text-gray-300 border-gray-500/30";
-  }
-}
-
-function sourceLabel(source: PricingSource): string {
-  switch (source) {
-    case "manual_override":
-      return "Manual";
-    case "provider_api":
-      return "Provider";
-    case "historical_average":
-      return "Historical";
-    default:
-      return "Unknown";
-  }
-}
-
-function formatPrice(price: number | undefined): string {
-  if (price === undefined || price === 0) return "-";
-  if (price < 0.01) return `$${price.toFixed(4)}`;
-  return `$${price.toFixed(2)}`;
-}
-
-function formatTimestamp(ts: string | undefined): string {
-  if (!ts) return "-";
-  try {
-    return new Date(ts).toLocaleString();
-  } catch {
-    return ts;
-  }
-}
 
 // =============================================================================
 // Sub-Components
@@ -98,17 +76,13 @@ interface SourceBadgeProps {
 }
 
 function SourceBadge({ source, onClick, isActive }: SourceBadgeProps) {
-  const baseClasses = `text-xs ${sourceColor(source)}`;
-  const activeClasses = isActive ? "ring-2 ring-offset-1 ring-offset-background" : "";
-  const clickableClasses = onClick ? "cursor-pointer hover:opacity-80 transition-opacity" : "";
-
   return (
     <Badge
       variant="outline"
-      className={`${baseClasses} ${activeClasses} ${clickableClasses}`}
+      className={pricingSourceBadgeClass(source, { isActive, clickable: Boolean(onClick) })}
       onClick={onClick}
     >
-      {sourceLabel(source)}
+      {pricingSourceLabel(source)}
     </Badge>
   );
 }
@@ -124,14 +98,16 @@ interface SortableHeaderProps {
 
 function SortableHeader({ label, field, currentSort, direction, onSort, align = "left" }: SortableHeaderProps) {
   const isActive = currentSort === field;
-  const alignClass = align === "right" ? "justify-end" : align === "center" ? "justify-center" : "justify-start";
 
   return (
-    <th className={`px-3 py-2 font-medium text-${align}`}>
+    <th className={cn("px-3 py-2 font-medium", HEADER_ALIGN_CLASS[align])}>
       <button
         type="button"
         onClick={() => onSort(field)}
-        className={`flex items-center gap-1 ${alignClass} w-full hover:text-foreground transition-colors`}
+        className={cn(
+          "flex w-full items-center gap-1 transition-colors hover:text-foreground",
+          HEADER_JUSTIFY_CLASS[align]
+        )}
       >
         <span>{label}</span>
         {isActive ? (
@@ -170,26 +146,26 @@ function ModelPricingRow({ model, onRecalculate, onSelectModel, recalculatingMod
       </td>
       <td className="px-3 py-2 text-right">
         <div className="flex items-center justify-end gap-2">
-          <span className="text-sm">{formatPrice(model.inputPricePer1M)}</span>
+          <span className="text-sm">{formatPricingDisplay(model.inputPricePer1M)}</span>
           <SourceBadge source={model.inputSource} />
         </div>
       </td>
       <td className="px-3 py-2 text-right">
         <div className="flex items-center justify-end gap-2">
-          <span className="text-sm">{formatPrice(model.outputPricePer1M)}</span>
+          <span className="text-sm">{formatPricingDisplay(model.outputPricePer1M)}</span>
           <SourceBadge source={model.outputSource} />
         </div>
       </td>
       <td className="px-3 py-2 text-right">
         {model.cacheReadPricePer1M !== undefined && model.cacheReadSource && (
           <div className="flex items-center justify-end gap-2">
-            <span className="text-sm">{formatPrice(model.cacheReadPricePer1M)}</span>
+            <span className="text-sm">{formatPricingDisplay(model.cacheReadPricePer1M)}</span>
             <SourceBadge source={model.cacheReadSource} />
           </div>
         )}
       </td>
       <td className="px-3 py-2 text-center text-xs text-muted-foreground">
-        {formatTimestamp(model.fetchedAt)}
+        {formatPricingTimestamp(model.fetchedAt)}
       </td>
       <td className="px-3 py-2">
         <div className="flex items-center justify-end gap-1">
@@ -228,6 +204,12 @@ function SettingsCard({ settings, loading, onUpdate }: SettingsCardProps) {
   const [avgDays, setAvgDays] = useState(settings?.historicalAverageDays?.toString() || "7");
   const [ttlSeconds, setTtlSeconds] = useState(settings?.providerCacheTtlSeconds?.toString() || "21600");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!settings) return;
+    setAvgDays(settings.historicalAverageDays.toString());
+    setTtlSeconds(settings.providerCacheTtlSeconds.toString());
+  }, [settings]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -325,7 +307,7 @@ function CacheStatusCard({ status, loading, onRefreshAll }: CacheStatusCardProps
               <div key={p.provider} className="text-xs border-l-2 border-border pl-2">
                 <div className="font-medium">{p.provider}</div>
                 <div className="text-muted-foreground">
-                  {p.modelCount} models | Last fetch: {formatTimestamp(p.lastFetchedAt)}
+                  {p.modelCount} models | Last fetch: {formatPricingTimestamp(p.lastFetchedAt)}
                 </div>
                 {p.isStale && <Badge variant="outline" className="text-yellow-400 text-xs mt-1">Stale</Badge>}
               </div>
@@ -482,7 +464,7 @@ function EditPricingDialog({ model, modelPricing, onClose, onPricingUpdated }: E
                     <tr key={key} className="border-b border-border/50 hover:bg-muted/30">
                       <td className="py-2 font-medium">{label}</td>
                       <td className="py-2 text-right font-mono">
-                        {price !== undefined && price > 0 ? formatPrice(price) : "-"}
+                        {price !== undefined && price > 0 ? formatPricingDisplay(price) : "-"}
                       </td>
                       <td className="py-2 text-center">
                         {price !== undefined && price > 0 ? (
@@ -508,7 +490,7 @@ function EditPricingDialog({ model, modelPricing, onClose, onPricingUpdated }: E
                           </div>
                         ) : hasOverride ? (
                           <span className="font-mono text-purple-300">
-                            {formatPrice(override.priceUsd * 1_000_000)}
+                            {formatPricingDisplay(override.priceUsd * 1_000_000)}
                           </span>
                         ) : (
                           <span className="text-muted-foreground">-</span>

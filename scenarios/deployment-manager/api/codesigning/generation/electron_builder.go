@@ -25,8 +25,8 @@ func generateWindowsConfig(config *codesigning.WindowsSigningConfig, opts *Optio
 		}
 	case codesigning.CertSourceStore:
 		win.CertificateSha1 = config.CertificateThumbprint
-	// Note: azure_keyvault and aws_kms require custom signtool configuration
-	// which electron-builder doesn't directly support via simple config
+		// Note: azure_keyvault and aws_kms require custom signtool configuration
+		// which electron-builder doesn't directly support via simple config
 	}
 
 	// Configure timestamp server

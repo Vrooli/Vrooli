@@ -2,7 +2,8 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { DownloadApp, DownloadAsset } from '../../../shared/api';
-import { DownloadSection, getDownloadAssetKey } from './DownloadSection';
+import { DownloadSection } from './DownloadSection';
+import { getDownloadAssetKey } from '../services/downloads.service';
 
 const requestDownloadMock = vi.hoisted(() => vi.fn());
 
@@ -222,7 +223,7 @@ describe('DownloadSection', () => {
     await user.click(screen.getByTestId('download-btn-primary'));
 
     expect(window.open).toHaveBeenCalledWith('/downloads/app.tar.gz', '_blank', 'noopener,noreferrer');
-    expect(await screen.findByText('Download started!')).toBeInTheDocument();
+    expect(await screen.findByText('Download started')).toBeInTheDocument();
   });
 
   it('rejects dangerous artifact URL schemes before opening a new window', async () => {

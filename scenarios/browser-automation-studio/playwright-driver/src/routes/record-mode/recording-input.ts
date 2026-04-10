@@ -68,7 +68,7 @@ export async function handleRecordInput(
         } else {
           sendJson(res, 400, {
             error: 'INVALID_ACTION',
-            message: `Unsupported pointer action: ${action}`,
+            message: 'Unsupported pointer action',
           });
           return;
         }
@@ -96,7 +96,7 @@ export async function handleRecordInput(
       default:
         sendJson(res, 400, {
           error: 'INVALID_TYPE',
-          message: `Unsupported input type: ${request.type}`,
+          message: 'Unsupported input type',
         });
         return;
     }

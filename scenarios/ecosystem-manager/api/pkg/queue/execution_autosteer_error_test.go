@@ -71,7 +71,7 @@ func (m *MockAutoSteerIntegration) EnhancePrompt(task *tasks.TaskItem, basePromp
 	return basePrompt, nil
 }
 
-func (m *MockAutoSteerIntegration) ExecutionEngine() *autosteer.ExecutionEngine {
+func (m *MockAutoSteerIntegration) ExecutionOrchestrator() *autosteer.ExecutionOrchestrator {
 	return nil
 }
 

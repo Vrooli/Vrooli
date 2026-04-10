@@ -1,8 +1,8 @@
 import datetime
 
-from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1.timeline import entry_pb2 as _entry_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -12,7 +12,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ExecutionTimeline(_message.Message):
-    __slots__ = ()
+    __slots__ = ("execution_id", "workflow_id", "status", "progress", "started_at", "completed_at", "entries", "logs")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]

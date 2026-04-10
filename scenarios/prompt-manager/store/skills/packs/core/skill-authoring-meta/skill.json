@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "skill-authoring-meta",
+  "name": "Meta Skill Authoring",
+  "description": "Authoring guide for Meta skills governing the skill system itself.",
+  "modes": [
+    "meta",
+    "meta"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "settings",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 44,
+  "createdAt": "2026-01-28T00:00:00Z",
+  "updatedAt": "2026-03-31T15:57:43Z"
+}

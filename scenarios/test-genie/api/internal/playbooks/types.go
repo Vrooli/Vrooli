@@ -26,6 +26,8 @@ type (
 // Re-export constants
 // NOTE: The ordering matches shared.ObservationType for ExtractStandardObservation compatibility.
 const (
+	ExecutionModeObserver = types.ExecutionModeObserver
+
 	ObservationSection = types.ObservationSection
 	ObservationSuccess = types.ObservationSuccess
 	ObservationWarning = types.ObservationWarning

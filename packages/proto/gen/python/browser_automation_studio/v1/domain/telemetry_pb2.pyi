@@ -1,9 +1,9 @@
 import datetime
 
-from google.protobuf import timestamp_pb2 as _timestamp_pb2
-from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1.base import geometry_pb2 as _geometry_pb2
+from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1.domain import selectors_pb2 as _selectors_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -13,7 +13,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ConsoleLogEntry(_message.Message):
-    __slots__ = ()
+    __slots__ = ("level", "text", "timestamp", "stack", "location")
     LEVEL_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
@@ -27,7 +27,7 @@ class ConsoleLogEntry(_message.Message):
     def __init__(self, level: _Optional[_Union[_shared_pb2.LogLevel, str]] = ..., text: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., stack: _Optional[str] = ..., location: _Optional[str] = ...) -> None: ...
 
 class NetworkEvent(_message.Message):
-    __slots__ = ()
+    __slots__ = ("type", "url", "method", "resource_type", "status", "ok", "failure", "timestamp")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     URL_FIELD_NUMBER: _ClassVar[int]
     METHOD_FIELD_NUMBER: _ClassVar[int]
@@ -47,7 +47,7 @@ class NetworkEvent(_message.Message):
     def __init__(self, type: _Optional[_Union[_shared_pb2.NetworkEventType, str]] = ..., url: _Optional[str] = ..., method: _Optional[str] = ..., resource_type: _Optional[str] = ..., status: _Optional[int] = ..., ok: _Optional[bool] = ..., failure: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ActionTelemetry(_message.Message):
-    __slots__ = ()
+    __slots__ = ("url", "frame_id", "screenshot", "dom_snapshot", "element_bounding_box", "click_position", "cursor_position", "cursor_trail", "highlight_regions", "mask_regions", "zoom_factor", "console_log_artifact", "network_event_artifact")
     URL_FIELD_NUMBER: _ClassVar[int]
     FRAME_ID_FIELD_NUMBER: _ClassVar[int]
     SCREENSHOT_FIELD_NUMBER: _ClassVar[int]
@@ -77,7 +77,7 @@ class ActionTelemetry(_message.Message):
     def __init__(self, url: _Optional[str] = ..., frame_id: _Optional[str] = ..., screenshot: _Optional[_Union[TimelineScreenshot, _Mapping]] = ..., dom_snapshot: _Optional[_Union[TelemetryArtifact, _Mapping]] = ..., element_bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., cursor_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., cursor_trail: _Optional[_Iterable[_Union[_geometry_pb2.Point, _Mapping]]] = ..., highlight_regions: _Optional[_Iterable[_Union[_selectors_pb2.HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[_selectors_pb2.MaskRegion, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., console_log_artifact: _Optional[_Union[TelemetryArtifact, _Mapping]] = ..., network_event_artifact: _Optional[_Union[TelemetryArtifact, _Mapping]] = ...) -> None: ...
 
 class TimelineScreenshot(_message.Message):
-    __slots__ = ()
+    __slots__ = ("artifact_id", "url", "thumbnail_url", "width", "height", "content_type", "size_bytes", "path")
     ARTIFACT_ID_FIELD_NUMBER: _ClassVar[int]
     URL_FIELD_NUMBER: _ClassVar[int]
     THUMBNAIL_URL_FIELD_NUMBER: _ClassVar[int]
@@ -97,7 +97,7 @@ class TimelineScreenshot(_message.Message):
     def __init__(self, artifact_id: _Optional[str] = ..., url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., content_type: _Optional[str] = ..., size_bytes: _Optional[int] = ..., path: _Optional[str] = ...) -> None: ...
 
 class TelemetryArtifact(_message.Message):
-    __slots__ = ()
+    __slots__ = ("artifact_id", "storage_url", "path", "content_type", "size_bytes")
     ARTIFACT_ID_FIELD_NUMBER: _ClassVar[int]
     STORAGE_URL_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]

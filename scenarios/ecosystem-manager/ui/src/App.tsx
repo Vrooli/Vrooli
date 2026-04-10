@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md
+// DOC: docs/reference/api-endpoints.md
 import { useState } from "react";
 import { useAppState } from "./contexts/AppStateContext";
 import { KanbanBoard } from "./components/kanban/KanbanBoard";

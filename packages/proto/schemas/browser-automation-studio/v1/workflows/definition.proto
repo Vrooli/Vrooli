@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package browser_automation_studio.v1;
 
-import "browser-automation-studio/v1/base/shared.proto";
-import "browser-automation-studio/v1/base/geometry.proto";
-import "browser-automation-studio/v1/base/browser_profile.proto";
 import "browser-automation-studio/v1/actions/action.proto";
+import "browser-automation-studio/v1/base/browser_profile.proto";
+import "browser-automation-studio/v1/base/geometry.proto";
+import "browser-automation-studio/v1/base/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows;workflows";
 
@@ -51,6 +51,27 @@ message WorkflowDefinitionV2 {
   repeated WorkflowEdgeV2 edges = 4;
 }
 
+// ExecutionMode classifies a workflow's side-effect safety level.
+// Used by external systems (e.g. git-control-tower) to decide which
+// workflows are safe to auto-run without human confirmation.
+//
+//   observer    — read-only: navigate, screenshot, assert, extract, wait.
+//                 Safe to run anytime, anywhere, with zero risk of data mutation.
+//   mutating    — creates or modifies state in recoverable ways (login, form
+//                 fills, toggling settings). Safe in test/dev environments.
+//   destructive — deletes data, resets state, or causes changes that are hard
+//                 to reverse. Requires explicit human confirmation before execution.
+//
+// When in doubt, choose the MORE restrictive tier. The cost of over-classifying
+// (an extra confirmation click) is far lower than under-classifying (accidental
+// data loss).
+enum ExecutionMode {
+  EXECUTION_MODE_UNSPECIFIED = 0;
+  EXECUTION_MODE_OBSERVER = 1;
+  EXECUTION_MODE_MUTATING = 2;
+  EXECUTION_MODE_DESTRUCTIVE = 3;
+}
+
 // WorkflowMetadataV2 captures workflow-level descriptors.
 //
 // @usage WorkflowDefinitionV2.metadata
@@ -67,6 +88,8 @@ message WorkflowMetadataV2 {
   optional string requirement = 5;
   // Owner identifier.
   optional string owner = 6;
+  // Execution mode classifying side-effect safety level.
+  ExecutionMode execution_mode = 7;
 }
 
 // WorkflowSettingsV2 captures browser/execution configuration.

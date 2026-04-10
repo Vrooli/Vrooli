@@ -79,7 +79,7 @@ export type {
  * Maps ACTION_TYPE_* enum values to their corresponding params field name.
  * e.g., ACTION_TYPE_CLICK -> 'click', ACTION_TYPE_INPUT -> 'input'
  */
-export function getParamsFieldName(actionType: ActionTypeValue): string | null {
+export function getParamsFieldName(actionType: ActionTypeValue): ActionParamsField | null {
   switch (actionType) {
     case ACTION_TYPES.NAVIGATE:
       return 'navigate';
@@ -193,6 +193,11 @@ export type ActionParamsMap = {
   [ACTION_TYPES.UNSPECIFIED]: Record<string, unknown>;
 };
 
+type ActionParamsField = Exclude<keyof ActionDefinition, 'type' | 'metadata'>;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 /**
  * Extracts typed params from an ActionDefinition based on its type.
  * Returns undefined if action is undefined or has no params for its type.
@@ -207,8 +212,7 @@ export function extractParams<T>(action: ActionDefinition | undefined): T | unde
     return undefined;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (action as any)[fieldName] as T | undefined;
+  return action[fieldName] as T | undefined;
 }
 
 /**
@@ -235,9 +239,9 @@ export function updateActionParams<T>(
     throw new Error(`Cannot update params: unknown action type ${action.type}`);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const existingParams = (action as any)[fieldName] as Record<string, unknown> | undefined;
-  const updatedParams = { ...existingParams, ...updates } as Record<string, unknown>;
+  const rawParams = action[fieldName];
+  const existingParams = isRecord(rawParams) ? rawParams : undefined;
+  const updatedParams: Record<string, unknown> = { ...existingParams, ...updates };
 
   // Remove undefined values from params
   for (const key of Object.keys(updatedParams)) {
@@ -292,8 +296,9 @@ export function createAction<T extends ActionTypeValue>(
   const action: ActionDefinition = { type };
 
   if (fieldName && params) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (action as any)[fieldName] = params;
+    const paramsRecord: Record<string, unknown> = { ...params };
+    const actionRecord = action as unknown as Record<string, unknown>;
+    actionRecord[fieldName] = paramsRecord;
   }
 
   if (metadata && Object.keys(metadata).length > 0) {

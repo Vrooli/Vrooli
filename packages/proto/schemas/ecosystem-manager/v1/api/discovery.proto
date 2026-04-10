@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package ecosystem_manager.v1;
+
+import "ecosystem-manager/v1/domain/discovery.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/api;api";
+
+// =============================================================================
+// DISCOVERY API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports discovery
+// @stability beta
+//
+// HTTP API contracts for Ecosystem Manager discovery endpoints.
+//
+// USAGE CONTEXTS:
+//   - UI services validating API responses
+//   - API handlers enforcing request constraints
+//
+// =============================================================================
+
+// ListResourcesResponse returns all discovered resources.
+message ListResourcesResponse {
+  // Discovered resources.
+  repeated Resource resources = 1;
+
+  // Number of resources.
+  int32 count = 2;
+}
+
+// ListScenariosResponse returns all discovered scenarios.
+message ListScenariosResponse {
+  // Discovered scenarios.
+  repeated Scenario scenarios = 1;
+
+  // Number of scenarios.
+  int32 count = 2;
+}
+
+// ListOperationsResponse returns all available operations.
+message ListOperationsResponse {
+  // Available operations.
+  repeated Operation operations = 1;
+}
+
+// ListCategoriesResponse returns all task categories.
+message ListCategoriesResponse {
+  // Task categories.
+  repeated Category categories = 1;
+}

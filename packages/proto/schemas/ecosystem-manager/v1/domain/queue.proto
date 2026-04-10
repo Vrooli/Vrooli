@@ -1,0 +1,160 @@
+syntax = "proto3";
+
+package ecosystem_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ecosystem-manager/v1/domain;domain";
+
+// =============================================================================
+// QUEUE DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain queue
+// @imports none (external only: buf.validate)
+// @stability beta
+//
+// Execution history and queue status types. Maps from
+// pkg/queue/execution_history.go:ExecutionHistory.
+//
+// USAGE CONTEXTS:
+//   - API responses for execution history endpoints
+//   - UI execution history views
+//
+// =============================================================================
+
+// ExecutionRecord tracks metadata about a single task execution.
+message ExecutionRecord {
+  // Task identifier.
+  string task_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable task title.
+  string task_title = 2;
+
+  // Task type (resource or scenario).
+  string task_type = 3;
+
+  // Task operation (generator or improver).
+  string task_operation = 4;
+
+  // Timestamp-based execution identifier.
+  string execution_id = 5 [(buf.validate.field).string.min_len = 1];
+
+  // Claude Code agent identifier.
+  string agent_tag = 6;
+
+  // OS process ID.
+  int32 process_id = 7;
+
+  // RFC3339 timestamp when execution began.
+  // @format rfc3339
+  string start_time = 8;
+
+  // RFC3339 timestamp when execution completed.
+  // @format rfc3339
+  string end_time = 9;
+
+  // Human-readable duration string.
+  string duration = 10;
+
+  // Whether task succeeded.
+  bool success = 11;
+
+  // Exit reason.
+  // @constraint one of: completed, failed, timeout, rate_limited
+  string exit_reason = 12;
+
+  // Size of assembled prompt in bytes.
+  int32 prompt_size = 13;
+
+  // Relative path to prompt file.
+  string prompt_path = 14;
+
+  // Relative path to output log.
+  string output_path = 15;
+
+  // Relative path to clean agent output (no timestamps).
+  string clean_output_path = 16;
+
+  // Relative path to last-agent-message text.
+  string last_message_path = 17;
+
+  // Relative path to transcript JSONL (if available).
+  string transcript_path = 18;
+
+  // Active Auto Steer profile at execution time.
+  string auto_steer_profile_id = 19;
+
+  // Global iteration counter for Auto Steer.
+  int32 auto_steer_iteration = 20;
+
+  // Active steering skill set (phase).
+  repeated string steer_skill_ids = 21;
+
+  // Optional steering set label.
+  string steer_set_label = 29;
+
+  // 1-based phase index (0 when unknown).
+  int32 steer_phase_index = 22;
+
+  // 1-based iteration within the active phase.
+  int32 steer_phase_iteration = 23;
+
+  // Steering source.
+  // @constraint one of: auto_steer, manual_mode, default_progress, steering_queue, none
+  string steering_source = 24;
+
+  // Total items in steering queue (for queue steering).
+  int32 steering_queue_total = 25;
+
+  // Configured timeout string.
+  string timeout_allowed = 26;
+
+  // Whether rate limit was hit.
+  bool rate_limited = 27;
+
+  // Rate limit retry seconds.
+  int32 retry_after = 28;
+}
+
+// QueueStatus represents the current state of the queue processor.
+message QueueStatus {
+  // Whether the processor is active.
+  bool is_active = 1;
+
+  // Whether the processor is paused.
+  bool is_paused = 2;
+
+  // Whether paused due to rate limiting.
+  bool is_rate_limit_paused = 3;
+
+  // RFC3339 timestamp when rate limit pause expires.
+  // @format rfc3339
+  string rate_limit_resume_at = 4;
+
+  // Number of tasks in pending status.
+  int32 pending_count = 5;
+
+  // Number of tasks currently executing.
+  int32 in_progress_count = 6;
+
+  // Number of running agent processes.
+  int32 running_processes = 7;
+
+  // Number of available execution slots.
+  int32 available_slots = 8;
+
+  // Maximum configured execution slots.
+  int32 max_slots = 9;
+
+  // RFC3339 timestamp of last processing cycle.
+  // @format rfc3339
+  string last_processed_at = 10;
+
+  // Cooldown between executions in seconds.
+  int32 cooldown_seconds = 11;
+
+  // Task execution timeout in minutes.
+  int32 task_timeout_minutes = 12;
+}

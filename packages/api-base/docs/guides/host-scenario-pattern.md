@@ -11,6 +11,57 @@ A **host scenario** is a scenario that displays other scenarios within it, typic
 
 This pattern has unique challenges that `@vrooli/api-base` now handles automatically.
 
+### Visual Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  BROWSER                                                            │
+│  http://localhost:21774/apps/scenario-auditor/proxy/                │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │
+                                ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│  HOST SCENARIO (app-monitor)                                          │
+│  UI: port 21774                                                       │
+│                                                                       │
+│  ┌───────────────────────────────────────────────────────────────┐    │
+│  │  ui/server.js                                                 │    │
+│  │                                                               │    │
+│  │  /apps/:appId/proxy/*   ─── handleScenarioProxyRequest() ──┐ │    │
+│  │                                                             │ │    │
+│  │  1. fetchAppMetadata(appId) ──> Go API returns ports       │ │    │
+│  │  2. Determine: API path? HTML? Static asset?               │ │    │
+│  │  3. Forward to correct upstream port                       │ │    │
+│  │  4. If HTML: inject metadata + <base> tag                  │ │    │
+│  └─────────────────────────────────────────────────────────┬───┘    │
+│                                                            │         │
+└────────────────────────────────────────────────────────────┼─────────┘
+                                                             │
+                            Forward to 127.0.0.1:PORT        │
+                                                             ▼
+                                                  ┌─────────────────────┐
+                                                  │  CHILD SCENARIO     │
+                                                  │  UI:  port 36224    │
+                                                  │  API: port 18508    │
+                                                  └─────────────────────┘
+```
+
+### How Request Types Are Routed
+
+```
+/apps/:appId/proxy/...
+        │
+        ├── /api/*          ──> Forward to apiPort (18508)
+        │                       No HTML injection
+        │
+        ├── GET *.html      ──> Stream from uiPort (36224)
+        │   Accept:text/html    Inject metadata + <base> tag
+        │                       Cache result
+        │
+        └── *.js, *.css,    ──> Forward to uiPort (36224)
+            images, etc.        No injection, pass-through
+```
+
 ## The Core Challenge
 
 Host scenarios face a dual routing problem:
@@ -108,6 +159,27 @@ controller.invalidate(appId)
 ```
 
 The cache automatically skips responses that include `Set-Cookie` headers, pings the child UI before reusing an entry so downtime still surfaces immediately, and injects fresh proxy metadata on every request.
+
+**Cache invalidation flow:**
+
+```
+Scenario restarts
+       │
+       ▼
+Go API detects status change
+       │
+       ▼
+POST /__cache/invalidate { appId: "scenario-a" }
+       │
+       ▼
+proxyHost.invalidate("scenario-a")
+       │
+       ├── Clear metadata cache entry
+       └── Clear all HTML cache entries for that appId
+              │
+              ▼
+       Next request fetches fresh metadata + HTML
+```
 
 ## Implementation Pattern
 

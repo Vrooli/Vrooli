@@ -17,15 +17,25 @@ import { metrics } from './metrics';
  */
 export function createMetricsServer(port: number): Promise<Server> {
   return new Promise((resolve, reject) => {
-    const server = createServer(async (req, res) => {
+    const server = createServer((req, res) => {
       if (req.url === '/metrics') {
         res.setHeader('Content-Type', metrics.getRegistry().contentType);
-        const metricsOutput = await metrics.getMetrics();
-        res.end(metricsOutput);
-      } else {
-        res.statusCode = 404;
-        res.end('Not found');
+        void metrics.getMetrics()
+          .then((metricsOutput) => {
+            res.end(metricsOutput);
+          })
+          .catch((error) => {
+            logger.error('Metrics server failed to collect metrics', {
+              error: error instanceof Error ? error.message : String(error),
+            });
+            res.statusCode = 500;
+            res.end('Failed to collect metrics');
+          });
+        return;
       }
+
+      res.statusCode = 404;
+      res.end('Not found');
     });
 
     server.on('error', (error: NodeJS.ErrnoException) => {

@@ -1,12 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { useUIStore, DEFAULT_REQUEST_TYPES, initialQueueForm, initialExecutionForm } from "./uiStore";
-
-// Mock window for hash-related tests
-const mockWindow = {
-  location: { hash: "" },
-  history: { replaceState: vi.fn() },
-  addEventListener: vi.fn()
-};
 
 describe("uiStore", () => {
   beforeEach(() => {

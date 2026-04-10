@@ -35,3 +35,25 @@ func (c *APIClient) Request(method, path string, query url.Values, body interfac
 	}
 	return c.client.Do(method, path, query, body)
 }
+
+// BaseURL returns the resolved API base URL.
+func (c *APIClient) BaseURL() string {
+	if c.baseResolver == nil {
+		return ""
+	}
+	opts := c.baseResolver()
+	base, _ := ValidateAPIBase(opts)
+	return base
+}
+
+// AuthHeaders returns a map of authentication headers.
+func (c *APIClient) AuthHeaders() map[string]string {
+	headers := make(map[string]string)
+	if c.tokenSource != nil {
+		token := c.tokenSource()
+		if token != "" {
+			headers["Authorization"] = "Bearer " + token
+		}
+	}
+	return headers
+}

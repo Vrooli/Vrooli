@@ -191,7 +191,12 @@ func (m *Monitor) checkHTTPHealth(ctx context.Context, svc manifest.Service, tim
 		return true
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	return parseHealthBody(resp.Body)
+}
+
+// parseHealthBody checks if the JSON health response body indicates a healthy state.
+func parseHealthBody(body io.Reader) bool {
+	raw, err := io.ReadAll(io.LimitReader(body, 1<<20))
 	if err != nil {
 		return false
 	}
@@ -199,7 +204,7 @@ func (m *Monitor) checkHTTPHealth(ctx context.Context, svc manifest.Service, tim
 		Status    string `json:"status"`
 		Readiness *bool  `json:"readiness"`
 	}
-	if err := json.Unmarshal(body, &payload); err != nil {
+	if err := json.Unmarshal(raw, &payload); err != nil {
 		return false
 	}
 	if payload.Status == "" && payload.Readiness == nil {

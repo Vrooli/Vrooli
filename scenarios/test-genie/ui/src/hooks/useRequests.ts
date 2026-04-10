@@ -12,7 +12,7 @@ export function useRequests() {
     refetchInterval: 10000
   });
 
-  const requests = query.data ?? [];
+  const requests = useMemo(() => query.data ?? [], [query.data]);
 
   const actionableRequest = useMemo(() => selectActionableRequest(requests), [requests]);
 

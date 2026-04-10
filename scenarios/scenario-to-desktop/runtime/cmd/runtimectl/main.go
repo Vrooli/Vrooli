@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/api-core/preflight"
 )
 
 type config struct {
@@ -25,6 +27,22 @@ type config struct {
 }
 
 func main() {
+	if preflight.Run(preflight.Config{ScenarioName: "scenario-to-desktop"}) {
+		return
+	}
+
+	cfg := parseFlags()
+
+	token, err := resolveToken(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve token: %v\n", err)
+		os.Exit(1)
+	}
+
+	runCommand(cfg, token)
+}
+
+func parseFlags() config {
 	var cfg config
 	flag.StringVar(&cfg.host, "host", "127.0.0.1", "Runtime host")
 	flag.IntVar(&cfg.port, "port", 47710, "Runtime port")
@@ -43,13 +61,10 @@ func main() {
 		os.Exit(1)
 	}
 	cfg.command = args[0]
+	return cfg
+}
 
-	token, err := resolveToken(cfg)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "resolve token: %v\n", err)
-		os.Exit(1)
-	}
-
+func runCommand(cfg config, token string) {
 	switch cfg.command {
 	case "health":
 		callJSON(cfg, token, "/healthz")

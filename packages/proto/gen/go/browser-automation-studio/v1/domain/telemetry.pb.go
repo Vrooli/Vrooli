@@ -569,7 +569,7 @@ var File_browser_automation_studio_v1_domain_telemetry_proto protoreflect.FileDe
 
 const file_browser_automation_studio_v1_domain_telemetry_proto_rawDesc = "" +
 	"\n" +
-	"3browser-automation-studio/v1/domain/telemetry.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a0browser-automation-studio/v1/base/geometry.proto\x1a3browser-automation-studio/v1/domain/selectors.proto\"\xf0\x01\n" +
+	"3browser-automation-studio/v1/domain/telemetry.proto\x12\x1cbrowser_automation_studio.v1\x1a0browser-automation-studio/v1/base/geometry.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a3browser-automation-studio/v1/domain/selectors.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf0\x01\n" +
 	"\x0fConsoleLogEntry\x12<\n" +
 	"\x05level\x18\x01 \x01(\x0e2&.browser_automation_studio.v1.LogLevelR\x05level\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x128\n" +

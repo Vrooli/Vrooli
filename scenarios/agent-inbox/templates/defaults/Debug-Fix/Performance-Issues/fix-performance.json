@@ -1,0 +1,46 @@
+{
+  "id": "debug-performance",
+  "name": "Fix Performance Issue",
+  "description": "Diagnose and resolve performance problems",
+  "icon": "Gauge",
+  "modes": ["Debug/Fix", "Performance Issues"],
+  "content": "I'm experiencing a performance issue in {{area}}.\n\n**Symptoms:** {{symptoms}}\n\n**When it happens:** {{when}}\n\n**Expected vs Actual:**\n- Expected: {{expected}}\n- Actual: {{actual}}\n\nPlease:\n1. Identify potential causes of the performance issue\n2. Suggest profiling/debugging approaches\n3. Propose optimizations with code examples\n4. Explain the performance impact of each change",
+  "variables": [
+    {
+      "name": "area",
+      "label": "Affected Area",
+      "type": "text",
+      "placeholder": "e.g., page load, API response, render cycle",
+      "required": true
+    },
+    {
+      "name": "symptoms",
+      "label": "Symptoms",
+      "type": "textarea",
+      "placeholder": "What performance issues are you seeing?",
+      "required": true
+    },
+    {
+      "name": "when",
+      "label": "When It Happens",
+      "type": "text",
+      "placeholder": "e.g., on initial load, after user action, with large data",
+      "required": false
+    },
+    {
+      "name": "expected",
+      "label": "Expected Performance",
+      "type": "text",
+      "placeholder": "e.g., < 100ms, instant, smooth 60fps",
+      "required": false
+    },
+    {
+      "name": "actual",
+      "label": "Actual Performance",
+      "type": "text",
+      "placeholder": "e.g., 3 seconds, janky, blocks UI",
+      "required": false
+    }
+  ],
+  "suggestedToolIds": ["spawn_coding_agent"]
+}

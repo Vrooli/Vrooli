@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock component for testing deployment list
@@ -27,11 +27,11 @@ describe('Deployments Page', () => {
 
   it('[REQ:DM-P0-028] should render deployments list', () => {
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <MockDeploymentsList />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('deployments-list')).toBeInTheDocument();
@@ -40,11 +40,11 @@ describe('Deployments Page', () => {
 
   it('[REQ:DM-P0-029] should display deployment status', () => {
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <MockDeploymentsList />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('deployment-item')).toBeInTheDocument();
@@ -58,11 +58,11 @@ describe('Deployments Page', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <ErrorComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('error-message')).toHaveTextContent(errorMessage);
@@ -91,11 +91,11 @@ describe('Deployment Monitoring', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <ProgressComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('deployment-progress')).toBeInTheDocument();
@@ -113,11 +113,11 @@ describe('Deployment Monitoring', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <LogsComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('deployment-logs')).toBeInTheDocument();
@@ -136,11 +136,11 @@ describe('Deployment Monitoring', () => {
     }
 
     render(
-      <BrowserRouter>
+      <MemoryRouter>
         <QueryClientProvider client={queryClient}>
           <AutoRefreshComponent />
         </QueryClientProvider>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     expect(screen.getByTestId('auto-refresh')).toBeInTheDocument();

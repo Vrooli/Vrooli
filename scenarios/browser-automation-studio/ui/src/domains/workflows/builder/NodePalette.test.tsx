@@ -121,13 +121,16 @@ describe(
 
       const setCookieCard = container.querySelector('[data-node-type="setCookie"]');
       expect(setCookieCard).toBeTruthy();
+      if (!setCookieCard) {
+        throw new Error('Expected setCookie card to exist');
+      }
 
       const dataTransfer = {
         setData: vi.fn(),
         effectAllowed: '',
       } as unknown as DataTransfer;
 
-      fireEvent.dragStart(setCookieCard!, { dataTransfer });
+      fireEvent.dragStart(setCookieCard, { dataTransfer });
 
       await waitFor(() => expect(screen.getByText('Quick Access')).toBeInTheDocument());
       expect((searchInput as HTMLInputElement).value).toBe('');

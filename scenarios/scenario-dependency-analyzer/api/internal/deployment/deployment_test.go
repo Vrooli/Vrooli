@@ -83,6 +83,89 @@ func TestBuildReport(t *testing.T) {
 			t.Fatal("expected non-nil report")
 		}
 	})
+
+	t.Run("IncludesRootScenarioRequirementsInAggregates", func(t *testing.T) {
+		scenarioDir := t.TempDir()
+		scenariosDir := filepath.Dir(scenarioDir)
+		scenarioName := filepath.Base(scenarioDir)
+
+		ram := 1536.0
+		disk := 2048.0
+		cpu := 1.5
+
+		cfg := &types.ServiceConfig{}
+		cfg.Service.Name = scenarioName
+		cfg.Deployment = &types.ServiceDeployment{
+			AggregateRequirements: &types.DeploymentRequirements{
+				RAMMB:    &ram,
+				DiskMB:   &disk,
+				CPUCores: &cpu,
+			},
+			Tiers: map[string]types.DeploymentTier{
+				"server": {
+					Status: "ready",
+				},
+			},
+		}
+
+		report := BuildReport(scenarioName, scenarioDir, scenariosDir, cfg)
+		if report == nil {
+			t.Fatal("expected non-nil report")
+		}
+
+		server, ok := report.Aggregates["server"]
+		if !ok {
+			t.Fatalf("expected server aggregate, got: %+v", report.Aggregates)
+		}
+		if server.EstimatedRequirements.RAMMB != ram {
+			t.Fatalf("expected server RAM %.0f, got %.0f", ram, server.EstimatedRequirements.RAMMB)
+		}
+	})
+
+	t.Run("IncludesRootScenarioInMetadataGapAnalysis", func(t *testing.T) {
+		scenarioDir := t.TempDir()
+		scenariosDir := filepath.Dir(scenarioDir)
+		scenarioName := filepath.Base(scenarioDir)
+
+		if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0755); err != nil {
+			t.Fatalf("mkdir .vrooli: %v", err)
+		}
+
+		cfg := &types.ServiceConfig{}
+		cfg.Service.Name = scenarioName
+		cfg.Dependencies.Resources = map[string]types.Resource{
+			"postgres": {Type: "postgres", Required: true},
+		}
+		cfg.Deployment = &types.ServiceDeployment{
+			Tiers: map[string]types.DeploymentTier{
+				"tier-1-local": {Status: "ready"},
+			},
+		}
+
+		raw, err := json.Marshal(cfg)
+		if err != nil {
+			t.Fatalf("marshal config: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "service.json"), raw, 0644); err != nil {
+			t.Fatalf("write service.json: %v", err)
+		}
+
+		report := BuildReport(scenarioName, scenarioDir, scenariosDir, cfg)
+		if report == nil || report.MetadataGaps == nil {
+			t.Fatalf("expected metadata gaps in report, got: %+v", report)
+		}
+
+		rootGap, ok := report.MetadataGaps.GapsByScenario[scenarioName]
+		if !ok {
+			t.Fatalf("expected root scenario gap entry, got %+v", report.MetadataGaps.GapsByScenario)
+		}
+		if !rootGap.MissingDependencyCatalog {
+			t.Fatalf("expected missing dependency catalog for root scenario, got %+v", rootGap)
+		}
+		if len(rootGap.MissingResourceMetadata) == 0 {
+			t.Fatalf("expected missing resource metadata for root scenario, got %+v", rootGap)
+		}
+	})
 }
 
 // TestPersistReport tests report persistence.
@@ -143,6 +226,76 @@ func TestPersistReport(t *testing.T) {
 			t.Errorf("expected %d dependencies, got %d", len(original.Dependencies), len(loaded.Dependencies))
 		}
 	})
+
+	t.Run("NoRewriteWhenOnlyGeneratedAtChanges", func(t *testing.T) {
+		scenarioDir := t.TempDir()
+		reportPath := filepath.Join(scenarioDir, ".vrooli", "deployment", "deployment-report.json")
+
+		first := &types.DeploymentAnalysisReport{
+			Scenario:      "test-scenario",
+			ReportVersion: ReportVersion,
+			GeneratedAt:   time.Date(2026, 2, 8, 3, 0, 0, 0, time.UTC),
+			BundleManifest: types.BundleManifest{
+				Scenario:    "test-scenario",
+				GeneratedAt: time.Date(2026, 2, 8, 3, 0, 0, 0, time.UTC),
+			},
+			MetadataGaps: &types.DeploymentMetadataGaps{
+				GapsByScenario: map[string]types.ScenarioGapInfo{
+					"test-scenario": {
+						MissingTierDefinitions: []string{"desktop", "server"},
+					},
+				},
+			},
+		}
+		if err := PersistReport(scenarioDir, first); err != nil {
+			t.Fatalf("PersistReport(first) error: %v", err)
+		}
+
+		infoBefore, err := os.Stat(reportPath)
+		if err != nil {
+			t.Fatalf("stat before: %v", err)
+		}
+		contentBefore, err := os.ReadFile(reportPath)
+		if err != nil {
+			t.Fatalf("read before: %v", err)
+		}
+
+		second := &types.DeploymentAnalysisReport{
+			Scenario:      "test-scenario",
+			ReportVersion: ReportVersion,
+			GeneratedAt:   time.Date(2026, 2, 8, 3, 30, 0, 0, time.UTC),
+			BundleManifest: types.BundleManifest{
+				Scenario:    "test-scenario",
+				GeneratedAt: time.Date(2026, 2, 8, 3, 30, 0, 0, time.UTC),
+			},
+			MetadataGaps: &types.DeploymentMetadataGaps{
+				GapsByScenario: map[string]types.ScenarioGapInfo{
+					"test-scenario": {
+						MissingTierDefinitions: []string{"desktop", "server"},
+					},
+				},
+			},
+		}
+		if err := PersistReport(scenarioDir, second); err != nil {
+			t.Fatalf("PersistReport(second) error: %v", err)
+		}
+
+		infoAfter, err := os.Stat(reportPath)
+		if err != nil {
+			t.Fatalf("stat after: %v", err)
+		}
+		contentAfter, err := os.ReadFile(reportPath)
+		if err != nil {
+			t.Fatalf("read after: %v", err)
+		}
+
+		if !infoAfter.ModTime().Equal(infoBefore.ModTime()) {
+			t.Fatalf("expected report file mtime unchanged when only timestamps differ")
+		}
+		if string(contentAfter) != string(contentBefore) {
+			t.Fatalf("expected report contents unchanged when only timestamps differ")
+		}
+	})
 }
 
 // TestLoadReport tests report loading.
@@ -170,10 +323,10 @@ func TestLoadReport(t *testing.T) {
 // TestClassifyResource tests resource classification.
 func TestClassifyResource(t *testing.T) {
 	tests := []struct {
-		name       string
-		resource   string
-		wantClass  ResourceClass
-		wantHeavy  bool
+		name      string
+		resource  string
+		wantClass ResourceClass
+		wantHeavy bool
 	}{
 		{"Postgres", "postgres", ResourceClassDatabase, true},
 		{"MySQL", "mysql", ResourceClassDatabase, true},
@@ -213,92 +366,92 @@ func TestClassifyResource(t *testing.T) {
 // TestDecideTierFitness tests tier fitness decisions.
 func TestDecideTierFitness(t *testing.T) {
 	tests := []struct {
-		name          string
-		tier          string
+		name           string
+		tier           string
 		classification ResourceClassification
-		wantSupported bool
-		minScore      float64
-		maxScore      float64
+		wantSupported  bool
+		minScore       float64
+		maxScore       float64
 	}{
 		{
-			name:          "LocalAlwaysSupported",
-			tier:          "local",
+			name:           "LocalAlwaysSupported",
+			tier:           "local",
 			classification: ResourceClassification{Class: ResourceClassDatabase, IsHeavyOps: true},
-			wantSupported: true,
-			minScore:      1.0,
-			maxScore:      1.0,
+			wantSupported:  true,
+			minScore:       1.0,
+			maxScore:       1.0,
 		},
 		{
-			name:          "DesktopLightweight",
-			tier:          "desktop",
+			name:           "DesktopLightweight",
+			tier:           "desktop",
 			classification: ResourceClassification{Class: ResourceClassStorage, IsHeavyOps: false},
-			wantSupported: true,
-			minScore:      0.85,
-			maxScore:      1.0,
+			wantSupported:  true,
+			minScore:       0.85,
+			maxScore:       1.0,
 		},
 		{
-			name:          "DesktopHeavy",
-			tier:          "desktop",
+			name:           "DesktopHeavy",
+			tier:           "desktop",
 			classification: ResourceClassification{Class: ResourceClassDatabase, IsHeavyOps: true},
-			wantSupported: true,
-			minScore:      0.5,
-			maxScore:      0.7,
+			wantSupported:  true,
+			minScore:       0.5,
+			maxScore:       0.7,
 		},
 		{
-			name:          "ServerAlwaysGood",
-			tier:          "server",
+			name:           "ServerAlwaysGood",
+			tier:           "server",
 			classification: ResourceClassification{Class: ResourceClassDatabase, IsHeavyOps: true},
-			wantSupported: true,
-			minScore:      0.9,
-			maxScore:      1.0,
+			wantSupported:  true,
+			minScore:       0.9,
+			maxScore:       1.0,
 		},
 		{
-			name:          "MobileAIBlocked",
-			tier:          "mobile",
+			name:           "MobileAIBlocked",
+			tier:           "mobile",
 			classification: ResourceClassification{Class: ResourceClassAI, IsHeavyOps: true},
-			wantSupported: false,
-			minScore:      0.0,
-			maxScore:      0.1,
+			wantSupported:  false,
+			minScore:       0.0,
+			maxScore:       0.1,
 		},
 		{
-			name:          "MobileDatabaseBlocked",
-			tier:          "mobile",
+			name:           "MobileDatabaseBlocked",
+			tier:           "mobile",
 			classification: ResourceClassification{Class: ResourceClassDatabase, IsHeavyOps: false},
-			wantSupported: false,
-			minScore:      0.1,
-			maxScore:      0.3,
+			wantSupported:  false,
+			minScore:       0.1,
+			maxScore:       0.3,
 		},
 		{
-			name:          "SaaSDatabase",
-			tier:          "saas",
+			name:           "SaaSDatabase",
+			tier:           "saas",
 			classification: ResourceClassification{Class: ResourceClassDatabase, IsHeavyOps: true},
-			wantSupported: true,
-			minScore:      0.9,
-			maxScore:      1.0,
+			wantSupported:  true,
+			minScore:       0.9,
+			maxScore:       1.0,
 		},
 		{
-			name:          "SaaSLocalAI",
-			tier:          "saas",
+			name:           "SaaSLocalAI",
+			tier:           "saas",
 			classification: ResourceClassification{Class: ResourceClassAI, IsHeavyOps: true},
-			wantSupported: true,
-			minScore:      0.2,
-			maxScore:      0.4,
+			wantSupported:  true,
+			minScore:       0.2,
+			maxScore:       0.4,
 		},
 		{
-			name:          "EnterpriseAlwaysHigh",
-			tier:          "enterprise",
+			name:           "EnterpriseAlwaysHigh",
+			tier:           "enterprise",
 			classification: ResourceClassification{Class: ResourceClassAI, IsHeavyOps: true},
-			wantSupported: true,
-			minScore:      0.95,
-			maxScore:      1.0,
+			wantSupported:  true,
+			minScore:       0.95,
+			maxScore:       1.0,
 		},
 		{
-			name:          "UnknownTier",
-			tier:          "unknown-tier",
+			name:           "UnknownTier",
+			tier:           "unknown-tier",
 			classification: ResourceClassification{Class: ResourceClassService, IsHeavyOps: false},
-			wantSupported: true,
-			minScore:      0.6,
-			maxScore:      0.8,
+			wantSupported:  true,
+			minScore:       0.6,
+			maxScore:       0.8,
 		},
 	}
 
@@ -497,6 +650,26 @@ func TestComputeTierAggregates(t *testing.T) {
 		expectedFitness := 0.7
 		if desktop.FitnessScore != expectedFitness {
 			t.Errorf("expected fitness %f, got %f", expectedFitness, desktop.FitnessScore)
+		}
+	})
+
+	t.Run("SkipsExplicitNonDeployIntentNodes", func(t *testing.T) {
+		falseVal := false
+		nodes := []types.DeploymentDependencyNode{
+			{
+				Name:     "disabled-cache",
+				Type:     "resource",
+				Required: &falseVal,
+				Enabled:  &falseVal,
+				TierSupport: map[string]types.TierSupportSummary{
+					"server": {Supported: truePtr(true), FitnessScore: floatPtr(0.9)},
+				},
+			},
+		}
+
+		aggregates := ComputeTierAggregates(nodes)
+		if len(aggregates) != 0 {
+			t.Fatalf("expected no aggregates when all nodes are non-deploy-intent, got: %+v", aggregates)
 		}
 	})
 }

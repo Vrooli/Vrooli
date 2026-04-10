@@ -6,12 +6,16 @@ import (
 	"test-genie/internal/shared"
 )
 
+// DOC: docs/phases/docs/README.md#configuration
 // Settings holds configuration for docs validation loaded from .vrooli/testing.json (docs section).
 type Settings struct {
-	Markdown MarkdownSettings `json:"markdown"`
-	Mermaid  MermaidSettings  `json:"mermaid"`
-	Links    LinkSettings     `json:"links"`
-	Paths    PathSettings     `json:"absolute_paths"`
+	Markdown   MarkdownSettings  `json:"markdown"`
+	Mermaid    MermaidSettings   `json:"mermaid"`
+	Links      LinkSettings      `json:"links"`
+	Paths      PathSettings      `json:"absolute_paths"`
+	ScanPaths  ScanPathSettings  `json:"paths"`
+	References *ReferencesConfig `json:"references"`
+	Manifest   *ManifestConfig   `json:"manifest"`
 }
 
 type MarkdownSettings struct {
@@ -46,6 +50,40 @@ type PathSettings struct {
 	Allow []string `json:"allow"`
 }
 
+// ScanPathSettings controls filesystem traversal filters for docs validation.
+type ScanPathSettings struct {
+	// ExcludeDirs skips directories by name or by relative path prefix.
+	ExcludeDirs []string `json:"exclude_dirs"`
+	// ExcludeGlobs skips files/dirs by scenario-relative glob. Supports **.
+	ExcludeGlobs []string `json:"exclude_globs"`
+}
+
+// ReferencesConfig controls bidirectional code↔documentation reference validation.
+type ReferencesConfig struct {
+	// Enabled toggles reference validation. Default: true.
+	Enabled *bool `json:"enabled"`
+	// ValidateCodeRefs checks [CODE: ...] references in docs point to valid files. Default: true.
+	ValidateCodeRefs *bool `json:"validate_code_refs"`
+	// ValidateDocRefs checks // DOC: comments in code point to valid docs. Default: true.
+	ValidateDocRefs *bool `json:"validate_doc_refs"`
+	// CodeExtensions lists file extensions to scan for DOC: comments.
+	CodeExtensions []string `json:"code_extensions"`
+	// Strict fails on broken references (default: false = warnings only).
+	Strict *bool `json:"strict"`
+	// SkipDirs lists additional directories to skip when scanning code files.
+	SkipDirs []string `json:"skip_dirs"`
+}
+
+// ManifestConfig controls docs manifest coverage tracking.
+type ManifestConfig struct {
+	// Enabled toggles manifest coverage checking. Default: false.
+	Enabled *bool `json:"enabled"`
+	// RequireAllDocsRegistered warns when docs exist but aren't in manifest. Default: false.
+	RequireAllDocsRegistered *bool `json:"require_all_docs_registered"`
+	// ManifestPath is the path to the manifest file relative to scenario dir.
+	ManifestPath string `json:"manifest_path"`
+}
+
 // LoadSettings reads the docs section from testing.json.
 func LoadSettings(scenarioDir string) (*Settings, error) {
 	settings := DefaultSettings()
@@ -70,6 +108,19 @@ func DefaultSettings() *Settings {
 		},
 		Paths: PathSettings{
 			Enabled: boolPtr(true),
+		},
+		References: &ReferencesConfig{
+			Enabled:          boolPtr(true),
+			ValidateCodeRefs: boolPtr(true),
+			ValidateDocRefs:  boolPtr(true),
+			CodeExtensions:   []string{".ts", ".tsx", ".js", ".jsx", ".go", ".py", ".rs", ".java", ".kt"},
+			Strict:           boolPtr(false),
+			SkipDirs:         nil,
+		},
+		Manifest: &ManifestConfig{
+			Enabled:                  boolPtr(false),
+			RequireAllDocsRegistered: boolPtr(false),
+			ManifestPath:             "docs/manifest.json",
 		},
 	}
 }
@@ -129,6 +180,83 @@ func (s *Settings) markdownEnabled() bool {
 		return true
 	}
 	return *s.Markdown.Enabled
+}
+
+func (s *Settings) referencesEnabled() bool {
+	if s == nil || s.References == nil || s.References.Enabled == nil {
+		return true
+	}
+	return *s.References.Enabled
+}
+
+func (s *Settings) codeRefsEnabled() bool {
+	if s == nil || s.References == nil || s.References.ValidateCodeRefs == nil {
+		return true
+	}
+	return *s.References.ValidateCodeRefs
+}
+
+func (s *Settings) docRefsEnabled() bool {
+	if s == nil || s.References == nil || s.References.ValidateDocRefs == nil {
+		return true
+	}
+	return *s.References.ValidateDocRefs
+}
+
+func (s *Settings) referencesStrict() bool {
+	if s == nil || s.References == nil || s.References.Strict == nil {
+		return false
+	}
+	return *s.References.Strict
+}
+
+func (s *Settings) codeExtensions() []string {
+	if s == nil || s.References == nil || len(s.References.CodeExtensions) == 0 {
+		return []string{".ts", ".tsx", ".js", ".jsx", ".go", ".py", ".rs", ".java", ".kt"}
+	}
+	return s.References.CodeExtensions
+}
+
+func (s *Settings) referencesSkipDirs() []string {
+	if s == nil || s.References == nil {
+		return nil
+	}
+	return s.References.SkipDirs
+}
+
+func (s *Settings) scanExcludeDirs() []string {
+	if s == nil {
+		return nil
+	}
+	return s.ScanPaths.ExcludeDirs
+}
+
+func (s *Settings) scanExcludeGlobs() []string {
+	if s == nil {
+		return nil
+	}
+	return s.ScanPaths.ExcludeGlobs
+}
+
+func (s *Settings) manifestEnabled() bool {
+	if s == nil || s.Manifest == nil || s.Manifest.Enabled == nil {
+		return false
+	}
+	return *s.Manifest.Enabled
+}
+
+func (s *Settings) manifestRequireAll() bool {
+	if s == nil || s.Manifest == nil || s.Manifest.RequireAllDocsRegistered == nil {
+		return false
+	}
+	return *s.Manifest.RequireAllDocsRegistered
+}
+
+func (s *Settings) manifestPath() string {
+	if s == nil || s.Manifest == nil || s.Manifest.ManifestPath == "" {
+		return "docs/manifest.json"
+	}
+	return s.Manifest.ManifestPath
 }
 
 func boolPtr(v bool) *bool {

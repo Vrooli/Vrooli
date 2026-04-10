@@ -10,9 +10,109 @@ import {
 } from '../../../../src/ai/vision-client/openrouter';
 import { VisionModelError } from '../../../../src/ai/vision-client/types';
 
+type OpenRouterMessage = {
+  role: string;
+  content: unknown;
+};
+
+type OpenRouterContent =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
 // Mock fetch globally
-const mockFetch = jest.fn();
+const mockFetch = jest.fn<Promise<Response>, [RequestInfo | URL, RequestInit?]>();
 global.fetch = mockFetch;
+
+const createJsonResponse = (value: unknown, init?: ResponseInit): Response =>
+  new Response(JSON.stringify(value), {
+    status: init?.status ?? 200,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {}),
+    },
+  });
+
+const createTextResponse = (value: string, status: number): Response =>
+  new Response(value, { status });
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const getRequestOptions = (): RequestInit => {
+  const call = mockFetch.mock.calls[0];
+  if (!call) {
+    throw new Error('Expected fetch to have been called');
+  }
+  const options = call[1];
+  if (!options) {
+    throw new Error('Expected fetch to have been called with options');
+  }
+  return options;
+};
+
+const getRequestBody = (): Record<string, unknown> => {
+  const options = getRequestOptions();
+  const body = options.body;
+  if (typeof body !== 'string') {
+    throw new Error('Expected request body to be a JSON string');
+  }
+  const parsed: unknown = JSON.parse(body);
+  if (!isRecord(parsed)) {
+    throw new Error('Expected JSON body to be an object');
+  }
+  return parsed;
+};
+
+const isMessage = (value: unknown): value is OpenRouterMessage =>
+  isRecord(value) && typeof value.role === 'string' && 'content' in value;
+
+const getMessages = (body: Record<string, unknown>): OpenRouterMessage[] => {
+  const messages = body.messages;
+  if (!Array.isArray(messages)) {
+    throw new Error('Expected messages to be an array');
+  }
+  if (!messages.every(isMessage)) {
+    throw new Error('Expected messages to be objects with role/content');
+  }
+  return messages;
+};
+
+const isTextContent = (value: unknown): value is OpenRouterContent =>
+  isRecord(value) && value.type === 'text' && typeof value.text === 'string';
+
+const isImageContent = (value: unknown): value is OpenRouterContent =>
+  isRecord(value) &&
+  value.type === 'image_url' &&
+  isRecord(value.image_url) &&
+  typeof value.image_url.url === 'string';
+
+const getContentItems = (content: unknown): OpenRouterContent[] => {
+  if (!Array.isArray(content)) {
+    throw new Error('Expected message content to be an array');
+  }
+  return content.filter((item): item is OpenRouterContent => isTextContent(item) || isImageContent(item));
+};
+
+const getHeaderRecord = (headers: HeadersInit | undefined): Record<string, string> => {
+  if (!headers) {
+    return {};
+  }
+  if (headers instanceof Headers) {
+    const record: Record<string, string> = {};
+    headers.forEach((value, key) => {
+      record[key] = value;
+    });
+    return record;
+  }
+  if (Array.isArray(headers)) {
+    const record: Record<string, string> = {};
+    for (const [key, value] of headers) {
+      record[key] = value;
+    }
+    return record;
+  }
+  return headers;
+};
 
 describe('OpenRouterVisionClient', () => {
   const validConfig = {
@@ -98,10 +198,7 @@ ACTION: click(1)`,
 
   describe('analyze', () => {
     it('parses click action from response', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => successResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createJsonResponse(successResponse));
 
       const client = new OpenRouterVisionClient(validConfig);
       const result = await client.analyze(validRequest);
@@ -116,9 +213,8 @@ ACTION: click(1)`,
     });
 
     it('parses type action from response', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      mockFetch.mockResolvedValueOnce(
+        createJsonResponse({
           ...successResponse,
           choices: [
             {
@@ -129,8 +225,8 @@ ACTION: click(1)`,
               },
             },
           ],
-        }),
-      });
+        })
+      );
 
       const client = new OpenRouterVisionClient(validConfig);
       const result = await client.analyze(validRequest);
@@ -143,9 +239,8 @@ ACTION: click(1)`,
     });
 
     it('parses done action and sets goalAchieved', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      mockFetch.mockResolvedValueOnce(
+        createJsonResponse({
           ...successResponse,
           choices: [
             {
@@ -156,8 +251,8 @@ ACTION: click(1)`,
               },
             },
           ],
-        }),
-      });
+        })
+      );
 
       const client = new OpenRouterVisionClient(validConfig);
       const result = await client.analyze(validRequest);
@@ -171,9 +266,8 @@ ACTION: click(1)`,
     });
 
     it('parses JSON block response format', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      mockFetch.mockResolvedValueOnce(
+        createJsonResponse({
           ...successResponse,
           choices: [
             {
@@ -188,8 +282,8 @@ ACTION: click(1)`,
               },
             },
           ],
-        }),
-      });
+        })
+      );
 
       const client = new OpenRouterVisionClient(validConfig);
       const result = await client.analyze(validRequest);
@@ -201,65 +295,67 @@ ACTION: click(1)`,
     });
 
     it('includes element labels in request', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => successResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createJsonResponse(successResponse));
 
       const client = new OpenRouterVisionClient(validConfig);
       await client.analyze(validRequest);
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      const [, options] = mockFetch.mock.calls[0];
-      const body = JSON.parse(options.body);
+      const body = getRequestBody();
+      const messages = getMessages(body);
 
-      // Check that messages include element labels
-      const userMessage = body.messages.find((m: { role: string }) => m.role === 'user');
-      expect(userMessage).toBeDefined();
+      const userMessage = messages.find((message) => message.role === 'user');
+      if (!userMessage) {
+        throw new Error('Expected user message to be present');
+      }
 
-      // Find the text content that should contain element labels
-      const textContent = userMessage.content.find((c: { type: string }) => c.type === 'text');
+      const contentItems = getContentItems(userMessage.content);
+      const textContent = contentItems.find(isTextContent);
+      if (!textContent || textContent.type !== 'text') {
+        throw new Error('Expected text content in user message');
+      }
+
       expect(textContent.text).toContain('[1]');
       expect(textContent.text).toContain('Login');
     });
 
     it('includes screenshot as base64 image', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => successResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createJsonResponse(successResponse));
 
       const client = new OpenRouterVisionClient(validConfig);
       await client.analyze(validRequest);
 
-      const [, options] = mockFetch.mock.calls[0];
-      const body = JSON.parse(options.body);
-      const userMessage = body.messages.find((m: { role: string }) => m.role === 'user');
-      const imageContent = userMessage.content.find((c: { type: string }) => c.type === 'image_url');
+      const body = getRequestBody();
+      const messages = getMessages(body);
+      const userMessage = messages.find((message) => message.role === 'user');
+      if (!userMessage) {
+        throw new Error('Expected user message to be present');
+      }
+
+      const contentItems = getContentItems(userMessage.content);
+      const imageContent = contentItems.find(isImageContent);
+      if (!imageContent || imageContent.type !== 'image_url') {
+        throw new Error('Expected image content in user message');
+      }
 
       expect(imageContent.image_url.url).toMatch(/^data:image\/png;base64,/);
     });
 
     it('sends correct headers', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => successResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createJsonResponse(successResponse));
 
       const client = new OpenRouterVisionClient(validConfig);
       await client.analyze(validRequest);
 
-      const [, options] = mockFetch.mock.calls[0];
-      expect(options.headers['Authorization']).toBe('Bearer test-api-key');
-      expect(options.headers['Content-Type']).toBe('application/json');
-      expect(options.headers['HTTP-Referer']).toBe('https://vrooli.com');
+      const options = getRequestOptions();
+      const headers = getHeaderRecord(options.headers);
+      expect(headers['Authorization']).toBe('Bearer test-api-key');
+      expect(headers['Content-Type']).toBe('application/json');
+      expect(headers['HTTP-Referer']).toBe('https://vrooli.com');
     });
 
     it('includes conversation history in messages', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => successResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createJsonResponse(successResponse));
 
       const client = new OpenRouterVisionClient(validConfig);
       await client.analyze({
@@ -270,25 +366,27 @@ ACTION: click(1)`,
         ],
       });
 
-      const [, options] = mockFetch.mock.calls[0];
-      const body = JSON.parse(options.body);
+      const body = getRequestBody();
+      const messages = getMessages(body);
 
       // Should have: system + history user + history assistant + current user
-      expect(body.messages.length).toBe(4);
-      expect(body.messages[0].role).toBe('system');
-      expect(body.messages[1].role).toBe('user');
-      expect(body.messages[1].content).toBe('First prompt');
-      expect(body.messages[2].role).toBe('assistant');
+      expect(messages.length).toBe(4);
+      const [systemMessage, historyUser, historyAssistant] = messages;
+      if (!systemMessage || !historyUser || !historyAssistant) {
+        throw new Error('Expected system and history messages');
+      }
+      expect(systemMessage.role).toBe('system');
+      expect(historyUser.role).toBe('user');
+      expect(historyUser.content).toBe('First prompt');
+      expect(historyAssistant.role).toBe('assistant');
     });
   });
 
   describe('error handling', () => {
     it('throws INVALID_API_KEY on 401', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        text: async () => JSON.stringify({ error: { message: 'Invalid API key' } }),
-      });
+      mockFetch.mockResolvedValueOnce(
+        createTextResponse(JSON.stringify({ error: { message: 'Invalid API key' } }), 401)
+      );
 
       const client = new OpenRouterVisionClient(validConfig);
 
@@ -303,11 +401,7 @@ ACTION: click(1)`,
     });
 
     it('throws RATE_LIMITED on 429', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 429,
-        text: async () => 'Rate limit exceeded',
-      });
+      mockFetch.mockResolvedValueOnce(createTextResponse('Rate limit exceeded', 429));
 
       const client = new OpenRouterVisionClient({
         ...validConfig,
@@ -325,11 +419,7 @@ ACTION: click(1)`,
     });
 
     it('throws QUOTA_EXCEEDED on 402', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 402,
-        text: async () => 'Insufficient credits',
-      });
+      mockFetch.mockResolvedValueOnce(createTextResponse('Insufficient credits', 402));
 
       const client = new OpenRouterVisionClient(validConfig);
 
@@ -341,15 +431,8 @@ ACTION: click(1)`,
 
     it('retries on 500 errors', async () => {
       mockFetch
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 500,
-          text: async () => 'Internal server error',
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => successResponse,
-        });
+        .mockResolvedValueOnce(createTextResponse('Internal server error', 500))
+        .mockResolvedValueOnce(createJsonResponse(successResponse));
 
       const client = new OpenRouterVisionClient({
         ...validConfig,
@@ -362,9 +445,8 @@ ACTION: click(1)`,
     });
 
     it('throws PARSE_ERROR when action cannot be parsed', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      mockFetch.mockResolvedValueOnce(
+        createJsonResponse({
           ...successResponse,
           choices: [
             {
@@ -375,8 +457,8 @@ ACTION: click(1)`,
               },
             },
           ],
-        }),
-      });
+        })
+      );
 
       const client = new OpenRouterVisionClient(validConfig);
 
@@ -386,13 +468,12 @@ ACTION: click(1)`,
     });
 
     it('throws when no choices returned', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      mockFetch.mockResolvedValueOnce(
+        createJsonResponse({
           ...successResponse,
           choices: [],
-        }),
-      });
+        })
+      );
 
       const client = new OpenRouterVisionClient(validConfig);
 
@@ -404,13 +485,12 @@ ACTION: click(1)`,
 
   describe('token estimation', () => {
     it('estimates tokens when usage not provided', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      mockFetch.mockResolvedValueOnce(
+        createJsonResponse({
           ...successResponse,
           usage: undefined,
-        }),
-      });
+        })
+      );
 
       const client = new OpenRouterVisionClient(validConfig);
       const result = await client.analyze(validRequest);
@@ -425,10 +505,7 @@ ACTION: click(1)`,
 
   describe('confidence estimation', () => {
     it('gives high confidence for click with elementId', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => successResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createJsonResponse(successResponse));
 
       const client = new OpenRouterVisionClient(validConfig);
       const result = await client.analyze(validRequest);
@@ -437,9 +514,8 @@ ACTION: click(1)`,
     });
 
     it('gives lower confidence for scroll actions', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      mockFetch.mockResolvedValueOnce(
+        createJsonResponse({
           ...successResponse,
           choices: [
             {
@@ -450,8 +526,8 @@ ACTION: click(1)`,
               },
             },
           ],
-        }),
-      });
+        })
+      );
 
       const client = new OpenRouterVisionClient(validConfig);
       const result = await client.analyze(validRequest);
@@ -460,9 +536,8 @@ ACTION: click(1)`,
     });
 
     it('gives high confidence for successful done action', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      mockFetch.mockResolvedValueOnce(
+        createJsonResponse({
           ...successResponse,
           choices: [
             {
@@ -474,8 +549,8 @@ ACTION: click(1)`,
               },
             },
           ],
-        }),
-      });
+        })
+      );
 
       const client = new OpenRouterVisionClient(validConfig);
       const result = await client.analyze(validRequest);

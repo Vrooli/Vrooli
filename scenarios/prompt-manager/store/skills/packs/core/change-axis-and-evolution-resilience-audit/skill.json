@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "change-axis-and-evolution-resilience-audit",
+  "name": "Change Axis \u0026 Evolution Resilience",
+  "description": "Audit how well the codebase handles change and evolution",
+  "modes": [
+    "steer",
+    "audits"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "gitbranch",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 43,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2026-02-04T13:13:54Z"
+}

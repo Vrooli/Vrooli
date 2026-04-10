@@ -1,5 +1,10 @@
 import { useEffect, useCallback, useRef } from 'react';
 import {
+  emitShortcutIntent,
+  HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
+  type BridgeShortcutOutcome,
+} from '@vrooli/iframe-bridge';
+import {
   useKeyboardShortcutsStore,
   type ShortcutContext,
   type ShortcutDefinition,
@@ -152,6 +157,19 @@ export function useKeyboardShortcutHandler() {
         return;
       }
     }
+
+    // No local shortcut matched — relay modifier combos to the host
+    // so unhandled shortcuts can be handled at the app-monitor level.
+    if (hasCtrlOrMeta && keyLower.length === 1) {
+      const chord = `mod+${keyLower}`;
+      const outcome: BridgeShortcutOutcome = 'noop';
+      emitShortcutIntent({
+        action: HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
+        outcome,
+        chord,
+        source: 'keyboard',
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -217,7 +235,10 @@ export function useRegisterShortcuts(
 
     const ids = Object.keys(actionMap);
     for (const id of ids) {
-      registerAction(id, actionMap[id]);
+      const action = actionMap[id];
+      if (action) {
+        registerAction(id, action);
+      }
     }
 
     return () => {

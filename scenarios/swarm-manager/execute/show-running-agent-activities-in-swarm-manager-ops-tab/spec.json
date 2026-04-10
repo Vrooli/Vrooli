@@ -1,0 +1,16 @@
+{
+  "created": "2026-03-30T21:22:08Z",
+  "description": "The ops tab currently only shows executions. It should also display activities that have running agents, giving a complete view of all active agent work — not just execution-scoped ones.",
+  "kind": "execute",
+  "name": "show-running-agent-activities-in-swarm-manager-ops-tab",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "swarm-manager",
+    "ops-tab",
+    "activities",
+    "agent-status"
+  ],
+  "title": "Show running agent activities in swarm-manager ops tab",
+  "updated": "2026-03-31T13:37:03Z"
+}

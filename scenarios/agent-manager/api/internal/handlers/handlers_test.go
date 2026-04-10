@@ -9,15 +9,15 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
-	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/protoconv"
-	"agent-manager/internal/repository"
+	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -50,26 +50,24 @@ func encodeProtoJSON(t *testing.T, msg proto.Message) []byte {
 	return body
 }
 
-// setupTestHandler creates a handler with in-memory repositories for testing.
-func setupTestHandler() (*Handler, *mux.Router) {
-	// Create in-memory repositories
-	profiles := repository.NewMemoryProfileRepository()
-	tasks := repository.NewMemoryTaskRepository()
-	runs := repository.NewMemoryRunRepository()
-	events := event.NewMemoryStore()
+// setupTestHandler creates a handler with SQLite-backed repositories for testing.
+func setupTestHandler(t *testing.T) (*Handler, *mux.Router) {
+	t.Helper()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
 
 	// Create runner registry with mock runner
 	registry := runner.NewRegistry()
 	if err := registry.Register(runner.NewMockRunner(domain.RunnerTypeClaudeCode)); err != nil {
-		panic(fmt.Sprintf("register runner: %v", err))
+		t.Fatalf("register runner: %v", err)
 	}
 
 	// Create orchestrator with dependencies
 	orch := orchestration.New(
-		profiles,
-		tasks,
-		runs,
-		orchestration.WithEvents(events),
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(registry),
 	)
 
@@ -94,7 +92,7 @@ func setupTestHandler() (*Handler, *mux.Router) {
 // TestCreateProfile_Success tests successful profile creation.
 // [REQ:REQ-P0-001] Verify profile creation with valid data
 func TestCreateProfile_Success(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
 		Profile: &pb.AgentProfile{
@@ -130,7 +128,7 @@ func TestCreateProfile_Success(t *testing.T) {
 // TestCreateProfile_ValidationError tests profile creation with invalid data.
 // [REQ:REQ-P0-001] Verify validation of required fields
 func TestCreateProfile_ValidationError(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	tests := []struct {
 		name    string
@@ -173,7 +171,7 @@ func TestCreateProfile_ValidationError(t *testing.T) {
 // TestGetProfile_Success tests successful profile retrieval.
 // [REQ:REQ-P0-001] Test profile retrieval by ID
 func TestGetProfile_Success(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	// First create a profile
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
@@ -214,7 +212,7 @@ func TestGetProfile_Success(t *testing.T) {
 // TestGetProfile_NotFound tests retrieval of non-existent profile.
 // [REQ:REQ-P0-001] Test error handling for missing profile
 func TestGetProfile_NotFound(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+uuid.New().String(), nil)
 	rr := httptest.NewRecorder()
@@ -228,7 +226,7 @@ func TestGetProfile_NotFound(t *testing.T) {
 // TestListProfiles tests listing all profiles.
 // [REQ:REQ-P0-001] Test listing profiles
 func TestListProfiles(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	// Create multiple profiles
 	for i := 0; i < 3; i++ {
@@ -266,7 +264,7 @@ func TestListProfiles(t *testing.T) {
 // TestUpdateProfile tests profile update.
 // [REQ:REQ-P0-002] Verify profile updates persist correctly
 func TestUpdateProfile_Success(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	// Create profile
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
@@ -319,7 +317,7 @@ func TestUpdateProfile_Success(t *testing.T) {
 // TestDeleteProfile tests profile deletion.
 // [REQ:REQ-P0-001] Test profile deletion
 func TestDeleteProfile_Success(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	// Create profile
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
@@ -371,7 +369,7 @@ func TestDeleteProfile_Success(t *testing.T) {
 // TestCreateTask_Success tests successful task creation.
 // [REQ:REQ-P0-003] Verify task creation with valid data
 func TestCreateTask_Success(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
 		Task: &pb.Task{
@@ -405,7 +403,7 @@ func TestCreateTask_Success(t *testing.T) {
 // TestCreateTask_ValidationError tests task creation with invalid data.
 // [REQ:REQ-P0-003] Verify validation of required fields
 func TestCreateTask_ValidationError(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	tests := []struct {
 		name string
@@ -444,7 +442,7 @@ func TestCreateTask_ValidationError(t *testing.T) {
 // TestGetTask_Success tests successful task retrieval.
 // [REQ:REQ-P0-003] Test task retrieval
 func TestGetTask_Success(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	// Create task
 	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
@@ -483,7 +481,7 @@ func TestGetTask_Success(t *testing.T) {
 // TestListTasks tests listing all tasks.
 // [REQ:REQ-P0-003] Test listing tasks
 func TestListTasks(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	// Create tasks
 	for i := 0; i < 3; i++ {
@@ -520,7 +518,7 @@ func TestListTasks(t *testing.T) {
 // TestCancelTask tests task cancellation.
 // [REQ:REQ-P0-003] Test task cancellation
 func TestCancelTask_Success(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	// Create task
 	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
@@ -556,7 +554,7 @@ func TestCancelTask_Success(t *testing.T) {
 // TestHealth_Success tests the health endpoint.
 // [REQ:REQ-P0-011] Verify health endpoint returns proper format
 func TestHealth_Success(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rr := httptest.NewRecorder()
@@ -590,7 +588,7 @@ func TestHealth_Success(t *testing.T) {
 // TestHealth_ApiV1Path tests the /api/v1/health endpoint.
 // [REQ:REQ-P0-011] Verify both health endpoint paths work
 func TestHealth_ApiV1Path(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
 	rr := httptest.NewRecorder()
@@ -610,7 +608,7 @@ func TestHealth_ApiV1Path(t *testing.T) {
 // TestCreateRun_Success tests successful run creation.
 // [REQ:REQ-P0-005] Verify run creation with valid data
 func TestCreateRun_Success(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	// First create a profile
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
@@ -675,7 +673,7 @@ func TestCreateRun_Success(t *testing.T) {
 // TestListRuns tests listing runs.
 // [REQ:REQ-P0-004] Test run listing
 func TestListRuns(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs", nil)
 	rr := httptest.NewRecorder()
@@ -689,7 +687,7 @@ func TestListRuns(t *testing.T) {
 // TestGetRunnerStatus tests the runner status endpoint.
 // [REQ:REQ-P0-006] Test runner status
 func TestGetRunnerStatus(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/runners", nil)
 	rr := httptest.NewRecorder()
@@ -714,7 +712,7 @@ func TestGetRunnerStatus(t *testing.T) {
 
 // TestRequestIDMiddleware tests that request IDs are properly assigned.
 func TestRequestIDMiddleware(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	// Test without request ID - should be assigned
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -744,7 +742,7 @@ func TestRequestIDMiddleware(t *testing.T) {
 
 // TestErrorResponse_Format tests that error responses have proper structure.
 func TestErrorResponse_Format(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	// Request non-existent resource
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+uuid.New().String(), nil)
@@ -777,7 +775,7 @@ func TestErrorResponse_Format(t *testing.T) {
 
 // TestCreateProfile_MalformedJSON tests profile creation with invalid JSON.
 func TestCreateProfile_MalformedJSON(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	tests := []struct {
 		name string
@@ -807,7 +805,7 @@ func TestCreateProfile_MalformedJSON(t *testing.T) {
 
 // TestCreateTask_MalformedJSON tests task creation with invalid JSON.
 func TestCreateTask_MalformedJSON(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	tests := []struct {
 		name string
@@ -835,7 +833,7 @@ func TestCreateTask_MalformedJSON(t *testing.T) {
 
 // TestGetProfile_InvalidUUID tests profile retrieval with invalid UUID.
 func TestGetProfile_InvalidUUID(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	tests := []struct {
 		name string
@@ -865,7 +863,7 @@ func TestGetProfile_InvalidUUID(t *testing.T) {
 
 // TestGetTask_InvalidUUID tests task retrieval with invalid UUID.
 func TestGetTask_InvalidUUID(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/tasks/invalid-uuid", nil)
 	rr := httptest.NewRecorder()
@@ -879,7 +877,7 @@ func TestGetTask_InvalidUUID(t *testing.T) {
 
 // TestGetRun_InvalidUUID tests run retrieval with invalid UUID.
 func TestGetRun_InvalidUUID(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs/invalid-uuid", nil)
 	rr := httptest.NewRecorder()
@@ -893,7 +891,7 @@ func TestGetRun_InvalidUUID(t *testing.T) {
 
 // TestCreateRun_MalformedJSON tests run creation with invalid JSON.
 func TestCreateRun_MalformedJSON(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	tests := []struct {
 		name string
@@ -922,7 +920,7 @@ func TestCreateRun_MalformedJSON(t *testing.T) {
 
 // TestUpdateProfile_InvalidUUID tests profile update with invalid UUID.
 func TestUpdateProfile_InvalidUUID(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	body := encodeProtoJSON(t, &apipb.UpdateProfileRequest{
 		ProfileId: "invalid-uuid",
@@ -945,7 +943,7 @@ func TestUpdateProfile_InvalidUUID(t *testing.T) {
 
 // TestDeleteProfile_InvalidUUID tests profile deletion with invalid UUID.
 func TestDeleteProfile_InvalidUUID(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/profiles/invalid-uuid", nil)
 	rr := httptest.NewRecorder()
@@ -959,7 +957,7 @@ func TestDeleteProfile_InvalidUUID(t *testing.T) {
 
 // TestCancelTask_InvalidUUID tests task cancellation with invalid UUID.
 func TestCancelTask_InvalidUUID(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks/invalid-uuid/cancel", nil)
 	rr := httptest.NewRecorder()
@@ -973,7 +971,7 @@ func TestCancelTask_InvalidUUID(t *testing.T) {
 
 // TestListProfiles_InvalidPagination tests profile listing with invalid pagination params.
 func TestListProfiles_InvalidPagination(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	tests := []struct {
 		name  string
@@ -1003,7 +1001,7 @@ func TestListProfiles_InvalidPagination(t *testing.T) {
 
 // TestContentTypeRequired tests that Content-Type header is handled properly.
 func TestContentTypeRequired(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	body := `{"name": "test", "runnerType": "claude-code"}`
 
@@ -1023,7 +1021,7 @@ func TestContentTypeRequired(t *testing.T) {
 
 // TestLargePayload tests handling of very large request payloads.
 func TestLargePayload_Profile(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	// Create a profile with a very long description
 	longDesc := make([]byte, 100000) // 100KB
@@ -1112,7 +1110,7 @@ func createTestTask(t *testing.T, router *mux.Router) *pb.Task {
 // TestStopRun_Success tests stopping a running run.
 // [REQ:REQ-P0-004] Test run stop operation
 func TestStopRun_Success(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	// Create profile, task, and run first
 	profile := createTestProfile(t, router)
@@ -1145,7 +1143,7 @@ func TestStopRun_Success(t *testing.T) {
 
 // TestStopRun_InvalidUUID tests stopping with invalid run ID.
 func TestStopRun_InvalidUUID(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/invalid-uuid/stop", nil)
 	rr := httptest.NewRecorder()
@@ -1158,7 +1156,7 @@ func TestStopRun_InvalidUUID(t *testing.T) {
 
 // TestStopRun_NotFound tests stopping a non-existent run.
 func TestStopRun_NotFound(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+uuid.New().String()+"/stop", nil)
 	rr := httptest.NewRecorder()
@@ -1171,7 +1169,7 @@ func TestStopRun_NotFound(t *testing.T) {
 
 // TestGetRunByTag tests retrieving a run by custom tag.
 func TestGetRunByTag_NotFound(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs/tag/nonexistent-tag", nil)
 	rr := httptest.NewRecorder()
@@ -1184,7 +1182,7 @@ func TestGetRunByTag_NotFound(t *testing.T) {
 
 // TestStopRunByTag tests stopping a run by its custom tag.
 func TestStopRunByTag_NotFound(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/tag/nonexistent-tag/stop", nil)
 	rr := httptest.NewRecorder()
@@ -1197,7 +1195,7 @@ func TestStopRunByTag_NotFound(t *testing.T) {
 
 // TestStopAllRuns tests the bulk stop operation.
 func TestStopAllRuns_Success(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	tagPrefix := ""
 	body := encodeProtoJSON(t, &apipb.StopAllRunsRequest{
@@ -1222,7 +1220,7 @@ func TestStopAllRuns_Success(t *testing.T) {
 
 // TestStopAllRuns_WithTagPrefix tests bulk stop with tag filtering.
 func TestStopAllRuns_WithTagPrefix(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	tagPrefix := "test-"
 	body := encodeProtoJSON(t, &apipb.StopAllRunsRequest{
@@ -1241,7 +1239,7 @@ func TestStopAllRuns_WithTagPrefix(t *testing.T) {
 
 // TestStopAllRuns_EmptyBody tests bulk stop with no body (should work).
 func TestStopAllRuns_EmptyBody(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/stop-all", nil)
 	req.Header.Set("Content-Type", "application/json")
@@ -1256,20 +1254,39 @@ func TestStopAllRuns_EmptyBody(t *testing.T) {
 
 // TestGetRunEvents tests retrieving events for a run.
 func TestGetRunEvents_Success(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	// Create a run first
 	profile := createTestProfile(t, router)
-	task := createTestTask(t, router)
+	prompt := "Summarize the task and list next steps."
+	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
+		Task: &pb.Task{
+			Title:       "test-task-" + uuid.New().String()[:8],
+			Description: prompt,
+			ScopePath:   "src/",
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("failed to create test task: %d %s", rr.Code, rr.Body.String())
+	}
+
+	var taskResp apipb.CreateTaskResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &taskResp)
+	task := taskResp.Task
 
 	agentProfileID := profile.Id
-	body := encodeProtoJSON(t, &apipb.CreateRunRequest{
+	body = encodeProtoJSON(t, &apipb.CreateRunRequest{
 		TaskId:         task.Id,
 		AgentProfileId: &agentProfileID,
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
+	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
 	var createdRunResp apipb.CreateRunResponse
@@ -1288,12 +1305,26 @@ func TestGetRunEvents_Success(t *testing.T) {
 	// Verify response contains events array
 	var response apipb.GetRunEventsResponse
 	decodeProtoJSON(t, rr.Body.Bytes(), &response)
-	// Events may be empty for a fresh run, that's OK
+	if len(response.Events) == 0 {
+		t.Fatalf("expected events for run, got none")
+	}
+
+	found := false
+	for _, evt := range response.Events {
+		msg := evt.GetMessage()
+		if msg != nil && msg.Role == "user" && msg.Content == prompt {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected initial user prompt event with content %q", prompt)
+	}
 }
 
 // TestGetRunEvents_NotFound tests getting events for non-existent run.
 func TestGetRunEvents_NotFound(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+uuid.New().String()+"/events", nil)
 	rr := httptest.NewRecorder()
@@ -1307,7 +1338,7 @@ func TestGetRunEvents_NotFound(t *testing.T) {
 
 // TestGetRunEvents_InvalidUUID tests getting events with invalid run ID.
 func TestGetRunEvents_InvalidUUID(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs/invalid-uuid/events", nil)
 	rr := httptest.NewRecorder()
@@ -1320,7 +1351,7 @@ func TestGetRunEvents_InvalidUUID(t *testing.T) {
 
 // TestGetRunDiff_NotFound tests getting diff for non-existent run.
 func TestGetRunDiff_NotFound(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+uuid.New().String()+"/diff", nil)
 	rr := httptest.NewRecorder()
@@ -1333,7 +1364,7 @@ func TestGetRunDiff_NotFound(t *testing.T) {
 
 // TestGetRunDiff_InvalidUUID tests getting diff with invalid run ID.
 func TestGetRunDiff_InvalidUUID(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs/invalid-uuid/diff", nil)
 	rr := httptest.NewRecorder()
@@ -1346,7 +1377,7 @@ func TestGetRunDiff_InvalidUUID(t *testing.T) {
 
 // TestApproveRun_NotFound tests approving a non-existent run.
 func TestApproveRun_NotFound(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	runID := uuid.New().String()
 	body := encodeProtoJSON(t, &apipb.ApproveRunRequest{
@@ -1366,7 +1397,7 @@ func TestApproveRun_NotFound(t *testing.T) {
 
 // TestApproveRun_InvalidUUID tests approving with invalid run ID.
 func TestApproveRun_InvalidUUID(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	body := encodeProtoJSON(t, &apipb.ApproveRunRequest{
 		RunId: "invalid-uuid",
@@ -1384,7 +1415,7 @@ func TestApproveRun_InvalidUUID(t *testing.T) {
 
 // TestApproveRun_MalformedBody tests approving with invalid JSON.
 func TestApproveRun_MalformedBody(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+uuid.New().String()+"/approve", bytes.NewReader([]byte("not json")))
 	req.Header.Set("Content-Type", "application/json")
@@ -1398,7 +1429,7 @@ func TestApproveRun_MalformedBody(t *testing.T) {
 
 // TestRejectRun_NotFound tests rejecting a non-existent run.
 func TestRejectRun_NotFound(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	runID := uuid.New().String()
 	body := encodeProtoJSON(t, &apipb.RejectRunRequest{
@@ -1418,7 +1449,7 @@ func TestRejectRun_NotFound(t *testing.T) {
 
 // TestRejectRun_InvalidUUID tests rejecting with invalid run ID.
 func TestRejectRun_InvalidUUID(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	body := encodeProtoJSON(t, &apipb.RejectRunRequest{
 		RunId:  "invalid-uuid",
@@ -1437,7 +1468,7 @@ func TestRejectRun_InvalidUUID(t *testing.T) {
 
 // TestRejectRun_MalformedBody tests rejecting with invalid JSON.
 func TestRejectRun_MalformedBody(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+uuid.New().String()+"/reject", bytes.NewReader([]byte("{broken")))
 	req.Header.Set("Content-Type", "application/json")
@@ -1455,7 +1486,7 @@ func TestRejectRun_MalformedBody(t *testing.T) {
 
 // TestListRuns_WithStatusFilter tests listing runs with status filter.
 func TestListRuns_WithStatusFilter(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?status=running", nil)
 	rr := httptest.NewRecorder()
@@ -1472,7 +1503,7 @@ func TestListRuns_WithStatusFilter(t *testing.T) {
 
 // TestListRuns_WithTaskIDFilter tests listing runs with task ID filter.
 func TestListRuns_WithTaskIDFilter(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	taskID := uuid.New().String()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?taskId="+taskID, nil)
@@ -1486,7 +1517,7 @@ func TestListRuns_WithTaskIDFilter(t *testing.T) {
 
 // TestListRuns_WithProfileIDFilter tests listing runs with profile ID filter.
 func TestListRuns_WithProfileIDFilter(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	profileID := uuid.New().String()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?profileId="+profileID, nil)
@@ -1500,7 +1531,7 @@ func TestListRuns_WithProfileIDFilter(t *testing.T) {
 
 // TestListRuns_WithTagPrefixFilter tests listing runs with tag prefix filter.
 func TestListRuns_WithTagPrefixFilter(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?tagPrefix=ecosystem-", nil)
 	rr := httptest.NewRecorder()
@@ -1513,7 +1544,7 @@ func TestListRuns_WithTagPrefixFilter(t *testing.T) {
 
 // TestListRuns_WithMultipleFilters tests listing runs with multiple filters.
 func TestListRuns_WithMultipleFilters(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?status=pending&tagPrefix=test-", nil)
 	rr := httptest.NewRecorder()
@@ -1524,13 +1555,67 @@ func TestListRuns_WithMultipleFilters(t *testing.T) {
 	}
 }
 
+// TestListRuns_WithInvestigatesRunIDFilter tests listing runs with investigates_run_id filter.
+func TestListRuns_WithInvestigatesRunIDFilter(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	sourceRunID := uuid.New().String()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?investigates_run_id="+sourceRunID, nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rr.Code)
+	}
+}
+
+// TestListRuns_WithAppliesInvestigationRunIDFilter tests listing runs with applies_investigation_run_id filter.
+func TestListRuns_WithAppliesInvestigationRunIDFilter(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	investigationRunID := uuid.New().String()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?applies_investigation_run_id="+investigationRunID, nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rr.Code)
+	}
+}
+
+// TestListRuns_WithInvalidInvestigatesRunID tests validation for investigates_run_id.
+func TestListRuns_WithInvalidInvestigatesRunID(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?investigates_run_id=invalid-uuid", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", rr.Code)
+	}
+}
+
+// TestListRuns_WithInvalidAppliesInvestigationRunID tests validation for applies_investigation_run_id.
+func TestListRuns_WithInvalidAppliesInvestigationRunID(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/runs?applies_investigation_run_id=invalid-uuid", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", rr.Code)
+	}
+}
+
 // =============================================================================
 // UPDATE TASK TESTS
 // =============================================================================
 
 // TestUpdateTask_Success tests successful task update.
 func TestUpdateTask_Success(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	// Create task first
 	task := createTestTask(t, router)
@@ -1564,7 +1649,7 @@ func TestUpdateTask_Success(t *testing.T) {
 
 // TestUpdateTask_NotFound tests updating non-existent task.
 func TestUpdateTask_NotFound(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	missingID := uuid.New().String()
 	body := encodeProtoJSON(t, &apipb.UpdateTaskRequest{
@@ -1587,7 +1672,7 @@ func TestUpdateTask_NotFound(t *testing.T) {
 
 // TestUpdateTask_InvalidUUID tests updating with invalid task ID.
 func TestUpdateTask_InvalidUUID(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	body := encodeProtoJSON(t, &apipb.UpdateTaskRequest{
 		TaskId: "invalid-uuid",
@@ -1608,7 +1693,7 @@ func TestUpdateTask_InvalidUUID(t *testing.T) {
 
 // TestUpdateTask_MalformedBody tests updating with invalid JSON.
 func TestUpdateTask_MalformedBody(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
 		Task: &pb.Task{
@@ -1642,7 +1727,7 @@ func TestUpdateTask_MalformedBody(t *testing.T) {
 
 // TestCancelTask_NotFound tests cancelling non-existent task.
 func TestCancelTask_NotFound(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks/"+uuid.New().String()+"/cancel", nil)
 	rr := httptest.NewRecorder()
@@ -1655,7 +1740,7 @@ func TestCancelTask_NotFound(t *testing.T) {
 
 // TestGetTask_NotFound tests retrieving non-existent task.
 func TestGetTask_NotFound(t *testing.T) {
-	_, router := setupTestHandler()
+	_, router := setupTestHandler(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/tasks/"+uuid.New().String(), nil)
 	rr := httptest.NewRecorder()
@@ -1663,6 +1748,206 @@ func TestGetTask_NotFound(t *testing.T) {
 
 	if rr.Code != http.StatusNotFound {
 		t.Errorf("expected status 404, got %d", rr.Code)
+	}
+}
+
+// TestListRuns_IncludesPromptPreview verifies that listing runs includes
+// the first ~120 characters of the associated task description.
+func TestListRuns_IncludesPromptPreview(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	// Create a task with a known description (the user's prompt).
+	taskDesc := "Fix the failing auth tests in the login module and update the middleware"
+	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
+		Task: &pb.Task{
+			Title:       "test-task-preview",
+			Description: taskDesc,
+			ScopePath:   "src/",
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("create task: %d %s", rr.Code, rr.Body.String())
+	}
+	var taskResp apipb.CreateTaskResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &taskResp)
+
+	// Create a profile for the run.
+	profile := createTestProfile(t, router)
+
+	// Create a run linked to that task.
+	profileID := profile.Id
+	tag := "gct-test-preview"
+	body = encodeProtoJSON(t, &apipb.CreateRunRequest{
+		TaskId:         taskResp.Task.Id,
+		AgentProfileId: &profileID,
+		Tag:            &tag,
+	})
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("create run: %d %s", rr.Code, rr.Body.String())
+	}
+
+	// List runs and check for prompt_preview.
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/runs?tagPrefix=gct-test-preview", nil)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("list runs: %d %s", rr.Code, rr.Body.String())
+	}
+
+	var listResp apipb.ListRunsResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &listResp)
+
+	if len(listResp.Runs) == 0 {
+		t.Fatal("expected at least one run")
+	}
+
+	got := listResp.Runs[0].PromptPreview
+	if got != taskDesc {
+		t.Errorf("expected prompt_preview %q, got %q", taskDesc, got)
+	}
+}
+
+// TestListRuns_OmitsHeavyFields verifies that the list endpoint returns nil for
+// heavy fields (summary, resolvedConfig) while GetRun returns them.
+func TestListRuns_OmitsHeavyFields(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	// Create profile and task
+	profile := createTestProfile(t, router)
+	taskDesc := "Heavy fields test task description"
+	body := encodeProtoJSON(t, &apipb.CreateTaskRequest{
+		Task: &pb.Task{
+			Title:       "heavy-fields-test",
+			Description: taskDesc,
+			ScopePath:   "src/",
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("create task: %d %s", rr.Code, rr.Body.String())
+	}
+	var taskResp apipb.CreateTaskResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &taskResp)
+
+	// Create a run
+	profileID := profile.Id
+	tag := "heavy-test-tag"
+	body = encodeProtoJSON(t, &apipb.CreateRunRequest{
+		TaskId:         taskResp.Task.Id,
+		AgentProfileId: &profileID,
+		Tag:            &tag,
+	})
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("create run: %d %s", rr.Code, rr.Body.String())
+	}
+	var createResp apipb.CreateRunResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &createResp)
+	runID := createResp.Run.Id
+
+	// List runs — heavy fields should be nil
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/runs?tagPrefix=heavy-test-tag", nil)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("list runs: %d %s", rr.Code, rr.Body.String())
+	}
+	var listResp apipb.ListRunsResponse
+	decodeProtoJSON(t, rr.Body.Bytes(), &listResp)
+
+	if len(listResp.Runs) == 0 {
+		t.Fatal("expected at least one run in list")
+	}
+	listedRun := listResp.Runs[0]
+	if listedRun.Summary != nil {
+		t.Errorf("List: expected nil Summary, got %+v", listedRun.Summary)
+	}
+	if listedRun.ResolvedConfig != nil {
+		t.Errorf("List: expected nil ResolvedConfig, got %+v", listedRun.ResolvedConfig)
+	}
+
+	// Get single run — should return whatever fields exist (not nil by design)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+runID, nil)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("get run: %d %s", rr.Code, rr.Body.String())
+	}
+	// Just verifying the Get endpoint works — newly created runs may not have
+	// summary/resolvedConfig set yet, but the endpoint should return the full object.
+}
+
+// =============================================================================
+// CUSTOM ENVIRONMENT VALIDATION TESTS
+// =============================================================================
+
+func TestValidateCustomEnvironment_Valid(t *testing.T) {
+	env := map[string]string{
+		"VROOLI_SPAWN_SOURCE": "research/my-research",
+		"VROOLI_CUSTOM_VAR":   "value",
+	}
+	if err := validateCustomEnvironment(env); err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+}
+
+func TestValidateCustomEnvironment_InvalidPrefix(t *testing.T) {
+	env := map[string]string{
+		"PATH": "/usr/bin",
+	}
+	err := validateCustomEnvironment(env)
+	if err == nil {
+		t.Fatal("expected error for non-VROOLI_ prefix")
+	}
+	if !strings.Contains(err.Error(), "VROOLI_") {
+		t.Errorf("error should mention VROOLI_ prefix, got: %v", err)
+	}
+}
+
+func TestValidateCustomEnvironment_TooManyEntries(t *testing.T) {
+	env := make(map[string]string, 21)
+	for i := range 21 {
+		env[fmt.Sprintf("VROOLI_VAR_%d", i)] = "v"
+	}
+	err := validateCustomEnvironment(env)
+	if err == nil {
+		t.Fatal("expected error for >20 entries")
+	}
+	if !strings.Contains(err.Error(), "20") {
+		t.Errorf("error should mention limit, got: %v", err)
+	}
+}
+
+func TestValidateCustomEnvironment_TooLarge(t *testing.T) {
+	env := map[string]string{
+		"VROOLI_BIG": strings.Repeat("x", 5000),
+	}
+	err := validateCustomEnvironment(env)
+	if err == nil {
+		t.Fatal("expected error for oversized env")
+	}
+	if !strings.Contains(err.Error(), "4096") {
+		t.Errorf("error should mention size limit, got: %v", err)
+	}
+}
+
+func TestValidateCustomEnvironment_Empty(t *testing.T) {
+	if err := validateCustomEnvironment(map[string]string{}); err != nil {
+		t.Errorf("expected no error for empty map, got %v", err)
 	}
 }
 

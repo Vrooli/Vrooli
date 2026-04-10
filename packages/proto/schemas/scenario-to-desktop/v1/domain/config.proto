@@ -1,0 +1,467 @@
+syntax = "proto3";
+
+package scenario_to_desktop.v1;
+
+import "scenario-to-desktop/v1/base/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1";
+
+// =============================================================================
+// DESKTOP CONFIGURATION
+// =============================================================================
+//
+// @layer 1
+// @domain config
+// @imports base
+// @stability beta
+//
+// Configuration types for desktop application generation. Decomposed into
+// logical components (AppIdentity, ServerConfig, BundleConfig, UpdateConfig)
+// for maintainability and reuse.
+//
+// USAGE CONTEXTS:
+//   - Generation: DesktopConfig drives Electron/Tauri scaffold creation
+//   - Pipeline: Config is stored with pipeline status for audit
+//   - UI: Forms populate these structures for user configuration
+//
+// =============================================================================
+
+// =============================================================================
+// APP IDENTITY
+// =============================================================================
+
+// AppIdentity contains application metadata and branding information.
+//
+// These values are used in package manifests, installer metadata, and
+// application window titles.
+//
+// @usage DesktopConfig.app
+message AppIdentity {
+  // Internal application name (lowercase, no spaces).
+  // Used for directory names and process identification.
+  // @constraint lowercase alphanumeric with hyphens
+  // @example "my-desktop-app"
+  string name = 1;
+
+  // Display name shown to users.
+  // Used in window titles, installers, and system menus.
+  // @example "My Desktop App"
+  string display_name = 2;
+
+  // Application description for package metadata.
+  // Shown in app stores and system app info dialogs.
+  optional string description = 3;
+
+  // Semantic version string.
+  // @format semver
+  // @example "1.2.3"
+  string version = 4;
+
+  // Author or company name.
+  // Used in package metadata and copyright notices.
+  optional string author = 5;
+
+  // Author email address.
+  // Used for package metadata and support contact.
+  // @format email
+  optional string email = 6;
+
+  // Path to application icon.
+  // Should be a high-resolution PNG (1024x1024 recommended).
+  // @format path
+  optional string icon = 7;
+
+  // Application homepage URL.
+  // Used in package metadata and about dialogs.
+  // @format uri
+  optional string homepage = 8;
+
+  // Application license identifier.
+  // @example "MIT", "Apache-2.0", "UNLICENSED"
+  optional string license = 9;
+
+  // Unique application identifier for OS integration.
+  // macOS: Bundle identifier (e.g., "com.company.app")
+  // Windows: Used in registry entries
+  // @example "com.vrooli.myapp"
+  optional string app_id = 10;
+
+  // Base URL the application loads.
+  // Used for proxy mode or custom entry points.
+  // @format uri
+  optional string app_url = 11;
+}
+
+// =============================================================================
+// SERVER CONFIGURATION
+// =============================================================================
+
+// ServerConfig defines how the desktop app connects to backend services.
+//
+// Supports two modes:
+//   - Proxy: App is a thin wrapper connecting to remote server
+//   - Bundled: Backend services run locally within the app
+//
+// @usage DesktopConfig.server
+message ServerConfig {
+  // Server type identifier.
+  // @example "express", "fastify", "none"
+  optional string server_type = 1;
+
+  // Port number for the local server.
+  // @default 3000
+  // @constraint 1-65535
+  optional int32 port = 2;
+
+  // Path to server entry point (for bundled mode).
+  // @format path
+  optional string path = 3;
+
+  // API endpoint URL for the backend.
+  // Used for health checks and API routing.
+  // @format uri
+  optional string api_endpoint = 4;
+
+  // Path to the scenario directory.
+  // Used to locate scenario assets and configuration.
+  // @format path
+  optional string scenario_path = 5;
+
+  // Whether to auto-manage the Vrooli process.
+  // When true, the app starts/stops the backend automatically.
+  optional bool auto_manage_vrooli = 6;
+
+  // Path to Vrooli binary for auto-management.
+  // @format path
+  optional string vrooli_binary_path = 7;
+
+  // Deployment mode determining server behavior.
+  DeploymentMode deployment_mode = 8;
+
+  // URL for proxy mode connections.
+  // Required when deployment_mode is PROXY.
+  // @format uri
+  optional string proxy_url = 9;
+
+  // External server URL for bundled mode.
+  // Used when the server runs as a separate process.
+  // @format uri
+  optional string external_server_url = 10;
+
+  // External API URL for bundled mode.
+  // @format uri
+  optional string external_api_url = 11;
+}
+
+// =============================================================================
+// BUNDLE CONFIGURATION
+// =============================================================================
+
+// BundleIPCConfig configures inter-process communication for bundled runtime.
+//
+// The IPC channel allows the Electron/Tauri wrapper to communicate with
+// the bundled backend process for lifecycle management and telemetry.
+//
+// @usage BundleConfig.ipc
+message BundleIPCConfig {
+  // IPC server host.
+  // @default "127.0.0.1"
+  optional string host = 1;
+
+  // IPC server port.
+  // @default 0 (auto-assigned)
+  optional int32 port = 2;
+
+  // Relative path to auth token file.
+  // @format path
+  optional string auth_token_rel_path = 3;
+}
+
+// BundleConfig configures the bundled runtime mode.
+//
+// In bundled mode, the desktop app packages and manages backend services
+// locally, enabling fully offline operation.
+//
+// @usage DesktopConfig.bundle
+message BundleConfig {
+  // Path to the bundle manifest file.
+  // @format path
+  optional string manifest_path = 1;
+
+  // Root directory for runtime files.
+  // @format path
+  optional string runtime_root = 2;
+
+  // IPC configuration for runtime communication.
+  optional BundleIPCConfig ipc = 3;
+
+  // Service ID for the UI service in the manifest.
+  optional string ui_service_id = 4;
+
+  // Named port for the UI service.
+  optional string port_name = 5;
+
+  // URL for uploading telemetry data.
+  // @format uri
+  optional string telemetry_upload_url = 6;
+}
+
+// =============================================================================
+// UPDATE CONFIGURATION
+// =============================================================================
+
+// GitHubUpdateConfig configures GitHub Releases as the update provider.
+//
+// Uses electron-updater's GitHub provider to check for and download
+// updates from GitHub Releases.
+//
+// @usage UpdateConfig.github
+message GitHubUpdateConfig {
+  // GitHub repository owner (username or organization).
+  // @example "vrooli"
+  string owner = 1;
+
+  // GitHub repository name.
+  // @example "scenario-to-desktop"
+  string repo = 2;
+
+  // Whether the repository is private.
+  // Private repos require authentication token.
+  optional bool private = 3;
+}
+
+// GenericUpdateConfig configures a self-hosted update server.
+//
+// Uses electron-updater's generic provider to check for updates
+// from a custom URL endpoint.
+//
+// @usage UpdateConfig.generic
+message GenericUpdateConfig {
+  // Base URL for the update server.
+  // @format uri
+  // @example "https://updates.example.com"
+  string url = 1;
+
+  // Path to channel-specific update info.
+  // @example "/stable/latest.yml"
+  optional string channel_path = 2;
+}
+
+// UpdateConfig configures automatic updates for the desktop application.
+//
+// Supports multiple update providers. Only one provider should be configured.
+//
+// @usage DesktopConfig.update
+message UpdateConfig {
+  // Update channel (stable, beta, alpha, etc.).
+  // @default "stable"
+  optional string channel = 1;
+
+  // Update provider name.
+  // @example "github", "generic", "s3"
+  optional string provider = 2;
+
+  // Whether to automatically check for updates on startup.
+  // @default true
+  optional bool auto_check = 3;
+
+  // GitHub Releases update configuration.
+  optional GitHubUpdateConfig github = 10;
+
+  // Generic/self-hosted update configuration.
+  optional GenericUpdateConfig generic = 11;
+}
+
+// =============================================================================
+// WINDOW CONFIGURATION
+// =============================================================================
+
+// WindowConfig defines the main window appearance and behavior.
+//
+// @usage DesktopConfig.window
+message WindowConfig {
+  // Initial window width in pixels.
+  // @default 1200
+  optional int32 width = 1;
+
+  // Initial window height in pixels.
+  // @default 800
+  optional int32 height = 2;
+
+  // Minimum window width in pixels.
+  optional int32 min_width = 3;
+
+  // Minimum window height in pixels.
+  optional int32 min_height = 4;
+
+  // Whether the window is resizable.
+  // @default true
+  optional bool resizable = 5;
+
+  // Whether to show the window frame/title bar.
+  // @default true
+  optional bool frame = 6;
+
+  // Whether to open DevTools on startup.
+  // @default false (production), true (development)
+  optional bool dev_tools = 7;
+}
+
+// =============================================================================
+// DESKTOP CONFIG (TOP-LEVEL)
+// =============================================================================
+
+// DesktopConfig is the complete configuration for desktop application generation.
+//
+// This is the top-level configuration that combines all aspects of desktop
+// app creation: identity, server, bundling, updates, and code signing.
+//
+// @usage GenerateRequest.config, PipelineStatus.config
+message DesktopConfig {
+  // Application identity and branding.
+  AppIdentity app = 1;
+
+  // Server/backend configuration.
+  ServerConfig server = 2;
+
+  // Bundle configuration for offline mode.
+  optional BundleConfig bundle = 3;
+
+  // Auto-update configuration.
+  optional UpdateConfig update = 4;
+
+  // Main window configuration.
+  optional WindowConfig window = 5;
+
+  // Target desktop framework.
+  Framework framework = 6;
+
+  // Application template type.
+  TemplateType template_type = 7;
+
+  // Target platforms for building.
+  // Empty means current platform only.
+  repeated Platform platforms = 8;
+
+  // Output directory for generated files.
+  // @format path
+  optional string output_path = 9;
+
+  // Feature flags map.
+  // Key: Feature name, Value: Enabled status
+  map<string, bool> features = 10;
+
+  // Custom styling overrides.
+  // Key: Style property, Value: CSS value
+  map<string, string> styling = 11;
+
+  // Code signing configuration reference.
+  // Actual signing config is in signing.proto.
+  optional bool signing_enabled = 12;
+}
+
+// =============================================================================
+// SCENARIO METADATA
+// =============================================================================
+
+// ScenarioMetadata contains extracted information about a scenario.
+//
+// Populated during the generation stage by analyzing the scenario's
+// service.json and package.json files.
+//
+// @usage GenerateResponse.detected_metadata
+message ScenarioMetadata {
+  // Scenario name (directory name).
+  string name = 1;
+
+  // Display name from package.json or service.json.
+  optional string display_name = 2;
+
+  // Description from package metadata.
+  optional string description = 3;
+
+  // Version from package.json.
+  optional string version = 4;
+
+  // Author from package.json.
+  optional string author = 5;
+
+  // License from package.json.
+  optional string license = 6;
+
+  // Generated application ID.
+  optional string app_id = 7;
+
+  // Whether the scenario has a UI component.
+  bool has_ui = 8;
+
+  // Path to the UI distribution directory.
+  // @format path
+  optional string ui_dist_path = 9;
+
+  // UI server port.
+  optional int32 ui_port = 10;
+
+  // API server port.
+  optional int32 api_port = 11;
+
+  // Full path to the scenario directory.
+  // @format path
+  string scenario_path = 12;
+
+  // Scenario category.
+  optional string category = 13;
+
+  // Scenario tags for categorization.
+  repeated string tags = 14;
+
+  // Path to service.json.
+  // @format path
+  optional string service_json_path = 15;
+
+  // Path to package.json.
+  // @format path
+  optional string package_json_path = 16;
+}
+
+// =============================================================================
+// CONNECTION SETTINGS
+// =============================================================================
+
+// ConnectionConfig stores saved connection settings for quick configuration.
+//
+// Used to persist user preferences between sessions.
+//
+// @usage UI state persistence
+message ConnectionConfig {
+  // Proxy URL for proxy mode.
+  // @format uri
+  optional string proxy_url = 1;
+
+  // Server type identifier.
+  optional string server_type = 2;
+
+  // Whether to auto-manage Vrooli process.
+  optional bool auto_manage_vrooli = 3;
+
+  // Path to Vrooli binary.
+  // @format path
+  optional string vrooli_binary_path = 4;
+
+  // Deployment mode.
+  DeploymentMode deployment_mode = 5;
+
+  // Bundle manifest path.
+  // @format path
+  optional string bundle_manifest_path = 6;
+
+  // App display name override.
+  optional string app_display_name = 7;
+
+  // App description override.
+  optional string app_description = 8;
+
+  // Icon path override.
+  // @format path
+  optional string icon = 9;
+}

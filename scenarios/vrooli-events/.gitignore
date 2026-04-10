@@ -1,0 +1,7 @@
+api/vrooli-events-api
+cli/vrooli-events
+cli/cli
+*.db
+*.db-wal
+*.db-shm
+api/api

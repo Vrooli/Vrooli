@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+// AgentActivity captures one tracked interaction with agent-manager.
+message AgentActivity {
+  string activity_id = 1 [(buf.validate.field).string.min_len = 1];
+  string owner_type = 2 [(buf.validate.field).string = { in: ["backlog", "capture", "scenario"] }];
+  optional string owner_kind = 3;
+  string owner_name = 4 [(buf.validate.field).string.min_len = 1];
+  optional string owner_title = 5;
+  optional string execution_id = 6;
+  string purpose = 7 [(buf.validate.field).string = { in: [
+    "initialize",
+    "workshop",
+    "finalize",
+    "research",
+    "process",
+    "fixup",
+    "followup",
+    "spec_sync",
+    "classify",
+    "clarify"
+  ] }];
+  string interaction_type = 8 [(buf.validate.field).string = { in: ["spawn", "continue"] }];
+  optional string task_id = 9;
+  optional string run_id = 10;
+  string status = 11 [(buf.validate.field).string = { in: [
+    "pending",
+    "starting",
+    "running",
+    "needs_review",
+    "complete",
+    "failed",
+    "cancelled",
+    "unspecified"
+  ] }];
+  string requested_at = 12 [(buf.validate.field).string.min_len = 1];
+  optional string started_at = 13;
+  optional string finished_at = 14;
+  optional string failure_reason = 15;
+  optional string requested_by = 16;
+  map<string, string> metadata = 17;
+  string updated_at = 18 [(buf.validate.field).string.min_len = 1];
+}

@@ -4,17 +4,35 @@ import { SessionManager, SessionCleanup } from './session';
 import * as handlers from './handlers';
 import * as routes from './routes';
 import * as observability from './observability';
-import { sendError } from './middleware';
+import { sendError, sendJson } from './middleware';
 import { createLogger, setLogger, logger, metrics, createMetricsServer } from './utils';
 import { SERVER_DRAIN_TIMEOUT_MS, SERVER_DRAIN_INTERVAL_MS } from './constants';
 import { createDirectFrameServer, type DirectFrameServer } from './frame-streaming/websocket';
+
+function requireRouteParam(
+  res: ServerResponse,
+  params: Record<string, string>,
+  key: string
+): string | null {
+  const value = params[key];
+  if (!value) {
+    sendJson(res, 400, {
+      error: {
+        code: 'MISSING_PARAM',
+        message: `Missing route parameter: ${key}`,
+      },
+    });
+    return null;
+  }
+  return value;
+}
 
 /**
  * Main Playwright Driver Server
  *
  * Entry point for the TypeScript-based Playwright driver
  */
-async function main() {
+async function main(): Promise<void> {
   // Load configuration
   const config = loadConfig();
 
@@ -80,7 +98,7 @@ async function main() {
   const router = setupRoutes(sessionManager, cleanup, config, appLogger);
 
   // Create main HTTP server
-  const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+  const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const pathname = new URL(req.url || '/', `http://localhost`).pathname;
     const method = req.method || 'GET';
 
@@ -89,16 +107,14 @@ async function main() {
       path: pathname,
     });
 
-    try {
-      await router.handle(req, res);
-    } catch (error) {
+    void router.handle(req, res).catch((error) => {
       logger.error('request: handler error', {
         method,
         path: pathname,
         error: error instanceof Error ? error.message : String(error),
       });
       sendError(res, error as Error, pathname);
-    }
+    });
   });
 
   // Set server timeout (default Node.js timeout is 2 minutes, we need more for long-running playwright operations)
@@ -161,7 +177,7 @@ async function main() {
   } as typeof server.emit;
 
   // Graceful shutdown with request draining
-  const shutdown = async (signal: string) => {
+  const shutdown = async (signal: string): Promise<void> => {
     if (isShuttingDown) {
       logger.warn('server: shutdown already in progress, ignoring signal', { signal });
       return;
@@ -216,8 +232,12 @@ async function main() {
     process.exit(0);
   };
 
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => {
+    void shutdown('SIGTERM');
+  });
+  process.on('SIGINT', () => {
+    void shutdown('SIGINT');
+  });
 
   // Handle uncaught errors
   process.on('uncaughtException', (error) => {
@@ -225,14 +245,14 @@ async function main() {
       error: error.message,
       stack: error.stack,
     });
-    shutdown('uncaughtException');
+    void shutdown('uncaughtException');
   });
 
   process.on('unhandledRejection', (reason) => {
     logger.error('server: unhandled rejection', {
       reason: String(reason),
     });
-    shutdown('unhandledRejection');
+    void shutdown('unhandledRejection');
   });
 }
 
@@ -295,8 +315,9 @@ function setupRoutes(
   const router = routes.createRouter();
 
   // Health check
-  router.get('/health', async (req, res) => {
-    await routes.handleHealth(req, res, sessionManager);
+  router.get('/health', (req, res) => {
+    routes.handleHealth(req, res, sessionManager);
+    return Promise.resolve();
   });
 
   // Observability (unified health, monitoring, diagnostics)
@@ -308,34 +329,49 @@ function setupRoutes(
   router.get('/observability', async (req, res) => {
     await observability.handleObservability(req, res, observabilityDeps);
   });
-  router.post('/observability/refresh', async (req, res) => {
-    await observability.handleObservabilityRefresh(req, res);
+  router.post('/observability/refresh', (req, res) => {
+    observability.handleObservabilityRefresh(req, res);
+    return Promise.resolve();
   });
-  router.post('/observability/diagnostics/run', async (req, res) => {
-    await observability.handleDiagnosticsRun(req, res, observabilityDeps);
+  router.post('/observability/diagnostics/run', (req, res) => {
+    observability.handleDiagnosticsRun(req, res, observabilityDeps);
+    return Promise.resolve();
   });
   router.get('/observability/metrics', async (req, res) => {
     await observability.handleMetrics(req, res, observabilityDeps);
   });
-  router.get('/observability/sessions', async (req, res) => {
-    await observability.handleSessionList(req, res, observabilityDeps);
+  router.get('/observability/sessions', (req, res) => {
+    observability.handleSessionList(req, res, observabilityDeps);
+    return Promise.resolve();
   });
   router.post('/observability/cleanup/run', async (req, res) => {
     await observability.handleCleanupRun(req, res, observabilityDeps);
   });
   // Runtime configuration management
-  router.get('/observability/config/runtime', async (req, res) => {
-    await observability.handleConfigRuntime(req, res);
+  router.get('/observability/config/runtime', (req, res) => {
+    observability.handleConfigRuntime(req, res);
+    return Promise.resolve();
   });
-  router.put('/observability/config/:env_var', async (req, res, params) => {
-    await observability.handleConfigUpdate(req, res, params.env_var);
+  router.put('/observability/config/:env_var', (req, res, params) => {
+    const envVar = requireRouteParam(res, params, 'env_var');
+    if (!envVar) {
+      return Promise.resolve();
+    }
+    observability.handleConfigUpdate(req, res, envVar);
+    return Promise.resolve();
   });
-  router.delete('/observability/config/:env_var', async (req, res, params) => {
-    await observability.handleConfigReset(req, res, params.env_var);
+  router.delete('/observability/config/:env_var', (req, res, params) => {
+    const envVar = requireRouteParam(res, params, 'env_var');
+    if (!envVar) {
+      return Promise.resolve();
+    }
+    observability.handleConfigReset(req, res, envVar);
+    return Promise.resolve();
   });
   // Autonomous pipeline test (creates temp session if needed)
-  router.post('/observability/pipeline-test', async (req, res) => {
-    await observability.handlePipelineTest(req, res, observabilityDeps);
+  router.post('/observability/pipeline-test', (req, res) => {
+    observability.handlePipelineTest(req, res, observabilityDeps);
+    return Promise.resolve();
   });
 
   router.get('/artifacts', async (req, res) => {
@@ -347,115 +383,258 @@ function setupRoutes(
     await routes.handleSessionStart(req, res, sessionManager, config);
   });
   router.post('/session/:id/run', async (req, res, params) => {
-    await routes.handleSessionRun(req, res, params.id, sessionManager, handlers.handlerRegistry, config, appLogger, metrics);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleSessionRun(req, res, sessionId, sessionManager, handlers.handlerRegistry, config, appLogger, metrics);
   });
   router.get('/session/:id/storage-state', async (req, res, params) => {
-    await routes.handleSessionStorageState(req, res, params.id, sessionManager);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleSessionStorageState(req, res, sessionId, sessionManager);
   });
 
   // Service worker management
   router.get('/session/:id/service-workers', async (req, res, params) => {
-    await routes.handleSessionServiceWorkers(req, res, params.id, sessionManager);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleSessionServiceWorkers(req, res, sessionId, sessionManager);
   });
   router.delete('/session/:id/service-workers', async (req, res, params) => {
-    await routes.handleSessionServiceWorkersDelete(req, res, params.id, sessionManager);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleSessionServiceWorkersDelete(req, res, sessionId, sessionManager);
   });
   router.delete('/session/:id/service-workers/:scopeURL', async (req, res, params) => {
-    await routes.handleSessionServiceWorkerDelete(req, res, params.id, params.scopeURL, sessionManager);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    const scopeUrl = requireRouteParam(res, params, 'scopeURL');
+    if (!scopeUrl) {
+      return;
+    }
+    await routes.handleSessionServiceWorkerDelete(req, res, sessionId, scopeUrl, sessionManager);
   });
 
   router.post('/session/:id/reset', async (req, res, params) => {
-    await routes.handleSessionReset(req, res, params.id, sessionManager);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleSessionReset(req, res, sessionId, sessionManager);
   });
   router.post('/session/:id/close', async (req, res, params) => {
-    await routes.handleSessionClose(req, res, params.id, sessionManager);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleSessionClose(req, res, sessionId, sessionManager);
   });
 
   // Record mode lifecycle
   router.post('/session/:id/record/start', async (req, res, params) => {
-    await routes.handleRecordStart(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordStart(req, res, sessionId, sessionManager, config);
   });
   router.post('/session/:id/record/stop', async (req, res, params) => {
-    await routes.handleRecordStop(req, res, params.id, sessionManager);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordStop(req, res, sessionId, sessionManager);
   });
-  router.get('/session/:id/record/status', async (req, res, params) => {
-    await routes.handleRecordStatus(req, res, params.id, sessionManager);
+  router.get('/session/:id/record/status', (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return Promise.resolve();
+    }
+    routes.handleRecordStatus(req, res, sessionId, sessionManager);
+    return Promise.resolve();
   });
-  router.get('/session/:id/record/actions', async (req, res, params) => {
-    await routes.handleRecordActions(req, res, params.id, sessionManager);
+  router.get('/session/:id/record/actions', (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return Promise.resolve();
+    }
+    routes.handleRecordActions(req, res, sessionId, sessionManager);
+    return Promise.resolve();
   });
   router.get('/session/:id/record/debug', async (req, res, params) => {
-    await routes.handleRecordDebug(req, res, params.id, sessionManager);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordDebug(req, res, sessionId, sessionManager);
   });
   router.post('/session/:id/record/pipeline-test', async (req, res, params) => {
-    await routes.handleRecordPipelineTest(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordPipelineTest(req, res, sessionId, sessionManager, config);
   });
   router.post('/session/:id/record/external-url-test', async (req, res, params) => {
-    await routes.handleRecordExternalUrlTest(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordExternalUrlTest(req, res, sessionId, sessionManager, config);
   });
 
   // Record mode validation & interaction
   router.post('/session/:id/record/validate-selector', async (req, res, params) => {
-    await routes.handleValidateSelector(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleValidateSelector(req, res, sessionId, sessionManager, config);
   });
   router.post('/session/:id/record/replay-preview', async (req, res, params) => {
-    await routes.handleReplayPreview(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleReplayPreview(req, res, sessionId, sessionManager, config);
   });
   router.post('/session/:id/record/navigate', async (req, res, params) => {
-    await routes.handleRecordNavigate(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordNavigate(req, res, sessionId, sessionManager, config);
   });
   router.post('/session/:id/record/reload', async (req, res, params) => {
-    await routes.handleRecordReload(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordReload(req, res, sessionId, sessionManager, config);
   });
   router.post('/session/:id/record/go-back', async (req, res, params) => {
-    await routes.handleRecordGoBack(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordGoBack(req, res, sessionId, sessionManager, config);
   });
   router.post('/session/:id/record/go-forward', async (req, res, params) => {
-    await routes.handleRecordGoForward(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordGoForward(req, res, sessionId, sessionManager, config);
   });
   router.get('/session/:id/record/navigation-state', async (req, res, params) => {
-    await routes.handleRecordNavigationState(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordNavigationState(req, res, sessionId, sessionManager, config);
   });
-  router.get('/session/:id/record/navigation-stack', async (req, res, params) => {
-    await routes.handleRecordNavigationStack(req, res, params.id, sessionManager, config);
+  router.get('/session/:id/record/navigation-stack', (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return Promise.resolve();
+    }
+    routes.handleRecordNavigationStack(req, res, sessionId, sessionManager, config);
+    return Promise.resolve();
   });
   router.post('/session/:id/record/screenshot', async (req, res, params) => {
-    await routes.handleRecordScreenshot(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordScreenshot(req, res, sessionId, sessionManager, config);
   });
   router.post('/session/:id/record/input', async (req, res, params) => {
-    await routes.handleRecordInput(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordInput(req, res, sessionId, sessionManager, config);
   });
   router.get('/session/:id/record/frame', async (req, res, params) => {
-    await routes.handleRecordFrame(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordFrame(req, res, sessionId, sessionManager, config);
   });
   router.post('/session/:id/record/viewport', async (req, res, params) => {
-    await routes.handleRecordViewport(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordViewport(req, res, sessionId, sessionManager, config);
   });
   router.post('/session/:id/record/stream-settings', async (req, res, params) => {
-    await routes.handleStreamSettings(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleStreamSettings(req, res, sessionId, sessionManager, config);
   });
   router.post('/session/:id/record/new-page', async (req, res, params) => {
-    await routes.handleRecordNewPage(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordNewPage(req, res, sessionId, sessionManager, config);
   });
   router.post('/session/:id/record/active-page', async (req, res, params) => {
-    await routes.handleRecordActivePage(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleRecordActivePage(req, res, sessionId, sessionManager, config);
   });
 
   // AI Navigation
   router.post('/session/:id/ai-navigate', async (req, res, params) => {
-    await routes.handleSessionAINavigate(req, res, params.id, sessionManager, config);
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return;
+    }
+    await routes.handleSessionAINavigate(req, res, sessionId, sessionManager, config);
   });
-  router.post('/session/:id/ai-navigate/abort', async (req, res, params) => {
-    await routes.handleSessionAINavigateAbort(req, res, params.id, sessionManager, config);
+  router.post('/session/:id/ai-navigate/abort', (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return Promise.resolve();
+    }
+    routes.handleSessionAINavigateAbort(req, res, sessionId, sessionManager, config);
+    return Promise.resolve();
   });
-  router.post('/session/:id/ai-navigate/resume', async (req, res, params) => {
-    await routes.handleSessionAINavigateResume(req, res, params.id, sessionManager, config);
+  router.post('/session/:id/ai-navigate/resume', (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return Promise.resolve();
+    }
+    routes.handleSessionAINavigateResume(req, res, sessionId, sessionManager, config);
+    return Promise.resolve();
   });
-  router.get('/session/:id/ai-navigate/status', async (req, res, params) => {
-    await routes.handleSessionAINavigateStatus(req, res, params.id, sessionManager, config);
+  router.get('/session/:id/ai-navigate/status', (req, res, params) => {
+    const sessionId = requireRouteParam(res, params, 'id');
+    if (!sessionId) {
+      return Promise.resolve();
+    }
+    routes.handleSessionAINavigateStatus(req, res, sessionId, sessionManager, config);
+    return Promise.resolve();
   });
-  router.get('/ai/models', async (req, res) => {
-    await routes.handleListAIModels(req, res);
+  router.get('/ai/models', (req, res) => {
+    routes.handleListAIModels(req, res);
+    return Promise.resolve();
   });
 
   return router;

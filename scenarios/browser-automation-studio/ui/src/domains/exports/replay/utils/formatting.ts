@@ -49,17 +49,20 @@ export const parseRgbaComponents = (value: string | undefined): [string, string,
     return null;
   }
   const match = value.match(/rgba?\(([^)]+)\)/i);
-  if (!match) {
+  if (!match?.[1]) {
     return null;
   }
   const parts = match[1]
     .split(',')
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
-  if (parts.length < 3) {
+  const r = parts[0];
+  const g = parts[1];
+  const b = parts[2];
+  if (!r || !g || !b) {
     return null;
   }
-  return [parts[0], parts[1], parts[2]];
+  return [r, g, b];
 };
 
 export const rgbaWithAlpha = (components: [string, string, string] | null, alpha: number): string => {
@@ -78,7 +81,7 @@ export const formatValue = (value: unknown): string => {
   if (typeof value === 'object') {
     try {
       return JSON.stringify(value);
-    } catch (error) {
+    } catch (_error) {
       return String(value);
     }
   }

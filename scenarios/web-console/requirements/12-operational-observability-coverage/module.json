@@ -1,0 +1,111 @@
+{
+  "description": "Metrics and structured events cover lifecycle, reconnects, pane actions, and AI provider failovers",
+  "module_id": "MOD-P1-012",
+  "prd_ref": "OT-P1-004",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "children": ["REQ-P1-004b"],
+      "description": "Structured event logging for session lifecycle (create, connect, disconnect, terminate), pane operations (add, remove, resize), and AI provider events (request, failover, success, error).",
+      "id": "REQ-P1-004a",
+      "prd_ref": "OT-P1-004",
+      "status": "passed",
+      "title": "Structured Event Logging",
+      "validation": [
+        {
+          "notes": "Verify all lifecycle events emitted",
+          "phase": "unit",
+          "ref": "api/events_test.go:TestEventLogger_AllEventTypes",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Session create/delete handlers emit events",
+          "phase": "integration",
+          "ref": "api/metrics_test.go:TestHandleCreateSession_EmitsEvent",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Delete handler emits session.deleted event",
+          "phase": "integration",
+          "ref": "api/metrics_test.go:TestHandleDeleteSession_EmitsEvent",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Invalid limit param falls back to default",
+          "phase": "unit",
+          "ref": "api/events_test.go:TestHandleEvents_InvalidLimitFallback",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Subscribers receive emitted events in real time",
+          "phase": "unit",
+          "ref": "api/events_test.go:TestEventLogger_SubscriberNotification",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Events endpoint caps limit at 1000 for safety",
+          "phase": "unit",
+          "ref": "api/events_test.go:TestHandleEvents_LimitCappedAt1000",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "performance",
+      "children": ["REQ-P1-004b-i"],
+      "description": "Metrics collection for session count, active connections, WebSocket throughput, reconnect rate, and AI provider latency. Exposed via /metrics endpoint.",
+      "id": "REQ-P1-004b",
+      "prd_ref": "OT-P1-004",
+      "status": "passed",
+      "title": "Operational Metrics Collection",
+      "validation": [
+        {
+          "notes": "Metrics endpoint returns JSON snapshot",
+          "phase": "integration",
+          "ref": "api/metrics_test.go:TestHandleMetrics_Endpoint",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Atomic counters under concurrent load",
+          "phase": "unit",
+          "ref": "api/metrics_test.go:TestMetrics_AtomicConcurrency",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "No performance impact from logging (<1ms overhead)",
+          "phase": "performance",
+          "ref": "api/metrics_test.go:TestMetrics_PerformanceOverhead",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "performance",
+      "description": "Metrics collection has less than 1ms overhead per operation under concurrent load, verified by benchmark tests.",
+      "id": "REQ-P1-004b-i",
+      "prd_ref": "OT-P1-004",
+      "status": "passed",
+      "title": "Performance Impact Verification",
+      "validation": [
+        {
+          "notes": "Performance overhead benchmark passes",
+          "phase": "performance",
+          "ref": "api/metrics_test.go:TestMetrics_PerformanceOverhead",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Operational Observability Coverage"
+}

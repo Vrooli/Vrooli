@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "feature-lead",
+  "displayName": "Feature Lead",
+  "description": "Breaks down feature requirements, coordinates design and implementation, manages scope.",
+  "status": "active",
+  "appearance": {
+    "body": "#9333EA",
+    "head": "#A855F7",
+    "accent": "#D8B4FE"
+  },
+  "tags": [
+    "features",
+    "requirements",
+    "orchestration",
+    "scope"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-02-09T12:00:00Z"
+}

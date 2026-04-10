@@ -1,4 +1,5 @@
 package services
+// DOC: docs/concepts/ARCHITECTURE.md#alerting
 
 import (
 	"bytes"
@@ -19,69 +20,88 @@ import (
 type AlertService struct {
 	config     *config.Config
 	repo       repository.AlertRepository
-	httpClient *http.Client
+	httpClient HTTPDoer
+	clock      Clock
 	mu         sync.RWMutex
 	cooldowns  map[string]time.Time
 }
 
-// NewAlertService creates a new alert service
-func NewAlertService(cfg *config.Config, repo repository.AlertRepository) *AlertService {
-	return &AlertService{
+// AlertOption configures an AlertService.
+type AlertOption func(*AlertService)
+
+// WithAlertClock sets the clock used by the alert service.
+func WithAlertClock(c Clock) AlertOption {
+	return func(s *AlertService) { s.clock = c }
+}
+
+// WithHTTPClient sets the HTTP client used for webhook delivery.
+func WithHTTPClient(c HTTPDoer) AlertOption {
+	return func(s *AlertService) { s.httpClient = c }
+}
+
+// NewAlertService creates a new alert service.
+func NewAlertService(cfg *config.Config, repo repository.AlertRepository, opts ...AlertOption) *AlertService {
+	s := &AlertService{
 		config:     cfg,
 		repo:       repo,
 		httpClient: &http.Client{Timeout: 10 * time.Second},
+		clock:      RealClock{},
 		cooldowns:  make(map[string]time.Time),
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // CreateAlert creates a new alert
 func (s *AlertService) CreateAlert(ctx context.Context, alert *models.Alert) error {
 	// Generate ID if not set
 	if alert.ID == "" {
-		alert.ID = fmt.Sprintf("alert_%d", time.Now().Unix())
+		alert.ID = fmt.Sprintf("alert_%d", s.clock.Now().Unix())
 	}
-	
+
 	// Check cooldown
 	if !s.checkCooldown(alert.MetricName) {
 		log.Printf("Alert for %s is in cooldown period", alert.MetricName)
 		return nil
 	}
-	
+
 	// Save to repository
 	if err := s.repo.CreateAlert(ctx, alert); err != nil {
 		return fmt.Errorf("failed to create alert: %w", err)
 	}
-	
+
 	// Send notifications based on severity
 	if s.shouldNotify(alert) {
 		go s.sendNotifications(alert)
 	}
-	
+
 	// Update cooldown
 	s.updateCooldown(alert.MetricName)
-	
+
 	return nil
 }
 
 // SendAnomaly sends an alert for an anomaly
 func (s *AlertService) SendAnomaly(ctx context.Context, anomaly *models.Anomaly) error {
 	alert := &models.Alert{
-		ID:          fmt.Sprintf("alert_%s_%d", anomaly.Type, time.Now().Unix()),
-		Type:        "anomaly",
-		Severity:    anomaly.Severity,
-		Message:     anomaly.Description,
-		MetricName:  anomaly.Type,
-		Details:     anomaly.MetricData,
-		Timestamp:   anomaly.DetectedAt,
+		ID:         fmt.Sprintf("alert_%s_%d", anomaly.Type, s.clock.Now().Unix()),
+		Type:       "anomaly",
+		Severity:   anomaly.Severity,
+		Message:    anomaly.Description,
+		MetricName: anomaly.Type,
+		Details:    anomaly.MetricData,
+		Timestamp:  anomaly.DetectedAt,
 	}
-	
+
 	return s.CreateAlert(ctx, alert)
 }
 
 // SendThresholdViolation sends an alert for a threshold violation
 func (s *AlertService) SendThresholdViolation(ctx context.Context, violation *models.ThresholdViolation) error {
 	alert := &models.Alert{
-		ID:          fmt.Sprintf("alert_threshold_%s_%d", violation.MetricName, time.Now().Unix()),
+		ID:          fmt.Sprintf("alert_threshold_%s_%d", violation.MetricName, s.clock.Now().Unix()),
 		Type:        "threshold_violation",
 		Severity:    violation.Severity,
 		Message:     fmt.Sprintf("%s threshold violated: %.2f (threshold: %.2f)", violation.MetricName, violation.CurrentValue, violation.ThresholdValue),
@@ -89,12 +109,12 @@ func (s *AlertService) SendThresholdViolation(ctx context.Context, violation *mo
 		MetricValue: violation.CurrentValue,
 		Details: map[string]interface{}{
 			"violation_type": violation.ViolationType,
-			"trend":         violation.Trend,
-			"duration":      violation.Duration,
+			"trend":          violation.Trend,
+			"duration":       violation.Duration,
 		},
 		Timestamp: violation.Timestamp,
 	}
-	
+
 	return s.CreateAlert(ctx, alert)
 }
 
@@ -122,12 +142,12 @@ func (s *AlertService) shouldNotify(alert *models.Alert) bool {
 		"high":     3,
 		"critical": 4,
 	}
-	
+
 	alertSeverity, ok := severityMap[alert.Severity]
 	if !ok {
 		alertSeverity = 1
 	}
-	
+
 	return alertSeverity >= s.config.Alerts.MinSeverity
 }
 
@@ -137,7 +157,7 @@ func (s *AlertService) sendNotifications(alert *models.Alert) {
 	if s.config.Alerts.EnableWebhooks && s.config.Alerts.WebhookURL != "" {
 		s.sendWebhook(alert)
 	}
-	
+
 	// Send email notification (if configured)
 	if s.config.Alerts.EnableEmail {
 		s.sendEmail(alert)
@@ -149,23 +169,30 @@ func (s *AlertService) sendWebhook(alert *models.Alert) {
 	payload := map[string]interface{}{
 		"type":        "system_alert",
 		"alert":       alert,
-		"timestamp":   time.Now(),
+		"timestamp":   s.clock.Now(),
 		"system_name": s.config.Server.ServiceName,
 	}
-	
+
 	data, err := json.Marshal(payload)
 	if err != nil {
 		log.Printf("Failed to marshal webhook payload: %v", err)
 		return
 	}
-	
-	resp, err := s.httpClient.Post(s.config.Alerts.WebhookURL, "application/json", bytes.NewBuffer(data))
+
+	req, err := http.NewRequest(http.MethodPost, s.config.Alerts.WebhookURL, bytes.NewBuffer(data))
+	if err != nil {
+		log.Printf("Failed to create webhook request: %v", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		log.Printf("Failed to send webhook: %v", err)
 		return
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode >= 400 {
 		log.Printf("Webhook returned error status: %d", resp.StatusCode)
 	}
@@ -182,19 +209,19 @@ func (s *AlertService) checkCooldown(metricName string) bool {
 	s.mu.RLock()
 	lastAlert, exists := s.cooldowns[metricName]
 	s.mu.RUnlock()
-	
+
 	if !exists {
 		return true
 	}
-	
+
 	cooldownDuration := time.Duration(s.config.Alerts.CooldownMinutes) * time.Minute
-	return time.Since(lastAlert) > cooldownDuration
+	return s.clock.Since(lastAlert) > cooldownDuration
 }
 
 // updateCooldown updates the cooldown timestamp for a metric
 func (s *AlertService) updateCooldown(metricName string) {
 	s.mu.Lock()
-	s.cooldowns[metricName] = time.Now()
+	s.cooldowns[metricName] = s.clock.Now()
 	s.mu.Unlock()
 }
 
@@ -202,10 +229,10 @@ func (s *AlertService) updateCooldown(metricName string) {
 func (s *AlertService) CleanupCooldowns() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	cooldownDuration := time.Duration(s.config.Alerts.CooldownMinutes) * time.Minute
-	now := time.Now()
-	
+	now := s.clock.Now()
+
 	for metric, lastAlert := range s.cooldowns {
 		if now.Sub(lastAlert) > cooldownDuration {
 			delete(s.cooldowns, metric)

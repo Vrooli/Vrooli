@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 interface BottomSheetProps {
@@ -49,12 +50,16 @@ export function BottomSheet({
 
   // Handle touch gestures for swipe-to-dismiss
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    startYRef.current = e.touches[0].clientY;
+    const touch = e.touches[0];
+    if (!touch) return;
+    startYRef.current = touch.clientY;
     currentYRef.current = 0;
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    const deltaY = e.touches[0].clientY - startYRef.current;
+    const touch = e.touches[0];
+    if (!touch) return;
+    const deltaY = touch.clientY - startYRef.current;
     // Only allow dragging down
     if (deltaY > 0 && sheetRef.current) {
       currentYRef.current = deltaY;
@@ -84,7 +89,9 @@ export function BottomSheet({
         ? "max-h-[50vh]"
         : "max-h-[85vh]";
 
-  return (
+  // Portal to document.body to escape CSS containing blocks created by
+  // backdrop-filter, transform, or will-change on ancestor elements.
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -129,7 +136,8 @@ export function BottomSheet({
           {children}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 

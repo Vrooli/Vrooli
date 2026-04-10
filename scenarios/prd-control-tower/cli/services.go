@@ -81,11 +81,14 @@ func (s *PRDService) Validate(req ValidateRequest) ([]byte, error) {
 }
 
 // ValidateStandards returns detailed PRD validation with violations in standards format.
-func (s *PRDService) ValidateStandards(entityType, entityName string, useCache bool) ([]byte, error) {
+func (s *PRDService) ValidateStandards(entityType, entityName string, useCache bool, customPath ...string) ([]byte, error) {
 	path := fmt.Sprintf("/api/v1/quality/%s/%s/standards", url.PathEscape(entityType), url.PathEscape(entityName))
 	params := url.Values{}
 	if !useCache {
 		params.Set("use_cache", "false")
+	}
+	if len(customPath) > 0 && customPath[0] != "" {
+		params.Set("custom_path", customPath[0])
 	}
 	return s.api.Get(path, params)
 }
@@ -118,11 +121,14 @@ func (s *RequirementsService) Fix(req RequirementsFixRequest) ([]byte, error) {
 	return s.api.Request(http.MethodPost, "/api/v1/requirements/fix", nil, req)
 }
 
-func (s *RequirementsService) Validate(entityType, entityName string, useCache bool) ([]byte, error) {
+func (s *RequirementsService) Validate(entityType, entityName string, useCache bool, customPath ...string) ([]byte, error) {
 	path := fmt.Sprintf("/api/v1/requirements/%s/%s/validate", url.PathEscape(entityType), url.PathEscape(entityName))
 	params := url.Values{}
 	if !useCache {
 		params.Set("use_cache", "false")
+	}
+	if len(customPath) > 0 && customPath[0] != "" {
+		params.Set("custom_path", customPath[0])
 	}
 	return s.api.Get(path, params)
 }

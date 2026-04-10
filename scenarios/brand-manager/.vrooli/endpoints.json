@@ -1,0 +1,133 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "readiness": "boolean",
+          "dependencies": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "brand-manager status"
+      }
+    },
+    {
+      "id": "brands-list",
+      "path": "/api/v1/brands",
+      "method": "GET",
+      "summary": "List all brands",
+      "description": "Returns all brands with optional name filter, limit, and offset",
+      "category": "brands",
+      "parameters": [
+        { "name": "name", "in": "query", "type": "string", "description": "Filter by name (contains)" },
+        { "name": "limit", "in": "query", "type": "integer", "description": "Max results" },
+        { "name": "offset", "in": "query", "type": "integer", "description": "Pagination offset" }
+      ],
+      "cli_mapping": { "command": "brand-manager list" }
+    },
+    {
+      "id": "brands-create",
+      "path": "/api/v1/brands",
+      "method": "POST",
+      "summary": "Create a new brand",
+      "description": "Creates a brand with identity, colors, typography, voice, and notes",
+      "category": "brands",
+      "cli_mapping": { "command": "brand-manager create --name <name>" }
+    },
+    {
+      "id": "brands-get",
+      "path": "/api/v1/brands/{id}",
+      "method": "GET",
+      "summary": "Get a brand by ID",
+      "description": "Returns a single brand with all facets",
+      "category": "brands",
+      "cli_mapping": { "command": "brand-manager get <id>" }
+    },
+    {
+      "id": "brands-update",
+      "path": "/api/v1/brands/{id}",
+      "method": "PUT",
+      "summary": "Update a brand",
+      "description": "Updates brand fields and increments version, creating a version snapshot",
+      "category": "brands"
+    },
+    {
+      "id": "brands-delete",
+      "path": "/api/v1/brands/{id}",
+      "method": "DELETE",
+      "summary": "Delete a brand",
+      "description": "Deletes a brand and all associated versions and assignments",
+      "category": "brands"
+    },
+    {
+      "id": "versions-list",
+      "path": "/api/v1/brands/{id}/versions",
+      "method": "GET",
+      "summary": "List brand versions",
+      "description": "Returns all version snapshots for a brand",
+      "category": "brands"
+    },
+    {
+      "id": "assignments-create",
+      "path": "/api/v1/assignments",
+      "method": "POST",
+      "summary": "Assign a brand to a scenario",
+      "description": "Links a brand to a scenario name with element selection",
+      "category": "assignments"
+    },
+    {
+      "id": "assignments-delete",
+      "path": "/api/v1/assignments/{id}",
+      "method": "DELETE",
+      "summary": "Remove a brand assignment",
+      "description": "Removes the brand assignment from a scenario",
+      "category": "assignments"
+    },
+    {
+      "id": "scenario-status",
+      "path": "/api/v1/scenarios/{name}/status",
+      "method": "GET",
+      "summary": "Get scenario branding status",
+      "description": "Returns whether a scenario has a brand assigned and which version",
+      "category": "assignments"
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "create",
+      "description": "Create a new brand",
+      "endpoint_id": "brands-create"
+    },
+    {
+      "name": "list",
+      "description": "List all brands",
+      "endpoint_id": "brands-list"
+    },
+    {
+      "name": "get",
+      "description": "Get a brand by ID",
+      "endpoint_id": "brands-get"
+    }
+  ]
+}

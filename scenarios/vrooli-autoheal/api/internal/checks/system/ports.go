@@ -68,6 +68,7 @@ func (c *PortCheck) Title() string { return "Ephemeral Port Usage" }
 func (c *PortCheck) Description() string {
 	return "Monitors ephemeral port usage to prevent connection failures"
 }
+
 func (c *PortCheck) Importance() string {
 	return "Port exhaustion causes 'cannot assign requested address' errors for new connections"
 }

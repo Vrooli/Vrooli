@@ -311,6 +311,18 @@ export interface ScenarioProxyHostOptions {
   proxyHtmlCacheTtlMs?: number
   /** Maximum number of cached HTML entries retained at once */
   proxyHtmlCacheMaxEntries?: number
+  /** Interval between background health checks for upstream ports in ms (default: 5000) */
+  healthCheckIntervalMs?: number
+  /** Timeout for each background TCP health probe in ms (default: 500) */
+  healthCheckTimeoutMs?: number
+  /** Emit Server-Timing header on proxied responses (default: true) */
+  enableServerTiming?: boolean
+  /** Collect aggregate latency/cache metrics at /__perf (default: false) */
+  enableMetrics?: boolean
+  /** Ring-buffer size for percentile samples when metrics are enabled (default: 1000) */
+  metricsSampleSize?: number
+  /** HTML fingerprint string to detect recursive self-proxy (e.g., 'data-app-monitor-self') */
+  hostHtmlFingerprint?: string
 }
 
 /**
@@ -325,6 +337,12 @@ export interface ScenarioProxyHostController {
   invalidate: (appId?: string) => void
   /** Clear entire cache */
   clearCache: () => void
+  /** Return aggregate metrics snapshot, or null when metrics are disabled */
+  getMetrics: () => object | null
+  /** Reset aggregate metrics counters */
+  resetMetrics: () => void
+  /** Stop background health checks and release resources */
+  destroy: () => void
 }
 
 /**
@@ -376,6 +394,23 @@ export interface HealthOptions {
 }
 
 /**
+ * Options for the built-in embedded scenario proxy.
+ * When `true`, uses defaults. When an object, allows fine-tuning.
+ */
+export interface EmbeddedProxyOptions {
+  /** Enable/disable the proxy (default: true when object provided) */
+  enabled?: boolean
+  /** Restrict to specific scenario names (default: allow all) */
+  allowedScenarios?: string[]
+  /** TTL for port resolution cache in ms (default: 30000) */
+  cacheTtlMs?: number
+  /** Timeout for upstream proxy requests in ms (default: 30000) */
+  timeoutMs?: number
+  /** Upstream host where scenarios run (default: '127.0.0.1') */
+  upstreamHost?: string
+}
+
+/**
  * Options for creating scenario server
  */
 export interface ServerTemplateOptions {
@@ -423,6 +458,8 @@ export interface ServerTemplateOptions {
   bodyParser?: 'json' | false | ((app: any) => void)
   /** Cache dist/index.html between requests (auto-invalidates when the file changes) */
   cacheIndexHtml?: boolean
+  /** Enable built-in embedded scenario proxy at /embedded. Pass true for defaults or an options object */
+  embeddedProxy?: EmbeddedProxyOptions | boolean
 }
 
 /**

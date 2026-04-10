@@ -190,16 +190,19 @@ export const autoLayoutNodes = (nodes: Node[], edges: Edge[]): Node[] => {
 
   // If no roots (cycle?), pick the first one
   if (queue.length === 0 && nodes.length > 0) {
-    const first = nodes[0].id;
-    levels.set(first, 0);
-    queue.push(first);
+    const firstNode = nodes[0];
+    if (firstNode) {
+      levels.set(firstNode.id, 0);
+      queue.push(firstNode.id);
+    }
   }
 
   const visited = new Set<string>(queue);
 
   while (queue.length > 0) {
-    const currId = queue.shift()!;
-    const currLevel = levels.get(currId)!;
+    const currId = queue.shift();
+    if (currId === undefined) continue;
+    const currLevel = levels.get(currId) ?? 0;
 
     const neighbors = adj.get(currId) || [];
     for (const nextId of neighbors) {
@@ -210,7 +213,8 @@ export const autoLayoutNodes = (nodes: Node[], edges: Edge[]): Node[] => {
       } else {
         // If already visited, we might want to push it deeper if this path is longer?
         // For simple tree-like, max level is better.
-        if (levels.get(nextId)! < currLevel + 1) {
+        const existingLevel = levels.get(nextId) ?? 0;
+        if (existingLevel < currLevel + 1) {
           levels.set(nextId, currLevel + 1);
           // If we update level, we might need to re-process children? 
           // For a simple DAG, topological sort is better, but this BFS is "okay" for simple flows.
@@ -236,7 +240,7 @@ export const autoLayoutNodes = (nodes: Node[], edges: Edge[]): Node[] => {
 
   return nodes.map(node => {
     const lvl = levels.get(node.id) ?? 0;
-    const nodesInLevel = levelGroups.get(lvl)!;
+    const nodesInLevel = levelGroups.get(lvl) ?? [];
     const indexInLevel = nodesInLevel.indexOf(node);
 
     return {

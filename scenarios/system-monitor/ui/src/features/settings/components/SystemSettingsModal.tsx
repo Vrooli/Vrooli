@@ -1,62 +1,71 @@
-import { useState, useEffect } from 'react';
-import { X, Save, RotateCcw, AlertTriangle, CheckCircle, Settings, Activity } from 'lucide-react';
-import { buildApiUrl } from '../../../shared/api/apiBase';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Save, RotateCcw, AlertTriangle, CheckCircle, Settings, Activity } from 'lucide-react';
+import { Modal, ModalHeader } from '../../../shared/components/Modal';
+import { protoFetch } from '../../../shared/api/apiFetch';
+import {
+  parseGetSettingsResponse,
+  parseUpdateSettingsResponse,
+  parseResetSettingsResponse,
+  SystemSettingsSchema,
+  toJsonString,
+  create,
+} from '../../../shared/api/proto-contracts';
+import type { MessageShape } from '@bufbuild/protobuf';
 
 interface SystemSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-interface SystemSettings {
-  active: boolean;
-  metric_collection_interval: number;
-  anomaly_detection_interval: number;
-  threshold_check_interval: number;
-  cooldown_period_seconds: number;
-  cpu_threshold: number;
-  memory_threshold: number;
-  disk_threshold: number;
-}
+type ProtoSettings = MessageShape<typeof SystemSettingsSchema>;
 
-interface SettingsResponse {
-  success: boolean;
-  settings?: SystemSettings;
-  error?: string;
-}
-
-const defaultSettings: SystemSettings = {
+const defaultSettings: ProtoSettings = create(SystemSettingsSchema, {
   active: false,
-  metric_collection_interval: 10,
-  anomaly_detection_interval: 30,
-  threshold_check_interval: 20,
-  cooldown_period_seconds: 300,
-  cpu_threshold: 85.0,
-  memory_threshold: 90.0,
-  disk_threshold: 85.0,
-};
+  metricCollectionInterval: 10,
+  anomalyDetectionInterval: 30,
+  thresholdCheckInterval: 20,
+  cooldownPeriodSeconds: 300,
+  cpuThreshold: 85.0,
+  memoryThreshold: 90.0,
+  diskThreshold: 85.0,
+});
 
 export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProps) => {
-  const [settings, setSettings] = useState<SystemSettings>(defaultSettings);
-  const [originalSettings, setOriginalSettings] = useState<SystemSettings>(defaultSettings);
+  const [settings, setSettings] = useState<ProtoSettings>(defaultSettings);
+  const [originalSettings, setOriginalSettings] = useState<ProtoSettings>(defaultSettings);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const showTemporarySuccess = useCallback((msg: string) => {
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+    }
+    setSuccessMessage(msg);
+    successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
-      loadSettings();
+      void loadSettings();
     }
   }, [isOpen]);
 
   const loadSettings = async () => {
     setLoading(true);
     setError(null);
-    
     try {
-      const response = await fetch(buildApiUrl('/settings'));
-      const data: SettingsResponse = await response.json();
-      
+      const data = await protoFetch('/settings', parseGetSettingsResponse);
       if (data.success && data.settings) {
         setSettings(data.settings);
         setOriginalSettings(data.settings);
@@ -66,7 +75,6 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     } catch (err) {
       console.error('Failed to load settings:', err);
       setError(err instanceof Error ? err.message : 'Failed to load settings');
-      // Use default settings on error
       setSettings(defaultSettings);
       setOriginalSettings(defaultSettings);
     } finally {
@@ -78,25 +86,16 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     setSaving(true);
     setError(null);
     setSuccessMessage(null);
-    
     try {
-      const response = await fetch(buildApiUrl('/settings'), {
+      const data = await protoFetch('/settings', parseUpdateSettingsResponse, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(settings)
+        headers: { 'Content-Type': 'application/json' },
+        body: toJsonString(SystemSettingsSchema, settings),
       });
-      
-      const data: SettingsResponse = await response.json();
-      
       if (data.success && data.settings) {
         setSettings(data.settings);
         setOriginalSettings(data.settings);
-        setSuccessMessage('Settings saved successfully!');
-        
-        // Auto-hide success message after 3 seconds
-        setTimeout(() => setSuccessMessage(null), 3000);
+        showTemporarySuccess('Settings saved successfully!');
       } else {
         throw new Error(data.error || 'Failed to save settings');
       }
@@ -112,24 +111,20 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     if (!confirm('Are you sure you want to reset all settings to defaults? This cannot be undone.')) {
       return;
     }
-    
+
     setLoading(true);
     setError(null);
     setSuccessMessage(null);
-    
+
     try {
-      const response = await fetch(buildApiUrl('/settings/reset'), {
+      const data = await protoFetch('/settings/reset', parseResetSettingsResponse, {
         method: 'POST'
       });
-      
-      const data: SettingsResponse = await response.json();
-      
+
       if (data.success && data.settings) {
         setSettings(data.settings);
         setOriginalSettings(data.settings);
-        setSuccessMessage('Settings reset to defaults!');
-        
-        setTimeout(() => setSuccessMessage(null), 3000);
+        showTemporarySuccess('Settings reset to defaults!');
       } else {
         throw new Error(data.error || 'Failed to reset settings');
       }
@@ -141,7 +136,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     }
   };
 
-  const hasChanges = JSON.stringify(settings) !== JSON.stringify(originalSettings);
+  const hasChanges = toJsonString(SystemSettingsSchema, settings) !== toJsonString(SystemSettingsSchema, originalSettings);
 
   const handleClose = () => {
     if (hasChanges && !confirm('You have unsaved changes. Are you sure you want to close?')) {
@@ -150,494 +145,299 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="modal-overlay" style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.8)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: 'var(--spacing-lg)'
-    }}>
-      <div className="modal-content" style={{
-        background: 'var(--color-bg)',
-        border: '1px solid var(--color-accent)',
-        borderRadius: 'var(--border-radius-lg)',
-        boxShadow: '0 20px 40px var(--alpha-accent-20)',
-        maxWidth: '600px',
-        width: '100%',
-        maxHeight: '90vh',
-        overflow: 'auto'
-      }}>
-        {/* Header */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: 'var(--spacing-lg)',
-          borderBottom: '1px solid var(--color-accent)',
-          background: 'var(--alpha-accent-02)'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--spacing-sm)'
+    <Modal isOpen={isOpen} onClose={handleClose} ariaLabel="System settings" className="modal-sm">
+      <ModalHeader onClose={handleClose}>
+        <div className="icon-text">
+          <Settings size={24} style={{ color: 'var(--color-primary)' }} />
+          <h2 style={{
+            margin: 0,
+            color: 'var(--color-text-heading)',
+            fontSize: 'var(--text-xl)'
           }}>
-            <Settings size={24} style={{ color: 'var(--color-accent)' }} />
-            <h2 style={{
-              margin: 0,
-              color: 'var(--color-text-bright)',
-              fontSize: 'var(--font-size-xl)'
-            }}>
-              System Monitor Settings
-            </h2>
+            System Monitor Settings
+          </h2>
+        </div>
+      </ModalHeader>
+
+      {/* Body */}
+      <div style={{ padding: 'var(--spacing-lg)', overflow: 'auto', flex: 1 }}>
+        {loading && (
+          <div style={{
+            textAlign: 'center',
+            padding: 'var(--spacing-xl)',
+            color: 'var(--color-text-secondary)'
+          }}>
+            Loading settings...
           </div>
-          
-          <button
-            onClick={handleClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--color-text-dim)',
-              cursor: 'pointer',
-              padding: 'var(--spacing-xs)',
-              borderRadius: 'var(--border-radius-sm)',
-              transition: 'color 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-text-bright)'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-dim)'}
-          >
-            <X size={24} />
-          </button>
-        </div>
+        )}
 
-        {/* Body */}
-        <div style={{ padding: 'var(--spacing-lg)' }}>
-          {loading && (
-            <div style={{
-              textAlign: 'center',
-              padding: 'var(--spacing-xl)',
-              color: 'var(--color-text-dim)'
-            }}>
-              Loading settings...
-            </div>
-          )}
+        {error && (
+          <div className="error-banner" style={{ marginBottom: 'var(--spacing-lg)' }}>
+            <AlertTriangle size={16} />
+            {error}
+          </div>
+        )}
 
-          {error && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--spacing-sm)',
-              padding: 'var(--spacing-md)',
-              background: 'rgba(255, 0, 0, 0.1)',
-              border: '1px solid var(--color-error)',
-              borderRadius: 'var(--border-radius-md)',
-              color: 'var(--color-error)',
-              marginBottom: 'var(--spacing-lg)'
-            }}>
-              <AlertTriangle size={16} />
-              {error}
-            </div>
-          )}
+        {successMessage && (
+          <div className="success-banner" style={{ marginBottom: 'var(--spacing-lg)' }}>
+            <CheckCircle size={16} />
+            {successMessage}
+          </div>
+        )}
 
-          {successMessage && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--spacing-sm)',
-              padding: 'var(--spacing-md)',
-              background: 'var(--alpha-accent-10)',
-              border: '1px solid var(--color-success)',
-              borderRadius: 'var(--border-radius-md)',
-              color: 'var(--color-success)',
-              marginBottom: 'var(--spacing-lg)'
-            }}>
-              <CheckCircle size={16} />
-              {successMessage}
-            </div>
-          )}
+        {!loading && (
+          <div className="flex-col-gap-lg">
+            {/* System Status Section */}
+            <div>
+              <h3 className="icon-text section-heading" style={{
+                marginBottom: 'var(--spacing-md)',
+                fontSize: 'var(--text-lg)'
+              }}>
+                <Activity size={18} />
+                System Status
+              </h3>
 
-          {!loading && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
-              {/* System Status Section */}
-              <div>
-                <h3 style={{
-                  margin: '0 0 var(--spacing-md) 0',
-                  color: 'var(--color-text-bright)',
-                  fontSize: 'var(--font-size-lg)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--spacing-sm)'
-                }}>
-                  <Activity size={18} />
-                  System Status
-                </h3>
-                
-                <label style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--spacing-sm)',
-                  cursor: 'pointer',
-                  padding: 'var(--spacing-md)',
-                  background: 'rgba(0, 0, 0, 0.3)',
-                  border: '1px solid var(--color-accent)',
-                  borderRadius: 'var(--border-radius-md)'
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={settings.active}
-                    onChange={(e) => setSettings(prev => ({ ...prev, active: e.target.checked }))}
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      accentColor: 'var(--color-success)',
-                      cursor: 'pointer'
-                    }}
-                  />
-                  <div>
-                    <div style={{
-                      color: 'var(--color-text-bright)',
-                      fontWeight: 'bold'
-                    }}>
-                      System Monitor Active
-                    </div>
-                    <div style={{
-                      color: 'var(--color-text-dim)',
-                      fontSize: 'var(--font-size-sm)',
-                      marginTop: 'var(--spacing-xs)'
-                    }}>
-                      Enable automatic monitoring, threshold checking, and anomaly detection
-                    </div>
-                  </div>
-                </label>
-              </div>
-
-              {/* Monitoring Intervals Section */}
-              <div>
-                <h3 style={{
-                  margin: '0 0 var(--spacing-md) 0',
-                  color: 'var(--color-text-bright)',
-                  fontSize: 'var(--font-size-lg)'
-                }}>
-                  Monitoring Intervals (seconds)
-                </h3>
-                
-                <div style={{
-                  display: 'grid',
-                  gap: 'var(--spacing-md)',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))'
-                }}>
-                  <div>
-                    <label style={{
-                      display: 'block',
-                      marginBottom: 'var(--spacing-xs)',
-                      color: 'var(--color-text)',
-                      fontSize: 'var(--font-size-sm)'
-                    }}>
-                      Metric Collection
-                    </label>
-                    <input
-                      type="number"
-                      min="5"
-                      max="3600"
-                      value={settings.metric_collection_interval}
-                      onChange={(e) => setSettings(prev => ({
-                        ...prev,
-                        metric_collection_interval: parseInt(e.target.value) || 10
-                      }))}
-                      style={{
-                        width: '100%',
-                        padding: 'var(--spacing-sm)',
-                        background: 'rgba(0, 0, 0, 0.3)',
-                        border: '1px solid var(--color-text-dim)',
-                        borderRadius: 'var(--border-radius-sm)',
-                        color: 'var(--color-text)',
-                        fontSize: 'var(--font-size-sm)'
-                      }}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label style={{
-                      display: 'block',
-                      marginBottom: 'var(--spacing-xs)',
-                      color: 'var(--color-text)',
-                      fontSize: 'var(--font-size-sm)'
-                    }}>
-                      Threshold Checking
-                    </label>
-                    <input
-                      type="number"
-                      min="10"
-                      max="1800"
-                      value={settings.threshold_check_interval}
-                      onChange={(e) => setSettings(prev => ({
-                        ...prev,
-                        threshold_check_interval: parseInt(e.target.value) || 20
-                      }))}
-                      style={{
-                        width: '100%',
-                        padding: 'var(--spacing-sm)',
-                        background: 'rgba(0, 0, 0, 0.3)',
-                        border: '1px solid var(--color-text-dim)',
-                        borderRadius: 'var(--border-radius-sm)',
-                        color: 'var(--color-text)',
-                        fontSize: 'var(--font-size-sm)'
-                      }}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label style={{
-                      display: 'block',
-                      marginBottom: 'var(--spacing-xs)',
-                      color: 'var(--color-text)',
-                      fontSize: 'var(--font-size-sm)'
-                    }}>
-                      Anomaly Detection
-                    </label>
-                    <input
-                      type="number"
-                      min="30"
-                      max="7200"
-                      value={settings.anomaly_detection_interval}
-                      onChange={(e) => setSettings(prev => ({
-                        ...prev,
-                        anomaly_detection_interval: parseInt(e.target.value) || 30
-                      }))}
-                      style={{
-                        width: '100%',
-                        padding: 'var(--spacing-sm)',
-                        background: 'rgba(0, 0, 0, 0.3)',
-                        border: '1px solid var(--color-text-dim)',
-                        borderRadius: 'var(--border-radius-sm)',
-                        color: 'var(--color-text)',
-                        fontSize: 'var(--font-size-sm)'
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* System Thresholds Section */}
-              <div>
-                <h3 style={{
-                  margin: '0 0 var(--spacing-md) 0',
-                  color: 'var(--color-text-bright)',
-                  fontSize: 'var(--font-size-lg)'
-                }}>
-                  Alert Thresholds (%)
-                </h3>
-                
-                <div style={{
-                  display: 'grid',
-                  gap: 'var(--spacing-md)',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))'
-                }}>
-                  <div>
-                    <label style={{
-                      display: 'block',
-                      marginBottom: 'var(--spacing-xs)',
-                      color: 'var(--color-text)',
-                      fontSize: 'var(--font-size-sm)'
-                    }}>
-                      CPU Usage
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      step="0.1"
-                      value={settings.cpu_threshold}
-                      onChange={(e) => setSettings(prev => ({
-                        ...prev,
-                        cpu_threshold: parseFloat(e.target.value) || 85
-                      }))}
-                      style={{
-                        width: '100%',
-                        padding: 'var(--spacing-sm)',
-                        background: 'rgba(0, 0, 0, 0.3)',
-                        border: '1px solid var(--color-text-dim)',
-                        borderRadius: 'var(--border-radius-sm)',
-                        color: 'var(--color-text)',
-                        fontSize: 'var(--font-size-sm)'
-                      }}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label style={{
-                      display: 'block',
-                      marginBottom: 'var(--spacing-xs)',
-                      color: 'var(--color-text)',
-                      fontSize: 'var(--font-size-sm)'
-                    }}>
-                      Memory Usage
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      step="0.1"
-                      value={settings.memory_threshold}
-                      onChange={(e) => setSettings(prev => ({
-                        ...prev,
-                        memory_threshold: parseFloat(e.target.value) || 90
-                      }))}
-                      style={{
-                        width: '100%',
-                        padding: 'var(--spacing-sm)',
-                        background: 'rgba(0, 0, 0, 0.3)',
-                        border: '1px solid var(--color-text-dim)',
-                        borderRadius: 'var(--border-radius-sm)',
-                        color: 'var(--color-text)',
-                        fontSize: 'var(--font-size-sm)'
-                      }}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label style={{
-                      display: 'block',
-                      marginBottom: 'var(--spacing-xs)',
-                      color: 'var(--color-text)',
-                      fontSize: 'var(--font-size-sm)'
-                    }}>
-                      Disk Usage
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      step="0.1"
-                      value={settings.disk_threshold}
-                      onChange={(e) => setSettings(prev => ({
-                        ...prev,
-                        disk_threshold: parseFloat(e.target.value) || 85
-                      }))}
-                      style={{
-                        width: '100%',
-                        padding: 'var(--spacing-sm)',
-                        background: 'rgba(0, 0, 0, 0.3)',
-                        border: '1px solid var(--color-text-dim)',
-                        borderRadius: 'var(--border-radius-sm)',
-                        color: 'var(--color-text)',
-                        fontSize: 'var(--font-size-sm)'
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Investigation Settings Section */}
-              <div>
-                <h3 style={{
-                  margin: '0 0 var(--spacing-md) 0',
-                  color: 'var(--color-text-bright)',
-                  fontSize: 'var(--font-size-lg)'
-                }}>
-                  Investigation Settings
-                </h3>
-                
-                <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: 'var(--spacing-xs)',
-                    color: 'var(--color-text)',
-                    fontSize: 'var(--font-size-sm)'
-                  }}>
-                    Cooldown Period (seconds)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="86400"
-                    value={settings.cooldown_period_seconds}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      cooldown_period_seconds: parseInt(e.target.value) || 300
-                    }))}
-                    style={{
-                      width: '200px',
-                      padding: 'var(--spacing-sm)',
-                      background: 'rgba(0, 0, 0, 0.3)',
-                      border: '1px solid var(--color-text-dim)',
-                      borderRadius: 'var(--border-radius-sm)',
-                      color: 'var(--color-text)',
-                      fontSize: 'var(--font-size-sm)'
-                    }}
-                  />
-                  <div style={{
-                    color: 'var(--color-text-dim)',
-                    fontSize: 'var(--font-size-xs)',
-                    marginTop: 'var(--spacing-xs)'
-                  }}>
-                    Minimum time between automatic investigations to prevent spam
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: 'var(--spacing-lg)',
-          borderTop: '1px solid var(--color-accent)',
-          background: 'rgba(0, 0, 0, 0.3)'
-        }}>
-          <button
-            onClick={resetSettings}
-            disabled={saving || loading}
-            className="btn btn-secondary"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--spacing-xs)',
-              opacity: saving || loading ? 0.5 : 1
-            }}
-          >
-            <RotateCcw size={16} />
-            Reset to Defaults
-          </button>
-          
-          <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-            <button
-              onClick={handleClose}
-              disabled={saving}
-              className="btn btn-secondary"
-              style={{ opacity: saving ? 0.5 : 1 }}
-            >
-              Cancel
-            </button>
-            
-            <button
-              onClick={saveSettings}
-              disabled={saving || loading || !hasChanges}
-              className="btn btn-primary"
-              style={{
+              <label style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 'var(--spacing-xs)',
-                opacity: saving || loading || !hasChanges ? 0.5 : 1
-              }}
-            >
-              <Save size={16} />
-              {saving ? 'Saving...' : 'Save Settings'}
-            </button>
+                gap: 'var(--spacing-sm)',
+                cursor: 'pointer',
+                padding: 'var(--spacing-md)',
+                background: 'var(--overlay-medium)',
+                border: '1px solid var(--color-primary)',
+                borderRadius: 'var(--radius-md)'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={settings.active}
+                  onChange={(e) => setSettings(prev => ({ ...prev, active: e.target.checked }))}
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    accentColor: 'var(--color-success)',
+                    cursor: 'pointer'
+                  }}
+                />
+                <div>
+                  <div style={{
+                    color: 'var(--color-text-heading)',
+                    fontWeight: 'bold'
+                  }}>
+                    System Monitor Active
+                  </div>
+                  <div style={{
+                    color: 'var(--color-text-secondary)',
+                    fontSize: 'var(--text-sm)',
+                    marginTop: 'var(--spacing-xs)'
+                  }}>
+                    Enable automatic monitoring, threshold checking, and anomaly detection
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            {/* Monitoring Intervals Section */}
+            <div>
+              <h3 className="section-heading" style={{
+                marginBottom: 'var(--spacing-md)',
+                fontSize: 'var(--text-lg)'
+              }}>
+                Monitoring Intervals (seconds)
+              </h3>
+
+              <div style={{
+                display: 'grid',
+                gap: 'var(--spacing-md)',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))'
+              }}>
+                <div>
+                  <label className="input-label">Metric Collection</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    min="5"
+                    max="3600"
+                    value={settings.metricCollectionInterval}
+                    onChange={(e) => setSettings(prev => ({
+                      ...prev,
+                      metricCollectionInterval: parseInt(e.target.value) || 10
+                    }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="input-label">Threshold Checking</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    min="10"
+                    max="1800"
+                    value={settings.thresholdCheckInterval}
+                    onChange={(e) => setSettings(prev => ({
+                      ...prev,
+                      thresholdCheckInterval: parseInt(e.target.value) || 20
+                    }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="input-label">Anomaly Detection</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    min="30"
+                    max="7200"
+                    value={settings.anomalyDetectionInterval}
+                    onChange={(e) => setSettings(prev => ({
+                      ...prev,
+                      anomalyDetectionInterval: parseInt(e.target.value) || 30
+                    }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* System Thresholds Section */}
+            <div>
+              <h3 className="section-heading" style={{
+                marginBottom: 'var(--spacing-md)',
+                fontSize: 'var(--text-lg)'
+              }}>
+                Alert Thresholds (%)
+              </h3>
+
+              <div style={{
+                display: 'grid',
+                gap: 'var(--spacing-md)',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))'
+              }}>
+                <div>
+                  <label className="input-label">CPU Usage</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    min="1"
+                    max="100"
+                    step="0.1"
+                    value={settings.cpuThreshold}
+                    onChange={(e) => setSettings(prev => ({
+                      ...prev,
+                      cpuThreshold: parseFloat(e.target.value) || 85
+                    }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="input-label">Memory Usage</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    min="1"
+                    max="100"
+                    step="0.1"
+                    value={settings.memoryThreshold}
+                    onChange={(e) => setSettings(prev => ({
+                      ...prev,
+                      memoryThreshold: parseFloat(e.target.value) || 90
+                    }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="input-label">Disk Usage</label>
+                  <input
+                    type="number"
+                    className="input-field"
+                    min="1"
+                    max="100"
+                    step="0.1"
+                    value={settings.diskThreshold}
+                    onChange={(e) => setSettings(prev => ({
+                      ...prev,
+                      diskThreshold: parseFloat(e.target.value) || 85
+                    }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Investigation Settings Section */}
+            <div>
+              <h3 className="section-heading" style={{
+                marginBottom: 'var(--spacing-md)',
+                fontSize: 'var(--text-lg)'
+              }}>
+                Investigation Settings
+              </h3>
+
+              <div>
+                <label className="input-label">Cooldown Period (seconds)</label>
+                <input
+                  type="number"
+                  className="input-field"
+                  min="0"
+                  max="86400"
+                  value={settings.cooldownPeriodSeconds}
+                  onChange={(e) => setSettings(prev => ({
+                    ...prev,
+                    cooldownPeriodSeconds: parseInt(e.target.value) || 300
+                  }))}
+                  style={{ width: '200px' }}
+                />
+                <div style={{
+                  color: 'var(--color-text-secondary)',
+                  fontSize: 'var(--text-xs)',
+                  marginTop: 'var(--spacing-xs)'
+                }}>
+                  Minimum time between automatic investigations to prevent spam
+                </div>
+              </div>
+            </div>
           </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 'var(--spacing-lg)',
+        borderTop: '1px solid var(--color-primary)',
+        background: 'var(--overlay-medium)'
+      }}>
+        <button
+          onClick={resetSettings}
+          disabled={saving || loading}
+          className="btn btn-secondary icon-text icon-text-xs"
+          style={{ opacity: saving || loading ? 0.5 : 1 }}
+        >
+          <RotateCcw size={16} />
+          Reset to Defaults
+        </button>
+
+        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+          <button
+            onClick={handleClose}
+            disabled={saving}
+            className="btn btn-secondary"
+            style={{ opacity: saving ? 0.5 : 1 }}
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={saveSettings}
+            disabled={saving || loading || !hasChanges}
+            className="btn btn-primary icon-text icon-text-xs"
+            style={{ opacity: saving || loading || !hasChanges ? 0.5 : 1 }}
+          >
+            <Save size={16} />
+            {saving ? 'Saving...' : 'Save Settings'}
+          </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };

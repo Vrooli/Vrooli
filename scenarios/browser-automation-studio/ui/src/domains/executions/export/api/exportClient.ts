@@ -5,8 +5,32 @@
  * Tests can provide mock implementations to verify behavior without network calls.
  */
 
+import { z } from 'zod';
 import type { ReplayMovieSpec } from "@/types/export";
 import { getConfig } from "@/config";
+import { safeParse, parseArrayFiltered } from "@/shared/api";
+import { logger } from "@/utils/logger";
+
+// =============================================================================
+// Schemas (Runtime Validation)
+// =============================================================================
+
+/**
+ * Zod schema for recorded video validation.
+ */
+const RecordedVideoSchema = z.object({
+  id: z.string(),
+  url: z.string().optional(),
+  contentType: z.string().optional(),
+  sizeBytes: z.number().optional(),
+});
+
+/**
+ * Zod schema for recorded videos response.
+ */
+const RecordedVideosResponseSchema = z.object({
+  videos: z.array(RecordedVideoSchema).optional(),
+});
 
 // =============================================================================
 // Types
@@ -83,6 +107,11 @@ async function fetchRecordedVideoStatus(
   executionId: string,
   signal?: AbortSignal,
 ): Promise<RecordedVideoStatus> {
+  // Validate at service boundary - prevents /executions//recorded-videos requests
+  if (!executionId || executionId.trim() === '') {
+    return { available: false, count: 0, videos: [] };
+  }
+
   const { API_URL } = await getConfig();
   const response = await fetch(`${API_URL}/executions/${executionId}/recorded-videos`, {
     signal,
@@ -92,9 +121,23 @@ async function fetchRecordedVideoStatus(
     throw new Error(`Recorded videos unavailable (${response.status})`);
   }
 
-  const payload = (await response.json()) as { videos?: unknown };
-  const videos = Array.isArray(payload?.videos)
-    ? (payload.videos as RecordedVideo[])
+  const raw: unknown = await response.json();
+
+  // Validate response at runtime using Zod
+  const result = safeParse(RecordedVideosResponseSchema, raw, 'fetchRecordedVideoStatus');
+  if (!result.success) {
+    logger.warn('Recorded videos response validation failed', {
+      component: 'exportClient',
+      action: 'fetchRecordedVideoStatus',
+      executionId,
+      error: result.error,
+    });
+  }
+
+  // Extract and validate individual videos
+  const rawVideos = result.success ? result.data.videos : (raw as { videos?: unknown[] }).videos;
+  const videos = Array.isArray(rawVideos)
+    ? parseArrayFiltered(RecordedVideoSchema, rawVideos, 'RecordedVideo')
     : [];
 
   return {
@@ -109,6 +152,11 @@ async function executeExport(
   payload: ExportRequestPayload,
   signal?: AbortSignal,
 ): Promise<ExportResult> {
+  // Validate at service boundary
+  if (!executionId || executionId.trim() === '') {
+    throw new Error('Execution ID is required for export');
+  }
+
   const { API_URL } = await getConfig();
   const acceptHeader = payload.format === "gif" ? "image/gif" : "video/mp4";
 

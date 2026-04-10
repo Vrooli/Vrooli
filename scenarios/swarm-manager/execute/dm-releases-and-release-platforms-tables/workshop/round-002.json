@@ -1,0 +1,136 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-07T20:15:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round 1 decisions synthesized into plan: (d1) releases stay in deployments/ package, (d2) SELECT FOR UPDATE for supersede locking, (d3) full CRUD handlers, (d4) released_by column included as nullable. All aligned with existing codebase patterns."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Validation report flagged 3 issues: missing 'Rollout/Validation Checklist' section, no greenfield declaration, no 'vrooli scenario restart' final step. These will be added to plan.md this round."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Go type null handling strategy for optional fields",
+      "context": "The research Finding 10 uses plain Go strings (e.g., `DeploymentID string`) with omitempty JSON tags. But the existing approvals code uses sql.NullString/sql.NullInt64/sql.NullTime with helper functions for scanning. Using plain strings would diverge from the established pattern and cause scan errors when columns are NULL.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Use sql.Null* types (match existing pattern)",
+          "rationale": "Consistent with approvals_types.go and published_versions.go. Works correctly with database NULL values. The existing helper functions (nullStringValue, etc.) already handle JSON serialization. Recommended because consistency reduces cognitive load and avoids scan bugs.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Use pointer types (*string, *time.Time)",
+          "rationale": "Cleaner JSON serialization (nil → omitted, vs sql.NullString needing custom marshaling). Common Go idiom. But diverges from every other type in the deployments/ package."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own null handling approach."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Test setup: shared helpers vs self-contained",
+      "context": "The existing test infrastructure lives in api/server/ (integration_test.go, main_test.go with testcontainers). The releases repository tests need a running postgres with the releases schema + dependent tables (profiles, deployments, deployment_approvals). Two approaches exist in the codebase: server-level integration tests (server/integration_test.go) and package-level tests (orchestrator_test.go mocks its deps).",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add repository integration tests in deployments/ using testcontainers directly",
+          "rationale": "Self-contained: the package owns its test DB setup. Runs migrations 002-005 in setup. Follows the same testcontainers pattern but scoped to the package. Recommended because it tests the SQL layer in isolation without requiring the full server.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add tests only in server/integration_test.go alongside existing server tests",
+          "rationale": "Reuses the existing test infrastructure and DB setup. But couples release repo tests to the full server lifecycle and makes test isolation harder."
+        },
+        {
+          "key": "C",
+          "label": "Both: unit tests with mocks in deployments/ + integration in server/",
+          "rationale": "Maximum coverage. But the repository layer is thin SQL wrappers where mocks add little value — the real test is the SQL."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own test organization."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Orchestrator wiring in this task",
+      "context": "The Orchestrator (orchestrator.go) is created with NewOrchestratorFull(profilesRepo, approvalsRepo, publishedVersionsRepo, logFn). When releases are wired in, it will need a releasesRepo parameter too. However, the description says orchestrator integration is a separate backlog item. The question is whether to add the repo parameter now (unused) or leave the orchestrator untouched.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add releasesRepo to Orchestrator constructor now, but don't use it yet",
+          "rationale": "Avoids a follow-up refactor of the constructor signature. The orchestrator already takes 4 params — adding a 5th is trivial. The field sits unused until the integration task. Recommended because it's low-effort and prevents a breaking change later.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Leave Orchestrator untouched — integration task handles it",
+          "rationale": "Strict scope separation. This task's Definition of Done doesn't mention the orchestrator. Clean boundary between 'data layer' and 'integration' tasks."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own wiring approach."
+        }
+      ],
+      "selected": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "ListByProfile pagination strategy",
+      "context": "The plan mentions a 'limit' query param for ListByProfile. The existing published-versions endpoint doesn't paginate (returns all). For releases, which could accumulate over time, a pagination strategy is needed.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Simple limit+offset with defaults (limit=50, offset=0)",
+          "rationale": "Standard REST pagination. Easy to implement. Sufficient for typical release counts per profile (likely < 1000). Recommended because it's simple and covers the use case without premature optimization.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Cursor-based pagination (keyset on created_at)",
+          "rationale": "More performant for large datasets and consistent with append-only data. But adds complexity for marginal benefit given expected data volume."
+        },
+        {
+          "key": "C",
+          "label": "Limit only (no offset), like published_versions",
+          "rationale": "Simplest possible. Just a cap on results. Consistent with existing endpoint. But no way to page through older releases."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own pagination approach."
+        }
+      ],
+      "selected": "A"
+    }
+  ],
+  "plan_updates": "Synthesized round 1 decisions into plan. Added Rollout/Validation Checklist (section 12) with vrooli scenario restart step. Added greenfield declaration. Refined Go type details to use sql.Null* types matching existing patterns. Added api-steer and test to Required Reading. Clarified test setup strategy."
+}

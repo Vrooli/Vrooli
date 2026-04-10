@@ -55,7 +55,7 @@ export interface NavigationCompleteEvent {
   /** Navigation session ID */
   navigationId: string;
   /** Final status */
-  status: 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected';
+  status: 'completed' | 'failed' | 'aborted' | 'max_steps_reached' | 'loop_detected' | 'awaiting_human';
   /** Total steps executed */
   totalSteps: number;
   /** Total tokens used */

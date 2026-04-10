@@ -20,21 +20,24 @@ const AssetsDir = "assets"
 
 // Service handles asset import business logic.
 type Service struct {
-	scanner   shared.DirectoryScanner
-	projecter shared.ProjectIndexer
-	log       *logrus.Logger
+	scanner      shared.DirectoryScanner
+	projecter    shared.ProjectIndexer
+	assetIndexer shared.AssetIndexer
+	log          *logrus.Logger
 }
 
 // NewService creates a new Service.
 func NewService(
 	scanner shared.DirectoryScanner,
 	projecter shared.ProjectIndexer,
+	assetIndexer shared.AssetIndexer,
 	log *logrus.Logger,
 ) *Service {
 	return &Service{
-		scanner:   scanner,
-		projecter: projecter,
-		log:       log,
+		scanner:      scanner,
+		projecter:    projecter,
+		assetIndexer: assetIndexer,
+		log:          log,
 	}
 }
 
@@ -86,6 +89,22 @@ func (s *Service) Upload(ctx context.Context, projectID uuid.UUID, path string, 
 	// Get file info
 	name := filepath.Base(fullPath)
 	mimeType := getMimeType(name)
+
+	// Index in database
+	if s.assetIndexer != nil {
+		assetData := &shared.AssetIndexData{
+			ID:        uuid.New(),
+			ProjectID: projectID,
+			FilePath:  filepath.ToSlash(cleanPath),
+			FileName:  name,
+			FileSize:  written,
+			MimeType:  mimeType,
+		}
+		if err := s.assetIndexer.CreateAsset(ctx, assetData); err != nil {
+			s.log.WithError(err).WithField("path", cleanPath).Warn("Failed to index uploaded asset")
+			// Continue - file exists, just not indexed
+		}
+	}
 
 	return &UploadAssetResponse{
 		Path:      cleanPath,
@@ -174,6 +193,16 @@ func (s *Service) Delete(ctx context.Context, projectID uuid.UUID, path string) 
 	// Remove file or directory
 	if err := os.RemoveAll(fullPath); err != nil {
 		return fmt.Errorf("failed to delete: %w", err)
+	}
+
+	// Remove from database index
+	if s.assetIndexer != nil {
+		// Build the relative path as stored in the database
+		assetPath := filepath.ToSlash(filepath.Join(AssetsDir, path))
+		if err := s.assetIndexer.DeleteAssetByPath(ctx, projectID, assetPath); err != nil {
+			s.log.WithError(err).WithField("path", assetPath).Debug("Failed to delete asset from index")
+			// Continue - file is deleted, index will be cleaned up on next sync
+		}
 	}
 
 	return nil

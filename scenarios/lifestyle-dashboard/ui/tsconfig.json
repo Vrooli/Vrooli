@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
+    "noUncheckedIndexedAccess": true
+  },
+  "include": ["src", "vite.config.ts"],
+  "exclude": ["dist"]
+}

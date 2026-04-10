@@ -95,7 +95,7 @@ func TestHandleWebSocket(t *testing.T) {
 
 		// Read initial connection message
 		var msg WebSocketMessage
-		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 		if err := conn.ReadJSON(&msg); err != nil {
 			t.Fatalf("Failed to read connection message: %v", err)
 		}
@@ -127,8 +127,8 @@ func TestHandleWebSocket(t *testing.T) {
 
 		// Read connection message
 		var connMsg WebSocketMessage
-		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-		conn.ReadJSON(&connMsg)
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_ = conn.ReadJSON(&connMsg)
 
 		// Send ping message
 		pingMsg := WebSocketMessage{
@@ -140,7 +140,7 @@ func TestHandleWebSocket(t *testing.T) {
 
 		// Read pong response
 		var pongMsg WebSocketMessage
-		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 		if err := conn.ReadJSON(&pongMsg); err != nil {
 			t.Fatalf("Failed to read pong: %v", err)
 		}
@@ -172,8 +172,8 @@ func TestHandleWebSocket(t *testing.T) {
 
 		// Read connection message
 		var connMsg WebSocketMessage
-		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-		conn.ReadJSON(&connMsg)
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_ = conn.ReadJSON(&connMsg)
 
 		// Send subscribe message
 		subscribeMsg := WebSocketMessage{
@@ -212,8 +212,8 @@ func TestHandleWebSocket(t *testing.T) {
 
 		// Read connection message
 		var connMsg WebSocketMessage
-		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-		conn.ReadJSON(&connMsg)
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_ = conn.ReadJSON(&connMsg)
 
 		// Send unsubscribe message
 		unsubscribeMsg := WebSocketMessage{
@@ -251,8 +251,8 @@ func TestHandleWebSocket(t *testing.T) {
 
 		// Read connection message
 		var connMsg WebSocketMessage
-		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-		conn.ReadJSON(&connMsg)
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_ = conn.ReadJSON(&connMsg)
 
 		// Send command message
 		commandMsg := WebSocketMessage{
@@ -267,7 +267,7 @@ func TestHandleWebSocket(t *testing.T) {
 
 		// Read command response
 		var responseMsg WebSocketMessage
-		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 		if err := conn.ReadJSON(&responseMsg); err != nil {
 			t.Fatalf("Failed to read command response: %v", err)
 		}
@@ -299,8 +299,8 @@ func TestHandleWebSocket(t *testing.T) {
 
 		// Read connection message
 		var connMsg WebSocketMessage
-		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-		conn.ReadJSON(&connMsg)
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_ = conn.ReadJSON(&connMsg)
 
 		// Send unknown message type
 		unknownMsg := WebSocketMessage{
@@ -341,8 +341,8 @@ func TestWebSocketEdgeCases(t *testing.T) {
 
 		// Read connection message
 		var connMsg WebSocketMessage
-		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-		conn.ReadJSON(&connMsg)
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_ = conn.ReadJSON(&connMsg)
 
 		// Send subscribe with invalid payload
 		invalidMsg := WebSocketMessage{
@@ -377,8 +377,8 @@ func TestWebSocketEdgeCases(t *testing.T) {
 
 		// Read connection message
 		var connMsg WebSocketMessage
-		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-		conn.ReadJSON(&connMsg)
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_ = conn.ReadJSON(&connMsg)
 
 		// Close connection immediately
 		conn.Close()
@@ -417,8 +417,8 @@ func TestWebSocketConcurrency(t *testing.T) {
 
 			// Read connection message
 			var connMsg WebSocketMessage
-			conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-			conn.ReadJSON(&connMsg)
+			_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+			_ = conn.ReadJSON(&connMsg)
 		}
 
 		// Send messages from all connections
@@ -435,7 +435,7 @@ func TestWebSocketConcurrency(t *testing.T) {
 		// Read responses
 		for i, conn := range connections {
 			var pongMsg WebSocketMessage
-			conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+			_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 			if err := conn.ReadJSON(&pongMsg); err != nil {
 				t.Errorf("Failed to read pong from connection %d: %v", i, err)
 			}

@@ -17,6 +17,8 @@ import (
 	"github.com/gorilla/mux"
 
 	"app-issue-tracker-api/internal/server/metadata"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 func newTestServer(t *testing.T) *Server {
@@ -343,6 +345,10 @@ func TestGetIssueAttachmentHandlerServesContent(t *testing.T) {
 
 func TestGetIssueAgentConversationHandler(t *testing.T) {
 	server := newTestServer(t)
+	agentMock, ok := server.agentManager.(*testAgentManager)
+	if !ok {
+		t.Fatalf("expected test agent manager")
+	}
 
 	issue := &Issue{
 		ID:    "issue-xyz",
@@ -362,30 +368,29 @@ func TestGetIssueAgentConversationHandler(t *testing.T) {
 		},
 	}
 
-	transcriptDir := filepath.Join(server.config.ScenarioRoot, "tmp", "codex")
-	if err := os.MkdirAll(transcriptDir, 0755); err != nil {
-		t.Fatalf("failed to create transcript directory: %v", err)
-	}
+	issue.Metadata.Extra[metadata.AgentRunIDKey] = "run-xyz"
+	issue.Metadata.Extra[metadata.AgentRunnerTypeKey] = "claude-code"
 
-	transcriptPath := filepath.Join(transcriptDir, "issue-xyz-conversation.jsonl")
-	transcriptLines := []string{
-		`{"sandbox":"workspace-write","provider":"openai","model":"gpt-5-codex"}`,
-		`{"prompt":"Fix the failing test\\n"}`,
-		`{"id":"0","msg":{"type":"task_started"}}`,
-		`{"id":"0","msg":{"type":"agent_message","message":"All good now."}}`,
+	agentMock.run = &domainpb.Run{
+		Id:        "run-xyz",
+		Status:    domainpb.RunStatus_RUN_STATUS_COMPLETE,
+		SessionId: "session-123",
+		Summary: &domainpb.RunSummary{
+			Description: "All good now.",
+		},
 	}
-	if err := os.WriteFile(transcriptPath, []byte(strings.Join(transcriptLines, "\n")), 0644); err != nil {
-		t.Fatalf("failed to write transcript: %v", err)
+	agentMock.events = []*domainpb.RunEvent{
+		{
+			Id:        "evt-1",
+			EventType: domainpb.RunEventType_RUN_EVENT_TYPE_MESSAGE,
+			Data: &domainpb.RunEvent_Message{
+				Message: &domainpb.MessageEventData{
+					Role:    "assistant",
+					Content: "All good now.",
+				},
+			},
+		},
 	}
-
-	lastMessagePath := filepath.Join(transcriptDir, "issue-xyz-last.txt")
-	if err := os.WriteFile(lastMessagePath, []byte("All good now."), 0644); err != nil {
-		t.Fatalf("failed to write last message: %v", err)
-	}
-
-	issue.Metadata.Extra[metadata.AgentTranscriptPathKey] = transcriptPath
-	issue.Metadata.Extra[metadata.AgentLastMessagePathKey] = lastMessagePath
-	issue.Investigation.AgentID = "codex"
 
 	if _, err := server.saveIssue(issue, "completed"); err != nil {
 		t.Fatalf("failed to save issue: %v", err)
@@ -420,19 +425,16 @@ func TestGetIssueAgentConversationHandler(t *testing.T) {
 
 	conversation := body.Data.Conversation
 	if !conversation.Available {
-		t.Fatalf("expected transcript to be available")
+		t.Fatalf("expected run conversation to be available")
 	}
-	if conversation.Provider != "codex" {
-		t.Fatalf("expected provider codex, got %s", conversation.Provider)
-	}
-	if conversation.LastMessage != "All good now." {
-		t.Fatalf("unexpected last message: %s", conversation.LastMessage)
+	if conversation.RunnerType != "claude-code" {
+		t.Fatalf("expected runner claude-code, got %s", conversation.RunnerType)
 	}
 	if len(conversation.Entries) == 0 {
 		t.Fatalf("expected conversation entries")
 	}
-	if conversation.Entries[0].Kind != "prompt" {
-		t.Fatalf("expected first entry to be prompt, got %s", conversation.Entries[0].Kind)
+	if conversation.Entries[0].Kind != "message" {
+		t.Fatalf("expected first entry to be message, got %s", conversation.Entries[0].Kind)
 	}
 }
 

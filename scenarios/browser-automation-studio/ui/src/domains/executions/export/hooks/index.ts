@@ -17,3 +17,9 @@ export {
   type UseRecordedVideoStatusOptions,
   type UseRecordedVideoStatusResult,
 } from "./useRecordedVideoStatus";
+
+export {
+  useExportProgress,
+  type UseExportProgressOptions,
+  type UseExportProgressResult,
+} from "./useExportProgress";

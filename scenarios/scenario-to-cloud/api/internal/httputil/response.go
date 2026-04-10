@@ -25,7 +25,23 @@ func WriteAPIError(w http.ResponseWriter, status int, apiErr APIError) {
 
 // WriteJSON writes a JSON response with the given status code.
 func WriteJSON(w http.ResponseWriter, status int, payload interface{}) {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		fallback := APIErrorEnvelope{
+			Error: APIError{
+				Code:    "json_encode_failed",
+				Message: "Failed to encode JSON response",
+				Hint:    err.Error(),
+			},
+		}
+		enc := json.NewEncoder(w)
+		_ = enc.Encode(fallback)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
+	_, _ = w.Write(append(data, '\n'))
 }

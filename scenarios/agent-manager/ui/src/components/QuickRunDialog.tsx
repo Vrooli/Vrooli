@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -6,6 +6,7 @@ import {
   Check,
   ClipboardList,
   FolderOpen,
+  Paperclip,
   Play,
   Rocket,
   Settings2,
@@ -24,9 +25,13 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { ModelConfigSelector, type ModelSelectionMode } from "./ModelConfigSelector";
+import { AttachmentPreview } from "./AttachmentPreview";
+import { ScopePathsManager } from "./ScopePathsManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Textarea } from "./ui/textarea";
-import { cn, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
+import { useAttachments, type PersistedAttachment } from "../hooks/useAttachments";
+import { usePersistedFormState } from "../hooks/usePersistedFormState";
+import { cn, networkAccessLabel, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
 import type {
   AgentProfile,
   ModelRegistry,
@@ -51,10 +56,14 @@ interface QuickRunDialogProps {
   profiles: AgentProfile[];
   runners?: Record<string, RunnerStatus>;
   modelRegistry?: ModelRegistry;
+  defaultProjectRoot?: string;
   onCreateTask: (task: TaskFormData) => Promise<Task>;
   onCreateRun: (run: RunFormData) => Promise<Run>;
   onRunCreated?: (run: Run) => void;
 }
+
+const DEFAULT_MAX_TURNS = 500;
+const DEFAULT_TIMEOUT_MINUTES = 120;
 
 interface AgentConfigData {
   mode: "profile" | "custom";
@@ -63,11 +72,16 @@ interface AgentConfigData {
   model: string;
   modelPreset: ModelPreset;
   modelMode: ModelSelectionMode;
-  maxTurns: number;
-  timeoutMinutes: number;
+  maxTurns: number | string;
+  timeoutMinutes: number | string;
   runMode: RunMode;
   skipPermissionPrompt: boolean;
+  networkAccess: "none" | "localhost" | "full";
   fallbackRunnerTypes: RunnerType[];
+  features?: {
+    enableBrowser?: boolean;
+  };
+  extraFlags?: Record<string, string[]>;
 }
 
 type Step = 1 | 2 | 3;
@@ -88,37 +102,75 @@ export function QuickRunDialog({
   profiles,
   runners,
   modelRegistry,
+  defaultProjectRoot,
   onCreateTask,
   onCreateRun,
   onRunCreated,
 }: QuickRunDialogProps) {
-  const [currentStep, setCurrentStep] = useState<Step>(1);
+  const [currentStep, setCurrentStep, clearStepStorage] = usePersistedFormState<Step>("quick-run-step", 1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { attachments, addAttachment, removeAttachment, clearAttachments, restoreAttachments, getPersistedAttachments, isUploading, getUploadedIds } = useAttachments();
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   // Step 1: Task data
-  const [taskData, setTaskData] = useState<TaskFormData>({
+  const [taskData, setTaskData, clearTaskStorage] = usePersistedFormState<{
+    title: string;
+    description: string;
+    projectRoot: string;
+  }>("quick-run-task", {
     title: "",
     description: "",
-    scopePath: ".",
-    projectRoot: "",
+    projectRoot: defaultProjectRoot ?? "",
   });
+  const [scopePaths, setScopePaths, clearScopeStorage] = usePersistedFormState<string[]>("quick-run-scope", ["."]);
+
+  // Persisted attachment metadata
+  const [persistedAttachments, setPersistedAttachments, clearAttachmentStorage] = usePersistedFormState<PersistedAttachment[]>("quick-run-attachments", []);
+
+  // Restore attachments from localStorage on mount
+  const attachmentsRestoredRef = useRef(false);
+  useEffect(() => {
+    if (!attachmentsRestoredRef.current && persistedAttachments.length > 0 && attachments.length === 0) {
+      attachmentsRestoredRef.current = true;
+      restoreAttachments(persistedAttachments);
+    }
+  }, [persistedAttachments, attachments.length, restoreAttachments]);
+
+  // Persist attachment metadata whenever attachments change
+  useEffect(() => {
+    const uploaded = getPersistedAttachments();
+    // Only update if there's a meaningful change to avoid infinite loops
+    if (JSON.stringify(uploaded) !== JSON.stringify(persistedAttachments)) {
+      setPersistedAttachments(uploaded);
+    }
+  }, [attachments]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync defaultProjectRoot when it arrives async (e.g. from health fetch)
+  useEffect(() => {
+    if (defaultProjectRoot && taskData.projectRoot === "") {
+      setTaskData((prev) => ({ ...prev, projectRoot: defaultProjectRoot }));
+    }
+  }, [defaultProjectRoot]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Step 2: Agent config
-  const [agentConfig, setAgentConfig] = useState<AgentConfigData>({
-    mode: profiles.length > 0 ? "profile" : "custom",
+  const [agentConfig, setAgentConfig, clearConfigStorage] = usePersistedFormState<AgentConfigData>("quick-run-config", {
+    mode: "custom",
     profileId: "",
     runnerType: RunnerTypeEnum.CLAUDE_CODE,
     model: "",
     modelPreset: ModelPreset.UNSPECIFIED,
     modelMode: "default",
-    maxTurns: 100,
-    timeoutMinutes: 30,
-    runMode: RunMode.SANDBOXED,
+    maxTurns: DEFAULT_MAX_TURNS,
+    timeoutMinutes: DEFAULT_TIMEOUT_MINUTES,
+    runMode: RunMode.IN_PLACE,
     skipPermissionPrompt: true,
+    networkAccess: "localhost",
     fallbackRunnerTypes: [],
+    features: { enableBrowser: false },
+    extraFlags: {},
   });
-  const [existingSandboxId, setExistingSandboxId] = useState("");
+  const [existingSandboxId, setExistingSandboxId, clearSandboxStorage] = usePersistedFormState("quick-run-sandbox", "");
 
   const getRegistryForRunner = (runnerType: RunnerType) => {
     return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
@@ -141,38 +193,57 @@ export function QuickRunDialog({
     return profiles.find((p) => p.id === agentConfig.profileId);
   };
 
+  const clearAllPersistedState = useCallback(() => {
+    clearStepStorage();
+    clearTaskStorage();
+    clearScopeStorage();
+    clearConfigStorage();
+    clearSandboxStorage();
+    clearAttachmentStorage();
+    attachmentsRestoredRef.current = false;
+  }, [clearStepStorage, clearTaskStorage, clearScopeStorage, clearConfigStorage, clearSandboxStorage, clearAttachmentStorage]);
+
   const resetForm = () => {
     setCurrentStep(1);
     setError(null);
     setExistingSandboxId("");
+    clearAttachments();
     setTaskData({
       title: "",
       description: "",
-      scopePath: ".",
-      projectRoot: "",
+      projectRoot: defaultProjectRoot ?? "",
     });
+    setScopePaths(["."]);
     setAgentConfig({
-      mode: profiles.length > 0 ? "profile" : "custom",
+      mode: "custom",
       profileId: "",
       runnerType: RunnerTypeEnum.CLAUDE_CODE,
       model: "",
       modelPreset: ModelPreset.UNSPECIFIED,
       modelMode: "default",
-      maxTurns: 100,
-      timeoutMinutes: 30,
-      runMode: RunMode.SANDBOXED,
+      maxTurns: DEFAULT_MAX_TURNS,
+      timeoutMinutes: DEFAULT_TIMEOUT_MINUTES,
+      runMode: RunMode.IN_PLACE,
       skipPermissionPrompt: true,
+      networkAccess: "localhost",
       fallbackRunnerTypes: [],
+      features: { enableBrowser: false },
+      extraFlags: {},
     });
+    setPersistedAttachments([]);
+    clearAllPersistedState();
   };
 
-  const handleClose = () => {
-    resetForm();
+  const handleClose = useCallback(() => {
+    // Only reset transient state — persisted draft is preserved for next open
+    setError(null);
+    setSubmitting(false);
     onOpenChange(false);
-  };
+  }, [onOpenChange]);
 
   const canProceedStep1 = (): boolean => {
-    return taskData.title.trim().length > 0 && taskData.scopePath.trim().length > 0;
+    // Project root is required; title auto-generated if empty
+    return taskData.projectRoot.trim().length > 0;
   };
 
   const canProceedStep2 = (): boolean => {
@@ -199,16 +270,14 @@ export function QuickRunDialog({
   };
 
   const handleStepClick = (step: Step) => {
-    // Allow clicking to go back to previous steps
-    if (step < currentStep) {
-      setCurrentStep(step);
-    }
-    // Allow clicking to go forward only if current step is valid
-    if (step === 2 && currentStep === 1 && canProceedStep1()) {
-      setCurrentStep(2);
-    }
-    if (step === 3 && currentStep === 2 && canProceedStep2()) {
-      setCurrentStep(3);
+    setCurrentStep(step);
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      addAttachment(file);
+      e.target.value = "";
     }
   };
 
@@ -236,17 +305,45 @@ export function QuickRunDialog({
     });
   };
 
-  const handleStartRun = async () => {
+  const generateTitle = useCallback((): string => {
+    if (taskData.title.trim()) return taskData.title.trim();
+    if (taskData.description.trim()) {
+      const desc = taskData.description.trim();
+      if (desc.length <= 60) return desc;
+      const truncated = desc.slice(0, 60);
+      const lastSpace = truncated.lastIndexOf(" ");
+      return (lastSpace > 20 ? truncated.slice(0, lastSpace) : truncated) + "...";
+    }
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `Quick run ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  }, [taskData.title, taskData.description]);
+
+  const handleStartRun = useCallback(async () => {
     setSubmitting(true);
     setError(null);
 
     try {
       // Step 1: Create the task
+      // Join scope paths with ":" for the backend (which expects a single string)
+      // Empty array means "." (current directory / read-only)
+      const scopePath = scopePaths.length > 0 ? scopePaths.join(":") : ".";
+      const title = generateTitle();
+
+      // Include uploaded image attachments as context attachments
+      const uploadedIds = getUploadedIds();
+      const imageAttachments = uploadedIds.map((id) => ({
+        type: "image",
+        attachment_id: id,
+        label: "Uploaded image",
+      }));
+
       const task = await onCreateTask({
-        title: taskData.title,
+        title,
         description: taskData.description || undefined,
-        scopePath: taskData.scopePath,
+        scopePath,
         projectRoot: taskData.projectRoot || undefined,
+        ...(imageAttachments.length > 0 ? { contextAttachments: imageAttachments } : {}),
       });
 
       // Step 2: Create the run
@@ -264,12 +361,19 @@ export function QuickRunDialog({
         if (agentConfig.modelMode === "preset") {
           runRequest.modelPreset = agentConfig.modelPreset;
         }
-        runRequest.maxTurns = agentConfig.maxTurns;
-        runRequest.timeoutMinutes = agentConfig.timeoutMinutes;
+        runRequest.maxTurns = typeof agentConfig.maxTurns === "number" ? agentConfig.maxTurns : DEFAULT_MAX_TURNS;
+        runRequest.timeoutMinutes = typeof agentConfig.timeoutMinutes === "number" ? agentConfig.timeoutMinutes : DEFAULT_TIMEOUT_MINUTES;
         runRequest.runMode = agentConfig.runMode;
         runRequest.skipPermissionPrompt = agentConfig.skipPermissionPrompt;
+        runRequest.networkAccess = agentConfig.networkAccess;
         if (agentConfig.fallbackRunnerTypes.length > 0) {
           runRequest.fallbackRunnerTypes = agentConfig.fallbackRunnerTypes;
+        }
+        if (agentConfig.features?.enableBrowser) {
+          runRequest.features = { enableBrowser: true };
+        }
+        if (agentConfig.extraFlags && Object.keys(agentConfig.extraFlags).length > 0) {
+          runRequest.extraFlags = agentConfig.extraFlags;
         }
       }
       if (existingSandboxId.trim() !== "") {
@@ -278,19 +382,34 @@ export function QuickRunDialog({
 
       const run = await onCreateRun(runRequest);
 
-      // Success - close dialog and notify
-      handleClose();
+      // Success - reset form (clears localStorage draft), close dialog, and notify
+      resetForm();
+      onOpenChange(false);
       onRunCreated?.(run);
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setSubmitting(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generateTitle, scopePaths, taskData, agentConfig, existingSandboxId, getUploadedIds, onCreateTask, onCreateRun, onRunCreated, onOpenChange]);
+
+  // Ctrl+Enter shortcut to start run
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        handleStartRun();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, handleStartRun]);
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
-      <DialogContent className="max-w-2xl">
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()} fullScreenMobile>
+      <DialogContent fullScreenMobile className="sm:max-w-2xl">
         <DialogHeader onClose={handleClose}>
           <DialogTitle className="flex items-center gap-2">
             <Play className="h-5 w-5 text-primary" />
@@ -309,14 +428,13 @@ export function QuickRunDialog({
                 type="button"
                 onClick={() => handleStepClick(step.num)}
                 className={cn(
-                  "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors cursor-pointer",
                   currentStep === step.num
                     ? "bg-primary text-primary-foreground"
                     : currentStep > step.num
-                    ? "bg-primary/20 text-primary cursor-pointer hover:bg-primary/30"
-                    : "bg-muted text-muted-foreground"
+                    ? "bg-primary/20 text-primary hover:bg-primary/30"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
-                disabled={step.num > currentStep}
               >
                 {currentStep > step.num ? (
                   <Check className="h-4 w-4" />
@@ -348,58 +466,73 @@ export function QuickRunDialog({
           {currentStep === 1 && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Task Title *</Label>
-                <Input
-                  id="title"
-                  value={taskData.title}
-                  onChange={(e) =>
-                    setTaskData({ ...taskData, title: e.target.value })
-                  }
-                  placeholder="e.g., Fix authentication bug"
-                  autoFocus
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">What should the agent do?</Label>
                 <Textarea
                   id="description"
                   value={taskData.description}
                   onChange={(e) =>
                     setTaskData({ ...taskData, description: e.target.value })
                   }
-                  placeholder="Detailed instructions for the agent..."
+                  placeholder="Describe the task for the agent..."
                   rows={4}
+                  autoFocus
                 />
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="scopePath">Scope Path *</Label>
-                  <Input
-                    id="scopePath"
-                    value={taskData.scopePath}
-                    onChange={(e) =>
-                      setTaskData({ ...taskData, scopePath: e.target.value })
-                    }
-                    placeholder="e.g., src/auth"
+              {/* Image attachments */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Image Attachments</label>
+                {attachments.length > 0 && (
+                  <AttachmentPreview
+                    attachments={attachments}
+                    onRemove={removeAttachment}
+                    isUploading={isUploading}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Directory scope where the agent can operate
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="projectRoot">Project Root</Label>
-                  <Input
-                    id="projectRoot"
-                    value={taskData.projectRoot}
-                    onChange={(e) =>
-                      setTaskData({ ...taskData, projectRoot: e.target.value })
-                    }
-                    placeholder="Optional: /path/to/project"
-                  />
-                </div>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  <Paperclip className="h-4 w-4 mr-2" />
+                  Attach Image
+                </Button>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="title">Task Title</Label>
+                <Input
+                  id="title"
+                  value={taskData.title}
+                  onChange={(e) =>
+                    setTaskData({ ...taskData, title: e.target.value })
+                  }
+                  placeholder={taskData.description ? generateTitle() : "Auto-generated from description"}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave blank to auto-generate from description
+                </p>
+              </div>
+
+              <ScopePathsManager
+                projectRoot={taskData.projectRoot}
+                onProjectRootChange={(value) =>
+                  setTaskData({ ...taskData, projectRoot: value })
+                }
+                scopePaths={scopePaths}
+                onScopePathsChange={setScopePaths}
+                defaultProjectRoot={defaultProjectRoot}
+                scopePathsHelp="Directories where the agent can make changes. Leave empty for read-only access."
+              />
+
             </div>
           )}
 
@@ -482,6 +615,12 @@ export function QuickRunDialog({
                                   {profile.requiresApproval && (
                                     <Badge variant="outline">Approval</Badge>
                                   )}
+                                  {profile.networkAccess != null && (
+                                    <Badge variant="outline">Net: {networkAccessLabel(profile.networkAccess)}</Badge>
+                                  )}
+                                  {profile.features?.enableBrowser && (
+                                    <Badge variant="outline">Browser</Badge>
+                                  )}
                                 </div>
                                 {profile.description && (
                                   <p className="text-muted-foreground">
@@ -506,7 +645,7 @@ export function QuickRunDialog({
                     onChange={(e) => {
                       const newRunnerType = Number(e.target.value) as RunnerType;
                       const availableModels = getModelsForRunner(newRunnerType);
-                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0]) : "";
+                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
                       setAgentConfig({
                         ...agentConfig,
                         runnerType: newRunnerType,
@@ -596,11 +735,20 @@ export function QuickRunDialog({
                         onChange={(e) =>
                           setAgentConfig({
                             ...agentConfig,
-                            maxTurns: parseInt(e.target.value) || 100,
+                            maxTurns: e.target.value === "" ? "" : parseInt(e.target.value),
                           })
                         }
+                        onBlur={() =>
+                          setAgentConfig((prev) => ({
+                            ...prev,
+                            maxTurns:
+                              typeof prev.maxTurns === "number" && prev.maxTurns >= 1
+                                ? Math.min(prev.maxTurns, 10000)
+                                : DEFAULT_MAX_TURNS,
+                          }))
+                        }
                         min={1}
-                        max={1000}
+                        max={10000}
                       />
                     </div>
                     <div className="space-y-2">
@@ -612,8 +760,17 @@ export function QuickRunDialog({
                         onChange={(e) =>
                           setAgentConfig({
                             ...agentConfig,
-                            timeoutMinutes: parseInt(e.target.value) || 30,
+                            timeoutMinutes: e.target.value === "" ? "" : parseInt(e.target.value),
                           })
+                        }
+                        onBlur={() =>
+                          setAgentConfig((prev) => ({
+                            ...prev,
+                            timeoutMinutes:
+                              typeof prev.timeoutMinutes === "number" && prev.timeoutMinutes >= 1
+                                ? Math.min(prev.timeoutMinutes, 1440)
+                                : DEFAULT_TIMEOUT_MINUTES,
+                          }))
                         }
                         min={1}
                         max={1440}
@@ -654,6 +811,59 @@ export function QuickRunDialog({
                     <span className="text-sm">Skip Permission Prompts</span>
                   </label>
 
+                  <label className="flex items-center gap-2">
+                    <span className="text-sm">Network Access</span>
+                    <select
+                      value={agentConfig.networkAccess}
+                      onChange={(e) =>
+                        setAgentConfig({
+                          ...agentConfig,
+                          networkAccess: e.target.value as "none" | "localhost" | "full",
+                        })
+                      }
+                      className="h-8 rounded border border-input bg-background px-2 text-sm"
+                    >
+                      <option value="none">None</option>
+                      <option value="localhost">Localhost</option>
+                      <option value="full">Full</option>
+                    </select>
+                  </label>
+
+                  {agentConfig.runnerType === RunnerTypeEnum.CLAUDE_CODE && (
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={agentConfig.features?.enableBrowser ?? false}
+                        onChange={(e) =>
+                          setAgentConfig({
+                            ...agentConfig,
+                            features: { ...agentConfig.features, enableBrowser: e.target.checked },
+                          })
+                        }
+                        className="h-4 w-4 rounded border-input"
+                      />
+                      <span className="text-sm">Browser automation (--chrome)</span>
+                    </label>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label>Extra CLI Flags</Label>
+                    <Input
+                      placeholder="--verbose, --allowedTools"
+                      value={(agentConfig.extraFlags?.[runnerTypeToSlug(agentConfig.runnerType)] ?? []).join(", ")}
+                      onChange={(e) => {
+                        const flags = e.target.value.split(",").map(s => s.trim()).filter(Boolean);
+                        setAgentConfig(prev => ({
+                          ...prev,
+                          extraFlags: { ...prev.extraFlags, [runnerTypeToSlug(prev.runnerType)]: flags },
+                        }));
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Flags validated against runner allowlist on save
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="existingSandboxId">Reuse Sandbox ID (optional)</Label>
                     <Input
@@ -681,9 +891,12 @@ export function QuickRunDialog({
                   <h4 className="font-medium">Task</h4>
                 </div>
                 <div className="space-y-2 text-sm">
-                  <div>
+                  <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Title: </span>
-                    <span className="font-medium">{taskData.title}</span>
+                    <span className="font-medium">{generateTitle()}</span>
+                    {!taskData.title.trim() && (
+                      <Badge variant="outline" className="text-xs">auto-generated</Badge>
+                    )}
                   </div>
                   {taskData.description && (
                     <div>
@@ -693,19 +906,37 @@ export function QuickRunDialog({
                       </span>
                     </div>
                   )}
-                  <div className="flex items-center gap-1">
-                    <FolderOpen className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">Scope: </span>
-                    <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                      {taskData.scopePath}
-                    </code>
-                  </div>
                   {taskData.projectRoot && (
-                    <div>
+                    <div className="flex items-center gap-1">
+                      <FolderOpen className="h-3 w-3 text-muted-foreground" />
                       <span className="text-muted-foreground">Project Root: </span>
                       <code className="text-xs bg-muted px-1 py-0.5 rounded">
                         {taskData.projectRoot}
                       </code>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-muted-foreground">Scope Paths: </span>
+                    {scopePaths.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {scopePaths.map((path) => (
+                          <code key={path} className="text-xs bg-muted px-1 py-0.5 rounded">
+                            {path}
+                          </code>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">Read-only (no write access)</span>
+                    )}
+                  </div>
+                  {attachments.length > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Paperclip className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-muted-foreground">Attachments: </span>
+                      <span>{attachments.length} image{attachments.length !== 1 ? "s" : ""}</span>
+                      {isUploading && (
+                        <Badge variant="outline" className="text-xs">uploading...</Badge>
+                      )}
                     </div>
                   )}
                 </div>
@@ -744,6 +975,17 @@ export function QuickRunDialog({
                               {profile.requiresApproval && (
                                 <Badge variant="outline">Approval Required</Badge>
                               )}
+                              {profile.networkAccess != null && (
+                                <Badge variant="outline">Net: {networkAccessLabel(profile.networkAccess)}</Badge>
+                              )}
+                              {profile.features?.enableBrowser && (
+                                <Badge variant="outline">Browser</Badge>
+                              )}
+                              {profile.extraFlags && Object.entries(profile.extraFlags).map(([rt, flagList]) =>
+                                flagList.flags?.map((flag, i) => (
+                                  <Badge key={`${rt}-${i}`} variant="outline">{rt}: {flag}</Badge>
+                                ))
+                              )}
                             </div>
                           </>
                         );
@@ -764,11 +1006,19 @@ export function QuickRunDialog({
                             : "In-place"}
                         </Badge>
                         <Badge variant="outline">
-                          Max {agentConfig.maxTurns} turns
+                          Max {agentConfig.maxTurns || DEFAULT_MAX_TURNS} turns
                         </Badge>
                         <Badge variant="outline">
-                          {agentConfig.timeoutMinutes}min timeout
+                          {agentConfig.timeoutMinutes || DEFAULT_TIMEOUT_MINUTES}min timeout
                         </Badge>
+                        {agentConfig.features?.enableBrowser && (
+                          <Badge variant="outline">Browser</Badge>
+                        )}
+                        {agentConfig.extraFlags && Object.entries(agentConfig.extraFlags).map(([rt, flags]) =>
+                          flags.map((flag, i) => (
+                            <Badge key={`${rt}-${i}`} variant="outline">{rt}: {flag}</Badge>
+                          ))
+                        )}
                       </div>
                     </>
                   )}
@@ -808,30 +1058,46 @@ export function QuickRunDialog({
             </Button>
           )}
           <div className="flex-1" />
-          {currentStep < 3 ? (
-            <Button
-              type="button"
-              onClick={handleNext}
-              disabled={
-                (currentStep === 1 && !canProceedStep1()) ||
-                (currentStep === 2 && !canProceedStep2())
-              }
-              className="gap-2"
-            >
-              Next
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              onClick={handleStartRun}
-              disabled={submitting}
-              className="gap-2"
-            >
-              <Play className="h-4 w-4" />
-              {submitting ? "Starting..." : "Start Run"}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {currentStep < 3 && (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleStartRun}
+                  disabled={submitting || isUploading || !canProceedStep1()}
+                  className="gap-2"
+                >
+                  <Play className="h-4 w-4" />
+                  {submitting ? "Starting..." : "Start Run"}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={
+                    (currentStep === 1 && !canProceedStep1()) ||
+                    (currentStep === 2 && !canProceedStep2())
+                  }
+                  className="gap-2"
+                >
+                  Next
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+            {currentStep === 3 && (
+              <Button
+                type="button"
+                onClick={handleStartRun}
+                disabled={submitting || isUploading}
+                className="gap-2"
+              >
+                <Play className="h-4 w-4" />
+                {submitting ? "Starting..." : "Start Run"}
+              </Button>
+            )}
+            <span className="text-xs text-muted-foreground hidden sm:inline">Ctrl+Enter</span>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

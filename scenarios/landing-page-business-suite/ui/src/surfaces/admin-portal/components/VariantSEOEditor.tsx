@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
 import { Save, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
+import { Textarea } from '../../../shared/ui/input';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
-import type { VariantSEOConfig, SiteBranding } from '../../../shared/api';
-import { loadVariantSEOConfig, saveVariantSEOConfig } from '../controllers/seoController';
+import type { SiteBranding } from '../../../shared/api';
+import { useVariantSEOEditor } from '../hooks/useVariantSEOEditor';
 
 interface VariantSEOEditorProps {
   variantSlug: string;
@@ -19,53 +19,15 @@ export function VariantSEOEditor({
   siteBranding,
   onSave,
 }: VariantSEOEditorProps) {
-  const [seoConfig, setSeoConfig] = useState<VariantSEOConfig>({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-
-  const fetchSEO = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const editableConfig = await loadVariantSEOConfig(variantSlug, siteBranding);
-      setSeoConfig(editableConfig);
-    } catch (err) {
-      setError('Failed to load SEO settings');
-    } finally {
-      setLoading(false);
-    }
-  }, [variantSlug, siteBranding]);
-
-  useEffect(() => {
-    fetchSEO();
-  }, [fetchSEO]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    setError(null);
-    setSuccess(false);
-
-    try {
-      await saveVariantSEOConfig(variantSlug, seoConfig);
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-      onSave?.();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const updateField = <K extends keyof VariantSEOConfig>(
-    field: K,
-    value: VariantSEOConfig[K]
-  ) => {
-    setSeoConfig((prev) => ({ ...prev, [field]: value }));
-    setSuccess(false);
-  };
+  const {
+    seoConfig,
+    loading,
+    saving,
+    error,
+    success,
+    handleSave,
+    updateField,
+  } = useVariantSEOEditor({ variantSlug, siteBranding, onSave });
 
   // Compute preview values (variant overrides site defaults)
   const previewTitle = seoConfig.title || siteBranding?.default_title || siteBranding?.site_name || 'Page Title';
@@ -136,7 +98,7 @@ export function VariantSEOEditor({
             <label className="block text-sm font-medium text-slate-300">
               Meta Description
             </label>
-            <textarea
+            <Textarea
               value={seoConfig.description || ''}
               onChange={(e) => updateField('description', e.target.value || undefined)}
               placeholder={siteBranding?.default_description || 'Use site default'}
@@ -167,7 +129,7 @@ export function VariantSEOEditor({
             <label className="block text-sm font-medium text-slate-300">
               Social Share Description
             </label>
-            <textarea
+            <Textarea
               value={seoConfig.og_description || ''}
               onChange={(e) => updateField('og_description', e.target.value || undefined)}
               placeholder="Same as meta description"

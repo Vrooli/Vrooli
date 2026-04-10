@@ -1,92 +1,73 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
-  Moon,
-  Sun,
-  Trash2,
-  AlertTriangle,
-  Keyboard,
-  BarChart3,
-  Wrench,
+  Lightbulb,
+  BookOpen,
+  Bot,
+  ChevronDown,
   Settings2,
   Cpu,
+  Wrench,
   Database,
-  MessageCircle,
-  AlignLeft,
-  Zap,
-  Lightbulb,
 } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
-import { Button } from "../ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
+import { Dropdown, DropdownItem } from "../ui/dropdown";
 import { ModelSelector } from "./ModelSelector";
-import { ToolConfiguration } from "./ToolConfiguration";
 import { TemplatesSettingsTab } from "./TemplatesSettingsTab";
+import { SkillsSettingsTab } from "./SkillsSettingsTab";
+import { SkillEditorModal } from "./SkillEditorModal";
+import { AgentModeSettings } from "./AgentModeSettings";
 import { ManualToolDialog } from "../tools/ManualToolDialog";
-import { useTools } from "../../hooks/useTools";
-import { useYoloMode } from "../../hooks/useSettings";
-import { useSuggestionsSettings } from "../../hooks/useSuggestionsSettings";
-import { useModeHistory } from "../../hooks/useModeHistory";
-import {
-  getAllTemplates,
-  deleteTemplate as deleteTemplateFromStorage,
-  hideBuiltInTemplate,
-  unhideBuiltInTemplate,
-} from "../../data/templates";
-import type { Model, ApprovalOverride, EffectiveTool } from "../../lib/api";
-import type { Template } from "../../lib/types/templates";
+import { SettingsSection } from "./SettingsControls";
+import { GeneralSettingsTab } from "./GeneralSettingsTab";
+import { SuggestionsSettingsTab } from "./SuggestionsSettingsTab";
+import { DataSettingsTab } from "./DataSettingsTab";
+import { ToolsSettingsTab } from "./ToolsSettingsTab";
+import { useSettingsState } from "./useSettingsState";
+import { getAllSkills } from "../../data/skills";
+import type { Model } from "../../lib/api";
+import type { TemplateWithSource } from "../../lib/types/templates";
 
-export type Theme = "dark" | "light";
-export type ViewMode = "bubble" | "compact";
-export type SettingsTab = "general" | "ai" | "templates" | "data";
+// Re-export types and utilities so existing imports keep working
+export type { Theme, ViewMode, SettingsTab } from "./settingsTypes";
+export {
+  DEFAULT_MODEL,
+  DEFAULT_VIEW_MODE,
+  getDefaultModel,
+  setDefaultModel,
+  getViewMode,
+  setViewMode,
+} from "./settingsTypes";
 
-// Default model used when none is set
-export const DEFAULT_MODEL = "anthropic/claude-3.5-sonnet";
+import type { ViewMode, SettingsTab, SettingsTabDef } from "./settingsTypes";
 
-// Default view mode
-export const DEFAULT_VIEW_MODE: ViewMode = "bubble";
-
-// Get/set default model from localStorage
-export function getDefaultModel(): string {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem("defaultModel") || DEFAULT_MODEL;
-  }
-  return DEFAULT_MODEL;
-}
-
-export function setDefaultModel(modelId: string): void {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("defaultModel", modelId);
-  }
-}
-
-// Get/set view mode from localStorage
-export function getViewMode(): ViewMode {
-  if (typeof window !== "undefined") {
-    const stored = localStorage.getItem("viewMode");
-    if (stored === "bubble" || stored === "compact") {
-      return stored;
-    }
-  }
-  return DEFAULT_VIEW_MODE;
-}
-
-export function setViewMode(mode: ViewMode): void {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("viewMode", mode);
-  }
-}
+const SETTINGS_TABS: SettingsTabDef[] = [
+  { value: "general", label: "General", icon: Settings2 },
+  { value: "ai", label: "AI", icon: Cpu },
+  { value: "agent", label: "Agent", icon: Bot },
+  { value: "tools", label: "Tools", icon: Wrench },
+  { value: "templates", label: "Templates", icon: Lightbulb },
+  { value: "suggestions", label: "Suggestions", icon: Lightbulb },
+  { value: "skills", label: "Skills", icon: BookOpen },
+  { value: "data", label: "Data", icon: Database },
+];
+const FALLBACK_TAB: SettingsTabDef = { value: "general", label: "General", icon: Settings2 };
 
 interface SettingsProps {
   open: boolean;
   onClose: () => void;
   onDeleteAllChats: () => Promise<unknown>;
   isDeletingAll: boolean;
+  onClearArchived?: () => Promise<unknown>;
+  isClearingArchived?: boolean;
+  onMarkAllAsRead?: () => Promise<unknown>;
+  isMarkingAllAsRead?: boolean;
   onShowKeyboardShortcuts: () => void;
   onShowUsageStats: () => void;
   models: Model[];
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
-  onEditTemplate?: (template: Template) => void;
+  onEditTemplate?: (template: TemplateWithSource, allTemplates: TemplateWithSource[]) => void;
+  initialTab?: SettingsTab;
 }
 
 export function Settings({
@@ -94,466 +75,142 @@ export function Settings({
   onClose,
   onDeleteAllChats,
   isDeletingAll,
+  onClearArchived,
+  isClearingArchived = false,
+  onMarkAllAsRead,
+  isMarkingAllAsRead = false,
   onShowKeyboardShortcuts,
   onShowUsageStats,
   models,
   viewMode,
   onViewModeChange,
   onEditTemplate,
+  initialTab,
 }: SettingsProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("theme") as Theme) || "dark";
-    }
-    return "dark";
-  });
-  const [defaultModel, setDefaultModelState] = useState<string>(getDefaultModel);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState("");
-  const [showTools, setShowTools] = useState(false);
-  const [selectedToolForRun, setSelectedToolForRun] = useState<EffectiveTool | null>(null);
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab ?? "general");
 
-  // YOLO mode setting
-  const {
-    yoloMode,
-    isLoading: isLoadingYoloMode,
-    isUpdating: isUpdatingYoloMode,
-    setYoloMode,
-  } = useYoloMode(open && activeTab === "ai");
-
-  // Tool configuration (global defaults)
-  const {
-    toolsByScenario,
-    toolSet,
-    scenarios,
-    enabledTools,
-    isLoading: isLoadingTools,
-    isRefreshing: isRefreshingTools,
-    isUpdating: isUpdatingTools,
-    error: toolsError,
-    toggleTool,
-    setApproval,
-    refreshToolRegistry,
-  } = useTools({ enabled: open && activeTab === "ai" });
-
-  // Suggestions and templates settings
-  const {
-    visible: suggestionsVisible,
-    setVisible: setSuggestionsVisible,
-    mergeModel,
-    setMergeModel,
-  } = useSuggestionsSettings();
-
-  const { history: modeHistory, clearHistory: clearModeHistory } = useModeHistory();
-
-  // Templates state - refresh when tab changes to templates
-  const [templates, setTemplates] = useState<Template[]>(() => getAllTemplates());
-
-  // Refresh templates when switching to templates tab
   useEffect(() => {
-    if (activeTab === "templates") {
-      setTemplates(getAllTemplates());
+    if (open) setActiveTab(initialTab ?? "general");
+  }, [open, initialTab]);
+
+  const s = useSettingsState(open, activeTab, onClose, onEditTemplate);
+
+  const activeTabDef = useMemo(
+    () => SETTINGS_TABS.find((tab) => tab.value === activeTab) ?? FALLBACK_TAB,
+    [activeTab]
+  );
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "general":
+        return <GeneralSettingsTab theme={s.theme} onThemeChange={s.handleThemeChange} viewMode={viewMode} onViewModeChange={onViewModeChange} onShowKeyboardShortcuts={onShowKeyboardShortcuts} onClose={onClose} />;
+      case "ai":
+        return (
+          <SettingsSection title="Default Model" description="New chats will use this model by default">
+            <ModelSelector models={models} selectedModel={s.defaultModel} onSelectModel={s.handleDefaultModelChange} />
+          </SettingsSection>
+        );
+      case "agent":
+        return <AgentModeSettings settings={s.agentSettings} onSettingsChange={s.setAgentSettings} onReset={s.resetAgentSettings} />;
+      case "tools":
+        return (
+          <ToolsSettingsTab
+            yoloMode={s.yoloMode} isLoadingYoloMode={s.isLoadingYoloMode} isUpdatingYoloMode={s.isUpdatingYoloMode}
+            onYoloModeToggle={s.handleYoloModeToggle}
+            toolsByScenario={s.toolsByScenario} categories={s.toolSet?.categories ?? []} scenarioStatuses={s.scenarios}
+            isLoadingTools={s.isLoadingTools} isSyncingTools={s.isSyncingTools} isUpdatingTools={s.isUpdatingTools}
+            toolsError={s.toolsError?.message}
+            onToggleTool={s.toggleTool} onSetApproval={s.handleSetApproval} onSyncTools={s.syncDiscoveredTools}
+            onRunTool={s.handleRunTool} enabledCount={s.enabledTools.length} totalCount={s.toolSet?.tools.length ?? 0}
+          />
+        );
+      case "templates":
+        return <TemplatesSettingsTab templates={s.templates} onEditTemplate={s.handleEditTemplate} onDeleteTemplate={s.handleDeleteTemplate} onResetTemplate={s.handleResetTemplate} modeHistory={s.modeHistory} onClearHistory={s.clearModeHistory} isLoading={s.isLoadingTemplates} />;
+      case "suggestions":
+        return (
+          <SuggestionsSettingsTab
+            suggestionsVisible={s.suggestionsVisible} onSuggestionsVisibleChange={s.setSuggestionsVisible}
+            mergeModel={s.mergeModel} onMergeModelChange={s.setMergeModel} models={models}
+            autoSuggestError={s.autoSuggestError} suggestionsSaveError={s.suggestionsSaveError}
+            autoSuggestLoading={s.autoSuggestLoading} suggestionsDraft={s.suggestionsDraft}
+            onSuggestionsDraftChange={s.setSuggestionsDraft} isSavingSuggestions={s.isSavingSuggestions}
+            onSaveSuggestions={s.handleSaveSuggestions}
+          />
+        );
+      case "skills":
+        return <SkillsSettingsTab skills={s.skills} onEditSkill={s.handleEditSkill} onDeleteSkill={s.handleDeleteSkill} isLoading={s.isLoadingSkills} onSyncSkills={s.handleSyncSkills} isSyncing={s.isSyncingSkills} />;
+      case "data":
+        return <DataSettingsTab onDeleteAllChats={onDeleteAllChats} isDeletingAll={isDeletingAll} onClearArchived={onClearArchived} isClearingArchived={isClearingArchived} onMarkAllAsRead={onMarkAllAsRead} isMarkingAllAsRead={isMarkingAllAsRead} onShowUsageStats={onShowUsageStats} onClose={onClose} />;
+      default:
+        queueMicrotask(() => setActiveTab("general"));
+        return null;
     }
-  }, [activeTab]);
-
-  const handleDeleteTemplate = useCallback((templateId: string) => {
-    deleteTemplateFromStorage(templateId);
-    setTemplates(getAllTemplates());
-  }, []);
-
-  const handleHideTemplate = useCallback((templateId: string) => {
-    hideBuiltInTemplate(templateId);
-    setTemplates(getAllTemplates());
-  }, []);
-
-  const handleUnhideTemplate = useCallback((templateId: string) => {
-    unhideBuiltInTemplate(templateId);
-    setTemplates(getAllTemplates());
-  }, []);
-
-  const handleEditTemplate = useCallback((template: Template) => {
-    onEditTemplate?.(template);
-    onClose();
-  }, [onEditTemplate, onClose]);
-
-  const handleYoloModeToggle = useCallback(() => {
-    setYoloMode(!yoloMode);
-  }, [yoloMode, setYoloMode]);
-
-  const handleSetApproval = useCallback((scenario: string, toolName: string, override: ApprovalOverride) => {
-    setApproval(scenario, toolName, override);
-  }, [setApproval]);
-
-  const handleRunTool = useCallback((tool: EffectiveTool) => {
-    setSelectedToolForRun(tool);
-  }, []);
-
-  // Apply theme class to document
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === "light") {
-      root.classList.add("light-theme");
-    } else {
-      root.classList.remove("light-theme");
-    }
-    localStorage.setItem("theme", theme);
-  }, [theme]);
-
-  // Reset delete confirm when switching tabs
-  useEffect(() => {
-    setShowDeleteConfirm(false);
-    setDeleteConfirmText("");
-  }, [activeTab]);
-
-  const handleThemeChange = useCallback((newTheme: Theme) => {
-    setTheme(newTheme);
-  }, []);
-
-  const handleDefaultModelChange = useCallback((modelId: string) => {
-    setDefaultModelState(modelId);
-    setDefaultModel(modelId);
-  }, []);
-
-  const handleDeleteAll = useCallback(async () => {
-    if (deleteConfirmText !== "delete all") return;
-    await onDeleteAllChats();
-    setShowDeleteConfirm(false);
-    setDeleteConfirmText("");
-  }, [deleteConfirmText, onDeleteAllChats]);
-
-  const handleCancelDelete = useCallback(() => {
-    setShowDeleteConfirm(false);
-    setDeleteConfirmText("");
-  }, []);
+  };
 
   return (
-    <Dialog open={open} onClose={onClose} className="max-w-lg">
-      <DialogHeader onClose={onClose}>Settings</DialogHeader>
-      <DialogBody className="space-y-4">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as SettingsTab)}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="general">
-              <span className="flex items-center gap-2">
-                <Settings2 className="h-4 w-4" />
-                General
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="ai">
-              <span className="flex items-center gap-2">
-                <Cpu className="h-4 w-4" />
-                AI
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="templates">
-              <span className="flex items-center gap-2">
-                <Lightbulb className="h-4 w-4" />
-                Templates
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="data">
-              <span className="flex items-center gap-2">
-                <Database className="h-4 w-4" />
-                Data
-              </span>
-            </TabsTrigger>
-          </TabsList>
-
-          {/* General Tab */}
-          <TabsContent value="general" className="space-y-6">
-            {/* Appearance Section */}
-            <section>
-              <h3 className="text-sm font-medium text-slate-300 mb-3">Appearance</h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleThemeChange("dark")}
-                  className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
-                    theme === "dark"
-                      ? "bg-indigo-500/20 border-indigo-500 text-white"
-                      : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
-                  }`}
-                  data-testid="theme-dark-button"
-                >
-                  <Moon className="h-4 w-4" />
-                  <span className="text-sm">Dark</span>
+    <>
+      <Dialog open={open} onClose={onClose} className="max-w-5xl" disableEscape={s.isCreatingSkill || s.editingSkill !== null}>
+        <DialogHeader onClose={onClose}>Settings</DialogHeader>
+        <DialogBody className="space-y-4">
+          <div className="lg:hidden">
+            <Dropdown
+              className="w-full"
+              trigger={(
+                <button type="button" className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-slate-200" data-testid="settings-mobile-tab-selector">
+                  <span className="flex items-center gap-2">
+                    <activeTabDef.icon className="h-4 w-4" />
+                    {activeTabDef.label}
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
                 </button>
-                <button
-                  onClick={() => handleThemeChange("light")}
-                  className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
-                    theme === "light"
-                      ? "bg-indigo-500/20 border-indigo-500 text-white"
-                      : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
-                  }`}
-                  data-testid="theme-light-button"
-                >
-                  <Sun className="h-4 w-4" />
-                  <span className="text-sm">Light</span>
-                </button>
-              </div>
-            </section>
-
-            {/* Chat View Section */}
-            <section>
-              <h3 className="text-sm font-medium text-slate-300 mb-3">Chat View</h3>
-              <p className="text-xs text-slate-500 mb-3">
-                Choose how messages are displayed in conversations
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => onViewModeChange("bubble")}
-                  className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
-                    viewMode === "bubble"
-                      ? "bg-indigo-500/20 border-indigo-500 text-white"
-                      : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
-                  }`}
-                  data-testid="view-mode-bubble-button"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  <span className="text-sm">Bubble</span>
-                </button>
-                <button
-                  onClick={() => onViewModeChange("compact")}
-                  className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-colors ${
-                    viewMode === "compact"
-                      ? "bg-indigo-500/20 border-indigo-500 text-white"
-                      : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20"
-                  }`}
-                  data-testid="view-mode-compact-button"
-                >
-                  <AlignLeft className="h-4 w-4" />
-                  <span className="text-sm">Compact</span>
-                </button>
-              </div>
-              <p className="text-xs text-slate-600 mt-2">
-                Compact mode uses full width, ideal for code-heavy conversations
-              </p>
-            </section>
-
-            {/* Keyboard Shortcuts Section */}
-            <section>
-              <h3 className="text-sm font-medium text-slate-300 mb-3">Keyboard</h3>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  onShowKeyboardShortcuts();
-                  onClose();
-                }}
-                className="w-full justify-start gap-2"
-                data-testid="keyboard-shortcuts-button"
-              >
-                <Keyboard className="h-4 w-4" />
-                View Keyboard Shortcuts
-              </Button>
-            </section>
-          </TabsContent>
-
-          {/* AI Tab */}
-          <TabsContent value="ai" className="space-y-6">
-            {/* Default Model Section */}
-            <section>
-              <h3 className="text-sm font-medium text-slate-300 mb-3">Default Model</h3>
-              <p className="text-xs text-slate-500 mb-3">
-                New chats will use this model by default
-              </p>
-              <ModelSelector
-                models={models}
-                selectedModel={defaultModel}
-                onSelectModel={handleDefaultModelChange}
-              />
-            </section>
-
-            {/* YOLO Mode Section */}
-            <section>
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <h3 className="text-sm font-medium text-slate-300">YOLO Mode</h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Execute all tools without asking for approval
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={yoloMode}
-                    onChange={handleYoloModeToggle}
-                    disabled={isLoadingYoloMode || isUpdatingYoloMode}
-                    className="sr-only peer"
-                    data-testid="yolo-mode-toggle"
-                  />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500" />
-                </label>
-              </div>
-              {yoloMode && (
-                <div className="mt-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                  <p className="text-xs text-yellow-400 flex items-center gap-2">
-                    <Zap className="h-3.5 w-3.5" />
-                    Tools will execute automatically without confirmation
-                  </p>
-                </div>
               )}
-            </section>
+            >
+              {SETTINGS_TABS.map((tab) => (
+                <DropdownItem key={tab.value} onClick={() => setActiveTab(tab.value)} className={tab.value === activeTab ? "bg-white/10 text-white" : ""}>
+                  <tab.icon className="h-4 w-4" />
+                  {tab.label}
+                </DropdownItem>
+              ))}
+            </Dropdown>
+          </div>
 
-            {/* Tools Configuration Section */}
-            <section>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-slate-300">AI Tools</h3>
-                <span className="text-xs text-slate-500">
-                  {enabledTools.length} of {toolSet?.tools.length ?? 0} enabled
-                </span>
-              </div>
-              {!showTools ? (
-                <Button
-                  variant="secondary"
-                  onClick={() => setShowTools(true)}
-                  className="w-full justify-start gap-2"
-                  data-testid="configure-tools-button"
-                >
-                  <Wrench className="h-4 w-4" />
-                  Configure Default Tools
-                </Button>
-              ) : (
-                <div className="space-y-3">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowTools(false)}
-                    className="text-slate-400"
-                  >
-                    Hide tool configuration
-                  </Button>
-                  <ToolConfiguration
-                    toolsByScenario={toolsByScenario}
-                    categories={toolSet?.categories ?? []}
-                    scenarioStatuses={scenarios}
-                    isLoading={isLoadingTools}
-                    isRefreshing={isRefreshingTools}
-                    isUpdating={isUpdatingTools}
-                    error={toolsError?.message}
-                    onToggleTool={toggleTool}
-                    onSetApproval={handleSetApproval}
-                    onRefresh={refreshToolRegistry}
-                    yoloMode={yoloMode}
-                    onRunTool={handleRunTool}
-                  />
-                </div>
-              )}
-            </section>
-          </TabsContent>
+          <div className="flex gap-4 min-h-[540px]">
+            <nav className="hidden lg:flex w-52 shrink-0 flex-col gap-1 rounded-lg border border-white/10 bg-white/5 p-2">
+              {SETTINGS_TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = tab.value === activeTab;
+                return (
+                  <button key={tab.value} onClick={() => setActiveTab(tab.value)} className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-left transition-colors ${isActive ? "bg-indigo-500/20 text-white" : "text-slate-400 hover:text-white hover:bg-white/5"}`} data-testid={`settings-nav-${tab.value}`}>
+                    <Icon className="h-4 w-4" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </nav>
+            <div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-slate-900/40 p-4">
+              {renderTabContent()}
+            </div>
+          </div>
 
-          {/* Templates Tab */}
-          <TabsContent value="templates" className="space-y-6">
-            <TemplatesSettingsTab
-              suggestionsVisible={suggestionsVisible}
-              onToggleSuggestions={setSuggestionsVisible}
-              mergeModel={mergeModel}
-              onMergeModelChange={setMergeModel}
-              templates={templates}
-              onEditTemplate={handleEditTemplate}
-              onDeleteTemplate={handleDeleteTemplate}
-              onHideTemplate={handleHideTemplate}
-              onUnhideTemplate={handleUnhideTemplate}
-              modeHistory={modeHistory}
-              onClearHistory={clearModeHistory}
-              models={models}
-            />
-          </TabsContent>
+          {s.selectedToolForRun && (
+            <ManualToolDialog open={!!s.selectedToolForRun} onClose={() => s.setSelectedToolForRun(null)} tool={s.selectedToolForRun} />
+          )}
+        </DialogBody>
+      </Dialog>
 
-          {/* Data Tab */}
-          <TabsContent value="data" className="space-y-6">
-            {/* Usage Statistics Section */}
-            <section>
-              <h3 className="text-sm font-medium text-slate-300 mb-3">Usage Statistics</h3>
-              <p className="text-xs text-slate-500 mb-3">
-                View token usage, costs, and activity across your chats
-              </p>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  onShowUsageStats();
-                  onClose();
-                }}
-                className="w-full justify-start gap-2"
-                data-testid="usage-stats-button"
-              >
-                <BarChart3 className="h-4 w-4" />
-                View Usage Statistics
-              </Button>
-            </section>
-
-            {/* Danger Zone */}
-            <section>
-              <h3 className="text-sm font-medium text-red-400 mb-3 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
-                Danger Zone
-              </h3>
-              <div className="p-4 rounded-lg border border-red-500/20 bg-red-500/5">
-                {!showDeleteConfirm ? (
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-white">Delete All Chats</p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Permanently delete all chats and messages. This cannot be undone.
-                      </p>
-                    </div>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setShowDeleteConfirm(true)}
-                      data-testid="delete-all-button"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-sm text-slate-300">
-                      Type <span className="font-mono text-red-400">delete all</span> to confirm:
-                    </p>
-                    <input
-                      type="text"
-                      value={deleteConfirmText}
-                      onChange={(e) => setDeleteConfirmText(e.target.value)}
-                      placeholder="delete all"
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
-                      autoFocus
-                      data-testid="delete-confirm-input"
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={handleCancelDelete}
-                        className="flex-1"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleDeleteAll}
-                        disabled={deleteConfirmText !== "delete all" || isDeletingAll}
-                        className="flex-1"
-                        data-testid="confirm-delete-all-button"
-                      >
-                        {isDeletingAll ? "Deleting..." : "Delete All"}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
-          </TabsContent>
-        </Tabs>
-
-        {/* Manual tool execution dialog (standalone, no chat context) */}
-        {selectedToolForRun && (
-          <ManualToolDialog
-            open={!!selectedToolForRun}
-            onClose={() => setSelectedToolForRun(null)}
-            tool={selectedToolForRun}
-          />
-        )}
-      </DialogBody>
-    </Dialog>
+      <SkillEditorModal
+        open={s.isCreatingSkill || s.editingSkill !== null}
+        onClose={() => { s.setEditingSkill(null); s.setIsCreatingSkill(false); }}
+        skill={s.editingSkill ?? undefined}
+        onSave={s.handleSaveSkill}
+        allSkills={s.skills}
+        onSelectSkill={(skill) => { s.setEditingSkill(skill); s.setIsCreatingSkill(false); }}
+        onSaveAll={async (updates) => {
+          const { updateSkills } = await import("../../data/skills");
+          await updateSkills(updates);
+          s.setSkills(await getAllSkills());
+        }}
+      />
+    </>
   );
 }

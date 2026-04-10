@@ -44,18 +44,20 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
       }}
     >
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" />
-      <div className="relative z-50 w-full max-w-[90vw] mx-auto">{children}</div>
+      <div className="relative z-50 w-full max-w-[100vw] sm:max-w-[90vw] mx-auto">{children}</div>
     </div>
   );
 }
 
-interface DialogContentProps extends React.HTMLAttributes<HTMLDivElement> {}
+type DialogContentProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function DialogContent({ className, children, ...props }: DialogContentProps) {
   return (
     <div
       className={cn(
-        "relative mx-auto rounded-lg border border-slate-800 bg-slate-900 p-6 shadow-xl",
+        "relative mx-auto bg-slate-900 p-6 shadow-xl",
+        "rounded-none border-0 h-[100dvh] max-h-[100dvh] overflow-y-auto",
+        "sm:rounded-lg sm:border sm:border-slate-800 sm:h-auto sm:max-h-[85vh]",
         "animate-in fade-in-0 zoom-in-95",
         className
       )}
@@ -66,7 +68,7 @@ export function DialogContent({ className, children, ...props }: DialogContentPr
   );
 }
 
-interface DialogHeaderProps extends React.HTMLAttributes<HTMLDivElement> {}
+type DialogHeaderProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function DialogHeader({ className, ...props }: DialogHeaderProps) {
   return (
@@ -77,7 +79,7 @@ export function DialogHeader({ className, ...props }: DialogHeaderProps) {
   );
 }
 
-interface DialogTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {}
+type DialogTitleProps = React.HTMLAttributes<HTMLHeadingElement>;
 
 export function DialogTitle({ className, ...props }: DialogTitleProps) {
   return (
@@ -88,7 +90,7 @@ export function DialogTitle({ className, ...props }: DialogTitleProps) {
   );
 }
 
-interface DialogDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement> {}
+type DialogDescriptionProps = React.HTMLAttributes<HTMLParagraphElement>;
 
 export function DialogDescription({ className, ...props }: DialogDescriptionProps) {
   return (
@@ -99,7 +101,7 @@ export function DialogDescription({ className, ...props }: DialogDescriptionProp
   );
 }
 
-interface DialogFooterProps extends React.HTMLAttributes<HTMLDivElement> {}
+type DialogFooterProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function DialogFooter({ className, ...props }: DialogFooterProps) {
   return (

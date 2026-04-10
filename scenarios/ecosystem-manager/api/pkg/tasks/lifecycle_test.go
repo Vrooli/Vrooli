@@ -61,6 +61,57 @@ func (m *mockStorage) GetTaskByID(taskID string) (*TaskItem, string, error) {
 	return nil, "", nil
 }
 
+func (m *mockStorage) GetQueueItems(status string) ([]TaskItem, error) {
+	bucket, ok := m.items[status]
+	if !ok {
+		return nil, nil
+	}
+	var items []TaskItem
+	for _, task := range bucket {
+		items = append(items, task)
+	}
+	return items, nil
+}
+
+func (m *mockStorage) CurrentStatus(taskID string) (string, error) {
+	for status, bucket := range m.items {
+		if _, ok := bucket[taskID]; ok {
+			return status, nil
+		}
+	}
+	return "", nil
+}
+
+func (m *mockStorage) FindActiveTargetTask(taskType, operation, target string) (*TaskItem, string, error) {
+	for status, bucket := range m.items {
+		for _, task := range bucket {
+			if task.Type == taskType && task.Operation == operation && task.Target == target {
+				copy := task
+				return &copy, status, nil
+			}
+		}
+	}
+	return nil, "", nil
+}
+
+func (m *mockStorage) CleanupDuplicates() error {
+	return nil
+}
+
+func (m *mockStorage) DeleteTask(taskID string) (string, error) {
+	for status, bucket := range m.items {
+		if _, ok := bucket[taskID]; ok {
+			delete(bucket, taskID)
+			return status, nil
+		}
+	}
+	return "", nil
+}
+
+func (m *mockStorage) GetQueueDir() string {
+	return "/tmp/mock-queue"
+}
+
 // ensureSingleBucket asserts that the task exists in exactly one status bucket.
 func ensureSingleBucket(t *testing.T, store *mockStorage, taskID string) {
 	t.Helper()
@@ -84,12 +135,16 @@ func TestStartPendingIgnoresLockForAlreadyPending(t *testing.T) {
 	store.items[StatusPending][task.ID] = task
 
 	lc := Lifecycle{Store: store}
-	started, err := lc.StartPending(task.ID, TransitionContext{})
+	outcome, err := lc.ApplyTransition(TransitionRequest{
+		TaskID:            task.ID,
+		ToStatus:          StatusInProgress,
+		TransitionContext: TransitionContext{},
+	})
 	if err != nil {
 		t.Fatalf("expected pending task to start even when auto-requeue is false, got %v", err)
 	}
-	if started.Status != StatusInProgress {
-		t.Fatalf("expected in-progress, got %s", started.Status)
+	if outcome.Task.Status != StatusInProgress {
+		t.Fatalf("expected in-progress, got %s", outcome.Task.Status)
 	}
 }
 
@@ -207,15 +262,14 @@ func TestLifecycleTransitionMatrix(t *testing.T) {
 			var updated *TaskItem
 			var err error
 
-			switch tt.targetStatus {
-			case StatusInProgress:
-				updated, err = lc.StartPending(task.ID, ctx)
-			case StatusCompleted:
-				updated, _, err = lc.Complete(task.ID, ctx)
-			case StatusPending:
-				updated, _, err = lc.Recycle(task.ID, ctx)
-			default:
-				t.Fatalf("unsupported target %s", tt.targetStatus)
+			// Use ApplyTransition directly for all transitions
+			outcome, err := lc.ApplyTransition(TransitionRequest{
+				TaskID:            task.ID,
+				ToStatus:          tt.targetStatus,
+				TransitionContext: ctx,
+			})
+			if err == nil && outcome != nil {
+				updated = outcome.Task
 			}
 
 			if tt.expectErr {
@@ -266,6 +320,7 @@ func TestApplyTransitionSideEffects(t *testing.T) {
 	}
 
 	// Pending -> In-progress (manual) should request force start.
+	// Clear pending from previous move before setting up new test scenario
 	store.items[StatusPending] = map[string]TaskItem{
 		task.ID: {ID: task.ID, Status: StatusPending, ProcessorAutoRequeue: true},
 	}
@@ -284,6 +339,8 @@ func TestApplyTransitionSideEffects(t *testing.T) {
 	}
 
 	// Pending -> In-progress (automated) should not force overflow, only opportunistic start.
+	// Clear in-progress first to avoid task being in multiple buckets
+	store.items[StatusInProgress] = map[string]TaskItem{}
 	store.items[StatusPending] = map[string]TaskItem{
 		task.ID: {ID: task.ID, Status: StatusPending, ProcessorAutoRequeue: true},
 	}

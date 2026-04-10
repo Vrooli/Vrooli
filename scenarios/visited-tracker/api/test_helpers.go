@@ -144,7 +144,7 @@ func setupTestCampaign(t *testing.T, name string, patterns []string) *TestCampai
 func setupTestCampaignWithFiles(t *testing.T, name string, files map[string]string) *TestCampaign {
 	// Create the files on disk
 	for filename, content := range files {
-		if err := ioutil.WriteFile(filename, []byte(content), 0644); err != nil {
+		if err := ioutil.WriteFile(filename, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to create test file %s: %v", filename, err)
 		}
 	}
@@ -330,7 +330,7 @@ type TestDataGenerator struct{}
 
 // generateVisitRequest creates a test visit request
 func (g *TestDataGenerator) VisitRequest(files []string) VisitRequest {
-	return VisitRequest{Files: files}
+	return VisitRequest{Files: VisitFiles{Paths: files}}
 }
 
 // generateCreateCampaignRequest creates a test campaign creation request

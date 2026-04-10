@@ -1,56 +1,23 @@
 /**
  * useChats - Main orchestration hook for chat management.
  *
- * This hook combines:
- * - Chat list fetching and filtering by view
- * - Single chat selection and operations
- * - Completion orchestration (delegates to useCompletion)
- * - Label operations (delegates to useLabels)
- *
- * ARCHITECTURE NOTE:
- * This hook serves as the main entry point for chat functionality.
- * Complex sub-features are extracted to focused hooks:
+ * Composes focused hooks:
+ * - useChatQueries: Data fetching (chat list, single chat, models)
+ * - useChatMutations: CRUD mutations (create, update, delete, toggle, etc.)
+ * - useChatActions: Message operations (send, regenerate, edit, branch, fork)
  * - useCompletion: AI streaming and tool calls
  * - useLabels: Label CRUD and chat-label associations
  *
  * SEAM: For testing, mock the individual hooks or the API functions.
  */
-import { useState, useCallback, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  fetchChats,
-  fetchChat,
-  fetchModels,
-  createChat,
-  deleteChat,
-  deleteAllChats,
-  updateChat,
-  addMessage,
-  toggleRead,
-  toggleArchive,
-  toggleStar,
-  autoNameChat,
-  regenerateMessage as apiRegenerateMessage,
-  editMessage as apiEditMessage,
-  selectBranch as apiSelectBranch,
-  bulkOperateChats as apiBulkOperateChats,
-  forkChat as apiForkChat,
-  type StreamingEvent,
-  type BulkOperation,
-  type Message,
-  type Chat,
-  type Model,
-} from "../lib/api";
+import { useState, useMemo, useRef } from "react";
 import { useCompletion, type ActiveToolCall, type PendingApproval } from "./useCompletion";
 import { useLabels } from "./useLabels";
-import { getDefaultModel } from "../components/settings/Settings";
-import type { MessagePayload } from "../components/chat/MessageInput";
-
-// Stable empty arrays to prevent infinite re-render loops
-// CRITICAL: Using `= []` in destructuring creates a NEW array on every render,
-// which changes the reference and triggers useMemo/useCallback dependencies
-const EMPTY_CHATS: Chat[] = [];
-const EMPTY_MODELS: Model[] = [];
+import { useChatListQuery, useSelectedChatQuery, useModelsQuery } from "./useChatQueries";
+import { useChatMutations } from "./useChatMutations";
+import { useChatActions } from "./useChatActions";
+import { CacheUpdateManager, createQueryClientAdapter } from "../lib/cache";
+import { useQueryClient } from "@tanstack/react-query";
 
 export type View = "inbox" | "starred" | "archived";
 
@@ -58,486 +25,143 @@ export type View = "inbox" | "starred" | "archived";
 export type { ActiveToolCall, PendingApproval };
 
 export interface UseChatsOptions {
-  /** Initial chat ID from URL - will be selected once chats are loaded */
   initialChatId?: string;
-  /** Callback when selected chat changes - used for URL sync */
   onChatChange?: (chatId: string | null) => void;
+  onTemplateDeactivated?: () => void;
 }
 
 export function useChats(options: UseChatsOptions = {}) {
-  const { initialChatId, onChatChange } = options;
+  const { initialChatId, onChatChange, onTemplateDeactivated } = options;
   const queryClient = useQueryClient();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(initialChatId || null);
   const [currentView, setCurrentView] = useState<View>("inbox");
 
+  // Cache manager for coordinating invalidations with streaming
+  const cacheManagerRef = useRef<CacheUpdateManager | null>(null);
+  if (!cacheManagerRef.current) {
+    cacheManagerRef.current = new CacheUpdateManager(createQueryClientAdapter(queryClient));
+  }
+  const cacheManager = cacheManagerRef.current;
+
   // Delegate to focused hooks
-  const completion = useCompletion();
+  const completion = useCompletion({ onTemplateDeactivated });
   const labelOps = useLabels();
+  const { chats, loadingChats, chatsError } = useChatListQuery(currentView, selectedChatId);
+  const { chatData, loadingChat, chatError } = useSelectedChatQuery(selectedChatId);
+  const { models } = useModelsQuery();
 
-  // Fetch chats based on current view
-  // NOTE: Use stable EMPTY_CHATS constant instead of `= []` to prevent
-  // creating new array references on every render when data is undefined
-  const {
-    data: chatsData,
-    isLoading: loadingChats,
-    error: chatsError,
-  } = useQuery({
-    queryKey: ["chats", currentView],
-    queryFn: () =>
-      fetchChats({
-        archived: currentView === "archived",
-        starred: currentView === "starred",
-      }),
-    refetchInterval: 10000,
-  });
-  const chats = chatsData ?? EMPTY_CHATS;
-
-  // Fetch selected chat with messages
-  const {
-    data: chatData,
-    isLoading: loadingChat,
-    error: chatError,
-  } = useQuery({
-    queryKey: ["chat", selectedChatId],
-    queryFn: () => (selectedChatId ? fetchChat(selectedChatId) : null),
-    enabled: !!selectedChatId,
+  const mutations = useChatMutations({
+    selectedChatId, currentView, setSelectedChatId, onChatChange,
   });
 
-  // Fetch available models
-  // NOTE: Use stable EMPTY_MODELS constant instead of `= []`
-  const { data: modelsData } = useQuery({
-    queryKey: ["models"],
-    queryFn: fetchModels,
-  });
-  const models = modelsData ?? EMPTY_MODELS;
-
-  // Chat mutations
-  const createChatMutation = useMutation({
-    mutationFn: (params: Parameters<typeof createChat>[0] = {}) => {
-      // Use default model if not specified
-      if (!params.model) {
-        params.model = getDefaultModel();
-      }
-      return createChat(params);
-    },
-    onSuccess: (newChat) => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-      setSelectedChatId(newChat.id);
-      onChatChange?.(newChat.id);
-    },
-  });
-
-  const deleteChatMutation = useMutation({
-    mutationFn: deleteChat,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-      setSelectedChatId(null);
-      onChatChange?.(null);
-    },
-  });
-
-  const deleteAllChatsMutation = useMutation({
-    mutationFn: deleteAllChats,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-      queryClient.invalidateQueries({ queryKey: ["chat"] });
-      setSelectedChatId(null);
-      onChatChange?.(null);
-    },
-  });
-
-  const updateChatMutation = useMutation({
-    mutationFn: ({ chatId, data }: { chatId: string; data: { name?: string; model?: string } }) =>
-      updateChat(chatId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-    },
-  });
-
-  const toggleReadMutation = useMutation({
-    mutationFn: ({ chatId, value }: { chatId: string; value?: boolean }) => toggleRead(chatId, value),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-    },
-  });
-
-  const toggleArchiveMutation = useMutation({
-    mutationFn: ({ chatId, value }: { chatId: string; value?: boolean }) => toggleArchive(chatId, value),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-      if (currentView === "inbox" || currentView === "archived") {
-        setSelectedChatId(null);
-        onChatChange?.(null);
-      }
-    },
-  });
-
-  const toggleStarMutation = useMutation({
-    mutationFn: ({ chatId, value }: { chatId: string; value?: boolean }) => toggleStar(chatId, value),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-    },
-  });
-
-  const autoNameChatMutation = useMutation({
-    mutationFn: (chatId: string) => autoNameChat(chatId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-    },
-  });
-
-  // Branch selection mutation
-  const selectBranchMutation = useMutation({
-    mutationFn: ({ chatId, messageId }: { chatId: string; messageId: string }) =>
-      apiSelectBranch(chatId, messageId),
-    onSuccess: (_data, variables) => {
-      // Use chatId from variables, not from closure, to avoid stale data
-      queryClient.invalidateQueries({ queryKey: ["chat", variables.chatId] });
-    },
-  });
-
-  // State for regeneration streaming
-  const [isRegenerating, setIsRegenerating] = useState(false);
-  const [regeneratingContent, setRegeneratingContent] = useState("");
-
-  // State for message editing
-  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-
-  // Regenerate a message (ChatGPT-style branching)
-  const regenerateMessage = useCallback(
-    async (chatId: string, messageId: string) => {
-      if (isRegenerating || completion.isGenerating) return;
-
-      setIsRegenerating(true);
-      setRegeneratingContent("");
-
-      const abortController = new AbortController();
-
-      try {
-        await apiRegenerateMessage(chatId, messageId, {
-          stream: true,
-          signal: abortController.signal,
-          onChunk: (content: string) => {
-            setRegeneratingContent((prev) => prev + content);
-          },
-          onEvent: (event: StreamingEvent) => {
-            // Handle tool calls and other events if needed
-            if (event.type === "error") {
-              console.error("Regeneration error:", event.error);
-            }
-          },
-        });
-
-        // Refresh chat data after regeneration completes
-        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          console.log("Regeneration aborted");
-        } else {
-          console.error("Regeneration failed:", error);
-        }
-      } finally {
-        setIsRegenerating(false);
-        setRegeneratingContent("");
-      }
-    },
-    [isRegenerating, completion.isGenerating, queryClient]
-  );
-
-  // Select a different message branch
-  const selectBranch = useCallback(
-    (messageId: string) => {
-      console.log("[useChats] selectBranch called", { selectedChatId, messageId });
-      if (!selectedChatId) {
-        console.log("[useChats] No selectedChatId, returning");
-        return;
-      }
-      console.log("[useChats] Calling selectBranchMutation.mutate");
-      selectBranchMutation.mutate({ chatId: selectedChatId, messageId });
-    },
-    [selectedChatId, selectBranchMutation]
-  );
-
-  // Edit a message (creates sibling and triggers new AI response)
-  const editMessageAndComplete = useCallback(
-    async (messageId: string, payload: MessagePayload) => {
-      if (!selectedChatId || isEditing || completion.isGenerating) return;
-
-      setIsEditing(true);
-      // Clear editing state immediately so the input clears
-      setEditingMessage(null);
-
-      try {
-        // Create the edited message (new sibling)
-        await apiEditMessage(selectedChatId, messageId, {
-          content: payload.content.trim(),
-          attachment_ids: payload.attachmentIds.length > 0 ? payload.attachmentIds : undefined,
-          web_search: payload.webSearchEnabled ? true : undefined,
-        });
-
-        // Refresh chat data immediately to show the new message
-        queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
-
-        // Run AI completion (this uses useCompletion for proper streaming)
-        await completion.runCompletion(selectedChatId);
-
-        // Refresh again after completion
-        queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
-      } catch (error) {
-        console.error("Edit message failed:", error);
-      } finally {
-        setIsEditing(false);
-      }
-    },
-    [selectedChatId, isEditing, completion, queryClient]
-  );
-
-  // Cancel edit mode
-  const cancelEdit = useCallback(() => {
-    setEditingMessage(null);
-  }, []);
-
-  // Send message and run completion
-  const sendMessageAndComplete = useCallback(
-    async (chatId: string, payload: MessagePayload, needsAutoName: boolean) => {
-      // Add user message with attachments, web search, and skills settings
-      await addMessage(chatId, {
-        role: "user",
-        content: payload.content.trim(),
-        attachment_ids: payload.attachmentIds.length > 0 ? payload.attachmentIds : undefined,
-        web_search: payload.webSearchEnabled ? true : undefined,
-        skill_ids: payload.skillIds && payload.skillIds.length > 0 ? payload.skillIds : undefined,
-      });
-      queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-
-      // Run AI completion with optional forced tool and skills
-      try {
-        await completion.runCompletion(chatId, {
-          forcedTool: payload.forcedTool,
-          skills: payload.skills,
-        });
-        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
-
-        // Auto-name if needed
-        if (needsAutoName) {
-          try {
-            await autoNameChat(chatId);
-            queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
-            queryClient.invalidateQueries({ queryKey: ["chats"] });
-          } catch (e) {
-            console.error("Auto-naming failed:", e);
-          }
-        }
-      } catch (error) {
-        console.error("Chat completion failed:", error);
-      }
-    },
-    [queryClient, completion]
-  );
-
-  // Create a new chat and immediately send a message
-  const createChatWithMessage = useCallback(
-    async (payload: MessagePayload) => {
-      const hasContent = payload.content.trim() || payload.attachmentIds.length > 0;
-      if (!hasContent || completion.isGenerating) return;
-
-      try {
-        const defaultModel = getDefaultModel();
-        const newChat = await createChat({ model: defaultModel });
-        const chatId = newChat.id;
-
-        setSelectedChatId(chatId);
-        onChatChange?.(chatId);
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
-
-        await sendMessageAndComplete(chatId, payload, true);
-      } catch (error) {
-        console.error("Failed to create chat with message:", error);
-      }
-    },
-    [completion.isGenerating, queryClient, sendMessageAndComplete, onChatChange]
-  );
-
-  // Send message to existing chat
-  const sendMessage = useCallback(
-    async (payload: MessagePayload) => {
-      const hasContent = payload.content.trim() || payload.attachmentIds.length > 0;
-      if (!selectedChatId || !hasContent || completion.isGenerating) return;
-
-      const currentChat = chats.find((c) => c.id === selectedChatId);
-      const needsAutoName = currentChat?.name === "New Chat";
-
-      await sendMessageAndComplete(selectedChatId, payload, needsAutoName);
-    },
-    [selectedChatId, completion.isGenerating, chats, sendMessageAndComplete]
-  );
-
-  // Select chat and mark as read
-  const selectChat = useCallback(
-    (chatId: string) => {
-      const newId = chatId || null;
-      setSelectedChatId(newId);
-      onChatChange?.(newId);
-      const chat = chats.find((c) => c.id === chatId);
-      if (chat && !chat.is_read) {
-        toggleReadMutation.mutate({ chatId, value: true });
-      }
-    },
-    [chats, toggleReadMutation, onChatChange]
-  );
-
-  // Bulk operations mutation
-  const bulkOperateMutation = useMutation({
-    mutationFn: ({
-      chatIds,
-      operation,
-      labelId,
-    }: {
-      chatIds: string[];
-      operation: BulkOperation;
-      labelId?: string;
-    }) => apiBulkOperateChats(chatIds, operation, labelId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-      queryClient.invalidateQueries({ queryKey: ["chat"] });
-    },
-  });
-
-  // Fork chat mutation
-  const forkChatMutation = useMutation({
-    mutationFn: ({ chatId, messageId }: { chatId: string; messageId: string }) =>
-      apiForkChat(chatId, messageId),
-    onSuccess: (newChat) => {
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-      setSelectedChatId(newChat.id);
-      onChatChange?.(newChat.id);
-    },
-  });
-
-  // Fork conversation from a specific message
-  const forkConversation = useCallback(
-    (messageId: string) => {
-      if (!selectedChatId) return;
-      forkChatMutation.mutate({ chatId: selectedChatId, messageId });
-    },
-    [selectedChatId, forkChatMutation]
-  );
-
-  // Tool approval actions that wrap completion methods with the current chatId
-  const approveTool = useCallback(
-    async (toolCallId: string) => {
-      if (!selectedChatId) return;
-      const result = await completion.approveTool(selectedChatId, toolCallId);
-      // Refetch chat after approval to get updated messages
-      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-      // If auto-continued, the backend triggered a new completion
-      // which will add new messages, so we refetch
-      if (result?.auto_continued) {
-        queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-      }
-    },
-    [selectedChatId, completion, queryClient]
-  );
-
-  const rejectTool = useCallback(
-    async (toolCallId: string, reason?: string) => {
-      if (!selectedChatId) return;
-      await completion.rejectTool(selectedChatId, toolCallId, reason);
-      // Refetch chat after rejection
-      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-    },
-    [selectedChatId, completion, queryClient]
-  );
-
-  return {
-    // State
+  const actions = useChatActions({
     selectedChatId,
-    currentView,
-    isGenerating: completion.isGenerating,
-    streamingContent: completion.streamingContent,
-    activeToolCalls: completion.activeToolCalls,
-    pendingApprovals: completion.pendingApprovals,
-    awaitingApprovals: completion.awaitingApprovals,
-    isRegenerating,
-    regeneratingContent,
-    generatedImages: completion.generatedImages,
-    // Edit state
-    editingMessage,
-    isEditing,
-
-    // Data
+    setSelectedChatId,
+    onChatChange,
+    completion,
+    cacheManager,
     chats,
-    chatData,
-    models,
-    labels: labelOps.labels,
+    toggleReadMutate: mutations.toggleReadMutation.mutate,
+    selectBranchMutate: mutations.selectBranchMutation.mutate,
+    forkChatMutate: mutations.forkChatMutation.mutate,
+  });
 
-    // Loading states
-    loadingChats,
-    loadingChat,
+  // Extract completion state values for stable dependencies
+  const isGenerating = completion.isGenerating;
+  const streamingContent = completion.streamingContent;
+  const activeToolCalls = completion.activeToolCalls;
+  const pendingApprovals = completion.pendingApprovals;
+  const awaitingApprovals = completion.awaitingApprovals;
+  const generatedImages = completion.generatedImages;
 
-    // Errors
-    chatsError,
-    chatError,
+  // Extract label ops for stable dependencies
+  const labels = labelOps.labels;
+  const createLabelAction = labelOps.createLabel;
+  const deleteLabelAction = labelOps.deleteLabel;
+  const assignLabelAction = labelOps.assignLabel;
+  const removeLabelAction = labelOps.removeLabel;
 
-    // Actions
-    setCurrentView,
-    selectChat,
-    sendMessage,
-    createChatWithMessage,
+  return useMemo(
+    () => ({
+      // State
+      selectedChatId, currentView, isGenerating, streamingContent,
+      activeToolCalls, pendingApprovals, awaitingApprovals,
+      isRegenerating: actions.isRegenerating, regeneratingContent: actions.regeneratingContent,
+      generatedImages,
+      editingMessage: actions.editingMessage, isEditing: actions.isEditing,
 
-    // Chat mutations
-    createChat: createChatMutation.mutate,
-    deleteChat: deleteChatMutation.mutate,
-    deleteAllChats: deleteAllChatsMutation.mutateAsync,
-    updateChat: updateChatMutation.mutate,
-    toggleRead: toggleReadMutation.mutate,
-    toggleArchive: toggleArchiveMutation.mutate,
-    toggleStar: toggleStarMutation.mutate,
-    autoNameChat: autoNameChatMutation.mutate,
+      // Data
+      chats, chatData, models, labels,
 
-    // Branching operations (ChatGPT-style regeneration)
-    regenerateMessage,
-    selectBranch,
+      // Loading states
+      loadingChats, loadingChat,
 
-    // Edit operations
-    setEditingMessage,
-    editMessageAndComplete,
-    cancelEdit,
+      // Errors
+      chatsError, chatError,
 
-    // Bulk operations
-    bulkOperate: bulkOperateMutation.mutate,
+      // Actions
+      setCurrentView,
+      selectChat: actions.selectChat,
+      sendMessage: actions.sendMessage,
+      createChatWithMessage: actions.createChatWithMessage,
 
-    // Fork conversation
-    forkConversation,
+      // Chat mutations
+      createChat: mutations.createChatAction,
+      deleteChat: mutations.deleteChatAction,
+      deleteAllChats: mutations.deleteAllChatsMutation.mutateAsync,
+      updateChat: mutations.updateChatAction,
+      toggleRead: mutations.toggleReadAction,
+      toggleArchive: mutations.toggleArchiveAction,
+      toggleStar: mutations.toggleStarAction,
+      autoNameChat: mutations.autoNameChatAction,
 
-    // Tool approval actions
-    approveTool,
-    rejectTool,
+      // Branching operations
+      regenerateMessage: actions.regenerateMessage,
+      selectBranch: actions.selectBranch,
 
-    // Label operations (delegated)
-    createLabel: labelOps.createLabel,
-    deleteLabel: labelOps.deleteLabel,
-    assignLabel: labelOps.assignLabel,
-    removeLabel: labelOps.removeLabel,
+      // Edit operations
+      setEditingMessage: actions.setEditingMessage,
+      editMessageAndComplete: actions.editMessageAndComplete,
+      cancelEdit: actions.cancelEdit,
 
-    // Mutation states
-    isCreatingChat: createChatMutation.isPending,
-    isDeletingChat: deleteChatMutation.isPending,
-    isDeletingAllChats: deleteAllChatsMutation.isPending,
-    isUpdatingChat: updateChatMutation.isPending,
-    isAutoNaming: autoNameChatMutation.isPending,
-    isSelectingBranch: selectBranchMutation.isPending,
-    isBulkOperating: bulkOperateMutation.isPending,
-    isForking: forkChatMutation.isPending,
-  };
+      // Bulk operations
+      bulkOperate: mutations.bulkOperateAction,
+
+      // Fork conversation
+      forkConversation: actions.forkConversation,
+
+      // Tool approval actions
+      approveTool: actions.approveTool,
+      rejectTool: actions.rejectTool,
+
+      // Label operations (delegated)
+      createLabel: createLabelAction, deleteLabel: deleteLabelAction,
+      assignLabel: assignLabelAction, removeLabel: removeLabelAction,
+
+      // Mutation states
+      isCreatingChat: mutations.isCreatingChat, isDeletingChat: mutations.isDeletingChat,
+      isDeletingAllChats: mutations.isDeletingAllChats, isUpdatingChat: mutations.isUpdatingChat,
+      isAutoNaming: mutations.isAutoNaming, isSelectingBranch: mutations.isSelectingBranch,
+      isBulkOperating: mutations.isBulkOperating, isForking: mutations.isForking,
+    }),
+    [
+      selectedChatId, currentView, isGenerating, streamingContent,
+      activeToolCalls, pendingApprovals, awaitingApprovals,
+      actions.isRegenerating, actions.regeneratingContent, generatedImages,
+      actions.editingMessage, actions.isEditing,
+      chats, chatData, models, labels, loadingChats, loadingChat, chatsError, chatError,
+      setCurrentView, actions.selectChat, actions.sendMessage, actions.createChatWithMessage,
+      mutations.createChatAction, mutations.deleteChatAction, mutations.deleteAllChatsMutation.mutateAsync,
+      mutations.updateChatAction, mutations.toggleReadAction, mutations.toggleArchiveAction,
+      mutations.toggleStarAction, mutations.autoNameChatAction,
+      actions.regenerateMessage, actions.selectBranch,
+      actions.setEditingMessage, actions.editMessageAndComplete, actions.cancelEdit,
+      mutations.bulkOperateAction, actions.forkConversation,
+      actions.approveTool, actions.rejectTool,
+      createLabelAction, deleteLabelAction, assignLabelAction, removeLabelAction,
+      mutations.isCreatingChat, mutations.isDeletingChat, mutations.isDeletingAllChats,
+      mutations.isUpdatingChat, mutations.isAutoNaming, mutations.isSelectingBranch,
+      mutations.isBulkOperating, mutations.isForking,
+    ]
+  );
 }

@@ -13,7 +13,7 @@ interface LinkWithPreviewProps extends ComponentPropsWithoutRef<"a"> {
  * Opens in new tab, shows preview in tooltip on hover.
  */
 export function LinkWithPreview({ href, children, ...props }: LinkWithPreviewProps) {
-  const [hovered, setHovered] = useState(false);
+  const [_hovered, setHovered] = useState(false);
   const { preview, isLoading, fetch } = useLinkPreview(href || "");
 
   const handleMouseEnter = () => {
@@ -96,13 +96,13 @@ export function LinkWithPreview({ href, children, ...props }: LinkWithPreviewPro
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-indigo-400 hover:text-indigo-300 underline inline-flex items-center gap-1"
+        className="text-indigo-400 hover:text-indigo-300 underline break-all [overflow-wrap:anywhere]"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         {...props}
       >
         {children}
-        <ExternalLink className="h-3 w-3 inline-block" />
+        <ExternalLink className="h-3 w-3 inline-block ml-1 align-text-bottom" />
       </a>
     </Tooltip>
   );

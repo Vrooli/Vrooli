@@ -1,0 +1,4 @@
+{
+  "activePacks": ["local", "core"],
+  "inactivePacks": ["drafts"]
+}

@@ -1,0 +1,30 @@
+{
+  "acceptance_allow": [
+    "scenarios/deployment-manager/api/**",
+    "scenarios/deployment-manager/ui/**",
+    "scenarios/deployment-manager/cli/**",
+    "scenarios/deployment-manager/docs/**"
+  ],
+  "archived_at": "2026-04-09T03:22:19Z",
+  "created": "2026-03-26T16:35:48Z",
+  "depends_on": [
+    "research/desktop-release-control-plane-audit"
+  ],
+  "description": "Surface the existing deployment-manager approval-gating backend through real operator-facing UI and CLI flows.\n\nThe work should make it practical to:\n- configure required platforms per profile\n- inspect approval state by commit/platform/profile\n- create pending approvals when appropriate\n- review blocked release-gate status without dropping to ad hoc API calls\n\nThis is intentionally about surfacing and completing an existing capability, not inventing a second approval system.",
+  "effort": "M",
+  "initiative": "desktop-release-governance",
+  "kind": "execute",
+  "name": "deployment-manager-approval-gate-surfaces",
+  "note": "Wait until test genie failures are all fixed for deployment manager",
+  "priority": 1,
+  "status": "completed",
+  "tags": [
+    "deployment-manager",
+    "approval-gating",
+    "ui",
+    "cli",
+    "desktop-release"
+  ],
+  "title": "Expose Approval Gate Controls In Deployment Manager",
+  "updated": "2026-04-09T03:22:19Z"
+}

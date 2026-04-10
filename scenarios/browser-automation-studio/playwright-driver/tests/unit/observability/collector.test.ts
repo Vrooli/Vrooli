@@ -4,7 +4,6 @@
  * Tests the collector that aggregates data from all subsystems.
  */
 
-import { describe, beforeEach, it, expect, jest } from '@jest/globals';
 import {
   ObservabilityCollector,
   createObservabilityCollector,

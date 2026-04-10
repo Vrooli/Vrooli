@@ -20,6 +20,10 @@ func TestDefaultReconcilerConfig(t *testing.T) {
 		t.Errorf("StaleThreshold = %v, want 5m", cfg.StaleThreshold)
 	}
 
+	if cfg.MaxRecoveryAge != 10*time.Minute {
+		t.Errorf("MaxRecoveryAge = %v, want 10m", cfg.MaxRecoveryAge)
+	}
+
 	if cfg.OrphanGracePeriod != 10*time.Minute {
 		t.Errorf("OrphanGracePeriod = %v, want 10m", cfg.OrphanGracePeriod)
 	}
@@ -212,6 +216,11 @@ func TestExtractTagFromCommand(t *testing.T) {
 			command:  "resource-claude-code run --tag ecosystem-task-12345-run-1",
 			expected: "ecosystem-task-12345-run-1",
 		},
+		{
+			name:     "CLAUDE_CODE_AGENT_TAG env prefix",
+			command:  "env CLAUDE_CODE_AGENT_TAG=my-cc-tag-789 /usr/local/bin/resource-claude-code run -",
+			expected: "my-cc-tag-789",
+		},
 	}
 
 	for _, tt := range tests {
@@ -238,6 +247,7 @@ func TestLooksLikeAgentManagerTag(t *testing.T) {
 		{"a1b2c3d4-e5f6-7890-abcd-ef1234567890", true},
 
 		// Known prefixes
+		{"heartbeat-director-swarm-director-2026-03-16T21-12-05Z", true},
 		{"ecosystem-task-123", true},
 		{"test-genie-run-456", true},
 		{"agent-manager-task-789", true},
@@ -342,6 +352,46 @@ func TestWithReconcilerConfig(t *testing.T) {
 	}
 	if !rec.config.KillOrphans {
 		t.Error("KillOrphans should be true")
+	}
+}
+
+// =============================================================================
+// SCAN FOR PROCESS TESTS
+// =============================================================================
+
+func TestScanForProcess_NoMatchForNonRunnerProcesses(t *testing.T) {
+	// Regression test: scanForProcess must NOT match non-runner processes
+	// that happen to contain the tag string in their command line.
+	// This was the root cause of stale runs never being marked as failed —
+	// child processes (bash wrappers, tee, cleanup handlers) inherited the
+	// tag via environment and were falsely detected as "alive" by the old
+	// broad "pgrep -f <tag>" approach.
+	rec := NewReconciler(nil, nil)
+
+	// Use a unique tag that won't match any real process
+	tag := "test-nonexistent-tag-for-regression-" + t.Name()
+
+	if rec.scanForProcess(tag) {
+		t.Error("scanForProcess should return false for a tag with no matching runner process")
+	}
+}
+
+func TestScanRunnerProcessByTag_VerifiesRunnerName(t *testing.T) {
+	// Ensure that scanRunnerProcessByTag only matches processes that are
+	// known runner executables, not arbitrary processes
+	rec := NewReconciler(nil, nil)
+
+	tag := "test-verify-runner-" + t.Name()
+
+	// Should not find any process since no real runners are running with this tag
+	if rec.scanRunnerProcessByTag("claude", tag) {
+		t.Error("should not find claude process with test tag")
+	}
+	if rec.scanRunnerProcessByTag("codex", tag) {
+		t.Error("should not find codex process with test tag")
+	}
+	if rec.scanRunnerProcessByTag("opencode", tag) {
+		t.Error("should not find opencode process with test tag")
 	}
 }
 

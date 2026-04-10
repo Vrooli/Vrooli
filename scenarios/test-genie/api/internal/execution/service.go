@@ -28,6 +28,10 @@ type suiteRequestManager interface {
 	UpdateStatus(ctx context.Context, id uuid.UUID, status string) error
 }
 
+type suiteExecutionRecorder interface {
+	Create(ctx context.Context, record *SuiteExecutionRecord) error
+}
+
 // SuiteExecutionInput encapsulates the orchestration request plus optional linkage to a queued suite.
 type SuiteExecutionInput struct {
 	Request        orchestrator.SuiteExecutionRequest
@@ -37,11 +41,11 @@ type SuiteExecutionInput struct {
 // SuiteExecutionService coordinates the orchestrator, queue state transitions, and execution persistence.
 type SuiteExecutionService struct {
 	engine        suiteExecutionEngine
-	executions    *SuiteExecutionRepository
+	executions    suiteExecutionRecorder
 	suiteRequests suiteRequestManager
 }
 
-func NewSuiteExecutionService(engine suiteExecutionEngine, executions *SuiteExecutionRepository, suiteRequests suiteRequestManager) *SuiteExecutionService {
+func NewSuiteExecutionService(engine suiteExecutionEngine, executions suiteExecutionRecorder, suiteRequests suiteRequestManager) *SuiteExecutionService {
 	return &SuiteExecutionService{
 		engine:        engine,
 		executions:    executions,
@@ -77,14 +81,19 @@ func (s *SuiteExecutionService) Execute(ctx context.Context, input SuiteExecutio
 	}
 
 	record := &SuiteExecutionRecord{
-		ID:             uuid.New(),
-		SuiteRequestID: suiteID,
-		ScenarioName:   result.ScenarioName,
-		PresetUsed:     result.PresetUsed,
-		Success:        result.Success,
-		Phases:         append([]phases.ExecutionResult(nil), result.Phases...),
-		StartedAt:      result.StartedAt,
-		CompletedAt:    result.CompletedAt,
+		ID:                  uuid.New(),
+		SuiteRequestID:      suiteID,
+		ScenarioName:        result.ScenarioName,
+		PresetUsed:          result.PresetUsed,
+		RequestedPreset:     result.RequestedPreset,
+		RequestedPhases:     append([]string(nil), result.RequestedPhases...),
+		RequestedSkipPhases: append([]string(nil), result.RequestedSkipPhases...),
+		PlannedPhases:       append([]string(nil), result.PlannedPhases...),
+		FailFast:            result.FailFast,
+		Success:             result.Success,
+		Phases:              append([]phases.ExecutionResult(nil), result.Phases...),
+		StartedAt:           result.StartedAt,
+		CompletedAt:         result.CompletedAt,
 	}
 
 	if err := s.executions.Create(ctx, record); err != nil {
@@ -131,14 +140,19 @@ func (s *SuiteExecutionService) ExecuteWithEvents(ctx context.Context, input Sui
 	}
 
 	record := &SuiteExecutionRecord{
-		ID:             uuid.New(),
-		SuiteRequestID: suiteID,
-		ScenarioName:   result.ScenarioName,
-		PresetUsed:     result.PresetUsed,
-		Success:        result.Success,
-		Phases:         append([]phases.ExecutionResult(nil), result.Phases...),
-		StartedAt:      result.StartedAt,
-		CompletedAt:    result.CompletedAt,
+		ID:                  uuid.New(),
+		SuiteRequestID:      suiteID,
+		ScenarioName:        result.ScenarioName,
+		PresetUsed:          result.PresetUsed,
+		RequestedPreset:     result.RequestedPreset,
+		RequestedPhases:     append([]string(nil), result.RequestedPhases...),
+		RequestedSkipPhases: append([]string(nil), result.RequestedSkipPhases...),
+		PlannedPhases:       append([]string(nil), result.PlannedPhases...),
+		FailFast:            result.FailFast,
+		Success:             result.Success,
+		Phases:              append([]phases.ExecutionResult(nil), result.Phases...),
+		StartedAt:           result.StartedAt,
+		CompletedAt:         result.CompletedAt,
 	}
 
 	if err := s.executions.Create(ctx, record); err != nil {

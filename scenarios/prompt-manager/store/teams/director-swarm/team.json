@@ -1,0 +1,37 @@
+{
+  "kind": "team",
+  "schemaVersion": 1,
+  "id": "director-swarm",
+  "displayName": "Director Swarm",
+  "mission": "Keep Vrooli's initiative portfolio flowing through Swarm Manager and surface outcome-driven strategy as Command Center comes online.",
+  "enabled": false,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "coordination": {
+    "pattern": "independent",
+    "reportingMode": "none",
+    "messagingMode": "disabled",
+    "capabilities": {
+      "showOrgContext": false,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showDecisionLogGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "execution": {
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 2
+  },
+  "decisionMode": "approval",
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "revision": 12,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-04-09T20:25:28Z"
+}

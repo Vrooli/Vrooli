@@ -1,0 +1,17 @@
+{
+  "acceptance_allow": [
+    "scenarios/browser-automation-studio/api/services/ai/**",
+    "scenarios/browser-automation-studio/api/services/credits/**"
+  ],
+  "created": "2026-03-26T20:54:35Z",
+  "description": "## Context\n\nThe audio-tools scenario needs a provider routing system for its AI-powered capabilities (Whisper for STT, Kokoro for TTS, Ollama for summarization). Users should be able to choose between local models, external APIs (e.g., OpenRouter), or their LPBS subscription — similar to how BAS handles AI credit routing.\n\n## Research Goals\n\n1. **Study the BAS three-tier provider chain** (`scenarios/browser-automation-studio/api/services/ai/`): BYOK → Vrooli/LPBS → Dev/Local. Understand the provider interface, chain fallback logic, credit charging, and LPBS usage reporting.\n\n2. **Map audio AI capabilities to provider tiers:**\n   - **Whisper (STT):** Local Whisper model vs. OpenRouter/external STT API vs. LPBS-routed Whisper\n   - **Kokoro (TTS):** Local Kokoro vs. external TTS API vs. LPBS-routed TTS\n   - **Ollama (summarization):** Local Ollama vs. OpenRouter vs. LPBS-routed summarization\n   - For each: document VRAM/compute requirements for local, identify viable external API options, and define the LPBS gateway contract\n\n3. **Define the provider routing contract** for audio-tools:\n   - How callers (web-console, swarm-manager, etc.) specify their preferred routing\n   - How audio-tools resolves the provider chain per-capability\n   - How credit metering works when routing through LPBS\n   - Configuration schema (per-capability provider preference, API keys, LPBS auth tokens)\n\n4. **Identify reuse opportunities:** Can BAS's provider chain code be extracted into a shared package, or should audio-tools implement its own following the same pattern?\n\n## Deliverables\n\n- Provider routing architecture document\n- Per-capability provider matrix (local requirements, external API options, LPBS contract)\n- Recommended configuration schema\n- Reuse assessment (shared package vs. pattern replication)",
+  "effort": "M",
+  "initiative": "continuous-audio-platform",
+  "kind": "research",
+  "name": "audio-provider-routing-contract",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Research AI Provider Routing for Audio Capabilities",
+  "updated": "2026-03-26T20:54:35Z"
+}

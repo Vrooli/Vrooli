@@ -1,0 +1,11 @@
+{
+  "kind": "heartbeat-config",
+  "schemaVersion": 1,
+  "teamId": "director-swarm",
+  "agentId": "outcome-strategist",
+  "enabled": false,
+  "schedule": "46 18 * * *",
+  "revision": 2,
+  "createdAt": "2026-04-09T19:58:09Z",
+  "updatedAt": "2026-04-09T19:58:09Z"
+}

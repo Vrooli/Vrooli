@@ -1,0 +1,32 @@
+{
+  "id": "review-code",
+  "name": "Review Code",
+  "description": "Get a thorough code review with actionable feedback",
+  "icon": "Eye",
+  "modes": ["Review/QA", "Code Review"],
+  "content": "Please review the code in {{location}}.\n\n**What changed:** {{changes}}\n\n**Review focus:**\n{{focus}}\n\nPlease provide:\n1. Overall assessment of code quality\n2. Specific issues found (with line references)\n3. Suggestions for improvement\n4. Security considerations\n5. Performance implications\n6. Test coverage recommendations",
+  "variables": [
+    {
+      "name": "location",
+      "label": "Files to Review",
+      "type": "text",
+      "placeholder": "e.g., src/features/auth/*.ts or specific file path",
+      "required": true
+    },
+    {
+      "name": "changes",
+      "label": "What Changed",
+      "type": "textarea",
+      "placeholder": "Brief description of the changes to review",
+      "required": true
+    },
+    {
+      "name": "focus",
+      "label": "Review Focus",
+      "type": "select",
+      "options": ["General review", "Security focus", "Performance focus", "Architecture focus", "Testing focus"],
+      "defaultValue": "General review",
+      "required": true
+    }
+  ]
+}

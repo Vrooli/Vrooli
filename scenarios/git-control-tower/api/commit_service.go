@@ -14,6 +14,62 @@ type CommitDeps struct {
 	RepoDir string
 }
 
+func commitValidationFailure(errors []string) *CommitResponse {
+	return &CommitResponse{
+		Success:          false,
+		ValidationErrors: errors,
+		Timestamp:        time.Now().UTC(),
+	}
+}
+
+func validateAmendSafety(ctx context.Context, deps CommitDeps, repoDir string) *CommitResponse {
+	status, err := GetRepoStatus(ctx, RepoStatusDeps{
+		Git:     deps.Git,
+		RepoDir: repoDir,
+	})
+	if err != nil {
+		return nil // caller should return the error via a different path
+	}
+	if strings.TrimSpace(status.Branch.Upstream) == "" {
+		return commitValidationFailure([]string{"upstream not configured; set upstream before amending"})
+	}
+	if status.Branch.Ahead <= 0 {
+		return commitValidationFailure([]string{"last commit already on upstream; amend is blocked"})
+	}
+	return nil
+}
+
+func resolveCommitMessage(ctx context.Context, deps CommitDeps, repoDir string, message string, noEdit bool) string {
+	if !noEdit {
+		return message
+	}
+	if lastMessage, err := deps.Git.LastCommitMessage(ctx, repoDir); err == nil {
+		lastMessage = strings.TrimSpace(lastMessage)
+		if lastMessage != "" {
+			return lastMessage
+		}
+	}
+	return message
+}
+
+// validateCommitRequest validates the commit message and amend safety.
+func validateCommitRequest(ctx context.Context, deps CommitDeps, repoDir string, req CommitRequest, message string) *CommitResponse {
+	if message == "" && !req.Amend {
+		return commitValidationFailure([]string{"commit message is required"})
+	}
+	if req.Amend {
+		if resp := validateAmendSafety(ctx, deps, repoDir); resp != nil {
+			return resp
+		}
+	}
+	if req.ValidateConventional && message != "" {
+		if errs := ValidateConventionalCommit(message); len(errs) > 0 {
+			return commitValidationFailure(errs)
+		}
+	}
+	return nil
+}
+
 // CreateCommit creates a new git commit with the given message.
 // [REQ:GCT-OT-P0-005] Commit composition API
 func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*CommitResponse, error) {
@@ -26,30 +82,16 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 	}
 
 	message := strings.TrimSpace(req.Message)
-	if message == "" {
-		return &CommitResponse{
-			Success:          false,
-			ValidationErrors: []string{"commit message is required"},
-			Timestamp:        time.Now().UTC(),
-		}, nil
+	if resp := validateCommitRequest(ctx, deps, repoDir, req, message); resp != nil {
+		return resp, nil
 	}
 
-	// DECISION BOUNDARY: Validate conventional commit format if requested
-	if req.ValidateConventional {
-		validationErrors := ValidateConventionalCommit(message)
-		if len(validationErrors) > 0 {
-			return &CommitResponse{
-				Success:          false,
-				ValidationErrors: validationErrors,
-				Timestamp:        time.Now().UTC(),
-			}, nil
-		}
-	}
-
-	// Attempt to create the commit
+	noEdit := req.Amend && message == ""
 	hash, err := deps.Git.Commit(ctx, repoDir, message, CommitOptions{
 		AuthorName:  strings.TrimSpace(req.AuthorName),
 		AuthorEmail: strings.TrimSpace(req.AuthorEmail),
+		Amend:       req.Amend,
+		NoEdit:      noEdit,
 	})
 	if err != nil {
 		return &CommitResponse{
@@ -62,7 +104,8 @@ func CreateCommit(ctx context.Context, deps CommitDeps, req CommitRequest) (*Com
 	return &CommitResponse{
 		Success:   true,
 		Hash:      hash,
-		Message:   message,
+		Message:   resolveCommitMessage(ctx, deps, repoDir, message, noEdit),
+		Amended:   req.Amend,
 		Timestamp: time.Now().UTC(),
 	}, nil
 }

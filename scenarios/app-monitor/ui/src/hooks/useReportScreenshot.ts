@@ -321,12 +321,12 @@ export function useReportScreenshot({
       }
 
       const gradient = ctx.createLinearGradient(0, 0, paddedWidth, paddedHeight);
-      gradient.addColorStop(0, '#01161b');
-      gradient.addColorStop(1, '#042a31');
+      gradient.addColorStop(0, '#0b1022');
+      gradient.addColorStop(1, '#151c36');
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, paddedWidth, paddedHeight);
 
-      ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+      ctx.strokeStyle = 'rgba(122, 160, 255, 0.58)';
       ctx.lineWidth = 2;
       ctx.strokeRect(18, 18, paddedWidth - 36, paddedHeight - 36);
 
@@ -343,7 +343,7 @@ export function useReportScreenshot({
       const detailsBaseline = wrapText(ctx, reasonText, 32, 66, paddedWidth - 64, 22);
 
       if (activePreviewUrl) {
-        ctx.fillStyle = 'rgba(0, 255, 255, 0.85)';
+        ctx.fillStyle = 'rgba(184, 203, 255, 0.9)';
         ctx.font = '15px "Inter", "Segoe UI", sans-serif';
         wrapText(ctx, activePreviewUrl, 32, Math.min(detailsBaseline + 20, paddedHeight - 80), paddedWidth - 64, 20);
       }

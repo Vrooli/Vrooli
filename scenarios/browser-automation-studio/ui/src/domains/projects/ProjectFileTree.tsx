@@ -15,17 +15,18 @@ import {
   type FileTreeNode,
 } from "./FileTree";
 import type { Project } from "./store";
-import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
+import { useWorkflowStore } from "@stores/workflowStore";
 import { useStartWorkflow } from "@/domains/executions";
 import { useConfirmDialog } from "@hooks/useConfirmDialog";
 import { usePromptDialog } from "@hooks/usePromptDialog";
 import { ConfirmDialog, PromptDialog } from "@shared/ui";
-import { useModals } from "@shared/modals/ModalContext";
+import { useModals } from "@shared/modals";
 import { logger } from "@utils/logger";
 import toast from "react-hot-toast";
 import {
   useProjectDetailStore,
   type ProjectEntry,
+  type WorkflowWithStats,
 } from "./hooks/useProjectDetailStore";
 import { useFileTreeOperations } from "./hooks/useFileTreeOperations";
 import { selectors } from "@constants/selectors";
@@ -35,7 +36,7 @@ import { EmptyWorkflowState } from "./EmptyWorkflowState";
 
 interface ProjectFileTreeProps {
   project: Project;
-  onWorkflowSelect: (workflow: Workflow) => Promise<void>;
+  onWorkflowSelect: (workflow: WorkflowWithStats) => Promise<void>;
   onCreateWorkflow: () => void;
   onCreateWorkflowDirect?: () => void;
   onStartRecording?: () => void;
@@ -120,6 +121,7 @@ export function ProjectFileTree({
 
   // External stores
   const loadWorkflow = useWorkflowStore((state) => state.loadWorkflow);
+  const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow);
 
   // Execution hook with start URL prompt
   const { startWorkflow, promptDialogProps: startUrlPromptProps } = useStartWorkflow({
@@ -128,11 +130,60 @@ export function ProjectFileTree({
     },
   });
 
-  // Get the previewed workflow details
-  const previewedWorkflow = useMemo(() => {
+  // State for fallback workflow loading when not found in cache
+  const [fallbackWorkflow, setFallbackWorkflow] = useState<WorkflowWithStats | null>(null);
+  const [isFallbackLoading, setIsFallbackLoading] = useState(false);
+
+  // Get the previewed workflow details from cache first, then fallback
+  const cachedPreviewWorkflow = useMemo(() => {
     if (!previewWorkflowId) return null;
     return workflows.find((w) => w.id === previewWorkflowId) || null;
   }, [previewWorkflowId, workflows]);
+
+  // Load workflow from API if not found in cache
+  useEffect(() => {
+    // Skip if no preview selected or already found in cache
+    if (!previewWorkflowId || cachedPreviewWorkflow) {
+      setFallbackWorkflow(null);
+      return;
+    }
+
+    // Skip if already loading or already have the fallback for this ID
+    if (isFallbackLoading || (fallbackWorkflow && fallbackWorkflow.id === previewWorkflowId)) {
+      return;
+    }
+
+    // Check if the workflow is already loaded in the workflow store
+    if (currentWorkflow && currentWorkflow.id === previewWorkflowId) {
+      setFallbackWorkflow(currentWorkflow);
+      return;
+    }
+
+    const loadFallbackWorkflow = async () => {
+      setIsFallbackLoading(true);
+      try {
+        await loadWorkflow(previewWorkflowId);
+        const loaded = useWorkflowStore.getState().currentWorkflow;
+        if (loaded && loaded.id === previewWorkflowId) {
+          setFallbackWorkflow(loaded);
+        }
+      } catch (error) {
+        logger.warn("Failed to load workflow for preview", {
+          component: "ProjectFileTree",
+          action: "loadFallbackWorkflow",
+          workflowId: previewWorkflowId,
+        }, error);
+        // Don't show error toast here - the empty state will show instead
+      } finally {
+        setIsFallbackLoading(false);
+      }
+    };
+
+    void loadFallbackWorkflow();
+  }, [previewWorkflowId, cachedPreviewWorkflow, fallbackWorkflow, isFallbackLoading, currentWorkflow, loadWorkflow]);
+
+  // Use cached workflow if available, otherwise use fallback
+  const previewedWorkflow = cachedPreviewWorkflow || fallbackWorkflow;
 
   // Dialog hooks
   const {
@@ -153,10 +204,11 @@ export function ProjectFileTree({
     const folderMap = new Map<string, FileTreeNode>();
 
     const ensureFolder = (folderPath: string): FileTreeNode => {
-      if (folderMap.has(folderPath)) {
-        return folderMap.get(folderPath)!;
+      const existing = folderMap.get(folderPath);
+      if (existing) {
+        return existing;
       }
-      const name = folderPath === "" ? "root" : folderPath.split("/").pop()!;
+      const name = folderPath === "" ? "root" : (folderPath.split("/").pop() ?? folderPath);
       const node: FileTreeNode = {
         kind: "folder",
         path: folderPath,
@@ -179,7 +231,9 @@ export function ProjectFileTree({
 
       let current = "";
       for (let i = 0; i < parts.length - (isDir ? 0 : 1); i++) {
-        current = current ? `${current}/${parts[i]}` : parts[i];
+        const part = parts[i];
+        if (!part) continue;
+        current = current ? `${current}/${part}` : part;
         ensureFolder(current);
       }
 
@@ -189,13 +243,16 @@ export function ProjectFileTree({
         const parentPath = parts.length > 1 ? parts.slice(0, -1).join("/") : "";
         const parent = ensureFolder(parentPath);
         parent.children = parent.children ?? [];
-        parent.children.push({
-          kind: entry.kind,
-          path: relPath,
-          name: parts[parts.length - 1],
-          workflowId: entry.workflow_id,
-          metadata: entry.metadata,
-        });
+        const fileName = parts[parts.length - 1];
+        if (fileName) {
+          parent.children.push({
+            kind: entry.kind,
+            path: relPath,
+            name: fileName,
+            workflowId: entry.workflow_id,
+            metadata: entry.metadata,
+          });
+        }
       }
     }
 
@@ -293,10 +350,29 @@ export function ProjectFileTree({
   // Handlers
   const handleOpenWorkflowFile = useCallback(
     async (workflowId: string) => {
-      await loadWorkflow(workflowId);
-      const wf = useWorkflowStore.getState().currentWorkflow;
-      if (wf) {
+      // Check if workflow is already loaded in store
+      let wf = useWorkflowStore.getState().currentWorkflow;
+
+      // Only load from API if not already loaded or different workflow
+      if (!wf || wf.id !== workflowId) {
+        try {
+          await loadWorkflow(workflowId);
+          wf = useWorkflowStore.getState().currentWorkflow;
+        } catch (error) {
+          // Log the error and re-throw with more context
+          logger.error("Failed to open workflow for editing", {
+            component: "ProjectFileTree",
+            action: "handleOpenWorkflowFile",
+            workflowId,
+          }, error);
+          throw error;
+        }
+      }
+
+      if (wf && wf.id === workflowId) {
         await onWorkflowSelect(wf);
+      } else {
+        throw new Error("Workflow could not be loaded");
       }
     },
     [loadWorkflow, onWorkflowSelect],
@@ -391,6 +467,18 @@ export function ProjectFileTree({
       }
     },
     [requestPrompt, fileOps, fetchProjectEntries, fetchWorkflows, project.id],
+  );
+
+  const handleOpenInFolder = useCallback(
+    async (path: string) => {
+      try {
+        await fileOps.revealProjectPath(path);
+        toast.success("Opened in file manager");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to open in folder");
+      }
+    },
+    [fileOps],
   );
 
   // Handler for preview workflow (single click)
@@ -679,12 +767,10 @@ export function ProjectFileTree({
   // Render loading state
   if (projectEntriesLoading) {
     return (
-      <div className="flex-1 overflow-auto p-6" data-testid={selectors.projects.fileTree.container}>
-        <div className="bg-flow-node border border-gray-700 rounded-lg p-4">
-          <div className="text-center text-gray-400 py-8">
-            <Loader size={24} className="mx-auto mb-3 animate-spin" />
-            <p>Loading project files…</p>
-          </div>
+      <div className="flex-1 overflow-auto" data-testid={selectors.projects.fileTree.container}>
+        <div className="text-center text-gray-400 py-8">
+          <Loader size={24} className="mx-auto mb-3 animate-spin" />
+          <p>Loading project files…</p>
         </div>
       </div>
     );
@@ -693,19 +779,17 @@ export function ProjectFileTree({
   // Render error state
   if (projectEntriesError) {
     return (
-      <div className="flex-1 overflow-auto p-6" data-testid={selectors.projects.fileTree.container}>
-        <div className="bg-flow-node border border-gray-700 rounded-lg p-4">
-          <div className="text-center text-gray-400 py-8">
-            <WifiOff size={40} className="mx-auto mb-3 opacity-50" />
-            <p className="mb-3">{projectEntriesError}</p>
-            <button
-              onClick={() => fetchProjectEntries(project.id)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-flow-accent text-white hover:bg-blue-600 transition-colors"
-            >
-              <RefreshCw size={16} />
-              <span>Retry</span>
-            </button>
-          </div>
+      <div className="flex-1 overflow-auto" data-testid={selectors.projects.fileTree.container}>
+        <div className="text-center text-gray-400 py-8">
+          <WifiOff size={40} className="mx-auto mb-3 opacity-50" />
+          <p className="mb-3">{projectEntriesError}</p>
+          <button
+            onClick={() => fetchProjectEntries(project.id)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-flow-accent text-white hover:bg-blue-600 transition-colors"
+          >
+            <RefreshCw size={16} />
+            <span>Retry</span>
+          </button>
         </div>
       </div>
     );
@@ -727,18 +811,16 @@ export function ProjectFileTree({
   // Render no results state
   if (filteredFileTree.length === 0) {
     return (
-      <div className="flex-1 overflow-auto p-6" data-testid={selectors.projects.fileTree.container}>
-        <div className="bg-flow-node border border-gray-700 rounded-lg p-4">
-          <div className="text-center text-gray-400 py-8">
-            <FolderTree size={48} className="mx-auto mb-4 opacity-50" />
-            <p>No files match &ldquo;{searchTerm}&rdquo;.</p>
-            <button
-              onClick={() => setSearchTerm("")}
-              className="mt-3 text-flow-accent hover:text-blue-400 text-sm font-medium transition-colors"
-            >
-              Clear search
-            </button>
-          </div>
+      <div className="flex-1 overflow-auto" data-testid={selectors.projects.fileTree.container}>
+        <div className="text-center text-gray-400 py-8">
+          <FolderTree size={48} className="mx-auto mb-4 opacity-50" />
+          <p>No files match &ldquo;{searchTerm}&rdquo;.</p>
+          <button
+            onClick={() => setSearchTerm("")}
+            className="mt-3 text-flow-accent hover:text-blue-400 text-sm font-medium transition-colors"
+          >
+            Clear search
+          </button>
         </div>
       </div>
     );
@@ -748,17 +830,17 @@ export function ProjectFileTree({
   return (
     <div
       ref={containerRef}
-      className="flex-1 flex overflow-hidden relative"
+      className="flex-1 flex overflow-hidden relative h-full"
       data-testid={selectors.projects.fileTree.container}
     >
       {/* Left: File Tree */}
       <div
         ref={treeContainerRef}
-        className="overflow-auto p-4 flex-shrink-0"
+        className="overflow-auto flex-shrink-0 h-full min-h-0"
         style={{ width: `${treeWidthPercent}%` }}
         tabIndex={0}
       >
-        <div className="bg-flow-node border border-gray-700 rounded-lg p-4">
+        <div className="p-2">
           <div className="space-y-0.5">
             {/* Root folder */}
             <div
@@ -795,6 +877,19 @@ export function ProjectFileTree({
               <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 flex-shrink-0">
                 root
               </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void fileOps.openProjectFolder().catch((err) => {
+                    toast.error(err instanceof Error ? err.message : "Failed to open project folder");
+                  });
+                }}
+                className="ml-2 p-1 rounded text-gray-500 hover:text-gray-300 hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-all"
+                title="Open project folder"
+                aria-label="Open project folder"
+              >
+                <FolderOpen size={14} />
+              </button>
               {/* Add button for root */}
               <button
                 onClick={(e) => {
@@ -833,6 +928,7 @@ export function ProjectFileTree({
                   onExecuteWorkflow={handleExecuteWorkflow}
                   onDeleteNode={handleDeleteTreeNode}
                   onRenameNode={handleRenameTreeNode}
+                  onOpenInFolder={handleOpenInFolder}
                   onShowInlineAddMenu={handleShowInlineAddMenu}
                   onPreviewAsset={handlePreviewAsset}
                 />
@@ -904,13 +1000,20 @@ export function ProjectFileTree({
       />
 
       {/* Right: Preview Pane - Always visible with conditional content */}
-      <div className="flex-1 overflow-hidden p-4">
+      <div className="flex-1 overflow-auto h-full min-h-0">
         {previewedWorkflow ? (
           <WorkflowPreviewPane
             workflow={previewedWorkflow}
             onClose={() => setPreviewWorkflowId(null)}
             onOpenEditor={handleOpenWorkflowFile}
           />
+        ) : isFallbackLoading ? (
+          <div className="bg-flow-node h-full flex items-center justify-center">
+            <div className="text-center text-gray-400">
+              <Loader size={24} className="mx-auto mb-3 animate-spin" />
+              <p>Loading workflow…</p>
+            </div>
+          </div>
         ) : previewAssetPath ? (
           <AssetPreviewPane
             path={previewAssetPath}

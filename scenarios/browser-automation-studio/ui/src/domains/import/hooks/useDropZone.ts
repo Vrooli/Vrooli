@@ -156,7 +156,9 @@ export function useDropZone(options: UseDropZoneOptions = {}): UseDropZoneReturn
       if (fileArray.length === 0) return;
 
       // If not multiple, only take first file
-      const filesToProcess = multiple ? fileArray : [fileArray[0]];
+      const firstFile = fileArray[0];
+      if (!firstFile) return;
+      const filesToProcess = multiple ? fileArray : [firstFile];
 
       setIsProcessing(true);
       setError(null);
@@ -183,7 +185,8 @@ export function useDropZone(options: UseDropZoneOptions = {}): UseDropZoneReturn
         const invalidFiles = results.filter((r) => !r.validation?.isValid);
         if (invalidFiles.length > 0 && invalidFiles.length === results.length) {
           // All files invalid - show first error
-          setError(invalidFiles[0].validation?.error || 'Invalid file');
+          const firstInvalid = invalidFiles[0];
+          setError(firstInvalid?.validation?.error ?? 'Invalid file');
           // Still set files so UI can show them with errors
         }
 
@@ -263,14 +266,15 @@ export function useDropZone(options: UseDropZoneOptions = {}): UseDropZoneReturn
     if (disabled || !onFolderSelected) return;
 
     // Check for native directory picker support
-    if ('showDirectoryPicker' in window) {
+    const picker = (window as unknown as { showDirectoryPicker?: () => Promise<{ name: string }> })
+      .showDirectoryPicker;
+    if (picker) {
       try {
-        // @ts-expect-error - showDirectoryPicker is not in all TS definitions
-        const handle = await window.showDirectoryPicker();
+        const handle = await picker();
         // In browser context, we can only get the directory name
         // For full path, we'd need electron/tauri integration
         onFolderSelected(handle.name);
-      } catch (err) {
+      } catch (err: unknown) {
         // User cancelled or error
         if (err instanceof Error && err.name !== 'AbortError') {
           setError('Failed to select folder');
@@ -283,10 +287,12 @@ export function useDropZone(options: UseDropZoneOptions = {}): UseDropZoneReturn
       input.webkitdirectory = true;
       input.addEventListener('change', () => {
         const files = input.files;
-        if (files && files.length > 0) {
+        const firstFile = files?.[0];
+        if (firstFile) {
           // Get common path prefix from first file
-          const firstPath = files[0].webkitRelativePath;
-          const folderName = firstPath.split('/')[0];
+          const firstPath = firstFile.webkitRelativePath;
+          const pathParts = firstPath.split('/');
+          const folderName = pathParts[0] ?? firstPath;
           onFolderSelected(folderName);
         }
       });

@@ -1,0 +1,28 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "vision-walk-prep",
+  "displayName": "Vision Walk Prep",
+  "description": "Synthesizes a daily structured briefing from all director-swarm outputs and swarm-manager state for the human's morning vision walk.",
+  "status": "active",
+  "appearance": {
+    "body": "#1E3A5F",
+    "head": "#F59E0B",
+    "accent": "#FDE68A"
+  },
+  "tags": [
+    "strategy",
+    "briefing",
+    "daily",
+    "vision",
+    "synthesis"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-04-09T19:00:00Z",
+  "updatedAt": "2026-04-09T19:00:00Z"
+}

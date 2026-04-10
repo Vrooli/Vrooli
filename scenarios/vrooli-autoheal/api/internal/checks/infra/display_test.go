@@ -665,4 +665,3 @@ func TestDisplayManagerCheckRecoverSessionAction(t *testing.T) {
 		}
 	}
 }
-

@@ -163,15 +163,18 @@ quote() { printf '%q' "$1"; }
 #######################################
 # Ensure scenario-specific database exists
 # Creates the database if it doesn't exist using postgres resource
+# Also applies schema.sql and migrations from initialization/postgres/
 # Arguments:
 #   $1 - Database name
 #   $2 - Service JSON path (for logging context)
+#   $3 - Scenario path (optional, defaults to current directory)
 # Returns:
 #   0 on success (or database already exists), continues on failure with warning
 #######################################
 lifecycle::ensure_database() {
     local db_name="$1"
     local service_json="${2:-}"
+    local scenario_path="${3:-$(pwd)}"
 
     [[ -z "$db_name" ]] && return 0
 
@@ -202,12 +205,33 @@ lifecycle::ensure_database() {
 
     # Create database (function handles "already exists" gracefully)
     log::info "Ensuring database exists: $db_name"
-    if postgres::database::create "main" "$db_name" 2>/dev/null; then
-        return 0
-    else
+    if ! postgres::database::create "main" "$db_name" 2>/dev/null; then
         log::warning "Could not create database '$db_name', may already exist or postgres not ready"
-        return 0
     fi
+
+    # Apply schema.sql if it exists (idempotent - uses CREATE TABLE IF NOT EXISTS)
+    local schema_file="${scenario_path}/initialization/postgres/schema.sql"
+    if [[ -f "$schema_file" ]]; then
+        log::info "Applying schema from: initialization/postgres/schema.sql"
+        if postgres::database::execute_file "main" "$schema_file" "$db_name" 2>/dev/null; then
+            log::debug "Schema applied successfully"
+        else
+            log::warning "Schema application had warnings (tables may already exist)"
+        fi
+    fi
+
+    # Apply migrations if directory exists (uses tracking table to skip already-applied)
+    local migrations_dir="${scenario_path}/initialization/postgres"
+    if [[ -d "$migrations_dir" ]] && ls "$migrations_dir"/migration_*.sql &>/dev/null; then
+        log::info "Running database migrations..."
+        if postgres::database::migrate "main" "$migrations_dir" "$db_name" 2>/dev/null; then
+            log::debug "Migrations completed"
+        else
+            log::warning "Some migrations may have failed"
+        fi
+    fi
+
+    return 0
 }
 
 ################################################################################
@@ -223,6 +247,41 @@ lifecycle::ensure_database() {
 # Returns:
 #   0 on success, 1 on failure
 #######################################
+lifecycle::_update_port_lock_owner() {
+    local scenario_name="$1"
+    local port="$2"
+    local owner_pid="$3"
+    local state_dir="$HOME/.vrooli/state/scenarios"
+
+    [[ -n "$scenario_name" ]] || return 0
+    [[ -n "$port" && "$port" =~ ^[0-9]+$ ]] || return 0
+    [[ -n "$owner_pid" && "$owner_pid" =~ ^[0-9]+$ ]] || return 0
+
+    mkdir -p "$state_dir" 2>/dev/null || true
+
+    # Lock format: scenario_name:pid:timestamp. We use the runtime PID so lock
+    # liveness matches the actual long-lived process, not a short-lived shell.
+    printf '%s:%s:%s\n' "$scenario_name" "$owner_pid" "$(date +%s)" > "$state_dir/.port_${port}.lock" 2>/dev/null || true
+}
+
+lifecycle::_remove_port_lock_if_owned_by() {
+    local scenario_name="$1"
+    local port="$2"
+    local state_dir="$HOME/.vrooli/state/scenarios"
+    local lock_file="$state_dir/.port_${port}.lock"
+
+    [[ -n "$scenario_name" ]] || return 0
+    [[ -n "$port" && "$port" =~ ^[0-9]+$ ]] || return 0
+    [[ -f "$lock_file" ]] || return 0
+
+    local lock_info lock_scenario
+    lock_info=$(cat "$lock_file" 2>/dev/null || true)
+    lock_scenario=${lock_info%%:*}
+    if [[ "$lock_scenario" == "$scenario_name" ]]; then
+        rm -f "$lock_file" 2>/dev/null || true
+    fi
+}
+
 lifecycle::start_tracked_process() {
     local phase="$1"
     local step_name="$2" 
@@ -254,6 +313,23 @@ lifecycle::start_tracked_process() {
         port="$UI_PORT"
     fi
     
+    # Kill stale processes on our port before starting (prevents EADDRINUSE from orphans)
+    if [[ -n "$port" ]]; then
+        local stale_pids
+        stale_pids=$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+        if [[ -n "$stale_pids" ]]; then
+            log::warning "Port $port in use by stale process(es) ($stale_pids) — killing before start"
+            kill -TERM $stale_pids 2>/dev/null || true
+            sleep 1
+            # Force kill survivors
+            stale_pids=$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+            if [[ -n "$stale_pids" ]]; then
+                kill -KILL $stale_pids 2>/dev/null || true
+                sleep 0.5
+            fi
+        fi
+    fi
+
     # Start process in new process group with identifiable environment
     (
         cd "$(pwd)"
@@ -324,10 +400,18 @@ EOF_JSON
                 done
         fi
 
-        rm -f "$process_dir/${step_name}.json" "$process_dir/${step_name}.pid"
+        # Mark as failed instead of deleting — preserves port info so stop can
+        # find and clean up orphaned processes on this port.
+        if [[ -f "$process_dir/${step_name}.json" ]]; then
+            local tmp_json
+            tmp_json=$(jq '.status = "failed" | .failed_at = (now | todate)' \
+                "$process_dir/${step_name}.json" 2>/dev/null) && \
+                echo "$tmp_json" > "$process_dir/${step_name}.json"
+        fi
         return 1
     fi
 
+    lifecycle::_update_port_lock_owner "$app_name" "$port" "$pid"
     log::info "Started background process: $process_id (PID: $pid)"
     return 0
 }
@@ -415,71 +499,71 @@ lifecycle::stop_scenario_processes() {
     local scenario_name="$1"
     local signal="${2:-TERM}"
     local scenario_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
-    
-    [[ -d "$scenario_dir" ]] || {
-        log::debug "No process directory found for scenario: $scenario_name"
-        return 0
-    }
-    
+
     local stopped_count=0
     local -a process_groups=()
     local -a step_names=()
     local -a step_files=()
-    
-    # Phase 1: Collect all process groups and send SIGTERM
-    for step_file in "$scenario_dir"/*.json; do
-        [[ -f "$step_file" ]] || continue
-        
-        local pid=$(jq -r '.pid' "$step_file" 2>/dev/null)
-        local pgid=$(jq -r '.pgid // .pid' "$step_file" 2>/dev/null)  # Fallback to PID if no PGID
-        local step_name=$(jq -r '.step' "$step_file" 2>/dev/null)
-        
-        if [[ "$pgid" =~ ^[0-9]+$ ]]; then
-            if kill -0 -"$pgid" 2>/dev/null; then
-                log::info "Stopping $scenario_name:$step_name process group (PGID: $pgid)"
-                if kill -"$signal" -"$pgid" 2>/dev/null; then
-                    process_groups+=("$pgid")
-                    step_names+=("$step_name")
-                    step_files+=("$step_file")
-                    ((stopped_count++))
+
+    # Phase 1: Collect all process groups and send SIGTERM (metadata-based)
+    if [[ -d "$scenario_dir" ]]; then
+        for step_file in "$scenario_dir"/*.json; do
+            [[ -f "$step_file" ]] || continue
+
+            local pid=$(jq -r '.pid' "$step_file" 2>/dev/null)
+            local pgid=$(jq -r '.pgid // .pid' "$step_file" 2>/dev/null)  # Fallback to PID if no PGID
+            local step_name=$(jq -r '.step' "$step_file" 2>/dev/null)
+
+            if [[ "$pgid" =~ ^[0-9]+$ ]]; then
+                if kill -0 -"$pgid" 2>/dev/null; then
+                    log::info "Stopping $scenario_name:$step_name process group (PGID: $pgid)"
+                    if kill -"$signal" -"$pgid" 2>/dev/null; then
+                        process_groups+=("$pgid")
+                        step_names+=("$step_name")
+                        step_files+=("$step_file")
+                        ((stopped_count++))
+                    fi
+                else
+                    log::debug "Process group $pgid already stopped — cleaning up stale metadata"
+                    rm -f "$step_file" "$scenario_dir/${step_name}.pid" 2>/dev/null
                 fi
-            else
-                log::debug "Process group $pgid already stopped"
-            fi
-        fi
-    done
-    
-    # Phase 2: Wait for graceful shutdown
-    if [[ ${#process_groups[@]} -gt 0 ]]; then
-        log::debug "Waiting 2 seconds for graceful shutdown..."
-        sleep 2
-        
-        # Phase 3: Verify and force kill survivors
-        local force_killed=0
-        for i in "${!process_groups[@]}"; do
-            local pgid="${process_groups[$i]}"
-            local step_name="${step_names[$i]}"
-            
-            if kill -0 -"$pgid" 2>/dev/null; then
-                log::info "Force killing survivors in $scenario_name:$step_name (PGID: $pgid)"
-                kill -KILL -"$pgid" 2>/dev/null && ((force_killed++))
             fi
         done
-        
-        if [[ $force_killed -gt 0 ]]; then
-            log::debug "Force killed $force_killed process groups"
-            sleep 1  # Brief pause after force kill
+
+        # Phase 2: Wait for graceful shutdown
+        if [[ ${#process_groups[@]} -gt 0 ]]; then
+            log::debug "Waiting 2 seconds for graceful shutdown..."
+            sleep 2
+
+            # Phase 3: Verify and force kill survivors
+            local force_killed=0
+            for i in "${!process_groups[@]}"; do
+                local pgid="${process_groups[$i]}"
+                local step_name="${step_names[$i]}"
+
+                if kill -0 -"$pgid" 2>/dev/null; then
+                    log::info "Force killing survivors in $scenario_name:$step_name (PGID: $pgid)"
+                    kill -KILL -"$pgid" 2>/dev/null && ((force_killed++))
+                fi
+            done
+
+            if [[ $force_killed -gt 0 ]]; then
+                log::debug "Force killed $force_killed process groups"
+                sleep 1  # Brief pause after force kill
+            fi
         fi
+
+        # Phase 4: Cleanup metadata files
+        for step_file in "${step_files[@]}"; do
+            if [[ -f "$step_file" ]]; then
+                local step_name=$(jq -r '.step' "$step_file" 2>/dev/null)
+                rm -f "$step_file" "$scenario_dir/${step_name}.pid" 2>/dev/null
+            fi
+        done
+    else
+        log::debug "No process directory found for scenario: $scenario_name"
     fi
-    
-    # Phase 4: Cleanup metadata files
-    for step_file in "${step_files[@]}"; do
-        if [[ -f "$step_file" ]]; then
-            local step_name=$(jq -r '.step' "$step_file" 2>/dev/null)
-            rm -f "$step_file" "$scenario_dir/${step_name}.pid" 2>/dev/null
-        fi
-    done
-    
+
     # Phase 5: Clean up any allocated port locks/state for this scenario
     local scenario_state_dir="$HOME/.vrooli/state/scenarios"
     if [[ -d "$scenario_state_dir" ]]; then
@@ -492,8 +576,86 @@ lifecycle::stop_scenario_processes() {
         rm -f "$scenario_state_dir/${scenario_name}.json" 2>/dev/null || true
     fi
 
+    # Phase 6: Port-based fallback — kill orphaned processes still on scenario ports.
+    # This handles processes that lost their metadata (e.g., started by an older
+    # lifecycle version, or metadata was cleaned without stopping the process).
+    lifecycle::_stop_orphans_on_scenario_ports "$scenario_name"
+
     log::info "Stopped $stopped_count process groups for scenario: $scenario_name"
     return 0
+}
+
+#######################################
+# Port-based fallback for stopping orphaned processes.
+# Resolves expected ports from port lock files and service.json,
+# then kills any processes still listening on those ports.
+# Arguments:
+#   $1 - Scenario name
+#######################################
+lifecycle::_stop_orphans_on_scenario_ports() {
+    local scenario_name="$1"
+    local scenario_state_dir="$HOME/.vrooli/state/scenarios"
+    local -A ports_to_check=()
+
+    # Source 1: Port lock files owned by this scenario (format: scenario:pid:timestamp)
+    if [[ -d "$scenario_state_dir" ]]; then
+        for lock_file in "$scenario_state_dir"/.port_*.lock; do
+            [[ -f "$lock_file" ]] || continue
+            local lock_info lock_scenario port_num
+            lock_info=$(cat "$lock_file" 2>/dev/null || true)
+            lock_scenario=${lock_info%%:*}
+            if [[ "$lock_scenario" == "$scenario_name" ]]; then
+                port_num=$(basename "$lock_file")
+                port_num=${port_num#.port_}
+                port_num=${port_num%.lock}
+                [[ "$port_num" =~ ^[0-9]+$ ]] && ports_to_check["$port_num"]=1
+            fi
+        done
+    fi
+
+    # Source 2: Fixed ports from service.json
+    local service_json=""
+    if [[ -n "${SCENARIO_CUSTOM_PATH:-}" ]]; then
+        service_json="${SCENARIO_CUSTOM_PATH}/.vrooli/service.json"
+    else
+        service_json="${APP_ROOT}/scenarios/${scenario_name}/.vrooli/service.json"
+    fi
+    if [[ -f "$service_json" ]] && command -v jq >/dev/null 2>&1; then
+        while IFS= read -r p; do
+            [[ -n "$p" && "$p" =~ ^[0-9]+$ ]] && ports_to_check["$p"]=1
+        done < <(jq -r '.ports // {} | to_entries[] | select(.value.port != null) | .value.port' "$service_json" 2>/dev/null)
+    fi
+
+    [[ ${#ports_to_check[@]} -eq 0 ]] && return 0
+
+    # Check each port and kill orphaned processes
+    local orphans_killed=0
+    for port in "${!ports_to_check[@]}"; do
+        local pids
+        pids=$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+        [[ -z "$pids" ]] && continue
+
+        log::warning "Found orphaned process(es) on port $port for $scenario_name (PIDs: $pids) — killing"
+        local pid
+        for pid in $pids; do
+            kill -TERM "$pid" 2>/dev/null && ((orphans_killed++))
+        done
+    done
+
+    if [[ $orphans_killed -gt 0 ]]; then
+        sleep 2
+        # Force-kill any survivors
+        for port in "${!ports_to_check[@]}"; do
+            local pids
+            pids=$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+            [[ -z "$pids" ]] && continue
+            local pid
+            for pid in $pids; do
+                kill -KILL "$pid" 2>/dev/null || true
+            done
+        done
+        log::info "Cleaned up $orphans_killed orphaned process(es) on scenario ports"
+    fi
 }
 
 #######################################

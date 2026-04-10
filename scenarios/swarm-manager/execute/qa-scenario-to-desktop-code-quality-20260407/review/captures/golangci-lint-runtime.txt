@@ -1,0 +1,21 @@
+assets/playwright_test.go:99:1: cyclomatic complexity 20 of func `TestApplyPlaywrightConventions` is high (> 15) (gocyclo)
+func TestApplyPlaywrightConventions(t *testing.T) {
+^
+api/handlers_test.go:325:1: cyclomatic complexity 19 of func `TestHandleLogs` is high (> 15) (gocyclo)
+func TestHandleLogs(t *testing.T) {
+^
+api/handlers_secrets_test.go:106:1: cyclomatic complexity 19 of func `TestHandleSecretsPost` is high (> 15) (gocyclo)
+func TestHandleSecretsPost(t *testing.T) {
+^
+cmd/runtime/main.go:69:3: exitAfterDefer: log.Fatalf will exit, and `defer cancel()` will not run (gocritic)
+		log.Fatalf("start runtime: %v", err)
+		^
+supervisor_lifecycle_test.go:131:1: cyclomatic complexity 23 of func `TestAccessors` is high (> 15) (gocyclo)
+func TestAccessors(t *testing.T) {
+^
+supervisor_integration_test.go:15:1: cyclomatic complexity 17 of func `TestSupervisorIntegration_LaunchesServicesAndControlAPI` is high (> 15) (gocyclo)
+func TestSupervisorIntegration_LaunchesServicesAndControlAPI(t *testing.T) {
+^
+deps/resolver_test.go:9:1: cyclomatic complexity 26 of func `TestTopoSort` is high (> 15) (gocyclo)
+func TestTopoSort(t *testing.T) {
+^

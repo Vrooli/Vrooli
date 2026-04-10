@@ -448,6 +448,9 @@ func (h *AppHandler) GetAppCompleteDiagnostics(c *gin.Context) {
 		if c.Query("status") == "false" {
 			opts.IncludeStatus = false
 		}
+		if c.Query("interop") == "false" {
+			opts.IncludeInteropScan = false
+		}
 	}
 
 	diagnostics, err := h.appService.GetCompleteDiagnostics(c.Request.Context(), id, opts)
@@ -555,6 +558,78 @@ func (h *AppHandler) SearchAppDocuments(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    results,
+	})
+}
+
+// CheckAppInteropCompliance evaluates UI interop compliance for a scenario.
+func (h *AppHandler) CheckAppInteropCompliance(c *gin.Context) {
+	id := c.Param("id")
+
+	result, err := h.appService.CheckInteropCompliance(c.Request.Context(), id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, services.ErrAppIdentifierRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrAppNotFound):
+			status = http.StatusNotFound
+		}
+
+		c.JSON(status, errorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    result,
+	})
+}
+
+// GetInteropStandards returns interop violations in scenario-auditor quality format.
+func (h *AppHandler) GetInteropStandards(c *gin.Context) {
+	name := c.Param("name")
+
+	result, err := h.appService.GetInteropStandards(c.Request.Context(), name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, errorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// GetRuleDefs returns rule metadata, optionally filtered by scenario, tech stack, severity, or category.
+func (h *AppHandler) GetRuleDefs(c *gin.Context) {
+	req := services.RulesGuideRequest{
+		Scenario: c.Query("scenario"),
+		Category: c.Query("category"),
+	}
+
+	if ts := c.Query("tech_stack"); ts != "" {
+		for _, t := range strings.Split(ts, ",") {
+			if t = strings.TrimSpace(t); t != "" {
+				req.TechStack = append(req.TechStack, t)
+			}
+		}
+	}
+
+	if sev := c.Query("severity"); sev != "" {
+		for _, s := range strings.Split(sev, ",") {
+			if s = strings.TrimSpace(s); s != "" {
+				req.Severity = append(req.Severity, s)
+			}
+		}
+	}
+
+	result, err := h.appService.GetRulesGuide(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, errorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    result,
 	})
 }
 

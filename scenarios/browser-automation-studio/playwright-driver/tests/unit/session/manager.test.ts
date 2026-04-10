@@ -1,31 +1,16 @@
 import type { SessionSpec } from '../../../src/types';
+import { playwrightProvider } from '../../../src/playwright';
+import { SessionManager } from '../../../src/session/manager';
+import { SessionNotFoundError, ResourceLimitError } from '../../../src/utils/errors';
 import { createMockBrowser, createMockContext, createMockPage, createTestConfig } from '../../helpers';
 
 describe('SessionManager', () => {
-  type SessionManagerCtor = typeof import('../../../src/session/manager').SessionManager;
-
-  let SessionManager: SessionManagerCtor;
-  let SessionNotFoundError: typeof import('../../../src/utils/errors').SessionNotFoundError;
-  let ResourceLimitError: typeof import('../../../src/utils/errors').ResourceLimitError;
-  let manager: InstanceType<SessionManagerCtor>;
+  let manager: InstanceType<typeof SessionManager>;
   let config: ReturnType<typeof createTestConfig>;
   let mockBrowser: ReturnType<typeof createMockBrowser>;
   let mockContext: ReturnType<typeof createMockContext>;
   let mockPage: ReturnType<typeof createMockPage>;
-  let chromiumMock: { launch: jest.Mock };
-
-  beforeAll(async () => {
-    chromiumMock = {
-      launch: jest.fn(),
-    };
-
-    await (jest as any).unstable_mockModule('playwright', () => ({
-      chromium: chromiumMock,
-    }));
-
-    ({ SessionManager } = await import('../../../src/session/manager'));
-    ({ SessionNotFoundError, ResourceLimitError } = await import('../../../src/utils/errors'));
-  });
+  let launchSpy: jest.SpiedFunction<typeof playwrightProvider.chromium.launch>;
 
   beforeEach(() => {
     mockBrowser = createMockBrowser();
@@ -34,8 +19,7 @@ describe('SessionManager', () => {
 
     mockBrowser.newContext.mockResolvedValue(mockContext);
     mockContext.newPage.mockResolvedValue(mockPage);
-    chromiumMock.launch.mockReset();
-    chromiumMock.launch.mockResolvedValue(mockBrowser);
+    launchSpy = jest.spyOn(playwrightProvider.chromium, 'launch').mockResolvedValue(mockBrowser);
 
     config = createTestConfig();
     manager = new SessionManager(config);
@@ -45,6 +29,7 @@ describe('SessionManager', () => {
     if (manager) {
       await manager.shutdown();
     }
+    launchSpy.mockRestore();
     jest.clearAllMocks();
   });
 
@@ -71,7 +56,8 @@ describe('SessionManager', () => {
     it('should launch browser on first session', async () => {
       await manager.startSession(sessionSpec);
 
-      expect(chromiumMock.launch).toHaveBeenCalledWith(
+      const launchCalls = launchSpy.mock.calls as Array<[Record<string, unknown>]>;
+      expect(launchCalls[0]?.[0]).toEqual(
         expect.objectContaining({
           headless: config.browser.headless,
         })
@@ -81,13 +67,13 @@ describe('SessionManager', () => {
     it('should create browser context', async () => {
       await manager.startSession(sessionSpec);
 
-      expect(mockBrowser.newContext).toHaveBeenCalled();
+      expect(mockBrowser.newContext.mock.calls.length).toBeGreaterThan(0);
     });
 
     it('should create page', async () => {
       await manager.startSession(sessionSpec);
 
-      expect(mockContext.newPage).toHaveBeenCalled();
+      expect(mockContext.newPage.mock.calls.length).toBeGreaterThan(0);
     });
 
     it('should throw error when max sessions reached', async () => {
@@ -163,7 +149,40 @@ describe('SessionManager', () => {
 
       expect(result2.sessionId).toBe(result1.sessionId);
       expect(result2.reused).toBe(true);
-      expect(mockContext.clearCookies).toHaveBeenCalled();
+      expect(mockContext.clearCookies.mock.calls.length).toBeGreaterThan(0);
+    });
+
+    it('should clear replay cache and update execution identity when reusing by labels', async () => {
+      const first = await manager.startSession({
+        ...sessionSpec,
+        execution_id: 'exec-original',
+        labels: { suite: 'playbook', scenario: 'web-console' },
+      });
+      const existingSession = manager.getSession(first.sessionId);
+      existingSession.executedInstructions?.set('node-1:0', {
+        key: 'node-1:0',
+        executedAt: new Date(),
+        success: true,
+        cachedOutcome: { success: true, replay: true },
+      });
+      existingSession.instructionCount = 5;
+
+      const second = await manager.startSession({
+        ...sessionSpec,
+        execution_id: 'exec-new',
+        workflow_id: 'workflow-new',
+        reuse_mode: 'reuse',
+        labels: { suite: 'playbook', scenario: 'web-console' },
+      });
+
+      expect(second.sessionId).toBe(first.sessionId);
+      expect(second.reused).toBe(true);
+
+      const reusedSession = manager.getSession(second.sessionId);
+      expect(reusedSession.spec.execution_id).toBe('exec-new');
+      expect(reusedSession.spec.workflow_id).toBe('workflow-new');
+      expect(reusedSession.executedInstructions?.size).toBe(0);
+      expect(reusedSession.instructionCount).toBe(0);
     });
 
     it('should set creation time on session', async () => {
@@ -214,8 +233,8 @@ describe('SessionManager', () => {
 
       await manager.resetSession(sessionId);
 
-      expect(mockContext.clearCookies).toHaveBeenCalled();
-      expect(mockContext.clearPermissions).toHaveBeenCalled();
+      expect(mockContext.clearCookies.mock.calls.length).toBeGreaterThan(0);
+      expect(mockContext.clearPermissions.mock.calls.length).toBeGreaterThan(0);
     });
 
     it('should update last used time', async () => {
@@ -277,7 +296,7 @@ describe('SessionManager', () => {
 
       await manager.closeSession(sessionId);
 
-      expect(mockPage.close).toHaveBeenCalled();
+      expect(mockPage.close.mock.calls.length).toBeGreaterThan(0);
     });
 
     it('should close context', async () => {
@@ -293,7 +312,7 @@ describe('SessionManager', () => {
 
       await manager.closeSession(sessionId);
 
-      expect(mockContext.close).toHaveBeenCalled();
+      expect(mockContext.close.mock.calls.length).toBeGreaterThan(0);
     });
 
     it('should throw error for non-existent session', async () => {
@@ -402,7 +421,7 @@ describe('SessionManager', () => {
 
       await manager.shutdown();
 
-      expect(mockBrowser.close).toHaveBeenCalled();
+      expect(mockBrowser.close.mock.calls.length).toBeGreaterThan(0);
     });
 
     it('should handle multiple shutdowns gracefully', async () => {

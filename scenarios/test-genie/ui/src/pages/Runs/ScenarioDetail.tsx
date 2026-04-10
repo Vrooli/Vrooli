@@ -16,7 +16,7 @@ import { useScenarioHistory } from "../../hooks/useExecutions";
 import { useFix } from "../../hooks/useFix";
 import { useUIStore } from "../../stores/uiStore";
 import { formatRelative } from "../../lib/formatters";
-import type { PhaseExecutionResult, FixPhaseInfo, SuiteExecutionResult } from "../../lib/api";
+import type { FixPhaseInfo, SuiteExecutionResult } from "../../lib/api";
 
 interface ScenarioDetailProps {
   scenarioName: string;

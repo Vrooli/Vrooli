@@ -31,6 +31,7 @@ import type {
   - [ProxyInfo](#proxyinfo)
   - [ScenarioConfig](#scenarioconfig)
   - [PortEntry](#portentry)
+  - [HostEndpointDefinition](#hostendpointdefinition)
   - [WindowLike](#windowlike)
   - [ProxyIndex](#proxyindex)
 - [Client Options](#client-options)
@@ -38,10 +39,13 @@ import type {
   - [BuildUrlOptions](#buildurloptions)
 - [Server Options](#server-options)
   - [ServerTemplateOptions](#servertemplateoptions)
+  - [ScenarioProxyHostOptions](#scenarioproxyhostoptions)
+  - [ScenarioProxyHostController](#scenarioproxyhostcontroller)
+  - [ScenarioProxyAppMetadata](#scenarioproxyappmetadata)
   - [ProxyOptions](#proxyoptions)
+  - [ProxyMetadataOptions](#proxymetadataoptions)
   - [ConfigEndpointOptions](#configendpointoptions)
   - [HealthOptions](#healthoptions)
-  - [ProxyMetadataOptions](#proxymetadataoptions)
 - [Result Types](#result-types)
   - [HealthCheckResult](#healthcheckresult)
 
@@ -63,6 +67,7 @@ interface ProxyInfo {
   primary: PortEntry
   ports: PortEntry[]
   basePath?: string
+  hostEndpoints?: HostEndpointDefinition[]
 }
 ```
 
@@ -78,6 +83,7 @@ interface ProxyInfo {
 | `primary` | [`PortEntry`](#portentry) | Primary/default port entry |
 | `ports` | [`PortEntry[]`](#portentry) | All available ports |
 | `basePath` | `string` | Proxy base path (e.g., "/apps/scenario/proxy") |
+| `hostEndpoints` | [`HostEndpointDefinition[]`](#hostendpointdefinition) | Host-owned endpoints that bypass proxy fetch rewriting |
 
 **Global Injection:**
 
@@ -340,6 +346,43 @@ const port3000 = index.aliasMap.get('3000')
 
 ---
 
+### HostEndpointDefinition
+
+Defines a host-owned endpoint path that should bypass proxy fetch rewriting.
+
+[CODE: packages/api-base/src/shared/types.ts#HostEndpointDefinition]
+
+```typescript
+interface HostEndpointDefinition {
+  path: string
+  method?: string
+}
+```
+
+**Fields:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `path` | `string` | Path pattern beginning with `/` (supports `:param` and `*` wildcards) |
+| `method` | `string` | Optional HTTP method (e.g., `'GET'`, `'POST'`). If omitted, matches all methods. |
+
+**Purpose:**
+
+When the host scenario (e.g., app-monitor) has its own endpoints like `/scenarios` or `/health-aggregate`, the client-side fetch patching must **not** rewrite requests to those paths through the child scenario's proxy. Host endpoint definitions tell the patched `fetch()` which paths belong to the host.
+
+**Example:**
+
+```typescript
+const hostEndpoints: HostEndpointDefinition[] = [
+  { path: '/scenarios' },
+  { path: '/health-aggregate' },
+  { path: '/api/v1/apps/:appId', method: 'GET' },
+  { path: '/ws', method: 'WS' },
+]
+```
+
+---
+
 ## Client Options
 
 ### ResolveOptions
@@ -540,6 +583,146 @@ const app = createScenarioServer({
 
 ---
 
+### ScenarioProxyHostOptions
+
+Options for configuring the scenario proxy host (e.g., app-monitor).
+
+[CODE: packages/api-base/src/shared/types.ts#ScenarioProxyHostOptions]
+
+```typescript
+interface ScenarioProxyHostOptions {
+  hostScenario: string
+  fetchAppMetadata: (appId: string) => Promise<ScenarioProxyAppMetadata | null | undefined>
+  appsPathPrefix?: string
+  proxyPathSegment?: string
+  portsPathSegment?: string
+  loopbackHosts?: string[]
+  cacheTtlMs?: number
+  upstreamHost?: string
+  timeoutMs?: number
+  verbose?: boolean
+  patchFetch?: boolean
+  childBaseTagAttribute?: string
+  proxiedAppHeader?: string
+  hostEndpoints?: HostEndpointDefinition[]
+  proxyKeepAlive?: boolean
+  proxyAgent?: import('node:http').Agent
+  cacheProxyHtml?: boolean
+  proxyHtmlCacheTtlMs?: number
+  proxyHtmlCacheMaxEntries?: number
+  healthCheckIntervalMs?: number
+  healthCheckTimeoutMs?: number
+  enableServerTiming?: boolean
+  enableMetrics?: boolean
+  metricsSampleSize?: number
+}
+```
+
+**Fields:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `hostScenario` | `string` | **Required** | Host scenario identifier (e.g., `'app-monitor'`) |
+| `fetchAppMetadata` | `(appId) => Promise<...>` | **Required** | Fetches port mappings from host API |
+| `appsPathPrefix` | `string` | `'/apps'` | Base path prefix for app routes |
+| `proxyPathSegment` | `string` | `'proxy'` | Proxy marker in URLs |
+| `portsPathSegment` | `string` | `'ports'` | Named port segment in URLs |
+| `loopbackHosts` | `string[]` | `['127.0.0.1', 'localhost', '::1']` | Hosts for metadata injection |
+| `cacheTtlMs` | `number` | `300000` | Metadata cache TTL in ms |
+| `upstreamHost` | `string` | `'127.0.0.1'` | Host running scenarios |
+| `timeoutMs` | `number` | `30000` | Upstream request timeout in ms |
+| `verbose` | `boolean` | `false` | Enable logging |
+| `patchFetch` | `boolean` | `false` | Patch fetch/XHR/WebSocket in injected scripts |
+| `childBaseTagAttribute` | `string` | `'data-proxy-host'` | Data attribute on injected `<base>` tag |
+| `proxiedAppHeader` | `string` | `'x-vrooli-proxied-app'` | Response header identifying proxied app |
+| `hostEndpoints` | `HostEndpointDefinition[]` | `[]` | Host paths that bypass fetch patching |
+| `proxyKeepAlive` | `boolean` | `true` | Reuse upstream connections |
+| `proxyAgent` | `http.Agent` | - | Custom HTTP agent for upstream requests |
+| `cacheProxyHtml` | `boolean` | `true` | Cache proxied HTML responses |
+| `proxyHtmlCacheTtlMs` | `number` | `cacheTtlMs` | HTML cache TTL in ms |
+| `proxyHtmlCacheMaxEntries` | `number` | `200` | Max cached HTML entries (FIFO eviction) |
+| `healthCheckIntervalMs` | `number` | `5000` | Interval between background TCP health probes (ms) |
+| `healthCheckTimeoutMs` | `number` | `500` | Timeout for each background health probe (ms) |
+| `enableServerTiming` | `boolean` | `true` | Emit `Server-Timing` header |
+| `enableMetrics` | `boolean` | `false` | Collect aggregate metrics at `/__perf` |
+| `metricsSampleSize` | `number` | `1000` | Ring-buffer size for percentile samples |
+
+**See Also:**
+- [Server: createScenarioProxyHost](./server.md#createscenarioproxyhost)
+
+---
+
+### ScenarioProxyHostController
+
+Controller returned by `createScenarioProxyHost()`.
+
+[CODE: packages/api-base/src/shared/types.ts#ScenarioProxyHostController]
+
+```typescript
+interface ScenarioProxyHostController {
+  router: Router
+  handleUpgrade: (req: IncomingMessage, socket: any, head: Buffer) => Promise<boolean>
+  invalidate: (appId?: string) => void
+  clearCache: () => void
+  getMetrics: () => object | null
+  resetMetrics: () => void
+  destroy: () => void
+}
+```
+
+**Fields:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `router` | `Router` | Express router with proxy routes - mount with `app.use(controller.router)` |
+| `handleUpgrade` | `(req, socket, head) => Promise<boolean>` | WebSocket upgrade handler. Returns `true` if the request was handled. |
+| `invalidate` | `(appId?) => void` | Clear metadata + HTML cache for one app (by ID) or all apps (no argument) |
+| `clearCache` | `() => void` | Clear entire cache (metadata + HTML) |
+| `getMetrics` | `() => object \| null` | Latency/cache metrics snapshot (`null` if metrics disabled) |
+| `resetMetrics` | `() => void` | Reset metric counters |
+| `destroy` | `() => void` | Stop background health checks and release resources |
+
+---
+
+### ScenarioProxyAppMetadata
+
+Raw app metadata returned by the host API. Used by `fetchAppMetadata` to provide port information for proxy routing.
+
+[CODE: packages/api-base/src/shared/types.ts#ScenarioProxyAppMetadata]
+
+```typescript
+interface ScenarioProxyAppMetadata {
+  id?: string
+  appId?: string
+  scenario?: string
+  scenario_name?: string
+  scenarioName?: string
+  name?: string
+  port_mappings?: Record<string, unknown>
+  portMappings?: Record<string, unknown>
+  config?: Record<string, unknown>
+  [key: string]: unknown
+}
+```
+
+**Fields:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `id` | `string` | Application identifier |
+| `appId` | `string` | Alternate application identifier |
+| `scenario` | `string` | Scenario name |
+| `scenario_name` | `string` | Scenario name (snake_case) |
+| `scenarioName` | `string` | Scenario name (camelCase) |
+| `name` | `string` | Human-readable name |
+| `port_mappings` | `Record<string, unknown>` | Port mappings (e.g., `{ ui: 3001, api: 8080 }`) |
+| `portMappings` | `Record<string, unknown>` | Alternate port mappings (camelCase) |
+| `config` | `Record<string, unknown>` | Additional configuration (e.g., `{ primary_port: 3001 }`) |
+
+**Note:** Multiple naming conventions are supported for flexibility with different API response formats. The proxy system normalizes these internally.
+
+---
+
 ### ProxyOptions
 
 Options for creating API proxy middleware.
@@ -549,8 +732,10 @@ interface ProxyOptions {
   apiPort: number | string
   apiHost?: string
   timeout?: number
-  headers?: Record<string, string>
+  headers?: Record<string, string> | ((req: any) => Record<string, string>)
   verbose?: boolean
+  keepAlive?: boolean
+  agent?: import('node:http').Agent
 }
 ```
 
@@ -561,8 +746,10 @@ interface ProxyOptions {
 | `apiPort` | `number \| string` | **Required** | Target API port |
 | `apiHost` | `string` | `"127.0.0.1"` | Target API host |
 | `timeout` | `number` | `30000` | Request timeout in ms |
-| `headers` | `Record<string, string>` | `{}` | Additional headers |
+| `headers` | `Record<string, string> \| (req) => Record<string, string>` | `{}` | Additional headers (static object or per-request function) |
 | `verbose` | `boolean` | `false` | Enable request logging |
+| `keepAlive` | `boolean` | `true` | Reuse HTTP connections via keep-alive agent |
+| `agent` | `http.Agent` | - | Custom HTTP agent for connection pooling |
 
 **Example:**
 
@@ -698,6 +885,7 @@ interface ProxyMetadataOptions {
   ports: PortEntry[]
   primaryPort: PortEntry
   loopbackHosts?: string[]
+  hostEndpoints?: HostEndpointDefinition[]
 }
 ```
 
@@ -711,6 +899,7 @@ interface ProxyMetadataOptions {
 | `ports` | [`PortEntry[]`](#portentry) | **Required** | Port configurations |
 | `primaryPort` | [`PortEntry`](#portentry) | **Required** | Primary port |
 | `loopbackHosts` | `string[]` | `["localhost", "127.0.0.1"]` | Loopback hostnames |
+| `hostEndpoints` | [`HostEndpointDefinition[]`](#hostendpointdefinition) | - | Host-owned endpoints that bypass fetch patching |
 
 ---
 

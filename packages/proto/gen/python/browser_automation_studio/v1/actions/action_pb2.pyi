@@ -1,11 +1,11 @@
 import datetime
 
-from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from browser_automation_studio.v1.base import geometry_pb2 as _geometry_pb2
+from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
+from browser_automation_studio.v1.domain import selectors_pb2 as _selectors_pb2
 from buf.validate import validate_pb2 as _validate_pb2
 from common.v1 import types_pb2 as _types_pb2
-from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
-from browser_automation_studio.v1.base import geometry_pb2 as _geometry_pb2
-from browser_automation_studio.v1.domain import selectors_pb2 as _selectors_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -398,7 +398,7 @@ CONDITIONAL_OPERATOR_LT: ConditionalOperator
 CONDITIONAL_OPERATOR_LTE: ConditionalOperator
 
 class NavigateParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("url", "wait_for_selector", "timeout_ms", "wait_until", "destination_type", "scenario", "scenario_path")
     URL_FIELD_NUMBER: _ClassVar[int]
     WAIT_FOR_SELECTOR_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
@@ -416,7 +416,7 @@ class NavigateParams(_message.Message):
     def __init__(self, url: _Optional[str] = ..., wait_for_selector: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., wait_until: _Optional[_Union[NavigateWaitEvent, str]] = ..., destination_type: _Optional[_Union[NavigateDestinationType, str]] = ..., scenario: _Optional[str] = ..., scenario_path: _Optional[str] = ...) -> None: ...
 
 class ClickParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("selector", "button", "click_count", "delay_ms", "modifiers", "force", "scroll_into_view")
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     BUTTON_FIELD_NUMBER: _ClassVar[int]
     CLICK_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -434,7 +434,7 @@ class ClickParams(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., button: _Optional[_Union[MouseButton, str]] = ..., click_count: _Optional[int] = ..., delay_ms: _Optional[int] = ..., modifiers: _Optional[_Iterable[_Union[KeyboardModifier, str]]] = ..., force: _Optional[bool] = ..., scroll_into_view: _Optional[bool] = ...) -> None: ...
 
 class InputParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("selector", "value", "is_sensitive", "submit", "clear_first", "delay_ms")
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
     IS_SENSITIVE_FIELD_NUMBER: _ClassVar[int]
@@ -450,7 +450,7 @@ class InputParams(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., value: _Optional[str] = ..., is_sensitive: _Optional[bool] = ..., submit: _Optional[bool] = ..., clear_first: _Optional[bool] = ..., delay_ms: _Optional[int] = ...) -> None: ...
 
 class WaitParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("duration_ms", "selector", "state", "timeout_ms")
     DURATION_MS_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
@@ -462,7 +462,7 @@ class WaitParams(_message.Message):
     def __init__(self, duration_ms: _Optional[int] = ..., selector: _Optional[str] = ..., state: _Optional[_Union[WaitState, str]] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class AssertParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("selector", "mode", "expected", "negated", "case_sensitive", "attribute_name", "failure_message", "timeout_ms")
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_FIELD_NUMBER: _ClassVar[int]
@@ -482,7 +482,7 @@ class AssertParams(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., mode: _Optional[_Union[_shared_pb2.AssertionMode, str]] = ..., expected: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., negated: _Optional[bool] = ..., case_sensitive: _Optional[bool] = ..., attribute_name: _Optional[str] = ..., failure_message: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class ScrollParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("selector", "x", "y", "behavior", "delta_x", "delta_y")
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     X_FIELD_NUMBER: _ClassVar[int]
     Y_FIELD_NUMBER: _ClassVar[int]
@@ -498,7 +498,7 @@ class ScrollParams(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., x: _Optional[int] = ..., y: _Optional[int] = ..., behavior: _Optional[_Union[ScrollBehavior, str]] = ..., delta_x: _Optional[int] = ..., delta_y: _Optional[int] = ...) -> None: ...
 
 class SelectParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("selector", "value", "label", "index", "timeout_ms")
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
@@ -512,9 +512,9 @@ class SelectParams(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., value: _Optional[str] = ..., label: _Optional[str] = ..., index: _Optional[int] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class EvaluateParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("expression", "store_result", "args")
     class ArgsEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -529,7 +529,7 @@ class EvaluateParams(_message.Message):
     def __init__(self, expression: _Optional[str] = ..., store_result: _Optional[str] = ..., args: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class KeyboardParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("key", "keys", "modifiers", "action")
     KEY_FIELD_NUMBER: _ClassVar[int]
     KEYS_FIELD_NUMBER: _ClassVar[int]
     MODIFIERS_FIELD_NUMBER: _ClassVar[int]
@@ -541,7 +541,7 @@ class KeyboardParams(_message.Message):
     def __init__(self, key: _Optional[str] = ..., keys: _Optional[_Iterable[str]] = ..., modifiers: _Optional[_Iterable[_Union[KeyboardModifier, str]]] = ..., action: _Optional[_Union[KeyAction, str]] = ...) -> None: ...
 
 class HoverParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("selector", "timeout_ms")
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
     selector: str
@@ -549,7 +549,7 @@ class HoverParams(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class ScreenshotParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("full_page", "selector", "quality")
     FULL_PAGE_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     QUALITY_FIELD_NUMBER: _ClassVar[int]
@@ -559,7 +559,7 @@ class ScreenshotParams(_message.Message):
     def __init__(self, full_page: _Optional[bool] = ..., selector: _Optional[str] = ..., quality: _Optional[int] = ...) -> None: ...
 
 class FocusParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("selector", "scroll", "timeout_ms")
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     SCROLL_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
@@ -569,7 +569,7 @@ class FocusParams(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., scroll: _Optional[bool] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class BlurParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("selector", "timeout_ms")
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
     selector: str
@@ -577,9 +577,9 @@ class BlurParams(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class SubflowParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("workflow_id", "workflow_path", "workflow_version", "args")
     class ArgsEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -596,7 +596,7 @@ class SubflowParams(_message.Message):
     def __init__(self, workflow_id: _Optional[str] = ..., workflow_path: _Optional[str] = ..., workflow_version: _Optional[int] = ..., args: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class ExtractParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("selector", "extract_type", "attribute_name", "property_name", "store_as", "timeout_ms")
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     EXTRACT_TYPE_FIELD_NUMBER: _ClassVar[int]
     ATTRIBUTE_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -612,7 +612,7 @@ class ExtractParams(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., extract_type: _Optional[_Union[ExtractType, str]] = ..., attribute_name: _Optional[str] = ..., property_name: _Optional[str] = ..., store_as: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class UploadFileParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("selector", "file_paths", "timeout_ms")
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     FILE_PATHS_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
@@ -622,7 +622,7 @@ class UploadFileParams(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., file_paths: _Optional[_Iterable[str]] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class DownloadParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("selector", "url", "save_path", "timeout_ms")
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     URL_FIELD_NUMBER: _ClassVar[int]
     SAVE_PATH_FIELD_NUMBER: _ClassVar[int]
@@ -634,7 +634,7 @@ class DownloadParams(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., url: _Optional[str] = ..., save_path: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class FrameSwitchParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("action", "selector", "frame_id", "frame_url", "timeout_ms")
     ACTION_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     FRAME_ID_FIELD_NUMBER: _ClassVar[int]
@@ -648,7 +648,7 @@ class FrameSwitchParams(_message.Message):
     def __init__(self, action: _Optional[_Union[FrameSwitchAction, str]] = ..., selector: _Optional[str] = ..., frame_id: _Optional[str] = ..., frame_url: _Optional[str] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class TabSwitchParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("action", "url", "index", "title", "url_pattern")
     ACTION_FIELD_NUMBER: _ClassVar[int]
     URL_FIELD_NUMBER: _ClassVar[int]
     INDEX_FIELD_NUMBER: _ClassVar[int]
@@ -662,7 +662,7 @@ class TabSwitchParams(_message.Message):
     def __init__(self, action: _Optional[_Union[TabSwitchAction, str]] = ..., url: _Optional[str] = ..., index: _Optional[int] = ..., title: _Optional[str] = ..., url_pattern: _Optional[str] = ...) -> None: ...
 
 class CookieOptions(_message.Message):
-    __slots__ = ()
+    __slots__ = ("domain", "path", "expires", "http_only", "secure", "same_site")
     DOMAIN_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     EXPIRES_FIELD_NUMBER: _ClassVar[int]
@@ -678,7 +678,7 @@ class CookieOptions(_message.Message):
     def __init__(self, domain: _Optional[str] = ..., path: _Optional[str] = ..., expires: _Optional[int] = ..., http_only: _Optional[bool] = ..., secure: _Optional[bool] = ..., same_site: _Optional[_Union[CookieSameSite, str]] = ...) -> None: ...
 
 class CookieStorageParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("operation", "storage_type", "key", "value", "cookie_options")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     STORAGE_TYPE_FIELD_NUMBER: _ClassVar[int]
     KEY_FIELD_NUMBER: _ClassVar[int]
@@ -692,7 +692,7 @@ class CookieStorageParams(_message.Message):
     def __init__(self, operation: _Optional[_Union[CookieOperation, str]] = ..., storage_type: _Optional[_Union[StorageType, str]] = ..., key: _Optional[str] = ..., value: _Optional[str] = ..., cookie_options: _Optional[_Union[CookieOptions, _Mapping]] = ...) -> None: ...
 
 class ShortcutParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("shortcut", "selector")
     SHORTCUT_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     shortcut: str
@@ -700,7 +700,7 @@ class ShortcutParams(_message.Message):
     def __init__(self, shortcut: _Optional[str] = ..., selector: _Optional[str] = ...) -> None: ...
 
 class DragDropParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("source_selector", "target_selector", "offset_x", "offset_y", "steps", "delay_ms", "timeout_ms")
     SOURCE_SELECTOR_FIELD_NUMBER: _ClassVar[int]
     TARGET_SELECTOR_FIELD_NUMBER: _ClassVar[int]
     OFFSET_X_FIELD_NUMBER: _ClassVar[int]
@@ -718,7 +718,7 @@ class DragDropParams(_message.Message):
     def __init__(self, source_selector: _Optional[str] = ..., target_selector: _Optional[str] = ..., offset_x: _Optional[int] = ..., offset_y: _Optional[int] = ..., steps: _Optional[int] = ..., delay_ms: _Optional[int] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class GestureParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("gesture_type", "selector", "direction", "distance", "scale", "duration_ms")
     GESTURE_TYPE_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     DIRECTION_FIELD_NUMBER: _ClassVar[int]
@@ -734,9 +734,9 @@ class GestureParams(_message.Message):
     def __init__(self, gesture_type: _Optional[_Union[GestureType, str]] = ..., selector: _Optional[str] = ..., direction: _Optional[_Union[SwipeDirection, str]] = ..., distance: _Optional[int] = ..., scale: _Optional[float] = ..., duration_ms: _Optional[int] = ...) -> None: ...
 
 class NetworkMockParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("operation", "url_pattern", "method", "status_code", "headers", "body", "delay_ms")
     class HeadersEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -759,7 +759,7 @@ class NetworkMockParams(_message.Message):
     def __init__(self, operation: _Optional[_Union[NetworkMockOperation, str]] = ..., url_pattern: _Optional[str] = ..., method: _Optional[str] = ..., status_code: _Optional[int] = ..., headers: _Optional[_Mapping[str, str]] = ..., body: _Optional[str] = ..., delay_ms: _Optional[int] = ...) -> None: ...
 
 class RotateParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("orientation", "angle")
     ORIENTATION_FIELD_NUMBER: _ClassVar[int]
     ANGLE_FIELD_NUMBER: _ClassVar[int]
     orientation: DeviceOrientation
@@ -767,7 +767,7 @@ class RotateParams(_message.Message):
     def __init__(self, orientation: _Optional[_Union[DeviceOrientation, str]] = ..., angle: _Optional[int] = ...) -> None: ...
 
 class SetVariableParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("name", "source_type", "value_type", "value", "expression", "selector", "extract_type", "attribute", "timeout_ms", "all_matches", "url")
     NAME_FIELD_NUMBER: _ClassVar[int]
     SOURCE_TYPE_FIELD_NUMBER: _ClassVar[int]
     VALUE_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -793,7 +793,7 @@ class SetVariableParams(_message.Message):
     def __init__(self, name: _Optional[str] = ..., source_type: _Optional[_Union[SetVariableSourceType, str]] = ..., value_type: _Optional[_Union[SetVariableValueType, str]] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., expression: _Optional[str] = ..., selector: _Optional[str] = ..., extract_type: _Optional[_Union[SetVariableExtractType, str]] = ..., attribute: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., all_matches: _Optional[bool] = ..., url: _Optional[str] = ...) -> None: ...
 
 class LoopCondition(_message.Message):
-    __slots__ = ()
+    __slots__ = ("type", "variable", "operator", "value", "expression")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     VARIABLE_FIELD_NUMBER: _ClassVar[int]
     OPERATOR_FIELD_NUMBER: _ClassVar[int]
@@ -807,7 +807,7 @@ class LoopCondition(_message.Message):
     def __init__(self, type: _Optional[_Union[LoopConditionType, str]] = ..., variable: _Optional[str] = ..., operator: _Optional[_Union[LoopConditionOperator, str]] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., expression: _Optional[str] = ...) -> None: ...
 
 class LoopParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("loop_type", "array_source", "count", "max_iterations", "item_variable", "index_variable", "condition", "iteration_timeout_ms", "total_timeout_ms")
     LOOP_TYPE_FIELD_NUMBER: _ClassVar[int]
     ARRAY_SOURCE_FIELD_NUMBER: _ClassVar[int]
     COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -829,7 +829,7 @@ class LoopParams(_message.Message):
     def __init__(self, loop_type: _Optional[_Union[LoopType, str]] = ..., array_source: _Optional[str] = ..., count: _Optional[int] = ..., max_iterations: _Optional[int] = ..., item_variable: _Optional[str] = ..., index_variable: _Optional[str] = ..., condition: _Optional[_Union[LoopCondition, _Mapping]] = ..., iteration_timeout_ms: _Optional[int] = ..., total_timeout_ms: _Optional[int] = ...) -> None: ...
 
 class ConditionalParams(_message.Message):
-    __slots__ = ()
+    __slots__ = ("condition_type", "expression", "selector", "variable", "operator", "value", "negate", "timeout_ms", "poll_interval_ms")
     CONDITION_TYPE_FIELD_NUMBER: _ClassVar[int]
     EXPRESSION_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
@@ -851,7 +851,7 @@ class ConditionalParams(_message.Message):
     def __init__(self, condition_type: _Optional[_Union[ConditionalType, str]] = ..., expression: _Optional[str] = ..., selector: _Optional[str] = ..., variable: _Optional[str] = ..., operator: _Optional[_Union[ConditionalOperator, str]] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., negate: _Optional[bool] = ..., timeout_ms: _Optional[int] = ..., poll_interval_ms: _Optional[int] = ...) -> None: ...
 
 class ActionMetadata(_message.Message):
-    __slots__ = ()
+    __slots__ = ("label", "selector_candidates", "element_snapshot", "confidence", "captured_at", "captured_bounding_box")
     LABEL_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_CANDIDATES_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
@@ -867,7 +867,7 @@ class ActionMetadata(_message.Message):
     def __init__(self, label: _Optional[str] = ..., selector_candidates: _Optional[_Iterable[_Union[_selectors_pb2.SelectorCandidate, _Mapping]]] = ..., element_snapshot: _Optional[_Union[_selectors_pb2.ElementMeta, _Mapping]] = ..., confidence: _Optional[float] = ..., captured_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., captured_bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ...) -> None: ...
 
 class ActionDefinition(_message.Message):
-    __slots__ = ()
+    __slots__ = ("type", "navigate", "click", "input", "wait", "scroll", "select_option", "evaluate", "keyboard", "hover", "screenshot", "focus", "blur", "subflow", "extract", "upload_file", "download", "frame_switch", "tab_switch", "cookie_storage", "shortcut", "drag_drop", "gesture", "network_mock", "rotate", "set_variable", "loop", "conditional", "metadata")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAVIGATE_FIELD_NUMBER: _ClassVar[int]
     CLICK_FIELD_NUMBER: _ClassVar[int]

@@ -1,0 +1,17 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "scenario-qa",
+  "roles": [
+    {
+      "id": "programmatic-qa",
+      "name": "Programmatic QA",
+      "description": "Runs programmatic scenario QA checks and creates backlog items for actionable structural issues."
+    },
+    {
+      "id": "architectural-auditor",
+      "name": "Architectural Auditor",
+      "description": "Investigates scenarios through architectural and testing lenses to surface non-programmatic quality findings."
+    }
+  ]
+}

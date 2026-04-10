@@ -75,8 +75,7 @@ func TestHandleExportBundle(t *testing.T) {
 		})
 	}))
 	defer analyzer.Close()
-	analyzerPort := strings.Split(analyzer.Listener.Addr().String(), ":")[1]
-	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_API_PORT", analyzerPort)
+	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_URL", "http://"+analyzer.Listener.Addr().String())
 
 	secretsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -179,8 +178,7 @@ func TestHandleExportBundleChecksumConsistency(t *testing.T) {
 		})
 	}))
 	defer analyzer.Close()
-	analyzerPort := strings.Split(analyzer.Listener.Addr().String(), ":")[1]
-	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_API_PORT", analyzerPort)
+	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_URL", "http://"+analyzer.Listener.Addr().String())
 
 	secretsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -294,8 +292,7 @@ func TestHandleExportBundleFiltersInfrastructureSecrets(t *testing.T) {
 		})
 	}))
 	defer analyzer.Close()
-	analyzerPort := strings.Split(analyzer.Listener.Addr().String(), ":")[1]
-	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_API_PORT", analyzerPort)
+	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_URL", "http://"+analyzer.Listener.Addr().String())
 
 	// Return both infrastructure and bundle-safe secrets
 	secretsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -381,8 +378,7 @@ func TestHandleExportBundleDefaultTier(t *testing.T) {
 		})
 	}))
 	defer analyzer.Close()
-	analyzerPort := strings.Split(analyzer.Listener.Addr().String(), ":")[1]
-	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_API_PORT", analyzerPort)
+	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_URL", "http://"+analyzer.Listener.Addr().String())
 
 	secretsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify default tier is used

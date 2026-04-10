@@ -6,15 +6,17 @@
  */
 
 import type { SessionSpec } from '../../../src/types';
+import { playwrightProvider } from '../../../src/playwright';
+import { SessionManager } from '../../../src/session/manager';
 import { createMockBrowser, createMockContext, createMockPage, createTestConfig } from '../../helpers';
 
 describe('Session Idempotency', () => {
-  let SessionManagerCtor: typeof import('../../../src/session/manager').SessionManager;
-  let manager: InstanceType<typeof import('../../../src/session/manager').SessionManager>;
+  let manager: InstanceType<typeof SessionManager>;
   let config: ReturnType<typeof createTestConfig>;
   let mockBrowser: ReturnType<typeof createMockBrowser>;
   let mockContext: ReturnType<typeof createMockContext>;
   let mockPage: ReturnType<typeof createMockPage>;
+  let launchSpy: jest.SpiedFunction<typeof playwrightProvider.chromium.launch>;
 
   const baseSpec: SessionSpec = {
     execution_id: 'exec-idempotency-test',
@@ -25,31 +27,21 @@ describe('Session Idempotency', () => {
     required_capabilities: {},
   };
 
-  beforeEach(async () => {
-    jest.resetModules();
-    (jest as any).unstable_mockModule('playwright', () => ({
-      chromium: {
-        launch: jest.fn(),
-      },
-    }));
-
-    const { chromium } = await import('playwright');
-    const { SessionManager } = await import('../../../src/session/manager');
-    SessionManagerCtor = SessionManager;
-
+  beforeEach(() => {
     mockBrowser = createMockBrowser();
     mockContext = createMockContext();
     mockPage = createMockPage();
 
     mockBrowser.newContext.mockResolvedValue(mockContext);
     mockContext.newPage.mockResolvedValue(mockPage);
-    (chromium.launch as unknown as jest.Mock).mockResolvedValue(mockBrowser);
+    launchSpy = jest.spyOn(playwrightProvider.chromium, 'launch').mockResolvedValue(mockBrowser);
 
     config = createTestConfig();
-    manager = new SessionManagerCtor(config);
+    manager = new SessionManager(config);
   });
 
   afterEach(async () => {
+    launchSpy.mockRestore();
     await manager.shutdown();
     jest.clearAllMocks();
   });
@@ -84,11 +76,15 @@ describe('Session Idempotency', () => {
       const results = await Promise.all(promises);
 
       // All should return the same session ID
-      expect(results[0].sessionId).toBe(results[1].sessionId);
-      expect(results[1].sessionId).toBe(results[2].sessionId);
+      const [firstResult, secondResult, thirdResult] = results;
+      if (!firstResult || !secondResult || !thirdResult) {
+        throw new Error('Expected three session results');
+      }
+      expect(firstResult.sessionId).toBe(secondResult.sessionId);
+      expect(secondResult.sessionId).toBe(thirdResult.sessionId);
 
       // Only one browser context should be created
-      expect(mockBrowser.newContext).toHaveBeenCalledTimes(1);
+      expect(mockBrowser.newContext.mock.calls.length).toBe(1);
     });
 
     it('should reset session state when reuse_mode is clean', async () => {
@@ -102,7 +98,7 @@ describe('Session Idempotency', () => {
       });
 
       expect(result2.reused).toBe(true);
-      expect(mockContext.clearCookies).toHaveBeenCalled();
+      expect(mockContext.clearCookies.mock.calls.length).toBeGreaterThan(0);
     });
 
     it('should preserve session when reuse_mode is reuse', async () => {
@@ -116,7 +112,7 @@ describe('Session Idempotency', () => {
       expect(result2.sessionId).toBe(result1.sessionId);
       expect(result2.reused).toBe(true);
       // Should NOT have cleared cookies (unlike clean mode)
-      expect(mockContext.clearCookies).not.toHaveBeenCalled();
+      expect(mockContext.clearCookies.mock.calls.length).toBe(0);
     });
 
     it('should return existing session regardless of reuse_mode for same execution_id', async () => {
@@ -165,7 +161,7 @@ describe('Session Idempotency', () => {
       expect(succeeded.length).toBeGreaterThanOrEqual(1);
 
       // Page should only be closed once
-      expect(mockPage.close).toHaveBeenCalledTimes(1);
+      expect(mockPage.close.mock.calls.length).toBe(1);
     });
   });
 

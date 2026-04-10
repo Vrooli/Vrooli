@@ -5,7 +5,8 @@
     "labels": {
       "reset": "none",
       "requirements_json": "[\"SCS-ANALYSIS-001\", \"SCS-ANALYSIS-002\"]"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,
@@ -19,7 +20,9 @@
         "http_request": {
           "method": "POST",
           "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/what-if",
-          "headers": {"Content-Type": "application/json"},
+          "headers": {
+            "Content-Type": "application/json"
+          },
           "body": "{\"changes\": [{\"component\": \"quality.requirement_pass_rate\", \"new_value\": 0.9}]}",
           "expected_status": 200
         },

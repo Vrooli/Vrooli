@@ -1,0 +1,35 @@
+{
+  "generatedAt": "2026-04-09T20:25:28Z",
+  "items": [
+    {
+      "id": "director-swarm",
+      "displayName": "Director Swarm",
+      "memberCount": 2
+    },
+    {
+      "id": "marketing-crew",
+      "displayName": "Marketing Crew",
+      "memberCount": 4
+    },
+    {
+      "id": "meta-optimization",
+      "displayName": "Meta Optimization Team",
+      "memberCount": 4
+    },
+    {
+      "id": "revenue-research",
+      "displayName": "Revenue Research Team",
+      "memberCount": 5
+    },
+    {
+      "id": "scenario-feature",
+      "displayName": "Scenario Feature Team",
+      "memberCount": 4
+    },
+    {
+      "id": "scenario-qa",
+      "displayName": "Scenario QA Team",
+      "memberCount": 2
+    }
+  ]
+}

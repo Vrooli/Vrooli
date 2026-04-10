@@ -82,9 +82,16 @@ export async function buildContext(
   actualViewport: ActualViewport;
 }> {
   // Resolve artifact paths using dedicated module (explicit decision logic)
+  const effectiveCapabilities = spec.required_capabilities
+    ? { ...spec.required_capabilities }
+    : undefined;
+  if (effectiveCapabilities?.har && !config.telemetry.har.enabled) {
+    effectiveCapabilities.har = false;
+  }
+
   const resolvedArtifacts = resolveArtifactPaths(
     spec.artifact_paths,
-    spec.required_capabilities,
+    effectiveCapabilities,
     spec.execution_id
   );
 
@@ -92,25 +99,26 @@ export async function buildContext(
   const { fingerprint, behavior, antiDetection, proxy } = mergeWithPreset(spec.browser_profile);
 
   // Determine viewport with explicit source attribution
-  // We check the EXPLICIT session_profile fingerprint, not the merged fingerprint,
+  // We check the EXPLICIT browser_profile fingerprint, not the merged fingerprint,
   // because mergeWithPreset always adds default values (1280x720).
-  // Fingerprint viewport is ONLY used when the user explicitly provided a session_profile
+  // Fingerprint viewport is ONLY used when the user explicitly provided a browser_profile
   // with BOTH dimensions set and > 0. This prevents default fingerprint values from
   // overriding the UI-requested viewport.
-  const explicitFingerprint = spec.session_profile?.fingerprint;
-  const explicitHasWidth = explicitFingerprint?.viewport_width && explicitFingerprint.viewport_width > 0;
-  const explicitHasHeight = explicitFingerprint?.viewport_height && explicitFingerprint.viewport_height > 0;
-  const explicitHasBoth = explicitHasWidth && explicitHasHeight;
+  const explicitFingerprint = spec.browser_profile?.fingerprint;
+  const explicitWidth = explicitFingerprint?.viewport_width;
+  const explicitHeight = explicitFingerprint?.viewport_height;
+  const explicitHasWidth = typeof explicitWidth === 'number' && explicitWidth > 0;
+  const explicitHasHeight = typeof explicitHeight === 'number' && explicitHeight > 0;
 
   let viewportWidth: number;
   let viewportHeight: number;
   let viewportSource: ViewportSource;
   let viewportReason: string;
 
-  if (explicitHasBoth) {
-    // User explicitly provided a session_profile with complete viewport override
-    viewportWidth = explicitFingerprint!.viewport_width!;
-    viewportHeight = explicitFingerprint!.viewport_height!;
+  if (explicitWidth !== undefined && explicitHeight !== undefined && explicitWidth > 0 && explicitHeight > 0) {
+    // User explicitly provided a browser_profile with complete viewport override
+    viewportWidth = explicitWidth;
+    viewportHeight = explicitHeight;
     viewportSource = 'fingerprint';
     viewportReason = `Browser profile specifies ${viewportWidth}x${viewportHeight}`;
   } else if (explicitHasWidth || explicitHasHeight) {
@@ -251,6 +259,65 @@ export async function buildContext(
   // Create context
   const context = await browser.newContext(contextOptions);
 
+  // Fix gray bar in video recording caused by window/viewport size mismatch.
+  //
+  // ROOT CAUSE (Playwright issue #36032): When launched with headless:false +
+  // --headless=new, Playwright calculates the window size as viewport + browser
+  // chrome height (assuming a headed browser). But --headless=new means there's
+  // no actual chrome, so the window is taller than the viewport. Chrome's video
+  // encoder captures the full window area, but only viewport-height pixels have
+  // rendered page content — the rest fills with gray (VP8 framebuffer default
+  // RGB 128,128,128).
+  //
+  // FIX: Override the screen dimensions via CDP so the compositor knows the
+  // true renderable area. This must be applied to each page since it's a
+  // per-target CDP command. The 'page' event fires before any navigation,
+  // giving us time to set the override before frames are captured.
+  //
+  // See: docs/bugs/VIDEO_BOTTOM_FLICKER.md for full investigation.
+  if (videoDir) {
+    context.on('page', (page) => {
+      context.newCDPSession(page).then((session) => {
+        return session.send('Emulation.setDeviceMetricsOverride', {
+          width: viewportWidth,
+          height: viewportHeight,
+          deviceScaleFactor,
+          mobile: false,
+          screenWidth: viewportWidth,
+          screenHeight: viewportHeight,
+        });
+      }).catch((err) => {
+        // Non-fatal: video may have gray bar but functionality is unaffected
+        logger.warn('Failed to apply video recording screen metrics override', {
+          executionId: spec.execution_id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+    });
+    logger.debug('Video recording screen metrics fix registered', {
+      executionId: spec.execution_id,
+      viewport: `${viewportWidth}x${viewportHeight}`,
+      deviceScaleFactor,
+    });
+
+    // Stabilize viewport layout for video recording. When page content changes
+    // during execution, a vertical scrollbar can appear/disappear, changing the
+    // content width by ~17px. CSS reflow cascades downward, so the bottom ~50px
+    // of the recorded video flickers visibly as elements shift horizontally.
+    // Forcing a permanent scrollbar and hiding horizontal overflow prevents the
+    // content width from ever changing. This is the same fix applied in the
+    // export/render capture path (playwright_client.go viewportStabilizationScript).
+    await context.addInitScript(() => {
+      const style = document.createElement('style');
+      style.id = 'bas-viewport-stabilize';
+      style.textContent = 'html{overflow-y:scroll!important}body{overflow-x:hidden!important}';
+      (document.head || document.documentElement).appendChild(style);
+    });
+    logger.debug('Viewport stabilization injected for video recording', {
+      executionId: spec.execution_id,
+    });
+  }
+
   // Log context options for diagnostic debugging
   logContextOptions(spec.execution_id, {
     viewport: contextOptions.viewport,
@@ -344,7 +411,11 @@ export async function buildContext(
     micro_pause_max_ms: behavior.micro_pause_max_ms,
     micro_pause_frequency: behavior.micro_pause_frequency,
   };
-  (context as any)[BEHAVIOR_SETTINGS_KEY] = behaviorSettings;
+  Object.defineProperty(context, BEHAVIOR_SETTINGS_KEY, {
+    value: behaviorSettings,
+    writable: true,
+    configurable: true,
+  });
 
   // Start tracing if enabled (tracePath only set when tracing is requested)
   if (tracePath) {

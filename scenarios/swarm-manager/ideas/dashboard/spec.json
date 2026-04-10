@@ -1,0 +1,18 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/ui/src/**"
+  ],
+  "archived_at": "2026-03-27T19:34:34Z",
+  "created": "2026-03-24T23:11:43Z",
+  "description": "Add a Dashboard landing page to the swarm-manager UI providing at-a-glance situational awareness: backlog pipeline health, initiative progress, blocked items, and recent execution activity.",
+  "kind": "idea",
+  "name": "dashboard",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [
+    "ui",
+    "swarm-manager"
+  ],
+  "title": "Dashboard",
+  "updated": "2026-03-27T18:40:24Z"
+}

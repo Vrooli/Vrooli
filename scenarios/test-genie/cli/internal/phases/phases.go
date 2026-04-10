@@ -175,31 +175,5 @@ func MakeDescriptorMaps(descriptors []Descriptor) (map[string]Descriptor, map[st
 			targets[key] = time.Duration(desc.DefaultTimeoutSeconds) * time.Second
 		}
 	}
-	if len(targets) == 0 {
-		targets = DefaultTargetDurations()
-	}
 	return descMap, targets
-}
-
-// DefaultTargetDurations returns fallback target durations when descriptors are unavailable.
-func DefaultTargetDurations() map[string]time.Duration {
-	return map[string]time.Duration{
-		"structure":    120 * time.Second,
-		"standards":    60 * time.Second,
-		"dependencies": 60 * time.Second,
-		"lint":         30 * time.Second,
-		"docs":         60 * time.Second,
-		"smoke":        90 * time.Second,
-		"unit":         120 * time.Second,
-		"integration":  600 * time.Second,
-		"playbooks":    900 * time.Second, // BAS workflow execution can be slow
-		"business":     120 * time.Second,
-		"performance":  60 * time.Second,
-	}
-}
-
-// TargetDurations extracts target durations from descriptors for external callers.
-func TargetDurations(descriptors []Descriptor) map[string]time.Duration {
-	_, targets := MakeDescriptorMaps(descriptors)
-	return targets
 }

@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "generated_at": "2026-03-20T17:00:00Z",
+  "item": {
+    "kind": "idea",
+    "name": "brand-manager"
+  },
+  "questions": [
+    {
+      "id": "q1",
+      "category": "technical",
+      "importance": "critical",
+      "question": "Which OpenRouter models should be used for image generation (logos, favicons, icons)? OpenRouter primarily routes LLM traffic — its image generation model catalog is limited compared to dedicated services like Replicate or direct DALL-E/Stability APIs. Should Brand Manager use OpenRouter for text tasks (palette, copy, typography) and a different provider for image generation, or commit to OpenRouter-only with whatever image models it supports?",
+      "options": [
+        "OpenRouter for everything (accept limited image model selection)",
+        "OpenRouter for text/LLM tasks, separate provider (e.g., Replicate, direct Stability API) for image generation",
+        "OpenRouter for text/LLM tasks, local Ollama + ComfyUI for image generation (contradicts out-of-scope list)"
+      ],
+      "context": "The spec lists ComfyUI as explicitly out of scope. Currently no image generation exists anywhere in the Vrooli codebase. OpenRouter's image model support is evolving but not its primary strength.",
+      "answer": null
+    },
+    {
+      "id": "q2",
+      "category": "technical",
+      "importance": "critical",
+      "question": "How should Brand Manager spawn agents for the 'agent-assisted application' tier? The spec says Brand Manager spawns an agent for complex/non-standard scenario integration. What is the mechanism — does it call agent-manager's API to create a Claude Code session, use a CLI tool invocation, or something else?",
+      "options": [
+        "Call agent-manager API to spawn a sandboxed Claude Code agent with brand application instructions",
+        "Use vrooli CLI to invoke a prompt-manager skill that handles the integration",
+        "Direct subprocess execution of claude-code with a structured prompt"
+      ],
+      "context": "Agent-manager already manages agent lifecycles with sandboxing, workspace isolation, and cost tracking. Prompt-manager has deployment skills. The choice affects architecture significantly — agent-manager integration means an API dependency; prompt-manager skill means a looser coupling.",
+      "answer": null
+    },
+    {
+      "id": "q3",
+      "category": "technical",
+      "importance": "critical",
+      "question": "Where should generated asset files (logos, favicons, icons, og-images) be stored physically? The spec says SQLite for metadata, but binary assets need file storage. Should they live in Brand Manager's local data directory, or in a shared storage system?",
+      "options": [
+        "Local filesystem under ~/.vrooli/data/brand-manager/assets/ (simple, no extra dependencies)",
+        "Scenario-local storage within each scenario's directory (assets live where they're used)",
+        "MinIO/object storage (scalable but adds a resource dependency)"
+      ],
+      "context": "The deleted Brand Manager used MinIO for asset storage. The rewrite spec lists only SQLite as a resource dependency. Asset files can be multi-MB (especially rasterized logos at multiple sizes). The choice affects how assets are served to the UI and how they're applied to scenarios.",
+      "answer": null
+    },
+    {
+      "id": "q4",
+      "category": "integration",
+      "importance": "important",
+      "question": "Should Brand Manager extend the service.json schema with branding fields, or keep all branding data exclusively in its own SQLite database? Currently service.json has no branding fields. Discovery needs to scan scenarios, and application needs to write brand artifacts — but it's unclear whether service.json itself should gain a 'branding' section.",
+      "options": [
+        "Add a 'branding' section to service.json schema (brand ID, version, opt-out flag) — Brand Manager DB is source of truth but service.json is the pointer",
+        "Only add an opt-out field to service.json; everything else lives in Brand Manager DB with scenario name as the foreign key",
+        "No service.json changes — Brand Manager tracks everything internally by scenario name"
+      ],
+      "context": "The service.json schema at .vrooli/schemas/service.schema.json currently has no branding fields. Scenario Auditor and deployment skills need to check branding status. Having at least an opt-out field in service.json makes validation simpler without querying Brand Manager's API.",
+      "answer": null
+    },
+    {
+      "id": "q5",
+      "category": "scope",
+      "importance": "important",
+      "question": "What is the MVP milestone? The spec covers discovery, generation, storage, application (two-tier), and validation — plus UI, CLI, and API surfaces. Which capabilities are needed for v1 vs. deferred?",
+      "options": [
+        "v1 = CLI + API + storage + manual brand creation (no AI generation, no agent-assisted application, no UI wizard)",
+        "v1 = Full pipeline but CLI-only (generation + application + validation, no UI)",
+        "v1 = Full spec as described (all surfaces, all tiers)"
+      ],
+      "context": "Priority is 2 (not highest). The spec is comprehensive. A phased approach would let Scenario Auditor integration and validation rules ship first, with AI generation and agent-assisted application following.",
+      "answer": null
+    },
+    {
+      "id": "q6",
+      "category": "integration",
+      "importance": "important",
+      "question": "For Scenario Auditor integration, should Brand Manager register as an external HTTP provider (like app-monitor and tidiness-manager do), or should branding rules be built directly into scenario-auditor? The existing pattern has external scenarios implement a Go provider interface that calls back to their own API via HTTP.",
+      "options": [
+        "HTTP provider pattern (Brand Manager exposes a standards endpoint, scenario-auditor calls it) — consistent with existing architecture",
+        "Built-in rules in scenario-auditor that query Brand Manager API — simpler but couples auditor to brand-manager",
+        "Standalone CLI checks that scenario-auditor invokes as subprocess — loosest coupling"
+      ],
+      "context": "Current external providers (app-monitor, tidiness-manager, test-genie, prd-control-tower, stack-governor) all use the HTTP delegation pattern: they register rules in scenario-auditor's init() and implement Run() by calling their own API. This is the established pattern.",
+      "answer": null
+    },
+    {
+      "id": "q7",
+      "category": "users",
+      "importance": "important",
+      "question": "Who is the primary user during the generation workflow — a human designer making choices in the UI, or an autonomous agent running CLI commands as part of a deployment pipeline? This affects whether the UI wizard or the CLI is the critical path for v1.",
+      "options": [
+        "Primarily human via UI — agents use CLI for validation/application only",
+        "Primarily agents via CLI — UI is a nice-to-have for review/override",
+        "Both equally — the system must work well for human-in-the-loop and fully autonomous flows from day one"
+      ],
+      "context": "The spec describes a user-guided generation flow (pick from options, refine, iterate) which implies human interaction. But Vrooli's recursive improvement vision suggests agents should be able to brand new scenarios autonomously. The answer determines UX investment priorities.",
+      "answer": null
+    }
+  ]
+}

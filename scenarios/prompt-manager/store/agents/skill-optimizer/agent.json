@@ -1,0 +1,28 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "skill-optimizer",
+  "displayName": "Skill Optimizer",
+  "description": "Audits skill effectiveness, resolves cross-skill conflicts, rewrites underperforming skills, and creates missing skills.",
+  "status": "active",
+  "appearance": {
+    "body": "#B45309",
+    "head": "#FBBF24",
+    "accent": "#FDE68A"
+  },
+  "tags": [
+    "meta",
+    "skills",
+    "authoring",
+    "optimization",
+    "conflict-resolution"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 2,
+  "createdAt": "2026-02-09T12:00:00Z",
+  "updatedAt": "2026-03-11T00:00:00Z"
+}

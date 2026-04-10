@@ -1,0 +1,28 @@
+{
+  "acceptance_allow": [
+    "scenarios/agent-manager/**",
+    "scenarios/workspace-sandbox/**",
+    "scenarios/test-genie/**",
+    "scenarios/git-control-tower/**",
+    "packages/cli-core/**",
+    "scripts/lib/scenario/**",
+    "cli/commands/scenario/**"
+  ],
+  "created": "2026-04-09T17:33:13Z",
+  "description": "## Goal\n\nDefine the authoritative product and implementation contract for agent-manager sandboxing so the platform can make sandboxing the default path for agent-created code changes without losing clarity about what the sandbox is for.\n\n## Why this matters\n\nThe primary selling point of sandboxing is not security. The primary selling point is that sandboxing gives Vrooli a canonical, per-run record of what an agent changed so Git Control Tower can correlate repo changes back to the exact agent-manager run, conversation context, cost, and execution metadata that produced them. The platform wants as many coding runs as possible to flow through sandboxing so the AI Changes experience becomes a trustworthy audit trail instead of a niche workflow.\n\nSecurity and containment still matter, but they are a follow-on layer. The first priority is to make sandboxing seamless and reliable enough that teams want to use it by default.\n\n## Contract decisions this item must lock down\n\n- Sandbox should be the default execution path for agent-manager coding runs once the reliability foundation is ready.\n- Manual review is opt-in. It is not the default operator path.\n- Accepted changes should auto-apply by default at the end of a run, including runs that fail after making useful changes.\n- Acceptance rules control what is eligible to apply. Changes outside acceptance can exist in the sandbox during execution, but they should not auto-apply by default.\n- Locking and acceptance are different concerns. Multiple sandboxes targeting the same area should be allowed by default, while acceptance filtering still applies during apply/review.\n- The coding agent should not need prompt changes or behavior changes based on sandbox mode. Sandbox behavior should be transparent from the agent's perspective.\n- The long-term model supports two modes: a tracking-first mode and a protected mode. Both share the same auditability contract; protected mode adds stronger runtime controls later.\n- Network modes should support `none`, `localhost`, and `full`, because scenario CLIs depend on localhost APIs.\n- Direct git usage from the agent should eventually be restricted to read-only operations in protected mode, while carefully controlled scenario APIs remain allowed.\n\n## Known mismatches to document and reconcile\n\n- Current workspace-sandbox semantics conflate `noLock` with acceptance bypass, which conflicts with the intended contract that locking and acceptance are independent concerns.\n- Current sandboxed runs with `RequiresApproval=false` can complete without auto-applying sandbox changes, which breaks the desired auditability path.\n- Agent-manager already injects sandbox env vars and downstream restart/test flows are partly sandbox-aware, but the end-to-end contract is not documented in one place.\n- Git Control Tower already has pending provenance-by-run plumbing and an AI Changes tab, but the intended lifecycle for pending vs committed provenance is not yet formally defined.\n- The policy/guardrail surface in agent-manager exists only partially today and should not be treated as the primary contract.\n\n## Expected deliverables\n\n1. A written contract covering defaults, terminology, and state transitions for sandbox creation, execution, apply, review, failure handling, and provenance retention.\n2. A precise configuration surface for `manualReview`, `autoApply`, `applyOnFailure`, locking, network mode, and future protected-mode guardrails.\n3. A source-of-truth matrix showing how agent-manager, workspace-sandbox, test-genie, cli-core, scenario restart flows, and Git Control Tower interact in sandboxed runs.\n4. A validation matrix for the behaviors that must work before sandboxing becomes the default in major spawn surfaces.\n5. A rollout recommendation that sequences auditability first and hardened protection second.\n\n## Key references\n\n- `scenarios/agent-manager/api/internal/orchestration/run_executor.go`\n- `scenarios/workspace-sandbox/api/internal/sandbox/service.go`\n- `scenarios/workspace-sandbox/api/internal/config/config.go`\n- `packages/cli-core/cliutil/sandbox.go`\n- `scenarios/test-genie/cli/execute/command.go`\n- `scripts/lib/scenario/runner.sh`\n- `scenarios/git-control-tower/api/approved_changes_handler.go`\n- `scenarios/git-control-tower/ui/src/components/AIProvenanceTab.tsx`",
+  "effort": "M",
+  "initiative": "agent-sandbox-audit-foundation",
+  "kind": "research",
+  "name": "agent-sandbox-auditability-contract",
+  "priority": 1,
+  "status": "backlog",
+  "tags": [
+    "agent-manager",
+    "workspace-sandbox",
+    "git-control-tower",
+    "auditability",
+    "contract"
+  ],
+  "title": "Define the canonical sandbox auditability contract for agent-manager",
+  "updated": "2026-04-09T17:33:13Z"
+}

@@ -1,20 +1,53 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
+import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import App from "./App";
 import "./styles.css";
 
 const queryClient = new QueryClient();
 
-// Initialize iframe bridge (unconditional for UI smoke tests)
-initIframeBridgeChild({ appId: "deployment-manager" });
-// Manually set bridge flag for non-iframe contexts (e.g., Browserless smoke tests)
-if (typeof window !== "undefined") {
-  (window as any).__vrooliBridgeChildInstalled = true;
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  INTEROP-CRITICAL: Iframe bridge initialization              ║
+// ║                                                              ║
+// ║  Must run BEFORE React mount so that:                        ║
+// ║  1. Storage shimming is in place before any component        ║
+// ║     accesses localStorage/sessionStorage                     ║
+// ║  2. The bridge message channel is ready for host commands    ║
+// ║                                                              ║
+// ║  The window.parent check ensures this is a no-op when        ║
+// ║  running outside an iframe (localhost, tunnel).              ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+declare global {
+  interface Window {
+    __deploymentManagerBridgeInitialized?: boolean;
+  }
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+if (
+  typeof window !== "undefined" &&
+  window.parent !== window &&
+  !window.__deploymentManagerBridgeInitialized
+) {
+  let parentOrigin: string | undefined;
+  try {
+    if (document.referrer) {
+      parentOrigin = new URL(document.referrer).origin;
+    }
+  } catch {
+    // Fall back to default origin when parsing fails.
+  }
+
+  initIframeBridgeChild({ parentOrigin, appId: "deployment-manager" });
+  window.__deploymentManagerBridgeInitialized = true;
+}
+
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("Root element not found - check index.html has <div id=\"root\"></div>");
+}
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <App />

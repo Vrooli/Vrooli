@@ -42,7 +42,7 @@ help: ## Show this help message
 
 run: ## Start this scenario (uses Vrooli lifecycle run command)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@vrooli scenario start $(SCENARIO_NAME)
 
 start: ## Start this scenario
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
@@ -54,7 +54,7 @@ stop: ## Stop this scenario
 
 dev: ## Start in development mode
 	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME) --dev
+	@vrooli scenario start $(SCENARIO_NAME) --dev
 
 test: ## Run tests for this scenario
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
@@ -77,7 +77,7 @@ clean: ## Clean build artifacts
 build: ## Build compiled assets when needed
 	@echo "$(BLUE)🏗️  Building $(SCENARIO_NAME)...$(RESET)"
 	@if [ -d api ] && [ -f api/go.mod ]; then \
-		cd api && go build -o test-genie-api ./cmd/test-genie-api/; \
+		cd api && go build -o test-genie-api .; \
 	fi
 	@if [ -d cli ] && [ -f cli/go.mod ]; then \
 		cd cli && go build -o test-genie .; \

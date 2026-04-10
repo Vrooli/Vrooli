@@ -76,8 +76,7 @@ func TestHandleAssembleBundle(t *testing.T) {
 		})
 	}))
 	defer analyzer.Close()
-	analyzerPort := strings.Split(analyzer.Listener.Addr().String(), ":")[1]
-	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_API_PORT", analyzerPort)
+	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_URL", "http://"+analyzer.Listener.Addr().String())
 
 	secretsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
@@ -225,8 +224,7 @@ func TestHandleAssembleBundleSecretsManagerUnavailable(t *testing.T) {
 		})
 	}))
 	defer analyzer.Close()
-	analyzerPort := strings.Split(analyzer.Listener.Addr().String(), ":")[1]
-	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_API_PORT", analyzerPort)
+	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_URL", "http://"+analyzer.Listener.Addr().String())
 
 	// Point to unavailable secrets manager
 	t.Setenv("SECRETS_MANAGER_URL", "http://localhost:59998")
@@ -275,8 +273,7 @@ func TestHandleAssembleBundleWithoutSecrets(t *testing.T) {
 		})
 	}))
 	defer analyzer.Close()
-	analyzerPort := strings.Split(analyzer.Listener.Addr().String(), ":")[1]
-	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_API_PORT", analyzerPort)
+	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_URL", "http://"+analyzer.Listener.Addr().String())
 
 	handler := NewHandler(secrets.NewClient(), nil, func(msg string, fields map[string]interface{}) {})
 
@@ -335,8 +332,7 @@ func TestHandleAssembleBundleDefaultTier(t *testing.T) {
 		})
 	}))
 	defer analyzer.Close()
-	analyzerPort := strings.Split(analyzer.Listener.Addr().String(), ":")[1]
-	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_API_PORT", analyzerPort)
+	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_URL", "http://"+analyzer.Listener.Addr().String())
 
 	secretsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify default tier is used
@@ -391,8 +387,7 @@ func TestHandleAssembleBundleResponseStructure(t *testing.T) {
 		})
 	}))
 	defer analyzer.Close()
-	analyzerPort := strings.Split(analyzer.Listener.Addr().String(), ":")[1]
-	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_API_PORT", analyzerPort)
+	t.Setenv("SCENARIO_DEPENDENCY_ANALYZER_URL", "http://"+analyzer.Listener.Addr().String())
 
 	secretsServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{

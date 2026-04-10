@@ -193,6 +193,27 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 	var session engine.EngineSession
 	defer func() {
 		if session != nil {
+			// Capture storage state before closing session if callback is provided
+			// Only capture on successful execution (err == nil)
+			if err == nil && req.SaveStorageStateCallback != nil {
+				captureCtx, captureCancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer captureCancel()
+				if storageState, captureErr := session.GetStorageState(captureCtx); captureErr == nil {
+					if saveErr := req.SaveStorageStateCallback(storageState); saveErr != nil {
+						logrus.WithFields(logrus.Fields{
+							"execution_id": req.Plan.ExecutionID,
+							"error":        saveErr.Error(),
+						}).Warn("Failed to save storage state via callback")
+					} else {
+						logrus.WithField("execution_id", req.Plan.ExecutionID).Info("Storage state saved via callback")
+					}
+				} else {
+					logrus.WithFields(logrus.Fields{
+						"execution_id": req.Plan.ExecutionID,
+						"error":        captureErr.Error(),
+					}).Warn("Failed to capture storage state from session")
+				}
+			}
 			closeSessionWithArtifacts(context.Background(), session, req.Plan, req.Recorder)
 		}
 	}()
@@ -242,8 +263,6 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 		execState = state.NewFromStore(seedVars)
 	}
 
-	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
-	}
 	execState.SetNextIndexFromPlan(req.Plan)
 
 	execCtx := executionContext{
@@ -275,6 +294,12 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 			"resumed_from_id":       req.ResumedFromID,
 			"initial_vars_count":    len(req.InitialVariables),
 		}).Info("Resuming execution from checkpoint")
+	}
+
+	// Restore tabs from session profile before workflow execution
+	session, err = e.maybeRestoreTabs(ctx, req, eng, spec, session)
+	if err != nil {
+		return session, err
 	}
 
 	session, err = e.maybeRunEntrypointProbe(ctx, req.Plan, eng, spec, session, execState, req.StartURL)
@@ -653,9 +678,90 @@ func calculateProgress(stepIndex, totalSteps int) int {
 
 const (
 	entryProbeNodeID      = "__entry_probe__"
+	tabRestoreNodeID      = "__tab_restore__"
 	defaultEntryTimeoutMs = 3000
 	minEntryTimeoutMs     = 250
 )
+
+// maybeRestoreTabs restores tabs from session profile before workflow execution.
+// When RestoreTabs is true and OpenTabs are provided, navigates to the first tab's URL
+// before the workflow starts. This enables running workflows with tabs restored from
+// a previous session.
+//
+// Currently supports restoring the first tab's URL as the initial navigation.
+// Additional tabs are logged but not created, as the EngineSession interface
+// doesn't support multi-page creation directly.
+func (e *SimpleExecutor) maybeRestoreTabs(ctx context.Context, req Request, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession) (engine.EngineSession, error) {
+	if !req.RestoreTabs || len(req.OpenTabs) == 0 {
+		return session, nil
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"execution_id": req.Plan.ExecutionID,
+		"tab_count":    len(req.OpenTabs),
+	}).Info("Restoring tabs from session profile")
+
+	// Find the first valid tab URL to navigate to
+	var firstTabURL string
+	for _, tab := range req.OpenTabs {
+		if tab.URL != "" && tab.URL != "about:blank" {
+			firstTabURL = tab.URL
+			break
+		}
+	}
+
+	if firstTabURL == "" {
+		logrus.WithField("execution_id", req.Plan.ExecutionID).Debug("No valid tab URLs to restore")
+		return session, nil
+	}
+
+	// Start session if needed
+	if session == nil {
+		var err error
+		session, err = eng.StartSession(ctx, spec)
+		if err != nil {
+			return session, fmt.Errorf("start session for tab restoration: %w", err)
+		}
+	}
+
+	// Navigate to the first tab's URL
+	instr := contracts.CompiledInstruction{
+		Index:  -1,
+		NodeID: tabRestoreNodeID,
+		Action: &basactions.ActionDefinition{
+			Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+			Params: &basactions.ActionDefinition_Navigate{
+				Navigate: &basactions.NavigateParams{
+					Url: firstTabURL,
+				},
+			},
+		},
+	}
+
+	outcome, err := session.Run(ctx, instr)
+	if err != nil {
+		return session, fmt.Errorf("tab restoration navigation failed (%s): %w", firstTabURL, err)
+	}
+	if !outcome.Success {
+		return session, fmt.Errorf("tab restoration navigation failed (%s): %s", firstTabURL, e.failureMessage(outcome))
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"execution_id": req.Plan.ExecutionID,
+		"url":          firstTabURL,
+	}).Info("Tab restoration: navigated to first tab URL")
+
+	// Log if there are additional tabs that won't be restored
+	if len(req.OpenTabs) > 1 {
+		logrus.WithFields(logrus.Fields{
+			"execution_id":        req.Plan.ExecutionID,
+			"additional_tabs":     len(req.OpenTabs) - 1,
+			"restored_first_only": true,
+		}).Debug("Additional tabs not restored (workflow execution uses single page)")
+	}
+
+	return session, nil
+}
 
 func (e *SimpleExecutor) maybeRunEntrypointProbe(ctx context.Context, plan contracts.ExecutionPlan, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession, execState *state.ExecutionState, startURL string) (engine.EngineSession, error) {
 	if execState == nil || execState.HasCheckedEntry() {

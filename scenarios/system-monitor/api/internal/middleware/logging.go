@@ -2,8 +2,9 @@ package middleware
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -53,101 +54,105 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 }
 
 // Logging middleware logs HTTP requests and responses
-func Logging(logger *log.Logger) func(http.Handler) http.Handler {
+func Logging(logger *slog.Logger) func(http.Handler) http.Handler {
 	if logger == nil {
-		logger = log.Default()
+		logger = slog.Default()
 	}
-	
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
-			
+
 			// Create wrapped response writer
 			rw := NewResponseWriter(w)
-			
+
 			// Get client IP
 			clientIP := r.RemoteAddr
 			if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
 				clientIP = forwarded
 			}
-			
+
 			// Get request ID if present
 			requestID := r.Header.Get("X-Request-ID")
-			
+
 			// Log incoming request
-			logger.Printf(">>> REQUEST: %s %s from %s", r.Method, r.URL.Path, clientIP)
-			
+			logger.Info("incoming request",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"client_ip", clientIP,
+				"request_id", requestID,
+			)
+
 			// Call the next handler
 			next.ServeHTTP(rw, r)
-			
+
 			// Calculate duration
 			duration := time.Since(start)
-			
-			// Create log entry
-			entry := LogEntry{
-				Timestamp:  start,
-				Method:     r.Method,
-				Path:       r.URL.Path,
-				StatusCode: rw.statusCode,
-				Duration:   duration.String(),
-				ClientIP:   clientIP,
-				UserAgent:  r.UserAgent(),
-				RequestID:  requestID,
-			}
-			
+
 			// Log based on status code
 			if rw.statusCode >= 400 {
-				entry.ErrorMessage = fmt.Sprintf("Request failed with status %d", rw.statusCode)
-				logger.Printf("<<< ERROR RESPONSE: %s %s - Status: %d - Duration: %v",
-					r.Method, r.URL.Path, rw.statusCode, duration)
+				logger.Warn("request completed",
+					"method", r.Method,
+					"path", r.URL.Path,
+					"status", rw.statusCode,
+					"duration", duration,
+					"client_ip", clientIP,
+					"request_id", requestID,
+				)
 			} else {
-				logger.Printf("<<< RESPONSE: %s %s - Status: %d - Duration: %v",
-					r.Method, r.URL.Path, rw.statusCode, duration)
+				logger.Info("request completed",
+					"method", r.Method,
+					"path", r.URL.Path,
+					"status", rw.statusCode,
+					"duration", duration,
+					"client_ip", clientIP,
+					"request_id", requestID,
+				)
 			}
 		})
 	}
 }
 
 // DetailedLogging provides more comprehensive logging
-func DetailedLogging(logger *log.Logger, logStore *LogStore) func(http.Handler) http.Handler {
+func DetailedLogging(logger *slog.Logger, logStore *LogStore) func(http.Handler) http.Handler {
 	if logger == nil {
-		logger = log.Default()
+		logger = slog.Default()
 	}
-	
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
-			
+
 			// Create wrapped response writer
 			rw := NewResponseWriter(w)
-			
+
 			// Get client IP
 			clientIP := r.RemoteAddr
 			if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
 				clientIP = forwarded
 			}
-			
-			// Get or generate request ID
+
+			// Get request ID (set by RequestID middleware)
 			requestID := r.Header.Get("X-Request-ID")
-			if requestID == "" {
-				requestID = generateRequestID()
-				r.Header.Set("X-Request-ID", requestID)
-			}
-			
+
 			// Set request ID in response
 			rw.Header().Set("X-Request-ID", requestID)
-			
+
 			// Log incoming request with headers
-			logger.Printf(">>> INCOMING REQUEST: [%s] %s %s from %s", requestID, r.Method, r.URL.Path, clientIP)
-			logger.Printf("    Headers: %+v", r.Header)
-			logger.Printf("    User-Agent: %s", r.UserAgent())
-			
+			logger.Info("incoming request",
+				"request_id", requestID,
+				"method", r.Method,
+				"path", r.URL.Path,
+				"client_ip", clientIP,
+				"user_agent", r.UserAgent(),
+			)
+
 			// Call the next handler
 			next.ServeHTTP(rw, r)
-			
+
 			// Calculate duration
 			duration := time.Since(start)
-			
+
 			// Create log entry
 			entry := LogEntry{
 				Timestamp:  start,
@@ -159,29 +164,40 @@ func DetailedLogging(logger *log.Logger, logStore *LogStore) func(http.Handler) 
 				UserAgent:  r.UserAgent(),
 				RequestID:  requestID,
 			}
-			
+
 			// Store log entry if log store is provided
 			if logStore != nil {
 				logStore.Add(entry)
 			}
-			
+
 			// Log response
-			logLevel := "INFO"
 			if rw.statusCode >= 400 {
-				logLevel = "ERROR"
 				entry.ErrorMessage = fmt.Sprintf("Request failed with status %d", rw.statusCode)
+				logger.Warn("request completed",
+					"request_id", requestID,
+					"method", r.Method,
+					"path", r.URL.Path,
+					"status", rw.statusCode,
+					"duration", duration,
+				)
+			} else {
+				logger.Info("request completed",
+					"request_id", requestID,
+					"method", r.Method,
+					"path", r.URL.Path,
+					"status", rw.statusCode,
+					"duration", duration,
+				)
 			}
-			
-			logger.Printf("<<< RESPONSE: [%s] %s %s %s - Status: %d - Duration: %v",
-				requestID, logLevel, r.Method, r.URL.Path, rw.statusCode, duration)
 		})
 	}
 }
 
 // LogStore stores log entries in memory
 type LogStore struct {
-	entries  []LogEntry
-	maxSize  int
+	mu      sync.Mutex
+	entries []LogEntry
+	maxSize int
 }
 
 // NewLogStore creates a new log store
@@ -197,6 +213,8 @@ func NewLogStore(maxSize int) *LogStore {
 
 // Add adds a log entry to the store
 func (ls *LogStore) Add(entry LogEntry) {
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
 	if len(ls.entries) >= ls.maxSize {
 		// Remove oldest entry
 		ls.entries = ls.entries[1:]
@@ -206,23 +224,28 @@ func (ls *LogStore) Add(entry LogEntry) {
 
 // GetAll returns all stored log entries
 func (ls *LogStore) GetAll() []LogEntry {
-	return ls.entries
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
+	result := make([]LogEntry, len(ls.entries))
+	copy(result, ls.entries)
+	return result
 }
 
 // GetRecent returns the most recent n log entries
 func (ls *LogStore) GetRecent(n int) []LogEntry {
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
 	if n > len(ls.entries) {
-		return ls.entries
+		n = len(ls.entries)
 	}
-	return ls.entries[len(ls.entries)-n:]
+	result := make([]LogEntry, n)
+	copy(result, ls.entries[len(ls.entries)-n:])
+	return result
 }
 
 // Clear removes all log entries
 func (ls *LogStore) Clear() {
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
 	ls.entries = ls.entries[:0]
-}
-
-// generateRequestID generates a unique request ID
-func generateRequestID() string {
-	return fmt.Sprintf("req_%d_%d", time.Now().Unix(), time.Now().Nanosecond())
 }

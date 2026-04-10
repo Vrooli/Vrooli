@@ -1,0 +1,18 @@
+{
+  "archived_at": "2026-03-26T18:27:40Z",
+  "created": "2026-03-24T22:24:18Z",
+  "description": "Hard-cut greenfield migration of the development-toolchain-validator storage layer from PostgreSQL to SQLite. This is not a brownfield migration — delete all Postgres-specific code and rebuild clean.\n\nScope:\n- Delete infrastructure/postgres/ directory (reference_repo.go, skill_repo.go, and tests)\n- Remove lib/pq dependency from go.mod\n- Remove postgres resource dependency from service.json\n- Create new infrastructure/sqlite/ with repository implementations for ALL three domains: reference, skill, AND expectation (the expectation repo never existed for Postgres — build it fresh here)\n- Create SQLite-compatible schema initialization (no uuid_generate_v4, no ENUMs, no PL/pgSQL triggers — use TEXT with CHECK constraints, generate UUIDs in Go, handle updated_at in repo layer)\n- Use ? parameter placeholders instead of $1\n- Set MaxOpenConns(1) for SQLite single-writer model\n- Store the SQLite database file via api-core/storage resolver (not in the scenario deploy directory)\n- Update main.go to initialize SQLite connection and wire all three repo implementations + expectation handlers\n- Update tests to use SQLite instead of testcontainers\n\nKey reference: Read the storage-steer skill for patterns and conventions: `prompt-manager skill read storage-steer`\n\nThe existing domain interfaces (reference.Repository, skill.Repository, expectation.StructuralRepository, expectation.CLIRepository) remain unchanged — only the concrete implementations change.",
+  "initiative": "dtv-meta-optimization-readiness",
+  "kind": "fix",
+  "name": "dtv-sqlite-migration",
+  "priority": 1,
+  "status": "completed",
+  "tags": [
+    "storage",
+    "sqlite",
+    "greenfield",
+    "architecture"
+  ],
+  "title": "Greenfield Storage Migration: PostgreSQL to SQLite",
+  "updated": "2026-03-26T16:49:05Z"
+}

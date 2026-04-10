@@ -40,8 +40,8 @@ func NewRateLimitManager(server *Server, now func() time.Time) *RateLimitManager
 	return &RateLimitManager{server: server, now: now}
 }
 
-func (rm *RateLimitManager) Handle(issueID, agentID string, result *ClaudeExecutionResult) bool {
-	if result == nil || !strings.Contains(result.Error, "RATE_LIMIT") {
+func (rm *RateLimitManager) Handle(issueID, agentID string, result *AgentRunResult) bool {
+	if result == nil || (!result.RateLimited && !strings.Contains(result.Error, "RATE_LIMIT")) {
 		return false
 	}
 

@@ -1,4 +1,4 @@
-import { fromJson, toJson, type JsonReadOptions, type JsonWriteOptions, type Message } from '@bufbuild/protobuf';
+import { fromJson, toJson, type JsonReadOptions, type JsonWriteOptions, type Message, type DescMessage, type JsonValue } from '@bufbuild/protobuf';
 
 // Allow unknown fields to handle cases where API returns fields with different names
 // than what the proto schema expects (e.g., execution_id -> executionId vs json_name="id")
@@ -39,10 +39,10 @@ const normalizeProtoJsonInput = (value: unknown): unknown => {
   return out;
 };
 
-export const parseProtoStrict = <T>(schema: any, raw: unknown): T =>
-  fromJson(schema, normalizeProtoJsonInput(raw) as any, readOptions) as T;
+export const parseProtoStrict = <T>(schema: DescMessage, raw: unknown): T =>
+  fromJson(schema, normalizeProtoJsonInput(raw) as JsonValue, readOptions) as T;
 
-export const protoMessageToJson = (schema: any, message: Message): Record<string, unknown> => {
+export const protoMessageToJson = (schema: DescMessage, message: Message): Record<string, unknown> => {
   try {
     return toJson(schema, message, writeOptions) as Record<string, unknown>;
   } catch {

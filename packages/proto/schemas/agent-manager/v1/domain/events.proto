@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package agent_manager.v1;
 
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/struct.proto";
 import "agent-manager/v1/domain/types.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
 
@@ -66,6 +66,9 @@ message RunEvent {
     // Message event data (event_type = MESSAGE).
     MessageEventData message = 11;
 
+    // Message deletion event data (event_type = MESSAGE_DELETED).
+    MessageDeletedEventData message_deleted = 21;
+
     // Tool call event data (event_type = TOOL_CALL).
     ToolCallEventData tool_call = 12;
 
@@ -92,6 +95,9 @@ message RunEvent {
 
     // Rate limit event data (event_type = ERROR, subtype rate_limit).
     RateLimitEventData rate_limit = 20;
+
+    // Compaction event data (event_type = COMPACTION).
+    CompactionEventData compaction = 22;
   }
 }
 
@@ -136,6 +142,9 @@ message AgentManagerWsMessage {
 
 // RunStatusUpdate reports a run status change.
 //
+// Includes display fields so the UI can render meaningful info
+// without a separate REST fetch (e.g. for newly created runs).
+//
 // @usage AgentManagerWsMessage.run_status
 message RunStatusUpdate {
   // Run ID.
@@ -144,6 +153,13 @@ message RunStatusUpdate {
 
   // New status.
   RunStatus status = 2;
+
+  // Task ID associated with this run.
+  // @format uuid
+  string task_id = 3;
+
+  // First ~120 characters of the task description for display.
+  string prompt_preview = 4;
 }
 
 // TaskStatusUpdate reports a task status change.
@@ -245,6 +261,33 @@ message MessageEventData {
 
   // Message content.
   string content = 2;
+
+  // Image/file attachments included with this message.
+  repeated MessageAttachmentInfo attachments = 3;
+}
+
+// MessageAttachmentInfo stores metadata about an attachment included with a message.
+message MessageAttachmentInfo {
+  // Server-assigned unique identifier.
+  string id = 1;
+  // Original sanitized filename.
+  string file_name = 2;
+  // MIME type (e.g., "image/png").
+  string content_type = 3;
+  // Serving URL relative to API base.
+  string url = 4;
+}
+
+// MessageDeletedEventData marks a prior message as deleted/redacted.
+//
+// The original message remains in the append-only event stream, but
+// clients should hide it by default and offer a "show message" toggle.
+//
+// @usage RunEvent.message_deleted
+message MessageDeletedEventData {
+  // ID of the original message event being deleted.
+  // @format uuid
+  string target_event_id = 1;
 }
 
 // =============================================================================
@@ -496,4 +539,37 @@ message RateLimitEventData {
 
   // Human-readable message.
   string message = 6;
+}
+
+// =============================================================================
+// COMPACTION EVENT
+// =============================================================================
+
+// CompactionEventData represents a context compaction/summarization event
+// where conversation history is summarized to fit within context limits.
+//
+// @usage RunEvent.compaction
+message CompactionEventData {
+  // The summarized conversation content.
+  string summary = 1;
+
+  // What triggered the compaction.
+  // Values: "manual" (user typed /compact), "auto" (context limit reached).
+  string trigger = 2;
+
+  // User-provided focus instruction (from "/compact focus on X").
+  // Empty string if no focus was specified.
+  string focus = 3;
+
+  // Number of messages summarized.
+  int64 messages_compacted = 4;
+
+  // Token count before compaction.
+  int64 tokens_before = 5;
+
+  // Token count after compaction.
+  int64 tokens_after = 6;
+
+  // Original compaction command if manual (e.g., "/compact focus on auth").
+  string original_command = 7;
 }

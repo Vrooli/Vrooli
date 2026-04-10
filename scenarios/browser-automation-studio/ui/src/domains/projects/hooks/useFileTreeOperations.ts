@@ -42,7 +42,8 @@ export function useFileTreeOperations(projectId: string) {
   const fileBasename = useCallback((relPath: string): string => {
     const normalized = relPath.replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
     const parts = normalized.split("/").filter(Boolean);
-    return parts.length > 0 ? parts[parts.length - 1] : "";
+    const lastPart = parts[parts.length - 1];
+    return lastPart ?? "";
   }, []);
 
   /**
@@ -213,6 +214,43 @@ export function useFileTreeOperations(projectId: string) {
   }, [projectId, fetchProjectEntries, fetchWorkflows]);
 
   /**
+   * Reveals a project file or opens a project folder in the system file manager
+   */
+  const revealProjectPath = useCallback(
+    async (relPath: string): Promise<void> => {
+      const config = await getConfig();
+      const response = await fetch(
+        `${config.API_URL}/projects/${projectId}/files/reveal`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: relPath }),
+        },
+      );
+      if (!response.ok) {
+        const msg = await response.text();
+        throw new Error(msg || `Failed to open in folder: ${response.status}`);
+      }
+    },
+    [projectId],
+  );
+
+  /**
+   * Opens the project root folder in the system file manager
+   */
+  const openProjectFolder = useCallback(async (): Promise<void> => {
+    const config = await getConfig();
+    const response = await fetch(
+      `${config.API_URL}/projects/${projectId}/open-folder`,
+      { method: "POST" },
+    );
+    if (!response.ok) {
+      const msg = await response.text();
+      throw new Error(msg || `Failed to open project folder: ${response.status}`);
+    }
+  }, [projectId]);
+
+  /**
    * Handles drop move operation for drag and drop
    */
   const handleDropMove = useCallback(
@@ -272,6 +310,8 @@ export function useFileTreeOperations(projectId: string) {
     moveFile,
     deleteFile,
     resyncFiles,
+    revealProjectPath,
+    openProjectFolder,
 
     // Drag and drop
     handleDropMove,

@@ -1,0 +1,132 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-28T02:45:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 1,
+    "problem_clarity": 2,
+    "risk_awareness": 1,
+    "scope_defined": 2,
+    "testable": 1
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The spec describes an SSE endpoint (`GET /api/v1/graph/stream?lens=operations`) but the data-foundation item implemented a WebSocket endpoint at `/ws/graph` instead. The broker, dispatch, and stream handler all use WebSocket (gorilla/websocket). The plan should align with what's actually built."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Real-time transport: use existing WebSocket or add SSE",
+      "context": "The spec says SSE but the completed data-foundation item built WebSocket infrastructure (broker.go, stream.go, dispatch.go at /ws/graph). Adding SSE would mean new server code and duplicating the dispatch system. Using the existing WebSocket means the spec description is inaccurate but no new server work is needed.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Use existing WebSocket at /ws/graph",
+          "rationale": "Zero server-side work needed. Infrastructure is tested and wired. Just build the client-side hook. Recommended because the transport is already built and working.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add SSE endpoint alongside WebSocket",
+          "rationale": "Matches original spec. SSE has simpler reconnection semantics (browser-native). But duplicates dispatch infrastructure and adds API scope."
+        },
+        {
+          "key": "C",
+          "label": "Replace WebSocket with SSE",
+          "rationale": "Cleaner for unidirectional server-push. But requires rewriting broker/stream/dispatch — significant scope increase."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": "We originally planned for sse but decided websocket was better"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Inspector action dispatch pattern",
+      "context": "The Inspector needs to render different action buttons per lens and entity type. The question is how to organize action definitions and their handlers. The codebase already has API service functions for backlog operations, scenario management, and execution control scattered across existing stores/services.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Action registry object: Record\u003cLens, Record\u003cEntityType, Action[]\u003e\u003e",
+          "rationale": "Centralized, declarative, easy to test. One file defines all actions with their labels, icons, handlers, and enabled predicates. Inspector just looks up and renders. Recommended because it's the simplest pattern that scales to all 3 lenses.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Per-lens Inspector sub-components",
+          "rationale": "Each lens gets its own action panel component (FlowInspectorActions, OpsInspectorActions). More flexible for radically different layouts per lens, but creates duplication."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "WebSocket lifecycle scope",
+      "context": "The Operations lens needs live updates. The question is when to connect/disconnect the WebSocket. The broker sends a full-sync on connect and then incremental updates. Keeping it connected across all lenses means wasted bandwidth on Topology/Flow but avoids reconnect latency when switching to Operations.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Connect only when Operations lens is active",
+          "rationale": "Matches spec exactly. No wasted bandwidth. Full-fetch on connect provides fresh state. Recommended because it's the simplest correct behavior and the spec explicitly calls for open-on-active/close-on-switch.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Keep connected across all lenses, apply updates only on Operations",
+          "rationale": "Avoids reconnect delay on lens switch. But wastes bandwidth and the broker sends all events regardless of lens filtering."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Action handler error UX",
+      "context": "Inspector actions (start scenario, cancel execution, etc.) can fail — the target service might be down, the item might have changed state, or the agent-manager might be unavailable. Need to decide how to surface errors.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Inline error in Inspector + auto-dismiss after 5s",
+          "rationale": "Keeps error context close to the action that caused it. Simple implementation. Recommended because Inspector is already the user's focus when they trigger an action.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Toast notifications (global)",
+          "rationale": "Consistent with common patterns. Works even if Inspector closes. But adds dependency on a toast system if one doesn't exist yet."
+        },
+        {
+          "key": "C",
+          "label": "Disable button + tooltip explaining unavailability",
+          "rationale": "Prevents errors proactively. But requires pre-checking availability which adds latency and complexity."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    }
+  ],
+  "plan_updates": "Created initial plan scaffold with all 13 mandatory sections. Filled: Purpose, Required Reading, Problem Statement, Scope, Current Technical Context, Target End State, Implementation Strategy (4 phases), Risks + Mitigations, Non-goals, Definition of Done. Left Contract Decisions and Testing Plan as TBD pending workshop decisions."
+}

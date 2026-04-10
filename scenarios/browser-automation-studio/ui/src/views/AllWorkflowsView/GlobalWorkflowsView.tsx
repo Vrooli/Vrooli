@@ -1,26 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Search, X, ChevronLeft, FolderOpen, Play, Star, Clock, Filter } from 'lucide-react';
-import { getConfig } from '@/config';
 import { logger } from '@utils/logger';
 import { useDashboardStore, FavoriteWorkflow } from '@stores/dashboardStore';
 import toast from 'react-hot-toast';
-import { parseProjectList } from '@utils/projectProto';
-
-interface WorkflowItem {
-  id: string;
-  name: string;
-  projectId: string;
-  projectName: string;
-  folderPath: string;
-  updatedAt: Date;
-  executionCount?: number;
-  lastExecution?: Date;
-}
+import { loadGlobalWorkflows, type GlobalWorkflowItem } from './controllers/workflowListController';
 
 interface ProjectGroup {
   projectId: string;
   projectName: string;
-  workflows: WorkflowItem[];
+  workflows: GlobalWorkflowItem[];
 }
 
 interface GlobalWorkflowsViewProps {
@@ -51,7 +39,7 @@ export const GlobalWorkflowsView: React.FC<GlobalWorkflowsViewProps> = ({
   onNavigateToWorkflow,
   onRunWorkflow,
 }) => {
-  const [workflows, setWorkflows] = useState<WorkflowItem[]>([]);
+  const [workflows, setWorkflows] = useState<GlobalWorkflowItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('recent');
@@ -66,37 +54,7 @@ export const GlobalWorkflowsView: React.FC<GlobalWorkflowsViewProps> = ({
   const fetchAllWorkflows = useCallback(async () => {
     setIsLoading(true);
     try {
-      const config = await getConfig();
-
-      // Fetch projects first
-      const projectsResponse = await fetch(`${config.API_URL}/projects`);
-      const projectsData = await projectsResponse.json();
-      const projects = parseProjectList(projectsData);
-      const projectsMap = new Map<string, string>();
-      projects.forEach((p) => projectsMap.set(p.id, p.name));
-
-      // Fetch all workflows
-      const response = await fetch(`${config.API_URL}/workflows?limit=500`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch workflows: ${response.status}`);
-      }
-      const data = await response.json();
-
-      const workflowItems: WorkflowItem[] = Array.isArray(data.workflows)
-        ? data.workflows.map((w: Record<string, unknown>) => {
-            const projectId = String(w.project_id ?? w.projectId ?? '');
-            return {
-              id: String(w.id ?? ''),
-              name: String(w.name ?? 'Untitled'),
-              projectId,
-              projectName: projectsMap.get(projectId) ?? 'Unknown Project',
-              folderPath: String(w.folder_path ?? w.folderPath ?? '/'),
-              updatedAt: new Date(String(w.updated_at ?? w.updatedAt ?? new Date().toISOString())),
-              executionCount: typeof w.execution_count === 'number' ? w.execution_count : undefined,
-            };
-          })
-        : [];
-
+      const workflowItems = await loadGlobalWorkflows(500);
       setWorkflows(workflowItems);
     } catch (error) {
       logger.error('Failed to fetch all workflows', { component: 'GlobalWorkflowsView', action: 'fetchAllWorkflows' }, error);
@@ -110,7 +68,7 @@ export const GlobalWorkflowsView: React.FC<GlobalWorkflowsViewProps> = ({
     fetchAllWorkflows();
   }, [fetchAllWorkflows]);
 
-  const handleToggleFavorite = (e: React.MouseEvent, workflow: WorkflowItem) => {
+  const handleToggleFavorite = (e: React.MouseEvent, workflow: GlobalWorkflowItem) => {
     e.stopPropagation();
     if (isFavorite(workflow.id)) {
       removeFavorite(workflow.id);
@@ -201,7 +159,7 @@ export const GlobalWorkflowsView: React.FC<GlobalWorkflowsViewProps> = ({
     return Array.from(groups.values());
   }, [filteredWorkflows, groupBy, favoriteWorkflows]);
 
-  const renderWorkflowItem = (workflow: WorkflowItem, showProject: boolean = false) => (
+  const renderWorkflowItem = (workflow: GlobalWorkflowItem, showProject: boolean = false) => (
     <div
       key={workflow.id}
       onClick={() => onNavigateToWorkflow(workflow.projectId, workflow.id)}

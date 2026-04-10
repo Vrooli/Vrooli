@@ -9,16 +9,13 @@
 import type { WorkflowSchedule } from '@stores/scheduleStore';
 import { formatNextRun } from '@stores/scheduleStore';
 
+// Type declarations are in src/types/desktop.d.ts
+// We use the global Window.desktop type from there
+
 interface TrayMenuItem {
   label: string;
   action: string;
   enabled?: boolean;
-}
-
-interface DesktopTrayAPI {
-  updateTooltip: (tooltip: string) => Promise<{ success: boolean }>;
-  setBadge: (count: number) => Promise<{ success: boolean }>;
-  updateContextMenu: (items: TrayMenuItem[]) => Promise<{ success: boolean }>;
 }
 
 interface TrayNotificationOptions {
@@ -27,17 +24,14 @@ interface TrayNotificationOptions {
 }
 
 // Helper to get desktop API with tray support
-function getDesktopTray(): DesktopTrayAPI | undefined {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const desktop = (window as any).desktop;
-  return desktop?.tray as DesktopTrayAPI | undefined;
+function getDesktopTray() {
+  return window.desktop?.tray;
 }
 
 // Helper to get desktop notify function
 function getDesktopNotify(): ((title: string, body: string, options?: TrayNotificationOptions) => void) | undefined {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const desktop = (window as any).desktop;
-  return typeof desktop?.notify === 'function' ? desktop.notify : undefined;
+  const notify = window.desktop?.notify;
+  return typeof notify === 'function' ? notify : undefined;
 }
 
 /**
@@ -85,10 +79,10 @@ export async function updateTrayWithSchedules(schedules: WorkflowSchedule[]): Pr
 
   // Update context menu with upcoming schedules
   const menuItems: TrayMenuItem[] = activeSchedules
-    .filter(s => s.next_run_at)
+    .filter((s): s is WorkflowSchedule & { next_run_at: string } => Boolean(s.next_run_at))
     .sort((a, b) => {
-      const aTime = new Date(a.next_run_at!).getTime();
-      const bTime = new Date(b.next_run_at!).getTime();
+      const aTime = new Date(a.next_run_at).getTime();
+      const bTime = new Date(b.next_run_at).getTime();
       return aTime - bTime;
     })
     .slice(0, 3)

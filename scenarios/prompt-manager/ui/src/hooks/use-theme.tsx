@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import type { Theme } from '@/types'
 
@@ -13,7 +14,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('theme') as Theme
-      if (stored && ['light', 'dark', 'system'].includes(stored)) {
+      if (['light', 'dark', 'system'].includes(stored)) {
         return stored
       }
     }
@@ -50,7 +51,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setTheme(prev => {
       const themes: Theme[] = ['light', 'dark', 'system']
       const currentIndex = themes.indexOf(prev)
-      return themes[(currentIndex + 1) % themes.length]
+      const nextIndex = (currentIndex + 1) % themes.length
+      return themes[nextIndex] ?? 'system'
     })
   }
 
@@ -67,4 +69,38 @@ export function useTheme() {
     throw new Error('useTheme must be used within a ThemeProvider')
   }
   return context
+}
+
+/**
+ * Hook to get the resolved theme (always 'light' or 'dark', never 'system').
+ * Useful for components that need the actual theme value, like 3D renderers.
+ */
+export function useResolvedTheme(): 'light' | 'dark' {
+  const { theme } = useTheme()
+  const [resolved, setResolved] = useState<'light' | 'dark'>(() => {
+    if (theme === 'system') {
+      return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light'
+    }
+    return theme
+  })
+
+  useEffect(() => {
+    if (theme !== 'system') {
+      setResolved(theme)
+      return
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleChange = (e: MediaQueryListEvent) => {
+      setResolved(e.matches ? 'dark' : 'light')
+    }
+
+    setResolved(mediaQuery.matches ? 'dark' : 'light')
+    mediaQuery.addEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [theme])
+
+  return resolved
 }

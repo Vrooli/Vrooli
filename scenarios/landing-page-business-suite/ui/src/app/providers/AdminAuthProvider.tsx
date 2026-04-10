@@ -1,16 +1,6 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import { adminLogin, adminLogout, checkAdminSession } from '../../shared/api';
-
-interface AdminAuthContextValue {
-  isAuthenticated: boolean;
-  isSessionLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  user: { email: string } | null;
-  canResetDemoData: boolean;
-}
-
-const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
+import { AdminAuthContext } from './AdminAuthContext';
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -87,11 +77,3 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     </AdminAuthContext.Provider>
   );
 }
-
-export const useAdminAuth = () => {
-  const context = useContext(AdminAuthContext);
-  if (!context) {
-    throw new Error('useAdminAuth must be used within AdminAuthProvider');
-  }
-  return context;
-};

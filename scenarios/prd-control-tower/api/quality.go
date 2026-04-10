@@ -161,7 +161,8 @@ func handleGetQualityStandards(w http.ResponseWriter, r *http.Request) {
 	}
 
 	useCache := parseBoolQuery(r, "use_cache", false)
-	report, err := buildQualityReport(entityType, entityName, useCache)
+	customPath := r.URL.Query().Get("custom_path")
+	report, err := buildQualityReport(entityType, entityName, useCache, customPath)
 	if err != nil {
 		slog.Warn("quality standards report generated with warnings", "entity", entityName, "error", err)
 	}
@@ -242,8 +243,12 @@ func handleQualitySummary(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, summary)
 }
 
-func buildQualityReport(entityType, entityName string, useCache bool) (ScenarioQualityReport, error) {
-	key := fmt.Sprintf("%s:%s", entityType, entityName)
+func buildQualityReport(entityType, entityName string, useCache bool, customPath ...string) (ScenarioQualityReport, error) {
+	cp := ""
+	if len(customPath) > 0 {
+		cp = customPath[0]
+	}
+	key := fmt.Sprintf("%s:%s:%s", entityType, entityName, cp)
 	if useCache {
 		if entry, ok := qualityCache.Load(key); ok {
 			cached := entry.(qualityCacheEntry)
@@ -257,7 +262,7 @@ func buildQualityReport(entityType, entityName string, useCache bool) (ScenarioQ
 		qualityCache.Delete(key)
 	}
 
-	report, err := computeQualityReport(entityType, entityName)
+	report, err := computeQualityReport(entityType, entityName, cp)
 	qualityCache.Store(key, qualityCacheEntry{report: report, err: err, cachedAt: time.Now()})
 	return report, err
 }
@@ -268,7 +273,11 @@ type qualityCacheEntry struct {
 	cachedAt time.Time
 }
 
-func computeQualityReport(entityType, entityName string) (ScenarioQualityReport, error) {
+func computeQualityReport(entityType, entityName string, customPath ...string) (ScenarioQualityReport, error) {
+	cp := ""
+	if len(customPath) > 0 {
+		cp = customPath[0]
+	}
 	now := time.Now()
 	report := ScenarioQualityReport{
 		EntityType:  entityType,
@@ -277,21 +286,14 @@ func computeQualityReport(entityType, entityName string) (ScenarioQualityReport,
 		Status:      "healthy",
 	}
 
-	vrooliRoot, err := getVrooliRoot()
+	entityBaseDir, err := resolveEntityBaseDir(entityType, entityName, cp)
 	if err != nil {
 		report.Status = "error"
 		report.Error = err.Error()
 		return report, err
 	}
 
-	var entityDir string
-	if entityType == EntityTypeScenario {
-		entityDir = "scenarios"
-	} else {
-		entityDir = "resources"
-	}
-
-	prdPath := filepath.Join(vrooliRoot, entityDir, entityName, "PRD.md")
+	prdPath := filepath.Join(entityBaseDir, "PRD.md")
 	report.PRDPath = prdPath
 
 	if _, err := os.Stat(prdPath); errors.Is(err, os.ErrNotExist) {
@@ -328,7 +330,7 @@ func computeQualityReport(entityType, entityName string) (ScenarioQualityReport,
 	unexpectedSections := len(tmplV2.UnexpectedSections)
 	structureIssues := missingSections + unexpectedSections
 
-	requirementsDir := filepath.Join(vrooliRoot, entityDir, entityName, "requirements")
+	requirementsDir := filepath.Join(entityBaseDir, "requirements")
 	requirementsPath := filepath.Join(requirementsDir, "index.json")
 	if _, err := os.Stat(requirementsPath); err == nil {
 		report.HasRequirements = true
@@ -366,7 +368,7 @@ func computeQualityReport(entityType, entityName string) (ScenarioQualityReport,
 		}
 	}
 
-	groups, err := loadRequirementsForEntity(entityType, entityName)
+	groups, err := loadRequirementsForEntity(entityType, entityName, cp)
 	if err != nil {
 		report.Status = "error"
 		report.Error = fmt.Sprintf("failed to load requirements: %v", err)
@@ -376,7 +378,7 @@ func computeQualityReport(entityType, entityName string) (ScenarioQualityReport,
 	flattened := flattenRequirements(groups)
 	report.RequirementCount = len(flattened)
 
-	targets, err := extractOperationalTargets(entityType, entityName)
+	targets, err := extractOperationalTargets(entityType, entityName, cp)
 	if err != nil {
 		report.Status = "error"
 		report.Error = fmt.Sprintf("failed to parse operational targets: %v", err)

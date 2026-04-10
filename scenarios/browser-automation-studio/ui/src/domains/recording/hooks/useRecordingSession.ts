@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getConfig } from '@/config';
 import { logger } from '@/utils/logger';
-import type { ViewportDimensions, ActualViewport } from '../types/viewport';
+import { recordingApi } from '../api';
+import type { ActualViewport } from '../api/schemas';
+import type { ViewportDimensions } from '../types/viewport';
+import {
+  type RetryState,
+  DEFAULT_RETRY_CONFIG,
+  createInitialRetryState,
+  getNextRetryState,
+  createSuccessState,
+  createManualRetryState,
+} from '../services';
+import { useSessionStore } from '../stores';
 
 // Re-export types for backward compatibility
-export type { ViewportSource, ActualViewport } from '../types/viewport';
+export type { ViewportSource, ActualViewport } from '../api/schemas';
 
 interface UseRecordingSessionOptions {
   initialSessionId: string | null;
@@ -18,18 +28,6 @@ export interface StreamSettings {
   fps: number;
   /** 'css' = 1x scale, 'device' = device pixel ratio */
   scale: 'css' | 'device';
-}
-
-/** Retry state for session creation */
-interface RetryState {
-  /** Number of retry attempts made */
-  attempts: number;
-  /** Whether we're in a cooldown period before next retry */
-  inCooldown: boolean;
-  /** When the next retry is allowed (for cooldown display) */
-  nextRetryAt: number | null;
-  /** Whether max retries exceeded (requires manual retry) */
-  maxRetriesExceeded: boolean;
 }
 
 interface UseRecordingSessionReturn {
@@ -56,11 +54,6 @@ interface UseRecordingSessionReturn {
   retrySession: () => void;
 }
 
-// Retry configuration
-const MAX_AUTO_RETRIES = 3;
-const BASE_RETRY_DELAY_MS = 1000; // 1 second
-const MAX_RETRY_DELAY_MS = 30000; // 30 seconds
-
 export function useRecordingSession({
   initialSessionId,
   onSessionReady,
@@ -74,12 +67,17 @@ export function useRecordingSession({
   const [initialRestoredUrl, setInitialRestoredUrl] = useState<string | null>(null);
 
   // Retry state for exponential backoff
-  const [retryState, setRetryState] = useState<RetryState>({
-    attempts: 0,
-    inCooldown: false,
-    nextRetryAt: null,
-    maxRetriesExceeded: false,
-  });
+  const [retryState, setRetryState] = useState<RetryState>(createInitialRetryState);
+
+  // Get store state and actions for syncing state
+  const storeSessionId = useSessionStore((s) => s.sessionId);
+  const storeIsValidated = useSessionStore((s) => s.isValidated);
+  const storeSetSession = useSessionStore((s) => s.setSession);
+  const storeSetIsCreating = useSessionStore((s) => s.setIsCreating);
+  const storeSetError = useSessionStore((s) => s.setError);
+  const storeSetRetryState = useSessionStore((s) => s.setRetryState);
+  const storeClearSession = useSessionStore((s) => s.clearSession);
+  const storeValidateSession = useSessionStore((s) => s.validateSession);
 
   // Track in-flight session creation to prevent duplicate requests.
   // We use a ref because React state updates are async and multiple calls
@@ -88,16 +86,49 @@ export function useRecordingSession({
   const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryAttemptsRef = useRef(0);
 
-  // Clean up cooldown timer on unmount
+  // AbortController for request cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Clean up on unmount
   useEffect(() => {
     return () => {
       if (cooldownTimerRef.current) {
         clearTimeout(cooldownTimerRef.current);
       }
+      abortControllerRef.current?.abort();
     };
   }, []);
 
+  // Validate URL-based session ID on mount/change
   useEffect(() => {
+    // If the URL session matches what's already validated in the store, skip validation.
+    // This prevents unnecessary WebSocket subscription flapping when the URL updates
+    // after session creation (e.g., redirect from /record to /record/<session_id>).
+    if (initialSessionId && initialSessionId === storeSessionId && storeIsValidated) {
+      logger.debug('[useRecordingSession] URL session matches validated store session, skipping validation', {
+        sessionId: initialSessionId,
+      });
+      // Still sync local state
+      setSessionId(initialSessionId);
+      setSessionProfileId(initialSessionProfileId ?? null);
+      return;
+    }
+
+    // If there's no URL session ID but the store has a validated session,
+    // this is likely a timing issue where the URL hasn't been updated yet.
+    // Don't clear the store - let the URL redirect happen.
+    if (!initialSessionId && storeSessionId && storeIsValidated) {
+      logger.debug('[useRecordingSession] No URL session but store has validated session, waiting for URL update', {
+        storeSessionId,
+      });
+      return;
+    }
+
+    // Abort any pending requests when session changes
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+
+    // Reset local state
     setSessionId(initialSessionId ?? null);
     setSessionProfileId(initialSessionProfileId ?? null);
     setSessionError(null);
@@ -106,17 +137,42 @@ export function useRecordingSession({
     pendingSessionPromiseRef.current = null;
     // Reset retry state when session ID changes externally
     retryAttemptsRef.current = 0;
-    setRetryState({
-      attempts: 0,
-      inCooldown: false,
-      nextRetryAt: null,
-      maxRetriesExceeded: false,
-    });
+    setRetryState(createInitialRetryState());
     if (cooldownTimerRef.current) {
       clearTimeout(cooldownTimerRef.current);
       cooldownTimerRef.current = null;
     }
-  }, [initialSessionId, initialSessionProfileId]);
+
+    // If switching to a different session (or no session), clear the store first
+    if (storeSessionId && storeSessionId !== initialSessionId) {
+      logger.debug('[useRecordingSession] Switching sessions, clearing store', {
+        from: storeSessionId,
+        to: initialSessionId,
+      });
+      storeClearSession();
+    }
+
+    // If we have an initial session ID from URL, validate it exists on server
+    if (initialSessionId) {
+      logger.debug('[useRecordingSession] Validating URL session:', { sessionId: initialSessionId });
+      storeValidateSession(initialSessionId).then((isValid) => {
+        if (!isValid) {
+          logger.info('[useRecordingSession] URL session invalid, will create new one', {
+            sessionId: initialSessionId,
+          });
+          // Clear local session ID to trigger new session creation
+          setSessionId(null);
+        } else {
+          logger.debug('[useRecordingSession] URL session validated:', { sessionId: initialSessionId });
+          // Session is valid - sync to store
+          storeSetSession({
+            sessionId: initialSessionId,
+            profileId: initialSessionProfileId,
+          });
+        }
+      });
+    }
+  }, [initialSessionId, initialSessionProfileId, storeSessionId, storeIsValidated, storeClearSession, storeValidateSession, storeSetSession]);
 
   const ensureSession = useCallback(async (
     viewport?: ViewportDimensions | null,
@@ -145,108 +201,86 @@ export function useRecordingSession({
 
     setIsCreatingSession(true);
     setSessionError(null);
+    storeSetIsCreating(true);
+    storeSetError(null);
 
     const createSession = async (): Promise<string | null> => {
       try {
-        const config = await getConfig();
-        const response = await fetch(`${config.API_URL}/recordings/live/session`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            viewport_width: viewport?.width && viewport.width > 0 ? Math.round(viewport.width) : 1280,
-            viewport_height: viewport?.height && viewport.height > 0 ? Math.round(viewport.height) : 720,
-            session_profile_id: profileId ?? sessionProfileId ?? undefined,
-            // Stream settings for frame streaming configuration
-            stream_quality: streamSettings?.quality,
-            stream_fps: streamSettings?.fps,
-            stream_scale: streamSettings?.scale,
-            // Tab restoration - defaults to true on server if not specified
-            restore_tabs: restoreTabs,
-          }),
-        });
+        const result = await recordingApi.createSession(
+          {
+            viewportWidth: viewport?.width && viewport.width > 0 ? Math.round(viewport.width) : undefined,
+            viewportHeight: viewport?.height && viewport.height > 0 ? Math.round(viewport.height) : undefined,
+            sessionProfileId: profileId ?? sessionProfileId ?? undefined,
+            streamQuality: streamSettings?.quality,
+            streamFps: streamSettings?.fps,
+            streamScale: streamSettings?.scale,
+            restoreTabs,
+          },
+          { signal: abortControllerRef.current?.signal }
+        );
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `Failed to create recording session: ${response.statusText}`);
+        if (!result.success) {
+          throw new Error(result.error);
         }
 
-        const data = await response.json();
-        const newSessionId = data.session_id as string | undefined;
-
-        if (!newSessionId) {
-          throw new Error('No session ID returned from server');
-        }
+        const { session_id: newSessionId, session_profile_id, actual_viewport, initial_url } = result.data;
 
         // Success - reset retry state
         retryAttemptsRef.current = 0;
-        setRetryState({
-          attempts: 0,
-          inCooldown: false,
-          nextRetryAt: null,
-          maxRetriesExceeded: false,
-        });
+        setRetryState(createSuccessState());
+        storeSetRetryState(createSuccessState());
 
         setSessionId(newSessionId);
-        if (data.session_profile_id) {
-          setSessionProfileId(data.session_profile_id as string);
+        if (session_profile_id) {
+          setSessionProfileId(session_profile_id);
         }
-        // Store actual viewport from Playwright with source attribution (may differ from requested due to profile)
-        if (data.actual_viewport) {
-          setActualViewport({
-            width: data.actual_viewport.width,
-            height: data.actual_viewport.height,
-            source: data.actual_viewport.source ?? 'requested',
-            reason: data.actual_viewport.reason ?? '',
-          });
+        if (actual_viewport) {
+          setActualViewport(actual_viewport);
         }
-        // Store initial URL from tab restoration (if tabs were restored)
-        if (data.initial_url) {
-          setInitialRestoredUrl(data.initial_url as string);
+        if (initial_url) {
+          setInitialRestoredUrl(initial_url);
         }
+
+        // Sync session to store
+        storeSetSession({
+          sessionId: newSessionId,
+          profileId: session_profile_id ?? null,
+          actualViewport: actual_viewport ?? null,
+          initialRestoredUrl: initial_url ?? null,
+        });
+
         if (onSessionReady) {
           onSessionReady(newSessionId);
         }
         return newSessionId;
       } catch (err) {
+        // Handle abort
+        if (err instanceof Error && err.name === 'AbortError') {
+          return null;
+        }
+
         const message = err instanceof Error ? err.message : 'Failed to create recording session';
         setSessionError(message);
+        storeSetError(message);
         logger.error('Failed to create recording session', { component: 'useRecordingSession', action: 'ensureSession' }, err);
 
-        // Increment retry count and apply exponential backoff
-        retryAttemptsRef.current += 1;
-        const attempts = retryAttemptsRef.current;
+        // Compute next retry state using the service
+        const newState = getNextRetryState(retryAttemptsRef.current, DEFAULT_RETRY_CONFIG);
+        retryAttemptsRef.current = newState.attempts;
+        setRetryState(newState);
+        storeSetRetryState(newState);
 
-        if (attempts >= MAX_AUTO_RETRIES) {
-          // Max retries exceeded - require manual retry
-          setRetryState({
-            attempts,
-            inCooldown: false,
-            nextRetryAt: null,
-            maxRetriesExceeded: true,
-          });
+        if (newState.maxRetriesExceeded) {
           logger.warn('Max session creation retries exceeded', {
             component: 'useRecordingSession',
-            attempts,
-            maxRetries: MAX_AUTO_RETRIES,
+            attempts: newState.attempts,
+            maxRetries: DEFAULT_RETRY_CONFIG.maxRetries,
           });
-        } else {
-          // Calculate backoff delay: 1s, 2s, 4s, 8s... capped at MAX_RETRY_DELAY_MS
-          const delay = Math.min(
-            BASE_RETRY_DELAY_MS * Math.pow(2, attempts - 1),
-            MAX_RETRY_DELAY_MS
-          );
-          const nextRetryAt = Date.now() + delay;
-
-          setRetryState({
-            attempts,
-            inCooldown: true,
-            nextRetryAt,
-            maxRetriesExceeded: false,
-          });
-
+        } else if (newState.inCooldown && newState.nextRetryAt) {
+          const delay = newState.nextRetryAt - Date.now();
           logger.info('Session creation failed, will retry', {
             component: 'useRecordingSession',
-            attempts,
+            attempts: newState.attempts,
             nextRetryInMs: delay,
           });
 
@@ -264,6 +298,7 @@ export function useRecordingSession({
         return null;
       } finally {
         setIsCreatingSession(false);
+        storeSetIsCreating(false);
         pendingSessionPromiseRef.current = null;
       }
     };
@@ -271,7 +306,7 @@ export function useRecordingSession({
     // Store the promise so concurrent calls can wait on the same request
     pendingSessionPromiseRef.current = createSession();
     return pendingSessionPromiseRef.current;
-  }, [sessionId, sessionProfileId, onSessionReady, retryState.inCooldown, retryState.maxRetriesExceeded]);
+  }, [sessionId, sessionProfileId, onSessionReady, retryState.inCooldown, retryState.maxRetriesExceeded, storeSetIsCreating, storeSetError, storeSetSession, storeSetRetryState]);
 
   // Manual retry function - resets retry state and allows another attempt
   const retrySession = useCallback(() => {
@@ -283,12 +318,7 @@ export function useRecordingSession({
 
     // Reset retry state
     retryAttemptsRef.current = 0;
-    setRetryState({
-      attempts: 0,
-      inCooldown: false,
-      nextRetryAt: null,
-      maxRetriesExceeded: false,
-    });
+    setRetryState(createManualRetryState());
     setSessionError(null);
 
     logger.info('Manual session retry triggered', { component: 'useRecordingSession' });

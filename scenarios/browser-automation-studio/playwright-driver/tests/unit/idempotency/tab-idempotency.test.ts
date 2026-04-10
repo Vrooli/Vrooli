@@ -20,7 +20,9 @@ describe('TabHandler Idempotency', () => {
   beforeEach(() => {
     handler = new TabHandler();
     mockPage = createMockPage({
-      bringToFront: jest.fn().mockResolvedValue(undefined) as any,
+      bringToFront: jest
+        .fn()
+        .mockResolvedValue(undefined) as unknown as ReturnType<typeof createMockPage>['bringToFront'],
     });
     mockBrowserContext = createMockContext();
     config = createTestConfig();
@@ -28,7 +30,9 @@ describe('TabHandler Idempotency', () => {
     // Setup newPage to return a new mock page each time
     mockBrowserContext.newPage.mockImplementation(() => {
       const newMockPage = createMockPage({
-        bringToFront: jest.fn().mockResolvedValue(undefined) as any,
+        bringToFront: jest
+          .fn()
+          .mockResolvedValue(undefined) as unknown as ReturnType<typeof createMockPage>['bringToFront'],
       });
       newMockPage.url.mockReturnValue('about:blank');
       newMockPage.title.mockResolvedValue('New Tab');
@@ -45,7 +49,7 @@ describe('TabHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: mockBrowserContext,
+        browserContext: mockBrowserContext,
         config,
         logger,
         metrics,
@@ -66,7 +70,7 @@ describe('TabHandler Idempotency', () => {
       // Only one page should be created (second request awaits first)
       // Note: In the actual implementation, the second request will wait
       // for the first, but in this test they share the same Promise
-      expect(mockBrowserContext.newPage).toHaveBeenCalled();
+      expect(mockBrowserContext.newPage.mock.calls.length).toBeGreaterThan(0);
     });
 
     it('should create separate tabs for different URLs', async () => {
@@ -82,7 +86,7 @@ describe('TabHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: mockBrowserContext,
+        browserContext: mockBrowserContext,
         config,
         logger,
         metrics,
@@ -97,7 +101,7 @@ describe('TabHandler Idempotency', () => {
       expect(result2.success).toBe(true);
 
       // Two different URLs should create two separate tabs
-      expect(mockBrowserContext.newPage).toHaveBeenCalledTimes(2);
+      expect(mockBrowserContext.newPage.mock.calls.length).toBe(2);
     });
   });
 
@@ -113,7 +117,7 @@ describe('TabHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: mockBrowserContext,
+        browserContext: mockBrowserContext,
         config,
         logger,
         metrics,
@@ -131,12 +135,14 @@ describe('TabHandler Idempotency', () => {
       });
 
       // bringToFront should NOT be called since we're already on this tab
-      expect(mockPage.bringToFront).not.toHaveBeenCalled();
+      expect(mockPage.bringToFront.mock.calls.length).toBe(0);
     });
 
     it('should switch tabs and not be idempotent when switching to different tab', async () => {
       const secondPage = createMockPage({
-        bringToFront: jest.fn().mockResolvedValue(undefined) as any,
+        bringToFront: jest
+          .fn()
+          .mockResolvedValue(undefined) as unknown as ReturnType<typeof createMockPage>['bringToFront'],
       });
       secondPage.url.mockReturnValue('https://example.com/page2');
       secondPage.title.mockResolvedValue('Page 2');
@@ -150,7 +156,7 @@ describe('TabHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage, // Currently on first page
-        context: mockBrowserContext,
+        browserContext: mockBrowserContext,
         config,
         logger,
         metrics,
@@ -168,12 +174,14 @@ describe('TabHandler Idempotency', () => {
       });
 
       // bringToFront should be called on the target page
-      expect(secondPage.bringToFront).toHaveBeenCalled();
+      expect(secondPage.bringToFront.mock.calls.length).toBeGreaterThan(0);
     });
 
     it('should handle multiple consecutive switch requests to same tab', async () => {
       const secondPage = createMockPage({
-        bringToFront: jest.fn().mockResolvedValue(undefined) as any,
+        bringToFront: jest
+          .fn()
+          .mockResolvedValue(undefined) as unknown as ReturnType<typeof createMockPage>['bringToFront'],
       });
       secondPage.url.mockReturnValue('https://example.com/page2');
       secondPage.title.mockResolvedValue('Page 2');
@@ -187,7 +195,7 @@ describe('TabHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: secondPage, // Already on second page
-        context: mockBrowserContext,
+        browserContext: mockBrowserContext,
         config,
         logger,
         metrics,
@@ -220,7 +228,9 @@ describe('TabHandler Idempotency', () => {
     it('should return error when closing non-existent tab index', async () => {
       // Need at least 2 tabs to avoid LAST_TAB error
       const secondPage = createMockPage({
-        bringToFront: jest.fn().mockResolvedValue(undefined) as any,
+        bringToFront: jest
+          .fn()
+          .mockResolvedValue(undefined) as unknown as ReturnType<typeof createMockPage>['bringToFront'],
       });
       const tabStack = [mockPage, secondPage];
 
@@ -231,7 +241,7 @@ describe('TabHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: mockBrowserContext,
+        browserContext: mockBrowserContext,
         config,
         logger,
         metrics,
@@ -256,7 +266,7 @@ describe('TabHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: mockBrowserContext,
+        browserContext: mockBrowserContext,
         config,
         logger,
         metrics,
@@ -286,7 +296,7 @@ describe('TabHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: mockBrowserContext,
+        browserContext: mockBrowserContext,
         config,
         logger,
         metrics,

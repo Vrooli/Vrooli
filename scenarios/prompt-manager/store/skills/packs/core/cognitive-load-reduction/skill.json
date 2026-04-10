@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "cognitive-load-reduction",
+  "name": "Cognitive Load Reduction",
+  "description": "Simplify code to reduce mental overhead for developers",
+  "modes": [
+    "steer",
+    "simplification"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "brain",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 43,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2026-02-04T13:13:54Z"
+}

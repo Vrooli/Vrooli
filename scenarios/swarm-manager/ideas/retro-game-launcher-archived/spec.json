@@ -1,0 +1,24 @@
+{
+  "archived_at": "2026-02-06T02:29:53Z",
+  "created": "2026-02-06T02:29:53Z",
+  "description": "Platform for launching and managing retro games with AI-generated game creation capabilities",
+  "name": "retro-game-launcher-archived",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "business-application",
+    "gaming",
+    "retro",
+    "entertainment",
+    "ai-generation",
+    "nodejs-ui",
+    "go-api",
+    "postgres-storage",
+    "ollama-ai",
+    "kid-friendly",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] retro-game-launcher",
+  "updated": "2026-02-06T02:29:53Z"
+}

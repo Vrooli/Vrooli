@@ -1,13 +1,30 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X } from "lucide-react";
+import Editor, { type Monaco as MonacoInstance } from "@monaco-editor/react";
+import type * as Monaco from "monaco-editor";
+import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw, MoreVertical, Maximize2, Minimize2, SlidersHorizontal, Search, ClipboardCheck } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
 import { ViewModeSelector } from "./ViewModeSelector";
+import { MarkdownPreview } from "./MarkdownPreview";
+import { ImagePreview } from "./ImagePreview";
 import { useIsMobile } from "../hooks";
-import type { DiffResponse, DiffHunk, ViewMode, AnnotatedLine, LineChange } from "../lib/api";
+import {
+  FileContentConflictError,
+  type DiffResponse,
+  type DiffHunk,
+  type SaveFileContentResponse,
+  type ViewMode,
+  type AnnotatedLine,
+  type LineChange
+} from "../lib/api";
 import { highlightCode, getLanguageFromPath, type HighlightToken, type HighlightedLine } from "../lib/highlighter";
+import { getFileTypeInfo } from "../lib/fileTypes";
+import { ChangeMetricsModal } from "./ChangeMetricsModal";
+import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
+import { Popover } from "./ui/popover";
+import { formatPath } from "../lib/utils";
 
 interface DiffViewerProps {
   diff?: DiffResponse;
@@ -29,6 +46,234 @@ interface DiffViewerProps {
   // History mode props
   isHistoryMode?: boolean;
   commitHash?: string;
+  // Related files
+  onShowRelatedFiles?: (path: string) => void;
+  // Empty-state CTAs
+  onOpenSearch?: () => void;
+  onOpenReview?: () => void;
+  // Read-only mode (viewing any file from search)
+  isReadOnly?: boolean;
+  onSaveFileContent?: (path: string, content: string, expectedHash?: string) => Promise<SaveFileContentResponse>;
+  isSavingFile?: boolean;
+  onDeletePath?: (path: string, isDir: boolean) => void;
+  isDeleting?: boolean;
+}
+
+const maxHighlightChars = 200000;
+const minimapMinLines = 80;
+const minimapMaxMarkers = 180;
+const monacoThemeName = "git-control-tower-dark";
+
+interface MinimapMarker {
+  topPercent: number;
+  change: Exclude<LineChange, "">;
+}
+
+interface MinimapTextureRow {
+  topPercent: number;
+  widthPercent: number;
+  opacity: number;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getChangedLineNumber(line: AnnotatedLine, fallbackLine: number): number {
+  if (line.number > 0) return line.number;
+  if (line.old_number && line.old_number > 0) return line.old_number;
+  return fallbackLine;
+}
+
+function markerPriority(change: Exclude<LineChange, "">): number {
+  switch (change) {
+    case "deleted":
+      return 3;
+    case "modified":
+      return 2;
+    case "added":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+function buildMinimapMarkers(annotatedLines: AnnotatedLine[]): MinimapMarker[] {
+  const changedLines = annotatedLines
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => line.change === "added" || line.change === "deleted" || line.change === "modified");
+
+  if (changedLines.length === 0) return [];
+
+  const maxLineNumber = Math.max(
+    ...annotatedLines.map((line, index) => getChangedLineNumber(line, index + 1)),
+    annotatedLines.length
+  );
+  const bucketCount = Math.min(minimapMaxMarkers, Math.max(maxLineNumber, 1));
+  const buckets = new Map<number, Exclude<LineChange, "">>();
+
+  changedLines.forEach(({ line, index }) => {
+    const change = line.change as Exclude<LineChange, "">;
+    const lineNumber = getChangedLineNumber(line, index + 1);
+    const ratio = maxLineNumber <= 1 ? 0 : (lineNumber - 1) / (maxLineNumber - 1);
+    const bucket = clamp(Math.round(ratio * (bucketCount - 1)), 0, bucketCount - 1);
+    const existing = buckets.get(bucket);
+    if (!existing || markerPriority(change) >= markerPriority(existing)) {
+      buckets.set(bucket, change);
+    }
+  });
+
+  return Array.from(buckets.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([bucket, change]) => ({
+      topPercent: bucketCount <= 1 ? 0 : (bucket / (bucketCount - 1)) * 100,
+      change
+    }));
+}
+
+function scrollTopFromMinimapPointer(
+  pointerOffsetY: number,
+  railHeight: number,
+  scrollHeight: number,
+  clientHeight: number
+): number {
+  if (railHeight <= 0) return 0;
+  const ratio = clamp(pointerOffsetY / railHeight, 0, 1);
+  const maxScrollable = Math.max(scrollHeight - clientHeight, 0);
+  return ratio * maxScrollable;
+}
+
+function getMinimapMarkerClass(change: Exclude<LineChange, "">): string {
+  switch (change) {
+    case "added":
+      return "bg-emerald-400/80";
+    case "deleted":
+      return "bg-red-400/80";
+    case "modified":
+      return "bg-amber-400/80";
+    default:
+      return "bg-slate-400/80";
+  }
+}
+
+function indentationDepth(line: string): number {
+  let depth = 0;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === " ") {
+      depth += 1;
+    } else if (ch === "\t") {
+      depth += 2;
+    } else {
+      break;
+    }
+  }
+  return depth;
+}
+
+function textureFromLine(rawLine: string): { widthPercent: number; opacity: number } {
+  const line = rawLine.replace(/\s+$/g, "");
+  if (!line.trim()) {
+    return { widthPercent: 18, opacity: 0.2 };
+  }
+
+  const indent = indentationDepth(line);
+  const indentPenalty = Math.min(indent * 1.3, 32);
+  const lengthFactor = Math.min(line.length, 120);
+  const widthPercent = clamp(30 + (lengthFactor / 120) * 68 - indentPenalty, 22, 96);
+
+  const trimmed = line.trim();
+  let opacity = 0.35;
+  if (/^(import|export|class|interface|type|function|const|let|var)\b/.test(trimmed)) {
+    opacity = 0.72;
+  } else if (/^(#|##|###|####)/.test(trimmed)) {
+    opacity = 0.7;
+  } else if (/^(\}|\]|\)|return\b)/.test(trimmed)) {
+    opacity = 0.42;
+  } else if (trimmed.length < 10) {
+    opacity = 0.3;
+  } else if (trimmed.length > 80) {
+    opacity = 0.5;
+  }
+
+  return { widthPercent, opacity };
+}
+
+function getMonacoLanguage(filePath?: string): string {
+  if (!filePath) return "plaintext";
+  const detected = getLanguageFromPath(filePath);
+  if (!detected) return "plaintext";
+  const languageMap: Record<string, string> = {
+    jsx: "javascript",
+    tsx: "typescript",
+    bash: "shell",
+    sh: "shell",
+    zsh: "shell",
+    fish: "shell",
+    "objective-c": "cpp",
+    markdown: "markdown",
+    jsonc: "json",
+    yml: "yaml"
+  };
+  return languageMap[detected] ?? detected;
+}
+
+function defineMonacoTheme(monaco: MonacoInstance): void {
+  monaco.editor.defineTheme(monacoThemeName, {
+    base: "vs-dark",
+    inherit: true,
+    rules: [],
+    colors: {
+      "editor.background": "#020617",
+      "editor.foreground": "#d4d4d4",
+      "editorLineNumber.foreground": "#444d56",
+      "editorLineNumber.activeForeground": "#e1e4e8",
+      "editorCursor.foreground": "#c8e1ff",
+      "editor.selectionBackground": "#3392FF44",
+      "editor.selectionHighlightBackground": "#17E5E633",
+      "editor.lineHighlightBackground": "#2b303655",
+      "editorLineNumber.background": "#020617",
+      "editorGutter.background": "#020617",
+      "editorWhitespace.foreground": "#444d56",
+      "editorIndentGuide.background1": "#2f363d",
+      "editorIndentGuide.activeBackground1": "#444d56",
+      "scrollbarSlider.background": "#6a737d33",
+      "scrollbarSlider.hoverBackground": "#6a737d44",
+      "scrollbarSlider.activeBackground": "#6a737d88",
+      "editorOverviewRuler.border": "#1b1f23"
+    }
+  });
+}
+
+function buildMinimapTextureRows(lines: string[], maxRows = 220): MinimapTextureRow[] {
+  if (lines.length === 0) return [];
+
+  const bucketCount = Math.min(maxRows, lines.length);
+  const rows: MinimapTextureRow[] = [];
+  const linesPerBucket = lines.length / bucketCount;
+
+  for (let bucket = 0; bucket < bucketCount; bucket++) {
+    const start = Math.floor(bucket * linesPerBucket);
+    const end = Math.min(lines.length, Math.floor((bucket + 1) * linesPerBucket));
+    const bucketLines = lines.slice(start, Math.max(end, start + 1));
+
+    let widthSum = 0;
+    let opacitySum = 0;
+    bucketLines.forEach((line) => {
+      const metrics = textureFromLine(line);
+      widthSum += metrics.widthPercent;
+      opacitySum += metrics.opacity;
+    });
+
+    const count = Math.max(bucketLines.length, 1);
+    rows.push({
+      topPercent: bucketCount <= 1 ? 0 : (bucket / (bucketCount - 1)) * 100,
+      widthPercent: widthSum / count,
+      opacity: opacitySum / count
+    });
+  }
+
+  return rows;
 }
 
 // Hook to detect horizontal scroll state
@@ -68,6 +313,12 @@ function useHighlighting(content: string | undefined, filePath: string | undefin
   useEffect(() => {
     if (!content || !filePath) {
       setHighlighted(null);
+      setIsHighlighting(false);
+      return;
+    }
+    if (content.length > maxHighlightChars) {
+      setHighlighted(null);
+      setIsHighlighting(false);
       return;
     }
 
@@ -91,6 +342,7 @@ function useHighlighting(content: string | undefined, filePath: string | undefin
 
     return () => {
       cancelled = true;
+      setIsHighlighting(false);
     };
   }, [content, filePath]);
 
@@ -168,7 +420,7 @@ function DiffLine({ line, lineNumber }: { line: string; lineNumber?: number }) {
   }
 
   return (
-    <div className={`flex font-mono text-xs ${bgColor}`} data-testid="diff-line">
+    <div className={`flex font-mono ${bgColor}`} style={{ fontSize: "var(--code-font-size, 12px)" }} data-testid="diff-line">
       {lineNumber !== undefined && (
         <span
           className={`w-12 flex-shrink-0 px-2 py-0.5 text-right select-none border-r border-slate-800 ${lineNumColor}`}
@@ -176,7 +428,7 @@ function DiffLine({ line, lineNumber }: { line: string; lineNumber?: number }) {
           {isContext ? lineNumber : ""}
         </span>
       )}
-      <pre className={`flex-1 px-3 py-0.5 whitespace-pre overflow-x-auto ${textColor}`}>
+      <pre className={`flex-1 px-3 py-0.5 whitespace-pre ${textColor}`}>
         {line || " "}
       </pre>
     </div>
@@ -200,7 +452,7 @@ function HighlightedCodeLine({
   const isDeleted = change === "deleted";
 
   return (
-    <div className={`flex font-mono text-xs ${bgColor}`} data-testid="code-line">
+    <div className={`flex font-mono ${bgColor}`} style={{ fontSize: "var(--code-font-size, 12px)" }} data-testid="code-line">
       {/* Line number gutter */}
       <span
         className={`w-12 flex-shrink-0 px-2 py-0.5 text-right select-none border-r border-slate-800 ${lineNumColor}`}
@@ -215,7 +467,7 @@ function HighlightedCodeLine({
         {change === "deleted" && "-"}
       </span>
       {/* Code content */}
-      <pre className="flex-1 px-2 py-0.5 whitespace-pre overflow-x-auto text-slate-300">
+      <pre className="flex-1 px-2 py-0.5 whitespace-pre text-slate-300">
         {tokens ? <HighlightedTokens tokens={tokens} /> : " "}
       </pre>
     </div>
@@ -229,14 +481,13 @@ function HunkDisplay({ hunk, index }: { hunk: DiffHunk; index: number }) {
   return (
     <div className="border-b border-slate-800 last:border-b-0" data-testid={`diff-hunk-${index}`}>
       {/* Hunk header */}
-      <div className="bg-slate-800/50 px-3 py-1.5 font-mono text-xs text-slate-500">
+      <div className="bg-slate-800/50 px-3 py-1.5 font-mono text-slate-500" style={{ fontSize: "var(--code-font-size, 12px)" }}>
         {hunk.header}
       </div>
 
       {/* Hunk lines */}
       <div className="divide-y divide-slate-800/30">
         {hunk.lines.map((line, lineIdx) => {
-          const isAddition = line.startsWith("+") && !line.startsWith("+++");
           const isDeletion = line.startsWith("-") && !line.startsWith("---");
           const lineNum = isDeletion ? undefined : currentLine;
 
@@ -343,14 +594,45 @@ export function DiffViewer({
   isStaging = false,
   isDiscarding = false,
   isHistoryMode = false,
-  commitHash
+  commitHash,
+  onShowRelatedFiles,
+  onOpenSearch,
+  onOpenReview,
+  isReadOnly = false,
+  onSaveFileContent,
+  isSavingFile = false,
+  onDeletePath,
+  isDeleting = false
 }: DiffViewerProps) {
   const isMobile = useIsMobile();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const minimapRailRef = useRef<HTMLDivElement>(null);
+  const titleRowRef = useRef<HTMLDivElement>(null);
+  const [maxPathChars, setMaxPathChars] = useState(60);
   const { canScrollLeft, canScrollRight } = useScrollHints(scrollContainerRef);
   const [showBinary, setShowBinary] = useState(false);
   const [copied, setCopied] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [codeFontSize, setCodeFontSize] = useState(() => {
+    const saved = localStorage.getItem("gct-code-font-size");
+    return saved ? Number(saved) : 12;
+  });
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftContent, setDraftContent] = useState("");
+  const [expectedHash, setExpectedHash] = useState<string | undefined>();
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [conflictHash, setConflictHash] = useState<string | null>(null);
+  const monacoEditorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<MonacoInstance | null>(null);
+  const monacoDecorationIdsRef = useRef<string[]>([]);
+  const [scrollMetrics, setScrollMetrics] = useState({
+    scrollTop: 0,
+    scrollHeight: 1,
+    clientHeight: 1
+  });
+  const [metricsOpen, setMetricsOpen] = useState(false);
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
 
   const isBinaryDiff = Boolean(
     diff?.raw && (diff.raw.includes("Binary files") || diff.raw.includes("GIT binary patch"))
@@ -390,6 +672,14 @@ export function DiffViewer({
     return () => window.clearTimeout(timer);
   }, [copied]);
 
+  const handleFontSizeChange = useCallback((delta: number) => {
+    setCodeFontSize((prev) => {
+      const next = Math.min(24, Math.max(8, prev + delta));
+      localStorage.setItem("gct-code-font-size", String(next));
+      return next;
+    });
+  }, []);
+
   const handleCopyPath = async () => {
     if (!absolutePath) return;
 
@@ -423,89 +713,643 @@ export function DiffViewer({
     selectedFile && !isLoading && !error && diff?.has_diff && isBinaryDiff && !showBinary;
 
   // Determine what content to show
-  const hasAnnotatedLines = diff?.annotated_lines && diff.annotated_lines.length > 0;
+  const annotatedLines = useMemo(() => diff?.annotated_lines ?? [], [diff?.annotated_lines]);
+  const hunks = useMemo(() => diff?.hunks ?? [], [diff?.hunks]);
+  const fullContent = diff?.full_content ?? "";
+  const hasAnnotatedLines = annotatedLines.length > 0;
   const hasFullContent = diff?.full_content !== undefined;
-  const hasHunks = diff?.hunks && diff.hunks.length > 0;
+  const hasHunks = hunks.length > 0;
+  const fullContentLineCount = useMemo(() => {
+    if (!fullContent) return 0;
+    return fullContent.split("\n").length;
+  }, [fullContent]);
+  const isPreviewable = selectedFile ? getFileTypeInfo(selectedFile) : null;
+  const canEditMode = viewMode === "source" || viewMode === "full_diff";
+  const canEditTextFile =
+    isPreviewable?.category === "code" || isPreviewable?.category === "markdown";
+  const canEdit =
+    Boolean(selectedFile) &&
+    !isHistoryMode &&
+    hasFullContent &&
+    canEditTextFile &&
+    Boolean(onSaveFileContent);
+  const isDirty = isEditing && draftContent !== fullContent;
+  const monacoLanguage = getMonacoLanguage(selectedFile);
+  const showMarkdownPreview =
+    selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && isPreviewable?.category === "markdown";
+  const showImagePreview =
+    selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && isPreviewable?.category === "image" && isPreviewable.mimeType;
+  const minimapSourceLines = useMemo(() => {
+    if (viewMode === "source") {
+      return fullContent.split("\n");
+    }
+    if (viewMode === "full_diff") {
+      return annotatedLines.map((line) => line.content);
+    }
+    return [] as string[];
+  }, [annotatedLines, fullContent, viewMode]);
+  const minimapLineCount = viewMode === "source" ? fullContentLineCount : viewMode === "full_diff" ? annotatedLines.length : 0;
+  const minimapMarkers = useMemo(
+    () => (viewMode === "full_diff" ? buildMinimapMarkers(annotatedLines) : []),
+    [annotatedLines, viewMode]
+  );
+  const minimapTextureRows = useMemo(
+    () => buildMinimapTextureRows(minimapSourceLines),
+    [minimapSourceLines]
+  );
+  const showMinimap =
+    !isMobile &&
+    selectedFile &&
+    !isLoading &&
+    !isHighlighting &&
+    !error &&
+    !isEditing &&
+    minimapLineCount >= minimapMinLines &&
+    ((viewMode === "source" && hasFullContent) || (viewMode === "full_diff" && hasAnnotatedLines));
+
+  useEffect(() => {
+    if (!isEditing) {
+      setDraftContent(fullContent);
+      setExpectedHash(diff?.content_hash);
+    }
+  }, [diff?.content_hash, fullContent, isEditing]);
+
+  useEffect(() => {
+    setIsEditing(false);
+    setSaveError(null);
+    setConflictHash(null);
+  }, [selectedFile, viewMode, isHistoryMode]);
+
+  const handleStartEditing = useCallback(() => {
+    if (!canEdit) return;
+    if (!canEditMode) {
+      onViewModeChange("source");
+    }
+    setDraftContent(fullContent);
+    setExpectedHash(diff?.content_hash);
+    setSaveError(null);
+    setConflictHash(null);
+    setIsEditing(true);
+  }, [canEdit, canEditMode, diff?.content_hash, fullContent, onViewModeChange]);
+
+  const handleCancelEditing = useCallback(() => {
+    setDraftContent(fullContent);
+    setExpectedHash(diff?.content_hash);
+    setSaveError(null);
+    setConflictHash(null);
+    setIsEditing(false);
+  }, [diff?.content_hash, fullContent]);
+
+  const handleSaveContent = useCallback(async () => {
+    if (!selectedFile || !onSaveFileContent) return;
+    try {
+      const result = await onSaveFileContent(selectedFile, draftContent, expectedHash);
+      setExpectedHash(result.content_hash);
+      setSaveError(null);
+      setConflictHash(null);
+      setIsEditing(false);
+    } catch (err) {
+      if (err instanceof FileContentConflictError) {
+        setConflictHash(err.currentHash);
+        setExpectedHash(err.currentHash);
+        setSaveError("File changed on disk. Review latest content and save again.");
+        return;
+      }
+      setSaveError(err instanceof Error ? err.message : "Failed to save file");
+    }
+  }, [draftContent, expectedHash, onSaveFileContent, selectedFile]);
+  const handleMonacoBeforeMount = useCallback((monaco: MonacoInstance) => {
+    monacoRef.current = monaco;
+    defineMonacoTheme(monaco);
+  }, []);
+  const handleMonacoMount = useCallback((editor: Monaco.editor.IStandaloneCodeEditor) => {
+    monacoEditorRef.current = editor;
+  }, []);
+
+  useEffect(() => {
+    const editor = monacoEditorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+
+    const hasEditableFullDiff = isEditing && viewMode === "full_diff" && hasAnnotatedLines;
+    if (!hasEditableFullDiff) {
+      if (monacoDecorationIdsRef.current.length > 0) {
+        monacoDecorationIdsRef.current = editor.deltaDecorations(monacoDecorationIdsRef.current, []);
+      }
+      return;
+    }
+
+    const lineDecorations = annotatedLines
+      .filter(
+        (line) =>
+          line.number > 0 &&
+          (line.change === "added" || line.change === "modified")
+      )
+      .map((line) => {
+        const isAdded = line.change === "added";
+        return {
+          range: new monaco.Range(line.number, 1, line.number, 1),
+          options: {
+            isWholeLine: true,
+            className: isAdded ? "monaco-diff-line-added" : "monaco-diff-line-modified",
+            linesDecorationsClassName: isAdded
+              ? "monaco-diff-line-gutter-added"
+              : "monaco-diff-line-gutter-modified",
+            overviewRuler: {
+              color: isAdded ? "#34d399aa" : "#fbbf24aa",
+              position: monaco.editor.OverviewRulerLane.Left
+            }
+          }
+        };
+      });
+
+    monacoDecorationIdsRef.current = editor.deltaDecorations(
+      monacoDecorationIdsRef.current,
+      lineDecorations
+    );
+  }, [annotatedLines, hasAnnotatedLines, isEditing, viewMode]);
+
+  useEffect(() => {
+    return () => {
+      const editor = monacoEditorRef.current;
+      if (!editor || monacoDecorationIdsRef.current.length === 0) return;
+      editor.deltaDecorations(monacoDecorationIdsRef.current, []);
+      monacoDecorationIdsRef.current = [];
+    };
+  }, []);
+  const maxScrollable = Math.max(scrollMetrics.scrollHeight - scrollMetrics.clientHeight, 0);
+  const viewportHeightPercent = clamp(
+    (scrollMetrics.clientHeight / Math.max(scrollMetrics.scrollHeight, 1)) * 100,
+    8,
+    100
+  );
+  const viewportTopPercent = maxScrollable <= 0
+    ? 0
+    : (scrollMetrics.scrollTop / maxScrollable) * Math.max(100 - viewportHeightPercent, 0);
+
+  useEffect(() => {
+    if (!showMinimap) {
+      setScrollMetrics({ scrollTop: 0, scrollHeight: 1, clientHeight: 1 });
+      return;
+    }
+
+    const scroller = scrollContainerRef.current;
+    if (!scroller) return;
+
+    const updateMetrics = () => {
+      setScrollMetrics({
+        scrollTop: scroller.scrollTop,
+        scrollHeight: scroller.scrollHeight,
+        clientHeight: scroller.clientHeight
+      });
+    };
+
+    updateMetrics();
+    scroller.addEventListener("scroll", updateMetrics, { passive: true });
+    window.addEventListener("resize", updateMetrics);
+
+    return () => {
+      scroller.removeEventListener("scroll", updateMetrics);
+      window.removeEventListener("resize", updateMetrics);
+    };
+  }, [showMinimap, selectedFile, viewMode, fullContent, annotatedLines.length]);
+
+  const jumpToMinimapPosition = useCallback((clientY: number) => {
+    const rail = minimapRailRef.current;
+    const scroller = scrollContainerRef.current;
+    if (!rail || !scroller) return;
+
+    const rect = rail.getBoundingClientRect();
+    const pointerOffsetY = clamp(clientY - rect.top, 0, rect.height);
+    const nextScrollTop = scrollTopFromMinimapPointer(
+      pointerOffsetY,
+      rect.height,
+      scroller.scrollHeight,
+      scroller.clientHeight
+    );
+    scroller.scrollTo({ top: nextScrollTop, behavior: "auto" });
+  }, []);
+
+  const handleMinimapPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    jumpToMinimapPosition(event.clientY);
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      jumpToMinimapPosition(moveEvent.clientY);
+    };
+
+    const handleUp = () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    };
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+  }, [jumpToMinimapPosition]);
+
+  const handleMinimapKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    const scroller = scrollContainerRef.current;
+    if (!scroller) return;
+
+    if (event.key === "ArrowDown" || event.key === "PageDown") {
+      event.preventDefault();
+      const step = event.key === "PageDown" ? scroller.clientHeight : 80;
+      scroller.scrollTo({ top: scroller.scrollTop + step, behavior: "auto" });
+    } else if (event.key === "ArrowUp" || event.key === "PageUp") {
+      event.preventDefault();
+      const step = event.key === "PageUp" ? scroller.clientHeight : 80;
+      scroller.scrollTo({ top: scroller.scrollTop - step, behavior: "auto" });
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      scroller.scrollTo({ top: 0, behavior: "auto" });
+    } else if (event.key === "End") {
+      event.preventDefault();
+      scroller.scrollTo({ top: scroller.scrollHeight, behavior: "auto" });
+    }
+  }, []);
+
+  // Dynamically compute max path chars based on available header width
+  useEffect(() => {
+    if (!titleRowRef.current || typeof ResizeObserver === "undefined") return;
+    const update = () => {
+      const width = titleRowRef.current?.clientWidth ?? 0;
+      // Account for: dot/badge (~30px), stats (~80px), overflow menu (~44px), gaps (~24px)
+      const usable = Math.max(0, width - 180);
+      const nextMax = Math.max(12, Math.min(100, Math.floor(usable / 7)));
+      setMaxPathChars(nextMax);
+    };
+    const rafId = requestAnimationFrame(update);
+    const observer = new ResizeObserver(update);
+    observer.observe(titleRowRef.current);
+    return () => {
+      cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
+  }, []);
+
+  const displayPath = selectedFile ? formatPath(selectedFile, maxPathChars) : null;
 
   return (
-    <Card className="h-full flex flex-col" data-testid="diff-viewer-panel">
-      <CardHeader className={`flex-row items-center justify-between space-y-0 ${isMobile ? "py-4 px-4" : "py-3"}`}>
-        <div className={`flex items-center min-w-0 ${isMobile ? "gap-2 flex-1" : "gap-3"}`}>
-          <CardTitle className={`flex items-center gap-2 min-w-0 ${isMobile ? "flex-1" : ""}`}>
-            <FileDiff className={`flex-shrink-0 text-slate-500 ${isMobile ? "h-5 w-5" : "h-4 w-4"}`} />
-            {selectedFile ? (
-              <span className={`font-mono truncate ${isMobile ? "text-sm" : "text-xs"}`}>{selectedFile}</span>
-            ) : (
-              <span className={isMobile ? "text-sm" : "text-xs"}>Diff Viewer</span>
-            )}
-          </CardTitle>
-          {selectedFile && (
-            <button
-              type="button"
-              className={`inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 ${
-                isMobile ? "h-10 w-10 touch-target" : "h-7 w-7"
-              }`}
-              onClick={handleCopyPath}
-              title={copied ? "Copied" : "Copy absolute path"}
-              aria-label="Copy absolute path"
-              data-testid="copy-absolute-path"
-            >
-              {copied ? (
-                <Check className={`text-emerald-300 ${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"}`} />
-              ) : (
-                <Copy className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+    <Card className={`flex flex-col ${isFullscreen ? "fixed inset-0 z-50 rounded-none border-0 bg-slate-950" : "h-full"}`} style={{ "--code-font-size": `${codeFontSize}px` } as React.CSSProperties} data-testid="diff-viewer-panel">
+      <CardHeader className={`space-y-0 ${isFullscreen ? "py-2 px-3" : isMobile ? "py-3 px-4" : "py-3 flex-row items-center justify-between"}`}>
+        {/* Row 1: Title + primary indicators */}
+        <div ref={titleRowRef} className={`flex items-center min-w-0 ${isMobile ? "gap-2" : "gap-3"}`}>
+          <div className={`flex items-center min-w-0 flex-1 ${isMobile ? "gap-2" : "gap-3"}`}>
+            <CardTitle className={`flex items-center gap-2 min-w-0 ${isMobile ? "flex-1" : ""}`}>
+              {!isMobile && (
+                <FileDiff className="flex-shrink-0 text-slate-500 h-4 w-4" />
               )}
-            </button>
-          )}
-          {selectedFile && !isMobile && (
-            isHistoryMode ? (
-              <Badge variant="warning">
-                {commitHash ? commitHash.substring(0, 7) : "history"}
-              </Badge>
-            ) : (
-              <Badge variant={isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}>
-                {isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}
-              </Badge>
-            )
-          )}
-        </div>
+              {selectedFile ? (
+                <Popover
+                  align="start"
+                  trigger={
+                    <span className="font-mono text-xs truncate cursor-pointer hover:text-blue-300 transition-colors">{displayPath}</span>
+                  }
+                >
+                  <div className="p-3 flex items-center gap-2 max-w-[90vw]">
+                    <span className="font-mono text-xs text-slate-200 break-all select-all flex-1">{absolutePath || selectedFile}</span>
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 h-7 w-7"
+                      onClick={handleCopyPath}
+                      title={copied ? "Copied" : "Copy path"}
+                      aria-label="Copy path"
+                    >
+                      {copied ? (
+                        <Check className="text-emerald-300 h-3.5 w-3.5" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </div>
+                </Popover>
+              ) : (
+                <span className="text-xs">Diff Viewer</span>
+              )}
+            </CardTitle>
+            {/* Desktop-only: inline copy/related buttons (hidden in fullscreen) */}
+            {!isMobile && !isFullscreen && selectedFile && (
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 h-7 w-7"
+                onClick={handleCopyPath}
+                title={copied ? "Copied" : "Copy absolute path"}
+                aria-label="Copy absolute path"
+                data-testid="copy-absolute-path"
+              >
+                {copied ? (
+                  <Check className="text-emerald-300 h-3.5 w-3.5" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+              </button>
+            )}
+            {!isMobile && !isFullscreen && selectedFile && onShowRelatedFiles && (
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 h-7 w-7"
+                onClick={() => onShowRelatedFiles(selectedFile)}
+                title="Related files"
+                aria-label="Show related files"
+                data-testid="related-files-button"
+              >
+                <Link2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {selectedFile && !isMobile && !isFullscreen && (
+              isHistoryMode ? (
+                <Badge variant="warning">
+                  {commitHash ? commitHash.substring(0, 7) : "history"}
+                </Badge>
+              ) : (
+                <Badge variant={isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}>
+                  {isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}
+                </Badge>
+              )
+            )}
+          </div>
 
-        <div className={`flex items-center ${isMobile ? "gap-2" : "gap-3"}`}>
-          {/* View mode selector - only show when file is selected */}
-          {selectedFile && !isLoading && !error && (
-            <ViewModeSelector
-              mode={viewMode}
-              onChange={onViewModeChange}
-              compact={isMobile}
-              disabled={isLoading}
-            />
-          )}
-
-          {/* Mobile: show badge in header right */}
-          {selectedFile && isMobile && (
-            isHistoryMode ? (
+          {/* Right side of row 1 */}
+          <div className={`flex items-center flex-shrink-0 ${isMobile ? "gap-2" : "gap-3"}`}>
+            {/* Mobile: colored dot status indicator (hidden in fullscreen) */}
+            {selectedFile && isMobile && !isFullscreen && !isHistoryMode && (
+              <span
+                className={`flex-shrink-0 rounded-full h-2.5 w-2.5 ${
+                  isUntracked ? "bg-slate-400" :
+                  isStaged ? "bg-emerald-400" :
+                  "bg-amber-300"
+                }`}
+                title={isUntracked ? "Untracked" : isStaged ? "Staged" : "Modified"}
+              />
+            )}
+            {selectedFile && isMobile && !isFullscreen && isHistoryMode && (
               <Badge variant="warning">
                 {commitHash ? commitHash.substring(0, 7) : "hist"}
               </Badge>
-            ) : (
-              <Badge variant={isUntracked ? "untracked" : isStaged ? "staged" : "unstaged"}>
-                {isUntracked ? "new" : isStaged ? "staged" : "mod"}
-              </Badge>
-            )
-          )}
-          {diff?.stats && diff.has_diff && viewMode !== "source" && (
-            <div className="flex items-center gap-2" data-testid="diff-stats">
-              <span className={`flex items-center gap-1 text-emerald-500 ${isMobile ? "text-sm" : "text-xs"}`}>
-                <Plus className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
-                {diff.stats.additions}
-              </span>
-              <span className={`flex items-center gap-1 text-red-500 ${isMobile ? "text-sm" : "text-xs"}`}>
-                <Minus className={isMobile ? "h-4 w-4" : "h-3 w-3"} />
-                {diff.stats.deletions}
-              </span>
-            </div>
-          )}
+            )}
+            {!isFullscreen && diff?.stats && diff.has_diff && viewMode !== "source" && (
+              <button
+                type="button"
+                className="flex items-center gap-2 hover:underline decoration-slate-600 cursor-pointer"
+                data-testid="diff-stats"
+                onClick={() => setMetricsOpen(true)}
+                aria-label="View change metrics"
+              >
+                <span className="flex items-center gap-1 text-emerald-500 text-xs">
+                  <Plus className="h-3 w-3" />
+                  {diff.stats.additions}
+                </span>
+                <span className="flex items-center gap-1 text-red-500 text-xs">
+                  <Minus className="h-3 w-3" />
+                  {diff.stats.deletions}
+                </span>
+              </button>
+            )}
+
+            {/* Fullscreen: inline view mode + edit controls */}
+            {isFullscreen && selectedFile && !isLoading && !error && (
+              <ViewModeSelector
+                mode={viewMode}
+                onChange={onViewModeChange}
+                compact={true}
+                disabled={isLoading}
+                filePath={selectedFile}
+                hasDiff={!isReadOnly && diff?.has_diff}
+              />
+            )}
+            {isFullscreen && selectedFile && !isLoading && !error && canEdit && !isEditing && (
+              <button
+                type="button"
+                className={`inline-flex items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-800/70 active:bg-slate-700 flex-shrink-0 ${isMobile ? "h-10 w-10" : "h-7 w-7"}`}
+                onClick={handleStartEditing}
+                title="Edit file"
+                aria-label="Edit file"
+                data-testid="start-editing-button"
+              >
+                <Pencil className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+              </button>
+            )}
+            {isFullscreen && selectedFile && !isLoading && !error && isEditing && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancelEditing}
+                  className={isMobile ? "h-9 px-3" : "h-7 px-2"}
+                  disabled={isSavingFile}
+                  data-testid="cancel-editing-button"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                  Cancel
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleSaveContent}
+                  className={`${isMobile ? "h-9 px-3" : "h-7 px-2"} bg-emerald-600 hover:bg-emerald-700`}
+                  disabled={isSavingFile || !isDirty}
+                  data-testid="save-file-button"
+                >
+                  {isSavingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                  Save
+                </Button>
+              </>
+            )}
+
+            {/* Display settings popover (before ellipsis so ellipsis stays last) */}
+            {selectedFile && (
+              <Popover
+                align="end"
+                trigger={
+                  <span
+                    className={`inline-flex items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-800/70 active:bg-slate-700 flex-shrink-0 ${isMobile ? "h-10 w-10" : "h-7 w-7"}`}
+                    title="Display settings"
+                    aria-label="Display settings"
+                    data-testid="display-settings-trigger"
+                  >
+                    <SlidersHorizontal className={isMobile ? "h-5 w-5" : "h-3.5 w-3.5"} />
+                  </span>
+                }
+              >
+                <div className="p-3 flex flex-col gap-3 min-w-[200px]">
+                  {/* Fullscreen toggle */}
+                  <button
+                    type="button"
+                    className="flex items-center gap-3 w-full text-left text-sm text-slate-200 hover:bg-slate-800/70 rounded-md px-2 py-1.5 transition-colors"
+                    onClick={() => setIsFullscreen((v) => !v)}
+                    data-testid="fullscreen-toggle"
+                  >
+                    {isFullscreen ? (
+                      <Minimize2 className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                    ) : (
+                      <Maximize2 className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                    )}
+                    {isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                  </button>
+                  {/* Font size controls */}
+                  <div className="flex items-center gap-2 px-2">
+                    <span className="text-sm text-slate-400 flex-shrink-0">Font</span>
+                    <div className="flex items-center gap-1 ml-auto">
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-md border border-slate-700 text-slate-300 hover:bg-slate-800 active:bg-slate-700 h-7 w-7 text-xs font-bold transition-colors disabled:opacity-40"
+                        onClick={() => handleFontSizeChange(-1)}
+                        disabled={codeFontSize <= 8}
+                        title="Decrease font size"
+                        aria-label="Decrease font size"
+                      >
+                        A-
+                      </button>
+                      <span className="text-xs text-slate-300 w-8 text-center tabular-nums">{codeFontSize}px</span>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-md border border-slate-700 text-slate-300 hover:bg-slate-800 active:bg-slate-700 h-7 w-7 text-xs font-bold transition-colors disabled:opacity-40"
+                        onClick={() => handleFontSizeChange(1)}
+                        disabled={codeFontSize >= 24}
+                        title="Increase font size"
+                        aria-label="Increase font size"
+                      >
+                        A+
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </Popover>
+            )}
+            {/* Mobile overflow menu trigger (hidden in fullscreen) */}
+            {isMobile && !isFullscreen && selectedFile && (
+              <button
+                type="button"
+                className="h-10 w-10 inline-flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-800/70 active:bg-slate-700 touch-target"
+                onClick={() => setMobileActionsOpen(true)}
+                title="More actions"
+                aria-label="More actions"
+              >
+                <MoreVertical className="h-5 w-5" />
+              </button>
+            )}
+            {/* Desktop: view mode + edit/save buttons (hidden in fullscreen) */}
+            {!isMobile && !isFullscreen && (
+              <>
+                {selectedFile && !isLoading && !error && (
+                  <ViewModeSelector
+                    mode={viewMode}
+                    onChange={onViewModeChange}
+                    compact={false}
+                    disabled={isLoading}
+                    filePath={selectedFile}
+                    hasDiff={!isReadOnly && diff?.has_diff}
+                  />
+                )}
+                {selectedFile && !isLoading && !error && canEdit && !isEditing && (
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-800/70 active:bg-slate-700 flex-shrink-0 h-7 w-7"
+                    onClick={handleStartEditing}
+                    title="Edit file"
+                    aria-label="Edit file"
+                    data-testid="start-editing-button"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                {selectedFile && !isLoading && !error && isEditing && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancelEditing}
+                      className="h-7 px-2"
+                      disabled={isSavingFile}
+                      data-testid="cancel-editing-button"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleSaveContent}
+                      className="h-7 px-2 bg-emerald-600 hover:bg-emerald-700"
+                      disabled={isSavingFile || !isDirty}
+                      data-testid="save-file-button"
+                    >
+                      {isSavingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                      Save
+                    </Button>
+                  </>
+                )}
+                {selectedFile && !isLoading && !error && !isEditing && onDeletePath && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onDeletePath(selectedFile, false)}
+                    className="h-7 px-2 text-red-400 border-red-400/50 hover:bg-red-950/50 hover:text-red-300"
+                    disabled={isDeleting}
+                    data-testid="delete-file-button"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1" />
+                    Delete
+                  </Button>
+                )}
+              </>
+            )}
+
+          </div>
         </div>
+
+        {/* Row 2 (mobile only): View mode + edit actions (hidden in fullscreen) */}
+        {isMobile && !isFullscreen && selectedFile && !isLoading && !error && (
+          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-800/50">
+            <ViewModeSelector
+              mode={viewMode}
+              onChange={onViewModeChange}
+              compact={true}
+              disabled={isLoading}
+              filePath={selectedFile}
+              hasDiff={!isReadOnly && diff?.has_diff}
+            />
+            <div className="flex-1" />
+            {canEdit && !isEditing && (
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-800/70 active:bg-slate-700 flex-shrink-0 h-10 w-10"
+                onClick={handleStartEditing}
+                title="Edit file"
+                aria-label="Edit file"
+                data-testid="start-editing-button"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            )}
+            {isEditing && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancelEditing}
+                  className="h-9 px-3"
+                  disabled={isSavingFile}
+                  data-testid="cancel-editing-button"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                  Cancel
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleSaveContent}
+                  className="h-9 px-3 bg-emerald-600 hover:bg-emerald-700"
+                  disabled={isSavingFile || !isDirty}
+                  data-testid="save-file-button"
+                >
+                  {isSavingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                  Save
+                </Button>
+              </>
+            )}
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="flex-1 p-0 overflow-hidden relative">
@@ -550,6 +1394,15 @@ export function DiffViewer({
             </div>
           )}
 
+          {saveError && !isLoading && (
+            <div className="mx-3 mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200" data-testid="save-error">
+              <p>{saveError}</p>
+              {conflictHash && (
+                <p className="mt-1 font-mono text-[11px] text-amber-300">Current hash: {conflictHash}</p>
+              )}
+            </div>
+          )}
+
           {/* Empty State - No file selected */}
           {!selectedFile && !isLoading && !error && (
             <div className="flex flex-col items-center justify-center py-12 text-center px-4" data-testid="diff-empty">
@@ -558,6 +1411,28 @@ export function DiffViewer({
               <p className={`text-slate-600 mt-1 ${isMobile ? "text-sm" : "text-xs"}`}>
                 {isMobile ? "Tap a file from the Changes tab" : "Click on a file from the list on the left"}
               </p>
+              {(onOpenSearch || onOpenReview) && (
+                <div className={`flex gap-2 mt-4 ${isMobile ? "flex-col w-full max-w-xs" : ""}`}>
+                  {onOpenSearch && (
+                    <button
+                      onClick={onOpenSearch}
+                      className={`inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-slate-200 transition-colors ${isMobile ? "px-4 py-2.5 text-sm justify-center" : "px-3 py-1.5 text-xs"}`}
+                    >
+                      <Search className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+                      Find a file
+                    </button>
+                  )}
+                  {onOpenReview && (
+                    <button
+                      onClick={onOpenReview}
+                      className={`inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-slate-200 transition-colors ${isMobile ? "px-4 py-2.5 text-sm justify-center" : "px-3 py-1.5 text-xs"}`}
+                    >
+                      <ClipboardCheck className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
+                      Open review
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -572,18 +1447,46 @@ export function DiffViewer({
             </div>
           )}
 
+          {/* Monaco edit mode */}
+          {selectedFile && !isLoading && !error && isEditing && canEditMode && hasFullContent && (
+            <div className="monaco-diff-editor h-full min-h-[360px] border-y border-slate-800 bg-slate-950" data-testid="monaco-editor-container">
+              <Editor
+                height="100%"
+                defaultLanguage={monacoLanguage}
+                language={monacoLanguage}
+                value={draftContent}
+                onChange={(value) => setDraftContent(value ?? "")}
+                beforeMount={handleMonacoBeforeMount}
+                onMount={handleMonacoMount}
+                theme={monacoThemeName}
+                options={{
+                  automaticLayout: true,
+                  minimap: { enabled: false },
+                  scrollBeyondLastLine: false,
+                  wordWrap: "off",
+                  fontSize: codeFontSize,
+                  lineHeight: Math.round(codeFontSize * 1.67),
+                  lineNumbersMinChars: 3,
+                  fontFamily: "JetBrains Mono, Fira Code, SF Mono, Consolas, Liberation Mono, Menlo, monospace",
+                  padding: { top: 2, bottom: 2 },
+                  renderLineHighlight: "line"
+                }}
+              />
+            </div>
+          )}
+
           {/* Source mode - just the file content */}
-          {selectedFile && !isLoading && !isHighlighting && !error && viewMode === "source" && hasFullContent && (
+          {selectedFile && !isLoading && !isHighlighting && !error && !isEditing && viewMode === "source" && hasFullContent && (
             <SourceView
-              content={diff!.full_content!}
+              content={fullContent}
               highlightedLines={highlightedLines}
             />
           )}
 
           {/* Full + Diff mode - full file with change annotations */}
-          {selectedFile && !isLoading && !isHighlighting && !error && viewMode === "full_diff" && hasAnnotatedLines && (
+          {selectedFile && !isLoading && !isHighlighting && !error && !isEditing && viewMode === "full_diff" && hasAnnotatedLines && (
             <FullFileView
-              annotatedLines={diff!.annotated_lines!}
+              annotatedLines={annotatedLines}
               highlightedLines={highlightedLines}
               showChangeMarkers={true}
             />
@@ -592,7 +1495,7 @@ export function DiffViewer({
           {/* Diff mode - traditional hunk view */}
           {selectedFile && !isLoading && !isHighlighting && !error && viewMode === "diff" && hasHunks && (
             <div data-testid="diff-content">
-              {diff!.hunks!.map((hunk, index) => (
+              {hunks.map((hunk, index) => (
                 <HunkDisplay key={index} hunk={hunk} index={index} />
               ))}
             </div>
@@ -601,8 +1504,21 @@ export function DiffViewer({
           {/* Fallback for untracked files in diff mode (show full content) */}
           {selectedFile && !isLoading && !isHighlighting && !error && viewMode === "diff" && !hasHunks && hasFullContent && isUntracked && (
             <SourceView
-              content={diff!.full_content!}
+              content={fullContent}
               highlightedLines={highlightedLines}
+            />
+          )}
+
+          {/* Preview mode - render markdown */}
+          {showMarkdownPreview && (
+            <MarkdownPreview content={fullContent} />
+          )}
+
+          {/* Preview mode - render images */}
+          {showImagePreview && isPreviewable?.mimeType && (
+            <ImagePreview
+              src={`data:${isPreviewable.mimeType};base64,${fullContent}`}
+              alt={selectedFile}
             />
           )}
 
@@ -634,19 +1550,94 @@ export function DiffViewer({
             diff.raw &&
             (!isBinaryDiff || showBinary) && (
             <pre
-              className="p-4 font-mono text-xs text-slate-300 whitespace-pre overflow-x-auto"
+              className="p-4 font-mono text-slate-300 whitespace-pre overflow-x-auto"
+              style={{ fontSize: "var(--code-font-size, 12px)" }}
               data-testid="diff-raw"
             >
               {diff.raw}
             </pre>
           )}
 
-          {/* Mobile spacer to account for fixed action bar */}
-          {isMobile && selectedFile && !isLoading && !isHistoryMode && <div className="h-16" aria-hidden="true" />}
+          {/* Mobile spacer to account for fixed action bar (not needed in fullscreen) */}
+          {isMobile && !isFullscreen && selectedFile && !isLoading && !isEditing && (!isHistoryMode || onDeletePath) && <div className="h-16" aria-hidden="true" />}
         </ScrollArea>
 
-        {/* Mobile Action Bar - hidden in history mode */}
-        {isMobile && selectedFile && !isLoading && !isHistoryMode && (
+        {showMinimap && (
+          <aside
+            className="absolute right-2 top-2 bottom-2 w-10 rounded-md border border-slate-700/70 bg-slate-900/90 shadow-lg"
+            data-testid="diff-minimap"
+          >
+            <div
+              ref={minimapRailRef}
+              className="relative h-full w-full cursor-pointer rounded-md"
+              role="slider"
+              tabIndex={0}
+              aria-label="Diff minimap"
+              aria-valuemin={0}
+              aria-valuemax={Math.round(maxScrollable)}
+              aria-valuenow={Math.round(scrollMetrics.scrollTop)}
+              data-testid="diff-minimap-rail"
+              onPointerDown={handleMinimapPointerDown}
+              onKeyDown={handleMinimapKeyDown}
+            >
+              <div
+                className="absolute inset-0"
+                data-testid="diff-minimap-texture"
+                aria-hidden="true"
+              >
+                {minimapTextureRows.map((row, index) => (
+                  <div
+                    key={`texture-${index}`}
+                    className="absolute right-0 h-[1px] bg-slate-300/90"
+                    style={{
+                      top: `${row.topPercent}%`,
+                      width: `${row.widthPercent}%`,
+                      opacity: row.opacity
+                    }}
+                    data-testid="diff-minimap-texture-line"
+                  />
+                ))}
+              </div>
+              {minimapMarkers.map((marker, index) => (
+                <div
+                  key={`${marker.change}-${index}`}
+                  className={`absolute left-0 right-0 h-[2px] ${getMinimapMarkerClass(marker.change)}`}
+                  style={{ top: `${marker.topPercent}%` }}
+                  data-testid="diff-minimap-marker"
+                />
+              ))}
+              <div
+                className="pointer-events-none absolute left-0 right-0 rounded-sm border border-sky-300/40 bg-sky-400/20"
+                style={{
+                  top: `${viewportTopPercent}%`,
+                  height: `${viewportHeightPercent}%`
+                }}
+                data-testid="diff-minimap-viewport"
+              />
+            </div>
+          </aside>
+        )}
+
+        {/* Mobile Action Bar - history mode: delete only (hidden in fullscreen) */}
+        {isMobile && !isFullscreen && selectedFile && !isLoading && isHistoryMode && !isEditing && onDeletePath && (
+          <div className="absolute bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions-history">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 h-10 touch-target text-red-400 border-red-400/50 hover:bg-red-950/50"
+                onClick={() => onDeletePath(selectedFile, false)}
+                disabled={isDeleting}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {isDeleting ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Action Bar - normal mode (hidden in fullscreen) */}
+        {isMobile && !isFullscreen && selectedFile && !isLoading && !isHistoryMode && !isEditing && (
           <div className="absolute bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions">
             {confirmingDiscard ? (
               <div className="flex items-center gap-2">
@@ -722,6 +1713,55 @@ export function DiffViewer({
           </div>
         )}
       </CardContent>
+
+      <ChangeMetricsModal
+        isOpen={metricsOpen}
+        onClose={() => setMetricsOpen(false)}
+        mode="file"
+        stats={diff?.stats}
+        filePath={selectedFile}
+      />
+      {/* Mobile overflow actions */}
+      {isMobile && (
+        <BottomSheet
+          isOpen={mobileActionsOpen}
+          onClose={() => setMobileActionsOpen(false)}
+          title="File Actions"
+        >
+          <div className="flex flex-col gap-1">
+            <BottomSheetAction
+              icon={copied ? <Check className="h-5 w-5 text-emerald-300" /> : <Copy className="h-5 w-5" />}
+              label={copied ? "Copied!" : "Copy absolute path"}
+              onClick={() => {
+                handleCopyPath();
+                setMobileActionsOpen(false);
+              }}
+            />
+            {onShowRelatedFiles && selectedFile && (
+              <BottomSheetAction
+                icon={<Link2 className="h-5 w-5" />}
+                label="Related files"
+                description="Find files related to this one"
+                onClick={() => {
+                  onShowRelatedFiles(selectedFile);
+                  setMobileActionsOpen(false);
+                }}
+              />
+            )}
+            {onDeletePath && selectedFile && (
+              <BottomSheetAction
+                icon={<Trash2 className="h-5 w-5 text-red-400" />}
+                label="Delete file"
+                description="Delete this file from the working tree"
+                onClick={() => {
+                  onDeletePath(selectedFile, false);
+                  setMobileActionsOpen(false);
+                }}
+              />
+            )}
+          </div>
+        </BottomSheet>
+      )}
     </Card>
   );
 }

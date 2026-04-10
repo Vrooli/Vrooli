@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,28 +49,36 @@ func SetupTestDatabase(t *testing.T) (*PostgresContainer, func()) {
 	// Get connection string
 	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
-		pgContainer.Terminate(ctx)
+		if termErr := pgContainer.Terminate(ctx); termErr != nil {
+			t.Logf("Failed to terminate postgres container: %v", termErr)
+		}
 		t.Fatalf("Failed to get connection string: %v", err)
 	}
 
 	// Connect to database
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		pgContainer.Terminate(ctx)
+		if termErr := pgContainer.Terminate(ctx); termErr != nil {
+			t.Logf("Failed to terminate postgres container: %v", termErr)
+		}
 		t.Fatalf("Failed to connect to database: %v", err)
 	}
 
 	// Wait for database to be ready
 	if err := db.Ping(); err != nil {
 		db.Close()
-		pgContainer.Terminate(ctx)
+		if termErr := pgContainer.Terminate(ctx); termErr != nil {
+			t.Logf("Failed to terminate postgres container: %v", termErr)
+		}
 		t.Fatalf("Failed to ping database: %v", err)
 	}
 
 	// Create schema
 	if err := createTestSchema(db); err != nil {
 		db.Close()
-		pgContainer.Terminate(ctx)
+		if termErr := pgContainer.Terminate(ctx); termErr != nil {
+			t.Logf("Failed to terminate postgres container: %v", termErr)
+		}
 		t.Fatalf("Failed to create schema: %v", err)
 	}
 
@@ -93,19 +101,9 @@ func SetupTestDatabase(t *testing.T) (*PostgresContainer, func()) {
 // createTestSchema creates the necessary database tables
 func createTestSchema(db *sql.DB) error {
 	schema := `
-		CREATE TABLE IF NOT EXISTS auto_steer_profiles (
-			id UUID PRIMARY KEY,
-			name VARCHAR(255) NOT NULL UNIQUE,
-			description TEXT,
-			config JSONB NOT NULL,
-			tags TEXT[],
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		);
-
 		CREATE TABLE IF NOT EXISTS profile_execution_state (
 			task_id UUID PRIMARY KEY,
-			profile_id UUID NOT NULL,
+			profile_id VARCHAR(255) NOT NULL,
 			current_phase_index INTEGER NOT NULL,
 			current_phase_iteration INTEGER NOT NULL,
 			auto_steer_iteration INTEGER NOT NULL DEFAULT 0,
@@ -119,7 +117,7 @@ func createTestSchema(db *sql.DB) error {
 
 		CREATE TABLE IF NOT EXISTS profile_executions (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			profile_id UUID NOT NULL,
+			profile_id VARCHAR(255) NOT NULL,
 			task_id UUID NOT NULL,
 			scenario_name VARCHAR(255) NOT NULL,
 			start_metrics JSONB,
@@ -131,6 +129,17 @@ func createTestSchema(db *sql.DB) error {
 			user_comments TEXT,
 			user_feedback_at TIMESTAMP,
 			executed_at TIMESTAMP DEFAULT NOW()
+		);
+
+		CREATE TABLE IF NOT EXISTS execution_feedback_entries (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			execution_task_id VARCHAR(255) NOT NULL,
+			category VARCHAR(100) NOT NULL,
+			severity VARCHAR(20) NOT NULL,
+			suggested_action TEXT,
+			comments TEXT,
+			metadata JSONB,
+			created_at TIMESTAMP DEFAULT NOW()
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_profile_executions_profile_id ON profile_executions(profile_id);
@@ -146,13 +155,16 @@ func createTestSchema(db *sql.DB) error {
 func CreateTestProfile(t *testing.T, name string, mode SteerMode, maxIterations int) *AutoSteerProfile {
 	t.Helper()
 
+	skillName := titleize(strings.ReplaceAll(string(mode), "_", " "))
+
 	return &AutoSteerProfile{
 		Name:        name,
 		Description: fmt.Sprintf("Test profile for %s mode", mode),
 		Phases: []SteerPhase{
 			{
 				ID:            uuid.New().String(),
-				Mode:          mode,
+				SkillIDs:      []string{string(mode)},
+				SkillName:     skillName,
 				MaxIterations: maxIterations,
 				StopConditions: []StopCondition{
 					{
@@ -194,7 +206,7 @@ func SetupTestScenario(t *testing.T, scenarioName string) (vrooliRoot string, cl
 	scenarioDir := filepath.Join(tmpDir, "scenarios", scenarioName)
 	requirementsDir := filepath.Join(scenarioDir, "requirements")
 
-	if err := os.MkdirAll(requirementsDir, 0755); err != nil {
+	if err := os.MkdirAll(requirementsDir, 0o755); err != nil {
 		os.RemoveAll(tmpDir)
 		t.Fatalf("Failed to create scenario dir: %v", err)
 	}
@@ -211,7 +223,7 @@ func SetupTestScenario(t *testing.T, scenarioName string) (vrooliRoot string, cl
 	}`
 
 	requirementsPath := filepath.Join(requirementsDir, "index.json")
-	if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0644); err != nil {
+	if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0o644); err != nil {
 		os.RemoveAll(tmpDir)
 		t.Fatalf("Failed to write requirements file: %v", err)
 	}
@@ -246,7 +258,7 @@ func UpdateOperationalTargets(t *testing.T, vrooliRoot, scenarioName string, tot
 		}]
 	}`, joinStrings(targets, ", "))
 
-	if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0644); err != nil {
+	if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0o644); err != nil {
 		t.Fatalf("Failed to update requirements: %v", err)
 	}
 }
@@ -289,24 +301,6 @@ func abs(x float64) float64 {
 		return -x
 	}
 	return x
-}
-
-// testPhasePromptsDir returns a directory containing phase prompt markdown files for tests.
-func testPhasePromptsDir(t *testing.T) string {
-	t.Helper()
-
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatalf("unable to determine caller location for prompt discovery")
-	}
-
-	// Prefer real prompts if available
-	dir := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", "..", "prompts", "phases"))
-	if _, err := os.Stat(dir); err != nil {
-		t.Fatalf("phase prompts directory not found at %s: %v", dir, err)
-	}
-
-	return dir
 }
 
 // WaitForCondition polls until a condition is met or timeout

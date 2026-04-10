@@ -6,6 +6,7 @@ describe('Config', () => {
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...originalEnv };
+    process.env.PLAYWRIGHT_DRIVER_PORT = originalEnv.PLAYWRIGHT_DRIVER_PORT ?? '39400';
   });
 
   afterAll(() => {
@@ -18,7 +19,7 @@ describe('Config', () => {
 
       expect(config.server.port).toBe(39400);
       expect(config.server.host).toBe('127.0.0.1');
-      expect(config.browser.headless).toBe(true);
+      expect(config.browser.headless).toBe(false);
       expect(config.session.maxConcurrent).toBe(10);
       expect(config.telemetry.screenshot.enabled).toBe(true);
       expect(config.logging.level).toBe('info');
@@ -47,6 +48,7 @@ describe('Config', () => {
     });
 
     it('should set headless to true by default', () => {
+      process.env.HEADLESS = 'true';
       const config = loadConfig();
 
       expect(config.browser.headless).toBe(true);
@@ -129,16 +131,12 @@ describe('Config', () => {
       expect(config.metrics.port).toBe(8080);
     });
 
-    it('should use default port for invalid port number', () => {
-      // Invalid port falls back to default with warning (graceful degradation)
+    it('should throw for invalid required port number', () => {
       process.env.PLAYWRIGHT_DRIVER_PORT = 'invalid';
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-      const config = loadConfig();
-
-      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid numeric config value'));
-      expect(config.server.port).toBe(39400); // Default port
-      warnSpy.mockRestore();
+      expect(() => loadConfig()).toThrow(
+        'Environment variable PLAYWRIGHT_DRIVER_PORT has invalid value "invalid" - expected an integer.'
+      );
     });
 
     it('should use default max sessions for invalid value', () => {

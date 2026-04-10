@@ -158,13 +158,6 @@ func (e *PlaywrightEngine) StartSession(ctx context.Context, spec SessionSpec) (
 // This is an alias for driver.Error for backward compatibility.
 type PlaywrightDriverError = driver.Error
 
-// resolveMaxConcurrentSessions aligns the engine capability with the driver pool limit.
-// Falls back to the driver default (10) when no override is provided, and clamps to a safe range.
-// Deprecated: Use driver.ResolveMaxConcurrentSessions() instead.
-func resolveMaxConcurrentSessions() int {
-	return driver.ResolveMaxConcurrentSessions()
-}
-
 // resolvePlaywrightDriverURL resolves the driver URL from environment.
 // Deprecated: Use driver.NewClient() which handles URL resolution internally.
 func resolvePlaywrightDriverURL(log *logrus.Logger, allowDefault bool) string {

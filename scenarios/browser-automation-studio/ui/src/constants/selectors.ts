@@ -52,7 +52,7 @@ interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefine
 }
 
 type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
+  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<ParamSchema | undefined>;
 };
 
 type DynamicSelectorTree = DynamicSelectorBranch;
@@ -84,7 +84,7 @@ type SelectorTreeResult<
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
 const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token) => {
+  template.replace(TEMPLATE_TOKEN, (_match, token: string) => {
     if (!(token in values)) {
       throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
     }
@@ -93,11 +93,11 @@ const formatTemplate = (template: string, values: Record<string, string | number
 
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
+const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
   Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition).kind === "dynamic-selector");
 
 const normalizeParams = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   raw: Record<string, string | number>,
   path: string,
 ) => {
@@ -109,7 +109,11 @@ const normalizeParams = (
       throw new Error(`Selector '${path}' is missing parameter '${key}'`);
     }
     const definitionEntry = schema[key];
+    if (!definitionEntry) continue; // Should never happen, but satisfies noUncheckedIndexedAccess
     const value = raw[key];
+    if (value === undefined) {
+      throw new Error(`Selector '${path}' is missing parameter '${key}'`);
+    }
     if (definitionEntry.type === "number") {
       if (typeof value !== "number") {
         throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
@@ -117,7 +121,7 @@ const normalizeParams = (
       normalized[key] = value;
       continue;
     }
-    if (definitionEntry.type === "enum") {
+    if (definitionEntry.type === "enum" && "values" in definitionEntry) {
       if (!definitionEntry.values.includes(value)) {
         throw new Error(
           `Selector '${path}' parameter '${key}' must be one of: ${definitionEntry.values.join(", ")}`,
@@ -233,7 +237,7 @@ const mergeLiteralAndDynamicNodes = (
 };
 
 const createDynamicSelectorFn = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   path: string,
 ) => {
   return (params?: Record<string, string | number>) => {
@@ -615,6 +619,19 @@ const literalSelectors = {
   // Landing Manager Admin Portal selectors
   // Note: These are data-testid selector values, NOT actual credentials
   // nosec: These string literals are DOM test selectors, not secrets
+  exports: {
+    detailsModal: {
+      root: "export-details-modal",
+      thumbnail: "export-details-thumbnail",
+      downloadButton: "export-details-download-button",
+      editButton: "export-details-edit-button",
+      deleteButton: "export-details-delete-button",
+      copyLinkButton: "export-details-copy-link-button",
+      closeButton: "export-details-close-button",
+      generateCaptionButton: "export-details-generate-caption-button",
+      copyCaptionButton: "export-details-copy-caption-button",
+    },
+  },
   landingManager: {
     admin: {
       login: {

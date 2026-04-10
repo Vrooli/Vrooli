@@ -140,6 +140,18 @@ code, pre {
   border-radius: calc(var(--radius) - 2px);
 }
 
+/* Search match highlighting in Monaco Editor */
+.monaco-editor .search-match-highlight {
+  background-color: rgba(59, 130, 246, 0.35) !important;
+  border-radius: 2px;
+  outline: 1px solid rgba(59, 130, 246, 0.6);
+}
+
+.dark .monaco-editor .search-match-highlight {
+  background-color: rgba(96, 165, 250, 0.3) !important;
+  outline: 1px solid rgba(96, 165, 250, 0.5);
+}
+
 /* Custom button hover effects */
 .button-glow {
   position: relative;
@@ -164,4 +176,65 @@ code, pre {
 
 .button-glow:hover::before {
   left: 100%;
+}
+
+/* TipTap Editor styles */
+.ProseMirror {
+  min-height: 100%;
+}
+
+.ProseMirror:focus {
+  outline: none;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: hsl(var(--muted-foreground) / 0.5);
+  pointer-events: none;
+  height: 0;
+}
+
+.ProseMirror hr {
+  border: none;
+  border-top: 2px solid hsl(var(--border));
+  margin: 1.5rem 0;
+}
+
+.ProseMirror blockquote {
+  border-left: 4px solid hsl(var(--primary) / 0.5);
+  margin: 1rem 0;
+  padding-left: 1rem;
+}
+
+/* Inline code with floating copy button */
+.inline-code-copy-btn-floating {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.inline-code-copy-btn-floating:hover {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary) / 0.3);
+}
+
+.inline-code-copy-btn-floating.copied {
+  background: hsl(142 76% 36% / 0.1);
+  color: hsl(142 76% 36%);
+  border-color: hsl(142 76% 36% / 0.3);
+}
+
+.inline-code-copy-btn-floating svg {
+  width: 12px;
+  height: 12px;
 }

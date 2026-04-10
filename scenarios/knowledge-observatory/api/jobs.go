@@ -1,5 +1,7 @@
 package main
 
+// DOC: docs/reference/api-endpoints.md#ingest-jobs-async
+// DOC: docs/concepts/ARCHITECTURE.md#ingest-flow
 import (
 	"encoding/json"
 	"net/http"

@@ -1,0 +1,147 @@
+{
+  "description": "Core CRUD operations for skill entities including metadata, content, and pack organization",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "prompt-manager-must-have-crud-operations-for-skills-via-api",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-012"
+      ],
+      "description": "Implement REST API endpoints for creating, reading, updating and deleting skills with JSON payload support",
+      "id": "REQ-P0-001",
+      "prd_ref": "prompt-manager-must-have-crud-operations-for-skills-via-api",
+      "status": "draft",
+      "title": "REST API for Skill CRUD",
+      "validation": [
+        {
+          "notes": "All CRUD endpoints return correct HTTP status codes",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Input validation for required fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "JSON payload structure validation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Complete CRUD flow using API client",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Error handling for invalid requests",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "API response time under 200ms for single skill operations",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Successfully manage skills via API endpoints",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Data persistence verified",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-012"
+      ],
+      "description": "Implement REST API endpoints for pack-based skill organization with folder structure support",
+      "id": "REQ-P0-002",
+      "prd_ref": "prompt-manager-must-have-crud-operations-for-skills-via-api",
+      "status": "draft",
+      "title": "Pack-based Skill Organization API",
+      "validation": [
+        {
+          "notes": "Pack CRUD operations functional",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Pack precedence ordering works correctly",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Skill-to-pack relationship validation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Full pack lifecycle testing",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Pack ordering relationship verification",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Pack listing operations complete within 500ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Skills can be organized into packs (core/local/drafts)",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Pack structure maintains integrity",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "CRUD operations for skills via API"
+}

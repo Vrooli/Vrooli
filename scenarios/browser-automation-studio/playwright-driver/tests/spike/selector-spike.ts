@@ -11,6 +11,8 @@
  *   npx ts-node tests/spike/selector-spike.ts --site=github
  */
 
+/* eslint-disable no-console */
+
 import { chromium, type Browser, type ElementHandle } from 'playwright';
 
 // ============================================================================
@@ -395,6 +397,10 @@ async function testSite(browser: Browser, site: TestSite): Promise<SiteResult> {
     // Test each element
     for (let i = 0; i < site.elementSelectors.length; i++) {
       const originalSelector = site.elementSelectors[i];
+      if (!originalSelector) {
+        console.warn(`  [${i + 1}] Missing selector for ${site.name}`);
+        continue;
+      }
       const result: SelectorResult = {
         originalSelector,
         generatedSelector: '',
@@ -417,9 +423,9 @@ async function testSite(browser: Browser, site: TestSite): Promise<SiteResult> {
         }
 
         // Generate selectors in browser context by passing the selector string
-        const selectorSet = await page.evaluate(
+        const selectorSet = await page.evaluate<SelectorSet | null>(
           `(${SELECTOR_GENERATION_CODE})("${originalSelector.replace(/"/g, '\\"')}")`
-        ) as SelectorSet | null;
+        );
 
         if (!selectorSet) {
           result.error = 'Failed to generate selectors';
@@ -463,7 +469,8 @@ async function testSite(browser: Browser, site: TestSite): Promise<SiteResult> {
       results.push(result);
     }
   } catch (err) {
-    console.error(`  Site error: ${err instanceof Error ? err.message : err}`);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error(`  Site error: ${errorMessage}`);
     return {
       siteName: site.name,
       url: site.url,
@@ -471,7 +478,7 @@ async function testSite(browser: Browser, site: TestSite): Promise<SiteResult> {
       successRate: 0,
       totalElements: site.elementSelectors.length,
       successfulElements: 0,
-      error: err instanceof Error ? err.message : String(err),
+      error: errorMessage,
     };
   } finally {
     await page.close();
@@ -538,7 +545,7 @@ async function validateSelector(page: Awaited<ReturnType<Browser['newPage']>>, s
   }
 }
 
-async function runSpike() {
+async function runSpike(): Promise<void> {
   console.log('🚀 Selector Spike Test');
   console.log('='.repeat(60));
   console.log('Goal: >70% of selectors should survive a page refresh');
@@ -612,12 +619,11 @@ async function runSpike() {
   for (const site of allResults) {
     for (const result of site.results) {
       if (!result.generatedType) continue;
-      if (!byType[result.generatedType]) {
-        byType[result.generatedType] = { total: 0, successful: 0 };
-      }
-      byType[result.generatedType].total++;
+      const bucket = byType[result.generatedType] ?? { total: 0, successful: 0 };
+      byType[result.generatedType] = bucket;
+      bucket.total++;
       if (result.validAfterRefresh) {
-        byType[result.generatedType].successful++;
+        bucket.successful++;
       }
     }
   }

@@ -9,6 +9,7 @@ import (
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 )
 
@@ -151,7 +152,9 @@ func HandleListVPSBundles(sshRunner ssh.Runner) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
 
-		bundles, totalSize, err := ListVPSBundlesSSH(ctx, sshRunner, req)
+		cfg := ssh.NewConfig(req.Host, req.Port, req.User, req.KeyPath)
+		bundlesPath := shellutil.SafeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles")
+		bundles, totalSize, err := listVPSBundlesByPath(ctx, sshRunner, cfg, bundlesPath)
 		if err != nil {
 			httputil.WriteJSON(w, http.StatusOK, domain.VPSBundleListResponse{
 				OK:        false,
@@ -203,16 +206,16 @@ func HandleDeleteVPSBundle(sshRunner ssh.Runner) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
 
-		bundlePath := ssh.SafeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles", req.Filename)
+		bundlePath := shellutil.SafeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles", req.Filename)
 
 		// Get file size before deleting
-		sizeCmd := fmt.Sprintf("stat -c %%s %s 2>/dev/null || echo 0", ssh.QuoteSingle(bundlePath))
-		sizeRes, _ := sshRunner.Run(ctx, cfg, sizeCmd)
+		sizeCmd := fmt.Sprintf("stat -c %%s %s 2>/dev/null || echo 0", shellutil.QuoteSingle(bundlePath))
+		sizeRes, _ := sshRunner.Run(ctx, cfg, sizeCmd, ssh.DefaultRunOptions())
 		sizeBytes := ParseBytes(strings.TrimSpace(sizeRes.Stdout))
 
 		// Delete the file
-		deleteCmd := fmt.Sprintf("rm -f %s", ssh.QuoteSingle(bundlePath))
-		_, err := sshRunner.Run(ctx, cfg, deleteCmd)
+		deleteCmd := fmt.Sprintf("rm -f %s", shellutil.QuoteSingle(bundlePath))
+		_, err := sshRunner.Run(ctx, cfg, deleteCmd, ssh.DefaultRunOptions())
 		if err != nil {
 			httputil.WriteJSON(w, http.StatusOK, domain.VPSBundleDeleteResponse{
 				OK:        false,
@@ -331,11 +334,11 @@ func CleanupVPSBundles(ctx context.Context, sshRunner ssh.Runner, req domain.Bun
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	bundlesPath := ssh.SafeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles")
+	bundlesPath := shellutil.SafeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles")
 
 	// Get initial disk usage
-	beforeCmd := fmt.Sprintf("du -sb %s 2>/dev/null | cut -f1 || echo 0", ssh.QuoteSingle(bundlesPath))
-	beforeRes, _ := sshRunner.Run(ctx, cfg, beforeCmd)
+	beforeCmd := fmt.Sprintf("du -sb %s 2>/dev/null | cut -f1 || echo 0", shellutil.QuoteSingle(bundlesPath))
+	beforeRes, _ := sshRunner.Run(ctx, cfg, beforeCmd, ssh.DefaultRunOptions())
 	beforeBytes := ParseBytes(strings.TrimSpace(beforeRes.Stdout))
 
 	// Build cleanup command based on options
@@ -345,10 +348,10 @@ func CleanupVPSBundles(ctx context.Context, sshRunner ssh.Runner, req domain.Bun
 		pattern := fmt.Sprintf("mini-vrooli_%s_*.tar.gz", req.ScenarioID)
 		cleanupCmd = fmt.Sprintf(
 			`cd %s && ls -t %s 2>/dev/null | tail -n +%d | xargs -r rm -f && ls %s 2>/dev/null | wc -l`,
-			ssh.QuoteSingle(bundlesPath),
-			ssh.QuoteSingle(pattern),
+			shellutil.QuoteSingle(bundlesPath),
+			shellutil.QuoteSingle(pattern),
 			req.KeepLatest+1,
-			ssh.QuoteSingle(pattern),
+			shellutil.QuoteSingle(pattern),
 		)
 	} else {
 		// Clean all scenarios, keep N newest per scenario
@@ -359,17 +362,17 @@ func CleanupVPSBundles(ctx context.Context, sshRunner ssh.Runner, req domain.Bun
 				ls -t mini-vrooli_${scenario}_*.tar.gz 2>/dev/null | tail -n +%d | xargs -r rm -f
 			done
 			ls mini-vrooli_*.tar.gz 2>/dev/null | wc -l || echo 0
-		`, ssh.QuoteSingle(bundlesPath), req.KeepLatest+1)
+		`, shellutil.QuoteSingle(bundlesPath), req.KeepLatest+1)
 	}
 
 	// Run cleanup
-	_, err := sshRunner.Run(ctx, cfg, cleanupCmd)
+	_, err := sshRunner.Run(ctx, cfg, cleanupCmd, ssh.DefaultRunOptions())
 	if err != nil {
 		return 0, 0, fmt.Errorf("cleanup command failed: %w", err)
 	}
 
 	// Get final disk usage
-	afterRes, _ := sshRunner.Run(ctx, cfg, beforeCmd)
+	afterRes, _ := sshRunner.Run(ctx, cfg, beforeCmd, ssh.DefaultRunOptions())
 	afterBytes := ParseBytes(strings.TrimSpace(afterRes.Stdout))
 
 	freedBytes := beforeBytes - afterBytes
@@ -387,71 +390,7 @@ func CleanupVPSBundles(ctx context.Context, sshRunner ssh.Runner, req domain.Bun
 		}
 	}
 
-	return deletedCount, freedBytes, nil
-}
-
-// ListVPSBundlesSSH fetches bundle information from the VPS via SSH.
-// Returns the list of bundles, total size, and any error.
-func ListVPSBundlesSSH(ctx context.Context, sshRunner ssh.Runner, req domain.VPSBundleListRequest) ([]domain.VPSBundleInfo, int64, error) {
-	cfg := ssh.NewConfig(req.Host, req.Port, req.User, req.KeyPath)
-	bundlesPath := ssh.SafeRemoteJoin(req.Workdir, ".vrooli/cloud/bundles")
-
-	// List bundles with size and modification time (format: size_bytes\tfilename\tmod_time)
-	listCmd := fmt.Sprintf(
-		`cd %s 2>/dev/null && ls -1 mini-vrooli_*.tar.gz 2>/dev/null | while read f; do stat --printf="%%s\t%%n\t%%Y\n" "$f" 2>/dev/null; done || true`,
-		ssh.QuoteSingle(bundlesPath),
-	)
-
-	res, err := sshRunner.Run(ctx, cfg, listCmd)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return ParseVPSBundleOutput(res.Stdout)
-}
-
-// ParseVPSBundleOutput parses the output from listing VPS bundles.
-// Expected format: size_bytes\tfilename\tmod_time_unix (one per line)
-func ParseVPSBundleOutput(output string) ([]domain.VPSBundleInfo, int64, error) {
-	var bundles []domain.VPSBundleInfo
-	var totalSize int64
-
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-		parts := strings.Split(line, "\t")
-		if len(parts) != 3 {
-			continue
-		}
-
-		sizeBytes := ParseBytes(parts[0])
-		filename := parts[1]
-		modTimeUnix := ParseBytes(parts[2])
-
-		scenarioID, sha256Hash := ParseBundleFilename(filename)
-
-		bundles = append(bundles, domain.VPSBundleInfo{
-			Filename:   filename,
-			ScenarioID: scenarioID,
-			Sha256:     sha256Hash,
-			SizeBytes:  sizeBytes,
-			ModTime:    time.Unix(modTimeUnix, 0).UTC().Format(time.RFC3339),
-		})
-		totalSize += sizeBytes
-	}
-
-	return bundles, totalSize, nil
-}
-
-// ParseBytes parses a byte count string, returning 0 on error.
-func ParseBytes(s string) int64 {
-	var n int64
-	if _, err := fmt.Sscanf(s, "%d", &n); err != nil {
-		return 0
-	}
-	return n
+		return deletedCount, freedBytes, nil
 }
 
 // FormatBytes formats a byte count (in KB) as a human-readable string.

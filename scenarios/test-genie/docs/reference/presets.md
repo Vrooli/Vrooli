@@ -4,6 +4,8 @@
 
 Test Genie provides preconfigured presets that bundle common testing patterns. Presets make it easy to run the right tests for your situation without remembering individual phase configurations.
 
+Timeout values in this document are runtime budgets, not runtime estimates. Actual `test-genie execute` estimates are calculated at execution time from recent per-phase history for the selected scenario when that data exists.
+
 ## Available Presets
 
 ### Quick
@@ -22,7 +24,7 @@ test-genie execute my-scenario --preset quick
 | Docs | Validates Markdown, mermaid, links | 60s |
 | Unit | Runs unit tests | 60s |
 
-**Total time**: ~2 minutes
+**Timeout budget**: Sum of the listed phase timeouts
 
 **Use when:**
 - Making quick code changes
@@ -53,7 +55,7 @@ test-genie execute my-scenario --preset smoke
 | Docs | Validates Markdown, mermaid, links | 60s |
 | Integration | Basic connectivity tests | 120s |
 
-**Total time**: ~4-5 minutes
+**Timeout budget**: Sum of the listed phase timeouts
 
 **Use when:**
 - Before pushing to remote
@@ -89,7 +91,7 @@ test-genie execute my-scenario --preset comprehensive
 | Business | End-to-end workflows | 180s |
 | Performance | Benchmarks and load tests | 60s |
 
-**Total time**: ~10+ minutes
+**Timeout budget**: Sum of the listed phase timeouts
 
 **Use when:**
 - Before merging PRs
@@ -148,7 +150,7 @@ graph LR
 | Business logic | ❌ | ❌ | ✅ |
 | Performance | ❌ | ❌ | ✅ |
 | Requirements sync | ❌ | ❌ | ✅ |
-| **Typical time** | ~1 min | ~4 min | ~8 min |
+| **Planner estimate** | Scenario-aware at runtime | Scenario-aware at runtime | Scenario-aware at runtime |
 
 ## Custom Presets
 

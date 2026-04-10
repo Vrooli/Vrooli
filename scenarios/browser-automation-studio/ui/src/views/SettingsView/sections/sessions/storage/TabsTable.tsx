@@ -39,7 +39,7 @@ function getPlaceholderColor(domain: string): string {
   for (let i = 0; i < domain.length; i++) {
     hash = domain.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return colors[Math.abs(hash) % colors.length];
+  return colors[Math.abs(hash) % colors.length] ?? 'bg-blue-500';
 }
 
 /**

@@ -18,7 +18,7 @@ interface AttachmentPreviewProps {
 export function AttachmentPreview({
   attachments,
   onRemove,
-  isUploading,
+  isUploading: _isUploading,
 }: AttachmentPreviewProps) {
   if (attachments.length === 0) {
     return null;

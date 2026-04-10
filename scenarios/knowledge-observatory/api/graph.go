@@ -1,5 +1,7 @@
 package main
 
+// DOC: docs/reference/api-endpoints.md#graph
+// DOC: docs/concepts/ARCHITECTURE.md#graph-flow
 import (
 	"encoding/json"
 	"net/http"

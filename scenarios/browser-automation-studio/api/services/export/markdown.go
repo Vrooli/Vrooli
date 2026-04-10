@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // GenerateTimelineMarkdown creates a human-readable markdown report from execution timeline data.
@@ -17,7 +20,7 @@ func GenerateTimelineMarkdown(timeline *ExecutionTimeline, workflowName string) 
 	status := timeline.Status
 	emoji := statusEmoji(status)
 
-	sb.WriteString(fmt.Sprintf("**Status**: %s %s  \n", emoji, strings.Title(status)))
+	sb.WriteString(fmt.Sprintf("**Status**: %s %s  \n", emoji, cases.Title(language.English).String(status)))
 
 	// Duration calculation (clamp to zero to avoid negative values when timestamps drift)
 	if timeline.CompletedAt != nil {
@@ -86,9 +89,22 @@ func GenerateTimelineMarkdown(timeline *ExecutionTimeline, workflowName string) 
 	}
 	sb.WriteString("\n")
 
+	// Quick Start for Programmatic Access
+	sb.WriteString("## Quick Start\n\n")
+	sb.WriteString("For programmatic access:\n\n")
+	sb.WriteString("```bash\n")
+	sb.WriteString("# Check pass/fail\n")
+	sb.WriteString("cat result.json | jq '.success'\n\n")
+	sb.WriteString("# Get error message (if failed)\n")
+	sb.WriteString("cat result.json | jq '.error'\n\n")
+	sb.WriteString("# View execution summary\n")
+	sb.WriteString("cat result.json | jq '{status, steps_completed: .steps_completed, steps_failed: .steps_failed, duration_ms}'\n")
+	sb.WriteString("```\n\n")
+
 	// Artifact Directory
 	sb.WriteString("## Artifacts\n\n")
 	sb.WriteString("This execution generated the following artifacts:\n\n")
+	sb.WriteString("- **result.json** - Quick pass/fail summary for programmatic access\n")
 	sb.WriteString("- **timeline.json** - Full machine-readable execution data\n")
 	sb.WriteString("- **execution-summary.md** - Detailed step-by-step breakdown\n")
 	sb.WriteString("- **console-logs.md** - Console output organized by step\n")
@@ -127,7 +143,7 @@ func GenerateTimelineMarkdown(timeline *ExecutionTimeline, workflowName string) 
 				sb.WriteString(fmt.Sprintf("- Check console logs for step %d in `console-logs.md`\n", frame.StepIndex+1))
 			}
 			if frame.Screenshot != nil {
-				sb.WriteString(fmt.Sprintf("- Review screenshot from failed step in `screenshots/`\n"))
+				sb.WriteString("- Review screenshot from failed step in `screenshots/`\n")
 			}
 		}
 

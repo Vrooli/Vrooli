@@ -57,7 +57,7 @@ export function FooterSection({ content }: FooterSectionProps) {
   const socialLinks = content.social_links || {};
 
   return (
-    <footer className="border-t border-white/10 bg-[#07090F]">
+    <footer className="border-t border-white/10 bg-bg-base">
       <div className="container mx-auto px-6 py-16">
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-4 lg:col-span-2">

@@ -192,10 +192,6 @@ func TestHandleMergeBundleSecretsSecretsManagerUnavailable(t *testing.T) {
 
 func TestHandleMergeBundleSecretsDefaultTier(t *testing.T) {
 	sm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify default tier is applied
-		if !strings.Contains(r.URL.String(), "tier-2-desktop") {
-			// This server doesn't receive query params but we can test the behavior
-		}
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"bundle_secrets": []map[string]interface{}{},
 		})

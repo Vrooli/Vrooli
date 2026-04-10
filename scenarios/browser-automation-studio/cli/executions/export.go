@@ -9,6 +9,7 @@ import (
 
 	"browser-automation-studio/cli/internal/api"
 	"browser-automation-studio/cli/internal/appctx"
+	"browser-automation-studio/cli/internal/export"
 )
 
 func runExport(ctx *appctx.Context, args []string) error {
@@ -72,16 +73,18 @@ func runExport(ctx *appctx.Context, args []string) error {
 		return fmt.Errorf("--output-dir is required for format=folder")
 	}
 
-	var bodyPayload []byte
+	// Use shared export logic for folder exports
 	if exportFormat == "folder" {
-		payload := map[string]any{
-			"format":     exportFormat,
-			"output_dir": outputDir,
+		if err := export.ExportExecution(ctx, executionID, outputDir); err != nil {
+			return err
 		}
-		bodyPayload, _ = json.Marshal(payload)
+		fmt.Println("OK: Execution export generated")
+		fmt.Printf("Output directory: %s\n", outputDir)
+		return nil
 	}
 
-	status, body, err := api.Do(ctx, "POST", ctx.APIPath("/executions/"+executionID+"/export"), nil, bodyPayload, nil)
+	// JSON format export (direct API call for streaming response)
+	status, body, err := api.Do(ctx, "POST", ctx.APIPath("/executions/"+executionID+"/export"), nil, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -91,12 +94,6 @@ func runExport(ctx *appctx.Context, args []string) error {
 	}
 	if status != 200 {
 		return fmt.Errorf("received response status %d: %s", status, extractMessage(body))
-	}
-
-	if exportFormat == "folder" {
-		fmt.Printf("OK: Export ready: %s\n", fallback(extractMessage(body), "Execution export generated"))
-		fmt.Printf("Output directory: %s\n", outputDir)
-		return nil
 	}
 
 	var summary exportSummary

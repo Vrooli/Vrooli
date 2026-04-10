@@ -91,7 +91,7 @@ describe('useReactFlowReady', () => {
       getViewport: vi.fn().mockReturnValue({ x: 0, y: 0, zoom: 1 }), // Default viewport
     } as unknown as ReactFlowInstance;
 
-    const { result, rerender } = renderHook(
+    const { result } = renderHook(
       ({ instance }) =>
         useReactFlowReady({
           reactFlowInstance: instance,

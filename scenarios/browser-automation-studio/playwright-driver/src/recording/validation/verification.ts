@@ -39,7 +39,51 @@
  * @module recording/verification
  */
 
-import type { Page, CDPSession } from 'rebrowser-playwright';
+import type { Page } from 'rebrowser-playwright';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const toBoolean = (value: unknown, fallback: boolean): boolean =>
+  typeof value === 'boolean' ? value : fallback;
+
+const toNumber = (value: unknown, fallback: number): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+const toNumberOrNull = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null;
+
+const toStringOrNull = (value: unknown): string | null =>
+  typeof value === 'string' ? value : null;
+
+const safeJsonParse = (value: string): unknown => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const parseInjectionVerification = (value: unknown): InjectionVerification | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const loaded = value.loaded;
+  if (typeof loaded !== 'boolean') {
+    return null;
+  }
+
+  return {
+    loaded,
+    loadTime: toNumberOrNull(value.loadTime),
+    version: toStringOrNull(value.version),
+    ready: toBoolean(value.ready, false),
+    handlersCount: toNumber(value.handlersCount, 0),
+    inMainContext: toBoolean(value.inMainContext, false),
+    initError: toStringOrNull(value.initError) ?? undefined,
+  };
+};
 
 /**
  * Result of script injection verification.
@@ -97,16 +141,6 @@ export interface InjectionVerification {
  * Window interface with recording verification markers.
  * These are set by the recording script in the browser.
  */
-interface RecordingWindow {
-  __vrooli_recording_script_loaded?: boolean;
-  __vrooli_recording_script_load_time?: number;
-  __vrooli_recording_script_version?: string;
-  __vrooli_recording_script_context?: string;
-  __vrooli_recording_ready?: boolean;
-  __vrooli_recording_handlers_count?: number;
-  __vrooli_recording_init_error?: string;
-}
-
 /**
  * Verify that the recording script was properly injected and initialized.
  *
@@ -156,8 +190,12 @@ export async function verifyScriptInjection(page: Page): Promise<InjectionVerifi
         returnByValue: true,
       });
 
-      if (result.type === 'string' && result.value) {
-        return JSON.parse(result.value) as InjectionVerification;
+      if (result.type === 'string' && typeof result.value === 'string' && result.value) {
+        const parsed = safeJsonParse(result.value);
+        const verification = parseInjectionVerification(parsed);
+        if (verification) {
+          return verification;
+        }
       }
 
       return {

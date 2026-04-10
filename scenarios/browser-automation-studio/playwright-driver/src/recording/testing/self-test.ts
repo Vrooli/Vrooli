@@ -36,7 +36,41 @@ import type { RecordingPipelineManager } from '../orchestration/pipeline-manager
 import type { TimelineEntry } from '../../proto/recording';
 import { ActionType } from '../../proto/recording';
 import { logger, scopedLog, LogContext } from '../../utils';
-import { verifyScriptInjection } from '../validation/verification';
+import { verifyScriptInjection, waitForScriptReady } from '../validation/verification';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const toNumber = (value: unknown, fallback: number): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+const toStringOrNull = (value: unknown): string | null =>
+  typeof value === 'string' ? value : null;
+
+const safeJsonParse = (value: string): unknown => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+function extractSelectorFromAction(action?: TimelineEntry['action']): string | undefined {
+  if (!action) {
+    return undefined;
+  }
+
+  switch (action.params.case) {
+    case 'click':
+    case 'input':
+    case 'selectOption':
+    case 'hover':
+    case 'assert':
+      return action.params.value.selector;
+    default:
+      return undefined;
+  }
+}
 
 // =============================================================================
 // Types
@@ -145,6 +179,21 @@ interface BrowserTelemetry {
   eventsSendFailed: number;
   lastError: string | null;
 }
+
+const parseBrowserTelemetry = (value: unknown): BrowserTelemetry | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  return {
+    eventsDetected: toNumber(value.eventsDetected, 0),
+    eventsCaptured: toNumber(value.eventsCaptured, 0),
+    eventsSent: toNumber(value.eventsSent, 0),
+    eventsSendSuccess: toNumber(value.eventsSendSuccess, 0),
+    eventsSendFailed: toNumber(value.eventsSendFailed, 0),
+    lastError: toStringOrNull(value.lastError),
+  };
+};
 
 interface RouteStats {
   eventsReceived: number;
@@ -436,7 +485,13 @@ export async function runRecordingPipelineTest(
   };
 
   // Helper to add step result
-  const addStep = (name: string, passed: boolean, durationMs: number, error?: string, details?: Record<string, unknown>) => {
+  const addStep = (
+    name: string,
+    passed: boolean,
+    durationMs: number,
+    error?: string,
+    details?: Record<string, unknown>
+  ): void => {
     steps.push({ name, passed, durationMs, error, details });
     logger.debug(scopedLog(LogContext.RECORDING, `pipeline test step: ${name}`), {
       passed,
@@ -447,12 +502,14 @@ export async function runRecordingPipelineTest(
   };
 
   // Set up console capture
-  const consoleHandler = captureConsole ? (msg: { type: () => string; text: () => string }) => {
-    consoleMessages.push({
-      type: msg.type(),
-      text: msg.text().slice(0, 500),
-    });
-  } : null;
+  const consoleHandler = captureConsole
+    ? (msg: { type: () => string; text: () => string }): void => {
+        consoleMessages.push({
+          type: msg.type(),
+          text: msg.text().slice(0, 500),
+        });
+      }
+    : null;
 
   if (consoleHandler) {
     page.on('console', consoleHandler);
@@ -474,7 +531,10 @@ export async function runRecordingPipelineTest(
   let recordingStarted = false;
 
   try {
-    // Get initial stats
+    // Reset stats before test to ensure clean slate (prevents cumulative stats from previous runs)
+    contextInitializer.resetStats();
+
+    // Get initial stats (should now be zeroed)
     diagnostics.routeStatsBefore = contextInitializer.getRouteHandlerStats();
 
     // Step 1: Navigate to external URL
@@ -613,7 +673,7 @@ export async function runRecordingPipelineTest(
           eventsCaptured.push({
             actionType: actionTypeName.toLowerCase(),
             timestamp: new Date().toISOString(),
-            selector: entry.action?.selector?.primary || undefined,
+            selector: extractSelectorFromAction(entry.action),
           });
 
           logger.debug(scopedLog(LogContext.RECORDING, 'pipeline test: event received via real pipeline'), {
@@ -652,10 +712,19 @@ export async function runRecordingPipelineTest(
     const telemetryBeforeStart = Date.now();
     try {
       diagnostics.telemetryBefore = await queryBrowserTelemetry(page);
-      diagnostics.scriptStatusBefore!.isActive = await queryIsActive(page);
+      const scriptStatusBefore = diagnostics.scriptStatusBefore ?? {
+        loaded: false,
+        ready: false,
+        inMainContext: false,
+        handlersCount: 0,
+        version: null,
+        isActive: null,
+      };
+      scriptStatusBefore.isActive = await queryIsActive(page);
+      diagnostics.scriptStatusBefore = scriptStatusBefore;
       addStep('query_telemetry_before', true, Date.now() - telemetryBeforeStart, undefined, {
         telemetry: diagnostics.telemetryBefore,
-        isActive: diagnostics.scriptStatusBefore!.isActive,
+        isActive: scriptStatusBefore.isActive,
       });
     } catch (error) {
       addStep('query_telemetry_before', false, Date.now() - telemetryBeforeStart, error instanceof Error ? error.message : String(error));
@@ -779,6 +848,130 @@ export async function runRecordingPipelineTest(
       addStep('simulate_input', false, Date.now() - inputStart, error instanceof Error ? error.message : String(error));
     }
 
+    // Step 6b: Test scroll event capture
+    const scrollStart = Date.now();
+    try {
+      // Clear received events to isolate scroll test
+      const eventsBeforeScroll = receivedEvents.length;
+
+      // Ensure page has scrollable content by setting body height via CDP
+      // This is necessary because external URLs like example.com may not have enough content to scroll
+      const scrollClient = await page.context().newCDPSession(page);
+      try {
+        await scrollClient.send('Runtime.evaluate', {
+          expression: `document.body.style.minHeight = '200vh'`,
+        });
+      } finally {
+        await scrollClient.detach().catch(() => {});
+      }
+
+      await sleep(100); // Let layout settle
+
+      // Simulate a real scroll using CDP (like how a real user would scroll)
+      await simulateRealScroll(page, 200);
+      await sleep(700); // Wait for scroll debounce (CONFIG.SCROLL_DEBOUNCE_MS = 500) + propagation
+
+      // Check if scroll event was captured
+      const scrollReceived = receivedEvents.slice(eventsBeforeScroll).some(e => e.actionType === 'scroll');
+      addStep('simulate_scroll', scrollReceived, Date.now() - scrollStart, scrollReceived ? undefined : 'Scroll event not received', {
+        eventsBeforeScroll,
+        eventsAfterScroll: receivedEvents.length,
+        newEventTypes: receivedEvents.slice(eventsBeforeScroll).map(e => e.actionType),
+      });
+    } catch (error) {
+      addStep('simulate_scroll', false, Date.now() - scrollStart, error instanceof Error ? error.message : String(error));
+    }
+
+    // Step 6c: Test focus event capture (if input element exists)
+    const focusStart = Date.now();
+    try {
+      const inputSelector = 'input[type="text"], input:not([type]), textarea';
+      const inputExists = await page.$(inputSelector);
+
+      if (!inputExists) {
+        // No input on page - skip this test (not a failure, just not applicable)
+        addStep('simulate_focus', true, Date.now() - focusStart, undefined, {
+          skipped: true,
+          reason: 'No input element found on page',
+        });
+      } else {
+        // Clear received events to isolate focus test
+        const eventsBeforeFocus = receivedEvents.length;
+
+        // First blur any focused element
+        await page.evaluate(() => {
+          const active = document.activeElement;
+          if (active instanceof HTMLElement) {
+            active.blur();
+          }
+        });
+        await sleep(100);
+
+        // Focus the input element
+        const focusSuccess = await simulateFocusEvent(page, inputSelector);
+        await sleep(300); // Wait for events to propagate
+
+        // Check if focus event was captured
+        const focusReceived = receivedEvents.slice(eventsBeforeFocus).some(e => e.actionType === 'focus');
+        addStep('simulate_focus', focusReceived || !focusSuccess, Date.now() - focusStart,
+          focusReceived ? undefined : (focusSuccess ? 'Focus event not received' : 'Could not focus element'), {
+          focusSuccess,
+          eventsBeforeFocus,
+          eventsAfterFocus: receivedEvents.length,
+          newEventTypes: receivedEvents.slice(eventsBeforeFocus).map(e => e.actionType),
+        });
+      }
+    } catch (error) {
+      addStep('simulate_focus', false, Date.now() - focusStart, error instanceof Error ? error.message : String(error));
+    }
+
+    // Step 6d: Test navigation event capture
+    const navTestStart = Date.now();
+    try {
+      const eventsBeforeNav = receivedEvents.length;
+
+      // Find a navigation link on the page (avoid blank targets, anchors, and javascript links)
+      const navLink = await page.$('a[href]:not([target="_blank"]):not([href^="#"]):not([href^="javascript:"])');
+
+      if (!navLink) {
+        addStep('simulate_navigation', true, Date.now() - navTestStart, undefined, {
+          skipped: true,
+          reason: 'No navigation link found on page',
+        });
+      } else {
+        const href = await navLink.getAttribute('href');
+
+        // Click the link to trigger navigation
+        await navLink.click();
+
+        // Wait for navigation with timeout
+        try {
+          await page.waitForLoadState('domcontentloaded', { timeout: 3000 });
+          await waitForScriptReady(page, 3000); // Re-verify injection after nav
+        } catch {
+          // Navigation may not complete (e.g., same-page, prevented)
+        }
+
+        await sleep(500);
+
+        // Check if navigate event was captured
+        const navReceived = receivedEvents.slice(eventsBeforeNav).some(e =>
+          e.actionType === 'navigate'
+        );
+
+        addStep('simulate_navigation', navReceived, Date.now() - navTestStart,
+          navReceived ? undefined : 'Navigation event not received', {
+          eventsBeforeNav,
+          eventsAfterNav: receivedEvents.length,
+          newEventTypes: receivedEvents.slice(eventsBeforeNav).map(e => e.actionType),
+          targetUrl: href,
+        });
+      }
+    } catch (error) {
+      addStep('simulate_navigation', false, Date.now() - navTestStart,
+        error instanceof Error ? error.message : String(error));
+    }
+
     // Step 7: Query final telemetry and stats
     const finalStart = Date.now();
     try {
@@ -794,14 +987,39 @@ export async function runRecordingPipelineTest(
     }
 
     // Determine overall success
+    // CRITICAL: All core event types must pass (not just one of them)
+    // This prevents false positives where e.g. clicks work but scroll events are lost
     const clickStep = steps.find(s => s.name === 'simulate_click');
     const inputStep = steps.find(s => s.name === 'simulate_input');
-    const overallSuccess = (clickStep?.passed || false) || (inputStep?.passed || false);
+    const scrollStep = steps.find(s => s.name === 'simulate_scroll');
+    const focusStep = steps.find(s => s.name === 'simulate_focus');
+    const navStep = steps.find(s => s.name === 'simulate_navigation');
+
+    // Required tests must pass (click and scroll are always expected to work)
+    const clickPassed = clickStep?.passed || false;
+    const scrollPassed = scrollStep?.passed || false;
+
+    // Optional tests pass if they succeeded OR were skipped
+    const inputPassed = inputStep?.passed || (inputStep?.details as { skipped?: boolean })?.skipped || false;
+    const focusPassed = focusStep?.passed || (focusStep?.details as { skipped?: boolean })?.skipped || false;
+    const navPassed = navStep?.passed || (navStep?.details as { skipped?: boolean })?.skipped || false;
+
+    // All core event types must work for the test to pass
+    const overallSuccess = clickPassed && scrollPassed && inputPassed && focusPassed && navPassed;
 
     if (!overallSuccess) {
+      const failedTests: string[] = [];
+      if (!clickPassed) failedTests.push('click');
+      if (!scrollPassed) failedTests.push('scroll');
+      if (!inputPassed) failedTests.push('input');
+      if (!focusPassed) failedTests.push('focus');
+      if (!navPassed) failedTests.push('navigation');
+
       // Determine failure point from diagnostics
-      return buildResult(false, 'unknown', 'No events were received during the test', steps, diagnostics, startTime, [
+      return buildResult(false, 'event_capture', `Event capture failed for: ${failedTests.join(', ')}`, steps, diagnostics, startTime, [
         'Check the detailed step results for more information',
+        'Verify route handlers are receiving events (check routeStatsAfter.eventsReceived)',
+        'Verify browser script is detecting events (check telemetryAfter.eventsDetected)',
         'Run the debug endpoint to see current state',
       ]);
     }
@@ -875,7 +1093,8 @@ export interface ExternalUrlTestResult {
     attempted: number;
     successful: number;
     failed: number;
-    skipped: number;
+    avgInjectionTimeMs: number;
+    lastInjectionAt: string | null;
   };
 }
 
@@ -1255,8 +1474,12 @@ async function queryBrowserTelemetry(page: Page): Promise<BrowserTelemetry | und
         expression: `JSON.stringify(window.__vrooli_recording_telemetry || null)`,
         returnByValue: true,
       });
-      if (result.type === 'string' && result.value && result.value !== 'null') {
-        return JSON.parse(result.value);
+      if (result.type === 'string' && typeof result.value === 'string' && result.value !== 'null') {
+        const parsed = safeJsonParse(result.value);
+        const telemetry = parseBrowserTelemetry(parsed);
+        if (telemetry) {
+          return telemetry;
+        }
       }
     } finally {
       await client.detach().catch(() => {});
@@ -1275,7 +1498,7 @@ async function queryIsActive(page: Page): Promise<boolean | null> {
         expression: `typeof window.__isRecordingActive === 'function' ? window.__isRecordingActive() : null`,
         returnByValue: true,
       });
-      if (result.type === 'boolean') {
+      if (result.type === 'boolean' && typeof result.value === 'boolean') {
         return result.value;
       }
     } finally {
@@ -1369,5 +1592,49 @@ async function simulateRealType(page: Page, text: string): Promise<void> {
     logger.debug(scopedLog(LogContext.RECORDING, 'simulated real type'), { text });
   } finally {
     await client.detach().catch(() => {});
+  }
+}
+
+/**
+ * Simulate a real scroll using CDP Input.dispatchMouseEvent with wheel type.
+ */
+async function simulateRealScroll(page: Page, deltaY: number = 200): Promise<void> {
+  const client = await page.context().newCDPSession(page);
+  try {
+    // Get viewport center
+    const viewport = page.viewportSize();
+    const x = (viewport?.width || 800) / 2;
+    const y = (viewport?.height || 600) / 2;
+
+    // Dispatch mouse wheel event
+    await client.send('Input.dispatchMouseEvent', {
+      type: 'mouseWheel',
+      x,
+      y,
+      deltaX: 0,
+      deltaY,
+    });
+
+    logger.debug(scopedLog(LogContext.RECORDING, 'simulated real scroll'), { deltaY, x, y });
+  } finally {
+    await client.detach().catch(() => {});
+  }
+}
+
+/**
+ * Simulate a focus event by focusing an input element (if available).
+ */
+async function simulateFocusEvent(page: Page, selector: string): Promise<boolean> {
+  try {
+    const element = await page.$(selector);
+    if (!element) {
+      return false;
+    }
+
+    await page.focus(selector);
+    logger.debug(scopedLog(LogContext.RECORDING, 'simulated focus event'), { selector });
+    return true;
+  } catch {
+    return false;
   }
 }

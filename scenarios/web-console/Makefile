@@ -1,85 +1,116 @@
-# Web Console Scenario Makefile
+# React Vite Scenario Makefile
 #
-# Use these commands to interact with the scenario through the Vrooli lifecycle system.
-# Never run binaries directly; always use `make` targets or `vrooli scenario ...` commands.
+# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
+# NEVER run scenarios directly (./api/web-console-api). ALWAYS use these commands.
+#
+# Usage:
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
 
-.PHONY: help start stop dev test logs status clean build fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start stop test logs status clean build dev run fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 .DEFAULT_GOAL := help
+
 SCENARIO_NAME := $(notdir $(CURDIR))
 
-help:
-	@echo "\033[1;36mWeb Console Scenario Commands\033[0m"
-	@echo "  make start   - Start services via lifecycle"
-	@echo "  make stop    - Stop services"
-	@echo "  make dev     - Start in development mode"
-	@echo "  make test    - Run scenario tests"
-	@echo "  make logs    - Tail scenario logs"
-	@echo "  make clean   - Clean build artefacts"
+GREEN := \033[1;32m
+YELLOW := \033[1;33m
+BLUE := \033[1;34m
+RED := \033[1;31m
+RESET := \033[0m
 
-start:
-	@echo "\033[1;34mStarting $(SCENARIO_NAME) via lifecycle...\033[0m"
+help: ## Show this help message
+	@echo "$(BLUE)📦 $(SCENARIO_NAME) Scenario Commands$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)Usage:$(RESET)"
+	@echo "  make <command>"
+	@echo ""
+	@echo "$(YELLOW)Commands:$(RESET)"
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-12s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
+	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
+
+start: ## Start this scenario
+	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario start $(SCENARIO_NAME)
+	@bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook'
 
-stop:
-	@echo "\033[1;33mStopping $(SCENARIO_NAME)...\033[0m"
+stop: ## Stop this scenario
+	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
+	@bash -c 'source lib/tts-hooks.sh && wc::deregister_tts_hook'
 	@vrooli scenario stop $(SCENARIO_NAME)
 
-dev:
-	@echo "\033[1;34mStarting $(SCENARIO_NAME) in development mode...\033[0m"
-	@vrooli scenario start $(SCENARIO_NAME) --dev
-
-test:
-	@echo "\033[1;34mRunning tests for $(SCENARIO_NAME)...\033[0m"
+test: ## Run scenario tests
+	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario test $(SCENARIO_NAME)
 
-logs:
-	@vrooli scenario logs $(SCENARIO_NAME) --tail 100
+logs: ## Show scenario logs
+	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
+	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
-status:
+status: ## Show scenario status
+	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status $(SCENARIO_NAME)
 
-clean:
-	@echo "\033[1;33mRemoving build artefacts...\033[0m"
-	@rm -f api/web-console-api api/codex-console-api
-	@rm -f api/coverage.out
-	@rm -rf api/data/sessions
-	@rm -rf bin
-	@rm -rf ui/dist
-	@echo "\033[1;32mClean complete\033[0m"
+clean: ## Clean build artifacts
+	@echo "$(YELLOW)🧹 Cleaning $(SCENARIO_NAME) build artifacts...$(RESET)"
+	@rm -rf ui/dist 2>/dev/null || true
+	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) 2>/dev/null || true
+	@echo "$(GREEN)✓ Cleaned$(RESET)"
 
-fmt: fmt-go fmt-ui
+build: ## Build the scenario
+	@echo "$(BLUE)🏗️  Building $(SCENARIO_NAME)...$(RESET)"
+	@if [ -f api/go.mod ]; then \
+		cd api && go build -o "$(SCENARIO_NAME)-api" .; \
+	fi
+	@if [ -f ui/package.json ]; then \
+		cd ui && pnpm run build; \
+	fi
 
-fmt-go:
-	@if [ -d api ]; then \
+fmt: fmt-go fmt-ui ## Format all code
+
+fmt-go: ## Format Go code
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		echo "$(BLUE)🎨 Formatting Go code...$(RESET)"; \
 		if command -v gofumpt >/dev/null 2>&1; then \
 			cd api && gofumpt -w .; \
-		else \
-			echo "gofumpt not found; falling back to gofmt"; \
+		elif command -v gofmt >/dev/null 2>&1; then \
 			cd api && gofmt -w .; \
 		fi; \
+		echo "$(GREEN)✓ Go code formatted$(RESET)"; \
+	else \
+		echo "$(YELLOW)No Go code to format$(RESET)"; \
 	fi
 
-fmt-ui:
-	@if [ -d ui ]; then \
-		cd ui && pnpm exec prettier --write "src/**/*.{js,ts,tsx,css}" "public/**/*.{html,css}"; \
+fmt-ui: ## Format UI code
+	@echo "$(YELLOW)UI formatting not configured$(RESET)"
+
+lint: lint-go lint-ui ## Lint all code
+
+lint-go: ## Lint Go code
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		echo "$(BLUE)🔍 Linting Go code...$(RESET)"; \
+		if command -v golangci-lint >/dev/null 2>&1; then \
+			cd api && golangci-lint run ./...; \
+		elif command -v go >/dev/null 2>&1; then \
+			cd api && go vet ./... && go fmt ./...; \
+		fi; \
+		echo "$(GREEN)✓ Go code linted$(RESET)"; \
+	else \
+		echo "$(YELLOW)No Go code to lint$(RESET)"; \
 	fi
 
-lint: lint-go lint-ui
+lint-ui: ## Lint UI code
+	@echo "$(YELLOW)UI lint not configured$(RESET)"
 
-lint-go:
-	@if [ -d api ]; then \
-		cd api && go vet ./... || true; \
-	fi
+check: fmt lint test ## Run full quality gates
 
-lint-ui:
-	@if [ -d ui ]; then \
-		cd ui && pnpm run lint || true; \
-	fi
-
-check: fmt lint test
-
-build:
-	@echo "\033[1;34mBuilding $(SCENARIO_NAME)...\033[0m"
-	@if [ -d api ]; then cd api && go build -o web-console-api .; fi
-	@if [ -d ui ]; then cd ui && pnpm run build; fi
+# Development shortcuts
+dev: start
+run: start

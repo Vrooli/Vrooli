@@ -184,7 +184,7 @@ const util = (x) => x * 2;
 		t.Run(tc.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			targetDir := filepath.Join(tmpDir, tc.dirPath)
-			if err := os.MkdirAll(targetDir, 0755); err != nil {
+			if err := os.MkdirAll(targetDir, 0o755); err != nil {
 				t.Fatal(err)
 			}
 
@@ -253,7 +253,7 @@ func TestCollectDetailedFileMetrics_JSONFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	configDir := filepath.Join(tmpDir, "config")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -308,13 +308,12 @@ func TestCollectDetailedFileMetrics_NonExistentFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	files := []string{"api/nonexistent.go"}
 	metrics, err := CollectDetailedFileMetrics(tmpDir, files)
-
 	if err != nil {
 		t.Logf("CollectDetailedFileMetrics returned error for non-existent file: %v", err)
 		return
@@ -328,14 +327,14 @@ func TestCollectDetailedFileMetrics_MixedLanguages(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	apiDir := filepath.Join(tmpDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	writeTestFile(t, filepath.Join(apiDir, "main.go"), "package main\n\nfunc main() {}\n")
 
 	uiDir := filepath.Join(tmpDir, "ui", "src")
-	if err := os.MkdirAll(uiDir, 0755); err != nil {
+	if err := os.MkdirAll(uiDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -484,7 +483,6 @@ func TestCollectDetailedFileMetrics_BinaryFiles(t *testing.T) {
 
 	files := []string{"binary.dat"}
 	metrics, err := CollectDetailedFileMetrics(tmpDir, files)
-
 	if err != nil {
 		t.Logf("CollectDetailedFileMetrics handled binary file with error: %v", err)
 		return
@@ -561,7 +559,7 @@ func TestCollectDetailedFileMetrics_NestedDirs(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	nestedDir := filepath.Join(tmpDir, "api", "internal", "handlers")
-	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+	if err := os.MkdirAll(nestedDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 

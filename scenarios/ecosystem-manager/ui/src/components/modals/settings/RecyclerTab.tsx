@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { RecyclerSettings } from '@/types/api';
+import type { RecyclerSettings, SettingsConstraints } from '@/types/api';
 
 const MODEL_PROVIDERS = [
   { value: 'ollama', label: 'Ollama (Local)' },
@@ -38,9 +38,10 @@ const OPENROUTER_MODELS = [
 interface RecyclerTabProps {
   settings: RecyclerSettings;
   onChange: (updates: Partial<RecyclerSettings>) => void;
+  constraints?: SettingsConstraints;
 }
 
-export function RecyclerTab({ settings, onChange }: RecyclerTabProps) {
+export function RecyclerTab({ settings, onChange, constraints }: RecyclerTabProps) {
   const updateSetting = <K extends keyof RecyclerSettings>(
     key: K,
     value: RecyclerSettings[K]
@@ -99,8 +100,8 @@ export function RecyclerTab({ settings, onChange }: RecyclerTabProps) {
           </Label>
           <Slider
             id="recycler-interval"
-            min={30}
-            max={1800}
+            min={constraints?.recycler.interval_seconds.min ?? 30}
+            max={constraints?.recycler.interval_seconds.max ?? 1800}
             step={30}
             value={[settings.recycle_interval]}
             onValueChange={([val]) => updateSetting('recycle_interval', val)}
@@ -118,8 +119,8 @@ export function RecyclerTab({ settings, onChange }: RecyclerTabProps) {
             </Label>
             <Slider
               id="recycler-max-retries"
-              min={0}
-              max={10}
+              min={constraints?.recycler.max_retries.min ?? 0}
+              max={constraints?.recycler.max_retries.max ?? 10}
               step={1}
               value={[settings.max_retries]}
               onValueChange={([val]) => updateSetting('max_retries', val)}
@@ -134,8 +135,8 @@ export function RecyclerTab({ settings, onChange }: RecyclerTabProps) {
             </Label>
             <Slider
               id="recycler-retry-delay"
-              min={1}
-              max={60}
+              min={constraints?.recycler.retry_delay_seconds.min ?? 1}
+              max={constraints?.recycler.retry_delay_seconds.max ?? 60}
               step={1}
               value={[settings.retry_delay_seconds]}
               onValueChange={([val]) => updateSetting('retry_delay_seconds', val)}
@@ -202,8 +203,8 @@ export function RecyclerTab({ settings, onChange }: RecyclerTabProps) {
             </Label>
             <Slider
               id="completion-threshold"
-              min={1}
-              max={10}
+              min={constraints?.recycler.completion_threshold.min ?? 1}
+              max={constraints?.recycler.completion_threshold.max ?? 10}
               step={1}
               value={[settings.completion_threshold]}
               onValueChange={([val]) => updateSetting('completion_threshold', val)}
@@ -219,8 +220,8 @@ export function RecyclerTab({ settings, onChange }: RecyclerTabProps) {
             </Label>
             <Slider
               id="failure-threshold"
-              min={1}
-              max={10}
+              min={constraints?.recycler.failure_threshold.min ?? 1}
+              max={constraints?.recycler.failure_threshold.max ?? 10}
               step={1}
               value={[settings.failure_threshold]}
               onValueChange={([val]) => updateSetting('failure_threshold', val)}

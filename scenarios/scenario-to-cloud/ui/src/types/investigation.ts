@@ -1,5 +1,41 @@
 export type InvestigationStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
+// New unified task types
+export type TaskType = 'investigate' | 'fix';
+export type EffortLevel = 'checks' | 'logs' | 'trace';
+export type FocusType = 'harness' | 'subject';
+export type PermissionType = 'immediate' | 'permanent' | 'prevention';
+
+export interface TaskFocus {
+  harness: boolean;
+  subject: boolean;
+}
+
+export interface FixPermissions {
+  immediate: boolean;
+  permanent: boolean;
+  prevention: boolean;
+}
+
+export interface FixIterationRecord {
+  number: number;
+  started_at: string;
+  ended_at?: string;
+  diagnosis_summary?: string;
+  changes_summary?: string;
+  deploy_triggered: boolean;
+  verify_result?: string;
+  outcome?: string;
+  agent_run_id?: string;
+}
+
+export interface FixIterationState {
+  current_iteration: number;
+  max_iterations: number;
+  iterations: FixIterationRecord[];
+  final_status?: string;
+}
+
 export interface Investigation {
   id: string;
   deployment_id: string;
@@ -26,6 +62,12 @@ export interface InvestigationDetails {
   deployment_step?: string;
   source_investigation_id?: string;
   source_findings?: string;
+  // New task-specific fields
+  task_type?: TaskType;
+  focus?: TaskFocus;
+  effort?: EffortLevel;
+  permissions?: FixPermissions;
+  fix_state?: FixIterationState;
 }
 
 export interface InvestigationSummary {
@@ -44,6 +86,21 @@ export interface InvestigationSummary {
 export interface CreateInvestigationRequest {
   auto_fix?: boolean;
   note?: string;
+  include_contexts?: string[];
+}
+
+// New unified task request
+export interface CreateTaskRequest {
+  task_type: TaskType;
+  focus: TaskFocus;
+  note?: string;
+  // Investigate-only fields
+  effort?: EffortLevel;
+  // Fix-only fields
+  permissions?: FixPermissions;
+  source_investigation_id?: string;
+  max_iterations?: number;
+  // Context selection
   include_contexts?: string[];
 }
 

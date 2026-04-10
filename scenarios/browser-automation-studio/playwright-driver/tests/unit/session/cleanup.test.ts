@@ -48,7 +48,7 @@ describe('SessionCleanup', () => {
   });
 
   afterEach(async () => {
-    cleanup.stop();
+    await cleanup.stop();
     await manager.shutdown();
     setIntervalSpy.mockRestore();
     clearIntervalSpy.mockRestore();
@@ -72,23 +72,23 @@ describe('SessionCleanup', () => {
   });
 
   describe('stop', () => {
-    it('should stop cleanup interval', () => {
+    it('should stop cleanup interval', async () => {
       cleanup.start();
-      cleanup.stop();
+      await cleanup.stop();
 
       expect(clearIntervalSpy).toHaveBeenCalled();
     });
 
-    it('should handle stop without start', () => {
-      expect(() => cleanup.stop()).not.toThrow();
+    it('should handle stop without start', async () => {
+      await expect(cleanup.stop()).resolves.toBeUndefined();
     });
 
-    it('should handle multiple stops', () => {
+    it('should handle multiple stops', async () => {
       cleanup.start();
-      cleanup.stop();
-      cleanup.stop();
+      await cleanup.stop();
+      await cleanup.stop();
 
-      expect(() => cleanup.stop()).not.toThrow();
+      await expect(cleanup.stop()).resolves.toBeUndefined();
     });
   });
 
@@ -170,7 +170,7 @@ describe('SessionCleanup', () => {
       const realCleanup = new SessionCleanup(realManager, realConfig);
 
       // Create a session
-      const sessionId = await realManager.startSession({
+      const { sessionId } = await realManager.startSession({
         execution_id: 'exec-123',
         workflow_id: 'workflow-123',
         base_url: 'https://example.com',
@@ -186,10 +186,10 @@ describe('SessionCleanup', () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Session should be cleaned up
-      const sessions = (realManager as any).sessions;
+      const sessions = (realManager as unknown as { sessions: Map<string, unknown> }).sessions;
       expect(sessions.has(sessionId)).toBe(false);
 
-      realCleanup.stop();
+      await realCleanup.stop();
       await realManager.shutdown();
     }, 10000);
   });

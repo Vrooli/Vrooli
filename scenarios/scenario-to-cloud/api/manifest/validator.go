@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"fmt"
+	"path"
 	"sort"
 	"strings"
 
@@ -75,6 +76,17 @@ func ValidateAndNormalize(in domain.CloudManifest) (domain.CloudManifest, []doma
 			}
 			if strings.TrimSpace(out.Target.VPS.Workdir) == "" {
 				out.Target.VPS.Workdir = domain.DefaultVPSWorkdir
+			}
+			out.Target.VPS.PreservePaths = StableUniqueStrings(out.Target.VPS.PreservePaths)
+			for _, preservePath := range out.Target.VPS.PreservePaths {
+				if err := validatePreservePath(preservePath); err != nil {
+					issues = append(issues, domain.ValidationIssue{
+						Path:     "target.vps.preserve_paths",
+						Message:  fmt.Sprintf("invalid preserve path %q", preservePath),
+						Hint:     err.Error(),
+						Severity: domain.SeverityError,
+					})
+				}
 			}
 		}
 	}
@@ -401,4 +413,37 @@ func Contains(in []string, value string) bool {
 		}
 	}
 	return false
+}
+
+func validatePreservePath(p string) error {
+	if strings.TrimSpace(p) == "" {
+		return fmt.Errorf("path must not be empty")
+	}
+	if strings.ContainsAny(p, " \t\r\n\"'`$\\") {
+		return fmt.Errorf("path contains unsupported characters; use simple relative paths")
+	}
+	if strings.HasPrefix(p, "/") {
+		return fmt.Errorf("path must be relative to target.vps.workdir")
+	}
+	if strings.HasPrefix(p, "~") {
+		return fmt.Errorf("path must not use '~'; use a workdir-relative path like scenarios/<scenario-id>/data")
+	}
+	clean := path.Clean(p)
+	if clean == "." {
+		return fmt.Errorf("path must not resolve to current directory")
+	}
+	if clean == ".." || strings.HasPrefix(clean, "../") {
+		return fmt.Errorf("path must stay within target.vps.workdir")
+	}
+	if clean == "scenarios" || !strings.HasPrefix(clean, "scenarios/") {
+		return fmt.Errorf("path must target a scenario subtree, e.g. scenarios/<scenario-id>/data")
+	}
+	parts := strings.Split(clean, "/")
+	if len(parts) < 3 {
+		return fmt.Errorf("path must include at least scenarios/<scenario-id>/<path>")
+	}
+	if strings.Contains(clean, "//") {
+		return fmt.Errorf("path must not contain empty segments")
+	}
+	return nil
 }

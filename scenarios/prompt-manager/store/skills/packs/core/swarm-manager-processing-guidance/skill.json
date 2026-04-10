@@ -1,0 +1,14 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-processing-guidance",
+  "name": "Swarm Manager Processing Guidance",
+  "description": "Shared guidance for all swarm-manager processing operations. Referenced directly by research and processing skills via required reading commands.",
+  "modes": ["tools"],
+  "tags": ["swarm-manager", "processing", "scope"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-02-14T06:00:00Z",
+  "updatedAt": "2026-02-14T06:00:00Z"
+}

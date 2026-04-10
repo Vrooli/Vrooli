@@ -1,0 +1,101 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-01T20:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Verification endpoint behavior for completed/cancelled runs",
+      "context": "In the round 1 clarification on d2, you asked: 'I feel like you should still be able to call the verify endpoint and get the agent identity even if it already completed. What valid use case would there be for forbidding this?' The current plan returns 401 for revoked (completed/cancelled) tokens. This decision determines whether verify should always return identity claims or gate them on run state.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Always return claims — add run_status field to response",
+          "rationale": "Verify always returns 200 with claims + a `run_status` field (active/completed/cancelled/failed) for any valid-signature, non-expired token. Consumers decide what to do with status. This matches your intuition that identity should always be retrievable via the token. Token expiry (24h TTL) is the only hard cutoff. Response becomes: `{\"valid\": true, \"claims\": {...}, \"run_status\": \"completed\"}`.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Return 200 for active runs, 200 with warning for completed, 401 only for cancelled/failed",
+          "rationale": "Distinguishes between graceful completion (identity still useful) and abnormal termination (identity should not be trusted). Adds complexity with three response categories."
+        },
+        {
+          "key": "C",
+          "label": "Keep original design — 401 for all non-active runs",
+          "rationale": "Strictest security posture. Forces consumers to use run history API for post-completion attribution. Prevents any use of stale tokens. But conflicts with your stated preference."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Token hash persistence timing",
+      "context": "The plan says IdentityEnvVars() generates the token (mirroring SandboxEnvVars pattern). But the token hash needs to be stored in the runs table for later verification/revocation lookups. SandboxEnvVars() is a pure function that returns a map — it doesn't write to the DB. Token generation needs a DB write (to store the hash) that the sandbox pattern doesn't have. This affects where generation actually happens.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Generate token in RunExecutor.Execute(), store hash, then pass token via env",
+          "rationale": "Token generation happens in Execute() (around the phase transition to RunPhaseExecuting) where DB access is already available. The token string is passed into the runner's env. IdentityEnvVars() becomes a simple accessor that returns the pre-generated token. This keeps the DB write in the orchestration layer where it belongs.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Generate in IdentityEnvVars() and store hash via a callback/repository reference",
+          "rationale": "Keeps the SandboxEnvVars() parallel more literal — both are methods on RunExecutor that return map[string]string. But requires injecting a repository reference or callback into what is currently a pure computation, breaking the existing pattern."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "HMAC secret initialization failure handling",
+      "context": "The secret is loaded from a file in the data directory at startup. If the file doesn't exist, a new 32-byte secret is generated via crypto/rand. But what if the file exists but is unreadable (permissions), corrupted (partial write), or the data directory is read-only?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Fail startup with clear error message",
+          "rationale": "If the secret can't be loaded or created, identity tokens won't work. Better to fail loudly than silently produce broken tokens. Admin fixes the issue and restarts. This is the safest option for a security component.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Log error and disable identity features (runs proceed without tokens)",
+          "rationale": "Graceful degradation — agent-manager still works, just without identity. Matches the 'fail open' philosophy from the research. But could mask real problems and lead to confusion when tokens are silently absent."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Codebase exploration confirms IdentityEnvVars integration point: MergedEnvVars() at run_executor.go:957 merges custom env + sandbox vars. Identity vars should be merged here alongside sandbox vars (both are agent-manager-managed, both override custom vars for security). The three per-runner buildEnv() methods (claude_code.go:716, opencode_runner.go:590, codex_runner.go:696) all receive the merged env via ExecuteRequest.Environment — no runner-specific changes needed."
+    }
+  ],
+  "plan_updates": "Refined Phase 2 (token generation) to address token hash persistence timing as a decision. Refined Phase 3 (revocation) to address verification behavior for completed runs based on user's round 1 clarification feedback. Added info about MergedEnvVars integration point. Updated verification endpoint contract to include run_status field (pending d1 decision)."
+}

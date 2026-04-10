@@ -1,0 +1,11 @@
+{
+  "promptManagerUrl": "http://localhost:${PROMPT_MANAGER_PORT}",
+  "syncIntervalSeconds": 60,
+  "skillOverrides": [
+    {
+      "promptId": "screaming-architecture-audit",
+      "icon": "Building2",
+      "targetToolId": "run-agent"
+    }
+  ]
+}

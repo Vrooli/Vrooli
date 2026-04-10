@@ -12,9 +12,11 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useAINavigation } from '../ai-navigation/useAINavigation';
+import { useAINavigation, AINavigationError } from '../ai-navigation/useAINavigation';
+import { useEntitlementStore } from '@stores/entitlementStore';
+import { useAICapabilityStore } from '@stores/aiCapabilityStore';
 import type { AIMessage, AISettings } from './types';
-import { createUserMessage, createAssistantMessage, createSystemMessage } from './types';
+import { createUserMessage, createAssistantMessage, createSystemMessage, createEntitlementErrorMessage } from './types';
 
 // ============================================================================
 // Types
@@ -213,7 +215,28 @@ export function useAIConversation({
         currentAssistantIdRef.current = assistantMessage.id;
         setMessages((prev) => [...prev, assistantMessage]);
       } catch (err) {
-        // Add error as system message
+        // Check if this is an entitlement-related error
+        if (err instanceof AINavigationError) {
+          const errorCode = err.code;
+
+          if (errorCode === 'AI_NOT_AVAILABLE' || errorCode === 'INSUFFICIENT_CREDITS') {
+            // Get current entitlement info for richer error display
+            const entitlementStatus = useEntitlementStore.getState().status;
+            const aiCapability = useAICapabilityStore.getState().capability;
+
+            const errorMessage = createEntitlementErrorMessage(errorCode, {
+              remaining: err.details?.remaining ? parseInt(err.details.remaining, 10) : 0,
+              creditsUsed: entitlementStatus?.ai_credits_used,
+              creditsLimit: entitlementStatus?.ai_credits_limit,
+              resetDate: aiCapability.resetDate || entitlementStatus?.ai_reset_date,
+              tier: entitlementStatus?.tier,
+            });
+            setMessages((prev) => [...prev, errorMessage]);
+            return;
+          }
+        }
+
+        // Add generic error as system message
         const errorMessage =
           err instanceof Error ? err.message : 'Failed to start navigation';
         const systemMessage = createSystemMessage(`Error: ${errorMessage}`);

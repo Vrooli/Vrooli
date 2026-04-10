@@ -14,8 +14,10 @@ vi.mock("../lib/api", () => ({
   fetchToolSet: vi.fn(),
   fetchScenarioStatuses: vi.fn(),
   setToolEnabled: vi.fn(),
+  setToolApproval: vi.fn(),
   resetToolConfig: vi.fn(),
   refreshTools: vi.fn(),
+  syncTools: vi.fn(),
 }));
 
 const mockToolSet: api.ToolSet = {
@@ -158,7 +160,7 @@ describe("useTools", () => {
     });
 
     expect(result.current.enabledTools).toHaveLength(1);
-    expect(result.current.enabledTools[0].tool.name).toBe("spawn_coding_agent");
+    expect(result.current.enabledTools[0]!.tool.name).toBe("spawn_coding_agent");
   });
 
   it("groups tools by scenario", async () => {
@@ -261,11 +263,12 @@ describe("useTools", () => {
     );
   });
 
-  it("refreshes tool registry", async () => {
-    vi.mocked(api.refreshTools).mockResolvedValue({
-      success: true,
-      scenarios_count: 1,
-      tools_count: 6,
+  it("syncs discovered tools", async () => {
+    vi.mocked(api.syncTools).mockResolvedValue({
+      scenarios_with_tools: 2,
+      new_scenarios: ["scenario-to-desktop"],
+      removed_scenarios: [],
+      total_tools: 26,
     });
 
     const { result } = renderHook(() => useTools(), {
@@ -276,9 +279,9 @@ describe("useTools", () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    await result.current.refreshToolRegistry();
+    await result.current.syncDiscoveredTools();
 
-    expect(api.refreshTools).toHaveBeenCalled();
+    expect(api.syncTools).toHaveBeenCalled();
   });
 });
 

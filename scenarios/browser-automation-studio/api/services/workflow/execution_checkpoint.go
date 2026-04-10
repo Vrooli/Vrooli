@@ -182,15 +182,6 @@ func extractCheckpointFromTimeline(timeline *bastimeline.ExecutionTimeline, vari
 	return lastStepIndex, totalSteps
 }
 
-// getExecutionWorkflowVersion retrieves the workflow version from the execution snapshot.
-func (s *WorkflowService) getExecutionWorkflowVersion(ctx context.Context, executionID uuid.UUID) (int, error) {
-	snapshot, err := s.readExecutionSnapshot(ctx, executionID)
-	if err != nil {
-		return 0, err
-	}
-	return int(snapshot.WorkflowVersion), nil
-}
-
 // jsonValueMapToAnyMap converts a proto JsonValue map to a Go any map.
 func jsonValueMapToAnyMap(protoMap map[string]*commonv1.JsonValue) map[string]any {
 	result := make(map[string]any)

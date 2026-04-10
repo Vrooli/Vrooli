@@ -17,44 +17,36 @@
  * - handleRecordStop: Multiple calls after stop return success (idempotent)
  */
 
-import type { SessionState } from '../../../src/types';
-import { createMockPage } from '../../helpers';
 
 describe('Recording Lifecycle Idempotency', () => {
-  let mockPage: ReturnType<typeof createMockPage>;
-  let mockSession: Partial<SessionState>;
-  let mockPipelineManager: {
-    isRecording: jest.Mock;
-    getRecordingId: jest.Mock;
-    getState: jest.Mock;
-    startRecording: jest.Mock;
-    stopRecording: jest.Mock;
+  type RecordingState = {
+    phase: string;
+    recording?: { id?: string };
   };
 
-  const sessionId = 'recording-test-session';
+  type MockPipelineManager = {
+    isRecording: jest.Mock<boolean, []>;
+    getRecordingId: jest.Mock<string | undefined, []>;
+    getState: jest.Mock<RecordingState, []>;
+    startRecording: jest.Mock<Promise<string>, []>;
+    stopRecording: jest.Mock<Promise<{ recordingId: string; actionCount: number }>, []>;
+  };
+
+  let mockPipelineManager: MockPipelineManager;
 
   beforeEach(() => {
-    mockPage = createMockPage();
-
     mockPipelineManager = {
-      isRecording: jest.fn().mockReturnValue(false),
-      getRecordingId: jest.fn().mockReturnValue(undefined),
-      getState: jest.fn().mockReturnValue({
+      isRecording: jest.fn<boolean, []>().mockReturnValue(false),
+      getRecordingId: jest.fn<string | undefined, []>().mockReturnValue(undefined),
+      getState: jest.fn<RecordingState, []>().mockReturnValue({
         phase: 'ready',
         recording: undefined,
       }),
-      startRecording: jest.fn().mockResolvedValue('recording-123'),
-      stopRecording: jest.fn().mockResolvedValue({
+      startRecording: jest.fn<Promise<string>, []>().mockResolvedValue('recording-123'),
+      stopRecording: jest.fn<Promise<{ recordingId: string; actionCount: number }>, []>().mockResolvedValue({
         recordingId: 'recording-123',
         actionCount: 5,
       }),
-    };
-
-    mockSession = {
-      id: sessionId,
-      page: mockPage as any,
-      phase: 'ready',
-      pipelineManager: mockPipelineManager as any,
     };
   });
 

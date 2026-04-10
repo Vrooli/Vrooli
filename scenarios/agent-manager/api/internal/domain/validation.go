@@ -110,7 +110,7 @@ func (p RunPhase) IsValid() bool {
 // IsValid returns whether this is a valid RunEventType.
 func (t RunEventType) IsValid() bool {
 	switch t {
-	case EventTypeLog, EventTypeMessage, EventTypeToolCall, EventTypeToolResult,
+	case EventTypeLog, EventTypeMessage, EventTypeMessageDeleted, EventTypeToolCall, EventTypeToolResult,
 		EventTypeStatus, EventTypeMetric, EventTypeArtifact, EventTypeError:
 		return true
 	default:
@@ -205,11 +205,20 @@ func (p *AgentProfile) Validate() error {
 			"same path cannot be both allowed and denied")
 	}
 
+	if !p.NetworkAccess.IsValid() {
+		return NewValidationErrorWithHint("networkAccess", "invalid network access level",
+			"valid values: none, localhost, full")
+	}
+
 	if err := validateSandboxConfig(p.SandboxConfig); err != nil {
 		return err
 	}
 
 	if err := validateRunnerFallbackTypes("fallbackRunnerTypes", p.FallbackRunnerTypes); err != nil {
+		return err
+	}
+
+	if err := validateExtraFlagsStructure(p.ExtraFlags); err != nil {
 		return err
 	}
 
@@ -279,9 +288,9 @@ func (t *Task) Validate() error {
 		return NewValidationError("title", "must be 255 characters or less")
 	}
 
-	// Description has a reasonable limit
-	if len(t.Description) > 16384 {
-		return NewValidationError("description", "must be 16384 characters or less")
+	// Description has a reasonable limit (64KB accommodates large agent prompts)
+	if len(t.Description) > 65536 {
+		return NewValidationError("description", "must be 65536 characters or less")
 	}
 
 	// ScopePath is required
@@ -497,10 +506,10 @@ func (r *PolicyRules) Validate() error {
 
 // Validate checks if a ContextAttachment is valid.
 func (c *ContextAttachment) Validate() error {
-	validTypes := map[string]bool{"file": true, "link": true, "note": true}
+	validTypes := map[string]bool{"file": true, "link": true, "note": true, "image": true}
 	if !validTypes[c.Type] {
 		return NewValidationErrorWithHint("type", "invalid attachment type",
-			"valid types: file, link, note")
+			"valid types: file, link, note, image")
 	}
 
 	// Key validation: optional but must be valid format if provided
@@ -544,6 +553,10 @@ func (c *ContextAttachment) Validate() error {
 	case "note":
 		if strings.TrimSpace(c.Content) == "" {
 			return NewValidationError("content", "required for note attachments")
+		}
+	case "image":
+		if strings.TrimSpace(c.AttachmentID) == "" {
+			return NewValidationError("attachment_id", "required for image attachments")
 		}
 	}
 
@@ -700,6 +713,48 @@ func hasStringOverlap(a, b []string) bool {
 	}
 	for _, v := range b {
 		if set[v] {
+			return true
+		}
+	}
+	return false
+}
+
+// validateExtraFlagsStructure performs structural validation on extra flags.
+// It checks runner type validity, flag count limits, flag syntax, and shell meta characters.
+// It does NOT validate flags against runner allowlists (that's the runner layer's job).
+func validateExtraFlagsStructure(flags RunnerExtraFlags) error {
+	for rt, flagList := range flags {
+		if !rt.IsValid() {
+			return NewValidationError("extraFlags", "invalid runner type key: "+string(rt))
+		}
+		if len(flagList) > 20 {
+			return NewValidationError("extraFlags",
+				fmt.Sprintf("too many flags for runner %s (max 20)", rt))
+		}
+		for i, flag := range flagList {
+			if strings.TrimSpace(flag) == "" {
+				return NewValidationError("extraFlags",
+					fmt.Sprintf("empty flag at index %d for runner %s", i, rt))
+			}
+			if !strings.HasPrefix(flag, "-") {
+				return NewValidationError("extraFlags",
+					fmt.Sprintf("flag %q must start with '-'", flag))
+			}
+			if containsShellMeta(flag) {
+				return NewValidationError("extraFlags",
+					fmt.Sprintf("flag %q contains disallowed characters", flag))
+			}
+		}
+	}
+	return nil
+}
+
+// containsShellMeta returns true if the string contains shell metacharacters
+// that could enable command injection.
+func containsShellMeta(s string) bool {
+	for _, c := range s {
+		switch c {
+		case '|', '&', ';', '$', '`', '(', ')', '{', '}', '<', '>', '\n', '\r':
 			return true
 		}
 	}

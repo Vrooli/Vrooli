@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "progress-continuity-interruption-resilience",
+  "name": "Progress Continuity \u0026 Interruption Resilience",
+  "description": "Ensure work can resume after interruptions",
+  "modes": [
+    "steer",
+    "reliability"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "playcircle",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 43,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2026-02-04T13:13:54Z"
+}

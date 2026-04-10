@@ -26,8 +26,9 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"log"
+
+	"github.com/vrooli/api-core/preflight"
 
 	"deployment-manager/server"
 )

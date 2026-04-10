@@ -111,7 +111,13 @@ Email: admin@localhost
 Password: changeme123
 ```
 
-Visit `/admin/profile` after your first login to change the email and rotate the password. This removes the seeded default credentials from your deployment.
+**For production deployments**, override these defaults using environment variables:
+- `ADMIN_DEFAULT_EMAIL` - Your admin email
+- `ADMIN_DEFAULT_PASSWORD` - Your admin password (12+ chars, letters and numbers)
+
+For scenario-to-cloud deployments, add these via the **Secrets Tab** and restart the scenario.
+
+Alternatively, visit `/admin/profile` after your first login to change credentials manually.
 
 ---
 
@@ -120,9 +126,9 @@ Visit `/admin/profile` after your first login to change the email and rotate the
 ### 1. Check Health
 
 Navigate to `/admin` and log in. The dashboard shows:
-- Variant status
-- Recent analytics
-- Quick actions
+- Quick navigation to Landing, Billing, Apps, and Users dashboards
+- Variant and traffic allocation snapshot
+- Stripe readiness indicators
 
 ### 2. Preview Your Landing Page
 
@@ -158,7 +164,7 @@ From [Stripe Dashboard](https://dashboard.stripe.com/apikeys):
 
 ### 2. Configure in Admin
 
-1. Go to **Customization → Stripe Settings**
+1. Go to **Billing → Stripe** (`/admin/billing`)
 2. Enter your keys
 3. Save
 
@@ -178,7 +184,7 @@ Use test card `4242 4242 4242 4242` with any future date and CVC.
 
 ### 1. Create a Variant
 
-1. Go to **Customization → Variants**
+1. Go to **Customization** (`/admin/customization`)
 2. Click **Create New Variant**
 3. Name it (e.g., "Holiday Special")
 4. Set weight to 50 (splits traffic evenly with Control)
@@ -256,16 +262,16 @@ go build -o landing-api .
 
 | Goal | Document |
 |------|----------|
-| Manage content effectively | [Admin Guide](ADMIN_GUIDE.md) |
-| Write converting copy | [Content Guide](CONTENT_GUIDE.md) |
-| Understand the architecture | [Architecture](ARCHITECTURE.md) |
-| Deploy to production | [Deployment Guide](DEPLOYMENT.md) |
-| Integrate with Stripe | [Payments API](api/payments.md) |
+| Manage content effectively | [Admin Guide](guides/ADMIN_GUIDE.md) |
+| Write converting copy | [Content Guide](guides/CONTENT_GUIDE.md) |
+| Understand the architecture | [Architecture](concepts/ARCHITECTURE.md) |
+| Deploy to production | [Deployment Guide](guides/DEPLOYMENT.md) |
+| Integrate with Stripe | [Payments API](reference/api/payments.md) |
 
 ---
 
 ## Getting Help
 
 1. Check [FAQ](FAQ.md) for common questions
-2. Review [Troubleshooting](TROUBLESHOOTING.md) for specific issues
+2. Review [Troubleshooting](guides/TROUBLESHOOTING.md) for specific issues
 3. Run `vrooli help` for CLI assistance

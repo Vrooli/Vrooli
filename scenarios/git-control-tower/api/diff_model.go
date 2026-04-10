@@ -26,10 +26,10 @@ const (
 
 // AnnotatedLine represents a single line with its change status
 type AnnotatedLine struct {
-	Number     int        `json:"number"`               // Line number in current file (0 for deleted lines)
-	Content    string     `json:"content"`              // The line content
-	Change     LineChange `json:"change,omitempty"`     // Type of change
-	OldNumber  int        `json:"old_number,omitempty"` // Line number in old file (for deleted lines)
+	Number    int        `json:"number"`               // Line number in current file (0 for deleted lines)
+	Content   string     `json:"content"`              // The line content
+	Change    LineChange `json:"change,omitempty"`     // Type of change
+	OldNumber int        `json:"old_number,omitempty"` // Line number in old file (for deleted lines)
 }
 
 // DiffRequest specifies what diff to retrieve
@@ -40,6 +40,7 @@ type DiffRequest struct {
 	Base      string   `json:"base,omitempty"`
 	Commit    string   `json:"commit,omitempty"` // View diff for a specific commit (history mode)
 	Mode      ViewMode `json:"mode,omitempty"`   // View mode: diff, full_diff, or source
+	Any       bool     `json:"any,omitempty"`    // If true, view any file (not just changed files)
 }
 
 // DiffResponse contains the diff output and metadata
@@ -54,6 +55,7 @@ type DiffResponse struct {
 	Stats          DiffStats       `json:"stats"`
 	Raw            string          `json:"raw,omitempty"`
 	FullContent    string          `json:"full_content,omitempty"`
+	ContentHash    string          `json:"content_hash,omitempty"`
 	AnnotatedLines []AnnotatedLine `json:"annotated_lines,omitempty"` // Full file with line-level change info
 	Mode           ViewMode        `json:"mode,omitempty"`            // The view mode used
 	Timestamp      time.Time       `json:"timestamp"`
@@ -71,7 +73,18 @@ type DiffHunk struct {
 
 // DiffStats summarizes the diff changes
 type DiffStats struct {
-	Additions int `json:"additions"`
-	Deletions int `json:"deletions"`
-	Files     int `json:"files"`
+	Additions        int     `json:"additions"`
+	Deletions        int     `json:"deletions"`
+	Files            int     `json:"files"`
+	NetLines         int     `json:"net_lines,omitempty"`
+	HunkCount        int     `json:"hunk_count,omitempty"`
+	LargestHunk      int     `json:"largest_hunk,omitempty"`
+	Density          float64 `json:"density,omitempty"`
+	IsBinary         bool    `json:"is_binary,omitempty"`
+	IsRename         bool    `json:"is_rename,omitempty"`
+	OldPath          string  `json:"old_path,omitempty"`
+	CommentAdditions int     `json:"comment_additions,omitempty"`
+	CommentDeletions int     `json:"comment_deletions,omitempty"`
+	IsNewFile        bool    `json:"is_new_file,omitempty"`
+	IsDeletedFile    bool    `json:"is_deleted_file,omitempty"`
 }

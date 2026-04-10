@@ -1,0 +1,174 @@
+{
+  "metadata": {
+    "name": "world-ui-loads",
+    "description": "Smoke test: world canvas and environment controls render",
+    "labels": {
+      "reset": "none"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prompt-manager",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Prompt Manager"
+        }
+      }
+    },
+    {
+      "id": "wait-world-canvas",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/world.canvas",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for world canvas"
+        }
+      }
+    },
+    {
+      "id": "wait-world-render",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for world render"
+        }
+      }
+    },
+    {
+      "id": "screenshot-world",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture world overview"
+        }
+      }
+    },
+    {
+      "id": "assert-environment-controls",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/environment.controls",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Environment controls should be visible"
+        },
+        "metadata": {
+          "label": "Environment controls visible"
+        }
+      }
+    },
+    {
+      "id": "assert-scene-space",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/environment.sceneSpace",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Space scene toggle should exist"
+        },
+        "metadata": {
+          "label": "Space scene toggle exists"
+        }
+      }
+    },
+    {
+      "id": "assert-scene-park",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/environment.scenePark",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Park scene toggle should exist"
+        },
+        "metadata": {
+          "label": "Park scene toggle exists"
+        }
+      }
+    },
+    {
+      "id": "assert-scene-office",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/environment.sceneOffice",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Office scene toggle should exist"
+        },
+        "metadata": {
+          "label": "Office scene toggle exists"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-home",
+      "target": "wait-world-canvas",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-world-canvas",
+      "target": "wait-world-render",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "wait-world-render",
+      "target": "screenshot-world",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "screenshot-world",
+      "target": "assert-environment-controls",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "assert-environment-controls",
+      "target": "assert-scene-space",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "assert-scene-space",
+      "target": "assert-scene-park",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "assert-scene-park",
+      "target": "assert-scene-office",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

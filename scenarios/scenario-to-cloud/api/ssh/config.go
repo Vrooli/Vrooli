@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"strings"
+	"time"
 
 	"scenario-to-cloud/domain"
 )
@@ -39,12 +40,12 @@ func NewConfig(host string, port int, user string, keyPath string) Config {
 // ConfigFromManifest creates an SSH Config from a CloudManifest's VPS target.
 func ConfigFromManifest(manifest domain.CloudManifest) Config {
 	vps := manifest.Target.VPS
-	return Config{
-		Host:    vps.Host,
-		Port:    vps.Port,
-		User:    vps.User,
-		KeyPath: strings.TrimSpace(vps.KeyPath),
-	}
+	return NewConfig(vps.Host, vps.Port, vps.User, vps.KeyPath)
+}
+
+// nowTimestamp returns the current UTC time in RFC3339 format.
+func nowTimestamp() string {
+	return time.Now().UTC().Format(time.RFC3339)
 }
 
 // Result holds the output of an SSH command execution.

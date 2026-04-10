@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"encoding/json"
 	"net/http"
 	"os"
 	"time"
@@ -47,8 +46,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"operations": operations,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	s.writeJSON(w, http.StatusOK, response)
 }
 
 func queueSnapshotPayload(snapshot queue.SuiteRequestSnapshot) map[string]interface{} {
@@ -56,6 +54,7 @@ func queueSnapshotPayload(snapshot queue.SuiteRequestSnapshot) map[string]interf
 		"total":     snapshot.Total,
 		"queued":    snapshot.Queued,
 		"delegated": snapshot.Delegated,
+		"stale":     snapshot.Stale,
 		"running":   snapshot.Running,
 		"completed": snapshot.Completed,
 		"failed":    snapshot.Failed,
@@ -113,6 +112,5 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 		"bashAllowlistOnly": true,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	s.writeJSON(w, http.StatusOK, response)
 }

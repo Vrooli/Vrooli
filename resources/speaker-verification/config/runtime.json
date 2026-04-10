@@ -1,0 +1,8 @@
+{
+  "startup_order": 570,
+  "startup_timeout": 180,
+  "startup_time_estimate": "30-120s",
+  "dependencies": ["ffmpeg"],
+  "recovery_attempts": 2,
+  "priority": "medium"
+}

@@ -1,0 +1,179 @@
+{
+  "_metadata": {
+    "description": "Dashboard UI requirements",
+    "domain": "dashboard",
+    "last_updated": "2026-03-10"
+  },
+  "requirements": [
+    {
+      "id": "LD-UI-TIMELINE",
+      "category": "dashboard.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "linked_operational_target_ids": ["OT-P0-004"],
+      "title": "Unified timeline view",
+      "description": "Main dashboard displays chronological timeline of events from all registered domains. Events color-coded by domain. Expandable event cards show payload details.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestQueryAggregate_Timeline",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "API tests for timeline data aggregation"
+        }
+      ]
+    },
+    {
+      "id": "LD-UI-DOMAINS",
+      "category": "dashboard.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "linked_operational_target_ids": ["OT-P0-004"],
+      "title": "Per-domain sections",
+      "description": "Dashboard includes collapsible sections for each registered domain showing domain-specific summary, recent events, and link to domain's deep-dive UI.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestDomainDiscovery_ListAll",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "API tests for domain listing that powers domain sections"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/handlers_test.go::TestDomainListHandler",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Handler tests for domain discovery"
+        }
+      ]
+    },
+    {
+      "id": "LD-UI-TRENDS",
+      "category": "dashboard.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "linked_operational_target_ids": ["OT-P0-004"],
+      "title": "Trend charts",
+      "description": "Dashboard includes configurable trend charts with 7d/30d/90d time windows. Line charts for continuous metrics, bar charts for discrete events. Domain comparison overlays.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestQueryAggregate_Timeline",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "API tests for timeline aggregation with configurable days parameter"
+        }
+      ]
+    },
+    {
+      "id": "LD-UI-RESPONSIVE",
+      "category": "dashboard.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "linked_operational_target_ids": ["OT-P0-004"],
+      "title": "Mobile-first responsive design",
+      "description": "Dashboard designed mobile-first for phone-based daily brief consumption. Touch-friendly targets (44x44px minimum). Simplified mobile view prioritizes daily brief and Lifestyle Score. Full features on tablet/desktop.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "UI implemented with responsive CSS using mobile-first breakpoints"
+        }
+      ]
+    },
+    {
+      "id": "LD-UI-SCORE",
+      "category": "dashboard.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "linked_operational_target_ids": ["OT-P0-004"],
+      "title": "Lifestyle Score display",
+      "description": "Dashboard prominently displays daily 0-100 Lifestyle Score. Trend line showing score history. Tap to see domain breakdown. No gamification.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestLifestyleScore_Endpoint",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests score endpoint returns daily lifestyle score"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestLifestyleScore_DomainActivity",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests score increases with domain activity"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestLifestyleScore_History",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests score history_days parameter"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestLifestyleScore_Trend",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests trend indicator (up/down/stable)"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestLifestyleScore_DomainWeights",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests each domain contributes equally"
+        }
+      ]
+    },
+    {
+      "id": "LD-UI-STORAGE",
+      "category": "dashboard.settings",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "linked_operational_target_ids": ["OT-P0-006"],
+      "title": "Storage management settings",
+      "description": "Settings page shows database size, large files breakdown. Actions: clean all data, clean selected domains, export data backup, import backup.",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestStorage_InfoEndpoint",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests storage info endpoint for settings page"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestStorage_EmptyDatabase",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests empty database returns valid storage info"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestStorage_ClearAll",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests clear all events functionality"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestStorage_ClearDomain",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests clear events from specific domain"
+        },
+        {
+          "type": "test",
+          "ref": "api/main_test.go::TestStorage_PerDomainCounts",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests storage info includes per-domain event counts"
+        }
+      ]
+    }
+  ]
+}

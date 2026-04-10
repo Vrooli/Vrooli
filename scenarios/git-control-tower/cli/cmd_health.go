@@ -1,0 +1,102 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/vrooli/cli-core/cliutil"
+)
+
+type healthResponse struct {
+	Status    string `json:"status"`
+	Service   string `json:"service"`
+	Version   string `json:"version"`
+	Readiness bool   `json:"readiness"`
+	Timestamp string `json:"timestamp"`
+	Deps      map[string]struct {
+		Connected bool   `json:"connected"`
+		Status    string `json:"status"`
+	} `json:"dependencies"`
+	Error      string         `json:"error,omitempty"`
+	Message    string         `json:"message,omitempty"`
+	Operations map[string]any `json:"operations,omitempty"`
+}
+
+func (a *App) cmdStatus(_ []string) error {
+	body, err := a.core.APIClient.Get(a.apiPath("/health"), nil)
+	if err != nil {
+		return err
+	}
+
+	var parsed healthResponse
+	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil && parsed.Status != "" {
+		fmt.Printf("Status: %s\n", parsed.Status)
+		fmt.Printf("Ready: %v\n", parsed.Readiness)
+		if parsed.Service != "" {
+			fmt.Printf("Service: %s\n", parsed.Service)
+		}
+		if parsed.Version != "" {
+			fmt.Printf("Version: %s\n", parsed.Version)
+		}
+		if len(parsed.Deps) > 0 {
+			fmt.Println("Dependencies:")
+			for key, value := range parsed.Deps {
+				state := "disconnected"
+				if value.Connected {
+					state = "connected"
+				}
+				if value.Status != "" {
+					fmt.Printf("  %s: %s (%s)\n", key, state, value.Status)
+					continue
+				}
+				fmt.Printf("  %s: %s\n", key, state)
+			}
+		}
+		return nil
+	}
+
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+// [REQ:GCT-OT-P0-002] Repository status API
+
+type repoStatusResponse struct {
+	RepoDir string `json:"repo_dir"`
+	Branch  struct {
+		Head     string `json:"head"`
+		Upstream string `json:"upstream"`
+		Ahead    int    `json:"ahead"`
+		Behind   int    `json:"behind"`
+	} `json:"branch"`
+	Summary struct {
+		Staged    int `json:"staged"`
+		Unstaged  int `json:"unstaged"`
+		Untracked int `json:"untracked"`
+		Conflicts int `json:"conflicts"`
+	} `json:"summary"`
+}
+
+func (a *App) cmdRepoStatus(_ []string) error {
+	body, err := a.core.APIClient.Get(a.apiPath("/repo/status"), nil)
+	if err != nil {
+		return err
+	}
+
+	var parsed repoStatusResponse
+	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil && parsed.RepoDir != "" {
+		fmt.Printf("Repo: %s\n", parsed.RepoDir)
+		if parsed.Branch.Head != "" {
+			fmt.Printf("Branch: %s\n", parsed.Branch.Head)
+		}
+		if parsed.Branch.Upstream != "" {
+			fmt.Printf("Upstream: %s (ahead %d, behind %d)\n", parsed.Branch.Upstream, parsed.Branch.Ahead, parsed.Branch.Behind)
+		}
+		fmt.Printf("Changes: staged=%d unstaged=%d untracked=%d conflicts=%d\n",
+			parsed.Summary.Staged, parsed.Summary.Unstaged, parsed.Summary.Untracked, parsed.Summary.Conflicts)
+		return nil
+	}
+
+	cliutil.PrintJSON(body)
+	return nil
+}

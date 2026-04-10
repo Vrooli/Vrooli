@@ -2,105 +2,47 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq" // PostgreSQL driver
 	"github.com/sirupsen/logrus"
 	_ "modernc.org/sqlite" // SQLite driver
 )
 
 // Default configuration values
 const (
-	defaultMaxOpenConns      = 25
-	defaultMaxIdleConns      = 5
-	defaultConnMaxLifetimeMs = 300000 // 5 minutes
-	defaultMaxRetries        = 10
-	defaultBaseRetryDelayMs  = 1000  // 1 second
-	defaultMaxRetryDelayMs   = 30000 // 30 seconds
-	defaultRetryJitterFactor = 0.25
-	defaultQueryTimeout      = 30 * time.Second
-	defaultMigrationTimeout  = 60 * time.Second
-	defaultPingTimeout       = 5 * time.Second
+	defaultQueryTimeout     = 30 * time.Second
+	defaultMigrationTimeout = 60 * time.Second
+	defaultPingTimeout      = 5 * time.Second
 )
 
 // DB wraps sqlx.DB with additional functionality for agent-manager.
 type DB struct {
 	*sqlx.DB
-	log     *logrus.Logger
-	dialect Dialect
+	log *logrus.Logger
 }
 
-var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+// NewDB creates a DB wrapper from an existing sqlx.DB and logger.
+// This is primarily intended for test setup where the caller manages
+// the connection lifecycle and schema initialization directly.
+func NewDB(db *sqlx.DB, log *logrus.Logger) *DB {
+	return &DB{DB: db, log: log}
+}
 
-// NewConnection creates a new database connection with exponential backoff retry.
+// NewConnection creates a new SQLite database connection.
 func NewConnection(log *logrus.Logger) (*DB, error) {
-	dialect := getDialectFromEnv()
-
-	// Load configuration from environment
-	maxRetries := getEnvInt("AM_DB_MAX_RETRIES", defaultMaxRetries)
-	baseDelay := time.Duration(getEnvInt("AM_DB_BASE_RETRY_DELAY_MS", defaultBaseRetryDelayMs)) * time.Millisecond
-	maxDelay := time.Duration(getEnvInt("AM_DB_MAX_RETRY_DELAY_MS", defaultMaxRetryDelayMs)) * time.Millisecond
-	jitterFactor := getEnvFloat("AM_DB_RETRY_JITTER_FACTOR", defaultRetryJitterFactor)
-
-	var db *sqlx.DB
-	var err error
-
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		switch dialect {
-		case DialectPostgres:
-			db, err = connectPostgres(log)
-		case DialectSQLite:
-			db, err = connectSQLite(log)
-		default:
-			return nil, domain.NewConfigInvalidError("AM_DB_BACKEND", fmt.Sprintf("unsupported value: %s (expected postgres|sqlite)", dialect), nil)
-		}
-
-		if err != nil {
-			if domain.AsDomainError(err) != nil {
-				return nil, err
-			}
-		}
-
-		if err == nil {
-			// Test the connection
-			ctx, cancel := context.WithTimeout(context.Background(), defaultPingTimeout)
-			err = db.PingContext(ctx)
-			cancel()
-
-			if err == nil {
-				log.WithField("dialect", dialect).Info("Successfully connected to database")
-				break
-			}
-		}
-
-		// Calculate delay with exponential backoff and random jitter
-		delay := baseDelay * time.Duration(1<<attempt)
-		if delay > maxDelay {
-			delay = maxDelay
-		}
-		jitter := time.Duration(float64(delay) * jitterFactor * rng.Float64())
-		actualDelay := delay + jitter
-
-		log.WithFields(logrus.Fields{
-			"attempt":    attempt + 1,
-			"maxRetries": maxRetries,
-			"delay":      actualDelay,
-			"error":      err.Error(),
-		}).Warn("Failed to connect to database, retrying...")
-
-		time.Sleep(actualDelay)
+	dsn, err := sqliteDSN(log)
+	if err != nil {
+		return nil, err
 	}
 
+	db, err := sqlx.Connect("sqlite", dsn)
 	if err != nil {
 		return nil, &domain.DatabaseError{
 			Operation:   "connect",
@@ -110,24 +52,12 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 		}
 	}
 
-	// Configure connection pool
-	maxOpenConns := getEnvInt("AM_DB_MAX_OPEN_CONNS", defaultMaxOpenConns)
-	maxIdleConns := getEnvInt("AM_DB_MAX_IDLE_CONNS", defaultMaxIdleConns)
-	connMaxLifetime := time.Duration(getEnvInt("AM_DB_CONN_MAX_LIFETIME_MS", defaultConnMaxLifetimeMs)) * time.Millisecond
-
-	db.SetMaxOpenConns(maxOpenConns)
-	db.SetMaxIdleConns(maxIdleConns)
-	db.SetConnMaxLifetime(connMaxLifetime)
-
 	// SQLite only supports a single connection
-	if dialect == DialectSQLite {
-		db.SetMaxOpenConns(1)
-	}
+	db.SetMaxOpenConns(1)
 
 	dbWrapper := &DB{
-		DB:      db,
-		log:     log,
-		dialect: dialect,
+		DB:  db,
+		log: log,
 	}
 
 	// Initialize database schema
@@ -136,49 +66,29 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 		return nil, err
 	}
 
+	log.Info("Successfully connected to database")
 	return dbWrapper, nil
 }
 
-func connectPostgres(log *logrus.Logger) (*sqlx.DB, error) {
-	// Check for individual PostgreSQL environment variables
-	dbHost := strings.TrimSpace(os.Getenv("POSTGRES_HOST"))
-	dbPort := strings.TrimSpace(os.Getenv("POSTGRES_PORT"))
-	dbUser := strings.TrimSpace(os.Getenv("POSTGRES_USER"))
-	dbPassword := strings.TrimSpace(os.Getenv("POSTGRES_PASSWORD"))
-	dbName := strings.TrimSpace(os.Getenv("POSTGRES_DB"))
-
-	// Override database name for this scenario if not specifically set
-	if dbName == "vrooli" || dbName == "" {
-		dbName = "agent_manager"
+// DataDir returns the directory where the SQLite database file is stored.
+// This follows the same resolution priority as sqliteDSN.
+func DataDir() string {
+	root := strings.TrimSpace(os.Getenv("AM_SQLITE_PATH"))
+	if root != "" {
+		return filepath.Dir(root)
 	}
-
-	var databaseURL string
-	if dbHost != "" && dbPort != "" && dbUser != "" && dbPassword != "" {
-		databaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-		log.WithFields(logrus.Fields{
-			"host":     dbHost,
-			"port":     dbPort,
-			"user":     dbUser,
-			"database": dbName,
-		}).Info("Using individual PostgreSQL environment variables")
-	} else {
-		databaseURL = strings.TrimSpace(os.Getenv("DATABASE_URL"))
-		if databaseURL == "" {
-			return nil, domain.NewConfigMissingError("DATABASE_URL", "PostgreSQL configuration not found. Set DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB", nil)
+	dataRoot := strings.TrimSpace(os.Getenv("SQLITE_DATABASE_PATH"))
+	if dataRoot == "" {
+		dataRoot = strings.TrimSpace(os.Getenv("VROOLI_DATA"))
+	}
+	if dataRoot == "" {
+		home, _ := os.UserHomeDir()
+		if home == "" {
+			home = "."
 		}
-		log.Info("Using DATABASE_URL environment variable")
+		dataRoot = filepath.Join(home, ".vrooli", "data", "sqlite", "databases")
 	}
-
-	return sqlx.Connect("postgres", databaseURL)
-}
-
-func connectSQLite(log *logrus.Logger) (*sqlx.DB, error) {
-	dsn, err := sqliteDSN(log)
-	if err != nil {
-		return nil, err
-	}
-	return sqlx.Connect("sqlite", dsn)
+	return dataRoot
 }
 
 func sqliteDSN(log *logrus.Logger) (string, error) {
@@ -213,14 +123,6 @@ func sqliteDSN(log *logrus.Logger) (string, error) {
 		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=page_size(4096)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
 		root,
 	), nil
-}
-
-// Dialect returns the active dialect for this DB.
-func (db *DB) Dialect() Dialect {
-	if db == nil {
-		return DialectPostgres
-	}
-	return db.dialect
 }
 
 // Close closes the database connection.
@@ -280,11 +182,7 @@ func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 
 // initSchema initializes the database schema.
 func (db *DB) initSchema() error {
-	filename := "schema.sql"
-	if db.dialect == DialectSQLite {
-		filename = "schema_sqlite.sql"
-	}
-	schemaPath := filepath.Join(filepath.Dir(getCurrentFilePath()), filename)
+	schemaPath := filepath.Join(filepath.Dir(getCurrentFilePath()), "schema.sql")
 
 	schemaBytes, err := os.ReadFile(schemaPath)
 	if err != nil {
@@ -299,6 +197,21 @@ func (db *DB) initSchema() error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultMigrationTimeout)
 	defer cancel()
 
+	if err := db.ensureRunsTableCompatibility(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to prepare runs table compatibility")
+		return err
+	}
+
+	if err := db.dropInvestigationPromptColumns(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to drop investigation prompt columns")
+		return err
+	}
+
+	if err := db.ensureProfileNetworkAccessColumn(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to add network_access column to agent_profiles")
+		return err
+	}
+
 	_, err = db.ExecContext(ctx, string(schemaBytes))
 	if err != nil {
 		db.log.WithError(err).Error("Failed to execute schema initialization")
@@ -309,201 +222,189 @@ func (db *DB) initSchema() error {
 		}
 	}
 
-	if err := db.ensureProfileKeyColumn(ctx); err != nil {
-		db.log.WithError(err).Error("Failed to backfill profile keys")
-		return err
-	}
-	if err := db.ensureModelPresetColumn(ctx); err != nil {
-		db.log.WithError(err).Error("Failed to backfill model preset column")
-		return err
-	}
-	if err := db.ensureFallbackRunnerTypesColumn(ctx); err != nil {
-		db.log.WithError(err).Error("Failed to backfill fallback runner types column")
-		return err
-	}
-
 	db.log.Info("Database schema initialized successfully")
 	return nil
 }
 
-func (db *DB) ensureProfileKeyColumn(ctx context.Context) error {
-	switch db.dialect {
-	case DialectPostgres:
-		var exists bool
-		if err := db.QueryRowContext(ctx, `
-			SELECT EXISTS (
-				SELECT 1
-				FROM information_schema.columns
-				WHERE table_name = 'agent_profiles'
-				AND column_name = 'profile_key'
-			)`).Scan(&exists); err != nil {
-			return schemaMigrationError("profile_key_check", err)
+func (db *DB) ensureRunsTableCompatibility(ctx context.Context) error {
+	var runsTableCount int
+	if err := db.GetContext(ctx, &runsTableCount, `
+		SELECT COUNT(*)
+		FROM sqlite_master
+		WHERE type = 'table' AND name = 'runs'
+	`); err != nil {
+		return &domain.DatabaseError{
+			Operation:  "schema_preflight",
+			EntityType: "Schema",
+			Cause:      err,
 		}
-		if !exists {
-			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN profile_key VARCHAR(255)`); err != nil {
-				return schemaMigrationError("profile_key_add", err)
-			}
-		}
-
-		if _, err := db.ExecContext(ctx, `UPDATE agent_profiles SET profile_key = name WHERE profile_key IS NULL OR profile_key = ''`); err != nil {
-			return schemaMigrationError("profile_key_backfill", err)
-		}
-
-		if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ALTER COLUMN profile_key SET NOT NULL`); err != nil {
-			return schemaMigrationError("profile_key_not_null", err)
-		}
-
-		if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_profiles_profile_key ON agent_profiles(profile_key)`); err != nil {
-			return schemaMigrationError("profile_key_index", err)
-		}
-	case DialectSQLite:
-		exists, err := sqliteColumnExists(ctx, db, "agent_profiles", "profile_key")
-		if err != nil {
-			return schemaMigrationError("profile_key_check", err)
-		}
-		if !exists {
-			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN profile_key TEXT`); err != nil {
-				return schemaMigrationError("profile_key_add", err)
-			}
-		}
-		if _, err := db.ExecContext(ctx, `UPDATE agent_profiles SET profile_key = name WHERE profile_key IS NULL OR profile_key = ''`); err != nil {
-			return schemaMigrationError("profile_key_backfill", err)
-		}
-		if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_profiles_profile_key ON agent_profiles(profile_key)`); err != nil {
-			return schemaMigrationError("profile_key_index", err)
-		}
-	default:
-		return domain.NewConfigInvalidError("AM_DB_BACKEND", fmt.Sprintf("unsupported dialect: %s", db.dialect), nil)
 	}
-
-	return nil
-}
-
-func (db *DB) ensureModelPresetColumn(ctx context.Context) error {
-	switch db.dialect {
-	case DialectPostgres:
-		var exists bool
-		if err := db.QueryRowContext(ctx, `
-			SELECT EXISTS (
-				SELECT 1
-				FROM information_schema.columns
-				WHERE table_name = 'agent_profiles'
-				AND column_name = 'model_preset'
-			)`).Scan(&exists); err != nil {
-			return schemaMigrationError("model_preset_check", err)
-		}
-		if !exists {
-			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN model_preset VARCHAR(20)`); err != nil {
-				return schemaMigrationError("model_preset_add", err)
-			}
-		}
-	case DialectSQLite:
-		exists, err := sqliteColumnExists(ctx, db, "agent_profiles", "model_preset")
-		if err != nil {
-			return schemaMigrationError("model_preset_check", err)
-		}
-		if !exists {
-			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN model_preset TEXT`); err != nil {
-				return schemaMigrationError("model_preset_add", err)
-			}
-		}
-	default:
-		return domain.NewConfigInvalidError("AM_DB_BACKEND", fmt.Sprintf("unsupported dialect: %s", db.dialect), nil)
-	}
-	return nil
-}
-
-func (db *DB) ensureFallbackRunnerTypesColumn(ctx context.Context) error {
-	switch db.dialect {
-	case DialectPostgres:
-		var exists bool
-		if err := db.QueryRowContext(ctx, `
-			SELECT EXISTS (
-				SELECT 1
-				FROM information_schema.columns
-				WHERE table_name = 'agent_profiles'
-				AND column_name = 'fallback_runner_types'
-			)`).Scan(&exists); err != nil {
-			return schemaMigrationError("fallback_runner_types_check", err)
-		}
-		if !exists {
-			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN fallback_runner_types JSONB DEFAULT '[]'`); err != nil {
-				return schemaMigrationError("fallback_runner_types_add", err)
-			}
-		}
-	case DialectSQLite:
-		exists, err := sqliteColumnExists(ctx, db, "agent_profiles", "fallback_runner_types")
-		if err != nil {
-			return schemaMigrationError("fallback_runner_types_check", err)
-		}
-		if !exists {
-			if _, err := db.ExecContext(ctx, `ALTER TABLE agent_profiles ADD COLUMN fallback_runner_types TEXT DEFAULT '[]'`); err != nil {
-				return schemaMigrationError("fallback_runner_types_add", err)
-			}
-		}
-	default:
-		return domain.NewConfigInvalidError("AM_DB_BACKEND", fmt.Sprintf("unsupported dialect: %s", db.dialect), nil)
-	}
-	return nil
-}
-
-func schemaMigrationError(operation string, err error) error {
-	if err == nil {
+	if runsTableCount == 0 {
 		return nil
 	}
-	return &domain.DatabaseError{
-		Operation:  operation,
-		EntityType: "Schema",
-		Cause:      err,
+
+	type tableColumn struct {
+		Name string `db:"name"`
 	}
+	var columns []tableColumn
+	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('runs')"); err != nil {
+		return &domain.DatabaseError{
+			Operation:  "schema_preflight",
+			EntityType: "Schema",
+			Cause:      err,
+		}
+	}
+
+	hasColumn := make(map[string]bool, len(columns))
+	for _, col := range columns {
+		hasColumn[col.Name] = true
+	}
+
+	if !hasColumn["source_run_ids"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN source_run_ids TEXT DEFAULT '[]'"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
+	if !hasColumn["source_investigation_run_id"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN source_investigation_run_id TEXT"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
+	if !hasColumn["identity_token_hash"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN identity_token_hash TEXT"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
+	if !hasColumn["identity_token_revoked_at"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN identity_token_revoked_at TEXT"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
+	return nil
 }
 
-func sqliteColumnExists(ctx context.Context, db *DB, tableName, columnName string) (bool, error) {
-	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", tableName))
-	if err != nil {
-		return false, err
+// dropInvestigationPromptColumns removes prompt_template and apply_prompt_template
+// from investigation_settings if they exist (prompts now live in prompt-manager skills).
+func (db *DB) dropInvestigationPromptColumns(ctx context.Context) error {
+	var tableCount int
+	if err := db.GetContext(ctx, &tableCount, `
+		SELECT COUNT(*) FROM sqlite_master
+		WHERE type = 'table' AND name = 'investigation_settings'
+	`); err != nil {
+		return &domain.DatabaseError{
+			Operation:  "migration",
+			EntityType: "Schema",
+			Cause:      err,
+		}
 	}
-	defer rows.Close()
+	if tableCount == 0 {
+		return nil
+	}
 
-	for rows.Next() {
-		var (
-			cid      int
-			name     string
-			colType  string
-			notNull  int
-			defaultV sql.NullString
-			primaryK int
-		)
-		if err := rows.Scan(&cid, &name, &colType, &notNull, &defaultV, &primaryK); err != nil {
-			return false, err
-		}
-		if name == columnName {
-			return true, nil
+	type tableColumn struct {
+		Name string `db:"name"`
+	}
+	var columns []tableColumn
+	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('investigation_settings')"); err != nil {
+		return &domain.DatabaseError{
+			Operation:  "migration",
+			EntityType: "Schema",
+			Cause:      err,
 		}
 	}
-	return false, rows.Err()
+
+	hasColumn := make(map[string]bool, len(columns))
+	for _, col := range columns {
+		hasColumn[col.Name] = true
+	}
+
+	for _, col := range []string{"prompt_template", "apply_prompt_template"} {
+		if hasColumn[col] {
+			if _, err := db.ExecContext(ctx, "ALTER TABLE investigation_settings DROP COLUMN "+col); err != nil {
+				return &domain.DatabaseError{
+					Operation:  "migration",
+					EntityType: "Schema",
+					Cause:      fmt.Errorf("drop column %s: %w", col, err),
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// ensureProfileNetworkAccessColumn adds the network_access column to agent_profiles
+// if it doesn't already exist (migration for existing databases).
+func (db *DB) ensureProfileNetworkAccessColumn(ctx context.Context) error {
+	var tableCount int
+	if err := db.GetContext(ctx, &tableCount, `
+		SELECT COUNT(*) FROM sqlite_master
+		WHERE type = 'table' AND name = 'agent_profiles'
+	`); err != nil {
+		return &domain.DatabaseError{
+			Operation:  "migration",
+			EntityType: "Schema",
+			Cause:      err,
+		}
+	}
+	if tableCount == 0 {
+		return nil
+	}
+
+	type tableColumn struct {
+		Name string `db:"name"`
+	}
+	var columns []tableColumn
+	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('agent_profiles')"); err != nil {
+		return &domain.DatabaseError{
+			Operation:  "migration",
+			EntityType: "Schema",
+			Cause:      err,
+		}
+	}
+
+	hasColumn := false
+	for _, col := range columns {
+		if col.Name == "network_access" {
+			hasColumn = true
+			break
+		}
+	}
+
+	if !hasColumn {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE agent_profiles ADD COLUMN network_access TEXT NOT NULL DEFAULT 'localhost'"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "migration",
+				EntityType: "Schema",
+				Cause:      fmt.Errorf("add column network_access: %w", err),
+			}
+		}
+	}
+
+	return nil
 }
 
 func getCurrentFilePath() string {
 	_, filename, _, _ := runtime.Caller(0)
 	return filename
-}
-
-// Helper functions for reading environment variables
-func getEnvInt(key string, defaultVal int) int {
-	if val := strings.TrimSpace(os.Getenv(key)); val != "" {
-		if parsed, err := strconv.Atoi(val); err == nil {
-			return parsed
-		}
-	}
-	return defaultVal
-}
-
-func getEnvFloat(key string, defaultVal float64) float64 {
-	if val := strings.TrimSpace(os.Getenv(key)); val != "" {
-		if parsed, err := strconv.ParseFloat(val, 64); err == nil {
-			return parsed
-		}
-	}
-	return defaultVal
 }

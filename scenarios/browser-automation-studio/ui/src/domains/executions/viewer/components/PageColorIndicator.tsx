@@ -20,22 +20,12 @@ const PAGE_COLORS = [
   { bg: 'bg-rose-500', text: 'text-rose-500', border: 'border-rose-500', hex: '#f43f5e' },
 ];
 
+/** Default color fallback if somehow we can't find a color. */
+const DEFAULT_PAGE_COLOR = PAGE_COLORS[0] ?? { bg: 'bg-blue-500', text: 'text-blue-500', border: 'border-blue-500', hex: '#3b82f6' };
+
 /** Get consistent color for a page based on its index. */
-export function getPageColor(pageIndex: number) {
-  return PAGE_COLORS[pageIndex % PAGE_COLORS.length];
-}
-
-/** Get page color by ID from a list of pages. */
-export function getPageColorById(pageId: string | undefined, pages: ExecutionPage[]) {
-  if (!pageId) return null;
-  const index = pages.findIndex((p) => p.id === pageId);
-  return index >= 0 ? getPageColor(index) : null;
-}
-
-/** Get page info by ID. */
-export function getPageById(pageId: string | undefined, pages: ExecutionPage[]) {
-  if (!pageId) return null;
-  return pages.find((p) => p.id === pageId) ?? null;
+function getPageColor(pageIndex: number) {
+  return PAGE_COLORS[pageIndex % PAGE_COLORS.length] ?? DEFAULT_PAGE_COLOR;
 }
 
 interface PageColorIndicatorProps {
@@ -62,8 +52,10 @@ export function PageColorIndicator({
     if (!pageId || pages.length <= 1) return null;
     const index = pages.findIndex((p) => p.id === pageId);
     if (index < 0) return null;
+    const page = pages[index];
+    if (!page) return null;
     return {
-      page: pages[index],
+      page,
       color: getPageColor(index),
       index,
     };
@@ -103,31 +95,36 @@ export function PageBadge({ pageId, pages, compact = false, className = '' }: Pa
     if (!pageId || pages.length <= 1) return null;
     const index = pages.findIndex((p) => p.id === pageId);
     if (index < 0) return null;
+    const page = pages[index];
+    if (!page) return null;
     return {
-      page: pages[index],
+      page,
       color: getPageColor(index),
       index,
     };
   }, [pageId, pages]);
 
-  // Don't render if single page or page not found
-  if (!pageInfo) return null;
-
-  const { page, color, index } = pageInfo;
-
-  // Get short label for the page
+  // Get short label for the page - must be called unconditionally
   const label = useMemo(() => {
+    if (!pageInfo) return '';
+    const { page, index } = pageInfo;
     if (page.isInitial) return 'main';
     // Try to get a meaningful short label from the URL
     try {
       const url = new URL(page.url);
-      const path = url.pathname.split('/').filter(Boolean).pop();
+      const pathSegments = url.pathname.split('/').filter(Boolean);
+      const path = pathSegments[pathSegments.length - 1];
       if (path && path.length <= 10) return path;
     } catch {
       // ignore
     }
     return `tab ${index + 1}`;
-  }, [page, index]);
+  }, [pageInfo]);
+
+  // Don't render if single page or page not found
+  if (!pageInfo) return null;
+
+  const { page, color } = pageInfo;
 
   if (compact) {
     return (

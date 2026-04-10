@@ -77,6 +77,7 @@ func (s *Server) handleUISmoke(w http.ResponseWriter, r *http.Request) {
 		NoRecovery     bool   `json:"no_recovery"`
 		SharedMode     bool   `json:"shared_mode"`
 		AutoStart      bool   `json:"auto_start"`
+		ScenarioPath   string `json:"scenarioPath"`
 	}
 	if r.Body != nil {
 		defer r.Body.Close()
@@ -87,12 +88,13 @@ func (s *Server) handleUISmoke(w http.ResponseWriter, r *http.Request) {
 	}
 
 	opts := scenarios.UISmokeOptions{
-		URL:            payload.URL,
-		BrowserlessURL: payload.BrowserlessURL,
-		TimeoutMs:      payload.TimeoutMs,
-		NoRecovery:     payload.NoRecovery,
-		SharedMode:     payload.SharedMode,
-		AutoStart:      payload.AutoStart,
+		URL:                 payload.URL,
+		BrowserlessURL:      payload.BrowserlessURL,
+		TimeoutMs:           payload.TimeoutMs,
+		NoRecovery:          payload.NoRecovery,
+		SharedMode:          payload.SharedMode,
+		AutoStart:           payload.AutoStart,
+		ScenarioDirOverride: strings.TrimSpace(payload.ScenarioPath),
 	}
 	result, err := s.scenarios.RunUISmokeWithOpts(r.Context(), name, opts)
 	if err != nil {
@@ -130,6 +132,9 @@ func (s *Server) handleRunScenarioTests(w http.ResponseWriter, r *http.Request) 
 		Paths     []string `json:"paths"`
 		Playbooks []string `json:"playbooks"`
 		Filter    string   `json:"filter"`
+		// ScenarioPath overrides scenario directory resolution. Set by the CLI
+		// when running inside a sandboxed agent. See cliutil/sandbox.go.
+		ScenarioPath string `json:"scenarioPath"`
 	}
 	if r.Body != nil {
 		defer r.Body.Close()
@@ -162,7 +167,7 @@ func (s *Server) handleRunScenarioTests(w http.ResponseWriter, r *http.Request) 
 		extraArgs = append(extraArgs, "--filter", filter)
 	}
 
-	cmd, result, err := s.scenarios.RunScenarioTests(r.Context(), name, payload.Type, extraArgs)
+	cmd, result, err := s.scenarios.RunScenarioTests(r.Context(), name, payload.Type, extraArgs, strings.TrimSpace(payload.ScenarioPath))
 	if err != nil {
 		switch {
 		case errors.Is(err, os.ErrNotExist):

@@ -52,7 +52,7 @@ interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefine
 }
 
 type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
+  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<ParamSchema | undefined>;
 };
 
 type DynamicSelectorTree = DynamicSelectorBranch;
@@ -84,20 +84,24 @@ type SelectorTreeResult<
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
 const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token) => {
-    if (!(token in values)) {
+  template.replace(TEMPLATE_TOKEN, (_match: string, token: string) => {
+    if (!Object.prototype.hasOwnProperty.call(values, token)) {
       throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
     }
-    return String(values[token]);
+    const replacement = values[token];
+    if (replacement === undefined) {
+      throw new Error(`Parameter '${token}' is undefined for selector '${keyPath}'`);
+    }
+    return String(replacement);
   });
 
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
+const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
   Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition).kind === "dynamic-selector");
 
 const normalizeParams = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   raw: Record<string, string | number>,
   path: string,
 ) => {
@@ -109,7 +113,13 @@ const normalizeParams = (
       throw new Error(`Selector '${path}' is missing parameter '${key}'`);
     }
     const definitionEntry = schema[key];
+    if (!definitionEntry) {
+      throw new Error(`Selector '${path}' has invalid schema for parameter '${key}'`);
+    }
     const value = raw[key];
+    if (value === undefined) {
+      throw new Error(`Selector '${path}' parameter '${key}' is undefined`);
+    }
     if (definitionEntry.type === "number") {
       if (typeof value !== "number") {
         throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
@@ -233,7 +243,7 @@ const mergeLiteralAndDynamicNodes = (
 };
 
 const createDynamicSelectorFn = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: DynamicSelectorDefinition<ParamSchema | undefined>,
   path: string,
 ) => {
   return (params?: Record<string, string | number>) => {
@@ -245,13 +255,6 @@ const createDynamicSelectorFn = (
     return formatTemplate(template, normalized, path);
   };
 };
-
-const defineDynamicSelector = <P extends ParamSchema | undefined>(
-  definition: Omit<DynamicSelectorDefinition<P>, "kind">,
-): DynamicSelectorDefinition<P> => ({
-  ...definition,
-  kind: "dynamic-selector",
-});
 
 const createSelectorRegistry = <
   L extends LiteralSelectorTree,
@@ -291,6 +294,7 @@ const literalSelectors: LiteralSelectorTree = {
   tabs: {
     dashboard: 'autoheal-tab-dashboard',
     trends: 'autoheal-tab-trends',
+    docs: 'autoheal-tab-docs',
   },
   // Trends page
   trends: {

@@ -23,7 +23,7 @@ function formatTokens(count: number): string {
 // Extract model name from full model ID (e.g., "anthropic/claude-3.5-sonnet" -> "claude-3.5-sonnet")
 function formatModelName(modelId: string): string {
   const parts = modelId.split("/");
-  return parts[parts.length - 1];
+  return parts[parts.length - 1] ?? modelId;
 }
 
 export function UsageStats({ isOpen, onClose }: UsageStatsProps) {
@@ -39,7 +39,7 @@ export function UsageStats({ isOpen, onClose }: UsageStatsProps) {
 
     fetchUsageStats()
       .then(setStats)
-      .catch((err) => setError(err.message))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
       .finally(() => setLoading(false));
   }, [isOpen]);
 

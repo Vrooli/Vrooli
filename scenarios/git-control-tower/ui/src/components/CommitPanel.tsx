@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import {
   GitCommit,
   Loader2,
-  CheckCircle,
   AlertCircle,
   ChevronDown,
   ChevronRight,
   Upload,
-  History
+  History,
+  Copy,
+  Check
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
@@ -21,13 +22,14 @@ interface CommitPanelProps {
   isUsingApprovedMessage?: boolean;
   onCommit: (
     message: string,
-    options: { conventional: boolean; authorName?: string; authorEmail?: string }
+    options: { conventional: boolean; amend: boolean; authorName?: string; authorEmail?: string }
   ) => void;
   isCommitting: boolean;
-  lastCommitHash?: string;
   commitError?: string;
   defaultAuthorName?: string;
   defaultAuthorEmail?: string;
+  canAmend?: boolean;
+  amendDisabledReason?: string;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   fillHeight?: boolean;
@@ -42,6 +44,28 @@ interface CommitPanelProps {
   isHistoryMode?: boolean;
 }
 
+function CommitErrorDisplay({ error }: { error: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    void navigator.clipboard.writeText(error).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <div
+      className="flex items-start gap-2 px-3 py-2 bg-red-950/30 border border-red-800/50 rounded-md text-xs text-red-400"
+      data-testid="commit-error"
+    >
+      <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+      <span className="break-words flex-1 max-h-32 overflow-y-auto">{error}</span>
+      <button type="button" onClick={handleCopy} className="hover:text-red-300 shrink-0" aria-label="Copy error" title="Copy error">
+        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
+    </div>
+  );
+}
+
 export function CommitPanel({
   stagedCount,
   commitMessage,
@@ -51,10 +75,11 @@ export function CommitPanel({
   isUsingApprovedMessage = false,
   onCommit,
   isCommitting,
-  lastCommitHash,
   commitError,
   defaultAuthorName,
   defaultAuthorEmail,
+  canAmend = false,
+  amendDisabledReason,
   collapsed = false,
   onToggleCollapse,
   fillHeight = false,
@@ -71,13 +96,15 @@ export function CommitPanel({
   const [authorName, setAuthorName] = useState("");
   const [authorEmail, setAuthorEmail] = useState("");
   const [authorTouched, setAuthorTouched] = useState(false);
+  const [amendLast, setAmendLast] = useState(false);
 
-  const canCommit = stagedCount > 0 && commitMessage.trim().length > 0 && !isCommitting;
+  const trimmedMessage = commitMessage.trim();
+  const canCommit = stagedCount > 0 && !isCommitting && (trimmedMessage.length > 0 || amendLast);
   const showPushAction = Boolean(onPush && aheadCount > 0);
   const pushDisabled = isPushing || !canPush;
   const handlePushClick = onPush ?? (() => {});
-  const pushTargetLabel = pushTarget ? `Target: ${pushTarget}` : undefined;
-  const sourceLabel =
+  const _pushTargetLabel = pushTarget ? `Target: ${pushTarget}` : undefined;
+  const _sourceLabel =
     sourceBranch && pushTarget && !pushTarget.endsWith(`/${sourceBranch}`)
       ? `from ${sourceBranch}`
       : undefined;
@@ -86,8 +113,9 @@ export function CommitPanel({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (canCommit) {
-      onCommit(commitMessage, {
-        conventional: useConventional,
+      onCommit(trimmedMessage, {
+        conventional: useConventional && trimmedMessage.length > 0,
+        amend: amendLast,
         authorName: authorName.trim() || defaultAuthorName || undefined,
         authorEmail: authorEmail.trim() || defaultAuthorEmail || undefined
       });
@@ -103,6 +131,12 @@ export function CommitPanel({
       setAuthorEmail(defaultAuthorEmail);
     }
   }, [authorTouched, defaultAuthorName, defaultAuthorEmail]);
+
+  useEffect(() => {
+    if (!canAmend && amendLast) {
+      setAmendLast(false);
+    }
+  }, [amendLast, canAmend]);
 
   return (
     <Card
@@ -144,7 +178,9 @@ export function CommitPanel({
             <textarea
               value={commitMessage}
               onChange={(e) => onCommitMessageChange(e.target.value)}
-              placeholder="Commit message..."
+              placeholder={
+                amendLast ? "Commit message (leave empty to keep previous)..." : "Commit message..."
+              }
               className="w-full h-20 px-3 py-2 text-sm bg-slate-800/50 border border-slate-700 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-500"
               disabled={isCommitting}
               data-testid="commit-message-input"
@@ -186,28 +222,56 @@ export function CommitPanel({
               Advanced
             </button>
 
-            <Button
-              type="submit"
-              variant="default"
-              size="sm"
-              disabled={!canCommit}
-              className="min-w-0 max-w-full"
-              data-testid="commit-button"
-            >
-              {isCommitting ? (
-                <span className="flex items-center min-w-0">
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  <span className="truncate">Committing...</span>
-                </span>
-              ) : (
-                <span className="flex items-center min-w-0">
-                  <GitCommit className="h-3 w-3 mr-1" />
-                  <span className="truncate">
-                    Commit ({stagedCount} file{stagedCount !== 1 ? "s" : ""})
-                  </span>
-                </span>
+            <div className="flex items-center gap-2 min-w-0">
+              {showPushAction && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePushClick}
+                  disabled={pushDisabled}
+                  title={!canPush && aheadCount > 0 ? "Pull required first" : undefined}
+                  data-testid="push-button"
+                >
+                  {isPushing ? (
+                    <span className="flex items-center">
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      <span className="truncate">Pushing...</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center">
+                      <Upload className="h-3 w-3 mr-1" />
+                      <span className="truncate">
+                        Push ({aheadCount})
+                      </span>
+                    </span>
+                  )}
+                </Button>
               )}
-            </Button>
+              <Button
+                type="submit"
+                variant="default"
+                size="sm"
+                disabled={!canCommit}
+                className="min-w-0 max-w-full"
+                data-testid="commit-button"
+              >
+                {isCommitting ? (
+                  <span className="flex items-center min-w-0">
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    <span className="truncate">Committing...</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center min-w-0">
+                    <GitCommit className="h-3 w-3 mr-1" />
+                    <span className="truncate">
+                      {amendLast ? "Amend" : "Commit"} ({stagedCount} file
+                      {stagedCount !== 1 ? "s" : ""})
+                    </span>
+                  </span>
+                )}
+              </Button>
+            </div>
           </div>
 
           {advancedOpen && (
@@ -223,6 +287,24 @@ export function CommitPanel({
                 />
                 Conventional commit format
               </label>
+
+              <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={amendLast}
+                  onChange={(e) => setAmendLast(e.target.checked)}
+                  disabled={isCommitting || !canAmend}
+                  className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
+                  data-testid="amend-commit-checkbox"
+                />
+                Amend last commit (unpushed only)
+              </label>
+              {!canAmend && amendDisabledReason && (
+                <p className="text-xs text-amber-400">{amendDisabledReason}</p>
+              )}
+              {amendLast && trimmedMessage.length === 0 && (
+                <p className="text-xs text-slate-500">Using previous commit message</p>
+              )}
 
               <div className="space-y-2">
                 <p className="text-xs text-slate-500">Commit identity (overrides local git config)</p>
@@ -252,105 +334,9 @@ export function CommitPanel({
             </div>
           )}
 
-          {/* Success feedback with push option */}
-          {lastCommitHash && !commitError && (
-            <div
-              className="px-3 py-2 bg-emerald-950/30 border border-emerald-800/50 rounded-md"
-              data-testid="commit-success"
-            >
-              <div className="flex items-center gap-2 text-xs text-emerald-400">
-                <CheckCircle className="h-3.5 w-3.5 flex-shrink-0" />
-                <span>Committed as <code className="font-mono break-all">{lastCommitHash}</code></span>
-              </div>
-              {showPushAction && (
-                <div className="mt-2 flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handlePushClick}
-                    disabled={pushDisabled}
-                    className="h-8 text-xs"
-                    data-testid="push-after-commit-button"
-                  >
-                    {isPushing ? (
-                      <span className="flex items-center">
-                        <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                        Pushing...
-                      </span>
-                    ) : (
-                      <span className="flex items-center">
-                        <Upload className="h-3 w-3 mr-1.5" />
-                        Push{aheadCount > 0 ? ` (${aheadCount} commit${aheadCount !== 1 ? "s" : ""})` : ""}
-                      </span>
-                    )}
-                  </Button>
-                  {!canPush && aheadCount > 0 && (
-                    <span className="text-xs text-amber-400">Pull required first</span>
-                  )}
-                </div>
-              )}
-              {showPushAction && pushTargetLabel && (
-                <div className="mt-2 text-[11px] text-slate-500">
-                  {pushTargetLabel}
-                  {sourceLabel ? ` (${sourceLabel})` : ""}
-                </div>
-              )}
-            </div>
-          )}
-
-          {!lastCommitHash && !commitError && showPushAction && (
-            <div
-              className="px-3 py-2 bg-slate-900/40 border border-slate-800/60 rounded-md"
-              data-testid="push-ready"
-            >
-              <div className="text-xs text-slate-400">
-                Ready to push {aheadCount} commit{aheadCount !== 1 ? "s" : ""}
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePushClick}
-                  disabled={pushDisabled}
-                  className="h-8 text-xs"
-                  data-testid="push-ready-button"
-                >
-                  {isPushing ? (
-                    <span className="flex items-center">
-                      <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                      Pushing...
-                    </span>
-                  ) : (
-                    <span className="flex items-center">
-                      <Upload className="h-3 w-3 mr-1.5" />
-                      Push ({aheadCount} commit{aheadCount !== 1 ? "s" : ""})
-                    </span>
-                  )}
-                </Button>
-                {!canPush && aheadCount > 0 && (
-                  <span className="text-xs text-amber-400">Pull required first</span>
-                )}
-              </div>
-            </div>
-          )}
-          {!lastCommitHash && !commitError && showPushAction && pushTargetLabel && (
-            <div className="mt-2 text-[11px] text-slate-500">
-              {pushTargetLabel}
-              {sourceLabel ? ` (${sourceLabel})` : ""}
-            </div>
-          )}
-
           {/* Error feedback */}
           {commitError && (
-            <div
-              className="flex items-start gap-2 px-3 py-2 bg-red-950/30 border border-red-800/50 rounded-md text-xs text-red-400"
-              data-testid="commit-error"
-            >
-              <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-              <span className="break-words">{commitError}</span>
-            </div>
+            <CommitErrorDisplay error={commitError} />
           )}
 
           {/* Helper text when nothing staged */}

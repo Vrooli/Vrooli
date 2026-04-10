@@ -54,7 +54,7 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 		status, response := FormatValidationError(validation)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 		return
 	}
 
@@ -65,7 +65,7 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 			status, response := FormatValidationError(signingValidation)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(status)
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 	}
@@ -82,7 +82,7 @@ func (h *Handler) Deploy(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // validateSigning checks signing prerequisites for a profile's signing configuration.
@@ -187,5 +187,5 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }

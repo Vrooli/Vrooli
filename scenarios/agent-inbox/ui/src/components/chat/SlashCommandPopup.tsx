@@ -4,7 +4,7 @@
  * Appears when user types "/" in the message input.
  * Supports keyboard navigation (up/down arrows, enter, escape).
  */
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
   FileText,
   BookOpen,
@@ -31,20 +31,19 @@ const ICON_MAP: Record<string, LucideIcon> = {
   TestTube,
 };
 
+// Default style for fallback
+const DEFAULT_STYLE = { icon: FileText, color: "text-blue-400", bg: "bg-blue-500/20" } as const;
+
 // Type to icon and color mapping
 const TYPE_STYLES: Record<
   string,
   { icon: LucideIcon; color: string; bg: string }
 > = {
-  template: { icon: FileText, color: "text-blue-400", bg: "bg-blue-500/20" },
+  template: DEFAULT_STYLE,
   skill: { icon: BookOpen, color: "text-amber-400", bg: "bg-amber-500/20" },
   tool: { icon: Wrench, color: "text-violet-400", bg: "bg-violet-500/20" },
   search: { icon: Globe, color: "text-green-400", bg: "bg-green-500/20" },
-  "direct-template": {
-    icon: FileText,
-    color: "text-blue-400",
-    bg: "bg-blue-500/20",
-  },
+  "direct-template": DEFAULT_STYLE,
   "direct-skill": {
     icon: BookOpen,
     color: "text-amber-400",
@@ -164,9 +163,9 @@ export function SlashCommandPopup({
           {group.items.map((command) => {
             const index = globalIndex++;
             const isSelected = index === selectedIndex;
-            const style = TYPE_STYLES[command.type] || TYPE_STYLES.template;
+            const style = TYPE_STYLES[command.type] ?? DEFAULT_STYLE;
             const IconComponent = command.icon
-              ? ICON_MAP[command.icon] || style.icon
+              ? ICON_MAP[command.icon] ?? style.icon
               : style.icon;
 
             return (

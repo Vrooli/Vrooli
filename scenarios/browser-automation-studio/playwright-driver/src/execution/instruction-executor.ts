@@ -257,7 +257,13 @@ export async function executeInstruction(
   });
 
   // Convert to wire format
-  const driverOutcome = toDriverOutcome(outcome, telemetry.screenshot, telemetry.domSnapshot);
+  // Pass raw extracted_data to avoid proto JsonValue wrapper issues with Go API
+  const driverOutcome = toDriverOutcome(
+    outcome,
+    telemetry.screenshot,
+    telemetry.domSnapshot,
+    handlerResult.extracted_data as Record<string, unknown> | undefined
+  );
 
   return {
     success: handlerResult.success,

@@ -1,0 +1,57 @@
+{
+  "description": "Cooldown endpoints: GET /api/v1/investigations/cooldown, POST .../cooldown/reset, PUT .../cooldown/period. Managed in api/internal/services/investigation.go. Configurable cooldown period prevents investigation flooding.",
+  "module_id": "MOD-P1-013",
+  "prd_ref": "system-monitor-should-have-investigation-cooldown-management-configurable-period-reset-capability",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-003"
+      ],
+      "description": "Develop investigation cooldown system with configurable periods and manual reset capability to prevent investigation flooding and resource exhaustion.",
+      "id": "REQ-P1-003",
+      "prd_ref": "system-monitor-should-have-investigation-cooldown-management-configurable-period-reset-capability",
+      "status": "implemented",
+      "title": "Investigation Cooldown Management",
+      "validation": [
+        {
+          "notes": "Test cooldown period enforcement",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify reset functionality",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate cooldown across multiple investigations",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Cooldown state check \u003c 50ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Prevents investigation system overload",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Investigation cooldown management (configurable period, reset capability)"
+}

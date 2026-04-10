@@ -537,7 +537,7 @@ func TestSummaryRecentEventsLimit(t *testing.T) {
 	h.List(listRec, listReq)
 
 	var summaries []Summary
-	json.Unmarshal(listRec.Body.Bytes(), &summaries)
+	_ = json.Unmarshal(listRec.Body.Bytes(), &summaries)
 
 	if len(summaries) != 1 {
 		t.Fatalf("expected 1 summary, got %d", len(summaries))
@@ -582,7 +582,7 @@ func TestSummaryFailureTracking(t *testing.T) {
 	h.List(listRec, listReq)
 
 	var summaries []Summary
-	json.Unmarshal(listRec.Body.Bytes(), &summaries)
+	_ = json.Unmarshal(listRec.Body.Bytes(), &summaries)
 
 	summary := summaries[0]
 	if summary.FailureCounts[EventDependencyUnreachable] != 2 {

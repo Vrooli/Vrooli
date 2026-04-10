@@ -1,0 +1,212 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+// ExecutionRecord captures one backlog execution lifecycle entry.
+message ExecutionRecord {
+  string execution_id = 1 [(buf.validate.field).string.min_len = 1];
+  string backlog_kind = 2 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "research", "chore", "spec-sync"] }];
+  string backlog_name = 3 [(buf.validate.field).string.min_len = 1];
+  optional string task_id = 4;
+  optional string run_id = 5;
+  string status = 6 [(buf.validate.field).string = { in: ["pending", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"] }];
+  string mode = 7 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  reserved 8;
+  optional string started_at = 9;
+  optional string finished_at = 10;
+  optional string failure_reason = 11;
+  optional string started_by = 12;
+  optional string operation = 13;
+  string created_at = 14 [(buf.validate.field).string.min_len = 1];
+  string updated_at = 15 [(buf.validate.field).string.min_len = 1];
+
+  // Archive context for spec-sync-archive executions.
+  optional ArchiveContext archive_context = 16;
+
+  // Parent execution ID for follow-up/fixup runs.
+  optional string parent_execution_id = 17;
+
+  // Number of fixup attempts (0 for original execution).
+  int32 fixup_attempt = 18;
+
+  reserved 19 to 22;
+
+  // Unified post-run finalization state for restart + health + review.
+  optional Finalization finalization = 23;
+}
+
+// ArchiveContext captures archive parameters for spec-sync-archive executions.
+message ArchiveContext {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  string scenario_path = 2 [(buf.validate.field).string.min_len = 1];
+  optional string preset_or_custom = 3;
+  repeated string preserve_paths = 4;
+  optional string preserve_preset = 5;
+}
+
+// ReviewResult captures the outcome of a post-execution readiness review.
+message ReviewResult {
+  string job_id = 1;
+  // Classification: ready, ready_with_notes, needs_work, not_assessable.
+  string classification = 2;
+  repeated ReviewDimension dimensions = 3;
+  string summary = 4;
+  string reviewed_at = 5;
+  // Full GCT dimensions JSON preserved for review agent consumption.
+  optional string raw_dimensions = 6;
+}
+
+// ReviewDimension captures a single review dimension result.
+message ReviewDimension {
+  string name = 1;
+  // Status: green, yellow, red, skipped.
+  string status = 2;
+  optional string details = 3;
+}
+
+// Finalization captures the full post-run orchestration state for an execution.
+message Finalization {
+  bool eligible = 1;
+  string status = 2;
+  string phase = 3;
+  string scope_source = 4;
+  optional string skip_reason = 5;
+  optional string started_at = 6;
+  optional string completed_at = 7;
+  repeated FinalizationWarning warnings = 8;
+  repeated string affected_scenarios = 9;
+  string aggregate_classification = 10;
+  optional string aggregate_summary = 11;
+  repeated ScenarioFinalization scenarios = 12;
+}
+
+// FinalizationWarning captures a non-fatal issue encountered during post-run
+// orchestration.
+message FinalizationWarning {
+  string code = 1;
+  optional string scenario_name = 2;
+  string message = 3;
+  bool retryable = 4;
+  string created_at = 5;
+}
+
+// ScenarioFinalization captures restart, health, and review state for one
+// affected scenario.
+message ScenarioFinalization {
+  string scenario_name = 1;
+  repeated string changed_paths = 2;
+  RestartResult restart = 3;
+  HealthCheckResult health = 4;
+  ScenarioReview review = 5;
+}
+
+// RestartResult captures restart attempts for one scenario.
+message RestartResult {
+  string status = 1;
+  int32 attempts = 2;
+  optional string last_error = 3;
+  optional string started_at = 4;
+  optional string finished_at = 5;
+}
+
+// HealthCheckResult captures the standard health contract outcome for one
+// scenario.
+message HealthCheckResult {
+  string status = 1;
+  optional string scenario_status = 2;
+  optional string health_status = 3;
+  bool schema_valid = 4;
+  optional string details = 5;
+  optional string checked_at = 6;
+}
+
+// ScenarioReview captures one scenario review job and result.
+message ScenarioReview {
+  string status = 1;
+  optional string job_id = 2;
+  optional string skip_reason = 3;
+  optional ReviewResult result = 4;
+}
+
+// EvidenceItem represents a single piece of verification evidence gathered
+// by the review agent.
+message EvidenceItem {
+  string id = 1;
+  // Type: screenshot, api_test, cli_output, config_diff, workflow_recording, custom.
+  string type = 2;
+  string title = 3;
+  string description = 4;
+  // Path relative to review/captures/ within the backlog item directory.
+  optional string capture_path = 5;
+  bool verified = 6;
+  optional string verified_at = 7;
+  // Before-state capture for comparison (future: populated from baseline).
+  optional string before_capture_path = 8;
+  // Structured test results (for api_test, cli_output types).
+  repeated EvidenceTestResult test_results = 9;
+}
+
+// EvidenceTestResult captures a structured test outcome within an evidence item.
+message EvidenceTestResult {
+  string name = 1;
+  bool passed = 2;
+  optional string output_summary = 3;
+}
+
+// EvidenceRequestThread captures a multi-turn conversation about needing
+// more evidence.
+message EvidenceRequestThread {
+  string id = 1;
+  // Which evidence item this request is about (optional).
+  optional string evidence_id = 2;
+  // Status: pending, fulfilled, dismissed.
+  string status = 3;
+  repeated EvidenceRequestMessage messages = 4;
+  string created_at = 5;
+  // Agent-manager run ID for the targeted evidence request.
+  optional string run_id = 6;
+}
+
+// EvidenceRequestMessage is a single turn in an evidence request thread.
+message EvidenceRequestMessage {
+  // Role: user, assistant.
+  string role = 1;
+  string content = 2;
+  string timestamp = 3;
+  // Evidence items added by this message.
+  repeated string added_evidence_ids = 4;
+}
+
+// ReviewEvidenceRound captures one pass of evidence gathering by the
+// review agent.
+message ReviewEvidenceRound {
+  int32 round = 1;
+  string generated_at = 2;
+  string execution_id = 3;
+  // Status: pending, gathering, complete, failed.
+  string status = 4;
+  optional string agent_assessment = 5;
+  // Classification: ready, ready_with_notes, needs_work, not_assessable.
+  optional string classification = 6;
+  repeated string notes = 7;
+  repeated EvidenceItem evidence = 8;
+  repeated EvidenceRequestThread request_threads = 9;
+  // Agent-manager run ID for the review agent session.
+  optional string run_id = 10;
+}
+
+// ExecutionPolicy controls default mode, delay, and auto-fixup behavior.
+message ExecutionPolicy {
+  string default_mode = 1 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  reserved 2;
+  // When true, automatically re-runs execution when review finds issues.
+  bool auto_fixup = 3;
+  // Maximum number of automatic fixup attempts (0-5).
+  int32 max_fixup_attempts = 4 [(buf.validate.field).int32 = { gte: 0, lte: 5 }];
+  // When true, spawns a review agent after finalization to gather evidence.
+  bool review_agent_enabled = 5;
+}

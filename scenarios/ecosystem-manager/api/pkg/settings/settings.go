@@ -28,11 +28,10 @@ type Settings struct {
 	CondensedMode bool   `json:"condensed_mode"`
 
 	// Queue processor settings
-	Slots           int `json:"slots"`
-	CooldownSeconds int `json:"cooldown_seconds"`
-	// Legacy field for backward compatibility; populated only on load and not persisted.
-	RefreshInterval int  `json:"refresh_interval,omitempty"`
-	Active          bool `json:"active"`
+	Slots          int  `json:"slots"`
+	CooldownSeconds int  `json:"cooldown_seconds"`
+	ExecutionLimit int  `json:"execution_limit"` // Auto-stop after this many task completions (0 = unlimited)
+	Active         bool `json:"active"`
 
 	// Agent settings
 	MaxTurns        int    `json:"max_turns"`
@@ -55,8 +54,9 @@ func newDefaultSettings() Settings {
 	return Settings{
 		Theme:           "light",
 		CondensedMode:   DefaultCondensedMode,
-		Slots:           DefaultSlots,
+		Slots:          DefaultSlots,
 		CooldownSeconds: DefaultCooldownSeconds,
+		ExecutionLimit: DefaultExecutionLimit,
 		Active:          DefaultActive, // ALWAYS start/reset inactive for safety
 		MaxTurns:        DefaultMaxTurns,
 		AllowedTools:    DefaultAllowedTools,
@@ -133,12 +133,11 @@ func ValidateAndNormalize(input Settings, previous Settings) (Settings, error) {
 	if s.Slots < MinSlots || s.Slots > MaxSlots {
 		return previous, fmt.Errorf("Slots must be between %d and %d", MinSlots, MaxSlots)
 	}
-	// Migrate legacy refresh_interval to cooldown_seconds
-	if s.CooldownSeconds == 0 && s.RefreshInterval > 0 {
-		s.CooldownSeconds = s.RefreshInterval
-	}
 	if s.CooldownSeconds < MinCooldownSeconds || s.CooldownSeconds > MaxCooldownSeconds {
 		return previous, fmt.Errorf("Cooldown must be between %d and %d seconds", MinCooldownSeconds, MaxCooldownSeconds)
+	}
+	if s.ExecutionLimit < MinExecutionLimit || s.ExecutionLimit > MaxExecutionLimit {
+		return previous, fmt.Errorf("Execution limit must be between %d and %d", MinExecutionLimit, MaxExecutionLimit)
 	}
 	if s.MaxTurns < MinMaxTurns || s.MaxTurns > MaxMaxTurns {
 		return previous, fmt.Errorf("Max turns must be between %d and %d", MinMaxTurns, MaxMaxTurns)

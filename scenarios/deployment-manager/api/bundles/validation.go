@@ -22,10 +22,10 @@ var (
 
 // ValidateManifestBytes performs a lightweight structural validation.
 // Note: We intentionally do NOT use DisallowUnknownFields() here because:
-// 1. The JSON Schema validation at the end catches any truly invalid fields
-// 2. Strict parsing breaks compatibility with analyzer responses that may include
-//    additional metadata fields alongside the core manifest structure
-// 3. Being lenient here allows forward compatibility with schema extensions
+//  1. The JSON Schema validation at the end catches any truly invalid fields
+//  2. Strict parsing breaks compatibility with analyzer responses that may include
+//     additional metadata fields alongside the core manifest structure
+//  3. Being lenient here allows forward compatibility with schema extensions
 func ValidateManifestBytes(data []byte) error {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	// Removed: dec.DisallowUnknownFields() - JSON schema validation handles this

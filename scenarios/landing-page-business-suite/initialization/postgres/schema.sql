@@ -1,4 +1,8 @@
 -- Landing Manager Database Schema
+--
+-- NOTE: Variant, section, and branding configuration is now stored in JSON files
+-- (.vrooli/variants/*.json and .vrooli/branding.json) and loaded into memory at startup.
+-- This schema only contains tables for runtime/dynamic data.
 
 -- Admin Users Table (OT-P0-008: ADMIN-AUTH)
 -- Stores admin credentials with bcrypt-hashed passwords
@@ -10,43 +14,37 @@ CREATE TABLE IF NOT EXISTS admin_users (
     last_login TIMESTAMP
 );
 
-CREATE INDEX idx_admin_users_email ON admin_users(email);
+CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);
 
--- A/B Testing Variants Table (OT-P0-014 through OT-P0-018)
--- Stores landing page variants with weights for A/B testing
-CREATE TABLE IF NOT EXISTS variants (
+-- Remote Profiles Table (Admin-managed remote connections)
+-- Stores encrypted admin_session cookies for remote LPBS instances
+CREATE TABLE IF NOT EXISTS remote_profiles (
     id SERIAL PRIMARY KEY,
-    slug VARCHAR(100) UNIQUE NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    weight INTEGER DEFAULT 50 CHECK (weight >= 0 AND weight <= 100),
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'archived', 'deleted')),
-    header_config JSONB DEFAULT '{}'::jsonb,
+    tag VARCHAR(100) UNIQUE NOT NULL,
+    label TEXT,
+    api_base TEXT NOT NULL,
+    connector_id VARCHAR(64) UNIQUE,
+    remote_session_id TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'unknown' CHECK (status IN ('unknown','active','expired','error')),
+    encrypted_session TEXT,
+    session_expires_at TIMESTAMP,
+    remote_session_last_synced_at TIMESTAMP,
+    last_login_at TIMESTAMP,
+    last_used_at TIMESTAMP,
+    created_by INTEGER REFERENCES admin_users(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    archived_at TIMESTAMP
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_variants_slug ON variants(slug);
-CREATE INDEX idx_variants_status ON variants(status);
-
--- Variant Axes Table - stores axis selections per variant for persona/JTBD/conversion style targeting
-CREATE TABLE IF NOT EXISTS variant_axes (
-    variant_id INTEGER REFERENCES variants(id) ON DELETE CASCADE,
-    axis_id VARCHAR(100) NOT NULL,
-    variant_value VARCHAR(100) NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    PRIMARY KEY (variant_id, axis_id)
-);
-
-CREATE INDEX idx_variant_axes_axis ON variant_axes(axis_id);
+CREATE INDEX IF NOT EXISTS idx_remote_profiles_tag ON remote_profiles(tag);
+CREATE INDEX IF NOT EXISTS idx_remote_profiles_status ON remote_profiles(status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_remote_profiles_connector_id ON remote_profiles(connector_id);
 
 -- Metrics Events Table (OT-P0-019 through OT-P0-022)
--- Stores analytics events tagged with variant_id
+-- Stores analytics events (variant_slug is stored as text, not FK)
 CREATE TABLE IF NOT EXISTS metrics_events (
     id SERIAL PRIMARY KEY,
-    variant_id INTEGER REFERENCES variants(id),
+    variant_slug VARCHAR(100),
     event_type VARCHAR(50) NOT NULL CHECK (event_type IN ('page_view', 'scroll_depth', 'click', 'form_submit', 'conversion', 'download')),
     event_data JSONB,
     session_id VARCHAR(255),
@@ -54,10 +52,10 @@ CREATE TABLE IF NOT EXISTS metrics_events (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_metrics_events_variant ON metrics_events(variant_id);
-CREATE INDEX idx_metrics_events_type ON metrics_events(event_type);
-CREATE INDEX idx_metrics_events_created ON metrics_events(created_at);
-CREATE INDEX idx_metrics_events_session ON metrics_events(session_id);
+CREATE INDEX IF NOT EXISTS idx_metrics_events_variant ON metrics_events(variant_slug);
+CREATE INDEX IF NOT EXISTS idx_metrics_events_type ON metrics_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_metrics_events_created ON metrics_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_metrics_events_session ON metrics_events(session_id);
 
 -- Checkout Sessions Table (OT-P0-025, OT-P0-026: STRIPE-CONFIG, STRIPE-ROUTES)
 -- Stores Stripe checkout session metadata
@@ -76,9 +74,9 @@ CREATE TABLE IF NOT EXISTS checkout_sessions (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_checkout_sessions_session_id ON checkout_sessions(session_id);
-CREATE INDEX idx_checkout_sessions_status ON checkout_sessions(status);
-CREATE INDEX idx_checkout_sessions_type ON checkout_sessions(session_type);
+CREATE INDEX IF NOT EXISTS idx_checkout_sessions_session_id ON checkout_sessions(session_id);
+CREATE INDEX IF NOT EXISTS idx_checkout_sessions_status ON checkout_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_checkout_sessions_type ON checkout_sessions(session_type);
 
 -- Subscriptions Table (OT-P0-028, OT-P0-029, OT-P0-030: SUB-VERIFY, SUB-CACHE, SUB-CANCEL)
 -- Stores Stripe subscription status for verification and caching
@@ -93,13 +91,14 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_subscriptions_subscription_id ON subscriptions(subscription_id);
-CREATE INDEX idx_subscriptions_customer_email ON subscriptions(customer_email);
-CREATE INDEX idx_subscriptions_customer_id ON subscriptions(customer_id);
-CREATE INDEX idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_subscription_id ON subscriptions(subscription_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_email ON subscriptions(customer_email);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_id ON subscriptions(customer_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan_tier VARCHAR(50);
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS price_id VARCHAR(255);
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS bundle_key VARCHAR(100);
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS billing_cycle_start INTEGER DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS subscription_schedules (
     id SERIAL PRIMARY KEY,
@@ -118,73 +117,15 @@ CREATE TABLE IF NOT EXISTS subscription_schedules (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_subscription_schedules_schedule_id ON subscription_schedules(schedule_id);
-CREATE INDEX idx_subscription_schedules_subscription_id ON subscription_schedules(subscription_id);
+CREATE INDEX IF NOT EXISTS idx_subscription_schedules_schedule_id ON subscription_schedules(schedule_id);
+CREATE INDEX IF NOT EXISTS idx_subscription_schedules_subscription_id ON subscription_schedules(subscription_id);
 
--- Content Sections Table (OT-P0-012, OT-P0-013: CUSTOM-SPLIT, CUSTOM-LIVE)
--- Stores customizable landing page sections for live preview editing
-CREATE TABLE IF NOT EXISTS content_sections (
-    id SERIAL PRIMARY KEY,
-    variant_id INTEGER REFERENCES variants(id) ON DELETE CASCADE,
-    section_type VARCHAR(50) NOT NULL CHECK (section_type IN ('hero', 'features', 'pricing', 'cta', 'testimonials', 'faq', 'footer', 'video', 'downloads')),
-    content JSONB NOT NULL,
-    "order" INTEGER DEFAULT 0,
-    enabled BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
+-- NOTE: Content sections are now stored in JSON files (.vrooli/variants/*.json)
+-- and loaded into memory at startup via ConfigStore.
 
-CREATE INDEX idx_content_sections_variant ON content_sections(variant_id);
-CREATE INDEX idx_content_sections_type ON content_sections(section_type);
-CREATE INDEX idx_content_sections_order ON content_sections("order");
-
--- Bundle products (Stripe metadata)
-CREATE TABLE IF NOT EXISTS bundle_products (
-    id SERIAL PRIMARY KEY,
-    bundle_key VARCHAR(100) UNIQUE NOT NULL,
-    bundle_name VARCHAR(255) NOT NULL,
-    stripe_product_id VARCHAR(255) UNIQUE NOT NULL,
-    credits_per_usd BIGINT NOT NULL,
-    display_credits_multiplier NUMERIC(12,6) DEFAULT 1.0,
-    display_credits_label VARCHAR(50) DEFAULT 'credits',
-    environment VARCHAR(50) DEFAULT 'production',
-    metadata JSONB DEFAULT '{}'::jsonb,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX idx_bundle_products_env ON bundle_products(environment);
-
--- Bundle prices (Stripe price metadata)
-CREATE TABLE IF NOT EXISTS bundle_prices (
-    id SERIAL PRIMARY KEY,
-    product_id INTEGER REFERENCES bundle_products(id) ON DELETE CASCADE,
-    stripe_price_id VARCHAR(255) UNIQUE NOT NULL,
-    plan_name VARCHAR(100) NOT NULL,
-    plan_tier VARCHAR(50) NOT NULL CHECK (plan_tier IN ('free','solo','pro','studio','business','credits','donation')),
-    billing_interval VARCHAR(20) NOT NULL CHECK (billing_interval IN ('month','year','one_time')),
-    amount_cents INTEGER NOT NULL,
-    currency VARCHAR(10) DEFAULT 'usd',
-    intro_enabled BOOLEAN DEFAULT FALSE,
-    intro_type VARCHAR(50),
-    intro_amount_cents INTEGER,
-    intro_periods INTEGER DEFAULT 0,
-    intro_price_lookup_key VARCHAR(255),
-    monthly_included_credits INTEGER DEFAULT 0,
-    one_time_bonus_credits INTEGER DEFAULT 0,
-    plan_rank INTEGER DEFAULT 0,
-    bonus_type VARCHAR(50),
-    kind VARCHAR(50) DEFAULT 'subscription',
-    is_variable_amount BOOLEAN DEFAULT FALSE,
-    display_enabled BOOLEAN DEFAULT TRUE,
-    metadata JSONB DEFAULT '{}'::jsonb,
-    display_weight INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX idx_bundle_prices_tier ON bundle_prices(plan_tier);
-CREATE INDEX idx_bundle_prices_interval ON bundle_prices(billing_interval);
+-- NOTE: Bundle/pricing plan configuration is now stored in JSON files (.vrooli/plans.json)
+-- and loaded into memory at startup via PlanStore. The bundle_products and bundle_prices
+-- tables have been removed as part of the migration to file-based configuration.
 
 CREATE TABLE IF NOT EXISTS download_apps (
     id SERIAL PRIMARY KEY,
@@ -236,7 +177,7 @@ CREATE TABLE IF NOT EXISTS payment_settings (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX idx_download_assets_bundle_app_platform_variant ON download_assets(bundle_key, app_key, platform, variant_key);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_download_assets_bundle_app_platform_variant ON download_assets(bundle_key, app_key, platform, variant_key);
 
 -- Credit wallets and transactions
 CREATE TABLE IF NOT EXISTS credit_wallets (
@@ -253,48 +194,18 @@ CREATE TABLE IF NOT EXISTS credit_transactions (
     amount_credits BIGINT NOT NULL,
     transaction_type VARCHAR(50) NOT NULL,
     source VARCHAR(100),
+    stripe_event_id VARCHAR(255),
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_credit_transactions_customer ON credit_transactions(customer_email);
+CREATE INDEX IF NOT EXISTS idx_credit_transactions_customer ON credit_transactions(customer_email);
+-- Unique index for idempotency - only index non-null stripe_event_ids
+CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event
+    ON credit_transactions(stripe_event_id) WHERE stripe_event_id IS NOT NULL;
 
--- Site Branding Table (singleton pattern for site-wide branding)
--- Stores logos, favicons, default SEO, theme colors, and technical settings
-CREATE TABLE IF NOT EXISTS site_branding (
-    id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-    site_name TEXT NOT NULL DEFAULT 'My Landing',
-    tagline TEXT,
-
-    -- Logo assets
-    logo_url TEXT,
-    logo_icon_url TEXT,
-    favicon_url TEXT,
-    apple_touch_icon_url TEXT,
-
-    -- Default SEO (fallback when variant doesn't specify)
-    default_title TEXT,
-    default_description TEXT,
-    default_og_image_url TEXT,
-
-    -- Theme overrides (extends styling.json)
-    theme_primary_color TEXT,
-    theme_background_color TEXT,
-
-    -- Technical settings
-    canonical_base_url TEXT,
-    google_site_verification TEXT,
-    robots_txt TEXT,
-
-    -- Support settings
-    support_chat_url TEXT,
-
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Ensure only one row exists (singleton)
-CREATE UNIQUE INDEX IF NOT EXISTS site_branding_singleton ON site_branding ((1));
+-- NOTE: Site branding is now stored in JSON file (.vrooli/branding.json)
+-- and loaded into memory at startup via ConfigStore.
 
 -- Uploaded Assets Table
 -- Stores metadata for uploaded files (logos, favicons, og images, etc.)
@@ -312,24 +223,8 @@ CREATE TABLE IF NOT EXISTS assets (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_assets_category ON assets(category);
-CREATE INDEX idx_assets_created ON assets(created_at);
-
--- Add SEO config column to variants table for per-variant SEO
-ALTER TABLE variants ADD COLUMN IF NOT EXISTS seo_config JSONB DEFAULT '{}'::jsonb;
-
--- Add support chat URL to site_branding for existing databases
-ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS support_chat_url TEXT;
-
--- Add support email to site_branding for existing databases
-ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS support_email TEXT;
-
--- SMTP configuration for email notifications
-ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_host TEXT;
-ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_port INTEGER DEFAULT 587;
-ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_username TEXT;
-ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_password TEXT;
-ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_from TEXT;
+CREATE INDEX IF NOT EXISTS idx_assets_category ON assets(category);
+CREATE INDEX IF NOT EXISTS idx_assets_created ON assets(created_at);
 
 -- Feedback Requests Table
 -- Stores user feedback, bug reports, feature requests, and refund requests
@@ -345,7 +240,159 @@ CREATE TABLE IF NOT EXISTS feedback_requests (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_feedback_requests_type ON feedback_requests(type);
-CREATE INDEX idx_feedback_requests_status ON feedback_requests(status);
-CREATE INDEX idx_feedback_requests_email ON feedback_requests(email);
-CREATE INDEX idx_feedback_requests_created ON feedback_requests(created_at);
+CREATE INDEX IF NOT EXISTS idx_feedback_requests_type ON feedback_requests(type);
+CREATE INDEX IF NOT EXISTS idx_feedback_requests_status ON feedback_requests(status);
+CREATE INDEX IF NOT EXISTS idx_feedback_requests_email ON feedback_requests(email);
+CREATE INDEX IF NOT EXISTS idx_feedback_requests_created ON feedback_requests(created_at);
+
+-- Subscription Tier Limits Table
+-- Defines credit limits per subscription tier (cost-based or app-specific)
+CREATE TABLE IF NOT EXISTS subscription_tier_limits (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tier_id VARCHAR(50) NOT NULL,           -- 'free', 'solo', 'pro', 'studio', 'business'
+    limit_type VARCHAR(20) NOT NULL,        -- 'cost_based' or 'app_specific'
+    limit_key VARCHAR(100) NOT NULL,        -- 'ai_credits', 'workflow_exports', etc.
+    limit_value BIGINT NOT NULL,            -- In base units (-1 = unlimited)
+    cost_multiplier BIGINT DEFAULT 1000000, -- cents x multiplier for cost_based
+    app_bundle_key VARCHAR(100),            -- NULL for cost_based, app key for app_specific
+    reset_period VARCHAR(20) DEFAULT 'monthly',
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(tier_id, limit_type, limit_key, app_bundle_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscription_tier_limits_tier ON subscription_tier_limits(tier_id);
+CREATE INDEX IF NOT EXISTS idx_subscription_tier_limits_type ON subscription_tier_limits(limit_type);
+CREATE INDEX IF NOT EXISTS idx_subscription_tier_limits_app ON subscription_tier_limits(app_bundle_key);
+
+-- Usage Records Table
+-- Tracks credit usage per user per billing period
+CREATE TABLE IF NOT EXISTS usage_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_identity VARCHAR(255) NOT NULL,
+    billing_period VARCHAR(20) NOT NULL,    -- 'YYYY-MM'
+    limit_key VARCHAR(100) NOT NULL,
+    usage_amount BIGINT NOT NULL DEFAULT 0,
+    app_bundle_key VARCHAR(100),
+    operation_id UUID,                      -- Idempotency key for deduplication
+    last_operation_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_identity, billing_period, limit_key, app_bundle_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_usage_records_user_period ON usage_records(user_identity, billing_period);
+CREATE INDEX IF NOT EXISTS idx_usage_records_limit_key ON usage_records(limit_key);
+CREATE INDEX IF NOT EXISTS idx_usage_records_app ON usage_records(app_bundle_key);
+-- Partial unique index for idempotency - only index non-null operation_ids
+CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_records_operation_id ON usage_records(operation_id) WHERE operation_id IS NOT NULL;
+
+-- API Keys Table
+-- Stores encrypted AI provider API keys (admin-managed)
+CREATE TABLE IF NOT EXISTS api_keys (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    provider VARCHAR(50) NOT NULL UNIQUE,   -- 'openrouter', 'openai', 'anthropic'
+    encrypted_key TEXT NOT NULL,
+    key_hint VARCHAR(20),                   -- Last 4 chars for display
+    is_active BOOLEAN DEFAULT true,
+    last_verified_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_api_keys_provider ON api_keys(provider);
+CREATE INDEX IF NOT EXISTS idx_api_keys_active ON api_keys(is_active);
+
+-- User Authentication Tables (User Auth Implementation)
+-- User accounts (linked to Stripe customers)
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    email_verified BOOLEAN DEFAULT FALSE,
+    stripe_customer_id VARCHAR(255),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    last_login_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id);
+
+-- Magic link tokens (short-lived, one-time use)
+CREATE TABLE IF NOT EXISTS auth_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(255) NOT NULL,  -- SHA-256 of token
+    token_type VARCHAR(50) NOT NULL,   -- 'magic_link', 'refresh'
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP,                 -- NULL until used
+    created_at TIMESTAMP DEFAULT NOW(),
+    ip_address INET,
+    user_agent TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_hash ON auth_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_user_expires ON auth_tokens(user_id, expires_at);
+
+-- Active user sessions (supports "view all sessions" feature)
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    refresh_token_hash VARCHAR(255) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    last_used_at TIMESTAMP DEFAULT NOW(),
+    ip_address INET,
+    user_agent TEXT,
+    device_info JSONB DEFAULT '{}',   -- For future "Chrome on Windows" display
+    revoked BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_hash ON user_sessions(refresh_token_hash);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(user_id, revoked, expires_at);
+
+-- Email Normalization Migration (idempotent)
+-- Normalizes existing email data to lowercase/trimmed format
+-- This prevents duplicate credit balances or subscription lookup issues
+UPDATE users SET email = LOWER(TRIM(email)) WHERE email != LOWER(TRIM(email));
+UPDATE subscriptions SET customer_email = LOWER(TRIM(customer_email)) WHERE customer_email IS NOT NULL AND customer_email != LOWER(TRIM(customer_email));
+UPDATE credit_wallets SET customer_email = LOWER(TRIM(customer_email)) WHERE customer_email != LOWER(TRIM(customer_email));
+UPDATE usage_records SET user_identity = LOWER(TRIM(user_identity)) WHERE user_identity != LOWER(TRIM(user_identity));
+UPDATE credit_transactions SET customer_email = LOWER(TRIM(customer_email)) WHERE customer_email != LOWER(TRIM(customer_email));
+
+-- Credit Reservations Table (TOCTOU fix for streaming requests)
+-- Tracks pending credit reservations for atomic check-and-charge
+CREATE TABLE IF NOT EXISTS credit_reservations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_identity VARCHAR(255) NOT NULL,
+    billing_period VARCHAR(20) NOT NULL,
+    limit_key VARCHAR(100) NOT NULL,
+    reserved_amount BIGINT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'finalized', 'released', 'expired')),
+    created_at TIMESTAMP DEFAULT NOW(),
+    finalized_at TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_credit_reservations_user ON credit_reservations(user_identity, status);
+CREATE INDEX IF NOT EXISTS idx_credit_reservations_expires ON credit_reservations(expires_at) WHERE status = 'pending';
+
+-- Intro pricing flag on users table (coupon-based intro pricing)
+-- Tracks whether user has ever used the $1 intro offer
+ALTER TABLE users ADD COLUMN IF NOT EXISTS has_used_intro BOOLEAN DEFAULT FALSE;
+CREATE INDEX IF NOT EXISTS idx_users_has_used_intro ON users(has_used_intro);
+
+-- Intro coupon usage audit table
+-- Records when intro coupons are applied for audit and debugging
+CREATE TABLE IF NOT EXISTS intro_coupon_usage (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) NOT NULL,
+    stripe_customer_id VARCHAR(255),
+    coupon_id VARCHAR(255) NOT NULL,
+    plan_tier VARCHAR(50),
+    subscription_id VARCHAR(255),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_intro_coupon_usage_email ON intro_coupon_usage(email);

@@ -14,7 +14,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class SetIamPolicyRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("resource", "policy", "update_mask")
     RESOURCE_FIELD_NUMBER: _ClassVar[int]
     POLICY_FIELD_NUMBER: _ClassVar[int]
     UPDATE_MASK_FIELD_NUMBER: _ClassVar[int]
@@ -24,7 +24,7 @@ class SetIamPolicyRequest(_message.Message):
     def __init__(self, resource: _Optional[str] = ..., policy: _Optional[_Union[_policy_pb2.Policy, _Mapping]] = ..., update_mask: _Optional[_Union[_field_mask_pb2.FieldMask, _Mapping]] = ...) -> None: ...
 
 class GetIamPolicyRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("resource", "options")
     RESOURCE_FIELD_NUMBER: _ClassVar[int]
     OPTIONS_FIELD_NUMBER: _ClassVar[int]
     resource: str
@@ -32,7 +32,7 @@ class GetIamPolicyRequest(_message.Message):
     def __init__(self, resource: _Optional[str] = ..., options: _Optional[_Union[_options_pb2.GetPolicyOptions, _Mapping]] = ...) -> None: ...
 
 class TestIamPermissionsRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("resource", "permissions")
     RESOURCE_FIELD_NUMBER: _ClassVar[int]
     PERMISSIONS_FIELD_NUMBER: _ClassVar[int]
     resource: str
@@ -40,7 +40,7 @@ class TestIamPermissionsRequest(_message.Message):
     def __init__(self, resource: _Optional[str] = ..., permissions: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class TestIamPermissionsResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("permissions",)
     PERMISSIONS_FIELD_NUMBER: _ClassVar[int]
     permissions: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, permissions: _Optional[_Iterable[str]] = ...) -> None: ...

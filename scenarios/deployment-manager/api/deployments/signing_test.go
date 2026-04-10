@@ -14,10 +14,10 @@ import (
 
 // mockSigningValidator is a test mock for SigningValidator
 type mockSigningValidator struct {
-	config       *codesigning.SigningConfig
-	configErr    error
-	validateRes  *codesigning.ValidationResult
-	prereqRes    *codesigning.ValidationResult
+	config      *codesigning.SigningConfig
+	configErr   error
+	validateRes *codesigning.ValidationResult
+	prereqRes   *codesigning.ValidationResult
 }
 
 func (m *mockSigningValidator) GetSigningConfig(ctx context.Context, profileID string) (*codesigning.SigningConfig, error) {
@@ -74,7 +74,7 @@ func TestDeploy_SigningEnabled_Valid(t *testing.T) {
 		config: &codesigning.SigningConfig{
 			Enabled: true,
 			Windows: &codesigning.WindowsSigningConfig{
-				CertificateSource: "store",
+				CertificateSource:     "store",
 				CertificateThumbprint: "ABC123",
 			},
 		},
@@ -129,7 +129,7 @@ func TestDeploy_SigningPrerequisitesFail(t *testing.T) {
 		config: &codesigning.SigningConfig{
 			Enabled: true,
 			Windows: &codesigning.WindowsSigningConfig{
-				CertificateSource: "store",
+				CertificateSource:     "store",
 				CertificateThumbprint: "ABC123",
 			},
 		},

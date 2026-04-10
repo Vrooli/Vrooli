@@ -1,0 +1,47 @@
+{
+  "description": "Calculate a maturity score per connected skill based on: has structural config (weighted), has CLI tool assertions (weighted), all assertions pass (weighted), no conflicts with other skills (weighted). Surface unconfigured skills as the lowest maturity.",
+  "module_id": "MOD-P1-015",
+  "prd_ref": "OT-P1-005",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Calculate weighted maturity score (0-100) for each skill based on: structural config presence (25%), CLI assertions presence (25%), assertion pass rate (25%), and conflict-free status (25%). Automatically assign 0 score to unconfigured skills.",
+      "id": "REQ-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "draft",
+      "title": "Skill Maturity Scoring",
+      "validation": [
+        {
+          "notes": "Test score calculation algorithm",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify scoring across multiple skills",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Score calculation \u003c 1s per skill",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Scores accurately reflect skill configuration completeness",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Skill Maturity Score"
+}

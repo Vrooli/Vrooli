@@ -1,0 +1,32 @@
+{
+  "archived_at": "2026-02-05T21:21:22Z",
+  "created": "2026-02-05T21:21:22Z",
+  "description": "Enterprise-grade AI research platform with DeepSearch-quality reports, chatbot interface, and automated scheduling",
+  "name": "research-assistant-archived",
+  "priority": 5,
+  "status": "completed",
+  "tags": [
+    "business-application",
+    "ai-research",
+    "research-automation",
+    "competitive-intelligence",
+    "knowledge-management",
+    "privacy-focused",
+    "custom-ui",
+    "market-analysis",
+    "content-synthesis",
+    "searxng-integration",
+    "rag-system",
+    "go-api",
+    "n8n-workflows",
+    "express-ui",
+    "postgres-storage",
+    "qdrant-vectors",
+    "minio-storage",
+    "ollama-ai",
+    "archived",
+    "from-scenario"
+  ],
+  "title": "[Archived] research-assistant",
+  "updated": "2026-02-05T21:21:22Z"
+}

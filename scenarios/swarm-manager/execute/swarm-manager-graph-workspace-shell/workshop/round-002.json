@@ -1,0 +1,126 @@
+{
+  "round": 2,
+  "generated_at": "2026-03-27T23:15:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 3,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Test strategy for graph canvas interactions",
+      "context": "React Flow renders to a canvas-like SVG/HTML structure that's hard to assert on with React Testing Library's DOM-query approach. The codebase currently uses Vitest + RTL for all 40 existing tests. Graph-specific behaviors (node click → select, pan/zoom, layout rendering) sit below RTL's abstraction. We need to decide how deeply to test canvas interactions vs. testing the store logic that drives them.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Store-first testing: unit test stores + BFS logic, shallow-render components",
+          "rationale": "Test graphDataStore and graphUIStore extensively (selection, highlight, layout, viewport persistence). Component tests verify that the right props reach React Flow and that UI controls (lens switcher, sidebar toggles) dispatch correct store actions — but don't assert on React Flow's internal rendering. This matches how the codebase already tests Zustand stores (store-utils.test.ts pattern). Recommended because it gives high confidence in behavior without fighting React Flow's rendering internals.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Full integration tests with React Flow test utilities",
+          "rationale": "Use React Flow's testing utilities to simulate node clicks, verify edge rendering, test viewport state. Provides true end-to-end confidence. Risk: React Flow test utils are limited in v12, tests are brittle to React Flow internal changes, and significantly slower to write and maintain."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own testing approach."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Keyboard shortcut scheme for graph workspace",
+      "context": "The current MainLayout uses keyboard shortcuts 1-5 for tab switching and Ctrl+K for host switcher. The graph workspace replaces tabs with lenses, layout modes, and an inspector panel. The shortcut scheme needs to be redesigned. The research contract identified three lenses (topology, flow, operations) and three layout modes. The existing useKeyboardShortcuts hook will need to be rewritten.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Number keys for lenses, letter keys for actions: 1-3 lenses, L layout, I inspector, Esc deselect",
+          "rationale": "Preserves the existing mental model of number keys for primary navigation. 1=Topology, 2=Flow, 3=Operations maps cleanly. L cycles layout modes (hierarchical→compact→grouped). I toggles inspector. Esc deselects current node. Ctrl+K preserved for host switcher. Recommended because it's the most intuitive mapping from the current scheme and uses common conventions (Esc=cancel, I=inspector/info).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Vim-inspired: h/j/k/l for graph navigation, t/f/o for lenses",
+          "rationale": "h/j/k/l moves selection to neighboring nodes (left/down/up/right). t=topology, f=flow, o=operations. Space opens inspector. Esc closes. More discoverable for vim users. Risk: conflicts with text input in search/filter fields, unfamiliar to non-vim users."
+        },
+        {
+          "key": "C",
+          "label": "Minimal: only Esc and Ctrl+K, everything else mouse/touch",
+          "rationale": "Simplest implementation. No keyboard shortcut conflicts. Users rely on UI controls for all actions. Risk: power users lose speed; accessibility concern for keyboard-only navigation."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own shortcut scheme."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Sidebar collapse behavior and persistence",
+      "context": "The sidebar (320px) needs to be collapsible. On mobile it's straightforward (hamburger → overlay). On desktop, there are two common patterns: collapse to icon-only rail (48px) showing entity-type icons, or fully hide (0px) with a floating toggle button. The choice affects the graph canvas available width and the user's ability to quickly toggle entity filters even when the sidebar is collapsed.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Collapse to icon rail (48px) on desktop, full overlay on mobile",
+          "rationale": "Desktop: sidebar shrinks to a vertical icon strip showing entity-type filter icons (still clickable to toggle filters). Hover or click an expand icon to restore full 320px. Mobile: sidebar is hidden by default, hamburger opens as overlay. Sidebar collapsed state persisted in localStorage. Recommended because filter toggles remain accessible even collapsed, and the icon rail provides spatial consistency.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Full hide (0px) on both desktop and mobile",
+          "rationale": "Maximizes graph canvas space. Floating toggle button to restore sidebar. Simpler implementation — no icon rail component needed. Risk: filter toggles completely inaccessible when collapsed; user must fully open sidebar to change any filter."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own collapse behavior."
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Default layout mode per lens",
+      "context": "Three layout modes exist (hierarchical, compact, grouped) and three lenses exist (topology, flow, operations). Different lenses may benefit from different default layouts. Topology is relationship-heavy and benefits from hierarchy. Flow is lifecycle-heavy and benefits from left-to-right progression. Operations is status-focused and may benefit from grouping by scenario. The user can always switch manually.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Same default (hierarchical) for all lenses, user switches manually",
+          "rationale": "Simplest implementation. Consistent behavior across lenses. Layout preference persists per-lens in localStorage so the user only sets it once. Risk: hierarchical may not be ideal for Flow (which is more sequential) or Operations (which is more grouping-oriented).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Lens-specific defaults: Topology=hierarchical, Flow=compact, Operations=grouped",
+          "rationale": "Each lens starts with the layout that best matches its content. Topology shows dependency trees well with hierarchy. Flow shows linear progression with compact. Operations shows scenario clusters with grouped. More opinionated UX. Risk: users who switch lenses may be confused by layout changing."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own default layout strategy."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The existing bottom-sheet component at components/ui/bottom-sheet.tsx can be reused directly for the mobile inspector variant. It already handles swipe-to-dismiss, snap points, and backdrop overlay — no need to build a new one."
+    }
+  ],
+  "plan_updates": "Incorporated all 5 settled decisions from round 1 into Section 8 (Contract Decisions). Added detailed testing plan in Section 9 covering unit tests (stores, BFS, layout utils), component tests (workspace, sidebar, inspector, lens switcher), and integration tests (redirects, URL sync, keyboard). Expanded Section 11 (Risks) with client-side data assembly performance, Dagre threading, and existing test breakage risks. Updated Definition of Done (Section 13) with specific test requirements. Refined implementation phases with concrete file names and the surfaces/graph/ directory structure."
+}

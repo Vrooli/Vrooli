@@ -79,5 +79,5 @@ Write an ADR when:
 ## Related Documentation
 
 - [Roadmap](../ROADMAP.md) - Implementation status
-- [Technical Guides](../guides/) - How things work
+- [Technical Guides](../guides/README.md) - How things work
 - [Bundled Runtime Plan](/docs/plans/bundled-desktop-runtime-plan.md) - Detailed implementation plan

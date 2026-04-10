@@ -5,7 +5,8 @@
     "labels": {
       "reset": "none",
       "requirements_json": "[\"SCS-HIST-001\", \"SCS-HIST-002\", \"SCS-HIST-004\"]"
-    }
+    },
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1440,
@@ -19,7 +20,9 @@
         "http_request": {
           "method": "POST",
           "url": "{{API_URL}}/api/v1/scores/scenario-completeness-scoring/calculate",
-          "headers": {"Content-Type": "application/json"},
+          "headers": {
+            "Content-Type": "application/json"
+          },
           "expected_status": 200
         },
         "metadata": {

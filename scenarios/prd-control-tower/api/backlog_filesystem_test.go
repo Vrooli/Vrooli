@@ -54,7 +54,7 @@ func TestSaveBacklogEntryToFile_Integration(t *testing.T) {
 func TestLoadBacklogEntryFromFile(t *testing.T) {
 	tmpDir := filepath.Join(os.TempDir(), "prd-test-backlog-"+uuid.New().String())
 	defer os.RemoveAll(tmpDir)
-	if err := os.MkdirAll(tmpDir, 0755); err != nil {
+	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
 	}
 
@@ -76,7 +76,7 @@ This is the idea text content
 that spans multiple lines.
 `
 
-	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -112,7 +112,7 @@ that spans multiple lines.
 func TestLoadBacklogEntryFromFile_MissingID(t *testing.T) {
 	tmpDir := filepath.Join(os.TempDir(), "prd-test-backlog-"+uuid.New().String())
 	defer os.RemoveAll(tmpDir)
-	if err := os.MkdirAll(tmpDir, 0755); err != nil {
+	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
 	}
 
@@ -127,7 +127,7 @@ status: pending
 Test idea without ID in frontmatter
 `
 
-	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -146,7 +146,7 @@ Test idea without ID in frontmatter
 func TestLoadBacklogEntryFromFile_Defaults(t *testing.T) {
 	tmpDir := filepath.Join(os.TempDir(), "prd-test-backlog-"+uuid.New().String())
 	defer os.RemoveAll(tmpDir)
-	if err := os.MkdirAll(tmpDir, 0755); err != nil {
+	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
 	}
 
@@ -159,7 +159,7 @@ id: ` + id + `
 Minimal backlog entry
 `
 
-	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 

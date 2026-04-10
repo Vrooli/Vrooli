@@ -17,7 +17,6 @@
 ### Similar Work
 - **Intelligent Image Classifier (N8N)**: 75% overlap - provides general image classification but lacks NSFW-specific models
 - **Comment System Moderation**: 60% overlap - has moderation framework but no visual content analysis
-- **VOCR Resource**: 50% overlap - computer vision foundation but focused on OCR/text extraction
 
 ### Template Selected
 Using v2.0 universal contract structure with patterns from ollama and comfyui resources for AI model management.

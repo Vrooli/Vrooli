@@ -17,7 +17,7 @@
 
 **Key capabilities**:
 - Holistic issue lifecycle management (creation, assignment, investigation, resolution, archival)
-- Hybrid human + AI workflow with automated diagnosis via unified-resolver agent
+- Hybrid human + AI workflow with automated diagnosis via agent-manager runs
 - File-native YAML storage pattern for version-controlled, portable, auditable issues
 - Multi-surface access across API, UI, and CLI
 
@@ -59,7 +59,7 @@
 
 **Storage**: 100% file-based YAML schema in data/issues/* directories (active, completed, failed)
 
-**AI Integration**: Codex API integration for automated investigation, transcript caching under tmp/codex
+**AI Integration**: Agent-manager execution for automated investigation with centralized run events
 
 **Search**: Optional Qdrant for semantic search, graceful degradation to keyword mode when unavailable
 
@@ -74,7 +74,7 @@
 ## 🤝 Dependencies & Launch Plan
 
 **Required Resources**:
-- resource-claude-code: CLI for agent infrastructure and settings reloading
+- agent-manager: centralized agent orchestration and run lifecycle
 - Git: Version control integration for PR automation
 
 **Optional Resources**:
@@ -126,13 +126,13 @@
 ### Validation Criteria
 - API GET /health returns 200 with storage field populated
 - app-issue-tracker create followed by list shows new issue in YAML store
-- Automated investigation writes transcript + artifacts and transitions issue to completed
+- Automated investigation stores run events + artifacts and transitions issue to completed
 - scenario-auditor scan reports zero high severity lifecycle violations
 
 ### CLI Interface Contract
 - `app-issue-tracker create --title <text> --priority <level>` → scaffolds YAML issue
 - `app-issue-tracker list [--status open|active|completed|failed]` → renders tabular view
-- `app-issue-tracker investigate --issue <id> [--agent unified-resolver] [--auto-resolve]` → dispatches investigation
+- `app-issue-tracker investigate --issue <id> [--agent unified-resolver] [--auto-resolve]` → dispatches investigation via agent-manager
 - `app-issue-tracker export --format json|csv|markdown` → streams formatted report
 - `./issues/manage.sh <action>` → maintenance utilities (archive, search, reindex)
 
@@ -141,7 +141,7 @@
 - Qdrant: Semantic search when QDRANT_URL resolves, keyword fallback otherwise
 - Redis: Toggled via lifecycle resources, absence must not break base workflows
 - Scenario Auditor: /health endpoints for cross-scenario monitoring
-- Agent Infrastructure: Depends on resource-claude-code CLI, settings reloadable via /api/v1/agent/settings
+- Agent Infrastructure: Depends on agent-manager, settings reloadable via /api/v1/agent/settings
 
 ### Scenario Lifecycle Integration
 - `make start` → orchestrates API + UI via lifecycle, exports URLs to console

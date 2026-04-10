@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -34,6 +35,55 @@ func (s *Server) handleDeploymentProgress(w http.ResponseWriter, r *http.Request
 			Message: "Deployment not found",
 		})
 		return
+	}
+
+	// If run_id is specified, wait for it to match the current deployment's run_id.
+	// This prevents returning stale "completed" state from a previous run when a new
+	// deployment has just been started but the DB hasn't been updated yet.
+	expectedRunID := r.URL.Query().Get("run_id")
+	currentRunID := ""
+	if dep.RunID != nil {
+		currentRunID = *dep.RunID
+	}
+	if expectedRunID != "" && currentRunID != expectedRunID {
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+
+		matched := false
+		for !matched {
+			select {
+			case <-ctx.Done():
+				httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{
+					Code:    "run_not_started",
+					Message: "Deployment run has not started yet",
+					Hint:    fmt.Sprintf("Expected run_id %s but found %s", expectedRunID, currentRunID),
+				})
+				return
+			case <-ticker.C:
+				dep, err = s.repo.GetDeployment(r.Context(), id)
+				if err != nil {
+					httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
+						Code:    "get_failed",
+						Message: "Failed to get deployment while waiting for run",
+						Hint:    err.Error(),
+					})
+					return
+				}
+				if dep == nil {
+					httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
+						Code:    "not_found",
+						Message: "Deployment not found",
+					})
+					return
+				}
+				if dep.RunID != nil && *dep.RunID == expectedRunID {
+					matched = true
+				}
+			}
+		}
 	}
 
 	// Set SSE headers

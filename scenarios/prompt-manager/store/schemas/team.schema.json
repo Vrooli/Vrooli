@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.com/schemas/prompt-manager/team.schema.json",
+  "title": "Team",
+  "description": "A group with shared intent and org structure",
+  "type": "object",
+  "required": [
+    "kind",
+    "schemaVersion",
+    "id",
+    "displayName",
+    "runtime",
+    "coordination",
+    "execution",
+    "decisionMode",
+    "revision",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "kind": {
+      "type": "string",
+      "const": "team",
+      "description": "Entity type discriminator"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Schema version for forward compatibility"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "description": "Unique identifier in kebab-case"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Human-readable display name"
+    },
+    "mission": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Team's purpose statement"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the team is enabled for scheduled heartbeats"
+    },
+    "runtime": {
+      "type": "object",
+      "description": "Runtime topology for team execution.",
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["multi-process", "single-process"],
+          "description": "Whether members run independently or under one in-session leader session."
+        }
+      },
+      "additionalProperties": false
+    },
+    "coordination": {
+      "type": "object",
+      "description": "Explicit coordination policy for the team.",
+      "required": ["pattern", "reportingMode", "messagingMode", "capabilities"],
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "enum": ["independent", "peer", "leader-led"]
+        },
+        "leadAgentId": {
+          "type": "string",
+          "description": "Required when pattern is leader-led."
+        },
+        "reportingMode": {
+          "type": "string",
+          "enum": ["none", "leader", "org-chart"]
+        },
+        "messagingMode": {
+          "type": "string",
+          "enum": ["disabled", "async-inbox", "in-session"]
+        },
+        "capabilities": {
+          "type": "object",
+          "required": [
+            "showOrgContext",
+            "injectInbox",
+            "allowPeerTriggers",
+            "showTaskBoardGuidance",
+            "showDecisionLogGuidance",
+            "showKnowledgeLogGuidance",
+            "requireHandoff"
+          ],
+          "properties": {
+            "showOrgContext": { "type": "boolean" },
+            "injectInbox": { "type": "boolean" },
+            "allowPeerTriggers": { "type": "boolean" },
+            "showTaskBoardGuidance": { "type": "boolean" },
+            "showDecisionLogGuidance": { "type": "boolean" },
+            "showKnowledgeLogGuidance": { "type": "boolean" },
+            "requireHandoff": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "execution": {
+      "type": "object",
+      "description": "Execution queue policy for team heartbeats.",
+      "required": ["queuePolicy", "maxConcurrentRuns"],
+      "properties": {
+        "queuePolicy": {
+          "type": "string",
+          "enum": ["serialized", "bounded-parallel"]
+        },
+        "maxConcurrentRuns": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "decisionMode": {
+      "type": "string",
+      "enum": ["yolo", "approval"],
+      "description": "Decision approval mode: yolo (agents can self-approve) or approval (requires human review)"
+    },
+    "shared": {
+      "type": "object",
+      "description": "Team shared documents configuration",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Relative path to shared docs folder"
+        },
+        "mountHint": {
+          "type": "string",
+          "enum": ["readOnly", "readWrite"],
+          "default": "readOnly",
+          "description": "Access mode hint for runtime"
+        }
+      },
+      "additionalProperties": false
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Revision number for optimistic concurrency"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 creation timestamp"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 last update timestamp"
+    }
+  },
+  "additionalProperties": false
+}

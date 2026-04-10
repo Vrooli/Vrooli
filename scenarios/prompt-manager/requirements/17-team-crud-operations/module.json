@@ -1,0 +1,77 @@
+{
+  "description": "Full CRUD operations for team entities including roles, members, and org chart.",
+  "module_id": "MOD-P0-017",
+  "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": ["REQ-P0-006"],
+      "description": "Implement REST API endpoints for creating, reading, updating and deleting teams with JSON payload support",
+      "id": "REQ-P0-018",
+      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
+      "status": "complete",
+      "title": "REST API for Team CRUD",
+      "validation": [
+        {
+          "notes": "All team CRUD endpoints return correct HTTP status codes",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Team stored in file-based store (store/teams/)",
+          "phase": "integration",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": ["REQ-P0-018"],
+      "description": "Team roles management with role definitions",
+      "id": "REQ-P0-019",
+      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
+      "status": "complete",
+      "title": "Team Roles Management",
+      "validation": [
+        {
+          "notes": "Roles can be defined and stored on the team",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Roles are persisted and returned with team data",
+          "phase": "integration",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": ["REQ-P0-018"],
+      "description": "Organizational chart with manager-report relationships",
+      "id": "REQ-P0-020",
+      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
+      "status": "complete",
+      "title": "Team Org Chart",
+      "validation": [
+        {
+          "notes": "Org chart edges stored and retrieved correctly",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Team CRUD with roles, members, org chart"
+}

@@ -2131,3 +2131,135 @@ func TestValidateResolvedMultipleIssues(t *testing.T) {
 	// NOTE: @selector/ is intentionally NOT checked - it's resolved at compile time by BAS compiler
 	assertIssue(t, res.Errors, "WF_UNRESOLVED_SEED")
 }
+
+// ============================================================================
+// Execution Mode Tests
+// ============================================================================
+
+func TestValidatorExecutionModeValid(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	for _, mode := range []string{"observer", "mutating", "destructive"} {
+		t.Run(mode, func(t *testing.T) {
+			workflow := map[string]any{
+				"metadata": map[string]any{
+					"description":    "test execution mode",
+					"execution_mode": mode,
+				},
+				"nodes": []any{
+					map[string]any{
+						"id":   "nav",
+						"type": "navigate",
+						"data": map[string]any{
+							"destinationType": "url",
+							"url":             "https://example.com",
+							"label":           "Go to site",
+						},
+					},
+				},
+				"edges": []any{},
+			}
+
+			res, err := v.Validate(context.Background(), workflow, Options{})
+			if err != nil {
+				t.Fatalf("validation returned error: %v", err)
+			}
+
+			if !res.Stats.HasExecutionMode {
+				t.Error("expected HasExecutionMode to be true")
+			}
+			if res.Stats.ExecutionMode != mode {
+				t.Errorf("expected ExecutionMode %q, got %q", mode, res.Stats.ExecutionMode)
+			}
+
+			// Should have no WF_EXECUTION_MODE_MISSING warning
+			for _, w := range res.Warnings {
+				if w.Code == "WF_EXECUTION_MODE_MISSING" {
+					t.Error("unexpected WF_EXECUTION_MODE_MISSING warning when execution_mode is set")
+				}
+			}
+			// Should have no WF_EXECUTION_MODE_INVALID error
+			for _, e := range res.Errors {
+				if e.Code == "WF_EXECUTION_MODE_INVALID" {
+					t.Error("unexpected WF_EXECUTION_MODE_INVALID error for valid mode")
+				}
+			}
+		})
+	}
+}
+
+func TestValidatorExecutionModeMissing(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"metadata": map[string]any{
+			"description": "no execution mode",
+		},
+		"nodes": []any{
+			map[string]any{
+				"id":   "nav",
+				"type": "navigate",
+				"data": map[string]any{
+					"destinationType": "url",
+					"url":             "https://example.com",
+					"label":           "Go to site",
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+
+	if res.Stats.HasExecutionMode {
+		t.Error("expected HasExecutionMode to be false")
+	}
+
+	assertIssue(t, res.Warnings, "WF_EXECUTION_MODE_MISSING")
+}
+
+func TestValidatorExecutionModeInvalid(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"metadata": map[string]any{
+			"description":    "bad execution mode",
+			"execution_mode": "yolo",
+		},
+		"nodes": []any{
+			map[string]any{
+				"id":   "nav",
+				"type": "navigate",
+				"data": map[string]any{
+					"destinationType": "url",
+					"url":             "https://example.com",
+					"label":           "Go to site",
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+
+	if res.Stats.HasExecutionMode {
+		t.Error("expected HasExecutionMode to be false for invalid mode")
+	}
+
+	assertIssue(t, res.Errors, "WF_EXECUTION_MODE_INVALID")
+}

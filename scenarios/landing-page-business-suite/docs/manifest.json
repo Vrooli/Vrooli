@@ -1,0 +1,218 @@
+{
+  "version": "1.0.0",
+  "title": "Landing Page Business Suite Documentation",
+  "description": "Complete documentation for SaaS landing pages with A/B testing, analytics, and Stripe payments",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Get your first landing page running in 5 minutes",
+          "audience": ["users", "developers"]
+        },
+        {
+          "path": "FAQ.md",
+          "title": "FAQ",
+          "description": "Frequently asked questions",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "book-open",
+      "documents": [
+        {
+          "path": "guides/ADMIN_GUIDE.md",
+          "title": "Admin Guide",
+          "description": "How to use the admin portal to manage content and A/B tests",
+          "audience": ["users", "marketers"]
+        },
+        {
+          "path": "guides/CONTENT_GUIDE.md",
+          "title": "Content Guide",
+          "description": "How to write effective landing page copy that converts",
+          "audience": ["users", "marketers"]
+        },
+        {
+          "path": "guides/CONFIGURATION_GUIDE.md",
+          "title": "Configuration Guide",
+          "description": "All .vrooli/ config files explained",
+          "audience": ["developers"]
+        },
+        {
+          "path": "guides/DEPLOYMENT.md",
+          "title": "Deployment Guide",
+          "description": "How to deploy your landing page to production",
+          "audience": ["developers", "operators"]
+        },
+        {
+          "path": "guides/TROUBLESHOOTING.md",
+          "title": "Troubleshooting",
+          "description": "Solutions for common issues",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "documents": [
+        {
+          "path": "concepts/CONCEPTS.md",
+          "title": "Core Concepts",
+          "description": "Understanding A/B testing, sections, payments, and data flow",
+          "audience": ["users", "developers"]
+        },
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "System design, components, and deployment topology",
+          "audience": ["developers"]
+        },
+        {
+          "path": "concepts/DESIGN_SYSTEM.md",
+          "title": "Design System",
+          "description": "Visual design tokens and styling guidelines",
+          "audience": ["developers", "designers"]
+        },
+        {
+          "path": "concepts/GLOSSARY.md",
+          "title": "Glossary",
+          "description": "Domain vocabulary and terminology",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "reference/api/README.md",
+          "title": "API Overview",
+          "description": "REST API introduction and common patterns",
+          "audience": ["developers"]
+        },
+        {
+          "path": "reference/api/landing.md",
+          "title": "Landing Endpoints",
+          "description": "Public page configuration APIs",
+          "audience": ["developers"]
+        },
+        {
+          "path": "reference/api/variants.md",
+          "title": "Variant Endpoints",
+          "description": "A/B testing management APIs",
+          "audience": ["developers"]
+        },
+        {
+          "path": "reference/api/sections.md",
+          "title": "Section Endpoints",
+          "description": "Content section CRUD APIs",
+          "audience": ["developers"]
+        },
+        {
+          "path": "reference/api/metrics.md",
+          "title": "Metrics Endpoints",
+          "description": "Analytics and event tracking APIs",
+          "audience": ["developers"]
+        },
+        {
+          "path": "reference/api/payments.md",
+          "title": "Payment Endpoints",
+          "description": "Stripe integration APIs",
+          "audience": ["developers"]
+        },
+        {
+          "path": "reference/api/admin.md",
+          "title": "Admin Endpoints",
+          "description": "Admin portal management APIs",
+          "audience": ["developers"]
+        },
+        {
+          "path": "reference/SECURITY.md",
+          "title": "Security",
+          "description": "Authentication, sessions, CORS, and production security",
+          "audience": ["developers", "operators"]
+        },
+        {
+          "path": "reference/STRIPE_WEBHOOKS.md",
+          "title": "Stripe Webhooks",
+          "description": "Configure webhook endpoint and signing secret",
+          "audience": ["developers", "operators"]
+        },
+        {
+          "path": "reference/STRIPE_RESTRICTED_KEYS.md",
+          "title": "Stripe Restricted Keys",
+          "description": "Use restricted Stripe keys safely",
+          "audience": ["developers", "operators"]
+        },
+        {
+          "path": "reference/AI_GATEWAY.md",
+          "title": "AI Gateway",
+          "description": "AI gateway integration documentation",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Seams & Testability",
+          "description": "Testability boundaries and code organization",
+          "internal": true
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Known Issues",
+          "description": "Known problems and limitations",
+          "internal": true
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "title": "Progress",
+          "description": "Implementation progress tracking",
+          "internal": true
+        }
+      ]
+    },
+    {
+      "id": "plans",
+      "title": "Plans",
+      "icon": "map",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "plans/IMPLEMENTATION_PLAN.md",
+          "title": "Implementation Plan",
+          "description": "Feature implementation roadmap",
+          "internal": true
+        },
+        {
+          "path": "plans/EXPERIENCE_AUDIT.md",
+          "title": "Experience Audit",
+          "description": "UX/experience audit documentation",
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "guides", "concepts", "reference"],
+    "secondary": ["internal", "plans"]
+  }
+}

@@ -1,8 +1,6 @@
 package queue
 
 import (
-	"os"
-	"os/exec"
 	"testing"
 	"time"
 
@@ -10,14 +8,12 @@ import (
 )
 
 func TestReserveExecutionCreatesEntry(t *testing.T) {
-	qp := &Processor{executions: make(map[string]*taskExecution)}
+	qp := &Processor{registry: NewExecutionRegistry()}
 
 	startedAt := time.Unix(1_700_000_000, 0)
 	qp.reserveExecution("task-1", "ecosystem-task-1", startedAt)
 
-	qp.executionsMu.RLock()
-	execState, ok := qp.executions["task-1"]
-	qp.executionsMu.RUnlock()
+	execState, ok := qp.registry.GetExecution("task-1")
 
 	if !ok {
 		t.Fatalf("expected reservation to exist")
@@ -28,34 +24,24 @@ func TestReserveExecutionCreatesEntry(t *testing.T) {
 	if !execState.started.Equal(startedAt) {
 		t.Fatalf("expected start time %s, got %s", startedAt, execState.started)
 	}
-	if execState.cmd != nil {
-		t.Fatalf("expected cmd to be nil before registration")
-	}
 }
 
-func TestRegisterExecutionUpgradesReservation(t *testing.T) {
-	qp := &Processor{executions: make(map[string]*taskExecution)}
+func TestRegisterRunIDUpgradesReservation(t *testing.T) {
+	qp := &Processor{registry: NewExecutionRegistry()}
 
 	startedAt := time.Unix(1_700_000_000, 0)
 	qp.reserveExecution("task-2", "ecosystem-task-2", startedAt)
 
-	cmd := &exec.Cmd{}
-	cmd.Process = &os.Process{Pid: 4242}
+	// Modern approach: register runID instead of cmd
+	qp.registry.RegisterRunID("task-2", "run-12345")
 
-	qp.registerExecution("task-2", "ecosystem-task-2", cmd, startedAt.Add(5*time.Minute))
-
-	qp.executionsMu.RLock()
-	execState, ok := qp.executions["task-2"]
-	qp.executionsMu.RUnlock()
+	execState, ok := qp.registry.GetExecution("task-2")
 
 	if !ok {
 		t.Fatalf("expected execution to exist")
 	}
-	if execState.cmd != cmd {
-		t.Fatalf("expected cmd pointer to be stored")
-	}
-	if execState.pid() != 4242 {
-		t.Fatalf("expected pid 4242, got %d", execState.pid())
+	if execState.runID != "run-12345" {
+		t.Fatalf("expected runID 'run-12345', got %s", execState.runID)
 	}
 	if !execState.started.Equal(startedAt) {
 		t.Fatalf("expected original start time to be preserved")
@@ -63,14 +49,12 @@ func TestRegisterExecutionUpgradesReservation(t *testing.T) {
 }
 
 func TestUnregisterExecutionRemovesEntry(t *testing.T) {
-	qp := &Processor{executions: make(map[string]*taskExecution)}
+	qp := &Processor{registry: NewExecutionRegistry()}
 	qp.reserveExecution("task-3", "ecosystem-task-3", time.Now())
 
 	qp.unregisterExecution("task-3")
 
-	qp.executionsMu.RLock()
-	_, ok := qp.executions["task-3"]
-	qp.executionsMu.RUnlock()
+	_, ok := qp.registry.GetExecution("task-3")
 
 	if ok {
 		t.Fatalf("expected execution to be removed")

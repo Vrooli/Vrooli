@@ -37,10 +37,10 @@ func (r *SQLRepository) List(ctx context.Context) ([]Profile, error) {
 			continue
 		}
 
-		json.Unmarshal(tiersJSON, &p.Tiers)
-		json.Unmarshal(swapsJSON, &p.Swaps)
-		json.Unmarshal(secretsJSON, &p.Secrets)
-		json.Unmarshal(settingsJSON, &p.Settings)
+		_ = json.Unmarshal(tiersJSON, &p.Tiers)
+		_ = json.Unmarshal(swapsJSON, &p.Swaps)
+		_ = json.Unmarshal(secretsJSON, &p.Secrets)
+		_ = json.Unmarshal(settingsJSON, &p.Settings)
 
 		profiles = append(profiles, p)
 	}
@@ -66,10 +66,10 @@ func (r *SQLRepository) Get(ctx context.Context, idOrName string) (*Profile, err
 		return nil, err
 	}
 
-	json.Unmarshal(tiersJSON, &p.Tiers)
-	json.Unmarshal(swapsJSON, &p.Swaps)
-	json.Unmarshal(secretsJSON, &p.Secrets)
-	json.Unmarshal(settingsJSON, &p.Settings)
+	_ = json.Unmarshal(tiersJSON, &p.Tiers)
+	_ = json.Unmarshal(swapsJSON, &p.Swaps)
+	_ = json.Unmarshal(secretsJSON, &p.Secrets)
+	_ = json.Unmarshal(settingsJSON, &p.Settings)
 
 	return &p, nil
 }
@@ -85,18 +85,15 @@ func (r *SQLRepository) Create(ctx context.Context, profile *Profile) (string, e
 		INSERT INTO profiles (id, name, scenario, tiers, swaps, secrets, settings, version, created_by, updated_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, 1, 'system', 'system')
 	`, profile.ID, profile.Name, profile.Scenario, tiersJSON, swapsJSON, secretsJSON, settingsJSON)
-
 	if err != nil {
 		return "", err
 	}
 
-	// Create initial version history entry
-	_, err = r.db.ExecContext(ctx, `
+	// Create initial version history entry (non-fatal)
+	_, _ = r.db.ExecContext(ctx, `
 		INSERT INTO profile_versions (profile_id, version, name, scenario, tiers, swaps, secrets, settings, created_by, change_description)
 		VALUES ($1, 1, $2, $3, $4, $5, $6, $7, 'system', 'Initial profile creation')
 	`, profile.ID, profile.Name, profile.Scenario, tiersJSON, swapsJSON, secretsJSON, settingsJSON)
-
-	// Don't fail if version history insert fails
 	return profile.ID, nil
 }
 
@@ -136,7 +133,6 @@ func (r *SQLRepository) Update(ctx context.Context, idOrName string, updates map
 		SET tiers = $1, swaps = $2, secrets = $3, settings = $4, version = $5, updated_at = NOW(), updated_by = 'system'
 		WHERE id = $6
 	`, tiersJSON, swapsJSON, secretsJSON, settingsJSON, newVersion, current.ID)
-
 	if err != nil {
 		return nil, err
 	}
@@ -194,10 +190,10 @@ func (r *SQLRepository) GetVersions(ctx context.Context, idOrName string) ([]Ver
 			continue
 		}
 
-		json.Unmarshal(tiersJSON, &v.Tiers)
-		json.Unmarshal(swapsJSON, &v.Swaps)
-		json.Unmarshal(secretsJSON, &v.Secrets)
-		json.Unmarshal(settingsJSON, &v.Settings)
+		_ = json.Unmarshal(tiersJSON, &v.Tiers)
+		_ = json.Unmarshal(swapsJSON, &v.Swaps)
+		_ = json.Unmarshal(secretsJSON, &v.Secrets)
+		_ = json.Unmarshal(settingsJSON, &v.Settings)
 
 		versions = append(versions, v)
 	}

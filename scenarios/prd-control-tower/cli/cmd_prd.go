@@ -116,6 +116,7 @@ func (a *App) prdGenerate(args []string) error {
 	contextFile := fs.String("context-file", "", "Path to a file containing context for AI generation")
 	model := fs.String("model", "", "Override OpenRouter model (e.g. openrouter/x-ai/grok-code-fast-1)")
 	owner := fs.String("owner", "", "Owner metadata for the created/updated draft")
+	customPath := fs.String("path", "", "Custom directory for PRD/requirements I/O (overrides default scenario/resource path)")
 
 	templateName := fs.String("template", "", "If set, publish the generated PRD into a scenario created from this template")
 	publish := fs.Bool("publish", false, "Publish the generated PRD to PRD.md for an existing scenario/resource")
@@ -169,6 +170,7 @@ func (a *App) prdGenerate(args []string) error {
 		Context:    finalContext,
 		Action:     "",
 		Model:      strings.TrimSpace(*model),
+		CustomPath: strings.TrimSpace(*customPath),
 	}
 	req.SaveGeneratedToDraft = &save
 
@@ -192,6 +194,7 @@ func (a *App) prdGenerate(args []string) error {
 		pubReq := PublishRequest{
 			CreateBackup: true,
 			DeleteDraft:  true,
+			CustomPath:   strings.TrimSpace(*customPath),
 			Template: &PublishTemplateRequest{
 				Name: strings.TrimSpace(*templateName),
 				Variables: map[string]string{
@@ -224,6 +227,7 @@ func (a *App) prdGenerate(args []string) error {
 			CreateBackup: !*noBackup,
 			DeleteDraft:  true,
 			Template:     nil,
+			CustomPath:   strings.TrimSpace(*customPath),
 		}
 		_, pubResp, err := a.services.Drafts.Publish(genResp.DraftID, pubReq)
 		if err != nil {
@@ -273,6 +277,7 @@ func (a *App) prdValidate(args []string) error {
 	jsonOutput := cliutil.JSONFlag(fs)
 	entityType := fs.String("type", "", "Entity type: scenario or resource (default: auto-detect)")
 	noCache := fs.Bool("no-cache", false, "Bypass validation cache")
+	customPath := fs.String("path", "", "Custom directory for PRD/requirements I/O (overrides default scenario/resource path)")
 
 	remaining, err := parseArgs(fs, args)
 	if err != nil {
@@ -296,7 +301,7 @@ func (a *App) prdValidate(args []string) error {
 	}
 
 	// Call the quality standards API which provides detailed violations
-	body, err := a.services.PRD.ValidateStandards(resolvedType, name, !*noCache)
+	body, err := a.services.PRD.ValidateStandards(resolvedType, name, !*noCache, strings.TrimSpace(*customPath))
 	if err != nil {
 		return err
 	}
@@ -387,6 +392,7 @@ func (a *App) prdFix(args []string) error {
 	model := fs.String("model", "", "Override OpenRouter model")
 	auto := fs.Bool("auto", false, "Automatically apply fixes without confirmation")
 	noBackup := fs.Bool("no-backup", false, "Do not create a backup before fixing")
+	customPath := fs.String("path", "", "Custom directory for PRD/requirements I/O (overrides default scenario/resource path)")
 
 	remaining, err := parseArgs(fs, args)
 	if err != nil {
@@ -410,7 +416,7 @@ func (a *App) prdFix(args []string) error {
 	}
 
 	// Step 1: Get current violations
-	validationBody, err := a.services.PRD.ValidateStandards(resolvedType, name, false)
+	validationBody, err := a.services.PRD.ValidateStandards(resolvedType, name, false, strings.TrimSpace(*customPath))
 	if err != nil {
 		return fmt.Errorf("validation failed: %w", err)
 	}
@@ -461,7 +467,7 @@ func (a *App) prdFix(args []string) error {
 		fmt.Println()
 		fmt.Print("Proceed with AI fix? [y/N]: ")
 		var response string
-		fmt.Scanln(&response)
+		_, _ = fmt.Scanln(&response)
 		if strings.ToLower(strings.TrimSpace(response)) != "y" {
 			fmt.Println("Aborted")
 			return nil
@@ -476,6 +482,7 @@ func (a *App) prdFix(args []string) error {
 		Section:              "🎯 Full PRD",
 		Context:              fixContext.String(),
 		Model:                strings.TrimSpace(*model),
+		CustomPath:           strings.TrimSpace(*customPath),
 		SaveGeneratedToDraft: &save,
 	}
 	// Include existing content so AI can fix it
@@ -494,6 +501,7 @@ func (a *App) prdFix(args []string) error {
 	pubReq := PublishRequest{
 		CreateBackup: !*noBackup,
 		DeleteDraft:  true,
+		CustomPath:   strings.TrimSpace(*customPath),
 	}
 	_, pubResp, err := a.services.Drafts.Publish(genResp.DraftID, pubReq)
 	if err != nil {

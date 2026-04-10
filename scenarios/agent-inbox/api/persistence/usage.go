@@ -18,10 +18,11 @@ func (r *Repository) SaveUsageRecord(ctx context.Context, record *domain.UsageRe
 		messageID = record.MessageID
 	}
 
+	id := newID()
 	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO usage_records (chat_id, message_id, model, prompt_tokens, completion_tokens, total_tokens, prompt_cost, completion_cost, total_cost)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-	`, record.ChatID, messageID, record.Model, record.PromptTokens, record.CompletionTokens, record.TotalTokens,
+		INSERT INTO usage_records (id, chat_id, message_id, model, prompt_tokens, completion_tokens, total_tokens, prompt_cost, completion_cost, total_cost)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	`, id, record.ChatID, messageID, record.Model, record.PromptTokens, record.CompletionTokens, record.TotalTokens,
 		record.PromptCost, record.CompletionCost, record.TotalCost)
 	if err != nil {
 		return fmt.Errorf("failed to save usage record: %w", err)
@@ -58,7 +59,6 @@ func (r *Repository) GetUsageStats(ctx context.Context, startDate, endDate *time
 	if endDate != nil {
 		query += fmt.Sprintf(" AND created_at < $%d", argNum)
 		args = append(args, *endDate)
-		argNum++
 	}
 
 	// Get totals
@@ -95,7 +95,6 @@ func (r *Repository) GetUsageStats(ctx context.Context, startDate, endDate *time
 	if endDate != nil {
 		modelQuery += fmt.Sprintf(" AND created_at < $%d", argNum)
 		args = append(args, *endDate)
-		argNum++
 	}
 	modelQuery += " GROUP BY model ORDER BY total_cost DESC"
 
@@ -116,7 +115,7 @@ func (r *Repository) GetUsageStats(ctx context.Context, startDate, endDate *time
 	// Get by-day breakdown
 	dayQuery := `
 		SELECT
-			DATE(created_at) as date,
+			date(created_at) as date,
 			COALESCE(SUM(prompt_tokens), 0) as prompt_tokens,
 			COALESCE(SUM(completion_tokens), 0) as completion_tokens,
 			COALESCE(SUM(total_tokens), 0) as total_tokens,
@@ -136,9 +135,8 @@ func (r *Repository) GetUsageStats(ctx context.Context, startDate, endDate *time
 	if endDate != nil {
 		dayQuery += fmt.Sprintf(" AND created_at < $%d", argNum)
 		args = append(args, *endDate)
-		argNum++
 	}
-	dayQuery += " GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 30"
+	dayQuery += " GROUP BY date(created_at) ORDER BY date DESC LIMIT 30"
 
 	rows, err = r.db.QueryContext(ctx, dayQuery, args...)
 	if err != nil {
@@ -148,11 +146,11 @@ func (r *Repository) GetUsageStats(ctx context.Context, startDate, endDate *time
 
 	for rows.Next() {
 		var du domain.DailyUsage
-		var date time.Time
+		var date string
 		if err := rows.Scan(&date, &du.PromptTokens, &du.CompletionTokens, &du.TotalTokens, &du.TotalCost, &du.RequestCount); err != nil {
 			continue
 		}
-		du.Date = date.Format("2006-01-02")
+		du.Date = date
 		stats.ByDay[du.Date] = &du
 	}
 
@@ -253,7 +251,7 @@ func (r *Repository) GetUsageRecords(ctx context.Context, chatID string, limit, 
 		var rec domain.UsageRecord
 		var messageID sql.NullString
 		if err := rows.Scan(&rec.ID, &rec.ChatID, &messageID, &rec.Model, &rec.PromptTokens, &rec.CompletionTokens,
-			&rec.TotalTokens, &rec.PromptCost, &rec.CompletionCost, &rec.TotalCost, &rec.CreatedAt); err != nil {
+			&rec.TotalTokens, &rec.PromptCost, &rec.CompletionCost, &rec.TotalCost, scanTime(&rec.CreatedAt)); err != nil {
 			continue
 		}
 		if messageID.Valid {

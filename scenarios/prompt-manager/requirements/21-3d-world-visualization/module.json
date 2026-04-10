@@ -1,0 +1,77 @@
+{
+  "description": "Interactive 3D world visualization for agent coordination using React Three Fiber.",
+  "module_id": "MOD-P2-021",
+  "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": ["REQ-P0-016"],
+      "description": "React Three Fiber based 3D world for agent visualization",
+      "id": "REQ-P2-027",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "status": "complete",
+      "title": "3D World Canvas",
+      "validation": [
+        {
+          "notes": "WorldCanvas component renders 3D scene",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Renders at 60fps on mid-tier hardware",
+          "phase": "performance",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": ["REQ-P2-027"],
+      "description": "Geometric agent representation with appearance colors",
+      "id": "REQ-P2-028",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "status": "complete",
+      "title": "Geometric Agent Visualization",
+      "validation": [
+        {
+          "notes": "GeometricMember renders agent with body/head/accent colors",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Agent appearance from API reflects in 3D world",
+          "phase": "integration",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": ["REQ-P2-027"],
+      "description": "Zustand state management for 3D world state",
+      "id": "REQ-P2-029",
+      "prd_ref": "prompt-manager-nice-to-have-3d-world-visualization-for-agents",
+      "status": "complete",
+      "title": "3D World State Management",
+      "validation": [
+        {
+          "notes": "cameraStore, graphicsStore, environmentStore functional",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "3D world visualization for agents"
+}

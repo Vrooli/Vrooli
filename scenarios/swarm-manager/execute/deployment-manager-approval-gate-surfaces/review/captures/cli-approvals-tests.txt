@@ -1,0 +1,42 @@
+=== RUN   TestListRequiresProfileID
+--- PASS: TestListRequiresProfileID (0.00s)
+=== RUN   TestListSendsCommitQueryParam
+--- PASS: TestListSendsCommitQueryParam (0.00s)
+=== RUN   TestListTableOutput
+--- PASS: TestListTableOutput (0.00s)
+=== RUN   TestListJSONOutput
+--- PASS: TestListJSONOutput (0.00s)
+=== RUN   TestGetRequiresApprovalID
+--- PASS: TestGetRequiresApprovalID (0.00s)
+=== RUN   TestGetHumanOutput
+--- PASS: TestGetHumanOutput (0.00s)
+=== RUN   TestCreateRequiresFlags
+--- PASS: TestCreateRequiresFlags (0.00s)
+=== RUN   TestCreateSendsCorrectPayload
+--- PASS: TestCreateSendsCorrectPayload (0.00s)
+=== RUN   TestDecideRequiresFlags
+--- PASS: TestDecideRequiresFlags (0.00s)
+=== RUN   TestDecideSendsCorrectPayload
+--- PASS: TestDecideSendsCorrectPayload (0.00s)
+=== RUN   TestGateRequiresFlags
+--- PASS: TestGateRequiresFlags (0.00s)
+=== RUN   TestGateReadyOutput
+--- PASS: TestGateReadyOutput (0.00s)
+=== RUN   TestGateBlockedOutput
+--- PASS: TestGateBlockedOutput (0.00s)
+=== RUN   TestPlatformsSetRequiresFlags
+--- PASS: TestPlatformsSetRequiresFlags (0.00s)
+=== RUN   TestPlatformsSetParsesCSV
+--- PASS: TestPlatformsSetParsesCSV (0.00s)
+=== RUN   TestPlatformsGetRequiresProfileID
+--- PASS: TestPlatformsGetRequiresProfileID (0.00s)
+=== RUN   TestPlatformsGetOutput
+--- PASS: TestPlatformsGetOutput (0.00s)
+=== RUN   TestRunRequiresSubcommand
+--- PASS: TestRunRequiresSubcommand (0.00s)
+=== RUN   TestRunUnknownSubcommand
+--- PASS: TestRunUnknownSubcommand (0.00s)
+=== RUN   TestPlatformsUnknownSubcommand
+--- PASS: TestPlatformsUnknownSubcommand (0.00s)
+PASS
+ok  	deployment-manager/cli/approvals	0.006s

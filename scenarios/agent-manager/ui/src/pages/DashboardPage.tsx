@@ -6,11 +6,11 @@ import {
   AlertCircle,
   Bot,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Copy,
   Check,
   Loader2,
-  Play,
   RefreshCw,
   Server,
   Shield,
@@ -21,46 +21,36 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { ScrollArea } from "../components/ui/scroll-area";
-import { QuickRunDialog } from "../components/QuickRunDialog";
 import { probeRunner } from "../hooks/useApi";
-import { formatRelativeTime, jsonValueToPlain, runnerTypeFromSlug, runnerTypeLabel } from "../lib/utils";
-import type { AgentProfile, ModelRegistry, ProbeResult, Run, RunnerStatus, RunnerType, Task, TaskFormData, RunFormData, HealthResponse, JsonValue } from "../types";
+import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
+import { formatHyphenatedLabel } from "../lib/display";
+import { jsonValueToPlain, runnerTypeFromSlug, runnerTypeLabel } from "../lib/utils";
+import type { ProbeResult, Run, RunnerType, Task, HealthResponse, JsonValue } from "../types";
 import { RunStatus } from "../types";
 import { ProbeResultSchema } from "@vrooli/proto-types/agent-manager/v1/domain/run_pb";
+import { formatStandardRelativeTime } from "../lib/dateTime";
 
 interface DashboardPageProps {
   health: HealthResponse | null;
-  profiles: AgentProfile[];
   tasks: Task[];
   runs: Run[];
-  runners?: Record<string, RunnerStatus>;
-  modelRegistry?: ModelRegistry;
   onRefresh: () => void;
-  onCreateTask: (task: TaskFormData) => Promise<Task>;
-  onCreateRun: (run: RunFormData) => Promise<Run>;
-  onRunCreated?: (run: Run) => void;
-  onNavigateToRun?: (runId: string) => void;
+  onNavigateToRun?: (runId: string, tab?: string) => void;
 }
 
 export function DashboardPage({
   health,
-  profiles,
   tasks,
   runs,
-  runners,
-  modelRegistry,
   onRefresh,
-  onCreateTask,
-  onCreateRun,
-  onRunCreated,
   onNavigateToRun,
 }: DashboardPageProps) {
-  const [showQuickRun, setShowQuickRun] = useState(false);
   const activeRuns = runs.filter(
     (r) => r.status === RunStatus.RUNNING || r.status === RunStatus.STARTING
   );
   const pendingReview = runs.filter((r) => r.status === RunStatus.NEEDS_REVIEW);
   const recentRuns = [...runs]
+    .filter((r) => r.status !== RunStatus.NEEDS_REVIEW)
     .sort((a, b) => {
       const aTime = a.createdAt ? timestampMs(a.createdAt) : 0;
       const bTime = b.createdAt ? timestampMs(b.createdAt) : 0;
@@ -68,144 +58,185 @@ export function DashboardPage({
     })
     .slice(0, 5);
 
+  const healthPanel = useCollapsiblePanel({ storageKey: "dashboard.health" });
+
+  // Compute health summary
+  const dependencies = health?.dependencies ?? {};
+  const sandboxDep = parseDependency(dependencies["sandbox"]);
+  const runnerDeps = Object.entries(dependencies)
+    .filter(([name]) => name.startsWith("runner_"))
+    .map(([name, value]) => {
+      const runnerKey = name.replace("runner_", "");
+      return {
+        name: formatRunnerName(runnerKey),
+        status: parseDependency(value),
+        runnerType: runnerTypeFromSlug(runnerKey),
+      };
+    });
+  const allHealthy =
+    health !== null &&
+    sandboxDep?.status === "healthy" &&
+    runnerDeps.every((r) => r.status?.status === "healthy");
+  const unhealthyCount =
+    (sandboxDep && sandboxDep.status !== "healthy" ? 1 : 0) +
+    runnerDeps.filter((r) => r.status?.status !== "healthy").length;
+
   return (
-    <div className="h-full overflow-y-auto px-4 py-4 sm:px-6 lg:px-10 space-y-6">
-      {/* Header with refresh */}
+    <div className="h-full overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-6 lg:px-10 space-y-3 sm:space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Dashboard</h2>
-          <p className="text-sm text-muted-foreground">
-            Overview of agent orchestration system status
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onRefresh} className="gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </Button>
-          <Button size="sm" onClick={() => setShowQuickRun(true)} className="gap-2">
-            <Play className="h-4 w-4" />
-            Quick Run
-          </Button>
-        </div>
+        <h2 className="text-lg font-semibold">Dashboard</h2>
+        <Button variant="ghost" size="icon" onClick={onRefresh} title="Refresh">
+          <RefreshCw className="h-4 w-4" />
+        </Button>
       </div>
 
-      {/* Quick Run Dialog */}
-      <QuickRunDialog
-        open={showQuickRun}
-        onOpenChange={setShowQuickRun}
-        profiles={profiles}
-        runners={runners}
-        modelRegistry={modelRegistry}
-        onCreateTask={onCreateTask}
-        onCreateRun={onCreateRun}
-        onRunCreated={onRunCreated}
-      />
-
-      {/* Status Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatusCard
-          title="Active Runs"
+      {/* Compact Stats */}
+      <div className="grid grid-cols-3 gap-2">
+        <CompactStatCard
+          title="Active"
           value={activeRuns.length}
-          icon={<Activity className="h-5 w-5" />}
-          description="Currently executing"
+          icon={<Activity className="h-4 w-4" />}
           variant={activeRuns.length > 0 ? "primary" : "muted"}
         />
-        <StatusCard
-          title="Pending Review"
+        <CompactStatCard
+          title="Review"
           value={pendingReview.length}
-          icon={<Clock className="h-5 w-5" />}
-          description="Awaiting approval"
+          icon={<Clock className="h-4 w-4" />}
           variant={pendingReview.length > 0 ? "warning" : "muted"}
         />
-        <StatusCard
-          title="Agent Profiles"
-          value={profiles.length}
-          icon={<Bot className="h-5 w-5" />}
-          description="Configured agents"
-          variant="muted"
-        />
-        <StatusCard
-          title="Total Tasks"
+        <CompactStatCard
+          title="Tasks"
           value={tasks.length}
-          icon={<Server className="h-5 w-5" />}
-          description="All time"
+          icon={<Server className="h-4 w-4" />}
           variant="muted"
         />
       </div>
 
-      {/* System Health & Recent Activity */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* System Health */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              System Health
+      {/* Runs Awaiting Review — promoted to top */}
+      {pendingReview.length > 0 && (
+        <Card className="border-l-2 border-l-warning overflow-hidden">
+          <CardHeader className="px-4 py-3">
+            <CardTitle className="flex items-center gap-2 text-base text-warning">
+              <Clock className="h-4 w-4" />
+              Awaiting Review ({pendingReview.length})
             </CardTitle>
             <CardDescription>
-              Component status and availability
+              Completed runs needing approval before changes are applied
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            {(() => {
-              const dependencies = health?.dependencies ?? {};
-              const sandboxDep = parseDependency(dependencies["sandbox"]);
-              const runnerDeps = Object.entries(dependencies)
-                .filter(([name]) => name.startsWith("runner_"))
-                .map(([name, value]) => {
-                  const runnerKey = name.replace("runner_", "");
-                  return {
-                    name: formatRunnerName(runnerKey),
-                    status: parseDependency(value),
-                    runnerType: runnerTypeFromSlug(runnerKey),
-                  };
-                });
-
-              return (
-                <>
-                  <HealthItem
-                    name="Workspace Sandbox"
-                    available={sandboxDep?.status === "healthy"}
-                    message={sandboxDep?.error}
-                  />
-
-                  {runnerDeps.map((runner) => (
-                    <HealthItem
-                      key={runner.name}
-                      name={runner.name}
-                      available={runner.status?.status === "healthy"}
-                      message={runner.status?.error}
-                      runnerType={runner.runnerType}
-                    />
-                  ))}
-                </>
-              );
-            })()}
-
-            {!health && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <AlertCircle className="h-4 w-4" />
-                <span className="text-sm">Loading health status...</span>
-              </div>
-            )}
+            <div>
+              {pendingReview.map((run) => {
+                const task = tasks.find((t) => t.id === run.taskId);
+                return (
+                  <div
+                    key={run.id}
+                    className="flex items-center justify-between px-4 py-2.5 border-b border-border last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => onNavigateToRun?.(run.id, "diff")}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === "Enter" && onNavigateToRun?.(run.id, "diff")}
+                  >
+                    <div className="min-w-0 flex-1 mr-3">
+                      <p className="font-medium text-sm truncate">{task?.title || "Unknown Task"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {run.changedFiles} files changed | {formatStandardRelativeTime(run.endedAt)}
+                      </p>
+                    </div>
+                    <Badge variant="needs_review" className="flex-shrink-0">Needs Review</Badge>
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
+        </Card>
+      )}
+
+      {/* System Health & Recent Activity */}
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-2 min-w-0">
+        {/* System Health — collapsible */}
+        <Card className="overflow-hidden min-w-0">
+          <CardHeader
+            className="px-4 py-3 cursor-pointer select-none"
+            onClick={healthPanel.toggle}
+          >
+            <CardTitle className="flex items-center justify-between text-base">
+              <span className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                System Health
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                  healthPanel.isCollapsed ? "" : "rotate-180"
+                }`}
+              />
+            </CardTitle>
+          </CardHeader>
+
+          {/* Collapsed summary */}
+          {healthPanel.isCollapsed && health && (
+            <div className="px-4 pb-3">
+              {allHealthy ? (
+                <div className="flex items-center gap-2 text-sm text-success">
+                  <CheckCircle2 className="h-4 w-4" />
+                  All systems operational
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  {unhealthyCount} {unhealthyCount === 1 ? "issue" : "issues"} detected
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Expanded health items */}
+          <div
+            className={`overflow-hidden transition-all duration-200 ${
+              healthPanel.isCollapsed ? "max-h-0" : "max-h-[500px]"
+            }`}
+          >
+            <CardContent className="p-0">
+              <HealthItem
+                name="Workspace Sandbox"
+                available={sandboxDep?.status === "healthy"}
+                message={sandboxDep?.error}
+              />
+              {runnerDeps.map((runner) => (
+                <HealthItem
+                  key={runner.name}
+                  name={runner.name}
+                  available={runner.status?.status === "healthy"}
+                  message={runner.status?.error}
+                  runnerType={runner.runnerType}
+                />
+              ))}
+            </CardContent>
+          </div>
+
+          {!health && (
+            <div className="flex items-center gap-2 px-4 pb-3 text-muted-foreground">
+              <AlertCircle className="h-4 w-4" />
+              <span className="text-sm">Loading health status...</span>
+            </div>
+          )}
         </Card>
 
         {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
+        <Card className="overflow-hidden min-w-0">
+          <CardHeader className="px-4 py-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Activity className="h-4 w-4" />
               Recent Activity
             </CardTitle>
             <CardDescription>Latest run executions</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[280px]">
+            <ScrollArea className="h-[200px]">
               {recentRuns.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                  <Bot className="h-12 w-12 mb-2 opacity-50" />
+                  <Bot className="h-10 w-10 mb-2 opacity-50" />
                   <p className="text-sm">No runs yet</p>
                   <p className="text-xs">Create a task and start a run to see activity</p>
                 </div>
@@ -225,86 +256,40 @@ export function DashboardPage({
           </CardContent>
         </Card>
       </div>
-
-      {/* Pending Review Section */}
-      {pendingReview.length > 0 && (
-        <Card className="border-warning/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-warning">
-              <Clock className="h-5 w-5" />
-              Runs Awaiting Review ({pendingReview.length})
-            </CardTitle>
-            <CardDescription>
-              These runs have completed and need your approval before changes are applied
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div>
-              {pendingReview.map((run) => {
-                const task = tasks.find((t) => t.id === run.taskId);
-                return (
-                  <div
-                    key={run.id}
-                    className="flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => onNavigateToRun?.(run.id)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === "Enter" && onNavigateToRun?.(run.id)}
-                  >
-                    <div>
-                      <p className="font-medium">{task?.title || "Unknown Task"}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {run.changedFiles} files changed | {formatRelativeTime(run.endedAt)}
-                      </p>
-                    </div>
-                    <Badge variant="needs_review">Needs Review</Badge>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
 
-function StatusCard({
+function CompactStatCard({
   title,
   value,
   icon,
-  description,
   variant,
 }: {
   title: string;
   value: number;
   icon: React.ReactNode;
-  description: string;
   variant: "primary" | "warning" | "muted";
 }) {
-  const variantStyles = {
-    primary: "border-primary/50 bg-primary/5",
-    warning: "border-warning/50 bg-warning/5",
-    muted: "border-border",
-  };
+  const accentColor = {
+    primary: "border-l-primary",
+    warning: "border-l-warning",
+    muted: "border-l-border",
+  }[variant];
 
   return (
-    <Card className={variantStyles[variant]}>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-        <div className="text-muted-foreground">{icon}</div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-3xl font-bold">{value}</div>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </CardContent>
-    </Card>
+    <div
+      className={`flex items-center gap-2.5 rounded-md border border-border bg-card px-3 py-2 border-l-2 ${accentColor}`}
+    >
+      <div className="text-muted-foreground">{icon}</div>
+      <div className="min-w-0">
+        <p className="text-xl font-bold leading-none">{value}</p>
+        <p className="text-[11px] text-muted-foreground truncate">{title}</p>
+      </div>
+    </div>
   );
 }
 
-// Format runner name for display (e.g., "claude-code" -> "Claude Code")
 function parseDependency(value?: JsonValue): { status: string; error?: string } | null {
   const parsed = jsonValueToPlain(value) as Record<string, unknown> | undefined;
   if (!parsed) return null;
@@ -318,10 +303,7 @@ function formatRunnerName(name: string): string {
   if (runnerType !== undefined) {
     return runnerTypeLabel(runnerType);
   }
-  return name
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  return formatHyphenatedLabel(name);
 }
 
 function runStatusLabel(status: RunStatus): string {
@@ -382,7 +364,6 @@ function HealthItem({
 
   const handleCopyProbeResult = async () => {
     if (!probeResult) return;
-    // Build a comprehensive copy string with all probe info
     const copyText = [
       `Runner: ${runnerType ? runnerTypeLabel(runnerType) : "Unknown"}`,
       `Status: ${probeResult.success ? "Success" : "Failed"}`,
@@ -426,16 +407,16 @@ function HealthItem({
   };
 
   return (
-    <div className="flex flex-col gap-2 px-4 py-3 border-b border-border last:border-b-0">
+    <div className="flex flex-col gap-2 px-4 py-2.5 border-b border-border last:border-b-0">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           {available ? (
-            <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0" />
+            <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
           ) : (
-            <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+            <XCircle className="h-4 w-4 text-destructive flex-shrink-0" />
           )}
           <div className="min-w-0 flex-1">
-            <p className="font-medium">{name}</p>
+            <p className="font-medium text-sm">{name}</p>
             {message && (
               <div className="flex items-center gap-2">
                 <p className="text-xs text-muted-foreground max-w-md truncate" title={message}>
@@ -543,22 +524,23 @@ function RunActivityItem({
 
   return (
     <div
-      className="flex items-center justify-between px-4 py-3 border-b border-border last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors"
+      className="flex items-center justify-between px-4 py-2.5 border-b border-border last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors"
       onClick={onClick}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onClick?.()}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
         <RunStatusIcon status={run.status} />
-        <div>
-          <p className="font-medium text-sm">{task?.title || "Unknown Task"}</p>
+        <div className="min-w-0">
+          <p className="font-medium text-sm truncate">{task?.title || "Unknown Task"}</p>
           <p className="text-xs text-muted-foreground">
-            {formatRelativeTime(run.createdAt)}
+            {formatStandardRelativeTime(run.createdAt)}
           </p>
         </div>
       </div>
       <Badge
+        className="flex-shrink-0"
         variant={
           runStatusLabel(run.status) as
             | "pending"
@@ -570,7 +552,7 @@ function RunActivityItem({
             | "cancelled"
         }
       >
-        {runStatusLabel(run.status).replace("_", " ")}
+        {runStatusLabel(run.status).replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
       </Badge>
     </div>
   );
@@ -579,15 +561,15 @@ function RunActivityItem({
 function RunStatusIcon({ status }: { status: RunStatus }) {
   switch (status) {
     case RunStatus.COMPLETE:
-      return <CheckCircle2 className="h-5 w-5 text-success" />;
+      return <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />;
     case RunStatus.FAILED:
-      return <XCircle className="h-5 w-5 text-destructive" />;
+      return <XCircle className="h-4 w-4 text-destructive flex-shrink-0" />;
     case RunStatus.RUNNING:
     case RunStatus.STARTING:
-      return <Activity className="h-5 w-5 text-primary animate-pulse" />;
+      return <Activity className="h-4 w-4 text-primary animate-pulse flex-shrink-0" />;
     case RunStatus.NEEDS_REVIEW:
-      return <Clock className="h-5 w-5 text-warning" />;
+      return <Clock className="h-4 w-4 text-warning flex-shrink-0" />;
     default:
-      return <Clock className="h-5 w-5 text-muted-foreground" />;
+      return <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
   }
 }

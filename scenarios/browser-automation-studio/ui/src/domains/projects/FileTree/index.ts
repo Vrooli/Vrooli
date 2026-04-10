@@ -4,10 +4,10 @@
 export {
   FileTreeItem,
   TreeIndentGuides,
-  fileTypeLabelFromPath,
-  fileKindIcon,
   type FileTreeNode,
   type FileTreeNodeKind,
   type FileTreeDragPayload,
   type FileTreeItemProps,
 } from "./FileTreeItem";
+
+export { fileTypeLabelFromPath, fileKindIcon } from "./fileTreeUtils";

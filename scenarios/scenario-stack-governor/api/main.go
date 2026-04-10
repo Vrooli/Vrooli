@@ -19,10 +19,10 @@ type Config struct {
 
 // Server wires the HTTP router and rule/config handlers.
 type Server struct {
-	config      *Config
-	router      *mux.Router
+	config       *Config
+	router       *mux.Router
 	scenarioRoot string
-	configStore *ConfigStore
+	configStore  *ConfigStore
 }
 
 // NewServer initializes configuration and routes.
@@ -37,10 +37,10 @@ func NewServer() (*Server, error) {
 	}
 
 	srv := &Server{
-		config:      cfg,
-		router:      mux.NewRouter(),
+		config:       cfg,
+		router:       mux.NewRouter(),
 		scenarioRoot: scenarioRoot,
-		configStore: NewConfigStore(configPathForScenario(scenarioRoot)),
+		configStore:  NewConfigStore(configPathForScenario(scenarioRoot)),
 	}
 
 	srv.setupRoutes()
@@ -65,7 +65,9 @@ func (s *Server) setupRoutes() {
 	s.router.Handle("/api/v1/rules", cors(http.HandlerFunc(s.handleListRules))).Methods("GET", "OPTIONS")
 	s.router.Handle("/api/v1/config", cors(http.HandlerFunc(s.handleGetConfig))).Methods("GET", "OPTIONS")
 	s.router.Handle("/api/v1/config", cors(http.HandlerFunc(s.handlePutConfig))).Methods("PUT", "OPTIONS")
+	s.router.Handle("/api/v1/scenarios", cors(http.HandlerFunc(s.handleListScenarios))).Methods("GET", "OPTIONS")
 	s.router.Handle("/api/v1/run", cors(http.HandlerFunc(s.handleRunRules))).Methods("POST", "OPTIONS")
+	s.router.Handle("/api/v1/fix", cors(http.HandlerFunc(s.handleFix))).Methods("POST", "OPTIONS")
 }
 
 // Router returns the HTTP handler for use with server.Run
@@ -82,14 +84,6 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (s *Server) log(msg string, fields map[string]interface{}) {
-	if len(fields) == 0 {
-		log.Println(msg)
-		return
-	}
-	log.Printf("%s | %v", msg, fields)
-}
-
 func requireEnv(key string) string {
 	value := trimEnv(key)
 	if value == "" {
@@ -104,6 +98,10 @@ func main() {
 		ScenarioName: "scenario-stack-governor",
 	}) {
 		return // Process was re-exec'd after rebuild
+	}
+
+	if err := ValidateRuleRegistry(); err != nil {
+		log.Fatalf("rule registry validation failed: %v", err)
 	}
 
 	srv, err := NewServer()

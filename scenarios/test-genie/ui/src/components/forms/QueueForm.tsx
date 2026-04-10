@@ -16,7 +16,7 @@ interface QueueFormProps {
   onSuccess?: () => void;
 }
 
-export function QueueForm({ scenarioOptions, datalistId, onSuccess }: QueueFormProps) {
+export function QueueForm({ scenarioOptions: _scenarioOptions, datalistId, onSuccess }: QueueFormProps) {
   const queryClient = useQueryClient();
   const {
     queueForm,

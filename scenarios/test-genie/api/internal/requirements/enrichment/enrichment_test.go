@@ -9,6 +9,13 @@ import (
 	"test-genie/internal/requirements/types"
 )
 
+func mustAddModule(t *testing.T, index *parsing.ModuleIndex, module *types.RequirementModule) {
+	t.Helper()
+	if err := index.AddModule(module); err != nil {
+		t.Fatalf("add module: %v", err)
+	}
+}
+
 // =============================================================================
 // Matcher Tests
 // =============================================================================
@@ -781,7 +788,6 @@ func TestHierarchyResolver_ResolveHierarchy_NilIndex(t *testing.T) {
 	h := NewHierarchyResolver()
 
 	err := h.ResolveHierarchy(context.Background(), nil)
-
 	if err != nil {
 		t.Errorf("expected nil error for nil index, got: %v", err)
 	}
@@ -812,10 +818,9 @@ func TestHierarchyResolver_ResolveHierarchy_LeafNodes(t *testing.T) {
 			{ID: "REQ-002", Status: types.StatusInProgress, LiveStatus: types.LiveFailed},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	err := h.ResolveHierarchy(context.Background(), index)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -843,11 +848,10 @@ func TestHierarchyResolver_ResolveHierarchy_ParentChildRollup(t *testing.T) {
 			{ID: "REQ-CHILD-2", Status: types.StatusComplete, LiveStatus: types.LiveFailed},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 	index.BuildHierarchy()
 
 	err := h.ResolveHierarchy(context.Background(), index)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -873,11 +877,10 @@ func TestHierarchyResolver_ResolveHierarchy_DeepHierarchy(t *testing.T) {
 			{ID: "L3", Status: types.StatusComplete, LiveStatus: types.LivePassed},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 	index.BuildHierarchy()
 
 	err := h.ResolveHierarchy(context.Background(), index)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -901,7 +904,7 @@ func TestHierarchyResolver_DetectCycles_NoCycles(t *testing.T) {
 			{ID: "REQ-003"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 	index.BuildHierarchy()
 
 	cycles := h.DetectCycles(index)
@@ -923,7 +926,7 @@ func TestHierarchyResolver_DetectCycles_WithCycle(t *testing.T) {
 			{ID: "REQ-C", Children: []string{"REQ-A"}}, // Creates cycle
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 	index.BuildHierarchy()
 
 	cycles := h.DetectCycles(index)
@@ -956,7 +959,7 @@ func TestHierarchyResolver_GetAncestors(t *testing.T) {
 			{ID: "L3"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 	index.BuildHierarchy()
 
 	ancestors := h.GetAncestors("L3", index)
@@ -989,7 +992,7 @@ func TestHierarchyResolver_GetDescendants(t *testing.T) {
 			{ID: "GRANDCHILD-1"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 	index.BuildHierarchy()
 
 	descendants := h.GetDescendants("ROOT", index)
@@ -1021,7 +1024,7 @@ func TestHierarchyResolver_GetDepth(t *testing.T) {
 			{ID: "L2"},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 	index.BuildHierarchy()
 
 	tests := []struct {
@@ -1109,7 +1112,7 @@ func TestEnricher_Enrich_MatchesEvidence(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	evidence := types.NewEvidenceBundle()
 	evidence.PhaseResults.Add(types.EvidenceRecord{
@@ -1121,7 +1124,6 @@ func TestEnricher_Enrich_MatchesEvidence(t *testing.T) {
 	})
 
 	err := e.Enrich(context.Background(), index, evidence)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -1147,7 +1149,7 @@ func TestEnricher_Enrich_DirectEvidence(t *testing.T) {
 			{ID: "REQ-001", Status: types.StatusInProgress},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 
 	evidence := types.NewEvidenceBundle()
 	evidence.PhaseResults.Add(types.EvidenceRecord{
@@ -1157,7 +1159,6 @@ func TestEnricher_Enrich_DirectEvidence(t *testing.T) {
 	})
 
 	err := e.Enrich(context.Background(), index, evidence)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -1197,7 +1198,7 @@ func TestEnricher_Enrich_FullPipeline(t *testing.T) {
 			},
 		},
 	}
-	index.AddModule(module)
+	mustAddModule(t, index, module)
 	index.BuildHierarchy()
 
 	evidence := types.NewEvidenceBundle()
@@ -1213,7 +1214,6 @@ func TestEnricher_Enrich_FullPipeline(t *testing.T) {
 	})
 
 	err := e.Enrich(context.Background(), index, evidence)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}

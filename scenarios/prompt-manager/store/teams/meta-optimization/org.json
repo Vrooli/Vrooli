@@ -1,0 +1,19 @@
+{
+  "kind": "org-chart",
+  "schemaVersion": 1,
+  "teamId": "meta-optimization",
+  "edges": [
+    {
+      "managerAgentId": "meta-lead",
+      "reportAgentId": "skill-optimizer"
+    },
+    {
+      "managerAgentId": "meta-lead",
+      "reportAgentId": "agent-optimizer"
+    },
+    {
+      "managerAgentId": "meta-lead",
+      "reportAgentId": "team-optimizer"
+    }
+  ]
+}

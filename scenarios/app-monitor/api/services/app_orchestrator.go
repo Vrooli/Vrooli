@@ -26,6 +26,8 @@ func (s *AppService) invalidateCache() {
 	s.cache.timestamp = time.Time{}
 	s.cache.isPartial = true
 	s.cache.mu.Unlock()
+
+	s.invalidateAllEnrichment()
 }
 
 func (s *AppService) getAppFromCache(id string, allowPartial bool) (*repository.App, bool) {
@@ -297,10 +299,14 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 	// Note: loading flag is cleared by defer above
 	s.cache.mu.Unlock()
 
+	// Pre-warm per-scenario enrichment cache in the background
+	s.hydrateEnrichmentInBackground()
+
 	return apps, nil
 }
 
-// enrichAppWithDetailedInsights fetches tech stack and dependencies for a specific app
+// enrichAppWithDetailedInsights fetches tech stack and dependencies for a specific app.
+// Results are cached for enrichmentCacheTTL to avoid spawning a CLI subprocess on every GetApp call.
 func (s *AppService) enrichAppWithDetailedInsights(ctx context.Context, app *repository.App) error {
 	if app == nil {
 		return errors.New("app is nil")
@@ -314,7 +320,19 @@ func (s *AppService) enrichAppWithDetailedInsights(ctx context.Context, app *rep
 		return errors.New("cannot determine scenario name")
 	}
 
-	// Execute detailed status query for this specific scenario
+	key := strings.ToLower(scenarioName)
+
+	// Check cache first
+	s.enrichmentMu.RLock()
+	if entry, ok := s.enrichmentCache[key]; ok && time.Since(entry.fetchedAt) < enrichmentCacheTTL {
+		app.TechStack = entry.techStack
+		app.Dependencies = entry.dependencies
+		s.enrichmentMu.RUnlock()
+		return nil
+	}
+	s.enrichmentMu.RUnlock()
+
+	// Cache miss — execute CLI subprocess
 	output, err := executeVrooliCommand(ctx, 45*time.Second, "scenario", "status", scenarioName, "--json")
 	if err != nil {
 		logger.Warn(fmt.Sprintf("failed to fetch detailed insights for %s", scenarioName), err)
@@ -327,14 +345,14 @@ func (s *AppService) enrichAppWithDetailedInsights(ctx context.Context, app *rep
 		return err
 	}
 
-	// Populate tech stack
+	var techStack []string
 	if len(detailed.Insights.Stack.Components) > 0 {
-		app.TechStack = dedupeStrings(detailed.Insights.Stack.Components)
+		techStack = dedupeStrings(detailed.Insights.Stack.Components)
 	}
 
-	// Populate dependencies
+	var deps []repository.AppDependency
 	if len(detailed.Insights.Resources.Items) > 0 {
-		deps := make([]repository.AppDependency, 0, len(detailed.Insights.Resources.Items))
+		deps = make([]repository.AppDependency, 0, len(detailed.Insights.Resources.Items))
 		for _, item := range detailed.Insights.Resources.Items {
 			note := ""
 			if item.Note != nil {
@@ -353,10 +371,38 @@ func (s *AppService) enrichAppWithDetailedInsights(ctx context.Context, app *rep
 				Note:        note,
 			})
 		}
-		app.Dependencies = deps
 	}
 
+	// Store in cache
+	s.enrichmentMu.Lock()
+	s.enrichmentCache[key] = &enrichmentCacheEntry{
+		techStack:    techStack,
+		dependencies: deps,
+		fetchedAt:    s.timeNow(),
+	}
+	s.enrichmentMu.Unlock()
+
+	app.TechStack = techStack
+	app.Dependencies = deps
 	return nil
+}
+
+// invalidateEnrichment clears the enrichment cache for a single scenario.
+func (s *AppService) invalidateEnrichment(scenarioName string) {
+	key := strings.ToLower(strings.TrimSpace(scenarioName))
+	if key == "" {
+		return
+	}
+	s.enrichmentMu.Lock()
+	delete(s.enrichmentCache, key)
+	s.enrichmentMu.Unlock()
+}
+
+// invalidateAllEnrichment clears the entire enrichment cache.
+func (s *AppService) invalidateAllEnrichment() {
+	s.enrichmentMu.Lock()
+	s.enrichmentCache = make(map[string]*enrichmentCacheEntry)
+	s.enrichmentMu.Unlock()
 }
 
 // fetchScenarioList retrieves scenario metadata from the Vrooli CLI
@@ -611,6 +657,57 @@ func (s *AppService) hydrateOrchestratorInBackground(logContext string) {
 		s.cache.mu.Lock()
 		s.cache.loading = false
 		s.cache.mu.Unlock()
+	}()
+}
+
+// hydrateEnrichmentInBackground pre-warms the per-scenario enrichment cache
+// for all scenarios that are missing or expired. Called after GetAppsFromOrchestrator
+// refreshes the orchestrator cache so the first GetApp call per scenario is instant.
+func (s *AppService) hydrateEnrichmentInBackground() {
+	s.enrichmentMu.RLock()
+	s.cache.mu.RLock()
+	var needHydration []string
+	for _, app := range s.cache.data {
+		key := strings.ToLower(strings.TrimSpace(app.ScenarioName))
+		if key == "" {
+			continue
+		}
+		entry, ok := s.enrichmentCache[key]
+		if !ok || time.Since(entry.fetchedAt) >= enrichmentCacheTTL {
+			needHydration = append(needHydration, app.ScenarioName)
+		}
+	}
+	s.cache.mu.RUnlock()
+	s.enrichmentMu.RUnlock()
+
+	if len(needHydration) == 0 {
+		return
+	}
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
+
+		semaphore := make(chan struct{}, 3)
+		var wg sync.WaitGroup
+
+		for _, name := range needHydration {
+			wg.Add(1)
+			go func(scenarioName string) {
+				defer wg.Done()
+				semaphore <- struct{}{}
+				defer func() { <-semaphore }()
+
+				// Use a temporary app to populate the enrichment cache as a side effect
+				tmp := &repository.App{ScenarioName: scenarioName}
+				if err := s.enrichAppWithDetailedInsights(ctx, tmp); err != nil {
+					logger.Warn(fmt.Sprintf("background enrichment hydration failed for %s", scenarioName), err)
+				}
+			}(name)
+		}
+
+		wg.Wait()
+		logger.Info(fmt.Sprintf("enrichment hydration complete: %d scenarios", len(needHydration)))
 	}()
 }
 

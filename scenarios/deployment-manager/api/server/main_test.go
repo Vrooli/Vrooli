@@ -157,7 +157,7 @@ func TestHealthEndpoint(t *testing.T) {
 			wantStatus:     "unhealthy",
 			wantReadiness:  false,
 			wantDbStatus:   "disconnected",
-			wantHTTPStatus: http.StatusOK,
+			wantHTTPStatus: http.StatusServiceUnavailable,
 		},
 	}
 
@@ -229,8 +229,13 @@ func TestHealthEndpoint(t *testing.T) {
 				t.Fatal("dependencies field is not a map")
 			}
 
-			if deps["database"] != tt.wantDbStatus {
-				t.Errorf("database status = %v, want %v", deps["database"], tt.wantDbStatus)
+			dbStatus, ok := deps["database"].(map[string]interface{})
+			if !ok {
+				t.Fatalf("database dependency is not a map, got %T: %v", deps["database"], deps["database"])
+			}
+			wantConnected := tt.wantDbStatus == "connected"
+			if dbStatus["connected"] != wantConnected {
+				t.Errorf("database connected = %v, want %v", dbStatus["connected"], wantConnected)
 			}
 
 			// Verify all mock expectations were met
@@ -246,7 +251,7 @@ func TestLoggingMiddleware(t *testing.T) {
 	// Create a simple handler
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	})
 
 	// Wrap with logging middleware

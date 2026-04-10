@@ -7,28 +7,7 @@
 
 import React, { useState } from 'react';
 import { formatDuration } from '../../hooks/useDriverStatus';
-
-/** Checkpoint data from the API */
-export interface RecoveryCheckpoint {
-  /** Session ID */
-  sessionId: string;
-  /** Workflow ID if recording was for a workflow */
-  workflowId?: string;
-  /** Number of recorded actions */
-  actionCount: number;
-  /** Last URL at checkpoint */
-  currentUrl: string;
-  /** When the checkpoint was created */
-  createdAt: string;
-  /** When the checkpoint was last updated */
-  updatedAt: string;
-  /** Browser configuration */
-  browserConfig: {
-    viewportWidth: number;
-    viewportHeight: number;
-    userAgent?: string;
-  };
-}
+import type { RecoveryCheckpoint } from '@/shared/api';
 
 /** Props for the RecoveryDialog */
 interface RecoveryDialogProps {
@@ -267,81 +246,3 @@ export const RecoveryDialog: React.FC<RecoveryDialogProps> = ({
     </div>
   );
 };
-
-/**
- * Hook to check for available recovery checkpoints.
- *
- * This would typically call an API endpoint to get recoverable sessions.
- */
-export function useRecoveryCheck(): {
-  checkpoint: RecoveryCheckpoint | null;
-  isLoading: boolean;
-  checkForRecovery: () => Promise<void>;
-  resumeRecording: () => Promise<void>;
-  startFresh: () => Promise<void>;
-} {
-  const [checkpoint, setCheckpoint] = React.useState<RecoveryCheckpoint | null>(null);
-  const [isLoading, setIsLoading] = React.useState(false);
-
-  const checkForRecovery = React.useCallback(async () => {
-    try {
-      const response = await fetch('/api/recording/recovery/check');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.checkpoint) {
-          setCheckpoint(data.checkpoint);
-        } else {
-          setCheckpoint(null);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to check for recovery:', error);
-      setCheckpoint(null);
-    }
-  }, []);
-
-  const resumeRecording = React.useCallback(async () => {
-    if (!checkpoint) return;
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/recording/recovery/${checkpoint.sessionId}/resume`, {
-        method: 'POST',
-      });
-      if (response.ok) {
-        setCheckpoint(null);
-        // Navigation to recording session would happen here
-      }
-    } catch (error) {
-      console.error('Failed to resume recording:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [checkpoint]);
-
-  const startFresh = React.useCallback(async () => {
-    if (!checkpoint) return;
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/recording/recovery/${checkpoint.sessionId}`, {
-        method: 'DELETE',
-      });
-      if (response.ok) {
-        setCheckpoint(null);
-      }
-    } catch (error) {
-      console.error('Failed to delete checkpoint:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [checkpoint]);
-
-  return {
-    checkpoint,
-    isLoading,
-    checkForRecovery,
-    resumeRecording,
-    startFresh,
-  };
-}

@@ -122,9 +122,10 @@ function getActionDescription(action: TimelineAction): string {
       return 'Type text';
     case 'navigate':
       return `Navigate to ${truncate(action.url || '', 40)}`;
-    case 'scroll':
+    case 'scroll': {
       const deltaY = action.payload?.deltaY as number | undefined;
       return `Scroll ${deltaY !== undefined && deltaY > 0 ? 'down' : 'up'}`;
+    }
     case 'keyboard':
     case 'keypress':
       return `Press ${action.payload?.key || 'key'}`;

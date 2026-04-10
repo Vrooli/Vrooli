@@ -1,7 +1,9 @@
 .actions-dialog {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
 }
 
 .actions-dialog__header {
@@ -9,6 +11,8 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  padding-bottom: 16px;
+  flex-shrink: 0;
 }
 
 .actions-dialog__header h2 {
@@ -34,6 +38,72 @@
 .actions-dialog__close:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* ── Tab bar ──────────────────────────────────────── */
+
+.actions-dialog__tab-bar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid rgba(122, 160, 255, 0.15);
+  flex-shrink: 0;
+}
+
+.actions-dialog__tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 0.82rem;
+  font-weight: 560;
+  color: rgba(231, 235, 255, 0.55);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 160ms ease;
+  white-space: nowrap;
+}
+
+.actions-dialog__tab:hover {
+  color: rgba(231, 235, 255, 0.9);
+  background: rgba(122, 160, 255, 0.08);
+}
+
+.actions-dialog__tab--active {
+  color: rgba(231, 235, 255, 1);
+  border-bottom-color: rgba(122, 160, 255, 0.9);
+}
+
+.actions-dialog__tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 0.7rem;
+  font-weight: 650;
+  border-radius: 9px;
+  background: rgba(122, 160, 255, 0.2);
+  color: rgba(122, 160, 255, 0.9);
+}
+
+/* ── Scrollable body ──────────────────────────────── */
+
+.actions-dialog__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: 20px;
+}
+
+.actions-dialog__tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Status section ───────────────────────────────── */
 
 .actions-dialog__status {
   display: flex;
@@ -149,6 +219,8 @@
   font-size: 1.2rem;
   font-weight: 600;
 }
+
+/* ── Quick actions ────────────────────────────────── */
 
 .actions-dialog__actions {
   display: flex;

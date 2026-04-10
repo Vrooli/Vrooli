@@ -1,10 +1,8 @@
 package queue
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -12,6 +10,7 @@ import (
 
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/tasks"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // setupExecutionTestProcessor creates a test processor with minimal dependencies
@@ -48,7 +47,11 @@ func setupExecutionTestProcessor(t *testing.T) (*Processor, *tasks.Storage, stri
 	}
 
 	broadcast := make(chan any, 100)
-	processor := NewProcessor(storage, assembler, broadcast, nil)
+	processor := NewProcessor(ProcessorDeps{
+		Storage:   storage,
+		Assembler: assembler,
+		Broadcast: broadcast,
+	})
 	t.Cleanup(processor.Stop)
 
 	return processor, storage, tmpDir
@@ -76,20 +79,14 @@ func TestExecutionRegistryLifecycle(t *testing.T) {
 		t.Errorf("Expected agent tag %q, got %q", agentTag, execState.agentTag)
 	}
 
-	// Test 2: Register execution with command
-	cmd := exec.Command("sleep", "0.1")
-	if err := cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-	processor.registerExecution(taskID, agentTag, cmd, time.Now())
+	// Test 2: Register run ID (modern agent-manager pattern)
+	runID := "run-12345"
+	processor.registerRunID(taskID, runID)
 
 	execState, ok = processor.getExecution(taskID)
-	if !ok || execState.cmd == nil {
-		t.Error("Expected execution to have command after registration")
+	if !ok || execState.runID != runID {
+		t.Errorf("Expected execution to have runID %q after registration, got %q", runID, execState.runID)
 	}
-
-	// Wait for command to finish
-	cmd.Wait()
 
 	// Test 3: Verify task still shows as running (until unregistered)
 	if !processor.IsTaskRunning(taskID) {
@@ -158,6 +155,7 @@ func TestTaskCompletionRaceCondition(t *testing.T) {
 
 	// Goroutine 2: Task completion (unregisters then finalizes)
 	wg.Add(1)
+	finalizeErrCh := make(chan error, 1)
 	go func() {
 		defer wg.Done()
 
@@ -167,9 +165,9 @@ func TestTaskCompletionRaceCondition(t *testing.T) {
 		// processor.finalizeTaskStatus(&task, "completed")
 
 		// NEW FIXED CODE does:
-		processor.finalizeTaskStatus(&task, "completed") // finalize FIRST
-		time.Sleep(20 * time.Millisecond)                // ensure overlap
-		processor.unregisterExecution(task.ID)           // unregister AFTER
+		finalizeErrCh <- processor.finalizeTaskStatus(&task, "completed") // finalize FIRST
+		time.Sleep(20 * time.Millisecond)                                 // ensure overlap
+		processor.unregisterExecution(task.ID)                            // unregister AFTER
 	}()
 
 	wg.Wait()
@@ -181,6 +179,9 @@ func TestTaskCompletionRaceCondition(t *testing.T) {
 
 	if caught {
 		t.Error("RACE CONDITION DETECTED: Reconciliation moved task during completion")
+	}
+	if finalizeErr := <-finalizeErrCh; finalizeErr != nil {
+		t.Fatalf("finalizeTaskStatus failed: %v", finalizeErr)
 	}
 
 	// Verify final state: task should be in completed
@@ -237,35 +238,26 @@ func TestExecutionLifecycle(t *testing.T) {
 	processor, _, _ := setupExecutionTestProcessor(t)
 
 	taskID := "lifecycle-test-task"
+	runID := "run-lifecycle-123"
 
-	// Start a real process
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
+	// Reserve execution (task is about to start)
+	processor.reserveExecution(taskID, "test-agent", time.Now())
 
-	cmd := exec.CommandContext(ctx, "sleep", "1")
-	if err := cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Register execution
-	processor.registerExecution(taskID, "test-agent", cmd, time.Now())
-
-	// Simulate coordinated wait (what execution.go does now)
-	waitChan := make(chan error, 1)
-	go func() {
-		waitChan <- cmd.Wait()
-		close(waitChan)
-	}()
+	// Register run ID (agent-manager has started the task)
+	processor.registerRunID(taskID, runID)
 
 	// Verify processor reports task as running
 	if !processor.IsTaskRunning(taskID) {
 		t.Error("Processor should report task as running")
 	}
 
-	// Wait for process to complete
-	<-waitChan
+	// Verify run ID was stored
+	execState, ok := processor.getExecution(taskID)
+	if !ok || execState.runID != runID {
+		t.Errorf("Expected runID %q, got %q", runID, execState.runID)
+	}
 
-	// Even after process completes, execution registry keeps it until explicitly unregistered
+	// Execution registry keeps it until explicitly unregistered
 	if !processor.IsTaskRunning(taskID) {
 		t.Error("Task should still be in registry until unregistered")
 	}
@@ -592,25 +584,62 @@ func TestReconciliation_DoesNotMoveTasksWithVerifiedCleanup(t *testing.T) {
 	}
 }
 
-func TestEnrichSteeringMetadataManualMode(t *testing.T) {
-	qp := &Processor{}
-	task := tasks.TaskItem{
-		ID:        "manual-steer",
-		Type:      "scenario",
-		Operation: "improver",
-		SteerMode: "ux",
+func TestMapAgentManagerResult_DetectsRateLimitInErrorMsg(t *testing.T) {
+	em := &ExecutionManager{}
+	run := &domainpb.Run{
+		Status:   domainpb.RunStatus_RUN_STATUS_COMPLETE,
+		ErrorMsg: "You've hit your limit · resets 10am (America/New_York)",
 	}
-	history := ExecutionHistory{}
+	task := tasks.TaskItem{ID: "rate-limit-task"}
+	output := "Some normal task output"
 
-	qp.enrichSteeringMetadata(&task, &history)
+	resp := em.mapAgentManagerResult(run, task, "agent-tag", output, nil)
 
-	if history.SteeringSource != "manual_mode" {
-		t.Fatalf("expected manual_mode steering source, got %s", history.SteeringSource)
+	if resp.Success {
+		t.Fatal("expected success=false for rate-limited error message")
 	}
-	if history.SteerMode != "ux" {
-		t.Fatalf("expected steer_mode ux, got %s", history.SteerMode)
+	if !resp.RateLimited {
+		t.Fatal("expected rate_limited=true for rate-limited error message")
 	}
-	if history.SteerPhaseIndex != 1 || history.SteerPhaseIteration != 1 {
-		t.Fatalf("expected phase index/iteration to default to 1, got %d/%d", history.SteerPhaseIndex, history.SteerPhaseIteration)
+	if resp.RetryAfter <= 0 {
+		t.Fatalf("expected positive retry_after, got %d", resp.RetryAfter)
+	}
+}
+
+func TestMapAgentManagerResult_IgnoresRateLimitInOutput(t *testing.T) {
+	// Rate limit text in the output (agent conversation) should NOT trigger detection.
+	// Only error messages and summaries should be checked.
+	em := &ExecutionManager{}
+	run := &domainpb.Run{
+		Status: domainpb.RunStatus_RUN_STATUS_COMPLETE,
+	}
+	task := tasks.TaskItem{ID: "normal-task-mentioning-limits"}
+	output := "Implementing rate limit handling for the API\nLine 429 of the response parser\nUsage limit documentation updated"
+
+	resp := em.mapAgentManagerResult(run, task, "agent-tag", output, nil)
+
+	if !resp.Success {
+		t.Fatal("expected success=true when rate limit text is only in output")
+	}
+	if resp.RateLimited {
+		t.Fatal("expected rate_limited=false when rate limit text is only in output")
+	}
+}
+
+func TestMapAgentManagerResult_LeavesNormalCompleteUntouched(t *testing.T) {
+	em := &ExecutionManager{}
+	run := &domainpb.Run{
+		Status: domainpb.RunStatus_RUN_STATUS_COMPLETE,
+	}
+	task := tasks.TaskItem{ID: "normal-task"}
+	output := "Task finished successfully"
+
+	resp := em.mapAgentManagerResult(run, task, "agent-tag", output, nil)
+
+	if !resp.Success {
+		t.Fatal("expected success=true for non-rate-limited complete run")
+	}
+	if resp.RateLimited {
+		t.Fatal("expected rate_limited=false for non-rate-limited complete run")
 	}
 }

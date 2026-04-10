@@ -117,7 +117,10 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
   }, [onRerunWorkflow]);
 
   // Combine and filter executions
-  const allExecutions = [...runningExecutions, ...recentExecutions];
+  const allExecutions = useMemo(
+    () => [...runningExecutions, ...recentExecutions],
+    [runningExecutions, recentExecutions],
+  );
   const filteredExecutions = allExecutions.filter((execution) => {
     if (statusFilter === 'all') return true;
     if (statusFilter === 'running') return execution.status === 'running' || execution.status === 'pending';
@@ -171,7 +174,9 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
               <button
                 onClick={() => {
                   const latest = allExecutions[0];
-                  handleSelectExecution(latest.id, latest.workflowId);
+                  if (latest) {
+                    handleSelectExecution(latest.id, latest.workflowId);
+                  }
                 }}
                 className="hero-button-secondary w-full sm:w-auto justify-center"
               >

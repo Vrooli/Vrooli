@@ -28,6 +28,9 @@ type Printer struct {
 	descriptorMap        map[string]phases.Descriptor
 	targetDurationByKey  map[string]time.Duration
 	disabled             map[string]execTypes.PhaseToggle
+	planPreview          *execTypes.PlanPreview
+	planPhaseByKey       map[string]execTypes.PlanPhase
+	planWarnings         []string
 	streamedObservations bool // true if observations were already streamed via SSE (live output shown)
 }
 
@@ -62,6 +65,7 @@ func New(
 		descriptorMap:       descMap,
 		targetDurationByKey: targets,
 		disabled:            disabled,
+		planPhaseByKey:      map[string]execTypes.PlanPhase{},
 	}
 }
 
@@ -94,6 +98,27 @@ func (p *Printer) SetStreamedObservations(streamed bool) {
 	p.streamedObservations = streamed
 }
 
+// SetPlanPreview attaches the server-computed execution plan to the report.
+func (p *Printer) SetPlanPreview(preview execTypes.PlanPreview) {
+	p.planPreview = &preview
+	p.planWarnings = append([]string(nil), preview.Warnings...)
+	p.planPhaseByKey = make(map[string]execTypes.PlanPhase, len(preview.Phases))
+	for _, phase := range preview.Phases {
+		key := NormalizeName(phase.Name)
+		p.planPhaseByKey[key] = phase
+		if phase.Description != "" {
+			p.descriptorMap[key] = phases.Descriptor{
+				Name:        phase.Name,
+				Description: phase.Description,
+				Optional:    phase.Optional,
+			}
+		}
+		if phase.EstimatedDurationSeconds > 0 {
+			p.targetDurationByKey[key] = time.Duration(phase.EstimatedDurationSeconds) * time.Second
+		}
+	}
+}
+
 // PrintResults prints only the results portion (after API call completes).
 // Used in conjunction with PrintPreExecution for streaming-style output.
 func (p *Printer) PrintResults(resp execTypes.Response) {
@@ -115,6 +140,7 @@ func (p *Printer) printPreHeader(phaseNames []string) {
 	title := fmt.Sprintf("%s COMPREHENSIVE TEST SUITE", strings.ToUpper(p.scenario))
 	paths := repo.DiscoverScenarioPaths(p.scenario)
 	estimated := p.estimateTotalFromNames(phaseNames)
+	timeoutBudget := p.planTimeoutBudget()
 	startText := time.Now().Format("15:04:05")
 	scenarioPath := p.scenario
 	if paths.ScenarioDir != "" {
@@ -141,6 +167,9 @@ func (p *Printer) printPreHeader(phaseNames []string) {
 	if estimated != "" {
 		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Estimated: ~%s", estimated), p.color.Cyan("║"))
 	}
+	if timeoutBudget != "" {
+		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Timeout budget: %s", timeoutBudget), p.color.Cyan("║"))
+	}
 	fmt.Fprintf(p.w, "%s  Phases: %-54d%s\n", p.color.Cyan("║"), len(phaseNames), p.color.Cyan("║"))
 	fmt.Fprintln(p.w, p.color.Cyan("╚═══════════════════════════════════════════════════════════════╝"))
 	fmt.Fprintln(p.w)
@@ -155,16 +184,26 @@ func (p *Printer) printPrePlan(phaseNames []string) {
 	}
 	for idx, name := range phaseNames {
 		target := p.targetDuration(name)
+		timeout := p.timeoutDuration(name)
 		desc := p.lookupPhaseDescription(name)
 		doc := p.phaseDocHint(name)
 		disabled := p.disabled[phases.NormalizeAlias(phases.NormalizeName(name))]
 		targetText := ""
 		if target != "" {
-			targetText = fmt.Sprintf("(±%s)", target)
+			targetText = fmt.Sprintf("(est ~%s", target)
+			if timeout != "" {
+				targetText += fmt.Sprintf(" / timeout %s", timeout)
+			}
+			targetText += ")"
+		} else if timeout != "" {
+			targetText = fmt.Sprintf("(timeout %s)", timeout)
 		}
 		line := fmt.Sprintf("  [%d/%d] %-14s %-10s", idx+1, len(phaseNames), name, targetText)
 		if disabled.Disabled {
 			line += " [globally disabled]"
+		}
+		if note := p.phaseEstimateNote(name); note != "" {
+			line += " [" + note + "]"
 		}
 		if desc != "" {
 			line = fmt.Sprintf("%s → %s", line, desc)
@@ -175,6 +214,13 @@ func (p *Printer) printPrePlan(phaseNames []string) {
 		fmt.Fprintln(p.w, p.color.Cyan(line))
 	}
 	fmt.Fprintln(p.w)
+	if len(p.planWarnings) > 0 {
+		fmt.Fprintln(p.w, p.color.Bold("Plan warnings:"))
+		for _, warning := range p.planWarnings {
+			fmt.Fprintf(p.w, "  • %s\n", warning)
+		}
+		fmt.Fprintln(p.w)
+	}
 	fmt.Fprintln(p.w, p.color.Cyan("Starting execution..."))
 	fmt.Fprintln(p.w)
 }
@@ -203,6 +249,7 @@ func (p *Printer) printHeader(resp execTypes.Response) {
 	preset := DefaultValue(resp.PresetUsed, p.requestedPreset)
 	paths := repo.DiscoverScenarioPaths(p.scenario)
 	estimated := p.estimateTotal(resp.Phases)
+	timeoutBudget := p.planTimeoutBudget()
 	scenarioPath := p.scenario
 	if paths.ScenarioDir != "" {
 		scenarioPath = paths.ScenarioDir
@@ -229,6 +276,9 @@ func (p *Printer) printHeader(resp execTypes.Response) {
 	fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Duration: %s", duration), p.color.Cyan("║"))
 	if estimated != "" {
 		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Estimated plan time: %s", estimated), p.color.Cyan("║"))
+	}
+	if timeoutBudget != "" {
+		fmt.Fprintf(p.w, "%s  %-61s%s\n", p.color.Cyan("║"), fmt.Sprintf("Timeout budget: %s", timeoutBudget), p.color.Cyan("║"))
 	}
 	fmt.Fprintf(p.w, "%s  Phases: %-54d%s\n", p.color.Cyan("║"), len(resp.Phases), p.color.Cyan("║"))
 	fmt.Fprintln(p.w, p.color.Cyan("╚═══════════════════════════════════════════════════════════════╝"))
@@ -565,7 +615,7 @@ func (p *Printer) printDebugGuides(phasesData []execTypes.Phase) {
 			fmt.Fprintln(p.w, p.color.Cyan("    Quick checks: rerun CLI against API | inspect API logs | rebuild UI bundle"))
 		case "dependencies":
 			fmt.Fprintf(p.w, "  • %s: common issues → missing resources, install drift, pinned versions outdated\n", p.color.Bold("DEPENDENCIES"))
-			fmt.Fprintln(p.w, p.color.Cyan("    Quick checks: verify postgres/redis availability | reinstall deps | rerun install scripts"))
+			fmt.Fprintln(p.w, p.color.Cyan("    Quick checks: verify required resources or SQLite path | reinstall deps | rerun install scripts"))
 		}
 	}
 }
@@ -809,6 +859,42 @@ func (p *Printer) targetDuration(name string) string {
 		return d.Truncate(time.Second).String()
 	}
 	return ""
+}
+
+func (p *Printer) timeoutDuration(name string) string {
+	if phase, ok := p.planPhaseByKey[NormalizeName(name)]; ok && phase.TimeoutSeconds > 0 {
+		return (time.Duration(phase.TimeoutSeconds) * time.Second).String()
+	}
+	return ""
+}
+
+func (p *Printer) planTimeoutBudget() string {
+	if p.planPreview == nil || p.planPreview.Summary.TimeoutSeconds <= 0 {
+		return ""
+	}
+	return (time.Duration(p.planPreview.Summary.TimeoutSeconds) * time.Second).String()
+}
+
+func (p *Printer) phaseEstimateNote(name string) string {
+	phase, ok := p.planPhaseByKey[NormalizeName(name)]
+	if !ok {
+		return ""
+	}
+	switch phase.EstimateSource {
+	case "timeout_fallback":
+		return "timeout fallback"
+	case "global_history":
+		return fmt.Sprintf("global %s confidence", phase.EstimateConfidence)
+	case "blended_history":
+		return fmt.Sprintf("blended %s confidence", phase.EstimateConfidence)
+	case "scenario_history":
+		if phase.EstimateSampleSize > 0 {
+			return fmt.Sprintf("%s confidence from %d runs", phase.EstimateConfidence, phase.EstimateSampleSize)
+		}
+		return fmt.Sprintf("%s confidence", phase.EstimateConfidence)
+	default:
+		return ""
+	}
 }
 
 func (p *Printer) estimateTotal(phasesData []execTypes.Phase) string {

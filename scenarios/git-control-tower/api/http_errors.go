@@ -4,4 +4,5 @@ package main
 // Used by HTTPResponse.Error() for consistent error formatting.
 type errorResponse struct {
 	Error string `json:"error"`
+	JobID string `json:"jobId,omitempty"`
 }

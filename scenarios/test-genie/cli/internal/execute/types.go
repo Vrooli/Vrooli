@@ -20,6 +20,43 @@ type Request struct {
 	UIURL          string `json:"uiUrl,omitempty"`
 	APIURL         string `json:"apiUrl,omitempty"`
 	BrowserlessURL string `json:"browserlessUrl,omitempty"`
+
+	// ScenarioPath is the absolute path to the scenario directory. When set
+	// (typically by the CLI running inside a sandboxed agent), the API uses
+	// this path directly instead of resolving via VROOLI_ROOT + scenario name.
+	// This allows sandboxed agents to run tests against their modified files
+	// in the overlay filesystem. When empty, the API resolves the path from
+	// ScenarioName using VROOLI_ROOT.
+	// See packages/cli-core/cliutil/sandbox.go for sandbox path resolution.
+	ScenarioPath string `json:"scenarioPath,omitempty"`
+}
+
+// PlanPhase represents a selected phase before execution begins.
+type PlanPhase struct {
+	Name                     string `json:"name"`
+	Description              string `json:"description,omitempty"`
+	Optional                 bool   `json:"optional"`
+	EstimatedDurationSeconds int    `json:"estimatedDurationSeconds"`
+	TimeoutSeconds           int    `json:"timeoutSeconds"`
+	EstimateSource           string `json:"estimateSource"`
+	EstimateConfidence       string `json:"estimateConfidence"`
+	EstimateSampleSize       int    `json:"estimateSampleSize"`
+}
+
+// PlanSummary provides aggregate timing guidance for the selected plan.
+type PlanSummary struct {
+	PhaseCount               int `json:"phaseCount"`
+	EstimatedDurationSeconds int `json:"estimatedDurationSeconds"`
+	TimeoutSeconds           int `json:"timeoutSeconds"`
+}
+
+// PlanPreview is the API preflight response for execution planning.
+type PlanPreview struct {
+	ScenarioName string      `json:"scenarioName"`
+	PresetUsed   string      `json:"presetUsed"`
+	Phases       []PlanPhase `json:"phases"`
+	Summary      PlanSummary `json:"summary"`
+	Warnings     []string    `json:"warnings"`
 }
 
 // Response represents the execution response.

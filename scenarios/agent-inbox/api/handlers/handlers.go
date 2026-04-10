@@ -25,29 +25,34 @@ import (
 // Handlers provides HTTP handlers with access to all dependencies.
 // This struct enables dependency injection for testing.
 type Handlers struct {
-	Repo          *persistence.Repository
-	OllamaClient  *integrations.OllamaClient
-	ToolRegistry  *services.ToolRegistry
-	ModelRegistry *services.ModelRegistry
-	Storage       services.StorageService
-	ToolExecutor  *integrations.ToolExecutor
-	AsyncTracker  *services.AsyncTrackerService
+	Repo                *persistence.Repository
+	OllamaClient        *integrations.OllamaClient
+	ToolRegistry        *services.ToolRegistry
+	ModelRegistry       *services.ModelRegistry
+	Storage             services.StorageService
+	ToolExecutor        *integrations.ToolExecutor
+	AsyncTracker        *services.AsyncTrackerService
+	Templates           *services.TemplatesService
+	Skills              *services.PromptSyncService
+	ToolPersistence     *services.ToolPersistence
+	AgentClient         integrations.AgentManagerClientInterface
+	SkillSuggest        *services.SkillSuggestService
+	SuggestionsSettings *services.SuggestionsSettingsService
 }
 
 // New creates a new Handlers instance with all dependencies.
-func New(repo *persistence.Repository, ollamaClient *integrations.OllamaClient, storage services.StorageService) *Handlers {
-	toolRegistry := services.NewToolRegistry(repo)
-	toolExecutor := integrations.NewToolExecutor()
-	asyncTracker := services.NewAsyncTrackerService(toolRegistry, toolExecutor)
-
+// All parameters are required - callers must create the dependencies explicitly.
+// This ensures consistent dependency sharing and makes the architecture explicit.
+func New(repo *persistence.Repository, ollamaClient *integrations.OllamaClient, storage services.StorageService, asyncTracker *services.AsyncTrackerService, toolExecutor *integrations.ToolExecutor, toolRegistry *services.ToolRegistry) *Handlers {
 	return &Handlers{
-		Repo:          repo,
-		OllamaClient:  ollamaClient,
-		ToolRegistry:  toolRegistry,
-		ModelRegistry: services.NewModelRegistry(),
-		Storage:       storage,
-		ToolExecutor:  toolExecutor,
-		AsyncTracker:  asyncTracker,
+		Repo:            repo,
+		OllamaClient:    ollamaClient,
+		ToolRegistry:    toolRegistry,
+		ModelRegistry:   services.NewModelRegistry(),
+		Storage:         storage,
+		ToolExecutor:    toolExecutor,
+		AsyncTracker:    asyncTracker,
+		ToolPersistence: services.NewToolPersistence(repo),
 	}
 }
 
@@ -62,12 +67,27 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/chats", h.ListChats).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats", h.CreateChat).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/bulk", h.BulkOperation).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/archived", h.DeleteArchivedChats).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/mark-all-read", h.MarkAllAsRead).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/search", h.SearchChats).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}", h.GetChat).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}", h.UpdateChat).Methods("PATCH", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}", h.DeleteChat).Methods("DELETE", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/export", h.ExportChat).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/fork", h.ForkChat).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/active-template", h.SetActiveTemplate).Methods("PATCH", "OPTIONS")
+
+	// Agent Mode - Integration with agent-manager for agentic coding
+	r.HandleFunc("/api/v1/agent-attachments/upload", h.ProxyAgentUpload).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/agent-runs", h.ListAgentRuns).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/agent-runs/{run_id}/events", h.GetRunEvents).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/agent-mode/attach", h.AttachAgentRun).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/agent-mode/start", h.StartAgentMode).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/agent-mode/message", h.SendAgentMessage).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/agent-mode/events", h.GetAgentEvents).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/agent-mode/status", h.GetAgentStatus).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/agent-mode/stop", h.StopAgentMode).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/agent-mode/clear", h.ClearAgentMode).Methods("POST", "OPTIONS")
 
 	// Messages and chat state
 	r.HandleFunc("/api/v1/chats/{id}/messages", h.AddMessage).Methods("POST", "OPTIONS")
@@ -100,8 +120,11 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/tools/config", h.SetToolEnabled).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/tools/config", h.ResetToolConfig).Methods("DELETE", "OPTIONS")
 	r.HandleFunc("/api/v1/tools/config/approval", h.SetToolApproval).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/v1/tools/refresh", h.RefreshTools).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/tools/sync", h.SyncTools).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/tools/execute", h.ExecuteToolManually).Methods("POST", "OPTIONS")
+
+	// Scenario Info (for Tool Call Details modal)
+	r.HandleFunc("/api/v1/scenarios/{name}", h.GetScenarioInfo).Methods("GET", "OPTIONS")
 
 	// Tool Call Approvals
 	r.HandleFunc("/api/v1/chats/{id}/pending-approvals", h.GetPendingApprovals).Methods("GET", "OPTIONS")
@@ -111,11 +134,15 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	// Async Tool Operations (SSE for real-time updates)
 	r.HandleFunc("/api/v1/chats/{id}/async-status", h.StreamAsyncStatus).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/async-operations", h.GetAsyncOperations).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/async-operations/history", h.GetAsyncOperationHistory).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/async-operations/{toolCallId}/cancel", h.CancelAsyncOperation).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/async-operations/{toolCallId}/refresh", h.RefreshAsyncOperation).Methods("POST", "OPTIONS")
 
 	// Settings
 	r.HandleFunc("/api/v1/settings/yolo-mode", h.GetYoloMode).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/settings/yolo-mode", h.SetYoloMode).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/settings/suggestions", h.GetSuggestionsSettings).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/settings/suggestions", h.SetSuggestionsSettings).Methods("POST", "OPTIONS")
 
 	// Usage tracking
 	r.HandleFunc("/api/v1/usage", h.GetUsageStats).Methods("GET", "OPTIONS")
@@ -124,6 +151,30 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 
 	// Utilities
 	r.HandleFunc("/api/v1/link-preview", h.GetLinkPreview).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/validate-path", h.ValidatePath).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/project-root", h.GetProjectRoot).Methods("GET", "OPTIONS")
+
+	// Templates
+	r.HandleFunc("/api/v1/templates", h.ListTemplates).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/templates", h.CreateTemplate).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/templates/import", h.ImportTemplates).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/templates/export", h.ExportTemplates).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/templates/{id}", h.GetTemplate).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/templates/{id}", h.UpdateTemplate).Methods("PUT", "OPTIONS")
+	r.HandleFunc("/api/v1/templates/{id}", h.DeleteTemplate).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/v1/templates/{id}/reset", h.ResetTemplate).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/templates/{id}/update-default", h.UpdateDefaultTemplate).Methods("PUT", "OPTIONS")
+
+	// Skills
+	r.HandleFunc("/api/v1/skills", h.ListSkills).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/skills", h.CreateSkill).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/import", h.ImportSkills).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/export", h.ExportSkills).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/sync", h.SyncSkills).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/suggest", h.SuggestSkills).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/{id}", h.GetSkill).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/{id}", h.UpdateSkill).Methods("PUT", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/{id}", h.DeleteSkill).Methods("DELETE", "OPTIONS")
 }
 
 // Response helpers
@@ -132,7 +183,7 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 func (h *Handlers) JSONResponse(w http.ResponseWriter, data interface{}, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 // JSONError writes an error response with the given status code.
@@ -143,10 +194,19 @@ func (h *Handlers) JSONError(w http.ResponseWriter, message string, status int) 
 
 // NewCompletionService creates a completion service with async tracker configured.
 // This is the preferred way to create completion services in handlers.
+// Uses the shared toolExecutor, toolRegistry, and modelRegistry to ensure:
+// 1. Tools registered by handlers.ToolRegistry are available for both AI tool execution and async polling
+// 2. A single ModelRegistry cache is shared across all completion services (reduces API calls)
 func (h *Handlers) NewCompletionService() *services.CompletionService {
-	svc := services.NewCompletionService(h.Repo, h.Storage)
-	svc.SetAsyncTracker(h.AsyncTracker)
-	return svc
+	return services.NewCompletionServiceWithDeps(services.CompletionServiceDeps{
+		Repo:            h.Repo,
+		Executor:        h.ToolExecutor,
+		Registry:        h.ToolRegistry,
+		AsyncTracker:    h.AsyncTracker,
+		Storage:         h.Storage,
+		ModelRegistry:   h.ModelRegistry,
+		ToolPersistence: h.ToolPersistence,
+	})
 }
 
 // Validation helpers

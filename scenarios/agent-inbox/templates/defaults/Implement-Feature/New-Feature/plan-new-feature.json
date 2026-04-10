@@ -1,0 +1,39 @@
+{
+  "id": "implement-plan-feature",
+  "name": "Plan New Feature",
+  "description": "Design and plan implementation of a new feature",
+  "icon": "Sparkles",
+  "modes": ["Implement Feature", "New Feature"],
+  "content": "I need to implement a new feature: {{feature_name}}\n\n**Description:** {{description}}\n\n**Requirements:**\n{{requirements}}\n\n**Constraints:**\n{{constraints}}\n\nPlease help me plan:\n1. Break down into implementation tasks\n2. Identify files that need to be created/modified\n3. Define the data structures and interfaces\n4. Outline the implementation approach\n5. Flag potential challenges and how to address them",
+  "variables": [
+    {
+      "name": "feature_name",
+      "label": "Feature Name",
+      "type": "text",
+      "placeholder": "e.g., User notifications, Dark mode, Export to PDF",
+      "required": true
+    },
+    {
+      "name": "description",
+      "label": "Description",
+      "type": "textarea",
+      "placeholder": "Describe what the feature should do",
+      "required": true
+    },
+    {
+      "name": "requirements",
+      "label": "Requirements",
+      "type": "textarea",
+      "placeholder": "List the specific requirements (one per line)",
+      "required": false
+    },
+    {
+      "name": "constraints",
+      "label": "Constraints",
+      "type": "textarea",
+      "placeholder": "Any technical or business constraints?",
+      "required": false
+    }
+  ],
+  "suggestedToolIds": ["spawn_coding_agent"]
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"reflect"
@@ -8,6 +9,17 @@ import (
 	"testing"
 	"time"
 )
+
+func newAccountServiceWithTestPlanStore(t *testing.T, db *sql.DB) *AccountService {
+	t.Helper()
+
+	planStore := getTestPlanStore()
+	if planStore == nil {
+		t.Fatal("test plan store not initialized; call upsertTestBundleProduct first")
+	}
+
+	return NewAccountService(db, NewPlanServiceWithPlanStore(planStore))
+}
 
 func TestAccountServiceCreditsReflectBundleMetadata(t *testing.T) {
 	db := setupTestDB(t)
@@ -51,7 +63,7 @@ func TestAccountServiceCreditsReflectBundleMetadata(t *testing.T) {
 		nil,
 	)
 
-	accountService := NewAccountService(db, NewPlanService(db))
+	accountService := newAccountServiceWithTestPlanStore(t, db)
 	email := "credits-test@example.com"
 	if _, err := db.Exec(`
 		INSERT INTO credit_wallets (customer_email, balance_credits, bonus_credits, updated_at)
@@ -86,7 +98,13 @@ func TestAccountServiceCreditsFallbackWithoutPricing(t *testing.T) {
 	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "missing_pricing_env")
-	accountService := NewAccountService(db, NewPlanService(db))
+	emptyStore := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  "",
+		BundleKey:  bundleKey,
+		DisplayEnv: "production",
+	})
+	planService := &PlanService{planStore: emptyStore, defaultBundle: bundleKey, displayEnv: "production"}
+	accountService := NewAccountService(db, planService)
 
 	credits, err := accountService.GetCredits("no-wallet@example.com")
 	if err != nil {
@@ -177,7 +195,7 @@ func TestAccountServiceEntitlementsIncludesFeatures(t *testing.T) {
 		t.Fatalf("failed to insert credit wallet: %v", err)
 	}
 
-	accountService := NewAccountService(db, NewPlanService(db))
+	accountService := newAccountServiceWithTestPlanStore(t, db)
 	// [REQ:SUB-ENTITLEMENTS] Entitlements payload surfaces feature flags and credits
 	entitlements, err := accountService.GetEntitlements(email)
 	if err != nil {
@@ -212,7 +230,7 @@ func TestAccountServiceEntitlements_NoSubscriptionDefaults(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	accountService := NewAccountService(db, NewPlanService(db))
+	accountService := newAccountServiceWithTestPlanStore(t, db)
 
 	entitlements, err := accountService.GetEntitlements("nosub@example.com")
 	if err != nil {
@@ -263,6 +281,9 @@ func TestAccountServiceEntitlements_InfersPlanTierFromPrice(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
+	replacer := strings.NewReplacer("/", "_", ".", "_")
+	suffix := replacer.Replace(strings.ToLower(t.Name()))
+
 	bundleKey := configureAccountBundleEnv(t, "infer_env")
 	productID := upsertTestBundleProduct(
 		t,
@@ -301,15 +322,19 @@ func TestAccountServiceEntitlements_InfersPlanTierFromPrice(t *testing.T) {
 		nil,
 	)
 
-	email := "infer-plan@example.com"
+	email := fmt.Sprintf("infer-plan-%s@example.com", suffix)
+	subscriptionID := fmt.Sprintf("sub_infer_%s", suffix)
+	if _, err := db.Exec(`DELETE FROM subscriptions WHERE subscription_id = $1`, subscriptionID); err != nil {
+		t.Fatalf("failed to cleanup subscription: %v", err)
+	}
 	if _, err := db.Exec(`
 		INSERT INTO subscriptions (subscription_id, customer_email, status, plan_tier, price_id, bundle_key, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-	`, "sub_infer_123", email, "trialing", "", "price_infer_plan", bundleKey); err != nil {
+	`, subscriptionID, email, "trialing", "", "price_infer_plan", bundleKey); err != nil {
 		t.Fatalf("failed to seed subscription: %v", err)
 	}
 
-	accountService := NewAccountService(db, NewPlanService(db))
+	accountService := newAccountServiceWithTestPlanStore(t, db)
 	entitlements, err := accountService.GetEntitlements(email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
@@ -331,7 +356,7 @@ func TestAccountServiceCredits_EmptyUserUsesDefaults(t *testing.T) {
 	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "empty_user_env")
-	accountService := NewAccountService(db, NewPlanService(db))
+	accountService := newAccountServiceWithTestPlanStore(t, db)
 
 	credits, err := accountService.GetCredits("   ")
 	if err != nil {
@@ -355,5 +380,288 @@ func TestAccountServiceCredits_EmptyUserUsesDefaults(t *testing.T) {
 	}
 	if ts := credits.Balance.GetUpdatedAt(); ts == nil || ts.AsTime().IsZero() {
 		t.Fatal("expected updated_at timestamp populated for empty user credits response")
+	}
+}
+
+// ============================================================================
+// Subscription Status Edge Cases Tests
+// ============================================================================
+
+func TestGetEntitlements_StatusPastDue_ReturnsLimitedAccess(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	bundleKey := configureAccountBundleEnv(t, "past_due_env")
+	productID := upsertTestBundleProduct(
+		t,
+		db,
+		bundleKey,
+		"Past Due Test Bundle",
+		"prod_past_due_test",
+		"past_due_env",
+		2_000_000,
+		0.002,
+		"past_due",
+	)
+	defer cleanupBundleProductRecords(t, db, productID)
+
+	insertBundlePrice(
+		t,
+		db,
+		productID,
+		"price_past_due_plan",
+		"Past Due Plan",
+		"pro",
+		"month",
+		"usd",
+		1999,
+		false,
+		"none",
+		0,
+		0,
+		"past_due_lookup",
+		2_000_000,
+		0,
+		2,
+		15,
+		"none",
+		"subscription",
+		nil,
+	)
+
+	email := "past-due-user@example.com"
+	subscriptionID := "sub_past_due_123"
+	if _, err := db.Exec(`DELETE FROM subscriptions WHERE subscription_id = $1`, subscriptionID); err != nil {
+		t.Fatalf("failed to cleanup subscription: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_email, status, plan_tier, price_id, bundle_key, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+	`, subscriptionID, email, "past_due", "pro", "price_past_due_plan", bundleKey); err != nil {
+		t.Fatalf("failed to seed past_due subscription: %v", err)
+	}
+
+	accountService := newAccountServiceWithTestPlanStore(t, db)
+	entitlements, err := accountService.GetEntitlements(email)
+	if err != nil {
+		t.Fatalf("GetEntitlements failed: %v", err)
+	}
+
+	// Past due subscriptions should still have their plan tier and status
+	if entitlements.Status != "past_due" {
+		t.Errorf("expected status 'past_due', got %s", entitlements.Status)
+	}
+	if entitlements.PlanTier != "pro" {
+		t.Errorf("expected plan tier 'pro' for past_due user, got %s", entitlements.PlanTier)
+	}
+}
+
+func TestGetEntitlements_StatusTrialing_ReturnsFullAccess(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	bundleKey := configureAccountBundleEnv(t, "trialing_env")
+	productID := upsertTestBundleProduct(
+		t,
+		db,
+		bundleKey,
+		"Trialing Test Bundle",
+		"prod_trialing_test",
+		"trialing_env",
+		2_500_000,
+		0.0025,
+		"trialing",
+	)
+	defer cleanupBundleProductRecords(t, db, productID)
+
+	insertBundlePrice(
+		t,
+		db,
+		productID,
+		"price_trialing_plan",
+		"Trialing Plan",
+		"studio",
+		"month",
+		"usd",
+		4999,
+		false,
+		"none",
+		0,
+		0,
+		"trialing_lookup",
+		5_000_000,
+		0,
+		3,
+		20,
+		"none",
+		"subscription",
+		map[string]interface{}{
+			"features": []string{"Full studio access", "Priority support"},
+		},
+	)
+
+	email := "trialing-user@example.com"
+	subscriptionID := "sub_trialing_123"
+	if _, err := db.Exec(`DELETE FROM subscriptions WHERE subscription_id = $1`, subscriptionID); err != nil {
+		t.Fatalf("failed to cleanup subscription: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_email, status, plan_tier, price_id, bundle_key, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+	`, subscriptionID, email, "trialing", "studio", "price_trialing_plan", bundleKey); err != nil {
+		t.Fatalf("failed to seed trialing subscription: %v", err)
+	}
+
+	accountService := newAccountServiceWithTestPlanStore(t, db)
+	entitlements, err := accountService.GetEntitlements(email)
+	if err != nil {
+		t.Fatalf("GetEntitlements failed: %v", err)
+	}
+
+	// Trialing subscriptions should have full access
+	if entitlements.Status != "trialing" {
+		t.Errorf("expected status 'trialing', got %s", entitlements.Status)
+	}
+	if entitlements.PlanTier != "studio" {
+		t.Errorf("expected plan tier 'studio' for trialing user, got %s", entitlements.PlanTier)
+	}
+	if len(entitlements.Features) != 2 {
+		t.Errorf("expected 2 features for trialing studio plan, got %d", len(entitlements.Features))
+	}
+}
+
+func TestGetEntitlements_StatusCanceled_ReturnsFreeDefaults(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	bundleKey := configureAccountBundleEnv(t, "canceled_env")
+
+	email := "canceled-user@example.com"
+	subscriptionID := "sub_canceled_123"
+	if _, err := db.Exec(`DELETE FROM subscriptions WHERE subscription_id = $1`, subscriptionID); err != nil {
+		t.Fatalf("failed to cleanup subscription: %v", err)
+	}
+	canceledAt := time.Now().Add(-24 * time.Hour)
+	if _, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_email, status, plan_tier, price_id, bundle_key, canceled_at, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+	`, subscriptionID, email, "canceled", "pro", "price_was_pro", bundleKey, canceledAt); err != nil {
+		t.Fatalf("failed to seed canceled subscription: %v", err)
+	}
+
+	accountService := newAccountServiceWithTestPlanStore(t, db)
+	entitlements, err := accountService.GetEntitlements(email)
+	if err != nil {
+		t.Fatalf("GetEntitlements failed: %v", err)
+	}
+
+	// Canceled subscriptions should reflect the canceled status
+	if entitlements.Status != "canceled" {
+		t.Errorf("expected status 'canceled', got %s", entitlements.Status)
+	}
+	// The plan tier is still returned (shows what they had before cancellation)
+	if entitlements.PlanTier != "pro" {
+		t.Errorf("expected plan tier 'pro' (previous tier) for canceled user, got %s", entitlements.PlanTier)
+	}
+}
+
+// ============================================================================
+// Billing Cycle Tests
+// ============================================================================
+
+func TestGetEntitlements_BillingCycleStart_IncludedInResponse(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	bundleKey := configureAccountBundleEnv(t, "billing_cycle_env")
+	productID := upsertTestBundleProduct(
+		t,
+		db,
+		bundleKey,
+		"Billing Cycle Test Bundle",
+		"prod_billing_cycle_test",
+		"billing_cycle_env",
+		2_000_000,
+		0.002,
+		"billing_cycle",
+	)
+	defer cleanupBundleProductRecords(t, db, productID)
+
+	insertBundlePrice(
+		t,
+		db,
+		productID,
+		"price_billing_cycle_plan",
+		"Billing Cycle Plan",
+		"pro",
+		"month",
+		"usd",
+		1999,
+		false,
+		"none",
+		0,
+		0,
+		"billing_cycle_lookup",
+		2_000_000,
+		0,
+		2,
+		15,
+		"none",
+		"subscription",
+		nil,
+	)
+
+	email := "billing-cycle-user@example.com"
+	subscriptionID := "sub_billing_cycle_123"
+	billingCycleStart := 15 // 15th of each month
+	if _, err := db.Exec(`DELETE FROM subscriptions WHERE subscription_id = $1`, subscriptionID); err != nil {
+		t.Fatalf("failed to cleanup subscription: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_email, status, plan_tier, price_id, bundle_key, billing_cycle_start, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+	`, subscriptionID, email, "active", "pro", "price_billing_cycle_plan", bundleKey, billingCycleStart); err != nil {
+		t.Fatalf("failed to seed subscription with billing cycle: %v", err)
+	}
+
+	accountService := newAccountServiceWithTestPlanStore(t, db)
+	entitlements, err := accountService.GetEntitlements(email)
+	if err != nil {
+		t.Fatalf("GetEntitlements failed: %v", err)
+	}
+
+	if entitlements.BillingCycleStart != billingCycleStart {
+		t.Errorf("expected billing_cycle_start=%d, got %d", billingCycleStart, entitlements.BillingCycleStart)
+	}
+}
+
+func TestGetEntitlements_NoBillingCycleStart_DefaultsToZero(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	bundleKey := configureAccountBundleEnv(t, "no_billing_env")
+
+	email := "no-billing-user@example.com"
+	subscriptionID := "sub_no_billing_123"
+	if _, err := db.Exec(`DELETE FROM subscriptions WHERE subscription_id = $1`, subscriptionID); err != nil {
+		t.Fatalf("failed to cleanup subscription: %v", err)
+	}
+	// Insert without billing_cycle_start (uses default)
+	if _, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_email, status, plan_tier, bundle_key, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+	`, subscriptionID, email, "active", "solo", bundleKey); err != nil {
+		t.Fatalf("failed to seed subscription: %v", err)
+	}
+
+	accountService := NewAccountService(db, NewPlanService(db))
+	entitlements, err := accountService.GetEntitlements(email)
+	if err != nil {
+		t.Fatalf("GetEntitlements failed: %v", err)
+	}
+
+	// Should default to 0 when not set
+	if entitlements.BillingCycleStart != 0 {
+		t.Errorf("expected billing_cycle_start=0 (default), got %d", entitlements.BillingCycleStart)
 	}
 }

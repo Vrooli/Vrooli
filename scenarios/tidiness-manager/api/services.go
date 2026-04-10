@@ -135,6 +135,7 @@ type ScanCoordinator struct {
 	persistDetailed       func(context.Context, string, []DetailedFileMetrics) error
 	persistBasic          func(context.Context, string, []FileMetric) error
 	persistLintTypeIssues func(context.Context, string, []Issue) (int, error)
+	resolveStaleIssues    func(ctx context.Context, scenario string, freshIssues []Issue) (int, error)
 	storeIssue            func(context.Context, string, AIIssue, string, *int) error
 	recordHistory         func(context.Context, string, string, *SmartScanResult, *int) error
 }
@@ -147,6 +148,7 @@ func NewScanCoordinator(
 	persistDetailed func(context.Context, string, []DetailedFileMetrics) error,
 	persistBasic func(context.Context, string, []FileMetric) error,
 	persistLintTypeIssues func(context.Context, string, []Issue) (int, error),
+	resolveStaleIssues func(ctx context.Context, scenario string, freshIssues []Issue) (int, error),
 	storeIssue func(context.Context, string, AIIssue, string, *int) error,
 	recordHistory func(context.Context, string, string, *SmartScanResult, *int) error,
 ) *ScanCoordinator {
@@ -157,6 +159,7 @@ func NewScanCoordinator(
 		persistDetailed:       persistDetailed,
 		persistBasic:          persistBasic,
 		persistLintTypeIssues: persistLintTypeIssues,
+		resolveStaleIssues:    resolveStaleIssues,
 		storeIssue:            storeIssue,
 		recordHistory:         recordHistory,
 	}
@@ -335,6 +338,22 @@ func (sc *ScanCoordinator) LightScan(ctx context.Context, req LightScanRequest) 
 					})
 				}
 			}
+
+			// Resolve stale metric issues no longer present in the fresh set
+			if sc.resolveStaleIssues != nil {
+				resolved, resolveErr := sc.resolveStaleIssues(ctx, result.Scenario, metricIssues)
+				if resolveErr != nil {
+					sc.log("failed to resolve stale metric issues", map[string]interface{}{
+						"error":    resolveErr.Error(),
+						"scenario": result.Scenario,
+					})
+				} else if resolved > 0 {
+					sc.log("resolved stale metric issues", map[string]interface{}{
+						"scenario": result.Scenario,
+						"resolved": resolved,
+					})
+				}
+			}
 		}
 	}
 
@@ -457,6 +476,22 @@ func (sc *ScanCoordinator) EnsureFileMetrics(ctx context.Context, scenario strin
 		metricIssues := GenerateIssuesFromMetrics(scenarioName, detailedMetrics, config)
 		if len(metricIssues) > 0 {
 			_, _ = sc.persistLintTypeIssues(ctx, scenarioName, metricIssues)
+		}
+
+		// Resolve stale metric issues no longer present in the fresh set
+		if sc.resolveStaleIssues != nil {
+			resolved, resolveErr := sc.resolveStaleIssues(ctx, scenarioName, metricIssues)
+			if resolveErr != nil {
+				sc.log("failed to resolve stale metric issues", map[string]interface{}{
+					"error":    resolveErr.Error(),
+					"scenario": scenarioName,
+				})
+			} else if resolved > 0 {
+				sc.log("resolved stale metric issues", map[string]interface{}{
+					"scenario": scenarioName,
+					"resolved": resolved,
+				})
+			}
 		}
 	}
 

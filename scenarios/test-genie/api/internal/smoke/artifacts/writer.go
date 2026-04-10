@@ -233,8 +233,8 @@ func generateReadme(result *orchestrator.Result) string {
 
 	// Test Info
 	b.WriteString("## Test Information\n\n")
-	b.WriteString(fmt.Sprintf("| Property | Value |\n"))
-	b.WriteString(fmt.Sprintf("|----------|-------|\n"))
+	b.WriteString("| Property | Value |\n")
+	b.WriteString("|----------|-------|\n")
 	b.WriteString(fmt.Sprintf("| Scenario | `%s` |\n", result.Scenario))
 	b.WriteString(fmt.Sprintf("| Timestamp | %s |\n", result.Timestamp.Format("2006-01-02 15:04:05 UTC")))
 	if result.DurationMs > 0 {

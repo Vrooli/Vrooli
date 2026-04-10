@@ -26,7 +26,6 @@ func NewHandler(service *Service, log *logrus.Logger) *Handler {
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Post("/projects/inspect-folder", h.InspectProjectFolder)
 	r.Post("/projects/import", h.ImportProject)
-	r.Post("/fs/scan-for-projects", h.ScanForProjects)
 }
 
 // InspectProjectFolder handles POST /projects/inspect-folder
@@ -73,24 +72,6 @@ func (h *Handler) ImportProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.respondJSON(w, http.StatusCreated, result)
-}
-
-// ScanForProjects handles POST /fs/scan-for-projects
-func (h *Handler) ScanForProjects(w http.ResponseWriter, r *http.Request) {
-	var req ScanProjectsRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		// Allow empty body - use defaults
-		req = ScanProjectsRequest{}
-	}
-
-	result, err := h.service.Scan(r.Context(), &req)
-	if err != nil {
-		h.log.WithError(err).WithField("path", req.Path).Error("Failed to scan for projects")
-		h.respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	h.respondJSON(w, http.StatusOK, result)
 }
 
 // respondJSON writes a JSON response.

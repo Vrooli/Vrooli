@@ -1,0 +1,50 @@
+{
+  "description": "Settings endpoints (GET/PUT /api/v1/settings, POST /api/v1/settings/reset) in api/internal/handlers/settings.go. Trigger threshold endpoints (PUT /api/v1/investigations/triggers/{id}/threshold). Default thresholds: CPU 70/90, Memory 80/95, Disk 85/95, TCP 500/1000.",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "system-monitor-must-have-configurable-warningcritical-thresholds-via-api-settings-endpoints",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-002"
+      ],
+      "description": "System must provide API endpoints to configure warning and critical thresholds for all monitored metrics",
+      "id": "REQ-P0-005",
+      "prd_ref": "system-monitor-must-have-configurable-warningcritical-thresholds-via-api-settings-endpoints",
+      "status": "implemented",
+      "title": "Configurable Alert Thresholds",
+      "validation": [
+        {
+          "notes": "Test threshold CRUD operations",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify threshold persistence",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "API response \u003c 500ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Thresholds configurable via UI",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Configurable warning/critical thresholds (via API settings endpoints)"
+}

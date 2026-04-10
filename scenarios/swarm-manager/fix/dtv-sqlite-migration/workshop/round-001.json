@@ -1,0 +1,104 @@
+{
+  "round": 1,
+  "generated_at": "2026-03-24T23:15:00Z",
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 1,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Acceptance file paths",
+      "context": "The spec.json has no `acceptance_allow` patterns set. The work clearly targets the DTV scenario — we need acceptance patterns so the sandbox and post-execution review know which files are expected to change.",
+      "options": [
+        {
+          "key": "A",
+          "label": "scenarios/development-toolchain-validator/**",
+          "rationale": "Broad — all changes are within this scenario directory. The api/, initialization/, and .vrooli/ subdirectories are all under this root."
+        },
+        {
+          "key": "B",
+          "label": "Targeted subdirectories only",
+          "rationale": "Narrower globs like scenarios/development-toolchain-validator/api/infrastructure/**, scenarios/development-toolchain-validator/api/main.go, etc."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide custom acceptance patterns"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": "Pre-selected — the spec description exclusively references files within this scenario."
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "SQLite connection strategy",
+      "context": "api-core provides two patterns for SQLite: (1) `database.Connect()` with `DriverSQLite` which reads `SQLITE_PATH`/`SQLITE_DB` env vars, or (2) using the storage resolver to compute a `ClassData` path and opening the connection directly. The agent-manager uses a custom fallback chain. The system-monitor uses the storage resolver pattern. Recommendation: Use the storage resolver (option B) — it provides scenario-isolated paths automatically and doesn't require env var setup.",
+      "options": [
+        {
+          "key": "A",
+          "label": "api-core database.Connect()",
+          "rationale": "Unified interface, but requires SQLITE_PATH env var to be set externally. Less self-contained."
+        },
+        {
+          "key": "B",
+          "label": "Storage resolver + direct open",
+          "rationale": "Computes path automatically via ClassData. Self-contained — no env var configuration needed. Matches system-monitor pattern.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "B",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Validation runs and results tables",
+      "context": "The PostgreSQL schema has 7 tables. Tables 1-4 (reference_scenarios, skill_connections, structural_expectations, cli_assertions) map directly to the 4 repository interfaces. Tables 5-7 (validation_runs, structural_results, cli_results) are for validation history — but there are NO domain interfaces for these tables yet. The spec says to implement repos for the 4 existing interfaces only. Should we include schema for the history tables (5-7) even though no repo interfaces exist, or only create tables that have corresponding interfaces?",
+      "options": [
+        {
+          "key": "A",
+          "label": "All 7 tables in schema, repos for 4 interfaces only",
+          "rationale": "Future-proofs the schema. History tables are referenced by FKs and will be needed when validation execution is built. No extra code — just SQL DDL.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Only 4 tables that have interfaces",
+          "rationale": "Strict YAGNI — only build what's needed now. Add history tables when validation execution is implemented."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "api-core already fully supports SQLite: `database.DriverSQLite` is a defined constant, `buildSQLiteDSN()` reads `SQLITE_PATH`/`SQLITE_DB` env vars, and the storage resolver's `ClassData` class is specifically designed for mutable application data like SQLite databases. No api-core changes needed."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The existing Postgres repo tests (`reference_repo_test.go`, `skill_repo_test.go`) are unit-only — they test constructors and helper functions, not actual DB operations. `schema_test.go` parses the SQL file text, not a live database. Since these tests don't test real DB behavior, the migration to SQLite is an opportunity to add proper integration tests that actually exercise CRUD operations against a real database."
+    }
+  ],
+  "plan_updates": "Created initial plan.md with all 13 mandatory sections. Populated problem statement, full scope, current technical context (all 4 interfaces, 7 Postgres tables, adaptation requirements), 5-phase implementation strategy, contract decisions, testing plan, risks matrix, and definition of done. Identified acceptance_allow patterns need to be set on spec.json."
+}

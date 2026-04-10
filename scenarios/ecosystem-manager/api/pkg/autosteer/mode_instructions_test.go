@@ -6,7 +6,7 @@ import (
 )
 
 func TestModeInstructions_FormatConditionProgress(t *testing.T) {
-	instructions := NewModeInstructions(testPhasePromptsDir(t))
+	instructions := &PromptLoader{}
 	evaluator := NewConditionEvaluator()
 
 	conditions := []StopCondition{

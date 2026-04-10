@@ -20,7 +20,7 @@ func TestSmartScanner_ScanScenarioEndToEnd(t *testing.T) {
 	scenarioName := "test-scenario"
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", scenarioName)
 
-	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
 		t.Fatalf("Failed to create scenario dir: %v", err)
 	}
 
@@ -35,7 +35,7 @@ func TestSmartScanner_ScanScenarioEndToEnd(t *testing.T) {
 
 	for name, content := range testFiles {
 		path := filepath.Join(scenarioDir, name)
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to write test file %s: %v", name, err)
 		}
 	}
@@ -77,7 +77,7 @@ func TestSmartScanner_ScanScenarioEndToEnd(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer mockServer.Close()
 
@@ -175,12 +175,16 @@ func TestSmartScanner_BatchProcessingWithErrors(t *testing.T) {
 	vrooliRoot := t.TempDir()
 	scenarioName := "test-scenario"
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", scenarioName)
-	os.MkdirAll(scenarioDir, 0755)
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create a test file
 	testFile := "test.go"
 	testContent := "package main\n\nfunc main() {}"
-	os.WriteFile(filepath.Join(scenarioDir, testFile), []byte(testContent), 0644)
+	if err := os.WriteFile(filepath.Join(scenarioDir, testFile), []byte(testContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	oldRoot := os.Getenv("VROOLI_ROOT")
 	os.Setenv("VROOLI_ROOT", vrooliRoot)
@@ -197,7 +201,7 @@ func TestSmartScanner_BatchProcessingWithErrors(t *testing.T) {
 			name: "AI resource returns 500 error",
 			serverBehavior: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte("Internal server error"))
+				_, _ = w.Write([]byte("Internal server error"))
 			},
 			expectError:  false, // Should handle gracefully
 			expectIssues: false,
@@ -206,7 +210,7 @@ func TestSmartScanner_BatchProcessingWithErrors(t *testing.T) {
 			name: "AI resource returns invalid JSON",
 			serverBehavior: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				w.Write([]byte("{invalid json"))
+				_, _ = w.Write([]byte("{invalid json"))
 			},
 			expectError:  false,
 			expectIssues: false,
@@ -228,7 +232,7 @@ func TestSmartScanner_BatchProcessingWithErrors(t *testing.T) {
 					},
 				}
 				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(response)
+				_ = json.NewEncoder(w).Encode(response)
 			},
 			expectError:  false,
 			expectIssues: true,
@@ -282,14 +286,18 @@ func TestSmartScanner_ConcurrentBatchProcessing(t *testing.T) {
 	vrooliRoot := t.TempDir()
 	scenarioName := "test-scenario"
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", scenarioName)
-	os.MkdirAll(scenarioDir, 0755)
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create multiple test files
 	numFiles := 20
 	for i := 0; i < numFiles; i++ {
 		filename := fmt.Sprintf("file-%d.go", i)
 		content := fmt.Sprintf("package main\n\nfunc func%d() {}", i)
-		os.WriteFile(filepath.Join(scenarioDir, filename), []byte(content), 0644)
+		if err := os.WriteFile(filepath.Join(scenarioDir, filename), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	oldRoot := os.Getenv("VROOLI_ROOT")
@@ -315,7 +323,7 @@ func TestSmartScanner_ConcurrentBatchProcessing(t *testing.T) {
 		response := map[string]interface{}{
 			"issues": []AIIssue{},
 		}
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 
 		mu.Lock()
 		requestCount--
@@ -370,12 +378,16 @@ func TestSmartScanner_ContextCancellation(t *testing.T) {
 	vrooliRoot := t.TempDir()
 	scenarioName := "test-scenario"
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", scenarioName)
-	os.MkdirAll(scenarioDir, 0755)
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create test files
 	for i := 0; i < 10; i++ {
 		filename := fmt.Sprintf("file-%d.go", i)
-		os.WriteFile(filepath.Join(scenarioDir, filename), []byte("package main"), 0644)
+		if err := os.WriteFile(filepath.Join(scenarioDir, filename), []byte("package main"), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	oldRoot := os.Getenv("VROOLI_ROOT")
@@ -385,7 +397,7 @@ func TestSmartScanner_ContextCancellation(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Simulate slow processing
 		time.Sleep(500 * time.Millisecond)
-		json.NewEncoder(w).Encode(map[string]interface{}{"issues": []AIIssue{}})
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"issues": []AIIssue{}})
 	}))
 	defer mockServer.Close()
 
@@ -415,7 +427,6 @@ func TestSmartScanner_ContextCancellation(t *testing.T) {
 	defer cancel()
 
 	result, err := scanner.ScanScenario(ctx, req)
-
 	// Should complete even if some batches time out
 	// (graceful degradation)
 	if err != nil {

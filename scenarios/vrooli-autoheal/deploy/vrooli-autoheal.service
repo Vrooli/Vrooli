@@ -48,7 +48,9 @@ ExecStart=/home/USERNAME/Vrooli/scenarios/vrooli-autoheal/cli/vrooli-autoheal-lo
 Restart=always
 RestartSec=15
 
-# UPDATE THIS to your username (for user service, remove this line)
+# NOTE: User= is ONLY for system services (/etc/systemd/system/)
+# For user services (~/.config/systemd/user/), REMOVE this line entirely
+# or the service will fail with "Failed to determine supplementary groups"
 User=USERNAME
 
 # Environment configuration

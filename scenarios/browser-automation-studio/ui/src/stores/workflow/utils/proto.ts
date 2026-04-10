@@ -1,4 +1,4 @@
-import { isMessage } from '@bufbuild/protobuf';
+import { isMessage, type Message, type DescMessage } from '@bufbuild/protobuf';
 import {
   CreateWorkflowResponseSchema,
   UpdateWorkflowResponseSchema,
@@ -19,7 +19,7 @@ import { isPlainObject } from './viewport';
 // Proto Helpers
 // ============================================================================
 
-export const toJsonRecord = (schema: any, message: any): Record<string, unknown> =>
+export const toJsonRecord = (schema: DescMessage, message: Message): Record<string, unknown> =>
   protoMessageToJson(schema, message);
 
 // ============================================================================
@@ -32,8 +32,8 @@ export const workflowSummaryToPayload = (summary: WorkflowSummary | null | undef
   }
 
   if (isMessage(summary)) {
-    const summaryJson = toJsonRecord(WorkflowSummarySchema, summary as any);
-    const flowDef = (summary as any).flowDefinition;
+    const summaryJson = toJsonRecord(WorkflowSummarySchema, summary as Message);
+    const flowDef = (summary as unknown as { flowDefinition?: Message }).flowDefinition;
     if (flowDef) {
       const flowJson = toJsonRecord(WorkflowDefinitionV2Schema, flowDef);
       if (Object.keys(flowJson).length > 0) {

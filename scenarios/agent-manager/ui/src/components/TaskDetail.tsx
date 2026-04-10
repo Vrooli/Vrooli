@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Edit, File, FolderOpen, Link2, Play, StickyNote, Tag, Trash2, XCircle } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { MarkdownRenderer } from "./markdown";
-import { formatDate, formatRelativeTime } from "../lib/utils";
-import type { Task } from "../types";
+import { ContextAttachmentModal } from "./ContextAttachmentModal";
+import { formatStandardDateTime, formatStandardRelativeTime } from "../lib/dateTime";
+import type { ContextAttachmentData, Task } from "../types";
 import { TaskStatus } from "../types";
 
 const taskStatusLabel = (status: TaskStatus): string => {
@@ -42,6 +44,8 @@ export function TaskDetail({
   onCancel,
   onDelete,
 }: TaskDetailProps) {
+  const [selectedAttachment, setSelectedAttachment] = useState<ContextAttachmentData | null>(null);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -146,7 +150,8 @@ export function TaskDetail({
               {task.contextAttachments.map((att, index) => (
                 <div
                   key={index}
-                  className="flex items-start gap-2 p-2 bg-muted rounded-md text-sm"
+                  className="flex items-start gap-2 p-2 bg-muted rounded-md text-sm cursor-pointer hover:bg-muted/70 transition-colors"
+                  onClick={() => setSelectedAttachment(att as ContextAttachmentData)}
                 >
                   {att.type === "file" && <File className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
                   {att.type === "link" && <Link2 className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
@@ -188,14 +193,20 @@ export function TaskDetail({
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-muted-foreground">Created</span>
-            <p className="font-medium">{formatRelativeTime(task.createdAt)}</p>
+            <p className="font-medium">{formatStandardRelativeTime(task.createdAt)}</p>
           </div>
           <div>
             <span className="text-muted-foreground">Last Updated</span>
-            <p className="font-medium">{formatDate(task.updatedAt)}</p>
+            <p className="font-medium">{formatStandardDateTime(task.updatedAt)}</p>
           </div>
         </div>
       </div>
+
+      <ContextAttachmentModal
+        attachment={selectedAttachment}
+        open={selectedAttachment !== null}
+        onOpenChange={(open) => !open && setSelectedAttachment(null)}
+      />
     </div>
   );
 }

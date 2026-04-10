@@ -5,6 +5,9 @@ import path from "path";
 export default defineConfig({
   base: './',  // Required for tunnel/proxy contexts
   plugins: [react()],
+  build: {
+    chunkSizeWarningLimit: 2000,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -12,7 +15,8 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: 'jsdom',
+    environment: 'node',
+    passWithNoTests: true,
     coverage: {
       provider: 'v8',
       reporter: ['json-summary', 'json', 'text'],

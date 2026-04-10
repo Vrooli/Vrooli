@@ -5,8 +5,8 @@ import '@testing-library/jest-dom';
 
 // Mock component for testing
 const FitnessScoreBreakdown = ({
-  dependency,
-  tier,
+  dependency: _dependency,
+  tier: _tier,
   fitnessData
 }: {
   dependency: string;

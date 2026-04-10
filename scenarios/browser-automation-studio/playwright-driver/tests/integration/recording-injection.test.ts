@@ -14,18 +14,15 @@
  * - page.setContent() does not trigger route interception
  */
 
-import { describe, beforeAll, afterAll, beforeEach, afterEach, it, expect } from '@jest/globals';
 import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
 import * as http from 'http';
 import {
   createRecordingContextInitializer,
   RecordingContextInitializer,
-} from '../../src/recording/context-initializer';
-import {
   verifyScriptInjection,
   assertScriptInjected,
   waitForScriptReady,
-} from '../../src/recording/verification';
+} from '../../src/recording';
 import type { RawBrowserEvent } from '../../src/recording/types';
 
 // Increase timeout for browser operations
@@ -48,7 +45,15 @@ class TestServer {
         res.end(html);
       });
       this.server.listen(0, () => {
-        this.port = (this.server!.address() as { port: number }).port;
+        const server = this.server;
+        if (!server) {
+          throw new Error('Test server failed to initialize');
+        }
+        const address = server.address();
+        if (!address || typeof address === 'string') {
+          throw new Error('Unexpected server address for test server');
+        }
+        this.port = address.port;
         resolve(this.port);
       });
     });
@@ -138,11 +143,18 @@ describe('Recording Script Injection (Integration)', () => {
     });
 
     it('should assertScriptInjected throw when script not loaded', async () => {
-      // Navigate to about:blank (no injection)
-      await page.goto('about:blank');
-
-      // Should throw because script is not loaded
-      await expect(assertScriptInjected(page)).rejects.toThrow(/not loaded/i);
+      // Use a fresh browser to avoid init-script leakage across contexts
+      const isolatedBrowser = await chromium.launch({ headless: true });
+      const rawContext = await isolatedBrowser.newContext();
+      const rawPage = await rawContext.newPage();
+      try {
+        await rawPage.goto('about:blank');
+        // Should throw because script is not loaded
+        await expect(assertScriptInjected(rawPage)).rejects.toThrow(/not loaded/i);
+      } finally {
+        await rawContext.close();
+        await isolatedBrowser.close();
+      }
     });
 
     it('should handle pages without <head> tag', async () => {
@@ -261,6 +273,9 @@ describe('Recording Script Injection (Integration)', () => {
 
       // Verify it captured the correct URL
       const navEvent = navEvents[navEvents.length - 1];
+      if (!navEvent) {
+        throw new Error('Expected a navigation event');
+      }
       expect(navEvent.payload?.targetUrl).toContain('/new-path');
     });
   });
@@ -381,19 +396,24 @@ describe('Recording Script Injection (Integration)', () => {
 
       const stats = initializer.getInjectionStats();
 
+      expect(stats.attempted).toBeGreaterThan(0);
       expect(stats.successful).toBeGreaterThan(0);
-      expect(stats.methods.head).toBeGreaterThan(0);
+      expect(stats.lastInjectionAt).not.toBeNull();
     });
 
-    it('should accumulate stats across multiple navigations', async () => {
+    it('should accumulate stats across multiple pages', async () => {
       server.setPage('/test-stats-nav-1', '<html><head></head><body>Page 1</body></html>');
       server.setPage('/test-stats-nav-2', '<html><head></head><body>Page 2</body></html>');
 
-      await page.goto(server.getUrl('/test-stats-nav-1'));
-      await waitForScriptReady(page, 5000);
+      initializer.resetStats();
 
-      await page.goto(server.getUrl('/test-stats-nav-2'));
-      await waitForScriptReady(page, 5000);
+      const firstPage = await context.newPage();
+      await firstPage.goto(server.getUrl('/test-stats-nav-1'));
+      await waitForScriptReady(firstPage, 5000);
+
+      const secondPage = await context.newPage();
+      await secondPage.goto(server.getUrl('/test-stats-nav-2'));
+      await waitForScriptReady(secondPage, 5000);
 
       const stats = initializer.getInjectionStats();
 

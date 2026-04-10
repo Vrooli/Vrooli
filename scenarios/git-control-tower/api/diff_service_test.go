@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -34,6 +36,62 @@ func TestGetDiff_WithFakeGit(t *testing.T) {
 	}
 	if !fakeGit.AssertCalled("Diff") {
 		t.Fatalf("expected Diff to be called")
+	}
+}
+
+func TestGetDiff_SourceMode_HasDiffForUnstaged(t *testing.T) {
+	repoDir := t.TempDir()
+	path := "modified.txt"
+	if err := os.WriteFile(filepath.Join(repoDir, path), []byte("line 1\n"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	fakeGit := NewFakeGitRunner().
+		AddUnstagedFile(path)
+
+	diff, err := GetDiff(context.Background(), DiffDeps{
+		Git:     fakeGit,
+		RepoDir: repoDir,
+	}, DiffRequest{
+		Path: path,
+		Mode: ViewModeSource,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !diff.HasDiff {
+		t.Fatalf("expected HasDiff=true for source mode")
+	}
+	if !fakeGit.AssertCalled("Diff") {
+		t.Fatalf("expected Diff to be called for source mode")
+	}
+	if diff.Stats.Files != 1 {
+		t.Fatalf("expected Stats.Files=1, got %d", diff.Stats.Files)
+	}
+}
+
+func TestGetDiff_SourceMode_CommitHasDiff(t *testing.T) {
+	fakeGit := NewFakeGitRunner()
+
+	diff, err := GetDiff(context.Background(), DiffDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	}, DiffRequest{
+		Path:   "file.txt",
+		Commit: "abc123",
+		Mode:   ViewModeSource,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !diff.HasDiff {
+		t.Fatalf("expected HasDiff=true for commit source mode")
+	}
+	if !fakeGit.AssertCalled("ShowFileAtCommit") {
+		t.Fatalf("expected ShowFileAtCommit to be called")
+	}
+	if !fakeGit.AssertCalled("ShowCommitDiff") {
+		t.Fatalf("expected ShowCommitDiff to be called for source mode commit")
 	}
 }
 
@@ -93,6 +151,54 @@ func TestGetDiff_GitError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "simulated git diff failure") {
 		t.Fatalf("expected error to contain 'simulated git diff failure', got: %v", err)
+	}
+}
+
+func TestGetDiff_SourceMode_RejectsLargeFile(t *testing.T) {
+	repoDir := t.TempDir()
+	path := "big.txt"
+	payload := bytes.Repeat([]byte("a"), int(maxDiffFileBytes+1))
+	if err := os.WriteFile(filepath.Join(repoDir, path), payload, 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	_, err := GetDiff(context.Background(), DiffDeps{
+		Git:     NewFakeGitRunner(),
+		RepoDir: repoDir,
+	}, DiffRequest{
+		Path: path,
+		Mode: ViewModeSource,
+	})
+	if err == nil {
+		t.Fatalf("expected error for large file")
+	}
+	var tooLarge *FileTooLargeError
+	if !errors.As(err, &tooLarge) {
+		t.Fatalf("expected FileTooLargeError, got: %v", err)
+	}
+}
+
+func TestGetDiff_Untracked_RejectsBinary(t *testing.T) {
+	repoDir := t.TempDir()
+	path := "binary.dat"
+	if err := os.WriteFile(filepath.Join(repoDir, path), []byte{0x00, 0x01, 0x02}, 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	_, err := GetDiff(context.Background(), DiffDeps{
+		Git:     NewFakeGitRunner(),
+		RepoDir: repoDir,
+	}, DiffRequest{
+		Path:      path,
+		Untracked: true,
+		Mode:      ViewModeDiff,
+	})
+	if err == nil {
+		t.Fatalf("expected error for binary file")
+	}
+	var unsupported *UnsupportedBinaryError
+	if !errors.As(err, &unsupported) {
+		t.Fatalf("expected UnsupportedBinaryError, got: %v", err)
 	}
 }
 
@@ -343,4 +449,346 @@ func TestGetDiff_StagedChanges(t *testing.T) {
 // New tests should use RunGitCommand directly.
 func runGitCmd(t *testing.T, dir string, args ...string) {
 	RunGitCommand(t, dir, args...)
+}
+
+// --- Enhanced Metrics Tests ---
+
+func TestCountHunkChangedLines(t *testing.T) {
+	tests := []struct {
+		name string
+		hunk DiffHunk
+		want int
+	}{
+		{
+			name: "mixed additions and deletions",
+			hunk: DiffHunk{Lines: []string{
+				" context",
+				"+added1",
+				"+added2",
+				"-deleted1",
+				" context",
+			}},
+			want: 3,
+		},
+		{
+			name: "empty hunk",
+			hunk: DiffHunk{Lines: []string{}},
+			want: 0,
+		},
+		{
+			name: "only context lines",
+			hunk: DiffHunk{Lines: []string{" a", " b", " c"}},
+			want: 0,
+		},
+		{
+			name: "skips +++ and --- headers",
+			hunk: DiffHunk{Lines: []string{
+				"--- a/file.txt",
+				"+++ b/file.txt",
+				"+real addition",
+			}},
+			want: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := countHunkChangedLines(tt.hunk)
+			if got != tt.want {
+				t.Errorf("countHunkChangedLines() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseDiffOutput_EnhancedStats(t *testing.T) {
+	// Two hunks: first has 3 changes, second has 5 changes
+	raw := `diff --git a/file.txt b/file.txt
+index 1234..5678 100644
+--- a/file.txt
++++ b/file.txt
+@@ -1,5 +1,6 @@
+ context
++added1
++added2
+-deleted1
+ context
+@@ -10,4 +11,7 @@
+ context
++added3
++added4
++added5
+-deleted2
+-deleted3
+ context
+`
+	resp := ParseDiffOutput(raw)
+
+	if resp.Stats.HunkCount != 2 {
+		t.Errorf("HunkCount = %d, want 2", resp.Stats.HunkCount)
+	}
+	if resp.Stats.Additions != 5 {
+		t.Errorf("Additions = %d, want 5", resp.Stats.Additions)
+	}
+	if resp.Stats.Deletions != 3 {
+		t.Errorf("Deletions = %d, want 3", resp.Stats.Deletions)
+	}
+	if resp.Stats.NetLines != 2 {
+		t.Errorf("NetLines = %d, want 2", resp.Stats.NetLines)
+	}
+	if resp.Stats.LargestHunk != 5 {
+		t.Errorf("LargestHunk = %d, want 5", resp.Stats.LargestHunk)
+	}
+	// Density = 2 hunks / 8 total changed lines = 0.25
+	expectedDensity := 0.25
+	if resp.Stats.Density < expectedDensity-0.01 || resp.Stats.Density > expectedDensity+0.01 {
+		t.Errorf("Density = %f, want ~%f", resp.Stats.Density, expectedDensity)
+	}
+}
+
+func TestParseDiffOutput_RenameDetection(t *testing.T) {
+	raw := `diff --git a/old.txt b/new.txt
+similarity index 95%
+rename from old.txt
+rename to new.txt
+index 1234..5678 100644
+--- a/old.txt
++++ b/new.txt
+@@ -1,3 +1,3 @@
+ line1
+-old line
++new line
+ line3
+`
+	resp := ParseDiffOutput(raw)
+
+	if !resp.Stats.IsRename {
+		t.Error("expected IsRename=true")
+	}
+	if resp.Stats.OldPath != "old.txt" {
+		t.Errorf("OldPath = %q, want %q", resp.Stats.OldPath, "old.txt")
+	}
+}
+
+func TestParseDiffOutput_EmptyDiff_EnhancedStats(t *testing.T) {
+	resp := ParseDiffOutput("")
+
+	if resp.HasDiff {
+		t.Error("expected HasDiff=false for empty diff")
+	}
+	if resp.Stats.HunkCount != 0 {
+		t.Errorf("HunkCount = %d, want 0", resp.Stats.HunkCount)
+	}
+	if resp.Stats.LargestHunk != 0 {
+		t.Errorf("LargestHunk = %d, want 0", resp.Stats.LargestHunk)
+	}
+	if resp.Stats.Density != 0 {
+		t.Errorf("Density = %f, want 0", resp.Stats.Density)
+	}
+}
+
+func TestParseDiffOutput_SingleHunk_EnhancedStats(t *testing.T) {
+	raw := `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -1,3 +1,4 @@
+ line1
++added
+ line2
+ line3
+`
+	resp := ParseDiffOutput(raw)
+
+	if resp.Stats.HunkCount != 1 {
+		t.Errorf("HunkCount = %d, want 1", resp.Stats.HunkCount)
+	}
+	if resp.Stats.LargestHunk != 1 {
+		t.Errorf("LargestHunk = %d, want 1", resp.Stats.LargestHunk)
+	}
+	// Density = 1 hunk / 1 changed line = 1.0
+	if resp.Stats.Density != 1.0 {
+		t.Errorf("Density = %f, want 1.0", resp.Stats.Density)
+	}
+	if resp.Stats.NetLines != 1 {
+		t.Errorf("NetLines = %d, want 1", resp.Stats.NetLines)
+	}
+}
+
+func TestIsCommentLine(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		ext     string
+		want    bool
+	}{
+		{"Go single-line comment", "// this is a comment", ".go", true},
+		{"Go block comment start", "/* block start", ".go", true},
+		{"Go block comment end", "*/ end", ".go", true},
+		{"Go mid-block star", "* continuation", ".go", true},
+		{"Go code line", "fmt.Println()", ".go", false},
+		{"TS comment", "// comment", ".ts", true},
+		{"TSX comment", "// comment", ".tsx", true},
+		{"Python comment", "# comment", ".py", true},
+		{"Python code", "print('hello')", ".py", false},
+		{"Shell comment", "# comment", ".sh", true},
+		{"YAML comment", "# comment", ".yaml", true},
+		{"HTML comment", "<!-- comment -->", ".html", true},
+		{"HTML tag", "<div>", ".html", false},
+		{"Unknown ext returns false", "// comment", ".xyz", false},
+		{"Empty line returns false", "", ".go", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isCommentLine(tt.content, tt.ext)
+			if got != tt.want {
+				t.Errorf("isCommentLine(%q, %q) = %v, want %v", tt.content, tt.ext, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEnrichCommentStats(t *testing.T) {
+	resp := &DiffResponse{
+		Hunks: []DiffHunk{
+			{
+				Lines: []string{
+					" context line",
+					"+// added comment",
+					"+fmt.Println()",
+					"+/* block comment */",
+					"-// deleted comment",
+					"-oldCode()",
+					"--- a/file.go",
+					"+++ b/file.go",
+				},
+			},
+		},
+		Stats: DiffStats{},
+	}
+	enrichCommentStats(resp, "file.go")
+
+	if resp.Stats.CommentAdditions != 2 {
+		t.Errorf("CommentAdditions = %d, want 2", resp.Stats.CommentAdditions)
+	}
+	if resp.Stats.CommentDeletions != 1 {
+		t.Errorf("CommentDeletions = %d, want 1", resp.Stats.CommentDeletions)
+	}
+}
+
+func TestEnrichCommentStats_NoPath(t *testing.T) {
+	resp := &DiffResponse{
+		Hunks: []DiffHunk{
+			{Lines: []string{"+// comment"}},
+		},
+		Stats: DiffStats{},
+	}
+	enrichCommentStats(resp, "")
+
+	if resp.Stats.CommentAdditions != 0 {
+		t.Errorf("CommentAdditions = %d, want 0 (no-op for empty path)", resp.Stats.CommentAdditions)
+	}
+}
+
+func TestParseDiffOutput_NewFileDetection(t *testing.T) {
+	raw := `diff --git a/newfile.go b/newfile.go
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/newfile.go
+@@ -0,0 +1,3 @@
++package main
++
++func hello() {}
+`
+	resp := ParseDiffOutput(raw)
+	if !resp.Stats.IsNewFile {
+		t.Error("expected IsNewFile to be true")
+	}
+	if resp.Stats.IsDeletedFile {
+		t.Error("expected IsDeletedFile to be false")
+	}
+	if resp.Stats.Additions != 3 {
+		t.Errorf("expected 3 additions, got %d", resp.Stats.Additions)
+	}
+}
+
+func TestParseDiffOutput_DeletedFileDetection(t *testing.T) {
+	raw := `diff --git a/old.go b/old.go
+deleted file mode 100644
+index abc1234..0000000
+--- a/old.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package main
+-
+-func goodbye() {}
+`
+	resp := ParseDiffOutput(raw)
+	if resp.Stats.IsNewFile {
+		t.Error("expected IsNewFile to be false")
+	}
+	if !resp.Stats.IsDeletedFile {
+		t.Error("expected IsDeletedFile to be true")
+	}
+	if resp.Stats.Deletions != 3 {
+		t.Errorf("expected 3 deletions, got %d", resp.Stats.Deletions)
+	}
+}
+
+func TestParseNumstatOutput_EnhancedFields(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantNet    int
+		wantBinary bool
+		wantBinLen int
+	}{
+		{
+			name:       "normal file",
+			input:      "10\t3\tfile.go\n",
+			wantNet:    7,
+			wantBinary: false,
+			wantBinLen: 0,
+		},
+		{
+			name:       "binary file",
+			input:      "-\t-\timage.png\n",
+			wantNet:    0,
+			wantBinary: true,
+			wantBinLen: 1,
+		},
+		{
+			name:       "mixed",
+			input:      "5\t2\tcode.go\n-\t-\tphoto.jpg\n",
+			wantNet:    3,
+			wantBinary: true,
+			wantBinLen: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stats, binaries := parseNumstatOutput([]byte(tt.input))
+			if tt.wantBinLen != len(binaries) {
+				t.Errorf("binaries len = %d, want %d", len(binaries), tt.wantBinLen)
+			}
+			if tt.wantBinary {
+				foundBin := false
+				for _, s := range stats {
+					if s.IsBinary {
+						foundBin = true
+						break
+					}
+				}
+				if !foundBin {
+					t.Error("expected at least one IsBinary=true entry")
+				}
+			}
+			if !tt.wantBinary {
+				for path, s := range stats {
+					if s.NetLines != tt.wantNet {
+						t.Errorf("stats[%s].NetLines = %d, want %d", path, s.NetLines, tt.wantNet)
+					}
+				}
+			}
+		})
+	}
 }

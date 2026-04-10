@@ -1,0 +1,14 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "agent-manager-process-investigation-apply",
+  "name": "Agent Manager Process Investigation Apply",
+  "description": "Implement fixes from an investigation report organized by category with per-change verification.",
+  "modes": ["tools"],
+  "tags": ["agent-manager", "investigation", "apply"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 3,
+  "createdAt": "2026-02-17T00:00:00Z",
+  "updatedAt": "2026-03-15T00:00:00Z"
+}

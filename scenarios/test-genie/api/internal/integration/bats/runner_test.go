@@ -317,8 +317,12 @@ func TestRunner_SkipsNonBatsFiles(t *testing.T) {
 		t.Fatalf("failed to create test dir: %v", err)
 	}
 	// Add non-bats files
-	os.WriteFile(filepath.Join(testDir, "helper.sh"), []byte("#!/bin/bash"), 0o644)
-	os.WriteFile(filepath.Join(testDir, "README.md"), []byte("# Tests"), 0o644)
+	if err := os.WriteFile(filepath.Join(testDir, "helper.sh"), []byte("#!/bin/bash"), 0o644); err != nil {
+		t.Fatalf("write helper.sh: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(testDir, "README.md"), []byte("# Tests"), 0o644); err != nil {
+		t.Fatalf("write README.md: %v", err)
+	}
 
 	r := New(
 		Config{

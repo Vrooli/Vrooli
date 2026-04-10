@@ -69,8 +69,8 @@ describe("telemetry domain", () => {
 
       expect(result.success).toBe(true);
       expect(result.events).toHaveLength(2);
-      expect(result.events[0].event).toBe("test1");
-      expect(result.events[1].event).toBe("test2");
+      expect(result.events?.[0]?.event).toBe("test1");
+      expect(result.events?.[1]?.event).toBe("test2");
     });
 
     it("handles Windows line endings", () => {
@@ -95,7 +95,7 @@ describe("telemetry domain", () => {
       expect(result.success).toBe(false);
       expect(result.events).toHaveLength(2);
       expect(result.errors).toHaveLength(1);
-      expect(result.errors[0].lineNumber).toBe(2);
+      expect(result.errors?.[0]?.lineNumber).toBe(2);
     });
 
     it("rejects arrays as events", () => {
@@ -103,7 +103,7 @@ describe("telemetry domain", () => {
       const result = parseJsonlContent(content);
 
       expect(result.success).toBe(false);
-      expect(result.errors[0].error).toContain("Expected a JSON object");
+      expect(result.errors?.[0]?.error).toContain("Expected a JSON object");
     });
 
     it("returns error for empty content", () => {
@@ -111,7 +111,7 @@ describe("telemetry domain", () => {
 
       expect(result.success).toBe(false);
       expect(result.events).toHaveLength(0);
-      expect(result.errors[0].error).toBe("File is empty");
+      expect(result.errors?.[0]?.error).toBe("File is empty");
     });
 
     it("returns error for whitespace-only content", () => {
@@ -201,7 +201,7 @@ describe("telemetry domain", () => {
 
       expect(result.success).toBe(true);
       expect(result.warnings).toBeDefined();
-      expect(result.warnings!.some((w) => w.includes("Non-standard"))).toBe(true);
+      expect(result.warnings?.some((w) => w.includes("Non-standard"))).toBe(true);
     });
   });
 
@@ -244,19 +244,19 @@ describe("telemetry domain", () => {
     it("returns valid JSON", () => {
       const example = generateExampleEvent();
 
-      expect(() => JSON.parse(example)).not.toThrow();
+      expect(() => JSON.parse(example) as unknown).not.toThrow();
     });
 
     it("includes required event field", () => {
       const example = generateExampleEvent();
-      const parsed = JSON.parse(example);
+      const parsed = JSON.parse(example) as Record<string, unknown>;
 
       expect(parsed.event).toBe("api_unreachable");
     });
 
     it("includes timestamp", () => {
       const example = generateExampleEvent();
-      const parsed = JSON.parse(example);
+      const parsed = JSON.parse(example) as Record<string, unknown>;
 
       expect(parsed.timestamp).toBeDefined();
     });

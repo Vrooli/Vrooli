@@ -1,10 +1,9 @@
 package status
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/vrooli/cli-core/cliutil"
+
+	"test-genie/cli/internal/apijson"
 )
 
 // Client provides API access to health endpoints.
@@ -23,9 +22,9 @@ func (c *Client) Check() ([]byte, Response, error) {
 	if err != nil {
 		return nil, Response{}, err
 	}
-	var resp Response
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, Response{}, fmt.Errorf("parse health response: %w", err)
+	resp, err := apijson.Parse[Response](body, "parse health response")
+	if err != nil {
+		return body, Response{}, err
 	}
 	return body, resp, nil
 }

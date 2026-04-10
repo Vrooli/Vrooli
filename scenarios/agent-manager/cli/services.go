@@ -19,17 +19,23 @@ import (
 
 // Services aggregates all domain-specific services.
 type Services struct {
-	Profiles *ProfileService
-	Tasks    *TaskService
-	Runs     *RunService
+	Profiles    *ProfileService
+	Tasks       *TaskService
+	Runs        *RunService
+	Runners     *RunnerService
+	Settings    *SettingsService
+	Maintenance *MaintenanceService
 }
 
 // NewServices creates a new Services instance with all domain services.
 func NewServices(api *cliutil.APIClient) *Services {
 	return &Services{
-		Profiles: &ProfileService{api: api},
-		Tasks:    &TaskService{api: api},
-		Runs:     &RunService{api: api},
+		Profiles:    &ProfileService{api: api},
+		Tasks:       &TaskService{api: api},
+		Runs:        &RunService{api: api},
+		Runners:     &RunnerService{api: api},
+		Settings:    &SettingsService{api: api},
+		Maintenance: &MaintenanceService{api: api},
 	}
 }
 
@@ -120,6 +126,24 @@ func (s *ProfileService) Delete(id string) error {
 	return err
 }
 
+// Ensure resolves a profile by key, creating it with defaults if needed.
+func (s *ProfileService) Ensure(req *apipb.EnsureProfileRequest) ([]byte, *apipb.EnsureProfileResponse, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/profiles/ensure", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.EnsureProfileResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
 // =============================================================================
 // Task Service
 // =============================================================================
@@ -189,6 +213,30 @@ func (s *TaskService) Create(task *domainpb.Task) ([]byte, *domainpb.Task, error
 // Cancel cancels a task.
 func (s *TaskService) Cancel(id string) ([]byte, error) {
 	return s.api.Request("POST", "/api/v1/tasks/"+id+"/cancel", nil, nil)
+}
+
+// Update updates an existing task.
+func (s *TaskService) Update(id string, task *domainpb.Task) ([]byte, *domainpb.Task, error) {
+	payload, err := marshalProtoRequest(&apipb.UpdateTaskRequest{TaskId: id, Task: task})
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("PUT", "/api/v1/tasks/"+id, nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.UpdateTaskResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Task, nil
+}
+
+// Delete removes a task.
+func (s *TaskService) Delete(id string) error {
+	_, err := s.api.Request("DELETE", "/api/v1/tasks/"+id, nil, nil)
+	return err
 }
 
 // =============================================================================
@@ -367,6 +415,175 @@ func (s *RunService) GetEvents(id string, limit int) ([]byte, []*domainpb.RunEve
 	}
 	return body, resp.Events, nil
 }
+
+// Delete removes a run.
+func (s *RunService) Delete(id string) error {
+	_, err := s.api.Request("DELETE", "/api/v1/runs/"+id, nil, nil)
+	return err
+}
+
+// Continue continues an existing run with a follow-up message.
+func (s *RunService) Continue(id string, req *domainpb.ContinueRunRequest) ([]byte, *domainpb.Run, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/continue", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp domainpb.ContinueRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Run, nil
+}
+
+// Investigate creates an investigation run from one or more existing runs.
+func (s *RunService) Investigate(req json.RawMessage) ([]byte, *domainpb.Run, error) {
+	body, err := s.api.Request("POST", "/api/v1/runs/investigate", nil, req)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.CreateRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Run, nil
+}
+
+// InvestigationApply creates a run that applies investigation recommendations.
+func (s *RunService) InvestigationApply(req json.RawMessage) ([]byte, *domainpb.Run, error) {
+	body, err := s.api.Request("POST", "/api/v1/runs/investigation-apply", nil, req)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.CreateRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Run, nil
+}
+
+// SandboxSync syncs run state from a sandbox.
+func (s *RunService) SandboxSync(id string, req json.RawMessage) ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/"+id+"/sandbox-sync", nil, req)
+}
+
+// ExtractRecommendations extracts recommendations from an investigation run.
+func (s *RunService) ExtractRecommendations(id string) ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/"+id+"/extract-recommendations", nil, nil)
+}
+
+// RegenerateRecommendations regenerates recommendations for an investigation run.
+func (s *RunService) RegenerateRecommendations(id string) ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/"+id+"/regenerate-recommendations", nil, nil)
+}
+
+// =============================================================================
+// Runner Service
+// =============================================================================
+
+// RunnerService handles runner-related API operations.
+type RunnerService struct {
+	api *cliutil.APIClient
+}
+
+// GetStatus retrieves the status of all runners.
+func (s *RunnerService) GetStatus() ([]byte, []*domainpb.RunnerStatus, error) {
+	body, err := s.api.Get("/api/v1/runners", nil)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.GetRunnerStatusResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Runners, nil
+}
+
+// Probe sends a test request to verify a runner can respond.
+func (s *RunnerService) Probe(runnerType string) ([]byte, *domainpb.ProbeResult, error) {
+	body, err := s.api.Request("POST", "/api/v1/runners/"+runnerType+"/probe", nil, nil)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.ProbeRunnerResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, resp.Result, nil
+}
+
+// GetModels retrieves the model registry for all runners.
+func (s *RunnerService) GetModels() ([]byte, error) {
+	return s.api.Get("/api/v1/runner-models", nil)
+}
+
+// UpdateModels replaces the model registry with the provided payload.
+func (s *RunnerService) UpdateModels(data json.RawMessage) ([]byte, error) {
+	return s.api.Request("PUT", "/api/v1/runner-models", nil, data)
+}
+
+// =============================================================================
+// Settings Service
+// =============================================================================
+
+// SettingsService handles settings-related API operations.
+type SettingsService struct {
+	api *cliutil.APIClient
+}
+
+// GetInvestigation retrieves investigation settings.
+func (s *SettingsService) GetInvestigation() ([]byte, error) {
+	return s.api.Get("/api/v1/investigation-settings", nil)
+}
+
+// UpdateInvestigation updates investigation settings.
+func (s *SettingsService) UpdateInvestigation(data json.RawMessage) ([]byte, error) {
+	return s.api.Request("PUT", "/api/v1/investigation-settings", nil, data)
+}
+
+// ResetInvestigation resets investigation settings to defaults.
+func (s *SettingsService) ResetInvestigation() ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/investigation-settings/reset", nil, nil)
+}
+
+// =============================================================================
+// Maintenance Service
+// =============================================================================
+
+// MaintenanceService handles maintenance-related API operations.
+type MaintenanceService struct {
+	api *cliutil.APIClient
+}
+
+// Purge deletes profiles, tasks, or runs matching a regex pattern.
+func (s *MaintenanceService) Purge(req *apipb.PurgeDataRequest) ([]byte, *apipb.PurgeDataResponse, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/maintenance/purge", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.PurgeDataResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
+// =============================================================================
+// Proto Helpers
+// =============================================================================
 
 var protoMarshalOptions = protojson.MarshalOptions{
 	UseProtoNames:   true,

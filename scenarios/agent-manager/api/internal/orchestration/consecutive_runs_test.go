@@ -6,11 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
-	"agent-manager/internal/repository"
+	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
 )
@@ -25,12 +24,8 @@ func TestOrchestrator_ConsecutiveRuns(t *testing.T) {
 	ctx := context.Background()
 
 	// Setup repositories
-	profileRepo := repository.NewMemoryProfileRepository()
-	taskRepo := repository.NewMemoryTaskRepository()
-	runRepo := repository.NewMemoryRunRepository()
-	checkpointRepo := repository.NewMemoryCheckpointRepository()
-	idempotencyRepo := repository.NewMemoryIdempotencyRepository()
-	eventStore := event.NewMemoryStore()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
 
 	// Setup mock runner that completes after a short delay
 	runnerRegistry := runner.NewRegistry()
@@ -72,9 +67,9 @@ func TestOrchestrator_ConsecutiveRuns(t *testing.T) {
 
 	// Create orchestrator with in-place mode (no sandbox required)
 	svc := orchestration.New(
-		profileRepo,
-		taskRepo,
-		runRepo,
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
 		orchestration.WithConfig(orchestration.OrchestratorConfig{
 			DefaultTimeout:          5 * time.Minute,
 			MaxConcurrentRuns:       10,
@@ -82,8 +77,8 @@ func TestOrchestrator_ConsecutiveRuns(t *testing.T) {
 		}),
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(runnerRegistry),
-		orchestration.WithCheckpoints(checkpointRepo),
-		orchestration.WithIdempotency(idempotencyRepo),
+		orchestration.WithCheckpoints(repos.Checkpoints),
+		orchestration.WithIdempotency(repos.Idempotency),
 	)
 
 	// Create a profile
@@ -200,12 +195,8 @@ func TestOrchestrator_ConsecutiveRunsWithHeartbeat(t *testing.T) {
 	ctx := context.Background()
 
 	// Setup repositories
-	profileRepo := repository.NewMemoryProfileRepository()
-	taskRepo := repository.NewMemoryTaskRepository()
-	runRepo := repository.NewMemoryRunRepository()
-	checkpointRepo := repository.NewMemoryCheckpointRepository()
-	idempotencyRepo := repository.NewMemoryIdempotencyRepository()
-	eventStore := event.NewMemoryStore()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
 
 	// Setup mock runner with longer execution time to test heartbeat
 	runnerRegistry := runner.NewRegistry()
@@ -239,9 +230,9 @@ func TestOrchestrator_ConsecutiveRunsWithHeartbeat(t *testing.T) {
 
 	// Create orchestrator
 	svc := orchestration.New(
-		profileRepo,
-		taskRepo,
-		runRepo,
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
 		orchestration.WithConfig(orchestration.OrchestratorConfig{
 			DefaultTimeout:          5 * time.Minute,
 			MaxConcurrentRuns:       10,
@@ -249,8 +240,8 @@ func TestOrchestrator_ConsecutiveRunsWithHeartbeat(t *testing.T) {
 		}),
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(runnerRegistry),
-		orchestration.WithCheckpoints(checkpointRepo),
-		orchestration.WithIdempotency(idempotencyRepo),
+		orchestration.WithCheckpoints(repos.Checkpoints),
+		orchestration.WithIdempotency(repos.Idempotency),
 	)
 
 	// Create profile and task

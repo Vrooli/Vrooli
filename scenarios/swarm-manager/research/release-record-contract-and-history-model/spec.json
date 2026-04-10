@@ -1,0 +1,29 @@
+{
+  "acceptance_allow": [
+    "scenarios/deployment-manager/**",
+    "scenarios/scenario-to-desktop/**",
+    "scenarios/landing-page-business-suite/**",
+    "scenarios/prompt-manager/store/skills/packs/core/landing-page-desktop-upload/**"
+  ],
+  "archived_at": "2026-04-09T03:21:31Z",
+  "created": "2026-03-26T16:35:48Z",
+  "depends_on": [
+    "research/desktop-release-control-plane-audit"
+  ],
+  "description": "Define what version history and release records should mean across deployment-manager profile versions, build provenance, LPBS artifacts, update channels, manifests, and customer-visible release history.\n\nThe output should settle the canonical IDs, references, and schema shape that later implementation work uses so release history is not split across mismatched concepts.",
+  "effort": "M",
+  "initiative": "desktop-release-governance",
+  "kind": "research",
+  "name": "release-record-contract-and-history-model",
+  "priority": 2,
+  "status": "completed",
+  "tags": [
+    "deployment",
+    "version-history",
+    "release-records",
+    "lpbs",
+    "desktop-release"
+  ],
+  "title": "Define The Release Record And History Model",
+  "updated": "2026-04-09T03:21:31Z"
+}

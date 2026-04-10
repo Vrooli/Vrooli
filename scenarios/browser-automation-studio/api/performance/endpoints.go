@@ -55,11 +55,13 @@ func (e *Endpoints) GetPerformance(w http.ResponseWriter, r *http.Request) {
 	if collector == nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(DebugPerformanceResponse{
+		if err := json.NewEncoder(w).Encode(DebugPerformanceResponse{
 			Enabled:   cfg.Performance.Enabled,
 			SessionID: sessionID,
 			Message:   "No performance data for session (session not found or no frames recorded)",
-		})
+		}); err != nil && e.log != nil {
+			e.log.WithError(err).Warn("Failed to encode performance response")
+		}
 		return
 	}
 
@@ -76,7 +78,9 @@ func (e *Endpoints) GetPerformance(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil && e.log != nil {
+		e.log.WithError(err).Warn("Failed to encode performance response")
+	}
 }
 
 // GetAllPerformance handles GET /debug/performance
@@ -102,7 +106,9 @@ func (e *Endpoints) GetAllPerformance(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil && e.log != nil {
+		e.log.WithError(err).Warn("Failed to encode performance response")
+	}
 }
 
 // RegisterRoutes registers the debug performance routes on a chi router.

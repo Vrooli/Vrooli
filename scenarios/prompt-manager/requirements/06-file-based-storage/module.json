@@ -1,0 +1,96 @@
+{
+  "description": "File-based storage system for skills, agents, teams, and relations with JSON schemas",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "prompt-manager-must-have-file-based-storage",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "description": "Implement file-based storage for skills, agents, teams, and relations with per-entity directories",
+      "id": "REQ-P0-012",
+      "prd_ref": "prompt-manager-must-have-file-based-storage",
+      "status": "draft",
+      "title": "File-based Storage System",
+      "validation": [
+        {
+          "notes": "Store directory structure validation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CRUD operations for skills",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CRUD operations for agents",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CRUD operations for teams",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Relation file management",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Index generation and synchronization",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Data persistence verification",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "File operations under 100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Index lookup under 10ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Data persists between restarts",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Data integrity maintained",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "File-based storage for entities"
+}

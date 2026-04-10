@@ -10,6 +10,7 @@ import { getApiBase } from '../../../config';
 import { logger } from '../../../utils/logger';
 import { parseProject } from '../../../utils/projectProto';
 import type { Project } from '../../projects/store';
+import type { ValidationSummary } from '../types';
 
 export interface InspectFolderResponse {
   folder_path: string;
@@ -22,6 +23,14 @@ export interface InspectFolderResponse {
   indexed_project_id?: string;
   suggested_name?: string;
   suggested_description?: string;
+  /** Structured validation checks with status, labels, and descriptions */
+  validation?: ValidationSummary;
+  /** Number of workflow files detected */
+  workflow_count?: number;
+  /** Relative paths to detected workflow files */
+  workflow_locations?: string[];
+  /** Number of V1 format workflows that will be converted */
+  v1_workflow_count?: number;
 }
 
 export interface ImportProjectRequest {
@@ -47,6 +56,52 @@ export interface UseProjectImportReturn {
   reset: () => void;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isString = (value: unknown): value is string => typeof value === 'string';
+const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
+const isNumber = (value: unknown): value is number => typeof value === 'number';
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every(isString);
+
+const isInspectFolderResponse = (value: unknown): value is InspectFolderResponse => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.folder_path)) return false;
+  if (!isBoolean(value.exists)) return false;
+  if (!isBoolean(value.is_dir)) return false;
+  if (!isBoolean(value.has_bas_metadata)) return false;
+  if (!isBoolean(value.has_workflows)) return false;
+  if (!isBoolean(value.already_indexed)) return false;
+  if (value.workflow_count !== undefined && !isNumber(value.workflow_count)) return false;
+  if (value.workflow_locations !== undefined && !isStringArray(value.workflow_locations)) return false;
+  if (value.v1_workflow_count !== undefined && !isNumber(value.v1_workflow_count)) return false;
+  return true;
+};
+
+const parseJson = async (response: Response): Promise<unknown> => {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
+
+const extractErrorMessage = (value: unknown): string | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const details = value.details;
+  if (details && typeof details === 'object') {
+    const detailError = (details as Record<string, unknown>).error;
+    if (typeof detailError === 'string') {
+      return detailError;
+    }
+  }
+  const message = value.message;
+  return typeof message === 'string' ? message : null;
+};
+
 export function useProjectImport(_options?: UseProjectImportOptions): UseProjectImportReturn {
   const [isInspecting, setIsInspecting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -66,16 +121,20 @@ export function useProjectImport(_options?: UseProjectImportOptions): UseProject
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMsg = errorData.details?.error || errorData.message || 'Failed to inspect folder';
+        const errorData = await parseJson(response);
+        const errorMsg = extractErrorMessage(errorData) ?? 'Failed to inspect folder';
         setError(errorMsg);
         return null;
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
+      if (!isInspectFolderResponse(data)) {
+        setError('Invalid inspect response');
+        return null;
+      }
       setInspectResult(data);
       return data;
-    } catch (err) {
+    } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to inspect folder';
       logger.error('Failed to inspect folder', { error: err, folderPath });
       setError(errorMsg);
@@ -98,16 +157,21 @@ export function useProjectImport(_options?: UseProjectImportOptions): UseProject
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMsg = errorData.details?.error || errorData.message || 'Failed to import project';
+        const errorData = await parseJson(response);
+        const errorMsg = extractErrorMessage(errorData) ?? 'Failed to import project';
         setError(errorMsg);
         return null;
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
       const project = parseProject(data);
+      if (!project) {
+        logger.error('Failed to parse project response', { data });
+        setError('Failed to parse project data from server');
+        return null;
+      }
       return project;
-    } catch (err) {
+    } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to import project';
       logger.error('Failed to import project', { error: err, params });
       setError(errorMsg);

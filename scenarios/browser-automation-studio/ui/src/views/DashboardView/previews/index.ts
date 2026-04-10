@@ -1,5 +1,6 @@
-export { FeatureShowcase, FEATURE_CONFIGS } from './FeatureShowcase';
-export type { FeatureConfig } from './FeatureShowcase';
+export { FeatureShowcase } from './FeatureShowcase';
+export { FEATURE_CONFIGS } from './featureConfigs';
+export type { FeatureConfig } from './featureConfigs';
 export { default as FeaturePreviews, PREVIEW_RENDERERS, type PreviewRenderer } from './FeaturePreviews';
 export { ExecutionsEmptyPreview } from './ExecutionsEmptyPreview';
 export { ExportsEmptyPreview } from './ExportsEmptyPreview';

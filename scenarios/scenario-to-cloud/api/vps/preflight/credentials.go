@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 )
 
@@ -92,9 +93,9 @@ func RunCredentialValidation(
 }
 
 func readSecretsForValidation(ctx context.Context, cfg ssh.Config, sshRunner ssh.Runner, workdir string) (map[string]interface{}, error) {
-	secretsPath := ssh.SafeRemoteJoin(workdir, ".vrooli", "secrets.json")
-	readCmd := fmt.Sprintf("cat %s 2>/dev/null", ssh.QuoteSingle(secretsPath))
-	result, err := sshRunner.Run(ctx, cfg, readCmd)
+	secretsPath := shellutil.SafeRemoteJoin(workdir, ".vrooli", "secrets.json")
+	readCmd := fmt.Sprintf("cat %s 2>/dev/null", shellutil.QuoteSingle(secretsPath))
+	result, err := sshRunner.Run(ctx, cfg, readCmd, ssh.DefaultRunOptions())
 	if err != nil || result.ExitCode != 0 {
 		return nil, fmt.Errorf("secrets.json not found")
 	}
@@ -144,10 +145,10 @@ func (v *PostgresCredentialValidator) Validate(
 	// Using port 5433 which is the standard Vrooli postgres port mapping
 	testCmd := fmt.Sprintf(
 		`PGPASSWORD=%s psql -h localhost -p 5433 -U vrooli -d %s -c "SELECT 1" 2>&1 || true`,
-		ssh.QuoteSingle(password),
-		ssh.QuoteSingle(dbName),
+		shellutil.QuoteSingle(password),
+		shellutil.QuoteSingle(dbName),
 	)
-	testResult, _ := sshRunner.Run(ctx, cfg, testCmd)
+	testResult, _ := sshRunner.Run(ctx, cfg, testCmd, ssh.DefaultRunOptions())
 	output := testResult.Stdout
 
 	// Check for password mismatch - this is a FAIL (blocks deployment)

@@ -91,6 +91,26 @@ func TestResolveIncludesTracksCriticalAndOptionalFiles(t *testing.T) {
 	}
 }
 
+func TestApplyTemplatePlaceholdersIncludesOriginContext(t *testing.T) {
+	assembler := &Assembler{ProjectRoot: "/tmp/project"}
+	rendered := assembler.applyTemplatePlaceholders(
+		"{{ORIGIN_SOURCE}}|{{ORIGIN_BACKLOG_ITEM}}|{{ORIGIN_HANDOFF_BRIEF_PATH}}|{{ORIGIN_HANDOFF_MANIFEST_PATH}}",
+		tasks.TaskItem{
+			Origin: &tasks.TaskOrigin{
+				Source:              "swarm-manager",
+				BacklogItem:         "idea/alpha",
+				HandoffBriefPath:    "/tmp/handoff/brief.md",
+				HandoffManifestPath: "/tmp/handoff/manifest.json",
+			},
+		},
+	)
+
+	expected := "swarm-manager|idea/alpha|/tmp/handoff/brief.md|/tmp/handoff/manifest.json"
+	if rendered != expected {
+		t.Fatalf("applyTemplatePlaceholders() = %q, want %q", rendered, expected)
+	}
+}
+
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {

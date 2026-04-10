@@ -1,0 +1,170 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/scenario.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// =============================================================================
+// SCENARIOS API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports scenarios
+// @stability beta
+//
+// HTTP API contracts for Swarm Manager scenario catalog management.
+//
+// USAGE CONTEXTS:
+//   - UI services validating API responses
+//   - API handlers enforcing request constraints
+//
+// =============================================================================
+
+// ListScenariosResponse returns all scenarios.
+message ListScenariosResponse {
+  repeated Scenario scenarios = 1;
+}
+
+// ScenarioResponse returns a single scenario.
+message ScenarioResponse {
+  Scenario scenario = 1;
+}
+
+// UpdateScenarioMetadataRequest wraps metadata updates for PATCH.
+message UpdateScenarioMetadataRequest {
+  // Optional greenfield toggle.
+  optional bool is_greenfield = 1;
+}
+
+// PreserveFilesRequest specifies which files to preserve when archiving a scenario.
+message PreserveFilesRequest {
+  // Explicit paths to preserve (supports glob patterns like "docs/**").
+  repeated string paths = 1;
+
+  // Preset name: "documentation", "requirements", "planning", "all-planning".
+  optional string preset = 2 [(buf.validate.field).string = { in: [
+    "",
+    "documentation",
+    "requirements",
+    "planning",
+    "all-planning"
+  ] }];
+}
+
+// DeleteScenarioRequest specifies options for scenario deletion.
+message DeleteScenarioRequest {
+  // Optional file preservation settings when archiving.
+  optional PreserveFilesRequest preserve_files = 1;
+}
+
+// DeleteScenarioResponse returns deletion results.
+message DeleteScenarioResponse {
+  // Name of the deleted scenario.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Whether the scenario was archived.
+  bool archived = 2;
+
+  // Human-readable message describing the result.
+  string message = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Name of the backlog idea created (if archived).
+  optional string backlog_idea_name = 4;
+
+  // List of files that were preserved.
+  repeated string preserved_files = 5;
+}
+
+// ScenarioFile represents a file or directory in a scenario.
+message ScenarioFile {
+  // File or directory name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Relative path from scenario root.
+  string path = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Type: "file" or "directory".
+  string type = 3 [(buf.validate.field).string = { in: ["file", "directory"] }];
+
+  // File size in bytes (only for files).
+  optional int64 size = 4;
+
+  // Child files/directories (only for directories).
+  repeated ScenarioFile children = 5;
+}
+
+// ScenarioFilesResponse returns the file tree for a scenario.
+message ScenarioFilesResponse {
+  // Root-level files and directories.
+  repeated ScenarioFile files = 1;
+}
+
+// SpecSyncArchiveRequest triggers a spec-sync agent before archiving.
+message SpecSyncArchiveRequest {
+  // Optional file preservation settings when archiving.
+  optional PreserveFilesRequest preserve_files = 1;
+}
+
+// SpecSyncArchiveResponse returns the execution ID for progress tracking.
+message SpecSyncArchiveResponse {
+  // Execution ID to poll for progress.
+  string execution_id = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Current status (pending, running, completed, failed, canceled).
+  string status = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable message.
+  string message = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// ScenarioReviewQueueRequest configures the review queue query.
+message ScenarioReviewQueueRequest {
+  // Maximum scenarios to return (1-50, default 5).
+  optional int32 limit = 1 [(buf.validate.field).int32 = { gte: 1, lte: 50 }];
+
+  // Tag used to identify QA-created fix items for exclusion (default: "preemptive-qa").
+  optional string exclude_tag = 2;
+}
+
+// ScenarioReviewQueueItem represents a single scenario's review priority.
+message ScenarioReviewQueueItem {
+  // Scenario name.
+  string scenario_name = 1;
+
+  // Number of pending (non-terminal) backlog items targeting this scenario.
+  int32 pending_backlog_count = 2;
+
+  // Classification from the most recent GCT review (ready, ready_with_notes, needs_work, not_assessable).
+  optional string last_review_classification = 3;
+
+  // RFC3339 timestamp of the most recent GCT review.
+  optional string last_review_at = 4;
+
+  // Number of executions targeting this scenario in the last 30 days.
+  int32 recent_execution_count = 5;
+
+  // Composite priority score (higher = more urgent).
+  double composite_score = 6;
+
+  // Which signal drove this scenario to the top: "workload", "recent_activity", "staleness".
+  string primary_signal = 7;
+
+  // If recently reviewed, when cooldown expires (RFC3339). Empty if no cooldown.
+  optional string cooldown_until = 8;
+}
+
+// ScenarioReviewQueueResponse returns prioritized scenarios for quality review.
+message ScenarioReviewQueueResponse {
+  // Ranked list of scenarios needing quality review.
+  repeated ScenarioReviewQueueItem items = 1;
+
+  // Total number of scenarios considered (before exclusion and limit).
+  int32 total_scenarios = 2;
+
+  // Number of scenarios excluded due to pending QA fix items.
+  int32 excluded_count = 3;
+}

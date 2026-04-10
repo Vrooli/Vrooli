@@ -1,9 +1,9 @@
-import { Layers, MousePointerClick, Server } from 'lucide-react';
+import { Layers, Server } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useAppsStore } from '@/state/appsStore';
 import { useResourcesStore } from '@/state/resourcesStore';
-import { useBrowserTabsStore } from '@/state/browserTabsStore';
+import { resolveTabSwitcherShortcut, type ShortcutState } from '@/utils/tabSwitcherShortcut';
 import './HomeView.css';
 
 const formatCount = (value: number): string => {
@@ -16,45 +16,6 @@ const formatCount = (value: number): string => {
   return String(value);
 };
 
-type ShortcutState = {
-  keys: string[];
-  description: string;
-};
-
-const identifyDeviceShortcut = (): ShortcutState | null => {
-  if (typeof navigator === 'undefined') {
-    return null;
-  }
-
-  const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
-  const platform = `${nav.platform ?? ''} ${nav.userAgentData?.platform ?? ''}`.toLowerCase();
-  const userAgent = (nav.userAgent ?? '').toLowerCase();
-  const combined = `${platform} ${userAgent}`;
-  const maxTouchPoints = typeof nav.maxTouchPoints === 'number' ? nav.maxTouchPoints : 0;
-
-  const isIOS = /iphone|ipad|ipod/.test(combined) || (/mac/.test(platform) && maxTouchPoints > 1 && /ipad|iphone/.test(userAgent));
-  const isAndroid = /android/.test(combined);
-  const isMobile = isIOS || isAndroid || /mobile/.test(combined);
-
-  if (isMobile) {
-    return null;
-  }
-
-  const isMac = /mac/.test(combined) && !isIOS;
-
-  if (isMac) {
-    return {
-      keys: ['⌘', 'K'],
-      description: 'Command plus K',
-    };
-  }
-
-  return {
-    keys: ['Ctrl', 'K'],
-    description: 'Control plus K',
-  };
-};
-
 export default function HomeView() {
   const appsCount = useAppsStore(state => state.apps.length);
   const appsLoadingInitial = useAppsStore(state => state.loadingInitial);
@@ -62,8 +23,6 @@ export default function HomeView() {
   const resourcesCount = useResourcesStore(state => state.resources.length);
   const resourcesLoading = useResourcesStore(state => state.loading);
   const resourcesInitialized = useResourcesStore(state => state.hasInitialized);
-  const tabsCount = useBrowserTabsStore(state => state.tabs.length);
-  const historyCount = useBrowserTabsStore(state => state.history.length);
   const { openOverlay } = useOverlayRouter();
 
   const scenariosMeta = useMemo(() => {
@@ -98,23 +57,13 @@ export default function HomeView() {
     } as const;
   }, [resourcesCount, resourcesInitialized, resourcesLoading]);
 
-  const webSummary = useMemo(() => {
-    if (tabsCount === 0 && historyCount === 0) {
-      return 'No saved web sessions yet.';
-    }
-    if (tabsCount > 0) {
-      return `${formatCount(tabsCount)} active tab${tabsCount === 1 ? '' : 's'}.`;
-    }
-    return `${formatCount(historyCount)} archived session${historyCount === 1 ? '' : 's'}.`;
-  }, [tabsCount, historyCount]);
-
   const [shortcut, setShortcut] = useState<ShortcutState | null>(null);
 
   useEffect(() => {
-    setShortcut(identifyDeviceShortcut());
+    setShortcut(resolveTabSwitcherShortcut());
   }, []);
 
-  const handleOpenTabs = (segment: 'apps' | 'resources' | 'web') => {
+  const handleOpenTabs = (segment: 'apps' | 'resources') => {
     openOverlay('tabs', {
       params: { segment },
     });
@@ -126,7 +75,7 @@ export default function HomeView() {
         <header className="home-view__header">
           <h1 id="home-view-title">App Monitor control room</h1>
           <p>
-            Launch scenarios, inspect shared resources, or pick up web sessions from the new tabs hub.
+            Launch scenarios or inspect shared resources from the tabs hub.
             The bottom navigation keeps the switcher and status panels within thumb reach.
           </p>
         </header>
@@ -160,15 +109,6 @@ export default function HomeView() {
               >
                 {resourcesMeta.label}
               </span>
-            </div>
-          </button>
-          <button type="button" onClick={() => handleOpenTabs('web')}>
-            <span className="home-view__actions-icon" aria-hidden>
-              <MousePointerClick size={18} />
-            </span>
-            <div>
-              <strong>Resume web tabs</strong>
-              <span className="home-view__metric">{webSummary}</span>
             </div>
           </button>
         </div>

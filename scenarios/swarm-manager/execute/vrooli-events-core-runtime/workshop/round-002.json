@@ -1,0 +1,161 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-05T16:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The proto schemas dependency (execute/vrooli-events-proto-schemas) has completed since round 1. Generated Go types now exist at github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain — including EventEnvelope, SubscriptionRequest, EventNotification, PolicySnapshot, HeartbeatMessage, and all policy rule types. The Go module is at github.com/vrooli/vrooli/packages/proto. This eliminates the need for the interface-boundary strategy from round 1 decision d1 — we can now build directly against proto types."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Revised serialization strategy now that proto types are available",
+      "context": "Round 1 decision d1 selected option C (interface boundary with JSON first) because proto schemas were not yet available. Now that execute/vrooli-events-proto-schemas is complete, we can revise this. The generated Go types (EventEnvelope, etc.) are ready to import. The question is whether to use proto binary serialization for SQLite storage or JSON, and what format to use for SSE data lines.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Proto binary for storage, JSON for SSE wire format",
+          "rationale": "Store payload column as proto-serialized bytes (compact, typed). SSE data: lines use JSON-encoded EventEnvelope (human-readable, browser-compatible). Uses protojson for SSE marshaling. Best of both worlds — compact storage, readable wire format.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "JSON everywhere",
+          "rationale": "Store and transmit as JSON. Simpler debugging (sqlite3 CLI can read payloads). Slightly larger storage footprint. No proto binary serialization code needed."
+        },
+        {
+          "key": "C",
+          "label": "Proto binary everywhere",
+          "rationale": "Proto binary for both storage and SSE. Most compact. But SSE data lines become base64-encoded blobs, breaking browser EventSource compatibility and human readability."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": "Option A recommended. Proto binary for the payload BLOB column keeps storage compact and typed. JSON for SSE data: lines maintains browser EventSource compatibility and human readability. The protojson package handles marshaling between the two formats cleanly."
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Graceful shutdown strategy for SSE connections and background goroutines",
+      "context": "The scenario needs to handle SIGTERM/SIGINT cleanly: close SSE connections, stop the pruning goroutine, flush any pending writes, and close the SQLite database. The order matters — SSE clients should be notified before the DB closes.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Context cancellation cascade",
+          "rationale": "Create a root context.WithCancel in main. Pass it to HTTP server, SSE broker, and pruning goroutine. On signal: cancel context → HTTP server.Shutdown(timeout) drains in-flight requests → broker.Close() sends final heartbeat and closes subscriber channels → pruning goroutine exits on context.Done() → close SQLite. Standard Go pattern, clean ordering.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "sync.WaitGroup with manual ordering",
+          "rationale": "Use WaitGroups to track active SSE connections and background goroutines. On signal: stop accepting new connections, wait for existing SSE connections to drain (with timeout), stop pruning, close DB. More explicit control but more boilerplate."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": "Option A recommended. Context cancellation is idiomatic Go and composes naturally with http.Server.Shutdown and goroutine select loops. The SSE broker's subscriber goroutines already need a context for heartbeat tickers, so this unifies the shutdown path."
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "HTTP router choice",
+      "context": "LPBS uses gorilla/mux for routing. The vrooli-events API has simple routes (4 endpoints). Go 1.22+ net/http now supports method-based routing and path parameters natively. gorilla/mux is archived (no longer actively maintained).",
+      "options": [
+        {
+          "key": "A",
+          "label": "Go 1.22+ net/http ServeMux",
+          "rationale": "Native method routing (GET /api/v1/events, POST /api/v1/events), path params via {name} syntax. Zero dependencies. Sufficient for 4 endpoints. Future-proof as part of the stdlib.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "gorilla/mux",
+          "rationale": "Matches LPBS pattern. Battle-tested. But archived/unmaintained. Adds a dependency for functionality now in stdlib."
+        },
+        {
+          "key": "C",
+          "label": "chi router",
+          "rationale": "Lightweight, actively maintained, middleware-friendly. Slight overkill for 4 endpoints but good if middleware composition matters."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": "Option A recommended. The stdlib ServeMux in Go 1.22+ handles method routing and path params, which is all vrooli-events needs. Avoids adding a dependency for an archived library. However, if the user prefers consistency with LPBS (gorilla/mux), option B is viable."
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "CLI framework",
+      "context": "The CLI needs commands like 'query', 'subscribe', and 'stats'. Existing Vrooli CLIs use cli-core (packages/api-core/cli-core) which provides ScenarioApp scaffolding, API client utilities, and consistent argument handling. The question is whether to use cli-core or build a simpler standalone CLI.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Build on cli-core (ScenarioApp)",
+          "rationale": "Follows the cli-steer skill guidance. Gets API client, config management, output formatting, and consistent UX for free. Aligns with the Vrooli ecosystem pattern. The subscribe command can use cli-core's streaming utilities if available.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Standalone CLI with cobra/flag",
+          "rationale": "Custom CLI with a Go CLI framework. More control, fewer constraints. But diverges from ecosystem patterns and duplicates work that cli-core already provides."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": "Option A recommended per cli-steer skill guidance. cli-core ensures consistent UX across all Vrooli scenario CLIs and provides API client scaffolding that the subscribe/query commands need."
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "Event store: internal types vs. direct proto struct usage",
+      "context": "The SQLite event store needs to map between database rows and Go structs. We can either use the proto-generated EventEnvelope directly as the internal representation, or define internal store types and convert at the boundary. The proto types have protobuf-specific fields (state, sizeCache, unknownFields) that complicate direct SQL scanning.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Internal store types with proto conversion at boundary",
+          "rationale": "Define a plain Go struct (store.Event) for database operations. Convert to/from proto EventEnvelope at the API handler layer. Clean separation — store package has no proto dependency, SQL scanning is straightforward. Conversion is simple field mapping.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Use proto EventEnvelope directly",
+          "rationale": "Use the generated EventEnvelope as the store's internal type. Avoid conversion code. But proto structs don't scan cleanly from SQL rows (need manual field mapping anyway), and the store becomes coupled to proto package versions."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": "Option A recommended. The internal store.Event struct keeps the store package focused on database concerns (SQL scanning, pagination, pruning) without proto coupling. Conversion happens once at the handler boundary — a thin mapping function. This also aligns with round 1 decision d3 (internal packages with thin mains)."
+    }
+  ],
+  "plan_updates": "Updated plan to reflect proto schemas completion: revised serialization strategy (proto binary for storage, JSON for SSE), added proto import paths, updated dependency status. Added graceful shutdown section to implementation strategy. Refined Phase 3 with HTTP router and error response details. Refined Phase 4 with cli-core integration. Added internal store types pattern to Phase 1."
+}

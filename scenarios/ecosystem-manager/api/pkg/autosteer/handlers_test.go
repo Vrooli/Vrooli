@@ -2,7 +2,6 @@ package autosteer
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,87 +9,27 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
 )
 
-func setupHandlersTestDB(t *testing.T) (*sql.DB, func()) {
+func setupHandlersProfileRepo(t *testing.T) (*FileProfileRepository, func()) {
 	t.Helper()
 
-	connStr := "host=localhost port=5432 user=ecosystem_manager password=ecosystem_manager_pass dbname=ecosystem_manager_test sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
+	root := t.TempDir()
+	writeMetadata(t, root, ProfileMetadataIndex{Profiles: []ProfileMetadata{}})
+
+	repo, err := NewFileProfileRepository(root)
 	if err != nil {
-		t.Skipf("Skipping test: cannot connect to test database: %v", err)
-		return nil, nil
+		t.Fatalf("failed to create profile repo: %v", err)
 	}
 
-	if err := db.Ping(); err != nil {
-		t.Skipf("Skipping test: database not available: %v", err)
-		return nil, nil
-	}
-
-	setupSQL := `
-		CREATE TABLE IF NOT EXISTS auto_steer_profiles (
-			id UUID PRIMARY KEY,
-			name VARCHAR(255) NOT NULL UNIQUE,
-			description TEXT,
-			config JSONB NOT NULL,
-			tags TEXT[],
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		);
-
-		CREATE TABLE IF NOT EXISTS profile_execution_state (
-			task_id UUID PRIMARY KEY,
-			profile_id UUID NOT NULL,
-			current_phase_index INTEGER NOT NULL,
-			current_phase_iteration INTEGER NOT NULL,
-			auto_steer_iteration INTEGER NOT NULL DEFAULT 0,
-			phase_started_at TIMESTAMP DEFAULT NOW(),
-			phase_history JSONB,
-			metrics JSONB,
-			phase_start_metrics JSONB,
-			started_at TIMESTAMP DEFAULT NOW(),
-			last_updated TIMESTAMP DEFAULT NOW()
-		);
-
-		CREATE TABLE IF NOT EXISTS profile_executions (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			profile_id UUID NOT NULL,
-			task_id UUID NOT NULL,
-			scenario_name VARCHAR(255) NOT NULL,
-			start_metrics JSONB,
-			end_metrics JSONB,
-			phase_breakdown JSONB,
-			total_iterations INTEGER,
-			total_duration_ms BIGINT,
-			user_rating INTEGER,
-			user_comments TEXT,
-			user_feedback_at TIMESTAMP,
-			executed_at TIMESTAMP DEFAULT NOW()
-		);
-	`
-
-	if _, err := db.Exec(setupSQL); err != nil {
-		t.Fatalf("Failed to create test tables: %v", err)
-	}
-
-	cleanup := func() {
-		_, _ = db.Exec("TRUNCATE auto_steer_profiles, profile_execution_state, profile_executions CASCADE")
-		db.Close()
-	}
-
-	return db, cleanup
+	return repo, func() {}
 }
 
 func TestHandlers_CreateProfile(t *testing.T) {
-	db, cleanup := setupHandlersTestDB(t)
-	if db == nil {
-		return
-	}
+	profileRepo, cleanup := setupHandlersProfileRepo(t)
 	defer cleanup()
 
-	profileService := NewProfileService(db)
-	handlers := NewAutoSteerHandlers(profileService, nil, nil)
+	handlers := NewAutoSteerHandlers(profileRepo, nil, nil)
 
 	t.Run("create valid profile", func(t *testing.T) {
 		profile := AutoSteerProfile{
@@ -99,7 +38,8 @@ func TestHandlers_CreateProfile(t *testing.T) {
 			Phases: []SteerPhase{
 				{
 					ID:            "phase-1",
-					Mode:          ModeProgress,
+					SkillIDs:      []string{"progress"},
+					SkillName:     "Progress",
 					MaxIterations: 10,
 					StopConditions: []StopCondition{
 						{
@@ -154,7 +94,8 @@ func TestHandlers_CreateProfile(t *testing.T) {
 			Phases: []SteerPhase{
 				{
 					ID:            "phase-1",
-					Mode:          ModeProgress,
+					SkillIDs:      []string{"progress"},
+					SkillName:     "Progress",
 					MaxIterations: 10,
 					StopConditions: []StopCondition{
 						{
@@ -181,14 +122,10 @@ func TestHandlers_CreateProfile(t *testing.T) {
 }
 
 func TestHandlers_ListProfiles(t *testing.T) {
-	db, cleanup := setupHandlersTestDB(t)
-	if db == nil {
-		return
-	}
+	profileRepo, cleanup := setupHandlersProfileRepo(t)
 	defer cleanup()
 
-	profileService := NewProfileService(db)
-	handlers := NewAutoSteerHandlers(profileService, nil, nil)
+	handlers := NewAutoSteerHandlers(profileRepo, nil, nil)
 
 	// Create test profiles
 	profile1 := &AutoSteerProfile{
@@ -196,7 +133,8 @@ func TestHandlers_ListProfiles(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-1",
-				Mode:          ModeProgress,
+				SkillIDs:      []string{"progress"},
+				SkillName:     "Progress",
 				MaxIterations: 10,
 				StopConditions: []StopCondition{
 					{
@@ -216,7 +154,8 @@ func TestHandlers_ListProfiles(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-1",
-				Mode:          ModeUX,
+				SkillIDs:      []string{"ux"},
+				SkillName:     "UX",
 				MaxIterations: 5,
 				StopConditions: []StopCondition{
 					{
@@ -231,8 +170,12 @@ func TestHandlers_ListProfiles(t *testing.T) {
 		Tags: []string{"tag2"},
 	}
 
-	profileService.CreateProfile(profile1)
-	profileService.CreateProfile(profile2)
+	if err := profileRepo.CreateProfile(profile1); err != nil {
+		t.Fatalf("failed to create profile1: %v", err)
+	}
+	if err := profileRepo.CreateProfile(profile2); err != nil {
+		t.Fatalf("failed to create profile2: %v", err)
+	}
 
 	t.Run("list all profiles", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/auto-steer/profiles", nil)
@@ -244,13 +187,19 @@ func TestHandlers_ListProfiles(t *testing.T) {
 			t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
 		}
 
-		var profiles []*AutoSteerProfile
-		if err := json.NewDecoder(w.Body).Decode(&profiles); err != nil {
+		var resp struct {
+			Profiles []*AutoSteerProfile `json:"profiles"`
+			Count    int                 `json:"count"`
+		}
+		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
 
-		if len(profiles) != 2 {
-			t.Errorf("Expected 2 profiles, got %d", len(profiles))
+		if len(resp.Profiles) != 2 {
+			t.Errorf("Expected 2 profiles, got %d", len(resp.Profiles))
+		}
+		if resp.Count != 2 {
+			t.Errorf("Expected count 2, got %d", resp.Count)
 		}
 	})
 
@@ -264,26 +213,25 @@ func TestHandlers_ListProfiles(t *testing.T) {
 			t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
 		}
 
-		var profiles []*AutoSteerProfile
-		if err := json.NewDecoder(w.Body).Decode(&profiles); err != nil {
+		var resp struct {
+			Profiles []*AutoSteerProfile `json:"profiles"`
+			Count    int                 `json:"count"`
+		}
+		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
 
-		if len(profiles) != 1 {
-			t.Errorf("Expected 1 profile, got %d", len(profiles))
+		if len(resp.Profiles) != 1 {
+			t.Errorf("Expected 1 profile, got %d", len(resp.Profiles))
 		}
 	})
 }
 
 func TestHandlers_GetProfile(t *testing.T) {
-	db, cleanup := setupHandlersTestDB(t)
-	if db == nil {
-		return
-	}
+	profileRepo, cleanup := setupHandlersProfileRepo(t)
 	defer cleanup()
 
-	profileService := NewProfileService(db)
-	handlers := NewAutoSteerHandlers(profileService, nil, nil)
+	handlers := NewAutoSteerHandlers(profileRepo, nil, nil)
 
 	// Create test profile
 	profile := &AutoSteerProfile{
@@ -291,7 +239,8 @@ func TestHandlers_GetProfile(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-1",
-				Mode:          ModeProgress,
+				SkillIDs:      []string{"progress"},
+				SkillName:     "Progress",
 				MaxIterations: 10,
 				StopConditions: []StopCondition{
 					{
@@ -304,7 +253,9 @@ func TestHandlers_GetProfile(t *testing.T) {
 			},
 		},
 	}
-	profileService.CreateProfile(profile)
+	if err := profileRepo.CreateProfile(profile); err != nil {
+		t.Fatalf("failed to create profile: %v", err)
+	}
 
 	t.Run("get existing profile", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/auto-steer/profiles/"+profile.ID, nil)
@@ -342,14 +293,10 @@ func TestHandlers_GetProfile(t *testing.T) {
 }
 
 func TestHandlers_UpdateProfile(t *testing.T) {
-	db, cleanup := setupHandlersTestDB(t)
-	if db == nil {
-		return
-	}
+	profileRepo, cleanup := setupHandlersProfileRepo(t)
 	defer cleanup()
 
-	profileService := NewProfileService(db)
-	handlers := NewAutoSteerHandlers(profileService, nil, nil)
+	handlers := NewAutoSteerHandlers(profileRepo, nil, nil)
 
 	// Create test profile
 	profile := &AutoSteerProfile{
@@ -357,7 +304,8 @@ func TestHandlers_UpdateProfile(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-1",
-				Mode:          ModeProgress,
+				SkillIDs:      []string{"progress"},
+				SkillName:     "Progress",
 				MaxIterations: 10,
 				StopConditions: []StopCondition{
 					{
@@ -370,7 +318,9 @@ func TestHandlers_UpdateProfile(t *testing.T) {
 			},
 		},
 	}
-	profileService.CreateProfile(profile)
+	if err := profileRepo.CreateProfile(profile); err != nil {
+		t.Fatalf("failed to create profile: %v", err)
+	}
 
 	t.Run("update profile successfully", func(t *testing.T) {
 		updates := AutoSteerProfile{
@@ -379,7 +329,8 @@ func TestHandlers_UpdateProfile(t *testing.T) {
 			Phases: []SteerPhase{
 				{
 					ID:            "phase-1",
-					Mode:          ModeUX,
+					SkillIDs:      []string{"ux"},
+					SkillName:     "UX",
 					MaxIterations: 15,
 					StopConditions: []StopCondition{
 						{
@@ -416,14 +367,10 @@ func TestHandlers_UpdateProfile(t *testing.T) {
 }
 
 func TestHandlers_DeleteProfile(t *testing.T) {
-	db, cleanup := setupHandlersTestDB(t)
-	if db == nil {
-		return
-	}
+	profileRepo, cleanup := setupHandlersProfileRepo(t)
 	defer cleanup()
 
-	profileService := NewProfileService(db)
-	handlers := NewAutoSteerHandlers(profileService, nil, nil)
+	handlers := NewAutoSteerHandlers(profileRepo, nil, nil)
 
 	// Create test profile
 	profile := &AutoSteerProfile{
@@ -431,7 +378,8 @@ func TestHandlers_DeleteProfile(t *testing.T) {
 		Phases: []SteerPhase{
 			{
 				ID:            "phase-1",
-				Mode:          ModeProgress,
+				SkillIDs:      []string{"progress"},
+				SkillName:     "Progress",
 				MaxIterations: 10,
 				StopConditions: []StopCondition{
 					{
@@ -444,7 +392,9 @@ func TestHandlers_DeleteProfile(t *testing.T) {
 			},
 		},
 	}
-	profileService.CreateProfile(profile)
+	if err := profileRepo.CreateProfile(profile); err != nil {
+		t.Fatalf("failed to create profile: %v", err)
+	}
 
 	t.Run("delete existing profile", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodDelete, "/api/auto-steer/profiles/"+profile.ID, nil)
@@ -460,14 +410,47 @@ func TestHandlers_DeleteProfile(t *testing.T) {
 }
 
 func TestHandlers_GetTemplates(t *testing.T) {
-	db, cleanup := setupHandlersTestDB(t)
-	if db == nil {
-		return
+	root := t.TempDir()
+	template := &AutoSteerProfile{
+		ID:          "template-1",
+		Name:        "Template One",
+		Description: "Template profile",
+		Phases: []SteerPhase{
+			{
+				ID:            "phase-template",
+				SkillIDs:      []string{"progress"},
+				SkillName:     "Progress",
+				MaxIterations: 1,
+				StopConditions: []StopCondition{
+					{
+						Type:            ConditionTypeSimple,
+						Metric:          "loops",
+						CompareOperator: OpGreaterThanEquals,
+						Value:           1,
+					},
+				},
+			},
+		},
 	}
-	defer cleanup()
+	writeProfileFile(t, root, "templates/template-one/profile.json", template)
+	writeMetadata(t, root, ProfileMetadataIndex{
+		Profiles: []ProfileMetadata{
+			{
+				ID:          "template-1",
+				Name:        "Template One",
+				Description: "Template profile",
+				Kind:        ProfileKindTemplate,
+				File:        "templates/template-one/profile.json",
+			},
+		},
+	})
 
-	profileService := NewProfileService(db)
-	handlers := NewAutoSteerHandlers(profileService, nil, nil)
+	profileRepo, err := NewFileProfileRepository(root)
+	if err != nil {
+		t.Fatalf("failed to create profile repo: %v", err)
+	}
+
+	handlers := NewAutoSteerHandlers(profileRepo, nil, nil)
 
 	t.Run("get built-in templates", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/auto-steer/templates", nil)
@@ -479,19 +462,22 @@ func TestHandlers_GetTemplates(t *testing.T) {
 			t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
 		}
 
-		var templates []*AutoSteerProfile
-		if err := json.NewDecoder(w.Body).Decode(&templates); err != nil {
+		var resp struct {
+			Templates []*AutoSteerProfile `json:"templates"`
+			Count     int                 `json:"count"`
+		}
+		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 			t.Fatalf("Failed to decode response: %v", err)
 		}
 
-		if len(templates) == 0 {
+		if len(resp.Templates) == 0 {
 			t.Error("Expected at least one template")
 		}
 	})
 }
 
 func TestHandlers_SubmitFeedback(t *testing.T) {
-	db, cleanup := setupHandlersTestDB(t)
+	db, cleanup := setupHistoryTestDB(t)
 	if db == nil {
 		return
 	}
@@ -547,7 +533,7 @@ func TestHandlers_SubmitFeedback(t *testing.T) {
 }
 
 func TestHandlers_GetHistory(t *testing.T) {
-	db, cleanup := setupHandlersTestDB(t)
+	db, cleanup := setupHistoryTestDB(t)
 	if db == nil {
 		return
 	}

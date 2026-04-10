@@ -1,0 +1,36 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-31T18:30:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "All round 2 decisions incorporated into plan. d1 (only include activities whose owner is already in the graph) → added explicit pre-filtering step and updated scope/non-goals. d2 (include run nodes) → removed 'optionally' qualifier, run nodes are now definitive. d3 (reuse addActivityNodesAndEdges directly) → confirmed in approach, added verification note that helper's ownerNodeIDs/executionIDs map pattern makes it safe for operations context."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "All code references verified against current codebase: buildOperations() at projection.go:886, addActivityNodesAndEdges() at projection.go:543, buildActivityNode() at projection.go:421, active status constants at agentactivity/types.go:41-44, test assertion at projection_test.go:331. No stale references."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Plan now includes all 13 mandatory sections from implementation-plan-authoring skill: Purpose (as Goal), Required Reading, Problem Statement, Scope, Technical Context, Target End State, Implementation Strategy, Contract Decisions, Testing Plan, Rollout/Validation Checklist, Risks & Mitigations, Non-goals/Prohibited Patterns, Definition of Done."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "No remaining gaps. All decisions are settled, implementation approach is concrete with specific function names and line numbers, test strategy covers positive and negative cases, and the helper reuse pattern has been verified as safe. Plan is ready for execution."
+    }
+  ],
+  "plan_updates": "Final synthesis: incorporated all round 2 decisions (owner-scoped filtering, run node inclusion, direct helper reuse). Added Target End State, Contract Decisions, Rollout/Validation Checklist, and Non-goals sections to meet plan-authoring quality gates. Tightened implementation steps with explicit pre-filtering logic. All readiness dimensions at 3/3."
+}

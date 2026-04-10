@@ -1,12 +1,16 @@
 package server
 
+// DOC: docs/reference/api-endpoints.md
+
 import (
 	"github.com/gorilla/mux"
 
 	"system-monitor-api/internal/handlers"
+	"system-monitor-api/internal/toolexecution"
+	"system-monitor-api/internal/toolhandlers"
 )
 
-func buildRouter(health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler) *mux.Router {
+func buildRouter(health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, tools *toolhandlers.ToolsHandler, toolExec *toolexecution.Handler) *mux.Router {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/health", health.Handle).Methods("GET")
@@ -14,6 +18,7 @@ func buildRouter(health *handlers.HealthHandler, metrics *handlers.MetricsHandle
 
 	r.HandleFunc("/api/v1/metrics/current", metrics.GetCurrentMetrics).Methods("GET")
 	r.HandleFunc("/api/v1/metrics/detailed", metrics.GetDetailedMetrics).Methods("GET")
+	r.HandleFunc("/api/v1/metrics/timeline", metrics.GetMetricsTimeline).Methods("GET")
 	r.HandleFunc("/api/v1/metrics/processes", metrics.GetProcessMonitor).Methods("GET")
 	r.HandleFunc("/api/v1/metrics/infrastructure", metrics.GetInfrastructureMonitor).Methods("GET")
 
@@ -54,6 +59,12 @@ func buildRouter(health *handlers.HealthHandler, metrics *handlers.MetricsHandle
 	r.HandleFunc("/api/v1/agent/config", investigation.UpdateAgentConfig).Methods("PUT")
 	r.HandleFunc("/api/v1/agent/runners", investigation.GetAvailableRunners).Methods("GET")
 	r.HandleFunc("/api/v1/agent/status", investigation.GetAgentStatus).Methods("GET")
+
+	// Tool Discovery Protocol routes
+	tools.RegisterRoutes(r)
+
+	// Tool Execution Protocol route
+	r.HandleFunc("/api/v1/tools/execute", toolExec.Execute).Methods("POST", "OPTIONS")
 
 	return r
 }

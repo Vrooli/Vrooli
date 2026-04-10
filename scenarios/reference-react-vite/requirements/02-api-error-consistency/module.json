@@ -1,0 +1,120 @@
+{
+  "description": "All API endpoints return errors in a consistent shape: error code (machine-oriented), human message, structured details, and request/correlation ID. No endpoint-specific error formats.",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "children": [
+        "REQ-P0-002a",
+        "REQ-P0-002b"
+      ],
+      "description": "Complete error handling system with consistent responses and recovery guidance.",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "API Error Consistency"
+    },
+    {
+      "category": "api",
+      "children": [
+        "REQ-P0-002a-1",
+        "REQ-P0-002a-2"
+      ],
+      "description": "All API endpoints must return errors in a consistent JSON structure containing: error_code (string), message (string), details (object), request_id (string).",
+      "id": "REQ-P0-002a",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Standardized Error Response Format"
+    },
+    {
+      "category": "api",
+      "description": "Machine-readable error codes for programmatic handling.",
+      "id": "REQ-P0-002a-1",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Error Code System",
+      "validation": [
+        {
+          "notes": "Test error response structure for each error case",
+          "phase": "unit",
+          "ref": "api/handlers/errors_test.go",
+          "status": "passed",
+          "type": "test"
+        },
+        {
+          "notes": "Verify error codes are machine-readable",
+          "phase": "unit",
+          "ref": "api/handlers/errors.go",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Error semantics documentation for API consumers.",
+      "id": "REQ-P0-002a-2",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Error Documentation",
+      "validation": [
+        {
+          "notes": "Error semantics documented",
+          "phase": "integration",
+          "ref": "docs/internal/ERROR_SEMANTICS.md",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "children": [
+        "REQ-P0-002b-1",
+        "REQ-P0-002b-2"
+      ],
+      "description": "Error responses must include recovery hints with retryable flag and structured recovery suggestions. Error details should be appropriate for each error type.",
+      "id": "REQ-P0-002b",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Error Recovery Hints"
+    },
+    {
+      "category": "api",
+      "description": "Retryable flag indicates if operation can be safely retried.",
+      "id": "REQ-P0-002b-1",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Retryable Flag",
+      "validation": [
+        {
+          "notes": "Error responses include retryable field",
+          "phase": "business",
+          "ref": "api/handlers/errors_test.go",
+          "status": "passed",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "description": "Recovery hints provide actionable guidance for error resolution.",
+      "id": "REQ-P0-002b-2",
+      "prd_ref": "OT-P0-002",
+      "status": "passed",
+      "title": "Recovery Guidance",
+      "validation": [
+        {
+          "notes": "Error details are structured appropriately",
+          "phase": "business",
+          "ref": "docs/internal/ERROR_SEMANTICS.md",
+          "status": "passed",
+          "type": "structural"
+        }
+      ]
+    }
+  ],
+  "title": "API Error Consistency"
+}

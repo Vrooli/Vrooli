@@ -1,0 +1,73 @@
+package skills
+
+import "encoding/json"
+
+// ExperimentResponse is the API response for an experiment.
+type ExperimentResponse struct {
+	ID              string                  `json:"id"`
+	SkillID         string                  `json:"skillId"`
+	Name            string                  `json:"name"`
+	Hypothesis      string                  `json:"hypothesis,omitempty"`
+	Status          string                  `json:"status"`
+	Arms            []ExperimentArmResponse `json:"arms"`
+	OutcomeCounts   map[string]int          `json:"outcomeCounts,omitempty"`
+	StartedAt       *string                 `json:"startedAt,omitempty"`
+	ConcludedAt     *string                 `json:"concludedAt,omitempty"`
+	WinnerVariantID *string                 `json:"winnerVariantId,omitempty"`
+	Notes           string                  `json:"notes,omitempty"`
+	CreatedAt       string                  `json:"createdAt"`
+	UpdatedAt       string                  `json:"updatedAt"`
+	Revision        int                     `json:"revision"`
+}
+
+// ExperimentArmResponse is the API representation of an experiment arm.
+type ExperimentArmResponse struct {
+	VariantID   string  `json:"variantId"`
+	VariantName string  `json:"variantName,omitempty"`
+	Weight      float64 `json:"weight"`
+}
+
+// CreateExperimentRequest is the request body for creating an experiment.
+type CreateExperimentRequest struct {
+	ID         string               `json:"id"`
+	SkillID    string               `json:"skillId"`
+	Name       string               `json:"name"`
+	Hypothesis string               `json:"hypothesis,omitempty"`
+	Arms       []ExperimentArmInput `json:"arms"`
+}
+
+// ExperimentArmInput is the request format for an experiment arm.
+type ExperimentArmInput struct {
+	VariantID string  `json:"variantId"`
+	Weight    float64 `json:"weight"`
+}
+
+// UpdateExperimentRequest is the request body for updating an experiment.
+type UpdateExperimentRequest struct {
+	Name       *string              `json:"name,omitempty"`
+	Hypothesis *string              `json:"hypothesis,omitempty"`
+	Arms       []ExperimentArmInput `json:"arms,omitempty"`
+}
+
+// ConcludeExperimentRequest is the request body for concluding an experiment.
+type ConcludeExperimentRequest struct {
+	WinnerVariantID string `json:"winnerVariantId"`
+	Notes           string `json:"notes,omitempty"`
+}
+
+// RecordOutcomeRequest is the request body for recording an experiment outcome.
+type RecordOutcomeRequest struct {
+	VariantID     string          `json:"variantId"`
+	Source        string          `json:"source"`
+	SchemaVersion int             `json:"schemaVersion"`
+	Data          json.RawMessage `json:"data"`
+}
+
+// ExperimentOutcomeResponse is the API response for an outcome.
+type ExperimentOutcomeResponse struct {
+	VariantID     string          `json:"variantId"`
+	Source        string          `json:"source"`
+	SchemaVersion int             `json:"schemaVersion"`
+	RecordedAt    string          `json:"recordedAt"`
+	Data          json.RawMessage `json:"data"`
+}

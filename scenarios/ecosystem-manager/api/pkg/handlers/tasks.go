@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md
+// DOC: docs/reference/api-endpoints.md
 package handlers
 
 import (
@@ -16,6 +18,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
+	"github.com/ecosystem-manager/api/pkg/steering"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
@@ -31,15 +34,22 @@ const (
 	taskSortCreatedAsc  taskSort = "created_asc"
 )
 
+// TargetValidator checks whether a task target exists on disk.
+type TargetValidator interface {
+	TargetExists(taskType, targetName string) bool
+}
+
 // TaskHandlers contains handlers for task-related endpoints
 type TaskHandlers struct {
-	storage           *tasks.Storage
+	storage           tasks.StorageAPI
 	assembler         *prompts.Assembler
 	processor         ProcessorAPI
 	wsManager         *websocket.Manager
-	autoSteerProfiles *autosteer.ProfileService
+	autoSteerProfiles autosteer.ProfileRepository
 	coordinator       *tasks.Coordinator
 	lifecycle         *tasks.Lifecycle
+	queueStateRepo    steering.QueueStateRepository
+	targetValidator   TargetValidator
 }
 
 func writeTransitionError(w http.ResponseWriter, prefix string, err error) bool {
@@ -62,12 +72,58 @@ func writeTransitionError(w http.ResponseWriter, prefix string, err error) bool 
 	return true
 }
 
+func (h *TaskHandlers) maybeInitializeAutoSteer(task *tasks.TaskItem) {
+	if task == nil || strings.TrimSpace(task.AutoSteerProfileID) == "" {
+		return
+	}
+	if h.processor == nil || h.processor.AutoSteerIntegration() == nil {
+		return
+	}
+
+	scenarioName := strings.TrimSpace(queue.GetScenarioNameFromTask(task))
+	if scenarioName == "" {
+		scenarioName = strings.TrimSpace(task.Target)
+	}
+
+	if err := h.processor.AutoSteerIntegration().InitializeAutoSteer(task, scenarioName); err != nil {
+		systemlog.Warnf("Auto Steer initialization failed for task %s after update/create: %v", task.ID, err)
+	}
+}
+
+func (h *TaskHandlers) validateAutoSteerProfile(task *tasks.TaskItem, w http.ResponseWriter) bool {
+	if task == nil {
+		return true
+	}
+	profileID := strings.TrimSpace(task.AutoSteerProfileID)
+	task.AutoSteerProfileID = profileID
+	if profileID == "" {
+		return true
+	}
+	if h.autoSteerProfiles == nil {
+		writeError(w, "auto-steer profile validation is unavailable", http.StatusServiceUnavailable)
+		return false
+	}
+	if _, err := h.autoSteerProfiles.GetProfile(profileID); err != nil {
+		writeStructuredError(w, ErrorOpts{
+			Code:         "profile_not_found",
+			Message:      fmt.Sprintf("Auto Steer profile %q not found", profileID),
+			RecoveryHint: "List profiles: ecosystem-manager steer profiles\nList templates: ecosystem-manager steer templates",
+		}, http.StatusBadRequest)
+		return false
+	}
+	return true
+}
+
 // taskWithRuntime decorates a task with live execution metadata without mutating persisted files.
 type taskWithRuntime struct {
 	tasks.TaskItem
-	CurrentProcess       *queue.ProcessInfo `json:"current_process,omitempty"`
-	AutoSteerPhaseIndex  *int               `json:"auto_steer_phase_index,omitempty"`
-	AutoSteerCurrentMode string             `json:"auto_steer_mode,omitempty"`
+	CurrentProcess           *queue.ProcessInfo `json:"current_process,omitempty"`
+	AutoSteerPhaseIndex      *int               `json:"auto_steer_phase_index,omitempty"`
+	AutoSteerCurrentSet      []string           `json:"auto_steer_set,omitempty"`
+	SteeringQueueIndex       *int               `json:"steering_queue_index,omitempty"`
+	SteeringQueueSet         []string           `json:"steering_queue_set,omitempty"`
+	SteeringQueueTotal       int                `json:"steering_queue_total,omitempty"`
+	SteeringQueueIsExhausted bool               `json:"steering_queue_exhausted,omitempty"`
 }
 
 // buildRuntimeIndex returns a map of running processes keyed by task ID for quick enrichment.
@@ -96,7 +152,63 @@ func attachRuntime(task tasks.TaskItem, runtime map[string]queue.ProcessInfo) ta
 
 type autoSteerRuntime struct {
 	phaseIndex *int
-	mode       string
+	skillSet   []string
+}
+
+type queueSteeringRuntime struct {
+	index       *int
+	skillSet    []string
+	total       int
+	isExhausted bool
+}
+
+// buildQueueSteeringRuntime gathers live queue steering state for tasks with steering_queue.
+func (h *TaskHandlers) buildQueueSteeringRuntime(taskItems []tasks.TaskItem) map[string]queueSteeringRuntime {
+	result := make(map[string]queueSteeringRuntime)
+
+	if h.queueStateRepo == nil {
+		return result
+	}
+
+	for _, task := range taskItems {
+		if len(task.SteeringQueue) == 0 {
+			continue
+		}
+
+		state, err := h.queueStateRepo.Get(task.ID)
+		if err != nil || state == nil {
+			// No state yet - queue hasn't started, show index 0
+			idx := 0
+			result[task.ID] = queueSteeringRuntime{
+				index:       &idx,
+				skillSet:    task.SteeringQueue[0],
+				total:       len(task.SteeringQueue),
+				isExhausted: false,
+			}
+			continue
+		}
+
+		idx := state.CurrentIndex
+
+		// Use task.SteeringQueue (the source of truth) for set, total, and exhausted check.
+		// This ensures runtime state reflects queue edits from task payload updates.
+		queueLen := len(task.SteeringQueue)
+		isExhausted := idx >= queueLen
+
+		var skillSet []string
+		if !isExhausted && idx >= 0 && idx < queueLen {
+			skillSet = task.SteeringQueue[idx]
+		}
+
+		result[task.ID] = queueSteeringRuntime{
+			index:       &idx,
+			skillSet:    skillSet,
+			total:       queueLen,
+			isExhausted: isExhausted,
+		}
+	}
+
+	return result
 }
 
 // buildAutoSteerRuntime gathers live Auto Steer state for the provided tasks.
@@ -110,8 +222,8 @@ func (h *TaskHandlers) buildAutoSteerRuntime(tasks []tasks.TaskItem) map[string]
 	if integration == nil {
 		return result
 	}
-	engine := integration.ExecutionEngine()
-	if engine == nil {
+	orchestrator := integration.ExecutionOrchestrator()
+	if orchestrator == nil {
 		return result
 	}
 
@@ -120,7 +232,7 @@ func (h *TaskHandlers) buildAutoSteerRuntime(tasks []tasks.TaskItem) map[string]
 			continue
 		}
 
-		state, err := engine.GetExecutionState(task.ID)
+		state, err := orchestrator.GetExecutionState(task.ID)
 		if err != nil || state == nil {
 			continue
 		}
@@ -129,18 +241,38 @@ func (h *TaskHandlers) buildAutoSteerRuntime(tasks []tasks.TaskItem) map[string]
 		idx := state.CurrentPhaseIndex
 		idxPtr = &idx
 
-		mode, _ := engine.GetCurrentMode(task.ID)
+		skillSet, _ := orchestrator.GetCurrentSet(task.ID)
 
 		result[task.ID] = autoSteerRuntime{
 			phaseIndex: idxPtr,
-			mode:       string(mode),
+			skillSet:   skillSet,
 		}
 	}
 
 	return result
 }
 
-func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask tasks.TaskItem) {
+func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, r *http.Request, baseTask tasks.TaskItem) {
+	// In dry-run mode, return validated tasks without persisting.
+	if isDryRun(r) {
+		preview := make([]tasks.TaskItem, 0, len(baseTask.Targets))
+		for _, target := range baseTask.Targets {
+			t := baseTask
+			t.ID = generateTaskID(baseTask.Type, baseTask.Operation, target)
+			t.Target = target
+			t.Targets = []string{target}
+			t.Title = deriveTaskTitle("", baseTask.Operation, baseTask.Type, target)
+			t.Status = "pending"
+			preview = append(preview, t)
+		}
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"created": preview,
+		}, http.StatusOK)
+		return
+	}
+
 	created := make([]tasks.TaskItem, 0, len(baseTask.Targets))
 	skipped := make([]map[string]string, 0)
 	errors := make([]map[string]string, 0)
@@ -169,6 +301,7 @@ func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask t
 		newTask.Targets = []string{target}
 		newTask.Title = deriveTaskTitle("", baseTask.Operation, baseTask.Type, target)
 		newTask.Status = "pending"
+		newTask.ProcessorAutoRequeue = true
 		newTask.Results = nil
 		timestamp := timeutil.NowRFC3339()
 		newTask.CreatedAt = timestamp
@@ -276,8 +409,9 @@ func operationDisplayName(operation string) string {
 	}
 }
 
-// NewTaskHandlers creates a new task handlers instance
-func NewTaskHandlers(storage *tasks.Storage, assembler *prompts.Assembler, processor ProcessorAPI, wsManager *websocket.Manager, autoSteerProfiles *autosteer.ProfileService, coordinator *tasks.Coordinator) *TaskHandlers {
+// NewTaskHandlers creates a new task handlers instance.
+// targetValidator is optional (nil skips target existence checks).
+func NewTaskHandlers(storage tasks.StorageAPI, assembler *prompts.Assembler, processor ProcessorAPI, wsManager *websocket.Manager, autoSteerProfiles autosteer.ProfileRepository, coordinator *tasks.Coordinator, queueStateRepo steering.QueueStateRepository, targetValidator TargetValidator) *TaskHandlers {
 	lc := &tasks.Lifecycle{Store: storage}
 	if coordinator != nil && coordinator.LC != nil {
 		lc = coordinator.LC
@@ -299,6 +433,8 @@ func NewTaskHandlers(storage *tasks.Storage, assembler *prompts.Assembler, proce
 		autoSteerProfiles: autoSteerProfiles,
 		coordinator:       coord,
 		lifecycle:         lc,
+		queueStateRepo:    queueStateRepo,
+		targetValidator:   targetValidator,
 	}
 }
 
@@ -309,7 +445,11 @@ func (h *TaskHandlers) getTaskFromRequest(r *http.Request, w http.ResponseWriter
 	taskID := vars["id"]
 	task, status, err := h.storage.GetTaskByID(taskID)
 	if err != nil {
-		writeError(w, "Task not found", http.StatusNotFound)
+		writeStructuredError(w, ErrorOpts{
+			Code:         "task_not_found",
+			Message:      "Task not found",
+			RecoveryHint: "List tasks: ecosystem-manager task list",
+		}, http.StatusNotFound)
 		return nil, "", false
 	}
 	return task, status, true
@@ -319,50 +459,109 @@ func (h *TaskHandlers) getTaskFromRequest(r *http.Request, w http.ResponseWriter
 // Returns true if valid, writes error response and returns false if invalid.
 func (h *TaskHandlers) validateTaskTypeAndOperation(task *tasks.TaskItem, w http.ResponseWriter) bool {
 	if !tasks.IsValidTaskType(task.Type) {
-		writeError(w, fmt.Sprintf("Invalid type: %s. Must be one of: %v", task.Type, tasks.ValidTaskTypes), http.StatusBadRequest)
+		writeStructuredError(w, ErrorOpts{
+			Code:         "invalid_task_type",
+			Message:      fmt.Sprintf("Invalid type: %s. Must be one of: %v", task.Type, tasks.ValidTaskTypes),
+			RecoveryHint: fmt.Sprintf("Valid types: %v", tasks.ValidTaskTypes),
+		}, http.StatusBadRequest)
 		return false
 	}
 	if !tasks.IsValidTaskOperation(task.Operation) {
-		writeError(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", task.Operation, tasks.ValidTaskOperations), http.StatusBadRequest)
+		writeStructuredError(w, ErrorOpts{
+			Code:         "invalid_operation",
+			Message:      fmt.Sprintf("Invalid operation: %s. Must be one of: %v", task.Operation, tasks.ValidTaskOperations),
+			RecoveryHint: fmt.Sprintf("Valid operations: %v", tasks.ValidTaskOperations),
+		}, http.StatusBadRequest)
 		return false
 	}
 	return true
 }
 
-// normalizeSteerMode trims and lowercases a provided steer mode string, treating "none" as empty.
-func normalizeSteerMode(raw string) autosteer.SteerMode {
+func normalizeSkillID(raw string) string {
 	trimmed := strings.TrimSpace(strings.ToLower(raw))
 	if trimmed == "none" {
 		return ""
 	}
-	return autosteer.SteerMode(trimmed)
+	return trimmed
 }
 
-// validateAndNormalizeSteerMode ensures the steer mode is supported for the task shape and valid.
-func validateAndNormalizeSteerMode(task *tasks.TaskItem, w http.ResponseWriter) bool {
-	mode := normalizeSteerMode(task.SteerMode)
-	if mode == "" {
-		task.SteerMode = ""
+func allowedSteerSkillSet() map[string]struct{} {
+	allowed := make(map[string]struct{})
+	for _, mode := range autosteer.AllowedSteerModes() {
+		allowed[string(mode)] = struct{}{}
+	}
+	return allowed
+}
+
+func normalizeSteerSet(raw []string, allowed map[string]struct{}) ([]string, error) {
+	normalized := make([]string, 0, len(raw))
+	for _, skillID := range raw {
+		normalizedID := normalizeSkillID(skillID)
+		if normalizedID == "" {
+			continue
+		}
+		if _, ok := allowed[normalizedID]; !ok {
+			return nil, fmt.Errorf("invalid skill id %q", skillID)
+		}
+		normalized = append(normalized, normalizedID)
+	}
+	return normalized, nil
+}
+
+func validateAndNormalizeSteerSet(task *tasks.TaskItem, w http.ResponseWriter) bool {
+	if len(task.SteerSet) == 0 {
+		return true
+	}
+	if task.Type != "scenario" || task.Operation != "improver" {
+		writeError(w, "Manual steering (--steer-set/--steering-queue) is only supported for improver tasks. Use --steer-profile instead, or switch to 'task improve'", http.StatusBadRequest)
+		return false
+	}
+	normalized, err := normalizeSteerSet(task.SteerSet, allowedSteerSkillSet())
+	if err != nil {
+		writeError(w, fmt.Sprintf("Invalid steer_set: %v. Must be one of: %v", err, autosteer.AllowedSteerModes()), http.StatusBadRequest)
+		return false
+	}
+	if len(normalized) == 0 {
+		task.SteerSet = nil
+		return true
+	}
+	task.SteerSet = normalized
+	return true
+}
+
+// validateAndNormalizeSteeringQueue ensures queue entries are non-empty valid skill sets.
+func validateAndNormalizeSteeringQueue(task *tasks.TaskItem, w http.ResponseWriter) bool {
+	if len(task.SteeringQueue) == 0 {
 		return true
 	}
 
 	if task.Type != "scenario" || task.Operation != "improver" {
-		writeError(w, "Manual steering is only supported for scenario improver tasks", http.StatusBadRequest)
+		writeError(w, "Steering queue (--steering-queue) is only supported for scenario improver tasks. Use --steer-profile instead, or switch to 'task improve scenario <name>'", http.StatusBadRequest)
 		return false
 	}
 
-	if !mode.IsValid() {
-		writeError(w, fmt.Sprintf("Invalid steer_mode: %s. Must be one of: %v", mode, autosteer.AllowedSteerModes()), http.StatusBadRequest)
-		return false
+	allowed := allowedSteerSkillSet()
+	normalizedQueue := make([][]string, 0, len(task.SteeringQueue))
+	for i, rawSet := range task.SteeringQueue {
+		normalizedSet, err := normalizeSteerSet(rawSet, allowed)
+		if err != nil {
+			writeError(w, fmt.Sprintf("Invalid skill in steering_queue[%d]: %v. Must be one of: %v", i, err, autosteer.AllowedSteerModes()), http.StatusBadRequest)
+			return false
+		}
+		if len(normalizedSet) == 0 {
+			writeError(w, fmt.Sprintf("steering_queue[%d] cannot be empty", i), http.StatusBadRequest)
+			return false
+		}
+		normalizedQueue = append(normalizedQueue, normalizedSet)
 	}
 
-	task.SteerMode = string(mode)
+	task.SteeringQueue = normalizedQueue
 	return true
 }
 
 // preserveUnsetFields copies non-zero values from current to updated for fields that are unset.
 // This helper consolidates field preservation logic used when updating tasks.
-func preserveUnsetFields(updated, current *tasks.TaskItem, preserveSteerMode bool) {
+func preserveUnsetFields(updated, current *tasks.TaskItem, preserveSteerSet bool) {
 	if updated.Title == "" {
 		updated.Title = current.Title
 	}
@@ -388,13 +587,13 @@ func preserveUnsetFields(updated, current *tasks.TaskItem, preserveSteerMode boo
 		updated.Targets = current.Targets
 		updated.Target = current.Target
 	}
-	if preserveSteerMode && updated.SteerMode == "" && current.SteerMode != "" {
-		updated.SteerMode = current.SteerMode
+	if preserveSteerSet && len(updated.SteerSet) == 0 && len(current.SteerSet) > 0 {
+		updated.SteerSet = append([]string(nil), current.SteerSet...)
 	}
 }
 
 // applyUserEditableFields copies non-status user-editable fields from src into dst.
-func applyUserEditableFields(dst *tasks.TaskItem, src tasks.TaskItem, notesProvided bool) {
+func applyUserEditableFields(dst *tasks.TaskItem, src tasks.TaskItem, notesProvided, originProvided bool) {
 	dst.Title = src.Title
 	dst.Priority = src.Priority
 	dst.Category = src.Category
@@ -408,10 +607,15 @@ func applyUserEditableFields(dst *tasks.TaskItem, src tasks.TaskItem, notesProvi
 	dst.Target = src.Target
 	dst.Targets = src.Targets
 	dst.Tags = src.Tags
-	dst.SteerMode = src.SteerMode
+	dst.SteerSet = src.SteerSet
 	dst.AutoSteerProfileID = src.AutoSteerProfileID
+	dst.SteeringQueue = src.SteeringQueue
+	dst.ProcessorAutoRequeue = src.ProcessorAutoRequeue
 	if notesProvided {
 		dst.Notes = src.Notes
+	}
+	if originProvided {
+		dst.Origin = src.Origin
 	}
 }
 
@@ -522,14 +726,21 @@ func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 
 	runtimeIndex := h.buildRuntimeIndex()
 	autoSteerIndex := h.buildAutoSteerRuntime(filteredItems)
+	queueSteerIndex := h.buildQueueSteeringRuntime(filteredItems)
 	enriched := make([]taskWithRuntime, 0, len(filteredItems))
 	for _, item := range filteredItems {
 		enrichedTask := attachRuntime(item, runtimeIndex)
 		if steer, ok := autoSteerIndex[item.ID]; ok {
 			enrichedTask.AutoSteerPhaseIndex = steer.phaseIndex
-			if strings.TrimSpace(steer.mode) != "" {
-				enrichedTask.AutoSteerCurrentMode = steer.mode
+			if len(steer.skillSet) > 0 {
+				enrichedTask.AutoSteerCurrentSet = steer.skillSet
 			}
+		}
+		if queueSteer, ok := queueSteerIndex[item.ID]; ok {
+			enrichedTask.SteeringQueueIndex = queueSteer.index
+			enrichedTask.SteeringQueueSet = queueSteer.skillSet
+			enrichedTask.SteeringQueueTotal = queueSteer.total
+			enrichedTask.SteeringQueueIsExhausted = queueSteer.isExhausted
 		}
 		enriched = append(enriched, enrichedTask)
 	}
@@ -566,7 +777,14 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if !validateAndNormalizeSteerMode(&task, w) {
+	if !validateAndNormalizeSteerSet(&task, w) {
+		return
+	}
+
+	if !validateAndNormalizeSteeringQueue(&task, w) {
+		return
+	}
+	if !h.validateAutoSteerProfile(&task, w) {
 		return
 	}
 
@@ -576,9 +794,23 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Validate that improver targets exist on disk (generators create new targets)
+	if task.Operation == "improver" && h.targetValidator != nil {
+		for _, target := range task.Targets {
+			if !h.targetValidator.TargetExists(task.Type, target) {
+				writeStructuredError(w, ErrorOpts{
+					Code:         "target_not_found",
+					Message:      fmt.Sprintf("Target %s %q not found. Verify it exists before creating an improver task", task.Type, target),
+					RecoveryHint: fmt.Sprintf("For new targets use 'task add'. Check: ls scenarios/%s", target),
+				}, http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
 	// Handle multi-target creation as a batch operation
 	if len(task.Targets) > 1 {
-		h.handleMultiTargetCreate(w, task)
+		h.handleMultiTargetCreate(w, r, task)
 		return
 	}
 
@@ -591,7 +823,11 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		}
 
 		if existing != nil {
-			writeError(w, fmt.Sprintf("An active %s task (%s) already exists for %s (%s status)", task.Operation, existing.ID, task.Targets[0], status), http.StatusConflict)
+			writeStructuredError(w, ErrorOpts{
+				Code:         "duplicate_task",
+				Message:      fmt.Sprintf("An active %s task (%s) already exists for %s (%s status)", task.Operation, existing.ID, task.Targets[0], status),
+				RecoveryHint: fmt.Sprintf("View existing: ecosystem-manager task show %s", existing.ID),
+			}, http.StatusConflict)
 			return
 		}
 	}
@@ -612,10 +848,21 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	task.UpdatedAt = timeutil.NowRFC3339()
+	task.ProcessorAutoRequeue = true
 
 	// Ensure canonical single-target representation is persisted
 	if len(task.Targets) == 1 {
 		task.Target = task.Targets[0]
+	}
+
+	// In dry-run mode, return the validated task without persisting.
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"task":    task,
+		}, http.StatusOK)
+		return
 	}
 
 	// Save to pending queue
@@ -624,6 +871,8 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	h.maybeInitializeAutoSteer(&task)
+
 	if h.processor != nil {
 		h.processor.Wake()
 	}
@@ -631,6 +880,10 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, map[string]any{
 		"success": true,
 		"task":    task,
+		"next_steps": []string{
+			fmt.Sprintf("ecosystem-manager task show %s", task.ID),
+			"ecosystem-manager queue start",
+		},
 	}, http.StatusCreated)
 }
 
@@ -722,9 +975,13 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		systemlog.Warnf("UpdateTaskHandler: could not decode raw body for presence detection: %v", err)
 	}
 	notesProvided := false
+	originProvided := false
 	if raw != nil {
 		if _, ok := raw["notes"]; ok {
 			notesProvided = true
+		}
+		if _, ok := raw["origin"]; ok {
+			originProvided = true
 		}
 	}
 
@@ -736,7 +993,7 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	taskID := currentTask.ID
 
 	updatedTask.Targets, updatedTask.Target = tasks.NormalizeTargets(updatedTask.Target, updatedTask.Targets)
-	steerModeCleared := strings.EqualFold(strings.TrimSpace(updatedTask.SteerMode), "none")
+	steerSetCleared := len(updatedTask.SteerSet) == 1 && strings.EqualFold(strings.TrimSpace(updatedTask.SteerSet[0]), "none")
 
 	// Preserve certain fields that shouldn't be changed via general update
 	updatedTask.ID = taskID
@@ -765,21 +1022,32 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Preserve all other fields if they weren't provided in the update
-	preserveUnsetFields(&updatedTask, currentTask, !steerModeCleared)
+	preserveUnsetFields(&updatedTask, currentTask, !steerSetCleared)
 
 	// Notes: only preserve when not provided; allow explicit clearing
 	if !notesProvided {
 		updatedTask.Notes = currentTask.Notes
 	}
+	if !originProvided {
+		updatedTask.Origin = currentTask.Origin
+	}
 
-	if !validateAndNormalizeSteerMode(&updatedTask, w) {
+	if !validateAndNormalizeSteerSet(&updatedTask, w) {
+		return
+	}
+
+	if !validateAndNormalizeSteeringQueue(&updatedTask, w) {
 		return
 	}
 
 	// Validate status if provided
 	newStatus := updatedTask.Status
 	if newStatus != "" && !tasks.IsValidStatus(newStatus) {
-		writeError(w, fmt.Sprintf("Invalid status: %s. Must be one of: %v", newStatus, tasks.GetValidStatuses()), http.StatusBadRequest)
+		writeStructuredError(w, ErrorOpts{
+			Code:         "invalid_status",
+			Message:      fmt.Sprintf("Invalid status: %s. Must be one of: %v", newStatus, tasks.GetValidStatuses()),
+			RecoveryHint: fmt.Sprintf("Valid statuses: %v", tasks.GetValidStatuses()),
+		}, http.StatusBadRequest)
 		return
 	}
 
@@ -797,9 +1065,23 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		}
 
 		if existing != nil && existing.ID != taskID {
-			writeError(w, fmt.Sprintf("An active %s task (%s) already exists for %s (%s status)", updatedTask.Operation, existing.ID, updatedTask.Targets[0], status), http.StatusConflict)
+			writeStructuredError(w, ErrorOpts{
+				Code:         "duplicate_task",
+				Message:      fmt.Sprintf("An active %s task (%s) already exists for %s (%s status)", updatedTask.Operation, existing.ID, updatedTask.Targets[0], status),
+				RecoveryHint: fmt.Sprintf("View existing: ecosystem-manager task show %s", existing.ID),
+			}, http.StatusConflict)
 			return
 		}
+	}
+
+	// In dry-run mode, return the validated update without persisting.
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"task":    updatedTask,
+		}, http.StatusOK)
+		return
 	}
 
 	// Route transitions through coordinator for consistency and centralized side effects.
@@ -811,7 +1093,7 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 		TransitionContext: ctx,
 	}, tasks.ApplyOptions{
 		Mutate: func(t *tasks.TaskItem) {
-			applyUserEditableFields(t, updatedTask, notesProvided)
+			applyUserEditableFields(t, updatedTask, notesProvided, originProvided)
 			t.Title = deriveTaskTitle("", t.Operation, t.Type, t.Target)
 		},
 		BroadcastEvent: "task_updated",
@@ -832,10 +1114,14 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	systemlog.Infof("Task %s updated successfully", taskID)
+	h.maybeInitializeAutoSteer(updated)
 
 	writeJSON(w, map[string]any{
 		"success": true,
 		"task":    updated,
+		"next_steps": []string{
+			fmt.Sprintf("ecosystem-manager task show %s", taskID),
+		},
 	}, http.StatusOK)
 }
 
@@ -843,6 +1129,20 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 func (h *TaskHandlers) DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	taskID := vars["id"]
+
+	// In dry-run mode, verify the task exists but don't delete.
+	if isDryRun(r) {
+		if _, _, err := h.storage.GetTaskByID(taskID); err != nil {
+			writeError(w, "Task not found", http.StatusNotFound)
+			return
+		}
+		writeJSON(w, map[string]any{
+			"success": true,
+			"dry_run": true,
+			"id":      taskID,
+		}, http.StatusOK)
+		return
+	}
 
 	// If possible, rely on coordinator runtime to stop any running process before deletion.
 	if h.coordinator != nil && h.processor != nil {
@@ -862,7 +1162,13 @@ func (h *TaskHandlers) DeleteTaskHandler(w http.ResponseWriter, r *http.Request)
 		"status": status,
 	})
 
-	w.WriteHeader(http.StatusNoContent) // 204 No Content for successful deletion
+	writeJSON(w, map[string]any{
+		"success": true,
+		"id":      taskID,
+		"next_steps": []string{
+			"ecosystem-manager task list",
+		},
+	}, http.StatusOK)
 }
 
 // UpdateTaskStatusHandler updates just the status/progress of a task (simpler than full update)
@@ -885,13 +1191,27 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 
 	// Validate status if provided
 	if update.Status != "" && !tasks.IsValidStatus(update.Status) {
-		writeError(w, fmt.Sprintf("Invalid status: %s. Must be one of: %v", update.Status, tasks.GetValidStatuses()), http.StatusBadRequest)
+		writeStructuredError(w, ErrorOpts{
+			Code:         "invalid_status",
+			Message:      fmt.Sprintf("Invalid status: %s. Must be one of: %v", update.Status, tasks.GetValidStatuses()),
+			RecoveryHint: fmt.Sprintf("Valid statuses: %v", tasks.GetValidStatuses()),
+		}, http.StatusBadRequest)
 		return
 	}
 
 	targetStatus := update.Status
 	if targetStatus == "" {
 		targetStatus = currentStatus
+	}
+
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success":       true,
+			"dry_run":       true,
+			"task_id":       taskID,
+			"target_status": targetStatus,
+		}, http.StatusOK)
+		return
 	}
 
 	updated, outcome, err := h.coordinator.ApplyTransition(tasks.TransitionRequest{
@@ -925,5 +1245,78 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	writeJSON(w, *updated, http.StatusOK)
+	writeJSON(w, map[string]any{
+		"success": true,
+		"task":    updated,
+		"next_steps": []string{
+			fmt.Sprintf("ecosystem-manager task show %s", taskID),
+			"ecosystem-manager task list --status " + updated.Status,
+		},
+	}, http.StatusOK)
+}
+
+// SetQueuePositionHandler sets the steering queue position for a task
+// PUT /api/tasks/{id}/queue-position
+func (h *TaskHandlers) SetQueuePositionHandler(w http.ResponseWriter, r *http.Request) {
+	task, _, ok := h.getTaskFromRequest(r, w)
+	if !ok {
+		return
+	}
+
+	type positionRequest struct {
+		Position int `json:"position"`
+	}
+
+	req, ok := decodeJSONBody[positionRequest](w, r)
+	if !ok {
+		return
+	}
+
+	// Validate task has a steering queue
+	if len(task.SteeringQueue) == 0 {
+		writeError(w, "Task does not have a steering queue", http.StatusBadRequest)
+		return
+	}
+
+	// Validate bounds
+	if req.Position < 0 || req.Position >= len(task.SteeringQueue) {
+		writeError(w, fmt.Sprintf("Position %d out of bounds (0-%d)", req.Position, len(task.SteeringQueue)-1), http.StatusBadRequest)
+		return
+	}
+
+	if isDryRun(r) {
+		writeJSON(w, map[string]any{
+			"success":   true,
+			"dry_run":   true,
+			"position":  req.Position,
+			"steer_set": task.SteeringQueue[req.Position],
+		}, http.StatusOK)
+		return
+	}
+
+	// Set position
+	if h.queueStateRepo == nil {
+		writeError(w, "Queue state repository not available", http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.queueStateRepo.SetPosition(task.ID, req.Position); err != nil {
+		writeError(w, fmt.Sprintf("Failed to set queue position: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Broadcast update
+	if h.wsManager != nil {
+		h.wsManager.BroadcastUpdate("queue_position_changed", map[string]any{
+			"task_id":   task.ID,
+			"position":  req.Position,
+			"steer_set": task.SteeringQueue[req.Position],
+		})
+	}
+
+	writeJSON(w, map[string]any{
+		"success":   true,
+		"position":  req.Position,
+		"steer_set": task.SteeringQueue[req.Position],
+	}, http.StatusOK)
 }

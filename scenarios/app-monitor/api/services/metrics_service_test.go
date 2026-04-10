@@ -177,7 +177,7 @@ func TestMetricsCacheThreadSafety(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			go func() {
 				for j := 0; j < 5; j++ {
-					service.GetSystemMetrics(ctx)
+					_, _ = service.GetSystemMetrics(ctx)
 					time.Sleep(10 * time.Millisecond)
 				}
 				done <- true
@@ -188,7 +188,7 @@ func TestMetricsCacheThreadSafety(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			go func() {
 				for j := 0; j < 5; j++ {
-					service.collectSystemMetrics(ctx)
+					_, _ = service.collectSystemMetrics(ctx)
 					time.Sleep(10 * time.Millisecond)
 				}
 				done <- true

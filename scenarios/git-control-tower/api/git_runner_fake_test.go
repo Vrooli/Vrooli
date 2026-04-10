@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // FakeGitRunner implements GitRunner without touching the filesystem or running git.
@@ -37,6 +38,7 @@ type FakeGitRunner struct {
 	StatusError          error
 	DiffError            error
 	StageError           error
+	StageWarnings        []string // Warnings to return from Stage()
 	UnstageError         error
 	CommitError          error
 	RevParseError        error
@@ -47,6 +49,7 @@ type FakeGitRunner struct {
 	DiscardError         error
 	PushError            error
 	PullError            error
+	CloneError           error
 	LogError             error
 	RemoveFromIndexError error
 	BranchesError        error
@@ -56,7 +59,7 @@ type FakeGitRunner struct {
 	CheckRefFormatError  error
 
 	// Commit tracking
-	LastCommitMessage     string
+	LastCommitMsg         string
 	LastCommitAuthorName  string
 	LastCommitAuthorEmail string
 	CommitCount           int
@@ -79,8 +82,13 @@ type FakeGitRunner struct {
 	// Push behavior controls
 	PushUpdatesRemote bool
 
-	// Call tracking for verification
-	Calls []FakeGitCall
+	// File frequency simulation
+	FileFrequency      map[string]int
+	FileFrequencyError error
+
+	// Call tracking for verification (protected by callsMu for concurrent access)
+	callsMu sync.Mutex
+	Calls   []FakeGitCall
 }
 
 // FakeBranchState represents the simulated branch state.
@@ -129,21 +137,24 @@ func NewFakeGitRunner() *FakeGitRunner {
 				LastCommitAt: now,
 			},
 		},
-		Staged:       make(map[string]string),
-		Unstaged:     make(map[string]string),
-		Untracked:    []string{},
-		Conflicts:    []string{},
-		IsRepository: true,
-		GitAvailable: true,
-		RepoRoot:     "/fake/repo",
-		ConfigValues: map[string]string{},
-		Calls:        []FakeGitCall{},
+		Staged:            make(map[string]string),
+		Unstaged:          make(map[string]string),
+		Untracked:         []string{},
+		Conflicts:         []string{},
+		IsRepository:      true,
+		GitAvailable:      true,
+		RepoRoot:          "/fake/repo",
+		ConfigValues:      map[string]string{},
+		FileFrequency:     map[string]int{},
+		Calls:             []FakeGitCall{},
 		PushUpdatesRemote: true,
 	}
 }
 
 func (f *FakeGitRunner) recordCall(method string, args ...string) {
+	f.callsMu.Lock()
 	f.Calls = append(f.Calls, FakeGitCall{Method: method, Args: args})
+	f.callsMu.Unlock()
 }
 
 // StatusPorcelainV2 returns simulated git status output in porcelain v2 format.
@@ -233,11 +244,12 @@ index 1234567..abcdef0 100644
 }
 
 // Stage simulates adding files to the index.
-func (f *FakeGitRunner) Stage(ctx context.Context, repoDir string, paths []string) error {
+// Returns warnings (if any) and an error if staging failed.
+func (f *FakeGitRunner) Stage(ctx context.Context, repoDir string, paths []string) ([]string, error) {
 	f.recordCall("Stage", append([]string{repoDir}, paths...)...)
 
 	if f.StageError != nil {
-		return f.StageError
+		return f.StageWarnings, f.StageError
 	}
 
 	// Move files from unstaged/untracked to staged
@@ -259,7 +271,7 @@ func (f *FakeGitRunner) Stage(ctx context.Context, repoDir string, paths []strin
 		}
 	}
 
-	return nil
+	return f.StageWarnings, nil
 }
 
 // Unstage simulates removing files from the index.
@@ -298,7 +310,13 @@ func (f *FakeGitRunner) Commit(ctx context.Context, repoDir string, message stri
 	f.Staged = make(map[string]string)
 
 	// Track commit
-	f.LastCommitMessage = message
+	if options.NoEdit {
+		if f.LastCommitMsg == "" {
+			f.LastCommitMsg = message
+		}
+	} else {
+		f.LastCommitMsg = message
+	}
 	f.LastCommitAuthorName = options.AuthorName
 	f.LastCommitAuthorEmail = options.AuthorEmail
 	f.CommitCount++
@@ -315,47 +333,72 @@ func (f *FakeGitRunner) RevParse(ctx context.Context, repoDir string, args ...st
 		return nil, f.RevParseError
 	}
 
-	// Handle common rev-parse queries
 	for _, arg := range args {
-		switch arg {
-		case "HEAD":
-			if f.Branch.OID == "" {
-				return nil, fmt.Errorf("fatal: ambiguous argument 'HEAD'")
-			}
-			return []byte(f.Branch.OID + "\n"), nil
-		case "@{u}":
-			upstream := strings.TrimSpace(f.Branch.Upstream)
-			if upstream == "" {
-				return nil, fmt.Errorf("fatal: no upstream configured")
-			}
-			if ref, ok := f.RemoteBranches[upstream]; ok {
-				return []byte(ref.OID + "\n"), nil
-			}
-			return nil, fmt.Errorf("fatal: unknown upstream ref")
-		case "--is-inside-work-tree":
-			if f.IsRepository {
-				return []byte("true\n"), nil
-			}
-			return nil, fmt.Errorf("fatal: not a git repository")
-		case "--show-toplevel":
-			if f.IsRepository {
-				return []byte(repoDir + "\n"), nil
-			}
-			return nil, fmt.Errorf("fatal: not a git repository")
-		}
-
-		if ref, ok := f.RemoteBranches[arg]; ok {
-			return []byte(ref.OID + "\n"), nil
-		}
-		if strings.HasPrefix(arg, "refs/remotes/") {
-			key := strings.TrimPrefix(arg, "refs/remotes/")
-			if ref, ok := f.RemoteBranches[key]; ok {
-				return []byte(ref.OID + "\n"), nil
-			}
+		if out, err, handled := f.revParseSingleArg(repoDir, arg); handled {
+			return out, err
 		}
 	}
 
 	return []byte(""), nil
+}
+
+// revParseSingleArg resolves a single rev-parse argument.
+// Returns (output, error, true) if handled, or (nil, nil, false) if the arg is unrecognized.
+func (f *FakeGitRunner) revParseSingleArg(repoDir, arg string) ([]byte, error, bool) {
+	switch arg {
+	case "HEAD":
+		if f.Branch.OID == "" {
+			return nil, fmt.Errorf("fatal: ambiguous argument 'HEAD'"), true
+		}
+		return []byte(f.Branch.OID + "\n"), nil, true
+	case "@{u}":
+		return f.revParseUpstream()
+	case "--is-inside-work-tree":
+		if f.IsRepository {
+			return []byte("true\n"), nil, true
+		}
+		return nil, fmt.Errorf("fatal: not a git repository"), true
+	case "--show-toplevel":
+		if f.IsRepository {
+			return []byte(repoDir + "\n"), nil, true
+		}
+		return nil, fmt.Errorf("fatal: not a git repository"), true
+	}
+
+	return f.revParseRefLookup(arg)
+}
+
+func (f *FakeGitRunner) revParseUpstream() ([]byte, error, bool) {
+	upstream := strings.TrimSpace(f.Branch.Upstream)
+	if upstream == "" {
+		return nil, fmt.Errorf("fatal: no upstream configured"), true
+	}
+	if ref, ok := f.RemoteBranches[upstream]; ok {
+		return []byte(ref.OID + "\n"), nil, true
+	}
+	return nil, fmt.Errorf("fatal: unknown upstream ref"), true
+}
+
+func (f *FakeGitRunner) revParseRefLookup(arg string) ([]byte, error, bool) {
+	if ref, ok := f.RemoteBranches[arg]; ok {
+		return []byte(ref.OID + "\n"), nil, true
+	}
+	if strings.HasPrefix(arg, "refs/remotes/") {
+		key := strings.TrimPrefix(arg, "refs/remotes/")
+		if ref, ok := f.RemoteBranches[key]; ok {
+			return []byte(ref.OID + "\n"), nil, true
+		}
+	}
+	return nil, nil, false
+}
+
+// LastCommitMessage returns the simulated last commit subject.
+func (f *FakeGitRunner) LastCommitMessage(ctx context.Context, repoDir string) (string, error) {
+	f.recordCall("LastCommitMessage", repoDir)
+	if strings.TrimSpace(f.LastCommitMsg) == "" {
+		return "", fmt.Errorf("no commits")
+	}
+	return f.LastCommitMsg, nil
 }
 
 // LookPath simulates checking for the git binary.
@@ -396,7 +439,7 @@ func (f *FakeGitRunner) ResolveRepoRoot(_ context.Context) string {
 }
 
 // FetchRemote simulates fetching from a remote.
-func (f *FakeGitRunner) FetchRemote(ctx context.Context, repoDir string, remote string) error {
+func (f *FakeGitRunner) FetchRemote(ctx context.Context, repoDir string, remote string, cred *StoredCredential) error {
 	f.recordCall("FetchRemote", repoDir, remote)
 
 	if f.FetchError != nil {
@@ -450,7 +493,7 @@ func (f *FakeGitRunner) Discard(ctx context.Context, repoDir string, paths []str
 }
 
 // Push simulates pushing to a remote.
-func (f *FakeGitRunner) Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool) error {
+func (f *FakeGitRunner) Push(ctx context.Context, repoDir string, remote string, branch string, setUpstream bool, cred *StoredCredential) error {
 	f.recordCall("Push", repoDir, remote, branch, fmt.Sprintf("setUpstream=%v", setUpstream))
 
 	if f.PushError != nil {
@@ -481,7 +524,7 @@ func (f *FakeGitRunner) Push(ctx context.Context, repoDir string, remote string,
 }
 
 // Pull simulates pulling from a remote.
-func (f *FakeGitRunner) Pull(ctx context.Context, repoDir string, remote string, branch string) error {
+func (f *FakeGitRunner) Pull(ctx context.Context, repoDir string, remote string, branch string, cred *StoredCredential) error {
 	f.recordCall("Pull", repoDir, remote, branch)
 
 	if f.PullError != nil {
@@ -498,28 +541,60 @@ func (f *FakeGitRunner) Pull(ctx context.Context, repoDir string, remote string,
 	return nil
 }
 
-func (f *FakeGitRunner) LogGraph(ctx context.Context, repoDir string, limit int) ([]byte, error) {
-	f.recordCall("LogGraph", repoDir, fmt.Sprintf("limit=%d", limit))
+// Clone simulates cloning a repository to a destination.
+func (f *FakeGitRunner) Clone(ctx context.Context, destination string, url string, cred *StoredCredential) error {
+	f.recordCall("Clone", destination, url)
+
+	if f.CloneError != nil {
+		return f.CloneError
+	}
+
+	if strings.TrimSpace(destination) != "" {
+		f.RepoRoot = destination
+	}
+	return nil
+}
+
+func (f *FakeGitRunner) LogGraph(ctx context.Context, repoDir string, limit int, grep string) ([]byte, error) {
+	f.recordCall("LogGraph", repoDir, fmt.Sprintf("limit=%d grep=%q", limit, grep))
 
 	if f.LogError != nil {
 		return nil, f.LogError
 	}
 
 	lines := f.HistoryLines
+	if grep != "" {
+		filtered := make([]string, 0, len(lines))
+		for _, line := range lines {
+			if strings.Contains(line, grep) {
+				filtered = append(filtered, line)
+			}
+		}
+		lines = filtered
+	}
 	if limit > 0 && len(lines) > limit {
 		lines = lines[:limit]
 	}
 	return []byte(strings.Join(lines, "\n")), nil
 }
 
-func (f *FakeGitRunner) LogDetails(ctx context.Context, repoDir string, limit int) ([]byte, error) {
-	f.recordCall("LogDetails", repoDir, fmt.Sprintf("limit=%d", limit))
+func (f *FakeGitRunner) LogDetails(ctx context.Context, repoDir string, limit int, grep string) ([]byte, error) {
+	f.recordCall("LogDetails", repoDir, fmt.Sprintf("limit=%d grep=%q", limit, grep))
 
 	if f.LogError != nil {
 		return nil, f.LogError
 	}
 
 	entries := f.HistoryDetails
+	if grep != "" {
+		filtered := make([]RepoHistoryEntry, 0, len(entries))
+		for _, entry := range entries {
+			if strings.Contains(entry.Subject, grep) {
+				filtered = append(filtered, entry)
+			}
+		}
+		entries = filtered
+	}
 	if limit > 0 && len(entries) > limit {
 		entries = entries[:limit]
 	}
@@ -539,7 +614,7 @@ func (f *FakeGitRunner) LogDetails(ctx context.Context, repoDir string, limit in
 	return []byte(out.String()), nil
 }
 
-func (f *FakeGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool) ([]byte, error) {
+func (f *FakeGitRunner) DiffNumstat(ctx context.Context, repoDir string, staged bool, paths ...string) ([]byte, error) {
 	f.recordCall("DiffNumstat", repoDir, fmt.Sprintf("staged=%v", staged))
 	if f.DiffError != nil {
 		return nil, f.DiffError
@@ -592,6 +667,69 @@ func (f *FakeGitRunner) ShowFileAtCommit(ctx context.Context, repoDir string, co
 
 	// Return simulated file content
 	return []byte("line 1\nline 2\nline 3\nmodified line\nline 5\n"), nil
+}
+
+// CatFile returns the content of a file in the working tree.
+func (f *FakeGitRunner) CatFile(ctx context.Context, repoDir string, path string) ([]byte, error) {
+	f.recordCall("CatFile", repoDir, path)
+
+	if f.DiffError != nil {
+		return nil, f.DiffError
+	}
+
+	// Return simulated file content
+	return []byte("line 1\nline 2\nline 3\nline 4\nline 5\n"), nil
+}
+
+// ListStagedFiles returns file paths that are currently staged in the index.
+func (f *FakeGitRunner) ListStagedFiles(ctx context.Context, repoDir string) ([]string, error) {
+	f.recordCall("ListStagedFiles", repoDir)
+
+	if f.StatusError != nil {
+		return nil, f.StatusError
+	}
+
+	var files []string
+	for path := range f.Staged {
+		files = append(files, path)
+	}
+	sort.Strings(files)
+	return files, nil
+}
+
+// ListTrackedFiles returns all tracked files in the repository.
+func (f *FakeGitRunner) ListTrackedFiles(ctx context.Context, repoDir string) ([]string, error) {
+	f.recordCall("ListTrackedFiles", repoDir)
+
+	if f.StatusError != nil {
+		return nil, f.StatusError
+	}
+
+	// Return simulated tracked files based on staged and unstaged
+	var files []string
+	for path := range f.Staged {
+		files = append(files, path)
+	}
+	for path := range f.Unstaged {
+		files = append(files, path)
+	}
+	sort.Strings(files)
+	return files, nil
+}
+
+// ListUntrackedFiles returns all untracked files (respects .gitignore).
+func (f *FakeGitRunner) ListUntrackedFiles(ctx context.Context, repoDir string) ([]string, error) {
+	f.recordCall("ListUntrackedFiles", repoDir)
+
+	if f.StatusError != nil {
+		return nil, f.StatusError
+	}
+
+	// Return the untracked files
+	result := make([]string, len(f.Untracked))
+	copy(result, f.Untracked)
+	sort.Strings(result)
+	return result, nil
 }
 
 func (f *FakeGitRunner) Branches(ctx context.Context, repoDir string) ([]byte, error) {
@@ -694,120 +832,62 @@ func (f *FakeGitRunner) CheckRefFormat(ctx context.Context, repoDir string, name
 	return nil
 }
 
-// --- Test helpers ---
-
-// AddStagedFile adds a file to the staged state.
-func (f *FakeGitRunner) AddStagedFile(path string) *FakeGitRunner {
-	f.Staged[path] = "+staged content"
-	return f
-}
-
-// AddUnstagedFile adds a file to the unstaged (modified) state.
-func (f *FakeGitRunner) AddUnstagedFile(path string) *FakeGitRunner {
-	f.Unstaged[path] = "+modified content"
-	return f
-}
-
-// AddUntrackedFile adds an untracked file.
-func (f *FakeGitRunner) AddUntrackedFile(path string) *FakeGitRunner {
-	f.Untracked = append(f.Untracked, path)
-	return f
-}
-
-// AddConflictFile adds a file with merge conflicts.
-func (f *FakeGitRunner) AddConflictFile(path string) *FakeGitRunner {
-	f.Conflicts = append(f.Conflicts, path)
-	return f
-}
-
-// WithBranch sets the branch state.
-func (f *FakeGitRunner) WithBranch(head, upstream string, ahead, behind int) *FakeGitRunner {
-	f.Branch.Head = head
+func (f *FakeGitRunner) SetUpstream(ctx context.Context, repoDir string, branch string, upstream string) error {
+	f.recordCall("SetUpstream", repoDir, branch, upstream)
+	branch = strings.TrimSpace(branch)
+	upstream = strings.TrimSpace(upstream)
+	if branch == "" || upstream == "" {
+		return fmt.Errorf("branch and upstream are required")
+	}
 	f.Branch.Upstream = upstream
-	f.Branch.Ahead = ahead
-	f.Branch.Behind = behind
-	if _, exists := f.LocalBranches[head]; !exists {
-		f.LocalBranches[head] = FakeBranchRef{
-			Name:         head,
-			Upstream:     upstream,
-			OID:          f.Branch.OID,
-			LastCommitAt: "2025-01-01 00:00:00 +0000",
-		}
+	return nil
+}
+
+// SetRemoteURL simulates updating a remote's URL.
+func (f *FakeGitRunner) SetRemoteURL(ctx context.Context, repoDir string, remote string, url string) error {
+	f.recordCall("SetRemoteURL", repoDir, remote, url)
+
+	if f.RemoteURLError != nil {
+		return f.RemoteURLError
 	}
-	return f
-}
 
-func (f *FakeGitRunner) WithLocalBranch(name, upstream string, oid string) *FakeGitRunner {
-	if oid == "" {
-		oid = "abc123def456"
-	}
-	f.LocalBranches[name] = FakeBranchRef{
-		Name:         name,
-		Upstream:     upstream,
-		OID:          oid,
-		LastCommitAt: "2025-01-01 00:00:00 +0000",
-	}
-	return f
-}
-
-func (f *FakeGitRunner) WithRemoteBranch(name string, oid string) *FakeGitRunner {
-	if oid == "" {
-		oid = "abc123def456"
-	}
-	f.RemoteBranches[name] = FakeBranchRef{
-		Name:         name,
-		OID:          oid,
-		LastCommitAt: "2025-01-01 00:00:00 +0000",
-	}
-	return f
-}
-
-// WithNotARepository simulates a non-git directory.
-func (f *FakeGitRunner) WithNotARepository() *FakeGitRunner {
-	f.IsRepository = false
-	return f
-}
-
-// WithGitUnavailable simulates git not being installed.
-func (f *FakeGitRunner) WithGitUnavailable() *FakeGitRunner {
-	f.GitAvailable = false
-	return f
-}
-
-// WithRepoRoot sets the repository root path.
-func (f *FakeGitRunner) WithRepoRoot(root string) *FakeGitRunner {
-	f.RepoRoot = root
-	return f
-}
-
-// WithRemoteURL sets the remote URL.
-func (f *FakeGitRunner) WithRemoteURL(url string) *FakeGitRunner {
 	f.RemoteURL = url
-	return f
+	return nil
 }
 
-// AssertCalled verifies a method was called.
-func (f *FakeGitRunner) AssertCalled(method string) bool {
-	for _, call := range f.Calls {
-		if call.Method == method {
-			return true
-		}
+// LsRemote simulates listing references from a remote.
+func (f *FakeGitRunner) LsRemote(ctx context.Context, repoDir string, remote string, cred *StoredCredential) error {
+	f.recordCall("LsRemote", repoDir, remote)
+
+	if f.FetchError != nil {
+		return f.FetchError
 	}
-	return false
-}
 
-// AssertNotCalled verifies a method was not called.
-func (f *FakeGitRunner) AssertNotCalled(method string) bool {
-	return !f.AssertCalled(method)
-}
-
-// CallCount returns the number of times a method was called.
-func (f *FakeGitRunner) CallCount(method string) int {
-	count := 0
-	for _, call := range f.Calls {
-		if call.Method == method {
-			count++
-		}
+	if f.RemoteURL == "" {
+		return fmt.Errorf("fatal: No such remote '%s'", remote)
 	}
-	return count
+
+	return nil
+}
+
+// GrepContent simulates searching file contents.
+func (f *FakeGitRunner) GrepContent(ctx context.Context, repoDir string, opts GrepOptions) ([]byte, error) {
+	f.recordCall("GrepContent", repoDir, opts.Pattern)
+
+	// Return empty result by default (no matches)
+	return []byte{}, nil
+}
+
+func (f *FakeGitRunner) LogFileFrequency(ctx context.Context, repoDir string, commitLimit int) (map[string]int, error) {
+	f.recordCall("LogFileFrequency", repoDir, fmt.Sprintf("limit=%d", commitLimit))
+
+	if f.FileFrequencyError != nil {
+		return nil, f.FileFrequencyError
+	}
+
+	result := make(map[string]int, len(f.FileFrequency))
+	for k, v := range f.FileFrequency {
+		result[k] = v
+	}
+	return result, nil
 }

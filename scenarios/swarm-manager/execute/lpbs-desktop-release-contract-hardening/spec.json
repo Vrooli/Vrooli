@@ -1,0 +1,34 @@
+{
+  "acceptance_allow": [
+    "scenarios/landing-page-business-suite/**",
+    "scenarios/scenario-to-desktop/**",
+    "scenarios/prompt-manager/store/skills/packs/core/scenario-to-desktop/**",
+    "scenarios/prompt-manager/store/skills/packs/core/landing-page-deploy-setup/**",
+    "scenarios/prompt-manager/store/skills/packs/core/landing-page-desktop-upload/**"
+  ],
+  "created": "2026-03-26T16:35:48Z",
+  "depends_on": [
+    "chore/qa-prompt-manager-tidiness-20260407",
+    "chore/qa-scenario-to-desktop-standards-setup-20260407",
+    "execute/qa-scenario-to-desktop-code-quality-20260407",
+    "fix/qa-prompt-manager-standards-structure-20260407",
+    "fix/qa-prompt-manager-tests-20260407",
+    "research/release-record-contract-and-history-model"
+  ],
+  "description": "Harden the landing-page-business-suite and scenario-to-desktop release contract so LPBS is a reliable commercial distribution surface for desktop apps.\n\nThis should cover the concrete contract around:\n- app_key and channel handling\n- canonical desktop update policy defaults and the seam for per-app override later\n- customer-visible update state and release notes surfaces\n- artifact promotion and current-version selection\n- checksum and sha512 expectations\n- update_api_key behavior\n- remote-profile readiness and verification\n- post-release update endpoint checks\n- the LPBS-side guarantees required for generated apps to ship a non-invasive auto-update flow by default\n\nGoal: releases and updates become deterministic, inspectable, and safe to sell through LPBS.",
+  "effort": "L",
+  "initiative": "desktop-release-governance",
+  "kind": "execute",
+  "name": "lpbs-desktop-release-contract-hardening",
+  "priority": 2,
+  "status": "completed",
+  "tags": [
+    "landing-page-business-suite",
+    "scenario-to-desktop",
+    "updates",
+    "artifacts",
+    "desktop-release"
+  ],
+  "title": "Harden The LPBS Desktop Release Contract",
+  "updated": "2026-04-09T13:14:04Z"
+}

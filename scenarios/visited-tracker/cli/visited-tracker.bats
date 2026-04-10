@@ -74,7 +74,7 @@ is_valid_json() {
 @test "CLI help command works" {
     run visited-tracker help
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Visited Tracker CLI" ]]
+    [[ "$output" =~ "visited-tracker CLI" ]]
     [[ "$output" =~ "Usage:" ]]
     [[ "$output" =~ "Commands:" ]]
 }
@@ -93,25 +93,22 @@ is_valid_json() {
     [[ "$output" =~ "version" ]]
 }
 
-@test "CLI help shows examples section" {
+@test "CLI help shows global options" {
     run visited-tracker help
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Examples:" ]]
-    [[ "$output" =~ "--context security" ]]
-    [[ "$output" =~ "--limit 10" ]]
+    [[ "$output" =~ "Global Options" ]]
 }
 
 @test "CLI version command works" {
     run visited-tracker version
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "visited-tracker CLI v" ]]
-    [[ "$output" =~ "API:" ]]
+    [[ "$output" =~ "visited-tracker CLI version" ]]
 }
 
 @test "CLI version shows correct format" {
     run visited-tracker version
     [ "$status" -eq 0 ]
-    [[ "$output" =~ v[0-9]+\.[0-9]+\.[0-9]+ ]]
+    [[ "$output" =~ [0-9]+\.[0-9]+\.[0-9]+ ]]
 }
 
 @test "CLI version works even if service is down" {
@@ -129,13 +126,12 @@ is_valid_json() {
     run visited-tracker nonexistent-command
     [ "$status" -eq 1 ]
     [[ "$output" =~ "Error: Unknown command" ]]
-    [[ "$output" =~ "Run 'visited-tracker help'" ]]
 }
 
 @test "CLI handles empty command gracefully" {
     run visited-tracker ""
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Visited Tracker CLI" ]]
+    [[ "$output" =~ "visited-tracker CLI" ]]
 }
 
 ################################################################################
@@ -145,8 +141,7 @@ is_valid_json() {
 @test "CLI visit command requires file arguments" {
     run visited-tracker visit
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "At least one file required" ]]
-    [[ "$output" =~ "Usage: visited-tracker visit" ]]
+    [[ "$output" =~ "at least one file" ]]
 }
 
 @test "CLI visit command with service down shows error" {
@@ -156,28 +151,28 @@ is_valid_json() {
     
     run visited-tracker visit "${TEST_FILE_DIR}/test1.js"
     [ "$status" -ne 0 ]
-    [[ "$output" =~ "not running" ]] || [[ "$output" =~ "Error" ]]
+    [[ "$output" =~ "API is not reachable" ]] || [[ "$output" =~ "Error" ]]
 }
 
 @test "CLI visit command accepts context option" {
     run visited-tracker visit --context security
     # Should fail due to no file args, but should recognize the context option
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "At least one file required" ]]
+    [[ "$output" =~ "at least one file" ]]
 }
 
 @test "CLI visit command accepts agent option" {
     run visited-tracker visit --agent claude-code
     # Should fail due to no file args, but should recognize the agent option
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "At least one file required" ]]
+    [[ "$output" =~ "at least one file" ]]
 }
 
 @test "CLI visit command accepts conversation option" {
     run visited-tracker visit --conversation test-conv-123
     # Should fail due to no file args, but should recognize the conversation option
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "At least one file required" ]]
+    [[ "$output" =~ "at least one file" ]]
 }
 
 ################################################################################
@@ -340,6 +335,23 @@ is_valid_json() {
     [ "$status" -eq 0 ]
 }
 
+@test "CLI coverage supports location and tag auto-lookup" {
+    if ! service_running; then
+        skip "Service not running"
+    fi
+
+    run visited-tracker campaigns find-or-create --location "$TEST_FILE_DIR" --tag "cli-coverage" --json
+    [ "$status" -eq 0 ]
+    campaign_id=$(echo "$output" | jq -r '.campaign.id')
+    [ -n "$campaign_id" ]
+
+    run visited-tracker coverage --location "$TEST_FILE_DIR" --tag "cli-coverage"
+    [ "$status" -eq 0 ]
+
+    run visited-tracker campaigns delete "$campaign_id"
+    [ "$status" -eq 0 ]
+}
+
 @test "CLI coverage json output is valid" {
     if ! service_running; then
         skip "Service not running"
@@ -375,6 +387,24 @@ is_valid_json() {
     [[ "$output" =~ "Status: " ]]
 }
 
+@test "CLI status supports location and tag auto-lookup" {
+    if ! service_running; then
+        skip "Service not running"
+    fi
+
+    run visited-tracker campaigns find-or-create --location "$TEST_FILE_DIR" --tag "cli-status" --json
+    [ "$status" -eq 0 ]
+    campaign_id=$(echo "$output" | jq -r '.campaign.id')
+    [ -n "$campaign_id" ]
+
+    run visited-tracker status --location "$TEST_FILE_DIR" --tag "cli-status"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Visited Tracker Status" ]]
+
+    run visited-tracker campaigns delete "$campaign_id"
+    [ "$status" -eq 0 ]
+}
+
 ################################################################################
 # Import/Export Command Tests
 ################################################################################
@@ -387,7 +417,7 @@ is_valid_json() {
 @test "CLI import command with non-existent file" {
     run visited-tracker import /nonexistent/file.json
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "File not found" ]]
+    [[ "$output" =~ "file not found" ]]
 }
 
 @test "CLI export command requires file argument" {
@@ -466,7 +496,7 @@ is_valid_json() {
 @test "CLI visit command reports error when context provided without files" {
     run visited-tracker visit --context invalid-context
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "At least one file required" ]]
+    [[ "$output" =~ "at least one file" ]]
 }
 
 @test "CLI validates numeric options" {
@@ -500,11 +530,11 @@ is_valid_json() {
 @test "CLI accepts --help flag" {
     run visited-tracker --help
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Visited Tracker CLI" ]]
+    [[ "$output" =~ "visited-tracker CLI" ]]
 }
 
 @test "CLI accepts -h flag" {
     run visited-tracker -h
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Visited Tracker CLI" ]]
+    [[ "$output" =~ "visited-tracker CLI" ]]
 }

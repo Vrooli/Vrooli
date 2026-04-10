@@ -1,0 +1,54 @@
+{
+  "id": "implement-api-endpoint",
+  "name": "Implement API Endpoint",
+  "description": "Create a new API endpoint with proper patterns",
+  "icon": "Server",
+  "modes": ["Implement Feature", "API Endpoint"],
+  "content": "I need to create a new API endpoint: {{method}} {{path}}\n\n**Purpose:** {{purpose}}\n\n**Request body/params:**\n{{request_spec}}\n\n**Response format:**\n{{response_spec}}\n\n**Authentication:** {{auth_requirement}}\n\nPlease:\n1. Create the endpoint handler following existing patterns\n2. Define TypeScript types for request/response\n3. Add input validation\n4. Include error handling\n5. Add any necessary middleware",
+  "variables": [
+    {
+      "name": "method",
+      "label": "HTTP Method",
+      "type": "select",
+      "options": ["GET", "POST", "PUT", "PATCH", "DELETE"],
+      "required": true
+    },
+    {
+      "name": "path",
+      "label": "Endpoint Path",
+      "type": "text",
+      "placeholder": "e.g., /api/users/:id/settings",
+      "required": true
+    },
+    {
+      "name": "purpose",
+      "label": "Purpose",
+      "type": "text",
+      "placeholder": "What does this endpoint do?",
+      "required": true
+    },
+    {
+      "name": "request_spec",
+      "label": "Request Specification",
+      "type": "textarea",
+      "placeholder": "Describe the expected request body or query params",
+      "required": false
+    },
+    {
+      "name": "response_spec",
+      "label": "Response Format",
+      "type": "textarea",
+      "placeholder": "Describe the expected response structure",
+      "required": false
+    },
+    {
+      "name": "auth_requirement",
+      "label": "Authentication",
+      "type": "select",
+      "options": ["Required", "Optional", "None"],
+      "defaultValue": "Required",
+      "required": true
+    }
+  ],
+  "suggestedToolIds": ["spawn_coding_agent"]
+}

@@ -1,0 +1,31 @@
+{
+  "acceptance_allow": [
+    "scenarios/scenario-to-desktop/**",
+    "scenarios/deployment-manager/**"
+  ],
+  "created": "2026-04-04T00:00:00Z",
+  "depends_on": [
+    "chore/qa-scenario-to-desktop-standards-setup-20260407",
+    "execute/dm-releases-and-release-platforms-tables",
+    "execute/lpbs-release-id-correlation-column",
+    "execute/qa-deployment-manager-code-quality-20260407",
+    "execute/qa-scenario-to-desktop-code-quality-20260407",
+    "fix/qa-deployment-manager-tests-20260407",
+    "research/release-record-contract-and-history-model"
+  ],
+  "description": "Extend the S2D pipeline to carry `release_id` and `channel` end-to-end from DM orchestrator through to LPBS upload.\n\n1. Add `ReleaseID` and `Channel` fields to S2D's `Config`/`DeployConfig` and `UploadRequest` structs.\n2. Pass `release_id` in the LPBS commit step request body.\n3. Use `channelToVariantKey(channel)` to set the correct variant_key on upload instead of hardcoding.\n\nThe existing 4-step upload flow (presign → S3 → commit → apply) doesn't need structural changes — just additional fields passed through.",
+  "effort": "M",
+  "initiative": "desktop-release-governance",
+  "kind": "execute",
+  "name": "s2d-pipeline-release-id-and-channel",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "scenario-to-desktop",
+    "release-record",
+    "pipeline",
+    "desktop-release"
+  ],
+  "title": "Add Release ID And Channel To S2D Pipeline Data Flow",
+  "updated": "2026-04-09T13:14:04Z"
+}

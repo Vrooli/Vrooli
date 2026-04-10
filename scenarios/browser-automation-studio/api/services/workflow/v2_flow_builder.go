@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -158,33 +159,285 @@ func normalizeForProto(doc map[string]any) {
 		delete(settings, "defaultStepTimeoutMs")
 	}
 
-	// Wrap primitive subflow args into expected JsonValue shape.
+	// Process nodes: wrap subflow args and remove non-proto fields.
 	nodes, ok := doc["nodes"].([]any)
-	if !ok || len(nodes) == 0 {
-		return
-	}
-	for _, rawNode := range nodes {
-		node, ok := rawNode.(map[string]any)
-		if !ok || node == nil {
-			continue
-		}
-		action, ok := node["action"].(map[string]any)
-		if !ok || action == nil {
-			continue
-		}
-		subflow, ok := action["subflow"].(map[string]any)
-		if !ok || subflow == nil {
-			continue
-		}
-		args, ok := subflow["args"].(map[string]any)
-		if !ok || args == nil {
-			continue
-		}
+	if ok && len(nodes) > 0 {
+		for _, rawNode := range nodes {
+			node, ok := rawNode.(map[string]any)
+			if !ok || node == nil {
+				continue
+			}
 
-		normalized := make(map[string]any, len(args))
-		for k, v := range args {
-			normalized[k] = typeconv.WrapJsonValue(v)
+			// Normalize action and its params for proto compatibility.
+			if action, ok := node["action"].(map[string]any); ok && action != nil {
+				normalizeActionForProto(action)
+			}
+
+			// Remove fields not in WorkflowNodeV2 proto.
+			// 'type' is a ReactFlow field (e.g., "navigate", "click") - action.type captures this.
+			// 'data' is a legacy V1 field - action contains all needed data.
+			delete(node, "type")
+			delete(node, "data")
 		}
-		subflow["args"] = normalized
+	}
+
+	// Sanitize edges - normalize fields for WorkflowEdgeV2 proto.
+	edges, ok := doc["edges"].([]any)
+	if ok && len(edges) > 0 {
+		for _, rawEdge := range edges {
+			edge, ok := rawEdge.(map[string]any)
+			if !ok || edge == nil {
+				continue
+			}
+
+			// Convert camelCase handle fields to snake_case.
+			if sh, ok := edge["sourceHandle"]; ok {
+				edge["source_handle"] = sh
+				delete(edge, "sourceHandle")
+			}
+			if th, ok := edge["targetHandle"]; ok {
+				edge["target_handle"] = th
+				delete(edge, "targetHandle")
+			}
+
+			// Convert edge type from UI format to proto enum.
+			if t, ok := edge["type"].(string); ok {
+				edge["type"] = normalizeEdgeType(t)
+			}
+
+			// Remove non-proto fields (ReactFlow visual/state properties).
+			delete(edge, "markerEnd")
+			delete(edge, "markerStart")
+			delete(edge, "style")
+			delete(edge, "animated")
+			delete(edge, "data")
+			delete(edge, "labelStyle")
+			delete(edge, "labelBgStyle")
+			delete(edge, "labelBgPadding")
+			delete(edge, "labelBgBorderRadius")
+			delete(edge, "className")
+			delete(edge, "zIndex")
+			delete(edge, "ariaLabel")
+			delete(edge, "interactionWidth")
+			delete(edge, "focusable")
+			delete(edge, "hidden")
+			delete(edge, "deletable")
+			delete(edge, "selectable")
+			delete(edge, "updatable")
+			delete(edge, "pathOptions")
+		}
+	}
+}
+
+// normalizeEdgeType converts UI edge type strings to proto enum names.
+func normalizeEdgeType(uiType string) string {
+	switch strings.ToLower(uiType) {
+	case "smoothstep":
+		return "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+	case "step":
+		return "WORKFLOW_EDGE_TYPE_STEP"
+	case "straight":
+		return "WORKFLOW_EDGE_TYPE_STRAIGHT"
+	case "bezier":
+		return "WORKFLOW_EDGE_TYPE_BEZIER"
+	case "default", "":
+		return "WORKFLOW_EDGE_TYPE_DEFAULT"
+	default:
+		return "WORKFLOW_EDGE_TYPE_DEFAULT"
+	}
+}
+
+// normalizeActionForProto normalizes an action definition for proto serialization.
+// Handles enum conversions, field name normalization, and subflow args wrapping.
+func normalizeActionForProto(action map[string]any) {
+	// Normalize navigate params
+	if nav, ok := action["navigate"].(map[string]any); ok && nav != nil {
+		normalizeNavigateParams(nav)
+	}
+
+	// Normalize click params
+	if click, ok := action["click"].(map[string]any); ok && click != nil {
+		normalizeClickParams(click)
+	}
+
+	// Normalize wait params
+	if wait, ok := action["wait"].(map[string]any); ok && wait != nil {
+		normalizeWaitParams(wait)
+	}
+
+	// Normalize assert params
+	if assert, ok := action["assert"].(map[string]any); ok && assert != nil {
+		normalizeAssertParams(assert)
+	}
+
+	// Wrap primitive subflow args into expected JsonValue shape.
+	if subflow, ok := action["subflow"].(map[string]any); ok && subflow != nil {
+		if args, ok := subflow["args"].(map[string]any); ok && args != nil {
+			normalized := make(map[string]any, len(args))
+			for k, v := range args {
+				normalized[k] = typeconv.WrapJsonValue(v)
+			}
+			subflow["args"] = normalized
+		}
+	}
+}
+
+// normalizeNavigateParams converts UI-oriented navigate params to proto format.
+func normalizeNavigateParams(nav map[string]any) {
+	// Convert destinationType enum
+	if dt, ok := nav["destinationType"].(string); ok {
+		nav["destination_type"] = normalizeNavigateDestinationType(dt)
+		delete(nav, "destinationType")
+	}
+	if dt, ok := nav["destination_type"].(string); ok {
+		nav["destination_type"] = normalizeNavigateDestinationType(dt)
+	}
+
+	// Convert waitUntil enum
+	if wu, ok := nav["waitUntil"].(string); ok {
+		nav["wait_until"] = normalizeNavigateWaitEvent(wu)
+		delete(nav, "waitUntil")
+	}
+	if wu, ok := nav["wait_until"].(string); ok {
+		nav["wait_until"] = normalizeNavigateWaitEvent(wu)
+	}
+
+	// Convert camelCase field names to snake_case
+	renameCamelToSnake(nav, "waitForSelector", "wait_for_selector")
+	renameCamelToSnake(nav, "timeoutMs", "timeout_ms")
+	renameCamelToSnake(nav, "scenarioPath", "scenario_path")
+}
+
+// normalizeClickParams converts UI-oriented click params to proto format.
+func normalizeClickParams(click map[string]any) {
+	// Convert button enum
+	if btn, ok := click["button"].(string); ok {
+		click["button"] = normalizeMouseButton(btn)
+	}
+
+	// Convert camelCase field names
+	renameCamelToSnake(click, "clickCount", "click_count")
+	renameCamelToSnake(click, "timeoutMs", "timeout_ms")
+	renameCamelToSnake(click, "offsetX", "offset_x")
+	renameCamelToSnake(click, "offsetY", "offset_y")
+}
+
+// normalizeWaitParams converts UI-oriented wait params to proto format.
+func normalizeWaitParams(wait map[string]any) {
+	// Convert state enum
+	if state, ok := wait["state"].(string); ok {
+		wait["state"] = normalizeWaitState(state)
+	}
+
+	// Convert camelCase field names
+	renameCamelToSnake(wait, "timeoutMs", "timeout_ms")
+	renameCamelToSnake(wait, "durationMs", "duration_ms")
+}
+
+// normalizeAssertParams converts UI-oriented assert params to proto format.
+func normalizeAssertParams(assert map[string]any) {
+	// Convert mode enum
+	if mode, ok := assert["mode"].(string); ok {
+		assert["mode"] = normalizeAssertionMode(mode)
+	}
+
+	// Convert camelCase field names
+	renameCamelToSnake(assert, "timeoutMs", "timeout_ms")
+	renameCamelToSnake(assert, "expectedValue", "expected_value")
+}
+
+// renameCamelToSnake renames a camelCase key to snake_case if present.
+func renameCamelToSnake(m map[string]any, camel, snake string) {
+	if v, ok := m[camel]; ok {
+		m[snake] = v
+		delete(m, camel)
+	}
+}
+
+// normalizeNavigateDestinationType converts UI destination type to proto enum.
+func normalizeNavigateDestinationType(dt string) string {
+	switch strings.ToLower(dt) {
+	case "url":
+		return "NAVIGATE_DESTINATION_TYPE_URL"
+	case "scenario":
+		return "NAVIGATE_DESTINATION_TYPE_SCENARIO"
+	default:
+		return "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED"
+	}
+}
+
+// normalizeNavigateWaitEvent converts UI wait event to proto enum.
+func normalizeNavigateWaitEvent(we string) string {
+	switch strings.ToLower(we) {
+	case "load":
+		return "NAVIGATE_WAIT_EVENT_LOAD"
+	case "domcontentloaded":
+		return "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED"
+	case "networkidle":
+		return "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+	case "commit":
+		return "NAVIGATE_WAIT_EVENT_COMMIT"
+	default:
+		return "NAVIGATE_WAIT_EVENT_UNSPECIFIED"
+	}
+}
+
+// normalizeMouseButton converts UI button name to proto enum.
+func normalizeMouseButton(btn string) string {
+	switch strings.ToLower(btn) {
+	case "left":
+		return "MOUSE_BUTTON_LEFT"
+	case "right":
+		return "MOUSE_BUTTON_RIGHT"
+	case "middle":
+		return "MOUSE_BUTTON_MIDDLE"
+	default:
+		return "MOUSE_BUTTON_UNSPECIFIED"
+	}
+}
+
+// normalizeWaitState converts UI wait state to proto enum.
+func normalizeWaitState(state string) string {
+	switch strings.ToLower(state) {
+	case "attached":
+		return "WAIT_STATE_ATTACHED"
+	case "detached":
+		return "WAIT_STATE_DETACHED"
+	case "visible":
+		return "WAIT_STATE_VISIBLE"
+	case "hidden":
+		return "WAIT_STATE_HIDDEN"
+	default:
+		return "WAIT_STATE_UNSPECIFIED"
+	}
+}
+
+// normalizeAssertionMode converts UI assertion mode to proto enum.
+func normalizeAssertionMode(mode string) string {
+	switch strings.ToLower(mode) {
+	case "exists":
+		return "ASSERTION_MODE_EXISTS"
+	case "not_exists", "notexists":
+		return "ASSERTION_MODE_NOT_EXISTS"
+	case "visible":
+		return "ASSERTION_MODE_VISIBLE"
+	case "hidden":
+		return "ASSERTION_MODE_HIDDEN"
+	case "text_contains", "textcontains":
+		return "ASSERTION_MODE_TEXT_CONTAINS"
+	case "text_equals", "textequals":
+		return "ASSERTION_MODE_TEXT_EQUALS"
+	case "attribute_equals", "attributeequals":
+		return "ASSERTION_MODE_ATTRIBUTE_EQUALS"
+	case "url_contains", "urlcontains":
+		return "ASSERTION_MODE_URL_CONTAINS"
+	case "url_equals", "urlequals":
+		return "ASSERTION_MODE_URL_EQUALS"
+	case "title_contains", "titlecontains":
+		return "ASSERTION_MODE_TITLE_CONTAINS"
+	case "title_equals", "titleequals":
+		return "ASSERTION_MODE_TITLE_EQUALS"
+	default:
+		return "ASSERTION_MODE_UNSPECIFIED"
 	}
 }

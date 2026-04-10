@@ -193,7 +193,7 @@ export async function handleSessionRun(
     // [DOMAIN:VALIDATION] Validate instruction structure (delegated to executor)
     // ─────────────────────────────────────────────────────────────────────────
     const body = await parseJsonBody(req, config);
-    const rawInstruction = (body as Record<string, unknown>).instruction;
+    const rawInstruction = body.instruction;
     const validationResult = validateInstruction(rawInstruction);
     if (!validationResult.valid) {
       sessionManager.setSessionPhase(sessionId, 'ready');
@@ -271,4 +271,3 @@ export async function handleSessionRun(
     appMetrics.instructionErrors.inc({ type: 'unknown', error_kind: 'engine' });
   }
 }
-

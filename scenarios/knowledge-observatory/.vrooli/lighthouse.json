@@ -11,7 +11,7 @@
       "path": "/",
       "label": "Home",
       "viewport": "desktop",
-      "waitForSelector": "body",
+      "waitForSelector": "[data-testid=\"ko-dashboard-quick-search-form\"]",
       "thresholds": {
         "performance": { "error": 0.75, "warn": 0.85 },
         "accessibility": { "error": 0.90, "warn": 0.95 },

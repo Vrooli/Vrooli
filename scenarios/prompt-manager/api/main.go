@@ -1,181 +1,93 @@
+// Package main is the entry point for the prompt-manager API server.
+// This file is intentionally thin - it only handles server bootstrap and wiring.
+// All business logic lives in domain packages: skills/, metrics/, tags/, testing/.
+//
+// DOC: docs/concepts/ARCHITECTURE.md
+// DOC: docs/reference/api-endpoints.md
+// DOC: docs/internal/SEAMS.md#dependency-wiring-in-maingo
 package main
 
 import (
-	"bytes"
 	"context"
-	"database/sql"
-	"encoding/json"
-	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"prompt-manager/agents"
+	"prompt-manager/aisearch"
+	"prompt-manager/graph"
+	"prompt-manager/heartbeat"
+	"prompt-manager/metrics"
+	"prompt-manager/ogmeta"
+	"prompt-manager/search"
+	"prompt-manager/skills"
+	"prompt-manager/store"
+	"prompt-manager/tags"
+	"prompt-manager/teams"
+	"prompt-manager/templates"
+	"prompt-manager/testing"
+	"prompt-manager/topics"
+	"prompt-manager/worldscale"
+	"prompt-manager/worldseats"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
 
-// Domain models
-type Campaign struct {
-	ID          string     `json:"id" db:"id"`
-	Name        string     `json:"name" db:"name"`
-	Description *string    `json:"description" db:"description"`
-	Color       string     `json:"color" db:"color"`
-	Icon        string     `json:"icon" db:"icon"`
-	ParentID    *string    `json:"parent_id" db:"parent_id"`
-	SortOrder   int        `json:"sort_order" db:"sort_order"`
-	IsFavorite  bool       `json:"is_favorite" db:"is_favorite"`
-	PromptCount int        `json:"prompt_count" db:"prompt_count"`
-	LastUsed    *time.Time `json:"last_used" db:"last_used"`
-	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
-}
-
-type Prompt struct {
-	ID                  string     `json:"id" db:"id"`
-	CampaignID          string     `json:"campaign_id" db:"campaign_id"`
-	Title               string     `json:"title" db:"title"`
-	Content             string     `json:"content" db:"content"`
-	Description         *string    `json:"description" db:"description"`
-	Variables           []string   `json:"variables" db:"variables"`
-	UsageCount          int        `json:"usage_count" db:"usage_count"`
-	LastUsed            *time.Time `json:"last_used" db:"last_used"`
-	IsFavorite          bool       `json:"is_favorite" db:"is_favorite"`
-	IsArchived          bool       `json:"is_archived" db:"is_archived"`
-	QuickAccessKey      *string    `json:"quick_access_key" db:"quick_access_key"`
-	Version             int        `json:"version" db:"version"`
-	ParentVersionID     *string    `json:"parent_version_id" db:"parent_version_id"`
-	WordCount           *int       `json:"word_count" db:"word_count"`
-	EstimatedTokens     *int       `json:"estimated_tokens" db:"estimated_tokens"`
-	EffectivenessRating *int       `json:"effectiveness_rating" db:"effectiveness_rating"`
-	Notes               *string    `json:"notes" db:"notes"`
-	CreatedAt           time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt           time.Time  `json:"updated_at" db:"updated_at"`
-	// Joined fields
-	CampaignName *string  `json:"campaign_name,omitempty"`
-	Tags         []string `json:"tags,omitempty"`
-}
-
-type Tag struct {
-	ID          string  `json:"id" db:"id"`
-	Name        string  `json:"name" db:"name"`
-	Color       *string `json:"color" db:"color"`
-	Description *string `json:"description" db:"description"`
-}
-
-type Template struct {
-	ID          string    `json:"id" db:"id"`
-	Name        string    `json:"name" db:"name"`
-	Description *string   `json:"description" db:"description"`
-	Content     string    `json:"content" db:"content"`
-	Variables   []string  `json:"variables" db:"variables"`
-	Category    *string   `json:"category" db:"category"`
-	UsageCount  int       `json:"usage_count" db:"usage_count"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-}
-
-type TestResult struct {
-	ID           string    `json:"id" db:"id"`
-	PromptID     string    `json:"prompt_id" db:"prompt_id"`
-	Model        string    `json:"model" db:"model"`
-	InputVars    *string   `json:"input_variables" db:"input_variables"`
-	Response     *string   `json:"response" db:"response"`
-	ResponseTime *float64  `json:"response_time" db:"response_time"`
-	TokenCount   *int      `json:"token_count" db:"token_count"`
-	Rating       *int      `json:"rating" db:"rating"`
-	Notes        *string   `json:"notes" db:"notes"`
-	TestedAt     time.Time `json:"tested_at" db:"tested_at"`
-}
-
-type PromptVersion struct {
-	ID            string     `json:"id" db:"id"`
-	PromptID      string     `json:"prompt_id" db:"prompt_id"`
-	VersionNumber int        `json:"version_number" db:"version_number"`
-	FilePath      string     `json:"file_path" db:"file_path"`
-	ContentCache  *string    `json:"content_cache" db:"content_cache"`
-	Variables     []string   `json:"variables" db:"variables"`
-	ChangeSummary *string    `json:"change_summary" db:"change_summary"`
-	CreatedBy     *string    `json:"created_by" db:"created_by"`
-	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
-}
-
-// Request/Response types
-type CreatePromptRequest struct {
-	CampaignID          string   `json:"campaign_id"`
-	Title               string   `json:"title"`
-	Content             string   `json:"content"`
-	Description         *string  `json:"description"`
-	Variables           []string `json:"variables"`
-	QuickAccessKey      *string  `json:"quick_access_key"`
-	EffectivenessRating *int     `json:"effectiveness_rating"`
-	Notes               *string  `json:"notes"`
-	Tags                []string `json:"tags"`
-}
-
-type UpdatePromptRequest struct {
-	Title               *string  `json:"title"`
-	Content             *string  `json:"content"`
-	Description         *string  `json:"description"`
-	Variables           []string `json:"variables"`
-	IsFavorite          *bool    `json:"is_favorite"`
-	IsArchived          *bool    `json:"is_archived"`
-	QuickAccessKey      *string  `json:"quick_access_key"`
-	EffectivenessRating *int     `json:"effectiveness_rating"`
-	Notes               *string  `json:"notes"`
-	Tags                []string `json:"tags"`
-	ChangeSummary       *string  `json:"change_summary"`
-}
-
-type CreateCampaignRequest struct {
-	Name        string  `json:"name"`
-	Description *string `json:"description"`
-	Color       *string `json:"color"`
-	Icon        *string `json:"icon"`
-	ParentID    *string `json:"parent_id"`
-	IsFavorite  *bool   `json:"is_favorite"`
-}
-
-type TestPromptRequest struct {
-	Model       string            `json:"model"`
-	Variables   map[string]string `json:"variables"`
-	MaxTokens   *int              `json:"max_tokens"`
-	Temperature *float64          `json:"temperature"`
-}
-
-// API Server
-type APIServer struct {
-	db        *sql.DB
-	qdrantURL string
-	ollamaURL string
+// discoverScenarioNames returns the names of all scenario directories.
+// storeDir is expected to be an absolute path like ".../scenarios/prompt-manager/store";
+// we walk up to the "scenarios/" parent and list its subdirectories.
+func discoverScenarioNames(storeDir string) []string {
+	scenariosDir := filepath.Join(storeDir, "..", "..")
+	entries, err := os.ReadDir(scenariosDir)
+	if err != nil {
+		log.Printf("Warning: could not read scenarios dir %s: %v", scenariosDir, err)
+		return nil
+	}
+	var names []string
+	for _, e := range entries {
+		if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
+			names = append(names, e.Name())
+		}
+	}
+	return names
 }
 
 func main() {
-	// Preflight checks - must be first, before any initialization
+	// Preflight checks
 	if preflight.Run(preflight.Config{
 		ScenarioName: "prompt-manager",
 	}) {
-		return // Process was re-exec'd after rebuild
+		return
 	}
 
-	// Optional resource URLs - will be empty if not available
-	qdrantURL := os.Getenv("QDRANT_URL")
-	if qdrantURL == "" {
-		log.Println("⚠️  QDRANT_URL not provided - semantic search will be disabled")
-	}
-
+	// Configuration from environment
 	ollamaURL := os.Getenv("OLLAMA_URL")
 	if ollamaURL == "" {
-		log.Println("⚠️  OLLAMA_URL not provided - prompt testing will be disabled")
+		log.Println("OLLAMA_URL not provided - skill testing will be disabled")
+	}
+
+	// Storage configuration
+	// The new storage uses store/ directory with per-entity files
+	storeDir := filepath.Join("..", "store")
+	if envDir := os.Getenv("STORE_DIR"); envDir != "" {
+		storeDir = envDir
+	}
+
+	// Resolve to absolute path for consistent file path reporting
+	absStoreDir, err := filepath.Abs(storeDir)
+	if err != nil {
+		log.Printf("Warning: Could not resolve absolute path for store dir: %v", err)
+		absStoreDir = storeDir
 	}
 
 	// Connect to database
@@ -186,93 +98,507 @@ func main() {
 		log.Fatal("Database connection failed:", err)
 	}
 
-	// Set search path to use public schema (tables are in public, not prompt_mgr)
-	_, err = db.Exec("SET search_path TO public")
-	if err != nil {
+	// Set search path
+	if _, err = db.Exec("SET search_path TO public"); err != nil {
 		log.Fatal("Failed to set search_path:", err)
 	}
 
-	apiServer := &APIServer{
-		db:        db,
-		qdrantURL: qdrantURL,
-		ollamaURL: ollamaURL,
+	// Initialize the new file-based store
+	fileStore := store.NewFileStore(storeDir)
+
+	// Initialize domain components (seams for testing)
+	// Use the store adapter to bridge new storage to existing handlers
+	skillStoreAdapter := skills.NewStoreAdapter(fileStore.FileSkills(), store.NewFileContentIO())
+	metricsRepo := metrics.NewRepository(db)
+	tagsRepo := tags.NewRepository(db)
+	testingRepo := testing.NewRepository(db)
+	ollamaClient := testing.NewOllamaClient(ollamaURL)
+
+	// Initialize handlers with interface adapters
+	metricsAdapter := skills.NewMetricsAdapter(metricsRepo)
+	skillHandlers := skills.NewHandlers(skillStoreAdapter, metricsAdapter, absStoreDir)
+	tagsHandlers := tags.NewHandlers(tagsRepo)
+	testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, skillStoreAdapter)
+	templateHandlers := templates.NewHandlers(templates.NewStore(absStoreDir))
+
+	// Agent handlers (new storage-backed, replaces member handlers)
+	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Indexes(), absStoreDir, fileStore.Relations(), fileStore.Teams())
+
+	// OG metadata handlers
+	ogmetaHandlers := ogmeta.NewHandlers()
+
+	// Search service and handlers
+	searchService := search.NewService(skillStoreAdapter)
+	searchHandlers := search.NewHandlers(searchService)
+
+	// Agent and team search services
+	agentSearchService := search.NewAgentSearchService(fileStore.Agents(), fileStore.Agents().(*store.FileAgentStore))
+	teamSearchService := search.NewTeamSearchService(fileStore.Teams(), fileStore.Relations(), fileStore.Teams().(*store.FileTeamStore))
+	searchHandlers.SetAgentService(agentSearchService)
+	searchHandlers.SetTeamService(teamSearchService)
+
+	// AI Search service (graceful degradation when unavailable)
+	qdrantURL := resolveQdrantURL()
+	qdrantAPIKey := os.Getenv("QDRANT_API_KEY")
+
+	aiSearchCollection := os.Getenv("AI_SEARCH_COLLECTION")
+	if aiSearchCollection == "" {
+		aiSearchCollection = "prompt-manager-skills"
 	}
 
+	aiSearchThreshold := 0.5
+	if thresholdStr := os.Getenv("AI_SEARCH_THRESHOLD"); thresholdStr != "" {
+		if parsed, err := strconv.ParseFloat(thresholdStr, 64); err == nil {
+			aiSearchThreshold = parsed
+		}
+	}
+
+	// Initialize AI search components
+	embedder := aisearch.NewEmbedder(ollamaURL, "nomic-embed-text")
+	vectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, aiSearchCollection, 768)
+	aiSearchService := aisearch.NewService(embedder, vectorStore, skillStoreAdapter, searchService, aiSearchThreshold)
+	aiSearchHandlers := aisearch.NewHandlers(aiSearchService)
+
+	// Set AI indexer on skill handlers for CRUD hook integration
+	skillHandlers.SetAIIndexer(aiSearchService)
+
+	// Set experiment stores on skill handlers for variant-aware read
+	skillHandlers.SetExperimentStores(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
+
+	// Variant and experiment handlers
+	variantHandlers := skills.NewVariantHandlers(fileStore.Variants(), fileStore.Skills())
+	experimentHandlers := skills.NewExperimentHandlers(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
+
+	// Agent and team AI search vector stores
+	agentAICollection := os.Getenv("AI_SEARCH_AGENT_COLLECTION")
+	if agentAICollection == "" {
+		agentAICollection = "prompt-manager-agents"
+	}
+	agentVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, agentAICollection, 768)
+
+	teamAICollection := os.Getenv("AI_SEARCH_TEAM_COLLECTION")
+	if teamAICollection == "" {
+		teamAICollection = "prompt-manager-teams"
+	}
+	teamVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, teamAICollection, 768)
+
+	topicAICollection := os.Getenv("AI_SEARCH_TOPIC_COLLECTION")
+	if topicAICollection == "" {
+		topicAICollection = "prompt-manager-topics"
+	}
+	topicVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, topicAICollection, 768)
+
+	// Wire agent/team/topic AI search into the service
+	aiSearchService.SetAgentSearch(agentVectorStore, fileStore.Agents().(*store.FileAgentStore), agentSearchService)
+	aiSearchService.SetTeamSearch(teamVectorStore, fileStore.Teams().(*store.FileTeamStore), fileStore.Relations(), teamSearchService)
+	aiSearchService.SetTopicSearch(topicVectorStore, fileStore.FileTopics())
+
+	// Budget config store
+	budgetConfigStore := aisearch.NewBudgetConfigStore(absStoreDir)
+	aiSearchService.SetBudgetConfig(budgetConfigStore)
+	aiSearchHandlers.SetBudgetConfigStore(budgetConfigStore)
+
+	// Discover filter config store
+	discoverFilterConfigStore := aisearch.NewDiscoverFilterConfigStore(absStoreDir)
+	aiSearchService.SetDiscoverFilterConfig(discoverFilterConfigStore)
+	aiSearchHandlers.SetDiscoverFilterConfigStore(discoverFilterConfigStore)
+
+	// Set AI indexer on agent and team handlers for CRUD hook integration
+	agentHandlers.SetAIIndexer(aiSearchService)
+
+	// Graph detection
+	scenarioNames := discoverScenarioNames(absStoreDir)
+	cliDetector := graph.NewCLIDetector(scenarioNames)
+	graphScanner := graph.NewScanner(
+		fileStore.Agents().(*store.FileAgentStore),
+		fileStore.Teams().(*store.FileTeamStore),
+		fileStore.FileSkills(),
+		fileStore.Relations(),
+		cliDetector,
+	)
+	graphBuilder := graph.NewBuilder(
+		fileStore.Agents().(*store.FileAgentStore),
+		fileStore.Teams().(*store.FileTeamStore),
+		fileStore.FileSkills(),
+		graphScanner,
+		graph.DefaultScoreFns(),
+	)
+	graphHealthConfigStore := graph.NewHealthConfigStore(absStoreDir)
+	graphBuilder.SetHealthConfigProvider(graphHealthConfigStore)
+	graphBuilder.SetScenarioHealthProvider(graph.NewScenarioCompletenessCLIProvider(15 * time.Second))
+	graphIndex := graph.NewIndexStore(absStoreDir, graphBuilder)
+	// Always regenerate on startup so the index reflects the current detection code.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := graphIndex.Regenerate(ctx); err != nil {
+			log.Printf("graph: startup rebuild failed: %v", err)
+		}
+	}()
+	graphHandlers := graph.NewHandlers(graphIndex, graphHealthConfigStore)
+
+	// Inject graph invalidator into mutation handlers
+	skillHandlers.SetGraphInvalidator(graphIndex)
+	agentHandlers.SetGraphInvalidator(graphIndex)
+
+	// Log AI search status and trigger startup indexing if available
+	if ollamaURL != "" && qdrantURL != "" {
+		log.Printf("AI Search: Ollama=%s, Qdrant=%s, Collection=%s", ollamaURL, qdrantURL, aiSearchCollection)
+		// Check availability and index if needed (async to not block startup)
+		go func() {
+			ctx := context.Background()
+			if !aiSearchService.Available(ctx) {
+				log.Println("AI Search: Resources not reachable at startup, skipping initial index")
+				return
+			}
+			// Ensure collection exists
+			if err := vectorStore.EnsureCollection(ctx); err != nil {
+				log.Printf("AI Search: Failed to ensure collection: %v", err)
+				return
+			}
+			// Check if index is stale (count mismatch between Qdrant and disk)
+			needs, indexed, disk, err := aiSearchService.NeedsReindex(ctx)
+			if err != nil {
+				log.Printf("AI Search: Failed staleness check: %v", err)
+				return
+			}
+			if needs {
+				log.Printf("AI Search: Index out of sync (indexed=%d, on-disk=%d), reindexing...", indexed, disk)
+				status, started := aiSearchService.StartReindex()
+				if started {
+					log.Printf("AI Search: Reindexing started at %s", status.StartedAt)
+				} else {
+					log.Printf("AI Search: Reindex already running (started at %s)", status.StartedAt)
+				}
+			} else {
+				log.Printf("AI Search: Index up-to-date (%d skills)", indexed)
+			}
+
+			// Start periodic sync to catch external file changes and service recovery
+			aiSearchService.StartPeriodicSync(ctx, 5*time.Minute)
+		}()
+	} else {
+		log.Println("AI Search: Resources not fully configured (will gracefully degrade to text search)")
+	}
+
+	// Setup routes
 	router := mux.NewRouter()
 
 	// CORS middleware
 	corsHandler := handlers.CORS(
 		handlers.AllowedOrigins([]string{"*"}),
-		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
+		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}),
 		handlers.AllowedHeaders([]string{"Content-Type", "Authorization"}),
 	)
 
-	// Health check - at root for infrastructure and under /api/v1 for client requests
-	healthHandler := health.New().Version("1.0.0").Check(health.DB(apiServer.db), health.Critical).Handler()
+	// Health check
+	healthHandler := health.New().Version("2.0.0").Check(health.DB(db), health.Critical).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API v1 routes
 	v1 := router.PathPrefix("/api/v1").Subrouter()
-
-	// Health check under /api/v1 for client requests via proxy
 	v1.HandleFunc("/health", healthHandler).Methods("GET")
 
-	// Campaign endpoints
-	v1.HandleFunc("/campaigns", apiServer.getCampaigns).Methods("GET")
-	v1.HandleFunc("/campaigns", apiServer.createCampaign).Methods("POST")
-	v1.HandleFunc("/campaigns/{id}", apiServer.getCampaign).Methods("GET")
-	v1.HandleFunc("/campaigns/{id}", apiServer.updateCampaign).Methods("PUT")
-	v1.HandleFunc("/campaigns/{id}", apiServer.deleteCampaign).Methods("DELETE")
-	v1.HandleFunc("/campaigns/{id}/prompts", apiServer.getCampaignPrompts).Methods("GET")
+	// Skill routes
+	v1.HandleFunc("/skills", skillHandlers.List).Methods("GET")
+	v1.HandleFunc("/skills/sync", skillHandlers.Sync).Methods("GET")
+	v1.HandleFunc("/skills", skillHandlers.Create).Methods("POST")
+	v1.HandleFunc("/skills/read", skillHandlers.Read).Methods("POST")
+	v1.HandleFunc("/skills/{id}", skillHandlers.Get).Methods("GET")
+	v1.HandleFunc("/skills/{id}", skillHandlers.Update).Methods("PUT")
+	v1.HandleFunc("/skills/{id}", skillHandlers.Delete).Methods("DELETE")
 
-	// Prompt endpoints
-	v1.HandleFunc("/prompts", apiServer.getPrompts).Methods("GET")
-	v1.HandleFunc("/prompts", apiServer.createPrompt).Methods("POST")
-	v1.HandleFunc("/prompts/{id}", apiServer.getPrompt).Methods("GET")
-	v1.HandleFunc("/prompts/{id}", apiServer.updatePrompt).Methods("PUT")
-	v1.HandleFunc("/prompts/{id}", apiServer.deletePrompt).Methods("DELETE")
-	v1.HandleFunc("/prompts/{id}/use", apiServer.recordPromptUsage).Methods("POST")
+	// Version history routes (part of skills domain)
+	v1.HandleFunc("/skills/{id}/versions", skillHandlers.GetVersions).Methods("GET")
+	v1.HandleFunc("/skills/{id}/revert/{version}", skillHandlers.RevertToVersion).Methods("POST")
 
-	// Search endpoints
-	v1.HandleFunc("/search/prompts", apiServer.searchPrompts).Methods("GET")
-	v1.HandleFunc("/prompts/semantic", apiServer.semanticSearch).Methods("POST")
+	// Variant routes
+	v1.HandleFunc("/skills/{id}/variants", variantHandlers.ListVariants).Methods("GET")
+	v1.HandleFunc("/skills/{id}/variants/{vid}", variantHandlers.GetVariant).Methods("GET")
+	v1.HandleFunc("/skills/{id}/variants", variantHandlers.CreateVariant).Methods("POST")
+	v1.HandleFunc("/skills/{id}/variants/{vid}", variantHandlers.UpdateVariant).Methods("PUT")
+	v1.HandleFunc("/skills/{id}/variants/{vid}", variantHandlers.DeleteVariant).Methods("DELETE")
 
-	// Quick access
-	v1.HandleFunc("/prompts/quick/{key}", apiServer.getPromptByQuickKey).Methods("GET")
-	v1.HandleFunc("/prompts/recent", apiServer.getRecentPrompts).Methods("GET")
-	v1.HandleFunc("/prompts/favorites", apiServer.getFavoritePrompts).Methods("GET")
+	// Skill experiments (list by skill)
+	v1.HandleFunc("/skills/{id}/experiments", experimentHandlers.ListExperimentsBySkill).Methods("GET")
 
-	// Testing
-	v1.HandleFunc("/prompts/{id}/test", apiServer.testPrompt).Methods("POST")
-	v1.HandleFunc("/prompts/{id}/test-history", apiServer.getTestHistory).Methods("GET")
+	// Experiment routes
+	v1.HandleFunc("/experiments", experimentHandlers.ListExperiments).Methods("GET")
+	v1.HandleFunc("/experiments/{eid}", experimentHandlers.GetExperiment).Methods("GET")
+	v1.HandleFunc("/experiments", experimentHandlers.CreateExperiment).Methods("POST")
+	v1.HandleFunc("/experiments/{eid}", experimentHandlers.UpdateExperiment).Methods("PUT")
+	v1.HandleFunc("/experiments/{eid}", experimentHandlers.DeleteExperiment).Methods("DELETE")
+	v1.HandleFunc("/experiments/{eid}/start", experimentHandlers.StartExperiment).Methods("POST")
+	v1.HandleFunc("/experiments/{eid}/conclude", experimentHandlers.ConcludeExperiment).Methods("POST")
+	v1.HandleFunc("/experiments/{eid}/outcomes", experimentHandlers.RecordOutcome).Methods("POST")
+	v1.HandleFunc("/experiments/{eid}/outcomes", experimentHandlers.ListOutcomes).Methods("GET")
 
-	// Tags
-	v1.HandleFunc("/tags", apiServer.getTags).Methods("GET")
-	v1.HandleFunc("/tags", apiServer.createTag).Methods("POST")
+	// Graph routes
+	v1.HandleFunc("/graph", graphHandlers.GetGraph).Methods("GET")
+	v1.HandleFunc("/graph/regenerate", graphHandlers.Regenerate).Methods("POST")
+	v1.HandleFunc("/graph/orphans", graphHandlers.GetOrphans).Methods("GET")
+	v1.HandleFunc("/graph/skillless", graphHandlers.GetSkillless).Methods("GET")
+	v1.HandleFunc("/graph/empty-teams", graphHandlers.GetEmptyTeams).Methods("GET")
+	v1.HandleFunc("/graph/unaffiliated", graphHandlers.GetUnaffiliated).Methods("GET")
+	v1.HandleFunc("/graph/popular", graphHandlers.GetPopular).Methods("GET")
+	v1.HandleFunc("/graph/cycles", graphHandlers.GetCycles).Methods("GET")
+	v1.HandleFunc("/graph/health", graphHandlers.GetHealthScores).Methods("GET")
+	v1.HandleFunc("/graph/health-config", graphHandlers.GetHealthConfig).Methods("GET")
+	v1.HandleFunc("/graph/health-config", graphHandlers.PutHealthConfig).Methods("PUT")
+	v1.HandleFunc("/graph/nodes/{id}", graphHandlers.GetNode).Methods("GET")
+	v1.HandleFunc("/graph/nodes/{id}/edges", graphHandlers.GetNodeEdges).Methods("GET")
 
-	// Templates
-	v1.HandleFunc("/templates", apiServer.getTemplates).Methods("GET")
-	v1.HandleFunc("/templates/{id}", apiServer.getTemplate).Methods("GET")
+	// Usage tracking routes (part of skills domain)
+	v1.HandleFunc("/skills/{id}/use", skillHandlers.RecordUsage).Methods("POST")
+	v1.HandleFunc("/skills/{id}/rating", skillHandlers.SetRating).Methods("PUT")
 
-	// Export/Import endpoints
-	v1.HandleFunc("/export", apiServer.exportData).Methods("GET")
-	v1.HandleFunc("/import", apiServer.importData).Methods("POST")
+	// Search routes
+	v1.HandleFunc("/search/skills", searchHandlers.Search).Methods("GET")
+	v1.HandleFunc("/search/skills/content", searchHandlers.ContentSearch).Methods("GET")
+	v1.HandleFunc("/search/agents", searchHandlers.SearchAgents).Methods("GET")
+	v1.HandleFunc("/search/agents/content", searchHandlers.AgentContentSearch).Methods("GET")
+	v1.HandleFunc("/search/teams", searchHandlers.SearchTeams).Methods("GET")
+	v1.HandleFunc("/search/teams/content", searchHandlers.TeamContentSearch).Methods("GET")
 
-	// Prompt Version History
-	v1.HandleFunc("/prompts/{id}/versions", apiServer.getPromptVersions).Methods("GET")
-	v1.HandleFunc("/prompts/{id}/revert/{version}", apiServer.revertPromptVersion).Methods("POST")
+	// AI Search routes
+	v1.HandleFunc("/search/ai", aiSearchHandlers.Search).Methods("POST")
+	v1.HandleFunc("/search/agents/ai", aiSearchHandlers.SearchAgents).Methods("POST")
+	v1.HandleFunc("/search/teams/ai", aiSearchHandlers.SearchTeams).Methods("POST")
+	v1.HandleFunc("/search/ai/status", aiSearchHandlers.Status).Methods("GET")
+	v1.HandleFunc("/search/ai/reindex", aiSearchHandlers.Reindex).Methods("POST")
+	v1.HandleFunc("/search/ai/reindex/status", aiSearchHandlers.ReindexStatus).Methods("GET")
+	v1.HandleFunc("/search/ai/reindex/cancel", aiSearchHandlers.CancelReindex).Methods("POST")
 
-	log.Printf("🚀 Prompt Manager API starting")
-	log.Printf("🗄️  Database: Connected")
-	if qdrantURL != "" {
-		log.Printf("🔍 Qdrant: %s", qdrantURL)
-	} else {
-		log.Printf("🔍 Qdrant: Not available (semantic search disabled)")
+	// Discovery route (unified topic + skill search)
+	v1.HandleFunc("/discover", aiSearchHandlers.Discover).Methods("POST")
+
+	// Budget config routes
+	v1.HandleFunc("/config/budgets", aiSearchHandlers.GetBudgetConfig).Methods("GET")
+	v1.HandleFunc("/config/budgets", aiSearchHandlers.PutBudgetConfig).Methods("PUT")
+
+	// Discover filter config routes
+	v1.HandleFunc("/config/discover-filters", aiSearchHandlers.GetDiscoverFilterConfig).Methods("GET")
+	v1.HandleFunc("/config/discover-filters", aiSearchHandlers.PutDiscoverFilterConfig).Methods("PUT")
+
+	// Tags routes
+	v1.HandleFunc("/tags", tagsHandlers.List).Methods("GET")
+	v1.HandleFunc("/tags", tagsHandlers.Create).Methods("POST")
+
+	// Testing routes
+	v1.HandleFunc("/skills/{id}/test", testingHandlers.Test).Methods("POST")
+	v1.HandleFunc("/skills/{id}/test-history", testingHandlers.GetHistory).Methods("GET")
+
+	// Agent routes
+	v1.HandleFunc("/agents", agentHandlers.List).Methods("GET")
+	v1.HandleFunc("/agents", agentHandlers.Create).Methods("POST")
+	v1.HandleFunc("/agents/{id}", agentHandlers.Get).Methods("GET")
+	v1.HandleFunc("/agents/{id}", agentHandlers.Update).Methods("PUT")
+	v1.HandleFunc("/agents/{id}", agentHandlers.Delete).Methods("DELETE")
+	v1.HandleFunc("/agents/{id}/soul", agentHandlers.GetSoul).Methods("GET")
+	v1.HandleFunc("/agents/{id}/soul", agentHandlers.SetSoul).Methods("PUT")
+	v1.HandleFunc("/agents/{id}/files", agentHandlers.ListFiles).Methods("GET")
+	v1.HandleFunc("/agents/{id}/files/content", agentHandlers.GetFile).Methods("GET")
+	v1.HandleFunc("/agents/{id}/files/content", agentHandlers.SetFile).Methods("PUT")
+	v1.HandleFunc("/agents/{id}/files", agentHandlers.CreateFile).Methods("POST")
+	v1.HandleFunc("/agents/{id}/files/rename", agentHandlers.RenameFile).Methods("POST")
+	v1.HandleFunc("/agents/{id}/teams", agentHandlers.ListTeams).Methods("GET")
+	v1.HandleFunc("/agents/{id}/files", agentHandlers.DeleteFile).Methods("DELETE")
+
+	// Agent file templates
+	v1.HandleFunc("/agent-file-templates", templateHandlers.ListAgentFileTemplates).Methods("GET")
+
+	// Team routes
+	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes(), nil)
+	teamHandlers.SetGraphInvalidator(graphIndex)
+	teamHandlers.SetAIIndexer(aiSearchService)
+	// Import routes must come before /teams/{id} to avoid mux treating "import" as an ID
+	v1.HandleFunc("/teams/import/claude-code/available", teamHandlers.ListAvailableCCTeams).Methods("GET")
+	v1.HandleFunc("/teams/import/claude-code", teamHandlers.ImportClaudeCode).Methods("POST")
+	v1.HandleFunc("/teams", teamHandlers.List).Methods("GET")
+	v1.HandleFunc("/teams", teamHandlers.Create).Methods("POST")
+	v1.HandleFunc("/teams/{id}", teamHandlers.Get).Methods("GET")
+	v1.HandleFunc("/teams/{id}", teamHandlers.Update).Methods("PUT")
+	v1.HandleFunc("/teams/{id}", teamHandlers.Delete).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/exclusive-members", teamHandlers.GetExclusiveMembers).Methods("GET")
+	v1.HandleFunc("/teams/{id}/members", teamHandlers.AddMember).Methods("POST")
+	v1.HandleFunc("/teams/{id}/members/{agentId}", teamHandlers.UpdateMember).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/members/{agentId}", teamHandlers.RemoveMember).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/roles", teamHandlers.GetRoles).Methods("GET")
+	v1.HandleFunc("/teams/{id}/roles", teamHandlers.SetRoles).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/shared/files", teamHandlers.ListSharedFiles).Methods("GET")
+	v1.HandleFunc("/teams/{id}/shared/files/content", teamHandlers.GetSharedFile).Methods("GET")
+	v1.HandleFunc("/teams/{id}/shared/files/content", teamHandlers.SetSharedFile).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/shared/files", teamHandlers.CreateSharedFile).Methods("POST")
+	v1.HandleFunc("/teams/{id}/shared/files/rename", teamHandlers.RenameSharedFile).Methods("POST")
+	v1.HandleFunc("/teams/{id}/shared/files", teamHandlers.DeleteSharedFile).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/org", teamHandlers.GetOrgChart).Methods("GET")
+	v1.HandleFunc("/teams/{id}/org", teamHandlers.SetOrgChart).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/org/edges/{reportId}", teamHandlers.UpdateOrgChartEdge).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/org/edges/{reportId}", teamHandlers.DeleteOrgChartEdge).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.ListTeamMessages).Methods("GET")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.SendTeamMessage).Methods("POST")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/messages", teamHandlers.ClearTeamMessages).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/messages/{messageId}", teamHandlers.DeleteTeamMessage).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/export/claude-code", teamHandlers.ExportClaudeCode).Methods("GET")
+
+	// Topic routes
+	topicHandlers := topics.NewHandlers(fileStore.Topics(), fileStore.Indexes())
+	topicHandlers.SetGraphInvalidator(graphIndex)
+	topicHandlers.SetAIIndexer(aiSearchService)
+	topicHandlers.SetTopicMatchFn(buildTopicMatchFn(aiSearchService, fileStore.Topics()))
+	// Match route must come before /topics/{id} to avoid mux treating "match" as an ID
+	v1.HandleFunc("/topics/match", topicHandlers.Match).Methods("POST")
+	v1.HandleFunc("/topics", topicHandlers.List).Methods("GET")
+	v1.HandleFunc("/topics", topicHandlers.Create).Methods("POST")
+	v1.HandleFunc("/topics/{id}", topicHandlers.Get).Methods("GET")
+	v1.HandleFunc("/topics/{id}", topicHandlers.Update).Methods("PUT")
+	v1.HandleFunc("/topics/{id}", topicHandlers.Delete).Methods("DELETE")
+	v1.HandleFunc("/topics/{id}/skills", topicHandlers.AccumulatedSkills).Methods("GET")
+
+	// Heartbeat system
+	// Get Vrooli root for working directory
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		// Default to parent of store dir
+		vrooliRoot, _ = filepath.Abs(filepath.Join(storeDir, ".."))
 	}
+
+	// Initialize heartbeat components
+	agentManagerClient := heartbeat.NewAgentManagerClient(30 * time.Second)
+	runRegistry := heartbeat.NewRunRegistry(absStoreDir)
+	heartbeatExecutor := heartbeat.NewExecutor(
+		fileStore.Teams().(*store.FileTeamStore),
+		fileStore.Agents().(*store.FileAgentStore),
+		agentManagerClient,
+		vrooliRoot,
+		runRegistry,
+		nil, // uses default SentinelExtractor
+	)
+	teamExecStore := heartbeat.NewTeamExecutionStore(
+		fileStore.Teams().(*store.FileTeamStore),
+		heartbeatExecutor,
+		absStoreDir,
+	)
+	heartbeatExecutor.OnComplete = teamExecStore.OnComplete
+	heartbeatScheduler := heartbeat.NewScheduler(
+		heartbeatExecutor,
+		agentManagerClient,
+		fileStore.Teams().(*store.FileTeamStore),
+		teamExecStore,
+	)
+	heartbeatHandlers := heartbeat.NewHandlers(
+		fileStore.Teams().(*store.FileTeamStore),
+		fileStore.Agents().(*store.FileAgentStore),
+		fileStore.Relations(),
+		heartbeatScheduler,
+		heartbeatExecutor,
+		runRegistry,
+		agentManagerClient,
+		teamExecStore,
+	)
+	teamHandlers.SetHeartbeatScheduler(heartbeatScheduler)
+
+	// Recover any active runs from a previous process
+	runRegistry.Recover(context.Background(), agentManagerClient)
+	teamExecStore.Recover(context.Background())
+
+	// Start scheduler (doesn't auto-start heartbeats - they must be explicitly enabled)
+	go func() {
+		if err := heartbeatScheduler.Start(context.Background()); err != nil {
+			log.Printf("Warning: Failed to start heartbeat scheduler: %v", err)
+		}
+
+		// Load enabled heartbeats from all teams
+		teams, _ := fileStore.Teams().List(context.Background())
+		for _, team := range teams {
+			if !team.Enabled {
+				continue
+			}
+			configs, _ := fileStore.Teams().(*store.FileTeamStore).ListHeartbeatConfigs(context.Background(), team.ID)
+			for _, config := range configs {
+				if config.Enabled {
+					if err := heartbeatScheduler.Schedule(config.TeamID, config.AgentID, config.Schedule); err != nil {
+						log.Printf("Warning: Failed to schedule heartbeat for %s/%s: %v", config.TeamID, config.AgentID, err)
+					}
+				}
+			}
+		}
+	}()
+
+	// Heartbeat routes - static paths before parameterized
+	v1.HandleFunc("/tasks", heartbeatHandlers.CreateTask).Methods("POST")
+	v1.HandleFunc("/runs", heartbeatHandlers.CreateRun).Methods("POST")
+	v1.HandleFunc("/runs", heartbeatHandlers.ListRuns).Methods("GET")
+	v1.HandleFunc("/runs/investigate", heartbeatHandlers.CreateInvestigationRun).Methods("POST")
+	v1.HandleFunc("/runs/investigation-apply", heartbeatHandlers.CreateInvestigationApplyRun).Methods("POST")
+	v1.HandleFunc("/runs/{runId}", heartbeatHandlers.GetRun).Methods("GET")
+	v1.HandleFunc("/runs/{runId}/retry", heartbeatHandlers.RetryRun).Methods("POST")
+	v1.HandleFunc("/runs/{runId}/events", heartbeatHandlers.GetRunEvents).Methods("GET")
+	v1.HandleFunc("/runs/{runId}/continue", heartbeatHandlers.ContinueRun).Methods("POST")
+	v1.HandleFunc("/heartbeats/running", heartbeatHandlers.ListRunning).Methods("GET")
+	v1.HandleFunc("/heartbeats/running/{teamId}/{agentId}/stop", heartbeatHandlers.StopRunning).Methods("POST")
+	v1.HandleFunc("/prompt-preview", heartbeatHandlers.PreviewPrompt).Methods("POST")
+	v1.HandleFunc("/prompt-preview-structured", heartbeatHandlers.PreviewPromptStructured).Methods("POST")
+	v1.HandleFunc("/teams/{id}/prompt-matrix", heartbeatHandlers.PreviewPromptMatrix).Methods("GET")
+	v1.HandleFunc("/teams/{id}/heartbeats", heartbeatHandlers.ListHeartbeats).Methods("GET")
+	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.GetHeartbeat).Methods("GET")
+	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.CreateHeartbeat).Methods("POST")
+	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.UpdateHeartbeat).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.DeleteHeartbeat).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/trigger", heartbeatHandlers.TriggerHeartbeat).Methods("POST")
+	v1.HandleFunc("/teams/{id}/trigger", heartbeatHandlers.TriggerTeam).Methods("POST")
+	v1.HandleFunc("/teams/{id}/execution-status", heartbeatHandlers.GetTeamExecutionStatus).Methods("GET")
+	v1.HandleFunc("/teams/{id}/heartbeats/logs", heartbeatHandlers.ListTeamLogs).Methods("GET")
+	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/logs", heartbeatHandlers.ListLogs).Methods("GET")
+	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/logs/{logId}", heartbeatHandlers.GetLog).Methods("GET")
+
+	// Member document routes (RESPONSIBILITIES.md and HEARTBEAT.md)
+	v1.HandleFunc("/teams/{id}/members/{agentId}/responsibilities", heartbeatHandlers.GetResponsibilities).Methods("GET")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/responsibilities", heartbeatHandlers.SetResponsibilities).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/heartbeat-instructions", heartbeatHandlers.GetHeartbeatInstructions).Methods("GET")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/heartbeat-instructions", heartbeatHandlers.SetHeartbeatInstructions).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/context", heartbeatHandlers.GetMemberContext).Methods("GET")
+
+	// Team state routes (handoff, task board, decisions)
+	v1.HandleFunc("/teams/{id}/members/{agentId}/handoff", heartbeatHandlers.GetLastHandoff).Methods("GET")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/handoff", heartbeatHandlers.ClearLastHandoff).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/handoff-history", heartbeatHandlers.GetHandoffHistory).Methods("GET")
+	v1.HandleFunc("/teams/{id}/handoff-history", heartbeatHandlers.ClearHandoffHistory).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/tasks", heartbeatHandlers.GetTaskBoard).Methods("GET")
+	v1.HandleFunc("/teams/{id}/tasks", heartbeatHandlers.AddTask).Methods("POST")
+	v1.HandleFunc("/teams/{id}/tasks/{taskId}", heartbeatHandlers.UpdateTaskHandler).Methods("PATCH", "PUT")
+	v1.HandleFunc("/teams/{id}/tasks/{taskId}", heartbeatHandlers.DeleteTaskHandler).Methods("DELETE")
+	v1.HandleFunc("/decisions/pending", heartbeatHandlers.GetAllPendingDecisions).Methods("GET")
+	v1.HandleFunc("/teams/{id}/decisions", heartbeatHandlers.AddDecision).Methods("POST")
+	v1.HandleFunc("/teams/{id}/decisions", heartbeatHandlers.GetDecisions).Methods("GET")
+	v1.HandleFunc("/teams/{id}/decisions/{decisionId}", heartbeatHandlers.UpdateDecisionHandler).Methods("PATCH", "PUT")
+	v1.HandleFunc("/teams/{id}/decisions/{decisionId}", heartbeatHandlers.DeleteDecisionHandler).Methods("DELETE")
+
+	// Knowledge log routes
+	v1.HandleFunc("/teams/{id}/knowledge", heartbeatHandlers.AddKnowledge).Methods("POST")
+	v1.HandleFunc("/teams/{id}/knowledge", heartbeatHandlers.GetKnowledge).Methods("GET")
+	v1.HandleFunc("/teams/{id}/knowledge/{knowledgeId}", heartbeatHandlers.UpdateKnowledgeHandler).Methods("PATCH", "PUT")
+	v1.HandleFunc("/teams/{id}/knowledge/{knowledgeId}", heartbeatHandlers.DeleteKnowledgeHandler).Methods("DELETE")
+
+	// Retention / prune routes
+	v1.HandleFunc("/teams/{id}/retention", heartbeatHandlers.GetRetention).Methods("GET")
+	v1.HandleFunc("/teams/{id}/prune", heartbeatHandlers.PruneSharedState).Methods("POST")
+
+	// World scale routes
+	v1.HandleFunc("/world-scale", worldscale.HandleGet(absStoreDir)).Methods("GET")
+	v1.HandleFunc("/world-scale", worldscale.HandlePut(absStoreDir)).Methods("PUT")
+
+	// World seats routes
+	v1.HandleFunc("/world-seats", worldseats.HandleGet(absStoreDir)).Methods("GET")
+	v1.HandleFunc("/world-seats", worldseats.HandlePut(absStoreDir)).Methods("PUT")
+
+	// OG metadata routes (for link previews)
+	v1.HandleFunc("/og-metadata", ogmetaHandlers.Get).Methods("GET")
+
+	log.Printf("Prompt Manager API v2.0 starting")
+	log.Printf("Store directory: %s", storeDir)
 	if ollamaURL != "" {
-		log.Printf("🧠 Ollama: %s", ollamaURL)
-	} else {
-		log.Printf("🧠 Ollama: Not available (prompt testing disabled)")
+		log.Printf("Ollama: %s", ollamaURL)
 	}
 
 	handler := corsHandler(router)
@@ -289,1516 +615,100 @@ func main() {
 	}
 }
 
-// Campaign endpoints
-func (s *APIServer) getCampaigns(w http.ResponseWriter, r *http.Request) {
-	query := `
-		SELECT id, name, description, color, parent_id, sort_order, 
-		       is_favorite, prompt_count, last_used, created_at, updated_at
-		FROM campaigns 
-		ORDER BY sort_order, name`
-
-	rows, err := s.db.Query(query)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var campaigns []Campaign
-	for rows.Next() {
-		var campaign Campaign
-		campaign.Icon = "folder" // Default icon
-		err := rows.Scan(
-			&campaign.ID, &campaign.Name, &campaign.Description, &campaign.Color,
-			&campaign.ParentID, &campaign.SortOrder,
-			&campaign.IsFavorite, &campaign.PromptCount, &campaign.LastUsed,
-			&campaign.CreatedAt, &campaign.UpdatedAt,
-		)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+// buildTopicMatchFn creates a TopicMatchFunc that uses the AI search service
+// to perform topic matching and skill accumulation.
+func buildTopicMatchFn(aiSvc *aisearch.Service, topicStore store.TopicStore) topics.TopicMatchFunc {
+	return func(ctx context.Context, queries []string, limit int) ([]topics.MatchedTopic, []string, string, error) {
+		type topicEntry struct {
+			topic topics.MatchedTopic
+			score float64
 		}
-		campaigns = append(campaigns, campaign)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(campaigns)
-}
-
-func (s *APIServer) createCampaign(w http.ResponseWriter, r *http.Request) {
-	var req CreateCampaignRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	campaign := Campaign{
-		ID:          uuid.New().String(),
-		Name:        req.Name,
-		Description: req.Description,
-		Color:       "#6366f1", // Default color
-		Icon:        "folder",  // Default icon
-		SortOrder:   0,
-		IsFavorite:  false,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	if req.Color != nil {
-		campaign.Color = *req.Color
-	}
-	if req.Icon != nil {
-		campaign.Icon = *req.Icon
-	}
-	if req.IsFavorite != nil {
-		campaign.IsFavorite = *req.IsFavorite
-	}
-
-	// Get next sort order
-	var maxOrder int
-	s.db.QueryRow("SELECT COALESCE(MAX(sort_order), 0) FROM campaigns").Scan(&maxOrder)
-	campaign.SortOrder = maxOrder + 1
-
-	query := `
-		INSERT INTO campaigns (id, name, description, color, parent_id, 
-		                      sort_order, is_favorite, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING prompt_count, last_used`
-
-	err := s.db.QueryRow(query,
-		campaign.ID, campaign.Name, campaign.Description, campaign.Color,
-		req.ParentID, campaign.SortOrder, campaign.IsFavorite,
-		campaign.CreatedAt, campaign.UpdatedAt,
-	).Scan(&campaign.PromptCount, &campaign.LastUsed)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	campaign.ParentID = req.ParentID
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(campaign)
-}
-
-func (s *APIServer) getCampaign(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	campaignID := vars["id"]
-
-	query := `
-		SELECT id, name, description, color, parent_id, sort_order,
-		       is_favorite, prompt_count, last_used, created_at, updated_at
-		FROM campaigns 
-		WHERE id = $1`
-
-	var campaign Campaign
-	campaign.Icon = "folder" // Default icon
-	err := s.db.QueryRow(query, campaignID).Scan(
-		&campaign.ID, &campaign.Name, &campaign.Description, &campaign.Color,
-		&campaign.ParentID, &campaign.SortOrder,
-		&campaign.IsFavorite, &campaign.PromptCount, &campaign.LastUsed,
-		&campaign.CreatedAt, &campaign.UpdatedAt,
-	)
-
-	if err == sql.ErrNoRows {
-		http.Error(w, "Campaign not found", http.StatusNotFound)
-		return
-	} else if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(campaign)
-}
-
-// Prompt endpoints
-func (s *APIServer) getPrompts(w http.ResponseWriter, r *http.Request) {
-	limit := 50
-	if l := r.URL.Query().Get("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-			limit = parsed
-		}
-	}
-
-	archived := r.URL.Query().Get("archived") == "true"
-	favorites := r.URL.Query().Get("favorites") == "true"
-
-	query := `
-		SELECT p.id, p.campaign_id, p.title, COALESCE(p.content_cache, '') as content, p.description,
-		       p.variables, p.usage_count, p.last_used, p.is_favorite,
-		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
-		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
-		       p.notes, p.created_at, p.updated_at, c.name as campaign_name
-		FROM prompts p
-		LEFT JOIN campaigns c ON p.campaign_id = c.id
-		WHERE p.is_archived = $1`
-
-	args := []interface{}{archived}
-	if favorites {
-		query += " AND p.is_favorite = true"
-	}
-
-	query += " ORDER BY p.last_used DESC NULLS LAST, p.created_at DESC LIMIT $2"
-	args = append(args, limit)
-
-	rows, err := s.db.Query(query, args...)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	prompts := make([]Prompt, 0)
-	for rows.Next() {
-		prompt, err := s.scanPrompt(rows)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		prompts = append(prompts, prompt)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(prompts)
-}
-
-func (s *APIServer) createPrompt(w http.ResponseWriter, r *http.Request) {
-	var req CreatePromptRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	prompt := Prompt{
-		ID:                  uuid.New().String(),
-		CampaignID:          req.CampaignID,
-		Title:               req.Title,
-		Content:             req.Content,
-		Description:         req.Description,
-		Variables:           req.Variables,
-		Version:             1,
-		WordCount:           calculateWordCount(&req.Content),
-		EstimatedTokens:     calculateTokenCount(&req.Content),
-		EffectivenessRating: req.EffectivenessRating,
-		Notes:               req.Notes,
-		CreatedAt:           time.Now(),
-		UpdatedAt:           time.Now(),
-	}
-
-	if req.QuickAccessKey != nil && *req.QuickAccessKey != "" {
-		prompt.QuickAccessKey = req.QuickAccessKey
-	}
-
-	variablesJSON, _ := json.Marshal(prompt.Variables)
-
-	// Generate a file_path based on campaign and title (for file-based storage compatibility)
-	filePath := fmt.Sprintf("user/%s/%s.md", prompt.CampaignID, prompt.ID)
-
-	query := `
-		INSERT INTO prompts (id, campaign_id, title, file_path, content_cache, description, variables,
-		                    quick_access_key, word_count, estimated_tokens,
-		                    effectiveness_rating, notes, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-		RETURNING usage_count, last_used, is_favorite, is_archived, version, parent_version_id`
-
-	err := s.db.QueryRow(query,
-		prompt.ID, prompt.CampaignID, prompt.Title, filePath, prompt.Content,
-		prompt.Description, variablesJSON, prompt.QuickAccessKey,
-		prompt.WordCount, prompt.EstimatedTokens, prompt.EffectivenessRating,
-		prompt.Notes, prompt.CreatedAt, prompt.UpdatedAt,
-	).Scan(&prompt.UsageCount, &prompt.LastUsed, &prompt.IsFavorite,
-		&prompt.IsArchived, &prompt.Version, &prompt.ParentVersionID)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Add tags if provided
-	if len(req.Tags) > 0 {
-		s.addPromptTags(prompt.ID, req.Tags)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(prompt)
-}
-
-func (s *APIServer) getPrompt(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	promptID := vars["id"]
-
-	query := `
-		SELECT p.id, p.campaign_id, p.title, COALESCE(p.content_cache, '') as content, p.description,
-		       p.variables, p.usage_count, p.last_used, p.is_favorite,
-		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
-		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
-		       p.notes, p.created_at, p.updated_at, c.name as campaign_name
-		FROM prompts p
-		LEFT JOIN campaigns c ON p.campaign_id = c.id
-		WHERE p.id = $1`
-
-	row := s.db.QueryRow(query, promptID)
-	prompt, err := s.scanPrompt(row)
-
-	if err == sql.ErrNoRows {
-		http.Error(w, "Prompt not found", http.StatusNotFound)
-		return
-	} else if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Get tags
-	prompt.Tags = s.getPromptTags(promptID)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(prompt)
-}
-
-// Search endpoints
-func (s *APIServer) searchPrompts(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
-	if query == "" {
-		http.Error(w, "Search query required", http.StatusBadRequest)
-		return
-	}
-
-	// Use PostgreSQL full-text search
-	sqlQuery := `
-		SELECT p.id, p.campaign_id, p.title, COALESCE(p.content_cache, '') as content, p.description,
-		       p.variables, p.usage_count, p.last_used, p.is_favorite,
-		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
-		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
-		       p.notes, p.created_at, p.updated_at, c.name as campaign_name
-		FROM prompts p
-		LEFT JOIN campaigns c ON p.campaign_id = c.id
-		WHERE p.is_archived = false AND (
-			to_tsvector('english', p.title) @@ plainto_tsquery('english', $1) OR
-			to_tsvector('english', COALESCE(p.content_cache, '')) @@ plainto_tsquery('english', $1) OR
-			to_tsvector('english', COALESCE(p.description, '')) @@ plainto_tsquery('english', $1)
-		)
-		ORDER BY
-			ts_rank(to_tsvector('english', p.title), plainto_tsquery('english', $1)) DESC,
-			p.usage_count DESC,
-			p.created_at DESC
-		LIMIT 20`
-
-	rows, err := s.db.Query(sqlQuery, query)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var prompts []Prompt
-	for rows.Next() {
-		prompt, err := s.scanPrompt(rows)
-		if err != nil {
-			continue // Skip invalid rows
-		}
-		prompts = append(prompts, prompt)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(prompts)
-}
-
-// Helper functions
-func (s *APIServer) scanPrompt(row interface{}) (Prompt, error) {
-	var prompt Prompt
-	var variablesJSON []byte
-
-	// Scanner interface for both QueryRow and Rows
-	var scanner interface{ Scan(...interface{}) error }
-	switch r := row.(type) {
-	case *sql.Row:
-		scanner = r
-	case *sql.Rows:
-		scanner = r
-	default:
-		return prompt, fmt.Errorf("unsupported row type")
-	}
-
-	err := scanner.Scan(
-		&prompt.ID, &prompt.CampaignID, &prompt.Title, &prompt.Content,
-		&prompt.Description, &variablesJSON, &prompt.UsageCount, &prompt.LastUsed,
-		&prompt.IsFavorite, &prompt.IsArchived, &prompt.QuickAccessKey,
-		&prompt.Version, &prompt.ParentVersionID, &prompt.WordCount,
-		&prompt.EstimatedTokens, &prompt.EffectivenessRating, &prompt.Notes,
-		&prompt.CreatedAt, &prompt.UpdatedAt, &prompt.CampaignName,
-	)
-
-	if err != nil {
-		return prompt, err
-	}
-
-	// Parse variables JSON
-	if len(variablesJSON) > 0 {
-		json.Unmarshal(variablesJSON, &prompt.Variables)
-	}
-
-	return prompt, nil
-}
-
-func (s *APIServer) getPromptTags(promptID string) []string {
-	query := `
-		SELECT t.name 
-		FROM tags t
-		JOIN prompt_tags pt ON t.id = pt.tag_id
-		WHERE pt.prompt_id = $1
-		ORDER BY t.name`
-
-	rows, err := s.db.Query(query, promptID)
-	if err != nil {
-		return []string{}
-	}
-	defer rows.Close()
-
-	var tags []string
-	for rows.Next() {
-		var tag string
-		if rows.Scan(&tag) == nil {
-			tags = append(tags, tag)
-		}
-	}
-
-	return tags
-}
-
-func (s *APIServer) addPromptTags(promptID string, tagNames []string) {
-	for _, tagName := range tagNames {
-		// Insert tag if it doesn't exist
-		s.db.Exec("INSERT INTO tags (name) VALUES ($1) ON CONFLICT (name) DO NOTHING", tagName)
-
-		// Link prompt to tag
-		s.db.Exec(`
-			INSERT INTO prompt_tags (prompt_id, tag_id)
-			SELECT $1, id FROM tags WHERE name = $2
-			ON CONFLICT DO NOTHING`,
-			promptID, tagName)
-	}
-}
-
-func calculateWordCount(content *string) *int {
-	if content == nil {
-		return nil
-	}
-	words := strings.Fields(*content)
-	count := len(words)
-	return &count
-}
-
-func calculateTokenCount(content *string) *int {
-	if content == nil {
-		return nil
-	}
-	// Rough estimation: ~0.75 tokens per word for English text
-	words := len(strings.Fields(*content))
-	tokens := int(float64(words) * 0.75)
-	return &tokens
-}
-
-// Stub implementations for remaining endpoints
-func (s *APIServer) updateCampaign(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	campaignID := vars["id"]
-
-	var req CreateCampaignRequest // Reuse the create request structure
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Build dynamic update query
-	updates := []string{"updated_at = CURRENT_TIMESTAMP"}
-	args := []interface{}{}
-	argIndex := 1
-
-	if req.Name != "" {
-		updates = append(updates, fmt.Sprintf("name = $%d", argIndex))
-		args = append(args, req.Name)
-		argIndex++
-	}
-	if req.Description != nil {
-		updates = append(updates, fmt.Sprintf("description = $%d", argIndex))
-		args = append(args, req.Description)
-		argIndex++
-	}
-	if req.Color != nil {
-		updates = append(updates, fmt.Sprintf("color = $%d", argIndex))
-		args = append(args, *req.Color)
-		argIndex++
-	}
-	if req.Icon != nil {
-		updates = append(updates, fmt.Sprintf("icon = $%d", argIndex))
-		args = append(args, *req.Icon)
-		argIndex++
-	}
-	if req.IsFavorite != nil {
-		updates = append(updates, fmt.Sprintf("is_favorite = $%d", argIndex))
-		args = append(args, *req.IsFavorite)
-		argIndex++
-	}
-	if req.ParentID != nil {
-		updates = append(updates, fmt.Sprintf("parent_id = $%d", argIndex))
-		args = append(args, req.ParentID)
-		argIndex++
-	}
-
-	// Add campaign ID as last argument
-	args = append(args, campaignID)
-
-	query := fmt.Sprintf(
-		"UPDATE campaigns SET %s WHERE id = $%d",
-		strings.Join(updates, ", "),
-		argIndex,
-	)
-
-	result, err := s.db.Exec(query, args...)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if rowsAffected == 0 {
-		http.Error(w, "Campaign not found", http.StatusNotFound)
-		return
-	}
-
-	// Return updated campaign
-	s.getCampaign(w, r)
-}
-
-func (s *APIServer) deleteCampaign(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	campaignID := vars["id"]
-
-	// Check if campaign has prompts
-	var promptCount int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM prompts WHERE campaign_id = $1", campaignID).Scan(&promptCount)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if promptCount > 0 {
-		http.Error(w, "Campaign has prompts. Delete or move prompts first.", http.StatusConflict)
-		return
-	}
-
-	// Delete the campaign
-	result, err := s.db.Exec("DELETE FROM campaigns WHERE id = $1", campaignID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if rowsAffected == 0 {
-		http.Error(w, "Campaign not found", http.StatusNotFound)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *APIServer) getCampaignPrompts(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	campaignID := vars["id"]
-
-	query := `
-		SELECT p.id, p.campaign_id, p.title, COALESCE(p.content_cache, '') as content, p.description,
-		       p.variables, p.usage_count, p.last_used, p.is_favorite,
-		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
-		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
-		       p.notes, p.created_at, p.updated_at, c.name as campaign_name
-		FROM prompts p
-		LEFT JOIN campaigns c ON p.campaign_id = c.id
-		WHERE p.campaign_id = $1 AND p.is_archived = false
-		ORDER BY p.last_used DESC NULLS LAST, p.created_at DESC`
-
-	rows, err := s.db.Query(query, campaignID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var prompts []Prompt
-	for rows.Next() {
-		prompt, err := s.scanPrompt(rows)
-		if err != nil {
-			continue
-		}
-		prompts = append(prompts, prompt)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(prompts)
-}
-
-func (s *APIServer) updatePrompt(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	promptID := vars["id"]
-
-	var req UpdatePromptRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Create version snapshot if content is being updated
-	if req.Content != nil || req.Title != nil {
-		_, err := s.db.Exec(`
-			INSERT INTO prompt_mgr.prompt_versions (prompt_id, version_number, file_path, content_cache, variables, change_summary)
-			SELECT id, version, 'snapshot', content_cache, variables::jsonb,
-			       CASE
-			           WHEN $2 THEN 'Manual update'
-			           ELSE NULL
-			       END
-			FROM prompt_mgr.prompts
-			WHERE id = $1
-		`, promptID, req.ChangeSummary != nil)
-		if err != nil {
-			log.Printf("Warning: Failed to create version snapshot: %v", err)
-		}
-	}
-
-	// Build dynamic update query
-	updates := []string{"updated_at = CURRENT_TIMESTAMP", "version = version + 1"}
-	args := []interface{}{}
-	argIndex := 1
-
-	if req.Title != nil {
-		updates = append(updates, fmt.Sprintf("title = $%d", argIndex))
-		args = append(args, *req.Title)
-		argIndex++
-	}
-	if req.Content != nil {
-		updates = append(updates, fmt.Sprintf("content_cache = $%d", argIndex))
-		args = append(args, *req.Content)
-		argIndex++
-		// Update word count and token count
-		updates = append(updates, fmt.Sprintf("word_count = $%d", argIndex))
-		args = append(args, calculateWordCount(req.Content))
-		argIndex++
-		updates = append(updates, fmt.Sprintf("estimated_tokens = $%d", argIndex))
-		args = append(args, calculateTokenCount(req.Content))
-		argIndex++
-	}
-	if req.Description != nil {
-		updates = append(updates, fmt.Sprintf("description = $%d", argIndex))
-		args = append(args, req.Description)
-		argIndex++
-	}
-	if req.IsFavorite != nil {
-		updates = append(updates, fmt.Sprintf("is_favorite = $%d", argIndex))
-		args = append(args, *req.IsFavorite)
-		argIndex++
-	}
-	if req.IsArchived != nil {
-		updates = append(updates, fmt.Sprintf("is_archived = $%d", argIndex))
-		args = append(args, *req.IsArchived)
-		argIndex++
-	}
-	if req.QuickAccessKey != nil {
-		updates = append(updates, fmt.Sprintf("quick_access_key = $%d", argIndex))
-		args = append(args, req.QuickAccessKey)
-		argIndex++
-	}
-	if req.EffectivenessRating != nil {
-		updates = append(updates, fmt.Sprintf("effectiveness_rating = $%d", argIndex))
-		args = append(args, req.EffectivenessRating)
-		argIndex++
-	}
-	if req.Notes != nil {
-		updates = append(updates, fmt.Sprintf("notes = $%d", argIndex))
-		args = append(args, req.Notes)
-		argIndex++
-	}
-	if len(req.Variables) > 0 {
-		variablesJSON, _ := json.Marshal(req.Variables)
-		updates = append(updates, fmt.Sprintf("variables = $%d", argIndex))
-		args = append(args, variablesJSON)
-		argIndex++
-	}
-
-	// Add prompt ID as last argument
-	args = append(args, promptID)
-
-	query := fmt.Sprintf(
-		"UPDATE prompts SET %s WHERE id = $%d",
-		strings.Join(updates, ", "),
-		argIndex,
-	)
-
-	_, err := s.db.Exec(query, args...)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Update tags if provided
-	if len(req.Tags) > 0 {
-		// Remove existing tags
-		s.db.Exec("DELETE FROM prompt_tags WHERE prompt_id = $1", promptID)
-		// Add new tags
-		s.addPromptTags(promptID, req.Tags)
-	}
-
-	// Return updated prompt
-	s.getPrompt(w, r)
-}
-
-func (s *APIServer) deletePrompt(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	promptID := vars["id"]
-
-	// Delete associated tags first (cascade)
-	_, err := s.db.Exec("DELETE FROM prompt_tags WHERE prompt_id = $1", promptID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Delete the prompt
-	result, err := s.db.Exec("DELETE FROM prompts WHERE id = $1", promptID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if rowsAffected == 0 {
-		http.Error(w, "Prompt not found", http.StatusNotFound)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *APIServer) recordPromptUsage(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	promptID := vars["id"]
-
-	// Update usage count and last used timestamp
-	query := `UPDATE prompts SET usage_count = usage_count + 1, last_used = CURRENT_TIMESTAMP WHERE id = $1`
-	_, err := s.db.Exec(query, promptID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Update campaign last used
-	s.db.Exec(`UPDATE campaigns SET last_used = CURRENT_TIMESTAMP WHERE id = (SELECT campaign_id FROM prompts WHERE id = $1)`, promptID)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "usage recorded"})
-}
-
-func (s *APIServer) semanticSearch(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Query  string   `json:"query"`
-		Limit  int      `json:"limit"`
-		Filter []string `json:"filter"` // Optional campaign IDs to filter
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if req.Query == "" {
-		http.Error(w, "Query is required", http.StatusBadRequest)
-		return
-	}
-
-	if req.Limit <= 0 || req.Limit > 100 {
-		req.Limit = 20
-	}
-
-	// If Qdrant is available, use vector search
-	if s.qdrantURL != "" {
-		// Generate embedding for query using Ollama (if available)
-		if s.ollamaURL != "" {
-			embedding, err := s.generateEmbedding(req.Query)
-			if err == nil && embedding != nil {
-				// Search Qdrant with the embedding
-				results, err := s.searchQdrant(embedding, req.Limit, req.Filter)
+		seen := make(map[string]*topicEntry)
+		allSkillIDs := make(map[string]bool)
+		method := "ai"
+
+		for _, query := range queries {
+			topicResults, topicMethod, err := aiSvc.SearchTopics(ctx, query, limit)
+			if err != nil {
+				continue
+			}
+			if topicMethod != "ai" {
+				method = topicMethod
+			}
+
+			for _, tr := range topicResults {
+				topicID, _ := tr.Payload["topic_id"].(string)
+				if topicID == "" {
+					continue
+				}
+				name, _ := tr.Payload["name"].(string)
+				description, _ := tr.Payload["description"].(string)
+				parentID, _ := tr.Payload["parent_topic_id"].(string)
+
+				scorePercent := int(tr.Score * 100)
+				if scorePercent > 100 {
+					scorePercent = 100
+				}
+
+				if existing, ok := seen[topicID]; !ok || tr.Score > existing.score {
+					var parentPtr *string
+					if parentID != "" {
+						parentPtr = &parentID
+					}
+					seen[topicID] = &topicEntry{
+						topic: topics.MatchedTopic{
+							ID:            topicID,
+							Name:          name,
+							Description:   description,
+							ParentTopicID: parentPtr,
+							Score:         tr.Score,
+							ScorePercent:  scorePercent,
+						},
+						score: tr.Score,
+					}
+				}
+
+				skillIDs, err := topicStore.AccumulateSkills(ctx, topicID)
 				if err == nil {
-					w.Header().Set("Content-Type", "application/json")
-					json.NewEncoder(w).Encode(results)
-					return
-				}
-				log.Printf("Qdrant search failed, falling back to PostgreSQL: %v", err)
-			}
-		}
-	}
-
-	// Fallback to PostgreSQL full-text search
-	s.searchPrompts(w, r)
-}
-
-// generateEmbedding creates an embedding vector using Ollama
-func (s *APIServer) generateEmbedding(text string) ([]float32, error) {
-	if s.ollamaURL == "" {
-		return nil, fmt.Errorf("Ollama not configured")
-	}
-
-	payload := map[string]interface{}{
-		"model":  "nomic-embed-text",
-		"prompt": text,
-	}
-
-	jsonData, _ := json.Marshal(payload)
-	resp, err := http.Post(s.ollamaURL+"/api/embeddings", "application/json", strings.NewReader(string(jsonData)))
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("embedding generation failed: %d", resp.StatusCode)
-	}
-
-	var result struct {
-		Embedding []float32 `json:"embedding"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
-	}
-
-	return result.Embedding, nil
-}
-
-// searchQdrant searches the vector database for similar prompts
-func (s *APIServer) searchQdrant(embedding []float32, limit int, campaignFilter []string) ([]Prompt, error) {
-	payload := map[string]interface{}{
-		"vector":       embedding,
-		"limit":        limit,
-		"with_payload": true,
-	}
-
-	// Add campaign filter if provided
-	if len(campaignFilter) > 0 {
-		payload["filter"] = map[string]interface{}{
-			"must": []map[string]interface{}{
-				{
-					"key": "campaign_id",
-					"match": map[string]interface{}{
-						"any": campaignFilter,
-					},
-				},
-			},
-		}
-	}
-
-	jsonData, _ := json.Marshal(payload)
-	resp, err := http.Post(s.qdrantURL+"/collections/prompts/points/search", "application/json", strings.NewReader(string(jsonData)))
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("qdrant search failed: %d - %s", resp.StatusCode, string(body))
-	}
-
-	var searchResult struct {
-		Result []struct {
-			ID      string                 `json:"id"`
-			Score   float32                `json:"score"`
-			Payload map[string]interface{} `json:"payload"`
-		} `json:"result"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&searchResult); err != nil {
-		return nil, err
-	}
-
-	// Convert Qdrant results to prompts
-	promptIDs := make([]string, 0, len(searchResult.Result))
-	for _, result := range searchResult.Result {
-		if id, ok := result.Payload["prompt_id"].(string); ok {
-			promptIDs = append(promptIDs, id)
-		}
-	}
-
-	if len(promptIDs) == 0 {
-		return []Prompt{}, nil
-	}
-
-	// Fetch full prompt details from PostgreSQL
-	query := `
-		SELECT p.id, p.campaign_id, p.title, COALESCE(p.content_cache, '') as content, p.description,
-		       p.variables, p.usage_count, p.last_used, p.is_favorite,
-		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
-		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
-		       p.notes, p.created_at, p.updated_at, c.name as campaign_name
-		FROM prompts p
-		LEFT JOIN campaigns c ON p.campaign_id = c.id
-		WHERE p.id = ANY($1::uuid[])
-		ORDER BY array_position($1::uuid[], p.id::uuid)`
-
-	rows, err := s.db.Query(query, "{"+strings.Join(promptIDs, ",")+"}")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var prompts []Prompt
-	for rows.Next() {
-		prompt, err := s.scanPrompt(rows)
-		if err != nil {
-			continue
-		}
-		prompts = append(prompts, prompt)
-	}
-
-	return prompts, nil
-}
-
-func (s *APIServer) getPromptByQuickKey(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (s *APIServer) getRecentPrompts(w http.ResponseWriter, r *http.Request) {
-	s.getPrompts(w, r) // Use existing logic with default ordering
-}
-
-func (s *APIServer) getFavoritePrompts(w http.ResponseWriter, r *http.Request) {
-	// Modify query to add favorites=true
-	r.URL.RawQuery = "favorites=true"
-	s.getPrompts(w, r)
-}
-
-func (s *APIServer) testPrompt(w http.ResponseWriter, r *http.Request) {
-	if s.ollamaURL == "" {
-		http.Error(w, "Prompt testing is not available (Ollama not configured)", http.StatusServiceUnavailable)
-		return
-	}
-
-	vars := mux.Vars(r)
-	promptID := vars["id"]
-
-	// Fetch the prompt
-	query := `
-		SELECT p.id, p.campaign_id, p.title, COALESCE(p.content_cache, '') as content, p.description,
-		       p.variables, p.usage_count, p.last_used, p.is_favorite,
-		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
-		       p.word_count, p.estimated_tokens, p.effectiveness_rating,
-		       p.notes, p.created_at, p.updated_at, c.name as campaign_name
-		FROM prompts p
-		LEFT JOIN campaigns c ON p.campaign_id = c.id
-		WHERE p.id = $1`
-
-	row := s.db.QueryRow(query, promptID)
-	prompt, err := s.scanPrompt(row)
-	if err == sql.ErrNoRows {
-		http.Error(w, "Prompt not found", http.StatusNotFound)
-		return
-	} else if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Parse test request
-	var req TestPromptRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Default model and parameters
-	if req.Model == "" {
-		req.Model = "llama3.2"
-	}
-	if req.MaxTokens == nil {
-		maxTokens := 1000
-		req.MaxTokens = &maxTokens
-	}
-	if req.Temperature == nil {
-		temp := 0.7
-		req.Temperature = &temp
-	}
-
-	// Replace variables in prompt content
-	finalContent := prompt.Content
-	for key, value := range req.Variables {
-		placeholder := fmt.Sprintf("{{%s}}", key)
-		finalContent = strings.ReplaceAll(finalContent, placeholder, value)
-	}
-
-	// Call Ollama API
-	startTime := time.Now()
-
-	payload := map[string]interface{}{
-		"model":  req.Model,
-		"prompt": finalContent,
-		"stream": false,
-		"options": map[string]interface{}{
-			"num_predict": *req.MaxTokens,
-			"temperature": *req.Temperature,
-		},
-	}
-
-	jsonData, _ := json.Marshal(payload)
-	resp, err := http.Post(s.ollamaURL+"/api/generate", "application/json", bytes.NewReader(jsonData))
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to call Ollama: %v", err), http.StatusInternalServerError)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		http.Error(w, fmt.Sprintf("Ollama error: %s", string(body)), http.StatusInternalServerError)
-		return
-	}
-
-	// Parse Ollama response
-	var ollamaResp struct {
-		Model           string `json:"model"`
-		Response        string `json:"response"`
-		Done            bool   `json:"done"`
-		TotalDuration   int64  `json:"total_duration"`
-		LoadDuration    int64  `json:"load_duration"`
-		PromptEvalCount int    `json:"prompt_eval_count"`
-		EvalCount       int    `json:"eval_count"`
-		EvalDuration    int64  `json:"eval_duration"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to parse Ollama response: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	responseTime := time.Since(startTime).Milliseconds()
-
-	// Store test result in database
-	testResult := TestResult{
-		ID:           uuid.New().String(),
-		PromptID:     promptID,
-		Model:        req.Model,
-		Response:     &ollamaResp.Response,
-		ResponseTime: ptrFloat64(float64(responseTime)),
-		TokenCount:   &ollamaResp.EvalCount,
-		TestedAt:     time.Now(),
-	}
-
-	if len(req.Variables) > 0 {
-		varsJSON, _ := json.Marshal(req.Variables)
-		varsStr := string(varsJSON)
-		testResult.InputVars = &varsStr
-	}
-
-	// Insert test result
-	insertQuery := `
-		INSERT INTO test_results (id, prompt_id, model, input_variables, response, 
-		                         response_time, token_count, tested_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-
-	_, err = s.db.Exec(insertQuery,
-		testResult.ID, testResult.PromptID, testResult.Model, testResult.InputVars,
-		testResult.Response, testResult.ResponseTime, testResult.TokenCount, testResult.TestedAt,
-	)
-
-	if err != nil {
-		log.Printf("Failed to save test result: %v", err)
-	}
-
-	// Return test result
-	response := map[string]interface{}{
-		"test_id":       testResult.ID,
-		"model":         testResult.Model,
-		"response":      ollamaResp.Response,
-		"response_time": responseTime,
-		"token_count":   ollamaResp.EvalCount,
-		"prompt_tokens": ollamaResp.PromptEvalCount,
-		"variables":     req.Variables,
-		"tested_at":     testResult.TestedAt,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
-func ptrFloat64(f float64) *float64 {
-	return &f
-}
-
-func (s *APIServer) getTestHistory(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (s *APIServer) getTags(w http.ResponseWriter, r *http.Request) {
-	query := `SELECT id, name, color, description FROM tags ORDER BY name`
-
-	rows, err := s.db.Query(query)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var tags []Tag
-	for rows.Next() {
-		var tag Tag
-		err := rows.Scan(&tag.ID, &tag.Name, &tag.Color, &tag.Description)
-		if err != nil {
-			continue
-		}
-		tags = append(tags, tag)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tags)
-}
-
-func (s *APIServer) createTag(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (s *APIServer) getTemplates(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-func (s *APIServer) getTemplate(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Export/Import functionality
-type ExportData struct {
-	Version    string     `json:"version"`
-	ExportedAt time.Time  `json:"exported_at"`
-	Campaigns  []Campaign `json:"campaigns"`
-	Prompts    []Prompt   `json:"prompts"`
-	Tags       []Tag      `json:"tags"`
-	Templates  []Template `json:"templates,omitempty"`
-}
-
-func (s *APIServer) exportData(w http.ResponseWriter, r *http.Request) {
-	// Get filter parameters
-	campaignID := r.URL.Query().Get("campaign_id")
-	includeArchived := r.URL.Query().Get("include_archived") == "true"
-
-	export := ExportData{
-		Version:    "1.0",
-		ExportedAt: time.Now(),
-		Campaigns:  []Campaign{},
-		Prompts:    []Prompt{},
-		Tags:       []Tag{},
-		Templates:  []Template{},
-	}
-
-	// Export campaigns
-	// Note: icon column may not exist in older databases, so we handle it gracefully
-	campaignQuery := `SELECT id, name, description, color, parent_id, sort_order, 
-		is_favorite, prompt_count, last_used, created_at, updated_at FROM campaigns`
-	args := []interface{}{}
-
-	if campaignID != "" {
-		campaignQuery += " WHERE id = $1"
-		args = append(args, campaignID)
-	}
-
-	rows, err := s.db.Query(campaignQuery, args...)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var c Campaign
-		c.Icon = "folder" // Default icon value
-		err := rows.Scan(&c.ID, &c.Name, &c.Description, &c.Color,
-			&c.ParentID, &c.SortOrder, &c.IsFavorite, &c.PromptCount,
-			&c.LastUsed, &c.CreatedAt, &c.UpdatedAt)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		export.Campaigns = append(export.Campaigns, c)
-	}
-
-	// Export prompts
-	promptQuery := `SELECT id, campaign_id, title, COALESCE(content_cache, '') as content, description, variables,
-		usage_count, last_used, is_favorite, is_archived, quick_access_key,
-		version, parent_version_id, word_count, estimated_tokens,
-		effectiveness_rating, notes, created_at, updated_at
-		FROM prompts WHERE 1=1`
-
-	if campaignID != "" {
-		promptQuery += " AND campaign_id = $1"
-		args = []interface{}{campaignID}
-	} else {
-		args = []interface{}{}
-	}
-
-	if !includeArchived {
-		promptQuery += " AND is_archived = false"
-	}
-
-	rows, err = s.db.Query(promptQuery, args...)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var p Prompt
-		var varsJSON string
-		err := rows.Scan(&p.ID, &p.CampaignID, &p.Title, &p.Content, &p.Description,
-			&varsJSON, &p.UsageCount, &p.LastUsed, &p.IsFavorite, &p.IsArchived,
-			&p.QuickAccessKey, &p.Version, &p.ParentVersionID, &p.WordCount,
-			&p.EstimatedTokens, &p.EffectivenessRating, &p.Notes, &p.CreatedAt, &p.UpdatedAt)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// Parse variables JSON
-		if varsJSON != "" {
-			json.Unmarshal([]byte(varsJSON), &p.Variables)
-		}
-
-		// Get tags for this prompt
-		tagRows, err := s.db.Query(`
-			SELECT t.name FROM tags t 
-			JOIN prompt_tags pt ON t.id = pt.tag_id 
-			WHERE pt.prompt_id = $1`, p.ID)
-		if err == nil {
-			defer tagRows.Close()
-			p.Tags = []string{}
-			for tagRows.Next() {
-				var tagName string
-				if err := tagRows.Scan(&tagName); err == nil {
-					p.Tags = append(p.Tags, tagName)
+					for _, sid := range skillIDs {
+						allSkillIDs[sid] = true
+					}
 				}
 			}
 		}
 
-		export.Prompts = append(export.Prompts, p)
-	}
-
-	// Export all tags
-	tagRows, err := s.db.Query(`SELECT id, name, color, description FROM tags`)
-	if err == nil {
-		defer tagRows.Close()
-		for tagRows.Next() {
-			var t Tag
-			if err := tagRows.Scan(&t.ID, &t.Name, &t.Color, &t.Description); err == nil {
-				export.Tags = append(export.Tags, t)
-			}
+		matched := make([]topics.MatchedTopic, 0, len(seen))
+		for _, e := range seen {
+			matched = append(matched, e.topic)
 		}
-	}
-
-	// Set response headers for file download
-	fileName := fmt.Sprintf("prompt-manager-export-%s.json", time.Now().Format("2006-01-02"))
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileName))
-
-	json.NewEncoder(w).Encode(export)
-}
-
-func (s *APIServer) importData(w http.ResponseWriter, r *http.Request) {
-	var importData ExportData
-	if err := json.NewDecoder(r.Body).Decode(&importData); err != nil {
-		http.Error(w, "Invalid import data format", http.StatusBadRequest)
-		return
-	}
-
-	// Track what was imported
-	result := map[string]interface{}{
-		"campaigns_imported": 0,
-		"prompts_imported":   0,
-		"tags_imported":      0,
-		"errors":             []string{},
-	}
-
-	// Start a transaction
-	tx, err := s.db.Begin()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer tx.Rollback()
-
-	// Import campaigns (maintaining parent-child relationships)
-	campaignIDMap := make(map[string]string) // old ID -> new ID mapping
-
-	for _, campaign := range importData.Campaigns {
-		newID := uuid.New().String()
-		campaignIDMap[campaign.ID] = newID
-
-		// Handle parent_id mapping
-		var parentID *string
-		if campaign.ParentID != nil && *campaign.ParentID != "" {
-			if newParentID, exists := campaignIDMap[*campaign.ParentID]; exists {
-				parentID = &newParentID
+		// Sort by score descending
+		for i := 1; i < len(matched); i++ {
+			for j := i; j > 0 && matched[j].Score > matched[j-1].Score; j-- {
+				matched[j], matched[j-1] = matched[j-1], matched[j]
 			}
 		}
 
-		_, err := tx.Exec(`
-			INSERT INTO campaigns (id, name, description, color, parent_id, 
-				sort_order, is_favorite, created_at, updated_at) 
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-			ON CONFLICT (id) DO NOTHING`,
-			newID, campaign.Name, campaign.Description, campaign.Color,
-			parentID, campaign.SortOrder, campaign.IsFavorite,
-			time.Now(), time.Now())
-
-		if err != nil {
-			result["errors"] = append(result["errors"].([]string),
-				fmt.Sprintf("Failed to import campaign %s: %v", campaign.Name, err))
-			continue
+		skillsList := make([]string, 0, len(allSkillIDs))
+		for sid := range allSkillIDs {
+			skillsList = append(skillsList, sid)
 		}
-		result["campaigns_imported"] = result["campaigns_imported"].(int) + 1
+
+		return matched, skillsList, method, nil
 	}
-
-	// Import tags
-	tagIDMap := make(map[string]string)
-	for _, tag := range importData.Tags {
-		newID := uuid.New().String()
-		tagIDMap[tag.ID] = newID
-
-		_, err := tx.Exec(`
-			INSERT INTO tags (id, name, color, description) 
-			VALUES ($1, $2, $3, $4)
-			ON CONFLICT (name) DO NOTHING`,
-			newID, tag.Name, tag.Color, tag.Description)
-
-		if err != nil {
-			result["errors"] = append(result["errors"].([]string),
-				fmt.Sprintf("Failed to import tag %s: %v", tag.Name, err))
-			continue
-		}
-		result["tags_imported"] = result["tags_imported"].(int) + 1
-	}
-
-	// Import prompts
-	for _, prompt := range importData.Prompts {
-		newID := uuid.New().String()
-
-		// Map campaign ID
-		campaignID := prompt.CampaignID
-		if newCampaignID, exists := campaignIDMap[prompt.CampaignID]; exists {
-			campaignID = newCampaignID
-		}
-
-		varsJSON, _ := json.Marshal(prompt.Variables)
-		// Generate file_path for imported prompts
-		filePath := fmt.Sprintf("imported/%s/%s.md", campaignID, newID)
-
-		_, err := tx.Exec(`
-			INSERT INTO prompts (id, campaign_id, title, file_path, content_cache, description,
-				variables, usage_count, last_used, is_favorite, is_archived,
-				quick_access_key, version, word_count, estimated_tokens,
-				effectiveness_rating, notes, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
-			newID, campaignID, prompt.Title, filePath, prompt.Content, prompt.Description,
-			string(varsJSON), 0, nil, prompt.IsFavorite, prompt.IsArchived,
-			nil, 1, prompt.WordCount, prompt.EstimatedTokens,
-			prompt.EffectivenessRating, prompt.Notes, time.Now(), time.Now())
-
-		if err != nil {
-			result["errors"] = append(result["errors"].([]string),
-				fmt.Sprintf("Failed to import prompt %s: %v", prompt.Title, err))
-			continue
-		}
-
-		// Link tags to prompt
-		for _, tagName := range prompt.Tags {
-			var tagID string
-			err := tx.QueryRow("SELECT id FROM tags WHERE name = $1", tagName).Scan(&tagID)
-			if err == nil {
-				tx.Exec("INSERT INTO prompt_tags (prompt_id, tag_id) VALUES ($1, $2)", newID, tagID)
-			}
-		}
-
-		result["prompts_imported"] = result["prompts_imported"].(int) + 1
-	}
-
-	// Commit transaction
-	if err := tx.Commit(); err != nil {
-		http.Error(w, "Failed to commit import: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
 }
 
-// Version control stub implementations
-func (s *APIServer) getPromptVersions(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	vars := mux.Vars(r)
-	promptID := vars["id"]
-
-	// Validate prompt exists
-	var exists bool
-	err := s.db.QueryRow("SELECT EXISTS(SELECT 1 FROM prompt_mgr.prompts WHERE id = $1)", promptID).Scan(&exists)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Database error"})
-		return
+// resolveQdrantURL returns the Qdrant base URL from environment variables.
+// It checks QDRANT_URL, QDRANT_BASE_URL (Vrooli resource export), and
+// falls back to constructing from QDRANT_PORT if available.
+func resolveQdrantURL() string {
+	if url := os.Getenv("QDRANT_URL"); url != "" {
+		return url
 	}
-	if !exists {
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Prompt not found"})
-		return
+	if url := os.Getenv("QDRANT_BASE_URL"); url != "" {
+		return url
 	}
-
-	// Retrieve version history
-	query := `
-		SELECT id, prompt_id, version_number, file_path, content_cache,
-		       variables, change_summary, created_by, created_at
-		FROM prompt_mgr.prompt_versions
-		WHERE prompt_id = $1
-		ORDER BY version_number DESC
-	`
-
-	rows, err := s.db.Query(query, promptID)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to retrieve versions"})
-		return
+	if port := os.Getenv("QDRANT_PORT"); port != "" {
+		return "http://localhost:" + port
 	}
-	defer rows.Close()
-
-	versions := make([]PromptVersion, 0)
-	for rows.Next() {
-		var v PromptVersion
-		var variables []byte
-		err := rows.Scan(&v.ID, &v.PromptID, &v.VersionNumber, &v.FilePath, &v.ContentCache,
-			&variables, &v.ChangeSummary, &v.CreatedBy, &v.CreatedAt)
-		if err != nil {
-			continue
-		}
-		if len(variables) > 0 {
-			json.Unmarshal(variables, &v.Variables)
-		}
-		versions = append(versions, v)
-	}
-
-	json.NewEncoder(w).Encode(versions)
-}
-
-func (s *APIServer) revertPromptVersion(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	vars := mux.Vars(r)
-	promptID := vars["id"]
-	versionNum := vars["version"]
-
-	// Validate version exists
-	var version PromptVersion
-	var variables []byte
-	query := `
-		SELECT id, prompt_id, version_number, file_path, content_cache,
-		       variables, change_summary, created_by, created_at
-		FROM prompt_mgr.prompt_versions
-		WHERE prompt_id = $1 AND version_number = $2
-	`
-	err := s.db.QueryRow(query, promptID, versionNum).Scan(
-		&version.ID, &version.PromptID, &version.VersionNumber, &version.FilePath,
-		&version.ContentCache, &variables, &version.ChangeSummary, &version.CreatedBy, &version.CreatedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Version not found"})
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Database error"})
-		}
-		return
-	}
-	if len(variables) > 0 {
-		json.Unmarshal(variables, &version.Variables)
-	}
-
-	// Start transaction
-	tx, err := s.db.Begin()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to start transaction"})
-		return
-	}
-	defer tx.Rollback()
-
-	// Get current prompt version
-	var currentVersion int
-	err = tx.QueryRow("SELECT version FROM prompt_mgr.prompts WHERE id = $1", promptID).Scan(&currentVersion)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to get current version"})
-		return
-	}
-
-	// Create a version entry for the current state before reverting
-	_, err = tx.Exec(`
-		INSERT INTO prompt_mgr.prompt_versions (prompt_id, version_number, file_path, content_cache, variables, change_summary)
-		SELECT id, version, 'reverted', content_cache, variables::jsonb, 'Snapshot before revert to version ' || $2
-		FROM prompt_mgr.prompts
-		WHERE id = $1
-	`, promptID, versionNum)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create snapshot"})
-		return
-	}
-
-	// Update prompt with version content
-	variablesJSON, _ := json.Marshal(version.Variables)
-	_, err = tx.Exec(`
-		UPDATE prompt_mgr.prompts
-		SET content_cache = $1,
-		    variables = $2::jsonb,
-		    version = version + 1,
-		    parent_version_id = $3,
-		    updated_at = NOW()
-		WHERE id = $4
-	`, version.ContentCache, variablesJSON, version.ID, promptID)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to revert prompt"})
-		return
-	}
-
-	if err = tx.Commit(); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to commit revert"})
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": fmt.Sprintf("Reverted to version %s", versionNum),
-		"new_version": currentVersion + 1,
-	})
+	return ""
 }

@@ -9,7 +9,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ParsedExpr(_message.Message):
-    __slots__ = ()
+    __slots__ = ("expr", "source_info", "syntax_version")
     EXPR_FIELD_NUMBER: _ClassVar[int]
     SOURCE_INFO_FIELD_NUMBER: _ClassVar[int]
     SYNTAX_VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -19,14 +19,14 @@ class ParsedExpr(_message.Message):
     def __init__(self, expr: _Optional[_Union[Expr, _Mapping]] = ..., source_info: _Optional[_Union[_source_pb2.SourceInfo, _Mapping]] = ..., syntax_version: _Optional[str] = ...) -> None: ...
 
 class Expr(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "literal_expr", "ident_expr", "select_expr", "call_expr", "list_expr", "struct_expr", "comprehension_expr")
     class Ident(_message.Message):
-        __slots__ = ()
+        __slots__ = ("name",)
         NAME_FIELD_NUMBER: _ClassVar[int]
         name: str
         def __init__(self, name: _Optional[str] = ...) -> None: ...
     class Select(_message.Message):
-        __slots__ = ()
+        __slots__ = ("operand", "field", "test_only")
         OPERAND_FIELD_NUMBER: _ClassVar[int]
         FIELD_FIELD_NUMBER: _ClassVar[int]
         TEST_ONLY_FIELD_NUMBER: _ClassVar[int]
@@ -35,7 +35,7 @@ class Expr(_message.Message):
         test_only: bool
         def __init__(self, operand: _Optional[_Union[Expr, _Mapping]] = ..., field: _Optional[str] = ..., test_only: _Optional[bool] = ...) -> None: ...
     class Call(_message.Message):
-        __slots__ = ()
+        __slots__ = ("target", "function", "args")
         TARGET_FIELD_NUMBER: _ClassVar[int]
         FUNCTION_FIELD_NUMBER: _ClassVar[int]
         ARGS_FIELD_NUMBER: _ClassVar[int]
@@ -44,14 +44,14 @@ class Expr(_message.Message):
         args: _containers.RepeatedCompositeFieldContainer[Expr]
         def __init__(self, target: _Optional[_Union[Expr, _Mapping]] = ..., function: _Optional[str] = ..., args: _Optional[_Iterable[_Union[Expr, _Mapping]]] = ...) -> None: ...
     class CreateList(_message.Message):
-        __slots__ = ()
+        __slots__ = ("elements",)
         ELEMENTS_FIELD_NUMBER: _ClassVar[int]
         elements: _containers.RepeatedCompositeFieldContainer[Expr]
         def __init__(self, elements: _Optional[_Iterable[_Union[Expr, _Mapping]]] = ...) -> None: ...
     class CreateStruct(_message.Message):
-        __slots__ = ()
+        __slots__ = ("type", "entries")
         class Entry(_message.Message):
-            __slots__ = ()
+            __slots__ = ("id", "field_key", "map_key", "value")
             ID_FIELD_NUMBER: _ClassVar[int]
             FIELD_KEY_FIELD_NUMBER: _ClassVar[int]
             MAP_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -67,7 +67,7 @@ class Expr(_message.Message):
         entries: _containers.RepeatedCompositeFieldContainer[Expr.CreateStruct.Entry]
         def __init__(self, type: _Optional[str] = ..., entries: _Optional[_Iterable[_Union[Expr.CreateStruct.Entry, _Mapping]]] = ...) -> None: ...
     class Comprehension(_message.Message):
-        __slots__ = ()
+        __slots__ = ("iter_var", "iter_range", "accu_var", "accu_init", "loop_condition", "loop_step", "result")
         ITER_VAR_FIELD_NUMBER: _ClassVar[int]
         ITER_RANGE_FIELD_NUMBER: _ClassVar[int]
         ACCU_VAR_FIELD_NUMBER: _ClassVar[int]
@@ -102,7 +102,7 @@ class Expr(_message.Message):
     def __init__(self, id: _Optional[int] = ..., literal_expr: _Optional[_Union[Literal, _Mapping]] = ..., ident_expr: _Optional[_Union[Expr.Ident, _Mapping]] = ..., select_expr: _Optional[_Union[Expr.Select, _Mapping]] = ..., call_expr: _Optional[_Union[Expr.Call, _Mapping]] = ..., list_expr: _Optional[_Union[Expr.CreateList, _Mapping]] = ..., struct_expr: _Optional[_Union[Expr.CreateStruct, _Mapping]] = ..., comprehension_expr: _Optional[_Union[Expr.Comprehension, _Mapping]] = ...) -> None: ...
 
 class Literal(_message.Message):
-    __slots__ = ()
+    __slots__ = ("null_value", "bool_value", "int64_value", "uint64_value", "double_value", "string_value", "bytes_value")
     NULL_VALUE_FIELD_NUMBER: _ClassVar[int]
     BOOL_VALUE_FIELD_NUMBER: _ClassVar[int]
     INT64_VALUE_FIELD_NUMBER: _ClassVar[int]

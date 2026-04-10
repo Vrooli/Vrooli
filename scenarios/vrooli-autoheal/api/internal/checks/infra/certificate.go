@@ -114,6 +114,7 @@ func (c *CertificateCheck) Title() string { return "Certificate Expiration" }
 func (c *CertificateCheck) Description() string {
 	return "Monitors SSL/TLS certificate expiration dates"
 }
+
 func (c *CertificateCheck) Importance() string {
 	return "Required for secure connections - expired certificates break HTTPS, tunnels, and API access"
 }

@@ -49,9 +49,20 @@ type RateLimitInfo struct {
 // ToMap converts structured results to map[string]any for backward compatibility
 // This ensures existing code that expects map[string]any continues to work
 func (r *TaskResults) ToMap() map[string]any {
-	data, _ := json.Marshal(r)
+	data, err := json.Marshal(r)
+	if err != nil {
+		return map[string]any{
+			"success": false,
+			"error":   fmt.Sprintf("failed to marshal task results: %v", err),
+		}
+	}
 	var result map[string]any
-	json.Unmarshal(data, &result)
+	if err := json.Unmarshal(data, &result); err != nil {
+		return map[string]any{
+			"success": false,
+			"error":   fmt.Sprintf("failed to unmarshal task results: %v", err),
+		}
+	}
 
 	// Merge extensions into top level for backward compatibility
 	if r.Extensions != nil {
@@ -70,9 +81,20 @@ func FromMap(m map[string]any) *TaskResults {
 	}
 
 	// Marshal and unmarshal through JSON for type conversion
-	data, _ := json.Marshal(m)
+	data, err := json.Marshal(m)
+	if err != nil {
+		return &TaskResults{
+			Success: false,
+			Error:   fmt.Sprintf("failed to marshal task results: %v", err),
+		}
+	}
 	var result TaskResults
-	json.Unmarshal(data, &result)
+	if err := json.Unmarshal(data, &result); err != nil {
+		return &TaskResults{
+			Success: false,
+			Error:   fmt.Sprintf("failed to unmarshal task results: %v", err),
+		}
+	}
 
 	// Store unmapped fields in Extensions
 	result.Extensions = make(map[string]any)

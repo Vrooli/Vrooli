@@ -94,7 +94,75 @@
   };
 
   // ============================================================================
-  // SECTION 1.5: Event Queue (for reliability during transient failures)
+  // SECTION 1.5: Event Persistence (for reliability across navigation)
+  // ============================================================================
+
+  /**
+   * SessionStorage-based event persistence for navigation resilience.
+   * Events are saved to storage BEFORE sending and removed on successful send.
+   * This ensures events survive page navigation when routes are cleared mid-flight.
+   */
+  var PENDING_EVENTS_KEY = '__vrooli_pending_events__';
+
+  /**
+   * Get pending events from sessionStorage.
+   * @returns {Array<{data: object, savedAt: number}>}
+   */
+  function getPendingEvents() {
+    try {
+      var stored = sessionStorage.getItem(PENDING_EVENTS_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /**
+   * Save a pending event to sessionStorage.
+   * @param {object} eventData - The event data to save
+   */
+  function savePendingEvent(eventData) {
+    try {
+      var pending = getPendingEvents();
+      pending.push({ data: eventData, savedAt: Date.now() });
+      // Limit to last 50 events to prevent storage bloat
+      if (pending.length > 50) pending = pending.slice(-50);
+      sessionStorage.setItem(PENDING_EVENTS_KEY, JSON.stringify(pending));
+    } catch (e) {
+      console.warn('[Recording] Failed to save pending event:', e.message);
+    }
+  }
+
+  /**
+   * Remove a pending event from sessionStorage after successful send.
+   * @param {object} eventData - The event data to remove (matched by timestamp)
+   */
+  function removePendingEvent(eventData) {
+    try {
+      var pending = getPendingEvents();
+      // Remove by timestamp match
+      pending = pending.filter(function(p) {
+        return p.data.timestamp !== eventData.timestamp;
+      });
+      sessionStorage.setItem(PENDING_EVENTS_KEY, JSON.stringify(pending));
+    } catch (e) {
+      // Ignore - not critical if removal fails
+    }
+  }
+
+  /**
+   * Clear all pending events from sessionStorage.
+   */
+  function clearPendingEvents() {
+    try {
+      sessionStorage.removeItem(PENDING_EVENTS_KEY);
+    } catch (e) {
+      // Ignore
+    }
+  }
+
+  // ============================================================================
+  // SECTION 1.6: Event Queue (for reliability during transient failures)
   // ============================================================================
 
   /**
@@ -214,6 +282,10 @@
     // Track that we're sending an event
     window.__vrooli_recording_telemetry.eventsSent++;
 
+    // Save to sessionStorage BEFORE sending (survives navigation)
+    // This is critical for events that trigger navigation (clicks on links, etc.)
+    savePendingEvent(eventData);
+
     // Use fetch with keepalive to ensure the request completes even if page navigates
     fetch(RECORDING_EVENT_URL, {
       method: 'POST',
@@ -222,10 +294,12 @@
       keepalive: true,
     }).then(function() {
       window.__vrooli_recording_telemetry.eventsSendSuccess++;
+      // Remove from sessionStorage on success
+      removePendingEvent(eventData);
     }).catch(function(e) {
       window.__vrooli_recording_telemetry.eventsSendFailed++;
       window.__vrooli_recording_telemetry.lastError = e.message;
-      // Queue for retry instead of just logging
+      // Queue for retry (in-memory) - sessionStorage already has it for navigation recovery
       enqueueEvent(eventData);
       console.warn('[Recording] Failed to send event, queued for retry:', e.message);
     });
@@ -902,6 +976,7 @@
    * Handle double-click events.
    */
   function handleDoubleClick(e) {
+    window.__vrooli_recording_telemetry.eventsDetected++;
     captureAction('click', e.target, e, {
       button: 'left',
       modifiers: getModifiers(e),
@@ -913,6 +988,7 @@
    * Handle context menu (right-click) events.
    */
   function handleContextMenu(e) {
+    window.__vrooli_recording_telemetry.eventsDetected++;
     captureAction('click', e.target, e, {
       button: 'right',
       modifiers: getModifiers(e),
@@ -960,6 +1036,7 @@
    * Handle change events (for select elements).
    */
   function handleChange(e) {
+    window.__vrooli_recording_telemetry.eventsDetected++;
     var target = e.target;
 
     if (target.tagName === 'SELECT') {
@@ -976,6 +1053,7 @@
    * Handle scroll events (debounced).
    */
   function handleScroll(e) {
+    window.__vrooli_recording_telemetry.eventsDetected++;
     clearTimeout(scrollTimeout);
     scrollTimeout = setTimeout(function () {
       var target = e.target === document ? document.documentElement : e.target;
@@ -1002,6 +1080,7 @@
    * Handle keydown events (for special keys).
    */
   function handleKeydown(e) {
+    window.__vrooli_recording_telemetry.eventsDetected++;
     // Capture special key combinations
     var specialKeys = [
       'Enter',
@@ -1032,6 +1111,7 @@
    * Handle focus events.
    */
   function handleFocus(e) {
+    window.__vrooli_recording_telemetry.eventsDetected++;
     var target = e.target;
 
     // Only capture focus on form elements
@@ -1048,6 +1128,7 @@
    * Handle blur events.
    */
   function handleBlur(e) {
+    window.__vrooli_recording_telemetry.eventsDetected++;
     var target = e.target;
 
     // Only capture blur on form elements
@@ -1068,6 +1149,7 @@
    * Handle mouseenter events (debounced).
    */
   function handleMouseenter(e) {
+    window.__vrooli_recording_telemetry.eventsDetected++;
     var target = e.target;
 
     // Skip if same target (prevent spam)
@@ -1089,6 +1171,7 @@
    * Handle dragstart events.
    */
   function handleDragstart(e) {
+    window.__vrooli_recording_telemetry.eventsDetected++;
     var target = e.target;
     dragState = {
       source: target,
@@ -1107,6 +1190,7 @@
    * Handle drop events.
    */
   function handleDrop(e) {
+    window.__vrooli_recording_telemetry.eventsDetected++;
     if (!dragState) return;
 
     var target = e.target;
@@ -1135,6 +1219,7 @@
    * Handle touch events for gesture detection.
    */
   function handleTouch(e) {
+    window.__vrooli_recording_telemetry.eventsDetected++;
     var type = e.type;
 
     if (type === 'touchstart') {
@@ -1419,9 +1504,43 @@
   // SECTION 17: Initialize
   // ============================================================================
 
+  /**
+   * Recover pending events from sessionStorage.
+   * Called during initialization to resend events that were saved before navigation
+   * but failed to send because the route handler was cleared mid-flight.
+   */
+  function recoverPendingEvents() {
+    var pending = getPendingEvents();
+    if (pending.length === 0) return;
+
+    console.log('[Recording] Recovering', pending.length, 'pending events from before navigation');
+    window.__vrooli_recording_telemetry.eventsRecovered = pending.length;
+
+    // Clear storage first to prevent duplicate recovery on re-injection
+    clearPendingEvents();
+
+    // Give route handler time to register after navigation, then resend
+    setTimeout(function() {
+      pending.forEach(function(item) {
+        // Skip events older than 30 seconds (likely stale)
+        if (Date.now() - item.savedAt > 30000) {
+          console.log('[Recording] Skipping stale event (>30s old)');
+          return;
+        }
+
+        // Resend the event (sendEvent will re-save to sessionStorage)
+        console.log('[Recording] Resending recovered event:', item.data.actionType);
+        sendEvent(item.data);
+      });
+    }, 100);
+  }
+
   // Register all handlers
   registerAllHandlers();
   registerNavigationHandlers();
+
+  // Recover any pending events from before navigation
+  recoverPendingEvents();
 
   // Expose helpers for testing/debugging
   window.__generateSelectors = generateSelectors;
@@ -1467,6 +1586,9 @@
       queueRetryTimer = null;
     }
     eventQueue = [];
+
+    // Clear pending events from sessionStorage
+    clearPendingEvents();
 
     // Restore original History API methods
     if (originalPushState) {

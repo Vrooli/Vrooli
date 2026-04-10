@@ -5,3 +5,8 @@
  */
 
 export { ExportDialog, default as ExportDialogDefault } from "./ExportDialog";
+export {
+  ExportStylizationSidebar,
+  type ExportSidebarSection,
+  type ExportStylizationSidebarProps,
+} from "./ExportStylizationSidebar";

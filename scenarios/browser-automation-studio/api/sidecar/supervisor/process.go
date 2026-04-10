@@ -102,10 +102,11 @@ func (p *NodeProcess) Start() error {
 	// Set environment variables
 	// Include HISTORY_CALLBACK_URL so the driver can send history entries back to the API
 	apiPort := os.Getenv("API_PORT")
-	historyCallbackURL := ""
-	if apiPort != "" {
-		historyCallbackURL = fmt.Sprintf("http://127.0.0.1:%s/internal/history-callback", apiPort)
+	if apiPort == "" {
+		apiPort = "8080" // Default API port
+		p.log.Warn("API_PORT not set, using default for history callbacks")
 	}
+	historyCallbackURL := fmt.Sprintf("http://127.0.0.1:%s/internal/history-callback", apiPort)
 	p.cmd.Env = append(os.Environ(),
 		fmt.Sprintf("PLAYWRIGHT_DRIVER_PORT=%d", p.port),
 		fmt.Sprintf("HISTORY_CALLBACK_URL=%s", historyCallbackURL),
@@ -362,15 +363,24 @@ func (m *MockProcess) Start() error {
 	m.running = true
 	m.exitChan = make(chan struct{})
 
+	// Capture the current crash channel - this ensures each Start() invocation
+	// listens to the crash channel that exists at that point in time.
+	// Tests can reassign SimulateCrash between restarts and each restart
+	// will pick up the new channel.
+	crashChan := m.SimulateCrash
+	exitChan := m.exitChan
+
 	// Monitor for simulated crash
 	go func() {
 		select {
-		case <-m.SimulateCrash:
+		case <-crashChan:
 			m.mu.Lock()
-			m.running = false
-			close(m.exitChan)
+			if m.running {
+				m.running = false
+				close(m.exitChan)
+			}
 			m.mu.Unlock()
-		case <-m.exitChan:
+		case <-exitChan:
 			// Normal exit
 		}
 	}()
@@ -434,6 +444,19 @@ func (m *MockProcess) ExitChan() <-chan struct{} {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.exitChan
+}
+
+// TriggerCrash simulates an unexpected process crash.
+// This is the preferred way to trigger crashes in tests as it properly
+// closes the exit channel that the supervisor monitors.
+func (m *MockProcess) TriggerCrash() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.running {
+		m.running = false
+		close(m.exitChan)
+	}
 }
 
 // compile-time checks

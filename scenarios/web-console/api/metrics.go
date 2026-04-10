@@ -1,47 +1,147 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"sync/atomic"
+	"time"
 )
 
-type metricsRegistry struct {
-	activeSessions   atomic.Int64
-	totalSessions    atomic.Int64
-	panicStops       atomic.Int64
-	idleTimeOuts     atomic.Int64
-	ttlExpirations   atomic.Int64
-	httpUpgradesFail atomic.Int64
+// DOC: docs/concepts/ARCHITECTURE.md#observability
+// [REQ:P1-004b] Operational Metrics Collection
+
+// Metrics tracks operational counters for the web-console API.
+// All fields use atomic operations for lock-free concurrent access.
+type Metrics struct {
+	// Session lifecycle counters
+	SessionsCreated atomic.Int64
+	SessionsDeleted atomic.Int64
+	ActiveSessions  atomic.Int64
+
+	// WebSocket connection counters
+	ConnectionsTotal  atomic.Int64
+	ActiveConnections atomic.Int64
+
+	// WebSocket message counters
+	WSMessagesSent     atomic.Int64
+	WSMessagesReceived atomic.Int64
+
+	// Resize operations
+	ResizeCount atomic.Int64
+
+	// tmux re-attach counters (readLoop resilience)
+	ReattachAttempts  atomic.Int64
+	ReattachSuccesses atomic.Int64
+	ReattachFailures  atomic.Int64
+
+	// Recovery counters (startup session restoration)
+	RecoveryRecovered       atomic.Int64
+	RecoveryOrphanedMeta    atomic.Int64
+	RecoveryOrphanedTmux    atomic.Int64
+	RecoveryAttachRetries   atomic.Int64
+	RecoveryPreservedForNow atomic.Int64 // sessions kept for future recovery
+
+	// AI generation counter
+	AIGenerations atomic.Int64
+	// AI suggestion counter
+	AISuggestions atomic.Int64
+
+	// StartTime records when the server started for uptime calculation.
+	StartTime time.Time
 }
 
-func newMetricsRegistry() *metricsRegistry {
-	return &metricsRegistry{}
+// NewMetrics creates a new metrics collector.
+func NewMetrics() *Metrics {
+	return &Metrics{
+		StartTime: time.Now(),
+	}
 }
 
-func (m *metricsRegistry) serveHTTP(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
-	fmt.Fprintf(w, "# HELP web_console_active_sessions Current active console sessions\n")
-	fmt.Fprintf(w, "# TYPE web_console_active_sessions gauge\n")
-	fmt.Fprintf(w, "web_console_active_sessions %d\n", m.activeSessions.Load())
+// MetricsResponse is the JSON shape returned by the /api/v1/metrics endpoint.
+type MetricsResponse struct {
+	Sessions      SessionMetrics    `json:"sessions"`
+	Connections   ConnectionMetrics `json:"connections"`
+	Messages      MessageMetrics    `json:"messages"`
+	Reattach      ReattachMetrics   `json:"reattach"`
+	Recovery      RecoveryMetrics   `json:"recovery"`
+	AIGenerations int64             `json:"ai_generations"`
+	AISuggestions int64             `json:"ai_suggestions"`
+	Uptime        string            `json:"uptime"`
+}
 
-	fmt.Fprintf(w, "# HELP web_console_total_sessions Total console sessions created\n")
-	fmt.Fprintf(w, "# TYPE web_console_total_sessions counter\n")
-	fmt.Fprintf(w, "web_console_total_sessions %d\n", m.totalSessions.Load())
+// SessionMetrics tracks session lifecycle counts.
+type SessionMetrics struct {
+	Created int64 `json:"created"`
+	Deleted int64 `json:"deleted"`
+	Active  int64 `json:"active"`
+	Resizes int64 `json:"resizes"`
+}
 
-	fmt.Fprintf(w, "# HELP web_console_panic_stops Sessions terminated via panic-stop\n")
-	fmt.Fprintf(w, "# TYPE web_console_panic_stops counter\n")
-	fmt.Fprintf(w, "web_console_panic_stops %d\n", m.panicStops.Load())
+// ConnectionMetrics tracks WebSocket connection counts.
+type ConnectionMetrics struct {
+	Total  int64 `json:"total"`
+	Active int64 `json:"active"`
+}
 
-	fmt.Fprintf(w, "# HELP web_console_idle_timeouts Sessions terminated due to idle timeout\n")
-	fmt.Fprintf(w, "# TYPE web_console_idle_timeouts counter\n")
-	fmt.Fprintf(w, "web_console_idle_timeouts %d\n", m.idleTimeOuts.Load())
+// MessageMetrics tracks WebSocket message throughput.
+type MessageMetrics struct {
+	Sent     int64 `json:"sent"`
+	Received int64 `json:"received"`
+}
 
-	fmt.Fprintf(w, "# HELP web_console_ttl_expirations Sessions terminated after TTL expiry\n")
-	fmt.Fprintf(w, "# TYPE web_console_ttl_expirations counter\n")
-	fmt.Fprintf(w, "web_console_ttl_expirations %d\n", m.ttlExpirations.Load())
+// ReattachMetrics tracks tmux re-attach resilience during normal operation.
+type ReattachMetrics struct {
+	Attempts  int64 `json:"attempts"`
+	Successes int64 `json:"successes"`
+	Failures  int64 `json:"failures"`
+}
 
-	fmt.Fprintf(w, "# HELP web_console_failed_upgrades WebSocket upgrade failures\n")
-	fmt.Fprintf(w, "# TYPE web_console_failed_upgrades counter\n")
-	fmt.Fprintf(w, "web_console_failed_upgrades %d\n", m.httpUpgradesFail.Load())
+// RecoveryMetrics tracks session recovery at server startup.
+type RecoveryMetrics struct {
+	Recovered       int64 `json:"recovered"`
+	OrphanedMeta    int64 `json:"orphaned_metadata"`
+	OrphanedTmux    int64 `json:"orphaned_tmux"`
+	AttachRetries   int64 `json:"attach_retries"`
+	PreservedForNow int64 `json:"preserved_for_future_recovery"`
+}
+
+// Snapshot returns a point-in-time view of all metrics.
+func (m *Metrics) Snapshot() MetricsResponse {
+	return MetricsResponse{
+		Sessions: SessionMetrics{
+			Created: m.SessionsCreated.Load(),
+			Deleted: m.SessionsDeleted.Load(),
+			Active:  m.ActiveSessions.Load(),
+			Resizes: m.ResizeCount.Load(),
+		},
+		Connections: ConnectionMetrics{
+			Total:  m.ConnectionsTotal.Load(),
+			Active: m.ActiveConnections.Load(),
+		},
+		Messages: MessageMetrics{
+			Sent:     m.WSMessagesSent.Load(),
+			Received: m.WSMessagesReceived.Load(),
+		},
+		Reattach: ReattachMetrics{
+			Attempts:  m.ReattachAttempts.Load(),
+			Successes: m.ReattachSuccesses.Load(),
+			Failures:  m.ReattachFailures.Load(),
+		},
+		Recovery: RecoveryMetrics{
+			Recovered:       m.RecoveryRecovered.Load(),
+			OrphanedMeta:    m.RecoveryOrphanedMeta.Load(),
+			OrphanedTmux:    m.RecoveryOrphanedTmux.Load(),
+			AttachRetries:   m.RecoveryAttachRetries.Load(),
+			PreservedForNow: m.RecoveryPreservedForNow.Load(),
+		},
+		AIGenerations: m.AIGenerations.Load(),
+		AISuggestions: m.AISuggestions.Load(),
+		Uptime:        time.Since(m.StartTime).Truncate(time.Second).String(),
+	}
+}
+
+// handleMetrics returns a JSON snapshot of all operational metrics.
+// GET /api/v1/metrics
+// [REQ:P1-004b] Operational Metrics Collection
+func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, s.metrics.Snapshot())
 }

@@ -1,0 +1,179 @@
+{
+  "round": 3,
+  "generated_at": "2026-03-25T14:00:00Z",
+  "readiness": {
+    "problem_clarity": 2,
+    "scope_defined": 1,
+    "approach_solid": 2,
+    "testable": 0,
+    "risk_awareness": 0
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Inline validation marker syntax for detecting applied branding",
+      "context": "Round 2 settled on inline evidence in actual code as the ground truth for branding validation. We need a concrete marker convention that works across CSS, JSON manifests, and potentially other file types. The scanner needs to reliably find these markers and extract which brand element they represent. The existing LPBS branding.json shows a pattern where branding config lives in .vrooli/branding.json — but for validation we need to verify that values actually appear in code, not just in config.",
+      "options": [
+        {
+          "key": "A",
+          "label": "CSS comment markers: /* brand-manager:<element> */ before declarations (e.g., /* brand-manager:primary-color */ --primary: #3b82f6;). JSON uses a _brand key. Scanner greps for 'brand-manager:' prefix.",
+          "rationale": "Simple grep-based scanning. The prefix is unique enough to avoid false positives. CSS comments survive minification in most configs. JSON _brand keys are a known convention. Recommended because it's the lowest-complexity approach that gives ground truth.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Structured marker file per branded file: alongside each branded file, a .brand-markers.json that maps line ranges to brand elements. Scanner checks the marker file against actual file content hashes.",
+          "rationale": "More precise than comments — can't accidentally delete a marker without the scanner noticing. But creates file proliferation and markers drift when code is edited."
+        },
+        {
+          "key": "C",
+          "label": "AST-aware scanning: scanner parses CSS/JSON/HTML and looks for known property patterns (e.g., --primary-color custom property, manifest.json theme_color field) without explicit markers.",
+          "rationale": "No markers needed in source code at all. But tightly couples scanner to specific frameworks, and can't distinguish intentional branding from coincidental property names."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Testing strategy for Brand Manager",
+      "context": "Brand Manager has multiple layers: SQLite storage, REST API, CLI, OpenRouter integration, filesystem asset management, Scenario Auditor provider, and agent-assisted application via agent-manager. Each layer needs a different testing approach. The existing LPBS pattern uses testcontainers for postgres but Brand Manager uses SQLite (in-memory is trivial). The key challenge is testing OpenRouter calls and agent spawning without real API calls in CI.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Unit tests with in-memory SQLite for storage layer. HTTP handler tests with httptest. OpenRouter and agent-manager calls behind interfaces with test doubles. Integration test that exercises full create→apply→validate flow against a temp scenario directory.",
+          "rationale": "Comprehensive coverage with fast execution. In-memory SQLite is a perfect test double for itself. Interface-based seams for external services follow existing patterns (agent-manager, test-genie). The integration test catches wiring issues. Recommended as the balanced approach.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Primarily integration tests: spin up the full API server, use real SQLite file, mock only OpenRouter. Test CLI by shelling out to the built binary.",
+          "rationale": "Higher confidence that the system works end-to-end. But slower, harder to isolate failures, and CLI subprocess tests are flaky."
+        },
+        {
+          "key": "C",
+          "label": "Contract tests: define OpenRouter and agent-manager API contracts, test Brand Manager against recorded responses. Use golden files for generated assets.",
+          "rationale": "Great for catching API drift. Golden files verify generation consistency. But requires maintaining contract fixtures and doesn't test internal logic paths."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Acceptance scope: file change patterns for this implementation",
+      "context": "The spec has no acceptance_allow or acceptance_deny patterns set. Brand Manager is a new scenario so most changes will be in its own directory, but it also needs a Scenario Auditor provider file and potentially service.json schema changes. Defining these patterns helps scope the work and prevent unintended changes.",
+      "options": [
+        {
+          "key": "A",
+          "label": "acceptance_allow: scenarios/brand-manager/**, scenarios/scenario-auditor/api/external_rules_brand_manager.go, .vrooli/schemas/service.schema.json",
+          "rationale": "Covers the new scenario directory, the auditor provider registration, and the service schema. Tight enough to prevent scope creep. Recommended as the minimal set that covers all planned changes.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "acceptance_allow: scenarios/brand-manager/** only (auditor integration and schema changes tracked separately)",
+          "rationale": "Maximum isolation — Brand Manager is self-contained. But delays the auditor integration which is Phase 2 of the build order."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "OpenRouter model selection strategy for generation",
+      "context": "Brand Manager needs OpenRouter for two distinct tasks: (1) text generation — palette suggestions, typography pairing rationale, tagline/copy, design language prose, and (2) image generation — logo concepts, favicons, app icons, og-images. OpenRouter routes to many models but the quality and cost vary significantly. The choice affects generation quality, cost, and speed. Agent-inbox patterns in the codebase show how other scenarios call OpenRouter.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Configurable model IDs stored in Brand Manager config. Ship with sensible defaults (e.g., claude-sonnet for text, a supported image model for visuals). User/agent can override per-brand or globally.",
+          "rationale": "Maximum flexibility. Defaults work out of the box but power users can optimize for cost/quality. Config follows storage-steer conventions. Recommended because OpenRouter's model landscape changes fast — hardcoding models would rot quickly.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Hardcoded model selections: pick the best current models for each task and update them with Brand Manager releases.",
+          "rationale": "Simplest implementation. No config UI needed. But models get deprecated/replaced and users can't optimize."
+        },
+        {
+          "key": "C",
+          "label": "Let OpenRouter auto-route: use the /api/v1/chat/completions endpoint with model: 'auto' and let OpenRouter pick the best model for the prompt.",
+          "rationale": "Zero model management. But unpredictable cost and quality. Auto-routing may not support image generation."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Check what other scenarios are have done in similar situations. Also for AI stuff at least for like a simple AI generation and not a the genetic work is probably better to have a set up so we check for ollama first, and then fall back to open router and that way I can run things locally for free, but if I monetize this app, then OpenRouter opens the door for selling a subscription for AI credits. And for any genetic AI stuff you’ll want to use the agent manager API.",
+      "notes": null
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "WCAG color contrast validation approach",
+      "context": "The spec mentions WCAG-validated color systems. Brand Manager generates color palettes including dark/light variants and semantic colors. Validating WCAG AA/AAA contrast ratios between foreground/background pairs requires knowing which colors are used together. This is straightforward for a defined palette but complex when colors are applied in arbitrary UI contexts.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Validate contrast for defined pairings only: primary-on-background, text-on-surface, etc. Brand Manager defines which pairings must meet AA. Generation iterates until contrast passes.",
+          "rationale": "Practical and achievable. Covers the most important pairings without trying to validate every possible combination. Recommended because it catches the most impactful accessibility issues during generation, not after application.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Store contrast matrix in the brand: every color pair gets a precomputed contrast ratio. UI and validation can reference it.",
+          "rationale": "Complete information — any consumer can check any pairing. But the matrix grows quadratically and most pairings are irrelevant."
+        },
+        {
+          "key": "C",
+          "label": "Defer WCAG validation to Scenario Auditor: Brand Manager generates colors, auditor scans applied CSS for contrast issues.",
+          "rationale": "Validates what's actually rendered. But requires CSS-level analysis which is much harder than palette-level math."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Option A but also I believe we can use test-genie for getting lighthouse results",
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "LPBS already has a branding pattern at .vrooli/branding.json with schema validation (.vrooli/schemas/branding.schema.json). It includes site_name, tagline, theme colors (hex), logo URLs, SEO fields, and support config. Brand Manager's structured data model should be a superset of this — existing LPBS branding fields map cleanly to Brand Manager's identity and color system concepts. Discovery can auto-import from this format."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Swarm-manager's theming uses CSS custom properties with RGB space-separated values (e.g., --slate-50: 248 250 252) and data-resolved-theme attribute switching. This is the existing convention for theme application. Brand Manager's programmatic application tier should output colors in this format for Tailwind/CSS-variable-based scenarios, with the scanner knowing to look for these patterns."
+    }
+  ],
+  "plan_updates": "Incorporated all round 2 decisions into plan. Added detailed Implementation Strategy with 5 phases and concrete deliverables per phase. Expanded Contract Decisions table with round 2 settlements (single SQLite DB, design language file generation, resource-centric REST, internal opt-out tracking). Added initial Risks section with 4 identified risks. Added codebase findings (LPBS branding.json pattern, swarm-manager CSS custom property pattern). Testing and Definition of Done sections pending round 3 decisions."
+}

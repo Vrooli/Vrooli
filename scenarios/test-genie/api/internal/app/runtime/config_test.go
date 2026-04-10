@@ -7,8 +7,9 @@ import (
 )
 
 func TestLoadConfigUsesLifecycleEnvs(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/test?sslmode=disable")
+	dataRoot := t.TempDir()
 	scenarioRoot := t.TempDir()
+	t.Setenv("TEST_GENIE_SQLITE_PATH", filepath.Join(dataRoot, "custom.db"))
 	t.Setenv("SCENARIOS_ROOT", scenarioRoot)
 	t.Setenv("API_PORT", "4789")
 
@@ -20,8 +21,12 @@ func TestLoadConfigUsesLifecycleEnvs(t *testing.T) {
 	if cfg.Port != "4789" {
 		t.Fatalf("expected port to be 4789, got %s", cfg.Port)
 	}
-	if cfg.DatabaseURL != "postgres://user:pass@localhost:5432/test?sslmode=disable" {
-		t.Fatalf("unexpected database URL: %s", cfg.DatabaseURL)
+	expectedPath := filepath.Join(dataRoot, "custom.db")
+	if cfg.DatabasePath != expectedPath {
+		t.Fatalf("unexpected database path: %s", cfg.DatabasePath)
+	}
+	if !strings.HasPrefix(cfg.DatabaseDSN, "file:"+expectedPath) {
+		t.Fatalf("unexpected database DSN: %s", cfg.DatabaseDSN)
 	}
 	expectedRoot, _ := filepath.Abs(scenarioRoot)
 	if cfg.ScenariosRoot != expectedRoot {
@@ -30,8 +35,7 @@ func TestLoadConfigUsesLifecycleEnvs(t *testing.T) {
 }
 
 func TestLoadConfigRequiresPort(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/test?sslmode=disable")
-	t.Setenv("SCENARIOS_ROOT", t.TempDir())
+	t.Setenv("SCENARIO_DATA_DIR", t.TempDir())
 	t.Setenv("API_PORT", "")
 
 	if _, err := LoadConfig(); err == nil || !strings.Contains(err.Error(), "API_PORT") {
@@ -39,44 +43,56 @@ func TestLoadConfigRequiresPort(t *testing.T) {
 	}
 }
 
-func TestResolveDatabaseURLPrefersExplicitValue(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://direct/url")
-	t.Setenv("POSTGRES_HOST", "ignored")
-	url, err := resolveDatabaseURL()
+func TestResolveDatabaseConfigPrefersExplicitValue(t *testing.T) {
+	t.Setenv("TEST_GENIE_SQLITE_PATH", filepath.Join(t.TempDir(), "explicit.db"))
+	t.Setenv("SCENARIO_DATA_DIR", filepath.Join(t.TempDir(), "ignored"))
+
+	cfg, err := resolveDatabaseConfig()
 	if err != nil {
-		t.Fatalf("resolveDatabaseURL() error: %v", err)
+		t.Fatalf("resolveDatabaseConfig() error: %v", err)
 	}
-	if url != "postgres://direct/url" {
-		t.Fatalf("expected direct database URL, got %s", url)
+	if !strings.HasSuffix(cfg.Path, "explicit.db") {
+		t.Fatalf("expected explicit sqlite path, got %s", cfg.Path)
 	}
 }
 
-func TestResolveDatabaseURLBuildsFromParts(t *testing.T) {
-	t.Setenv("DATABASE_URL", "")
-	t.Setenv("POSTGRES_HOST", "localhost")
-	t.Setenv("POSTGRES_PORT", "5432")
-	t.Setenv("POSTGRES_USER", "pguser")
-	t.Setenv("POSTGRES_PASSWORD", "pgpass")
-	t.Setenv("POSTGRES_DB", "pgdb")
+func TestResolveDatabaseConfigFallsBackToScenarioDataDir(t *testing.T) {
+	dataRoot := t.TempDir()
+	t.Setenv("TEST_GENIE_SQLITE_PATH", "")
+	t.Setenv("SQLITE_PATH", "")
+	t.Setenv("SQLITE_DB", "")
+	t.Setenv("SCENARIO_DATA_DIR", dataRoot)
 
-	got, err := resolveDatabaseURL()
+	cfg, err := resolveDatabaseConfig()
 	if err != nil {
-		t.Fatalf("resolveDatabaseURL() error: %v", err)
+		t.Fatalf("resolveDatabaseConfig() error: %v", err)
 	}
-	expected := "postgres://pguser:pgpass@localhost:5432/pgdb?sslmode=disable"
-	if got != expected {
-		t.Fatalf("expected %s, got %s", expected, got)
+	expectedPath := filepath.Join(dataRoot, "test-genie.db")
+	if cfg.Path != expectedPath {
+		t.Fatalf("expected %s, got %s", expectedPath, cfg.Path)
 	}
 }
 
-func TestResolveDatabaseURLErrorsWhenIncomplete(t *testing.T) {
-	t.Setenv("DATABASE_URL", "")
-	t.Setenv("POSTGRES_HOST", "localhost")
-	t.Setenv("POSTGRES_PORT", "5432")
-	t.Setenv("POSTGRES_USER", "")
+func TestResolveDatabaseConfigFallsBackToScenarioLocalDataDir(t *testing.T) {
+	t.Setenv("TEST_GENIE_SQLITE_PATH", "")
+	t.Setenv("SQLITE_PATH", "")
+	t.Setenv("SQLITE_DB", "")
+	t.Setenv("SCENARIO_DATA_DIR", "")
+	t.Setenv("SQLITE_DATABASE_PATH", "")
+	t.Setenv("VROOLI_DATA", "")
 
-	if _, err := resolveDatabaseURL(); err == nil {
-		t.Fatal("expected error for incomplete postgres env settings")
+	cfg, err := resolveDatabaseConfig()
+	if err != nil {
+		t.Fatalf("resolveDatabaseConfig() error: %v", err)
+	}
+
+	root, err := scenarioRoot()
+	if err != nil {
+		t.Fatalf("scenarioRoot() error: %v", err)
+	}
+	expectedPath := filepath.Join(root, "data", "test-genie.db")
+	if cfg.Path != expectedPath {
+		t.Fatalf("expected fallback path %s, got %s", expectedPath, cfg.Path)
 	}
 }
 
