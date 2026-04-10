@@ -48,12 +48,12 @@ validate-week0-week1: ## Run the repeatable Week 0/1 acceptance suite
 	$(MAKE) build
 	$(MAKE) install
 	$(MAKE) test
-	~/.vrooli/bin/vrooli --version
-	~/.vrooli/bin/vrooli info --list
+	VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli --version
+	VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli info --list
 	tmp_go=$$(mktemp); \
 	tmp_bash=$$(mktemp); \
-	~/.vrooli/bin/vrooli scenario list > "$$tmp_go"; \
-	VROOLI_FORCE_BASH=1 ~/.vrooli/bin/vrooli scenario list > "$$tmp_bash"; \
+	VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli scenario list > "$$tmp_go"; \
+	VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" VROOLI_FORCE_BASH=1 ~/.vrooli/bin/vrooli scenario list > "$$tmp_bash"; \
 	diff -u "$$tmp_go" "$$tmp_bash"; \
 	rm -f "$$tmp_go" "$$tmp_bash"
 	tmp_home=$$(mktemp -d); \
@@ -70,10 +70,10 @@ validate-week0-week1: ## Run the repeatable Week 0/1 acceptance suite
 	trap 'cp "$$tmp_source" cmd/vrooli/main.go; rm -f "$$tmp_source"; $(MAKE) install > /tmp/vrooli-restore.log' EXIT; \
 	printf '\n// validation marker: stale-check smoke\n' >> cmd/vrooli/main.go; \
 	before_sum=$$(sha256sum ~/.vrooli/bin/vrooli | awk '{print $$1}'); \
-	~/.vrooli/bin/vrooli scenario list > /tmp/vrooli-stale-check-1.txt; \
+	VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli scenario list > /tmp/vrooli-stale-check-1.txt; \
 	after_sum=$$(sha256sum ~/.vrooli/bin/vrooli | awk '{print $$1}'); \
 	test "$$before_sum" != "$$after_sum"; \
-	~/.vrooli/bin/vrooli scenario list > /tmp/vrooli-stale-check-2.txt; \
+	VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli scenario list > /tmp/vrooli-stale-check-2.txt; \
 	final_sum=$$(sha256sum ~/.vrooli/bin/vrooli | awk '{print $$1}'); \
 	test "$$after_sum" = "$$final_sum"; \
 	cp "$$tmp_source" cmd/vrooli/main.go; \
@@ -96,6 +96,35 @@ validate-week0-week1: ## Run the repeatable Week 0/1 acceptance suite
 	wait "$$pid" > /dev/null 2> /dev/null || true; \
 	test "$$ok" = "1"; \
 	rm -rf "$$tmpdir"
+	tmpdir=$$(mktemp -d); \
+	logfile="$$tmpdir/develop.log"; \
+	repo_root="$$(pwd)"; \
+	pid=""; \
+	ok=0; \
+	cleanup() { \
+		if [ -n "$$pid" ]; then \
+			kill "$$pid" > /dev/null 2> /dev/null || true; \
+			wait "$$pid" > /dev/null 2> /dev/null || true; \
+		fi; \
+		( cd scenarios/vrooli-orchestrator && VROOLI_ROOT="$$repo_root" VROOLI_SOURCE_ROOT="$$repo_root" make stop > /tmp/vrooli-orchestrator-stop.log 2> /dev/null ) || true; \
+		rm -rf "$$tmpdir"; \
+	}; \
+	trap cleanup EXIT; \
+	VROOLI_API_PORT=18093 APP_ROOT="$$(pwd)" VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli develop > "$$logfile" 2>> "$$logfile" & \
+	pid=$$!; \
+	for attempt in $$(seq 1 90); do \
+		if curl -fsS "http://127.0.0.1:18093/health" > /dev/null 2> /dev/null; then \
+			ok=1; \
+			break; \
+		fi; \
+		sleep 2; \
+	done; \
+	if [ "$$ok" != "1" ]; then \
+		tail -n 80 "$$logfile"; \
+		exit 1; \
+	fi; \
+	trap - EXIT; \
+	cleanup
 
 clean: ## Remove project-level Go build artifacts
 	rm -rf $(BUILD_DIR)
