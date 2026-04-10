@@ -50,7 +50,7 @@
     "@types/node": "^20.10.0",
     "@types/ws": "^8.5.10",
     "@vitest/coverage-v8": "^1.0.4",
-    "happy-dom": "^20.0.10",
+    "happy-dom": "^20.8.9",
     "jsdom": "^27.1.0",
     "playwright": "^1.56.1",
     "typescript": "^5.3.3",
