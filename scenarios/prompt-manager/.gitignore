@@ -11,3 +11,6 @@ prompts/drafts/
 # Graph index is a derived artifact — regenerated on API startup
 store/indexes/graph.index.json
 api/pm
+api/pm-api
+api/prompt-manager-api
+cli/prompt-manager
