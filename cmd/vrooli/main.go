@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 const (
@@ -51,6 +52,22 @@ type commandSpec struct {
 
 type infoManifest struct {
 	Files []string `json:"files"`
+}
+
+type versionOutput struct {
+	CLIVersion      string `json:"cli_version"`
+	PlatformVersion string `json:"platform_version"`
+	Root            string `json:"root"`
+}
+
+type infoFileOutput struct {
+	Path     string `json:"path"`
+	Contents string `json:"contents,omitempty"`
+}
+
+type infoOutput struct {
+	Root  string           `json:"root"`
+	Files []infoFileOutput `json:"files"`
 }
 
 func main() {
@@ -143,18 +160,18 @@ func parseArgs(args []string) (parsedArgs, error) {
 	return parsedArgs{command: "help", globals: parsed.globals}, nil
 }
 
-// Week 1 keeps parsing intentionally shallow: normalize a few leading flags,
-// then hand the real subcommand work to the existing Bash handlers.
+// The dispatcher keeps top-level parsing intentionally shallow. Migrated
+// subcommands run in-process while the remaining commands still fall back to
+// their Bash handlers until later weeks land.
 func dispatch(root string, parsed parsedArgs, stdout, stderr io.Writer) error {
 	switch parsed.command {
 	case "", "help":
 		showMainHelp(stdout)
 		return nil
 	case "version":
-		showVersion(stdout, root)
-		return nil
+		return showVersion(stdout, root, parsed.globals)
 	case "info":
-		return runInfoCommand(root, parsed.args, stdout, stderr)
+		return runInfoCommand(root, parsed.globals, parsed.args, stdout, stderr)
 	case "cleanup":
 		return runCleanupCommand(root, parsed, stdout, stderr)
 	case "orphans":
@@ -170,7 +187,7 @@ func dispatch(root string, parsed parsedArgs, stdout, stderr io.Writer) error {
 	case "status":
 		return runBashScript(root, parsed.globals, "cli/commands/status-command.sh", parsed.args...)
 	case "scenario":
-		return runBashScript(root, parsed.globals, "cli/commands/scenario/scenario-commands.sh", parsed.args...)
+		return runScenarioCommand(root, parsed.globals, parsed.args, stdout, stderr)
 	case "resource":
 		return runBashScript(root, parsed.globals, "cli/commands/resource-commands.sh", parsed.args...)
 	case "stop":
@@ -239,7 +256,7 @@ func runAutohealCommand(root string, globals globalOptions, args ...string) erro
 	})
 }
 
-func runInfoCommand(root string, args []string, stdout, stderr io.Writer) error {
+func runInfoCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
 	showPathsOnly := false
 	for _, arg := range args {
 		switch arg {
@@ -257,6 +274,11 @@ func runInfoCommand(root string, args []string, stdout, stderr io.Writer) error 
 		}
 	}
 
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+
 	infoFiles, err := collectInfoSources(root)
 	if err != nil {
 		return err
@@ -266,10 +288,43 @@ func runInfoCommand(root string, args []string, stdout, stderr io.Writer) error 
 	}
 
 	if showPathsOnly {
+		paths := make([]string, 0, len(infoFiles))
 		for _, file := range infoFiles {
-			_, _ = fmt.Fprintln(stdout, resolveInfoPath(root, file))
+			paths = append(paths, resolveInfoPath(root, file))
+		}
+		if format == cliout.FormatJSON {
+			return cliout.WriteJSON(stdout, map[string]any{
+				"root":  root,
+				"files": paths,
+			})
+		}
+		for _, path := range paths {
+			_, _ = fmt.Fprintln(stdout, path)
 		}
 		return nil
+	}
+
+	if format == cliout.FormatJSON {
+		payload := infoOutput{
+			Root:  root,
+			Files: make([]infoFileOutput, 0, len(infoFiles)),
+		}
+		for _, source := range infoFiles {
+			resolved := resolveInfoPath(root, source)
+			contents, readErr := os.ReadFile(resolved)
+			if readErr != nil {
+				if os.IsNotExist(readErr) {
+					_, _ = fmt.Fprintf(stderr, "[WARNING] Skipping missing context file: %s\n", source)
+					continue
+				}
+				return fmt.Errorf("read info source %s: %w", resolved, readErr)
+			}
+			payload.Files = append(payload.Files, infoFileOutput{
+				Path:     resolved,
+				Contents: string(contents),
+			})
+		}
+		return cliout.WriteJSON(stdout, payload)
 	}
 
 	_, _ = fmt.Fprintln(stdout, "[HEADER]  Vrooli Context Briefing")
@@ -372,10 +427,22 @@ func setEnvValue(env []string, key, value string) []string {
 	return append(append([]string(nil), env...), prefix+value)
 }
 
-func showVersion(w io.Writer, root string) {
+func showVersion(w io.Writer, root string, globals globalOptions) error {
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(w, versionOutput{
+			CLIVersion:      cliVersion,
+			PlatformVersion: vrooliVersion,
+			Root:            root,
+		})
+	}
 	_, _ = fmt.Fprintf(w, "Vrooli CLI v%s\n", cliVersion)
 	_, _ = fmt.Fprintf(w, "Vrooli Platform v%s\n", vrooliVersion)
 	_, _ = fmt.Fprintf(w, "Root: %s\n", root)
+	return nil
 }
 
 func showMainHelp(w io.Writer) {
@@ -405,6 +472,8 @@ func showMainHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "🎯 SCENARIO MANAGEMENT:")
 	_, _ = fmt.Fprintln(w, "    # Scenarios run directly from their source location")
 	_, _ = fmt.Fprintln(w, "    scenario list       List available scenarios")
+	_, _ = fmt.Fprintln(w, "    scenario info <name> Show scenario metadata")
+	_, _ = fmt.Fprintln(w, "    scenario status     Show scenario runtime state")
 	_, _ = fmt.Fprintln(w, "    scenario run <name> Run a scenario directly")
 	_, _ = fmt.Fprintln(w, "    scenario test <name> Test a scenario")
 	_, _ = fmt.Fprintln(w)
