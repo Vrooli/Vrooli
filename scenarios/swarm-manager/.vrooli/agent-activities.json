@@ -5640,5 +5640,177 @@
       "skill_id": "swarm-manager-workshop"
     },
     "updated_at": "2026-04-09T15:22:23Z"
+  },
+  {
+    "activity_id": "d6b2b58c1aa6a55f",
+    "owner_type": "capture",
+    "owner_name": "cap-e9c071aea99cafa9",
+    "owner_title": "There was a recent swarm-manager backlog item that executed but something went wrong and it failed to track this. So I c...",
+    "purpose": "classify",
+    "interaction_type": "spawn",
+    "task_id": "2767de93-c72d-4769-95cf-cbfc199fe8f8",
+    "run_id": "feac7639-75a7-4d26-afe7-5898c05c785a",
+    "status": "complete",
+    "requested_at": "2026-04-10T16:37:33Z",
+    "started_at": "2026-04-10T16:37:33Z",
+    "finished_at": "2026-04-10T16:37:56Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "captures.classify",
+      "skill_id": "swarm-manager-classify-capture"
+    },
+    "updated_at": "2026-04-10T16:37:58Z"
+  },
+  {
+    "activity_id": "3fd897c14464f78c",
+    "owner_type": "backlog",
+    "owner_kind": "fix",
+    "owner_name": "fix-swarm-manager-execution-tracking-not-recording-completed-runs",
+    "owner_title": "Fix swarm-manager execution tracking not recording completed runs",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "6ce4e1af-5a68-443d-90f5-1153ad431f32",
+    "run_id": "15b1a42c-c191-4bb9-94ef-0050fbd35e9f",
+    "status": "complete",
+    "requested_at": "2026-04-10T16:38:59Z",
+    "started_at": "2026-04-10T16:38:59Z",
+    "finished_at": "2026-04-10T16:43:43Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-10T16:43:45Z"
+  },
+  {
+    "activity_id": "2596fc32d816a932",
+    "owner_type": "backlog",
+    "owner_kind": "fix",
+    "owner_name": "fix-swarm-manager-execution-tracking-not-recording-completed-runs",
+    "owner_title": "Fix swarm-manager execution tracking not recording completed runs",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "ff854286-9bc5-42e3-ad5c-60e63c031cfe",
+    "run_id": "fca05455-c179-499c-8919-12f078443cc0",
+    "status": "complete",
+    "requested_at": "2026-04-10T16:45:40Z",
+    "started_at": "2026-04-10T16:45:41Z",
+    "finished_at": "2026-04-10T16:49:41Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-10T16:49:43Z"
+  },
+  {
+    "activity_id": "a0f755a44f0a0722",
+    "owner_type": "capture",
+    "owner_name": "cap-e1cc64a2549f559e",
+    "owner_title": "Swarm-manager initiative details page has progress bar that is either bugged or misleading compared to items list/graph....",
+    "purpose": "classify",
+    "interaction_type": "spawn",
+    "task_id": "2c4cc85e-4f9f-4db6-b3ad-d746696681ab",
+    "run_id": "2a7379b9-cde7-4c57-b245-3f6c10b53e7b",
+    "status": "complete",
+    "requested_at": "2026-04-10T16:50:18Z",
+    "started_at": "2026-04-10T16:50:18Z",
+    "finished_at": "2026-04-10T16:50:45Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "captures.classify",
+      "skill_id": "swarm-manager-classify-capture"
+    },
+    "updated_at": "2026-04-10T16:50:48Z"
+  },
+  {
+    "activity_id": "30eb9604a060d7a2",
+    "owner_type": "backlog",
+    "owner_kind": "fix",
+    "owner_name": "fix-swarm-manager-execution-tracking-not-recording-completed-runs",
+    "owner_title": "Fix swarm-manager execution tracking not recording completed runs",
+    "purpose": "finalize",
+    "interaction_type": "spawn",
+    "task_id": "249544f1-17c0-4d4b-b70f-00aaa6e9fab8",
+    "run_id": "5c678fc7-055a-4fcc-8e52-eca3c88c08f4",
+    "status": "complete",
+    "requested_at": "2026-04-10T16:53:25Z",
+    "started_at": "2026-04-10T16:53:25Z",
+    "finished_at": "2026-04-10T16:55:38Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "finalize",
+      "skill_id": "swarm-manager-workshop-finalize"
+    },
+    "updated_at": "2026-04-10T16:57:31Z"
+  },
+  {
+    "activity_id": "7aed4933841643ab",
+    "owner_type": "backlog",
+    "owner_kind": "fix",
+    "owner_name": "fix-swarm-manager-execution-tracking-not-recording-completed-runs",
+    "owner_title": "Fix swarm-manager execution tracking not recording completed runs",
+    "execution_id": "80790151aeefe87d",
+    "purpose": "process",
+    "interaction_type": "spawn",
+    "task_id": "4cac3f08-0983-42e6-a48a-b7c9f8abaceb",
+    "run_id": "3424ee19-0d5c-4172-a16d-cb8009a1bb6d",
+    "status": "complete",
+    "requested_at": "2026-04-10T16:57:44Z",
+    "started_at": "2026-04-10T16:57:44Z",
+    "finished_at": "2026-04-10T17:02:48Z",
+    "requested_by": "swarm-manager-ui",
+    "metadata": {
+      "entrypoint": "execution.start",
+      "mode": "yolo",
+      "operation": "generator"
+    },
+    "updated_at": "2026-04-10T17:02:50Z"
+  },
+  {
+    "activity_id": "a39ee2c0999fe345",
+    "owner_type": "backlog",
+    "owner_kind": "fix",
+    "owner_name": "fix-swarm-manager-execution-tracking-not-recording-completed-runs",
+    "owner_title": "Fix swarm-manager execution tracking not recording completed runs",
+    "execution_id": "80790151aeefe87d",
+    "purpose": "review",
+    "interaction_type": "spawn",
+    "task_id": "1d1b0f67-9a2d-4afb-a25b-11b222a5b746",
+    "run_id": "1e204f19-272f-4357-9114-75ea1f7fd911",
+    "status": "complete",
+    "requested_at": "2026-04-10T17:02:50Z",
+    "started_at": "2026-04-10T17:02:50Z",
+    "finished_at": "2026-04-10T17:04:32Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "review.start",
+      "round_number": "001"
+    },
+    "updated_at": "2026-04-10T17:14:28Z"
+  },
+  {
+    "activity_id": "80713b7000065803",
+    "owner_type": "backlog",
+    "owner_kind": "fix",
+    "owner_name": "fix-initiative-details-progress-bar-showing-incorrect-pending-count",
+    "owner_title": "Fix initiative details progress bar showing incorrect pending count",
+    "purpose": "workshop",
+    "interaction_type": "spawn",
+    "task_id": "920dbf96-29c6-44dd-b617-ed58ada1eafb",
+    "run_id": "371ef1c6-5fe4-43ab-9f05-c86b0ace4a06",
+    "status": "running",
+    "requested_at": "2026-04-10T17:46:41Z",
+    "started_at": "2026-04-10T17:46:41Z",
+    "requested_by": "swarm-manager",
+    "metadata": {
+      "entrypoint": "backlog.research",
+      "mode": "workshop",
+      "skill_id": "swarm-manager-workshop"
+    },
+    "updated_at": "2026-04-10T17:46:41Z"
   }
 ]

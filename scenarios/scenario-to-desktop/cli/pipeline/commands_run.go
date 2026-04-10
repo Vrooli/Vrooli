@@ -84,11 +84,14 @@ type runFlags struct {
 	timeout        int
 	debug          bool
 	showOutput     bool
-	deployTarget   string
-	deployTo       string
-	remoteProfile  string
-	appKey         string
-	jsonOutput     bool
+	deployTarget      string
+	deployTo          string
+	remoteProfile     string
+	appKey            string
+	deploymentProfile string
+	gateTimeout       string
+	gatePollInterval  string
+	jsonOutput        bool
 }
 
 func parseRunFlags(args []string) (*runFlags, *flag.FlagSet, error) {
@@ -112,6 +115,9 @@ func parseRunFlags(args []string) (*runFlags, *flag.FlagSet, error) {
 	fs.StringVar(&f.deployTo, "deploy-to", "", "LPBS scenario name to deploy through (inline)")
 	fs.StringVar(&f.remoteProfile, "remote-profile", "", "Remote profile tag on the LPBS instance (inline)")
 	fs.StringVar(&f.appKey, "app-key", "", "App key for the download app in LPBS (required for deploy)")
+	fs.StringVar(&f.deploymentProfile, "deployment-profile", "", "Deployment-manager profile ID for approval gates")
+	fs.StringVar(&f.gateTimeout, "gate-timeout", "", "Max time to wait for approval gates (e.g. 30m)")
+	fs.StringVar(&f.gatePollInterval, "gate-poll-interval", "", "Initial gate poll interval (e.g. 15s)")
 	jsonPtr := cliutil.JSONFlag(fs)
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -201,22 +207,31 @@ func buildVersionUpdate(f *runFlags, req map[string]interface{}) (*versionUpdate
 
 // buildDeployConfig builds a deploy config map from deploy-related flags.
 // Returns nil if no deploy flags are set.
-func buildDeployConfig(deployTarget, deployTo, remoteProfile, appKey string) map[string]interface{} {
-	if deployTarget == "" && deployTo == "" && appKey == "" {
+func buildDeployConfig(f *runFlags) map[string]interface{} {
+	if f.deployTarget == "" && f.deployTo == "" && f.appKey == "" {
 		return nil
 	}
 	deploy := map[string]interface{}{}
-	if deployTarget != "" {
-		deploy["target_name"] = deployTarget
+	if f.deployTarget != "" {
+		deploy["target_name"] = f.deployTarget
 	}
-	if deployTo != "" {
-		deploy["scenario_name"] = deployTo
+	if f.deployTo != "" {
+		deploy["scenario_name"] = f.deployTo
 	}
-	if remoteProfile != "" {
-		deploy["remote_profile"] = remoteProfile
+	if f.remoteProfile != "" {
+		deploy["remote_profile"] = f.remoteProfile
 	}
-	if appKey != "" {
-		deploy["app_key"] = appKey
+	if f.appKey != "" {
+		deploy["app_key"] = f.appKey
+	}
+	if f.deploymentProfile != "" {
+		deploy["deployment_manager_profile_id"] = f.deploymentProfile
+	}
+	if f.gateTimeout != "" {
+		deploy["gate_timeout"] = f.gateTimeout
+	}
+	if f.gatePollInterval != "" {
+		deploy["gate_poll_interval"] = f.gatePollInterval
 	}
 	return deploy
 }
@@ -240,7 +255,7 @@ func (c *Commands) Run(args []string) error {
 		return err
 	}
 
-	deployConfig := buildDeployConfig(f.deployTarget, f.deployTo, f.remoteProfile, f.appKey)
+	deployConfig := buildDeployConfig(f)
 	deployRequested := deployConfig != nil
 	if deployConfig != nil {
 		req["deploy"] = deployConfig
@@ -341,6 +356,9 @@ func (c *Commands) Start(args []string) error {
 	deployTo := fs.String("deploy-to", "", "LPBS scenario name to deploy through (inline)")
 	remoteProfile := fs.String("remote-profile", "", "Remote profile tag on the LPBS instance (inline)")
 	appKey := fs.String("app-key", "", "App key for the download app in LPBS (required for deploy)")
+	deploymentProfile := fs.String("deployment-profile", "", "Deployment-manager profile ID for approval gates")
+	gateTimeoutFlag := fs.String("gate-timeout", "", "Max time to wait for approval gates (e.g. 30m)")
+	gatePollIntervalFlag := fs.String("gate-poll-interval", "", "Initial gate poll interval (e.g. 15s)")
 	jsonOutput := cliutil.JSONFlag(fs)
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -360,7 +378,16 @@ func (c *Commands) Start(args []string) error {
 		req["platforms"] = strings.Split(*platforms, ",")
 	}
 
-	if deployConfig := buildDeployConfig(*deployTarget, *deployTo, *remoteProfile, *appKey); deployConfig != nil {
+	startFlags := &runFlags{
+		deployTarget:      *deployTarget,
+		deployTo:          *deployTo,
+		remoteProfile:     *remoteProfile,
+		appKey:            *appKey,
+		deploymentProfile: *deploymentProfile,
+		gateTimeout:       *gateTimeoutFlag,
+		gatePollInterval:  *gatePollIntervalFlag,
+	}
+	if deployConfig := buildDeployConfig(startFlags); deployConfig != nil {
 		req["deploy"] = deployConfig
 	}
 

@@ -1,0 +1,36 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-10T19:45:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Incorporated R2 decisions into plan: staleness defaults (30 errors / 30 min max-age), in-memory map[runID]*runTracker for ephemeral per-run state, and 5-poll unknown-status grace period. Contract Decisions table now has 6 entries covering all workshop answers."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Added missing Scope section (in/out) per validation gap. In-scope: all 4 bug fixes, in-memory runTracker, unit tests. Out-of-scope: polling→push model change, agent-manager internals, UI, backward-compat shims."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Implementation Strategy phases updated with concrete threshold values from R2 decisions. Phase 2 specifies 5 consecutive unknowns. Phase 3 specifies 30 consecutive errors, 30 min max-age, and ServiceConfig configurability. Phase 5 test descriptions reference the exact thresholds."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "All 13 mandatory plan sections present: Purpose, Required Reading, Current Technical Context, Problem Statement, Scope, Target End State, Contract Decisions, Implementation Strategy, Non-goals, Testing Plan, Risks and Mitigations, Acceptance Criteria, Rollout Checklist. No remaining gaps identified."
+    }
+  ],
+  "plan_updates": "Added Scope section. Expanded Contract Decisions with R2 answers (staleness defaults, in-memory tracking, unknown-status grace period). Updated Implementation Strategy phases with concrete thresholds. Updated Target End State, Non-goals, Risks, and Definition of Done to reflect finalized decisions."
+}

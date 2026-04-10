@@ -481,7 +481,7 @@ scenario::run() {
     # IMPORTANT: Redirect stdin from /dev/null to prevent lifecycle commands from
     # consuming stdin that belongs to the parent's process substitution loop
     # (e.g., the dependency iteration loop in dependencies.sh)
-    "${SCRIPT_DIR}/../utils/lifecycle.sh" "$scenario_name" "$phase" "${remaining_args[@]}" < /dev/null 2>&1 | tee -a "$lifecycle_log"
+    bash "${SCRIPT_DIR}/../utils/lifecycle.sh" "$scenario_name" "$phase" "${remaining_args[@]}" < /dev/null 2>&1 | tee -a "$lifecycle_log"
     local run_exit="${PIPESTATUS[0]}"
 
     # If best-effort mode produced failed dependencies, mark scenario as degraded

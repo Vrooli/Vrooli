@@ -117,11 +117,21 @@ func scenarioActivitySpec(
 	}
 }
 
+// runTracker holds ephemeral per-run polling state (not persisted).
+type runTracker struct {
+	FirstSeen          time.Time
+	ConsecutiveErrors  int
+	ConsecutiveUnknown int
+}
+
 // ServiceConfig configures execution service dependencies.
 type ServiceConfig struct {
 	RootDir                  string
 	StorePath                string
 	SelfScenarioName         string
+	MaxConsecutiveErrors     int
+	MaxConsecutiveUnknown    int
+	MaxRunAge                time.Duration
 	PolicyProvider           PolicyProvider
 	GovernanceProvider       GovernanceProvider
 	ReviewThresholdsProvider ReviewThresholdsProvider
@@ -140,6 +150,9 @@ type Service struct {
 	rootDir                  string
 	selfScenarioName         string
 	finalizationCfg          FinalizationConfig
+	maxConsecutiveErrors     int
+	maxConsecutiveUnknown    int
+	maxRunAge                time.Duration
 	store                    Store
 	policyProvider           PolicyProvider
 	governanceProvider       GovernanceProvider
@@ -160,6 +173,7 @@ type Service struct {
 	eventLogger              EventLogger
 	circuitBreaker           *CircuitBreaker
 	processingFinalizations  map[string]struct{}
+	runTrackers              map[string]*runTracker
 	mu                       sync.Mutex
 }
 
@@ -192,10 +206,26 @@ func NewService(cfg ServiceConfig) *Service {
 		selfName = filepath.Base(rootDir)
 	}
 
+	maxConsecErrors := cfg.MaxConsecutiveErrors
+	if maxConsecErrors <= 0 {
+		maxConsecErrors = 30
+	}
+	maxConsecUnknown := cfg.MaxConsecutiveUnknown
+	if maxConsecUnknown <= 0 {
+		maxConsecUnknown = 5
+	}
+	maxRunAge := cfg.MaxRunAge
+	if maxRunAge <= 0 {
+		maxRunAge = 30 * time.Minute
+	}
+
 	service := &Service{
 		rootDir:                  rootDir,
 		selfScenarioName:         selfName,
 		finalizationCfg:          fc,
+		maxConsecutiveErrors:     maxConsecErrors,
+		maxConsecutiveUnknown:    maxConsecUnknown,
+		maxRunAge:                maxRunAge,
 		store:                    NewStore(cfg.StorePath),
 		policyProvider:           pp,
 		governanceProvider:       gp,
@@ -209,6 +239,7 @@ func NewService(cfg ServiceConfig) *Service {
 		scenarioHealth:           cfg.ScenarioHealthChecker,
 		circuitBreaker:           NewCircuitBreaker(filepath.Join(rootDir, ".vrooli", "circuit-breaker.json")),
 		processingFinalizations:  map[string]struct{}{},
+		runTrackers:              map[string]*runTracker{},
 	}
 	if inspector, ok := cfg.AgentService.(RunInspector); ok {
 		service.inspector = inspector

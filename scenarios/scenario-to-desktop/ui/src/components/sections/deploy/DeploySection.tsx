@@ -3,7 +3,7 @@
  */
 
 import { forwardRef, useMemo } from "react";
-import { Cloud, Package, Link, CheckCircle2 } from "lucide-react";
+import { Cloud, Package, Link, CheckCircle2, ShieldAlert, Clock, ShieldCheck } from "lucide-react";
 import {
   SectionCard,
   STATUS_CONFIG,
@@ -24,6 +24,19 @@ export const DeploySection = forwardRef<HTMLDivElement, DeploySectionProps>(
     const deployResult = usePipelineStore((s) => s.deployResult);
     const buildResult = usePipelineStore((s) => s.buildResult);
     const stageStatus = usePipelineStore(selectStageStatus("deploy"));
+    const currentState = usePipelineStore((s) => s.pipelineStatus?.current_state);
+    const currentStage = usePipelineStore((s) => s.pipelineStatus?.current_stage);
+    const deployConfig = usePipelineStore((s) => s.pipelineStatus?.config?.deploy);
+
+    type GateDisplayState = "none" | "waiting" | "checking" | "passed" | "failed";
+    const gateState: GateDisplayState = (() => {
+      if (!deployConfig?.deployment_manager_profile_id) return "none";
+      if (currentState === "gate_blocked" && currentStage === "deploy") return "waiting";
+      if (stageStatus === "running" && currentStage === "deploy" && currentState === "executing_stage") return "checking";
+      if (stageStatus === "completed") return "passed";
+      if (stageStatus === "failed") return "failed";
+      return "none";
+    })();
 
     const hasResult = Boolean(deployResult);
     const hasBuildArtifacts = Object.keys(buildResult?.artifacts ?? {}).length > 0;
@@ -31,11 +44,12 @@ export const DeploySection = forwardRef<HTMLDivElement, DeploySectionProps>(
     const updateUrl = deployResult?.update_url;
 
     const statusDisplay = useMemo(() => {
+      if (gateState === "waiting") return { ...STATUS_CONFIG.running, label: "Awaiting Approval" };
       if (stageStatus === "completed") return { ...STATUS_CONFIG.completed, label: "Deployed" };
       if (stageStatus === "running") return { ...STATUS_CONFIG.running, label: "Deploying" };
       if (stageStatus === "skipped") return { ...STATUS_CONFIG.skipped, label: "Skipped" };
       return STATUS_CONFIG[stageStatus as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pending;
-    }, [stageStatus]);
+    }, [stageStatus, gateState]);
 
     const getDescription = () => {
       if (hasResult && artifacts.length > 0)
@@ -89,6 +103,38 @@ export const DeploySection = forwardRef<HTMLDivElement, DeploySectionProps>(
               </StageDetailCard>
             )}
           </div>
+        )}
+
+        {gateState !== "none" && (
+          <StageDetailCard
+            icon={gateState === "waiting" ? ShieldAlert : gateState === "checking" ? Clock : gateState === "passed" ? ShieldCheck : ShieldAlert}
+            label="Approval Gate"
+          >
+            {gateState === "waiting" && (
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                <span className="text-sm text-amber-300">Waiting for approval in deployment-manager</span>
+              </div>
+            )}
+            {gateState === "checking" && (
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
+                <span className="text-sm text-blue-300">Checking gate status...</span>
+              </div>
+            )}
+            {gateState === "passed" && (
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-400" />
+                <span className="text-sm text-green-300">Approval gate passed</span>
+              </div>
+            )}
+            {gateState === "failed" && (
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-red-400" />
+                <span className="text-sm text-red-300">Approval gate failed or timed out</span>
+              </div>
+            )}
+          </StageDetailCard>
         )}
 
         {!hasResult && stageStatus === "pending" && (

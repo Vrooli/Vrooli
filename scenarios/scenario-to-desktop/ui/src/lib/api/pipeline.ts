@@ -44,6 +44,7 @@ export interface DeployConfig {
   remote_profile?: string;
   app_key?: string;
   update_url?: string;
+  deployment_manager_profile_id?: string;
 }
 
 export interface VersionUpdateRequest {
@@ -76,6 +77,7 @@ export interface PipelineStatus {
   pipeline_id: string;
   scenario_name?: string;
   status: "pending" | "running" | "completed" | "failed" | "cancelled" | string;
+  current_state?: string;
   current_stage?: string;
   /** Completion percentage (0-100) */
   progress_percent?: number;

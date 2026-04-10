@@ -113,11 +113,54 @@ func (s *Service) refreshRunningLocked(ctx context.Context) ([]string, error) {
 			if (record.Status != StatusStarting && record.Status != StatusRunning && record.Status != StatusNeedsReview) || strings.TrimSpace(record.RunID) == "" {
 				continue
 			}
-			runState, err := s.inspector.GetRunState(ctx, record.RunID)
-			if err != nil {
+
+			tracker := s.ensureRunTracker(record.RunID)
+
+			// Max-age staleness check.
+			if time.Since(tracker.FirstSeen) > s.maxRunAge {
+				slog.Warn("run exceeded max age, marking failed", "run_id", record.RunID, "age", time.Since(tracker.FirstSeen))
+				nextStatus := StatusFailed
+				reason := "run exceeded maximum age timeout"
+				prevStatus := record.Status
+				record.Status = nextStatus
+				record.FailureReason = reason
+				record.UpdatedAt = nowRFC3339()
+				record.FinishedAt = record.UpdatedAt
+				changed = true
+				changedRecords[record.ExecutionID] = *record
+				s.logExecutionEvent(*record, prevStatus)
+				if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
+					_ = s.updateBacklogStatus(item, backlogStatusFailed)
+				}
+				s.deleteRunTracker(record.RunID)
 				continue
 			}
-			nextStatus, reason := mapRunStatus(runState.Status, runState.ErrorMsg)
+
+			runState, err := s.inspector.GetRunState(ctx, record.RunID)
+			if err != nil {
+				tracker.ConsecutiveErrors++
+				if tracker.ConsecutiveErrors >= s.maxConsecutiveErrors {
+					slog.Warn("run hit max consecutive errors, marking failed", "run_id", record.RunID, "errors", tracker.ConsecutiveErrors)
+					prevStatus := record.Status
+					record.Status = StatusFailed
+					record.FailureReason = "lost contact with agent-manager run"
+					record.UpdatedAt = nowRFC3339()
+					record.FinishedAt = record.UpdatedAt
+					changed = true
+					changedRecords[record.ExecutionID] = *record
+					s.logExecutionEvent(*record, prevStatus)
+					if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
+						_ = s.updateBacklogStatus(item, backlogStatusFailed)
+					}
+					s.deleteRunTracker(record.RunID)
+				} else {
+					slog.Warn("GetRunState error", "run_id", record.RunID, "err", err, "consecutive", tracker.ConsecutiveErrors)
+				}
+				continue
+			}
+			tracker.ConsecutiveErrors = 0
+
+			nextStatus, reason := mapRunStatus(runState.Status, runState.ErrorMsg, tracker, s.maxConsecutiveUnknown)
 			if nextStatus == record.Status {
 				continue
 			}
@@ -132,6 +175,7 @@ func (s *Service) refreshRunningLocked(ctx context.Context) ([]string, error) {
 				} else {
 					record.FinishedAt = nowRFC3339()
 				}
+				s.deleteRunTracker(record.RunID)
 				// Post-completion hook: archive scenario after successful spec-sync
 				if record.ArchiveContext != nil {
 					if nextStatus == StatusCompleted {
@@ -203,27 +247,54 @@ func (s *Service) refreshRunningLocked(ctx context.Context) ([]string, error) {
 	return pathutil.UniqueSortedStrings(finalizationCandidates), nil
 }
 
-func mapRunStatus(status, errorMsg string) (Status, string) {
-	switch strings.ToLower(strings.TrimSpace(status)) {
+func mapRunStatus(status, errorMsg string, tracker *runTracker, maxConsecutiveUnknown int) (Status, string) {
+	normalized := strings.ToLower(strings.TrimSpace(status))
+	switch normalized {
 	case "pending", "starting":
+		tracker.ConsecutiveUnknown = 0
 		return StatusStarting, ""
 	case "running":
+		tracker.ConsecutiveUnknown = 0
 		return StatusRunning, ""
 	case "needs_review":
+		tracker.ConsecutiveUnknown = 0
 		return StatusNeedsReview, ""
 	case "complete":
+		tracker.ConsecutiveUnknown = 0
 		return StatusCompleted, ""
 	case "failed":
+		tracker.ConsecutiveUnknown = 0
 		reason := strings.TrimSpace(errorMsg)
 		if reason == "" {
 			reason = "agent-manager run failed"
 		}
 		return StatusFailed, reason
 	case "cancelled":
+		tracker.ConsecutiveUnknown = 0
 		return StatusCanceled, ""
 	default:
+		tracker.ConsecutiveUnknown++
+		if tracker.ConsecutiveUnknown == 1 {
+			slog.Warn("unknown run status from agent-manager", "status", status)
+		}
+		if tracker.ConsecutiveUnknown >= maxConsecutiveUnknown {
+			return StatusFailed, "unknown run status: " + status
+		}
 		return StatusRunning, ""
 	}
+}
+
+func (s *Service) ensureRunTracker(runID string) *runTracker {
+	if t, ok := s.runTrackers[runID]; ok {
+		return t
+	}
+	t := &runTracker{FirstSeen: time.Now()}
+	s.runTrackers[runID] = t
+	return t
+}
+
+func (s *Service) deleteRunTracker(runID string) {
+	delete(s.runTrackers, runID)
 }
 
 func matchesFilters(record Record, filters ListFilters) bool {

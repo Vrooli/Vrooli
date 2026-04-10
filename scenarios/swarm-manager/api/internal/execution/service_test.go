@@ -487,7 +487,8 @@ func TestMapRunStatus_DirectMappings(t *testing.T) {
 		{"unknown-value", "", StatusRunning, ""},
 	}
 	for _, tc := range tests {
-		got, msg := mapRunStatus(tc.input, tc.errorMsg)
+		tracker := &runTracker{}
+		got, msg := mapRunStatus(tc.input, tc.errorMsg, tracker, 5)
 		if got != tc.want {
 			t.Errorf("mapRunStatus(%q, %q): got %s, want %s", tc.input, tc.errorMsg, got, tc.want)
 		}

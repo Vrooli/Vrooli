@@ -41,6 +41,8 @@ const (
 	PipelineStateQueueingStage PipelineState = "queueing_stage"
 	// PipelineStateExecutingStage indicates a stage is actively executing.
 	PipelineStateExecutingStage PipelineState = "executing_stage"
+	// PipelineStateGateBlocked indicates the pipeline is waiting for an approval gate to clear.
+	PipelineStateGateBlocked PipelineState = "gate_blocked"
 	// PipelineStatePollingCompletion indicates the pipeline is polling for async completion.
 	PipelineStatePollingCompletion PipelineState = "polling_completion"
 	// PipelineStateProcessingResult indicates the pipeline is processing stage results.
@@ -74,8 +76,14 @@ var ValidPipelineStateTransitions = map[PipelineState][]PipelineState{
 		PipelineStateCancelled,
 	},
 	PipelineStateExecutingStage: {
+		PipelineStateGateBlocked,
 		PipelineStatePollingCompletion,
 		PipelineStateProcessingResult,
+		PipelineStateFailed,
+		PipelineStateCancelled,
+	},
+	PipelineStateGateBlocked: {
+		PipelineStateExecutingStage,
 		PipelineStateFailed,
 		PipelineStateCancelled,
 	},
@@ -244,6 +252,16 @@ type DeployConfig struct {
 	// Channel is the update channel (e.g. "stable", "beta", "nightly").
 	// Maps to variant_key on the LPBS asset. Defaults to "stable" if empty.
 	Channel string `json:"channel,omitempty"`
+
+	// DeploymentManagerProfileID is the deployment-manager profile to check for approval gates.
+	// If empty, the deploy stage skips gate checks.
+	DeploymentManagerProfileID string `json:"deployment_manager_profile_id,omitempty"`
+
+	// GateTimeout overrides DefaultGateTimeout for how long to wait for gates to clear.
+	GateTimeout string `json:"gate_timeout,omitempty"`
+
+	// GatePollInterval overrides DefaultGatePollInterval for initial poll spacing.
+	GatePollInterval string `json:"gate_poll_interval,omitempty"`
 }
 
 // DeployResult contains the outcome of the deploy stage.
@@ -509,6 +527,9 @@ func (s *Status) ComputeProgressMessage() string {
 	case StatusCancelled:
 		return "Pipeline cancelled"
 	case StatusRunning:
+		if s.CurrentState == PipelineStateGateBlocked {
+			return fmt.Sprintf("Waiting for approval gate (%s stage)", s.CurrentStage)
+		}
 		if s.CurrentStage == "" {
 			return "Starting pipeline..."
 		}

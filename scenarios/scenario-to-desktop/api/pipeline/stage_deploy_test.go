@@ -420,3 +420,309 @@ func TestDeployStage_Execute_RemoteProfileTestFails(t *testing.T) {
 func newMockTP() *mockTimeProvider {
 	return &mockTimeProvider{now: 1000}
 }
+
+// testDMClientFactory creates a factory pointing at a test DM server.
+func testDMClientFactory(serverURL string) DMClientFactory {
+	return func(_ context.Context) (*deploy.DMClient, error) {
+		return deploy.NewDMClientWithResolver(
+			func(_ context.Context) (string, error) { return serverURL, nil },
+			http.DefaultClient,
+		), nil
+	}
+}
+
+// newTestDMServer creates a deployment-manager test server.
+// gateReady controls whether the release gate is immediately ready or blocked.
+func newTestDMServer(t *testing.T, gateReady bool) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/approvals") && r.Method == "POST":
+			_ = json.NewEncoder(w).Encode(deploy.Approval{
+				ID:       "appr-1",
+				Platform: "win",
+				Status:   "pending",
+			})
+		case strings.Contains(r.URL.Path, "/release-gate") && r.Method == "GET":
+			if gateReady {
+				_ = json.NewEncoder(w).Encode(deploy.ReleaseGateStatus{
+					Ready: true,
+					Platforms: []deploy.PlatformGateStatus{
+						{Platform: "win", Status: "approved", Ready: true},
+					},
+				})
+			} else {
+				_ = json.NewEncoder(w).Encode(deploy.ReleaseGateStatus{
+					Ready: false,
+					Platforms: []deploy.PlatformGateStatus{
+						{Platform: "win", Status: "pending", Ready: false},
+					},
+				})
+			}
+		default:
+			t.Errorf("unexpected DM request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+}
+
+func TestDeployStage_Execute_GateReady(t *testing.T) {
+	s3Server := newTestS3Server()
+	defer s3Server.Close()
+
+	lpbsServer := newTestDeployServer(t, s3Server.URL)
+	defer lpbsServer.Close()
+
+	dmServer := newTestDMServer(t, true)
+	defer dmServer.Close()
+
+	tmpDir := t.TempDir()
+	artifactPath := filepath.Join(tmpDir, "app.exe")
+	_ = os.WriteFile(artifactPath, []byte("binary"), 0o644)
+
+	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
+
+	stage := NewDeployStage(
+		WithDeployClientFactory(testDeployFactory(lpbsServer.URL)),
+		WithDeployDMClientFactory(testDMClientFactory(dmServer.URL)),
+		WithDeployTimeProvider(newMockTP()),
+	)
+
+	result := stage.Execute(context.Background(), &StageInput{
+		Config: &Config{
+			Version: "1.0.0",
+			DeployConfig: &DeployConfig{
+				ScenarioName:               "lpbs",
+				RemoteProfile:              "prod",
+				AppKey:                     "my-app",
+				DeploymentManagerProfileID: "profile-1",
+			},
+		},
+		Provenance: &BuildProvenance{GitCommitHash: "abc123"},
+		BuildResult: &build.Status{
+			PlatformResults: map[string]*build.PlatformResult{
+				"win": {Status: BuildStatusReady, Artifact: artifactPath},
+			},
+		},
+	})
+
+	if result.Status != StatusCompleted {
+		t.Fatalf("expected completed, got %s: %s", result.Status, result.Error)
+	}
+}
+
+func TestDeployStage_Execute_GateBlocked_Timeout(t *testing.T) {
+	s3Server := newTestS3Server()
+	defer s3Server.Close()
+
+	lpbsServer := newTestDeployServer(t, s3Server.URL)
+	defer lpbsServer.Close()
+
+	dmServer := newTestDMServer(t, false)
+	defer dmServer.Close()
+
+	tmpDir := t.TempDir()
+	artifactPath := filepath.Join(tmpDir, "app.exe")
+	_ = os.WriteFile(artifactPath, []byte("binary"), 0o644)
+
+	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
+
+	stage := NewDeployStage(
+		WithDeployClientFactory(testDeployFactory(lpbsServer.URL)),
+		WithDeployDMClientFactory(testDMClientFactory(dmServer.URL)),
+		WithDeployTimeProvider(newMockTP()),
+	)
+
+	result := stage.Execute(context.Background(), &StageInput{
+		Config: &Config{
+			Version: "1.0.0",
+			DeployConfig: &DeployConfig{
+				ScenarioName:               "lpbs",
+				RemoteProfile:              "prod",
+				AppKey:                     "my-app",
+				DeploymentManagerProfileID: "profile-1",
+				GateTimeout:                "100ms",
+				GatePollInterval:           "10ms",
+			},
+		},
+		Provenance: &BuildProvenance{GitCommitHash: "abc123"},
+		BuildResult: &build.Status{
+			PlatformResults: map[string]*build.PlatformResult{
+				"win": {Status: BuildStatusReady, Artifact: artifactPath},
+			},
+		},
+	})
+
+	if result.Status != StatusFailed {
+		t.Fatalf("expected failed, got %s", result.Status)
+	}
+	if !strings.Contains(result.Error, "timed out") {
+		t.Errorf("expected timeout error, got: %s", result.Error)
+	}
+}
+
+func TestDeployStage_Execute_DMUnreachable(t *testing.T) {
+	s3Server := newTestS3Server()
+	defer s3Server.Close()
+
+	lpbsServer := newTestDeployServer(t, s3Server.URL)
+	defer lpbsServer.Close()
+
+	tmpDir := t.TempDir()
+	artifactPath := filepath.Join(tmpDir, "app.exe")
+	_ = os.WriteFile(artifactPath, []byte("binary"), 0o644)
+
+	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
+
+	stage := NewDeployStage(
+		WithDeployClientFactory(testDeployFactory(lpbsServer.URL)),
+		WithDeployDMClientFactory(testDMClientFactory("http://127.0.0.1:1")),
+		WithDeployTimeProvider(newMockTP()),
+	)
+
+	result := stage.Execute(context.Background(), &StageInput{
+		Config: &Config{
+			Version: "1.0.0",
+			DeployConfig: &DeployConfig{
+				ScenarioName:               "lpbs",
+				RemoteProfile:              "prod",
+				AppKey:                     "my-app",
+				DeploymentManagerProfileID: "profile-1",
+			},
+		},
+		Provenance: &BuildProvenance{GitCommitHash: "abc123"},
+		BuildResult: &build.Status{
+			PlatformResults: map[string]*build.PlatformResult{
+				"win": {Status: BuildStatusReady, Artifact: artifactPath},
+			},
+		},
+	})
+
+	if result.Status != StatusFailed {
+		t.Fatalf("expected failed, got %s", result.Status)
+	}
+}
+
+func TestDeployStage_Execute_NoProfileID_SkipsGate(t *testing.T) {
+	s3Server := newTestS3Server()
+	defer s3Server.Close()
+
+	lpbsServer := newTestDeployServer(t, s3Server.URL)
+	defer lpbsServer.Close()
+
+	tmpDir := t.TempDir()
+	artifactPath := filepath.Join(tmpDir, "app.exe")
+	_ = os.WriteFile(artifactPath, []byte("binary"), 0o644)
+
+	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
+
+	stage := NewDeployStage(
+		WithDeployClientFactory(testDeployFactory(lpbsServer.URL)),
+		WithDeployTimeProvider(newMockTP()),
+	)
+
+	result := stage.Execute(context.Background(), &StageInput{
+		Config: &Config{
+			Version: "1.0.0",
+			DeployConfig: &DeployConfig{
+				ScenarioName:  "lpbs",
+				RemoteProfile: "prod",
+				AppKey:        "my-app",
+			},
+		},
+		BuildResult: &build.Status{
+			PlatformResults: map[string]*build.PlatformResult{
+				"win": {Status: BuildStatusReady, Artifact: artifactPath},
+			},
+		},
+	})
+
+	if result.Status != StatusCompleted {
+		t.Fatalf("expected completed (gate skipped), got %s: %s", result.Status, result.Error)
+	}
+}
+
+func TestDeployStage_Execute_GateBlocked_ThenClears(t *testing.T) {
+	s3Server := newTestS3Server()
+	defer s3Server.Close()
+
+	lpbsServer := newTestDeployServer(t, s3Server.URL)
+	defer lpbsServer.Close()
+
+	var callCount int
+	dmServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/approvals") && r.Method == "POST":
+			_ = json.NewEncoder(w).Encode(deploy.Approval{
+				ID:       "appr-1",
+				Platform: "win",
+				Status:   "pending",
+			})
+		case strings.Contains(r.URL.Path, "/release-gate") && r.Method == "GET":
+			callCount++
+			if callCount >= 3 {
+				_ = json.NewEncoder(w).Encode(deploy.ReleaseGateStatus{
+					Ready: true,
+					Platforms: []deploy.PlatformGateStatus{
+						{Platform: "win", Status: "approved", Ready: true},
+					},
+				})
+			} else {
+				_ = json.NewEncoder(w).Encode(deploy.ReleaseGateStatus{
+					Ready: false,
+					Platforms: []deploy.PlatformGateStatus{
+						{Platform: "win", Status: "pending", Ready: false},
+					},
+				})
+			}
+		default:
+			t.Errorf("unexpected DM request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer dmServer.Close()
+
+	tmpDir := t.TempDir()
+	artifactPath := filepath.Join(tmpDir, "app.exe")
+	_ = os.WriteFile(artifactPath, []byte("binary"), 0o644)
+
+	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
+
+	stage := NewDeployStage(
+		WithDeployClientFactory(testDeployFactory(lpbsServer.URL)),
+		WithDeployDMClientFactory(testDMClientFactory(dmServer.URL)),
+		WithDeployTimeProvider(newMockTP()),
+	)
+
+	var gateBlocked bool
+	result := stage.Execute(context.Background(), &StageInput{
+		Config: &Config{
+			Version: "1.0.0",
+			DeployConfig: &DeployConfig{
+				ScenarioName:               "lpbs",
+				RemoteProfile:              "prod",
+				AppKey:                     "my-app",
+				DeploymentManagerProfileID: "profile-1",
+				GateTimeout:                "30s",
+				GatePollInterval:           "10ms",
+			},
+		},
+		Provenance: &BuildProvenance{GitCommitHash: "abc123"},
+		BuildResult: &build.Status{
+			PlatformResults: map[string]*build.PlatformResult{
+				"win": {Status: BuildStatusReady, Artifact: artifactPath},
+			},
+		},
+		GateStateReporter: func(blocked bool) {
+			gateBlocked = blocked
+		},
+	})
+
+	if result.Status != StatusCompleted {
+		t.Fatalf("expected completed, got %s: %s", result.Status, result.Error)
+	}
+	if callCount < 3 {
+		t.Errorf("expected at least 3 gate checks, got %d", callCount)
+	}
+	_ = gateBlocked
+}

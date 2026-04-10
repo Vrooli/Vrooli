@@ -30,6 +30,10 @@ type runContinuer interface {
 	ContinueRun(ctx context.Context, runID string, message string) error
 }
 
+type runDiffer interface {
+	GetRunDiff(ctx context.Context, runID string) (agentmanager.RunDiff, error)
+}
+
 type ServiceConfig struct {
 	StorePath    string
 	AgentService rawAgentService
@@ -42,6 +46,7 @@ type Service struct {
 	store           Store
 	agentService    rawAgentService
 	continuer       runContinuer
+	differ          runDiffer
 	eventDispatcher dispatch.NodeDispatcher
 	mu              sync.Mutex
 }
@@ -53,6 +58,9 @@ func NewService(cfg ServiceConfig) *Service {
 	}
 	if continuer, ok := cfg.AgentService.(runContinuer); ok {
 		svc.continuer = continuer
+	}
+	if differ, ok := cfg.AgentService.(runDiffer); ok {
+		svc.differ = differ
 	}
 	return svc
 }
@@ -107,6 +115,13 @@ func (s *Service) GetRunState(ctx context.Context, runID string) (agentmanager.R
 		return agentmanager.RunState{}, agentmanager.ErrNotAvailable
 	}
 	return s.agentService.GetRunState(ctx, runID)
+}
+
+func (s *Service) GetRunDiff(ctx context.Context, runID string) (agentmanager.RunDiff, error) {
+	if s.differ == nil {
+		return agentmanager.RunDiff{}, fmt.Errorf("run diff not available")
+	}
+	return s.differ.GetRunDiff(ctx, runID)
 }
 
 func (s *Service) StopRun(ctx context.Context, runID string) error {

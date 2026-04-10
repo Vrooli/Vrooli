@@ -282,6 +282,53 @@ func (c *Commands) History(args []string) error {
 	return nil
 }
 
+// Gate shows approval gate status for a pipeline.
+func (c *Commands) Gate(args []string) error {
+	fs := flag.NewFlagSet("pipeline-gate", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	if len(fs.Args()) == 0 {
+		return fmt.Errorf("usage: pipeline-gate <id>")
+	}
+
+	pipelineID := fs.Args()[0]
+	body, err := c.apiGet("/pipeline/"+pipelineID, map[string]string{"verbose": "true"})
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	var resp struct {
+		CurrentState string `json:"current_state"`
+		CurrentStage string `json:"current_stage"`
+		Status       string `json:"status"`
+		ProgressMsg  string `json:"progress_message"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	if resp.CurrentState == "gate_blocked" {
+		fmt.Printf("Gate: BLOCKED (stage=%s)\n", resp.CurrentStage)
+		fmt.Printf("Status: %s\n", resp.ProgressMsg)
+		fmt.Println("Approve the release in deployment-manager to proceed.")
+	} else if resp.Status == "running" {
+		fmt.Printf("Gate: not blocked (state=%s, stage=%s)\n", resp.CurrentState, resp.CurrentStage)
+	} else {
+		fmt.Printf("Pipeline %s: %s\n", resp.Status, resp.ProgressMsg)
+	}
+	return nil
+}
+
 func normalizeBumpValue(input string) (string, error) {
 	value := strings.ToLower(strings.TrimSpace(input))
 	switch value {

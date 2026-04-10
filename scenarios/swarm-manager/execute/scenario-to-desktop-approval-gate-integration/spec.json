@@ -22,7 +22,7 @@
   "kind": "execute",
   "name": "scenario-to-desktop-approval-gate-integration",
   "priority": 2,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "scenario-to-desktop",
     "approval-gating",
@@ -30,5 +30,5 @@
     "desktop-release"
   ],
   "title": "Integrate Scenario To Desktop With Canonical Approval Gates",
-  "updated": "2026-04-09T13:14:04Z"
+  "updated": "2026-04-10T16:35:46Z"
 }

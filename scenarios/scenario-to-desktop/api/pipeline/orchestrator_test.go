@@ -178,10 +178,15 @@ func TestStageFailure(t *testing.T) {
 
 	status, _ := orchestrator.RunPipeline(ctx, config)
 
-	// Wait for completion
-	time.Sleep(100 * time.Millisecond)
-
-	final, _ := orchestrator.GetStatus(status.PipelineID)
+	// Poll for completion instead of fixed sleep to avoid race conditions
+	var final *Status
+	for range 50 {
+		time.Sleep(50 * time.Millisecond)
+		final, _ = orchestrator.GetStatus(status.PipelineID)
+		if final.IsComplete() {
+			break
+		}
+	}
 
 	if final.Status != StatusFailed {
 		t.Errorf("expected pipeline to fail, got %s", final.Status)

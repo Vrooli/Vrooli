@@ -15,10 +15,7 @@
     "Definition of Done"
   ],
   "sections_missing": null,
-  "warnings": [
-    "No greenfield declaration found",
-    "No `vrooli scenario restart` final cleanup step found"
-  ],
-  "passed": false,
-  "validated_at": "2026-04-10T03:17:59Z"
+  "warnings": null,
+  "passed": true,
+  "validated_at": "2026-04-10T16:57:31Z"
 }

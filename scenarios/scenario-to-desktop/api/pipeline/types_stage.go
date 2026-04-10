@@ -49,6 +49,11 @@ type StageInput struct {
 
 	// Logger for stage logging. Not serialized.
 	Logger Logger `json:"-"`
+
+	// GateStateReporter is called by stages to signal approval-gate state transitions.
+	// The orchestrator injects this callback so stages can update the pipeline state
+	// machine (e.g. GateBlocked ↔ ExecutingStage) while blocking synchronously.
+	GateStateReporter func(blocked bool) `json:"-"`
 }
 
 // StageResult represents the outcome of executing a pipeline stage.

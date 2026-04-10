@@ -135,6 +135,21 @@ const (
 	DefaultPreflightJobExpiration = 15 * time.Minute
 )
 
+// Approval gate polling defaults.
+// These control how long and how often the deploy stage polls deployment-manager
+// when an approval gate blocks the release.
+const (
+	// DefaultGateTimeout is the maximum time to wait for all approval gates to clear.
+	DefaultGateTimeout = 30 * time.Minute
+
+	// DefaultGatePollInterval is the initial polling interval for gate status checks.
+	// Uses exponential backoff: 15s → 30s → 60s → 120s (capped).
+	DefaultGatePollInterval = 15 * time.Second
+
+	// DefaultGatePollCap is the maximum polling interval after exponential backoff.
+	DefaultGatePollCap = 2 * time.Minute
+)
+
 // Deployment mode constants.
 // These replace magic strings scattered throughout the codebase.
 const (

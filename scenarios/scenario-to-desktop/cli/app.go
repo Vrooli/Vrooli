@@ -149,6 +149,7 @@ func (a *App) registerSubcommandGroups() []cliapp.SubcommandGroup {
 			{Name: "reset", Description: "Reset active pipeline for scenario: reset <scenario>", Run: a.pipeline.Reset},
 			{Name: "history", Description: "Get pipeline history: history <scenario> [--limit N]", Run: a.pipeline.History},
 			{Name: "start", Description: "Start active pipeline: start <scenario> [--stages ...] [--platforms ...] [--wait]", Run: a.pipeline.Start},
+			{Name: "gate", Description: "Show approval gate status: gate <id>", Run: a.pipeline.Gate},
 		},
 	}
 

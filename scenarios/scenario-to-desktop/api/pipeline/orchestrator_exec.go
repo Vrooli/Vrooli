@@ -152,6 +152,18 @@ func (o *DefaultOrchestrator) executeStage(ctx context.Context, stage Stage, inp
 		s.TransitionTo(PipelineStateExecutingStage, fmt.Sprintf("Executing stage: %s", stageName))
 	})
 
+	input.GateStateReporter = func(blocked bool) {
+		o.store.Update(pipelineID, func(s *Status) {
+			if blocked {
+				s.TransitionTo(PipelineStateGateBlocked, fmt.Sprintf("Waiting for approval gate: %s", stageName))
+				s.UpdateProgress()
+			} else {
+				s.TransitionTo(PipelineStateExecutingStage, fmt.Sprintf("Approval gate cleared: %s", stageName))
+				s.UpdateProgress()
+			}
+		})
+	}
+
 	result := stage.Execute(ctx, input)
 
 	o.store.Update(pipelineID, func(s *Status) {

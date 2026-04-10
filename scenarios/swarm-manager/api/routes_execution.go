@@ -23,6 +23,7 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) *execution.Service
 	cfg := execution.ServiceConfig{
 		RootDir:                  scenarioRoot,
 		StorePath:                filepath.Join(scenarioRoot, ".vrooli", "execution-runs.json"),
+		SelfScenarioName:         "swarm-manager",
 		PolicyProvider:           settings.NewPolicyAdapter(s.settingsStore),
 		GovernanceProvider:       settings.NewGovernanceAdapter(s.settingsStore),
 		ReviewThresholdsProvider: settings.NewReviewThresholdsAdapter(s.settingsStore),

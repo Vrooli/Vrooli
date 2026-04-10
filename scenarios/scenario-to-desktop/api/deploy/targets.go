@@ -14,9 +14,10 @@ import (
 
 // DeployTarget describes a landing page deployment endpoint.
 type DeployTarget struct {
-	Label         string `json:"label"`
-	ScenarioName  string `json:"scenario_name"`
-	RemoteProfile string `json:"remote_profile"`
+	Label                      string `json:"label"`
+	ScenarioName               string `json:"scenario_name"`
+	RemoteProfile              string `json:"remote_profile"`
+	DeploymentManagerProfileID string `json:"deployment_manager_profile_id,omitempty"`
 }
 
 // deployTargetsFile is the on-disk schema.

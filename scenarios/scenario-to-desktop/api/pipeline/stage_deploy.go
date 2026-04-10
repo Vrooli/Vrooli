@@ -3,6 +3,8 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"scenario-to-desktop-api/deploy"
 	sharedenv "scenario-to-desktop-api/shared/env"
@@ -12,12 +14,16 @@ import (
 // LPBSClientFactory creates an LPBSClient for the given scenario and token.
 type LPBSClientFactory func(scenarioName, serviceToken string) *deploy.LPBSClient
 
+// DMClientFactory creates a DMClient for approval gate operations.
+type DMClientFactory func(ctx context.Context) (*deploy.DMClient, error)
+
 // DeployStage implements the deploy stage of the pipeline.
 // It uploads built artifacts to a remote LPBS instance via the local LPBS proxy.
 type DeployStage struct {
-	clientFactory LPBSClientFactory
-	targetRepo    *deploy.TargetRepository
-	timeProvider  TimeProvider
+	clientFactory   LPBSClientFactory
+	dmClientFactory DMClientFactory
+	targetRepo      *deploy.TargetRepository
+	timeProvider    TimeProvider
 }
 
 // DeployStageOption configures a DeployStage.
@@ -44,11 +50,19 @@ func WithDeployTimeProvider(tp TimeProvider) DeployStageOption {
 	}
 }
 
+// WithDeployDMClientFactory sets the deployment-manager client factory.
+func WithDeployDMClientFactory(f DMClientFactory) DeployStageOption {
+	return func(s *DeployStage) {
+		s.dmClientFactory = f
+	}
+}
+
 // NewDeployStage creates a new deploy stage.
 func NewDeployStage(opts ...DeployStageOption) *DeployStage {
 	s := &DeployStage{
-		clientFactory: deploy.NewLPBSClient,
-		timeProvider:  NewRealTimeProvider(),
+		clientFactory:   deploy.NewLPBSClient,
+		dmClientFactory: deploy.NewDMClient,
+		timeProvider:    NewRealTimeProvider(),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -126,6 +140,20 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 		return result
 	}
 
+	// Check approval gate if deployment-manager profile is configured
+	if cfg.DeploymentManagerProfileID != "" {
+		platforms := collectBuiltPlatforms(input)
+		if err := s.handleApprovalGate(ctx, input, result, cfg, platforms); err != nil {
+			failStage(result, s.timeProvider, errors.New(errors.CodeServiceHealthError, err.Error()).
+				WithRecovery(errors.RecoveryRetry, "Approve the release in deployment-manager or increase --gate-timeout").
+				InDomain("deploy"))
+			return result
+		}
+		if checkCancellation(ctx, result, s.timeProvider) {
+			return result
+		}
+	}
+
 	// Derive update URL if not provided
 	updateURL := cfg.UpdateURL
 	if updateURL == "" {
@@ -153,6 +181,22 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 	appendInfo(result, "Found %d artifact(s) to deploy", len(artifacts))
 
 	// Upload each artifact
+	uploadResults, err := s.uploadArtifacts(ctx, client, input, result, cfg, remoteProfile, artifacts)
+	if err != nil {
+		return result
+	}
+
+	deployResult := &DeployResult{
+		Artifacts: uploadResults,
+		UpdateURL: updateURL,
+	}
+	input.DeployResult = deployResult
+
+	completeStage(result, s.timeProvider, deployResult)
+	return result
+}
+
+func (s *DeployStage) uploadArtifacts(ctx context.Context, client *deploy.LPBSClient, input *StageInput, result *StageResult, cfg *DeployConfig, remoteProfile string, artifacts map[string]string) ([]DeployArtifactResult, error) {
 	var uploadResults []DeployArtifactResult
 	releaseVersion := ""
 	if input.Config != nil {
@@ -165,7 +209,7 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 
 	for platform, artifactPath := range artifacts {
 		if checkCancellation(ctx, result, s.timeProvider) {
-			return result
+			return nil, fmt.Errorf("cancelled")
 		}
 
 		appendInfo(result, "Uploading %s artifact: %s", platform, artifactPath)
@@ -182,7 +226,7 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 		if err != nil {
 			failStage(result, s.timeProvider, errors.ErrDeployFailed(
 				fmt.Errorf("upload %s artifact: %w", platform, err), remoteProfile))
-			return result
+			return nil, err
 		}
 		appendInfo(result, "Uploaded %s artifact: artifact_id=%d", platform, uploadResult.ArtifactID)
 		uploadResults = append(uploadResults, DeployArtifactResult{
@@ -190,18 +234,7 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 			Platform:   uploadResult.Platform,
 		})
 	}
-
-	// Build deploy result
-	deployResult := &DeployResult{
-		Artifacts: uploadResults,
-		UpdateURL: updateURL,
-	}
-
-	// Update input for subsequent stages
-	input.DeployResult = deployResult
-
-	completeStage(result, s.timeProvider, deployResult)
-	return result
+	return uploadResults, nil
 }
 
 // resolveTarget determines the LPBS scenario name and remote profile from config.
@@ -215,6 +248,9 @@ func (s *DeployStage) resolveTarget(cfg *DeployConfig) (scenarioName, remoteProf
 		if err != nil {
 			return "", "", fmt.Errorf("resolve deploy target %q: %w", cfg.TargetName, err)
 		}
+		if cfg.DeploymentManagerProfileID == "" && target.DeploymentManagerProfileID != "" {
+			cfg.DeploymentManagerProfileID = target.DeploymentManagerProfileID
+		}
 		return target.ScenarioName, target.RemoteProfile, nil
 	}
 
@@ -226,4 +262,103 @@ func (s *DeployStage) resolveTarget(cfg *DeployConfig) (scenarioName, remoteProf
 		return "", "", fmt.Errorf("remote_profile is required when using inline deploy config")
 	}
 	return cfg.ScenarioName, cfg.RemoteProfile, nil
+}
+
+// parseDurationOr parses a duration string, returning fallback if empty or invalid.
+func parseDurationOr(s string, fallback time.Duration) time.Duration {
+	if s == "" {
+		return fallback
+	}
+	if d, err := time.ParseDuration(s); err == nil {
+		return d
+	}
+	return fallback
+}
+
+// handleApprovalGate creates pending approvals and polls until the gate clears or times out.
+func (s *DeployStage) handleApprovalGate(ctx context.Context, input *StageInput, result *StageResult, cfg *DeployConfig, platforms []string) error {
+	dmClient, err := s.dmClientFactory(ctx)
+	if err != nil {
+		return fmt.Errorf("create deployment-manager client: %w", err)
+	}
+
+	gitHash := ""
+	if input.Provenance != nil {
+		gitHash = input.Provenance.GitCommitHash
+	}
+
+	if err := s.createPlatformApprovals(ctx, dmClient, result, cfg, gitHash, platforms); err != nil {
+		return err
+	}
+
+	gateTimeout := parseDurationOr(cfg.GateTimeout, DefaultGateTimeout)
+	pollInterval := parseDurationOr(cfg.GatePollInterval, DefaultGatePollInterval)
+
+	return s.pollGate(ctx, dmClient, input, result, cfg, gitHash, gateTimeout, pollInterval)
+}
+
+func (s *DeployStage) createPlatformApprovals(ctx context.Context, dmClient *deploy.DMClient, result *StageResult, cfg *DeployConfig, gitHash string, platforms []string) error {
+	appendInfo(result, "Creating approval requests for %d platform(s)...", len(platforms))
+	for _, platform := range platforms {
+		if _, err := dmClient.CreateApproval(ctx, cfg.DeploymentManagerProfileID, gitHash, platform); err != nil {
+			return fmt.Errorf("create approval for %s: %w", platform, err)
+		}
+	}
+	appendInfo(result, "Approval requests created, checking gate status...")
+	return nil
+}
+
+func (s *DeployStage) pollGate(ctx context.Context, dmClient *deploy.DMClient, input *StageInput, result *StageResult, cfg *DeployConfig, gitHash string, gateTimeout, pollInterval time.Duration) error {
+	deadline := time.Now().Add(gateTimeout)
+	currentInterval := pollInterval
+
+	for {
+		gate, err := dmClient.CheckReleaseGate(ctx, cfg.DeploymentManagerProfileID, gitHash)
+		if err != nil {
+			return fmt.Errorf("check release gate: %w", err)
+		}
+
+		blocked := gate.BlockedPlatforms()
+		if len(blocked) == 0 {
+			appendInfo(result, "All approval gates cleared")
+			if input.GateStateReporter != nil {
+				input.GateStateReporter(false)
+			}
+			return nil
+		}
+
+		if input.GateStateReporter != nil {
+			input.GateStateReporter(true)
+		}
+		appendInfo(result, "Gate blocked for: %s (polling every %s)", strings.Join(blocked, ", "), currentInterval)
+
+		if time.Now().After(deadline) {
+			return fmt.Errorf("approval gate timed out after %s; blocked platforms: %s", gateTimeout, strings.Join(blocked, ", "))
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(currentInterval):
+		}
+
+		currentInterval *= 2
+		if currentInterval > DefaultGatePollCap {
+			currentInterval = DefaultGatePollCap
+		}
+	}
+}
+
+// collectBuiltPlatforms returns the list of platforms with ready artifacts.
+func collectBuiltPlatforms(input *StageInput) []string {
+	if input.BuildResult == nil {
+		return nil
+	}
+	var platforms []string
+	for platform, pr := range input.BuildResult.PlatformResults {
+		if pr != nil && pr.Status == BuildStatusReady {
+			platforms = append(platforms, platform)
+		}
+	}
+	return platforms
 }

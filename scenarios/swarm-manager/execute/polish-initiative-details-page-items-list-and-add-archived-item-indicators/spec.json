@@ -1,0 +1,19 @@
+{
+  "created": "2026-04-10T16:52:23Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "The items list on the initiative details page looks unpolished and unprofessional. Add visual indicators for archived items so their state is clear, and improve the overall presentation and polish of the items list section.",
+  "kind": "execute",
+  "name": "polish-initiative-details-page-items-list-and-add-archived-item-indicators",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [
+    "swarm-manager",
+    "initiative-details",
+    "ui-polish",
+    "archived-items"
+  ],
+  "title": "Polish initiative details page items list and add archived item indicators",
+  "updated": "2026-04-10T16:52:23Z"
+}
