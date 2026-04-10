@@ -128,7 +128,7 @@
         },
         {
           "name": "start-api",
-          "run": "if [[ -f api/start.sh ]]; then (PORT=$VROOLI_API_PORT api/start.sh >/dev/null 2>&1 &) && echo '🚀 Vrooli API started on port $VROOLI_API_PORT with native scenario management' || echo '⚠️  Failed to start API'; else echo '⚠️  API not found'; fi; true",
+          "run": "if [[ -f api/start.sh ]]; then mkdir -p .vrooli/logs && log_file=.vrooli/logs/vrooli-api.log && (APP_ROOT=$(pwd) VROOLI_ROOT=$(pwd) VROOLI_API_PORT=${VROOLI_API_PORT:-8092} api/start.sh &> \"$log_file\" &) && api_healthy=false && for attempt in $(seq 1 30); do if curl -fsS \"http://127.0.0.1:${VROOLI_API_PORT:-8092}/health\" >/dev/null; then api_healthy=true; break; fi; sleep 1; done && if [[ \"$api_healthy\" == true ]]; then echo \"🚀 Vrooli API healthy on port ${VROOLI_API_PORT:-8092} with native scenario management\"; else echo \"❌ Vrooli API failed health check on port ${VROOLI_API_PORT:-8092}\"; tail -n 20 \"$log_file\"; exit 1; fi; else echo '⚠️  API not found'; exit 1; fi",
           "description": "Start the Vrooli unified API server with built-in scenario management"
         },
         {

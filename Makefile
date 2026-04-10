@@ -1,166 +1,124 @@
-# Vrooli - Self-Improving Intelligence System
-# 
-# This Makefile provides quick access to common development commands.
-# For detailed help on any command, use: vrooli <command> --help
-#
-# Quick Start:
-#   make setup    - First-time setup (installs CLI, resources, etc.)
-#   make dev      - Start development environment
-#   make test     - Run scenario tests (see help)
-#   make help     - Show this help message
+.PHONY: help build install test clean setup dev develop deploy status scenarios resources lifecycle-build validate-week0-week1
 
-.PHONY: help setup dev develop build test clean deploy status scenarios shell
-
-# Default target - show help
 .DEFAULT_GOAL := help
 
-# Colors for output
-YELLOW := \033[1;33m
-GREEN := \033[1;32m
-BLUE := \033[1;34m
-RESET := \033[0m
+BUILD_DIR := .vrooli/build
+INSTALL_DIR := $(HOME)/.vrooli/bin
+GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
+BUILD_TIME := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+BUILDINFO_PKG := github.com/vrooli/vrooli/internal/buildinfo
+VROOLI_API_FINGERPRINT := $(shell go run ./cmd/vrooli-buildmeta --root . cmd/vrooli-api internal)
+VROOLI_CLI_FINGERPRINT := $(shell go run ./cmd/vrooli-buildmeta --root . cmd/vrooli internal)
+COMMON_LDFLAGS := -s -w \
+	-X $(BUILDINFO_PKG).GitCommit=$(GIT_COMMIT) \
+	-X $(BUILDINFO_PKG).BuildTime=$(BUILD_TIME)
+VROOLI_API_LDFLAGS := $(COMMON_LDFLAGS) -X $(BUILDINFO_PKG).Fingerprint=$(VROOLI_API_FINGERPRINT)
+VROOLI_CLI_LDFLAGS := $(COMMON_LDFLAGS) -X $(BUILDINFO_PKG).Fingerprint=$(VROOLI_CLI_FINGERPRINT)
 
-help: ## Show this help message
-	@echo "$(BLUE)🚀 Vrooli Development Commands$(RESET)"
-	@echo ""
-	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make <command>"
-	@echo ""
-	@echo "$(YELLOW)Essential Commands:$(RESET)"
-	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-20s$(RESET) %s\n", $$1, $$2}'
-	@echo ""
-	@echo "$(YELLOW)More Commands:$(RESET)"
-	@echo "  $(GREEN)vrooli --help$(RESET)        Show all CLI commands"
-	@echo "  $(GREEN)vrooli scenario list$(RESET) List available scenarios"
-	@echo ""
-	@echo "$(YELLOW)Documentation:$(RESET)"
-	@echo "  📚 README.md          - Project overview"
-	@echo "  📖 docs/README.md     - Full documentation"
-	@echo "  🧠 CLAUDE.md          - AI assistant context"
+help: ## Show available project-level targets
+	@printf "Vrooli project-level Go targets\n\n"
+	@printf "  make build          Build project-level Go binaries into %s\n" "$(BUILD_DIR)"
+	@printf "  make install        Install project-level Go binaries into %s\n" "$(INSTALL_DIR)"
+	@printf "  make test           Run project-level Go tests\n"
+	@printf "  make clean          Remove project-level Go build artifacts\n"
+	@printf "  make validate-week0-week1 Run the repeatable Week 0/1 acceptance suite\n"
+	@printf "\nCompatibility helpers\n"
+	@printf "  make setup          Run the existing setup workflow\n"
+	@printf "  make dev            Start the existing development workflow\n"
+	@printf "  make lifecycle-build Run the existing Bash/CLI build phase\n"
 
-# Core lifecycle commands
-setup: ## Initialize development environment (first time setup)
-	@echo "$(BLUE)🔧 Setting up Vrooli development environment...$(RESET)"
+build: ## Build project-level Go binaries into .vrooli/build
+	@mkdir -p $(BUILD_DIR)
+	CGO_ENABLED=0 go build -trimpath -ldflags "$(VROOLI_API_LDFLAGS)" -o $(BUILD_DIR)/vrooli-api ./cmd/vrooli-api
+	CGO_ENABLED=0 go build -trimpath -ldflags "$(VROOLI_CLI_LDFLAGS)" -o $(BUILD_DIR)/vrooli ./cmd/vrooli
+
+install: build ## Install project-level Go binaries into ~/.vrooli/bin
+	@mkdir -p $(INSTALL_DIR)
+	install -m 0755 $(BUILD_DIR)/vrooli-api $(INSTALL_DIR)/vrooli-api
+	install -m 0755 $(BUILD_DIR)/vrooli $(INSTALL_DIR)/vrooli
+
+test: ## Run project-level Go tests
+	go test ./internal/...
+	go test ./cmd/vrooli-buildmeta
+	go test ./cmd/vrooli
+	go test -tags testing ./cmd/vrooli-api
+
+validate-week0-week1: ## Run the repeatable Week 0/1 acceptance suite
+	$(MAKE) clean
+	$(MAKE) build
+	$(MAKE) install
+	$(MAKE) test
+	~/.vrooli/bin/vrooli --version
+	~/.vrooli/bin/vrooli info --list
+	tmp_go=$$(mktemp); \
+	tmp_bash=$$(mktemp); \
+	~/.vrooli/bin/vrooli scenario list > "$$tmp_go"; \
+	VROOLI_FORCE_BASH=1 ~/.vrooli/bin/vrooli scenario list > "$$tmp_bash"; \
+	diff -u "$$tmp_go" "$$tmp_bash"; \
+	rm -f "$$tmp_go" "$$tmp_bash"
+	tmp_home=$$(mktemp -d); \
+	touch "$$tmp_home/.bashrc"; \
+	mkdir -p "$$tmp_home/.local/bin" "$$tmp_home/.vrooli/bin"; \
+	ln -s "$$(pwd)/cli/vrooli" "$$tmp_home/.local/bin/vrooli"; \
+	HOME="$$tmp_home" PATH="/usr/bin:/bin:$$PATH" ./cli/install.sh --force > /tmp/vrooli-install-smoke.log; \
+	test -x "$$tmp_home/.vrooli/bin/vrooli"; \
+	test ! -e "$$tmp_home/.local/bin/vrooli"; \
+	grep -Fq "export PATH=\"$$tmp_home/.vrooli/bin:\$$PATH\"" "$$tmp_home/.bashrc"; \
+	rm -rf "$$tmp_home"
+	tmp_source=$$(mktemp); \
+	cp cmd/vrooli/main.go "$$tmp_source"; \
+	trap 'cp "$$tmp_source" cmd/vrooli/main.go; rm -f "$$tmp_source"; $(MAKE) install > /tmp/vrooli-restore.log' EXIT; \
+	printf '\n// validation marker: stale-check smoke\n' >> cmd/vrooli/main.go; \
+	before_sum=$$(sha256sum ~/.vrooli/bin/vrooli | awk '{print $$1}'); \
+	~/.vrooli/bin/vrooli scenario list > /tmp/vrooli-stale-check-1.txt; \
+	after_sum=$$(sha256sum ~/.vrooli/bin/vrooli | awk '{print $$1}'); \
+	test "$$before_sum" != "$$after_sum"; \
+	~/.vrooli/bin/vrooli scenario list > /tmp/vrooli-stale-check-2.txt; \
+	final_sum=$$(sha256sum ~/.vrooli/bin/vrooli | awk '{print $$1}'); \
+	test "$$after_sum" = "$$final_sum"; \
+	cp "$$tmp_source" cmd/vrooli/main.go; \
+	rm -f "$$tmp_source"; \
+	trap - EXIT; \
+	$(MAKE) install > /tmp/vrooli-restore.log
+	tmpdir=$$(mktemp -d); \
+	logfile="$$tmpdir/api.log"; \
+	VROOLI_API_PORT=18092 APP_ROOT="$$(pwd)" VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" api/start.sh > "$$logfile" 2>> "$$logfile" & \
+	pid=$$!; \
+	ok=0; \
+	for attempt in $$(seq 1 20); do \
+		if curl -fsS "http://127.0.0.1:18092/health" > /dev/null 2> /dev/null; then \
+			ok=1; \
+			break; \
+		fi; \
+		sleep 1; \
+	done; \
+	kill "$$pid" > /dev/null 2> /dev/null || true; \
+	wait "$$pid" > /dev/null 2> /dev/null || true; \
+	test "$$ok" = "1"; \
+	rm -rf "$$tmpdir"
+
+clean: ## Remove project-level Go build artifacts
+	rm -rf $(BUILD_DIR)
+
+setup: ## Run the existing setup workflow
 	./scripts/manage.sh setup
 
-dev: ## Start development environment
-	@echo "$(BLUE)🚀 Starting Vrooli development environment...$(RESET)"
+dev: ## Start the existing development workflow
 	vrooli develop
 
-develop: dev ## Alias for 'make dev'
+develop: dev ## Alias for make dev
 
-build: ## Build the project
-	@echo "$(BLUE)🏗️  Building Vrooli...$(RESET)"
-	vrooli build
-
-deploy: ## Deploy to production
-	@echo "$(BLUE)🚢 Deploying Vrooli...$(RESET)"
+deploy: ## Run the existing deploy workflow
 	vrooli deploy
 
-clean: ## Clean build artifacts and caches
-	@echo "$(BLUE)🧹 Cleaning build artifacts...$(RESET)"
-	vrooli clean
+status: ## Show current Vrooli status
+	vrooli status
 
-# Testing command
-test: ## Run scenario tests (use test-genie or vrooli scenario test)
-	@echo "$(BLUE)🧪 Run scenario tests with:$(RESET)"
-	@echo "  - vrooli scenario test <name>"
-	@echo "  - cd scenarios/<name> && test-genie execute <name> --preset quick --fail-fast"
+scenarios: ## List scenarios through the existing CLI
+	vrooli scenario list
 
-# Status and info commands
-status: ## Show system status and running services
-	@echo "$(BLUE)📊 Vrooli System Status$(RESET)"
-	@echo ""
-	@if command -v vrooli >/dev/null 2>&1; then \
-		echo "$(GREEN)✓ Vrooli CLI installed$(RESET)"; \
-	else \
-		echo "$(YELLOW)⚠ Vrooli CLI not installed (run 'make setup')$(RESET)"; \
-	fi
-	@echo ""
-	@if [[ -d "scenarios" ]]; then \
-		echo "$(YELLOW)Scenarios:$(RESET)"; \
-		ls -1 "scenarios" 2>/dev/null | head -10 | sed 's/^/  📱 /' || echo "  (none)"; \
-	else \
-		echo "$(YELLOW)No scenarios found$(RESET)"; \
-	fi
-	@echo ""
-	@echo "Run 'vrooli resource status' for detailed resource information"
+resources: ## Show resource status through the existing CLI
+	vrooli resource status
 
-# Scenario shortcuts
-scenarios: ## List available scenarios
-	@echo "$(BLUE)📋 Available Scenarios:$(RESET)"
-	@vrooli scenario list
-
-# Developer utilities
-shell: ## Start interactive shell with Vrooli environment
-	@echo "$(BLUE)🐚 Starting Vrooli shell...$(RESET)"
-	@bash --init-file <(echo '. ~/.bashrc; export VROOLI_ROOT=$$(pwd); echo "Vrooli shell ready. Commands: vrooli --help"')
-
-logs: ## Show recent logs
-	@echo "$(BLUE)📜 Recent Vrooli logs:$(RESET)"
-	@if [[ -f logs/vrooli.log ]]; then \
-		tail -n 50 logs/vrooli.log; \
-	else \
-		echo "No logs found. Logs will appear after running commands."; \
-	fi
-
-# Installation helpers
-install-cli: ## Install/reinstall Vrooli CLI
-	@echo "$(BLUE)📦 Installing Vrooli CLI...$(RESET)"
-	@if [[ -f cli/install.sh ]]; then \
-		cli/install.sh; \
-	else \
-		echo "$(YELLOW)CLI installer not found. Run 'make setup' first.$(RESET)"; \
-	fi
-
-uninstall-cli: ## Uninstall Vrooli CLI
-	@echo "$(BLUE)🗑️  Uninstalling Vrooli CLI...$(RESET)"
-	@rm -f ~/.local/bin/vrooli
-	@echo "$(GREEN)✓ Vrooli CLI uninstalled$(RESET)"
-
-# Resource management
-resources: ## Show resource status
-	@echo "$(BLUE)🔌 Resource Status:$(RESET)"
-	@vrooli resource status
-
-install-resource: ## Install a specific resource (interactive)
-	@echo "$(BLUE)📦 Resource Installer:$(RESET)"
-	@vrooli resource install
-
-# Advanced commands for power users
-debug-test: ## Run tests with debug output
-	@echo "$(BLUE)🐛 Running tests in debug mode...$(RESET)"
-	@LOG_LEVEL=DEBUG vrooli test --verbose
-
-validate: ## Validate project configuration
-	@echo "$(BLUE)✅ Validating Vrooli configuration...$(RESET)"
-	@echo "Checking service.json..."
-	@if [[ -f .vrooli/service.json ]]; then \
-		echo "$(GREEN)✓ service.json found$(RESET)"; \
-	else \
-		echo "$(YELLOW)⚠ service.json missing$(RESET)"; \
-	fi
-	@echo "Checking scenarios..."
-	@echo "$(GREEN)✓ Scenarios validated$(RESET)"
-
-# Docker commands (if using Docker)
-docker-up: ## Start Docker services
-	@echo "$(BLUE)🐳 Starting Docker services...$(RESET)"
-	@docker compose up -d
-
-docker-down: ## Stop Docker services
-	@echo "$(BLUE)🐳 Stopping Docker services...$(RESET)"
-	@docker compose down
-
-docker-logs: ## Show Docker logs
-	@echo "$(BLUE)🐳 Docker logs:$(RESET)"
-	@docker compose logs --tail=50
-
-# Convenience aliases
-s: setup
-d: dev
-t: test
-b: build
-c: clean
-h: help
+lifecycle-build: ## Run the existing Bash/CLI build phase
+	vrooli build

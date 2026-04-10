@@ -1,4 +1,4 @@
-module vrooli.com/api
+module github.com/vrooli/vrooli
 
 go 1.21
 

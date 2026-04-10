@@ -1,6 +1,6 @@
 # Project-Level Bash → Go Migration Plan
 
-**Status:** Not yet started
+**Status:** Week 1 complete
 **Owner:** Matthew Halloran
 **Scope:** Project-level orchestration only. Scenarios are explicitly out of scope.
 **Target:** Zero project-level bash in ~6 weeks, on a path to cross-platform support.
@@ -220,7 +220,7 @@ Strangler pattern. Each week delivers value standalone. Bash stays working until
 
 **Goal:** Get the scaffolding in place so every subsequent week is additive, not restructuring.
 
-- [ ] Create `/go.mod` at repo root with module path `github.com/Vrooli/vrooli`
+- [ ] Create `/go.mod` at repo root with module path `github.com/vrooli/vrooli`
 - [ ] Move `api/main.go` → `cmd/vrooli-api/main.go`; verify `vrooli develop` still launches it correctly
 - [ ] Stand up `internal/buildinfo`:
   - `Fingerprint`, `GitCommit`, `BuildTime` vars populated by ldflags
@@ -438,7 +438,7 @@ Apply these throughout all six weeks:
 
 These don't block starting the work, but should be resolved as they come up:
 
-- ~~**Module path.**~~ **DECIDED:** Use `github.com/Vrooli/vrooli` (lowercase, matching the convention of the existing scenario shared packages like `github.com/vrooli/cli-core`). Rationale: it's the standard Go convention (module paths should be fetchable VCS URLs), avoids the operational burden of serving vanity-import meta tags, and stays consistent with the existing `packages/cli-core` and `packages/api-core` module paths. The existing `api/go.mod` using `vrooli.com/api` is the outlier and gets fixed during the Week 0 move from `api/` → `cmd/vrooli-api/`.
+- ~~**Module path.**~~ **DECIDED:** Use `github.com/vrooli/vrooli` (all lowercase, matching the convention of the existing scenario shared packages like `github.com/vrooli/cli-core`). Rationale: it's the standard Go convention (module paths should be fetchable VCS URLs), avoids the operational burden of serving vanity-import meta tags, and stays consistent with the existing `packages/cli-core` and `packages/api-core` module paths. The existing `api/go.mod` using `vrooli.com/api` is the outlier and gets fixed during the Week 0 move from `api/` → `cmd/vrooli-api/`.
 - **`packages/api-core` reuse for `cmd/vrooli-api`.** Does the project-level API server benefit from importing the scenario-facing `packages/api-core`, or should it use its own HTTP lifecycle from `internal/`? Recommendation: use `packages/api-core/server` since it already handles graceful shutdown and signals correctly, and it's a one-way dependency (project uses scenario lib, not vice versa).
 - **Secrets encryption scheme.** age vs AES-GCM vs reuse whatever Bash uses today. Decide in Week 6 when you start on `internal/secrets`.
 - **Windows story.** Is Windows a first-class target, or a "best effort" target where certain commands are unavailable? This affects how much effort goes into `internal/runtime/runtime_windows.go`. Recommendation: second-class for now — `vrooli develop` against containerized resources should work, but `vrooli setup` can be "Linux only, use WSL on Windows for setup" initially.
@@ -450,20 +450,24 @@ These don't block starting the work, but should be resolved as they come up:
 Update this section as work lands. Check boxes for completed items, note the PR number and date.
 
 ### Week 0 — Foundation
-- [ ] `/go.mod` created
-- [ ] `api/main.go` → `cmd/vrooli-api/main.go` moved
-- [ ] `internal/buildinfo` package shipped
-- [ ] `internal/logx` package shipped
-- [ ] `internal/cliout` package shipped
-- [ ] `/Makefile` with standardized build targets
-- [ ] `.vrooli/build/` in `.gitignore`
+- [x] `/go.mod` created
+- [x] `api/main.go` → `cmd/vrooli-api/main.go` moved
+- [x] `internal/buildinfo` package shipped
+- [x] `internal/logx` package shipped
+- [x] `internal/cliout` package shipped
+- [x] `/Makefile` with standardized build targets
+- [x] `.vrooli/build/` in `.gitignore`
+
+Validation note: As of 2026-04-10, the repeatable acceptance target `make validate-week0-week1` is green. For Week 0 specifically, that target covers `make clean`, `make build`, `make install`, `make test`, a direct `api/start.sh` health smoke on `VROOLI_API_PORT=18092`, and a fresh `VROOLI_API_PORT=18093 vrooli develop` smoke that reached a healthy API and completed the `vrooli-orchestrator` startup flow. The `vrooli develop` validation was followed by `cd scenarios/vrooli-orchestrator && make stop` to restore runtime state. Reaching a green `vrooli develop` required clearing unrelated `vrooli-orchestrator` setup issues discovered during the original validation: correcting the postgres initialization type to `seed`, making the schema/seed SQL idempotent, aligning the UI lifecycle steps with `pnpm`, and removing a runtime profile-creation step that depended on the orchestrator being up before setup had finished.
 
 ### Week 1 — Dispatcher shim
-- [ ] `cmd/vrooli/` pass-through dispatcher
-- [ ] Stale-check + rebuild+re-exec wired in
-- [ ] `VROOLI_FORCE_BASH` escape hatch
-- [ ] Setup script updated to install Go binary
-- [ ] Integration test: `vrooli scenario list` via Go dispatcher
+- [x] `cmd/vrooli/` pass-through dispatcher
+- [x] Stale-check + rebuild+re-exec wired in
+- [x] `VROOLI_FORCE_BASH` escape hatch
+- [x] Setup script updated to install Go binary
+- [x] Integration test: `vrooli scenario list` via Go dispatcher
+
+Validation note: As of 2026-04-10, the repeatable acceptance target `make validate-week0-week1` is green. For Week 1 specifically, that target covers `~/.vrooli/bin/vrooli --version`, `~/.vrooli/bin/vrooli info --list`, `diff -u` parity between the Go dispatcher and `VROOLI_FORCE_BASH=1` for `vrooli scenario list`, a temp-`HOME` installer smoke test for `cli/install.sh --force`, and a stale-check smoke that appends a temporary comment to `cmd/vrooli/main.go`, verifies the installed binary checksum changes on the next invocation, and then verifies the checksum stabilizes on the following invocation. The checksum-based stale smoke replaced the older `stat` mtime check because filesystem timestamp granularity can hide a real rebuild when both runs happen within the same second.
 
 ### Week 2 — Read-only scenario commands
 - [ ] `internal/scenario` package (with sandbox awareness)

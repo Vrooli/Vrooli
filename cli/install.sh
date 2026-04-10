@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 ################################################################################
 # Vrooli CLI Installation Script
-# 
-# Installs the 'vrooli' command by creating a symlink in the user's PATH.
+#
+# Installs the Go-based 'vrooli' CLI into ~/.vrooli/bin.
 #
 # Usage:
 #   ./install.sh [--uninstall]
@@ -13,9 +13,9 @@ set -euo pipefail
 
 # Get script directory
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/.." && builtin pwd)}"
-CLI_DIR="${APP_ROOT}/cli"
 VROOLI_ROOT="${APP_ROOT}"
-CLI_SCRIPT="$CLI_DIR/vrooli"
+INSTALL_DIR="${HOME}/.vrooli/bin"
+INSTALLED_BINARY="${INSTALL_DIR}/vrooli"
 
 # Colors for output
 RED='\033[0;31m'
@@ -39,34 +39,6 @@ check_path() {
 	return 1
 }
 
-# Find appropriate installation directory
-find_install_dir() {
-	# Check common user bin directories in order of preference
-	local dirs=(
-		"$HOME/.local/bin"
-		"$HOME/bin"
-		"/usr/local/bin"
-	)
-	
-	for dir in "${dirs[@]}"; do
-		# Check if directory exists and is in PATH
-		if [[ -d "$dir" ]] && check_path "$dir"; then
-			# Check if we can write to it
-			if [[ -w "$dir" ]]; then
-				echo "$dir"
-				return 0
-			elif [[ "$dir" == "/usr/local/bin" ]]; then
-				# For /usr/local/bin, we might need sudo
-				echo "$dir"
-				return 0
-			fi
-		fi
-	done
-	
-	# Default to ~/.local/bin (will create if needed)
-	echo "$HOME/.local/bin"
-}
-
 # Add directory to PATH in shell config
 add_to_path() {
 	local dir="$1"
@@ -88,133 +60,100 @@ add_to_path() {
 		if ! grep -qE "(^|:)${dir}(:|$)" "$shell_config" 2>/dev/null; then
 			echo "" >> "$shell_config"
 			echo "# Added by Vrooli CLI installer" >> "$shell_config"
-			echo "export PATH=\"\$PATH:$dir\"" >> "$shell_config"
+			echo "export PATH=\"$dir:\$PATH\"" >> "$shell_config"
 			print_success "Added $dir to PATH in $shell_config"
 			print_info "   Run 'source $shell_config' or open a new terminal"
 		fi
 	else
 		print_warning "Could not determine shell configuration file"
 		print_info "   Add this to your shell configuration:"
-		print_info "   export PATH=\"\$PATH:$dir\""
+		print_info "   export PATH=\"$dir:\$PATH\""
 	fi
 }
 
 # Check if CLI is already installed and up-to-date
 check_existing_installation() {
-	local symlink_path="$1"
-	
-	# Check if symlink exists and points to the correct location
-	if [[ -L "$symlink_path" ]]; then
-		local current_target
-		current_target=$(readlink -f "$symlink_path" 2>/dev/null)
-		local expected_target
-		expected_target=$(readlink -f "$CLI_SCRIPT" 2>/dev/null)
-		
-		if [[ "$current_target" == "$expected_target" ]]; then
-			return 0  # Already installed and pointing to correct location
+	[[ -x "$INSTALLED_BINARY" ]]
+}
+
+is_legacy_bash_install() {
+	local location="$1"
+	[[ -L "$location" ]] || return 1
+
+	local resolved
+	resolved=$(readlink -f "$location" 2>/dev/null || true)
+	[[ -n "$resolved" ]] || return 1
+	[[ "$resolved" == */cli/vrooli ]]
+}
+
+remove_legacy_installations() {
+	local locations=(
+		"$HOME/.local/bin/vrooli"
+		"$HOME/bin/vrooli"
+		"/usr/local/bin/vrooli"
+	)
+	local removed=false
+
+	for location in "${locations[@]}"; do
+		if is_legacy_bash_install "$location"; then
+			if [[ -w "${location%/*}" ]]; then
+				print_info "Removing legacy Bash CLI install: $location"
+				rm -f "$location"
+				removed=true
+			else
+				print_warning "Legacy Bash CLI install remains at $location (directory not writable)"
+			fi
 		fi
+	done
+
+	if [[ "$removed" == "true" ]]; then
+		print_info "Removed legacy Bash entrypoints so ~/.vrooli/bin/vrooli can take precedence"
 	fi
-	
-	return 1  # Not installed or pointing to wrong location
 }
 
 # Install the CLI
 install_cli() {
 	local force="${1:-false}"
-	
-	# Check if CLI script exists
-	if [[ ! -f "$CLI_SCRIPT" ]]; then
-		print_error "CLI script not found: $CLI_SCRIPT"
+
+	if [[ ! -f "$APP_ROOT/go.mod" ]]; then
+		print_error "Go module not found: $APP_ROOT/go.mod"
 		exit 1
 	fi
-	
-	# Find installation directory
-	local install_dir
-	install_dir=$(find_install_dir)
-	local symlink_path="$install_dir/vrooli"
-	
-	# Check if already installed and up-to-date (unless force is specified)
-	if [[ "$force" != "true" ]] && check_existing_installation "$symlink_path"; then
-		print_success "✅ Vrooli CLI is already installed and up-to-date!"
-		
-		# Check if the command is available in PATH
-		if command -v vrooli >/dev/null 2>&1; then
-			print_info "   Location: $symlink_path -> $CLI_SCRIPT"
-			
-			# Verify VROOLI_ROOT is set
-			if [[ -n "${VROOLI_ROOT:-}" ]]; then
-				print_info "   VROOLI_ROOT: $VROOLI_ROOT"
-			else
-				print_warning "   VROOLI_ROOT not set in current session"
-			fi
-			
-			echo ""
-			echo "The 'vrooli' command is ready to use!"
-			echo "Use --force to reinstall anyway"
-			return 0
-		else
-			# CLI is installed but not in PATH yet
-			if ! check_path "$install_dir"; then
-				print_warning "$install_dir is not in your PATH"
-				add_to_path "$install_dir"
-				echo ""
-				echo "To start using the CLI:"
-				echo "  source ~/.bashrc (or ~/.zshrc)"
-				echo "  Or open a new terminal"
-			fi
-			return 0
-		fi
-	fi
-	
+
 	print_info "🚀 Installing Vrooli CLI..."
 	echo ""
-	print_info "Installation directory: $install_dir"
-	
-	# Create directory if it doesn't exist
-	if [[ ! -d "$install_dir" ]]; then
-		print_info "Creating directory: $install_dir"
-		mkdir -p "$install_dir"
+	print_info "Installation directory: $INSTALL_DIR"
+
+	mkdir -p "$INSTALL_DIR"
+	remove_legacy_installations
+
+	if [[ "$force" != "true" ]] && check_existing_installation; then
+		print_info "Refreshing project-level Go binaries..."
 	fi
-	
-	# Check if we need sudo for installation
-	local use_sudo=false
-	if [[ "$install_dir" == "/usr/local/bin" ]] && [[ ! -w "$install_dir" ]]; then
-		use_sudo=true
-		print_warning "Installation to $install_dir requires sudo privileges"
-	fi
-	
-	# Remove existing symlink if it exists
-	if [[ -L "$symlink_path" ]] || [[ -f "$symlink_path" ]]; then
-		print_info "Removing existing installation..."
-		if [[ "$use_sudo" == "true" ]]; then
-			sudo rm -f "$symlink_path"
-		else
-			rm -f "$symlink_path"
-		fi
-	fi
-	
-	# Create symlink
-	print_info "Creating symlink..."
-	if [[ "$use_sudo" == "true" ]]; then
-		sudo ln -s "$CLI_SCRIPT" "$symlink_path"
-	else
-		ln -s "$CLI_SCRIPT" "$symlink_path"
-	fi
-	
-	# Verify installation
-	if [[ -L "$symlink_path" ]]; then
-		print_success "Symlink created: $symlink_path -> $CLI_SCRIPT"
-	else
-		print_error "Failed to create symlink"
+
+	if ! command -v make >/dev/null 2>&1; then
+		print_error "make is required to install the Go CLI"
 		exit 1
 	fi
-	
-	# Check if directory is in PATH
-	if ! check_path "$install_dir"; then
-		print_warning "$install_dir is not in your PATH"
-		add_to_path "$install_dir"
+
+	(
+		cd "$APP_ROOT"
+		make install
+	)
+
+	if [[ ! -x "$INSTALLED_BINARY" ]]; then
+		print_error "Failed to install Go CLI binary at $INSTALLED_BINARY"
+		exit 1
 	fi
-	
+
+	print_success "Installed Go CLI binary: $INSTALLED_BINARY"
+
+	# Check if directory is in PATH
+	if ! check_path "$INSTALL_DIR"; then
+		print_warning "$INSTALL_DIR is not in your PATH"
+		add_to_path "$INSTALL_DIR"
+	fi
+
 	# Set VROOLI_ROOT environment variable
 	local shell_config=""
 	if [[ -n "${BASH_VERSION:-}" ]]; then
@@ -235,9 +174,9 @@ install_cli() {
 	echo ""
 	print_success "✅ Vrooli CLI installed successfully!"
 	echo ""
-	
-	# Test if command works
-	if command -v vrooli >/dev/null 2>&1; then
+
+	# Test if command works from the current shell
+	if check_path "$INSTALL_DIR" && command -v vrooli >/dev/null 2>&1 && [[ "$(readlink -f "$(command -v vrooli)" 2>/dev/null || true)" == "$(readlink -f "$INSTALLED_BINARY")" ]]; then
 		print_success "The 'vrooli' command is ready to use!"
 		echo ""
 		echo "Try these commands:"
@@ -245,13 +184,13 @@ install_cli() {
 		echo "  vrooli --version        # Show version"
 		echo "  vrooli scenario list    # List available scenarios"
 	else
-		print_warning "The 'vrooli' command is not yet available in this session"
+		print_warning "The Go-based 'vrooli' command is not yet active in this shell session"
 		echo ""
 		echo "To start using it:"
 		if [[ -n "$shell_config" ]]; then
 			echo "  source $shell_config"
 		else
-			echo "  export PATH=\"\\$PATH:$install_dir\""
+			echo "  export PATH=\"\\$PATH:$INSTALL_DIR\""
 		fi
 		echo "  Or open a new terminal"
 	fi
@@ -264,8 +203,9 @@ uninstall_cli() {
 	
 	local removed=false
 	
-	# Check common locations
+	# Check current and legacy locations
 	local locations=(
+		"$HOME/.vrooli/bin/vrooli"
 		"$HOME/.local/bin/vrooli"
 		"$HOME/bin/vrooli"
 		"/usr/local/bin/vrooli"
@@ -274,11 +214,7 @@ uninstall_cli() {
 	for location in "${locations[@]}"; do
 		if [[ -L "$location" ]] || [[ -f "$location" ]]; then
 			print_info "Removing: $location"
-			if [[ "$location" == "/usr/local/bin/vrooli" ]] && [[ ! -w "${location%/*}" ]]; then
-				sudo rm -f "$location"
-			else
-				rm -f "$location"
-			fi
+			rm -f "$location"
 			removed=true
 		fi
 	done
@@ -316,23 +252,14 @@ OPTIONS:
     --help, -h          Show this help message
 
 DESCRIPTION:
-    This script installs the 'vrooli' command by creating a symlink
-    in a directory that's in your PATH.
+    This script installs the Go-based 'vrooli' binary into ~/.vrooli/bin.
     
     Features:
-    • Checks if CLI is already installed and up-to-date
-    • Skips installation if no changes are needed
-    • Finds appropriate directory in PATH automatically
-    • Creates symlink to the CLI script
-    • Adds directory to PATH if needed
+    • Builds the project-level Go binaries via 'make install'
+    • Installs the canonical CLI into ~/.vrooli/bin
+    • Adds ~/.vrooli/bin to PATH if needed
+    • Removes legacy Bash symlinks that would shadow the Go binary
     • Sets VROOLI_ROOT environment variable
-    
-    The script will skip installation if:
-    • The symlink already exists
-    • It points to the correct CLI script
-    • No updates are needed
-    
-    Use --force to reinstall regardless of current state.
 
 EOF
 			;;

@@ -129,7 +129,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install",
+          "run": "cd ui && if [[ -f pnpm-lock.yaml ]]; then pnpm install --frozen-lockfile; else npm install; fi",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -137,13 +137,13 @@
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm run build",
+          "run": "cd ui && if [[ -f pnpm-lock.yaml ]]; then pnpm run build; else npm run build; fi",
           "description": "Build profile management UI"
         },
         {
           "name": "create-default-profiles",
-          "run": "vrooli-orchestrator create-profile developer --resources postgres,n8n,ollama --scenarios system-monitor,app-debugger --description 'Full development environment with monitoring tools'",
-          "description": "Create default developer profile",
+          "run": "echo 'Default orchestrator profiles are seeded via initialization/postgres/seed.sql; skipping runtime profile creation during setup'",
+          "description": "Confirm default profiles come from seeded database content",
           "condition": {
             "binary_exists": "vrooli-orchestrator"
           }
@@ -223,7 +223,7 @@
           },
           {
             "file": "initialization/postgres/seed.sql",
-            "type": "data"
+            "type": "seed"
           }
         ]
       },

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -23,6 +24,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
+	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/logx"
 )
 
 // === Common Types ===
@@ -39,6 +43,9 @@ var (
 	commandFn  = func(ctx context.Context, name string, args ...string) ([]byte, error) {
 		return exec.CommandContext(ctx, name, args...).Output()
 	}
+	startAllScenariosFn = startAllScenariosNative
+	stopAllScenariosFn  = stopAllScenariosNative
+	stopScenarioFn      = stopScenarioNative
 )
 
 // === Native Scenario Management (Replaces Python Orchestrator) ===
@@ -1765,7 +1772,7 @@ func getScenarioStatusNative(w http.ResponseWriter, r *http.Request) {
 
 // Start all scenarios (replaces Python /scenarios/start-all)
 func startAllScenariosEndpoint(w http.ResponseWriter, r *http.Request) {
-	result, err := startAllScenariosNative()
+	result, err := startAllScenariosFn()
 	if err != nil {
 		json.NewEncoder(w).Encode(Response{
 			Success: false,
@@ -1880,7 +1887,7 @@ func getRunningApps(w http.ResponseWriter, r *http.Request) {
 
 // Start all enabled apps using native scenario management
 func startAllApps(w http.ResponseWriter, r *http.Request) {
-	result, err := startAllScenariosNative()
+	result, err := startAllScenariosFn()
 	if err != nil {
 		json.NewEncoder(w).Encode(Response{Error: fmt.Sprintf("Failed to start scenarios: %v", err)})
 		return
@@ -1891,7 +1898,7 @@ func startAllApps(w http.ResponseWriter, r *http.Request) {
 
 // Stop all running apps using native stop implementation
 func stopAllApps(w http.ResponseWriter, r *http.Request) {
-	result, err := stopAllScenariosNative()
+	result, err := stopAllScenariosFn()
 	if err != nil {
 		json.NewEncoder(w).Encode(Response{Error: fmt.Sprintf("Failed to stop scenarios: %v", err)})
 		return
@@ -1902,7 +1909,7 @@ func stopAllApps(w http.ResponseWriter, r *http.Request) {
 
 // Stop all scenarios endpoint
 func stopAllScenariosEndpoint(w http.ResponseWriter, r *http.Request) {
-	result, err := stopAllScenariosNative()
+	result, err := stopAllScenariosFn()
 	if err != nil {
 		json.NewEncoder(w).Encode(Response{
 			Success: false,
@@ -1921,7 +1928,7 @@ func stopAllScenariosEndpoint(w http.ResponseWriter, r *http.Request) {
 func stopScenarioEndpoint(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 
-	err := stopScenarioNative(name)
+	err := stopScenarioFn(name)
 	if err != nil {
 		json.NewEncoder(w).Encode(Response{
 			Success: false,
@@ -1969,10 +1976,25 @@ func getDetailedAppStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	logger := logx.New(logx.Options{Name: "vrooli-api"})
+	slog.SetDefault(logger)
+	logx.RedirectStandardLibrary(logger)
+
+	if err := enforceStrictFingerprint(); err != nil {
+		log.Fatalf("stale fingerprint check failed: %v", err)
+	}
+
 	port := os.Getenv("VROOLI_API_PORT")
 	if port == "" {
 		port = "8092"
 	}
+
+	log.Printf(
+		"build metadata loaded fingerprint=%s commit=%s build_time=%s",
+		buildinfo.Fingerprint,
+		buildinfo.GitCommit,
+		buildinfo.BuildTime,
+	)
 
 	// No longer starting orchestrator - using native Go scenario management
 	log.Println("🎛️  Using native Go scenario management")
@@ -1981,7 +2003,7 @@ func main() {
 	go func() {
 		// Wait for interrupt signal
 		ch := make(chan os.Signal, 1)
-		signal.Notify(ch, os.Interrupt, os.Kill)
+		signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
 		<-ch
 
 		log.Println("🛑 Shutting down gracefully...")
@@ -2023,4 +2045,21 @@ func main() {
 	log.Printf("🚀 Vrooli Unified API running on port %s", port)
 	log.Printf("   Scenario Management: ✅ native Go implementation")
 	log.Fatal(http.ListenAndServe(":"+port, r))
+}
+
+func enforceStrictFingerprint() error {
+	if os.Getenv("VROOLI_STRICT_FINGERPRINT") != "1" {
+		return nil
+	}
+
+	current, err := buildinfo.CurrentFingerprint()
+	if err != nil {
+		return err
+	}
+
+	if current == buildinfo.Fingerprint {
+		return nil
+	}
+
+	return fmt.Errorf("binary fingerprint %s does not match current sources %s", buildinfo.Fingerprint, current)
 }

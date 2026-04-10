@@ -4,9 +4,54 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"log"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/gorilla/mux"
 )
+
+func stubStartAllScenarios(t *testing.T, result map[string]interface{}, err error) {
+	t.Helper()
+	original := startAllScenariosFn
+	startAllScenariosFn = func() (map[string]interface{}, error) {
+		return result, err
+	}
+	t.Cleanup(func() {
+		startAllScenariosFn = original
+	})
+}
+
+func stubStopAllScenarios(t *testing.T, result map[string]interface{}, err error) {
+	t.Helper()
+	original := stopAllScenariosFn
+	stopAllScenariosFn = func() (map[string]interface{}, error) {
+		return result, err
+	}
+	t.Cleanup(func() {
+		stopAllScenariosFn = original
+	})
+}
+
+func stubStopScenario(t *testing.T, err error) {
+	t.Helper()
+	original := stopScenarioFn
+	stopScenarioFn = func(name string) error {
+		return err
+	}
+	t.Cleanup(func() {
+		stopScenarioFn = original
+	})
+}
 
 // TestHealthCheck tests the health check endpoint
 func TestHealthCheck(t *testing.T) {
@@ -29,6 +74,61 @@ func TestHealthCheck(t *testing.T) {
 			if _, ok := response["status"]; !ok {
 				t.Error("Expected status field in response")
 			}
+		}
+	})
+}
+
+func TestEnforceStrictFingerprint(t *testing.T) {
+	originalFingerprint := buildinfo.Fingerprint
+	t.Cleanup(func() {
+		buildinfo.Fingerprint = originalFingerprint
+	})
+
+	t.Run("Disabled", func(t *testing.T) {
+		t.Setenv("VROOLI_STRICT_FINGERPRINT", "")
+		if err := enforceStrictFingerprint(); err != nil {
+			t.Fatalf("enforceStrictFingerprint disabled: %v", err)
+		}
+	})
+
+	t.Run("Match", func(t *testing.T) {
+		root := t.TempDir()
+		writeGoTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
+		writeGoTestFile(t, root, "cmd/vrooli-api/main.go", "package main\n")
+		writeGoTestFile(t, root, "internal/logx/logx.go", "package logx\n")
+
+		t.Setenv("VROOLI_STRICT_FINGERPRINT", "1")
+		t.Setenv(buildinfo.SourceRootEnvVar, root)
+		t.Setenv(buildinfo.FingerprintPathsEnvVar, "cmd/vrooli-api,internal")
+
+		current, err := buildinfo.CurrentFingerprint()
+		if err != nil {
+			t.Fatalf("CurrentFingerprint: %v", err)
+		}
+		buildinfo.Fingerprint = current
+
+		if err := enforceStrictFingerprint(); err != nil {
+			t.Fatalf("enforceStrictFingerprint match: %v", err)
+		}
+	})
+
+	t.Run("Mismatch", func(t *testing.T) {
+		root := t.TempDir()
+		writeGoTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
+		writeGoTestFile(t, root, "cmd/vrooli-api/main.go", "package main\n")
+		writeGoTestFile(t, root, "internal/logx/logx.go", "package logx\n")
+
+		t.Setenv("VROOLI_STRICT_FINGERPRINT", "1")
+		t.Setenv(buildinfo.SourceRootEnvVar, root)
+		t.Setenv(buildinfo.FingerprintPathsEnvVar, "cmd/vrooli-api,internal")
+
+		buildinfo.Fingerprint = "stale-fingerprint"
+		err := enforceStrictFingerprint()
+		if err == nil {
+			t.Fatalf("expected mismatch error")
+		}
+		if !strings.Contains(err.Error(), "stale-fingerprint") {
+			t.Fatalf("mismatch error %q does not include embedded fingerprint", err)
 		}
 	})
 }
@@ -232,6 +332,8 @@ func TestStopScenarioEndpoint(t *testing.T) {
 	defer cleanup()
 
 	t.Run("NonexistentScenario", func(t *testing.T) {
+		stubStopScenario(t, nil)
+
 		w := testHandlerWithRequest(t, stopScenarioEndpoint, HTTPTestRequest{
 			Method:  "POST",
 			Path:    "/scenarios/nonexistent-scenario/stop",
@@ -313,6 +415,12 @@ func TestStopAllScenariosEndpoint(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Success", func(t *testing.T) {
+		stubStopAllScenarios(t, map[string]interface{}{
+			"stopped": []map[string]string{},
+			"failed":  []map[string]string{},
+			"message": "Stopped 0 scenarios, 0 failed",
+		}, nil)
+
 		w := testHandlerWithRequest(t, stopAllScenariosEndpoint, HTTPTestRequest{
 			Method: "POST",
 			Path:   "/scenarios/stop-all",
@@ -332,6 +440,12 @@ func TestStopAllApps(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Success", func(t *testing.T) {
+		stubStopAllScenarios(t, map[string]interface{}{
+			"stopped": []map[string]string{},
+			"failed":  []map[string]string{},
+			"message": "Stopped 0 scenarios, 0 failed",
+		}, nil)
+
 		w := testHandlerWithRequest(t, stopAllApps, HTTPTestRequest{
 			Method: "POST",
 			Path:   "/apps/stop-all",
@@ -351,6 +465,12 @@ func TestStartAllApps(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Success", func(t *testing.T) {
+		stubStartAllScenarios(t, map[string]interface{}{
+			"started": []map[string]string{},
+			"failed":  []map[string]string{},
+			"message": "Started 0 scenarios, 0 failed",
+		}, nil)
+
 		w := testHandlerWithRequest(t, startAllApps, HTTPTestRequest{
 			Method: "POST",
 			Path:   "/apps/start-all",
@@ -369,6 +489,12 @@ func TestStartAllScenariosEndpoint(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Success", func(t *testing.T) {
+		stubStartAllScenarios(t, map[string]interface{}{
+			"started": []map[string]string{},
+			"failed":  []map[string]string{},
+			"message": "Started 0 scenarios, 0 failed",
+		}, nil)
+
 		w := testHandlerWithRequest(t, startAllScenariosEndpoint, HTTPTestRequest{
 			Method: "POST",
 			Path:   "/scenarios/start-all",
@@ -522,5 +648,145 @@ func TestRouterIntegration(t *testing.T) {
 					tc.expectCode, w.Code, w.Body.String())
 			}
 		})
+	}
+}
+
+type HTTPTestRequest struct {
+	Method      string
+	Path        string
+	Body        io.Reader
+	Headers     map[string]string
+	QueryParams map[string]string
+	URLVars     map[string]string
+}
+
+func setupTestLogger() func() {
+	original := log.Writer()
+	log.SetOutput(io.Discard)
+	return func() {
+		log.SetOutput(original)
+	}
+}
+
+func setupTestRouter() *mux.Router {
+	router := mux.NewRouter()
+
+	router.HandleFunc("/health", healthCheck).Methods("GET")
+	router.HandleFunc("/metrics/processes", processMetricsHandler).Methods("GET")
+
+	router.HandleFunc("/apps", listApps).Methods("GET")
+	router.HandleFunc("/apps/running", getRunningApps).Methods("GET")
+	router.HandleFunc("/apps/start-all", startAllApps).Methods("POST")
+	router.HandleFunc("/apps/stop-all", stopAllApps).Methods("POST")
+	router.HandleFunc("/apps/{name}/protect", protectApp).Methods("POST")
+	router.HandleFunc("/apps/{name}/start", startApp).Methods("POST")
+	router.HandleFunc("/apps/{name}/stop", stopApp).Methods("POST")
+	router.HandleFunc("/apps/{name}/restart", restartApp).Methods("POST")
+	router.HandleFunc("/apps/{name}/logs", getAppLogs).Methods("GET")
+	router.HandleFunc("/apps/{name}/status", getDetailedAppStatus).Methods("GET")
+
+	router.HandleFunc("/scenarios", listScenariosNative).Methods("GET")
+	router.HandleFunc("/scenarios/{name}/status", getScenarioStatusNative).Methods("GET")
+	router.HandleFunc("/scenarios/{name}/start", startApp).Methods("POST")
+	router.HandleFunc("/scenarios/{name}/stop", stopScenarioEndpoint).Methods("POST")
+	router.HandleFunc("/scenarios/start-all", startAllScenariosEndpoint).Methods("POST")
+	router.HandleFunc("/scenarios/stop-all", stopAllScenariosEndpoint).Methods("POST")
+
+	router.HandleFunc("/resources", listResources).Methods("GET")
+	router.HandleFunc("/lifecycle/{action}", handleLifecycle).Methods("POST")
+
+	return router
+}
+
+func makeHTTPRequest(req HTTPTestRequest) (*httptest.ResponseRecorder, *http.Request, error) {
+	method := req.Method
+	if method == "" {
+		method = http.MethodGet
+	}
+
+	target := req.Path
+	if target == "" {
+		target = "/"
+	}
+
+	parsed, err := url.Parse(target)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	query := parsed.Query()
+	for key, value := range req.QueryParams {
+		query.Set(key, value)
+	}
+	parsed.RawQuery = query.Encode()
+
+	body := req.Body
+	if body == nil {
+		body = bytes.NewReader(nil)
+	}
+
+	httpReq := httptest.NewRequest(method, parsed.String(), body)
+	for key, value := range req.Headers {
+		httpReq.Header.Set(key, value)
+	}
+	if len(req.URLVars) > 0 {
+		httpReq = mux.SetURLVars(httpReq, req.URLVars)
+	}
+
+	return httptest.NewRecorder(), httpReq, nil
+}
+
+func testHandlerWithRequest(t *testing.T, handler func(http.ResponseWriter, *http.Request), req HTTPTestRequest) *httptest.ResponseRecorder {
+	t.Helper()
+
+	recorder, httpReq, err := makeHTTPRequest(req)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+
+	handler(recorder, httpReq)
+	return recorder
+}
+
+func assertJSONResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, expectedFields map[string]interface{}) map[string]interface{} {
+	t.Helper()
+
+	if w.Code != expectedStatus {
+		t.Fatalf("expected status %d, got %d. Response: %s", expectedStatus, w.Code, w.Body.String())
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("expected JSON response, got error %v. Body: %s", err, w.Body.String())
+	}
+
+	for key, value := range expectedFields {
+		if got, ok := response[key]; !ok || got != value {
+			t.Fatalf("expected response[%q] = %v, got %v", key, value, got)
+		}
+	}
+
+	return response
+}
+
+func assertSuccessResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int) map[string]interface{} {
+	t.Helper()
+
+	response := assertJSONResponse(t, w, expectedStatus, nil)
+	if success, ok := response["success"].(bool); ok && !success {
+		t.Fatalf("expected success response, got %v", response)
+	}
+	return response
+}
+
+func writeGoTestFile(t *testing.T, root, rel, contents string) {
+	t.Helper()
+
+	path := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", path, err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
 	}
 }

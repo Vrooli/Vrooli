@@ -25,7 +25,15 @@ INSERT INTO profiles (
     ARRAY['system-monitor', 'app-issue-tracker', 'app-monitor', 'scenario-auditor'],
     ARRAY['http://localhost:3000/system-monitor', 'http://localhost:3001/app-issue-tracker'],
     60
-);
+)
+ON CONFLICT (name) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    description = EXCLUDED.description,
+    metadata = EXCLUDED.metadata,
+    resources = EXCLUDED.resources,
+    scenarios = EXCLUDED.scenarios,
+    auto_browser = EXCLUDED.auto_browser,
+    idle_shutdown_minutes = EXCLUDED.idle_shutdown_minutes;
 
 -- Lightweight Developer Profile 
 INSERT INTO profiles (
@@ -51,7 +59,15 @@ INSERT INTO profiles (
     ARRAY['app-debugger'],
     ARRAY[],
     45
-);
+)
+ON CONFLICT (name) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    description = EXCLUDED.description,
+    metadata = EXCLUDED.metadata,
+    resources = EXCLUDED.resources,
+    scenarios = EXCLUDED.scenarios,
+    auto_browser = EXCLUDED.auto_browser,
+    idle_shutdown_minutes = EXCLUDED.idle_shutdown_minutes;
 
 -- Business User Profile
 INSERT INTO profiles (
@@ -77,7 +93,15 @@ INSERT INTO profiles (
     ARRAY['document-manager', 'contact-book', 'calendar', 'task-planner', 'email-triage'],
     ARRAY['http://localhost:3000/document-manager', 'http://localhost:3001/calendar'],
     90
-);
+)
+ON CONFLICT (name) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    description = EXCLUDED.description,
+    metadata = EXCLUDED.metadata,
+    resources = EXCLUDED.resources,
+    scenarios = EXCLUDED.scenarios,
+    auto_browser = EXCLUDED.auto_browser,
+    idle_shutdown_minutes = EXCLUDED.idle_shutdown_minutes;
 
 -- Creative Profile  
 INSERT INTO profiles (
@@ -103,7 +127,15 @@ INSERT INTO profiles (
     ARRAY['image-generation-pipeline', 'bedtime-story-generator', 'brand-manager', 'campaign-content-studio'],
     ARRAY['http://localhost:3000/image-generation-pipeline'],
     120
-);
+)
+ON CONFLICT (name) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    description = EXCLUDED.description,
+    metadata = EXCLUDED.metadata,
+    resources = EXCLUDED.resources,
+    scenarios = EXCLUDED.scenarios,
+    auto_browser = EXCLUDED.auto_browser,
+    idle_shutdown_minutes = EXCLUDED.idle_shutdown_minutes;
 
 -- Gaming Profile
 INSERT INTO profiles (
@@ -129,7 +161,15 @@ INSERT INTO profiles (
     ARRAY['retro-game-launcher', 'picker-wheel', 'quiz-generator', 'typing-test'],
     ARRAY['http://localhost:3000/retro-game-launcher', 'http://localhost:3001/picker-wheel'],
     180
-);
+)
+ON CONFLICT (name) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    description = EXCLUDED.description,
+    metadata = EXCLUDED.metadata,
+    resources = EXCLUDED.resources,
+    scenarios = EXCLUDED.scenarios,
+    auto_browser = EXCLUDED.auto_browser,
+    idle_shutdown_minutes = EXCLUDED.idle_shutdown_minutes;
 
 -- Household Management Profile
 INSERT INTO profiles (
@@ -155,7 +195,15 @@ INSERT INTO profiles (
     ARRAY['chore-tracking', 'calendar', 'smart-shopping-assistant', 'home-automation', 'contact-book'],
     ARRAY['http://localhost:3000/chore-tracking', 'http://localhost:3001/calendar'],
     240
-);
+)
+ON CONFLICT (name) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    description = EXCLUDED.description,
+    metadata = EXCLUDED.metadata,
+    resources = EXCLUDED.resources,
+    scenarios = EXCLUDED.scenarios,
+    auto_browser = EXCLUDED.auto_browser,
+    idle_shutdown_minutes = EXCLUDED.idle_shutdown_minutes;
 
 -- Demo/Showcase Profile
 INSERT INTO profiles (
@@ -181,7 +229,15 @@ INSERT INTO profiles (
     ARRAY['system-monitor', 'image-generation-pipeline', 'fall-foliage-explorer', 'chart-generator', 'app-monitor'],
     ARRAY['http://localhost:3000/app-monitor'],
     30
-);
+)
+ON CONFLICT (name) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    description = EXCLUDED.description,
+    metadata = EXCLUDED.metadata,
+    resources = EXCLUDED.resources,
+    scenarios = EXCLUDED.scenarios,
+    auto_browser = EXCLUDED.auto_browser,
+    idle_shutdown_minutes = EXCLUDED.idle_shutdown_minutes;
 
 -- Research & Analysis Profile  
 INSERT INTO profiles (
@@ -207,7 +263,15 @@ INSERT INTO profiles (
     ARRAY['research-assistant', 'data-structurer', 'bookmark-intelligence-hub', 'competitor-change-monitor', 'roi-fit-analysis'],
     ARRAY['http://localhost:3000/research-assistant'],
     90
-);
+)
+ON CONFLICT (name) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    description = EXCLUDED.description,
+    metadata = EXCLUDED.metadata,
+    resources = EXCLUDED.resources,
+    scenarios = EXCLUDED.scenarios,
+    auto_browser = EXCLUDED.auto_browser,
+    idle_shutdown_minutes = EXCLUDED.idle_shutdown_minutes;
 
 -- Minimal Profile - Bare minimum for testing
 INSERT INTO profiles (
@@ -233,7 +297,15 @@ INSERT INTO profiles (
     ARRAY['system-monitor'],
     ARRAY[],
     15
-);
+)
+ON CONFLICT (name) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    description = EXCLUDED.description,
+    metadata = EXCLUDED.metadata,
+    resources = EXCLUDED.resources,
+    scenarios = EXCLUDED.scenarios,
+    auto_browser = EXCLUDED.auto_browser,
+    idle_shutdown_minutes = EXCLUDED.idle_shutdown_minutes;
 
 -- Customer Deployment Profile Template
 INSERT INTO profiles (
@@ -260,7 +332,15 @@ INSERT INTO profiles (
     ARRAY['app-monitor'],
     ARRAY['http://localhost:3000/app-monitor'],
     NULL
-);
+)
+ON CONFLICT (name) DO UPDATE SET
+    display_name = EXCLUDED.display_name,
+    description = EXCLUDED.description,
+    metadata = EXCLUDED.metadata,
+    resources = EXCLUDED.resources,
+    scenarios = EXCLUDED.scenarios,
+    auto_browser = EXCLUDED.auto_browser,
+    idle_shutdown_minutes = EXCLUDED.idle_shutdown_minutes;
 
 -- Set default profile to developer-light (good balance for most users)
 SELECT set_active_profile(
