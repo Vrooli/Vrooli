@@ -1,6 +1,7 @@
 package buildinfo
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -8,6 +9,8 @@ import (
 	"testing"
 	"time"
 )
+
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-10
 
 func TestComputeSourceFingerprintDetectsChanges(t *testing.T) {
 	root := t.TempDir()
@@ -31,6 +34,44 @@ func TestComputeSourceFingerprintDetectsChanges(t *testing.T) {
 	}
 }
 
+func TestComputeSourceFingerprintUsesWholeRoot(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+	writeTestFile(t, root, "internal/logx/logx.go", "package logx\n")
+
+	got, err := ComputeSourceFingerprint(root)
+	if err != nil {
+		t.Fatalf("ComputeSourceFingerprint: %v", err)
+	}
+
+	want, err := ComputeSourceFingerprintForPaths(root)
+	if err != nil {
+		t.Fatalf("ComputeSourceFingerprintForPaths: %v", err)
+	}
+
+	if got != want {
+		t.Fatalf("fingerprint = %s, want %s", got, want)
+	}
+}
+
+func TestComputeSourceFingerprintForPathsSkipsMissingTargets(t *testing.T) {
+	root := t.TempDir()
+
+	got, err := ComputeSourceFingerprintForPaths(root, "missing")
+	if err != nil {
+		t.Fatalf("ComputeSourceFingerprintForPaths: %v", err)
+	}
+
+	want, err := ComputeSourceFingerprint(root)
+	if err != nil {
+		t.Fatalf("ComputeSourceFingerprint: %v", err)
+	}
+
+	if got != want {
+		t.Fatalf("fingerprint = %s, want %s", got, want)
+	}
+}
+
 func TestComputeSourceFingerprintForPathsIgnoresNonGoFiles(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, root, "cmd/vrooli-api/main.go", "package main\n")
@@ -50,6 +91,36 @@ func TestComputeSourceFingerprintForPathsIgnoresNonGoFiles(t *testing.T) {
 
 	if original != updated {
 		t.Fatalf("expected fingerprint to ignore non-Go file changes")
+	}
+}
+
+func TestComputeSourceFingerprintForPathsRequiresRootDir(t *testing.T) {
+	if _, err := ComputeSourceFingerprintForPaths("   ", "internal"); err == nil {
+		t.Fatalf("expected blank root directory to fail")
+	}
+}
+
+func TestComputeSourceFingerprintForPathsSkipsKnownBuildArtifacts(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+	writeTestFile(t, root, ".git/ignored.go", "package ignored\n")
+	writeTestFile(t, root, ".vrooli/build/generated.go", "package generated\n")
+
+	original, err := ComputeSourceFingerprint(root)
+	if err != nil {
+		t.Fatalf("ComputeSourceFingerprint: %v", err)
+	}
+
+	writeTestFile(t, root, ".git/ignored.go", "package ignored\n// changed\n")
+	writeTestFile(t, root, ".vrooli/build/generated.go", "package generated\n// changed\n")
+
+	updated, err := ComputeSourceFingerprint(root)
+	if err != nil {
+		t.Fatalf("ComputeSourceFingerprint: %v", err)
+	}
+
+	if original != updated {
+		t.Fatalf("fingerprint should ignore skipped directories: %s != %s", original, updated)
 	}
 }
 
@@ -99,6 +170,62 @@ func TestCurrentFingerprintUsesConfiguredPaths(t *testing.T) {
 	}
 }
 
+func TestFingerprintTargetsUsesConfiguredPaths(t *testing.T) {
+	t.Setenv(FingerprintPathsEnvVar, " internal , ./cmd/vrooli ")
+
+	targets, err := fingerprintTargets()
+	if err != nil {
+		t.Fatalf("fingerprintTargets: %v", err)
+	}
+
+	if got, want := strings.Join(targets, ","), "cmd/vrooli,internal"; got != want {
+		t.Fatalf("targets = %q, want %q", got, want)
+	}
+}
+
+func TestFingerprintTargetsRejectsBlankConfiguredPaths(t *testing.T) {
+	t.Setenv(FingerprintPathsEnvVar, " , ")
+
+	if _, err := fingerprintTargets(); err == nil {
+		t.Fatalf("expected blank fingerprint target configuration to fail")
+	}
+}
+
+func TestIsStaleChecksCurrentFingerprint(t *testing.T) {
+	originalFingerprint := Fingerprint
+	t.Cleanup(func() {
+		Fingerprint = originalFingerprint
+	})
+
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+	writeTestFile(t, root, "internal/logx/logx.go", "package logx\n")
+
+	t.Setenv(SourceRootEnvVar, root)
+	t.Setenv(FingerprintPathsEnvVar, "cmd/vrooli,internal")
+
+	current, err := CurrentFingerprint()
+	if err != nil {
+		t.Fatalf("CurrentFingerprint: %v", err)
+	}
+
+	Fingerprint = current
+	if IsStale() {
+		t.Fatalf("expected matching fingerprint to be fresh")
+	}
+
+	Fingerprint = "stale-fingerprint"
+	if !IsStale() {
+		t.Fatalf("expected mismatched fingerprint to be stale")
+	}
+
+	Fingerprint = "unknown"
+	if IsStale() {
+		t.Fatalf("expected unknown fingerprint to skip stale detection")
+	}
+}
+
 func TestResolveSourceRootFindsModuleRootFromWorkingDirectory(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
@@ -131,6 +258,125 @@ func TestResolveSourceRootFindsModuleRootFromWorkingDirectory(t *testing.T) {
 	}
 }
 
+func TestResolveSourceRootPrefersExplicitEnv(t *testing.T) {
+	root := t.TempDir()
+	fallback := filepath.Join(root, "fallback")
+	t.Setenv(SourceRootEnvVar, root)
+	t.Setenv(SourceRootFallbackEnvVar, fallback)
+
+	resolved, err := ResolveSourceRoot()
+	if err != nil {
+		t.Fatalf("ResolveSourceRoot: %v", err)
+	}
+	if resolved != root {
+		t.Fatalf("ResolveSourceRoot = %q, want %q", resolved, root)
+	}
+}
+
+func TestResolveSourceRootUsesFallbackEnv(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv(SourceRootEnvVar, "")
+	t.Setenv(SourceRootFallbackEnvVar, root)
+
+	resolved, err := ResolveSourceRoot()
+	if err != nil {
+		t.Fatalf("ResolveSourceRoot: %v", err)
+	}
+	if resolved != root {
+		t.Fatalf("ResolveSourceRoot = %q, want %q", resolved, root)
+	}
+}
+
+func TestResolveSourceRootFailsWithoutHints(t *testing.T) {
+	temp := t.TempDir()
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(temp); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	t.Setenv(SourceRootEnvVar, "")
+	t.Setenv(SourceRootFallbackEnvVar, "")
+
+	if _, err := ResolveSourceRoot(); err == nil {
+		t.Fatalf("expected ResolveSourceRoot to fail without env hints or a module root")
+	}
+}
+
+func TestResolveSourceRootReturnsExecutableLookupError(t *testing.T) {
+	originalExecutablePathFn := executablePathFn
+	t.Cleanup(func() {
+		executablePathFn = originalExecutablePathFn
+	})
+
+	temp := t.TempDir()
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(temp); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	t.Setenv(SourceRootEnvVar, "")
+	t.Setenv(SourceRootFallbackEnvVar, "")
+	executablePathFn = func() (string, error) {
+		return "", errors.New("boom")
+	}
+
+	if _, err := ResolveSourceRoot(); err == nil || !strings.Contains(err.Error(), "resolve executable") {
+		t.Fatalf("ResolveSourceRoot error = %v", err)
+	}
+}
+
+func TestResolveSourceRootFallsBackToExecutableModuleRoot(t *testing.T) {
+	originalExecutablePathFn := executablePathFn
+	t.Cleanup(func() {
+		executablePathFn = originalExecutablePathFn
+	})
+
+	moduleRoot := t.TempDir()
+	writeTestFile(t, moduleRoot, "go.mod", "module example.com/test\n\ngo 1.21\n")
+	executableDir := filepath.Join(moduleRoot, "bin")
+	if err := os.MkdirAll(executableDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	temp := t.TempDir()
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(temp); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	t.Setenv(SourceRootEnvVar, "")
+	t.Setenv(SourceRootFallbackEnvVar, "")
+	executablePathFn = func() (string, error) {
+		return filepath.Join(executableDir, "vrooli"), nil
+	}
+
+	resolved, err := ResolveSourceRoot()
+	if err != nil {
+		t.Fatalf("ResolveSourceRoot: %v", err)
+	}
+	if resolved != moduleRoot {
+		t.Fatalf("ResolveSourceRoot = %q, want %q", resolved, moduleRoot)
+	}
+}
+
 func TestBuildTargetForExecutableUsesOverride(t *testing.T) {
 	t.Setenv(BuildTargetEnvVar, "./cmd/custom")
 	target, err := buildTargetForExecutable("/tmp/vrooli-api")
@@ -139,6 +385,74 @@ func TestBuildTargetForExecutableUsesOverride(t *testing.T) {
 	}
 	if target != "./cmd/custom" {
 		t.Fatalf("build target = %s, want ./cmd/custom", target)
+	}
+}
+
+func TestBuildTargetForExecutableRejectsBlankPath(t *testing.T) {
+	t.Setenv(BuildTargetEnvVar, "")
+	if _, err := buildTargetForExecutable("   "); err == nil {
+		t.Fatalf("expected blank executable path to fail")
+	}
+}
+
+func TestFingerprintTargetsInfersTargetsFromExecutableName(t *testing.T) {
+	originalExecutablePathFn := executablePathFn
+	t.Cleanup(func() {
+		executablePathFn = originalExecutablePathFn
+	})
+
+	t.Setenv(FingerprintPathsEnvVar, "")
+
+	tests := []struct {
+		name       string
+		executable string
+		want       []string
+	}{
+		{name: "vrooli", executable: "/tmp/vrooli", want: []string{"cmd/vrooli", "internal"}},
+		{name: "vrooli-api", executable: "/tmp/vrooli-api", want: []string{"cmd/vrooli-api", "internal"}},
+		{name: "unknown", executable: "/tmp/custom-tool", want: nil},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			executablePathFn = func() (string, error) {
+				return tc.executable, nil
+			}
+
+			targets, err := fingerprintTargets()
+			if err != nil {
+				t.Fatalf("fingerprintTargets: %v", err)
+			}
+			if strings.Join(targets, ",") != strings.Join(tc.want, ",") {
+				t.Fatalf("targets = %v, want %v", targets, tc.want)
+			}
+		})
+	}
+}
+
+func TestFingerprintTargetsReturnsExecutableResolutionError(t *testing.T) {
+	originalExecutablePathFn := executablePathFn
+	t.Cleanup(func() {
+		executablePathFn = originalExecutablePathFn
+	})
+
+	t.Setenv(FingerprintPathsEnvVar, "")
+	executablePathFn = func() (string, error) {
+		return "", errors.New("boom")
+	}
+
+	if _, err := fingerprintTargets(); err == nil || !strings.Contains(err.Error(), "resolve executable") {
+		t.Fatalf("fingerprintTargets error = %v", err)
+	}
+}
+
+func TestCurrentFingerprintPropagatesTargetResolutionError(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv(SourceRootEnvVar, root)
+	t.Setenv(FingerprintPathsEnvVar, " , ")
+
+	if _, err := CurrentFingerprint(); err == nil || !strings.Contains(err.Error(), "no fingerprint paths configured") {
+		t.Fatalf("CurrentFingerprint error = %v", err)
 	}
 }
 
@@ -288,6 +602,120 @@ func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
 	}
 	if !foundLoopEnv {
 		t.Fatalf("expected %s to be propagated in exec env", RebuildLoopEnvVar)
+	}
+}
+
+func TestRebuildAndReexecFallsBackToGitCommandWhenCommitUnknown(t *testing.T) {
+	originalFingerprint := Fingerprint
+	originalGitCommit := GitCommit
+	originalBuildTime := BuildTime
+	originalGoBuildFn := goBuildFn
+	originalExecFn := execFn
+	originalNowFunc := nowFunc
+	originalCommandOutputFn := commandOutputFn
+	t.Cleanup(func() {
+		Fingerprint = originalFingerprint
+		GitCommit = originalGitCommit
+		BuildTime = originalBuildTime
+		goBuildFn = originalGoBuildFn
+		execFn = originalExecFn
+		nowFunc = originalNowFunc
+		commandOutputFn = originalCommandOutputFn
+	})
+
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+	writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")
+
+	t.Setenv(SourceRootEnvVar, root)
+	t.Setenv(FingerprintPathsEnvVar, "cmd/vrooli,internal")
+	t.Setenv(BuildTargetEnvVar, "./cmd/vrooli")
+
+	GitCommit = "unknown"
+	nowFunc = func() time.Time {
+		return time.Date(2026, time.April, 10, 21, 0, 0, 0, time.UTC)
+	}
+
+	commandOutputFn = func(dir, name string, args ...string) ([]byte, error) {
+		if dir != root {
+			t.Fatalf("command dir = %q, want %q", dir, root)
+		}
+		if name != "git" || strings.Join(args, " ") != "rev-parse HEAD" {
+			t.Fatalf("unexpected command: %s %v", name, args)
+		}
+		return []byte("feedbeef\n"), nil
+	}
+
+	var gotBuildArgs []string
+	goBuildFn = func(dir string, args []string) error {
+		gotBuildArgs = append([]string(nil), args...)
+		return nil
+	}
+	execFn = func(argv0 string, argv []string, envv []string) error {
+		return nil
+	}
+
+	if err := RebuildAndReexec([]string{"scenario", "list"}); err != nil {
+		t.Fatalf("RebuildAndReexec: %v", err)
+	}
+
+	joined := strings.Join(gotBuildArgs, " ")
+	if !strings.Contains(joined, "github.com/vrooli/vrooli/internal/buildinfo.GitCommit=feedbeef") {
+		t.Fatalf("expected ldflags to include git fallback commit, got %v", gotBuildArgs)
+	}
+}
+
+func TestRebuildAndReexecReturnsBuildFailure(t *testing.T) {
+	originalGoBuildFn := goBuildFn
+	t.Cleanup(func() {
+		goBuildFn = originalGoBuildFn
+	})
+
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+	writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")
+
+	t.Setenv(SourceRootEnvVar, root)
+	t.Setenv(FingerprintPathsEnvVar, "cmd/vrooli,internal")
+	t.Setenv(BuildTargetEnvVar, "./cmd/vrooli")
+
+	goBuildFn = func(dir string, args []string) error {
+		return errors.New("build failed")
+	}
+
+	if err := RebuildAndReexec([]string{"scenario", "list"}); err == nil || !strings.Contains(err.Error(), "rebuild ./cmd/vrooli") {
+		t.Fatalf("RebuildAndReexec error = %v", err)
+	}
+}
+
+func TestRebuildAndReexecReturnsExecFailure(t *testing.T) {
+	originalGoBuildFn := goBuildFn
+	originalExecFn := execFn
+	t.Cleanup(func() {
+		goBuildFn = originalGoBuildFn
+		execFn = originalExecFn
+	})
+
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+	writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")
+
+	t.Setenv(SourceRootEnvVar, root)
+	t.Setenv(FingerprintPathsEnvVar, "cmd/vrooli,internal")
+	t.Setenv(BuildTargetEnvVar, "./cmd/vrooli")
+
+	goBuildFn = func(dir string, args []string) error {
+		return nil
+	}
+	execFn = func(argv0 string, argv []string, envv []string) error {
+		return errors.New("exec failed")
+	}
+
+	if err := RebuildAndReexec([]string{"scenario", "list"}); err == nil || !strings.Contains(err.Error(), "exec failed") {
+		t.Fatalf("RebuildAndReexec error = %v", err)
 	}
 }
 

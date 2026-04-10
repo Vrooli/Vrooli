@@ -187,7 +187,7 @@ func Discover(root string, env SandboxEnv) ([]Scenario, error) {
 		names[name] = struct{}{}
 	}
 
-	sandboxNames, err := scanSandboxScenarioNames(root, env)
+	sandboxNames, err := scanSandboxScenarioNames(env)
 	if err != nil {
 		return nil, err
 	}
@@ -513,7 +513,10 @@ func scanScenarioNames(baseDir string) ([]string, error) {
 	return names, nil
 }
 
-func scanSandboxScenarioNames(root string, env SandboxEnv) ([]string, error) {
+// scanSandboxScenarioNames mirrors the bash sandbox discovery contract: the
+// merged dir can represent the repo root, the scenarios directory, or one
+// specific scenario depending on the active sandbox scope.
+func scanSandboxScenarioNames(env SandboxEnv) ([]string, error) {
 	if !env.Enabled() {
 		return nil, nil
 	}
@@ -536,6 +539,5 @@ func scanSandboxScenarioNames(root string, env SandboxEnv) ([]string, error) {
 		}
 	}
 
-	_ = root
 	return nil, nil
 }

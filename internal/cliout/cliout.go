@@ -51,7 +51,14 @@ func DefaultColorEnabled(stream *os.File) bool {
 		return false
 	}
 
-	return (info.Mode() & os.ModeCharDevice) != 0
+	return colorEnabledForFileMode(info.Mode())
+}
+
+// colorEnabledForFileMode keeps the terminal heuristic explicit and testable.
+// We intentionally use a narrow, dependency-free signal here: only character
+// devices are treated as interactive candidates.
+func colorEnabledForFileMode(mode os.FileMode) bool {
+	return (mode & os.ModeCharDevice) != 0
 }
 
 // WriteJSON emits formatted JSON followed by a newline.

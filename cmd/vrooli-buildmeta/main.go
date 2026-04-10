@@ -3,20 +3,32 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 )
 
-func main() {
-	root := flag.String("root", ".", "repository root used for fingerprinting")
-	flag.Parse()
+var computeFingerprintForPathsFn = buildinfo.ComputeSourceFingerprintForPaths
 
-	fingerprint, err := buildinfo.ComputeSourceFingerprintForPaths(*root, flag.Args()...)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "vrooli-buildmeta: %v\n", err)
-		os.Exit(1)
+func main() {
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+}
+
+func run(args []string, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("vrooli-buildmeta", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	root := flags.String("root", ".", "repository root used for fingerprinting")
+	if err := flags.Parse(args); err != nil {
+		return 2
 	}
 
-	fmt.Println(fingerprint)
+	fingerprint, err := computeFingerprintForPathsFn(*root, flags.Args()...)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "vrooli-buildmeta: %v\n", err)
+		return 1
+	}
+
+	_, _ = fmt.Fprintln(stdout, fingerprint)
+	return 0
 }

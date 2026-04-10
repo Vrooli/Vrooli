@@ -1,6 +1,8 @@
 package scenario
 
 import (
+	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,6 +11,17 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestSandboxEnvFromEnv(t *testing.T) {
+	t.Setenv("VROOLI_SANDBOX_ID", "sandbox-123")
+	t.Setenv("VROOLI_SANDBOX_MERGED", "/tmp/merged")
+	t.Setenv("VROOLI_SANDBOX_SCOPE", "scenarios/alpha")
+
+	env := SandboxEnvFromEnv()
+	if env.ID != "sandbox-123" || env.Merged != "/tmp/merged" || env.Scope != "scenarios/alpha" {
+		t.Fatalf("SandboxEnvFromEnv = %+v", env)
+	}
+}
 
 func TestScenarioInScope(t *testing.T) {
 	tests := []struct {
@@ -104,6 +117,33 @@ func TestLoadFallsBackToCanonicalScenarioWhenSandboxPathMissing(t *testing.T) {
 	}
 }
 
+func TestLoadMissingScenarioReturnsNotFound(t *testing.T) {
+	root := t.TempDir()
+
+	if _, err := Load(root, "missing", SandboxEnv{}); err != ErrNotFound {
+		t.Fatalf("Load missing scenario error = %v, want %v", err, ErrNotFound)
+	}
+}
+
+func TestResolveScenarioPathIgnoresOutOfScopeSandbox(t *testing.T) {
+	root := t.TempDir()
+	writeScenarioService(t, root, "alpha", "Canonical alpha")
+
+	merged := t.TempDir()
+	writeScenarioServiceAtPath(t, merged, "Sandbox alpha")
+
+	path, redirected := ResolveScenarioPath(root, "alpha", SandboxEnv{
+		Merged: merged,
+		Scope:  "packages/shared",
+	})
+	if redirected {
+		t.Fatalf("expected out-of-scope sandbox to be ignored")
+	}
+	if want := filepath.Join(root, "scenarios", "alpha"); path != want {
+		t.Fatalf("ResolveScenarioPath = %q, want %q", path, want)
+	}
+}
+
 func TestEvaluateHealth(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -172,6 +212,27 @@ func TestReadServicePromotesTopLevelHealthConfig(t *testing.T) {
 	}
 }
 
+func TestHealthConfigFallsBackToTopLevelHealth(t *testing.T) {
+	topLevel := &HealthConfig{Description: "top-level"}
+	manifest := ServiceManifest{Health: topLevel}
+
+	if got := manifest.HealthConfig(); got != topLevel {
+		t.Fatalf("HealthConfig fallback = %+v, want %+v", got, topLevel)
+	}
+}
+
+func TestReadServiceRejectsInvalidJSON(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	if err := os.WriteFile(servicePath, []byte(`{"service":`), 0o644); err != nil {
+		t.Fatalf("write %s: %v", servicePath, err)
+	}
+
+	if _, err := ReadService(servicePath); err == nil {
+		t.Fatalf("expected malformed service json to fail")
+	}
+}
+
 func TestEvaluateHealthDetectsDegradedAndUnhealthyStates(t *testing.T) {
 	healthyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -219,6 +280,72 @@ func TestEvaluateHealthDetectsDegradedAndUnhealthyStates(t *testing.T) {
 	}
 }
 
+func TestPerformHealthCheckPostgresTarget(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
+	defer listener.Close()
+
+	address := listener.Addr().String()
+	check := HealthCheck{
+		Name:    "db",
+		Type:    "postgres",
+		Target:  fmt.Sprintf("postgres://user:pass@%s/example", address),
+		Timeout: 1000,
+	}
+
+	if err := PerformHealthCheck(check, nil); err != nil {
+		t.Fatalf("PerformHealthCheck postgres: %v", err)
+	}
+}
+
+func TestPerformHealthCheckRejectsInvalidHTTPURL(t *testing.T) {
+	check := HealthCheck{
+		Name:   "api",
+		Type:   "http",
+		Target: "http://[::1",
+	}
+
+	if err := PerformHealthCheck(check, nil); err == nil {
+		t.Fatalf("expected invalid URL to fail health check")
+	}
+}
+
+func TestScanSandboxScenarioNamesRespectsScope(t *testing.T) {
+	merged := t.TempDir()
+	writeScenarioServiceAtPath(t, merged, "Scoped alpha")
+
+	names, err := scanSandboxScenarioNames(SandboxEnv{Merged: merged, Scope: "scenarios/alpha"})
+	if err != nil {
+		t.Fatalf("scanSandboxScenarioNames: %v", err)
+	}
+	if got := strings.Join(names, ","); got != "alpha" {
+		t.Fatalf("sandbox names = %q, want alpha", got)
+	}
+
+	names, err = scanSandboxScenarioNames(SandboxEnv{Merged: merged, Scope: "packages/shared"})
+	if err != nil {
+		t.Fatalf("scanSandboxScenarioNames unrelated scope: %v", err)
+	}
+	if len(names) != 0 {
+		t.Fatalf("expected unrelated sandbox scope to contribute no scenarios, got %v", names)
+	}
+}
+
+func TestScanSandboxScenarioNamesSupportsRepoRootScope(t *testing.T) {
+	merged := t.TempDir()
+	writeScenarioServiceAtPath(t, filepath.Join(merged, "scenarios", "alpha"), "Sandbox alpha")
+
+	names, err := scanSandboxScenarioNames(SandboxEnv{Merged: merged, Scope: ""})
+	if err != nil {
+		t.Fatalf("scanSandboxScenarioNames repo scope: %v", err)
+	}
+	if got := strings.Join(names, ","); got != "alpha" {
+		t.Fatalf("sandbox names = %q, want alpha", got)
+	}
+}
+
 func TestManifestHelpers(t *testing.T) {
 	fixedPort := 5432
 	manifest := ServiceManifest{
@@ -255,6 +382,9 @@ func TestManifestHelpers(t *testing.T) {
 	}
 	if got := strings.Join(manifest.PortEnvVars(), ","); got != "API_PORT,DB_PORT" {
 		t.Fatalf("PortEnvVars = %q", got)
+	}
+	if got := manifest.PortEnvVar("missing"); got != "" {
+		t.Fatalf("PortEnvVar missing = %q, want empty string", got)
 	}
 
 	phases := manifest.PhaseSummaries()
@@ -303,6 +433,21 @@ func TestExpandTargetAndParsePostgresAddress(t *testing.T) {
 
 	if _, err := parsePostgresAddress("[::1"); err == nil {
 		t.Fatalf("expected invalid host:port input to return an error")
+	}
+}
+
+func TestHealthConfigPrefersLifecycleHealth(t *testing.T) {
+	topLevel := &HealthConfig{Description: "top-level"}
+	lifecycle := &HealthConfig{Description: "lifecycle"}
+	manifest := ServiceManifest{
+		Health: topLevel,
+		Lifecycle: Lifecycle{
+			Health: lifecycle,
+		},
+	}
+
+	if got := manifest.HealthConfig(); got != lifecycle {
+		t.Fatalf("HealthConfig should prefer lifecycle health, got %+v", got)
 	}
 }
 

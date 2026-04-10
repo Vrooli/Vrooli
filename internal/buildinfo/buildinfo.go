@@ -37,8 +37,9 @@ var (
 )
 
 var (
-	nowFunc         = func() time.Time { return time.Now().UTC() }
-	commandOutputFn = func(dir, name string, args ...string) ([]byte, error) {
+	nowFunc          = func() time.Time { return time.Now().UTC() }
+	executablePathFn = os.Executable
+	commandOutputFn  = func(dir, name string, args ...string) ([]byte, error) {
 		cmd := exec.Command(name, args...)
 		cmd.Dir = dir
 		return cmd.Output()
@@ -76,10 +77,11 @@ func ComputeSourceFingerprint(rootDir string) (string, error) {
 // files beneath the provided relative paths. When no paths are provided, the
 // entire root is scanned.
 func ComputeSourceFingerprintForPaths(rootDir string, relPaths ...string) (string, error) {
-	rootDir = filepath.Clean(rootDir)
+	rootDir = strings.TrimSpace(rootDir)
 	if rootDir == "" {
 		return "", errors.New("root directory is required")
 	}
+	rootDir = filepath.Clean(rootDir)
 
 	targets := normalizeTargets(relPaths)
 	if len(targets) == 0 {
@@ -140,7 +142,7 @@ func ResolveSourceRoot() (string, error) {
 		}
 	}
 
-	executable, err := os.Executable()
+	executable, err := executablePathFn()
 	if err != nil {
 		return "", fmt.Errorf("resolve executable: %w", err)
 	}
@@ -186,7 +188,7 @@ func RebuildAndReexec(argv []string) error {
 		return err
 	}
 
-	executable, err := os.Executable()
+	executable, err := executablePathFn()
 	if err != nil {
 		return fmt.Errorf("resolve executable: %w", err)
 	}
@@ -353,7 +355,7 @@ func fingerprintTargets() ([]string, error) {
 		return targets, nil
 	}
 
-	executable, err := os.Executable()
+	executable, err := executablePathFn()
 	if err != nil {
 		return nil, fmt.Errorf("resolve executable: %w", err)
 	}
@@ -373,9 +375,14 @@ func buildTargetForExecutable(executable string) (string, error) {
 		return override, nil
 	}
 
+	executable = strings.TrimSpace(executable)
+	if executable == "" {
+		return "", errors.New("unable to infer build target from executable path")
+	}
+
 	name := filepath.Base(executable)
-	if name == "" {
-		return "", errors.New("unable to infer build target from executable name")
+	if name == "" || name == "." {
+		return "", errors.New("unable to infer build target from executable path")
 	}
 
 	return "./cmd/" + name, nil

@@ -434,7 +434,11 @@ func buildListPorts(manifest scenario.ServiceManifest, records []process.Record)
 			continue
 		}
 
-		ports[key] = record.Port
+		// Keep the first explicit record for each port key so the detailed list
+		// and the summary port map report the same source-of-truth.
+		if _, exists := ports[key]; !exists {
+			ports[key] = record.Port
+		}
 		if _, exists := seen[key]; exists {
 			continue
 		}

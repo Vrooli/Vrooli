@@ -547,6 +547,9 @@ func suggestCommands(command string) []string {
 	return suggestions
 }
 
+// simpleDistance intentionally uses a cheap prefix-aware heuristic instead of a
+// full edit-distance implementation. The CLI only needs rough typo recovery for
+// obvious mistakes, and keeping this dependency-free keeps startup lightweight.
 func simpleDistance(left, right string) int {
 	maxLen := len(left)
 	if len(right) > maxLen {

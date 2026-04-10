@@ -11,6 +11,18 @@ import (
 	"time"
 )
 
+func TestHomeDirPrefersEnv(t *testing.T) {
+	t.Setenv("HOME", "/tmp/vrooli-home")
+
+	home, err := HomeDir()
+	if err != nil {
+		t.Fatalf("HomeDir: %v", err)
+	}
+	if home != "/tmp/vrooli-home" {
+		t.Fatalf("home = %q, want /tmp/vrooli-home", home)
+	}
+}
+
 func TestReadAndSummarizeScenarioRecords(t *testing.T) {
 	home := t.TempDir()
 	writeProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
@@ -41,6 +53,25 @@ func TestReadAndSummarizeScenarioRecords(t *testing.T) {
 	}
 	if !strings.HasSuffix(runtime.Runtime, "m") && !strings.HasSuffix(runtime.Runtime, "h") {
 		t.Fatalf("runtime = %q", runtime.Runtime)
+	}
+}
+
+func TestHomeDirFallsBackToUserHomeWhenHOMEUnset(t *testing.T) {
+	t.Setenv("HOME", "")
+
+	got, err := HomeDir()
+	want, err := os.UserHomeDir()
+	if err != nil {
+		if got != "" {
+			t.Fatalf("HomeDir returned value %q alongside error %v", got, err)
+		}
+		if _, homeErr := HomeDir(); homeErr == nil {
+			t.Fatalf("expected HomeDir to mirror os.UserHomeDir failure")
+		}
+		return
+	}
+	if got != want {
+		t.Fatalf("HomeDir = %q, want %q", got, want)
 	}
 }
 
@@ -90,6 +121,21 @@ func TestReadScenarioRecordsBackfillsStepAndScenario(t *testing.T) {
 	}
 }
 
+func TestReadScenarioRecordsRejectsInvalidJSON(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, ".vrooli", "processes", "scenarios", "alpha", "broken.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte("{broken"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+
+	if _, err := ReadScenarioRecords(home, "alpha"); err == nil {
+		t.Fatalf("expected invalid process metadata to fail")
+	}
+}
+
 func TestDiscoverRunningScenariosReturnsNilWhenProcessRootMissing(t *testing.T) {
 	runtimes, err := DiscoverRunningScenarios(t.TempDir(), nil)
 	if err != nil {
@@ -97,6 +143,49 @@ func TestDiscoverRunningScenariosReturnsNilWhenProcessRootMissing(t *testing.T) 
 	}
 	if len(runtimes) != 0 {
 		t.Fatalf("runtime count = %d, want 0", len(runtimes))
+	}
+}
+
+func TestDiscoverRunningScenariosPropagatesReadErrors(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, ".vrooli", "processes", "scenarios", "alpha", "broken.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte("{broken"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+
+	if _, err := DiscoverRunningScenarios(home, nil); err == nil {
+		t.Fatalf("expected invalid process metadata to fail discovery")
+	}
+}
+
+func TestLiveRecordsSortsByStepThenPID(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("process liveness checks rely on signal 0 on linux")
+	}
+
+	cmd := exec.Command("sleep", "30")
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start sleep: %v", err)
+	}
+	t.Cleanup(func() {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+		_ = cmd.Wait()
+	})
+
+	records := LiveRecords([]Record{
+		{PID: cmd.Process.Pid, Step: "start-ui"},
+		{PID: os.Getpid(), Step: "start-api"},
+	})
+	if len(records) != 2 {
+		t.Fatalf("live record count = %d, want 2", len(records))
+	}
+	if records[0].Step != "start-api" || records[1].Step != "start-ui" {
+		t.Fatalf("live records not sorted by step: %#v", records)
 	}
 }
 
@@ -134,6 +223,68 @@ func TestReadEnvironmentPortsFromLiveProcess(t *testing.T) {
 	}
 	if _, exists := ports["WS_PORT"]; exists {
 		t.Fatalf("unexpected WS_PORT entry: %#v", ports)
+	}
+}
+
+func TestReadEnvironmentPortsIgnoresInvalidValuesAndEmptyKeys(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("process environment inspection uses /proc on linux")
+	}
+
+	cmd := exec.Command("sleep", "30")
+	cmd.Env = append(os.Environ(), "API_PORT=not-a-number", "UI_PORT=38080")
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start sleep: %v", err)
+	}
+	t.Cleanup(func() {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+		_ = cmd.Wait()
+	})
+
+	var ports map[string]int
+	for attempt := 0; attempt < 20; attempt++ {
+		ports = ReadEnvironmentPorts([]Record{{PID: cmd.Process.Pid}}, []string{"", "API_PORT", "UI_PORT"})
+		if ports["UI_PORT"] == 38080 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if _, exists := ports["API_PORT"]; exists {
+		t.Fatalf("expected invalid numeric value to be ignored, got %#v", ports)
+	}
+	if ports["UI_PORT"] != 38080 {
+		t.Fatalf("UI_PORT = %d, want 38080", ports["UI_PORT"])
+	}
+}
+
+func TestIsPIDRunningRejectsInvalidPID(t *testing.T) {
+	if IsPIDRunning(-1) {
+		t.Fatalf("expected invalid pid to be treated as not running")
+	}
+}
+
+func TestHumanDurationHandlesNegativeAndDayScale(t *testing.T) {
+	if got := humanDuration(-5 * time.Minute); got != "0m" {
+		t.Fatalf("humanDuration negative = %q, want 0m", got)
+	}
+	if got := humanDuration(49 * time.Hour); got != "2.0d" {
+		t.Fatalf("humanDuration day scale = %q, want 2.0d", got)
+	}
+}
+
+func TestSummarizeScenarioWithoutTimestampsKeepsRuntimeUnknown(t *testing.T) {
+	runtimeState := SummarizeScenario("alpha", []Record{{PID: os.Getpid(), Step: "start-api"}})
+	if runtimeState.ProcessCount != 1 {
+		t.Fatalf("process count = %d, want 1", runtimeState.ProcessCount)
+	}
+	if runtimeState.StartedAt != nil {
+		t.Fatalf("expected nil started_at for zero timestamps, got %v", runtimeState.StartedAt)
+	}
+	if runtimeState.Runtime != "N/A" {
+		t.Fatalf("runtime = %q, want N/A", runtimeState.Runtime)
 	}
 }
 
