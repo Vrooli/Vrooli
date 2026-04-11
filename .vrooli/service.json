@@ -293,7 +293,7 @@
         "enabled": false
       },
       "keycloak": {
-        "enabled": true,
+        "enabled": false,
         "required": false,
         "description": "Identity and access management solution for securing applications and services",
         "admin_port": 9990,
@@ -426,7 +426,7 @@
         }
       },
       "pushover": {
-        "enabled": true,
+        "enabled": false,
         "required": false,
         "description": "Real-time mobile and desktop notification service for instant alerts and messaging",
         "credentials_file": "~/.vrooli/pushover-credentials.json",
@@ -486,7 +486,7 @@
         "enabled": false
       },
       "simpy": {
-        "enabled": true,
+        "enabled": false,
         "required": false,
         "description": "Discrete event simulation framework for modeling complex systems",
         "data_dir": "~/.vrooli/simpy"
@@ -495,7 +495,7 @@
         "enabled": true
       },
       "step-ca": {
-        "enabled": true
+        "enabled": false
       },
       "su2": {
         "enabled": false
@@ -540,7 +540,7 @@
         "description": "Speech-to-text processing service"
       },
       "wikijs": {
-        "enabled": true
+        "enabled": false
       },
       "wireguard": {
         "enabled": false

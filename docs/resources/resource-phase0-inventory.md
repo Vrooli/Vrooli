@@ -62,7 +62,7 @@ Additional bias applied in this pass:
 | `judge0` | implemented | yes | yes | 1 | `keep` | Used by 1 scenario. |
 | `k6` | implemented | yes | yes | 0 | `keep` | Project-level enabled. |
 | `kafka` | implemented | no | no | 0 | `blueprint` | Explicit blueprint decision. |
-| `keycloak` | implemented | yes | yes | 0 | `keep` | Project-level enabled. |
+| `keycloak` | implemented | yes | no | 0 | `blueprint` | Explicit blueprint decision. |
 | `kicad` | implemented | yes | no | 0 | `blueprint` | Implemented but no current project/scenario usage signal. |
 | `kokoro` | implemented | no | yes | 1 | `keep` | Used by 1 scenario. |
 | `langchain` | registry-only | yes | no | 0 | `deprecate` | Registry-only stale metadata with no current usage signal. |
@@ -92,7 +92,7 @@ Additional bias applied in this pass:
 | `pihole` | implemented | no | no | 0 | `blueprint` | Explicit blueprint decision. |
 | `postgis` | implemented | yes | yes | 0 | `keep` | Project-level enabled. |
 | `postgres` | implemented | yes | yes | 74 | `keep` | Used by 74 scenarios. |
-| `pushover` | implemented | yes | yes | 0 | `keep` | Project-level enabled. |
+| `pushover` | implemented | yes | no | 0 | `blueprint` | Explicit blueprint decision. |
 | `pybullet` | implemented | no | no | 0 | `blueprint` | Explicit blueprint decision. |
 | `qdrant` | implemented | yes | yes | 36 | `keep` | Used by 36 scenarios. |
 | `questdb` | implemented | yes | yes | 0 | `keep` | Project-level enabled. |
@@ -102,10 +102,10 @@ Additional bias applied in this pass:
 | `sagemath` | implemented | yes | yes | 0 | `keep` | Project-level enabled. |
 | `searxng` | implemented | yes | yes | 2 | `keep` | Used by 2 scenarios. |
 | `segment-anything` | implemented | no | no | 0 | `blueprint` | Explicit blueprint decision. |
-| `simpy` | implemented | yes | yes | 0 | `keep` | Project-level enabled. |
+| `simpy` | implemented | yes | no | 0 | `blueprint` | Explicit blueprint decision. |
 | `speaker-verification` | implemented | no | no | 0 | `blueprint` | Implemented but no current project/scenario usage signal. |
 | `sqlite` | implemented | no | yes | 6 | `keep` | Used by 6 scenarios. |
-| `step-ca` | implemented | yes | yes | 0 | `keep` | Project-level enabled. |
+| `step-ca` | implemented | yes | no | 0 | `blueprint` | Explicit blueprint decision. |
 | `su2` | implemented | no | no | 0 | `blueprint` | Explicit blueprint decision. |
 | `terraform` | implemented | no | no | 0 | `blueprint` | Explicit blueprint decision. |
 | `traccar` | implemented | no | no | 0 | `blueprint` | Explicit blueprint decision. |
@@ -116,7 +116,7 @@ Additional bias applied in this pass:
 | `virustotal` | implemented | no | no | 0 | `blueprint` | Explicit blueprint decision. |
 | `vnc` | implemented | no | no | 0 | `blueprint` | Implemented but no current project/scenario usage signal. |
 | `whisper` | implemented | yes | yes | 1 | `keep` | Used by 1 scenario. |
-| `wikijs` | implemented | yes | yes | 0 | `keep` | Project-level enabled. |
+| `wikijs` | implemented | yes | no | 0 | `blueprint` | Explicit blueprint decision. |
 | `wireguard` | implemented | no | no | 0 | `blueprint` | Explicit blueprint decision. |
 | `zigbee2mqtt` | implemented | no | no | 0 | `blueprint` | Explicit blueprint decision. |
 

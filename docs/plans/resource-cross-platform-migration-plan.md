@@ -933,17 +933,36 @@ This work is intentionally broken into phases so it can be executed over many co
 
 **Goal:** Establish ground truth before changing architecture.
 
-- [ ] Inventory all current resources
-- [ ] Build usage map from project config, scenarios, docs, and tests
-- [ ] Build validation map: recently used, test-backed, undocumented, stale
-- [ ] Assign preliminary classifications: `keep`, `blueprint`, `deprecate`
-- [ ] Document the active/core resource set that must remain implemented
-- [ ] Document likely blueprint candidates
-- [ ] Document likely direct deprecations
+- [x] Inventory all current resources
+- [x] Build usage map from project config, scenarios, docs, and tests
+- [x] Build validation map: recently used, test-backed, undocumented, stale
+- [x] Assign preliminary classifications: `keep`, `blueprint`, `deprecate`
+- [x] Document the active/core resource set that must remain implemented
+- [x] Document likely blueprint candidates
+- [x] Document likely direct deprecations
+
+Supporting artifacts produced during Phase 0:
+
+- [Resource Phase 0 Inventory](/home/matthalloran8/Vrooli/docs/resources/resource-phase0-inventory.md)
+- [Dependency Contract Audit](/home/matthalloran8/Vrooli/docs/resources/dependency-contract-audit.md)
+- [Resource Registry Reconciliation](/home/matthalloran8/Vrooli/docs/resources/resource-registry-reconciliation.md)
+- [Dependency Contract Validator](/home/matthalloran8/Vrooli/scripts/resources/tools/validate-dependency-contract.sh)
 
 **Deliverable:** A triage inventory with proposed state for every current resource.
 
 **Acceptance:** There is a reviewed table showing which resources survive as implemented and why.
+
+**Status update:** Phase 0 inventory and classification are complete. Current reviewed proposal:
+
+- `29` resources proposed as `keep`
+- `52` resources proposed as `blueprint`
+- `4` resources proposed as `deprecate`
+
+Important decisions made during Phase 0:
+
+- scenario/resource dependency manifests now use a flat keyed map contract
+- `startup_policy` was introduced and wired into scenario dependency startup behavior
+- `.vrooli/resource-registry/` is treated as transitional metadata, not a canonical source of truth
 
 ### Phase 1 — Blueprint system
 
