@@ -14,18 +14,16 @@ export MAIN_SCRIPT_DIR
 GO_CLI_BIN="${HOME}/.vrooli/bin/vrooli"
 
 phase="${1:-}"
-if [[ "${VROOLI_FORCE_BASH:-}" != "1" ]]; then
-	case "$phase" in
-		setup|develop|build|deploy|backup|restore)
-			export VROOLI_ROOT="${VROOLI_ROOT:-$APP_ROOT}"
-			export VROOLI_SOURCE_ROOT="${VROOLI_SOURCE_ROOT:-$APP_ROOT}"
-			if [[ ! -x "$GO_CLI_BIN" ]]; then
-				"$APP_ROOT/cli/install.sh" --force
-			fi
-			exec "$GO_CLI_BIN" "$@"
-			;;
-	esac
-fi
+case "$phase" in
+	setup|develop|build|deploy|backup|restore)
+		export VROOLI_ROOT="${VROOLI_ROOT:-$APP_ROOT}"
+		export VROOLI_SOURCE_ROOT="${VROOLI_SOURCE_ROOT:-$APP_ROOT}"
+		if [[ ! -x "$GO_CLI_BIN" ]]; then
+			"$APP_ROOT/cli/install.sh" --force
+		fi
+		exec "$GO_CLI_BIN" "$@"
+		;;
+esac
 
 # Source utilities
 # shellcheck disable=SC1091

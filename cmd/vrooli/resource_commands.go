@@ -3,10 +3,16 @@ package main
 import (
 	"fmt"
 	"io"
+	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/resources"
 )
+
+var timeNowForResourceGC = func() time.Time {
+	return time.Now().UTC()
+}
 
 func runResourceCommand(controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
@@ -17,6 +23,16 @@ func runResourceCommand(controller *resources.Controller, globals globalOptions,
 	switch normalizeResourceSubcommand(args[0]) {
 	case "blueprint":
 		return runResourceBlueprintCommand(controller, globals, args[1:], stdout)
+	case "template":
+		return runResourceTemplateCommand(controller, globals, args[1:], stdout, stderr)
+	case "deprecate":
+		return runResourceDeprecateCommand(controller, globals, args[1:], stdout)
+	case "list-deprecated":
+		return runResourceListDeprecatedCommand(controller, globals, args[1:], stdout)
+	case "restore":
+		return runResourceRestoreCommand(controller, globals, args[1:], stdout)
+	case "archive":
+		return runResourceArchiveCommand(controller, globals, args[1:], stdout)
 	case "list":
 		return runResourceListCommand(controller, globals, args[1:], stdout)
 	case "status":
@@ -59,6 +75,19 @@ func runResourceBlueprintCommand(controller *resources.Controller, globals globa
 		return runResourceBlueprintValidateCommand(controller, globals, args[1:], stdout)
 	default:
 		return fmt.Errorf("unknown resource blueprint command: %s", args[0])
+	}
+}
+
+func runResourceArchiveCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
+	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
+		showResourceArchiveHelp(stdout)
+		return nil
+	}
+	switch normalizeResourceSubcommand(args[0]) {
+	case "gc":
+		return runResourceArchiveGCCommand(controller, globals, args[1:], stdout)
+	default:
+		return fmt.Errorf("unknown resource archive command: %s", args[0])
 	}
 }
 
@@ -259,6 +288,110 @@ func runResourceInfoCommand(controller *resources.Controller, globals globalOpti
 	})
 }
 
+func runResourceDeprecateCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
+	if len(args) != 1 {
+		return fmt.Errorf("resource deprecate requires exactly one resource name")
+	}
+	report, err := controller.DeprecateResource(args[0])
+	if err != nil {
+		return err
+	}
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{
+			"success": true,
+			"report":  report,
+		})
+	}
+	_, _ = fmt.Fprintf(stdout, "Deprecated %s\n", report.Resource.Name)
+	if report.ArchiveDir != "" {
+		_, _ = fmt.Fprintf(stdout, "Archive: %s\n", report.ArchiveDir)
+	}
+	return nil
+}
+
+func runResourceListDeprecatedCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
+	if len(args) > 0 {
+		return fmt.Errorf("resource list-deprecated does not accept positional arguments")
+	}
+	items, err := controller.ListDeprecatedResources()
+	if err != nil {
+		return err
+	}
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{
+			"success":   true,
+			"resources": items,
+		})
+	}
+	rows := make([][]string, 0, len(items))
+	for _, item := range items {
+		state := "deprecated"
+		if strings.TrimSpace(item.PurgedAt) != "" {
+			state = "purged"
+		}
+		rows = append(rows, []string{
+			item.Name,
+			state,
+			item.DeprecatedAt,
+			item.PurgeAfter,
+			item.Replacement,
+		})
+	}
+	return cliout.RenderTable(stdout, []string{"Name", "State", "Deprecated", "Purge After", "Replacement"}, rows)
+}
+
+func runResourceRestoreCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
+	if len(args) != 1 {
+		return fmt.Errorf("resource restore requires exactly one resource name")
+	}
+	report, err := controller.RestoreDeprecatedResource(args[0])
+	if err != nil {
+		return err
+	}
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{
+			"success": true,
+			"report":  report,
+		})
+	}
+	_, _ = fmt.Fprintf(stdout, "Restored %s to %s\n", report.Resource.Name, report.RestoredPath)
+	return nil
+}
+
+func runResourceArchiveGCCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
+	if len(args) > 0 {
+		return fmt.Errorf("resource archive gc does not accept positional arguments")
+	}
+	report, err := controller.GarbageCollectDeprecatedArchives(timeNowForResourceGC())
+	if err != nil {
+		return err
+	}
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{
+			"success": true,
+			"report":  report,
+		})
+	}
+	_, _ = fmt.Fprintf(stdout, "Purged %d deprecated resource archives\n", len(report.Removed))
+	return nil
+}
+
 func runResourceBlueprintListCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) > 0 {
 		return fmt.Errorf("resource blueprint list does not accept positional arguments")
@@ -376,11 +509,17 @@ func runResourceBlueprintValidateCommand(controller *resources.Controller, globa
 }
 
 func showResourceHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli resource <list|status|install|start|start-all|stop|stop-all|enable|disable|info> [...]")
+	_, _ = fmt.Fprintln(w, "Usage: vrooli resource <list|status|install|start|start-all|stop|stop-all|enable|disable|info|deprecate|list-deprecated|restore> [...]")
+	_, _ = fmt.Fprintln(w, "       vrooli resource archive <gc> [...]")
 	_, _ = fmt.Fprintln(w, "       vrooli resource blueprint <list|info|search|validate> [...]")
+	_, _ = fmt.Fprintln(w, "       vrooli resource template <list|show|validate|generate> [...]")
 	_, _ = fmt.Fprintln(w, "       vrooli resource <name> <command> [options]")
 }
 
 func showResourceBlueprintHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "Usage: vrooli resource blueprint <list|info|search|validate> [...]")
+}
+
+func showResourceArchiveHelp(w io.Writer) {
+	_, _ = fmt.Fprintln(w, "Usage: vrooli resource archive <gc> [...]")
 }

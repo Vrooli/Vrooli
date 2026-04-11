@@ -1,4 +1,4 @@
-.PHONY: help build install test clean setup dev develop deploy status scenarios resources lifecycle-build validate-live-develop-smoke validate-week0-week1 validate-week2 validate-week3 validate-week3-live validate-week4 validate-week5 validate-week5-cross validate-week0-week2 validate-week0-week3 validate-week0-week4 validate-week0-week5
+.PHONY: help build install test clean setup dev develop deploy status scenarios resources lifecycle-build validate-live-develop-smoke validate-week0-week1 validate-week2 validate-week3 validate-week3-live validate-week4 validate-week5 validate-week5-cross validate-week6-slice validate-week0-week2 validate-week0-week3 validate-week0-week4 validate-week0-week5
 
 .DEFAULT_GOAL := help
 
@@ -27,10 +27,11 @@ help: ## Show available project-level targets
 	@printf "  make validate-week0-week1 Run the repeatable Week 0/1 acceptance suite\n"
 	@printf "  make validate-week2 Run the repeatable Week 2 acceptance suite\n"
 	@printf "  make validate-week3 Run the repeatable Week 3 acceptance suite\n"
-	@printf "  make validate-week3-live Run live Week 3 Bash-vs-Go parity smokes\n"
+	@printf "  make validate-week3-live Run live Week 3 native scenario smokes\n"
 	@printf "  make validate-week4 Run the repeatable Week 4 acceptance suite\n"
 	@printf "  make validate-week5 Run the repeatable Week 5 acceptance suite\n"
 	@printf "  make validate-week5-cross Run the Week 5 cross-compile suite\n"
+	@printf "  make validate-week6-slice Run the expanded Week 6 native command slice\n"
 	@printf "  make validate-week0-week2 Run the combined Week 0-2 acceptance suite\n"
 	@printf "  make validate-week0-week3 Run the combined Week 0-3 acceptance suite\n"
 	@printf "  make validate-week0-week4 Run the combined Week 0-4 acceptance suite\n"
@@ -64,12 +65,9 @@ validate-week0-week1: ## Run the repeatable Week 0/1 acceptance suite
 	VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli --version
 	VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli info --list
 	tmp_go=$$(mktemp); \
-	tmp_bash=$$(mktemp); \
 	VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli scenario list > "$$tmp_go"; \
-	VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" VROOLI_FORCE_BASH=1 ~/.vrooli/bin/vrooli scenario list > "$$tmp_bash"; \
 	grep -Fq "test-genie" "$$tmp_go"; \
-	grep -Fq "test-genie" "$$tmp_bash"; \
-	rm -f "$$tmp_go" "$$tmp_bash"
+	rm -f "$$tmp_go"
 	tmp_home=$$(mktemp -d); \
 	touch "$$tmp_home/.bashrc"; \
 	mkdir -p "$$tmp_home/.local/bin" "$$tmp_home/.vrooli/bin"; \
@@ -103,7 +101,6 @@ validate-week0-week1: ## Run the repeatable Week 0/1 acceptance suite
 		if curl -fsS "http://127.0.0.1:18092/health" > /dev/null 2> /dev/null; then \
 			ok=1; \
 			break; \
-		fi; \
 		sleep 1; \
 	done; \
 	kill "$$pid" > /dev/null 2> /dev/null || true; \
@@ -219,8 +216,6 @@ validate-week2: ## Run the repeatable Week 2 acceptance suite
 	jq -e '.scenario.description == "Sandbox alpha" and .scenario.sandbox_redirected == true' "$$tmp_root/info.json" > /dev/null; \
 	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_API_PORT=1 ~/.vrooli/bin/vrooli --no-stale-check scenario status alpha --json > "$$tmp_root/status.json"; \
 	jq -e '.scenario.status == "running" and .scenario.health_status == "healthy" and .runtime.ports.API_PORT == 18080 and .runtime.ports.UI_PORT == 38080 and .runtime.ports.WS_PORT == 28080' "$$tmp_root/status.json" > /dev/null; \
-	HOME="$$HOME" VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" VROOLI_FORCE_BASH=1 ~/.vrooli/bin/vrooli scenario list > "$$tmp_root/fallback.txt"; \
-	grep -Fq "test-genie" "$$tmp_root/fallback.txt"; \
 	trap - EXIT; \
 	cleanup
 
@@ -258,7 +253,7 @@ validate-week3: ## Run the repeatable Week 3 acceptance suite
 	trap - EXIT; \
 	cleanup
 
-validate-week3-live: ## Run live Week 3 Bash-vs-Go parity smokes
+validate-week3-live: ## Run live Week 3 native scenario smokes
 	$(MAKE) validate-week3
 	@set -eu; \
 	repo_root="$$(pwd)"; \
@@ -341,81 +336,47 @@ validate-week3-live: ## Run live Week 3 Bash-vs-Go parity smokes
 			"$$ensure_db" "$$start_api" "$$start_ui" "$$api_log_exists" "$$ui_log_exists" "$$api_bak_exists" "$$ui_bak_exists" \
 			> "$$out"; \
 	}; \
-	stop_mode() { \
-		mode="$$1"; \
-		scenario="$$2"; \
-		home="$$3"; \
-		if [ "$$mode" = "go" ]; then \
-			HOME="$$home" VROOLI_ROOT="$$repo_root" VROOLI_SOURCE_ROOT="$$repo_root" ~/.vrooli/bin/vrooli --no-stale-check scenario stop "$$scenario" > /dev/null 2> /dev/null || true; \
-		else \
-			HOME="$$home" VROOLI_ROOT="$$repo_root" VROOLI_SOURCE_ROOT="$$repo_root" VROOLI_FORCE_BASH=1 ~/.vrooli/bin/vrooli scenario stop "$$scenario" > /dev/null 2> /dev/null || true; \
-		fi; \
+	stop_scenario() { \
+		scenario="$$1"; \
+		home="$$2"; \
+		HOME="$$home" VROOLI_ROOT="$$repo_root" VROOLI_SOURCE_ROOT="$$repo_root" ~/.vrooli/bin/vrooli --no-stale-check scenario stop "$$scenario" > /dev/null 2> /dev/null || true; \
 	}; \
-	run_mode() { \
-		mode="$$1"; \
-		scenario="$$2"; \
-		expect_db="$$3"; \
-		prefix="$$4"; \
-		home="$$5"; \
+	run_scenario() { \
+		scenario="$$1"; \
+		expect_db="$$2"; \
+		prefix="$$3"; \
+		home="$$4"; \
 		mkdir -p "$$home"; \
-		stop_mode "$$mode" "$$scenario" "$$home"; \
-		if [ "$$mode" = "go" ]; then \
-			HOME="$$home" VROOLI_ROOT="$$repo_root" VROOLI_SOURCE_ROOT="$$repo_root" ~/.vrooli/bin/vrooli --no-stale-check scenario start "$$scenario" > "$$prefix.start.out"; \
-			snapshot_records "$$home" "$$scenario" "$$prefix.start.records.json"; \
-			snapshot_locks "$$home" "$$prefix.start.locks.json"; \
-			jq -e 'length > 0 and all(.[]; .has_port == true)' "$$prefix.start.records.json" > /dev/null; \
-			jq -e --arg scenario "$$scenario" 'length > 0 and all(.[]; .owner == $$scenario)' "$$prefix.start.locks.json" > /dev/null; \
-			write_meta "$$home" "$$scenario" "$$expect_db" "$$prefix.start.meta"; \
-			HOME="$$home" VROOLI_ROOT="$$repo_root" VROOLI_SOURCE_ROOT="$$repo_root" ~/.vrooli/bin/vrooli --no-stale-check scenario restart "$$scenario" > "$$prefix.restart.out"; \
-			snapshot_records "$$home" "$$scenario" "$$prefix.restart.records.json"; \
-			snapshot_locks "$$home" "$$prefix.restart.locks.json"; \
-			jq -e 'length > 0 and all(.[]; .has_port == true)' "$$prefix.restart.records.json" > /dev/null; \
-			jq -e --arg scenario "$$scenario" 'length > 0 and all(.[]; .owner == $$scenario)' "$$prefix.restart.locks.json" > /dev/null; \
-			write_meta "$$home" "$$scenario" "$$expect_db" "$$prefix.restart.meta"; \
-			HOME="$$home" VROOLI_ROOT="$$repo_root" VROOLI_SOURCE_ROOT="$$repo_root" ~/.vrooli/bin/vrooli --no-stale-check scenario stop "$$scenario" > "$$prefix.stop.out"; \
-		else \
-			HOME="$$home" VROOLI_ROOT="$$repo_root" VROOLI_SOURCE_ROOT="$$repo_root" VROOLI_FORCE_BASH=1 ~/.vrooli/bin/vrooli scenario start "$$scenario" > "$$prefix.start.out"; \
-			snapshot_records "$$home" "$$scenario" "$$prefix.start.records.json"; \
-			snapshot_locks "$$home" "$$prefix.start.locks.json"; \
-			jq -e 'length > 0 and all(.[]; .has_port == true)' "$$prefix.start.records.json" > /dev/null; \
-			jq -e --arg scenario "$$scenario" 'length > 0 and all(.[]; .owner == $$scenario)' "$$prefix.start.locks.json" > /dev/null; \
-			write_meta "$$home" "$$scenario" "$$expect_db" "$$prefix.start.meta"; \
-			HOME="$$home" VROOLI_ROOT="$$repo_root" VROOLI_SOURCE_ROOT="$$repo_root" VROOLI_FORCE_BASH=1 ~/.vrooli/bin/vrooli scenario restart "$$scenario" > "$$prefix.restart.out"; \
-			snapshot_records "$$home" "$$scenario" "$$prefix.restart.records.json"; \
-			snapshot_locks "$$home" "$$prefix.restart.locks.json"; \
-			jq -e 'length > 0 and all(.[]; .has_port == true)' "$$prefix.restart.records.json" > /dev/null; \
-			jq -e --arg scenario "$$scenario" 'length > 0 and all(.[]; .owner == $$scenario)' "$$prefix.restart.locks.json" > /dev/null; \
-			write_meta "$$home" "$$scenario" "$$expect_db" "$$prefix.restart.meta"; \
-			HOME="$$home" VROOLI_ROOT="$$repo_root" VROOLI_SOURCE_ROOT="$$repo_root" VROOLI_FORCE_BASH=1 ~/.vrooli/bin/vrooli scenario stop "$$scenario" > "$$prefix.stop.out"; \
-		fi; \
+		stop_scenario "$$scenario" "$$home"; \
+		HOME="$$home" VROOLI_ROOT="$$repo_root" VROOLI_SOURCE_ROOT="$$repo_root" ~/.vrooli/bin/vrooli --no-stale-check scenario start "$$scenario" > "$$prefix.start.out"; \
+		snapshot_records "$$home" "$$scenario" "$$prefix.start.records.json"; \
+		snapshot_locks "$$home" "$$prefix.start.locks.json"; \
+		jq -e 'length > 0 and all(.[]; .has_port == true)' "$$prefix.start.records.json" > /dev/null; \
+		jq -e --arg scenario "$$scenario" 'length > 0 and all(.[]; .owner == $$scenario)' "$$prefix.start.locks.json" > /dev/null; \
+		write_meta "$$home" "$$scenario" "$$expect_db" "$$prefix.start.meta"; \
+		HOME="$$home" VROOLI_ROOT="$$repo_root" VROOLI_SOURCE_ROOT="$$repo_root" ~/.vrooli/bin/vrooli --no-stale-check scenario restart "$$scenario" > "$$prefix.restart.out"; \
+		snapshot_records "$$home" "$$scenario" "$$prefix.restart.records.json"; \
+		snapshot_locks "$$home" "$$scenario" "$$prefix.restart.locks.json"; \
+		jq -e 'length > 0 and all(.[]; .has_port == true)' "$$prefix.restart.records.json" > /dev/null; \
+		jq -e --arg scenario "$$scenario" 'length > 0 and all(.[]; .owner == $$scenario)' "$$prefix.restart.locks.json" > /dev/null; \
+		write_meta "$$home" "$$scenario" "$$expect_db" "$$prefix.restart.meta"; \
+		HOME="$$home" VROOLI_ROOT="$$repo_root" VROOLI_SOURCE_ROOT="$$repo_root" ~/.vrooli/bin/vrooli --no-stale-check scenario stop "$$scenario" > "$$prefix.stop.out"; \
 		process_dir="$$home/.vrooli/processes/scenarios/$$scenario"; \
 		if [ -d "$$process_dir" ] && find "$$process_dir" -maxdepth 1 \( -name '*.json' -o -name '*.pid' \) -print | grep -q .; then \
-			echo "process cleanup failed for $$mode $$scenario" >&2; \
+			echo "process cleanup failed for $$scenario" >&2; \
 			exit 1; \
 		fi; \
 		state_dir="$$home/.vrooli/state/scenarios"; \
 		if [ -d "$$state_dir" ] && find "$$state_dir" -maxdepth 1 -name '.port_*.lock' -print | grep -q .; then \
-			echo "port lock cleanup failed for $$mode $$scenario" >&2; \
+			echo "port lock cleanup failed for $$scenario" >&2; \
 			exit 1; \
 		fi; \
 	}; \
-	compare_mode() { \
-		scenario="$$1"; \
-		diff -u "$$live_dir/go-$$scenario.start.records.json" "$$live_dir/bash-$$scenario.start.records.json"; \
-		diff -u "$$live_dir/go-$$scenario.start.locks.json" "$$live_dir/bash-$$scenario.start.locks.json"; \
-		diff -u "$$live_dir/go-$$scenario.start.meta" "$$live_dir/bash-$$scenario.start.meta"; \
-		diff -u "$$live_dir/go-$$scenario.restart.records.json" "$$live_dir/bash-$$scenario.restart.records.json"; \
-		diff -u "$$live_dir/go-$$scenario.restart.meta" "$$live_dir/bash-$$scenario.restart.meta"; \
-	}; \
 	require_scenario "test-genie" "test-genie-api" "test-genie"; \
 	require_scenario "reference-react-vite" "reference-react-vite-api" "reference-react-vite"; \
-	run_mode "go" "test-genie" "false" "$$live_dir/go-test-genie" "$$live_dir/go-test-genie-home"; \
-	run_mode "bash" "test-genie" "false" "$$live_dir/bash-test-genie" "$$live_dir/bash-test-genie-home"; \
-	compare_mode "test-genie"; \
-	run_mode "go" "reference-react-vite" "true" "$$live_dir/go-reference-react-vite" "$$live_dir/go-reference-react-vite-home"; \
-	run_mode "bash" "reference-react-vite" "true" "$$live_dir/bash-reference-react-vite" "$$live_dir/bash-reference-react-vite-home"; \
-	compare_mode "reference-react-vite"; \
-	echo "Week 3 live parity validation passed"; \
+	run_scenario "test-genie" "false" "$$live_dir/test-genie" "$$live_dir/test-genie-home"; \
+	run_scenario "reference-react-vite" "true" "$$live_dir/reference-react-vite" "$$live_dir/reference-react-vite-home"; \
+	echo "Week 3 live native validation passed"; \
 	trap - EXIT; \
 	cleanup
 
@@ -458,6 +419,48 @@ validate-week5: ## Run the repeatable Week 5 acceptance suite
 	rm -rf "$$tmp_home"
 	$(MAKE) validate-live-develop-smoke
 	$(MAKE) validate-week5-cross
+
+validate-week6-slice: ## Run the expanded Week 6 native command slice
+	$(MAKE) build
+	$(MAKE) install
+	go test ./internal/network ./internal/maintenance ./internal/project
+	go test ./cmd/vrooli -run 'TestRun(ProjectBackupUsesNativePhaseRunner|ProjectRestoreUsesNativePhaseRunner|DispatchesTopLevelCommandsToExpectedHandlers|CleanupLocksUsesNativeMaintenance|Info(ListJSONOutput|CommandUsesManifestAndListMode|CommandRejectsUnknownOption|CommandErrorsWhenNoSourcesConfigured|CommandSkipsMissingSourcesInJSONMode|CommandHelpAndJSONMissingFiles)|LocksCommandListsNativeState|DiagnosePortReturnsJSON)'
+	set -e; \
+	tmp_home=$$(mktemp -d); \
+	tmp_root=$$(mktemp -d); \
+	mkdir -p "$$tmp_home/.vrooli/state/scenarios" "$$tmp_root/.vrooli" "$$tmp_root/docs" "$$tmp_root/scenarios/alpha/.vrooli" "$$tmp_root/build" "$$tmp_root/scripts/resources"; \
+	printf 'ghost:999999:1\n' > "$$tmp_home/.vrooli/state/scenarios/.port_21234.lock"; \
+	printf '%s\n' '{"resource_ports":{},"reserved_ranges":{}}' > "$$tmp_root/scripts/resources/port_registry.json"; \
+	printf '%s\n' '{"version":"1.0.0","service":{"name":"vrooli-week6","displayName":"Week 6 Fixture","description":"Week 6 validation fixture","version":"0.1.0"},"lifecycle":{"version":"2.0.0","backup":{"description":"backup","steps":[{"name":"write-backup","run":"mkdir -p build && printf '\''backup\n'\'' > build/backup.txt"}]},"restore":{"description":"restore","steps":[{"name":"write-restore","run":"mkdir -p build && printf '\''restore\n'\'' > build/restore.txt"}]}}}' > "$$tmp_root/.vrooli/service.json"; \
+	printf '%s\n' '{"files":["docs/context.md"]}' > "$$tmp_root/.vrooli/info-manifest.json"; \
+	printf 'Week 6 context\n' > "$$tmp_root/docs/context.md"; \
+	printf '%s\n' '{"version":"1.0.0","service":{"name":"alpha","displayName":"Alpha","description":"Alpha scenario","version":"0.1.0"},"lifecycle":{"version":"2.0.0"}}' > "$$tmp_root/scenarios/alpha/.vrooli/service.json"; \
+	now=$$(date -u +%Y-%m-%dT%H:%M:%SZ); \
+	mkdir -p "$$tmp_home/.vrooli/processes/scenarios/alpha"; \
+	jq -n --argjson pid "$$$$" --arg ts "$$now" '{pid:$$pid,pgid:$$pid,process_id:"vrooli.develop.alpha.start-api",phase:"develop",scenario:"alpha",step:"start-api",command:"sleep 30",working_dir:"/fixture/scenarios/alpha",log_file:"/tmp/alpha.log",port:21234,started_at:$$ts,status:"running"}' > "$$tmp_home/.vrooli/processes/scenarios/alpha/start-api.json"; \
+	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check info --json > /tmp/vrooli-week6-info.json; \
+	grep -Fq '"root": "'$$tmp_root'"' /tmp/vrooli-week6-info.json; \
+	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check doctor --json > /tmp/vrooli-week6-doctor.json; \
+	grep -Fq '"checks"' /tmp/vrooli-week6-doctor.json; \
+	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check status --scenarios --json > /tmp/vrooli-week6-status.json; \
+	grep -Fq '"scenarios_total": 1' /tmp/vrooli-week6-status.json; \
+	grep -Fq '"name": "alpha"' /tmp/vrooli-week6-status.json; \
+	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check orphans --json > /tmp/vrooli-week6-orphans.json; \
+	grep -Fq '"orphans"' /tmp/vrooli-week6-orphans.json; \
+	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check locks --json > /tmp/vrooli-week6-locks-list.json; \
+	grep -Fq '"port": 21234' /tmp/vrooli-week6-locks-list.json; \
+	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check cleanup locks --json > /tmp/vrooli-week6-locks.json; \
+	test ! -f "$$tmp_home/.vrooli/state/scenarios/.port_21234.lock"; \
+	grep -Fq '"success": true' /tmp/vrooli-week6-locks.json; \
+	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check diagnose-port 21234 alpha --json > /tmp/vrooli-week6-diagnose.json; \
+	grep -Fq '"port": 21234' /tmp/vrooli-week6-diagnose.json; \
+	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check stop scenarios --json > /tmp/vrooli-week6-stop.json; \
+	grep -Fq '"success": true' /tmp/vrooli-week6-stop.json; \
+	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check backup; \
+	test "$$(cat "$$tmp_root/build/backup.txt")" = "backup"; \
+	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check restore; \
+	test "$$(cat "$$tmp_root/build/restore.txt")" = "restore"; \
+	rm -rf "$$tmp_home" "$$tmp_root"
 
 validate-week0-week2: ## Run the combined Week 0-2 acceptance suite
 	$(MAKE) validate-week0-week1

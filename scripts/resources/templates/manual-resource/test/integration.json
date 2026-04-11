@@ -1,0 +1,8 @@
+{
+  "resource": "{{RESOURCE_NAME}}",
+  "kind": "integration",
+  "checks": [
+    "operator checklist is complete",
+    "handoff to scenario consumers is documented"
+  ]
+}

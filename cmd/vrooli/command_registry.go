@@ -39,9 +39,9 @@ var topLevelCommandTable = []commandDescriptor{
 	{Name: "resource", Group: "Resource Management", Summary: "Manage local resources and dependency services", Handler: runTopLevelResourceCommand, Suggestable: true},
 	{Name: "cleanup", Group: "Maintenance Commands", Summary: "Clean up orphans and stale locks", Handler: runTopLevelCleanupCommand, Suggestable: true},
 	{Name: "doctor", Group: "Maintenance Commands", Summary: "Run environment and tool diagnostics", Handler: runTopLevelDoctorCommand, Suggestable: true},
-	{Name: "orphans", Group: "Maintenance Commands", Summary: "Inspect or clean orphaned Vrooli processes", Handler: makeTopLevelAutohealHandler("orphans"), Suggestable: true},
-	{Name: "locks", Group: "Maintenance Commands", Summary: "Inspect or clean stale port lock files", Handler: makeTopLevelAutohealHandler("locks"), Suggestable: true},
-	{Name: "diagnose-port", Group: "Maintenance Commands", Summary: "Diagnose port conflicts via vrooli-autoheal", Handler: makeTopLevelAutohealHandler("diagnose-port"), Suggestable: true},
+	{Name: "orphans", Group: "Maintenance Commands", Summary: "Inspect or clean orphaned Vrooli processes", Handler: runTopLevelOrphansCommand, Suggestable: true},
+	{Name: "locks", Group: "Maintenance Commands", Summary: "Inspect or clean stale port lock files", Handler: runTopLevelLocksCommand, Suggestable: true},
+	{Name: "diagnose-port", Group: "Maintenance Commands", Summary: "Diagnose port conflicts and stale lock ownership", Handler: runTopLevelDiagnosePortCommand, Suggestable: true},
 }
 
 var scenarioCommandTable = []scenarioCommandDescriptor{

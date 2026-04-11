@@ -4,36 +4,45 @@ This directory contains templates for creating consistent and comprehensive reso
 
 ## Available Templates
 
-### PRD Template (`PRD.md`)
-Complete Product Requirements Document template for resources. This template ensures consistency across all Vrooli resources and prevents capability drift over time.
+Phase 3 now ships the canonical implementation templates described in the migration plan:
 
-This is still transitional. Phase 1 of the resource cross-platform migration introduces structured blueprint records under `.vrooli/resource-blueprints/`; canonical implementation templates come later in Phase 3.
+- `docker-service`
+- `compose-service`
+- `external-cli`
+- `cloud-api`
+- `desktop-app`
+- `manual-resource`
+- `legacy-adapter`
 
-**Use this template when:**
-- Creating a new resource
-- Documenting an existing resource
-- Ensuring consistent resource architecture
-- Planning resource integration patterns
+The legacy `PRD.md` file remains available for design documentation, but new implementation scaffolds should come from `vrooli resource template ...`, not from copying an old resource directory.
 
 ## Template Usage
 
 ```bash
-# Copy template to your resource
-cp scripts/resources/templates/PRD.md resources/my-resource/PRD.md
+vrooli resource template list
+vrooli resource template show docker-service
+vrooli resource template generate docker-service --name demo-db
+vrooli resource template generate --from-blueprint terraform --dry-run
+```
 
-# Edit the template to match your resource
-# Fill in all sections completely
-# Ensure integration patterns align with Vrooli architecture
+## Validation
+
+Phase 3 is only considered closed when the template system validates as a complete scaffold path rather than an illustrative sample.
+
+```bash
+go test ./internal/resources ./cmd/vrooli
+go run ./cmd/vrooli resource template validate
+go run ./cmd/vrooli resource template generate --from-blueprint terraform --dry-run
 ```
 
 ## Template Philosophy
 
-Resource PRDs differ from Scenario PRDs in important ways:
+Resource templates differ from scenario templates in important ways:
 
 - **Resources** = Infrastructure components that enable scenarios
 - **Scenarios** = Complete applications with business value
 
-Resource PRDs focus on:
+Resource scaffolds focus on:
 - Infrastructure capabilities and reliability
 - Integration patterns with other resources  
 - Operational concerns (deployment, monitoring, scaling)
@@ -42,10 +51,9 @@ Resource PRDs focus on:
 
 ## Quality Standards
 
-All resource PRDs should:
-- ✅ Define clear integration patterns
-- ✅ Specify operational requirements
-- ✅ Document resource management interfaces
-- ✅ Include comprehensive testing strategies
-- ✅ Address security and compliance concerns
-- ✅ Define resource lifecycle management
+All generated resource scaffolds should:
+- ✅ Start from an approved canonical template
+- ✅ Produce a valid placeholder `resource.json`
+- ✅ Include config, docs, and test stubs
+- ✅ Stay honest about portability and operational limits
+- ✅ Keep `legacy-adapter` explicitly transitional

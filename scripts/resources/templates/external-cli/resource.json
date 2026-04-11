@@ -1,0 +1,21 @@
+{
+  "name": "{{RESOURCE_NAME}}",
+  "display_name": "{{RESOURCE_DISPLAY_NAME}}",
+  "description": "{{RESOURCE_DESCRIPTION}}",
+  "template": "external-cli",
+  "driver": "external-cli",
+  "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
+  "category": "{{RESOURCE_CATEGORY}}",
+  "binary": "{{RESOURCE_NAME}}",
+  "install": {
+    "linux": "document me",
+    "macos": "document me",
+    "windows": "document me"
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "command": "{{RESOURCE_NAME}} --version"
+    }
+  ]
+}

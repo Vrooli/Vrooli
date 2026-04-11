@@ -1,0 +1,8 @@
+{
+  "resource": "{{RESOURCE_NAME}}",
+  "kind": "integration",
+  "checks": [
+    "config path is readable",
+    "core workflow can be exercised non-interactively"
+  ]
+}

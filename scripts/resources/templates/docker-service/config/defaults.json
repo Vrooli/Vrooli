@@ -1,0 +1,5 @@
+{
+  "image": "replace/me:latest",
+  "port": 0,
+  "env": {}
+}

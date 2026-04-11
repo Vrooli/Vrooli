@@ -1,202 +1,27 @@
 {
   "$schema": "schemas/service.schema.json",
-  "version": "2.0.2",
-  "service": {
-    "name": "vrooli-dev",
-    "displayName": "Vrooli Development Environment",
-    "description": "Development environment for building and testing Vrooli scenarios - self-contained apps that extend the intelligence system",
-    "version": "2.0.2",
-    "tags": [
-      "development-environment",
-      "infrastructure",
-      "ai-platform",
-      "agent-swarms",
-      "recursive-improvement",
-      "automation",
-      "intelligence-system",
-      "self-improving",
-      "vrooli-core",
-      "ecosystem-manager",
-      "capability-builder",
-      "semantic-search",
-      "multi-resource"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/"
-    },
-    "license": "AGPL-3.0-only",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "./docs/README.md",
-    "support": {
-      "email": "team@vrooli.com",
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
-    }
-  },
-  "ports": {
-    "api": {
-      "env_var": "VROOLI_API_PORT",
-      "port": 8092,
-      "description": "Vrooli unified API server for orchestration and resource management"
-    },
-    "health": {
-      "env_var": "HEALTH_PORT",
-      "port": 3001,
-      "description": "Health check and monitoring endpoint"
-    },
-    "orchestrator": {
-      "env_var": "ORCHESTRATOR_PORT",
-      "port": 9500,
-      "description": "Scenario orchestrator API for managing running scenarios"
-    }
-  },
-  "deployment": {
-    "target": "docker",
-    "strategy": "rolling-update",
-    "urls": {
-      "application": "http://localhost:3000",
-      "api": "http://localhost:3000/api",
-      "health": "http://localhost:3000/api/health"
-    },
-    "monitoring": {
-      "enabled": true,
-      "healthChecks": {
-        "application": {
-          "type": "http",
-          "endpoint": "http://localhost:3000/api/health",
-          "interval": "30s",
-          "timeout": "5s",
-          "threshold": 3
-        },
-        "database": {
-          "type": "tcp",
-          "interval": "30s"
-        },
-        "redis": {
-          "type": "tcp",
-          "interval": "30s"
-        }
-      }
-    }
-  },
-  "lifecycle": {
-    "version": "2.0.2",
-    "setup": {
-      "description": "Initialize system for scenario development",
-      "condition": {
-        "checks": [
-          {
-            "type": "data",
-            "path": "data"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "base-setup",
-          "run": "VROOLI_SETUP_MODE=true bash scripts/lib/setup.sh",
-          "description": "Execute generic setup (e.g. network, system, git)",
-          "timeout": "15m"
-        },
-        {
-          "name": "install-cli",
-          "run": "if [[ -f cli/install.sh ]]; then cli/install.sh; else echo '⚠️  CLI installer not found, skipping'; fi",
-          "description": "Install Vrooli CLI command"
-        },
-        {
-          "name": "add-data",
-          "run": "echo '[INFO] Skipping resource population during setup - resources are ready for manual population when needed'",
-          "description": "Add app data to resources (skipped during setup)"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Prepare development environment",
-      "steps": [
-        {
-          "name": "load-env",
-          "run": "if [[ -f .env ]]; then echo 'Loading .env file' && set -a && source .env && set +a; else echo 'No .env file found'; fi",
-          "description": "Load environment variables from .env if exists"
-        },
-        {
-          "name": "start-api",
-          "run": "if [[ -f api/start.sh ]]; then mkdir -p .vrooli/logs && log_file=.vrooli/logs/vrooli-api.log && (APP_ROOT=$(pwd) VROOLI_ROOT=$(pwd) VROOLI_API_PORT=${VROOLI_API_PORT:-8092} api/start.sh &> \"$log_file\" &) && api_healthy=false && for attempt in $(seq 1 30); do if curl -fsS \"http://127.0.0.1:${VROOLI_API_PORT:-8092}/health\" >/dev/null; then api_healthy=true; break; fi; sleep 1; done && if [[ \"$api_healthy\" == true ]]; then echo \"🚀 Vrooli API healthy on port ${VROOLI_API_PORT:-8092} with native scenario management\"; else echo \"❌ Vrooli API failed health check on port ${VROOLI_API_PORT:-8092}\"; tail -n 20 \"$log_file\"; exit 1; fi; else echo '⚠️  API not found'; exit 1; fi",
-          "description": "Start the Vrooli unified API server with built-in scenario management"
-        },
-        {
-          "name": "start-orchestrator",
-          "run": "sleep 5 && echo '🎬 Starting orchestrator...' && vrooli scenario start vrooli-orchestrator",
-          "description": "Start orchestrator after API is ready",
-          "background": false
-        }
-      ]
-    },
-    "build": {
-      "description": "Prepare build environment",
-      "steps": [
-        {
-          "name": "create-directories",
-          "run": "mkdir -p build dist",
-          "description": "Create build and dist directories"
-        },
-        {
-          "name": "set-build-env",
-          "run": "export BUILD_TIME=\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\" && export BUILD_ENV=\"${ENVIRONMENT:-development}\" && echo \"Build environment: $BUILD_ENV at $BUILD_TIME\"",
-          "description": "Set build environment variables"
-        }
-      ]
-    },
-    "deploy": {
-      "description": "Deployment preparation",
-      "steps": [
-        {
-          "name": "show-deploy-info",
-          "run": "echo 'Scenarios should be deployed individually from their directories'",
-          "description": "Deployment information"
-        }
-      ]
-    },
-    "clean": {
-      "description": "Clean build artifacts and dependencies",
-      "steps": [
-        {
-          "name": "run-clean",
-          "run": "rm -rf packages/*/dist packages/*/build packages/*/.next node_modules packages/*/node_modules || true",
-          "description": "Remove build artifacts and dependencies"
-        }
-      ]
-    }
-  },
   "dependencies": {
     "resources": {
       "blender": {
+        "description": "Professional 3D creation suite with Python API",
         "enabled": false,
-        "required": false,
-        "description": "Professional 3D creation suite with Python API"
+        "required": false
       },
       "browserless": {
         "enabled": true,
-        "required": true,
         "healthCheck": {
           "intervalMs": 60000,
           "timeoutMs": 5000
-        }
+        },
+        "required": true
       },
       "btcpay": {
         "enabled": false
       },
       "claude-code": {
+        "description": "Claude Code development assistant",
         "enabled": true,
-        "required": true,
-        "description": "Claude Code development assistant"
+        "required": true
       },
       "cloudflare-ai-gateway": {
         "enabled": true
@@ -205,9 +30,9 @@
         "enabled": false
       },
       "codex": {
+        "description": "AI-powered code generation and completion via OpenAI GPT models",
         "enabled": true,
-        "required": false,
-        "description": "AI-powered code generation and completion via OpenAI GPT models"
+        "required": false
       },
       "comfyui": {
         "enabled": false,
@@ -229,11 +54,11 @@
         "enabled": false
       },
       "ffmpeg": {
-        "enabled": false,
-        "required": false,
         "description": "Universal media processing framework for video/audio conversion, streaming, and analysis",
-        "temp_dir": "~/.vrooli/ffmpeg/temp",
-        "output_dir": "~/.vrooli/ffmpeg/output"
+        "enabled": false,
+        "output_dir": "~/.vrooli/ffmpeg/output",
+        "required": false,
+        "temp_dir": "~/.vrooli/ffmpeg/temp"
       },
       "freecad": {
         "enabled": false
@@ -242,9 +67,9 @@
         "enabled": false
       },
       "gemini": {
+        "description": "Google Gemini AI API integration",
         "enabled": true,
-        "required": false,
-        "description": "Google Gemini AI API integration"
+        "required": false
       },
       "geonode": {
         "enabled": false
@@ -262,60 +87,59 @@
         "enabled": false
       },
       "haystack": {
-        "enabled": false,
-        "required": false,
+        "data_dir": "~/.vrooli/haystack",
         "description": "End-to-end framework for question answering and search",
-        "data_dir": "~/.vrooli/haystack"
+        "enabled": false,
+        "required": false
       },
       "home-assistant": {
+        "config_dir": "~/.vrooli/home-assistant/config",
+        "description": "Open source home automation platform for IoT device control and automation",
         "enabled": true,
         "required": false,
-        "description": "Open source home automation platform for IoT device control and automation",
-        "config_dir": "~/.vrooli/home-assistant/config",
         "timezone": "America/New_York"
       },
       "judge0": {
+        "description": "Code execution and testing platform",
         "enabled": true,
-        "required": false,
-        "description": "Code execution and testing platform"
+        "required": false
       },
       "k6": {
-        "enabled": true,
         "description": "Modern load testing tool with JavaScript scripting",
-        "healthy": false,
+        "enabled": true,
         "health_check": {
           "command": "resource-k6 status --json",
           "interval": 30,
           "timeout": 10
-        }
+        },
+        "healthy": false
       },
       "kafka": {
         "enabled": false
       },
       "keycloak": {
-        "enabled": false,
-        "required": false,
-        "description": "Identity and access management solution for securing applications and services",
         "admin_port": 9990,
-        "data_dir": "~/.vrooli/keycloak"
+        "data_dir": "~/.vrooli/keycloak",
+        "description": "Identity and access management solution for securing applications and services",
+        "enabled": false,
+        "required": false
       },
       "kicad": {
         "enabled": false,
         "order": 52
       },
-      "langchain": {
-        "enabled": false,
-        "description": "Framework for developing applications with LLMs",
-        "api_port": 8101,
-        "data_dir": "~/.langchain"
+      "kokoro": {
+        "description": "Text-to-speech synthesis service",
+        "enabled": true,
+        "required": false
       },
       "litellm": {
         "enabled": true
       },
       "llamaindex": {
-        "enabled": false,
+        "data_dir": "~/.vrooli/llamaindex",
         "description": "Data framework for LLM applications with RAG capabilities",
-        "data_dir": "~/.vrooli/llamaindex"
+        "enabled": false
       },
       "lnbits": {
         "enabled": false
@@ -339,43 +163,43 @@
         "enabled": false
       },
       "minio": {
+        "description": "S3-compatible object storage service",
         "enabled": true,
-        "required": false,
-        "description": "S3-compatible object storage service"
+        "required": false
       },
       "neo4j": {
-        "enabled": true,
-        "required": false,
         "description": "Native property graph database for knowledge graphs and recommendations",
         "docker_image": "neo4j:5.24.0",
+        "enabled": true,
         "ports": {
-          "http": 7474,
-          "bolt": 7687
-        }
+          "bolt": 7687,
+          "http": 7474
+        },
+        "required": false
       },
       "nsfw-detector": {
         "enabled": false
       },
       "obs-studio": {
-        "enabled": false,
-        "required": false,
+        "data_dir": "~/.vrooli/obs-studio",
         "description": "Professional streaming and recording software with programmatic control via WebSocket API",
-        "websocket_port": 4455,
+        "enabled": false,
         "recording_path": "~/Videos/obs-recordings",
-        "data_dir": "~/.vrooli/obs-studio"
+        "required": false,
+        "websocket_port": 4455
       },
       "octoprint": {
         "enabled": false
       },
       "ollama": {
         "enabled": true,
-        "required": true,
-        "status": {
-          "running": true
-        },
         "healthCheck": {
           "intervalMs": 60000,
           "timeoutMs": 5000
+        },
+        "required": true,
+        "status": {
+          "running": true
         }
       },
       "open-data-cube": {
@@ -388,13 +212,13 @@
         "enabled": false
       },
       "openrouter": {
+        "description": "Unified API to many model providers for AI access",
         "enabled": true,
-        "required": false,
-        "description": "Unified API to many model providers for AI access"
+        "required": false
       },
       "openscad": {
-        "enabled": false,
-        "description": "Programmatic 3D CAD modeler"
+        "description": "Programmatic 3D CAD modeler",
+        "enabled": false
       },
       "papermc": {
         "enabled": false
@@ -406,67 +230,67 @@
         "enabled": false
       },
       "postgis": {
-        "enabled": true,
-        "required": false,
-        "description": "Spatial database extension for PostgreSQL - enables geographic queries and location-based analysis",
         "container_name": "postgis-main",
         "data_directory": "${HOME}/.vrooli/postgis",
-        "version": "16-3.4",
+        "description": "Spatial database extension for PostgreSQL - enables geographic queries and location-based analysis",
+        "enabled": true,
         "healthCheck": {
           "intervalMs": 60000,
           "timeoutMs": 5000
-        }
+        },
+        "required": false,
+        "version": "16-3.4"
       },
       "postgres": {
         "enabled": true,
-        "required": true,
         "healthCheck": {
           "intervalMs": 60000,
           "timeoutMs": 5000
-        }
+        },
+        "required": true
       },
       "pushover": {
-        "enabled": false,
-        "required": false,
-        "description": "Real-time mobile and desktop notification service for instant alerts and messaging",
         "credentials_file": "~/.vrooli/pushover-credentials.json",
-        "data_dir": "~/.vrooli/pushover"
+        "data_dir": "~/.vrooli/pushover",
+        "description": "Real-time mobile and desktop notification service for instant alerts and messaging",
+        "enabled": false,
+        "required": false
       },
       "pybullet": {
         "enabled": false
       },
       "qdrant": {
-        "enabled": true,
-        "required": true,
         "container_name": "qdrant",
         "data_directory": "${HOME}/.qdrant/data",
-        "version": "unknown",
-        "status": "installed",
+        "description": "Vector database for embeddings and semantic search",
+        "enabled": true,
         "last_updated": "2025-08-13 14:23:53",
-        "description": "Vector database for embeddings and semantic search"
+        "required": true,
+        "status": "installed",
+        "version": "unknown"
       },
       "questdb": {
+        "description": "High-performance time series database",
         "enabled": true,
-        "required": false,
-        "description": "High-performance time series database"
+        "required": false
       },
       "redis": {
-        "enabled": true,
-        "required": true,
-        "version": "7",
         "description": "Event bus and caching layer",
+        "enabled": true,
         "healthCheck": {
           "intervalMs": 60000,
           "timeoutMs": 5000
         },
         "instances": {
           "default": {
-            "port": 6380,
             "maxMemory": "2gb",
+            "password": "",
             "persistence": "rdb",
-            "password": ""
+            "port": 6380
           }
-        }
+        },
+        "required": true,
+        "version": "7"
       },
       "restic": {
         "enabled": false
@@ -478,18 +302,18 @@
         "enabled": true
       },
       "searxng": {
+        "description": "Privacy-respecting search engine",
         "enabled": true,
-        "required": true,
-        "description": "Privacy-respecting search engine"
+        "required": true
       },
       "segment-anything": {
         "enabled": false
       },
       "simpy": {
-        "enabled": false,
-        "required": false,
+        "data_dir": "~/.vrooli/simpy",
         "description": "Discrete event simulation framework for modeling complex systems",
-        "data_dir": "~/.vrooli/simpy"
+        "enabled": false,
+        "required": false
       },
       "sqlite": {
         "enabled": true
@@ -507,37 +331,32 @@
         "enabled": false
       },
       "twilio": {
-        "enabled": true,
-        "required": false,
-        "description": "SMS, voice, and messaging automation via Twilio API",
         "credentials_file": "~/.vrooli/twilio-credentials.json",
-        "data_dir": "~/.vrooli/twilio"
+        "data_dir": "~/.vrooli/twilio",
+        "description": "SMS, voice, and messaging automation via Twilio API",
+        "enabled": true,
+        "required": false
       },
       "ultralytics-yolo": {
         "enabled": false
       },
       "unstructured-io": {
+        "description": "Document processing and parsing service",
         "enabled": true,
-        "required": false,
-        "description": "Document processing and parsing service"
+        "required": false
       },
       "vault": {
+        "description": "Secrets management and secure storage",
         "enabled": true,
-        "required": true,
-        "description": "Secrets management and secure storage"
+        "required": true
       },
       "virustotal": {
         "enabled": false
       },
-      "kokoro": {
-        "enabled": true,
-        "required": false,
-        "description": "Text-to-speech synthesis service"
-      },
       "whisper": {
+        "description": "Speech-to-text processing service",
         "enabled": true,
-        "required": false,
-        "description": "Speech-to-text processing service"
+        "required": false
       },
       "wikijs": {
         "enabled": false
@@ -549,5 +368,180 @@
         "enabled": false
       }
     }
-  }
+  },
+  "deployment": {
+    "monitoring": {
+      "enabled": true,
+      "healthChecks": {
+        "application": {
+          "endpoint": "http://localhost:3000/api/health",
+          "interval": "30s",
+          "threshold": 3,
+          "timeout": "5s",
+          "type": "http"
+        },
+        "database": {
+          "interval": "30s",
+          "type": "tcp"
+        },
+        "redis": {
+          "interval": "30s",
+          "type": "tcp"
+        }
+      }
+    },
+    "strategy": "rolling-update",
+    "target": "docker",
+    "urls": {
+      "api": "http://localhost:3000/api",
+      "application": "http://localhost:3000",
+      "health": "http://localhost:3000/api/health"
+    }
+  },
+  "lifecycle": {
+    "build": {
+      "description": "Prepare build environment",
+      "steps": [
+        {
+          "description": "Create build and dist directories",
+          "name": "create-directories",
+          "run": "mkdir -p build dist"
+        },
+        {
+          "description": "Set build environment variables",
+          "name": "set-build-env",
+          "run": "export BUILD_TIME=\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\" \u0026\u0026 export BUILD_ENV=\"${ENVIRONMENT:-development}\" \u0026\u0026 echo \"Build environment: $BUILD_ENV at $BUILD_TIME\""
+        }
+      ]
+    },
+    "clean": {
+      "description": "Clean build artifacts and dependencies",
+      "steps": [
+        {
+          "description": "Remove build artifacts and dependencies",
+          "name": "run-clean",
+          "run": "rm -rf packages/*/dist packages/*/build packages/*/.next node_modules packages/*/node_modules || true"
+        }
+      ]
+    },
+    "deploy": {
+      "description": "Deployment preparation",
+      "steps": [
+        {
+          "description": "Deployment information",
+          "name": "show-deploy-info",
+          "run": "echo 'Scenarios should be deployed individually from their directories'"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Prepare development environment",
+      "steps": [
+        {
+          "description": "Load environment variables from .env if exists",
+          "name": "load-env",
+          "run": "if [[ -f .env ]]; then echo 'Loading .env file' \u0026\u0026 set -a \u0026\u0026 source .env \u0026\u0026 set +a; else echo 'No .env file found'; fi"
+        },
+        {
+          "description": "Start the Vrooli unified API server with built-in scenario management",
+          "name": "start-api",
+          "run": "if [[ -f api/start.sh ]]; then mkdir -p .vrooli/logs \u0026\u0026 log_file=.vrooli/logs/vrooli-api.log \u0026\u0026 (APP_ROOT=$(pwd) VROOLI_ROOT=$(pwd) VROOLI_API_PORT=${VROOLI_API_PORT:-8092} api/start.sh \u0026\u003e \"$log_file\" \u0026) \u0026\u0026 api_healthy=false \u0026\u0026 for attempt in $(seq 1 30); do if curl -fsS \"http://127.0.0.1:${VROOLI_API_PORT:-8092}/health\" \u003e/dev/null; then api_healthy=true; break; fi; sleep 1; done \u0026\u0026 if [[ \"$api_healthy\" == true ]]; then echo \"🚀 Vrooli API healthy on port ${VROOLI_API_PORT:-8092} with native scenario management\"; else echo \"❌ Vrooli API failed health check on port ${VROOLI_API_PORT:-8092}\"; tail -n 20 \"$log_file\"; exit 1; fi; else echo '⚠️  API not found'; exit 1; fi"
+        },
+        {
+          "background": false,
+          "description": "Start orchestrator after API is ready",
+          "name": "start-orchestrator",
+          "run": "sleep 5 \u0026\u0026 echo '🎬 Starting orchestrator...' \u0026\u0026 vrooli scenario start vrooli-orchestrator"
+        }
+      ]
+    },
+    "setup": {
+      "condition": {
+        "checks": [
+          {
+            "path": "data",
+            "type": "data"
+          }
+        ]
+      },
+      "description": "Initialize system for scenario development",
+      "steps": [
+        {
+          "description": "Execute generic setup (e.g. network, system, git)",
+          "name": "base-setup",
+          "run": "VROOLI_SETUP_MODE=true bash scripts/lib/setup.sh",
+          "timeout": "15m"
+        },
+        {
+          "description": "Install Vrooli CLI command",
+          "name": "install-cli",
+          "run": "if [[ -f cli/install.sh ]]; then cli/install.sh; else echo '⚠️  CLI installer not found, skipping'; fi"
+        },
+        {
+          "description": "Add app data to resources (skipped during setup)",
+          "name": "add-data",
+          "run": "echo '[INFO] Skipping resource population during setup - resources are ready for manual population when needed'"
+        }
+      ]
+    },
+    "version": "2.0.2"
+  },
+  "ports": {
+    "api": {
+      "description": "Vrooli unified API server for orchestration and resource management",
+      "env_var": "VROOLI_API_PORT",
+      "port": 8092
+    },
+    "health": {
+      "description": "Health check and monitoring endpoint",
+      "env_var": "HEALTH_PORT",
+      "port": 3001
+    },
+    "orchestrator": {
+      "description": "Scenario orchestrator API for managing running scenarios",
+      "env_var": "ORCHESTRATOR_PORT",
+      "port": 9500
+    }
+  },
+  "service": {
+    "description": "Development environment for building and testing Vrooli scenarios - self-contained apps that extend the intelligence system",
+    "displayName": "Vrooli Development Environment",
+    "documentation": "./docs/README.md",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "license": "AGPL-3.0-only",
+    "maintainers": [
+      {
+        "email": "team@vrooli.com",
+        "name": "Vrooli Team",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "name": "vrooli-dev",
+    "repository": {
+      "directory": "/",
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli"
+    },
+    "support": {
+      "email": "team@vrooli.com",
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "tags": [
+      "development-environment",
+      "infrastructure",
+      "ai-platform",
+      "agent-swarms",
+      "recursive-improvement",
+      "automation",
+      "intelligence-system",
+      "self-improving",
+      "vrooli-core",
+      "ecosystem-manager",
+      "capability-builder",
+      "semantic-search",
+      "multi-resource"
+    ],
+    "version": "2.0.2"
+  },
+  "version": "2.0.2"
 }

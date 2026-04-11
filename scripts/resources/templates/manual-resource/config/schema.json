@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "{{RESOURCE_DISPLAY_NAME}} defaults",
+  "type": "object",
+  "properties": {
+    "owner": {
+      "type": "string"
+    },
+    "install_notes": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

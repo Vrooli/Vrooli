@@ -96,6 +96,10 @@ func (c *Controller) Discover() ([]Resource, error) {
 	if err != nil {
 		return nil, err
 	}
+	deprecated, err := c.deprecatedNameSet()
+	if err != nil {
+		return nil, err
+	}
 
 	filesystemNames, err := c.filesystemNames()
 	if err != nil {
@@ -112,6 +116,9 @@ func (c *Controller) Discover() ([]Resource, error) {
 
 	names := make([]string, 0, len(namesMap))
 	for name := range namesMap {
+		if _, hidden := deprecated[name]; hidden {
+			continue
+		}
 		names = append(names, name)
 	}
 	sort.Strings(names)
@@ -144,6 +151,11 @@ func (c *Controller) Discover() ([]Resource, error) {
 }
 
 func (c *Controller) Status(name string, fast bool) (Status, error) {
+	if deprecated, err := c.IsDeprecated(name); err != nil {
+		return Status{}, err
+	} else if deprecated {
+		return Status{}, fmt.Errorf("resource %q is deprecated; use `vrooli resource list-deprecated` or `vrooli resource restore %s`", name, name)
+	}
 	resources, err := c.Discover()
 	if err != nil {
 		return Status{}, err
@@ -188,6 +200,11 @@ func (c *Controller) ListStatuses(fast bool, onlyEnabled bool) ([]Status, error)
 }
 
 func (c *Controller) Run(name string, args []string, stdout, stderr io.Writer) error {
+	if deprecated, err := c.IsDeprecated(name); err != nil {
+		return err
+	} else if deprecated {
+		return fmt.Errorf("resource %q is deprecated and cannot be run from the active control surface", name)
+	}
 	operation := "invoke"
 	if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
 		operation = args[0]
@@ -562,4 +579,16 @@ func stringValue(value any) string {
 		}
 		return strings.Trim(strings.TrimSpace(string(data)), `"`)
 	}
+}
+
+func (c *Controller) deprecatedNameSet() (map[string]struct{}, error) {
+	items, err := c.loadDeprecatedResources()
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		result[item.Name] = struct{}{}
+	}
+	return result, nil
 }

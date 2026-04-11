@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "{{RESOURCE_DISPLAY_NAME}} defaults",
+  "type": "object",
+  "properties": {
+    "linux_path": {
+      "type": "string"
+    },
+    "macos_path": {
+      "type": "string"
+    },
+    "windows_path": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

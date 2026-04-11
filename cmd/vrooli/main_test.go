@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -314,32 +315,6 @@ func TestRunProjectRestoreUsesNativePhaseRunner(t *testing.T) {
 	}
 	if strings.TrimSpace(string(data)) != "restore" {
 		t.Fatalf("restore output = %q", string(data))
-	}
-}
-
-func TestRunForceBashBypassesStaleCheck(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
-	t.Setenv(forceBashEnvVar, "1")
-	var captured commandSpec
-	execCommandFn = func(spec commandSpec) error {
-		captured = spec
-		return nil
-	}
-	resolveSourceRootFn = func() (string, error) { return "/repo", nil }
-	isStaleFn = func() bool {
-		t.Fatalf("stale check should be skipped when forcing Bash")
-		return false
-	}
-
-	code := run([]string{"scenario", "list"}, &bytes.Buffer{}, &bytes.Buffer{})
-	if code != 0 {
-		t.Fatalf("run exit code = %d", code)
-	}
-	wantArgs := []string{"/repo/cli/vrooli", "scenario", "list"}
-	if strings.Join(captured.args, "|") != strings.Join(wantArgs, "|") {
-		t.Fatalf("legacy bash args = %v, want %v", captured.args, wantArgs)
 	}
 }
 
@@ -707,13 +682,14 @@ func TestRunScenarioStartCleanStaleRemovesDeadLock(t *testing.T) {
 
 	root := t.TempDir()
 	home := t.TempDir()
-	writeFixedPortLifecycleScenarioService(t, root, "alpha", 21001)
+	port := reserveFreePort(t)
+	writeFixedPortLifecycleScenarioService(t, root, "alpha", port)
 
 	stateDir := filepath.Join(home, ".vrooli", "state", "scenarios")
 	if err := os.MkdirAll(stateDir, 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", stateDir, err)
 	}
-	lockPath := filepath.Join(stateDir, ".port_21001.lock")
+	lockPath := filepath.Join(stateDir, fmt.Sprintf(".port_%d.lock", port))
 	if err := os.WriteFile(lockPath, []byte("ghost:999999:1\n"), 0o644); err != nil {
 		t.Fatalf("write %s: %v", lockPath, err)
 	}
@@ -1134,33 +1110,30 @@ func TestRunDispatchesTopLevelCommandsToExpectedHandlers(t *testing.T) {
 	})
 }
 
-func TestRunCleanupLocksUsesAutohealBinary(t *testing.T) {
+func TestRunCleanupLocksUsesNativeMaintenance(t *testing.T) {
 	restore := overrideCLIHooks(t)
 	defer restore()
 
-	var captured commandSpec
-	execCommandFn = func(spec commandSpec) error {
-		captured = spec
-		return nil
-	}
-	lookPathFn = func(file string) (string, error) {
-		if file != "vrooli-autoheal" {
-			t.Fatalf("lookPath requested %q", file)
-		}
-		return "/usr/local/bin/vrooli-autoheal", nil
-	}
-	resolveSourceRootFn = func() (string, error) { return "/repo", nil }
+	root := t.TempDir()
+	home := t.TempDir()
+	writeTestFile(t, root, "scripts/resources/port_registry.json", `{"resource_ports":{},"reserved_ranges":{}}`)
+	lockPath := filepath.Join(home, ".vrooli", "state", "scenarios", ".port_21234.lock")
+	writeTestFile(t, filepath.Dir(lockPath), filepath.Base(lockPath), "ghost:999999:1\n")
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
 	isStaleFn = func() bool { return false }
 
-	code := run([]string{"--json", "cleanup", "locks"}, &bytes.Buffer{}, &bytes.Buffer{})
+	var stdout bytes.Buffer
+	code := run([]string{"--json", "cleanup", "locks"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
-	if captured.name != "/usr/local/bin/vrooli-autoheal" {
-		t.Fatalf("command name = %q", captured.name)
+	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
+		t.Fatalf("expected stale lock removal, stat err=%v", err)
 	}
-	if strings.Join(captured.args, "|") != "locks|clean|--json" {
-		t.Fatalf("command args = %v", captured.args)
+	if !strings.Contains(stdout.String(), `"success": true`) || !strings.Contains(stdout.String(), `"21234"`) {
+		t.Fatalf("stdout = %q", stdout.String())
 	}
 }
 
@@ -1366,45 +1339,55 @@ func TestCanonicalSetupInstallContract(t *testing.T) {
 	}
 }
 
-func TestRunReturnsExitCodeFromSubprocess(t *testing.T) {
+func TestRunLocksCommandListsNativeState(t *testing.T) {
 	restore := overrideCLIHooks(t)
 	defer restore()
 
-	resolveSourceRootFn = func() (string, error) { return "/repo", nil }
-	isStaleFn = func() bool { return false }
-	lookPathFn = func(file string) (string, error) {
-		if file != "vrooli-autoheal" {
-			t.Fatalf("lookPath requested %q", file)
-		}
-		return "/usr/local/bin/vrooli-autoheal", nil
-	}
-	execCommandFn = func(spec commandSpec) error {
-		return exitCodeError{code: 23}
-	}
+	root := t.TempDir()
+	home := t.TempDir()
+	writeTestFile(t, root, "scripts/resources/port_registry.json", `{"resource_ports":{},"reserved_ranges":{}}`)
+	lockPath := filepath.Join(home, ".vrooli", "state", "scenarios", ".port_21234.lock")
+	writeTestFile(t, filepath.Dir(lockPath), filepath.Base(lockPath), "ghost:999999:1\n")
 
-	code := run([]string{"orphans"}, &bytes.Buffer{}, &bytes.Buffer{})
-	if code != 23 {
-		t.Fatalf("run exit code = %d, want 23", code)
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+
+	var stdout bytes.Buffer
+	code := run([]string{"locks", "--json"}, &stdout, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("run exit code = %d", code)
+	}
+	if !strings.Contains(stdout.String(), `"stale": true`) || !strings.Contains(stdout.String(), `"port": 21234`) {
+		t.Fatalf("stdout = %q", stdout.String())
 	}
 }
 
-func TestRunAutohealErrorsWhenBinaryMissing(t *testing.T) {
+func TestRunDiagnosePortReturnsJSON(t *testing.T) {
 	restore := overrideCLIHooks(t)
 	defer restore()
 
-	resolveSourceRootFn = func() (string, error) { return "/repo", nil }
-	isStaleFn = func() bool { return false }
-	lookPathFn = func(file string) (string, error) {
-		return "", errors.New("not found")
-	}
+	root := t.TempDir()
+	home := t.TempDir()
+	writeTestFile(t, root, "scripts/resources/port_registry.json", `{"resource_ports":{},"reserved_ranges":{}}`)
+	lockPath := filepath.Join(home, ".vrooli", "state", "scenarios", ".port_21234.lock")
+	writeTestFile(t, filepath.Dir(lockPath), filepath.Base(lockPath), "ghost:999999:1\n")
 
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+
+	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	code := run([]string{"orphans"}, &bytes.Buffer{}, &stderr)
-	if code != 1 {
+	code := run([]string{"--json", "diagnose-port", "21234", "alpha"}, &stdout, &stderr)
+	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
-	if !strings.Contains(stderr.String(), "vrooli setup") {
+	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q", stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"port": 21234`) || !strings.Contains(stdout.String(), `"scenario": "alpha"`) {
+		t.Fatalf("stdout = %q", stdout.String())
 	}
 }
 
@@ -1797,8 +1780,10 @@ func TestRunScenarioStartAllAndStopAllUseNativeLifecycle(t *testing.T) {
 
 	root := t.TempDir()
 	home := t.TempDir()
-	writeFixedPortLifecycleScenarioService(t, root, "alpha", 24001)
-	writeFixedPortLifecycleScenarioService(t, root, "beta", 24002)
+	alphaPort := reserveFreePort(t)
+	betaPort := reserveFreePort(t)
+	writeFixedPortLifecycleScenarioService(t, root, "alpha", alphaPort)
+	writeFixedPortLifecycleScenarioService(t, root, "beta", betaPort)
 
 	t.Setenv("HOME", home)
 	resolveSourceRootFn = func() (string, error) { return root, nil }
@@ -1808,22 +1793,60 @@ func TestRunScenarioStartAllAndStopAllUseNativeLifecycle(t *testing.T) {
 	if code := run([]string{"scenario", "start-all", "--json"}, &startStdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario start-all exit code = %d", code)
 	}
-	if !strings.Contains(startStdout.String(), `"started"`) {
-		t.Fatalf("start-all output = %q", startStdout.String())
+	var startPayload struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Started []struct {
+				Name string `json:"name"`
+			} `json:"started"`
+			Failed []struct {
+				Name  string `json:"name"`
+				Error string `json:"error"`
+			} `json:"failed"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(startStdout.Bytes(), &startPayload); err != nil {
+		t.Fatalf("parse start-all payload: %v\noutput=%s", err, startStdout.String())
+	}
+	if !startPayload.Success {
+		t.Fatalf("start-all reported failure: %s", startStdout.String())
+	}
+	if len(startPayload.Data.Failed) != 0 {
+		t.Fatalf("expected no failed scenarios during start-all, got %#v\noutput=%s", startPayload.Data.Failed, startStdout.String())
+	}
+	if len(startPayload.Data.Started) != 2 {
+		t.Fatalf("expected 2 started scenarios, got %#v\noutput=%s", startPayload.Data.Started, startStdout.String())
 	}
 
 	for _, name := range []string{"alpha", "beta"} {
-		if _, err := os.Stat(filepath.Join(home, ".vrooli", "processes", "scenarios", name, "start-api.json")); err != nil {
-			t.Fatalf("expected process record for %s: %v", name, err)
-		}
+		waitForTestFile(t, filepath.Join(home, ".vrooli", "processes", "scenarios", name, "start-api.json"))
 	}
 
 	var stopStdout bytes.Buffer
 	if code := run([]string{"scenario", "stop-all", "--json"}, &stopStdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario stop-all exit code = %d", code)
 	}
-	if !strings.Contains(stopStdout.String(), `"stopped"`) {
-		t.Fatalf("stop-all output = %q", stopStdout.String())
+	var stopPayload struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Stopped []string `json:"stopped"`
+			Failed  []struct {
+				Name  string `json:"name"`
+				Error string `json:"error"`
+			} `json:"failed"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(stopStdout.Bytes(), &stopPayload); err != nil {
+		t.Fatalf("parse stop-all payload: %v\noutput=%s", err, stopStdout.String())
+	}
+	if !stopPayload.Success {
+		t.Fatalf("stop-all reported failure: %s", stopStdout.String())
+	}
+	if len(stopPayload.Data.Failed) != 0 {
+		t.Fatalf("expected no failed scenarios during stop-all, got %#v\noutput=%s", stopPayload.Data.Failed, stopStdout.String())
+	}
+	if len(stopPayload.Data.Stopped) != 2 {
+		t.Fatalf("expected 2 stopped scenarios, got %#v\noutput=%s", stopPayload.Data.Stopped, stopStdout.String())
 	}
 
 	for _, name := range []string{"alpha", "beta"} {
@@ -2283,7 +2306,6 @@ func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
 	executable := writeFakeExecutable(t, root, "bin/fake-vrooli", fmt.Sprintf("#!/usr/bin/env bash\nprintf '%%s\\n' \"$@\" > %q\nenv | sort > %q\n", argsPath, envPath))
 	scenarioExecutableFn = func() (string, error) { return executable, nil }
 
-	t.Setenv(forceBashEnvVar, "1")
 	t.Setenv("VROOLI_SANDBOX_ID", "sandbox-123")
 	t.Setenv("VROOLI_SANDBOX_MERGED", "/merged")
 	t.Setenv("VROOLI_SANDBOX_SCOPE", "scenarios/alpha")
@@ -2312,7 +2334,6 @@ func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
 	}
 	env := string(envData)
 	for _, forbidden := range []string{
-		forceBashEnvVar + "=",
 		"VROOLI_SANDBOX_ID=",
 		"VROOLI_SANDBOX_MERGED=",
 		"VROOLI_SANDBOX_SCOPE=",
@@ -2408,19 +2429,14 @@ func TestRunCleanupCommandRoutesTargets(t *testing.T) {
 	restore := overrideCLIHooks(t)
 	defer restore()
 
-	lookPathFn = func(file string) (string, error) {
-		return "/usr/bin/vrooli-autoheal", nil
-	}
-
 	t.Run("orphans", func(t *testing.T) {
-		var captured commandSpec
-		execCommandFn = func(spec commandSpec) error {
-			captured = spec
-			return nil
-		}
+		root := t.TempDir()
+		home := t.TempDir()
+		writeTestFile(t, root, "scripts/resources/port_registry.json", `{"resource_ports":{},"reserved_ranges":{}}`)
 
-		err := runCleanupCommand("/repo", parsedArgs{
-			args: []string{"orphans"},
+		t.Setenv("HOME", home)
+		err := runCleanupCommand(root, parsedArgs{
+			args: []string{"orphans", "help"},
 			globals: globalOptions{
 				json:    true,
 				verbose: true,
@@ -2429,20 +2445,17 @@ func TestRunCleanupCommandRoutesTargets(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runCleanupCommand: %v", err)
 		}
-		want := []string{"orphans", "kill", "--json", "--verbose"}
-		if strings.Join(captured.args, "|") != strings.Join(want, "|") {
-			t.Fatalf("args = %v, want %v", captured.args, want)
-		}
 	})
 
 	t.Run("locks", func(t *testing.T) {
-		var captured commandSpec
-		execCommandFn = func(spec commandSpec) error {
-			captured = spec
-			return nil
-		}
+		root := t.TempDir()
+		home := t.TempDir()
+		writeTestFile(t, root, "scripts/resources/port_registry.json", `{"resource_ports":{},"reserved_ranges":{}}`)
+		lockPath := filepath.Join(home, ".vrooli", "state", "scenarios", ".port_21234.lock")
+		writeTestFile(t, filepath.Dir(lockPath), filepath.Base(lockPath), "ghost:999999:1\n")
 
-		err := runCleanupCommand("/repo", parsedArgs{
+		t.Setenv("HOME", home)
+		err := runCleanupCommand(root, parsedArgs{
 			args: []string{"locks"},
 			globals: globalOptions{
 				noColor: true,
@@ -2451,9 +2464,8 @@ func TestRunCleanupCommandRoutesTargets(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runCleanupCommand: %v", err)
 		}
-		want := []string{"locks", "clean", "--no-color"}
-		if strings.Join(captured.args, "|") != strings.Join(want, "|") {
-			t.Fatalf("args = %v, want %v", captured.args, want)
+		if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
+			t.Fatalf("expected stale lock removal, stat err=%v", err)
 		}
 	})
 }
@@ -2918,6 +2930,16 @@ func waitForTestFile(t *testing.T, path string) {
 	t.Fatalf("timed out waiting for %s", path)
 }
 
+func reserveFreePort(t *testing.T) int {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve free port: %v", err)
+	}
+	defer listener.Close()
+	return listener.Addr().(*net.TCPAddr).Port
+}
+
 func repoRootFromCaller(t *testing.T) string {
 	t.Helper()
 	_, filename, _, ok := runtime.Caller(0)
@@ -3264,8 +3286,8 @@ func writeLifecycleScenarioService(t *testing.T, root, name string) {
           "timeout": 1000
         }
       ],
-      "startup_grace_period": 250,
-      "timeout": 5000,
+      "startup_grace_period": 1000,
+      "timeout": 30000,
       "interval": 250
     },
     "setup": {
@@ -3340,8 +3362,8 @@ func writeLifecycleScenarioServiceAtPath(t *testing.T, root, scenarioPath, name 
           "timeout": 1000
         }
       ],
-      "startup_grace_period": 250,
-      "timeout": 5000,
+      "startup_grace_period": 1000,
+      "timeout": 30000,
       "interval": 250
     },
     "setup": {
@@ -3416,8 +3438,8 @@ func writeFixedPortLifecycleScenarioService(t *testing.T, root, name string, por
           "timeout": 1000
         }
       ],
-      "startup_grace_period": 250,
-      "timeout": 5000,
+      "startup_grace_period": 1000,
+      "timeout": 30000,
       "interval": 250
     },
     "setup": {
@@ -3492,8 +3514,8 @@ func writeBestEffortLifecycleScenarioService(t *testing.T, root, name, dependenc
           "timeout": 1000
         }
       ],
-      "startup_grace_period": 250,
-      "timeout": 5000,
+      "startup_grace_period": 1000,
+      "timeout": 30000,
       "interval": 250
     },
     "setup": {

@@ -82,8 +82,10 @@ Phase 1 makes blueprints a supported concept, a validated data model, and the ca
 
 It does not yet:
 
-- archive deprecated resources
-- promote blueprints into generated implementations
 - replace active implemented resources with manifest-driven drivers
+
+Phase 2 added deprecation/archive lifecycle support, and Phase 3 now allows blueprint-seeded template scaffolding through `vrooli resource template generate --from-blueprint <name>`.
+
+Phase 3 also makes `suggested_template` enforceable rather than advisory-only: blueprint validation now checks that `integration_kind` and `suggested_template` obey the supported recommendation rules used by the template generator.
 
 Those concerns belong to later phases in the migration plan.

@@ -1,0 +1,39 @@
+{
+  "name": "{{RESOURCE_NAME}}",
+  "display_name": "{{RESOURCE_DISPLAY_NAME}}",
+  "description": "{{RESOURCE_DESCRIPTION}}",
+  "template": "docker-service",
+  "driver": "docker-service",
+  "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
+  "category": "{{RESOURCE_CATEGORY}}",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "service",
+      "container": 0,
+      "host": 0
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "tcp",
+      "target": "127.0.0.1:0",
+      "interval_seconds": 10
+    }
+  ],
+  "runtime": {
+    "image": "replace/me:latest",
+    "env": {},
+    "volumes": [
+      {
+        "source": "./data",
+        "target": "/var/lib/{{RESOURCE_NAME}}"
+      }
+    ]
+  }
+}

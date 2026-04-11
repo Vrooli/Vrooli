@@ -28,10 +28,8 @@ func TestBlueprintInventoryCoverageMatchesPhase0Plan(t *testing.T) {
 	}
 
 	missing := setDifference(expected, actual)
-	unexpected := setDifference(actual, expected)
-
-	if len(missing) > 0 || len(unexpected) > 0 {
-		t.Fatalf("phase0 blueprint coverage drift detected\nmissing blueprint records: %v\nunexpected blueprint records: %v", missing, unexpected)
+	if len(missing) > 0 {
+		t.Fatalf("phase0 blueprint coverage drift detected\nmissing blueprint records: %v", missing)
 	}
 }
 

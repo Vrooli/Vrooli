@@ -1,0 +1,8 @@
+{
+  "resource": "{{RESOURCE_NAME}}",
+  "kind": "smoke",
+  "checks": [
+    "container starts",
+    "health probe reports healthy"
+  ]
+}

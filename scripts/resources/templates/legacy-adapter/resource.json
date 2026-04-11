@@ -1,0 +1,15 @@
+{
+  "name": "{{RESOURCE_NAME}}",
+  "display_name": "{{RESOURCE_DISPLAY_NAME}}",
+  "description": "{{RESOURCE_DESCRIPTION}}",
+  "template": "legacy-adapter",
+  "driver": "legacy-adapter",
+  "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
+  "category": "{{RESOURCE_CATEGORY}}",
+  "transitional": true,
+  "legacy": {
+    "cli_path": "resources/{{RESOURCE_NAME}}/cli.sh",
+    "lib_path": "resources/{{RESOURCE_NAME}}/lib/",
+    "deprecation_target_date": "{{CURRENT_DATE}}"
+  }
+}

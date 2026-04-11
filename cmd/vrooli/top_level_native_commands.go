@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/project"
 	"github.com/vrooli/vrooli/internal/resources"
 )
@@ -192,6 +194,199 @@ func runTopLevelResourceCommand(root string, globals globalOptions, args []strin
 	}
 	controller := resources.NewController(root, home)
 	return runResourceCommand(controller, globals, args, stdout, stderr)
+}
+
+func runTopLevelOrphansCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	home, err := config.HomeDir()
+	if err != nil {
+		return err
+	}
+	controller := maintenance.NewController(root, home)
+
+	mode := "list"
+	for _, arg := range args {
+		switch arg {
+		case "kill":
+			mode = "kill"
+		case "--help", "-h", "help":
+			_, _ = fmt.Fprintln(stdout, "Usage: vrooli orphans [kill] [--json]")
+			return nil
+		default:
+			return fmt.Errorf("unknown option for orphans: %s", arg)
+		}
+	}
+
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if mode == "kill" {
+		report, err := controller.KillOrphans()
+		if err != nil {
+			return err
+		}
+		if format == cliout.FormatJSON {
+			return cliout.WriteJSON(stdout, map[string]any{"success": true, "data": report})
+		}
+		for _, item := range report.Stopped {
+			_, _ = fmt.Fprintf(stdout, "Stopped orphan PID %s (%s)\n", item.Name, item.Message)
+		}
+		for _, item := range report.Failed {
+			_, _ = fmt.Fprintf(stdout, "Failed orphan PID %s: %s\n", item.Name, item.Error)
+		}
+		if len(report.Stopped) == 0 && len(report.Failed) == 0 {
+			_, _ = fmt.Fprintln(stdout, "No orphaned Vrooli processes found.")
+		}
+		return nil
+	}
+
+	orphans, err := controller.ListOrphans()
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{"success": true, "orphans": orphans})
+	}
+	if len(orphans) == 0 {
+		_, _ = fmt.Fprintln(stdout, "No orphaned Vrooli processes found.")
+		return nil
+	}
+	rows := make([][]string, 0, len(orphans))
+	for _, item := range orphans {
+		rows = append(rows, []string{strconv.Itoa(item.PID), strconv.Itoa(item.PPID), item.Command})
+	}
+	return cliout.RenderTable(stdout, []string{"PID", "PPID", "Command"}, rows)
+}
+
+func runTopLevelLocksCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	home, err := config.HomeDir()
+	if err != nil {
+		return err
+	}
+	controller := maintenance.NewController(root, home)
+
+	mode := "list"
+	for _, arg := range args {
+		switch arg {
+		case "clean":
+			mode = "clean"
+		case "--help", "-h", "help":
+			_, _ = fmt.Fprintln(stdout, "Usage: vrooli locks [clean] [--json]")
+			return nil
+		default:
+			return fmt.Errorf("unknown option for locks: %s", arg)
+		}
+	}
+
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if mode == "clean" {
+		report, err := controller.CleanStaleLocks()
+		if err != nil {
+			return err
+		}
+		if format == cliout.FormatJSON {
+			return cliout.WriteJSON(stdout, map[string]any{"success": true, "data": report})
+		}
+		for _, item := range report.Stopped {
+			_, _ = fmt.Fprintf(stdout, "Removed stale lock for port %s\n", item.Name)
+		}
+		for _, item := range report.Failed {
+			_, _ = fmt.Fprintf(stdout, "Failed to remove lock for port %s: %s\n", item.Name, item.Error)
+		}
+		if len(report.Stopped) == 0 && len(report.Failed) == 0 {
+			_, _ = fmt.Fprintln(stdout, "No stale port locks found.")
+		}
+		return nil
+	}
+
+	locks, err := controller.ListLocks()
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{"success": true, "locks": locks})
+	}
+	if len(locks) == 0 {
+		_, _ = fmt.Fprintln(stdout, "No port locks found.")
+		return nil
+	}
+	rows := make([][]string, 0, len(locks))
+	for _, item := range locks {
+		status := "active"
+		if item.Stale {
+			status = "stale"
+		}
+		rows = append(rows, []string{
+			strconv.Itoa(item.Port),
+			item.Scenario,
+			strconv.Itoa(item.PID),
+			status,
+		})
+	}
+	return cliout.RenderTable(stdout, []string{"Port", "Scenario", "PID", "Status"}, rows)
+}
+
+func runTopLevelDiagnosePortCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: vrooli diagnose-port <port> [scenario] [--json]")
+	}
+	if args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
+		_, _ = fmt.Fprintln(stdout, "Usage: vrooli diagnose-port <port> [scenario] [--json]")
+		return nil
+	}
+	port, err := strconv.Atoi(strings.TrimSpace(args[0]))
+	if err != nil || port <= 0 {
+		return fmt.Errorf("invalid port: %s", args[0])
+	}
+	scenarioName := ""
+	if len(args) > 1 {
+		scenarioName = args[1]
+	}
+
+	home, err := config.HomeDir()
+	if err != nil {
+		return err
+	}
+	controller := maintenance.NewController(root, home)
+	diagnostic, err := controller.DiagnosePort(port, scenarioName)
+	if err != nil {
+		return err
+	}
+
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{"success": true, "diagnostic": diagnostic})
+	}
+
+	_, _ = fmt.Fprintf(stdout, "Port %d\n", diagnostic.Port)
+	if diagnostic.Scenario != "" {
+		_, _ = fmt.Fprintf(stdout, "Scenario: %s\n", diagnostic.Scenario)
+	}
+	if diagnostic.InUse {
+		_, _ = fmt.Fprintln(stdout, "Listeners:")
+		for _, listener := range diagnostic.Listeners {
+			_, _ = fmt.Fprintf(stdout, "  PID %d  zombie=%t  %s\n", listener.PID, listener.Zombie, listener.Command)
+		}
+	} else {
+		_, _ = fmt.Fprintln(stdout, "Listeners: none")
+	}
+	if diagnostic.Lock != nil {
+		_, _ = fmt.Fprintf(stdout, "Lock: %s (scenario=%s pid=%d stale=%t)\n", diagnostic.Lock.Path, diagnostic.Lock.Scenario, diagnostic.Lock.PID, diagnostic.Lock.Stale)
+	} else {
+		_, _ = fmt.Fprintln(stdout, "Lock: none")
+	}
+	_, _ = fmt.Fprintf(stdout, "Orphans detected: %d\n", diagnostic.OrphanCount)
+	_, _ = fmt.Fprintln(stdout, "Recommended actions:")
+	for _, recommendation := range diagnostic.Recommendations {
+		_, _ = fmt.Fprintf(stdout, "  - %s\n", recommendation)
+	}
+	return nil
 }
 
 type topLevelStatusOptions struct {

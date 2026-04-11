@@ -17,9 +17,8 @@ import (
 )
 
 const (
-	vrooliVersion   = "2.0.0"
-	cliVersion      = "1.0.0"
-	forceBashEnvVar = "VROOLI_FORCE_BASH"
+	vrooliVersion = "2.0.0"
+	cliVersion    = "1.0.0"
 )
 
 var (
@@ -105,10 +104,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 	debugLog(logger, "Resolved root", "path", root)
 	primeRootEnv(root)
 
-	if forceBashEnabled() {
-		debugLog(logger, "Legacy Bash mode enabled", "command", parsed.command)
-		return exitCode(runLegacyBash(root, args))
-	}
 	if parsed.globals.noColor {
 		_ = os.Setenv("NO_COLOR", "1")
 	}
@@ -122,7 +117,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 			printErrorWithContext(stderr, newErrorWithCategory(
 				fmt.Errorf("stale binary check failed: %w", err),
 				errorCategoryRuntime,
-				"Use --no-stale-check for local experiments, or VROOLI_FORCE_BASH=1 to bypass this path",
+				"Use --no-stale-check for local experiments",
 				nil,
 			))
 			return 1
@@ -151,10 +146,6 @@ func primeRootEnv(root string) {
 	if strings.TrimSpace(os.Getenv(buildinfo.SourceRootEnvVar)) == "" {
 		_ = os.Setenv(buildinfo.SourceRootEnvVar, root)
 	}
-}
-
-func forceBashEnabled() bool {
-	return strings.TrimSpace(os.Getenv(forceBashEnvVar)) == "1"
 }
 
 func parseArgs(args []string) (parsedArgs, error) {
@@ -222,12 +213,6 @@ func dispatch(root string, parsed parsedArgs, stdout, stderr io.Writer) error {
 	return handler(root, parsed.globals, parsed.args, stdout, stderr)
 }
 
-func makeTopLevelAutohealHandler(action string) topLevelCommandHandler {
-	return func(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-		return runAutohealCommand(root, globals, append([]string{action}, args...)...)
-	}
-}
-
 func runMainHelpCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
 	showMainHelp(stdout)
 	return nil
@@ -249,17 +234,6 @@ func runTopLevelDevelopCommand(root string, globals globalOptions, args []string
 	return runProjectDevelopCommand(root, args, stdout, stderr)
 }
 
-func runLegacyBash(root string, args []string) error {
-	// Week 6 cleanup target: this is the only broad escape hatch that still
-	// re-enters the legacy Bash dispatcher when VROOLI_FORCE_BASH=1 is set.
-	return execCommandFn(commandSpec{
-		name: "bash",
-		args: append([]string{filepath.Join(root, "cli", "vrooli")}, args...),
-		dir:  root,
-		env:  commandEnv(root, globalOptions{}),
-	})
-}
-
 func runCleanupCommand(root string, parsed parsedArgs, stdout, stderr io.Writer) error {
 	if len(parsed.args) == 0 {
 		showCleanupHelp(stdout)
@@ -270,9 +244,9 @@ func runCleanupCommand(root string, parsed parsedArgs, stdout, stderr io.Writer)
 	rest := parsed.args[1:]
 	switch target {
 	case "orphans":
-		return runAutohealCommand(root, parsed.globals, append([]string{"orphans", "kill"}, rest...)...)
+		return runTopLevelOrphansCommand(root, parsed.globals, append([]string{"kill"}, rest...), stdout, stderr)
 	case "locks":
-		return runAutohealCommand(root, parsed.globals, append([]string{"locks", "clean"}, rest...)...)
+		return runTopLevelLocksCommand(root, parsed.globals, append([]string{"clean"}, rest...), stdout, stderr)
 	case "help", "--help", "-h":
 		showCleanupHelp(stdout)
 		return nil
@@ -281,26 +255,6 @@ func runCleanupCommand(root string, parsed parsedArgs, stdout, stderr io.Writer)
 		_, _ = fmt.Fprintln(stderr, "Run 'vrooli cleanup help' for usage")
 		return exitCodeError{code: 1, message: "unknown cleanup target"}
 	}
-}
-
-func runAutohealCommand(root string, globals globalOptions, args ...string) error {
-	// This remains an external bridge until the final cleanup pass ports the
-	// remaining autoheal/network routines into the main Go module.
-	binary, err := lookPathFn("vrooli-autoheal")
-	if err != nil {
-		return newErrorWithCategory(
-			errors.New("vrooli-autoheal not installed. Run 'vrooli setup' first"),
-			errorCategoryRuntime,
-			"Run 'vrooli setup' to install required lifecycle tools",
-			nil,
-		)
-	}
-	return execCommandFn(commandSpec{
-		name: binary,
-		args: append([]string{}, append(args, passthroughFlags(globals, args)...)...),
-		dir:  root,
-		env:  commandEnv(root, globals),
-	})
 }
 
 func runInfoCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {

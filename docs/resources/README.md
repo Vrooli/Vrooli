@@ -20,38 +20,57 @@ This architecture allows Vrooli's three-tier AI system to adapt to whatever reso
 Structured blueprint records now live under `.vrooli/resource-blueprints/` and can be inspected through `vrooli resource blueprint ...`.
 
 - Blueprint guide: [resource-blueprints.md](resource-blueprints.md)
+- Template guide: [resource-templates.md](resource-templates.md)
+- Deprecation guide: [resource-deprecation.md](resource-deprecation.md)
 - Migration context: [../plans/resource-cross-platform-migration-plan.md](../plans/resource-cross-platform-migration-plan.md)
+
+## Template Scaffolding
+
+Phase 3 introduces canonical resource templates so new resources no longer start from cloning a stale directory.
+
+```bash
+vrooli resource template list
+vrooli resource template show external-cli
+vrooli resource template generate docker-service --name demo-db --dry-run
+vrooli resource template generate --from-blueprint terraform --dry-run
+```
+
+The closeout validation bundle for this workflow is:
+
+```bash
+go test ./internal/resources ./cmd/vrooli
+go run ./cmd/vrooli resource template validate
+go run ./cmd/vrooli resource template show docker-service
+```
 
 ### Resource Discovery
 ```bash
-# See what's currently running
-./resources/index.sh --action discover
+# Native list / status entrypoints
+vrooli resource list
+vrooli resource status postgres
 
-# Check enabled resources
-cat ~/.vrooli/service.json | jq '.services'
-
-# List all available resources
-./resources/index.sh --action list
+# Inspect structured blueprint and deprecation state
+vrooli resource blueprint list
+vrooli resource list-deprecated
 ```
 
 ### Installation
 ```bash
-# Install enabled resources (recommended)
+# Project-level setup remains the supported way to bootstrap enabled dependencies
 vrooli setup
 
-# Install specific resources
-vrooli resource install ollama postgres
-
-# Install by category
-vrooli resource start-all  # Start all AI resources
+# Native resource subcommands should be preferred where implemented
+vrooli resource status postgres
+vrooli resource template generate --from-blueprint terraform --dry-run
 ```
 
 ### Management
 ```bash
-# Resource lifecycle
-./resources/index.sh --action install --resources "ollama,n8n" 
-./resources/index.sh --action status --resources ollama
-./resources/index.sh --action logs --resources n8n
+# Legacy shell paths still exist for older resources, but they are no longer the
+# recommended starting point for new resource work.
+vrooli resource template list
+vrooli resource blueprint info terraform
+vrooli resource deprecate autogen-studio
 ```
 
 ---

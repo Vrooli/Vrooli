@@ -1,0 +1,17 @@
+{
+  "name": "{{RESOURCE_NAME}}",
+  "display_name": "{{RESOURCE_DISPLAY_NAME}}",
+  "description": "{{RESOURCE_DESCRIPTION}}",
+  "template": "compose-service",
+  "driver": "compose-service",
+  "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
+  "category": "{{RESOURCE_CATEGORY}}",
+  "dependencies": [],
+  "compose_file": "compose.yaml",
+  "health_checks": [
+    {
+      "type": "command",
+      "command": "docker compose ps --status running"
+    }
+  ]
+}

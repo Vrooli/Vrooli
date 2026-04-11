@@ -1,0 +1,8 @@
+{
+  "resource": "{{RESOURCE_NAME}}",
+  "kind": "smoke",
+  "checks": [
+    "legacy entrypoint is present",
+    "migration owner and target date are populated"
+  ]
+}

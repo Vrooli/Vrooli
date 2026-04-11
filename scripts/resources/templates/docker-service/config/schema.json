@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "{{RESOURCE_DISPLAY_NAME}} defaults",
+  "type": "object",
+  "required": [
+    "image",
+    "port"
+  ],
+  "properties": {
+    "image": {
+      "type": "string"
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "env": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -995,36 +995,83 @@ Important decisions made during Phase 0:
 
 **Goal:** Make deprecation safe, recoverable, and explicit.
 
-- [ ] Define `.vrooli/deprecated-resources.json`
-- [ ] Implement external archive export path under `~/.vrooli/archive/resources/`
-- [ ] Implement `deprecate`, `list-deprecated`, `restore`, and archive GC commands
-- [ ] Define retention policy and restore semantics
-- [ ] Convert first batch of clearly stale resources into `deprecated + blueprint`
+- [x] Define `.vrooli/deprecated-resources.json`
+- [x] Implement external archive export path under `~/.vrooli/archive/resources/`
+- [x] Implement `deprecate`, `list-deprecated`, `restore`, and archive GC commands
+- [x] Define retention policy and restore semantics
+- [x] Convert first batch of clearly stale resources into `deprecated + blueprint`
 
 **Deliverable:** Dead resources can leave the repo cleanly without losing recoverability.
 
 **Acceptance:** A deprecated resource is no longer active in repo discovery, but can still be restored during retention.
 
+**Status update:** Phase 2 is implemented and validated as a native Go workflow.
+
+- `.vrooli/deprecated-resources.json` is now the in-repo metadata source for deprecated resource state
+- archived resource state exports to `~/.vrooli/archive/resources/`
+- `vrooli resource deprecate <name>`, `list-deprecated`, `restore <name>`, and `archive gc` are implemented
+- deprecated resources are excluded from normal `vrooli resource list` / status discovery
+- restores are quarantined under `.vrooli/restored-resources/<name>/` instead of silently becoming active again
+- the initial deprecation batch is complete for:
+  - `autogen-studio`
+  - `erpnext`
+  - `langchain`
+  - `musicgen`
+- each deprecated resource now has a matching replacement blueprint record
+
+The focused Phase 2 validation bundle is:
+
+- `go test ./internal/resources`
+- `go test ./cmd/vrooli -run 'Test(RunResource(Blueprint(ListCommandJSON|InfoCommandHuman|ValidateCommandHuman|SearchCommandHuman|SearchCommandJSON)|ListDeprecatedCommandJSON|DeprecateCommandHuman|RestoreCommandHuman|ArchiveGCCommandJSON)|ShowResourceHelpIncludesBlueprintCommands)'`
+- `go run ./cmd/vrooli resource deprecate autogen-studio`
+- `go run ./cmd/vrooli resource list-deprecated`
+- `go run ./cmd/vrooli resource restore autogen-studio`
+- `go run ./cmd/vrooli resource archive gc`
+
 ### Phase 3 — Template system
 
 **Goal:** Replace ad hoc resource creation with canonical templates.
 
-- [ ] Create `scripts/resources/templates/<template>/` layout
-- [ ] Add template metadata format mirroring scenario templates
-- [ ] Implement canonical templates:
-  - [ ] `docker-service`
-  - [ ] `compose-service`
-  - [ ] `external-cli`
-  - [ ] `cloud-api`
-  - [ ] `desktop-app`
-  - [ ] `manual-resource`
-  - [ ] `legacy-adapter`
-- [ ] Add generation docs and usage examples
-- [ ] Add blueprint-to-template recommendation rules
+- [x] Create `scripts/resources/templates/<template>/` layout
+- [x] Add template metadata format mirroring scenario templates
+- [x] Implement canonical templates:
+  - [x] `docker-service`
+  - [x] `compose-service`
+  - [x] `external-cli`
+  - [x] `cloud-api`
+  - [x] `desktop-app`
+  - [x] `manual-resource`
+  - [x] `legacy-adapter`
+- [x] Add generation docs and usage examples
+- [x] Add blueprint-to-template recommendation rules
 
 **Deliverable:** New resources are scaffolded from a small high-quality template set.
 
 **Acceptance:** It is no longer necessary to clone an old resource directory to start a new one.
+
+**Status update:** Phase 3 is implemented and validated as the canonical scaffold path for new resources.
+
+- `scripts/resources/templates/` now contains the full canonical template set with shared layout, metadata, docs, and test stubs
+- `vrooli resource template list|show|validate|generate` is implemented in the native Go CLI
+- blueprints now enforce explicit `integration_kind -> suggested_template` recommendation rules instead of relying on convention
+- template validation now checks both manifest correctness and required asset/doc presence
+- the Go test suite now validates:
+  - generation for every canonical template
+  - blueprint-seeded generation across the current archetype set
+  - missing required values
+  - template/blueprint mismatch rejection
+  - overwrite safety through `--force`
+  - missing template asset and missing docs reference failures
+
+The focused Phase 3 closeout validation bundle is:
+
+- `go test ./internal/resources ./cmd/vrooli`
+- `go run ./cmd/vrooli resource template validate`
+- `go run ./cmd/vrooli resource template list`
+- `go run ./cmd/vrooli resource template show docker-service`
+- `go run ./cmd/vrooli resource template generate --from-blueprint terraform --dry-run`
+
+Phase 4 starts from here. Phase 3 is considered complete once new resource work is expected to go through `blueprint -> template -> implementation` rather than copying a historical `resources/<name>/` directory.
 
 ### Phase 4 — Go-native resource manifests and driver interfaces
 

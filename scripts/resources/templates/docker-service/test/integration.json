@@ -1,0 +1,8 @@
+{
+  "resource": "{{RESOURCE_NAME}}",
+  "kind": "integration",
+  "checks": [
+    "port bindings are correct",
+    "data volume persists state"
+  ]
+}

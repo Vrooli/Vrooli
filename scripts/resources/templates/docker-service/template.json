@@ -1,0 +1,40 @@
+{
+  "name": "docker-service",
+  "displayName": "Docker Service",
+  "description": "Scaffold a single-container infrastructure resource managed through a Docker-oriented runtime contract.",
+  "driver": "docker-service",
+  "requiredVars": {
+    "RESOURCE_NAME": {
+      "flag": "name",
+      "description": "Lowercase kebab-case resource identifier."
+    }
+  },
+  "optionalVars": {
+    "RESOURCE_DISPLAY_NAME": {
+      "flag": "display-name",
+      "description": "Human-readable display name."
+    },
+    "RESOURCE_DESCRIPTION": {
+      "flag": "description",
+      "description": "Short operator-facing summary."
+    },
+    "RESOURCE_CATEGORY": {
+      "flag": "category",
+      "description": "Resource category label.",
+      "default": "infrastructure"
+    },
+    "RESOURCE_PORTABILITY_TIER": {
+      "flag": "portability-tier",
+      "description": "Portability tier for the generated scaffold.",
+      "default": "partial"
+    }
+  },
+  "docs": {
+    "phase3-plan": "docs/plans/resource-cross-platform-migration-plan.md",
+    "resource-guide": "docs/resources/resource-templates.md"
+  },
+  "platformExpectations": [
+    "Docker must be installed on any host that runs this resource.",
+    "The Go control plane owns orchestration; shell wrappers are not required for generated scaffolds."
+  ]
+}

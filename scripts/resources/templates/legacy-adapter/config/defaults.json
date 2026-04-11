@@ -1,0 +1,5 @@
+{
+  "legacy_cli_path": "resources/{{RESOURCE_NAME}}/cli.sh",
+  "owner": "",
+  "target_resolution": "migrate-or-deprecate"
+}

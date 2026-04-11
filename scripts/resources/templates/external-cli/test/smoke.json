@@ -1,0 +1,8 @@
+{
+  "resource": "{{RESOURCE_NAME}}",
+  "kind": "smoke",
+  "checks": [
+    "binary exists on PATH",
+    "version command succeeds"
+  ]
+}

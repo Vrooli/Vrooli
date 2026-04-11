@@ -1,0 +1,8 @@
+{
+  "resource": "{{RESOURCE_NAME}}",
+  "kind": "smoke",
+  "checks": [
+    "app binary or bundle can be located",
+    "unsupported platforms fail with a typed error"
+  ]
+}

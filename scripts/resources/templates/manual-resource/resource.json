@@ -1,0 +1,13 @@
+{
+  "name": "{{RESOURCE_NAME}}",
+  "display_name": "{{RESOURCE_DISPLAY_NAME}}",
+  "description": "{{RESOURCE_DESCRIPTION}}",
+  "template": "manual-resource",
+  "driver": "manual",
+  "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
+  "category": "{{RESOURCE_CATEGORY}}",
+  "manual_steps_required": true,
+  "validation": [
+    "document me"
+  ]
+}

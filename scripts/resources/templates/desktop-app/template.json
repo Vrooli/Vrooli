@@ -1,0 +1,40 @@
+{
+  "name": "desktop-app",
+  "displayName": "Desktop App",
+  "description": "Scaffold a resource for a native desktop application with explicit install guidance, path detection, and honest unsupported behavior.",
+  "driver": "desktop-app",
+  "requiredVars": {
+    "RESOURCE_NAME": {
+      "flag": "name",
+      "description": "Lowercase kebab-case resource identifier."
+    }
+  },
+  "optionalVars": {
+    "RESOURCE_DISPLAY_NAME": {
+      "flag": "display-name",
+      "description": "Human-readable display name."
+    },
+    "RESOURCE_DESCRIPTION": {
+      "flag": "description",
+      "description": "Short operator-facing summary."
+    },
+    "RESOURCE_CATEGORY": {
+      "flag": "category",
+      "description": "Resource category label.",
+      "default": "desktop-tooling"
+    },
+    "RESOURCE_PORTABILITY_TIER": {
+      "flag": "portability-tier",
+      "description": "Portability tier for the generated scaffold.",
+      "default": "platform-specific"
+    }
+  },
+  "docs": {
+    "phase3-plan": "docs/plans/resource-cross-platform-migration-plan.md",
+    "resource-guide": "docs/resources/resource-templates.md"
+  },
+  "platformExpectations": [
+    "Generated scaffolds must fail clearly when the app is unsupported on a platform.",
+    "Manual steps and install paths should be documented instead of hidden behind weak automation."
+  ]
+}

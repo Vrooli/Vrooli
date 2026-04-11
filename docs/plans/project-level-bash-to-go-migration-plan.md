@@ -1,6 +1,6 @@
 # Project-Level Bash → Go Migration Plan
 
-**Status:** Weeks 0 through 5 are implemented and validated in the default Go path, and part of the original Week 6 surface is already native (`status`, `doctor`, `info`, `clean`, and `stop`). Remaining work is concentrated in legacy Bash cleanup (`scripts/manage.sh`, `cli/`, `scripts/lib/`), the `VROOLI_FORCE_BASH` escape hatch, and the still-unported secrets/network/backup-restore long tail.
+**Status:** Weeks 0 through 5 are implemented and validated in the default Go path, and a meaningful part of the original Week 6 surface is already native (`status`, `doctor`, `info`, `clean`, `stop`, `orphans`, `locks`, `diagnose-port`, and top-level `backup`/`restore` dispatch). The `VROOLI_FORCE_BASH` escape hatch has been removed from the Go CLI. Remaining work is concentrated in legacy Bash cleanup (`scripts/manage.sh`, `cli/`, `scripts/lib/`) and the still-unported secrets/network long tail.
 **Owner:** Matthew Halloran
 **Scope:** Project-level orchestration only. Scenarios are explicitly out of scope.
 **Target:** Zero project-level bash in ~6 weeks, on a path to cross-platform support.
@@ -15,7 +15,7 @@ If you are an agent orienting to this plan, read this section first.
 - **What this plan does NOT cover:** Anything under `scenarios/*/`. Scenarios are already on their own cross-platform path via `packages/cli-core` and `packages/api-core`. Do not touch scenario internals as part of this work.
 - **How to find current progress:** Check the "Progress Tracker" section at the bottom, then run `make validate-week0-week5` to verify the landed Week 0-5 slice contract end-to-end. Do not rely on `git log --grep="bash-to-go"`; that naming convention was not applied consistently, so the code and validation target are more reliable than commit subjects.
 - **How to resume work:** Find the first unchecked item in the Progress Tracker, re-read its Week section for context and deliverables, and start there. Each week's PRs are designed to be independently reviewable and revertable.
-- **Escape hatch:** Throughout the migration, the env var `VROOLI_FORCE_BASH=1` should route any subcommand back to its original bash handler if the Go path misbehaves. Remove this only in Week 6.
+- **Escape hatch:** Historical note only: `VROOLI_FORCE_BASH=1` used to route subcommands back to Bash during migration. That path is now removed from the Go CLI; any remaining mentions should be treated as cleanup debt or historical context.
 - **If you find stale information in this plan:** Update it. The plan is a living document; the repo's current state is always authoritative over what's written here.
 
 ---
@@ -214,7 +214,7 @@ The fundamental shift from Bash to Go is: Bash reads source on every invocation,
 
 ## 5. Week-by-week migration plan
 
-Strangler pattern. Each week delivers value standalone. Bash stays working until the matching Go handler is green-light. Escape hatch: `VROOLI_FORCE_BASH=1` routes any subcommand back to its bash handler.
+Strangler pattern. Each week delivered value standalone while the Bash fallback existed. That fallback is now retired from the Go CLI, so the remaining Week 6 work is deleting and collapsing the leftover compatibility surface.
 
 ### Week 0 — Foundation (no user-visible change)
 
@@ -247,9 +247,9 @@ Strangler pattern. Each week delivers value standalone. Bash stays working until
   - For each subcommand, routes to `exec.Command("bash", "cli/commands/<appropriate-handler>.sh", args...)`
   - Inherits stdin/stdout/stderr, propagates exit code
 - [ ] Wire in the `internal/buildinfo` stale-check on startup: if source fingerprint ≠ embedded, call `RebuildAndReexec`
-- [ ] Support `VROOLI_FORCE_BASH=1` — when set, skip Go-level logic and exec the old `cli/vrooli` directly. This is the escape hatch.
-- [ ] Update the setup script to install `~/.vrooli/bin/vrooli` (the Go binary) as the entry point, instead of symlinking the old Bash `cli/vrooli`
-- [ ] Keep the old Bash `cli/vrooli` in place for fallback
+- [x] Support `VROOLI_FORCE_BASH=1` — when set, skip Go-level logic and exec the old `cli/vrooli` directly. This was the temporary migration escape hatch and is now retired in Week 6.
+- [x] Update the setup script to install `~/.vrooli/bin/vrooli` (the Go binary) as the entry point, instead of symlinking the old Bash `cli/vrooli`
+- [x] Keep `cli/vrooli` in place temporarily as a compatibility shim while direct callers are migrated
 - [ ] Integration test: run `vrooli scenario list` through the new Go dispatcher; verify identical output to the old Bash path
 
 **Deliverable:** As of this week, "I edited code and forgot to rebuild" is impossible. Every `vrooli` invocation verifies freshness. The #1 concern from this conversation is solved.
@@ -274,12 +274,12 @@ Strangler pattern. Each week delivers value standalone. Bash stays working until
   - `vrooli scenario list`
   - `vrooli scenario info <name>`
   - `vrooli scenario status [name]`
-- [x] Route migrated subcommands through Go while retaining the old Bash implementations only behind `VROOLI_FORCE_BASH` until the escape hatch is removed in Week 6
+- [x] Route migrated subcommands through Go while the remaining legacy commands still lived in Bash during the migration
 - [x] Unit tests for `internal/scenario` and `internal/process`
 
 **Deliverable:** ~3 subcommands in Go. Pattern is proven. First shared packages exist.
 
-**Acceptance:** `vrooli scenario list` output is intentionally improved compared to the old Bash version: it now filters strictly to `scenarios/*/.vrooli/service.json`, correctly reports running scenarios from PID metadata, and still allows `VROOLI_FORCE_BASH=1` fallback for the legacy commands that existed before Week 2. `vrooli scenario status` is also CLI-native now and no longer requires the project API to be reachable.
+**Acceptance:** `vrooli scenario list` output is intentionally improved compared to the old Bash version: it now filters strictly to `scenarios/*/.vrooli/service.json`, correctly reports running scenarios from PID metadata, and `vrooli scenario status` is also CLI-native now without requiring the project API to be reachable.
 
 **Note on the first week of migration:** Week 2 often takes longer than it looks — not because the code is hard, but because you're designing the shared `internal/` APIs for the first time. Accept that. Do not cargo-cult the first design into later packages; expect to refactor the API shape in Week 3.
 
@@ -305,7 +305,7 @@ Strangler pattern. Each week delivers value standalone. Bash stays working until
   2. `vrooli scenario start` — complex: discovery + phase execution + health checks
   3. `vrooli scenario restart` — composition of stop + start
 - [x] Repeatable validation: temp-fixture lifecycle smokes for `start`/`restart`/`stop`, plus real-manifest contract coverage for `test-genie` and `simple-test`
-- [ ] Remove the now-unused Week 3 Bash implementations only after the remaining fallback commands no longer source them
+- [ ] Remove the now-unused Week 3 Bash implementations only after the remaining legacy wrappers and non-migrated shell consumers stop sourcing them
 
 **Deliverable:** The call path from the original conversation is entirely Go. The biggest single bash chunk is gone.
 
@@ -330,9 +330,9 @@ Strangler pattern. Each week delivers value standalone. Bash stays working until
 - [ ] `internal/config` package:
   - `.vrooli/` path resolution (repo-local, home-level)
   - Env var handling with defaults
-- [ ] Delete `cli/commands/scenario/` entirely once `VROOLI_FORCE_BASH` and the remaining legacy top-level entrypoints are retired
+- [ ] Delete `cli/commands/scenario/` entirely once the remaining legacy top-level wrappers and direct shell consumers are retired
 
-**Deliverable:** `vrooli scenario --help` is entirely backed by Go handlers in the default path; the old Bash scenario dispatcher remains only behind `VROOLI_FORCE_BASH`.
+**Deliverable:** `vrooli scenario --help` is entirely backed by Go handlers in the default path.
 
 **Acceptance:** `vrooli scenario --help` lists the full scenario command surface, `make validate-week4` is green, and the repeatable suite covers native setup/test/logs/open/port/template/requirements/heal flows plus the thin CLI wrappers.
 
@@ -365,30 +365,23 @@ Strangler pattern. Each week delivers value standalone. Bash stays working until
 
 ### Week 6 — Long tail + cleanup
 
-**Goal:** Mop up. Delete the remaining bash.
+**Goal:** Retire the remaining project-level Bash entrypoints and shrink the legacy boundary to the genuinely unmigrated platform-specific long tail.
 
 - [ ] `internal/secrets` package:
   - Encrypted read/write of `~/.vrooli/` secret files
   - AES-GCM or age (pick one; age is simpler and more auditable)
   - Port from `scripts/lib/service/` (~1,055 LOC)
 - [ ] `internal/network` package:
-  - Diagnostics, firewall wrappers
-  - Linux-only via build tags; stubs return clear errors on other platforms
-  - Port from `scripts/lib/network/` remainder (~1,575 LOC)
-- [ ] Remaining top-level `vrooli` subcommands:
-  - `vrooli status`
-  - `vrooli doctor`
-  - `vrooli info`
-  - `vrooli clean`
-  - `vrooli stop`
-  - `vrooli backup`
-  - `vrooli restore`
-  - `vrooli orphans`
-  - `vrooli locks`
+  - Start with the maintenance-facing slice first: lock parsing/listing plus listener inspection used by `locks` and `diagnose-port`
+  - Keep it Linux-gated where process/listener inspection is platform-specific; use stubs elsewhere
+  - Do not port the entire `scripts/lib/network/` tree unless a live project-level command still depends on it
+- [ ] Remaining top-level `vrooli` work:
+  - Harden validation for the already-native commands: `vrooli status`, `doctor`, `info`, `clean`, `stop`, `backup`, `restore`, `orphans`, `locks`, `diagnose-port`
+  - Remove their residual dependence on the Bash escape hatch and legacy shims
 - [ ] Delete `scripts/lib/` entirely
 - [ ] Delete `cli/` entirely
-- [ ] Delete `cli/vrooli` (the old Bash entry point — by now it's orphaned)
-- [ ] Remove the `VROOLI_FORCE_BASH` escape hatch from `cmd/vrooli/main.go`
+- [ ] Delete `cli/vrooli` once the remaining direct callers stop execing it and the compatibility shim is no longer needed
+- [x] Remove the `VROOLI_FORCE_BASH` escape hatch from `cmd/vrooli/main.go`
 
 **Deliverable:** No project-level Bash remains. `wc -l cli/**/*.sh scripts/**/*.sh 2>/dev/null` returns zero (or only scenario-internal bash, which is out of scope).
 
@@ -407,7 +400,7 @@ Apply these throughout all six weeks:
    - Adds tests
    - Is independently reviewable and revertable
 
-2. **Delete the Bash in the same PR as the Go replacement when the deleted file is no longer a shared dependency of non-migrated commands.** The `VROOLI_FORCE_BASH` env var is the only safety net. Do NOT keep parallel code paths "just in case" in the tree — but also do not delete shared Bash helpers that the still-fallback commands continue to source.
+2. **Delete the Bash in the same PR as the Go replacement when the deleted file is no longer a shared dependency of non-migrated commands.** The temporary `VROOLI_FORCE_BASH` safety net is gone now. Do NOT keep parallel code paths "just in case" in the tree — but also do not delete shared Bash helpers that still have live consumers outside the project CLI.
 
 3. **Integration-test each migrated command against a real scenario.** Use `test-genie` (small, fast) as the acceptance bar. Run the command through old Bash and new Go paths; compare outputs and state.
 
@@ -417,7 +410,7 @@ Apply these throughout all six weeks:
 
 6. **Don't try to get to zero bash by a hard deadline.** If Week 6 leaves 2k LOC of obscure bash (exotic network diagnostics, rarely-used backup routines), that's fine. Port it opportunistically afterward. 95% of the value is in the scenario commands + setup + lifecycle, which land by Week 5.
 
-7. **Greenfield over compat shims.** Per existing project feedback guidelines: don't add backwards-compatibility layers. When you port, port cleanly. The `VROOLI_FORCE_BASH` escape hatch is the ONLY compat concession, and it goes away in Week 6.
+7. **Greenfield over compat shims.** Per existing project feedback guidelines: don't add backwards-compatibility layers. When you port, port cleanly. The old `VROOLI_FORCE_BASH` escape hatch was the only major compat concession, and it is now gone.
 
 8. **Do not touch scenarios.** Scenarios are out of scope. If you find yourself editing anything under `scenarios/*/`, stop — that's not this plan.
 
@@ -427,11 +420,11 @@ Apply these throughout all six weeks:
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Week 3 lifecycle port has subtle edge cases (sandbox path resolution, health-check timing, port lease renewal) | Schedule slip, incorrect behavior | Budget 1.5× time. Integration-test against `test-genie` and at least one scenario with resource dependencies. Ship with `VROOLI_FORCE_BASH` still available for one extra week after Week 3. |
+| Week 3 lifecycle port has subtle edge cases (sandbox path resolution, health-check timing, port lease renewal) | Schedule slip, incorrect behavior | Budget 1.5× time. Integration-test against `test-genie` and at least one scenario with resource dependencies. Preserve the legacy wrappers until the native validation slices are broad enough to replace parity confidence. |
 | First Go package API (`internal/scenario` in Week 2) gets designed poorly | Downstream packages cargo-cult the bad shape | Expect to refactor in Week 3. Do not freeze the API after Week 2. |
 | Cross-platform ambitions creep into early weeks | Schedule slip, scope explosion | Platform work is gated to Week 5. Earlier weeks target Linux only. |
 | Stale-check fingerprint algorithm has a bug causing infinite rebuild loops | User experience broken, hard to diagnose | Unit test the fingerprint algorithm in Week 0. Include a `--no-stale-check` flag for debugging. |
-| Bash handlers deleted prematurely, Go handler has a regression | User workflow broken | Keep `VROOLI_FORCE_BASH` functional for one full week after each handler migrates. Integration tests gate the merge. |
+| Bash handlers deleted prematurely, Go handler has a regression | User workflow broken | Gate deletion on repeatable integration coverage and live native smokes. Retain only narrow compatibility shims that still have known callers. |
 | "A few weeks" is optimistic | Plan stretches to 10+ weeks | Acceptable — the incremental delivery means value lands each week regardless. Don't compress by skipping tests. |
 
 ---
@@ -465,11 +458,11 @@ Validation note: As of 2026-04-10, the repeatable acceptance target `make valida
 ### Week 1 — Dispatcher shim
 - [x] `cmd/vrooli/` pass-through dispatcher
 - [x] Stale-check + rebuild+re-exec wired in
-- [x] `VROOLI_FORCE_BASH` escape hatch
+- [x] `VROOLI_FORCE_BASH` escape hatch (historical milestone; retired in Week 6)
 - [x] Setup script updated to install Go binary
 - [x] Integration test: `vrooli scenario list` via Go dispatcher
 
-Validation note: As of 2026-04-10, the repeatable acceptance target `make validate-week0-week1` is green. For Week 1 specifically, that target still covers `~/.vrooli/bin/vrooli --version`, `~/.vrooli/bin/vrooli info --list`, a smoke of both the native Go and `VROOLI_FORCE_BASH=1` legacy `scenario list` paths, a temp-`HOME` installer smoke test for `cli/install.sh --force`, and a stale-check smoke that appends a temporary comment to `cmd/vrooli/main.go`, verifies the installed binary checksum changes on the next invocation, and then verifies the checksum stabilizes on the following invocation. The installed-binary smokes pin `VROOLI_ROOT` and `VROOLI_SOURCE_ROOT` to the active checkout so the stale-check works from fresh worktrees, and the remaining Bash entrypoints they exercise (`cli/vrooli`, `cli/install.sh`, `scripts/manage.sh`, `api/start.sh`, and the top-level `cli/commands/*` handlers) must retain executable mode until those Bash paths are retired. The checksum-based stale smoke replaced the older `stat` mtime check because filesystem timestamp granularity can hide a real rebuild when both runs happen within the same second.
+Validation note: As of 2026-04-11, the repeatable acceptance target `make validate-week0-week1` is green. For Week 1 specifically, that target covers `~/.vrooli/bin/vrooli --version`, `~/.vrooli/bin/vrooli info --list`, a temp-`HOME` installer smoke test for `cli/install.sh --force`, and a stale-check smoke that appends a temporary comment to `cmd/vrooli/main.go`, verifies the installed binary checksum changes on the next invocation, and then verifies the checksum stabilizes on the following invocation. The installed-binary smokes pin `VROOLI_ROOT` and `VROOLI_SOURCE_ROOT` to the active checkout so the stale-check works from fresh worktrees. `cli/vrooli` is still exercised as a compatibility shim during installer migration coverage and must remain executable until its direct callers are removed. The checksum-based stale smoke replaced the older `stat` mtime check because filesystem timestamp granularity can hide a real rebuild when both runs happen within the same second.
 
 ### Week 2 — Read-only scenario commands
 - [x] `internal/scenario` package (with sandbox awareness)
@@ -479,7 +472,7 @@ Validation note: As of 2026-04-10, the repeatable acceptance target `make valida
 - [x] `vrooli scenario status` migrated
 - [x] Unit tests for `internal/scenario`, `internal/process`
 
-Validation note: As of 2026-04-10, the repeatable acceptance targets `make validate-week2` and `make validate-week0-week2` are green. Week 2 validation now provisions a temp fixture repo plus a temp `HOME`, starts disposable HTTP servers with process metadata under `~/.vrooli/processes/scenarios/alpha/`, verifies `scenario list --json` only discovers directories with `.vrooli/service.json`, verifies `scenario list --json --include-ports` reports live port metadata from process files, verifies `scenario info alpha --json` honors `VROOLI_SANDBOX_MERGED` + `VROOLI_SANDBOX_SCOPE=scenarios/alpha`, verifies `scenario status alpha --json` stays healthy with `VROOLI_API_PORT=1` (proving it no longer depends on the project API), and verifies `VROOLI_FORCE_BASH=1` still reaches the legacy `scenario list` path against the real repo.
+Validation note: As of 2026-04-11, the repeatable acceptance targets `make validate-week2` and `make validate-week0-week2` are green. Week 2 validation now provisions a temp fixture repo plus a temp `HOME`, starts disposable HTTP servers with process metadata under `~/.vrooli/processes/scenarios/alpha/`, verifies `scenario list --json` only discovers directories with `.vrooli/service.json`, verifies `scenario list --json --include-ports` reports live port metadata from process files, verifies `scenario info alpha --json` honors `VROOLI_SANDBOX_MERGED` + `VROOLI_SANDBOX_SCOPE=scenarios/alpha`, and verifies `scenario status alpha --json` stays healthy with `VROOLI_API_PORT=1` (proving it no longer depends on the project API).
 
 ### Week 3 — Lifecycle executor + stop/start/restart
 - [x] `internal/lifecycle` package
@@ -488,9 +481,9 @@ Validation note: As of 2026-04-10, the repeatable acceptance targets `make valid
 - [x] `vrooli scenario start` migrated
 - [x] `vrooli scenario restart` migrated
 - [x] Repeatable lifecycle validation landed (`make validate-week3`, `make validate-week0-week3`, plus real-manifest contract coverage for `test-genie` and `simple-test`)
-- [ ] Week 3 Bash helpers retired once the remaining Bash fallback commands and runtime wrappers stop sourcing them
+- [ ] Week 3 Bash helpers retired once the remaining legacy wrappers, runtime shims, and shell consumers stop sourcing them
 
-Validation note: As of 2026-04-10, the acceptance targets `make validate-week3`, `make validate-week3-live`, and `make validate-week0-week3` are green. Week 3 validation now builds, installs, and tests the Go binaries; provisions a temp fixture repo plus a temp `HOME`; verifies native `scenario start alpha --json`, `scenario restart alpha --json`, and `scenario stop alpha --json`; confirms health polling, process metadata under `~/.vrooli/processes/scenarios/alpha/`, lifecycle logs under `~/.vrooli/logs/alpha.log`, rotated per-step logs under `~/.vrooli/logs/scenarios/alpha/`, and port locks under `~/.vrooli/state/scenarios/.port_*.lock`; and keeps `VROOLI_FORCE_BASH=1` available for the remaining Bash-backed scenario commands. The live parity target additionally runs both the native Go and `VROOLI_FORCE_BASH=1` lifecycle paths against real scenarios (`test-genie` and `reference-react-vite`), compares normalized process metadata, start-time lock ownership, restart log rotation, and lifecycle markers such as database bootstrap, and verifies both implementations keep valid scenario-owned locks during restart and fully clean up scenario records and lock files after `stop`. The restart lock check is intentionally ownership-based instead of bug-for-bug raw lock-count equality because the legacy Bash path can retain superseded scenario-owned dynamic lock files until final stop, while the Go path eagerly reclaims them. Bash-helper deletion is still deferred because fallback paths such as `scenario test/logs/build`, `scripts/manage.sh`, and the remaining Bash lifecycle modules still source the old helpers. The unit suite also now covers both the legacy and current dependency manifest schemas plus real-manifest environment/port contracts for `test-genie`, `simple-test`, and legacy-array scenarios like `code-smell`.
+Validation note: As of 2026-04-11, the repeatable acceptance targets `make validate-week3` and `make validate-week0-week3` are green. Week 3 validation builds, installs, and tests the Go binaries; provisions a temp fixture repo plus a temp `HOME`; verifies native `scenario start alpha --json`, `scenario restart alpha --json`, and `scenario stop alpha --json`; confirms health polling, process metadata under `~/.vrooli/processes/scenarios/alpha/`, lifecycle logs under `~/.vrooli/logs/alpha.log`, rotated per-step logs under `~/.vrooli/logs/scenarios/alpha/`, and port locks under `~/.vrooli/state/scenarios/.port_*.lock`; and exercises the current dependency manifest schemas plus real-manifest environment/port contracts for `test-genie`, `simple-test`, and legacy-array scenarios like `code-smell`. `make validate-week3-live` is now a native-only live smoke against `test-genie` and `reference-react-vite` rather than a Bash-vs-Go parity harness, and it should be treated as a separate live integration check because it is slower and more environment-sensitive than the repeatable fixture suite.
 
 ### Week 4 — Remaining scenario commands + config
 - [x] `vrooli scenario test` migrated
@@ -501,9 +494,9 @@ Validation note: As of 2026-04-10, the acceptance targets `make validate-week3`,
 - [x] `vrooli scenario template`, `generate` migrated
 - [x] `vrooli scenario completeness`, `heal-from-sandbox` migrated
 - [x] `internal/config` package
-- [ ] `cli/commands/scenario/` deleted after `VROOLI_FORCE_BASH` and the remaining legacy top-level Bash entrypoints are removed
+- [ ] `cli/commands/scenario/` deleted after the remaining legacy top-level wrappers and direct shell consumers are removed
 
-Validation note: As of 2026-04-10, the acceptance targets `make validate-week4` and `make validate-week0-week4` are green. Week 4 validation now builds, installs, and tests the Go binaries; reruns the full project-level Go suite; runs focused CLI coverage for native `scenario setup`, `test`, `port`, `open`, `logs --clean`, `template/generate`, `requirements snapshot`, and `heal-from-sandbox`; and confirms the installed binary exposes the expanded native command surface in `scenario --help` (`start-all`, `stop-all`, `template`, `generate`, `heal-from-sandbox`, and the rest of the remaining scenario utilities). Thin wrapper commands such as `ui-smoke`, `requirements report`, and `completeness` are now exercised through the Go dispatcher and covered by unit tests that assert the translated subprocess invocations. The Bash scenario dispatcher is intentionally still present only for the `VROOLI_FORCE_BASH` escape hatch and will be deleted alongside the rest of the legacy entrypoint stack in Week 6.
+Validation note: As of 2026-04-10, the acceptance targets `make validate-week4` and `make validate-week0-week4` are green. Week 4 validation now builds, installs, and tests the Go binaries; reruns the full project-level Go suite; runs focused CLI coverage for native `scenario setup`, `test`, `port`, `open`, `logs --clean`, `template/generate`, `requirements snapshot`, and `heal-from-sandbox`; and confirms the installed binary exposes the expanded native command surface in `scenario --help` (`start-all`, `stop-all`, `template`, `generate`, `heal-from-sandbox`, and the rest of the remaining scenario utilities). Thin wrapper commands such as `ui-smoke`, `requirements report`, and `completeness` are now exercised through the Go dispatcher and covered by unit tests that assert the translated subprocess invocations. The remaining cleanup is deleting the legacy shell command tree once the last direct consumers are removed; the Go CLI no longer retains a runtime fallback path.
 
 ### Week 5 — Setup + runtime
 - [x] `internal/runtime` package (platform-gated)
@@ -520,12 +513,14 @@ Validation note: As of 2026-04-11, the week-5-specific acceptance slices are gre
 
 ### Week 6 — Long tail + cleanup
 - [ ] `internal/secrets` package
-- [ ] `internal/network` package
-- [ ] `vrooli status`, `doctor`, `info`, `clean`, `stop`, `backup`, `restore`, `orphans`, `locks` migrated
-  Partial progress: `status`, `doctor`, `info`, `clean`, and `stop` are native Go already. `backup`, `restore`, and the full retirement of the `vrooli-autoheal`/legacy cleanup path behind `orphans`, `locks`, and `diagnose-port` are still pending.
+- [x] `internal/network` package
+  Current scope: maintenance-facing lock parsing/listing plus listener inspection used by `locks` and `diagnose-port` are now extracted into `internal/network`; broader firewall/diagnostics parity remains future work only if a live project command still needs it.
+- [x] Native project-level command validation broadened for `status`, `doctor`, `info`, `clean`, `stop`, `backup`, `restore`, `orphans`, `locks`, and `diagnose-port`
+  Current coverage: `make validate-week6-slice` exercises those native commands through the installed binary against a temp fixture project and validates native lock cleanup plus backup/restore dispatch.
 - [ ] `scripts/lib/` deleted
 - [ ] `cli/` deleted
-- [ ] `VROOLI_FORCE_BASH` escape hatch removed
+- [ ] `cli/vrooli` compatibility shim deleted after direct callers such as `scenarios/task-planner/api/task_parser.go` and `scenarios/elo-swipe/api/smart_pairing.go` stop execing `/vrooli/cli/vrooli`
+- [x] `VROOLI_FORCE_BASH` escape hatch removed
 
 ### Post-migration
 - [ ] Zero `.sh` files remaining under `cli/` and `scripts/lib/` (confirmed via `find`)

@@ -1,0 +1,19 @@
+{
+  "name": "{{RESOURCE_NAME}}",
+  "display_name": "{{RESOURCE_DISPLAY_NAME}}",
+  "description": "{{RESOURCE_DESCRIPTION}}",
+  "template": "desktop-app",
+  "driver": "desktop-app",
+  "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
+  "category": "{{RESOURCE_CATEGORY}}",
+  "platforms": {
+    "linux": "document me",
+    "macos": "document me",
+    "windows": "document me"
+  },
+  "detection": {
+    "linux": "",
+    "macos": "",
+    "windows": ""
+  }
+}

@@ -64,6 +64,17 @@ type BlueprintValidationReport struct {
 	Count      int                `json:"count"`
 }
 
+var allowedBlueprintTemplateRules = map[string][]string{
+	"docker-service":  {"docker-service"},
+	"compose-service": {"compose-service"},
+	"external-cli":    {"external-cli"},
+	"cloud-api":       {"cloud-api"},
+	"desktop-app":     {"desktop-app"},
+	"manual":          {"manual-resource"},
+	"hardware":        {"manual-resource"},
+	"library":         {"manual-resource", "external-cli"},
+}
+
 func (c *Controller) ListBlueprints() ([]Blueprint, error) {
 	blueprints, err := c.loadBlueprints()
 	if err != nil {
@@ -208,8 +219,11 @@ func validateBlueprint(item Blueprint) error {
 	if !isAllowedValue(item.IntegrationKind, []string{"docker-service", "compose-service", "external-cli", "cloud-api", "library", "desktop-app", "hardware", "manual"}) {
 		return fmt.Errorf("integration_kind %q is invalid", item.IntegrationKind)
 	}
-	if !isAllowedValue(item.SuggestedTemplate, []string{"docker-service", "compose-service", "external-cli", "cloud-api", "desktop-app", "manual-resource", "legacy-adapter"}) {
+	if !isAllowedValue(item.SuggestedTemplate, AllowedSuggestedTemplates()) {
 		return fmt.Errorf("suggested_template %q is invalid", item.SuggestedTemplate)
+	}
+	if err := validateBlueprintSuggestedTemplate(item.IntegrationKind, item.SuggestedTemplate); err != nil {
+		return err
 	}
 	if !isAllowedValue(item.Status, []string{"candidate", "validated", "prioritized"}) {
 		return fmt.Errorf("status %q is invalid", item.Status)
@@ -239,6 +253,22 @@ func validateBlueprint(item Blueprint) error {
 	}
 	if _, err := time.Parse("2006-01-02", item.LastReviewed); err != nil {
 		return fmt.Errorf("last_reviewed must be YYYY-MM-DD: %w", err)
+	}
+	return nil
+}
+
+func validateBlueprintSuggestedTemplate(integrationKind, suggestedTemplate string) error {
+	allowed, ok := allowedBlueprintTemplateRules[integrationKind]
+	if !ok {
+		return fmt.Errorf("integration_kind %q has no template recommendation rule", integrationKind)
+	}
+	if !isAllowedValue(suggestedTemplate, allowed) {
+		return fmt.Errorf(
+			"suggested_template %q is invalid for integration_kind %q (allowed: %s)",
+			suggestedTemplate,
+			integrationKind,
+			strings.Join(allowed, ", "),
+		)
 	}
 	return nil
 }

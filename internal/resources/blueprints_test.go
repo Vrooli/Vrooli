@@ -116,6 +116,40 @@ func TestValidateBlueprintsRejectsMissingRequiredFields(t *testing.T) {
 	}
 }
 
+func TestValidateBlueprintsRejectsTemplateRuleMismatch(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	path := filepath.Join(root, ".vrooli", "resource-blueprints", "broken-template-rule.json")
+	writeBlueprintFixture(t, path, `{
+  "name": "broken-template-rule",
+  "display_name": "Broken Template Rule",
+  "category": "testing",
+  "summary": "Fixture summary",
+  "why_it_matters": "Fixture importance",
+  "when_to_use": ["Fixture use"],
+  "integration_kind": "cloud-api",
+  "platform_support": {
+    "portability_tier": "full",
+    "notes": "Fixture notes",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "suggested_template": "manual-resource",
+  "implementation_notes": ["Implement me"],
+  "operational_notes": ["Operate me"],
+  "risks": ["Risk"],
+  "status": "candidate",
+  "references": [{"kind": "note", "value": "fixture"}],
+  "last_reviewed": "2026-04-11"
+}`)
+
+	_, err := NewController(root, home).ValidateBlueprints()
+	if err == nil || !strings.Contains(err.Error(), "suggested_template") {
+		t.Fatalf("expected suggested_template validation error, got %v", err)
+	}
+}
+
 func writeBlueprintFixture(t *testing.T, path, contents string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

@@ -1,0 +1,8 @@
+{
+  "resource": "{{RESOURCE_NAME}}",
+  "kind": "integration",
+  "checks": [
+    "inter-service dependencies become healthy in order",
+    "persistent volumes survive restart"
+  ]
+}

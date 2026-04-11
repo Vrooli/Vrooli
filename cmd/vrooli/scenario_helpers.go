@@ -141,7 +141,6 @@ func launchDetachedScenario(root string, globals globalOptions, args ...string) 
 		Args: commandArgs,
 		Dir:  root,
 		Env: unsetEnvKeys(commandEnv(root, globals),
-			forceBashEnvVar,
 			"VROOLI_SANDBOX_ID",
 			"VROOLI_SANDBOX_MERGED",
 			"VROOLI_SANDBOX_SCOPE",

@@ -1,0 +1,40 @@
+{
+  "name": "compose-service",
+  "displayName": "Compose Service",
+  "description": "Scaffold a multi-container resource with an explicit compose-style service graph and coordinated readiness expectations.",
+  "driver": "compose-service",
+  "requiredVars": {
+    "RESOURCE_NAME": {
+      "flag": "name",
+      "description": "Lowercase kebab-case resource identifier."
+    }
+  },
+  "optionalVars": {
+    "RESOURCE_DISPLAY_NAME": {
+      "flag": "display-name",
+      "description": "Human-readable display name."
+    },
+    "RESOURCE_DESCRIPTION": {
+      "flag": "description",
+      "description": "Short operator-facing summary."
+    },
+    "RESOURCE_CATEGORY": {
+      "flag": "category",
+      "description": "Resource category label.",
+      "default": "infrastructure"
+    },
+    "RESOURCE_PORTABILITY_TIER": {
+      "flag": "portability-tier",
+      "description": "Portability tier for the generated scaffold.",
+      "default": "partial"
+    }
+  },
+  "docs": {
+    "phase3-plan": "docs/plans/resource-cross-platform-migration-plan.md",
+    "resource-guide": "docs/resources/resource-templates.md"
+  },
+  "platformExpectations": [
+    "Docker Compose or equivalent compose support must exist on the operator host.",
+    "Generated readiness should model service dependencies explicitly instead of using ad hoc sleeps."
+  ]
+}

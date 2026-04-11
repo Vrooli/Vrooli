@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "{{RESOURCE_DISPLAY_NAME}} defaults",
+  "type": "object",
+  "required": [
+    "legacy_cli_path",
+    "target_resolution"
+  ],
+  "properties": {
+    "legacy_cli_path": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "target_resolution": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

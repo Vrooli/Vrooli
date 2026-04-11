@@ -1,0 +1,4 @@
+{
+  "compose_file": "compose.yaml",
+  "project_name": "{{RESOURCE_NAME}}"
+}

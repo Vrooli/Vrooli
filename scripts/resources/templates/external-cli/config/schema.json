@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "{{RESOURCE_DISPLAY_NAME}} defaults",
+  "type": "object",
+  "required": [
+    "binary",
+    "version_command"
+  ],
+  "properties": {
+    "binary": {
+      "type": "string"
+    },
+    "version_command": {
+      "type": "string"
+    },
+    "config_dir": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}
