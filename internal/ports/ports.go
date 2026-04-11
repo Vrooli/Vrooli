@@ -301,6 +301,50 @@ func (m *Manager) BuildEnvironment(item scenario.Scenario, records []process.Rec
 	}, nil
 }
 
+func (m *Manager) BuildProjectEnvironment(item scenario.Scenario) (Environment, error) {
+	allocated := make(map[string]int)
+	envVars := make(map[string]string)
+
+	for _, portSummary := range item.Manifest.SortedPorts() {
+		if portSummary.EnvVar == "" {
+			continue
+		}
+		port := 0
+		if override, err := strconv.Atoi(strings.TrimSpace(os.Getenv(portSummary.EnvVar))); err == nil && override > 0 {
+			port = override
+		} else if portSummary.FixedPort != nil {
+			port = *portSummary.FixedPort
+		}
+		if port <= 0 {
+			continue
+		}
+		allocated[portSummary.Name] = port
+		envVars[portSummary.EnvVar] = strconv.Itoa(port)
+	}
+
+	resourceEnv, err := m.loadResourceEnvironment(item.Manifest)
+	if err != nil {
+		return Environment{}, err
+	}
+	for key, value := range resourceEnv {
+		envVars[key] = value
+	}
+
+	expandedManifestEnv := make(map[string]string, len(item.Manifest.Environment))
+	for key, value := range item.Manifest.Environment {
+		expandedManifestEnv[key] = expandTemplate(value, envVars)
+	}
+	for key, value := range expandedManifestEnv {
+		envVars[key] = value
+	}
+
+	return Environment{
+		AllocatedPorts: allocated,
+		EnvVars:        envVars,
+		Message:        "resolved fixed ports for project lifecycle",
+	}, nil
+}
+
 func (m *Manager) allocateScenario(scenarioName string, manifest scenario.ServiceManifest, records []process.Record) (map[string]int, map[string]string, error) {
 	allocated := make(map[string]int)
 	envVars := make(map[string]string)

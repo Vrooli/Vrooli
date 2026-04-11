@@ -180,7 +180,11 @@ func dispatch(root string, parsed parsedArgs, stdout, stderr io.Writer) error {
 		return runAutohealCommand(root, parsed.globals, append([]string{"locks"}, parsed.args...)...)
 	case "diagnose-port":
 		return runAutohealCommand(root, parsed.globals, append([]string{"diagnose-port"}, parsed.args...)...)
-	case "setup", "develop", "build", "deploy", "backup", "restore":
+	case "setup":
+		return runProjectSetupCommand(root, parsed.args, stdout, stderr)
+	case "develop":
+		return runProjectDevelopCommand(root, parsed.args, stdout, stderr)
+	case "build", "deploy", "backup", "restore":
 		return runBashScript(root, parsed.globals, "scripts/manage.sh", append([]string{parsed.command}, parsed.args...)...)
 	case "clean":
 		return runBashScript(root, parsed.globals, "cli/commands/clean-commands.sh", parsed.args...)

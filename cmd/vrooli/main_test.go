@@ -18,7 +18,7 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=2 | LAST: 2026-04-10
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-10
 
 func TestParseArgsRecognizesLeadingGlobalFlags(t *testing.T) {
 	parsed, err := parseArgs([]string{"--json", "--verbose", "--no-color", "scenario", "list"})
@@ -68,6 +68,150 @@ func TestRunScenarioTestUsesNativePhaseRunner(t *testing.T) {
 	}
 	if strings.TrimSpace(string(data)) != "unit" {
 		t.Fatalf("selector = %q", string(data))
+	}
+}
+
+func TestRunSetupUsesNativeProjectLifecycle(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeProjectLifecycleFixture(t, root)
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("setup should not route to bash: %+v", spec)
+		return nil
+	}
+
+	code := run([]string{"setup", "--environment", "minimal", "--resources", "none", "--yes", "yes", "--sudo-mode", "skip"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("run exit code = %d", code)
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, "build", "setup-env.txt"))
+	if err != nil {
+		t.Fatalf("read setup env file: %v", err)
+	}
+	if strings.TrimSpace(string(data)) != "minimal|none|yes|skip|docker|Local" {
+		t.Fatalf("setup env = %q", string(data))
+	}
+	if _, err := os.Stat(filepath.Join(root, "data", ".setup-complete")); err != nil {
+		t.Fatalf("expected setup marker: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "data", ".resources-populated")); err != nil {
+		t.Fatalf("expected resources marker: %v", err)
+	}
+}
+
+func TestRunDevelopUsesNativeProjectLifecycle(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeProjectLifecycleFixture(t, root)
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("develop should not route to bash: %+v", spec)
+		return nil
+	}
+
+	var stdout bytes.Buffer
+	code := run([]string{"develop"}, &stdout, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("first develop exit code = %d", code)
+	}
+	setupRuns, err := os.ReadFile(filepath.Join(root, "build", "setup-count.txt"))
+	if err != nil {
+		t.Fatalf("read setup count: %v", err)
+	}
+	developRuns, err := os.ReadFile(filepath.Join(root, "build", "develop-count.txt"))
+	if err != nil {
+		t.Fatalf("read develop count: %v", err)
+	}
+	developPort, err := os.ReadFile(filepath.Join(root, "build", "develop-port.txt"))
+	if err != nil {
+		t.Fatalf("read develop port: %v", err)
+	}
+	if got := strings.Count(strings.TrimSpace(string(setupRuns)), "setup"); got != 1 {
+		t.Fatalf("setup run count = %d, want 1", got)
+	}
+	if got := strings.Count(strings.TrimSpace(string(developRuns)), "develop"); got != 1 {
+		t.Fatalf("develop run count after first run = %d, want 1", got)
+	}
+	if strings.TrimSpace(string(developPort)) != "8092" {
+		t.Fatalf("develop port = %q, want 8092", string(developPort))
+	}
+	if !strings.Contains(stdout.String(), "Running setup before develop") {
+		t.Fatalf("expected setup preflight message, got %q", stdout.String())
+	}
+
+	stdout.Reset()
+	code = run([]string{"develop"}, &stdout, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("second develop exit code = %d", code)
+	}
+	setupRuns, err = os.ReadFile(filepath.Join(root, "build", "setup-count.txt"))
+	if err != nil {
+		t.Fatalf("read setup count after second run: %v", err)
+	}
+	developRuns, err = os.ReadFile(filepath.Join(root, "build", "develop-count.txt"))
+	if err != nil {
+		t.Fatalf("read develop count after second run: %v", err)
+	}
+	developPort, err = os.ReadFile(filepath.Join(root, "build", "develop-port.txt"))
+	if err != nil {
+		t.Fatalf("read develop port after second run: %v", err)
+	}
+	if got := strings.Count(strings.TrimSpace(string(setupRuns)), "setup"); got != 1 {
+		t.Fatalf("setup run count after second run = %d, want 1", got)
+	}
+	if got := strings.Count(strings.TrimSpace(string(developRuns)), "develop"); got != 2 {
+		t.Fatalf("develop run count after second run = %d, want 2", got)
+	}
+	if strings.TrimSpace(string(developPort)) != "8092" {
+		t.Fatalf("develop port after second run = %q, want 8092", string(developPort))
+	}
+	if strings.Contains(stdout.String(), "Running setup before develop") {
+		t.Fatalf("unexpected second-run setup preflight message: %q", stdout.String())
+	}
+}
+
+func TestRunDevelopUsesProjectPortOverride(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeProjectLifecycleFixture(t, root)
+
+	t.Setenv("HOME", home)
+	t.Setenv("VROOLI_API_PORT", "18094")
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("develop should not route to bash: %+v", spec)
+		return nil
+	}
+
+	code := run([]string{"develop"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("develop exit code = %d", code)
+	}
+
+	developPort, err := os.ReadFile(filepath.Join(root, "build", "develop-port.txt"))
+	if err != nil {
+		t.Fatalf("read develop port: %v", err)
+	}
+	if strings.TrimSpace(string(developPort)) != "18094" {
+		t.Fatalf("develop port override = %q, want 18094", string(developPort))
 	}
 }
 
@@ -743,12 +887,6 @@ func TestRunDispatchesTopLevelCommandsToExpectedHandlers(t *testing.T) {
 		wantName string
 		wantArgs []string
 	}{
-		{
-			name:     "setup uses manage script",
-			args:     []string{"setup"},
-			wantName: "bash",
-			wantArgs: []string{"/repo/scripts/manage.sh", "setup"},
-		},
 		{
 			name:     "clean uses clean commands script",
 			args:     []string{"clean"},
@@ -2604,6 +2742,68 @@ func writeTestScenarioService(t *testing.T, root, name, description string) {
 }`
 	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func writeProjectLifecycleFixture(t *testing.T, root string) {
+	t.Helper()
+	writeScenarioPortRegistryFixture(t, root)
+	path := filepath.Join(root, ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	data := `{
+  "version": "1.0.0",
+  "service": {
+    "name": "project-alpha",
+    "displayName": "Project Alpha",
+    "description": "Project-level lifecycle fixture",
+    "version": "0.1.0"
+  },
+  "ports": {
+    "api": {
+      "env_var": "VROOLI_API_PORT",
+      "port": 8092
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "setup": {
+      "condition": {
+        "checks": [
+          {
+            "type": "data",
+            "path": "data"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "capture-setup",
+          "run": "mkdir -p data build && printf 'setup\n' >> build/setup-count.txt && printf '%s|%s|%s|%s|%s|%s\n' \"${ENVIRONMENT:-}\" \"${RESOURCES:-}\" \"${YES:-}\" \"${SUDO_MODE:-}\" \"${TARGET:-}\" \"${LOCATION:-}\" > build/setup-env.txt && printf 'ready\n' > data/bootstrap.txt"
+        },
+        {
+          "name": "add-data",
+          "run": "printf 'data\n' >> data/bootstrap.txt"
+        }
+      ]
+    },
+    "develop": {
+      "steps": [
+        {
+          "name": "capture-develop",
+          "run": "mkdir -p build && printf 'develop\n' >> build/develop-count.txt && printf '%s\n' \"${VROOLI_API_PORT:-}\" > build/develop-port.txt"
+        }
+      ]
+    }
+  }
+}`
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+	portRegistryPath := filepath.Join(root, "scripts", "resources", "port_registry.sh")
+	if err := os.WriteFile(portRegistryPath, []byte("#!/usr/bin/env bash\nRESOURCE_PORTS=( [\"vrooli-api\"]=\"8092\" )\n"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", portRegistryPath, err)
 	}
 }
 

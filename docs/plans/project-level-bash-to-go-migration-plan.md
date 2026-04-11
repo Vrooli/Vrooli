@@ -1,6 +1,6 @@
 # Project-Level Bash → Go Migration Plan
 
-**Status:** Week 4 implemented and validated; legacy Bash retirement remains blocked by the `VROOLI_FORCE_BASH` escape hatch and remaining Week 5/6 top-level Bash consumers
+**Status:** Week 5 partially implemented and validated; native `vrooli setup`/`develop` now run through Go, while `scripts/manage.sh` deletion and the broader Linux-specific runtime/setup port remain pending
 **Owner:** Matthew Halloran
 **Scope:** Project-level orchestration only. Scenarios are explicitly out of scope.
 **Target:** Zero project-level bash in ~6 weeks, on a path to cross-platform support.
@@ -13,7 +13,7 @@ If you are an agent orienting to this plan, read this section first.
 
 - **What this plan covers:** Porting `/cli/`, `/scripts/lib/`, and `/scripts/manage.sh` from Bash to Go. This is the *orchestrator* (the `vrooli` CLI and its supporting libraries), not the scenarios it manages.
 - **What this plan does NOT cover:** Anything under `scenarios/*/`. Scenarios are already on their own cross-platform path via `packages/cli-core` and `packages/api-core`. Do not touch scenario internals as part of this work.
-- **How to find current progress:** Check the "Progress Tracker" section at the bottom, then run `make validate-week0-week4` to verify the landed Week 0-4 contract end-to-end. Do not rely on `git log --grep="bash-to-go"`; that naming convention was not applied consistently, so the code and validation target are more reliable than commit subjects.
+- **How to find current progress:** Check the "Progress Tracker" section at the bottom, then run `make validate-week0-week5` to verify the landed Week 0-5 slice contract end-to-end. Do not rely on `git log --grep="bash-to-go"`; that naming convention was not applied consistently, so the code and validation target are more reliable than commit subjects.
 - **How to resume work:** Find the first unchecked item in the Progress Tracker, re-read its Week section for context and deliverables, and start there. Each week's PRs are designed to be independently reviewable and revertable.
 - **Escape hatch:** Throughout the migration, the env var `VROOLI_FORCE_BASH=1` should route any subcommand back to its original bash handler if the Go path misbehaves. Remove this only in Week 6.
 - **If you find stale information in this plan:** Update it. The plan is a living document; the repo's current state is always authoritative over what's written here.
@@ -506,13 +506,17 @@ Validation note: As of 2026-04-10, the acceptance targets `make validate-week3`,
 Validation note: As of 2026-04-10, the acceptance targets `make validate-week4` and `make validate-week0-week4` are green. Week 4 validation now builds, installs, and tests the Go binaries; reruns the full project-level Go suite; runs focused CLI coverage for native `scenario setup`, `test`, `port`, `open`, `logs --clean`, `template/generate`, `requirements snapshot`, and `heal-from-sandbox`; and confirms the installed binary exposes the expanded native command surface in `scenario --help` (`start-all`, `stop-all`, `template`, `generate`, `heal-from-sandbox`, and the rest of the remaining scenario utilities). Thin wrapper commands such as `ui-smoke`, `requirements report`, and `completeness` are now exercised through the Go dispatcher and covered by unit tests that assert the translated subprocess invocations. The Bash scenario dispatcher is intentionally still present only for the `VROOLI_FORCE_BASH` escape hatch and will be deleted alongside the rest of the legacy entrypoint stack in Week 6.
 
 ### Week 5 — Setup + runtime
-- [ ] `internal/runtime` package (platform-gated)
-- [ ] `internal/setup` package
-- [ ] `vrooli setup` migrated
-- [ ] `vrooli develop` (outer wrapper) migrated
+- [x] `internal/runtime` package (platform-gated)
+- [x] `internal/setup` package
+- [x] `vrooli setup` migrated
+- [x] `vrooli develop` (outer wrapper) migrated
 - [ ] `scripts/manage.sh` deleted
-- [ ] Cross-compile attempt for darwin/windows; punch list captured here:
-  - (fill in as discovered)
+- [x] Cross-compile attempt for darwin/windows; punch list captured here:
+  - `GOOS=linux GOARCH=amd64`, `GOOS=darwin GOARCH=amd64`, `GOOS=darwin GOARCH=arm64`, and `GOOS=windows GOARCH=amd64` now all compile for `./cmd/vrooli`
+  - Compiler punch list for `cmd/vrooli` is now empty; the remaining cross-platform gap is runtime support, not buildability
+  - `internal/runtime` intentionally reports `vrooli setup`/`vrooli develop` unsupported on darwin/windows until the repo-root lifecycle stops shelling into Linux-oriented setup scripts
+
+Validation note: As of 2026-04-10, the acceptance targets `make validate-week5`, `make validate-week5-cross`, and `make validate-week0-week5` are green. Week 5 validation now builds, installs, and tests the project-level Go binaries; runs focused native CLI coverage for top-level `vrooli setup` and `vrooli develop` against temp fixture repos; reuses the live repo-root `vrooli develop` smoke through the installed binary so the actual API/orchestrator startup path still reaches a healthy API and cleans up afterward; and verifies `./cmd/vrooli` cross-compiles for Linux, Darwin, and Windows. The new native project-level wrapper preserves the current root `.vrooli/service.json` lifecycle contract while exporting the environment knobs that `scripts/manage.sh` used to set (`ENVIRONMENT`, `RESOURCES`, `YES`, `SUDO_MODE`, `TARGET`, `LOCATION`, and `DRY_RUN`). `scripts/manage.sh` itself is intentionally still present because `build`, `deploy`, `backup`, and `restore` still dispatch through it, and the repo-root setup phase still shells into `scripts/lib/setup.sh`; deleting it remains a later-week cleanup item once those consumers are migrated.
 
 ### Week 6 — Long tail + cleanup
 - [ ] `internal/secrets` package

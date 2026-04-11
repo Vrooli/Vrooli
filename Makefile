@@ -1,4 +1,4 @@
-.PHONY: help build install test clean setup dev develop deploy status scenarios resources lifecycle-build validate-week0-week1 validate-week2 validate-week3 validate-week3-live validate-week4 validate-week0-week2 validate-week0-week3 validate-week0-week4
+.PHONY: help build install test clean setup dev develop deploy status scenarios resources lifecycle-build validate-live-develop-smoke validate-week0-week1 validate-week2 validate-week3 validate-week3-live validate-week4 validate-week5 validate-week5-cross validate-week0-week2 validate-week0-week3 validate-week0-week4 validate-week0-week5
 
 .DEFAULT_GOAL := help
 
@@ -26,9 +26,12 @@ help: ## Show available project-level targets
 	@printf "  make validate-week3 Run the repeatable Week 3 acceptance suite\n"
 	@printf "  make validate-week3-live Run live Week 3 Bash-vs-Go parity smokes\n"
 	@printf "  make validate-week4 Run the repeatable Week 4 acceptance suite\n"
+	@printf "  make validate-week5 Run the repeatable Week 5 acceptance suite\n"
+	@printf "  make validate-week5-cross Run the Week 5 cross-compile suite\n"
 	@printf "  make validate-week0-week2 Run the combined Week 0-2 acceptance suite\n"
 	@printf "  make validate-week0-week3 Run the combined Week 0-3 acceptance suite\n"
 	@printf "  make validate-week0-week4 Run the combined Week 0-4 acceptance suite\n"
+	@printf "  make validate-week0-week5 Run the combined Week 0-5 acceptance suite\n"
 	@printf "\nCompatibility helpers\n"
 	@printf "  make setup          Run the existing setup workflow\n"
 	@printf "  make dev            Start the existing development workflow\n"
@@ -104,9 +107,13 @@ validate-week0-week1: ## Run the repeatable Week 0/1 acceptance suite
 	wait "$$pid" > /dev/null 2> /dev/null || true; \
 	test "$$ok" = "1"; \
 	rm -rf "$$tmpdir"
+	$(MAKE) validate-live-develop-smoke
+
+validate-live-develop-smoke: ## Run the live repo-root vrooli develop smoke
 	tmpdir=$$(mktemp -d); \
 	logfile="$$tmpdir/develop.log"; \
 	repo_root="$$(pwd)"; \
+	api_port=18093; \
 	pid=""; \
 	ok=0; \
 	cleanup() { \
@@ -114,16 +121,26 @@ validate-week0-week1: ## Run the repeatable Week 0/1 acceptance suite
 			kill "$$pid" > /dev/null 2> /dev/null || true; \
 			wait "$$pid" > /dev/null 2> /dev/null || true; \
 		fi; \
+		if command -v lsof > /dev/null 2> /dev/null; then \
+			api_pids=$$(lsof -tiTCP:$$api_port -sTCP:LISTEN 2> /dev/null || true); \
+			for api_pid in $$api_pids; do \
+				kill "$$api_pid" > /dev/null 2> /dev/null || true; \
+			done; \
+		fi; \
 		( cd scenarios/vrooli-orchestrator && VROOLI_ROOT="$$repo_root" VROOLI_SOURCE_ROOT="$$repo_root" make stop > /tmp/vrooli-orchestrator-stop.log 2> /dev/null ) || true; \
 		rm -rf "$$tmpdir"; \
 	}; \
 	trap cleanup EXIT; \
-	VROOLI_API_PORT=18093 APP_ROOT="$$(pwd)" VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli develop > "$$logfile" 2>> "$$logfile" & \
+	VROOLI_API_PORT=$$api_port APP_ROOT="$$(pwd)" VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli develop > "$$logfile" 2>> "$$logfile" & \
 	pid=$$!; \
 	for attempt in $$(seq 1 90); do \
-		if curl -fsS "http://127.0.0.1:18093/health" > /dev/null 2> /dev/null; then \
+		if curl -fsS "http://127.0.0.1:$$api_port/health" > /dev/null 2> /dev/null; then \
 			ok=1; \
 			break; \
+		fi; \
+		if ! kill -0 "$$pid" > /dev/null 2> /dev/null; then \
+			tail -n 80 "$$logfile"; \
+			exit 1; \
 		fi; \
 		sleep 2; \
 	done; \
@@ -412,6 +429,24 @@ validate-week4: ## Run the repeatable Week 4 acceptance suite
 	grep -Fq 'heal-from-sandbox' "$$tmp_help"; \
 	rm -f "$$tmp_help"
 
+validate-week5-cross: ## Run the Week 5 cross-compile suite
+	tmpdir=$$(mktemp -d); \
+	trap 'rm -rf "$$tmpdir"' EXIT; \
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o "$$tmpdir/vrooli-linux-amd64" ./cmd/vrooli; \
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o "$$tmpdir/vrooli-darwin-amd64" ./cmd/vrooli; \
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o "$$tmpdir/vrooli-darwin-arm64" ./cmd/vrooli; \
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o "$$tmpdir/vrooli-windows-amd64.exe" ./cmd/vrooli; \
+	trap - EXIT; \
+	rm -rf "$$tmpdir"
+
+validate-week5: ## Run the repeatable Week 5 acceptance suite
+	$(MAKE) build
+	$(MAKE) install
+	$(MAKE) test
+	go test ./cmd/vrooli -run 'TestRun(SetupUsesNativeProjectLifecycle|DevelopUsesNativeProjectLifecycle)'
+	$(MAKE) validate-live-develop-smoke
+	$(MAKE) validate-week5-cross
+
 validate-week0-week2: ## Run the combined Week 0-2 acceptance suite
 	$(MAKE) validate-week0-week1
 	$(MAKE) validate-week2
@@ -426,6 +461,10 @@ validate-week0-week4: ## Run the combined Week 0-4 acceptance suite
 	$(MAKE) validate-week2
 	$(MAKE) validate-week3-live
 	$(MAKE) validate-week4
+
+validate-week0-week5: ## Run the combined Week 0-5 acceptance suite
+	$(MAKE) validate-week0-week4
+	$(MAKE) validate-week5
 
 clean: ## Remove project-level Go build artifacts
 	rm -rf $(BUILD_DIR)

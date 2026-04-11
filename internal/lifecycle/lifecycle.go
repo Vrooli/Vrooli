@@ -46,6 +46,7 @@ type PhaseOptions struct {
 	Args                    []string
 	AllowSkipMissingRuntime bool
 	ManageRuntime           bool
+	ProjectMode             bool
 }
 
 type Result struct {
@@ -273,13 +274,13 @@ func (r *Runner) Stop(name string, opts StopOptions) error {
 	}
 
 	for pgid := range groups {
-		_ = syscall.Kill(-pgid, syscall.SIGTERM)
+		_ = signalProcessGroup(pgid, false)
 	}
 	if len(groups) > 0 {
 		time.Sleep(2 * time.Second)
 		for pgid := range groups {
 			if process.IsPIDRunning(pgid) {
-				_ = syscall.Kill(-pgid, syscall.SIGKILL)
+				_ = signalProcessGroup(pgid, true)
 			}
 		}
 		time.Sleep(500 * time.Millisecond)
@@ -342,9 +343,17 @@ func (r *Runner) RunPhase(name, phaseName string, opts PhaseOptions) error {
 		}
 	}
 
-	envResult, err := r.Ports.BuildEnvironment(item, nil)
-	if err != nil {
-		return err
+	var envResult ports.Environment
+	if opts.ProjectMode {
+		envResult, err = r.Ports.BuildProjectEnvironment(item)
+		if err != nil {
+			return err
+		}
+	} else {
+		envResult, err = r.Ports.BuildEnvironment(item, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	env := make(map[string]string, len(envResult.EnvVars)+3)
@@ -604,7 +613,7 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 	cmd.Env = stepEnv
 	cmd.Stdout = file
 	cmd.Stderr = file
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	cmd.SysProcAttr = backgroundProcessAttr()
 
 	if err := cmd.Start(); err != nil {
 		return err
@@ -745,7 +754,7 @@ func (r *Runner) killOrphansOnPorts(portsToCheck map[int]struct{}) error {
 			return err
 		}
 		for _, pid := range pids {
-			_ = syscall.Kill(pid, syscall.SIGTERM)
+			_ = signalPID(pid, false)
 		}
 	}
 
@@ -757,7 +766,7 @@ func (r *Runner) killOrphansOnPorts(portsToCheck map[int]struct{}) error {
 			return err
 		}
 		for _, pid := range pids {
-			_ = syscall.Kill(pid, syscall.SIGKILL)
+			_ = signalPID(pid, true)
 		}
 	}
 	return nil

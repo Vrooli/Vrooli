@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 
 	"github.com/vrooli/vrooli/internal/config"
 )
@@ -155,7 +154,7 @@ func launchDetachedScenario(root string, globals globalOptions, args ...string) 
 	cmd.Stdin = devNull
 	cmd.Stdout = devNull
 	cmd.Stderr = devNull
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	cmd.SysProcAttr = detachedProcessAttr()
 	return cmd.Start()
 }
 
