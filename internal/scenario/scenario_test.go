@@ -233,6 +233,85 @@ func TestReadServiceRejectsInvalidJSON(t *testing.T) {
 	}
 }
 
+func TestReadServiceSupportsLegacyDependencyGroups(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	data := `{
+  "version": "1.0.0",
+  "service": {
+    "name": "alpha"
+  },
+  "dependencies": {
+    "resources": {
+      "required": [
+        {
+          "name": "postgres",
+          "purpose": "Store application data",
+          "config": {
+            "database": "alpha_db"
+          }
+        }
+      ],
+      "optional": [
+        {
+          "name": "redis",
+          "description": "Cache responses"
+        }
+      ]
+    },
+    "scenarios": {
+      "optional": [
+        {
+          "name": "test-genie",
+          "description": "Run extended tests"
+        }
+      ]
+    }
+  }
+}`
+	if err := os.WriteFile(servicePath, []byte(data), 0o644); err != nil {
+		t.Fatalf("write %s: %v", servicePath, err)
+	}
+
+	manifest, err := ReadService(servicePath)
+	if err != nil {
+		t.Fatalf("ReadService: %v", err)
+	}
+
+	postgres, ok := manifest.Dependencies.Resources["postgres"]
+	if !ok {
+		t.Fatalf("expected postgres dependency to be loaded")
+	}
+	if !postgres.Required || !postgres.Enabled {
+		t.Fatalf("postgres flags = %+v", postgres)
+	}
+	if postgres.Type != "resource" {
+		t.Fatalf("postgres type = %q", postgres.Type)
+	}
+	if postgres.Database != "alpha_db" {
+		t.Fatalf("postgres database = %q", postgres.Database)
+	}
+
+	redis, ok := manifest.Dependencies.Resources["redis"]
+	if !ok {
+		t.Fatalf("expected redis dependency to be loaded")
+	}
+	if redis.Required {
+		t.Fatalf("redis should stay optional: %+v", redis)
+	}
+
+	testGenie, ok := manifest.Dependencies.Scenarios["test-genie"]
+	if !ok {
+		t.Fatalf("expected test-genie scenario dependency to be loaded")
+	}
+	if testGenie.Required {
+		t.Fatalf("test-genie should stay optional: %+v", testGenie)
+	}
+	if testGenie.Type != "scenario" {
+		t.Fatalf("test-genie type = %q", testGenie.Type)
+	}
+}
+
 func TestEvaluateHealthDetectsDegradedAndUnhealthyStates(t *testing.T) {
 	healthyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

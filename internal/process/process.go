@@ -41,6 +41,74 @@ func HomeDir() (string, error) {
 	return os.UserHomeDir()
 }
 
+func ScenarioProcessDir(home, name string) string {
+	return filepath.Join(home, ".vrooli", "processes", "scenarios", name)
+}
+
+func ScenarioLogsDir(home, name string) string {
+	return filepath.Join(home, ".vrooli", "logs", "scenarios", name)
+}
+
+func ScenarioLifecycleLogPath(home, name string) string {
+	return filepath.Join(home, ".vrooli", "logs", name+".log")
+}
+
+func ScenarioStateDir(home string) string {
+	return filepath.Join(home, ".vrooli", "state", "scenarios")
+}
+
+func ScenarioDegradedPath(home, name string) string {
+	return filepath.Join(ScenarioProcessDir(home, name), "degraded.json")
+}
+
+func WriteScenarioRecord(home, name, step string, record Record) error {
+	processDir := ScenarioProcessDir(home, name)
+	if err := os.MkdirAll(processDir, 0o755); err != nil {
+		return fmt.Errorf("create process dir %s: %w", processDir, err)
+	}
+
+	if strings.TrimSpace(record.Step) == "" {
+		record.Step = step
+	}
+	if strings.TrimSpace(record.Scenario) == "" {
+		record.Scenario = name
+	}
+	if record.StartedAt.IsZero() {
+		record.StartedAt = time.Now().UTC()
+	}
+
+	data, err := json.MarshalIndent(record, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal process record: %w", err)
+	}
+	data = append(data, '\n')
+
+	recordPath := filepath.Join(processDir, step+".json")
+	if err := os.WriteFile(recordPath, data, 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", recordPath, err)
+	}
+
+	pidPath := filepath.Join(processDir, step+".pid")
+	if err := os.WriteFile(pidPath, []byte(strconv.Itoa(record.PID)+"\n"), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", pidPath, err)
+	}
+	return nil
+}
+
+func RemoveScenarioRecord(home, name, step string) error {
+	processDir := ScenarioProcessDir(home, name)
+	recordPath := filepath.Join(processDir, step+".json")
+	pidPath := filepath.Join(processDir, step+".pid")
+
+	if err := os.Remove(recordPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove %s: %w", recordPath, err)
+	}
+	if err := os.Remove(pidPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove %s: %w", pidPath, err)
+	}
+	return nil
+}
+
 func ReadScenarioRecords(home, name string) ([]Record, error) {
 	processDir := filepath.Join(home, ".vrooli", "processes", "scenarios", name)
 	files, err := filepath.Glob(filepath.Join(processDir, "*.json"))

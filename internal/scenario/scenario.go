@@ -44,13 +44,14 @@ type Scenario struct {
 }
 
 type ServiceManifest struct {
-	Schema      string            `json:"$schema,omitempty"`
-	Version     string            `json:"version,omitempty"`
-	Service     ServiceMetadata   `json:"service"`
-	Ports       map[string]Port   `json:"ports,omitempty"`
-	Lifecycle   Lifecycle         `json:"lifecycle,omitempty"`
-	Health      *HealthConfig     `json:"health,omitempty"`
-	Environment map[string]string `json:"environment,omitempty"`
+	Schema       string            `json:"$schema,omitempty"`
+	Version      string            `json:"version,omitempty"`
+	Service      ServiceMetadata   `json:"service"`
+	Ports        map[string]Port   `json:"ports,omitempty"`
+	Lifecycle    Lifecycle         `json:"lifecycle,omitempty"`
+	Health       *HealthConfig     `json:"health,omitempty"`
+	Dependencies Dependencies      `json:"dependencies,omitempty"`
+	Environment  map[string]string `json:"environment,omitempty"`
 }
 
 type ServiceMetadata struct {
@@ -62,6 +63,41 @@ type ServiceMetadata struct {
 	Type        string   `json:"type,omitempty"`
 	Category    string   `json:"category,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
+}
+
+type Dependencies struct {
+	Resources map[string]Dependency `json:"resources,omitempty"`
+	Scenarios map[string]Dependency `json:"scenarios,omitempty"`
+}
+
+type Dependency struct {
+	Type        string `json:"type,omitempty"`
+	Enabled     bool   `json:"enabled,omitempty"`
+	Required    bool   `json:"required,omitempty"`
+	Purpose     string `json:"purpose,omitempty"`
+	Description string `json:"description,omitempty"`
+	Database    string `json:"database,omitempty"`
+}
+
+type rawDependencies struct {
+	Resources json.RawMessage `json:"resources,omitempty"`
+	Scenarios json.RawMessage `json:"scenarios,omitempty"`
+}
+
+type legacyDependencyGroup struct {
+	Required []legacyDependency `json:"required,omitempty"`
+	Optional []legacyDependency `json:"optional,omitempty"`
+	Enabled  []legacyDependency `json:"enabled,omitempty"`
+}
+
+type legacyDependency struct {
+	Name        string                 `json:"name,omitempty"`
+	Type        string                 `json:"type,omitempty"`
+	Enabled     *bool                  `json:"enabled,omitempty"`
+	Required    *bool                  `json:"required,omitempty"`
+	Purpose     string                 `json:"purpose,omitempty"`
+	Description string                 `json:"description,omitempty"`
+	Config      map[string]interface{} `json:"config,omitempty"`
 }
 
 type Port struct {
@@ -97,18 +133,30 @@ type PhaseStep struct {
 
 type Condition struct {
 	FileExists      string           `json:"file_exists,omitempty"`
+	FileNotExists   string           `json:"file_not_exists,omitempty"`
 	DirectoryExists string           `json:"directory_exists,omitempty"`
+	JSONPathExists  string           `json:"json_path_exists,omitempty"`
 	ResourceEnabled string           `json:"resource_enabled,omitempty"`
+	CommandExists   string           `json:"command_exists,omitempty"`
+	BinaryExists    string           `json:"binary_exists,omitempty"`
+	EnvVarSet       string           `json:"env_var_set,omitempty"`
+	Always          string           `json:"always,omitempty"`
 	Checks          []ConditionCheck `json:"checks,omitempty"`
 }
 
 type ConditionCheck struct {
-	Type       string   `json:"type,omitempty"`
-	Name       string   `json:"name,omitempty"`
-	Command    string   `json:"command,omitempty"`
-	BundlePath string   `json:"bundle_path,omitempty"`
-	SourceDir  string   `json:"source_dir,omitempty"`
-	Targets    []string `json:"targets,omitempty"`
+	Type                  string   `json:"type,omitempty"`
+	Name                  string   `json:"name,omitempty"`
+	Command               string   `json:"command,omitempty"`
+	BundlePath            string   `json:"bundle_path,omitempty"`
+	SourceDir             string   `json:"source_dir,omitempty"`
+	Targets               []string `json:"targets,omitempty"`
+	Paths                 []string `json:"paths,omitempty"`
+	Path                  string   `json:"path,omitempty"`
+	Resources             []string `json:"resources,omitempty"`
+	Populated             bool     `json:"populated,omitempty"`
+	WatchFileDependencies *bool    `json:"watch_file_dependencies,omitempty"`
+	DependencyExcludes    []string `json:"dependency_excludes,omitempty"`
 }
 
 type HealthConfig struct {
@@ -232,6 +280,26 @@ func ReadService(path string) (ServiceManifest, error) {
 	return manifest, nil
 }
 
+func (deps *Dependencies) UnmarshalJSON(data []byte) error {
+	var raw rawDependencies
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	resources, err := decodeDependencyCollection(raw.Resources, "resource")
+	if err != nil {
+		return fmt.Errorf("resources: %w", err)
+	}
+	scenarios, err := decodeDependencyCollection(raw.Scenarios, "scenario")
+	if err != nil {
+		return fmt.Errorf("scenarios: %w", err)
+	}
+
+	deps.Resources = resources
+	deps.Scenarios = scenarios
+	return nil
+}
+
 func ResolveScenarioPath(root, name string, env SandboxEnv) (string, bool) {
 	defaultPath := filepath.Clean(filepath.Join(root, "scenarios", name))
 	if !env.Enabled() || !ScenarioInScope(name, env.Scope) {
@@ -250,6 +318,63 @@ func ResolveScenarioPath(root, name string, env SandboxEnv) (string, bool) {
 	}
 
 	return defaultPath, false
+}
+
+func decodeDependencyCollection(data json.RawMessage, defaultType string) (map[string]Dependency, error) {
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "" || trimmed == "null" {
+		return nil, nil
+	}
+
+	var direct map[string]Dependency
+	if err := json.Unmarshal(data, &direct); err == nil {
+		return direct, nil
+	}
+
+	var legacy legacyDependencyGroup
+	if err := json.Unmarshal(data, &legacy); err != nil {
+		return nil, err
+	}
+
+	merged := make(map[string]Dependency, len(legacy.Required)+len(legacy.Optional)+len(legacy.Enabled))
+	addLegacyDependencies(merged, legacy.Required, defaultType, true)
+	addLegacyDependencies(merged, legacy.Optional, defaultType, false)
+	addLegacyDependencies(merged, legacy.Enabled, defaultType, false)
+	if len(merged) == 0 {
+		return nil, nil
+	}
+	return merged, nil
+}
+
+func addLegacyDependencies(dst map[string]Dependency, items []legacyDependency, defaultType string, required bool) {
+	for _, item := range items {
+		name := strings.TrimSpace(item.Name)
+		if name == "" {
+			continue
+		}
+
+		dependency := Dependency{
+			Type:        strings.TrimSpace(item.Type),
+			Enabled:     true,
+			Required:    required,
+			Purpose:     item.Purpose,
+			Description: item.Description,
+		}
+		if dependency.Type == "" {
+			dependency.Type = defaultType
+		}
+		if item.Enabled != nil {
+			dependency.Enabled = *item.Enabled
+		}
+		if item.Required != nil {
+			dependency.Required = *item.Required
+		}
+		if database, ok := item.Config["database"].(string); ok {
+			dependency.Database = database
+		}
+
+		dst[name] = dependency
+	}
 }
 
 func ScenarioInScope(name, scope string) bool {

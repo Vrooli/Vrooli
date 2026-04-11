@@ -49,14 +49,14 @@ func TestRunRoutesNonMigratedScenarioCommandToBashHandler(t *testing.T) {
 		return nil
 	}
 
-	code := run([]string{"--json", "scenario", "start", "alpha"}, &bytes.Buffer{}, &bytes.Buffer{})
+	code := run([]string{"--json", "scenario", "test", "alpha"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
 	if captured.name != "bash" {
 		t.Fatalf("command name = %q", captured.name)
 	}
-	wantArgs := []string{"/repo/cli/commands/scenario/scenario-commands.sh", "start", "alpha", "--json"}
+	wantArgs := []string{"/repo/cli/commands/scenario/scenario-commands.sh", "test", "alpha", "--json"}
 	if strings.Join(captured.args, "|") != strings.Join(wantArgs, "|") {
 		t.Fatalf("command args = %v, want %v", captured.args, wantArgs)
 	}
@@ -106,11 +106,11 @@ func TestRunNoStaleCheckBypassesFreshnessProbe(t *testing.T) {
 		return false
 	}
 
-	code := run([]string{"--no-stale-check", "scenario", "start", "alpha"}, &bytes.Buffer{}, &bytes.Buffer{})
+	code := run([]string{"--no-stale-check", "scenario", "setup", "alpha"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
-	wantArgs := []string{"/repo/cli/commands/scenario/scenario-commands.sh", "start", "alpha"}
+	wantArgs := []string{"/repo/cli/commands/scenario/scenario-commands.sh", "setup", "alpha"}
 	if strings.Join(captured.args, "|") != strings.Join(wantArgs, "|") {
 		t.Fatalf("command args = %v, want %v", captured.args, wantArgs)
 	}
@@ -269,6 +269,247 @@ func TestRunScenarioStatusHumanOutput(t *testing.T) {
 	}
 	if !strings.Contains(output, "Processes:") {
 		t.Fatalf("missing processes section: %s", output)
+	}
+}
+
+func TestRunScenarioStartStopRestartLifecycleCommands(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("lifecycle process management currently targets linux")
+	}
+
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleScenarioService(t, root, "alpha")
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("week 3 lifecycle commands should not shell to bash: %#v", spec)
+		return nil
+	}
+
+	t.Cleanup(func() {
+		var stdout bytes.Buffer
+		_ = run([]string{"scenario", "stop", "alpha"}, &stdout, &bytes.Buffer{})
+	})
+
+	var startOut bytes.Buffer
+	var startErr bytes.Buffer
+	code := run([]string{"scenario", "start", "alpha", "--json"}, &startOut, &startErr)
+	if code != 0 {
+		t.Fatalf("start exit code = %d, output=%s stderr=%s", code, startOut.String(), startErr.String())
+	}
+	if !strings.Contains(startOut.String(), `"status": "started"`) {
+		t.Fatalf("start output missing started status: %s", startOut.String())
+	}
+	if !strings.Contains(startOut.String(), `"health": "healthy"`) {
+		t.Fatalf("start output missing healthy status: %s", startOut.String())
+	}
+
+	startRecords, err := process.ReadScenarioRecords(home, "alpha")
+	if err != nil {
+		t.Fatalf("ReadScenarioRecords after start: %v", err)
+	}
+	startLive := process.LiveRecords(startRecords)
+	if len(startLive) != 1 {
+		t.Fatalf("live records after start = %#v", startLive)
+	}
+	firstPID := startLive[0].PID
+	lockPath := filepath.Join(home, ".vrooli", "state", "scenarios", fmt.Sprintf(".port_%d.lock", startLive[0].Port))
+	if _, err := os.Stat(lockPath); err != nil {
+		t.Fatalf("expected port lock after start: %v", err)
+	}
+
+	var restartOut bytes.Buffer
+	var restartErr bytes.Buffer
+	code = run([]string{"scenario", "restart", "alpha", "--json"}, &restartOut, &restartErr)
+	if code != 0 {
+		t.Fatalf("restart exit code = %d, output=%s stderr=%s", code, restartOut.String(), restartErr.String())
+	}
+	if !strings.Contains(restartOut.String(), `"status": "restarted"`) {
+		t.Fatalf("restart output missing restarted status: %s", restartOut.String())
+	}
+
+	restartRecords, err := process.ReadScenarioRecords(home, "alpha")
+	if err != nil {
+		t.Fatalf("ReadScenarioRecords after restart: %v", err)
+	}
+	restartLive := process.LiveRecords(restartRecords)
+	if len(restartLive) != 1 {
+		t.Fatalf("live records after restart = %#v", restartLive)
+	}
+	if restartLive[0].PID == firstPID {
+		t.Fatalf("expected restart to replace PID, still %d", firstPID)
+	}
+
+	var stopOut bytes.Buffer
+	var stopErr bytes.Buffer
+	code = run([]string{"scenario", "stop", "alpha", "--json"}, &stopOut, &stopErr)
+	if code != 0 {
+		t.Fatalf("stop exit code = %d, output=%s stderr=%s", code, stopOut.String(), stopErr.String())
+	}
+	if !strings.Contains(stopOut.String(), `"status": "stopped"`) {
+		t.Fatalf("stop output missing stopped status: %s", stopOut.String())
+	}
+	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
+		t.Fatalf("expected port lock to be removed, stat err=%v", err)
+	}
+	finalRecords, err := process.ReadScenarioRecords(home, "alpha")
+	if err != nil {
+		t.Fatalf("ReadScenarioRecords after stop: %v", err)
+	}
+	if len(process.LiveRecords(finalRecords)) != 0 {
+		t.Fatalf("expected no live records after stop: %#v", finalRecords)
+	}
+}
+
+func TestRunScenarioStartSupportsCustomPath(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("lifecycle process management currently targets linux")
+	}
+
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	customPath := t.TempDir()
+	writeLifecycleScenarioServiceAtPath(t, root, customPath, "alpha")
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("custom-path lifecycle start should not shell to bash: %#v", spec)
+		return nil
+	}
+
+	var stdout bytes.Buffer
+	code := run([]string{"scenario", "start", "alpha", "--path", customPath, "--json"}, &stdout, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("start exit code = %d, output=%s", code, stdout.String())
+	}
+
+	records, err := process.ReadScenarioRecords(home, "alpha")
+	if err != nil {
+		t.Fatalf("ReadScenarioRecords: %v", err)
+	}
+	live := process.LiveRecords(records)
+	if len(live) != 1 {
+		t.Fatalf("live records = %#v", live)
+	}
+	if live[0].WorkingDir != customPath {
+		t.Fatalf("working_dir = %q, want %q", live[0].WorkingDir, customPath)
+	}
+
+	var stopOut bytes.Buffer
+	code = run([]string{"scenario", "stop", "alpha", "--json"}, &stopOut, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("stop exit code = %d, output=%s", code, stopOut.String())
+	}
+}
+
+func TestRunScenarioStartCleanStaleRemovesDeadLock(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("lifecycle process management currently targets linux")
+	}
+
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeFixedPortLifecycleScenarioService(t, root, "alpha", 21001)
+
+	stateDir := filepath.Join(home, ".vrooli", "state", "scenarios")
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", stateDir, err)
+	}
+	lockPath := filepath.Join(stateDir, ".port_21001.lock")
+	if err := os.WriteFile(lockPath, []byte("ghost:999999:1\n"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", lockPath, err)
+	}
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+
+	var stdout bytes.Buffer
+	code := run([]string{"scenario", "start", "alpha", "--clean-stale", "--json"}, &stdout, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("start exit code = %d, output=%s", code, stdout.String())
+	}
+
+	lockData, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", lockPath, err)
+	}
+	if !strings.HasPrefix(string(lockData), "alpha:") {
+		t.Fatalf("lock contents = %q", string(lockData))
+	}
+
+	var stopOut bytes.Buffer
+	code = run([]string{"scenario", "stop", "alpha", "--json"}, &stopOut, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("stop exit code = %d, output=%s", code, stopOut.String())
+	}
+}
+
+func TestRunScenarioStartBestEffortCapturesFailedDependencies(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("lifecycle process management currently targets linux")
+	}
+
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeBestEffortLifecycleScenarioService(t, root, "alpha", "missing-dep")
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+
+	var stdout bytes.Buffer
+	code := run([]string{"scenario", "start", "alpha", "--best-effort", "--json"}, &stdout, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("start exit code = %d, output=%s", code, stdout.String())
+	}
+
+	var payload struct {
+		Success   bool `json:"success"`
+		Scenarios []struct {
+			Name               string   `json:"name"`
+			Status             string   `json:"status"`
+			FailedDependencies []string `json:"failed_dependencies"`
+		} `json:"scenarios"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v", err)
+	}
+	if !payload.Success || len(payload.Scenarios) != 1 {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if payload.Scenarios[0].Status != "started" {
+		t.Fatalf("status = %q", payload.Scenarios[0].Status)
+	}
+	if len(payload.Scenarios[0].FailedDependencies) != 1 || payload.Scenarios[0].FailedDependencies[0] != "missing-dep" {
+		t.Fatalf("failed dependencies = %v", payload.Scenarios[0].FailedDependencies)
+	}
+
+	if _, err := os.Stat(filepath.Join(home, ".vrooli", "processes", "scenarios", "alpha", "degraded.json")); err != nil {
+		t.Fatalf("expected degraded.json after best-effort start: %v", err)
+	}
+
+	var stopOut bytes.Buffer
+	code = run([]string{"scenario", "stop", "alpha", "--json"}, &stopOut, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("stop exit code = %d, output=%s", code, stopOut.String())
 	}
 }
 
@@ -1365,6 +1606,327 @@ func writeTestScenarioService(t *testing.T, root, name, description string) {
 }`
 	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func writeLifecycleScenarioService(t *testing.T, root, name string) {
+	t.Helper()
+	path := filepath.Join(root, "scenarios", name, ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	writeScenarioPortRegistryFixture(t, root)
+	data := `{
+  "version": "1.0.0",
+  "service": {
+    "name": "` + name + `",
+    "displayName": "Lifecycle ` + strings.Title(name) + `",
+    "description": "Lifecycle validation scenario",
+    "version": "0.1.0"
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "checks": [
+        {
+          "name": "api",
+          "type": "http",
+          "target": "http://127.0.0.1:${API_PORT}/health",
+          "critical": true,
+          "timeout": 1000
+        }
+      ],
+      "startup_grace_period": 250,
+      "timeout": 5000,
+      "interval": 250
+    },
+    "setup": {
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/mock-api"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "mkdir -p api public && printf '#!/usr/bin/env bash\npython3 -m http.server \"$API_PORT\" --bind 127.0.0.1 --directory ../public\n' > api/mock-api && chmod +x api/mock-api && printf 'ok\n' > public/health"
+        }
+      ]
+    },
+    "develop": {
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./mock-api",
+          "background": true,
+          "condition": {
+            "file_exists": "api/mock-api"
+          }
+        }
+      ]
+    }
+  }
+}`
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func writeLifecycleScenarioServiceAtPath(t *testing.T, root, scenarioPath, name string) {
+	t.Helper()
+	writeScenarioPortRegistryFixture(t, root)
+
+	servicePath := filepath.Join(scenarioPath, ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(servicePath), err)
+	}
+
+	data := `{
+  "version": "1.0.0",
+  "service": {
+    "name": "` + name + `",
+    "displayName": "Lifecycle ` + strings.Title(name) + `",
+    "description": "Lifecycle validation scenario",
+    "version": "0.1.0"
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "checks": [
+        {
+          "name": "api",
+          "type": "http",
+          "target": "http://127.0.0.1:${API_PORT}/health",
+          "critical": true,
+          "timeout": 1000
+        }
+      ],
+      "startup_grace_period": 250,
+      "timeout": 5000,
+      "interval": 250
+    },
+    "setup": {
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/mock-api"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "mkdir -p api public && printf '#!/usr/bin/env bash\npython3 -m http.server \"$API_PORT\" --bind 127.0.0.1 --directory ../public\n' > api/mock-api && chmod +x api/mock-api && printf 'ok\n' > public/health"
+        }
+      ]
+    },
+    "develop": {
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./mock-api",
+          "background": true,
+          "condition": {
+            "file_exists": "api/mock-api"
+          }
+        }
+      ]
+    }
+  }
+}`
+	if err := os.WriteFile(servicePath, []byte(data), 0o644); err != nil {
+		t.Fatalf("write %s: %v", servicePath, err)
+	}
+}
+
+func writeFixedPortLifecycleScenarioService(t *testing.T, root, name string, port int) {
+	t.Helper()
+	writeScenarioPortRegistryFixture(t, root)
+
+	path := filepath.Join(root, "scenarios", name, ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+
+	data := fmt.Sprintf(`{
+  "version": "1.0.0",
+  "service": {
+    "name": %q,
+    "displayName": "Lifecycle %s",
+    "description": "Lifecycle validation scenario",
+    "version": "0.1.0"
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "port": %d
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "checks": [
+        {
+          "name": "api",
+          "type": "http",
+          "target": "http://127.0.0.1:${API_PORT}/health",
+          "critical": true,
+          "timeout": 1000
+        }
+      ],
+      "startup_grace_period": 250,
+      "timeout": 5000,
+      "interval": 250
+    },
+    "setup": {
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/mock-api"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "mkdir -p api public && printf '#!/usr/bin/env bash\npython3 -m http.server \"$API_PORT\" --bind 127.0.0.1 --directory ../public\n' > api/mock-api && chmod +x api/mock-api && printf 'ok\n' > public/health"
+        }
+      ]
+    },
+    "develop": {
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./mock-api",
+          "background": true,
+          "condition": {
+            "file_exists": "api/mock-api"
+          }
+        }
+      ]
+    }
+  }
+}`, name, strings.Title(name), port)
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func writeBestEffortLifecycleScenarioService(t *testing.T, root, name, dependency string) {
+	t.Helper()
+	writeScenarioPortRegistryFixture(t, root)
+
+	path := filepath.Join(root, "scenarios", name, ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+
+	data := fmt.Sprintf(`{
+  "version": "1.0.0",
+  "service": {
+    "name": %q,
+    "displayName": "Lifecycle %s",
+    "description": "Lifecycle validation scenario",
+    "version": "0.1.0"
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "checks": [
+        {
+          "name": "api",
+          "type": "http",
+          "target": "http://127.0.0.1:${API_PORT}/health",
+          "critical": true,
+          "timeout": 1000
+        }
+      ],
+      "startup_grace_period": 250,
+      "timeout": 5000,
+      "interval": 250
+    },
+    "setup": {
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/mock-api"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "mkdir -p api public && printf '#!/usr/bin/env bash\npython3 -m http.server \"$API_PORT\" --bind 127.0.0.1 --directory ../public\n' > api/mock-api && chmod +x api/mock-api && printf 'ok\n' > public/health"
+        }
+      ]
+    },
+    "develop": {
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./mock-api",
+          "background": true,
+          "condition": {
+            "file_exists": "api/mock-api"
+          }
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "scenarios": {
+      %q: {
+        "type": "scenario",
+        "required": true
+      }
+    }
+  }
+}`, name, strings.Title(name), dependency)
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func writeScenarioPortRegistryFixture(t *testing.T, root string) {
+	t.Helper()
+	portRegistryPath := filepath.Join(root, "scripts", "resources", "port_registry.sh")
+	if err := os.MkdirAll(filepath.Dir(portRegistryPath), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(portRegistryPath), err)
+	}
+	if err := os.WriteFile(portRegistryPath, []byte("#!/usr/bin/env bash\ndeclare -g -A RESOURCE_PORTS=()\n"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", portRegistryPath, err)
 	}
 }
 

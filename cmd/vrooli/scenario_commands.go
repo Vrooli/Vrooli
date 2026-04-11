@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -82,6 +83,14 @@ type scenarioStatusSingleOutput struct {
 	Runtime  scenarioInfoRuntimeData  `json:"runtime"`
 }
 
+type scenarioLifecycleItemOutput struct {
+	Name               string         `json:"name"`
+	Status             string         `json:"status"`
+	Health             string         `json:"health,omitempty"`
+	Ports              map[string]int `json:"ports,omitempty"`
+	FailedDependencies []string       `json:"failed_dependencies,omitempty"`
+}
+
 func runScenarioCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
 		showScenarioHelp(stdout)
@@ -95,9 +104,231 @@ func runScenarioCommand(root string, globals globalOptions, args []string, stdou
 		return runScenarioInfoCommand(root, globals, args[1:], stdout)
 	case "status":
 		return runScenarioStatusCommand(root, globals, args[1:], stdout)
+	case "start":
+		return runScenarioStartCommand(root, globals, args[1:], stdout, stderr)
+	case "stop":
+		return runScenarioStopCommand(root, globals, args[1:], stdout, stderr)
+	case "restart":
+		return runScenarioRestartCommand(root, globals, args[1:], stdout, stderr)
 	default:
 		return runBashScript(root, globals, "cli/commands/scenario/scenario-commands.sh", args...)
 	}
+}
+
+func runScenarioStartCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario start <name> [name2...] [--path <path>] [--best-effort] [--clean-stale] [--open] [--json]")
+			return nil
+		}
+	}
+
+	names, opts, jsonFlag, openAfter, err := parseScenarioStartArgs(globals.json, args)
+	if err != nil {
+		return err
+	}
+	if len(names) == 0 {
+		return fmt.Errorf("scenario start requires at least one scenario name")
+	}
+	if opts.CustomPath != "" && len(names) != 1 {
+		return fmt.Errorf("scenario start with --path accepts exactly one scenario name")
+	}
+
+	format, err := cliout.ParseFormat("", jsonFlag)
+	if err != nil {
+		return err
+	}
+
+	runnerOut := stdout
+	if format == cliout.FormatJSON {
+		runnerOut = stderr
+	}
+
+	runner, err := newScenarioLifecycleRunner(root, runnerOut, stderr)
+	if err != nil {
+		return err
+	}
+
+	items := make([]scenarioLifecycleItemOutput, 0, len(names))
+	for _, name := range names {
+		result, err := runner.Start(name, opts)
+		if err != nil {
+			return err
+		}
+
+		status := "started"
+		if result.AlreadyRunning {
+			status = "already_running"
+		}
+		ports := make(map[string]int, len(result.AllocatedPorts))
+		for portName, port := range result.AllocatedPorts {
+			envVar := result.Scenario.Manifest.PortEnvVar(portName)
+			if envVar == "" {
+				envVar = strings.ToUpper(strings.ReplaceAll(portName, "-", "_")) + "_PORT"
+			}
+			ports[envVar] = port
+		}
+
+		items = append(items, scenarioLifecycleItemOutput{
+			Name:               result.Scenario.Slug,
+			Status:             status,
+			Health:             result.Health,
+			Ports:              ports,
+			FailedDependencies: append([]string(nil), result.FailedDependencies...),
+		})
+
+		if openAfter {
+			if err := runBashScript(root, globals, "cli/commands/scenario/scenario-commands.sh", "open", name); err != nil {
+				return err
+			}
+		}
+	}
+
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{
+			"success":   true,
+			"scenarios": items,
+		})
+	}
+
+	for _, item := range items {
+		if item.Status == "already_running" {
+			_, _ = fmt.Fprintf(stdout, "Scenario '%s' is already running", item.Name)
+		} else {
+			_, _ = fmt.Fprintf(stdout, "Started scenario '%s'", item.Name)
+		}
+		if item.Health != "" {
+			_, _ = fmt.Fprintf(stdout, " (%s)", item.Health)
+		}
+		_, _ = fmt.Fprintln(stdout)
+		if len(item.Ports) > 0 {
+			_, _ = fmt.Fprintf(stdout, "  Ports: %s\n", formatPortMap(item.Ports))
+		}
+		if len(item.FailedDependencies) > 0 {
+			_, _ = fmt.Fprintf(stdout, "  Failed dependencies: %s\n", strings.Join(item.FailedDependencies, ", "))
+		}
+	}
+	return nil
+}
+
+func runScenarioStopCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	name, jsonFlag, err := parseScenarioNameAndJSON("stop", globals.json, args)
+	if err != nil {
+		return err
+	}
+
+	format, err := cliout.ParseFormat("", jsonFlag)
+	if err != nil {
+		return err
+	}
+
+	runnerOut := stdout
+	if format == cliout.FormatJSON {
+		runnerOut = stderr
+	}
+
+	runner, err := newScenarioLifecycleRunner(root, runnerOut, stderr)
+	if err != nil {
+		return err
+	}
+	if err := runner.Stop(name, lifecycle.StopOptions{}); err != nil {
+		return err
+	}
+
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{
+			"success":  true,
+			"scenario": name,
+			"status":   "stopped",
+		})
+	}
+
+	_, _ = fmt.Fprintf(stdout, "Stopped scenario '%s'\n", name)
+	return nil
+}
+
+func runScenarioRestartCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario restart <name> [--path <path>] [--best-effort] [--clean-stale] [--open] [--json]")
+			return nil
+		}
+	}
+
+	name, opts, jsonFlag, openAfter, err := parseScenarioSingleStartArgs("restart", globals.json, args)
+	if err != nil {
+		return err
+	}
+
+	format, err := cliout.ParseFormat("", jsonFlag)
+	if err != nil {
+		return err
+	}
+
+	runnerOut := stdout
+	if format == cliout.FormatJSON {
+		runnerOut = stderr
+	}
+
+	runner, err := newScenarioLifecycleRunner(root, runnerOut, stderr)
+	if err != nil {
+		return err
+	}
+	result, err := runner.Restart(name, opts)
+	if err != nil {
+		return err
+	}
+
+	ports := make(map[string]int, len(result.AllocatedPorts))
+	for portName, port := range result.AllocatedPorts {
+		envVar := result.Scenario.Manifest.PortEnvVar(portName)
+		if envVar == "" {
+			envVar = strings.ToUpper(strings.ReplaceAll(portName, "-", "_")) + "_PORT"
+		}
+		ports[envVar] = port
+	}
+
+	item := scenarioLifecycleItemOutput{
+		Name:               result.Scenario.Slug,
+		Status:             "restarted",
+		Health:             result.Health,
+		Ports:              ports,
+		FailedDependencies: append([]string(nil), result.FailedDependencies...),
+	}
+
+	if openAfter {
+		if err := runBashScript(root, globals, "cli/commands/scenario/scenario-commands.sh", "open", name); err != nil {
+			return err
+		}
+	}
+
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{
+			"success":  true,
+			"scenario": item,
+		})
+	}
+
+	_, _ = fmt.Fprintf(stdout, "Restarted scenario '%s'", item.Name)
+	if item.Health != "" {
+		_, _ = fmt.Fprintf(stdout, " (%s)", item.Health)
+	}
+	_, _ = fmt.Fprintln(stdout)
+	if len(item.Ports) > 0 {
+		_, _ = fmt.Fprintf(stdout, "  Ports: %s\n", formatPortMap(item.Ports))
+	}
+	if len(item.FailedDependencies) > 0 {
+		_, _ = fmt.Fprintf(stdout, "  Failed dependencies: %s\n", strings.Join(item.FailedDependencies, ", "))
+	}
+	return nil
+}
+
+func newScenarioLifecycleRunner(root string, stdout, stderr io.Writer) (*lifecycle.Runner, error) {
+	home, err := process.HomeDir()
+	if err != nil {
+		return nil, err
+	}
+	return lifecycle.NewRunner(root, home, stdout, stderr)
 }
 
 func runScenarioListCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
@@ -528,6 +759,55 @@ func parseOptionalScenarioNameAndJSON(command string, defaultJSON bool, args []s
 		}
 	}
 	return name, jsonFlag, nil
+}
+
+func parseScenarioStartArgs(defaultJSON bool, args []string) ([]string, lifecycle.StartOptions, bool, bool, error) {
+	names := []string{}
+	jsonFlag := defaultJSON
+	openAfter := false
+	opts := lifecycle.StartOptions{}
+
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
+		switch arg {
+		case "--json":
+			jsonFlag = true
+		case "--open":
+			openAfter = true
+		case "--best-effort":
+			opts.BestEffort = true
+		case "--clean-stale":
+			opts.CleanStale = true
+		case "--path":
+			if index+1 >= len(args) {
+				return nil, lifecycle.StartOptions{}, false, false, fmt.Errorf("scenario start --path requires a value")
+			}
+			index++
+			opts.CustomPath = args[index]
+		case "--help", "-h":
+			return nil, lifecycle.StartOptions{}, false, false, fmt.Errorf("usage requested")
+		default:
+			if strings.HasPrefix(arg, "-") {
+				return nil, lifecycle.StartOptions{}, false, false, fmt.Errorf("unknown option for scenario start: %s", arg)
+			}
+			names = append(names, arg)
+		}
+	}
+	return names, opts, jsonFlag, openAfter, nil
+}
+
+func parseScenarioSingleStartArgs(command string, defaultJSON bool, args []string) (string, lifecycle.StartOptions, bool, bool, error) {
+	names, opts, jsonFlag, openAfter, err := parseScenarioStartArgs(defaultJSON, args)
+	if err != nil {
+		return "", lifecycle.StartOptions{}, false, false, err
+	}
+	if len(names) == 0 {
+		return "", lifecycle.StartOptions{}, false, false, fmt.Errorf("scenario %s requires a scenario name", command)
+	}
+	if len(names) > 1 {
+		return "", lifecycle.StartOptions{}, false, false, fmt.Errorf("scenario %s accepts exactly one scenario name", command)
+	}
+	return names[0], opts, jsonFlag, openAfter, nil
 }
 
 func showScenarioHelp(w io.Writer) {
