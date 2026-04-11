@@ -1,0 +1,39 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "gemini",
+  "display_name": "Google Gemini API",
+  "description": "Hosted Gemini API integration for multimodal and text generation workloads.",
+  "template": "cloud-api",
+  "driver": "cloud-api",
+  "endpoint": "https://generativelanguage.googleapis.com/v1beta/models",
+  "credentials": {
+    "env": [
+      "GEMINI_API_KEY"
+    ],
+    "secret_ref": "secret/vrooli/gemini"
+  },
+  "portability_tier": "full",
+  "category": "hosted-service",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "https://generativelanguage.googleapis.com/v1beta/models",
+      "expected_status": [
+        200,
+        400,
+        401,
+        403
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "capabilities": {
+    "supports_logs": false
+  },
+  "template_version": "1"
+}

@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -15,15 +17,15 @@ import (
 )
 
 type TaskParsingSession struct {
-	ID                 uuid.UUID `json:"id"`
-	AppID             uuid.UUID `json:"app_id"`
-	RawText           string    `json:"raw_text"`
-	InputType         string    `json:"input_type"`
-	SubmittedBy       string    `json:"submitted_by"`
-	Processed         bool      `json:"processed"`
-	TasksExtracted    int       `json:"tasks_extracted"`
-	ProcessedAt       *time.Time `json:"processed_at,omitempty"`
-	CreatedAt         time.Time `json:"created_at"`
+	ID             uuid.UUID  `json:"id"`
+	AppID          uuid.UUID  `json:"app_id"`
+	RawText        string     `json:"raw_text"`
+	InputType      string     `json:"input_type"`
+	SubmittedBy    string     `json:"submitted_by"`
+	Processed      bool       `json:"processed"`
+	TasksExtracted int        `json:"tasks_extracted"`
+	ProcessedAt    *time.Time `json:"processed_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
 }
 
 type ParsedTask struct {
@@ -35,11 +37,11 @@ type ParsedTask struct {
 }
 
 type TaskParsingResult struct {
-	Success      bool         `json:"success"`
-	SessionID    uuid.UUID    `json:"session_id"`
-	TasksCreated int          `json:"tasks_created"`
-	Tasks        []Task       `json:"tasks"`
-	Error        string       `json:"error,omitempty"`
+	Success      bool      `json:"success"`
+	SessionID    uuid.UUID `json:"session_id"`
+	TasksCreated int       `json:"tasks_created"`
+	Tasks        []Task    `json:"tasks"`
+	Error        string    `json:"error,omitempty"`
 }
 
 func (s *TaskPlannerService) ParseText(w http.ResponseWriter, r *http.Request) {
@@ -191,9 +193,8 @@ Rules:
 }
 
 func (s *TaskPlannerService) callOllamaGenerate(ctx context.Context, prompt, model, taskType string) (string, error) {
-	// Use vrooli CLI to interact with Ollama
-	cmd := exec.CommandContext(ctx, "bash", "/vrooli/cli/vrooli", "resource", "ollama", "generate", prompt, "--model", model, "--type", taskType, "--quiet")
-	
+	cmd := exec.CommandContext(ctx, vrooliCLIPath(), "resource", "ollama", "generate", prompt, "--model", model, "--type", taskType, "--quiet")
+
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -210,10 +211,10 @@ func (s *TaskPlannerService) callOllamaGenerate(ctx context.Context, prompt, mod
 func (s *TaskPlannerService) parseAITaskResponse(response string) ([]ParsedTask, error) {
 	// Clean response and extract JSON
 	cleanResponse := strings.TrimSpace(response)
-	
+
 	// Remove any markdown formatting
 	cleanResponse = regexp.MustCompile("```json\\n?|```\\n?").ReplaceAllString(cleanResponse, "")
-	
+
 	// Try to find JSON array
 	jsonMatch := regexp.MustCompile(`\[[\s\S]*\]`).FindString(cleanResponse)
 	if jsonMatch == "" {
@@ -257,7 +258,7 @@ func (s *TaskPlannerService) parseAITaskResponse(response string) ([]ParsedTask,
 func (s *TaskPlannerService) validateAppToken(appID, apiToken string) (*App, error) {
 	var app App
 	query := `SELECT id, name, display_name, type, created_at, updated_at FROM apps WHERE id = $1 AND api_token = $2`
-	
+
 	err := s.db.QueryRow(query, appID, apiToken).Scan(
 		&app.ID, &app.Name, &app.DisplayName, &app.Type, &app.CreatedAt, &app.UpdatedAt,
 	)
@@ -272,8 +273,8 @@ func (s *TaskPlannerService) createParsingSession(session TaskParsingSession) er
 	query := `
 		INSERT INTO unstructured_sessions (id, app_id, raw_text, input_type, submitted_by, processed, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	
-	_, err := s.db.Exec(query, session.ID, session.AppID, session.RawText, 
+
+	_, err := s.db.Exec(query, session.ID, session.AppID, session.RawText,
 		session.InputType, session.SubmittedBy, session.Processed, session.CreatedAt)
 	return err
 }
@@ -284,7 +285,7 @@ func (s *TaskPlannerService) insertTask(task Task, sessionID uuid.UUID, estimate
 		"source":                "text_parser",
 		"parsing_index":         parseIndex,
 		"original_text_snippet": task.Title,
-		"session_id":           sessionID.String(),
+		"session_id":            sessionID.String(),
 	}
 	metadataJSON, _ := json.Marshal(metadata)
 
@@ -292,9 +293,9 @@ func (s *TaskPlannerService) insertTask(task Task, sessionID uuid.UUID, estimate
 		INSERT INTO tasks (id, app_id, title, description, status, priority, 
 		                  estimated_hours, tags, confidence_score, metadata, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
-	
+
 	_, err := s.db.Exec(query, task.ID, task.AppID, task.Title, task.Description,
-		task.Status, task.Priority, estimatedHours, tagsJSON, 0.85, metadataJSON, 
+		task.Status, task.Priority, estimatedHours, tagsJSON, 0.85, metadataJSON,
 		task.CreatedAt, task.UpdatedAt)
 	return err
 }
@@ -304,7 +305,7 @@ func (s *TaskPlannerService) markSessionComplete(sessionID uuid.UUID, tasksExtra
 		UPDATE unstructured_sessions 
 		SET processed = true, tasks_extracted = $1, processed_at = CURRENT_TIMESTAMP 
 		WHERE id = $2`
-	
+
 	_, err := s.db.Exec(query, tasksExtracted, sessionID)
 	return err
 }
@@ -312,9 +313,9 @@ func (s *TaskPlannerService) markSessionComplete(sessionID uuid.UUID, tasksExtra
 func (s *TaskPlannerService) generateTaskEmbedding(ctx context.Context, taskID uuid.UUID, title, description string) {
 	// Generate embedding for the task
 	text := fmt.Sprintf("%s - %s", title, description)
-	
-	cmd := exec.CommandContext(ctx, "bash", "/vrooli/cli/vrooli", "resource", "ollama", "embed", text, "--model", "nomic-embed-text", "--quiet")
-	
+
+	cmd := exec.CommandContext(ctx, vrooliCLIPath(), "resource", "ollama", "embed", text, "--model", "nomic-embed-text", "--quiet")
+
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 
@@ -329,4 +330,17 @@ func (s *TaskPlannerService) generateTaskEmbedding(ctx context.Context, taskID u
 		query := `UPDATE tasks SET title_embedding = $1 WHERE id = $2`
 		s.db.Exec(query, embedding, taskID)
 	}
+}
+
+func vrooliCLIPath() string {
+	if configured := strings.TrimSpace(os.Getenv("VROOLI_CLI")); configured != "" {
+		return configured
+	}
+	if resolved, err := exec.LookPath("vrooli"); err == nil {
+		return resolved
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return filepath.Join(home, ".vrooli", "bin", "vrooli")
+	}
+	return "vrooli"
 }

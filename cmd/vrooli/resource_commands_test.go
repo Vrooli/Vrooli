@@ -235,6 +235,144 @@ func TestRunResourceArchiveGCCommandJSON(t *testing.T) {
 	}
 }
 
+func TestRunResourceListCommandShowsManifestMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeResourceConfigForCLI(t, root, "fixture", true)
+	writeResourceManifestForCLI(t, root, "fixture", `{
+  "name": "fixture",
+  "display_name": "Fixture",
+  "description": "Fixture resource",
+  "template": "docker-service",
+  "driver": "docker-service",
+  "portability_tier": "partial",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "runtime": {
+    "image": "fixture:latest"
+  }
+}`)
+	controller := resources.NewController(root, t.TempDir())
+	var stdout bytes.Buffer
+
+	if err := runResourceListCommand(controller, globalOptions{}, nil, &stdout); err != nil {
+		t.Fatalf("runResourceListCommand: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "manifest-native") || !strings.Contains(output, "docker-service") {
+		t.Fatalf("unexpected output: %q", output)
+	}
+}
+
+func TestRunResourceStatusCommandShowsManifestMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeResourceConfigForCLI(t, root, "fixture", true)
+	writeResourceManifestForCLI(t, root, "fixture", `{
+  "name": "fixture",
+  "display_name": "Fixture",
+  "description": "Fixture resource",
+  "template": "docker-service",
+  "driver": "docker-service",
+  "portability_tier": "platform-specific",
+  "platforms": {
+    "linux": "unsupported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "runtime": {
+    "image": "fixture:latest"
+  }
+}`)
+	controller := resources.NewController(root, t.TempDir())
+	var stdout bytes.Buffer
+
+	if err := runResourceStatusCommand(controller, globalOptions{}, []string{"fixture"}, &stdout); err != nil {
+		t.Fatalf("runResourceStatusCommand: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "manifest-native") || !strings.Contains(output, "docker-service") || !strings.Contains(output, "platform-specific") {
+		t.Fatalf("unexpected output: %q", output)
+	}
+}
+
+func TestRunResourceListCommandShowsMigratedCoreResources(t *testing.T) {
+	controller := resources.NewController(projectRootForCLI(t), t.TempDir())
+	var stdout bytes.Buffer
+
+	if err := runResourceListCommand(controller, globalOptions{}, nil, &stdout); err != nil {
+		t.Fatalf("runResourceListCommand: %v", err)
+	}
+	output := stdout.String()
+	for _, name := range []string{"postgres", "redis", "qdrant", "browserless"} {
+		if !strings.Contains(output, name) {
+			t.Fatalf("expected %q in output: %q", name, output)
+		}
+	}
+	if !strings.Contains(output, "manifest-native") {
+		t.Fatalf("expected manifest-native resources in output: %q", output)
+	}
+}
+
+func TestRunSingleResourceControlCommandUsesManifestNativeDockerLifecycle(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeResourceConfigForCLI(t, root, "fixture", true)
+	writeResourceManifestForCLI(t, root, "fixture", `{
+  "name": "fixture",
+  "display_name": "Fixture",
+  "description": "Fixture resource",
+  "template": "docker-service",
+  "driver": "docker-service",
+  "portability_tier": "partial",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "runtime": {
+    "image": "fixture:latest",
+    "container_name": "vrooli-fixture"
+  }
+}`)
+
+	stateFile := writeFakeDockerForCLI(t)
+	controller := resources.NewController(root, home)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	if err := runSingleResourceControlCommand(controller, "install", []string{"fixture"}, &stdout, &stderr); err != nil {
+		t.Fatalf("runSingleResourceControlCommand(install): %v", err)
+	}
+	if err := runSingleResourceControlCommand(controller, "start", []string{"fixture"}, &stdout, &stderr); err != nil {
+		t.Fatalf("runSingleResourceControlCommand(start): %v", err)
+	}
+	data, err := os.ReadFile(stateFile)
+	if err != nil {
+		t.Fatalf("read state: %v", err)
+	}
+	if !strings.Contains(string(data), "running") {
+		t.Fatalf("state after start = %q", string(data))
+	}
+	if err := runSingleResourceControlCommand(controller, "logs", []string{"fixture"}, &stdout, &stderr); err != nil {
+		t.Fatalf("runSingleResourceControlCommand(logs): %v", err)
+	}
+	if !strings.Contains(stdout.String(), "fixture logs") {
+		t.Fatalf("stdout = %q, want docker logs", stdout.String())
+	}
+	if err := runSingleResourceControlCommand(controller, "stop", []string{"fixture"}, &stdout, &stderr); err != nil {
+		t.Fatalf("runSingleResourceControlCommand(stop): %v", err)
+	}
+	data, err = os.ReadFile(stateFile)
+	if err != nil {
+		t.Fatalf("read state: %v", err)
+	}
+	if !strings.Contains(string(data), "stopped") {
+		t.Fatalf("state after stop = %q", string(data))
+	}
+}
+
 func writeDeprecatedMetadataForCLI(t *testing.T, root string, item resources.DeprecatedResource) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
@@ -285,6 +423,17 @@ func writeResourceCLIForCLI(t *testing.T, root, name string) {
 	}
 }
 
+func writeResourceManifestForCLI(t *testing.T, root, name, contents string) {
+	t.Helper()
+	path := filepath.Join(root, "resources", name, "resource.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
 func projectRootForCLI(t *testing.T) string {
 	t.Helper()
 	root, err := filepath.Abs(filepath.Join("..", ".."))
@@ -292,4 +441,63 @@ func projectRootForCLI(t *testing.T) string {
 		t.Fatalf("resolve root: %v", err)
 	}
 	return root
+}
+
+func writeFakeDockerForCLI(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "docker-state.txt")
+	scriptPath := filepath.Join(dir, "docker")
+	script := `#!/usr/bin/env bash
+set -e
+state_file="${FAKE_DOCKER_STATE}"
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+  image)
+    if [[ "${1:-}" == "inspect" ]]; then
+      exit 0
+    fi
+    ;;
+  inspect)
+    if [[ -f "$state_file" ]]; then
+      state="$(tr -d '\n' < "$state_file")"
+      if [[ "$state" == "running" ]]; then
+        printf '{"Running":true}'
+      else
+        printf '{"Running":false}'
+      fi
+      exit 0
+    fi
+    echo "Error: No such object" >&2
+    exit 1
+    ;;
+  run)
+    printf 'running\n' > "$state_file"
+    echo "container-id"
+    exit 0
+    ;;
+  start)
+    printf 'running\n' > "$state_file"
+    exit 0
+    ;;
+  stop)
+    printf 'stopped\n' > "$state_file"
+    exit 0
+    ;;
+  logs)
+    echo "fixture logs"
+    exit 0
+    ;;
+esac
+
+exit 0
+`
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write %s: %v", scriptPath, err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("FAKE_DOCKER_STATE", stateFile)
+	return stateFile
 }

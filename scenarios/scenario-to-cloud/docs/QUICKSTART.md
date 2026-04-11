@@ -88,18 +88,24 @@ scenario-to-cloud preflight requirements
 The plan shows exactly what will happen during deployment:
 1. Bundle creation
 2. File transfer to VPS
-3. Vrooli setup
-4. Resource startup
-5. Scenario deployment
-6. HTTPS configuration
+3. Native `vrooli` CLI upload to the deployment workdir
+4. Vrooli setup
+5. Resource startup
+6. Scenario deployment
+7. HTTPS configuration
 
 ## Step 5: Build Bundle
 
 The bundle is a minimal Vrooli installation containing:
-- Core Vrooli scripts
 - Your scenario files
 - Required resources
-- Configuration files
+- Shared package modules required by the deployment
+- Generated deployment metadata
+
+The setup flow then uploads a deployment-local native `vrooli` binary to
+`<workdir>/.vrooli/bin/vrooli` and uses that exact binary for all remote setup,
+deploy, inspect, and stop operations. It does not rely on a legacy bootstrap
+script or a preinstalled global CLI on the VPS.
 
 ## Step 6: Preflight Checks
 

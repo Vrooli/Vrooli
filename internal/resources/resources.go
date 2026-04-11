@@ -41,15 +41,20 @@ type ConfigEntry struct {
 }
 
 type Resource struct {
-	Name       string      `json:"name"`
-	Path       string      `json:"path"`
-	Exists     bool        `json:"exists"`
-	Registered bool        `json:"registered"`
-	Enabled    bool        `json:"enabled"`
-	Required   bool        `json:"required"`
-	HasCLI     bool        `json:"has_cli"`
-	HasScript  bool        `json:"has_script"`
-	Config     ConfigEntry `json:"config"`
+	Name            string      `json:"name"`
+	Path            string      `json:"path"`
+	Exists          bool        `json:"exists"`
+	Registered      bool        `json:"registered"`
+	Enabled         bool        `json:"enabled"`
+	Required        bool        `json:"required"`
+	HasCLI          bool        `json:"has_cli"`
+	HasScript       bool        `json:"has_script"`
+	Config          ConfigEntry `json:"config"`
+	ControlMode     string      `json:"control_mode,omitempty"`
+	Driver          string      `json:"driver,omitempty"`
+	Template        string      `json:"template,omitempty"`
+	PortabilityTier string      `json:"portability_tier,omitempty"`
+	ManifestPath    string      `json:"manifest_path,omitempty"`
 }
 
 type Status struct {
@@ -132,6 +137,17 @@ func (c *Controller) Discover() ([]Resource, error) {
 		cliPath, hasCLI := c.resolveCLIPath(name)
 		scriptPath := filepath.Join(path, "cli.sh")
 		_, hasScriptErr := os.Stat(scriptPath)
+		manifestPath := defaultResourceManifestPath(c.Root, name)
+		manifest := ResourceManifest{}
+		hasManifest := false
+		if _, err := os.Stat(manifestPath); err == nil {
+			loaded, err := c.loadResourceManifest(manifestPath)
+			if err != nil {
+				return nil, err
+			}
+			manifest = loaded
+			hasManifest = true
+		}
 
 		item := Resource{
 			Name:       name,
@@ -143,6 +159,19 @@ func (c *Controller) Discover() ([]Resource, error) {
 			HasCLI:     hasCLI && cliPath != "",
 			HasScript:  hasScriptErr == nil,
 			Config:     configEntry,
+		}
+		if hasManifest {
+			item.Driver = manifest.Driver
+			item.Template = manifest.Template
+			item.PortabilityTier = manifest.PortabilityTier
+			item.ManifestPath = manifestPath
+			if manifest.Driver == "legacy-adapter" {
+				item.ControlMode = "legacy-adapter"
+			} else {
+				item.ControlMode = "manifest-native"
+			}
+		} else if item.HasCLI || item.HasScript {
+			item.ControlMode = "legacy-shell"
 		}
 		items = append(items, item)
 	}
@@ -209,7 +238,51 @@ func (c *Controller) Run(name string, args []string, stdout, stderr io.Writer) e
 	if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
 		operation = args[0]
 	}
-	cmd, err := c.commandForResource(name, args...)
+	resources, err := c.Discover()
+	if err != nil {
+		return err
+	}
+	var item *Resource
+	for i := range resources {
+		if resources[i].Name == name {
+			item = &resources[i]
+			break
+		}
+	}
+	if item != nil && item.ManifestPath != "" && item.ControlMode == "manifest-native" {
+		manifest, err := c.loadResourceManifest(item.ManifestPath)
+		if err != nil {
+			return err
+		}
+		driver, err := driverForManifest(manifest)
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		if err := driver.Run(ctx, c, *item, manifest, operation, args[1:], stdout, stderr); err != nil {
+			if shouldFallbackToLegacyResourceCommand(err) {
+				return c.runLegacyResourceCommand(name, operation, args[1:], stdout, stderr)
+			}
+			var resourceErr *Error
+			if errors.As(err, &resourceErr) {
+				return err
+			}
+			return &Error{
+				Code:      ErrorCodeOperationFailed,
+				Resource:  name,
+				Operation: operation,
+				Category:  "Runtime",
+				Err:       err,
+			}
+		}
+		return nil
+	}
+	return c.runLegacyResourceCommand(name, operation, args[1:], stdout, stderr)
+}
+
+func (c *Controller) runLegacyResourceCommand(name, operation string, args []string, stdout, stderr io.Writer) error {
+	cmd, err := c.commandForResource(name, append([]string{operation}, args...)...)
 	if err != nil {
 		return err
 	}
@@ -226,6 +299,14 @@ func (c *Controller) Run(name string, args []string, stdout, stderr io.Writer) e
 		}
 	}
 	return nil
+}
+
+func shouldFallbackToLegacyResourceCommand(err error) bool {
+	var resourceErr *Error
+	if !errors.As(err, &resourceErr) {
+		return false
+	}
+	return resourceErr.Code == ErrorCodeCommandUnavailable && resourceErr.Category == "Driver"
 }
 
 func (c *Controller) StartAll(stdout, stderr io.Writer) (control.StartReport, error) {
@@ -334,6 +415,9 @@ func (c *Controller) readConfigEntries() (map[string]ConfigEntry, error) {
 	configPath := filepath.Join(c.Root, filepath.FromSlash(resourceConfigPath))
 	data, err := os.ReadFile(configPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return map[string]ConfigEntry{}, nil
+		}
 		return nil, err
 	}
 
@@ -371,6 +455,19 @@ func (c *Controller) filesystemNames() ([]string, error) {
 }
 
 func (c *Controller) statusForResource(item Resource, fast bool) (Status, error) {
+	if item.ManifestPath != "" && item.ControlMode == "manifest-native" {
+		manifest, err := c.loadResourceManifest(item.ManifestPath)
+		if err != nil {
+			return Status{}, err
+		}
+		driver, err := driverForManifest(manifest)
+		if err != nil {
+			return Status{}, err
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		return driver.Status(ctx, c, item, manifest, fast)
+	}
 	status := Status{
 		Resource:   item,
 		Installed:  item.Exists || item.HasCLI || item.HasScript,

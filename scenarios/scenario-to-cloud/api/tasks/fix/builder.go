@@ -7,6 +7,7 @@ import (
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/tasks/shared"
 )
 
@@ -131,8 +132,12 @@ func buildIterationPrompt(input shared.TaskInput) string {
 
 	sb.WriteString("### To quick restart via SSH (for immediate fixes):\n")
 	sb.WriteString("```bash\n")
-	sb.WriteString(fmt.Sprintf("ssh -i %s -p %d %s@%s \"cd %s && vrooli scenario stop %s && vrooli scenario start %s\"\n",
-		vps.KeyPath, sshPort, sshUser, vps.Host, vps.Workdir, input.Manifest.Scenario.ID, input.Manifest.Scenario.ID))
+	quickRestartCmd := strings.Join([]string{
+		shellutil.VrooliCommand(vps.Workdir, "vrooli scenario stop "+shellutil.QuoteSingle(input.Manifest.Scenario.ID)),
+		shellutil.VrooliCommand(vps.Workdir, "vrooli scenario start "+shellutil.QuoteSingle(input.Manifest.Scenario.ID)),
+	}, " && ")
+	sb.WriteString(fmt.Sprintf("ssh -i %s -p %d %s@%s bash -lc %s\n",
+		shellutil.QuoteSingle(vps.KeyPath), sshPort, sshUser, vps.Host, shellutil.QuoteSingle(quickRestartCmd)))
 	sb.WriteString("```\n\n")
 
 	// Verification
@@ -142,8 +147,12 @@ func buildIterationPrompt(input shared.TaskInput) string {
 	if input.Manifest.Edge.Domain != "" {
 		sb.WriteString(fmt.Sprintf("# Health check\ncurl -fsS https://%s/health\n\n", input.Manifest.Edge.Domain))
 	}
-	sb.WriteString(fmt.Sprintf("# Service status via SSH\nssh -i %s -p %d %s@%s \"systemctl status caddy --no-pager && vrooli scenario status %s\"\n",
-		vps.KeyPath, sshPort, sshUser, vps.Host, input.Manifest.Scenario.ID))
+	verifyCmd := strings.Join([]string{
+		"systemctl status caddy --no-pager",
+		shellutil.VrooliCommand(vps.Workdir, "vrooli scenario status "+shellutil.QuoteSingle(input.Manifest.Scenario.ID)),
+	}, " && ")
+	sb.WriteString(fmt.Sprintf("# Service status via SSH\nssh -i %s -p %d %s@%s bash -lc %s\n",
+		shellutil.QuoteSingle(vps.KeyPath), sshPort, sshUser, vps.Host, shellutil.QuoteSingle(verifyCmd)))
 	sb.WriteString("```\n\n")
 
 	// Required output format

@@ -75,6 +75,37 @@ func TestBuildPromptAndContext_IncludesIterationStateAndSourceFindings(t *testin
 	}
 }
 
+func TestBuildPromptAndContext_UsesDeploymentLocalNativeCLIInSSHExamples(t *testing.T) {
+	input := validFixInput()
+
+	out, err := BuildPromptAndContext(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if strings.Contains(out.Prompt, "scripts/manage.sh") || strings.Contains(out.Prompt, "scripts/lib/setup.sh") {
+		t.Fatalf("prompt should not mention legacy bash setup paths: %q", out.Prompt)
+	}
+	if strings.Contains(out.Prompt, " cd /root/Vrooli && vrooli ") {
+		t.Fatalf("prompt should not emit bare global vrooli commands: %q", out.Prompt)
+	}
+	if !strings.Contains(out.Prompt, "bash -lc") {
+		t.Fatalf("prompt should wrap SSH examples with bash -lc: %q", out.Prompt)
+	}
+	if !strings.Contains(out.Prompt, "/root/Vrooli/.vrooli/bin/vrooli") {
+		t.Fatalf("prompt should reference deployment-local vrooli binary: %q", out.Prompt)
+	}
+	if !strings.Contains(out.Prompt, "--no-stale-check scenario stop") || !strings.Contains(out.Prompt, "landing-page-business-suite") {
+		t.Fatalf("prompt should use native scenario stop command: %q", out.Prompt)
+	}
+	if !strings.Contains(out.Prompt, "--no-stale-check scenario start") {
+		t.Fatalf("prompt should use native scenario start command: %q", out.Prompt)
+	}
+	if !strings.Contains(out.Prompt, "--no-stale-check scenario status") {
+		t.Fatalf("prompt should use native scenario status command: %q", out.Prompt)
+	}
+}
+
 func validFixInput() shared.TaskInput {
 	errStep := "preflight"
 	errMsg := "preflight failed"

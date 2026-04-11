@@ -94,9 +94,9 @@ clock::fix() {
         log::error "System clock is inaccurate but cannot sync without sudo access"
         log::warning "This may cause SSL/TLS certificate validation errors"
         log::info "Options:"
-        log::info "  1. Run setup with sudo: sudo ./scripts/manage.sh setup"
+        log::info "  1. Run setup with sudo: sudo vrooli setup"
         log::info "  2. Fix clock manually: sudo ntpdate -s time.nist.gov"
-        log::info "  3. Continue anyway: ./scripts/manage.sh setup --sudo-mode skip"
+        log::info "  3. Continue anyway: vrooli setup --sudo-mode skip"
         
         # Exit with error since clock sync is important for certificates
         exit "${ERROR_DEFAULT}"

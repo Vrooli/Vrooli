@@ -1,0 +1,61 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "browserless",
+  "display_name": "Browserless Chrome",
+  "description": "Remote browser automation service for UI testing and browser-driven scenarios.",
+  "template": "docker-service",
+  "driver": "docker-service",
+  "portability_tier": "full",
+  "category": "automation",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "http",
+      "container": 3000,
+      "host": 4110
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:4110/pressure",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "runtime": {
+    "image": "browserless/chrome:1.61.1-chrome-stable",
+    "container_name": "vrooli-browserless",
+    "env": {
+      "PORT": "3000",
+      "CONCURRENT": "1",
+      "MAX_CONCURRENT_SESSIONS": "1",
+      "MAX_QUEUE_LENGTH": "10",
+      "TIMEOUT": "60000",
+      "CONNECTION_TIMEOUT": "20000",
+      "WORKER_TIMEOUT": "120000",
+      "SOCKET_CLOSE_TIMEOUT": "5000",
+      "DEFAULT_LAUNCH_ARGS": "--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-dev-tools --disable-features=TranslateUI --disable-extensions --disable-background-networking --no-first-run --mute-audio"
+    },
+    "volumes": [
+      {
+        "source": "${HOME}/.browserless",
+        "target": "/workspace"
+      }
+    ]
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 30,
+    "stop_timeout_seconds": 30,
+    "retries": 3
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "1"
+}

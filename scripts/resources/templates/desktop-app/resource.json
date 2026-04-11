@@ -1,4 +1,5 @@
 {
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "{{RESOURCE_NAME}}",
   "display_name": "{{RESOURCE_DISPLAY_NAME}}",
   "description": "{{RESOURCE_DESCRIPTION}}",
@@ -7,9 +8,9 @@
   "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
   "category": "{{RESOURCE_CATEGORY}}",
   "platforms": {
-    "linux": "document me",
-    "macos": "document me",
-    "windows": "document me"
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
   },
   "detection": {
     "linux": "",

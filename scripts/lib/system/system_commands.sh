@@ -306,7 +306,7 @@ system::update() {
         else
             log::warning "⚠️  Skipping package list update - insufficient permissions"
             log::warning "   To update package lists, run: sudo apt-get update"
-            log::warning "   Or run setup with: sudo ./scripts/manage.sh setup"
+            log::warning "   Or run setup with: sudo vrooli setup"
             log::info "Continuing with potentially outdated package information..."
         fi
     elif system::is_command "brew"; then
@@ -357,7 +357,7 @@ system::upgrade() {
         else
             log::warning "⚠️  Skipping package upgrade - insufficient permissions"
             log::warning "   To upgrade packages, run: sudo apt-get upgrade"
-            log::warning "   Or run setup with: sudo ./scripts/manage.sh setup"
+            log::warning "   Or run setup with: sudo vrooli setup"
             log::info "Continuing with current package versions..."
         fi
     elif system::is_command "brew"; then

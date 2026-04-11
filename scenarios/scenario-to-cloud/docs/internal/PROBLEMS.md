@@ -3,7 +3,7 @@
 ## Open Issues
 
 - **Packager contract not implemented yet**: deployment-manager docs reference scenario-to-cloud as a stub; API/CLI contract needs to be finalized and implemented.
-- **“Mini Vrooli” bundling semantics**: bundle embeds `.vrooli/cloud/manifest.json` + `.vrooli/cloud/bundle-metadata.json`, rewrites `.vrooli/service.json` to disable unused resources, and now generates a trimmed `go.work` so Go tooling won’t reference stripped modules — but still needs real VPS validation that `./scripts/manage.sh setup` honors it end-to-end.
+- **Native mini-Vrooli VPS validation**: bundle embeds `.vrooli/cloud/manifest.json` + `.vrooli/cloud/bundle-metadata.json`, rewrites `.vrooli/service.json` to disable unused resources, generates a trimmed `go.work`, and now uploads a deployment-local native `vrooli` binary to the target VPS. Unit coverage is good, but we still need disposable-VPS E2E validation that the native upload + `vrooli setup --yes yes --environment production` flow works end-to-end.
 - **Remote port overrides**: forcing fixed ports (UI 3000, API 3001, WS 3002) must be compatible with the lifecycle allocator and scenario assumptions.
 - **Caddy + Let’s Encrypt edge cases**: HTTP-01 requires port 80/443 open and DNS already pointing at the VPS; preflight must be crisp and actionable.
 - **Long-running deploy endpoints**: VPS setup/deploy can exceed typical HTTP client/server timeouts; P0 keeps sync endpoints (server WriteTimeout raised), but async job orchestration is likely needed for real deployments.

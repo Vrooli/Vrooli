@@ -119,7 +119,6 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 
 	addDirIfExists(".vrooli")
 	addDirIfExists("api")
-	addDirIfExists("cli")
 	addDirIfExists("src")
 	addDirIfExists("scripts")
 	addDirIfExists("platforms")
@@ -236,6 +235,8 @@ func DefaultExcludes() []string {
 		// NEVER bundle mothership secrets - these are generated on the target VPS
 		".vrooli/secrets.json",
 		"**/.vrooli/secrets.json",
+		"scripts/manage.sh",
+		"cli/**",
 		// Exclude scenario templates - they have placeholder go.mod files that break go.work
 		"scripts/scenarios/templates/**",
 	}
@@ -538,12 +539,11 @@ func collectIncludedPaths(repoRoot string, spec MiniBundleSpec) ([]string, error
 }
 
 func buildMiniServiceJSON(repoRoot string, manifest domain.CloudManifest) ([]byte, error) {
-	// Best-effort: if the repo doesn't have a root .vrooli/service.json, don't synthesize one.
 	path := filepath.Join(repoRoot, ".vrooli", "service.json")
 	b, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return buildGeneratedMiniServiceJSON("", manifest)
 		}
 		return nil, err
 	}
@@ -553,31 +553,61 @@ func buildMiniServiceJSON(repoRoot string, manifest domain.CloudManifest) ([]byt
 		return nil, fmt.Errorf("parse .vrooli/service.json: %w", err)
 	}
 
-	// Build set of required resources from manifest
-	requiredResources := toStringSet(stringutil.SortedUnique(manifest.Bundle.Resources))
+	rootVersion := ""
+	if rawVersion, ok := doc["version"].(string); ok {
+		rootVersion = strings.TrimSpace(rawVersion)
+	}
+	return buildGeneratedMiniServiceJSON(rootVersion, manifest)
+}
 
-	// Build set of required scenarios from manifest (including main scenario)
-	requiredScenarios := toStringSet(stringutil.SortedUnique(manifest.Bundle.Scenarios))
-	if manifest.Scenario.ID != "" {
-		requiredScenarios[manifest.Scenario.ID] = struct{}{}
+func buildGeneratedMiniServiceJSON(version string, manifest domain.CloudManifest) ([]byte, error) {
+	if strings.TrimSpace(version) == "" {
+		version = "2.0.0"
 	}
 
-	// Ensure dependencies section exists
-	dependencies := getOrCreateMapField(doc, "dependencies")
-
-	// Handle resources and scenarios in dependencies section
-	if len(requiredResources) > 0 {
-		dependencies["resources"] = mergeRequiredEntries(dependencies, "resources", requiredResources, true)
-	}
-	if len(requiredScenarios) > 0 {
-		dependencies["scenarios"] = mergeRequiredEntries(dependencies, "scenarios", requiredScenarios, false)
+	requiredResources := stringutil.SortedUnique(manifest.Bundle.Resources)
+	requiredScenarios := stringutil.SortedUnique(manifest.Bundle.Scenarios)
+	if manifest.Scenario.ID != "" && !stringutil.Contains(requiredScenarios, manifest.Scenario.ID) {
+		requiredScenarios = append(requiredScenarios, manifest.Scenario.ID)
+		sort.Strings(requiredScenarios)
 	}
 
-	doc["dependencies"] = dependencies
+	resourceDeps := make(map[string]map[string]interface{}, len(requiredResources))
+	for _, name := range requiredResources {
+		resourceDeps[name] = map[string]interface{}{
+			"enabled":  true,
+			"required": true,
+		}
+	}
 
-	// Also handle legacy top-level "resources" key if present
-	if _, hasLegacy := doc["resources"]; hasLegacy && len(requiredResources) > 0 {
-		doc["resources"] = mergeRequiredEntries(doc, "resources", requiredResources, true)
+	scenarioDeps := make(map[string]map[string]interface{}, len(requiredScenarios))
+	for _, name := range requiredScenarios {
+		required := name == manifest.Scenario.ID
+		scenarioDeps[name] = map[string]interface{}{
+			"enabled":  true,
+			"required": required,
+		}
+	}
+
+	doc := map[string]interface{}{
+		"version": version,
+		"service": map[string]interface{}{
+			"name":        "mini-vrooli",
+			"displayName": "Mini Vrooli",
+			"description": fmt.Sprintf("Generated native VPS bundle for %s", manifest.Scenario.ID),
+			"type":        "project",
+		},
+		"dependencies": map[string]interface{}{
+			"resources": resourceDeps,
+			"scenarios": scenarioDeps,
+		},
+		"lifecycle": map[string]interface{}{
+			"version": "2.0.0",
+			"setup": map[string]interface{}{
+				"description": "Generated native VPS setup",
+				"steps":       []map[string]interface{}{},
+			},
+		},
 	}
 
 	return json.MarshalIndent(doc, "", "  ")

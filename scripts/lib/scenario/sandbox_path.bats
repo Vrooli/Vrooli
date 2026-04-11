@@ -177,7 +177,7 @@ setup() {
 }
 
 # =============================================================================
-# SCENARIO_CUSTOM_PATH export — invariant for heal.sh
+# SCENARIO_CUSTOM_PATH export — invariant for heal-from-sandbox
 #
 # This test validates a critical link in the sandbox→heal chain:
 #
@@ -186,9 +186,10 @@ setup() {
 #   3. runner.sh exports SCENARIO_CUSTOM_PATH with the sandbox path ← AND THIS
 #   4. lifecycle.sh cd's to SCENARIO_CUSTOM_PATH
 #   5. lifecycle.sh records working_dir=$(pwd) in process metadata JSON
-#   6. heal.sh reads working_dir from metadata to detect sandbox-based scenarios
+#   6. the native heal-from-sandbox command reads working_dir from metadata to
+#      detect sandbox-based scenarios
 #
-# Steps 4-6 are covered by lifecycle tests and heal_from_sandbox.bats.
+# Steps 4-6 are covered by lifecycle tests and cmd/vrooli native heal-from-sandbox tests.
 # This test verifies steps 2-3: that the sandbox env vars correctly produce
 # a SCENARIO_CUSTOM_PATH pointing to the sandbox merged directory.
 # =============================================================================

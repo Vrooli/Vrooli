@@ -1,0 +1,55 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "claude-code",
+  "display_name": "Claude Code CLI",
+  "description": "Anthropic's Claude Code CLI for interactive and scripted development workflows.",
+  "template": "external-cli",
+  "driver": "external-cli",
+  "binary": "claude",
+  "version_args": [
+    "--version"
+  ],
+  "portability_tier": "partial",
+  "category": "developer-tooling",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "command": [
+        "claude",
+        "--version"
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "install": {
+    "platforms": {
+      "linux": [
+        "npm",
+        "install",
+        "-g",
+        "@anthropic-ai/claude-code"
+      ],
+      "macos": [
+        "npm",
+        "install",
+        "-g",
+        "@anthropic-ai/claude-code"
+      ],
+      "windows": [
+        "npm",
+        "install",
+        "-g",
+        "@anthropic-ai/claude-code"
+      ]
+    }
+  },
+  "capabilities": {
+    "supports_logs": false
+  },
+  "template_version": "1"
+}

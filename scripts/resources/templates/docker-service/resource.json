@@ -1,4 +1,5 @@
 {
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "{{RESOURCE_NAME}}",
   "display_name": "{{RESOURCE_DISPLAY_NAME}}",
   "description": "{{RESOURCE_DESCRIPTION}}",
@@ -28,6 +29,7 @@
   ],
   "runtime": {
     "image": "replace/me:latest",
+    "container_name": "vrooli-{{RESOURCE_NAME}}",
     "env": {},
     "volumes": [
       {
@@ -35,5 +37,10 @@
         "target": "/var/lib/{{RESOURCE_NAME}}"
       }
     ]
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 30,
+    "stop_timeout_seconds": 30,
+    "retries": 2
   }
 }

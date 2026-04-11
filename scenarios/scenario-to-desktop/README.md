@@ -53,7 +53,7 @@ For scenarios where multiple users need to share a backend, or you want smaller 
 
 Thin clients are remote controls for a Vrooli stack running your scenario elsewhere:
 
-1. **Confirm `vrooli` exists on the host running the scenario.** Run `vrooli --version`. If missing, install it and run `./scripts/manage.sh setup --yes yes` once.
+1. **Confirm `vrooli` exists on the host running the scenario.** Run `vrooli --version`. If missing, install it and run `vrooli setup --yes yes` once.
 2. **Start the scenario** with `vrooli scenario start <name>` (or `make start`). Wait until `vrooli scenario status <name>` reports healthy.
 3. **Expose the scenario.**
    - LAN: use `http://hostname:${UI_PORT}/`.

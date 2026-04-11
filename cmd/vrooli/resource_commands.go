@@ -113,11 +113,13 @@ func runResourceListCommand(controller *resources.Controller, globals globalOpti
 		rows = append(rows, []string{
 			item.Name,
 			boolLabel(item.Enabled),
+			item.ControlMode,
+			item.Driver,
+			item.PortabilityTier,
 			boolLabel(item.Registered),
-			boolLabel(item.HasCLI || item.HasScript),
 		})
 	}
-	return cliout.RenderTable(stdout, []string{"Name", "Enabled", "Registered", "Controllable"}, rows)
+	return cliout.RenderTable(stdout, []string{"Name", "Enabled", "Control", "Driver", "Portability", "Registered"}, rows)
 }
 
 func runResourceStatusCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
@@ -160,12 +162,13 @@ func runResourceStatusCommand(controller *resources.Controller, globals globalOp
 			rows = append(rows, []string{
 				item.Resource.Name,
 				boolLabel(item.Resource.Enabled),
+				item.Resource.ControlMode,
 				boolLabel(item.Running),
 				healthy,
 				item.Message,
 			})
 		}
-		return cliout.RenderTable(stdout, []string{"Name", "Enabled", "Running", "Health", "Status"}, rows)
+		return cliout.RenderTable(stdout, []string{"Name", "Enabled", "Control", "Running", "Health", "Status"}, rows)
 	}
 
 	if len(filtered) != 1 {
@@ -189,6 +192,9 @@ func runResourceStatusCommand(controller *resources.Controller, globals globalOp
 	rows := [][]string{
 		{"Name", item.Resource.Name},
 		{"Enabled", boolLabel(item.Resource.Enabled)},
+		{"Control", item.Resource.ControlMode},
+		{"Driver", item.Resource.Driver},
+		{"Portability", item.Resource.PortabilityTier},
 		{"Installed", boolLabel(item.Installed)},
 		{"Running", boolLabel(item.Running)},
 	}

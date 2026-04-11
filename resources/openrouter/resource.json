@@ -1,0 +1,39 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "openrouter",
+  "display_name": "OpenRouter API",
+  "description": "Hosted OpenRouter API gateway for access to multiple model providers.",
+  "template": "cloud-api",
+  "driver": "cloud-api",
+  "endpoint": "https://openrouter.ai/api/v1/models",
+  "credentials": {
+    "env": [
+      "OPENROUTER_API_KEY"
+    ],
+    "secret_ref": "secret/openrouter"
+  },
+  "portability_tier": "full",
+  "category": "hosted-service",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "https://openrouter.ai/api/v1/models",
+      "expected_status": [
+        200,
+        400,
+        401,
+        403
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "capabilities": {
+    "supports_logs": false
+  },
+  "template_version": "1"
+}

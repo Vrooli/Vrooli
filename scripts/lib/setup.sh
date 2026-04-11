@@ -370,7 +370,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         setup::generic_main "$@"
     else
         log::error "This script should be called through the lifecycle engine"
-        log::info "Use: ./scripts/manage.sh setup [options]"
+        log::info "Use: vrooli setup [options]"
         exit 1
     fi
 fi

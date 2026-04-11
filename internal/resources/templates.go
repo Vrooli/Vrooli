@@ -259,6 +259,9 @@ func (c *Controller) GenerateResourceTemplate(req ResourceTemplateGenerateReques
 	if err := verifyRenderedResourceTemplate(destination); err != nil {
 		return ResourceTemplateGenerateReport{}, err
 	}
+	if err := verifyGeneratedResourceManifest(destination); err != nil {
+		return ResourceTemplateGenerateReport{}, err
+	}
 	return report, nil
 }
 
@@ -560,6 +563,22 @@ func verifyRenderedResourceTemplate(destination string) error {
 	}
 	sort.Strings(unresolved)
 	return fmt.Errorf("unresolved placeholders remain in: %s", strings.Join(unresolved, ", "))
+}
+
+func verifyGeneratedResourceManifest(destination string) error {
+	path := filepath.Join(destination, "resource.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read generated resource manifest: %w", err)
+	}
+	var manifest ResourceManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return fmt.Errorf("parse generated resource manifest: %w", err)
+	}
+	if err := validateResourceManifest(manifest); err != nil {
+		return fmt.Errorf("validate generated resource manifest: %w", err)
+	}
+	return nil
 }
 
 func looksLikeTemplateTextFile(data []byte) bool {

@@ -1,0 +1,55 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "postgres",
+  "display_name": "PostgreSQL Database",
+  "description": "Managed PostgreSQL service for project and scenario storage.",
+  "template": "docker-service",
+  "driver": "docker-service",
+  "portability_tier": "full",
+  "category": "storage",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "postgresql",
+      "container": 5432,
+      "host": 5433
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "tcp",
+      "target": "127.0.0.1:5433",
+      "interval_seconds": 10,
+      "timeout_seconds": 5
+    }
+  ],
+  "runtime": {
+    "image": "postgres:16-alpine",
+    "container_name": "vrooli-postgres-main",
+    "env": {
+      "POSTGRES_DB": "vrooli",
+      "POSTGRES_USER": "vrooli",
+      "POSTGRES_PASSWORD": "vrooli"
+    },
+    "volumes": [
+      {
+        "source": "${HOME}/.vrooli/postgres/main/data",
+        "target": "/var/lib/postgresql/data"
+      }
+    ]
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30,
+    "retries": 5
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "1"
+}

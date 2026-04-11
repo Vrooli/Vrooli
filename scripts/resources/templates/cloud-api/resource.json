@@ -1,4 +1,5 @@
 {
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "{{RESOURCE_NAME}}",
   "display_name": "{{RESOURCE_DISPLAY_NAME}}",
   "description": "{{RESOURCE_DESCRIPTION}}",
@@ -6,14 +7,23 @@
   "driver": "cloud-api",
   "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
   "category": "{{RESOURCE_CATEGORY}}",
-  "endpoint": "https://api.example.com",
+  "endpoint": "{{RESOURCE_ENDPOINT}}",
   "credentials": {
+    "env": [
+      "{{RESOURCE_CREDENTIAL_ENV}}"
+    ],
     "secret_ref": "replace/me"
   },
   "health_checks": [
     {
       "type": "http",
-      "target": "https://api.example.com/health"
+      "target": "{{RESOURCE_ENDPOINT}}",
+      "expected_status": [
+        200,
+        400,
+        401,
+        403
+      ]
     }
   ]
 }

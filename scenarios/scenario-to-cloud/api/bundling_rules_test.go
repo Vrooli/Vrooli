@@ -26,7 +26,6 @@ func TestMiniVrooliBundleSpec_IncludesAutohealAndPackagesAndFiltersScenariosReso
 	mkdir(t, repoRoot, ".vrooli")
 	mkdir(t, repoRoot, "scripts")
 	mkdir(t, repoRoot, "api")
-	mkdir(t, repoRoot, "cli")
 	mkdir(t, repoRoot, "src")
 	writeFile(t, repoRoot, "go.work", "go 1.23\n")
 	writeFile(t, repoRoot, "package.json", "{}\n")
@@ -154,15 +153,17 @@ func TestWriteDeterministicTarGz_IsReproducibleAndRelative(t *testing.T) {
 	}
 }
 
-func TestMiniVrooliBundleSpec_OverridesServiceJSONEnabledResources(t *testing.T) {
-	// [REQ:STC-P0-002] mini-Vrooli bundle should only enable required resources
+func TestMiniVrooliBundleSpec_GeneratesNativeMiniRootManifest(t *testing.T) {
+	// [REQ:STC-P0-002] mini-Vrooli bundle should emit a native root manifest without legacy setup wiring
 	repoRoot := t.TempDir()
 	writeFile(t, repoRoot, ".vrooli/service.json", `{
   "version": "2.0.0",
-  "resources": {
-    "postgres": { "enabled": true },
-    "redis": { "enabled": true },
-    "qdrant": { "enabled": true }
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        { "name": "base-setup", "run": "bash scripts/lib/setup.sh" }
+      ]
+    }
   }
 }`)
 
@@ -202,16 +203,24 @@ func TestMiniVrooliBundleSpec_OverridesServiceJSONEnabledResources(t *testing.T)
 		t.Fatalf("service.json parse: %v", err)
 	}
 
-	resourcesAny, ok := doc["resources"]
+	dependenciesAny, ok := doc["dependencies"]
 	if !ok {
-		t.Fatalf("service.json missing resources")
+		t.Fatalf("service.json missing dependencies")
+	}
+	dependencies, ok := dependenciesAny.(map[string]interface{})
+	if !ok {
+		t.Fatalf("service.json dependencies unexpected type")
+	}
+	resourcesAny, ok := dependencies["resources"]
+	if !ok {
+		t.Fatalf("service.json dependencies missing resources")
 	}
 	resources, ok := resourcesAny.(map[string]interface{})
 	if !ok {
-		t.Fatalf("service.json resources unexpected type")
+		t.Fatalf("service.json dependencies.resources unexpected type")
 	}
 
-	getEnabled := func(id string) (bool, bool) {
+	getBoolField := func(id, field string) (bool, bool) {
 		v, ok := resources[id]
 		if !ok {
 			return false, false
@@ -220,18 +229,44 @@ func TestMiniVrooliBundleSpec_OverridesServiceJSONEnabledResources(t *testing.T)
 		if !ok {
 			return false, false
 		}
-		b, ok := m["enabled"].(bool)
+		b, ok := m[field].(bool)
 		return b, ok
 	}
 
-	if enabled, ok := getEnabled("postgres"); !ok || !enabled {
+	if enabled, ok := getBoolField("postgres", "enabled"); !ok || !enabled {
 		t.Fatalf("expected postgres enabled, got: %v", resources["postgres"])
 	}
-	if enabled, ok := getEnabled("redis"); !ok || enabled {
-		t.Fatalf("expected redis disabled, got: %v", resources["redis"])
+	if required, ok := getBoolField("postgres", "required"); !ok || !required {
+		t.Fatalf("expected postgres required, got: %v", resources["postgres"])
 	}
-	if enabled, ok := getEnabled("qdrant"); !ok || enabled {
-		t.Fatalf("expected qdrant disabled, got: %v", resources["qdrant"])
+	if _, exists := resources["redis"]; exists {
+		t.Fatalf("did not expect redis in generated mini manifest, got: %v", resources["redis"])
+	}
+	if strings.Contains(string(serviceBytes), "scripts/lib/setup.sh") {
+		t.Fatalf("did not expect legacy setup script reference in generated service.json: %s", string(serviceBytes))
+	}
+	lifecycleAny, ok := doc["lifecycle"]
+	if !ok {
+		t.Fatalf("service.json missing lifecycle")
+	}
+	lifecycle, ok := lifecycleAny.(map[string]interface{})
+	if !ok {
+		t.Fatalf("service.json lifecycle unexpected type")
+	}
+	setupAny, ok := lifecycle["setup"]
+	if !ok {
+		t.Fatalf("service.json lifecycle missing setup")
+	}
+	setupMap, ok := setupAny.(map[string]interface{})
+	if !ok {
+		t.Fatalf("service.json lifecycle.setup unexpected type")
+	}
+	steps, ok := setupMap["steps"].([]interface{})
+	if !ok {
+		t.Fatalf("service.json lifecycle.setup.steps unexpected type")
+	}
+	if len(steps) != 0 {
+		t.Fatalf("expected generated setup steps to be empty, got: %#v", steps)
 	}
 }
 
@@ -356,8 +391,8 @@ func TestBuildMiniVrooliBundle_Smoke_ProducesSelfContainedMiniRepo(t *testing.T)
 
 	// Minimal repo skeleton for bundling.
 	writeFile(t, repoRoot, "go.work", "go 1.23.0\n")
-	writeFile(t, repoRoot, "scripts/manage.sh", "#!/usr/bin/env bash\necho ok\n")
 	writeFile(t, repoRoot, ".vrooli/service.json", `{"version":"2.0.0","resources":{"postgres":{"enabled":true},"redis":{"enabled":true}}}`)
+	writeFile(t, repoRoot, "cli/install.sh", "#!/usr/bin/env bash\necho installer\n")
 	writeFile(t, repoRoot, "scenarios/app-a/README.md", "app-a\n")
 	writeFile(t, repoRoot, "scenarios/vrooli-autoheal/README.md", "autoheal\n")
 	writeFile(t, repoRoot, "resources/postgres/README.md", "pg\n")
@@ -418,6 +453,14 @@ func TestBuildMiniVrooliBundle_Smoke_ProducesSelfContainedMiniRepo(t *testing.T)
 	if !manifest.Contains(entries, ".vrooli/cloud/bundle-metadata.json") {
 		t.Fatalf("expected embedded bundle metadata, entries=%v", entries)
 	}
+	if manifest.Contains(entries, "scripts/manage.sh") {
+		t.Fatalf("did not expect legacy manage.sh in bundle, entries=%v", entries)
+	}
+	for _, name := range entries {
+		if strings.HasPrefix(name, "cli/") {
+			t.Fatalf("did not expect top-level cli tree in bundle, found %q", name)
+		}
+	}
 
 	goWork := string(tarEntryBytes(t, b, "go.work"))
 	if !strings.Contains(goWork, "\t./packages/proto") || !strings.Contains(goWork, "\t./scenarios/app-a/api") {
@@ -429,7 +472,7 @@ func TestBuildMiniVrooliBundle_Smoke_ProducesSelfContainedMiniRepo(t *testing.T)
 		t.Fatalf("expected .vrooli/service.json to be present")
 	}
 	if strings.Contains(string(serviceBytes), `"redis":{"enabled":true}`) {
-		t.Fatalf("expected non-required resources to be disabled, got:\n%s", string(serviceBytes))
+		t.Fatalf("expected non-required resources to be removed from generated mini manifest, got:\n%s", string(serviceBytes))
 	}
 }
 

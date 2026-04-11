@@ -1,21 +1,39 @@
 {
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "{{RESOURCE_NAME}}",
   "display_name": "{{RESOURCE_DISPLAY_NAME}}",
   "description": "{{RESOURCE_DESCRIPTION}}",
   "template": "external-cli",
   "driver": "external-cli",
+  "binary": "{{RESOURCE_BINARY}}",
+  "version_args": [
+    "--version"
+  ],
   "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
   "category": "{{RESOURCE_CATEGORY}}",
-  "binary": "{{RESOURCE_NAME}}",
   "install": {
-    "linux": "document me",
-    "macos": "document me",
-    "windows": "document me"
+    "platforms": {
+      "linux": [
+        "echo",
+        "Document installation steps for {{RESOURCE_NAME}}"
+      ],
+      "macos": [
+        "echo",
+        "Document installation steps for {{RESOURCE_NAME}}"
+      ],
+      "windows": [
+        "echo",
+        "Document installation steps for {{RESOURCE_NAME}}"
+      ]
+    }
   },
   "health_checks": [
     {
       "type": "command",
-      "command": "{{RESOURCE_NAME}} --version"
+      "command": [
+        "{{RESOURCE_BINARY}}",
+        "--version"
+      ]
     }
   ]
 }

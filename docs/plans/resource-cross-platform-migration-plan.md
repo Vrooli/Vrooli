@@ -1077,16 +1077,34 @@ Phase 4 starts from here. Phase 3 is considered complete once new resource work 
 
 **Goal:** Create the target control plane architecture.
 
-- [ ] Define `resource.json` schema
-- [ ] Define driver interfaces
-- [ ] Implement manifest loading and validation in Go
-- [ ] Implement driver registry
-- [ ] Add typed platform support metadata
-- [ ] Add driver-independent health check framework
+- [x] Define `resource.json` schema
+- [x] Define driver interfaces
+- [x] Implement manifest loading and validation in Go
+- [x] Implement driver registry
+- [x] Add typed platform support metadata
+- [x] Add driver-independent health check framework
 
 **Deliverable:** Implemented resources can be described and controlled without depending on shell-first resource structure.
 
 **Acceptance:** At least one prototype resource can run entirely through manifest + driver logic.
+
+**Status update:** Phase 4 is implemented and validated as the first manifest-native slice of the resource control plane.
+
+- `.vrooli/schemas/resource.schema.json` now defines the baseline `resource.json` contract for manifest-native resources
+- `internal/resources` now includes native manifest loading, validation, driver dispatch, platform gating, and shared health-check execution
+- `resources.Controller` now distinguishes `manifest-native`, `legacy-adapter`, and `legacy-shell` control modes during discovery and status reporting
+- the first native driver registry is in place with a working `docker-service` implementation
+- generated resource templates now verify that rendered `resource.json` files pass native manifest validation
+- the manifest-native prototype acceptance criterion is covered by repeatable tests using a fake Docker-backed resource lifecycle rather than brittle live-environment assumptions
+
+The focused Phase 4 closeout validation bundle is:
+
+- `go test ./internal/resources -run 'Test(DiscoverMarksManifestNativeResources|StatusForManifestNativeDockerResource|RunManifestNativeDockerLifecycle|StatusForManifestNativeUnsupportedPlatform|StatusForResourceReportsUnavailableCommand|StatusForResourceCategorizesProbeFailures|StatusForResourceParsesStructuredPayload|RunReturnsCategorizedErrors|StartAllUsesBestEffortWhenStatusProbeIsDegraded|StopAllFallsBackWhenStatusProbeIsDegraded)'`
+- `go test ./cmd/vrooli -run 'TestRunResource(ListCommandShowsManifestMetadata|StatusCommandShowsManifestMetadata|Blueprint(ListCommandJSON|InfoCommandHuman|ValidateCommandHuman|SearchCommandHuman|SearchCommandJSON)|Template(ListCommandJSON|ShowCommandHuman|ValidateCommandHuman|GenerateCommandHuman)|ListDeprecatedCommandJSON|DeprecateCommandHuman|RestoreCommandHuman|ArchiveGCCommandJSON)|TestShowResourceHelpIncludesBlueprintCommands'`
+- `go test ./internal/resources -run 'Test(GenerateResourceTemplate|GenerateResourceTemplateFromBlueprint|GenerateResourceTemplateFromBlueprintRepresentativeArchetypes|GenerateResourceTemplateRejectsBlueprintTemplateMismatch|ValidateResourceTemplates)'`
+- `go run ./cmd/vrooli resource template validate`
+- `go run ./cmd/vrooli resource list`
+- `go run ./cmd/vrooli resource status postgres --fast`
 
 ### Phase 5 — Migrate the core active resource set
 
@@ -1095,15 +1113,15 @@ Phase 4 starts from here. Phase 3 is considered complete once new resource work 
 Recommended order:
 
 1. containerized infrastructure
-   - [ ] postgres
-   - [ ] redis
-   - [ ] qdrant
-   - [ ] browserless
+   - [x] postgres
+   - [x] redis
+   - [x] qdrant
+   - [x] browserless
    - [ ] vault if still clearly active
 2. active external tooling
-   - [ ] claude-code
-   - [ ] codex
-   - [ ] gemini/openrouter class resources if truly active
+   - [x] claude-code
+   - [x] codex
+   - [x] gemini/openrouter class resources if truly active
 3. any additional validated resources justified by current use
 
 For each migrated resource:
@@ -1118,6 +1136,14 @@ For each migrated resource:
 **Deliverable:** The active resource set is substantially Go-native and cross-platform-aware.
 
 **Acceptance:** `vrooli resource` no longer depends on Bash for the migrated core set.
+
+Current status:
+
+- `postgres`, `redis`, `qdrant`, and `browserless` now have native `docker-service` manifests and Go driver-backed lifecycle/status coverage.
+- `claude-code` and `codex` now have native `external-cli` manifests and Go-native standard lifecycle/status handling.
+- `gemini` and `openrouter` now have native `cloud-api` manifests and Go-native status/configuration checks.
+- Resource-specific non-standard commands can still fall back to legacy shell entrypoints when the native driver does not own that subcommand yet.
+- `vault` is intentionally deferred for later migration work.
 
 ### Phase 6 — Legacy adapter shrinking
 

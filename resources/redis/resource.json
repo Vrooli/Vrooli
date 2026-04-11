@@ -1,0 +1,72 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "redis",
+  "display_name": "Redis Cache",
+  "description": "Redis event bus and cache layer for project and scenario workflows.",
+  "template": "docker-service",
+  "driver": "docker-service",
+  "portability_tier": "full",
+  "category": "storage",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "redis",
+      "container": 6379,
+      "host": 6380
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "tcp",
+      "target": "127.0.0.1:6380",
+      "interval_seconds": 10,
+      "timeout_seconds": 5
+    }
+  ],
+  "runtime": {
+    "image": "redis:7-alpine",
+    "container_name": "vrooli-redis-resource",
+    "command": [
+      "redis-server",
+      "--appendonly",
+      "no",
+      "--save",
+      "900",
+      "1",
+      "300",
+      "10",
+      "60",
+      "10000",
+      "--maxmemory",
+      "2gb",
+      "--maxmemory-policy",
+      "allkeys-lru",
+      "--protected-mode",
+      "no",
+      "--bind",
+      "0.0.0.0",
+      "--port",
+      "6379"
+    ],
+    "volumes": [
+      {
+        "source": "${HOME}/.vrooli/redis/data",
+        "target": "/data"
+      }
+    ]
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 15,
+    "stop_timeout_seconds": 30,
+    "retries": 3
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "1"
+}

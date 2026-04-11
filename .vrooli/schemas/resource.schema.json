@@ -1,0 +1,232 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/resource.schema.json",
+  "title": "Vrooli Resource Manifest",
+  "description": "Manifest schema for Go-native resource control plane resources.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "name",
+    "driver",
+    "portability_tier"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "display_name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "template": {
+      "type": "string"
+    },
+    "driver": {
+      "type": "string",
+      "enum": [
+        "docker-service",
+        "compose-service",
+        "external-cli",
+        "cloud-api",
+        "desktop-app",
+        "manual",
+        "legacy-adapter"
+      ]
+    },
+    "binary": {
+      "type": "string"
+    },
+    "version_args": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "endpoint": {
+      "type": "string"
+    },
+    "credentials": {
+      "type": "object",
+      "properties": {
+        "env": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "secret_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "portability_tier": {
+      "type": "string",
+      "enum": [
+        "full",
+        "partial",
+        "platform-specific"
+      ]
+    },
+    "category": {
+      "type": "string"
+    },
+    "platforms": {
+      "type": "object",
+      "properties": {
+        "linux": {
+          "type": "string",
+          "enum": [
+            "supported",
+            "partial",
+            "unsupported"
+          ]
+        },
+        "macos": {
+          "type": "string",
+          "enum": [
+            "supported",
+            "partial",
+            "unsupported"
+          ]
+        },
+        "windows": {
+          "type": "string",
+          "enum": [
+            "supported",
+            "partial",
+            "unsupported"
+          ]
+        }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "ports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "container": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "host": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "protocol": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "health_checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "http",
+              "tcp",
+              "command"
+            ]
+          },
+          "target": {
+            "type": "string"
+          },
+          "command": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expected_status": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "interval_seconds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "install": {
+      "type": "object"
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "string"
+        },
+        "container_name": {
+          "type": "string"
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "volumes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "source",
+              "target"
+            ],
+            "properties": {
+              "source": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object"
+    },
+    "capabilities": {
+      "type": "object"
+    },
+    "template_version": {
+      "type": "string"
+    }
+  }
+}

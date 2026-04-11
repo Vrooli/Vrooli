@@ -1,4 +1,5 @@
 {
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "{{RESOURCE_NAME}}",
   "display_name": "{{RESOURCE_DISPLAY_NAME}}",
   "description": "{{RESOURCE_DESCRIPTION}}",
@@ -11,7 +12,13 @@
   "health_checks": [
     {
       "type": "command",
-      "command": "docker compose ps --status running"
+      "command": [
+        "docker",
+        "compose",
+        "ps",
+        "--status",
+        "running"
+      ]
     }
   ]
 }

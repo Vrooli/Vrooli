@@ -69,14 +69,18 @@ validate-week0-week1: ## Run the repeatable Week 0/1 acceptance suite
 	grep -Fq "test-genie" "$$tmp_go"; \
 	rm -f "$$tmp_go"
 	tmp_home=$$(mktemp -d); \
+	tmp_legacy_root=$$(mktemp -d); \
 	touch "$$tmp_home/.bashrc"; \
 	mkdir -p "$$tmp_home/.local/bin" "$$tmp_home/.vrooli/bin"; \
-	ln -s "$$(pwd)/cli/vrooli" "$$tmp_home/.local/bin/vrooli"; \
+	mkdir -p "$$tmp_legacy_root/cli"; \
+	printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$$tmp_legacy_root/cli/vrooli"; \
+	chmod +x "$$tmp_legacy_root/cli/vrooli"; \
+	ln -s "$$tmp_legacy_root/cli/vrooli" "$$tmp_home/.local/bin/vrooli"; \
 	HOME="$$tmp_home" PATH="/usr/bin:/bin:$$PATH" ./cli/install.sh --force > /tmp/vrooli-install-smoke.log; \
 	test -x "$$tmp_home/.vrooli/bin/vrooli"; \
 	test ! -e "$$tmp_home/.local/bin/vrooli"; \
 	grep -Fq "export PATH=\"$$tmp_home/.vrooli/bin:\$$PATH\"" "$$tmp_home/.bashrc"; \
-	rm -rf "$$tmp_home"
+	rm -rf "$$tmp_home" "$$tmp_legacy_root"
 	tmp_source=$$(mktemp); \
 	cp cmd/vrooli/main.go "$$tmp_source"; \
 	trap 'cp "$$tmp_source" cmd/vrooli/main.go; rm -f "$$tmp_source"; $(MAKE) install > /tmp/vrooli-restore.log' EXIT; \
@@ -420,9 +424,29 @@ validate-week5: ## Run the repeatable Week 5 acceptance suite
 	$(MAKE) validate-live-develop-smoke
 	$(MAKE) validate-week5-cross
 
+validate-scenario-to-cloud-native: ## Validate scenario-to-cloud's native deployment-local CLI contract
+	test -z "$$(find scenarios/scenario-to-cloud/api scenarios/scenario-to-cloud/cli -name '*.go' ! -name '*_test.go' -print0 | xargs -0 rg -n 'scripts/lib/setup\.sh' || true)"
+	test -z "$$(find scenarios/scenario-to-cloud/api scenarios/scenario-to-cloud/cli -name '*.go' ! -name '*_test.go' -print0 | xargs -0 rg -n 'scripts/manage\.sh' | rg -v 'scenarios/scenario-to-cloud/api/bundle/builder.go' || true)"
+	! rg -n 'scripts/manage\.sh|scripts/lib/setup\.sh' \
+		scenarios/scenario-to-cloud/docs \
+		scenarios/scenario-to-cloud/requirements \
+		scenarios/scenario-to-cloud/README.md \
+		scenarios/scenario-to-cloud/PRD.md \
+		scenarios/deployment-manager/docs/examples/picker-wheel-desktop.md \
+		scenarios/scenario-to-desktop/README.md
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOWORK=off go build -trimpath -o /tmp/vrooli-scenario-to-cloud-native-amd64 ./cmd/vrooli
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 GOWORK=off go build -trimpath -o /tmp/vrooli-scenario-to-cloud-native-arm64 ./cmd/vrooli
+	rm -f /tmp/vrooli-scenario-to-cloud-native-amd64 /tmp/vrooli-scenario-to-cloud-native-arm64
+	cd scenarios/scenario-to-cloud/api && go test ./...
+	cd scenarios/scenario-to-cloud/cli && go test ./...
+
 validate-week6-slice: ## Run the expanded Week 6 native command slice
+	test ! -d cli/commands/scenario
 	$(MAKE) build
 	$(MAKE) install
+	test ! -e cli/vrooli
+	! rg -n '"/vrooli/cli/vrooli"|[[:<:]]cli/vrooli[[:>:]]' scenarios cmd internal packages api -g '*.go'
+	$(MAKE) validate-scenario-to-cloud-native
 	go test ./internal/network ./internal/maintenance ./internal/project
 	go test ./cmd/vrooli -run 'TestRun(ProjectBackupUsesNativePhaseRunner|ProjectRestoreUsesNativePhaseRunner|DispatchesTopLevelCommandsToExpectedHandlers|CleanupLocksUsesNativeMaintenance|Info(ListJSONOutput|CommandUsesManifestAndListMode|CommandRejectsUnknownOption|CommandErrorsWhenNoSourcesConfigured|CommandSkipsMissingSourcesInJSONMode|CommandHelpAndJSONMissingFiles)|LocksCommandListsNativeState|DiagnosePortReturnsJSON)'
 	set -e; \

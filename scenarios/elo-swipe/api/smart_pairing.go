@@ -6,7 +6,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -102,7 +104,7 @@ Return a JSON object with 'suggested_pairs' array, each containing 'item_a_id', 
 }
 
 func (sp *SmartPairing) callOllamaGenerate(ctx context.Context, prompt, model, taskType string) (string, error) {
-	cmd := exec.CommandContext(ctx, "bash", "/vrooli/cli/vrooli", "resource", "ollama", "generate", prompt, "--model", model, "--type", taskType, "--quiet")
+	cmd := exec.CommandContext(ctx, vrooliCLIPath(), "resource", "ollama", "generate", prompt, "--model", model, "--type", taskType, "--quiet")
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -293,4 +295,17 @@ func (sp *SmartPairing) getListItems(listID string) ([]PairItem, error) {
 	}
 
 	return items, nil
+}
+
+func vrooliCLIPath() string {
+	if configured := strings.TrimSpace(os.Getenv("VROOLI_CLI")); configured != "" {
+		return configured
+	}
+	if resolved, err := exec.LookPath("vrooli"); err == nil {
+		return resolved
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return filepath.Join(home, ".vrooli", "bin", "vrooli")
+	}
+	return "vrooli"
 }

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/vps"
 )
 
@@ -43,16 +44,17 @@ func TestBuildSetupPlanIncludesUploadAndSetup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("vps.BuildSetupPlan: %v", err)
 	}
-	if len(plan) < 8 {
-		t.Fatalf("expected at least 8 plan steps (mkdir, bootstrap, upload, cleanup_scenarios, extract, setup, autoheal, verify), got: %d", len(plan))
+	if len(plan) < 9 {
+		t.Fatalf("expected at least 9 plan steps (mkdir, bootstrap, upload, cleanup_scenarios, extract, install_vrooli, setup, autoheal, verify), got: %d", len(plan))
 	}
 
-	var hasUpload, hasSetup, hasBootstrap, hasCleanup bool
+	var hasUpload, hasSetup, hasBootstrap, hasCleanup, hasInstallCLI bool
 	for _, step := range plan {
 		if strings.Contains(step.Command, "scp") {
 			hasUpload = true
 		}
-		if strings.Contains(step.Command, "./scripts/manage.sh setup") {
+		if strings.Contains(step.Command, ".vrooli/bin/vrooli") &&
+			strings.Contains(step.Command, "--no-stale-check setup --yes yes --environment production") {
 			hasSetup = true
 		}
 		if step.ID == "bootstrap" && strings.Contains(step.Command, "apt-get") {
@@ -61,9 +63,12 @@ func TestBuildSetupPlanIncludesUploadAndSetup(t *testing.T) {
 		if step.ID == "cleanup_scenarios" && strings.Contains(step.Command, "MUTABLE_REL_LIST=") && strings.Contains(step.Command, "xargs -0 -r tar -cf") {
 			hasCleanup = true
 		}
+		if step.ID == "install_vrooli" && strings.Contains(step.Command, ".vrooli/bin/vrooli") {
+			hasInstallCLI = true
+		}
 	}
-	if !hasUpload || !hasSetup {
-		t.Fatalf("expected upload and setup steps, got: %+v", plan)
+	if !hasUpload || !hasSetup || !hasInstallCLI {
+		t.Fatalf("expected upload, install_vrooli, and setup steps, got: %+v", plan)
 	}
 	if !hasBootstrap {
 		t.Fatalf("expected bootstrap step with apt-get command, got: %+v", plan)
@@ -131,7 +136,7 @@ func TestBuildSetupPlanStepOrder(t *testing.T) {
 		t.Fatalf("vps.BuildSetupPlan: %v", err)
 	}
 
-	expectedOrder := []string{"mkdir", "bootstrap", "upload", "cleanup_scenarios", "extract", "setup", "autoheal", "verify"}
+	expectedOrder := []string{"mkdir", "bootstrap", "upload", "cleanup_scenarios", "extract", "install_vrooli", "setup", "autoheal", "verify"}
 	if len(plan) != len(expectedOrder) {
 		t.Fatalf("expected %d steps, got %d", len(expectedOrder), len(plan))
 	}
@@ -149,6 +154,59 @@ func TestBuildSetupPlanStepOrder(t *testing.T) {
 		if step.Command == "" {
 			t.Errorf("step %d (%s): missing command", i, step.ID)
 		}
+	}
+}
+
+func TestBuildSetupPlanUsesDeploymentLocalNativeCLIForSetupAndVerify(t *testing.T) {
+	// [REQ:STC-P0-004] Setup/verify must use the deployment-local native vrooli CLI.
+	tmp := t.TempDir()
+	bundlePath := filepath.Join(tmp, "mini-vrooli.tar.gz")
+	if err := os.WriteFile(bundlePath, []byte("fake"), 0o644); err != nil {
+		t.Fatalf("write bundle: %v", err)
+	}
+
+	workdir := "/srv/vrooli app"
+	manifest := domain.CloudManifest{
+		Version: "1.0.0",
+		Target: domain.ManifestTarget{
+			Type: "vps",
+			VPS: &domain.ManifestVPS{
+				Host:    "203.0.113.10",
+				Port:    22,
+				User:    "root",
+				Workdir: workdir,
+			},
+		},
+		Scenario: domain.ManifestScenario{ID: "test-scenario"},
+	}
+
+	plan, err := vps.BuildSetupPlan(manifest, bundlePath)
+	if err != nil {
+		t.Fatalf("vps.BuildSetupPlan: %v", err)
+	}
+
+	var setupCmd, verifyCmd string
+	for _, step := range plan {
+		switch step.ID {
+		case "setup":
+			setupCmd = step.Command
+		case "verify":
+			verifyCmd = step.Command
+		}
+	}
+	if setupCmd == "" || verifyCmd == "" {
+		t.Fatalf("expected setup and verify steps, got: %+v", plan)
+	}
+
+	wantBinary := shellutil.QuotedRemoteVrooliPath(workdir)
+	if !strings.Contains(setupCmd, wantBinary) || !strings.Contains(setupCmd, "--no-stale-check setup --yes yes --environment production") {
+		t.Fatalf("expected setup command to use deployment-local binary, got: %s", setupCmd)
+	}
+	if !strings.Contains(verifyCmd, wantBinary) || !strings.Contains(verifyCmd, "--no-stale-check --version") {
+		t.Fatalf("expected verify command to use deployment-local binary, got: %s", verifyCmd)
+	}
+	if strings.Contains(setupCmd, "./scripts/manage.sh") || strings.Contains(verifyCmd, "./scripts/manage.sh") {
+		t.Fatalf("expected no legacy manage.sh fallback in setup/verify commands: setup=%s verify=%s", setupCmd, verifyCmd)
 	}
 }
 

@@ -37,9 +37,9 @@ func StopExistingScenario(
 ) StopScenarioResult {
 	result := StopScenarioResult{OK: true}
 
-	// Step 1: Try vrooli scenario stop (if vrooli CLI exists)
-	checkCliResult, _ := sshRunner.Run(ctx, cfg, shellutil.VrooliCommand(workdir, "which vrooli || echo notfound"), ssh.DefaultRunOptions())
-	if !strings.Contains(checkCliResult.Stdout, "notfound") {
+	// Step 1: Try vrooli scenario stop (if the deployment-local CLI exists)
+	checkCliResult, _ := sshRunner.Run(ctx, cfg, fmt.Sprintf("test -x %s && echo found || echo notfound", shellutil.QuotedRemoteVrooliPath(workdir)), ssh.DefaultRunOptions())
+	if strings.TrimSpace(checkCliResult.Stdout) == "found" {
 		stopCmd := shellutil.VrooliCommand(workdir, "vrooli scenario stop "+shellutil.QuoteSingle(scenarioID))
 		stopResult, err := sshRunner.Run(ctx, cfg, stopCmd, ssh.DefaultRunOptions())
 		if err == nil && stopResult.ExitCode == 0 {

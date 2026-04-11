@@ -78,7 +78,6 @@ const (
 )
 
 // Response is the standardized health check response matching the Vrooli schema.
-// This structure is validated by the CLI's health-validator.sh.
 type Response struct {
 	// Status is the overall health: healthy, degraded, or unhealthy.
 	Status string `json:"status"`

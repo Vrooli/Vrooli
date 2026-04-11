@@ -616,9 +616,9 @@ func workdirExists(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, wo
 func stopAllVrooliProcesses(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, workdir string) []string {
 	var outputs []string
 
-	// Try vrooli stop first (if CLI available)
-	checkCliResult, _ := sshRunner.Run(ctx, cfg, shellutil.VrooliCommand(workdir, "which vrooli || echo notfound"), ssh.DefaultRunOptions())
-	if !strings.Contains(checkCliResult.Stdout, "notfound") {
+	// Try vrooli stop first (if the deployment-local CLI is available)
+	checkCliResult, _ := sshRunner.Run(ctx, cfg, fmt.Sprintf("test -x %s && echo found || echo notfound", shellutil.QuotedRemoteVrooliPath(workdir)), ssh.DefaultRunOptions())
+	if strings.TrimSpace(checkCliResult.Stdout) == "found" {
 		vrooliResult, _ := sshRunner.Run(ctx, cfg, shellutil.VrooliCommand(workdir, "vrooli stop"), ssh.DefaultRunOptions())
 		if vrooliResult.Stdout != "" {
 			outputs = append(outputs, vrooliResult.Stdout)

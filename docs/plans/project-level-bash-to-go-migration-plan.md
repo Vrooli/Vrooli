@@ -494,7 +494,7 @@ Validation note: As of 2026-04-11, the repeatable acceptance targets `make valid
 - [x] `vrooli scenario template`, `generate` migrated
 - [x] `vrooli scenario completeness`, `heal-from-sandbox` migrated
 - [x] `internal/config` package
-- [ ] `cli/commands/scenario/` deleted after the remaining legacy top-level wrappers and direct shell consumers are removed
+- [x] `cli/commands/scenario/` deleted after the remaining legacy top-level wrappers and direct shell consumers were removed
 
 Validation note: As of 2026-04-10, the acceptance targets `make validate-week4` and `make validate-week0-week4` are green. Week 4 validation now builds, installs, and tests the Go binaries; reruns the full project-level Go suite; runs focused CLI coverage for native `scenario setup`, `test`, `port`, `open`, `logs --clean`, `template/generate`, `requirements snapshot`, and `heal-from-sandbox`; and confirms the installed binary exposes the expanded native command surface in `scenario --help` (`start-all`, `stop-all`, `template`, `generate`, `heal-from-sandbox`, and the rest of the remaining scenario utilities). Thin wrapper commands such as `ui-smoke`, `requirements report`, and `completeness` are now exercised through the Go dispatcher and covered by unit tests that assert the translated subprocess invocations. The remaining cleanup is deleting the legacy shell command tree once the last direct consumers are removed; the Go CLI no longer retains a runtime fallback path.
 
@@ -519,7 +519,7 @@ Validation note: As of 2026-04-11, the week-5-specific acceptance slices are gre
   Current coverage: `make validate-week6-slice` exercises those native commands through the installed binary against a temp fixture project and validates native lock cleanup plus backup/restore dispatch.
 - [ ] `scripts/lib/` deleted
 - [ ] `cli/` deleted
-- [ ] `cli/vrooli` compatibility shim deleted after direct callers such as `scenarios/task-planner/api/task_parser.go` and `scenarios/elo-swipe/api/smart_pairing.go` stop execing `/vrooli/cli/vrooli`
+- [x] `cli/vrooli` compatibility shim deleted after direct callers such as `scenarios/task-planner/api/task_parser.go` and `scenarios/elo-swipe/api/smart_pairing.go` stopped execing `/vrooli/cli/vrooli`
 - [x] `VROOLI_FORCE_BASH` escape hatch removed
 
 ### Post-migration

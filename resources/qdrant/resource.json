@@ -1,0 +1,59 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "qdrant",
+  "display_name": "Qdrant Vector Database",
+  "description": "Vector database for embeddings and semantic search workloads.",
+  "template": "docker-service",
+  "driver": "docker-service",
+  "portability_tier": "full",
+  "category": "storage",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "http",
+      "container": 6333,
+      "host": 6333
+    },
+    {
+      "name": "grpc",
+      "container": 6334,
+      "host": 6334
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:6333/",
+      "interval_seconds": 10,
+      "timeout_seconds": 5
+    }
+  ],
+  "runtime": {
+    "image": "qdrant/qdrant:latest",
+    "container_name": "qdrant",
+    "volumes": [
+      {
+        "source": "${HOME}/.qdrant/data",
+        "target": "/qdrant/storage"
+      },
+      {
+        "source": "${HOME}/.qdrant/snapshots",
+        "target": "/qdrant/snapshots"
+      }
+    ]
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 25,
+    "stop_timeout_seconds": 30,
+    "retries": 3
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "1"
+}

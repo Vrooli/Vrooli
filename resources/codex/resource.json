@@ -1,0 +1,55 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "codex",
+  "display_name": "OpenAI Codex CLI",
+  "description": "OpenAI Codex CLI for local code generation and agentic engineering workflows.",
+  "template": "external-cli",
+  "driver": "external-cli",
+  "binary": "codex",
+  "version_args": [
+    "--version"
+  ],
+  "portability_tier": "partial",
+  "category": "developer-tooling",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "command": [
+        "codex",
+        "--version"
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "install": {
+    "platforms": {
+      "linux": [
+        "npm",
+        "install",
+        "-g",
+        "@openai/codex"
+      ],
+      "macos": [
+        "npm",
+        "install",
+        "-g",
+        "@openai/codex"
+      ],
+      "windows": [
+        "npm",
+        "install",
+        "-g",
+        "@openai/codex"
+      ]
+    }
+  },
+  "capabilities": {
+    "supports_logs": false
+  },
+  "template_version": "1"
+}

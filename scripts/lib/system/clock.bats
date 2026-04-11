@@ -41,7 +41,7 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/clock.sh"
     # Should see error messages and options
     echo "$output" | grep -Fq "[ERROR]   System clock is inaccurate but cannot sync without sudo access"
     echo "$output" | grep -Fq "[WARNING] This may cause SSL/TLS certificate validation errors"
-    echo "$output" | grep -Fq "Run setup with sudo: sudo ./scripts/manage.sh setup"
+    echo "$output" | grep -Fq "Run setup with sudo: sudo vrooli setup"
 }
 
 @test "clock::is_accurate returns success when time is within tolerance" {

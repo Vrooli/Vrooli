@@ -24,7 +24,8 @@
 //
 // This CLI command reads SANDBOX_MERGED_DIR from the environment, scans process
 // metadata to find scenarios running from that path, stops them, and restarts
-// them from the canonical repo location. See cli/commands/scenario/modules/heal.sh.
+// them from the canonical repo location via the native `vrooli scenario
+// heal-from-sandbox` implementation.
 //
 // # Hook Environment
 //

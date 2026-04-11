@@ -284,7 +284,7 @@ func checkLinuxVNCDeps() error {
 		return fmt.Errorf(
 			"required tools not installed: %v. "+
 				"Run 'sudo apt-get install -y x11vnc websockify' or re-run "+
-				"'./scripts/manage.sh setup' to install all dependencies",
+				"'vrooli setup' to install all dependencies",
 			missing,
 		)
 	}

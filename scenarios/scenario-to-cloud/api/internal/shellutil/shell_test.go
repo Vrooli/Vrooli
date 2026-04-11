@@ -40,9 +40,10 @@ func TestVrooliCommand(t *testing.T) {
 		name    string
 		workdir string
 		cmd     string
+		want    string
 	}{
-		{name: "simple command", workdir: "/opt/vrooli", cmd: "vrooli start"},
-		{name: "workdir with spaces", workdir: "/opt/my vrooli", cmd: "ls"},
+		{name: "simple command", workdir: "/opt/vrooli", cmd: "vrooli scenario status alpha --json", want: "scenario status alpha --json"},
+		{name: "workdir with spaces", workdir: "/opt/my vrooli", cmd: "resource status --json", want: "resource status --json"},
 	}
 
 	for _, tt := range tests {
@@ -56,11 +57,45 @@ func TestVrooliCommand(t *testing.T) {
 			if !contains(result, "cd "+QuoteSingle(tt.workdir)) {
 				t.Errorf("VrooliCommand missing cd to workdir: %s", result)
 			}
-			// Must contain the command
-			if !contains(result, tt.cmd) {
-				t.Errorf("VrooliCommand missing command %q: %s", tt.cmd, result)
+			// Must contain the deployment-local binary path and stale-check bypass
+			if !contains(result, QuotedRemoteVrooliPath(tt.workdir)) {
+				t.Errorf("VrooliCommand missing remote binary path: %s", result)
+			}
+			if !contains(result, "--no-stale-check") {
+				t.Errorf("VrooliCommand missing stale-check bypass: %s", result)
+			}
+			// Must contain the normalized command tail
+			if !contains(result, tt.want) {
+				t.Errorf("VrooliCommand missing command tail %q: %s", tt.want, result)
 			}
 		})
+	}
+}
+
+func TestVrooliCommandUsesDeploymentLocalBinaryInsteadOfGlobalCLI(t *testing.T) {
+	t.Parallel()
+
+	workdir := "/srv/apps/vrooli"
+	result := VrooliCommand(workdir, "vrooli stop")
+
+	if contains(result, " ~/.vrooli/bin/vrooli") || contains(result, " /usr/local/bin/vrooli") {
+		t.Fatalf("expected deployment-local binary invocation, got: %s", result)
+	}
+	expectedBinary := QuotedRemoteVrooliPath(workdir) + " --no-stale-check stop"
+	if !contains(result, expectedBinary) {
+		t.Fatalf("expected explicit deployment-local invocation %q, got: %s", expectedBinary, result)
+	}
+}
+
+func TestRemoteVrooliPath(t *testing.T) {
+	t.Parallel()
+
+	workdir := "/opt/vrooli"
+	if got, want := RemoteVrooliPath(workdir), "/opt/vrooli/.vrooli/bin/vrooli"; got != want {
+		t.Fatalf("RemoteVrooliPath() = %q, want %q", got, want)
+	}
+	if got, want := QuotedRemoteVrooliPath(workdir), QuoteSingle("/opt/vrooli/.vrooli/bin/vrooli"); got != want {
+		t.Fatalf("QuotedRemoteVrooliPath() = %q, want %q", got, want)
 	}
 }
 
