@@ -22,8 +22,7 @@ source "${BROWSERLESS_CLI_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
 source "${BROWSERLESS_CLI_DIR}/lib/health.sh"
 # shellcheck disable=SC1091
-source "${BROWSERLESS_CLI_DIR}/lib/api.sh"
-
+source "${BROWSERLESS_CLI_DIR}/lib/actions.sh"
 # Browserless Resource Unit Test
 browserless::test::unit() {
     log::info "Running Browserless resource unit test..."
@@ -98,27 +97,27 @@ browserless::test::unit() {
         overall_status=1
     fi
     
-    # Test 4: API testing functions
-    log::info "4/8 Testing API library functions..."
-    local api_ok=true
-    
-    # Test API functions existence
-    local api_functions=("browserless::test_screenshot" "browserless::ensure_test_output_dir")
-    for func in "${api_functions[@]}"; do
+    # Test 4: Compatibility action functions
+    log::info "4/6 Testing compatibility action functions..."
+    local action_ok=true
+
+    # Test retained action functions existence
+    local action_functions=("actions::screenshot" "actions::diagnostics")
+    for func in "${action_functions[@]}"; do
         if declare -f "$func" >/dev/null 2>&1; then
             log::success "✓ $func function is available"
         else
             log::error "✗ $func function is not available"
-            api_ok=false
+            action_ok=false
         fi
     done
-    
-    if [[ "$api_ok" != "true" ]]; then
+
+    if [[ "$action_ok" != "true" ]]; then
         overall_status=1
     fi
     
     # Test 5: Directory creation and access
-    log::info "5/8 Testing directory operations..."
+    log::info "5/6 Testing directory operations..."
     local dir_ok=true
     local test_dir="/tmp/browserless-unit-test-$$"
     
@@ -146,7 +145,7 @@ browserless::test::unit() {
     fi
     
     # Test 6: Environment validation
-    log::info "6/8 Testing environment requirements..."
+    log::info "6/6 Testing environment requirements..."
     local env_ok=true
     
     # Test curl availability
@@ -175,57 +174,6 @@ browserless::test::unit() {
     
     if [[ "$env_ok" != "true" ]]; then
         overall_status=1
-    fi
-
-    # Test 7: Cache functionality
-    log::info "7/8 Testing cache functions..."
-    
-    # Source cache library
-    if source "${BROWSERLESS_CLI_DIR}/lib/cache.sh" 2>/dev/null; then
-        # Test cache functions are available
-        if declare -f cache::init >/dev/null 2>&1; then
-            log::success "✓ cache::init function is available"
-        else
-            log::error "✗ cache::init function not found"
-            overall_status=1
-        fi
-        
-        if declare -f cache::stats >/dev/null 2>&1; then
-            log::success "✓ cache::stats function is available"
-        else
-            log::error "✗ cache::stats function not found"
-            overall_status=1
-        fi
-        
-        if declare -f cache::cleanup_expired >/dev/null 2>&1; then
-            log::success "✓ cache::cleanup_expired function is available"
-        else
-            log::error "✗ cache::cleanup_expired function not found"
-            overall_status=1
-        fi
-    else
-        log::warning "⚠️ Cache library not available (optional feature)"
-    fi
-    
-    # Test 8: Pool recovery functions
-    log::info "8/8 Testing pool recovery functions..."
-    # shellcheck disable=SC1091
-    if source "${BROWSERLESS_CLI_DIR}/lib/pool-manager.sh" 2>/dev/null; then
-        if declare -f pool::health_check_and_recover >/dev/null 2>&1; then
-            log::success "✓ pool::health_check_and_recover function is available"
-        else
-            log::error "✗ pool::health_check_and_recover function not found"
-            overall_status=1
-        fi
-        
-        if declare -f pool::attempt_recovery >/dev/null 2>&1; then
-            log::success "✓ pool::attempt_recovery function is available"
-        else
-            log::error "✗ pool::attempt_recovery function not found"
-            overall_status=1
-        fi
-    else
-        log::warning "⚠️ Pool manager library not available"
     fi
     
     echo ""

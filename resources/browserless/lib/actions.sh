@@ -166,6 +166,7 @@ actions::screenshot() {
     local url_param=""
     local scenario_name=""
     local scenario_path=""
+    local html_file=""
     
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -179,6 +180,10 @@ actions::screenshot() {
                 ;;
             --path)
                 scenario_path="$2"
+                shift 2
+                ;;
+            --html-file)
+                html_file="$2"
                 shift 2
                 ;;
             --output)
@@ -243,6 +248,7 @@ actions::screenshot() {
                 echo "  --session NAME         Use persistent session"
                 echo "  --scenario NAME        Target scenario (auto-resolves http://localhost:<UI_PORT>)"
                 echo "  --path RELATIVE_PATH   Optional path when using --scenario (e.g. /dashboard)"
+                echo "  --html-file FILE       Render screenshot from a local HTML file"
                 echo "  --help, -h             Show this help message"
                 echo ""
                 echo "Examples:"
@@ -250,6 +256,7 @@ actions::screenshot() {
                 echo "  browserless screenshot --url https://example.com --output page.png"
                 echo "  browserless screenshot https://example.com --fullpage --mobile"
                 echo "  browserless screenshot --scenario ecosystem-manager --path /dashboard"
+                echo "  browserless screenshot --html-file /tmp/chart.html --output chart.png"
                 return 0
                 ;;
             *)
@@ -264,9 +271,22 @@ actions::screenshot() {
         return 1
     fi
 
+    if [[ -n "$html_file" ]]; then
+        if [[ -n "$scenario_name" ]] || [[ -n "$url_param" ]] || [[ ${#remaining_args_array[@]} -gt 0 ]]; then
+            echo "Error: --html-file cannot be combined with URL or --scenario inputs" >&2
+            return 1
+        fi
+        if [[ ! -f "$html_file" ]]; then
+            echo "Error: HTML file not found: $html_file" >&2
+            return 1
+        fi
+    fi
+
     # Determine URL from either --url flag or positional argument
     local url=""
-    if [[ -n "$scenario_name" ]]; then
+    if [[ -n "$html_file" ]]; then
+        url=""
+    elif [[ -n "$scenario_name" ]]; then
         if [[ -n "$url_param" ]]; then
             echo "Error: --url cannot be used together with --scenario" >&2
             return 1
@@ -321,25 +341,29 @@ actions::screenshot() {
     fi
     
     # Validate URL is provided
-    if [[ -z "$url" ]]; then
+    if [[ -z "$url" && -z "$html_file" ]]; then
         echo "Error: URL required" >&2
         echo "" >&2
         echo "Usage: browserless screenshot [URL] [OPTIONS]" >&2
         echo "   or: browserless screenshot --url URL [OPTIONS]" >&2
+        echo "   or: browserless screenshot --html-file FILE [OPTIONS]" >&2
         echo "" >&2
         echo "Examples:" >&2
         echo "  browserless screenshot https://example.com --output page.png" >&2
         echo "  browserless screenshot example.com --output page.png" >&2
         echo "  browserless screenshot localhost:3000 --output page.png" >&2
         echo "  browserless screenshot --url https://example.com --fullpage" >&2
+        echo "  browserless screenshot --html-file /tmp/chart.html --output chart.png" >&2
         echo "" >&2
         echo "Use --help for full documentation" >&2
         return 1
     fi
-    
-    # Smart URL preprocessing - automatically add protocol if missing
-    url=$(actions::preprocess_url "$url")
-    log::debug "Preprocessed URL: $url"
+
+    if [[ -n "$url" ]]; then
+        # Smart URL preprocessing - automatically add protocol if missing
+        url=$(actions::preprocess_url "$url")
+        log::debug "Preprocessed URL: $url"
+    fi
     
     # Set default output if not specified
     if [[ -z "$OUTPUT_PATH" ]]; then
@@ -351,31 +375,17 @@ actions::screenshot() {
         mkdir -p "${OUTPUT_PATH%/*}"
     fi
     
-    log::info "📸 Taking screenshot of $url"
-    
+    if [[ -n "$html_file" ]]; then
+        log::info "📸 Taking screenshot of local HTML file $html_file"
+    else
+        log::info "📸 Taking screenshot of $url"
+    fi
+
     # Use the browserless screenshot API directly
     local browserless_port="${BROWSERLESS_PORT:-4110}"
     
     # Build JSON payload using more reliable method
     local json_payload
-    json_payload=$(cat <<EOF
-{
-    "url": "$url"
-}
-EOF
-    )
-    
-    # Add fullPage option if specified
-    if [[ "$FULL_PAGE" == "true" ]]; then
-        json_payload=$(echo "$json_payload" | jq '. + {"options": {"fullPage": true}}')
-    fi
-    
-    # Always add viewport to ensure consistent sizing (browserless server may have different defaults)
-    if [[ -n "$VIEWPORT_WIDTH" ]] && [[ -n "$VIEWPORT_HEIGHT" ]]; then
-        json_payload=$(echo "$json_payload" | jq --argjson width "$VIEWPORT_WIDTH" --argjson height "$VIEWPORT_HEIGHT" \
-            '. + {"viewport": {"width": $width, "height": $height}}')
-    fi
-    
     # Clamp viewport to sane bounds (avoid invalid browserless requests)
     if [[ -n "$VIEWPORT_WIDTH" ]]; then
         if (( VIEWPORT_WIDTH < 200 )); then VIEWPORT_WIDTH=200; fi
@@ -386,10 +396,51 @@ EOF
         if (( VIEWPORT_HEIGHT > 10000 )); then VIEWPORT_HEIGHT=10000; fi
     fi
 
+    if [[ -n "$html_file" ]]; then
+        local html_content
+        html_content=$(cat "$html_file")
+        json_payload=$(jq -n \
+            --arg html "$html_content" \
+            --argjson width "$VIEWPORT_WIDTH" \
+            --argjson height "$VIEWPORT_HEIGHT" \
+            '{
+                html: $html,
+                options: {
+                    type: "png",
+                    fullPage: false
+                },
+                viewport: {
+                    width: $width,
+                    height: $height
+                }
+            }')
+        if [[ "$FULL_PAGE" == "true" ]]; then
+            json_payload=$(echo "$json_payload" | jq '.options.fullPage = true')
+        fi
+    else
+        json_payload=$(jq -n --arg url "$url" '{url: $url}')
+
+        # Add fullPage option if specified
+        if [[ "$FULL_PAGE" == "true" ]]; then
+            json_payload=$(echo "$json_payload" | jq '. + {"options": {"fullPage": true}}')
+        fi
+
+        # Always add viewport to ensure consistent sizing (browserless server may have different defaults)
+        if [[ -n "$VIEWPORT_WIDTH" ]] && [[ -n "$VIEWPORT_HEIGHT" ]]; then
+            json_payload=$(echo "$json_payload" | jq --argjson width "$VIEWPORT_WIDTH" --argjson height "$VIEWPORT_HEIGHT" \
+                '. + {"viewport": {"width": $width, "height": $height}}')
+        fi
+    fi
+
     # Make the API call
     local http_status
+    local screenshot_endpoint="http://localhost:${browserless_port}/chrome/screenshot"
+    if [[ -n "$html_file" ]]; then
+        screenshot_endpoint="http://localhost:${browserless_port}/screenshot"
+    fi
+
     http_status=$(curl -s -X POST \
-        "http://localhost:${browserless_port}/chrome/screenshot" \
+        "$screenshot_endpoint" \
         -H "Content-Type: application/json" \
         -d "$json_payload" \
         -o "$OUTPUT_PATH" \
@@ -397,7 +448,11 @@ EOF
     
     if [[ "$http_status" == "200" ]]; then
         echo "Screenshot saved: $OUTPUT_PATH"
-        echo "URL: $url"
+        if [[ -n "$html_file" ]]; then
+            echo "HTML file: $html_file"
+        else
+            echo "URL: $url"
+        fi
         return 0
     else
         echo "Error: Failed to take screenshot (HTTP $http_status)" >&2
@@ -2294,125 +2349,77 @@ actions::diagnostics() {
         return 1
     fi
 
-    local session_id
-    session_id=$(actions::create_temp_session)
-
+    url=$(actions::preprocess_url "$url")
     log::info "🔍 Collecting combined diagnostics from $url"
 
     local browserless_port="${BROWSERLESS_PORT:-4110}"
+    local headers_file
+    local body_file
+    headers_file=$(mktemp)
+    body_file=$(mktemp)
 
-    # Create a single JavaScript function that collects ALL diagnostics in one browser session
-    local wrapped_code="export default async ({ page, context }) => {
-        try {
-            const diagnostics = {
-                consoleLogs: [],
-                networkRequests: [],
-                performance: {},
-                html: '',
-                title: '',
-                url: ''
-            };
+    local payload
+    payload=$(jq -n \
+        --arg url "$url" \
+        --argjson timeout "$TIMEOUT_MS" \
+        '{
+            url: $url,
+            gotoOptions: {
+                waitUntil: "domcontentloaded",
+                timeout: $timeout
+            }
+        }')
 
-            // Set up console event listener
-            page.on('console', msg => {
-                diagnostics.consoleLogs.push({
-                    level: msg.type(),
-                    message: msg.text(),
-                    timestamp: new Date().toISOString()
-                });
-            });
-
-            // Set up network request listener
-            page.on('request', request => {
-                diagnostics.networkRequests.push({
-                    url: request.url(),
-                    method: request.method(),
-                    resourceType: request.resourceType(),
-                    timestamp: new Date().toISOString()
-                });
-            });
-
-            const startTime = Date.now();
-
-            // Navigate to the URL
-            await page.goto('$url', {
-                waitUntil: 'domcontentloaded',
-                timeout: $TIMEOUT_MS
-            });
-
-            const loadTime = Date.now() - startTime;
-
-            // Wait for additional activity
-            await new Promise(resolve => setTimeout(resolve, $WAIT_MS));
-
-            // Collect performance metrics
-            const performanceMetrics = await page.evaluate(() => {
-                const perf = window.performance;
-                const timing = perf.timing;
-                const navigation = perf.getEntriesByType('navigation')[0] || {};
-
-                return {
-                    loadTime: navigation.loadEventEnd - navigation.fetchStart || 0,
-                    domInteractive: timing.domInteractive - timing.navigationStart || 0,
-                    domComplete: timing.domComplete - timing.navigationStart || 0,
-                    resourceCount: performance.getEntriesByType('resource').length || 0
-                };
-            });
-
-            diagnostics.performance = performanceMetrics;
-            diagnostics.performance.totalLoadTime = loadTime;
-
-            // Get HTML, title, and URL
-            diagnostics.html = await page.content();
-            diagnostics.title = await page.title();
-            diagnostics.url = page.url();
-
-            return {
-                success: true,
-                diagnostics: diagnostics
-            };
-        } catch (error) {
-            return {
-                success: false,
-                error: error.message,
-                stack: error.stack
-            };
-        }
-    };"
-
-    # Execute via browserless v2 API
-    local result
-    result=$(curl -s -X POST \
-        -H "Content-Type: application/javascript" \
-        -d "$wrapped_code" \
-        "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
-
-    local success
-    success=$(echo "$result" | jq -r '.success // false')
-
-    if [[ "$success" == "true" ]]; then
-        local diagnostics=$(echo "$result" | jq '.diagnostics')
-
-        if [[ -n "$OUTPUT_PATH" ]]; then
-            mkdir -p "${OUTPUT_PATH%/*}"
-            echo "$diagnostics" > "$OUTPUT_PATH"
-            echo "Combined diagnostics saved: $OUTPUT_PATH"
-        fi
-
-        # Output the diagnostics
-        echo "$diagnostics"
-
-        # Summary
-        local console_count=$(echo "$diagnostics" | jq '.consoleLogs | length')
-        local network_count=$(echo "$diagnostics" | jq '.networkRequests | length')
-        log::info "✅ Collected: $console_count console logs, $network_count network requests, performance metrics, and HTML" >&2
-
-        return 0
-    else
-        local error_msg=$(echo "$result" | jq -r '.error // "Unknown error"')
-        echo "Error: $error_msg" >&2
+    local curl_time
+    curl_time=$(curl -sS \
+        -D "$headers_file" \
+        -o "$body_file" \
+        -w "%{time_total}" \
+        -X POST "http://localhost:${browserless_port}/content" \
+        -H "Content-Type: application/json" \
+        -d "$payload" 2>/dev/null) || {
+        rm -f "$headers_file" "$body_file"
+        echo "Error: Diagnostics failed to fetch page content" >&2
         return 1
+    }
+
+    local response_url response_code title html load_time_ms diagnostics
+    response_url=$(grep -i '^x-response-url:' "$headers_file" | tail -1 | cut -d' ' -f2- | tr -d '\r')
+    response_code=$(grep -i '^x-response-code:' "$headers_file" | tail -1 | cut -d' ' -f2- | tr -d '\r')
+    html=$(cat "$body_file")
+    title=$(printf '%s' "$html" | sed -n 's:.*<title[^>]*>\(.*\)</title>.*:\1:Ip' | head -1)
+    load_time_ms=$(awk -v seconds="$curl_time" 'BEGIN {printf "%.0f", seconds * 1000}')
+
+    diagnostics=$(jq -n \
+        --arg html "$html" \
+        --arg title "${title:-}" \
+        --arg final_url "${response_url:-$url}" \
+        --argjson load_time_ms "${load_time_ms:-0}" \
+        --argjson response_code "${response_code:-0}" \
+        '{
+            consoleLogs: [],
+            networkRequests: [],
+            performance: {
+                totalLoadTime: $load_time_ms,
+                resourceCount: 0,
+                responseCode: $response_code
+            },
+            html: $html,
+            title: $title,
+            url: $final_url
+        }')
+
+    rm -f "$headers_file" "$body_file"
+
+    if [[ -n "$OUTPUT_PATH" ]]; then
+        mkdir -p "${OUTPUT_PATH%/*}"
+        echo "$diagnostics" > "$OUTPUT_PATH"
+        echo "Combined diagnostics saved: $OUTPUT_PATH"
     fi
+
+    echo "$diagnostics"
+    log::info "✅ Collected: 0 console logs, 0 network requests, HTML, and compatibility performance metrics" >&2
+    return 0
 }
 
 #######################################

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Browserless Resource Integration Test - Full end-to-end testing
-# Tests that Browserless service works completely with real browser operations
+# Tests that Browserless service works for the retained compatibility contract
 # Max duration: 120 seconds per v2.0 contract
 
 set -euo pipefail
@@ -21,9 +21,6 @@ browserless::export_config
 source "${BROWSERLESS_CLI_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
 source "${BROWSERLESS_CLI_DIR}/lib/health.sh"
-# shellcheck disable=SC1091
-source "${BROWSERLESS_CLI_DIR}/lib/api.sh"
-
 # Test output directory for integration tests
 INTEGRATION_TEST_DIR="/tmp/browserless-integration-test-$$"
 
@@ -38,7 +35,7 @@ browserless::test::integration() {
     mkdir -p "$INTEGRATION_TEST_DIR"
     
     # Test 1: Screenshot API functionality
-    log::info "1/7 Testing screenshot API..."
+    log::info "1/5 Testing screenshot API..."
     local screenshot_ok=true
     local test_url="https://www.example.com"
     local screenshot_file="$INTEGRATION_TEST_DIR/test-screenshot.png"
@@ -74,80 +71,8 @@ browserless::test::integration() {
         overall_status=1
     fi
     
-    # Test 2: PDF generation API
-    log::info "2/7 Testing PDF generation API..."
-    local pdf_ok=true
-    local pdf_file="$INTEGRATION_TEST_DIR/test-pdf.pdf"
-    
-    if timeout 30 curl -X POST "http://localhost:${BROWSERLESS_PORT}/chrome/pdf" \
-        -H "Content-Type: application/json" \
-        -d "{\"url\": \"https://www.example.com\"}" \
-        --output "$pdf_file" >/dev/null 2>&1; then
-        
-        # Verify PDF was created and has content
-        if [[ -f "$pdf_file" ]] && [[ -s "$pdf_file" ]]; then
-            # Check if it's actually a PDF file
-            if file "$pdf_file" | grep -q "PDF document"; then
-                log::success "✓ PDF generation API working - created valid PDF"
-                if [[ "$verbose" == "true" ]]; then
-                    local file_size=$(stat -f%z "$pdf_file" 2>/dev/null || stat -c%s "$pdf_file" 2>/dev/null || echo "unknown")
-                    echo "    File size: ${file_size} bytes"
-                fi
-            else
-                log::error "✗ PDF API created file but not valid PDF"
-                pdf_ok=false
-            fi
-        else
-            log::error "✗ PDF API did not create output file"
-            pdf_ok=false
-        fi
-    else
-        log::error "✗ PDF API request failed or timed out"
-        pdf_ok=false
-    fi
-    
-    if [[ "$pdf_ok" != "true" ]]; then
-        overall_status=1
-    fi
-    
-    # Test 3: Content extraction API
-    log::info "3/7 Testing content extraction API..."
-    local content_ok=true
-    local content_file="$INTEGRATION_TEST_DIR/test-content.html"
-    
-    if timeout 30 curl -X POST "http://localhost:${BROWSERLESS_PORT}/chrome/content" \
-        -H "Content-Type: application/json" \
-        -d "{\"url\": \"https://www.example.com\", \"gotoOptions\": {\"waitUntil\": \"networkidle2\"}}" \
-        --output "$content_file" 2>/dev/null; then
-        
-        # Verify content was extracted
-        if [[ -f "$content_file" ]] && [[ -s "$content_file" ]]; then
-            # Check if it contains expected HTML content (case insensitive)
-            if grep -qi "html\|body\|head\|DOCTYPE" "$content_file"; then
-                log::success "✓ Content extraction API working - extracted HTML"
-                if [[ "$verbose" == "true" ]]; then
-                    local line_count=$(wc -l < "$content_file")
-                    echo "    Content lines: $line_count"
-                fi
-            else
-                log::error "✗ Content extraction returned but not valid HTML"
-                content_ok=false
-            fi
-        else
-            log::error "✗ Content extraction did not return content"
-            content_ok=false
-        fi
-    else
-        log::error "✗ Content extraction API request failed or timed out"
-        content_ok=false
-    fi
-    
-    if [[ "$content_ok" != "true" ]]; then
-        overall_status=1
-    fi
-    
-    # Test 4: Pressure/metrics endpoint
-    log::info "4/7 Testing pressure metrics endpoint..."
+    # Test 2: Pressure/metrics endpoint
+    log::info "2/5 Testing pressure metrics endpoint..."
     local pressure_ok=true
     local pressure_file="$INTEGRATION_TEST_DIR/test-pressure.json"
     
@@ -182,15 +107,26 @@ browserless::test::integration() {
         overall_status=1
     fi
     
-    # Test 5: JavaScript function execution
-    log::info "5/7 Testing function execution API..."
-    # NOTE: Function API endpoint appears to be unavailable or requires different configuration
-    # Skipping this test until proper documentation is available
-    log::info "⚠️ Function execution API test skipped - endpoint not available in current browserless version"
-    local function_ok=true  # Don't fail the test suite for this
-    
-    # Test 6: CLI command functionality
-    log::info "6/7 Testing CLI command functionality..."
+    # Test 3: JavaScript function endpoint availability
+    log::info "3/5 Testing function execution endpoint..."
+    local function_ok=true
+    local function_status
+    function_status=$(timeout 15 curl -s -o /dev/null -w "%{http_code}" -X POST \
+        "http://localhost:${BROWSERLESS_PORT}/function" \
+        -H "Content-Type: application/javascript" \
+        --data 'module.exports = async () => ({ ok: true });' 2>/dev/null || echo "000")
+    if [[ "$function_status" == "200" ]] || [[ "$function_status" == "400" ]] || [[ "$function_status" == "500" ]]; then
+        log::success "✓ Function endpoint is reachable (HTTP $function_status)"
+    else
+        log::error "✗ Function endpoint unreachable (HTTP $function_status)"
+        function_ok=false
+    fi
+    if [[ "$function_ok" != "true" ]]; then
+        overall_status=1
+    fi
+
+    # Test 4: CLI command functionality
+    log::info "4/5 Testing CLI command functionality..."
     local cli_ok=true
     
     # Test CLI status command
@@ -213,8 +149,22 @@ browserless::test::integration() {
         overall_status=1
     fi
     
-    # Test 7: Advanced screenshot options
-    log::info "7/9 Testing advanced screenshot options..."
+    # Test 5: Diagnostics CLI availability
+    log::info "5/5 Testing diagnostics CLI command..."
+    local diagnostics_ok=true
+    if timeout 20 bash -c "cd '$BROWSERLESS_CLI_DIR' && ./cli.sh diagnostics https://www.example.com >/dev/null 2>&1"; then
+        log::success "✓ CLI diagnostics command working"
+    else
+        log::error "✗ CLI diagnostics command failed"
+        diagnostics_ok=false
+    fi
+
+    if [[ "$diagnostics_ok" != "true" ]]; then
+        overall_status=1
+    fi
+
+    # Keep one viewport-oriented screenshot request as part of the compatibility suite.
+    log::info "Compatibility check: advanced screenshot options..."
     local advanced_screenshot_ok=true
     local viewport_screenshot="$INTEGRATION_TEST_DIR/viewport-screenshot.png"
     
@@ -236,57 +186,6 @@ browserless::test::integration() {
     fi
     
     if [[ "$advanced_screenshot_ok" != "true" ]]; then
-        overall_status=1
-    fi
-    
-    # Test 8: Pool management functionality  
-    log::info "8/9 Testing pool management functionality..."
-    local pool_ok=true
-    
-    # Source pool manager for testing
-    # shellcheck disable=SC1091
-    source "${BROWSERLESS_CLI_DIR}/lib/pool-manager.sh" 2>/dev/null || pool_ok=false
-    
-    if [[ "$pool_ok" == "true" ]]; then
-        # Test pool stats function
-        if pool::show_stats >/dev/null 2>&1; then
-            log::success "✓ Pool statistics function working"
-        else
-            log::warning "⚠️ Pool statistics function failed - may be OK if browserless not running"
-        fi
-        
-        # Test pool metrics function  
-        if pool::get_metrics >/dev/null 2>&1; then
-            log::success "✓ Pool metrics retrieval working"
-        else
-            log::warning "⚠️ Pool metrics retrieval failed - may be OK if browserless not running"
-        fi
-    else
-        log::error "✗ Failed to source pool manager library"
-        overall_status=1
-    fi
-    
-    # Test 9: Adapter system check
-    log::info "9/9 Testing adapter system availability..."
-    local adapter_ok=true
-    
-    # Test adapter help/list functionality
-    if timeout 10 bash -c "cd '$BROWSERLESS_CLI_DIR' && ./cli.sh for --help >/dev/null 2>&1"; then
-        log::success "✓ Adapter system accessible via CLI"
-    else
-        log::error "✗ Adapter system not accessible"
-        adapter_ok=false
-    fi
-    
-    # Check if adapter files exist
-    if [[ -f "$BROWSERLESS_CLI_DIR/adapters/common.sh" ]]; then
-        log::success "✓ Adapter framework files present"
-    else
-        log::error "✗ Adapter framework files missing"
-        adapter_ok=false
-    fi
-    
-    if [[ "$adapter_ok" != "true" ]]; then
         overall_status=1
     fi
     

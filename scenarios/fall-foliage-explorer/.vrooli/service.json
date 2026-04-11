@@ -262,12 +262,6 @@
         ],
         "purpose": "foliage predictions and pattern analysis"
       },
-      "browserless": {
-        "type": "browserless",
-        "enabled": true,
-        "required": false,
-        "purpose": "weather data scraping"
-      },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,

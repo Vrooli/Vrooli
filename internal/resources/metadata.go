@@ -7,12 +7,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/secrets"
 )
 
 const (
 	portRegistryJSONPath        = "scripts/resources/port_registry.json"
 	resourceDefinitionsJSONPath = ".vrooli/schemas/resource-definitions.json"
-	secretsJSONPath             = ".vrooli/secrets.json"
 )
 
 type PortRegistry struct {
@@ -110,27 +111,15 @@ func loadResourceDefinitions(root string) (resourceDefinitionsFile, error) {
 }
 
 func loadSecrets(root string) (map[string]string, error) {
-	path := filepath.Join(root, filepath.FromSlash(secretsJSONPath))
-	data, err := os.ReadFile(path)
+	store := secrets.NewProjectStore(root)
+	values, err := store.Load()
 	if err != nil {
 		if os.IsNotExist(err) {
 			return map[string]string{}, nil
 		}
-		return nil, fmt.Errorf("read %s: %w", path, err)
+		return nil, err
 	}
-
-	var payload map[string]any
-	if err := json.Unmarshal(data, &payload); err != nil {
-		return nil, fmt.Errorf("parse %s: %w", path, err)
-	}
-
-	result := make(map[string]string, len(payload))
-	for key, value := range payload {
-		if rendered, ok := stringifySchemaDefault(value, ""); ok {
-			result[key] = rendered
-		}
-	}
-	return result, nil
+	return values, nil
 }
 
 func collectSchemaDefaults(prefix string, path []string, properties map[string]schemaProperty, home string, out map[string]string) {

@@ -1126,12 +1126,12 @@ Recommended order:
 
 For each migrated resource:
 
-- [ ] classify portability tier
-- [ ] assign canonical template
-- [ ] create `resource.json`
-- [ ] implement driver-backed lifecycle
+- [x] classify portability tier
+- [x] assign canonical template
+- [x] create `resource.json`
+- [x] implement driver-backed lifecycle
 - [ ] remove bespoke duplicated shell logic where possible
-- [ ] add validation tests
+- [x] add validation tests
 
 **Deliverable:** The active resource set is substantially Go-native and cross-platform-aware.
 
@@ -1140,9 +1140,11 @@ For each migrated resource:
 Current status:
 
 - `postgres`, `redis`, `qdrant`, and `browserless` now have native `docker-service` manifests and Go driver-backed lifecycle/status coverage.
+- `browserless` has been reduced to a thin compatibility surface centered on `status`, `logs`, `screenshot`, and `diagnostics`, while keeping Browserless-shaped `/pressure`, `/function`, and structured status support for `test-genie`.
 - `claude-code` and `codex` now have native `external-cli` manifests and Go-native standard lifecycle/status handling.
 - `gemini` and `openrouter` now have native `cloud-api` manifests and Go-native status/configuration checks.
 - Resource-specific non-standard commands can still fall back to legacy shell entrypoints when the native driver does not own that subcommand yet.
+- Phase 5 validation now explicitly covers that the migrated core set uses the native driver path for standard commands even when a legacy `cli.sh` compatibility shim is present.
 - `vault` is intentionally deferred for later migration work.
 
 ### Phase 6 — Legacy adapter shrinking

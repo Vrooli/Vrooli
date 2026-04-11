@@ -214,12 +214,6 @@
         "enabled": true,
         "required": false,
         "purpose": "Vector search for similar issues and pattern matching"
-      },
-      "browserless": {
-        "type": "browserless",
-        "enabled": true,
-        "required": false,
-        "purpose": "Enhanced DOM capture for web scenarios"
       }
     }
   }

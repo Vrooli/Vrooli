@@ -2,12 +2,6 @@
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "dependencies": {
     "resources": {
-      "browserless": {
-        "description": "DOM analysis and visual regression testing",
-        "enabled": true,
-        "required": true,
-        "type": "browserless"
-      },
       "n8n": {
         "description": "Workflow automation for compliance orchestration",
         "enabled": true,

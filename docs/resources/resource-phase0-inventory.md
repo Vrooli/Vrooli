@@ -36,7 +36,7 @@ Additional bias applied in this pass:
 |---|---|---|---:|---:|---|---|
 | `autogen-studio` | registry-only | yes | no | 0 | `deprecate` | Registry-only stale metadata with no current usage signal. |
 | `blender` | implemented | yes | no | 0 | `blueprint` | Implemented but no current project/scenario usage signal. |
-| `browserless` | implemented | yes | yes | 11 | `keep` | Used by 11 scenarios. |
+| `browserless` | implemented | yes | yes | 2 | `keep` | Retained as a thin compatibility resource for `app-monitor` and optional `chart-generator` usage; `test-genie` also depends on its Browserless-shaped API/status contract. |
 | `btcpay` | implemented | yes | no | 0 | `blueprint` | Implemented but no current project/scenario usage signal. |
 | `claude-code` | implemented | yes | yes | 16 | `keep` | Used by 16 scenarios. |
 | `cloudflare-ai-gateway` | implemented | yes | yes | 0 | `keep` | Project-level enabled. |

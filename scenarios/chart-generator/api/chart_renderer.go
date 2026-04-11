@@ -2,15 +2,15 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/png"
 	"io"
-	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -99,7 +99,7 @@ func (cr *ChartRenderer) RenderChart(chartID string, req ChartGenerationProcesso
 			files[format] = outputPath
 
 		case "png":
-			// Generate actual PNG using browserless screenshot
+			// Generate actual PNG using the shared Browserless resource command.
 			if err := cr.generatePNG(outputPath, htmlPath, req); err != nil {
 				fmt.Printf("⚠️ Browserless PNG generation failed: %v\n", err)
 				// Fall back to placeholder if browserless is not available
@@ -847,60 +847,53 @@ func (cr *ChartRenderer) extractSVGFromHTML(html string) string {
 	</svg>`, time.Now().Format("15:04:05"))
 }
 
-// generatePNG creates an actual PNG file using browserless
+// generatePNG creates an actual PNG file using the Browserless resource command.
 func (cr *ChartRenderer) generatePNG(outputPath, htmlPath string, req ChartGenerationProcessorRequest) error {
 	fmt.Println("🌐 Attempting to generate PNG using browserless...")
-	// Read the HTML file
-	htmlContent, err := os.ReadFile(htmlPath)
+	if err := cr.capturePNGWithBrowserless(outputPath, htmlPath, req); err != nil {
+		return err
+	}
+
+	info, err := os.Stat(outputPath)
 	if err != nil {
-		return fmt.Errorf("failed to read HTML file: %w", err)
+		return fmt.Errorf("failed to stat generated PNG: %w", err)
 	}
 
-	// Prepare the screenshot request for browserless
-	screenshotReq := map[string]interface{}{
-		"html": string(htmlContent),
-		"options": map[string]interface{}{
-			"type":     "png",
-			"fullPage": false,
-			"viewport": map[string]int{
-				"width":  req.Width,
-				"height": req.Height,
-			},
-		},
-		"waitForTimeout": 2000, // Wait for charts to render
+	fmt.Printf("✅ Successfully generated PNG using browserless (size: %d bytes)\n", info.Size())
+	return nil
+}
+
+func (cr *ChartRenderer) capturePNGWithBrowserless(outputPath, htmlPath string, req ChartGenerationProcessorRequest) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	width := req.Width
+	if width <= 0 {
+		width = 800
+	}
+	height := req.Height
+	if height <= 0 {
+		height = 600
 	}
 
-	// Convert request to JSON
-	jsonData, err := json.Marshal(screenshotReq)
+	cmd := exec.CommandContext(
+		ctx,
+		"resource-browserless",
+		"screenshot",
+		"--html-file", htmlPath,
+		"--output", outputPath,
+		"--viewport", fmt.Sprintf("%dx%d", width, height),
+		"--wait-ms", "2000",
+	)
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to marshal screenshot request: %w", err)
+		return fmt.Errorf("browserless screenshot command failed: %w: %s", err, bytes.TrimSpace(output))
 	}
 
-	// Send request to browserless with timeout
-	client := &http.Client{
-		Timeout: 5 * time.Second, // 5 second timeout
-	}
-	resp, err := client.Post("http://localhost:4110/screenshot", "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return fmt.Errorf("failed to connect to browserless: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("browserless returned status %d", resp.StatusCode)
+	if _, err := os.Stat(outputPath); err != nil {
+		return fmt.Errorf("browserless screenshot command did not create output: %w", err)
 	}
 
-	// Save the PNG data to file
-	pngData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read PNG data: %w", err)
-	}
-
-	if err := os.WriteFile(outputPath, pngData, 0644); err != nil {
-		return fmt.Errorf("failed to write PNG file: %w", err)
-	}
-
-	fmt.Printf("✅ Successfully generated PNG using browserless (size: %d bytes)\n", len(pngData))
 	return nil
 }
 

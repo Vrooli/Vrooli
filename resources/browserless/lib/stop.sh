@@ -13,17 +13,6 @@ source "$SCRIPT_DIR/common.sh"
 function stop_browserless() {
     log::subheader "🛑 Stopping Browserless"
     
-    # Stop auto-scaler first if running
-    if [[ -f "${BROWSERLESS_DATA_DIR}/autoscaler.pid" ]]; then
-        log::info "Stopping browser pool auto-scaler..."
-        # Source pool manager if not already loaded
-        if ! declare -f pool::stop_autoscaler >/dev/null 2>&1; then
-            BROWSERLESS_LIB_DIR="${APP_ROOT}/resources/browserless/lib"
-            source "${BROWSERLESS_LIB_DIR}/pool-manager.sh"
-        fi
-        pool::stop_autoscaler
-    fi
-    
     if ! is_running; then
         log::warning "Browserless is not running"
         return 0

@@ -282,12 +282,6 @@
           "mistral",
           "nomic-embed-text"
         ]
-      },
-      "browserless": {
-        "type": "browserless",
-        "enabled": true,
-        "required": false,
-        "purpose": "Fallback posting mechanism when APIs fail, screenshot verification"
       }
     }
   }

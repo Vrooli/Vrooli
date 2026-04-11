@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/secrets"
 )
 
 func TestLoadPortRegistryReadsTypedJSON(t *testing.T) {
@@ -93,6 +95,47 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 	}
 	if got := browserlessEnv["BROWSERLESS_TOKEN"]; got != "abc123" {
 		t.Fatalf("BROWSERLESS_TOKEN = %q, want abc123", got)
+	}
+}
+
+func TestLoadResourceEnvironmentUsesEncryptedSecrets(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	writeJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), `{
+  "resource_ports": {
+    "postgres": 5433
+  },
+  "reserved_ranges": {}
+}`)
+	writeJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), `{
+  "definitions": {
+    "resourceSchemas": {
+      "postgres": {
+        "properties": {}
+      }
+    }
+  }
+}`)
+
+	t.Setenv(secrets.KeyEnvVar, "resource-secret-key")
+	store := secrets.NewProjectStore(root)
+	if err := store.Save(map[string]string{
+		"POSTGRES_PASSWORD": "encrypted-secret",
+		"POSTGRES_USER":     "vrooli",
+	}); err != nil {
+		t.Fatalf("Save encrypted secrets: %v", err)
+	}
+
+	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(postgres): %v", err)
+	}
+	if got := postgresEnv["POSTGRES_PASSWORD"]; got != "encrypted-secret" {
+		t.Fatalf("POSTGRES_PASSWORD = %q, want encrypted-secret", got)
+	}
+	if got := postgresEnv["POSTGRES_USER"]; got != "vrooli" {
+		t.Fatalf("POSTGRES_USER = %q, want vrooli", got)
 	}
 }
 

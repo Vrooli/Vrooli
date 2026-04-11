@@ -245,14 +245,6 @@
         "startup_policy": "try_start",
         "description": "Template recommendations based on user intent",
         "notes": "Optional for P2 features (semantic template search)"
-      },
-      "browserless": {
-        "type": "browserless",
-        "enabled": false,
-        "required": false,
-        "startup_policy": "try_start",
-        "description": "Screenshot generation for template previews",
-        "notes": "Optional for generating template thumbnails and admin portal previews"
       }
     }
   }

@@ -188,13 +188,6 @@
   },
   "dependencies": {
     "resources": {
-      "browserless": {
-        "enabled": true,
-        "required": true,
-        "startup_policy": "must_start",
-        "purpose": "Extension testing, screenshot validation, and browser automation",
-        "access_method": "resource-browserless"
-      },
       "postgres": {
         "enabled": true,
         "required": false,

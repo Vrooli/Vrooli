@@ -1,6 +1,6 @@
 # Project-Level Bash → Go Migration Plan
 
-**Status:** Weeks 0 through 5 are implemented and validated in the default Go path, and a meaningful part of the original Week 6 surface is already native (`status`, `doctor`, `info`, `clean`, `stop`, `orphans`, `locks`, `diagnose-port`, and top-level `backup`/`restore` dispatch). The `VROOLI_FORCE_BASH` escape hatch has been removed from the Go CLI. Remaining work is concentrated in legacy Bash cleanup (`scripts/manage.sh`, `cli/`, `scripts/lib/`) and the still-unported secrets/network long tail.
+**Status:** Weeks 0 through 5 are implemented and validated in the default Go path, and a meaningful part of the original Week 6 surface is already native (`status`, `doctor`, `info`, `clean`, `stop`, `orphans`, `locks`, `diagnose-port`, and top-level `backup`/`restore` dispatch). The `VROOLI_FORCE_BASH` escape hatch has been removed from the Go CLI. `scripts/manage.sh` is now a pure Go CLI forwarding shim, the dead top-level shell command handlers under `cli/commands/` and `cli/lib/` are gone, and the Bash scenario runner no longer sources `cli/commands/clean-commands.sh` for stale-lock cleanup. Remaining work is concentrated in the still-unported secrets long tail and broader `scripts/lib/` cleanup that is shared with the resource migration track.
 **Owner:** Matthew Halloran
 **Scope:** Project-level orchestration only. Scenarios are explicitly out of scope.
 **Target:** Zero project-level bash in ~6 weeks, on a path to cross-platform support.
@@ -517,6 +517,8 @@ Validation note: As of 2026-04-11, the week-5-specific acceptance slices are gre
   Current scope: maintenance-facing lock parsing/listing plus listener inspection used by `locks` and `diagnose-port` are now extracted into `internal/network`; broader firewall/diagnostics parity remains future work only if a live project command still needs it.
 - [x] Native project-level command validation broadened for `status`, `doctor`, `info`, `clean`, `stop`, `backup`, `restore`, `orphans`, `locks`, and `diagnose-port`
   Current coverage: `make validate-week6-slice` exercises those native commands through the installed binary against a temp fixture project and validates native lock cleanup plus backup/restore dispatch.
+- [x] `scripts/manage.sh` collapsed to a pure Go forwarding shim
+- [x] Dead top-level shell handlers under `cli/commands/` and `cli/lib/` deleted
 - [ ] `scripts/lib/` deleted
 - [ ] `cli/` deleted
 - [x] `cli/vrooli` compatibility shim deleted after direct callers such as `scenarios/task-planner/api/task_parser.go` and `scenarios/elo-swipe/api/smart_pairing.go` stopped execing `/vrooli/cli/vrooli`

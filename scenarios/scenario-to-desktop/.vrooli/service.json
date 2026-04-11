@@ -188,13 +188,6 @@
   },
   "dependencies": {
     "resources": {
-      "browserless": {
-        "type": "browserless",
-        "enabled": false,
-        "required": false,
-        "purpose": "Desktop application testing and screenshot validation",
-        "description": "Fallback: Manual testing workflow"
-      },
       "postgres": {
         "type": "postgres",
         "enabled": false,

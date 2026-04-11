@@ -150,6 +150,47 @@ sandbox::resolve_merged_path() {
     fi
 }
 
+scenario::clean_stale_locks() {
+    local state_dir="$HOME/.vrooli/state/scenarios"
+    local cleaned=0
+
+    printf '%s\n' "[INFO]    Cleaning stale port locks..."
+
+    [[ -d "$state_dir" ]] || {
+        printf '%s\n' "[INFO]    No scenario lock directory found."
+        return 0
+    }
+
+    local found=false
+    for lock_file in "$state_dir"/.port_*.lock; do
+        [[ -e "$lock_file" ]] || continue
+        found=true
+
+        local lock_info lock_pid
+        lock_info=$(cat "$lock_file" 2>/dev/null || echo "")
+        lock_pid=""
+        if [[ "$lock_info" == *:* ]]; then
+            lock_pid=${lock_info#*:}
+            lock_pid=${lock_pid%%:*}
+        fi
+
+        if [[ -n "$lock_pid" && "$lock_pid" =~ ^[0-9]+$ ]] && kill -0 "$lock_pid" 2>/dev/null; then
+            continue
+        fi
+
+        if rm -f "$lock_file" 2>/dev/null; then
+            cleaned=$((cleaned + 1))
+            printf '[INFO]    Removed stale lock %s\n' "$(basename "$lock_file")"
+        fi
+    done
+
+    if [[ "$found" == "false" ]]; then
+        printf '%s\n' "[INFO]    No port lock files found."
+    else
+        printf '[SUCCESS] Cleaned %d stale port lock(s)\n' "$cleaned"
+    fi
+}
+
 scenario::run() {
     local scenario_name="$1"
     shift
@@ -416,22 +457,10 @@ scenario::run() {
     # Run stale lock cleanup if requested
     if [[ "$clean_stale" == "true" ]]; then
         log::info "🧹 Cleaning stale locks before starting scenario..."
-
-        # Source clean commands for lock cleanup functionality
-        if [[ -f "${var_ROOT_DIR}/cli/commands/clean-commands.sh" ]]; then
-            # Source the clean functions
-            source "${var_ROOT_DIR}/cli/commands/clean-commands.sh"
-
-            # Run the lock cleanup directly - NO PIPES
-            # The function writes formatted output directly to stdout
-            clean::stale_locks || {
-                log::warning "Lock cleanup encountered errors but continuing"
-            }
-
-            log::success "✅ Stale lock cleanup completed"
-        else
-            log::warning "⚠️  Clean commands not found - skipping stale lock cleanup"
-        fi
+        scenario::clean_stale_locks || {
+            log::warning "Lock cleanup encountered errors but continuing"
+        }
+        log::success "✅ Stale lock cleanup completed"
     fi
     
     # Set up logging for the scenario lifecycle execution

@@ -239,6 +239,12 @@
         "enabled": false,
         "required": false,
         "purpose": "Cache frequently used styles, templates, and generated charts for performance optimization"
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "Optional PNG rendering via the shared browserless screenshot compatibility path"
       }
     }
   }

@@ -1,4 +1,4 @@
-.PHONY: help build install test clean setup dev develop deploy status scenarios resources lifecycle-build validate-live-develop-smoke validate-week0-week1 validate-week2 validate-week3 validate-week3-live validate-week4 validate-week5 validate-week5-cross validate-week6-slice validate-week0-week2 validate-week0-week3 validate-week0-week4 validate-week0-week5
+.PHONY: help build install test clean setup dev develop deploy status scenarios resources lifecycle-build validate-live-develop-smoke validate-week0-week1 validate-week2 validate-week3 validate-week3-live validate-week4 validate-week5 validate-week5-cross validate-week6-slice validate-week6-secrets validate-week0-week2 validate-week0-week3 validate-week0-week4 validate-week0-week5
 
 .DEFAULT_GOAL := help
 
@@ -32,6 +32,7 @@ help: ## Show available project-level targets
 	@printf "  make validate-week5 Run the repeatable Week 5 acceptance suite\n"
 	@printf "  make validate-week5-cross Run the Week 5 cross-compile suite\n"
 	@printf "  make validate-week6-slice Run the expanded Week 6 native command slice\n"
+	@printf "  make validate-week6-secrets Run the Week 6 encrypted secrets slice\n"
 	@printf "  make validate-week0-week2 Run the combined Week 0-2 acceptance suite\n"
 	@printf "  make validate-week0-week3 Run the combined Week 0-3 acceptance suite\n"
 	@printf "  make validate-week0-week4 Run the combined Week 0-4 acceptance suite\n"
@@ -442,10 +443,24 @@ validate-scenario-to-cloud-native: ## Validate scenario-to-cloud's native deploy
 
 validate-week6-slice: ## Run the expanded Week 6 native command slice
 	test ! -d cli/commands/scenario
+	test -z "$$(find cli/commands -maxdepth 1 -name '*.sh' -print -quit)"
+	test -z "$$(find cli/lib -maxdepth 1 -name '*.sh' -print -quit)"
 	$(MAKE) build
 	$(MAKE) install
 	test ! -e cli/vrooli
+	rg -n 'exec "\$$GO_CLI_BIN" "\$$@"' scripts/manage.sh
+	! rg -n 'source .*scripts/lib|MAIN_SCRIPT_DIR|manage::main|json::validate_config|lifecycle::run_phase' scripts/manage.sh
+	./scripts/manage.sh --version > /tmp/vrooli-week6-manage-version.txt
+	grep -Fq 'Vrooli CLI v' /tmp/vrooli-week6-manage-version.txt
 	! rg -n '"/vrooli/cli/vrooli"|[[:<:]]cli/vrooli[[:>:]]' scenarios cmd internal packages api -g '*.go'
+	! rg -n 'cli/commands/clean-commands\.sh|cli/commands/doctor\.sh|cli/commands/resource-commands\.sh|cli/commands/resource-discovery\.sh|cli/commands/status-command\.sh|cli/commands/stop-commands\.sh|cli/lib/arg-parser\.sh|cli/lib/output-formatter\.sh' scripts cmd internal packages api resources -g '!*.md'
+	set -e; \
+	tmp_home=$$(mktemp -d); \
+	mkdir -p "$$tmp_home/.vrooli/state/scenarios"; \
+	printf 'ghost:999999:1\n' > "$$tmp_home/.vrooli/state/scenarios/.port_19999.lock"; \
+	HOME="$$tmp_home" bash -lc 'cd "$(CURDIR)" && source scripts/lib/scenario/runner.sh && scenario::clean_stale_locks'; \
+	test ! -f "$$tmp_home/.vrooli/state/scenarios/.port_19999.lock"; \
+	rm -rf "$$tmp_home"
 	$(MAKE) validate-scenario-to-cloud-native
 	go test ./internal/network ./internal/maintenance ./internal/project
 	go test ./cmd/vrooli -run 'TestRun(ProjectBackupUsesNativePhaseRunner|ProjectRestoreUsesNativePhaseRunner|DispatchesTopLevelCommandsToExpectedHandlers|CleanupLocksUsesNativeMaintenance|Info(ListJSONOutput|CommandUsesManifestAndListMode|CommandRejectsUnknownOption|CommandErrorsWhenNoSourcesConfigured|CommandSkipsMissingSourcesInJSONMode|CommandHelpAndJSONMissingFiles)|LocksCommandListsNativeState|DiagnosePortReturnsJSON)'
@@ -485,6 +500,10 @@ validate-week6-slice: ## Run the expanded Week 6 native command slice
 	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check restore; \
 	test "$$(cat "$$tmp_root/build/restore.txt")" = "restore"; \
 	rm -rf "$$tmp_home" "$$tmp_root"
+
+validate-week6-secrets: ## Run the Week 6 encrypted secrets slice
+	go test ./internal/secrets ./internal/resources
+	go test ./internal/resources -run 'TestLoadResourceEnvironmentUses(EncryptedSecrets|TypedDefaultsAndSecrets)'
 
 validate-week0-week2: ## Run the combined Week 0-2 acceptance suite
 	$(MAKE) validate-week0-week1

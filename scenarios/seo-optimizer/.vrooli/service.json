@@ -257,12 +257,6 @@
           "llama3.2:3b",
           "nomic-embed-text"
         ]
-      },
-      "browserless": {
-        "type": "browserless",
-        "enabled": true,
-        "required": true,
-        "purpose": "Web crawling for SEO audits and competitor analysis"
       }
     }
   }
