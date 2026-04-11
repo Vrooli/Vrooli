@@ -8,7 +8,10 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/vroolierr"
 )
+
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=1 | LAST: 2026-04-11
 
 func TestListAndStatusReflectRuntimeRecords(t *testing.T) {
 	root := t.TempDir()
@@ -48,6 +51,49 @@ func TestListAndStatusReflectRuntimeRecords(t *testing.T) {
 	}
 	if len(running) != 1 || running[0].Name != "alpha" {
 		t.Fatalf("running = %#v", running)
+	}
+}
+
+func TestDetailReturnsTypedNotFoundError(t *testing.T) {
+	service := New(t.TempDir(), t.TempDir(), io.Discard, io.Discard)
+
+	_, err := service.Detail("missing")
+	if err == nil {
+		t.Fatal("expected missing scenario error")
+	}
+	if got := vroolierr.Code(err, ""); got != "scenario_not_found" {
+		t.Fatalf("error code = %q, want scenario_not_found", got)
+	}
+}
+
+func TestResolvePortFallsBackFromUIToAPI(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeScenarioService(t, root, "alpha", "Alpha", "running")
+	writeProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
+
+	service := New(root, home, io.Discard, io.Discard)
+	resolved, err := service.ResolvePort("alpha", "UI_PORT")
+	if err != nil {
+		t.Fatalf("ResolvePort: %v", err)
+	}
+	if resolved.Name != "API_PORT" || resolved.Port != 18080 || resolved.URL != "http://localhost:18080" {
+		t.Fatalf("resolved = %+v", resolved)
+	}
+}
+
+func TestResolvePortRejectsStoppedScenario(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeScenarioService(t, root, "alpha", "Alpha", "stopped")
+
+	service := New(root, home, io.Discard, io.Discard)
+	_, err := service.ResolvePort("alpha", "API_PORT")
+	if err == nil {
+		t.Fatal("expected stopped scenario error")
+	}
+	if got := vroolierr.Code(err, ""); got != "scenario_not_running" {
+		t.Fatalf("error code = %q, want scenario_not_running", got)
 	}
 }
 

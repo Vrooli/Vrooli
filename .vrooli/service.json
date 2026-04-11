@@ -290,7 +290,7 @@
         }
       },
       "kafka": {
-        "enabled": true
+        "enabled": false
       },
       "keycloak": {
         "enabled": true,
@@ -403,7 +403,7 @@
         "enabled": false
       },
       "pihole": {
-        "enabled": true
+        "enabled": false
       },
       "postgis": {
         "enabled": true,
@@ -433,7 +433,7 @@
         "data_dir": "~/.vrooli/pushover"
       },
       "pybullet": {
-        "enabled": true
+        "enabled": false
       },
       "qdrant": {
         "enabled": true,
@@ -469,10 +469,10 @@
         }
       },
       "restic": {
-        "enabled": true
+        "enabled": false
       },
       "ros2": {
-        "enabled": true
+        "enabled": false
       },
       "sagemath": {
         "enabled": true
@@ -483,7 +483,7 @@
         "description": "Privacy-respecting search engine"
       },
       "segment-anything": {
-        "enabled": true
+        "enabled": false
       },
       "simpy": {
         "enabled": true,
@@ -498,13 +498,13 @@
         "enabled": true
       },
       "su2": {
-        "enabled": true
+        "enabled": false
       },
       "terraform": {
-        "enabled": true
+        "enabled": false
       },
       "traccar": {
-        "enabled": true
+        "enabled": false
       },
       "twilio": {
         "enabled": true,
@@ -514,7 +514,7 @@
         "data_dir": "~/.vrooli/twilio"
       },
       "ultralytics-yolo": {
-        "enabled": true
+        "enabled": false
       },
       "unstructured-io": {
         "enabled": true,
@@ -527,7 +527,7 @@
         "description": "Secrets management and secure storage"
       },
       "virustotal": {
-        "enabled": true
+        "enabled": false
       },
       "kokoro": {
         "enabled": true,
@@ -543,10 +543,10 @@
         "enabled": true
       },
       "wireguard": {
-        "enabled": true
+        "enabled": false
       },
       "zigbee2mqtt": {
-        "enabled": true
+        "enabled": false
       }
     }
   }

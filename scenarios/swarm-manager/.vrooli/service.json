@@ -190,46 +190,55 @@
       "agent-manager": {
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "description": "Spawning agents for automated work"
       },
       "ecosystem-manager": {
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "description": "Scenario initialization and improvement"
       },
       "knowledge-observatory": {
         "enabled": false,
         "required": false,
+        "startup_policy": "try_start",
         "description": "PROBLEMS.md management (P1)"
       },
       "visited-tracker": {
         "enabled": false,
         "required": false,
+        "startup_policy": "try_start",
         "description": "Context cleanup campaigns (P1)"
       },
       "scenario-completeness-scoring": {
         "enabled": false,
         "required": false,
+        "startup_policy": "try_start",
         "description": "Completeness metrics (P1)"
       },
       "app-issue-tracker": {
         "enabled": false,
         "required": false,
+        "startup_policy": "try_start",
         "description": "Issue management (P1)"
       },
       "test-genie": {
         "enabled": false,
         "required": false,
+        "startup_policy": "try_start",
         "description": "Test execution and reporting (P1)"
       },
       "prompt-manager": {
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "description": "Skill prompt templates for backlog research and processing"
       },
       "git-control-tower": {
         "enabled": false,
         "required": false,
+        "startup_policy": "try_start",
         "description": "Post-execution code review and readiness validation"
       }
     }

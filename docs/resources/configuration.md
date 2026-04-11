@@ -8,20 +8,83 @@ Vrooli resources use a multi-layered configuration system to manage settings, cr
 
 ### Primary Configuration
 
-**`~/.vrooli/service.json`**
-- Main service configuration file
-- Contains resource enablement, basic settings, and service definitions
-- Managed by the main CLI and resource management system
+**Repo `.vrooli/service.json`**
+- Canonical project-level configuration checked into the repository
+- Contains project resource enablement, lifecycle configuration, and service metadata
+- This is the source of truth for the project definition
 
-**`~/.vrooli/resource-registry/`**
-- Directory containing resource-specific registry files
-- Each resource has a JSON file defining its CLI interface and capabilities
-- Used by the main CLI for command routing and discovery
+**Runtime `~/.vrooli/` state**
+- User-machine runtime state, caches, archives, and generated operational files
+- Not the canonical source of truth for repo-owned configuration
 
-**`~/.vrooli/scenarios.json`**
-- Scenario-specific configuration
-- Defines which scenarios are available and their resource requirements
-- Used by the scenario system for resource orchestration
+**Repo `.vrooli/resource-registry/`**
+- Registry records for implemented resources
+- Used by current discovery and command-routing flows
+- Must stay aligned with canonical resource names under `resources/<name>`
+
+**Scenario `.vrooli/service.json`**
+- Canonical scenario-level configuration
+- Defines scenario metadata, lifecycle, and dependency declarations
+- Used by the scenario system for orchestration
+
+## Dependency Contract
+
+Dependencies are declared as flat keyed maps.
+
+- `dependencies.resources` is keyed by canonical resource name
+- `dependencies.scenarios` is keyed by canonical scenario name
+- Do not use `required` / `optional` arrays
+- Do not use CLI aliases like `resource-claude-code` as config keys
+- Put scenario dependencies only under `dependencies.scenarios`, never under `dependencies.resources`
+
+Each dependency answers two separate questions:
+
+- `required`: whether the dependency is functionally necessary
+- `startup_policy`: how lifecycle orchestration should behave during startup
+
+Supported `startup_policy` values:
+
+- `must_start`: attempt startup and fail scenario startup if the dependency cannot start
+- `try_start`: attempt startup and continue in degraded mode if the dependency cannot start
+- `ignore`: do not auto-start; use only if already available
+
+Recommended defaults:
+
+- `required: true` => `startup_policy: "must_start"`
+- `required: false` => `startup_policy: "try_start"`
+- Use `ignore` for operator-managed or ambient dependencies
+
+Example:
+
+```json
+{
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Primary relational store"
+      },
+      "qdrant": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Semantic search when available",
+        "degraded_behavior": "Search falls back to lexical matching"
+      }
+    },
+    "scenarios": {
+      "prompt-manager": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Prompt lookup and skill guidance"
+      }
+    }
+  }
+}
+```
 
 ## Resource-Specific Configuration
 

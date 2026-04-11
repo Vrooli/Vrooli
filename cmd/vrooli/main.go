@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
@@ -41,28 +40,6 @@ const (
 )
 
 type topLevelCommandHandler func(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error
-
-var topLevelCommands = map[string]topLevelCommandHandler{
-	"help":          runMainHelpCommand,
-	"version":       runVersionCommand,
-	"info":          runInfoCommand,
-	"cleanup":       runTopLevelCleanupCommand,
-	"orphans":       makeTopLevelAutohealHandler("orphans"),
-	"locks":         makeTopLevelAutohealHandler("locks"),
-	"diagnose-port": makeTopLevelAutohealHandler("diagnose-port"),
-	"setup":         runTopLevelSetupCommand,
-	"develop":       runTopLevelDevelopCommand,
-	"build":         runTopLevelBuildCommand,
-	"deploy":        runTopLevelDeployCommand,
-	"backup":        runTopLevelBackupCommand,
-	"restore":       runTopLevelRestoreCommand,
-	"clean":         runTopLevelCleanupCommand,
-	"status":        runTopLevelStatusCommand,
-	"scenario":      runScenarioCommand,
-	"resource":      runTopLevelResourceCommand,
-	"stop":          runTopLevelStopCommand,
-	"doctor":        runTopLevelDoctorCommand,
-}
 
 type globalOptions struct {
 	json         bool
@@ -232,29 +209,17 @@ func consumeInlineGlobalFlags(globals globalOptions, args []string) (globalOptio
 }
 
 func dispatch(root string, parsed parsedArgs, stdout, stderr io.Writer) error {
+	switch parsed.command {
+	case "help":
+		return runMainHelpCommand(root, parsed.globals, parsed.args, stdout, stderr)
+	case "version":
+		return runVersionCommand(root, parsed.globals, parsed.args, stdout, stderr)
+	}
 	handler, ok := topLevelCommands[parsed.command]
 	if !ok {
 		return newUnknownCommandError(parsed.command)
 	}
 	return handler(root, parsed.globals, parsed.args, stdout, stderr)
-}
-
-func makeTopLevelScriptHandler(scriptPath, command string) topLevelCommandHandler {
-	return func(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-		callArgs := append([]string{}, args...)
-		if strings.TrimSpace(command) != "" {
-			callArgs = append([]string{command}, callArgs...)
-		}
-		if err := runBashScript(root, globals, scriptPath, callArgs...); err != nil {
-			return newErrorWithCategory(
-				err,
-				errorCategoryRuntime,
-				"Check command arguments and script availability, or set VROOLI_FORCE_BASH=1 to reuse legacy entrypoint behavior",
-				nil,
-			)
-		}
-		return nil
-	}
 }
 
 func makeTopLevelAutohealHandler(action string) topLevelCommandHandler {
@@ -285,22 +250,13 @@ func runTopLevelDevelopCommand(root string, globals globalOptions, args []string
 }
 
 func runLegacyBash(root string, args []string) error {
+	// Week 6 cleanup target: this is the only broad escape hatch that still
+	// re-enters the legacy Bash dispatcher when VROOLI_FORCE_BASH=1 is set.
 	return execCommandFn(commandSpec{
 		name: "bash",
 		args: append([]string{filepath.Join(root, "cli", "vrooli")}, args...),
 		dir:  root,
 		env:  commandEnv(root, globalOptions{}),
-	})
-}
-
-func runBashScript(root string, globals globalOptions, script string, args ...string) error {
-	scriptArgs := append([]string{filepath.Join(root, filepath.FromSlash(script))}, args...)
-	scriptArgs = append(scriptArgs, passthroughFlags(globals, args)...)
-	return execCommandFn(commandSpec{
-		name: "bash",
-		args: scriptArgs,
-		dir:  root,
-		env:  commandEnv(root, globals),
 	})
 }
 
@@ -328,6 +284,8 @@ func runCleanupCommand(root string, parsed parsedArgs, stdout, stderr io.Writer)
 }
 
 func runAutohealCommand(root string, globals globalOptions, args ...string) error {
+	// This remains an external bridge until the final cleanup pass ports the
+	// remaining autoheal/network routines into the main Go module.
 	binary, err := lookPathFn("vrooli-autoheal")
 	if err != nil {
 		return newErrorWithCategory(
@@ -532,255 +490,4 @@ func showVersion(w io.Writer, root string, globals globalOptions) error {
 	_, _ = fmt.Fprintf(w, "Vrooli Platform v%s\n", vrooliVersion)
 	_, _ = fmt.Fprintf(w, "Root: %s\n", root)
 	return nil
-}
-
-func showMainHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "                          ___")
-	_, _ = fmt.Fprintln(w, " _   _ _ __ ___   ___    / (_)")
-	_, _ = fmt.Fprintln(w, "| | | | '__/ _ \\ / _ \\  / /| |")
-	_, _ = fmt.Fprintln(w, "| |_| | | | (_) | (_) |/ / | |")
-	_, _ = fmt.Fprintln(w, " \\___/|_|  \\___/ \\___//_/  |_|")
-	_, _ = fmt.Fprintln(w, "                                   ")
-	_, _ = fmt.Fprintln(w, "🚀 Vrooli CLI - AI Platform Management Tool")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "📋 USAGE:")
-	_, _ = fmt.Fprintln(w, "    vrooli <command> [options]")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "🔄 LIFECYCLE COMMANDS:")
-	_, _ = fmt.Fprintln(w, "    setup               Initialize the development environment")
-	_, _ = fmt.Fprintln(w, "    develop             Start development servers")
-	_, _ = fmt.Fprintln(w, "    build               Build the project")
-	_, _ = fmt.Fprintln(w, "    deploy              Deploy to production")
-	_, _ = fmt.Fprintln(w, "    clean               Clean build artifacts")
-	_, _ = fmt.Fprintln(w, "    status              Show system health and status overview")
-	_, _ = fmt.Fprintln(w, "    stop                Stop all or specific components (scenarios, resources, containers)")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "🧭 CONTEXT COMMANDS:")
-	_, _ = fmt.Fprintln(w, "    info                Show consolidated project briefing")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "🎯 SCENARIO MANAGEMENT:")
-	_, _ = fmt.Fprintln(w, "    # Scenarios run directly from their source location")
-	_, _ = fmt.Fprintln(w, "    scenario list       List available scenarios")
-	_, _ = fmt.Fprintln(w, "    scenario info <name> Show scenario metadata")
-	_, _ = fmt.Fprintln(w, "    scenario status     Show scenario runtime state")
-	_, _ = fmt.Fprintln(w, "    scenario run <name> Run a scenario directly")
-	_, _ = fmt.Fprintln(w, "    scenario test <name> Test a scenario")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "🔧 RESOURCE MANAGEMENT:")
-	_, _ = fmt.Fprintln(w, "    # Resources are external services and dependencies (databases, APIs, etc.)")
-	_, _ = fmt.Fprintln(w, "    resource list       List available resources")
-	_, _ = fmt.Fprintln(w, "    resource status     Show resource status")
-	_, _ = fmt.Fprintln(w, "    resource install    Install a resource (initial setup)")
-	_, _ = fmt.Fprintln(w, "    resource start      Start a resource")
-	_, _ = fmt.Fprintln(w, "    resource start-all  Start all enabled resources")
-	_, _ = fmt.Fprintln(w, "    resource stop       Stop a resource")
-	_, _ = fmt.Fprintln(w, "    resource stop-all   Stop all running resources")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "⚙️ OPTIONS:")
-	_, _ = fmt.Fprintln(w, "    --help, -h          Show help for a command")
-	_, _ = fmt.Fprintln(w, "    --version, -v       Show version information")
-	_, _ = fmt.Fprintln(w, "    --json              Forward JSON output mode to compatible commands")
-	_, _ = fmt.Fprintln(w, "    --verbose           Forward verbose output mode to compatible commands")
-	_, _ = fmt.Fprintln(w, "    --no-color          Disable ANSI color output")
-	_, _ = fmt.Fprintln(w, "    --no-stale-check    Skip the Go source freshness check")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "📖 For more help on a specific command:")
-	_, _ = fmt.Fprintln(w, "    vrooli <command> --help")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "📚 Documentation: docs/")
-}
-
-func showCleanupHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "vrooli cleanup - Clean up orphaned processes and stale locks")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Usage:")
-	_, _ = fmt.Fprintln(w, "  vrooli cleanup orphans    Kill orphaned Vrooli processes")
-	_, _ = fmt.Fprintln(w, "  vrooli cleanup locks      Clean stale port lock files")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Options:")
-	_, _ = fmt.Fprintln(w, "  --help, -h    Show this help message")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Examples:")
-	_, _ = fmt.Fprintln(w, "  vrooli cleanup orphans    # Kill orphaned processes (interactive)")
-	_, _ = fmt.Fprintln(w, "  vrooli cleanup locks      # Remove stale lock files")
-}
-
-func printUnknownCommand(w io.Writer, command string, suggestions []string) {
-	_, _ = fmt.Fprintf(w, "Unknown command: %s\n", command)
-	if len(suggestions) > 0 {
-		_, _ = fmt.Fprintln(w)
-		_, _ = fmt.Fprintln(w, "Did you mean one of these?")
-		for _, suggestion := range suggestions {
-			_, _ = fmt.Fprintf(w, "  %s\n", suggestion)
-		}
-	}
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Run 'vrooli --help' for usage information")
-}
-
-func suggestTopLevelCommands(command string) []string {
-	candidates := make([]string, 0, len(topLevelCommands))
-	for candidate := range topLevelCommands {
-		if candidate == command {
-			continue
-		}
-		if simpleDistance(command, candidate) <= 2 {
-			candidates = append(candidates, candidate)
-		}
-	}
-	sort.Strings(candidates)
-	return candidates
-}
-
-func printErrorWithContext(w io.Writer, err error) {
-	if err == nil {
-		return
-	}
-	annotated, ok := err.(commandError)
-	if !ok {
-		_, _ = fmt.Fprintln(w, err)
-		return
-	}
-	category := strings.TrimSpace(annotated.ErrorCategory())
-	message := annotated.Error()
-	if strings.HasPrefix(strings.ToLower(message), "unknown command: ") && category == errorCategoryUsage {
-		command := strings.TrimSpace(strings.TrimPrefix(message, "unknown command: "))
-		printUnknownCommand(w, command, annotated.ErrorSuggestions())
-		return
-	}
-	if category != "" {
-		_, _ = fmt.Fprintf(w, "%s error: %s\n", category, message)
-	} else {
-		_, _ = fmt.Fprintln(w, message)
-	}
-	if hint := strings.TrimSpace(annotated.ErrorHint()); hint != "" {
-		_, _ = fmt.Fprintln(w, hint)
-	}
-	suggestions := annotated.ErrorSuggestions()
-	if len(suggestions) == 0 {
-		return
-	}
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Did you mean one of these?")
-	for _, suggestion := range suggestions {
-		_, _ = fmt.Fprintf(w, "  %s\n", suggestion)
-	}
-	_, _ = fmt.Fprintln(w, "Run 'vrooli --help' for usage information")
-}
-
-type commandError interface {
-	error
-	ErrorCategory() string
-	ErrorHint() string
-	ErrorSuggestions() []string
-}
-
-type categorizedError struct {
-	err         error
-	category    string
-	hint        string
-	suggestions []string
-}
-
-func (e categorizedError) Error() string {
-	if e.err != nil {
-		return e.err.Error()
-	}
-	return ""
-}
-func (e categorizedError) ErrorCategory() string {
-	return e.category
-}
-func (e categorizedError) ErrorHint() string {
-	return e.hint
-}
-func (e categorizedError) ErrorSuggestions() []string {
-	return append([]string(nil), e.suggestions...)
-}
-
-func (e categorizedError) ExitCode() int {
-	var withCode interface{ ExitCode() int }
-	if errors.As(e.err, &withCode) {
-		return withCode.ExitCode()
-	}
-	return 1
-}
-
-func newErrorWithCategory(err error, category, hint string, suggestions []string) error {
-	return categorizedError{
-		err:         err,
-		category:    category,
-		hint:        hint,
-		suggestions: append([]string(nil), suggestions...),
-	}
-}
-
-func newUnknownCommandError(command string) error {
-	return categorizedError{
-		err:         fmt.Errorf("unknown command: %s", command),
-		category:    errorCategoryUsage,
-		hint:        "Run 'vrooli --help' for usage information",
-		suggestions: suggestTopLevelCommands(command),
-	}
-}
-
-// simpleDistance intentionally uses a cheap prefix-aware heuristic instead of a
-// full edit-distance implementation. The CLI only needs rough typo recovery for
-// obvious mistakes, and keeping this dependency-free keeps startup lightweight.
-func simpleDistance(left, right string) int {
-	maxLen := len(left)
-	if len(right) > maxLen {
-		maxLen = len(right)
-	}
-	minLen := len(left)
-	if len(right) < minLen {
-		minLen = len(right)
-	}
-	distance := maxLen - minLen
-	for i := 0; i < minLen; i++ {
-		if left[i] != right[i] {
-			distance++
-		}
-	}
-	return distance
-}
-
-func exitCode(err error) int {
-	if err == nil {
-		return 0
-	}
-	if codeErr, ok := err.(exitCodeError); ok {
-		return codeErr.ExitCode()
-	}
-	var withExitCode interface{ ExitCode() int }
-	if errors.As(err, &withExitCode) {
-		return withExitCode.ExitCode()
-	}
-	return 1
-}
-
-func runExternalCommand(spec commandSpec) error {
-	cmd := exec.Command(spec.name, spec.args...)
-	cmd.Dir = spec.dir
-	cmd.Env = spec.env
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-type exitCodeError struct {
-	code    int
-	message string
-}
-
-func (e exitCodeError) Error() string {
-	if e.message != "" {
-		return e.message
-	}
-	return fmt.Sprintf("exit code %d", e.code)
-}
-
-func (e exitCodeError) ExitCode() int {
-	return e.code
 }

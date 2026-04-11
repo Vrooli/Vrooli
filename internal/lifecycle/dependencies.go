@@ -26,10 +26,18 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 		required := dependency.Required
 		// Legacy array-based manifests did not serialize explicit type/required fields
 		// for scenario dependencies; preserve the historical "required by default" behavior.
-		if !required && dependency.Type == "" {
+		if !required && dependency.Type == "" && dependency.StartupPolicy == "" {
 			required = true
 		}
-		if !required {
+		startupPolicy := dependency.StartupPolicy
+		if startupPolicy == "" {
+			if required {
+				startupPolicy = "must_start"
+			} else {
+				startupPolicy = "ignore"
+			}
+		}
+		if startupPolicy == "ignore" {
 			continue
 		}
 
@@ -42,7 +50,7 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 
 		dependencyItem, err := r.loadScenario(dependencyName, "")
 		if err != nil {
-			if opts.BestEffort {
+			if opts.BestEffort || startupPolicy == "try_start" {
 				failed = append(failed, dependencyName)
 				continue
 			}
@@ -69,7 +77,7 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 		dependencyOpts.CleanStale = false
 
 		if _, err := r.startScenario(dependencyItem, dependencyOpts, ready, append(stack, dependencyName)); err != nil {
-			if opts.BestEffort {
+			if opts.BestEffort || startupPolicy == "try_start" {
 				failed = append(failed, dependencyName)
 				continue
 			}

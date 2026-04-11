@@ -218,13 +218,15 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "description": "Primary relational data store for generated landing pages (content, variants, metrics, subscriptions)",
         "schema": "landing-manager"
       },
-      "resource-claude-code": {
-        "type": "resource",
+      "claude-code": {
+        "type": "claude-code",
         "enabled": false,
         "required": false,
+        "startup_policy": "try_start",
         "description": "Agent-based customization of landing pages",
         "notes": "Required for agent customization features (OT-P0-005, OT-P0-006)"
       },
@@ -232,6 +234,7 @@
         "type": "redis",
         "enabled": false,
         "required": false,
+        "startup_policy": "try_start",
         "description": "Session caching for high-traffic landing pages",
         "notes": "Optional performance optimization for generated landing pages"
       },
@@ -239,13 +242,15 @@
         "type": "qdrant",
         "enabled": false,
         "required": false,
+        "startup_policy": "try_start",
         "description": "Template recommendations based on user intent",
         "notes": "Optional for P2 features (semantic template search)"
       },
       "browserless": {
-        "type": "resource",
+        "type": "browserless",
         "enabled": false,
         "required": false,
+        "startup_policy": "try_start",
         "description": "Screenshot generation for template previews",
         "notes": "Optional for generating template thumbnails and admin portal previews"
       }

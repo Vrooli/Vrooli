@@ -188,25 +188,27 @@
   },
   "dependencies": {
     "resources": {
-      "required": [
-        {
-          "name": "browserless",
-          "purpose": "Extension testing, screenshot validation, and browser automation",
-          "access_method": "resource-browserless"
-        }
-      ],
-      "optional": [
-        {
-          "name": "postgres",
-          "purpose": "Store extension templates, build history, and deployment metadata",
-          "access_method": "CLI via scenario API"
-        },
-        {
-          "name": "redis",
-          "purpose": "Cache compiled extensions and build artifacts for faster generation",
-          "access_method": "CLI via scenario API"
-        }
-      ]
+      "browserless": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "purpose": "Extension testing, screenshot validation, and browser automation",
+        "access_method": "resource-browserless"
+      },
+      "postgres": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Store extension templates, build history, and deployment metadata",
+        "access_method": "CLI via scenario API"
+      },
+      "redis": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Cache compiled extensions and build artifacts for faster generation",
+        "access_method": "CLI via scenario API"
+      }
     }
   },
   "$schema": "../../../.vrooli/schemas/service.schema.json"

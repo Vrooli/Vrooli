@@ -209,59 +209,55 @@
   },
   "dependencies": {
     "resources": {
-      "required": {
-        "postgres": {
-          "instance_name": "calendar-system",
-          "database": "calendar_system",
-          "purpose": "Event storage, user schedules, recurring patterns",
-          "schema_file": "initialization/postgres/schema.sql",
-          "estimated_size": "10GB for 100K events",
-          "backup_frequency": "daily"
-        },
-        "qdrant": {
-          "collection": "calendar_events",
-          "dimensions": 1536,
-          "distance": "Cosine",
-          "purpose": "AI-powered semantic event search and scheduling intelligence",
-          "estimated_vectors": "1M events with embeddings"
-        }
-      },
-      "optional": {
-        "scenario-authenticator": {
-          "purpose": "Multi-user authentication and user context",
-          "api_endpoint": "/api/v1/auth/validate",
-          "fallback": "Single-user mode without authentication"
-        },
-        "notification-hub": {
-          "purpose": "Event reminders and schedule change notifications",
-          "profile_id": "calendar-system-prod",
-          "fallback": "In-memory reminder queue without delivery"
-        },
-        "ollama": {
-          "purpose": "Natural language processing for chat interface",
-          "model": "llama2:7b-chat",
-          "fallback": "Basic command parsing without AI enhancement"
-        }
-      },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "startup_policy": "must_start",
+        "description": "Vector database for semantic event search and scheduling intelligence",
+        "collection": "calendar_events",
+        "dimensions": 1536,
+        "distance": "Cosine",
+        "purpose": "AI-powered semantic event search and scheduling intelligence",
+        "estimated_vectors": "1M events with embeddings"
       },
       "postgres": {
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "startup_policy": "must_start",
+        "description": "Primary event storage and recurring schedule data",
+        "instance_name": "calendar-system",
+        "database": "calendar_system",
+        "purpose": "Event storage, user schedules, recurring patterns",
+        "schema_file": "initialization/postgres/schema.sql",
+        "estimated_size": "10GB for 100K events",
+        "backup_frequency": "daily"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "startup_policy": "must_start",
+        "description": "Natural language processing for chat interface",
+        "model": "llama2:7b-chat"
       }
     },
-    "scenarios": {}
+    "scenarios": {
+      "scenario-authenticator": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Multi-user authentication and user context",
+        "degraded_behavior": "Single-user mode without authentication"
+      },
+      "notification-hub": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Event reminders and schedule change notifications",
+        "degraded_behavior": "In-memory reminder queue without delivery"
+      }
+    }
   }
 }

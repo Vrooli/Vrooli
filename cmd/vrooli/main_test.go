@@ -280,6 +280,33 @@ func TestRunNoStaleCheckBypassesFreshnessProbe(t *testing.T) {
 	}
 }
 
+func TestRunScenarioSetupReportsUndefinedPhase(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeScenarioWithoutSetupFixture(t, root, "alpha")
+	writeScenarioPortRegistryFixture(t, root)
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("scenario setup should not route to bash: %+v", spec)
+		return nil
+	}
+
+	var stdout bytes.Buffer
+	code := run([]string{"scenario", "setup", "alpha", "--json"}, &stdout, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("run exit code = %d", code)
+	}
+	if !strings.Contains(stdout.String(), `"status": "undefined"`) {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
 func TestRunScenarioListJSONOutput(t *testing.T) {
 	restore := overrideCLIHooks(t)
 	defer restore()
@@ -754,10 +781,10 @@ func TestRunScenarioHelpListsMigratedCommands(t *testing.T) {
 		t.Fatalf("run exit code = %d", code)
 	}
 	output := stdout.String()
-	if !strings.Contains(output, "info <name> [--json]") {
+	if !strings.Contains(output, "info") || !strings.Contains(output, "Show scenario metadata and runtime summary") {
 		t.Fatalf("missing info help line: %s", output)
 	}
-	if !strings.Contains(output, "status [name] [--json]") {
+	if !strings.Contains(output, "status") || !strings.Contains(output, "Show scenario runtime status") {
 		t.Fatalf("missing status help line: %s", output)
 	}
 }
@@ -2449,7 +2476,7 @@ func TestShowVersionAndHelpOutput(t *testing.T) {
 
 	var help bytes.Buffer
 	showMainHelp(&help)
-	if !strings.Contains(help.String(), "scenario list") {
+	if !strings.Contains(help.String(), "scenario") || !strings.Contains(help.String(), "Manage scenarios from their source locations") {
 		t.Fatalf("help output = %q", help.String())
 	}
 }
@@ -2952,6 +2979,29 @@ func writeScenarioSetupOnlyFixture(t *testing.T, root, name string) {
         }
       ]
     }
+  }
+}`
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func writeScenarioWithoutSetupFixture(t *testing.T, root, name string) {
+	t.Helper()
+	path := filepath.Join(root, "scenarios", name, ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	data := `{
+  "version": "1.0.0",
+  "service": {
+    "name": "` + name + `",
+    "displayName": "No Setup ` + strings.Title(name) + `",
+    "description": "Scenario without setup phase",
+    "version": "0.1.0"
+  },
+  "lifecycle": {
+    "version": "2.0.0"
   }
 }`
 	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {

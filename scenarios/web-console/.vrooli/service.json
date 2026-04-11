@@ -238,19 +238,24 @@
         "type": "sqlite",
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "description": "Portable storage for workspace layout, shortcuts, and AI provider config"
       },
       "kokoro": {
         "type": "kokoro",
         "enabled": false,
         "required": false,
-        "description": "Text-to-speech synthesis for voice output"
+        "startup_policy": "ignore",
+        "description": "Text-to-speech synthesis for voice output",
+        "degraded_behavior": "Voice output is unavailable"
       },
       "whisper": {
         "type": "whisper",
         "enabled": false,
         "required": false,
-        "description": "Speech-to-text transcription for voice input"
+        "startup_policy": "ignore",
+        "description": "Speech-to-text transcription for voice input",
+        "degraded_behavior": "Voice input is unavailable"
       }
     }
   }

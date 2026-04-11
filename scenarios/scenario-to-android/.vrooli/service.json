@@ -190,32 +190,36 @@
   },
   "dependencies": {
     "resources": {
-      "required": [
-        {
-          "name": "ollama",
-          "purpose": "AI-powered code generation for Android app templates and build scripts",
-          "models": [
-            "llama3.2"
-          ]
-        }
-      ],
-      "optional": [
-        {
-          "name": "minio",
-          "purpose": "Store generated APKs and build artifacts",
-          "fallback": "Local filesystem storage"
-        },
-        {
-          "name": "redis",
-          "purpose": "Cache build configurations and templates",
-          "fallback": "Rebuild from scratch each time"
-        },
-        {
-          "name": "postgres",
-          "purpose": "Track build history and app metadata",
-          "fallback": "JSON file storage"
-        }
-      ]
+      "ollama": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "purpose": "AI-powered code generation for Android app templates and build scripts",
+        "models": [
+          "llama3.2"
+        ]
+      },
+      "minio": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Store generated APKs and build artifacts",
+        "degraded_behavior": "Falls back to local filesystem storage"
+      },
+      "redis": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Cache build configurations and templates",
+        "degraded_behavior": "Build configuration cache is recomputed on demand"
+      },
+      "postgres": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Track build history and app metadata",
+        "degraded_behavior": "Falls back to JSON file storage"
+      }
     }
   },
   "$schema": "../../../.vrooli/schemas/service.schema.json"

@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
 const resourceConfigPath = ".vrooli/service.json"
@@ -67,40 +69,7 @@ type Controller struct {
 	Home string
 }
 
-type Error struct {
-	Code      string
-	Resource  string
-	Operation string
-	Err       error
-}
-
-func (e *Error) Error() string {
-	if e == nil {
-		return ""
-	}
-	target := strings.TrimSpace(e.Resource)
-	if target == "" {
-		target = "resource"
-	}
-	action := strings.TrimSpace(e.Operation)
-	switch {
-	case e.Err == nil && action == "":
-		return target
-	case e.Err == nil:
-		return fmt.Sprintf("%s %s", action, target)
-	case action == "":
-		return fmt.Sprintf("%s: %v", target, e.Err)
-	default:
-		return fmt.Sprintf("%s %s: %v", action, target, e.Err)
-	}
-}
-
-func (e *Error) Unwrap() error {
-	if e == nil {
-		return nil
-	}
-	return e.Err
-}
+type Error = vroolierr.Error
 
 type commandResult struct {
 	output []byte
@@ -235,6 +204,7 @@ func (c *Controller) Run(name string, args []string, stdout, stderr io.Writer) e
 			Code:      ErrorCodeOperationFailed,
 			Resource:  name,
 			Operation: operation,
+			Category:  "Runtime",
 			Err:       err,
 		}
 	}
@@ -481,24 +451,27 @@ func (c *Controller) resolveCLIPath(name string) (string, bool) {
 
 func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd, error) {
 	if path, ok := c.resolveCLIPath(name); ok {
-		cmd := exec.Command(path, args...)
-		cmd.Dir = c.Root
-		cmd.Env = resourceEnv(c.Root, c.Home)
-		return cmd, nil
+		return shell.Command(shell.Spec{
+			Name: path,
+			Args: args,
+			Dir:  c.Root,
+			Env:  resourceEnv(c.Root, c.Home),
+		}), nil
 	}
 
 	scriptPath := filepath.Join(c.Root, "resources", name, "cli.sh")
 	if _, err := os.Stat(scriptPath); err == nil {
-		cmd := exec.Command("bash", append([]string{scriptPath}, args...)...)
-		cmd.Dir = c.Root
-		cmd.Env = resourceEnv(c.Root, c.Home)
-		return cmd, nil
+		return shell.BashScript(scriptPath, args, shell.Spec{
+			Dir: c.Root,
+			Env: resourceEnv(c.Root, c.Home),
+		}), nil
 	}
 
 	return nil, &Error{
 		Code:      ErrorCodeCommandUnavailable,
 		Resource:  name,
 		Operation: "invoke",
+		Category:  "Environment",
 		Err:       fmt.Errorf("no installed CLI or cli.sh"),
 	}
 }

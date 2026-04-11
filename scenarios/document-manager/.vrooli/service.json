@@ -232,6 +232,7 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "purpose": "Store application metadata, agent configurations, improvement queue, and audit logs",
         "database": "document_manager",
         "initialization": [
@@ -249,6 +250,7 @@
         "type": "qdrant",
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "purpose": "Vector database for documentation embeddings, agent memory, and similarity pattern analysis",
         "initialization": [
           {
@@ -261,12 +263,14 @@
         "type": "redis",
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "purpose": "Real-time messaging, notification channels, and caching"
       },
       "n8n": {
         "type": "n8n",
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "initialization": [
           {
             "file": "initialization/n8n/doc-monitor-workflow.json",
@@ -286,16 +290,18 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "models": [
           "llama3.2",
           "nomic-embed-text",
           "codellama"
         ]
       },
-      "unstructured_io": {
-        "type": "unstructured_io",
+      "unstructured-io": {
+        "type": "unstructured-io",
         "enabled": true,
         "required": false,
+        "startup_policy": "try_start",
         "purpose": "Advanced document parsing and content extraction"
       }
     }

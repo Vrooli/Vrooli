@@ -4,11 +4,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/process"
 )
+
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=1 | LAST: 2026-04-11
 
 func TestStatusAggregatesResourcesAndScenarios(t *testing.T) {
 	root := t.TempDir()
@@ -65,6 +68,104 @@ func TestRunProjectPhaseRejectsUndefinedPhase(t *testing.T) {
 	}
 }
 
+func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeProjectService(t, root, `{"service":{"name":"project-alpha"}}`)
+	t.Setenv("VROOLI_API_PORT", "18092")
+
+	controller := New(root, home, io.Discard, io.Discard)
+	report, err := controller.Doctor()
+	if err != nil {
+		t.Fatalf("Doctor: %v", err)
+	}
+
+	joined := make([]string, 0, len(report.Checks))
+	for _, check := range report.Checks {
+		joined = append(joined, check.Name+"="+check.Status)
+	}
+	output := strings.Join(joined, "\n")
+	if !strings.Contains(output, "api_port_18092=") {
+		t.Fatalf("doctor checks missing api port: %s", output)
+	}
+	if !strings.Contains(output, "service_json=present") {
+		t.Fatalf("doctor checks missing service manifest: %s", output)
+	}
+}
+
+func TestStatusSupportsResourceAndScenarioFilters(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeProjectService(t, root, `{"service":{"name":"project-alpha"}}`)
+	writeScenarioService(t, root, "alpha")
+	writeResourceCLI(t, root, "redis", `{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)
+	writeScenarioProcess(t, home, "alpha", 18081)
+
+	controller := New(root, home, io.Discard, io.Discard)
+	resourcesOnly, err := controller.Status(StatusOptions{Fast: true, ResourcesOnly: true})
+	if err != nil {
+		t.Fatalf("Status(resources only): %v", err)
+	}
+	if len(resourcesOnly.Resources) != 1 || len(resourcesOnly.Scenarios) != 0 {
+		t.Fatalf("resourcesOnly = %#v", resourcesOnly)
+	}
+
+	scenariosOnly, err := controller.Status(StatusOptions{Fast: true, ScenariosOnly: true})
+	if err != nil {
+		t.Fatalf("Status(scenarios only): %v", err)
+	}
+	if len(scenariosOnly.Scenarios) != 1 || len(scenariosOnly.Resources) != 0 {
+		t.Fatalf("scenariosOnly = %#v", scenariosOnly)
+	}
+}
+
+func TestRunProjectPhaseExecutesDefinedLifecycle(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeProjectService(t, root, `{
+  "service": { "name": "project-alpha" },
+  "lifecycle": {
+    "build": {
+      "steps": [
+        {
+          "name": "write-build-file",
+          "run": "mkdir -p build && printf 'built\n' > build/build.txt"
+        }
+      ]
+    }
+  }
+}`)
+	writeProjectPortRegistry(t, root)
+
+	controller := New(root, home, io.Discard, io.Discard)
+	if err := controller.RunProjectPhase("build", nil); err != nil {
+		t.Fatalf("RunProjectPhase(build): %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "build", "build.txt"))
+	if err != nil {
+		t.Fatalf("read build output: %v", err)
+	}
+	if strings.TrimSpace(string(data)) != "built" {
+		t.Fatalf("build output = %q", string(data))
+	}
+}
+
+func TestLoadProjectFallsBackToDirectoryNameWhenServiceNameMissing(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "project-alpha")
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir root: %v", err)
+	}
+	writeProjectService(t, root, `{"service":{}}`)
+
+	projectScenario, err := LoadProject(root)
+	if err != nil {
+		t.Fatalf("LoadProject: %v", err)
+	}
+	if projectScenario.Slug != "project-alpha" {
+		t.Fatalf("project slug = %q, want project-alpha", projectScenario.Slug)
+	}
+}
+
 func writeProjectService(t *testing.T, root, contents string) {
 	t.Helper()
 	path := filepath.Join(root, ".vrooli", "service.json")
@@ -118,5 +219,19 @@ func writeScenarioProcess(t *testing.T, home, name string, port int) {
 	}
 	if err := process.WriteScenarioRecord(home, name, "start-api", record); err != nil {
 		t.Fatalf("WriteScenarioRecord: %v", err)
+	}
+}
+
+func writeProjectPortRegistry(t *testing.T, root string) {
+	t.Helper()
+	path := filepath.Join(root, "scripts", "resources")
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", path, err)
+	}
+	if err := os.WriteFile(filepath.Join(path, "port_registry.sh"), []byte("#!/usr/bin/env bash\ndeclare -g -A RESOURCE_PORTS=()\n"), 0o644); err != nil {
+		t.Fatalf("write port_registry.sh: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(path, "port_registry.json"), []byte("{\n  \"resource_ports\": {},\n  \"reserved_ranges\": {}\n}\n"), 0o644); err != nil {
+		t.Fatalf("write port_registry.json: %v", err)
 	}
 }

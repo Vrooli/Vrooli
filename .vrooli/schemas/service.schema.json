@@ -146,11 +146,11 @@
       "properties": {
         "resources": {
           "$ref": "resource-definitions.json#/resourceCatalog",
-          "description": "Resource dependencies declared under the dependencies namespace"
+          "description": "Resource dependencies keyed by canonical resource identifier as a flat object map"
         },
         "scenarios": {
           "type": "object",
-          "description": "Scenario dependencies keyed by scenario identifier",
+          "description": "Scenario dependencies keyed by canonical scenario identifier as a flat object map",
           "patternProperties": {
             "^[a-z0-9-]+$": {
               "$ref": "#/definitions/scenarioDependency"
@@ -287,6 +287,11 @@
       "type": "object",
       "description": "Metadata describing a dependent scenario",
       "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this dependency is active for this scenario"
+        },
         "name": {
           "type": "string",
           "description": "Scenario identifier"
@@ -294,7 +299,12 @@
         "required": {
           "type": "boolean",
           "default": true,
-          "description": "Whether the dependency is mandatory"
+          "description": "Whether the dependency is mandatory for correct behavior"
+        },
+        "startup_policy": {
+          "type": "string",
+          "enum": ["must_start", "try_start", "ignore"],
+          "description": "How lifecycle orchestration should treat this dependency during startup"
         },
         "version": {
           "$ref": "common.schema.json#/definitions/semver",
@@ -307,8 +317,13 @@
         "description": {
           "type": "string",
           "description": "Human-readable context for the dependency"
+        },
+        "degraded_behavior": {
+          "type": "string",
+          "description": "What functionality is reduced if the dependency is unavailable"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "deploymentRequirements": {
       "type": "object",

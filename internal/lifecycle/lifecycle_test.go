@@ -3,6 +3,7 @@ package lifecycle
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -19,7 +20,7 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=7 | LAST: 2026-04-10
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=8 | LAST: 2026-04-11
 
 func TestRunnerStartStopRestart(t *testing.T) {
 	if runtime.GOOS != "linux" {
@@ -131,6 +132,78 @@ func TestSetupNeededDetectsUpdatedSources(t *testing.T) {
 	}
 
 	_ = runner.Stop("alpha", StopOptions{})
+}
+
+func TestRunPhaseDetailedReportsUndefinedPhase(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecyclePortRegistry(t, root)
+	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "alpha"},
+	})
+
+	runner, err := NewRunner(root, home, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+
+	result, err := runner.RunPhaseDetailed("alpha", "setup", PhaseOptions{})
+	if err != nil {
+		t.Fatalf("RunPhaseDetailed: %v", err)
+	}
+	if result.Defined {
+		t.Fatalf("result.Defined = %v, want false", result.Defined)
+	}
+	if result.Status != PhaseExecutionUndefined {
+		t.Fatalf("result.Status = %q, want %q", result.Status, PhaseExecutionUndefined)
+	}
+}
+
+func TestExecutePhaseDetailedWrapsStepFailuresWithContext(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecyclePortRegistry(t, root)
+	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "alpha"},
+		Lifecycle: scenario.Lifecycle{
+			Setup: scenario.Phase{
+				Steps: []scenario.PhaseStep{
+					{Name: "explode", Run: "exit 7"},
+				},
+			},
+		},
+	})
+
+	runner, err := NewRunner(root, home, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	result, err := runner.ExecutePhaseDetailed(item, "setup", map[string]string{}, nil, io.Discard)
+	if err == nil {
+		t.Fatal("expected wrapped phase error")
+	}
+	if result.Defined != true {
+		t.Fatalf("result = %+v", result)
+	}
+	var phaseErr *PhaseStepError
+	if !errors.As(err, &phaseErr) {
+		t.Fatalf("expected PhaseStepError, got %T", err)
+	}
+	if phaseErr.Scenario != "alpha" || phaseErr.Phase != "setup" || phaseErr.Step != "explode" {
+		t.Fatalf("phaseErr = %+v", phaseErr)
+	}
+	if phaseErr.ExitCode() != 7 {
+		t.Fatalf("phaseErr.ExitCode() = %d, want 7", phaseErr.ExitCode())
+	}
+	if !strings.Contains(phaseErr.Error(), process.ScenarioLifecycleLogPath(home, "alpha")) {
+		t.Fatalf("phaseErr.Error() = %q", phaseErr.Error())
+	}
 }
 
 func TestFileDependencySpecsIgnoresNonDependencyTopLevelFields(t *testing.T) {
@@ -345,6 +418,79 @@ func TestRunnerStartBestEffortWritesDegradedStateForMissingDependencies(t *testi
 	}
 	if !strings.Contains(string(data), `"missing-beta"`) {
 		t.Fatalf("degraded payload missing dependency name: %s", data)
+	}
+}
+
+func TestRunnerStartTryStartWritesDegradedStateForMissingDependencies(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("lifecycle process management currently targets linux")
+	}
+
+	root := t.TempDir()
+	home := t.TempDir()
+
+	alpha := lifecycleFixtureManifest("alpha")
+	alpha.Dependencies.Scenarios = map[string]scenario.Dependency{
+		"missing-beta": {Required: false, StartupPolicy: "try_start"},
+	}
+	writeLifecycleFixtureManifest(t, root, alpha)
+
+	runner, err := NewRunner(root, home, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = runner.Stop("alpha", StopOptions{})
+	})
+
+	result, err := runner.Start("alpha", StartOptions{})
+	if err != nil {
+		t.Fatalf("Start(try-start): %v", err)
+	}
+	if got := result.FailedDependencies; len(got) != 1 || got[0] != "missing-beta" {
+		t.Fatalf("failed dependencies = %#v, want [missing-beta]", got)
+	}
+
+	data, err := os.ReadFile(process.ScenarioDegradedPath(home, "alpha"))
+	if err != nil {
+		t.Fatalf("read degraded state: %v", err)
+	}
+	if !strings.Contains(string(data), `"missing-beta"`) {
+		t.Fatalf("degraded payload missing dependency name: %s", data)
+	}
+}
+
+func TestRunnerStartIgnoreDoesNotStartMissingDependencies(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("lifecycle process management currently targets linux")
+	}
+
+	root := t.TempDir()
+	home := t.TempDir()
+
+	alpha := lifecycleFixtureManifest("alpha")
+	alpha.Dependencies.Scenarios = map[string]scenario.Dependency{
+		"missing-beta": {Required: false, StartupPolicy: "ignore"},
+	}
+	writeLifecycleFixtureManifest(t, root, alpha)
+
+	runner, err := NewRunner(root, home, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = runner.Stop("alpha", StopOptions{})
+	})
+
+	result, err := runner.Start("alpha", StartOptions{})
+	if err != nil {
+		t.Fatalf("Start(ignore): %v", err)
+	}
+	if len(result.FailedDependencies) != 0 {
+		t.Fatalf("unexpected failed dependencies: %#v", result.FailedDependencies)
+	}
+	if _, err := os.Stat(process.ScenarioDegradedPath(home, "alpha")); !os.IsNotExist(err) {
+		t.Fatalf("unexpected degraded state for ignored dependency: %v", err)
 	}
 }
 

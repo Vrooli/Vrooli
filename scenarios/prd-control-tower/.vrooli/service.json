@@ -201,33 +201,30 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "description": "Draft metadata and audit results storage (uses shared vrooli database)"
-      },
-      "scenario-auditor": {
-        "type": "scenario-auditor",
-        "enabled": false,
-        "required": false,
-        "description": "PRD structure validation"
-      },
-      "resource-openrouter": {
-        "type": "resource-openrouter",
-        "enabled": false,
-        "required": false,
-        "description": "AI-assisted section generation"
-      },
-      "ecosystem-manager": {
-        "type": "ecosystem-manager",
-        "enabled": false,
-        "required": false,
-        "description": "New scenario creation workflow"
       },
       "openrouter": {
         "type": "openrouter",
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "description": "Auto-detected via analyzer (resource_cli)"
       }
     },
-    "scenarios": {}
+    "scenarios": {
+      "scenario-auditor": {
+        "enabled": false,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "PRD structure validation"
+      },
+      "ecosystem-manager": {
+        "enabled": false,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "New scenario creation workflow"
+      }
+    }
   }
 }

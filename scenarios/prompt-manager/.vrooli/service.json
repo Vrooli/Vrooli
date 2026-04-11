@@ -182,8 +182,11 @@
   "dependencies": {
     "scenarios": {
       "agent-manager": {
+        "enabled": true,
         "required": false,
-        "description": "Executes heartbeat runs via task/run API. Heartbeat system degrades when unavailable."
+        "startup_policy": "try_start",
+        "description": "Executes heartbeat runs via task/run API. Heartbeat system degrades when unavailable.",
+        "degraded_behavior": "Scheduled heartbeat runs are skipped until agent-manager is available"
       }
     },
     "resources": {
@@ -191,6 +194,7 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "description": "Metrics and test results storage (prompts stored in files)",
         "initialization": [
           {
@@ -203,13 +207,17 @@
         "type": "qdrant",
         "enabled": true,
         "required": false,
-        "description": "Vector database for AI-powered semantic search (stores skill embeddings)"
+        "startup_policy": "try_start",
+        "description": "Vector database for AI-powered semantic search (stores skill embeddings)",
+        "degraded_behavior": "Semantic search features fall back to file-backed lookup only"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": false,
+        "startup_policy": "try_start",
         "description": "Local LLM for AI search embeddings (nomic-embed-text) and prompt testing (llama3.2)",
+        "degraded_behavior": "Local embedding generation and prompt-evaluation flows are unavailable",
         "models": [
           "nomic-embed-text",
           "llama3.2"

@@ -53,18 +53,23 @@
         },
         "type": {
           "type": "string",
-          "description": "Explicit resource type (required when key doesn't match resource name)",
+          "description": "Explicit resource type for alias or instance keys when the entry key does not match the canonical resource name",
           "examples": ["postgres", "ollama", "n8n", "qdrant", "redis"]
         },
         "enabled": {
           "type": "boolean",
           "default": false,
-          "description": "Whether this resource is enabled"
+          "description": "Whether this dependency is active in this configuration"
         },
         "required": {
           "type": "boolean",
           "default": false,
-          "description": "Whether this resource is required for the service to function"
+          "description": "Whether this resource is required for the service to function correctly"
+        },
+        "startup_policy": {
+          "type": "string",
+          "enum": ["must_start", "try_start", "ignore"],
+          "description": "How lifecycle orchestration should treat this dependency during startup"
         },
         "version": {
           "type": "string",
@@ -77,6 +82,10 @@
         "description": {
           "type": "string",
           "description": "Human-readable description of this resource configuration"
+        },
+        "degraded_behavior": {
+          "type": "string",
+          "description": "What functionality is reduced if this resource is unavailable"
         },
         "startup_order": {
           "type": "integer",

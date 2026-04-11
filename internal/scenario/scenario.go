@@ -71,12 +71,14 @@ type Dependencies struct {
 }
 
 type Dependency struct {
-	Type        string `json:"type,omitempty"`
-	Enabled     bool   `json:"enabled,omitempty"`
-	Required    bool   `json:"required,omitempty"`
-	Purpose     string `json:"purpose,omitempty"`
-	Description string `json:"description,omitempty"`
-	Database    string `json:"database,omitempty"`
+	Type             string `json:"type,omitempty"`
+	Enabled          bool   `json:"enabled,omitempty"`
+	Required         bool   `json:"required,omitempty"`
+	StartupPolicy    string `json:"startup_policy,omitempty"`
+	DegradedBehavior string `json:"degraded_behavior,omitempty"`
+	Purpose          string `json:"purpose,omitempty"`
+	Description      string `json:"description,omitempty"`
+	Database         string `json:"database,omitempty"`
 }
 
 type rawDependencies struct {
@@ -112,7 +114,13 @@ type Lifecycle struct {
 	Health     *HealthConfig `json:"health,omitempty"`
 	Setup      Phase         `json:"setup,omitempty"`
 	Develop    Phase         `json:"develop,omitempty"`
+	Build      Phase         `json:"build,omitempty"`
+	Deploy     Phase         `json:"deploy,omitempty"`
+	Clean      Phase         `json:"clean,omitempty"`
 	Test       Phase         `json:"test,omitempty"`
+	Backup     Phase         `json:"backup,omitempty"`
+	Restore    Phase         `json:"restore,omitempty"`
+	VersionCmd Phase         `json:"version,omitempty"`
 	Production Phase         `json:"production,omitempty"`
 	Stop       Phase         `json:"stop,omitempty"`
 }
@@ -479,7 +487,13 @@ func (manifest ServiceManifest) PhaseSummaries() []PhaseSummary {
 	}{
 		{name: "setup", phase: manifest.Lifecycle.Setup},
 		{name: "develop", phase: manifest.Lifecycle.Develop},
+		{name: "build", phase: manifest.Lifecycle.Build},
+		{name: "deploy", phase: manifest.Lifecycle.Deploy},
+		{name: "clean", phase: manifest.Lifecycle.Clean},
 		{name: "test", phase: manifest.Lifecycle.Test},
+		{name: "backup", phase: manifest.Lifecycle.Backup},
+		{name: "restore", phase: manifest.Lifecycle.Restore},
+		{name: "version", phase: manifest.Lifecycle.VersionCmd},
 		{name: "production", phase: manifest.Lifecycle.Production},
 		{name: "stop", phase: manifest.Lifecycle.Stop},
 	}

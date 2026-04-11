@@ -208,16 +208,24 @@
   "dependencies": {
     "resources": {
       "postgres": {
+        "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "description": "PostgreSQL database for sync items and device sessions"
       },
-      "scenario-authenticator": {
-        "required": true,
-        "description": "Authentication service for user validation"
-      },
       "redis": {
+        "enabled": true,
         "required": false,
+        "startup_policy": "try_start",
         "description": "Optional Redis for auth caching and performance"
+      }
+    },
+    "scenarios": {
+      "scenario-authenticator": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Authentication service for user validation"
       }
     }
   }

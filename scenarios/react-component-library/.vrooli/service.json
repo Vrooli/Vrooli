@@ -174,13 +174,15 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "description": "Primary relational data store",
         "schema": "react-component-library"
       },
-      "resource-openrouter": {
-        "type": "ai-gateway",
+      "openrouter": {
+        "type": "openrouter",
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "description": "AI-powered code editing and component refactoring"
       }
     },
@@ -188,6 +190,7 @@
       "app-issue-tracker": {
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "description": "Integration for component adoption workflow"
       }
     }

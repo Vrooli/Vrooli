@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 func (r *Runner) SetupNeeded(item scenario.Scenario, force bool) (bool, []string, error) {
@@ -105,11 +105,12 @@ if [[ -d "$migrations_dir" ]] && ls "$migrations_dir"/migration_*.sql >/dev/null
 fi
 `, shellQuote(r.Root), shellQuote(r.Root), shellQuote(item.Path), shellQuote(dbName))
 
-	cmd := exec.Command("bash", "-lc", script)
-	cmd.Dir = item.Path
-	cmd.Env = mergeEnv(os.Environ(), env)
-	cmd.Stdout = logWriter
-	cmd.Stderr = logWriter
+	cmd := shell.BashCommand(script, shell.Spec{
+		Dir:    item.Path,
+		Env:    mergeEnv(os.Environ(), env),
+		Stdout: logWriter,
+		Stderr: logWriter,
+	})
 	if err := cmd.Run(); err != nil {
 		r.warnf(logWriter, "Database bootstrap encountered errors: %v", err)
 	}

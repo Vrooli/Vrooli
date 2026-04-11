@@ -16,7 +16,7 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=1 | LAST: 2026-04-11
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=2 | LAST: 2026-04-11
 
 func TestStartAllScenariosEndpointReturnsTypedReport(t *testing.T) {
 	app := New(t.TempDir(), t.TempDir())
@@ -74,7 +74,9 @@ func TestStopAllScenariosEndpointReturnsTypedReport(t *testing.T) {
 }
 
 func TestStopScenarioEndpointReturnsTypedMessage(t *testing.T) {
-	app := New(t.TempDir(), t.TempDir())
+	root := t.TempDir()
+	writeScenarioService(t, root, "alpha")
+	app := New(root, t.TempDir())
 	app.StopScenarioFn = func(name string) error { return nil }
 
 	rec := httptest.NewRecorder()
@@ -238,7 +240,7 @@ func writeScenarioService(t *testing.T, root, name string) {
 	if err := osMkdirAll(filepath.Dir(servicePath)); err != nil {
 		t.Fatalf("mkdir %s: %v", filepath.Dir(servicePath), err)
 	}
-	data := `{"service":{"name":"` + name + `","displayName":"` + name + `"}}`
+	data := `{"service":{"name":"` + name + `","displayName":"` + name + `"},"ports":{"api":{"env_var":"API_PORT"}}}`
 	if err := osWriteFileAll(servicePath, data); err != nil {
 		t.Fatalf("write service: %v", err)
 	}

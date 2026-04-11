@@ -171,18 +171,10 @@ func TestGetScenarioStatus(t *testing.T) {
 			URLVars: map[string]string{"name": "nonexistent-scenario"},
 		})
 
-		// API returns success with stopped status for nonexistent scenarios
-		response := assertJSONResponse(t, w, http.StatusOK, nil)
+		response := assertJSONResponse(t, w, http.StatusNotFound, nil)
 		if response != nil {
-			if data, ok := response["data"].(map[string]interface{}); ok {
-				if status, exists := data["status"]; exists {
-					if status != "stopped" {
-						t.Errorf("Expected status 'stopped' for nonexistent scenario, got %v", status)
-					}
-				}
-				if _, exists := data["health_status"]; !exists {
-					t.Error("Expected health_status field in scenario status response")
-				}
+			if response["error_code"] != "scenario_not_found" {
+				t.Fatalf("error_code = %v", response["error_code"])
 			}
 		}
 	})
@@ -194,14 +186,10 @@ func TestGetScenarioStatus(t *testing.T) {
 			URLVars: map[string]string{"name": ""},
 		})
 
-		// Empty scenario name returns success with stopped status
-		response := assertJSONResponse(t, w, http.StatusOK, nil)
+		response := assertJSONResponse(t, w, http.StatusNotFound, nil)
 		if response != nil {
-			t.Logf("Empty scenario name handled: %v", response)
-			if data, ok := response["data"].(map[string]interface{}); ok {
-				if _, exists := data["health_status"]; !exists {
-					t.Error("Expected health_status field in scenario status response")
-				}
+			if response["error_code"] != "scenario_not_found" {
+				t.Fatalf("error_code = %v", response["error_code"])
 			}
 		}
 	})
@@ -341,12 +329,10 @@ func TestStopScenarioEndpoint(t *testing.T) {
 			URLVars: map[string]string{"name": "nonexistent-scenario"},
 		})
 
-		// Should return error for nonexistent scenario
-		response := assertJSONResponse(t, w, http.StatusOK, nil)
+		response := assertJSONResponse(t, w, http.StatusNotFound, nil)
 		if response != nil {
-			if _, ok := response["error"]; ok {
-				// Error is expected for nonexistent scenario
-				t.Logf("Got expected error for nonexistent scenario")
+			if response["error_code"] != "scenario_not_found" {
+				t.Fatalf("error_code = %v", response["error_code"])
 			}
 		}
 	})
@@ -364,12 +350,10 @@ func TestGetAppLogs(t *testing.T) {
 			URLVars: map[string]string{"name": "nonexistent-app"},
 		})
 
-		// Should return error for nonexistent app
-		response := assertJSONResponse(t, w, http.StatusOK, nil)
+		response := assertJSONResponse(t, w, http.StatusNotFound, nil)
 		if response != nil {
-			if _, ok := response["error"]; ok {
-				// Error is expected for nonexistent app
-				t.Logf("Got expected error for nonexistent app")
+			if response["error_code"] != "scenario_not_found" {
+				t.Fatalf("error_code = %v", response["error_code"])
 			}
 		}
 	})
@@ -384,9 +368,8 @@ func TestGetAppLogs(t *testing.T) {
 			},
 		})
 
-		// Should process query parameters without error
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d", w.Code)
+		if w.Code != http.StatusNotFound {
+			t.Errorf("Expected status 404, got %d", w.Code)
 		}
 	})
 }
@@ -403,9 +386,8 @@ func TestHandleLifecycle(t *testing.T) {
 			URLVars: map[string]string{"action": "invalid-action"},
 		})
 
-		// Should handle invalid actions gracefully
-		if w.Code != http.StatusOK && w.Code != http.StatusBadRequest {
-			t.Errorf("Expected status 200 or 400, got %d", w.Code)
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("Expected status 500, got %d", w.Code)
 		}
 	})
 }
@@ -539,12 +521,10 @@ func TestStartApp(t *testing.T) {
 			URLVars: map[string]string{"name": "nonexistent-app"},
 		})
 
-		// Should return error for nonexistent app
-		response := assertJSONResponse(t, w, http.StatusOK, nil)
+		response := assertJSONResponse(t, w, http.StatusNotFound, nil)
 		if response != nil {
-			if _, ok := response["error"]; ok {
-				// Error is expected for nonexistent app
-				t.Logf("Got expected error for nonexistent app")
+			if response["error_code"] != "scenario_not_found" {
+				t.Fatalf("error_code = %v", response["error_code"])
 			}
 		}
 	})
@@ -562,12 +542,10 @@ func TestStopApp(t *testing.T) {
 			URLVars: map[string]string{"name": "nonexistent-app"},
 		})
 
-		// Should return error for nonexistent app
-		response := assertJSONResponse(t, w, http.StatusOK, nil)
+		response := assertJSONResponse(t, w, http.StatusNotFound, nil)
 		if response != nil {
-			if _, ok := response["error"]; ok {
-				// Error is expected for nonexistent app
-				t.Logf("Got expected error for nonexistent app")
+			if response["error_code"] != "scenario_not_found" {
+				t.Fatalf("error_code = %v", response["error_code"])
 			}
 		}
 	})
@@ -585,12 +563,10 @@ func TestRestartApp(t *testing.T) {
 			URLVars: map[string]string{"name": "nonexistent-app"},
 		})
 
-		// Should return error for nonexistent app
-		response := assertJSONResponse(t, w, http.StatusOK, nil)
+		response := assertJSONResponse(t, w, http.StatusNotFound, nil)
 		if response != nil {
-			if _, ok := response["error"]; ok {
-				// Error is expected for nonexistent app
-				t.Logf("Got expected error for nonexistent app")
+			if response["error_code"] != "scenario_not_found" {
+				t.Fatalf("error_code = %v", response["error_code"])
 			}
 		}
 	})

@@ -191,35 +191,37 @@
   },
   "dependencies": {
     "resources": {
-      "required": [],
-      "optional": [
-        {
-          "name": "redis",
-          "purpose": "Caching frequently generated patterns",
-          "fallback": "In-memory cache"
-        },
-        {
-          "name": "minio",
-          "purpose": "Store generated files for retrieval",
-          "fallback": "Temporary filesystem"
-        },
-        {
-          "name": "system-setup",
-          "type": "custom",
-          "description": "System dependencies and initialization scripts",
-          "required": false,
-          "initialization": [
-            {
-              "file": "initialization/startup.sh",
-              "type": "script"
-            },
-            {
-              "file": "initialization/dependencies.json",
-              "type": "config"
-            }
-          ]
-        }
-      ]
+      "redis": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Caching frequently generated patterns",
+        "degraded_behavior": "Falls back to in-memory cache"
+      },
+      "minio": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Store generated files for retrieval",
+        "degraded_behavior": "Falls back to temporary filesystem storage"
+      },
+      "system-setup": {
+        "type": "custom",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "System dependencies and initialization scripts",
+        "initialization": [
+          {
+            "file": "initialization/startup.sh",
+            "type": "script"
+          },
+          {
+            "file": "initialization/dependencies.json",
+            "type": "config"
+          }
+        ]
+      }
     }
   },
   "$schema": "../../../.vrooli/schemas/service.schema.json"

@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -70,7 +69,8 @@ func runScenarioSetupCommand(root string, globals globalOptions, args []string, 
 	if err != nil {
 		return err
 	}
-	if err := runner.RunPhase(name, "setup", opts); err != nil {
+	result, err := runner.RunPhaseDetailed(name, "setup", opts)
+	if err != nil {
 		return err
 	}
 
@@ -79,11 +79,23 @@ func runScenarioSetupCommand(root string, globals globalOptions, args []string, 
 			"success":  true,
 			"scenario": name,
 			"phase":    "setup",
-			"status":   "completed",
+			"status":   result.Status,
+			"defined":  result.Defined,
+			"steps": map[string]int{
+				"executed": result.ExecutedSteps,
+				"skipped":  result.SkippedSteps,
+			},
 		})
 	}
 
-	_, _ = fmt.Fprintf(stdout, "Completed setup for scenario '%s'\n", name)
+	switch result.Status {
+	case lifecycle.PhaseExecutionCompleted:
+		_, _ = fmt.Fprintf(stdout, "Completed setup for scenario '%s' (%d executed, %d skipped)\n", name, result.ExecutedSteps, result.SkippedSteps)
+	case lifecycle.PhaseExecutionSkipped:
+		_, _ = fmt.Fprintf(stdout, "Setup phase for scenario '%s' ran no steps (%d skipped)\n", name, result.SkippedSteps)
+	default:
+		_, _ = fmt.Fprintf(stdout, "Scenario '%s' does not define a setup phase\n", name)
+	}
 	return nil
 }
 
@@ -127,35 +139,22 @@ func runScenarioStartAllCommand(root string, globals globalOptions, args []strin
 	if jsonFlag {
 		runnerOut = stderr
 	}
-	runner, err := newScenarioLifecycleRunner(root, runnerOut, stderr)
+	service, err := newScenarioService(root, runnerOut, stderr)
+	if err != nil {
+		return err
+	}
+	report, err := service.StartAll()
 	if err != nil {
 		return err
 	}
 
-	items, err := scenario.Discover(root, scenario.SandboxEnvFromEnv())
-	if err != nil {
-		return err
+	started := make([]scenarioLifecycleItemOutput, 0, len(report.Started))
+	for _, item := range report.Started {
+		started = append(started, scenarioLifecycleItemOutput{Name: item.Name, Status: "started"})
 	}
-
-	started := make([]scenarioLifecycleItemOutput, 0, len(items))
-	failed := make([]scenarioBatchFailure, 0)
-	for _, item := range items {
-		result, startErr := runner.Start(item.Slug, lifecycle.StartOptions{})
-		if startErr != nil {
-			failed = append(failed, scenarioBatchFailure{Name: item.Slug, Error: startErr.Error()})
-			continue
-		}
-		status := "started"
-		if result.AlreadyRunning {
-			status = "already_running"
-		}
-		started = append(started, scenarioLifecycleItemOutput{
-			Name:               item.Slug,
-			Status:             status,
-			Health:             result.Health,
-			Ports:              envPortMap(result.Scenario.Manifest, result.AllocatedPorts),
-			FailedDependencies: append([]string(nil), result.FailedDependencies...),
-		})
+	failed := make([]scenarioBatchFailure, 0, len(report.Failed))
+	for _, item := range report.Failed {
+		failed = append(failed, scenarioBatchFailure{Name: item.Name, Error: item.Error})
 	}
 
 	if jsonFlag {
@@ -200,51 +199,22 @@ func runScenarioStopAllCommand(root string, globals globalOptions, args []string
 		}
 	}
 
-	home, err := process.HomeDir()
+	service, err := newScenarioService(root, stdout, stderr)
 	if err != nil {
 		return err
 	}
-	processRoot := filepath.Join(home, ".vrooli", "processes", "scenarios")
-	entries, err := os.ReadDir(processRoot)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-
-	names := []string{}
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		glob, globErr := filepath.Glob(filepath.Join(processRoot, entry.Name(), "*.json"))
-		if globErr != nil {
-			return globErr
-		}
-		if len(glob) == 0 {
-			pids, pidErr := filepath.Glob(filepath.Join(processRoot, entry.Name(), "*.pid"))
-			if pidErr != nil {
-				return pidErr
-			}
-			if len(pids) == 0 {
-				continue
-			}
-		}
-		names = append(names, entry.Name())
-	}
-	sort.Strings(names)
-
-	runner, err := newScenarioLifecycleRunner(root, stdout, stderr)
+	report, err := service.StopAll()
 	if err != nil {
 		return err
 	}
 
-	stopped := make([]string, 0, len(names))
-	failed := make([]scenarioBatchFailure, 0)
-	for _, name := range names {
-		if stopErr := runner.Stop(name, lifecycle.StopOptions{}); stopErr != nil {
-			failed = append(failed, scenarioBatchFailure{Name: name, Error: stopErr.Error()})
-			continue
-		}
-		stopped = append(stopped, name)
+	stopped := make([]string, 0, len(report.Stopped))
+	for _, item := range report.Stopped {
+		stopped = append(stopped, item.Name)
+	}
+	failed := make([]scenarioBatchFailure, 0, len(report.Failed))
+	for _, item := range report.Failed {
+		failed = append(failed, scenarioBatchFailure{Name: item.Name, Error: item.Error})
 	}
 
 	if jsonFlag {
@@ -301,13 +271,18 @@ func runScenarioPortCommand(root string, globals globalOptions, args []string, s
 		return errors.New("scenario port requires a scenario name")
 	}
 
-	item, runtimeState, listPorts, portsMap, err := loadScenarioPorts(root, scenarioName)
+	service, err := newScenarioService(root, io.Discard, io.Discard)
 	if err != nil {
 		return err
 	}
+	detail, err := service.Detail(scenarioName)
+	if err != nil {
+		return err
+	}
+	listPorts, portsMap := buildListPorts(detail.Scenario.Manifest, detail.Runtime.Records)
 
 	if portName == "" {
-		if runtimeState.ProcessCount == 0 || len(portsMap) == 0 {
+		if detail.Runtime.ProcessCount == 0 || len(portsMap) == 0 {
 			if jsonFlag {
 				return cliout.WriteJSON(stdout, scenarioPortListOutput{
 					Success:  false,
@@ -332,29 +307,29 @@ func runScenarioPortCommand(root string, globals globalOptions, args []string, s
 		return nil
 	}
 
-	key, portValue, stepName, ok := resolveRequestedPort(item.Manifest, listPorts, portsMap, portName)
-	if !ok {
+	resolved, err := service.ResolvePort(scenarioName, portName)
+	if err != nil {
 		if jsonFlag {
 			return cliout.WriteJSON(stdout, scenarioPortSingleOutput{
 				Success:  false,
 				Scenario: scenarioName,
 				PortName: portName,
-				Error:    "Port not found",
+				Error:    err.Error(),
 			})
 		}
-		return fmt.Errorf("port %q not found for scenario %q", portName, scenarioName)
+		return err
 	}
 
 	if jsonFlag {
 		return cliout.WriteJSON(stdout, scenarioPortSingleOutput{
 			Success:  true,
 			Scenario: scenarioName,
-			PortName: key,
-			Step:     stepName,
-			Port:     portValue,
+			PortName: resolved.Name,
+			Step:     resolved.Step,
+			Port:     resolved.Port,
 		})
 	}
-	_, _ = fmt.Fprintln(stdout, portValue)
+	_, _ = fmt.Fprintln(stdout, resolved.Port)
 	return nil
 }
 
@@ -395,7 +370,11 @@ func runScenarioOpenCommand(root string, globals globalOptions, args []string, s
 		return errors.New("scenario open requires a scenario name")
 	}
 
-	url, resolvedPortName, portValue, err := scenarioURLForPort(root, scenarioName, portName)
+	service, err := newScenarioService(root, io.Discard, io.Discard)
+	if err != nil {
+		return err
+	}
+	resolved, err := service.ResolvePort(scenarioName, portName)
 	if err != nil {
 		return err
 	}
@@ -404,19 +383,19 @@ func runScenarioOpenCommand(root string, globals globalOptions, args []string, s
 		return cliout.WriteJSON(stdout, scenarioOpenOutput{
 			Success:  true,
 			Scenario: scenarioName,
-			PortName: resolvedPortName,
-			Port:     portValue,
-			URL:      url,
+			PortName: resolved.Name,
+			Port:     resolved.Port,
+			URL:      resolved.URL,
 		})
 	}
 	if printURL {
-		_, _ = fmt.Fprintln(stdout, url)
+		_, _ = fmt.Fprintln(stdout, resolved.URL)
 		return nil
 	}
-	if err := scenarioOpenURLFn(url); err != nil {
+	if err := scenarioOpenURLFn(resolved.URL); err != nil {
 		return err
 	}
-	_, _ = fmt.Fprintf(stderr, "Opening %s at %s\n", scenarioName, url)
+	_, _ = fmt.Fprintf(stderr, "Opening %s at %s\n", scenarioName, resolved.URL)
 	return nil
 }
 
@@ -833,10 +812,16 @@ func parseScenarioTestArgs(globals globalOptions, args []string) (string, lifecy
 }
 
 func loadScenarioPorts(root, name string) (scenario.Scenario, process.ScenarioRuntime, []scenarioListPortOutput, map[string]int, error) {
-	item, runtimeState, _, err := loadScenarioDetail(root, name)
+	service, err := newScenarioService(root, io.Discard, io.Discard)
 	if err != nil {
 		return scenario.Scenario{}, process.ScenarioRuntime{}, nil, nil, err
 	}
+	detail, err := service.Detail(name)
+	if err != nil {
+		return scenario.Scenario{}, process.ScenarioRuntime{}, nil, nil, err
+	}
+	item := detail.Scenario
+	runtimeState := detail.Runtime
 	listPorts, portsMap := buildListPorts(item.Manifest, runtimeState.Records)
 	seen := make(map[string]struct{}, len(listPorts))
 	for _, item := range listPorts {
@@ -891,26 +876,15 @@ func resolveRequestedPort(manifest scenario.ServiceManifest, listPorts []scenari
 }
 
 func scenarioURLForPort(root, scenarioName, portName string) (string, string, int, error) {
-	item, runtimeState, listPorts, portsMap, err := loadScenarioPorts(root, scenarioName)
+	service, err := newScenarioService(root, io.Discard, io.Discard)
 	if err != nil {
 		return "", "", 0, err
 	}
-	if runtimeState.ProcessCount == 0 {
-		return "", "", 0, fmt.Errorf("scenario %q is not running", scenarioName)
+	resolved, err := service.ResolvePort(scenarioName, portName)
+	if err != nil {
+		return "", "", 0, err
 	}
-	key, portValue, _, ok := resolveRequestedPort(item.Manifest, listPorts, portsMap, portName)
-	if !ok && portName == "UI_PORT" {
-		key, portValue, _, ok = resolveRequestedPort(item.Manifest, listPorts, portsMap, "API_PORT")
-	}
-	if !ok && len(portsMap) == 1 {
-		for onlyKey, onlyPort := range portsMap {
-			key, portValue, ok = onlyKey, onlyPort, true
-		}
-	}
-	if !ok {
-		return "", "", 0, fmt.Errorf("no port %q found for scenario %q", portName, scenarioName)
-	}
-	return "http://localhost:" + strconv.Itoa(portValue), key, portValue, nil
+	return resolved.URL, resolved.Name, resolved.Port, nil
 }
 
 func envPortMap(manifest scenario.ServiceManifest, ports map[string]int) map[string]int {

@@ -184,6 +184,7 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
+        "startup_policy": "must_start",
         "description": "Primary relational data store for tasks, projects, and notes",
         "schema": "reference-react-vite",
         "initialization": [

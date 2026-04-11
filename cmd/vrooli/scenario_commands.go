@@ -10,6 +10,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -97,50 +98,11 @@ func runScenarioCommand(root string, globals globalOptions, args []string, stdou
 		return nil
 	}
 
-	switch args[0] {
-	case "list":
-		return runScenarioListCommand(root, globals, args[1:], stdout)
-	case "info":
-		return runScenarioInfoCommand(root, globals, args[1:], stdout)
-	case "status":
-		return runScenarioStatusCommand(root, globals, args[1:], stdout)
-	case "run":
-		return runScenarioRunCommand(root, globals, args[1:], stdout, stderr)
-	case "start":
-		return runScenarioStartCommand(root, globals, args[1:], stdout, stderr)
-	case "start-all":
-		return runScenarioStartAllCommand(root, globals, args[1:], stdout, stderr)
-	case "setup":
-		return runScenarioSetupCommand(root, globals, args[1:], stdout, stderr)
-	case "stop":
-		return runScenarioStopCommand(root, globals, args[1:], stdout, stderr)
-	case "stop-all":
-		return runScenarioStopAllCommand(root, globals, args[1:], stdout, stderr)
-	case "restart":
-		return runScenarioRestartCommand(root, globals, args[1:], stdout, stderr)
-	case "test":
-		return runScenarioTestCommand(root, globals, args[1:], stdout, stderr)
-	case "logs":
-		return runScenarioLogsCommand(root, globals, args[1:], stdout, stderr)
-	case "port":
-		return runScenarioPortCommand(root, globals, args[1:], stdout)
-	case "open":
-		return runScenarioOpenCommand(root, globals, args[1:], stdout, stderr)
-	case "requirements":
-		return runScenarioRequirementsCommand(root, globals, args[1:], stdout, stderr)
-	case "ui-smoke":
-		return runScenarioUISmokeCommand(root, globals, args[1:], stdout, stderr)
-	case "template":
-		return runScenarioTemplateCommand(root, globals, args[1:], stdout, stderr)
-	case "generate":
-		return runScenarioGenerateCommand(root, globals, args[1:], stdout, stderr)
-	case "completeness":
-		return runScenarioCompletenessCommand(root, globals, args[1:], stdout, stderr)
-	case "heal-from-sandbox":
-		return runScenarioHealFromSandboxCommand(root, globals, args[1:], stdout, stderr)
-	default:
-		return fmt.Errorf("unknown scenario command: %s", args[0])
+	handler, ok := scenarioCommands[args[0]]
+	if !ok {
+		return newUnknownScenarioCommandError(args[0])
 	}
+	return handler(root, globals, args[1:], stdout, stderr)
 }
 
 func runScenarioStartCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
@@ -172,14 +134,14 @@ func runScenarioStartCommand(root string, globals globalOptions, args []string, 
 		runnerOut = stderr
 	}
 
-	runner, err := newScenarioLifecycleRunner(root, runnerOut, stderr)
+	service, err := newScenarioService(root, runnerOut, stderr)
 	if err != nil {
 		return err
 	}
 
 	items := make([]scenarioLifecycleItemOutput, 0, len(names))
 	for _, name := range names {
-		result, err := runner.Start(name, opts)
+		result, err := service.StartDetailed(name, opts)
 		if err != nil {
 			return err
 		}
@@ -188,29 +150,20 @@ func runScenarioStartCommand(root string, globals globalOptions, args []string, 
 		if result.AlreadyRunning {
 			status = "already_running"
 		}
-		ports := make(map[string]int, len(result.AllocatedPorts))
-		for portName, port := range result.AllocatedPorts {
-			envVar := result.Scenario.Manifest.PortEnvVar(portName)
-			if envVar == "" {
-				envVar = strings.ToUpper(strings.ReplaceAll(portName, "-", "_")) + "_PORT"
-			}
-			ports[envVar] = port
-		}
-
 		items = append(items, scenarioLifecycleItemOutput{
 			Name:               result.Scenario.Slug,
 			Status:             status,
-			Health:             result.Health,
-			Ports:              ports,
+			Health:             result.Details.Health,
+			Ports:              envPortMap(result.Scenario.Manifest, result.AllocatedPorts),
 			FailedDependencies: append([]string(nil), result.FailedDependencies...),
 		})
 
 		if openAfter {
-			url, _, _, err := scenarioURLForPort(root, name, "UI_PORT")
+			resolved, err := service.ResolvePort(name, "UI_PORT")
 			if err != nil {
 				return err
 			}
-			if err := scenarioOpenURLFn(url); err != nil {
+			if err := scenarioOpenURLFn(resolved.URL); err != nil {
 				return err
 			}
 		}
@@ -302,38 +255,29 @@ func runScenarioRestartCommand(root string, globals globalOptions, args []string
 		runnerOut = stderr
 	}
 
-	runner, err := newScenarioLifecycleRunner(root, runnerOut, stderr)
+	service, err := newScenarioService(root, runnerOut, stderr)
 	if err != nil {
 		return err
 	}
-	result, err := runner.Restart(name, opts)
+	result, err := service.RestartDetailed(name, opts)
 	if err != nil {
 		return err
-	}
-
-	ports := make(map[string]int, len(result.AllocatedPorts))
-	for portName, port := range result.AllocatedPorts {
-		envVar := result.Scenario.Manifest.PortEnvVar(portName)
-		if envVar == "" {
-			envVar = strings.ToUpper(strings.ReplaceAll(portName, "-", "_")) + "_PORT"
-		}
-		ports[envVar] = port
 	}
 
 	item := scenarioLifecycleItemOutput{
 		Name:               result.Scenario.Slug,
 		Status:             "restarted",
-		Health:             result.Health,
-		Ports:              ports,
+		Health:             result.Details.Health,
+		Ports:              envPortMap(result.Scenario.Manifest, result.AllocatedPorts),
 		FailedDependencies: append([]string(nil), result.FailedDependencies...),
 	}
 
 	if openAfter {
-		url, _, _, err := scenarioURLForPort(root, name, "UI_PORT")
+		resolved, err := service.ResolvePort(name, "UI_PORT")
 		if err != nil {
 			return err
 		}
-		if err := scenarioOpenURLFn(url); err != nil {
+		if err := scenarioOpenURLFn(resolved.URL); err != nil {
 			return err
 		}
 	}
@@ -367,6 +311,14 @@ func newScenarioLifecycleRunner(root string, stdout, stderr io.Writer) (*lifecyc
 	return lifecycle.NewRunner(root, home, stdout, stderr)
 }
 
+func newScenarioService(root string, stdout, stderr io.Writer) (*orchestrator.Service, error) {
+	home, err := process.HomeDir()
+	if err != nil {
+		return nil, err
+	}
+	return orchestrator.New(root, home, stdout, stderr), nil
+}
+
 func runScenarioListCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
 	includePorts := false
 	jsonFlag := globals.json
@@ -389,33 +341,36 @@ func runScenarioListCommand(root string, globals globalOptions, args []string, s
 		return err
 	}
 
-	scenarios, runtimes, err := loadScenarioState(root)
+	service, err := newScenarioService(root, io.Discard, io.Discard)
+	if err != nil {
+		return err
+	}
+	inventory, err := service.Inventory()
 	if err != nil {
 		return err
 	}
 
-	items := make([]scenarioListItemOutput, 0, len(scenarios))
+	items := make([]scenarioListItemOutput, 0, len(inventory))
 	runningCount := 0
-	for _, item := range scenarios {
-		runtime, running := runtimes[item.Slug]
+	for _, item := range inventory {
 		status := "available"
-		if running {
-			status = "running"
+		if item.Details.Status == "running" {
+			status = item.Details.Status
 			runningCount++
 		}
 
 		listPorts := []scenarioListPortOutput{}
-		if includePorts && running {
-			listPorts, _ = buildListPorts(item.Manifest, runtime.Records)
+		if includePorts && item.Details.Status == "running" {
+			listPorts = runtimePortOutputs(item.Details.PortBindings)
 		}
 
 		items = append(items, scenarioListItemOutput{
-			Name:        item.Slug,
-			Description: item.Manifest.Service.Description,
-			Version:     item.Manifest.Service.Version,
+			Name:        item.Scenario.Slug,
+			Description: item.Scenario.Manifest.Service.Description,
+			Version:     item.Scenario.Manifest.Service.Version,
 			Status:      status,
-			Tags:        copyStrings(item.Manifest.Service.Tags),
-			Path:        item.Path + string(os.PathSeparator),
+			Tags:        copyStrings(item.Scenario.Manifest.Service.Tags),
+			Path:        item.Scenario.Path + string(os.PathSeparator),
 			Ports:       listPorts,
 		})
 	}
@@ -468,15 +423,19 @@ func runScenarioInfoCommand(root string, globals globalOptions, args []string, s
 		return err
 	}
 
-	scenarioItem, runtime, _, err := loadScenarioDetail(root, name)
+	service, err := newScenarioService(root, io.Discard, io.Discard)
+	if err != nil {
+		return err
+	}
+	detail, err := service.Detail(name)
 	if err != nil {
 		return err
 	}
 
 	output := scenarioInfoOutput{
 		Success:  true,
-		Scenario: buildScenarioInfoData(scenarioItem),
-		Runtime:  buildScenarioRuntimeData(scenarioItem.Manifest, runtime),
+		Scenario: buildScenarioInfoData(detail.Scenario),
+		Runtime:  buildScenarioRuntimeData(detail.Scenario.Manifest, detail.Runtime),
 	}
 
 	if format == cliout.FormatJSON {
@@ -506,16 +465,19 @@ func runScenarioStatusCommand(root string, globals globalOptions, args []string,
 	}
 
 	if name == "" {
-		scenarios, runtimes, err := loadScenarioState(root)
+		service, err := newScenarioService(root, io.Discard, io.Discard)
+		if err != nil {
+			return err
+		}
+		inventory, err := service.Inventory()
 		if err != nil {
 			return err
 		}
 
-		items := make([]scenarioStatusItemOutput, 0, len(scenarios))
+		items := make([]scenarioStatusItemOutput, 0, len(inventory))
 		runningCount := 0
-		for _, item := range scenarios {
-			runtime := runtimes[item.Slug]
-			statusItem := buildScenarioStatusItem(item, runtime)
+		for _, item := range inventory {
+			statusItem := buildScenarioStatusDetail(item)
 			if statusItem.Status == "running" {
 				runningCount++
 			}
@@ -538,16 +500,20 @@ func runScenarioStatusCommand(root string, globals globalOptions, args []string,
 		return nil
 	}
 
-	scenarioItem, runtime, health, err := loadScenarioDetail(root, name)
+	service, err := newScenarioService(root, io.Discard, io.Discard)
+	if err != nil {
+		return err
+	}
+	detail, err := service.Detail(name)
 	if err != nil {
 		return err
 	}
 
 	output := scenarioStatusSingleOutput{
 		Success:  true,
-		Scenario: buildScenarioStatusItemWithHealth(scenarioItem, runtime, health),
-		Info:     buildScenarioInfoData(scenarioItem),
-		Runtime:  buildScenarioRuntimeData(scenarioItem.Manifest, runtime),
+		Scenario: buildScenarioStatusDetail(detail),
+		Info:     buildScenarioInfoData(detail.Scenario),
+		Runtime:  buildScenarioRuntimeData(detail.Scenario.Manifest, detail.Runtime),
 	}
 
 	if format == cliout.FormatJSON {
@@ -559,90 +525,61 @@ func runScenarioStatusCommand(root string, globals globalOptions, args []string,
 }
 
 func loadScenarioState(root string) ([]scenario.Scenario, map[string]process.ScenarioRuntime, error) {
-	home, err := process.HomeDir()
+	service, err := newScenarioService(root, io.Discard, io.Discard)
+	if err != nil {
+		return nil, nil, err
+	}
+	inventory, err := service.Inventory()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	scenarios, err := scenario.Discover(root, scenario.SandboxEnvFromEnv())
-	if err != nil {
-		return nil, nil, err
+	items := make([]scenario.Scenario, 0, len(inventory))
+	runtimes := make(map[string]process.ScenarioRuntime, len(inventory))
+	for _, item := range inventory {
+		items = append(items, item.Scenario)
+		if item.Runtime.ProcessCount > 0 {
+			runtimes[item.Scenario.Slug] = item.Runtime
+		}
 	}
-
-	valid := make(map[string]struct{}, len(scenarios))
-	for _, item := range scenarios {
-		valid[item.Slug] = struct{}{}
-	}
-
-	running, err := process.DiscoverRunningScenarios(home, func(name string) bool {
-		_, ok := valid[name]
-		return ok
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	runtimes := make(map[string]process.ScenarioRuntime, len(running))
-	for _, runtime := range running {
-		runtimes[runtime.Name] = runtime
-	}
-
-	return scenarios, runtimes, nil
+	return items, runtimes, nil
 }
 
 func loadScenarioDetail(root, name string) (scenario.Scenario, process.ScenarioRuntime, string, error) {
-	item, err := scenario.Load(root, name, scenario.SandboxEnvFromEnv())
-	if err != nil {
-		if err == scenario.ErrNotFound {
-			return scenario.Scenario{}, process.ScenarioRuntime{}, "", fmt.Errorf("scenario %q not found", name)
-		}
-		return scenario.Scenario{}, process.ScenarioRuntime{}, "", err
-	}
-
-	home, err := process.HomeDir()
+	service, err := newScenarioService(root, io.Discard, io.Discard)
 	if err != nil {
 		return scenario.Scenario{}, process.ScenarioRuntime{}, "", err
 	}
-	records, err := process.ReadScenarioRecords(home, name)
+	detail, err := service.Detail(name)
 	if err != nil {
 		return scenario.Scenario{}, process.ScenarioRuntime{}, "", err
 	}
-	runtime := process.SummarizeScenario(name, records)
-
-	health := ""
-	if runtime.ProcessCount > 0 {
-		_, ports := buildListPorts(item.Manifest, runtime.Records)
-		health = scenario.EvaluateHealth(item.Manifest.HealthConfig(), ports)
-	}
-
-	return item, runtime, health, nil
+	return detail.Scenario, detail.Runtime, detail.Details.Health, nil
 }
 
 func buildScenarioStatusItem(item scenario.Scenario, runtime process.ScenarioRuntime) scenarioStatusItemOutput {
-	health := any(nil)
-	if runtime.ProcessCount > 0 {
-		_, ports := buildListPorts(item.Manifest, runtime.Records)
-		health = scenario.EvaluateHealth(item.Manifest.HealthConfig(), ports)
-	}
-	return buildScenarioStatusItemWithHealth(item, runtime, health)
+	return buildScenarioStatusDetail(orchestrator.Detail{
+		Scenario: item,
+		Runtime:  runtime,
+		Details:  scenario.DescribeRuntime(item.Manifest, runtime),
+	})
 }
 
-func buildScenarioStatusItemWithHealth(item scenario.Scenario, runtime process.ScenarioRuntime, health any) scenarioStatusItemOutput {
-	status := "stopped"
-	if runtime.ProcessCount > 0 {
-		status = "running"
+func buildScenarioStatusDetail(detail orchestrator.Detail) scenarioStatusItemOutput {
+	health := any(nil)
+	if detail.Details.Health != "" {
+		health = detail.Details.Health
 	}
-	_, ports := buildListPorts(item.Manifest, runtime.Records)
 	return scenarioStatusItemOutput{
-		Name:        item.Slug,
-		DisplayName: item.Manifest.Service.DisplayName,
-		Description: item.Manifest.Service.Description,
-		Tags:        copyStrings(item.Manifest.Service.Tags),
-		Status:      status,
-		Processes:   runtime.ProcessCount,
-		Runtime:     runtime.Runtime,
-		StartedAt:   runtime.StartedAt,
-		Ports:       ports,
+		Name:        detail.Scenario.Slug,
+		DisplayName: detail.Scenario.Manifest.Service.DisplayName,
+		Description: detail.Scenario.Manifest.Service.Description,
+		Tags:        copyStrings(detail.Scenario.Manifest.Service.Tags),
+		Status:      detail.Details.Status,
+		Processes:   detail.Details.Processes,
+		Runtime:     detail.Details.Runtime,
+		StartedAt:   detail.Details.StartedAt,
+		Ports:       copyIntMap(detail.Details.Ports),
 		Health:      health,
 	}
 }
@@ -667,101 +604,51 @@ func buildScenarioInfoData(item scenario.Scenario) scenarioInfoScenarioData {
 }
 
 func buildScenarioRuntimeData(manifest scenario.ServiceManifest, runtime process.ScenarioRuntime) scenarioInfoRuntimeData {
-	listPorts, ports := buildListPorts(manifest, runtime.Records)
-	status := "stopped"
-	if runtime.ProcessCount > 0 {
-		status = "running"
-	}
+	details := scenario.DescribeRuntime(manifest, runtime)
 	return scenarioInfoRuntimeData{
-		Status:      status,
-		Processes:   runtime.ProcessCount,
-		Runtime:     runtime.Runtime,
-		StartedAt:   runtime.StartedAt,
-		Ports:       ports,
-		ProcessInfo: copyProcessRecords(runtime.Records),
-		ListPorts:   listPorts,
+		Status:      details.Status,
+		Processes:   details.Processes,
+		Runtime:     details.Runtime,
+		StartedAt:   details.StartedAt,
+		Ports:       copyIntMap(details.Ports),
+		ProcessInfo: copyProcessRecords(details.ProcessInfo),
+		ListPorts:   runtimePortOutputs(details.PortBindings),
 	}
 }
 
-// buildListPorts prefers explicit process-record ports and only falls back to
-// live process environment inspection for manifest keys that were not captured
-// in the runtime JSON metadata.
-func buildListPorts(manifest scenario.ServiceManifest, records []process.Record) ([]scenarioListPortOutput, map[string]int) {
-	ports := make(map[string]int)
-	listPorts := make([]scenarioListPortOutput, 0, len(records))
-	seen := make(map[string]struct{})
-
-	for _, record := range records {
-		if record.Port <= 0 {
-			continue
-		}
-
-		key := inferPortEnvVar(manifest, record.Step)
-		if key == "" {
-			continue
-		}
-
-		// Keep the first explicit record for each port key so the detailed list
-		// and the summary port map report the same source-of-truth.
-		if _, exists := ports[key]; !exists {
-			ports[key] = record.Port
-		}
-		if _, exists := seen[key]; exists {
-			continue
-		}
-		seen[key] = struct{}{}
+func runtimePortOutputs(bindings []scenario.RuntimePortBinding) []scenarioListPortOutput {
+	listPorts := make([]scenarioListPortOutput, 0, len(bindings))
+	for _, binding := range bindings {
 		listPorts = append(listPorts, scenarioListPortOutput{
-			Key:  key,
-			Step: record.Step,
-			Port: record.Port,
+			Key:  binding.Key,
+			Step: binding.Step,
+			Port: binding.Port,
 		})
 	}
-
-	envPorts := process.ReadEnvironmentPorts(records, manifest.PortEnvVars())
-	for key, port := range envPorts {
-		if _, exists := ports[key]; !exists {
-			ports[key] = port
-		}
-	}
-
-	sort.Slice(listPorts, func(i, j int) bool {
-		if listPorts[i].Key == listPorts[j].Key {
-			return listPorts[i].Step < listPorts[j].Step
-		}
-		return listPorts[i].Key < listPorts[j].Key
-	})
-
-	return listPorts, ports
+	return listPorts
 }
 
-// inferPortEnvVar maps lifecycle step names like "start-api" or "launch-ui"
-// back to manifest port keys. The process metadata is historical and not fully
-// normalized, so the mapping intentionally uses a few lightweight heuristics.
+// buildListPorts remains as a thin adapter because the CLI tests and week-4
+// wrappers still assert the legacy output contract while the orchestration
+// logic now lives in internal/scenario and internal/orchestrator.
+func buildListPorts(manifest scenario.ServiceManifest, records []process.Record) ([]scenarioListPortOutput, map[string]int) {
+	bindings, ports := scenario.RuntimePortBindings(manifest, records)
+	return runtimePortOutputs(bindings), copyIntMap(ports)
+}
+
 func inferPortEnvVar(manifest scenario.ServiceManifest, step string) string {
-	step = strings.ToLower(strings.TrimSpace(step))
-	step = strings.TrimPrefix(step, "start-")
-	step = strings.TrimPrefix(step, "run-")
-	step = strings.TrimPrefix(step, "serve-")
-	step = strings.TrimPrefix(step, "launch-")
+	return scenario.InferPortEnvVar(manifest, step)
+}
 
-	if step != "" {
-		if envVar := manifest.PortEnvVar(step); envVar != "" {
-			return envVar
-		}
+func copyIntMap(src map[string]int) map[string]int {
+	if len(src) == 0 {
+		return map[string]int{}
 	}
-
-	for _, definition := range manifest.SortedPorts() {
-		name := strings.ToLower(definition.Name)
-		if step == name || strings.Contains(step, name) || strings.Contains(name, step) {
-			return definition.EnvVar
-		}
-		normalizedEnv := strings.TrimSuffix(strings.ToLower(definition.EnvVar), "_port")
-		if normalizedEnv != "" && (step == normalizedEnv || strings.Contains(step, normalizedEnv)) {
-			return definition.EnvVar
-		}
+	dst := make(map[string]int, len(src))
+	for key, value := range src {
+		dst[key] = value
 	}
-
-	return ""
+	return dst
 }
 
 func parseScenarioNameAndJSON(command string, defaultJSON bool, args []string) (string, bool, error) {
@@ -852,28 +739,7 @@ func showScenarioHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "Usage:")
 	_, _ = fmt.Fprintln(w, "  vrooli scenario <subcommand> [options]")
 	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Read-only commands:")
-	_, _ = fmt.Fprintln(w, "  list [--json] [--include-ports]   List discovered scenarios")
-	_, _ = fmt.Fprintln(w, "  info <name> [--json]              Show scenario metadata and runtime summary")
-	_, _ = fmt.Fprintln(w, "  status [name] [--json]            Show scenario runtime status")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Lifecycle and utility commands:")
-	_, _ = fmt.Fprintln(w, "  start <name> [options]            Start a scenario")
-	_, _ = fmt.Fprintln(w, "  start-all                         Start all available scenarios")
-	_, _ = fmt.Fprintln(w, "  setup <name>                      Run the setup lifecycle")
-	_, _ = fmt.Fprintln(w, "  restart <name> [options]          Restart a scenario")
-	_, _ = fmt.Fprintln(w, "  stop <name>                       Stop a running scenario")
-	_, _ = fmt.Fprintln(w, "  stop-all                          Stop all running scenarios")
-	_, _ = fmt.Fprintln(w, "  test <name> [phase|all|e2e]       Run scenario tests")
-	_, _ = fmt.Fprintln(w, "  logs <name> [options]             View logs for a scenario")
-	_, _ = fmt.Fprintln(w, "  open <name> [options]             Open scenario in the browser")
-	_, _ = fmt.Fprintln(w, "  port <name> [port]                Show running port assignments")
-	_, _ = fmt.Fprintln(w, "  ui-smoke <name> [--json]          Run the Browserless UI smoke harness")
-	_, _ = fmt.Fprintln(w, "  requirements <subcommand>         Manage scenario requirements")
-	_, _ = fmt.Fprintln(w, "  template [cmd]                    Manage scenario templates")
-	_, _ = fmt.Fprintln(w, "  generate <template>               Scaffold a scenario from a template")
-	_, _ = fmt.Fprintln(w, "  completeness <name>               Calculate completeness score")
-	_, _ = fmt.Fprintln(w, "  heal-from-sandbox                 Relaunch sandbox-rooted scenario processes")
+	renderCommandGroups(w, groupedScenarioCommands())
 }
 
 func writeScenarioInfoHuman(w io.Writer, info scenarioInfoScenarioData, runtime scenarioInfoRuntimeData) {

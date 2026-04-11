@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 type Runner struct {
@@ -695,10 +696,11 @@ func runExternalSetupChecker(root, appRoot string, check scenario.ConditionCheck
 		return false, err
 	}
 
-	cmd := exec.Command("bash", checker, string(payload))
-	cmd.Env = mergeEnv(os.Environ(), map[string]string{
-		"APP_ROOT":    appRoot,
-		"VROOLI_ROOT": root,
+	cmd := shell.BashScript(checker, []string{string(payload)}, shell.Spec{
+		Env: mergeEnv(os.Environ(), map[string]string{
+			"APP_ROOT":    appRoot,
+			"VROOLI_ROOT": root,
+		}),
 	})
 	if err := cmd.Run(); err != nil {
 		var exitErr *exec.ExitError
@@ -881,34 +883,8 @@ func setEnvValue(env []string, key, value string) []string {
 	return append(env, prefix+value)
 }
 
-func inferPortEnvVar(manifest scenario.ServiceManifest, step string) string {
-	step = strings.ToLower(strings.TrimSpace(step))
-	for _, prefix := range []string{"start-", "run-", "serve-", "launch-"} {
-		step = strings.TrimPrefix(step, prefix)
-	}
-
-	if step != "" {
-		if envVar := manifest.PortEnvVar(step); envVar != "" {
-			return envVar
-		}
-	}
-
-	for _, definition := range manifest.SortedPorts() {
-		name := strings.ToLower(definition.Name)
-		if step == name || strings.Contains(step, name) || strings.Contains(name, step) {
-			return definition.EnvVar
-		}
-		normalizedEnv := strings.TrimSuffix(strings.ToLower(definition.EnvVar), "_port")
-		if normalizedEnv != "" && (step == normalizedEnv || strings.Contains(step, normalizedEnv)) {
-			return definition.EnvVar
-		}
-	}
-
-	return ""
-}
-
 func inferStepPort(manifest scenario.ServiceManifest, step string, env map[string]string) int {
-	key := inferPortEnvVar(manifest, step)
+	key := scenario.InferPortEnvVar(manifest, step)
 	if key == "" {
 		return 0
 	}

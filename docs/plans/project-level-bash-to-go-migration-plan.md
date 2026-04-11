@@ -1,6 +1,6 @@
 # Project-Level Bash → Go Migration Plan
 
-**Status:** Week 5 partially implemented and validated; native `vrooli setup`/`develop` now run through Go, while `scripts/manage.sh` deletion and the broader Linux-specific runtime/setup port remain pending
+**Status:** Weeks 0 through 5 are implemented and validated in the default Go path, and part of the original Week 6 surface is already native (`status`, `doctor`, `info`, `clean`, and `stop`). Remaining work is concentrated in legacy Bash cleanup (`scripts/manage.sh`, `cli/`, `scripts/lib/`), the `VROOLI_FORCE_BASH` escape hatch, and the still-unported secrets/network/backup-restore long tail.
 **Owner:** Matthew Halloran
 **Scope:** Project-level orchestration only. Scenarios are explicitly out of scope.
 **Target:** Zero project-level bash in ~6 weeks, on a path to cross-platform support.
@@ -522,6 +522,7 @@ Validation note: As of 2026-04-10, the acceptance targets `make validate-week5`,
 - [ ] `internal/secrets` package
 - [ ] `internal/network` package
 - [ ] `vrooli status`, `doctor`, `info`, `clean`, `stop`, `backup`, `restore`, `orphans`, `locks` migrated
+  Partial progress: `status`, `doctor`, `info`, `clean`, and `stop` are native Go already. `backup`, `restore`, and the full retirement of the `vrooli-autoheal`/legacy cleanup path behind `orphans`, `locks`, and `diagnose-port` are still pending.
 - [ ] `scripts/lib/` deleted
 - [ ] `cli/` deleted
 - [ ] `VROOLI_FORCE_BASH` escape hatch removed

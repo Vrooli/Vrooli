@@ -57,7 +57,7 @@ func (r *Runner) isScenarioHealthyStrict(item scenario.Scenario, records []proce
 		return true
 	}
 	for _, check := range health.Checks {
-		if err := scenario.PerformHealthCheck(check, r.runtimePorts(item.Manifest, records)); err != nil {
+		if err := scenario.PerformHealthCheck(check, scenario.RuntimePorts(item.Manifest, records)); err != nil {
 			return false
 		}
 	}
@@ -65,27 +65,5 @@ func (r *Runner) isScenarioHealthyStrict(item scenario.Scenario, records []proce
 }
 
 func (r *Runner) runtimePorts(manifest scenario.ServiceManifest, records []process.Record) map[string]int {
-	portsByEnv := make(map[string]int)
-	// Prefer the explicit step->port metadata captured in process records, then
-	// fall back to reading *_PORT values from the live process environment.
-	for _, record := range records {
-		if record.Port <= 0 {
-			continue
-		}
-		key := inferPortEnvVar(manifest, record.Step)
-		if key == "" {
-			continue
-		}
-		if _, exists := portsByEnv[key]; !exists {
-			portsByEnv[key] = record.Port
-		}
-	}
-
-	envPorts := process.ReadEnvironmentPorts(records, manifest.PortEnvVars())
-	for key, port := range envPorts {
-		if _, exists := portsByEnv[key]; !exists {
-			portsByEnv[key] = port
-		}
-	}
-	return portsByEnv
+	return scenario.RuntimePorts(manifest, records)
 }

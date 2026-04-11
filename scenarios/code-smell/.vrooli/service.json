@@ -199,58 +199,64 @@
   },
   "dependencies": {
     "resources": {
-      "required": [
-        {
-          "name": "postgres",
-          "purpose": "Store rules, violations, history, and learned patterns",
-          "config": {
-            "database": "code_smell",
-            "schema": "public"
-          },
-          "initialization": [
-            {
-              "file": "initialization/storage/postgres/migrations/",
-              "type": "schema"
-            },
-            {
-              "file": "initialization/storage/postgres/seed.sql",
-              "type": "data"
-            }
-          ]
+      "postgres": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "purpose": "Store rules, violations, history, and learned patterns",
+        "config": {
+          "database": "code_smell",
+          "schema": "public"
         },
-        {
-          "name": "resource-claude-code",
-          "purpose": "AI-powered pattern detection beyond regex capabilities",
-          "config": {
-            "model": "claude-3-opus",
-            "max_tokens": 4000
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/migrations/",
+            "type": "schema"
           },
-          "initialization": [
-            {
-              "file": "initialization/rules/",
-              "type": "config",
-              "hot_reload": true,
-              "watch_interval": 1000,
-              "default_files": [
-                "default.yaml",
-                "vrooli-specific.yaml"
-              ]
-            }
-          ]
-        }
-      ],
-      "optional": [
-        {
-          "name": "redis",
-          "purpose": "Cache analysis results for performance",
-          "fallback": "In-memory cache with 15-minute TTL"
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "claude-code": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "purpose": "AI-powered pattern detection beyond regex capabilities",
+        "config": {
+          "model": "claude-3-opus",
+          "max_tokens": 4000
         },
-        {
-          "name": "visited-tracker",
-          "purpose": "Skip analysis of unchanged files",
-          "fallback": "Timestamp-based change detection"
-        }
-      ]
+        "initialization": [
+          {
+            "file": "initialization/rules/",
+            "type": "config",
+            "hot_reload": true,
+            "watch_interval": 1000,
+            "default_files": [
+              "default.yaml",
+              "vrooli-specific.yaml"
+            ]
+          }
+        ]
+      },
+      "redis": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Cache analysis results for performance",
+        "degraded_behavior": "Falls back to in-memory cache with a 15-minute TTL"
+      }
+    },
+    "scenarios": {
+      "visited-tracker": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Skip analysis of unchanged files",
+        "degraded_behavior": "Falls back to timestamp-based change detection"
+      }
     }
   }
 }

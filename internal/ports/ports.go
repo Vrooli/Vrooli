@@ -552,7 +552,9 @@ func (m *Manager) ensurePortClaimed(port int, scenarioName string, records []pro
 	}
 
 	if pid := runtimeOwnerPID(records, port); pid > 0 {
-		_ = m.WriteLock(port, scenarioName, pid)
+		if err := m.WriteLock(port, scenarioName, pid); err != nil {
+			return 0, fmt.Errorf("repair lock for port %d: %w", port, err)
+		}
 		return pid, nil
 	}
 

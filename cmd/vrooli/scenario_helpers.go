@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 type scenarioSubprocessSpec struct {
@@ -30,21 +30,15 @@ var (
 )
 
 func runScenarioSubprocess(spec scenarioSubprocessSpec) error {
-	cmd := exec.Command(spec.name, spec.args...)
-	cmd.Dir = spec.dir
-	cmd.Env = spec.env
-	cmd.Stdin = spec.stdin
-	cmd.Stdout = spec.stdout
-	cmd.Stderr = spec.stderr
-	if cmd.Stdin == nil {
-		cmd.Stdin = os.Stdin
-	}
-	if cmd.Stdout == nil {
-		cmd.Stdout = os.Stdout
-	}
-	if cmd.Stderr == nil {
-		cmd.Stderr = os.Stderr
-	}
+	cmd := shell.CommandWithDefaults(shell.Spec{
+		Name:   spec.name,
+		Args:   spec.args,
+		Dir:    spec.dir,
+		Env:    spec.env,
+		Stdin:  spec.stdin,
+		Stdout: spec.stdout,
+		Stderr: spec.stderr,
+	})
 	return cmd.Run()
 }
 
@@ -142,18 +136,21 @@ func launchDetachedScenario(root string, globals globalOptions, args ...string) 
 	}
 	defer devNull.Close()
 
-	cmd := exec.Command(executable, commandArgs...)
-	cmd.Dir = root
-	cmd.Env = unsetEnvKeys(commandEnv(root, globals),
-		forceBashEnvVar,
-		"VROOLI_SANDBOX_ID",
-		"VROOLI_SANDBOX_MERGED",
-		"VROOLI_SANDBOX_SCOPE",
-		"SANDBOX_MERGED_DIR",
-	)
-	cmd.Stdin = devNull
-	cmd.Stdout = devNull
-	cmd.Stderr = devNull
+	cmd := shell.Command(shell.Spec{
+		Name: executable,
+		Args: commandArgs,
+		Dir:  root,
+		Env: unsetEnvKeys(commandEnv(root, globals),
+			forceBashEnvVar,
+			"VROOLI_SANDBOX_ID",
+			"VROOLI_SANDBOX_MERGED",
+			"VROOLI_SANDBOX_SCOPE",
+			"SANDBOX_MERGED_DIR",
+		),
+		Stdin:  devNull,
+		Stdout: devNull,
+		Stderr: devNull,
+	})
 	cmd.SysProcAttr = detachedProcessAttr()
 	return cmd.Start()
 }
