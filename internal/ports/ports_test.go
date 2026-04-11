@@ -1,10 +1,12 @@
 package ports
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -156,6 +158,230 @@ func TestCleanStaleLocksRemovesDeadOwners(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(home, ".vrooli", "state", "scenarios", ".port_21234.lock")); !os.IsNotExist(err) {
 		t.Fatalf("expected stale lock removal, stat err=%v", err)
+	}
+}
+
+func TestRemoveScenarioLocksOnlyRemovesMatchingScenario(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	if err := manager.WriteLock(21234, "alpha", os.Getpid()); err != nil {
+		t.Fatalf("WriteLock(alpha): %v", err)
+	}
+	if err := manager.WriteLock(21235, "beta", os.Getpid()); err != nil {
+		t.Fatalf("WriteLock(beta): %v", err)
+	}
+	stateFile := filepath.Join(home, ".vrooli", "state", "scenarios", "alpha.json")
+	if err := os.WriteFile(stateFile, []byte("{}\n"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", stateFile, err)
+	}
+
+	locks, err := manager.LocksForScenario("alpha")
+	if err != nil {
+		t.Fatalf("LocksForScenario(alpha): %v", err)
+	}
+	if len(locks) != 1 || locks[0].Port != 21234 {
+		t.Fatalf("alpha locks = %#v", locks)
+	}
+
+	if err := manager.RemoveScenarioLocks("alpha"); err != nil {
+		t.Fatalf("RemoveScenarioLocks(alpha): %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(home, ".vrooli", "state", "scenarios", ".port_21234.lock")); !os.IsNotExist(err) {
+		t.Fatalf("expected alpha lock removal, stat err=%v", err)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".vrooli", "state", "scenarios", ".port_21235.lock")); err != nil {
+		t.Fatalf("expected beta lock to remain: %v", err)
+	}
+	if _, err := os.Stat(stateFile); !os.IsNotExist(err) {
+		t.Fatalf("expected scenario state file removal, stat err=%v", err)
+	}
+}
+
+func TestEnsurePortClaimedRejectsRecentForeignStaleLock(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	now := time.Unix(1_700_000_000, 0).UTC()
+	manager.Now = func() time.Time { return now }
+
+	if err := manager.WriteLock(21234, "beta", 999999); err != nil {
+		t.Fatalf("WriteLock(beta): %v", err)
+	}
+
+	if _, err := manager.ensurePortClaimed(21234, "alpha", nil); err == nil {
+		t.Fatalf("expected recent foreign stale lock to block port claim")
+	} else if !strings.Contains(err.Error(), "recent stale lock held by scenario") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestBuildEnvironmentFallsBackToLegacyDefaultsExports(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, `declare -g -A RESOURCE_PORTS=(["postgres"]="5433")`)
+
+	defaultsPath := filepath.Join(root, "resources", "postgres", "config", "defaults.sh")
+	if err := os.MkdirAll(filepath.Dir(defaultsPath), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(defaultsPath), err)
+	}
+	if err := os.WriteFile(defaultsPath, []byte("#!/usr/bin/env bash\nexport POSTGRES_USER=legacy\nexport POSTGRES_PASSWORD=secret\n"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", defaultsPath, err)
+	}
+
+	item := scenario.Scenario{
+		Slug: "alpha",
+		Path: filepath.Join(root, "scenarios", "alpha"),
+		Manifest: scenario.ServiceManifest{
+			Dependencies: scenario.Dependencies{
+				Resources: map[string]scenario.Dependency{
+					"postgres": {Enabled: true},
+				},
+			},
+		},
+	}
+	if err := os.MkdirAll(item.Path, 0o755); err != nil {
+		t.Fatalf("mkdir scenario path: %v", err)
+	}
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	env, err := manager.BuildEnvironment(item, nil)
+	if err != nil {
+		t.Fatalf("BuildEnvironment: %v", err)
+	}
+
+	if env.EnvVars["POSTGRES_USER"] != "legacy" {
+		t.Fatalf("POSTGRES_USER = %q, want legacy", env.EnvVars["POSTGRES_USER"])
+	}
+	if env.EnvVars["POSTGRES_PASSWORD"] != "secret" {
+		t.Fatalf("POSTGRES_PASSWORD = %q, want secret", env.EnvVars["POSTGRES_PASSWORD"])
+	}
+}
+
+func TestClaimLockAllowsSameScenarioAndRejectsForeignOwner(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+
+	if err := manager.claimLock(21234, "alpha", 111); err != nil {
+		t.Fatalf("claimLock(alpha first): %v", err)
+	}
+	if err := manager.claimLock(21234, "alpha", 222); err != nil {
+		t.Fatalf("claimLock(alpha rewrite): %v", err)
+	}
+
+	lock, exists, err := manager.ReadLock(21234)
+	if err != nil {
+		t.Fatalf("ReadLock: %v", err)
+	}
+	if !exists || lock.Scenario != "alpha" || lock.PID != 222 {
+		t.Fatalf("lock = %#v", lock)
+	}
+
+	if err := manager.claimLock(21234, "beta", 333); err == nil {
+		t.Fatalf("expected foreign scenario to be rejected")
+	} else if !strings.Contains(err.Error(), `locked by scenario "alpha"`) {
+		t.Fatalf("unexpected foreign lock error: %v", err)
+	}
+
+	emptyLock := filepath.Join(home, ".vrooli", "state", "scenarios", ".port_21235.lock")
+	if err := os.WriteFile(emptyLock, []byte("\n"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", emptyLock, err)
+	}
+	if err := manager.claimLock(21235, "alpha", 444); err != nil {
+		t.Fatalf("claimLock(empty existing file): %v", err)
+	}
+}
+
+func TestEnsurePortClaimedPrefersRuntimeOwnerAndRejectsReservedPorts(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, `declare -g -A RESOURCE_PORTS=(["postgres"]="5433")`)
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+
+	pid, err := manager.ensurePortClaimed(21236, "alpha", []process.Record{{
+		PID:  os.Getpid(),
+		Port: 21236,
+	}})
+	if err != nil {
+		t.Fatalf("ensurePortClaimed(runtime owner): %v", err)
+	}
+	if pid != os.Getpid() {
+		t.Fatalf("pid = %d, want %d", pid, os.Getpid())
+	}
+
+	lock, exists, err := manager.ReadLock(21236)
+	if err != nil {
+		t.Fatalf("ReadLock: %v", err)
+	}
+	if !exists || lock.Scenario != "alpha" {
+		t.Fatalf("lock = %#v", lock)
+	}
+
+	if _, err := manager.ensurePortClaimed(5433, "alpha", nil); err == nil {
+		t.Fatalf("expected reserved resource port to fail")
+	} else if !strings.Contains(err.Error(), "reserved for resource") {
+		t.Fatalf("unexpected reserved-port error: %v", err)
+	}
+}
+
+func TestParseRangeAndIsTCPPortInUse(t *testing.T) {
+	start, end, err := parseRange("21000-21010")
+	if err != nil {
+		t.Fatalf("parseRange valid: %v", err)
+	}
+	if start != 21000 || end != 21010 {
+		t.Fatalf("range = %d-%d", start, end)
+	}
+
+	if _, _, err := parseRange("invalid"); err == nil {
+		t.Fatalf("expected invalid range to fail")
+	}
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen: %v", err)
+	}
+
+	port := listener.Addr().(*net.TCPAddr).Port
+	inUse, err := isTCPPortInUse(port)
+	if err != nil {
+		t.Fatalf("isTCPPortInUse(occupied): %v", err)
+	}
+	if !inUse {
+		t.Fatalf("expected live listener to mark port in use")
+	}
+
+	_ = listener.Close()
+	inUse, err = isTCPPortInUse(port)
+	if err != nil {
+		t.Fatalf("isTCPPortInUse(released): %v", err)
+	}
+	if inUse {
+		t.Fatalf("expected released listener to free port")
 	}
 }
 

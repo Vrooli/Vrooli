@@ -288,6 +288,71 @@ func TestSummarizeScenarioWithoutTimestampsKeepsRuntimeUnknown(t *testing.T) {
 	}
 }
 
+func TestWriteAndRemoveScenarioRecordMaintainsProcessMetadataContract(t *testing.T) {
+	home := t.TempDir()
+	record := Record{
+		PID:       os.Getpid(),
+		Phase:     "develop",
+		Command:   "sleep 10",
+		LogFile:   "/tmp/alpha.log",
+		StartedAt: time.Now().UTC().Truncate(time.Second),
+	}
+
+	if err := WriteScenarioRecord(home, "alpha", "start-api", record); err != nil {
+		t.Fatalf("WriteScenarioRecord: %v", err)
+	}
+
+	processDir := ScenarioProcessDir(home, "alpha")
+	if processDir != filepath.Join(home, ".vrooli", "processes", "scenarios", "alpha") {
+		t.Fatalf("ScenarioProcessDir = %q", processDir)
+	}
+	if ScenarioLogsDir(home, "alpha") != filepath.Join(home, ".vrooli", "logs", "scenarios", "alpha") {
+		t.Fatalf("ScenarioLogsDir mismatch")
+	}
+	if ScenarioLifecycleLogPath(home, "alpha") != filepath.Join(home, ".vrooli", "logs", "alpha.log") {
+		t.Fatalf("ScenarioLifecycleLogPath mismatch")
+	}
+	if ScenarioStateDir(home) != filepath.Join(home, ".vrooli", "state", "scenarios") {
+		t.Fatalf("ScenarioStateDir mismatch")
+	}
+	if ScenarioDegradedPath(home, "alpha") != filepath.Join(home, ".vrooli", "processes", "scenarios", "alpha", "degraded.json") {
+		t.Fatalf("ScenarioDegradedPath mismatch")
+	}
+
+	recordPath := filepath.Join(processDir, "start-api.json")
+	pidPath := filepath.Join(processDir, "start-api.pid")
+	if _, err := os.Stat(recordPath); err != nil {
+		t.Fatalf("expected record file: %v", err)
+	}
+	if _, err := os.Stat(pidPath); err != nil {
+		t.Fatalf("expected pid file: %v", err)
+	}
+
+	records, err := ReadScenarioRecords(home, "alpha")
+	if err != nil {
+		t.Fatalf("ReadScenarioRecords: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("record count = %d, want 1", len(records))
+	}
+	if records[0].Step != "start-api" || records[0].Scenario != "alpha" {
+		t.Fatalf("record metadata = %#v", records[0])
+	}
+
+	if err := RemoveScenarioRecord(home, "alpha", "start-api"); err != nil {
+		t.Fatalf("RemoveScenarioRecord: %v", err)
+	}
+	if err := RemoveScenarioRecord(home, "alpha", "start-api"); err != nil {
+		t.Fatalf("RemoveScenarioRecord should be idempotent: %v", err)
+	}
+	if _, err := os.Stat(recordPath); !os.IsNotExist(err) {
+		t.Fatalf("expected record file removal, stat err=%v", err)
+	}
+	if _, err := os.Stat(pidPath); !os.IsNotExist(err) {
+		t.Fatalf("expected pid file removal, stat err=%v", err)
+	}
+}
+
 func writeProcessRecord(t *testing.T, home, scenarioName, step string, pid, port int, startedAt time.Time) {
 	t.Helper()
 	path := filepath.Join(home, ".vrooli", "processes", "scenarios", scenarioName, step+".json")

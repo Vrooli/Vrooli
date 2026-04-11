@@ -1085,6 +1085,79 @@ func TestParseOptionalScenarioNameAndJSONValidation(t *testing.T) {
 	}
 }
 
+func TestParseScenarioStartArgsAndSingleStartValidation(t *testing.T) {
+	names, opts, jsonFlag, openAfter, err := parseScenarioStartArgs(false, []string{
+		"alpha", "beta", "--json", "--open", "--best-effort", "--clean-stale", "--path", "/tmp/custom",
+	})
+	if err != nil {
+		t.Fatalf("parseScenarioStartArgs: %v", err)
+	}
+	if got := strings.Join(names, ","); got != "alpha,beta" {
+		t.Fatalf("names = %q", got)
+	}
+	if !jsonFlag || !openAfter || !opts.BestEffort || !opts.CleanStale || opts.CustomPath != "/tmp/custom" {
+		t.Fatalf("opts/json/open = %+v/%v/%v", opts, jsonFlag, openAfter)
+	}
+
+	if _, _, _, _, err := parseScenarioStartArgs(false, []string{"--path"}); err == nil {
+		t.Fatalf("expected missing --path value to fail")
+	}
+	if _, _, _, _, err := parseScenarioStartArgs(false, []string{"--bogus"}); err == nil {
+		t.Fatalf("expected unknown option to fail")
+	}
+	if _, _, _, _, err := parseScenarioSingleStartArgs("restart", false, nil); err == nil {
+		t.Fatalf("expected missing restart target to fail")
+	}
+	if _, _, _, _, err := parseScenarioSingleStartArgs("restart", false, []string{"alpha", "beta"}); err == nil {
+		t.Fatalf("expected duplicate restart targets to fail")
+	}
+}
+
+func TestRunScenarioStartOpenUsesBashOnlyForOpen(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("lifecycle process management currently targets linux")
+	}
+
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleScenarioService(t, root, "alpha")
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+
+	var captured []commandSpec
+	execCommandFn = func(spec commandSpec) error {
+		captured = append(captured, spec)
+		return nil
+	}
+
+	t.Cleanup(func() {
+		var stdout bytes.Buffer
+		_ = run([]string{"scenario", "stop", "alpha"}, &stdout, &bytes.Buffer{})
+	})
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := run([]string{"scenario", "start", "alpha", "--open"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("start --open exit code = %d, stdout=%s stderr=%s", code, stdout.String(), stderr.String())
+	}
+	if len(captured) != 1 {
+		t.Fatalf("captured bash commands = %#v, want exactly one open command", captured)
+	}
+	if captured[0].name != "bash" {
+		t.Fatalf("command name = %q", captured[0].name)
+	}
+	wantArgs := []string{filepath.Join(root, "cli", "commands", "scenario", "scenario-commands.sh"), "open", "alpha"}
+	if strings.Join(captured[0].args, "|") != strings.Join(wantArgs, "|") {
+		t.Fatalf("command args = %v, want %v", captured[0].args, wantArgs)
+	}
+}
+
 func TestRunCleanupCommandRoutesTargets(t *testing.T) {
 	restore := overrideCLIHooks(t)
 	defer restore()

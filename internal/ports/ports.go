@@ -395,6 +395,8 @@ func (m *Manager) ensurePortClaimed(port int, scenarioName string, records []pro
 			_ = m.RemoveLock(port)
 		case lock.PID > 0 && process.IsPIDRunning(lock.PID):
 			return 0, fmt.Errorf("locked by scenario %q", lock.Scenario)
+		// Keep a short hold window for dead foreign owners so parallel restarts do not
+		// immediately race each other into reclaiming the same port.
 		case !lock.Timestamp.IsZero() && m.Now().UTC().Sub(lock.Timestamp) < staleLockWindow:
 			return 0, fmt.Errorf("recent stale lock held by scenario %q", lock.Scenario)
 		default:

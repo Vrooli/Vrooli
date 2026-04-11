@@ -183,6 +183,8 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 	for _, dependencyName := range names {
 		dependency := item.Manifest.Dependencies.Scenarios[dependencyName]
 		required := dependency.Required
+		// Legacy array-based manifests did not serialize explicit type/required fields
+		// for scenario dependencies; preserve the historical "required by default" behavior.
 		if !required && dependency.Type == "" {
 			required = true
 		}
@@ -439,10 +441,7 @@ func (r *Runner) WaitForHealth(item scenario.Scenario, env map[string]string) (s
 
 	deadline := time.Now().Add(30 * time.Second)
 	if health.Timeout > 0 {
-		timeoutDeadline := time.Now().Add(time.Duration(health.Timeout) * time.Millisecond)
-		if timeoutDeadline.After(deadline) {
-			deadline = timeoutDeadline
-		}
+		deadline = time.Now().Add(time.Duration(health.Timeout) * time.Millisecond)
 	}
 
 	interval := 500 * time.Millisecond
@@ -487,6 +486,8 @@ func (r *Runner) isScenarioHealthyStrict(item scenario.Scenario, records []proce
 
 func (r *Runner) runtimePorts(manifest scenario.ServiceManifest, records []process.Record) map[string]int {
 	portsByEnv := make(map[string]int)
+	// Prefer the explicit step->port metadata captured in process records, then
+	// fall back to reading *_PORT values from the live process environment.
 	for _, record := range records {
 		if record.Port <= 0 {
 			continue
@@ -1140,12 +1141,31 @@ func localReplacePaths(goModPath string) ([]string, error) {
 	}
 	lines := strings.Split(string(data), "\n")
 	paths := []string{}
+	inBlock := false
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "replace ") || !strings.Contains(line, "=>") {
+		switch line {
+		case "", ")":
+			if line == ")" {
+				inBlock = false
+			}
+			continue
+		case "replace (":
+			inBlock = true
 			continue
 		}
-		fields := strings.Fields(line)
+
+		candidate := line
+		if strings.HasPrefix(line, "replace ") {
+			candidate = strings.TrimSpace(strings.TrimPrefix(line, "replace "))
+		} else if !inBlock {
+			continue
+		}
+		if !strings.Contains(candidate, "=>") {
+			continue
+		}
+
+		fields := strings.Fields(candidate)
 		if len(fields) == 0 {
 			continue
 		}

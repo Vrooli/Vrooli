@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-10
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=4 | LAST: 2026-04-10
 
 func TestComputeSourceFingerprintDetectsChanges(t *testing.T) {
 	root := t.TempDir()
