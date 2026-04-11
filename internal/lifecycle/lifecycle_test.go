@@ -182,6 +182,9 @@ func TestEnsureScenarioDatabaseUsesPostgresResourceLibs(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "scripts", "resources", "port_registry.sh"), []byte("#!/usr/bin/env bash\ndeclare -g -A RESOURCE_PORTS=()\n"), 0o644); err != nil {
 		t.Fatalf("write port_registry.sh: %v", err)
 	}
+	if err := os.WriteFile(filepath.Join(root, "scripts", "resources", "port_registry.json"), []byte("{\n  \"resource_ports\": {},\n  \"reserved_ranges\": {}\n}\n"), 0o644); err != nil {
+		t.Fatalf("write port_registry.json: %v", err)
+	}
 
 	if err := os.MkdirAll(filepath.Join(root, "resources", "postgres", "config"), 0o755); err != nil {
 		t.Fatalf("mkdir postgres config: %v", err)
@@ -1261,5 +1264,9 @@ func writeLifecyclePortRegistry(t *testing.T, root string) {
 	}
 	if err := os.WriteFile(portRegistry, []byte("#!/usr/bin/env bash\ndeclare -g -A RESOURCE_PORTS=()\n"), 0o644); err != nil {
 		t.Fatalf("write %s: %v", portRegistry, err)
+	}
+	portRegistryJSON := filepath.Join(root, "scripts", "resources", "port_registry.json")
+	if err := os.WriteFile(portRegistryJSON, []byte("{\n  \"resource_ports\": {},\n  \"reserved_ranges\": {}\n}\n"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", portRegistryJSON, err)
 	}
 }

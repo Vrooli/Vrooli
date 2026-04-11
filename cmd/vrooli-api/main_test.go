@@ -16,14 +16,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/control"
 )
 
-func stubStartAllScenarios(t *testing.T, result map[string]interface{}, err error) {
+func stubStartAllScenarios(t *testing.T, result control.StartReport, err error) {
 	t.Helper()
 	original := startAllScenariosFn
-	startAllScenariosFn = func() (map[string]interface{}, error) {
+	startAllScenariosFn = func() (control.StartReport, error) {
 		return result, err
 	}
 	t.Cleanup(func() {
@@ -31,10 +32,10 @@ func stubStartAllScenarios(t *testing.T, result map[string]interface{}, err erro
 	})
 }
 
-func stubStopAllScenarios(t *testing.T, result map[string]interface{}, err error) {
+func stubStopAllScenarios(t *testing.T, result control.StopReport, err error) {
 	t.Helper()
 	original := stopAllScenariosFn
-	stopAllScenariosFn = func() (map[string]interface{}, error) {
+	stopAllScenariosFn = func() (control.StopReport, error) {
 		return result, err
 	}
 	t.Cleanup(func() {
@@ -415,10 +416,10 @@ func TestStopAllScenariosEndpoint(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Success", func(t *testing.T) {
-		stubStopAllScenarios(t, map[string]interface{}{
-			"stopped": []map[string]string{},
-			"failed":  []map[string]string{},
-			"message": "Stopped 0 scenarios, 0 failed",
+		stubStopAllScenarios(t, control.StopReport{
+			Stopped: []control.ResultItem{},
+			Failed:  []control.ResultItem{},
+			Message: "Stopped 0 scenarios, 0 failed",
 		}, nil)
 
 		w := testHandlerWithRequest(t, stopAllScenariosEndpoint, HTTPTestRequest{
@@ -440,10 +441,10 @@ func TestStopAllApps(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Success", func(t *testing.T) {
-		stubStopAllScenarios(t, map[string]interface{}{
-			"stopped": []map[string]string{},
-			"failed":  []map[string]string{},
-			"message": "Stopped 0 scenarios, 0 failed",
+		stubStopAllScenarios(t, control.StopReport{
+			Stopped: []control.ResultItem{},
+			Failed:  []control.ResultItem{},
+			Message: "Stopped 0 scenarios, 0 failed",
 		}, nil)
 
 		w := testHandlerWithRequest(t, stopAllApps, HTTPTestRequest{
@@ -465,10 +466,10 @@ func TestStartAllApps(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Success", func(t *testing.T) {
-		stubStartAllScenarios(t, map[string]interface{}{
-			"started": []map[string]string{},
-			"failed":  []map[string]string{},
-			"message": "Started 0 scenarios, 0 failed",
+		stubStartAllScenarios(t, control.StartReport{
+			Started: []control.ResultItem{},
+			Failed:  []control.ResultItem{},
+			Message: "Started 0 scenarios, 0 failed",
 		}, nil)
 
 		w := testHandlerWithRequest(t, startAllApps, HTTPTestRequest{
@@ -489,10 +490,10 @@ func TestStartAllScenariosEndpoint(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Success", func(t *testing.T) {
-		stubStartAllScenarios(t, map[string]interface{}{
-			"started": []map[string]string{},
-			"failed":  []map[string]string{},
-			"message": "Started 0 scenarios, 0 failed",
+		stubStartAllScenarios(t, control.StartReport{
+			Started: []control.ResultItem{},
+			Failed:  []control.ResultItem{},
+			Message: "Started 0 scenarios, 0 failed",
 		}, nil)
 
 		w := testHandlerWithRequest(t, startAllScenariosEndpoint, HTTPTestRequest{

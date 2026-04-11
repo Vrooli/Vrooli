@@ -5,13 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/logx"
 )
 
 const (
@@ -26,9 +29,40 @@ var (
 	rebuildAndReexecFn  = buildinfo.RebuildAndReexec
 	lookPathFn          = exec.LookPath
 	execCommandFn       = runExternalCommand
+	newLoggerFn         = createCommandLogger
 )
 
 var infoDefaultFiles = []string{"docs/context.md"}
+
+const (
+	errorCategoryUsage       = "Usage"
+	errorCategoryEnvironment = "Environment"
+	errorCategoryRuntime     = "Runtime"
+)
+
+type topLevelCommandHandler func(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error
+
+var topLevelCommands = map[string]topLevelCommandHandler{
+	"help":          runMainHelpCommand,
+	"version":       runVersionCommand,
+	"info":          runInfoCommand,
+	"cleanup":       runTopLevelCleanupCommand,
+	"orphans":       makeTopLevelAutohealHandler("orphans"),
+	"locks":         makeTopLevelAutohealHandler("locks"),
+	"diagnose-port": makeTopLevelAutohealHandler("diagnose-port"),
+	"setup":         runTopLevelSetupCommand,
+	"develop":       runTopLevelDevelopCommand,
+	"build":         runTopLevelBuildCommand,
+	"deploy":        runTopLevelDeployCommand,
+	"backup":        runTopLevelBackupCommand,
+	"restore":       runTopLevelRestoreCommand,
+	"clean":         runTopLevelCleanupCommand,
+	"status":        runTopLevelStatusCommand,
+	"scenario":      runScenarioCommand,
+	"resource":      runTopLevelResourceCommand,
+	"stop":          runTopLevelStopCommand,
+	"doctor":        runTopLevelDoctorCommand,
+}
 
 type globalOptions struct {
 	json         bool
@@ -75,38 +109,53 @@ func main() {
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
-	root, err := resolveRoot()
+	parsed, err := parseArgs(args)
 	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "vrooli: %v\n", err)
+		printErrorWithContext(stderr, newErrorWithCategory(err, errorCategoryUsage, "Use --help for available commands", nil))
 		return 1
 	}
+	parsed.globals, parsed.args = consumeInlineGlobalFlags(parsed.globals, parsed.args)
+	logger := newLoggerFn(parsed.globals.verbose, stderr)
+	slog.SetDefault(logger)
+	logx.RedirectStandardLibrary(logger)
+	debugLog(logger, "Parsed command", "command", parsed.command, "args", parsed.args, "json", parsed.globals.json, "verbose", parsed.globals.verbose)
+
+	root, err := resolveRoot()
+	if err != nil {
+		printErrorWithContext(stderr, newErrorWithCategory(err, errorCategoryEnvironment, "Run from a Vrooli repository root or set VROOLI_SOURCE_ROOT", nil))
+		return 1
+	}
+	debugLog(logger, "Resolved root", "path", root)
 	primeRootEnv(root)
 
 	if forceBashEnabled() {
+		debugLog(logger, "Legacy Bash mode enabled", "command", parsed.command)
 		return exitCode(runLegacyBash(root, args))
-	}
-
-	parsed, err := parseArgs(args)
-	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "vrooli: %v\n", err)
-		return 1
 	}
 	if parsed.globals.noColor {
 		_ = os.Setenv("NO_COLOR", "1")
 	}
+	if parsed.globals.noColor {
+		debugLog(logger, "NO_COLOR requested by user flags")
+	}
 
 	if !parsed.globals.noStaleCheck && isStaleFn() {
+		debugLog(logger, "Stale check triggered")
 		if err := rebuildAndReexecFn(args); err != nil {
-			_, _ = fmt.Fprintf(stderr, "vrooli: stale binary check failed: %v\n", err)
+			printErrorWithContext(stderr, newErrorWithCategory(
+				fmt.Errorf("stale binary check failed: %w", err),
+				errorCategoryRuntime,
+				"Use --no-stale-check for local experiments, or VROOLI_FORCE_BASH=1 to bypass this path",
+				nil,
+			))
 			return 1
 		}
+		debugLog(logger, "Rebuilt command binary and re-executed")
 		return 0
 	}
 
 	if err := dispatch(root, parsed, stdout, stderr); err != nil {
-		if !hasExitCode(err) {
-			_, _ = fmt.Fprintf(stderr, "vrooli: %v\n", err)
-		}
+		printErrorWithContext(stderr, err)
 		return exitCode(err)
 	}
 	return 0
@@ -160,48 +209,79 @@ func parseArgs(args []string) (parsedArgs, error) {
 	return parsedArgs{command: "help", globals: parsed.globals}, nil
 }
 
-// The dispatcher keeps top-level parsing intentionally shallow. Migrated
-// subcommands run in-process while the remaining commands still fall back to
-// their Bash handlers until later weeks land.
-func dispatch(root string, parsed parsedArgs, stdout, stderr io.Writer) error {
-	switch parsed.command {
-	case "", "help":
-		showMainHelp(stdout)
-		return nil
-	case "version":
-		return showVersion(stdout, root, parsed.globals)
-	case "info":
-		return runInfoCommand(root, parsed.globals, parsed.args, stdout, stderr)
-	case "cleanup":
-		return runCleanupCommand(root, parsed, stdout, stderr)
-	case "orphans":
-		return runAutohealCommand(root, parsed.globals, append([]string{"orphans"}, parsed.args...)...)
-	case "locks":
-		return runAutohealCommand(root, parsed.globals, append([]string{"locks"}, parsed.args...)...)
-	case "diagnose-port":
-		return runAutohealCommand(root, parsed.globals, append([]string{"diagnose-port"}, parsed.args...)...)
-	case "setup":
-		return runProjectSetupCommand(root, parsed.args, stdout, stderr)
-	case "develop":
-		return runProjectDevelopCommand(root, parsed.args, stdout, stderr)
-	case "build", "deploy", "backup", "restore":
-		return runBashScript(root, parsed.globals, "scripts/manage.sh", append([]string{parsed.command}, parsed.args...)...)
-	case "clean":
-		return runBashScript(root, parsed.globals, "cli/commands/clean-commands.sh", parsed.args...)
-	case "status":
-		return runBashScript(root, parsed.globals, "cli/commands/status-command.sh", parsed.args...)
-	case "scenario":
-		return runScenarioCommand(root, parsed.globals, parsed.args, stdout, stderr)
-	case "resource":
-		return runBashScript(root, parsed.globals, "cli/commands/resource-commands.sh", parsed.args...)
-	case "stop":
-		return runBashScript(root, parsed.globals, "cli/commands/stop-commands.sh", parsed.args...)
-	case "doctor":
-		return runBashScript(root, parsed.globals, "cli/commands/doctor.sh", parsed.args...)
-	default:
-		printUnknownCommand(stderr, parsed.command)
-		return exitCodeError{code: 1, message: "unknown command"}
+func consumeInlineGlobalFlags(globals globalOptions, args []string) (globalOptions, []string) {
+	filtered := make([]string, 0, len(args))
+	for index := 0; index < len(args); index++ {
+		switch args[index] {
+		case "--":
+			filtered = append(filtered, args[index:]...)
+			return globals, filtered
+		case "--json":
+			globals.json = true
+		case "--verbose":
+			globals.verbose = true
+		case "--no-color":
+			globals.noColor = true
+		case "--no-stale-check":
+			globals.noStaleCheck = true
+		default:
+			filtered = append(filtered, args[index])
+		}
 	}
+	return globals, filtered
+}
+
+func dispatch(root string, parsed parsedArgs, stdout, stderr io.Writer) error {
+	handler, ok := topLevelCommands[parsed.command]
+	if !ok {
+		return newUnknownCommandError(parsed.command)
+	}
+	return handler(root, parsed.globals, parsed.args, stdout, stderr)
+}
+
+func makeTopLevelScriptHandler(scriptPath, command string) topLevelCommandHandler {
+	return func(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+		callArgs := append([]string{}, args...)
+		if strings.TrimSpace(command) != "" {
+			callArgs = append([]string{command}, callArgs...)
+		}
+		if err := runBashScript(root, globals, scriptPath, callArgs...); err != nil {
+			return newErrorWithCategory(
+				err,
+				errorCategoryRuntime,
+				"Check command arguments and script availability, or set VROOLI_FORCE_BASH=1 to reuse legacy entrypoint behavior",
+				nil,
+			)
+		}
+		return nil
+	}
+}
+
+func makeTopLevelAutohealHandler(action string) topLevelCommandHandler {
+	return func(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+		return runAutohealCommand(root, globals, append([]string{action}, args...)...)
+	}
+}
+
+func runMainHelpCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	showMainHelp(stdout)
+	return nil
+}
+
+func runVersionCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	return showVersion(stdout, root, globals)
+}
+
+func runTopLevelCleanupCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	return runCleanupCommand(root, parsedArgs{globals: globals, args: args}, stdout, stderr)
+}
+
+func runTopLevelSetupCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	return runProjectSetupCommand(root, args, stdout, stderr)
+}
+
+func runTopLevelDevelopCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	return runProjectDevelopCommand(root, args, stdout, stderr)
 }
 
 func runLegacyBash(root string, args []string) error {
@@ -250,7 +330,12 @@ func runCleanupCommand(root string, parsed parsedArgs, stdout, stderr io.Writer)
 func runAutohealCommand(root string, globals globalOptions, args ...string) error {
 	binary, err := lookPathFn("vrooli-autoheal")
 	if err != nil {
-		return errors.New("vrooli-autoheal not installed. Run 'vrooli setup' first")
+		return newErrorWithCategory(
+			errors.New("vrooli-autoheal not installed. Run 'vrooli setup' first"),
+			errorCategoryRuntime,
+			"Run 'vrooli setup' to install required lifecycle tools",
+			nil,
+		)
 	}
 	return execCommandFn(commandSpec{
 		name: binary,
@@ -520,9 +605,8 @@ func showCleanupHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  vrooli cleanup locks      # Remove stale lock files")
 }
 
-func printUnknownCommand(w io.Writer, command string) {
+func printUnknownCommand(w io.Writer, command string, suggestions []string) {
 	_, _ = fmt.Fprintf(w, "Unknown command: %s\n", command)
-	suggestions := suggestCommands(command)
 	if len(suggestions) > 0 {
 		_, _ = fmt.Fprintln(w)
 		_, _ = fmt.Fprintln(w, "Did you mean one of these?")
@@ -534,21 +618,110 @@ func printUnknownCommand(w io.Writer, command string) {
 	_, _ = fmt.Fprintln(w, "Run 'vrooli --help' for usage information")
 }
 
-func suggestCommands(command string) []string {
-	available := []string{
-		"setup", "develop", "build", "deploy", "clean", "backup", "restore",
-		"status", "stop", "scenario", "resource", "doctor", "info", "version", "help",
-	}
-	suggestions := make([]string, 0, len(available))
-	for _, candidate := range available {
+func suggestTopLevelCommands(command string) []string {
+	candidates := make([]string, 0, len(topLevelCommands))
+	for candidate := range topLevelCommands {
 		if candidate == command {
 			continue
 		}
 		if simpleDistance(command, candidate) <= 2 {
-			suggestions = append(suggestions, candidate)
+			candidates = append(candidates, candidate)
 		}
 	}
-	return suggestions
+	sort.Strings(candidates)
+	return candidates
+}
+
+func printErrorWithContext(w io.Writer, err error) {
+	if err == nil {
+		return
+	}
+	annotated, ok := err.(commandError)
+	if !ok {
+		_, _ = fmt.Fprintln(w, err)
+		return
+	}
+	category := strings.TrimSpace(annotated.ErrorCategory())
+	message := annotated.Error()
+	if strings.HasPrefix(strings.ToLower(message), "unknown command: ") && category == errorCategoryUsage {
+		command := strings.TrimSpace(strings.TrimPrefix(message, "unknown command: "))
+		printUnknownCommand(w, command, annotated.ErrorSuggestions())
+		return
+	}
+	if category != "" {
+		_, _ = fmt.Fprintf(w, "%s error: %s\n", category, message)
+	} else {
+		_, _ = fmt.Fprintln(w, message)
+	}
+	if hint := strings.TrimSpace(annotated.ErrorHint()); hint != "" {
+		_, _ = fmt.Fprintln(w, hint)
+	}
+	suggestions := annotated.ErrorSuggestions()
+	if len(suggestions) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Did you mean one of these?")
+	for _, suggestion := range suggestions {
+		_, _ = fmt.Fprintf(w, "  %s\n", suggestion)
+	}
+	_, _ = fmt.Fprintln(w, "Run 'vrooli --help' for usage information")
+}
+
+type commandError interface {
+	error
+	ErrorCategory() string
+	ErrorHint() string
+	ErrorSuggestions() []string
+}
+
+type categorizedError struct {
+	err         error
+	category    string
+	hint        string
+	suggestions []string
+}
+
+func (e categorizedError) Error() string {
+	if e.err != nil {
+		return e.err.Error()
+	}
+	return ""
+}
+func (e categorizedError) ErrorCategory() string {
+	return e.category
+}
+func (e categorizedError) ErrorHint() string {
+	return e.hint
+}
+func (e categorizedError) ErrorSuggestions() []string {
+	return append([]string(nil), e.suggestions...)
+}
+
+func (e categorizedError) ExitCode() int {
+	var withCode interface{ ExitCode() int }
+	if errors.As(e.err, &withCode) {
+		return withCode.ExitCode()
+	}
+	return 1
+}
+
+func newErrorWithCategory(err error, category, hint string, suggestions []string) error {
+	return categorizedError{
+		err:         err,
+		category:    category,
+		hint:        hint,
+		suggestions: append([]string(nil), suggestions...),
+	}
+}
+
+func newUnknownCommandError(command string) error {
+	return categorizedError{
+		err:         fmt.Errorf("unknown command: %s", command),
+		category:    errorCategoryUsage,
+		hint:        "Run 'vrooli --help' for usage information",
+		suggestions: suggestTopLevelCommands(command),
+	}
 }
 
 // simpleDistance intentionally uses a cheap prefix-aware heuristic instead of a
@@ -584,17 +757,6 @@ func exitCode(err error) int {
 		return withExitCode.ExitCode()
 	}
 	return 1
-}
-
-func hasExitCode(err error) bool {
-	if err == nil {
-		return false
-	}
-	if _, ok := err.(exitCodeError); ok {
-		return true
-	}
-	var withExitCode interface{ ExitCode() int }
-	return errors.As(err, &withExitCode)
 }
 
 func runExternalCommand(spec commandSpec) error {

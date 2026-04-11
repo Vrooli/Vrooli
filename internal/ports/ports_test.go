@@ -1,18 +1,21 @@
 package ports
 
 import (
+	"encoding/json"
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=1 | LAST: 2026-04-10
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=2 | LAST: 2026-04-11
 
 func TestBuildEnvironmentHonorsRealTestGenieContract(t *testing.T) {
 	root := repoRoot(t)
@@ -81,7 +84,12 @@ func TestBuildEnvironmentAllocatesPortsAndExpandsScenarioEnv(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writePortRegistry(t, root, `declare -g -A RESOURCE_PORTS=(["postgres"]="5433")`)
-	writeResourceExports(t, root, "postgres", "#!/usr/bin/env bash\nexport POSTGRES_USER=tester\nexport POSTGRES_PASSWORD=secret\nexport POSTGRES_HOST=localhost\nexport POSTGRES_SSLMODE=disable\n")
+	writeSecrets(t, root, map[string]any{
+		"POSTGRES_USER":     "tester",
+		"POSTGRES_PASSWORD": "secret",
+		"POSTGRES_HOST":     "localhost",
+		"POSTGRES_SSLMODE":  "disable",
+	})
 
 	item := scenario.Scenario{
 		Slug: "alpha",
@@ -270,18 +278,14 @@ func TestEnsurePortClaimedRejectsLiveForeignLock(t *testing.T) {
 	}
 }
 
-func TestBuildEnvironmentFallsBackToLegacyDefaultsExports(t *testing.T) {
+func TestBuildEnvironmentUsesTypedResourceMetadataAndSecrets(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writePortRegistry(t, root, `declare -g -A RESOURCE_PORTS=(["postgres"]="5433")`)
-
-	defaultsPath := filepath.Join(root, "resources", "postgres", "config", "defaults.sh")
-	if err := os.MkdirAll(filepath.Dir(defaultsPath), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(defaultsPath), err)
-	}
-	if err := os.WriteFile(defaultsPath, []byte("#!/usr/bin/env bash\nexport POSTGRES_USER=legacy\nexport POSTGRES_PASSWORD=secret\n"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", defaultsPath, err)
-	}
+	writeSecrets(t, root, map[string]any{
+		"POSTGRES_USER":     "legacy",
+		"POSTGRES_PASSWORD": "secret",
+	})
 
 	item := scenario.Scenario{
 		Slug: "alpha",
@@ -352,6 +356,46 @@ func TestClaimLockAllowsSameScenarioAndRejectsForeignOwner(t *testing.T) {
 	}
 	if err := manager.claimLock(21235, "alpha", 444); err != nil {
 		t.Fatalf("claimLock(empty existing file): %v", err)
+	}
+}
+
+func TestRemoveLockIfMatchesPreservesReplacedOwner(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	manager.Now = func() time.Time { return time.Unix(1_700_000_000, 0).UTC() }
+
+	if err := manager.WriteLock(21234, "alpha", 111); err != nil {
+		t.Fatalf("WriteLock(alpha): %v", err)
+	}
+	original, exists, err := manager.ReadLock(21234)
+	if err != nil {
+		t.Fatalf("ReadLock(alpha): %v", err)
+	}
+	if !exists {
+		t.Fatal("expected alpha lock to exist")
+	}
+
+	manager.Now = func() time.Time { return time.Unix(1_700_000_100, 0).UTC() }
+	if err := manager.WriteLock(21234, "beta", 222); err != nil {
+		t.Fatalf("WriteLock(beta): %v", err)
+	}
+
+	if err := manager.removeLockIfMatches(original); err != nil {
+		t.Fatalf("removeLockIfMatches: %v", err)
+	}
+
+	lock, exists, err := manager.ReadLock(21234)
+	if err != nil {
+		t.Fatalf("ReadLock(beta): %v", err)
+	}
+	if !exists || lock.Scenario != "beta" || lock.PID != 222 {
+		t.Fatalf("lock = %#v", lock)
 	}
 }
 
@@ -428,19 +472,14 @@ func TestParseRangeAndIsTCPPortInUse(t *testing.T) {
 	}
 }
 
-func TestLoadResourceExportsReturnsEmptyWhenConfigMissing(t *testing.T) {
+func TestLoadResourceEnvironmentReturnsEmptyWhenMetadataMissing(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
 
-	manager, err := NewManager(root, home)
+	exports, err := resources.LoadResourceEnvironment(root, home, "redis")
 	if err != nil {
-		t.Fatalf("NewManager: %v", err)
-	}
-
-	exports, err := manager.loadResourceExports("redis")
-	if err != nil {
-		t.Fatalf("loadResourceExports(redis): %v", err)
+		t.Fatalf("LoadResourceEnvironment(redis): %v", err)
 	}
 	if len(exports) != 0 {
 		t.Fatalf("exports = %#v, want empty", exports)
@@ -449,6 +488,8 @@ func TestLoadResourceExportsReturnsEmptyWhenConfigMissing(t *testing.T) {
 
 func writePortRegistry(t *testing.T, root, contents string) {
 	t.Helper()
+	ensureTypedResourceMetadata(t, root)
+
 	path := filepath.Join(root, "scripts", "resources", "port_registry.sh")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
@@ -457,17 +498,69 @@ func writePortRegistry(t *testing.T, root, contents string) {
 	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
+
+	portMatches := regexp.MustCompile(`\["([^"]+)"\]="([0-9]+)"`).FindAllStringSubmatch(contents, -1)
+	registry := map[string]any{
+		"resource_ports":  map[string]int{},
+		"reserved_ranges": map[string]string{},
+	}
+	resourcePorts := registry["resource_ports"].(map[string]int)
+	for _, match := range portMatches {
+		resourcePorts[match[1]] = mustAtoi(t, match[2])
+	}
+	jsonPath := filepath.Join(root, "scripts", "resources", "port_registry.json")
+	if err := os.WriteFile(jsonPath, mustJSON(t, registry), 0o644); err != nil {
+		t.Fatalf("write %s: %v", jsonPath, err)
+	}
 }
 
-func writeResourceExports(t *testing.T, root, resource, contents string) {
+func writeSecrets(t *testing.T, root string, payload map[string]any) {
 	t.Helper()
-	path := filepath.Join(root, "resources", resource, "config", "exports.sh")
+	ensureTypedResourceMetadata(t, root)
+	path := filepath.Join(root, ".vrooli", "secrets.json")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
 	}
-	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+	if err := os.WriteFile(path, mustJSON(t, payload), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
+}
+
+func ensureTypedResourceMetadata(t *testing.T, root string) {
+	t.Helper()
+	path := filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json")
+	if _, err := os.Stat(path); err == nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	payload := map[string]any{
+		"definitions": map[string]any{
+			"resourceSchemas": map[string]any{},
+		},
+	}
+	if err := os.WriteFile(path, mustJSON(t, payload), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func mustJSON(t *testing.T, value any) []byte {
+	t.Helper()
+	data, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal json: %v", err)
+	}
+	return append(data, '\n')
+}
+
+func mustAtoi(t *testing.T, value string) int {
+	t.Helper()
+	result := 0
+	for _, ch := range value {
+		result = result*10 + int(ch-'0')
+	}
+	return result
 }
 
 func intPtr(value int) *int {

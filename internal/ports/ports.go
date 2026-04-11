@@ -1,27 +1,28 @@
 package ports
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"hash/crc32"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
-const staleLockWindow = 5 * time.Minute
-
-var resourcePortPattern = regexp.MustCompile(`\["([^"]+)"\]="([0-9]+)"`)
+const (
+	staleLockWindow         = 5 * time.Minute
+	mutationLockTimeout     = 2 * time.Second
+	mutationLockRetry       = 10 * time.Millisecond
+	mutationLockStaleWindow = 30 * time.Second
+)
 
 type Manager struct {
 	Root          string
@@ -46,7 +47,7 @@ type Environment struct {
 }
 
 func NewManager(root, home string) (*Manager, error) {
-	resourcePorts, err := loadResourcePorts(root)
+	registry, err := resources.LoadPortRegistry(root)
 	if err != nil {
 		return nil, err
 	}
@@ -54,26 +55,8 @@ func NewManager(root, home string) (*Manager, error) {
 		Root:          filepath.Clean(root),
 		Home:          filepath.Clean(home),
 		Now:           time.Now,
-		ResourcePorts: resourcePorts,
+		ResourcePorts: registry.ResourcePorts,
 	}, nil
-}
-
-func loadResourcePorts(root string) (map[string]int, error) {
-	path := filepath.Join(root, "scripts", "resources", "port_registry.sh")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-
-	ports := make(map[string]int)
-	for _, match := range resourcePortPattern.FindAllStringSubmatch(string(data), -1) {
-		port, err := strconv.Atoi(match[2])
-		if err != nil {
-			continue
-		}
-		ports[match[1]] = port
-	}
-	return ports, nil
 }
 
 func (m *Manager) StateDir() string {
@@ -84,12 +67,19 @@ func (m *Manager) lockPath(port int) string {
 	return filepath.Join(m.StateDir(), fmt.Sprintf(".port_%d.lock", port))
 }
 
+func (m *Manager) mutationLockPath(port int) string {
+	return filepath.Join(m.StateDir(), fmt.Sprintf(".port_%d.guard", port))
+}
+
 func (m *Manager) EnsureStateDir() error {
 	return os.MkdirAll(m.StateDir(), 0o755)
 }
 
 func (m *Manager) ReadLock(port int) (Lock, bool, error) {
-	path := m.lockPath(port)
+	return m.readLockFile(m.lockPath(port), port)
+}
+
+func (m *Manager) readLockFile(path string, port int) (Lock, bool, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -120,55 +110,28 @@ func (m *Manager) ReadLock(port int) (Lock, bool, error) {
 }
 
 func (m *Manager) WriteLock(port int, scenarioName string, pid int) error {
-	if err := m.EnsureStateDir(); err != nil {
-		return err
-	}
-	content := fmt.Sprintf("%s:%d:%d\n", scenarioName, pid, m.Now().Unix())
-	return os.WriteFile(m.lockPath(port), []byte(content), 0o644)
+	return m.withMutationLock(port, func() error {
+		return m.writeLockUnlocked(port, scenarioName, pid)
+	})
 }
 
 func (m *Manager) claimLock(port int, scenarioName string, pid int) error {
-	if err := m.EnsureStateDir(); err != nil {
-		return err
-	}
-	path := m.lockPath(port)
-
-	if lock, exists, err := m.ReadLock(port); err != nil {
-		return err
-	} else if exists {
-		if lock.Scenario != "" && lock.Scenario != scenarioName {
+	return m.withMutationLock(port, func() error {
+		lock, exists, err := m.ReadLock(port)
+		if err != nil {
+			return err
+		}
+		if exists && lock.Scenario != "" && lock.Scenario != scenarioName {
 			return fmt.Errorf("port %d locked by scenario %q", port, lock.Scenario)
 		}
-		return m.WriteLock(port, scenarioName, pid)
-	}
-
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
-	if err != nil {
-		if os.IsExist(err) {
-			lock, exists, readErr := m.ReadLock(port)
-			if readErr != nil {
-				return readErr
-			}
-			if exists && (lock.Scenario == "" || lock.Scenario == scenarioName) {
-				return m.WriteLock(port, scenarioName, pid)
-			}
-			return fmt.Errorf("port %d locked by scenario %q", port, lock.Scenario)
-		}
-		return err
-	}
-	defer file.Close()
-
-	if _, err := fmt.Fprintf(file, "%s:%d:%d\n", scenarioName, pid, m.Now().Unix()); err != nil {
-		return err
-	}
-	return nil
+		return m.writeLockUnlocked(port, scenarioName, pid)
+	})
 }
 
 func (m *Manager) RemoveLock(port int) error {
-	if err := os.Remove(m.lockPath(port)); err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	return nil
+	return m.withMutationLock(port, func() error {
+		return m.removeLockUnlocked(port)
+	})
 }
 
 func (m *Manager) RemoveScenarioLocks(scenarioName string) error {
@@ -177,7 +140,7 @@ func (m *Manager) RemoveScenarioLocks(scenarioName string) error {
 		return err
 	}
 	for _, lock := range locks {
-		if err := m.RemoveLock(lock.Port); err != nil {
+		if err := m.removeLockIfMatches(lock); err != nil {
 			return err
 		}
 	}
@@ -216,6 +179,146 @@ func lockPortFromPath(path string) (int, error) {
 	name := strings.TrimSuffix(filepath.Base(path), ".lock")
 	name = strings.TrimPrefix(name, ".port_")
 	return strconv.Atoi(name)
+}
+
+type mutationGuard struct {
+	PID       int
+	Timestamp time.Time
+}
+
+func (m *Manager) withMutationLock(port int, fn func() error) error {
+	if err := m.EnsureStateDir(); err != nil {
+		return err
+	}
+	release, err := m.acquireMutationLock(port)
+	if err != nil {
+		return err
+	}
+	defer release()
+	return fn()
+}
+
+func (m *Manager) acquireMutationLock(port int) (func(), error) {
+	path := m.mutationLockPath(port)
+	deadline := time.Now().Add(mutationLockTimeout)
+	payload := []byte(fmt.Sprintf("%d:%d\n", os.Getpid(), m.Now().Unix()))
+
+	for {
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+		if err == nil {
+			if _, writeErr := file.Write(payload); writeErr != nil {
+				_ = file.Close()
+				_ = os.Remove(path)
+				return nil, writeErr
+			}
+			if closeErr := file.Close(); closeErr != nil {
+				_ = os.Remove(path)
+				return nil, closeErr
+			}
+			return func() {
+				_ = os.Remove(path)
+			}, nil
+		}
+		if !os.IsExist(err) {
+			return nil, err
+		}
+
+		guard, exists, readErr := m.readMutationGuard(path)
+		if readErr == nil && exists {
+			age := m.Now().UTC().Sub(guard.Timestamp)
+			if (guard.PID > 0 && !process.IsPIDRunning(guard.PID)) || age > mutationLockStaleWindow {
+				_ = os.Remove(path)
+				continue
+			}
+		}
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("timed out waiting for port %d mutation lock", port)
+		}
+		time.Sleep(mutationLockRetry)
+	}
+}
+
+func (m *Manager) readMutationGuard(path string) (mutationGuard, bool, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return mutationGuard{}, false, nil
+		}
+		return mutationGuard{}, false, err
+	}
+	parts := strings.Split(strings.TrimSpace(string(data)), ":")
+	guard := mutationGuard{}
+	if len(parts) > 0 {
+		guard.PID, _ = strconv.Atoi(strings.TrimSpace(parts[0]))
+	}
+	if len(parts) > 1 {
+		if seconds, parseErr := strconv.ParseInt(strings.TrimSpace(parts[1]), 10, 64); parseErr == nil {
+			guard.Timestamp = time.Unix(seconds, 0).UTC()
+		}
+	}
+	return guard, true, nil
+}
+
+func (m *Manager) writeLockUnlocked(port int, scenarioName string, pid int) error {
+	if err := m.EnsureStateDir(); err != nil {
+		return err
+	}
+	content := []byte(fmt.Sprintf("%s:%d:%d\n", scenarioName, pid, m.Now().Unix()))
+	return writeFileAtomically(m.lockPath(port), content, 0o644)
+}
+
+func (m *Manager) removeLockUnlocked(port int) error {
+	if err := os.Remove(m.lockPath(port)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+func (m *Manager) removeLockIfMatches(expected Lock) error {
+	return m.withMutationLock(expected.Port, func() error {
+		current, exists, err := m.ReadLock(expected.Port)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return nil
+		}
+		if current.Scenario != expected.Scenario || current.PID != expected.PID || !current.Timestamp.Equal(expected.Timestamp) {
+			return nil
+		}
+		return m.removeLockUnlocked(expected.Port)
+	})
+}
+
+func writeFileAtomically(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	file, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := file.Name()
+	cleanup := func() {
+		_ = os.Remove(tmpPath)
+	}
+	if err := file.Chmod(perm); err != nil {
+		_ = file.Close()
+		cleanup()
+		return err
+	}
+	if _, err := file.Write(data); err != nil {
+		_ = file.Close()
+		cleanup()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		cleanup()
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		cleanup()
+		return err
+	}
+	return nil
 }
 
 func (m *Manager) CleanStaleLocks() error {
@@ -436,7 +539,7 @@ func (m *Manager) ensurePortClaimed(port int, scenarioName string, records []pro
 		case lock.Scenario == scenarioName && lock.PID > 0 && process.IsPIDRunning(lock.PID):
 			return lock.PID, nil
 		case lock.Scenario == scenarioName:
-			_ = m.RemoveLock(port)
+			_ = m.removeLockIfMatches(lock)
 		case lock.PID > 0 && process.IsPIDRunning(lock.PID):
 			return 0, fmt.Errorf("locked by scenario %q", lock.Scenario)
 		// Keep a short hold window for dead foreign owners so parallel restarts do not
@@ -444,7 +547,7 @@ func (m *Manager) ensurePortClaimed(port int, scenarioName string, records []pro
 		case !lock.Timestamp.IsZero() && m.Now().UTC().Sub(lock.Timestamp) < staleLockWindow:
 			return 0, fmt.Errorf("recent stale lock held by scenario %q", lock.Scenario)
 		default:
-			_ = m.RemoveLock(port)
+			_ = m.removeLockIfMatches(lock)
 		}
 	}
 
@@ -505,7 +608,7 @@ func (m *Manager) loadResourceEnvironment(manifest scenario.ServiceManifest) (ma
 			continue
 		}
 
-		loaded, err := m.loadResourceExports(resourceName)
+		loaded, err := resources.LoadResourceEnvironment(m.Root, m.Home, resourceName)
 		if err != nil {
 			return nil, err
 		}
@@ -514,65 +617,6 @@ func (m *Manager) loadResourceEnvironment(manifest scenario.ServiceManifest) (ma
 		}
 	}
 	return env, nil
-}
-
-func (m *Manager) loadResourceExports(resourceName string) (map[string]string, error) {
-	configDir := filepath.Join(m.Root, "resources", resourceName, "config")
-	exportsFile := filepath.Join(configDir, "exports.sh")
-	if _, err := os.Stat(exportsFile); os.IsNotExist(err) {
-		exportsFile = filepath.Join(configDir, "defaults.sh")
-	}
-	if _, err := os.Stat(exportsFile); os.IsNotExist(err) {
-		return map[string]string{}, nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	prefix := strings.ToUpper(strings.ReplaceAll(resourceName, "-", "_")) + "_"
-	script := fmt.Sprintf(`
-set -e
-export APP_ROOT=%s
-export VROOLI_ROOT=%s
-export HOME=%s
-export DEBUG=false
-if [ -f %s ]; then
-  source %s >/dev/null 2>&1 || true
-fi
-env | sort
-`, shellQuote(m.Root), shellQuote(m.Root), shellQuote(m.Home), shellQuote(exportsFile), shellQuote(exportsFile))
-
-	cmd := exec.Command("bash", "-lc", script)
-	cmd.Dir = m.Root
-	output, err := cmd.Output()
-	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			return map[string]string{}, nil
-		}
-		return nil, err
-	}
-
-	result := make(map[string]string)
-	scanner := bufio.NewScanner(strings.NewReader(string(output)))
-	for scanner.Scan() {
-		line := scanner.Text()
-		if !strings.HasPrefix(line, prefix) {
-			continue
-		}
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		result[parts[0]] = parts[1]
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func shellQuote(value string) string {
-	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
 }
 
 func (m *Manager) applyPostgresOverride(scenarioName string, manifest scenario.ServiceManifest, envVars map[string]string) {

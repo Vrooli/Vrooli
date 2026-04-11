@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/project"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -29,6 +30,20 @@ type options struct {
 	Help        bool
 }
 
+type phaseRunner interface {
+	RunPhase(name, phaseName string, opts lifecycle.PhaseOptions) error
+	SetupNeeded(item scenario.Scenario, force bool) (bool, []string, error)
+}
+
+var (
+	currentHostFn    = vrooliruntime.Current
+	loadProjectFn    = project.LoadProject
+	markCompleteFn   = markComplete
+	newPhaseRunnerFn = func(root, home string, stdout, stderr io.Writer) (phaseRunner, error) {
+		return lifecycle.NewRunner(root, home, stdout, stderr)
+	}
+)
+
 func RunSetup(root, home string, args []string, stdout, stderr io.Writer) error {
 	opts, err := parseOptions("setup", args)
 	if err != nil {
@@ -38,11 +53,11 @@ func RunSetup(root, home string, args []string, stdout, stderr io.Writer) error 
 		showSetupHelp(stdout)
 		return nil
 	}
-	if err := vrooliruntime.Current().ValidateSetup(); err != nil {
+	if err := currentHostFn().ValidateSetup(); err != nil {
 		return err
 	}
 
-	project, err := loadProject(root)
+	project, err := loadProjectFn(root)
 	if err != nil {
 		return err
 	}
@@ -53,14 +68,14 @@ func RunSetup(root, home string, args []string, stdout, stderr io.Writer) error 
 	}
 	defer restoreEnv()
 
-	runner, err := lifecycle.NewRunner(root, home, stdout, stderr)
+	runner, err := newPhaseRunnerFn(root, home, stdout, stderr)
 	if err != nil {
 		return err
 	}
 	if err := runner.RunPhase(project.Slug, "setup", lifecycle.PhaseOptions{CustomPath: root, ProjectMode: true}); err != nil {
 		return err
 	}
-	return markComplete(root, project.Manifest)
+	return markCompleteFn(root, project.Manifest)
 }
 
 func RunDevelop(root, home string, args []string, stdout, stderr io.Writer) error {
@@ -72,11 +87,11 @@ func RunDevelop(root, home string, args []string, stdout, stderr io.Writer) erro
 		showDevelopHelp(stdout)
 		return nil
 	}
-	if err := vrooliruntime.Current().ValidateDevelop(); err != nil {
+	if err := currentHostFn().ValidateDevelop(); err != nil {
 		return err
 	}
 
-	project, err := loadProject(root)
+	project, err := loadProjectFn(root)
 	if err != nil {
 		return err
 	}
@@ -87,7 +102,7 @@ func RunDevelop(root, home string, args []string, stdout, stderr io.Writer) erro
 	}
 	defer restoreEnv()
 
-	runner, err := lifecycle.NewRunner(root, home, stdout, stderr)
+	runner, err := newPhaseRunnerFn(root, home, stdout, stderr)
 	if err != nil {
 		return err
 	}
@@ -105,7 +120,7 @@ func RunDevelop(root, home string, args []string, stdout, stderr io.Writer) erro
 		if err := runner.RunPhase(project.Slug, "setup", lifecycle.PhaseOptions{CustomPath: root, ProjectMode: true}); err != nil {
 			return err
 		}
-		if err := markComplete(root, project.Manifest); err != nil {
+		if err := markCompleteFn(root, project.Manifest); err != nil {
 			return err
 		}
 	}
@@ -224,27 +239,6 @@ func showDevelopHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  --sudo-mode <mode>            Sudo policy for auto-setup (ask|skip|error)")
 	_, _ = fmt.Fprintln(w, "  --yes <value>                 Confirmation policy forwarded to auto-setup")
 	_, _ = fmt.Fprintln(w, "  --dry-run                     Export DRY_RUN=true for auto-setup")
-}
-
-func loadProject(root string) (scenario.Scenario, error) {
-	servicePath := filepath.Join(root, ".vrooli", "service.json")
-	manifest, err := scenario.ReadService(servicePath)
-	if err != nil {
-		return scenario.Scenario{}, fmt.Errorf("read project service manifest: %w", err)
-	}
-	slug := strings.TrimSpace(manifest.Service.Name)
-	if slug == "" {
-		slug = filepath.Base(root)
-	}
-	if slug == "" || slug == "." {
-		slug = "vrooli-dev"
-	}
-	return scenario.Scenario{
-		Slug:        slug,
-		Path:        root,
-		ServicePath: servicePath,
-		Manifest:    manifest,
-	}, nil
 }
 
 type envSnapshot struct {

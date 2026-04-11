@@ -235,6 +235,7 @@ validate-week3: ## Run the repeatable Week 3 acceptance suite
 	trap cleanup EXIT; \
 	mkdir -p "$$tmp_root/scripts/resources" "$$tmp_root/scenarios/alpha/.vrooli"; \
 	printf '#!/usr/bin/env bash\ndeclare -g -A RESOURCE_PORTS=()\n' > "$$tmp_root/scripts/resources/port_registry.sh"; \
+	printf '{\n  "resource_ports": {},\n  "reserved_ranges": {}\n}\n' > "$$tmp_root/scripts/resources/port_registry.json"; \
 	jq -n \
 		'{version:"1.0.0", service:{name:"alpha", displayName:"Lifecycle Alpha", description:"Week 3 validation fixture", version:"0.1.0"}, ports:{api:{env_var:"API_PORT", range:"23000-23010"}}, lifecycle:{version:"2.0.0", health:{checks:[{name:"api", type:"http", target:"http://127.0.0.1:$${API_PORT}/health", critical:true, timeout:1000}], startup_grace_period:250, timeout:5000, interval:250}, setup:{condition:{checks:[{type:"binaries", targets:["api/mock-api"]}]}, steps:[{name:"build-api", run:"mkdir -p api public && printf '\''#!/usr/bin/env bash\\npython3 -m http.server \\\"$$API_PORT\\\" --bind 127.0.0.1 --directory ../public\\n'\'' > api/mock-api && chmod +x api/mock-api && printf '\''ok\\n'\'' > public/health"}]}, develop:{steps:[{name:"start-api", run:"cd api && ./mock-api", background:true, condition:{file_exists:"api/mock-api"}}]}}}' \
 		> "$$tmp_root/scenarios/alpha/.vrooli/service.json"; \

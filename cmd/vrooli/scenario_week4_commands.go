@@ -609,7 +609,7 @@ func translateScenarioRequirementsArgs(root string, globals globalOptions, args 
 
 	switch subcommand {
 	case "report":
-		return translateScenarioRequirementsSimple(root, globals, "report", rest, false, false)
+		return translateScenarioRequirementsSimple(root, globals, "report", rest, false, true)
 	case "validate":
 		return translateScenarioRequirementsSimple(root, globals, "validate", rest, true, true)
 	case "sync":

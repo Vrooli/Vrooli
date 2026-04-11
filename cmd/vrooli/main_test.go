@@ -18,7 +18,7 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-10
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=4 | LAST: 2026-04-11
 
 func TestParseArgsRecognizesLeadingGlobalFlags(t *testing.T) {
 	parsed, err := parseArgs([]string{"--json", "--verbose", "--no-color", "scenario", "list"})
@@ -33,6 +33,16 @@ func TestParseArgsRecognizesLeadingGlobalFlags(t *testing.T) {
 	}
 	if !parsed.globals.json || !parsed.globals.verbose || !parsed.globals.noColor {
 		t.Fatalf("globals = %+v", parsed.globals)
+	}
+}
+
+func TestConsumeInlineGlobalFlagsPromotesCommandScopedGlobals(t *testing.T) {
+	globals, args := consumeInlineGlobalFlags(globalOptions{}, []string{"--scenarios", "--json", "--verbose", "--no-color"})
+	if !globals.json || !globals.verbose || !globals.noColor {
+		t.Fatalf("globals = %+v", globals)
+	}
+	if got := strings.Join(args, ","); got != "--scenarios" {
+		t.Fatalf("args = %q", got)
 	}
 }
 
@@ -881,48 +891,128 @@ func TestRunDispatchesTopLevelCommandsToExpectedHandlers(t *testing.T) {
 	restore := overrideCLIHooks(t)
 	defer restore()
 
-	tests := []struct {
-		name     string
-		args     []string
-		wantName string
-		wantArgs []string
-	}{
-		{
-			name:     "clean uses clean commands script",
-			args:     []string{"clean"},
-			wantName: "bash",
-			wantArgs: []string{"/repo/cli/commands/clean-commands.sh"},
-		},
-		{
-			name:     "resource uses resource script",
-			args:     []string{"resource", "status"},
-			wantName: "bash",
-			wantArgs: []string{"/repo/cli/commands/resource-commands.sh", "status"},
-		},
-	}
+	t.Run("resource status uses native controller", func(t *testing.T) {
+		root := t.TempDir()
+		home := t.TempDir()
+		writeResourceStatusFixture(t, root, "fixture-resource", `{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			var captured commandSpec
-			execCommandFn = func(spec commandSpec) error {
-				captured = spec
-				return nil
-			}
-			resolveSourceRootFn = func() (string, error) { return "/repo", nil }
-			isStaleFn = func() bool { return false }
+		t.Setenv("HOME", home)
+		resolveSourceRootFn = func() (string, error) { return root, nil }
+		isStaleFn = func() bool { return false }
+		execCommandFn = func(spec commandSpec) error {
+			t.Fatalf("resource status should not route through CLI bash shim: %+v", spec)
+			return nil
+		}
 
-			code := run(tc.args, &bytes.Buffer{}, &bytes.Buffer{})
-			if code != 0 {
-				t.Fatalf("run exit code = %d", code)
-			}
-			if captured.name != tc.wantName {
-				t.Fatalf("command name = %q, want %q", captured.name, tc.wantName)
-			}
-			if strings.Join(captured.args, "|") != strings.Join(tc.wantArgs, "|") {
-				t.Fatalf("command args = %v, want %v", captured.args, tc.wantArgs)
-			}
-		})
-	}
+		var stdout bytes.Buffer
+		code := run([]string{"resource", "status", "fixture-resource"}, &stdout, &bytes.Buffer{})
+		if code != 0 {
+			t.Fatalf("run exit code = %d", code)
+		}
+		output := stdout.String()
+		if !strings.Contains(output, "fixture-resource") || !strings.Contains(output, "healthy") {
+			t.Fatalf("stdout = %q", output)
+		}
+	})
+
+	t.Run("status uses native project controller", func(t *testing.T) {
+		root := t.TempDir()
+		home := t.TempDir()
+		writeProjectLifecycleFixture(t, root)
+		writeTestScenarioService(t, root, "alpha", "Alpha scenario")
+		writeScenarioProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
+
+		t.Setenv("HOME", home)
+		resolveSourceRootFn = func() (string, error) { return root, nil }
+		isStaleFn = func() bool { return false }
+		execCommandFn = func(spec commandSpec) error {
+			t.Fatalf("status should not route through CLI bash shim: %+v", spec)
+			return nil
+		}
+
+		var stdout bytes.Buffer
+		code := run([]string{"--json", "status", "--scenarios"}, &stdout, &bytes.Buffer{})
+		if code != 0 {
+			t.Fatalf("run exit code = %d", code)
+		}
+		if !strings.Contains(stdout.String(), `"scenarios_total": 1`) {
+			t.Fatalf("stdout = %q", stdout.String())
+		}
+		if !strings.Contains(stdout.String(), `"name": "alpha"`) {
+			t.Fatalf("stdout = %q", stdout.String())
+		}
+	})
+
+	t.Run("status accepts trailing global json flag", func(t *testing.T) {
+		root := t.TempDir()
+		home := t.TempDir()
+		writeProjectLifecycleFixture(t, root)
+		writeTestScenarioService(t, root, "alpha", "Alpha scenario")
+		writeScenarioProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
+
+		t.Setenv("HOME", home)
+		resolveSourceRootFn = func() (string, error) { return root, nil }
+		isStaleFn = func() bool { return false }
+		execCommandFn = func(spec commandSpec) error {
+			t.Fatalf("status should not route through CLI bash shim: %+v", spec)
+			return nil
+		}
+
+		var stdout bytes.Buffer
+		code := run([]string{"status", "--scenarios", "--json"}, &stdout, &bytes.Buffer{})
+		if code != 0 {
+			t.Fatalf("run exit code = %d", code)
+		}
+		if !strings.Contains(stdout.String(), `"name": "alpha"`) {
+			t.Fatalf("stdout = %q", stdout.String())
+		}
+	})
+
+	t.Run("doctor accepts trailing global json flag", func(t *testing.T) {
+		root := t.TempDir()
+		home := t.TempDir()
+		writeProjectLifecycleFixture(t, root)
+
+		t.Setenv("HOME", home)
+		resolveSourceRootFn = func() (string, error) { return root, nil }
+		isStaleFn = func() bool { return false }
+		execCommandFn = func(spec commandSpec) error {
+			t.Fatalf("doctor should not route through CLI bash shim: %+v", spec)
+			return nil
+		}
+
+		var stdout bytes.Buffer
+		code := run([]string{"doctor", "--json"}, &stdout, &bytes.Buffer{})
+		if code != 0 {
+			t.Fatalf("run exit code = %d", code)
+		}
+		if !strings.Contains(stdout.String(), `"checks"`) {
+			t.Fatalf("stdout = %q", stdout.String())
+		}
+	})
+
+	t.Run("stop accepts trailing global json flag", func(t *testing.T) {
+		root := t.TempDir()
+		home := t.TempDir()
+		writeProjectLifecycleFixture(t, root)
+
+		t.Setenv("HOME", home)
+		resolveSourceRootFn = func() (string, error) { return root, nil }
+		isStaleFn = func() bool { return false }
+		execCommandFn = func(spec commandSpec) error {
+			t.Fatalf("stop should not route through CLI bash shim: %+v", spec)
+			return nil
+		}
+
+		var stdout bytes.Buffer
+		code := run([]string{"stop", "--json"}, &stdout, &bytes.Buffer{})
+		if code != 0 {
+			t.Fatalf("run exit code = %d", code)
+		}
+		if !strings.Contains(stdout.String(), `"success": true`) {
+			t.Fatalf("stdout = %q", stdout.String())
+		}
+	})
 }
 
 func TestRunCleanupLocksUsesAutohealBinary(t *testing.T) {
@@ -1163,11 +1253,17 @@ func TestRunReturnsExitCodeFromSubprocess(t *testing.T) {
 
 	resolveSourceRootFn = func() (string, error) { return "/repo", nil }
 	isStaleFn = func() bool { return false }
+	lookPathFn = func(file string) (string, error) {
+		if file != "vrooli-autoheal" {
+			t.Fatalf("lookPath requested %q", file)
+		}
+		return "/usr/local/bin/vrooli-autoheal", nil
+	}
 	execCommandFn = func(spec commandSpec) error {
 		return exitCodeError{code: 23}
 	}
 
-	code := run([]string{"status"}, &bytes.Buffer{}, &bytes.Buffer{})
+	code := run([]string{"orphans"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 23 {
 		t.Fatalf("run exit code = %d, want 23", code)
 	}
@@ -2645,6 +2741,7 @@ func overrideCLIHooks(t *testing.T) func() {
 	originalRebuildAndReexecFn := rebuildAndReexecFn
 	originalLookPathFn := lookPathFn
 	originalExecCommandFn := execCommandFn
+	originalNewLoggerFn := newLoggerFn
 	originalRunScenarioSubprocessFn := runScenarioSubprocessFn
 	originalScenarioOpenURLFn := scenarioOpenURLFn
 	originalScenarioLaunchDetachedFn := scenarioLaunchDetachedFn
@@ -2655,6 +2752,7 @@ func overrideCLIHooks(t *testing.T) func() {
 		rebuildAndReexecFn = originalRebuildAndReexecFn
 		lookPathFn = originalLookPathFn
 		execCommandFn = originalExecCommandFn
+		newLoggerFn = originalNewLoggerFn
 		runScenarioSubprocessFn = originalRunScenarioSubprocessFn
 		scenarioOpenURLFn = originalScenarioOpenURLFn
 		scenarioLaunchDetachedFn = originalScenarioLaunchDetachedFn
@@ -2805,6 +2903,29 @@ func writeProjectLifecycleFixture(t *testing.T, root string) {
 	if err := os.WriteFile(portRegistryPath, []byte("#!/usr/bin/env bash\nRESOURCE_PORTS=( [\"vrooli-api\"]=\"8092\" )\n"), 0o644); err != nil {
 		t.Fatalf("write %s: %v", portRegistryPath, err)
 	}
+	portRegistryJSONPath := filepath.Join(root, "scripts", "resources", "port_registry.json")
+	if err := os.WriteFile(portRegistryJSONPath, []byte("{\n  \"resource_ports\": {\n    \"vrooli-api\": 8092\n  },\n  \"reserved_ranges\": {}\n}\n"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", portRegistryJSONPath, err)
+	}
+}
+
+func writeResourceStatusFixture(t *testing.T, root, name, statusJSON string) {
+	t.Helper()
+	writeTestFile(t, root, ".vrooli/service.json", `{
+  "service": {
+    "name": "project-alpha",
+    "displayName": "Project Alpha"
+  },
+  "dependencies": {
+    "resources": {
+      "`+name+`": {
+        "enabled": true
+      }
+    }
+  }
+}`)
+	script := "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"status\" ]]; then\n  printf '%s\\n' '" + statusJSON + "'\n  exit 0\nfi\nprintf '{\"message\":\"ok\"}\\n'\n"
+	writeFakeExecutable(t, root, filepath.Join("resources", name, "cli.sh"), script)
 }
 
 func writeScenarioSetupOnlyFixture(t *testing.T, root, name string) {
@@ -3266,6 +3387,10 @@ func writeScenarioPortRegistryFixture(t *testing.T, root string) {
 	}
 	if err := os.WriteFile(portRegistryPath, []byte("#!/usr/bin/env bash\ndeclare -g -A RESOURCE_PORTS=()\n"), 0o644); err != nil {
 		t.Fatalf("write %s: %v", portRegistryPath, err)
+	}
+	portRegistryJSONPath := filepath.Join(root, "scripts", "resources", "port_registry.json")
+	if err := os.WriteFile(portRegistryJSONPath, []byte("{\n  \"resource_ports\": {},\n  \"reserved_ranges\": {}\n}\n"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", portRegistryJSONPath, err)
 	}
 }
 
