@@ -12,6 +12,8 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=1 | LAST: 2026-04-10
+
 func TestBuildEnvironmentHonorsRealTestGenieContract(t *testing.T) {
 	root := repoRoot(t)
 	home := t.TempDir()
@@ -161,6 +163,27 @@ func TestCleanStaleLocksRemovesDeadOwners(t *testing.T) {
 	}
 }
 
+func TestCleanStaleLocksPreservesLiveOwners(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	if err := manager.WriteLock(21234, "alpha", os.Getpid()); err != nil {
+		t.Fatalf("WriteLock: %v", err)
+	}
+
+	if err := manager.CleanStaleLocks(); err != nil {
+		t.Fatalf("CleanStaleLocks: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".vrooli", "state", "scenarios", ".port_21234.lock")); err != nil {
+		t.Fatalf("expected live-owner lock to remain: %v", err)
+	}
+}
+
 func TestRemoveScenarioLocksOnlyRemovesMatchingScenario(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -223,6 +246,26 @@ func TestEnsurePortClaimedRejectsRecentForeignStaleLock(t *testing.T) {
 	if _, err := manager.ensurePortClaimed(21234, "alpha", nil); err == nil {
 		t.Fatalf("expected recent foreign stale lock to block port claim")
 	} else if !strings.Contains(err.Error(), "recent stale lock held by scenario") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEnsurePortClaimedRejectsLiveForeignLock(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	if err := manager.WriteLock(21236, "beta", os.Getpid()); err != nil {
+		t.Fatalf("WriteLock(beta): %v", err)
+	}
+
+	if _, err := manager.ensurePortClaimed(21236, "alpha", nil); err == nil {
+		t.Fatalf("expected live foreign owner to block port claim")
+	} else if !strings.Contains(err.Error(), `locked by scenario "beta"`) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -382,6 +425,25 @@ func TestParseRangeAndIsTCPPortInUse(t *testing.T) {
 	}
 	if inUse {
 		t.Fatalf("expected released listener to free port")
+	}
+}
+
+func TestLoadResourceExportsReturnsEmptyWhenConfigMissing(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+
+	exports, err := manager.loadResourceExports("redis")
+	if err != nil {
+		t.Fatalf("loadResourceExports(redis): %v", err)
+	}
+	if len(exports) != 0 {
+		t.Fatalf("exports = %#v, want empty", exports)
 	}
 }
 

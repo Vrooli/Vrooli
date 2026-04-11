@@ -1,4 +1,4 @@
-.PHONY: help build install test clean setup dev develop deploy status scenarios resources lifecycle-build validate-week0-week1 validate-week2 validate-week3 validate-week3-live validate-week0-week2 validate-week0-week3
+.PHONY: help build install test clean setup dev develop deploy status scenarios resources lifecycle-build validate-week0-week1 validate-week2 validate-week3 validate-week3-live validate-week4 validate-week0-week2 validate-week0-week3 validate-week0-week4
 
 .DEFAULT_GOAL := help
 
@@ -25,8 +25,10 @@ help: ## Show available project-level targets
 	@printf "  make validate-week2 Run the repeatable Week 2 acceptance suite\n"
 	@printf "  make validate-week3 Run the repeatable Week 3 acceptance suite\n"
 	@printf "  make validate-week3-live Run live Week 3 Bash-vs-Go parity smokes\n"
+	@printf "  make validate-week4 Run the repeatable Week 4 acceptance suite\n"
 	@printf "  make validate-week0-week2 Run the combined Week 0-2 acceptance suite\n"
 	@printf "  make validate-week0-week3 Run the combined Week 0-3 acceptance suite\n"
+	@printf "  make validate-week0-week4 Run the combined Week 0-4 acceptance suite\n"
 	@printf "\nCompatibility helpers\n"
 	@printf "  make setup          Run the existing setup workflow\n"
 	@printf "  make dev            Start the existing development workflow\n"
@@ -396,6 +398,20 @@ validate-week3-live: ## Run live Week 3 Bash-vs-Go parity smokes
 	trap - EXIT; \
 	cleanup
 
+validate-week4: ## Run the repeatable Week 4 acceptance suite
+	$(MAKE) build
+	$(MAKE) install
+	$(MAKE) test
+	go test ./cmd/vrooli -run 'TestRunScenario(TestUsesNativePhaseRunner|PortAndOpenCommandsUseNativeState|LogsCleanRemovesOrphans|TemplateGenerateScaffoldsFiles|RequirementsSnapshotReadsLatestFile|HealFromSandboxRelaunchesAffectedScenarios|StartAllAndStopAllUseNativeLifecycle|UISmokeUsesTranslatedSubprocess|RequirementsReportUsesTranslatedSubprocess|CompletenessUsesTranslatedSubprocess)'
+	@tmp_help=$$(mktemp); \
+	VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli --no-stale-check scenario --help > "$$tmp_help"; \
+	grep -Fq 'start-all' "$$tmp_help"; \
+	grep -Fq 'stop-all' "$$tmp_help"; \
+	grep -Fq 'template [cmd]' "$$tmp_help"; \
+	grep -Fq 'generate <template>' "$$tmp_help"; \
+	grep -Fq 'heal-from-sandbox' "$$tmp_help"; \
+	rm -f "$$tmp_help"
+
 validate-week0-week2: ## Run the combined Week 0-2 acceptance suite
 	$(MAKE) validate-week0-week1
 	$(MAKE) validate-week2
@@ -404,6 +420,12 @@ validate-week0-week3: ## Run the combined Week 0-3 acceptance suite
 	$(MAKE) validate-week0-week1
 	$(MAKE) validate-week2
 	$(MAKE) validate-week3-live
+
+validate-week0-week4: ## Run the combined Week 0-4 acceptance suite
+	$(MAKE) validate-week0-week1
+	$(MAKE) validate-week2
+	$(MAKE) validate-week3-live
+	$(MAKE) validate-week4
 
 clean: ## Remove project-level Go build artifacts
 	rm -rf $(BUILD_DIR)

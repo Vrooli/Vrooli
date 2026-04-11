@@ -104,14 +104,42 @@ func runScenarioCommand(root string, globals globalOptions, args []string, stdou
 		return runScenarioInfoCommand(root, globals, args[1:], stdout)
 	case "status":
 		return runScenarioStatusCommand(root, globals, args[1:], stdout)
+	case "run":
+		return runScenarioRunCommand(root, globals, args[1:], stdout, stderr)
 	case "start":
 		return runScenarioStartCommand(root, globals, args[1:], stdout, stderr)
+	case "start-all":
+		return runScenarioStartAllCommand(root, globals, args[1:], stdout, stderr)
+	case "setup":
+		return runScenarioSetupCommand(root, globals, args[1:], stdout, stderr)
 	case "stop":
 		return runScenarioStopCommand(root, globals, args[1:], stdout, stderr)
+	case "stop-all":
+		return runScenarioStopAllCommand(root, globals, args[1:], stdout, stderr)
 	case "restart":
 		return runScenarioRestartCommand(root, globals, args[1:], stdout, stderr)
+	case "test":
+		return runScenarioTestCommand(root, globals, args[1:], stdout, stderr)
+	case "logs":
+		return runScenarioLogsCommand(root, globals, args[1:], stdout, stderr)
+	case "port":
+		return runScenarioPortCommand(root, globals, args[1:], stdout)
+	case "open":
+		return runScenarioOpenCommand(root, globals, args[1:], stdout, stderr)
+	case "requirements":
+		return runScenarioRequirementsCommand(root, globals, args[1:], stdout, stderr)
+	case "ui-smoke":
+		return runScenarioUISmokeCommand(root, globals, args[1:], stdout, stderr)
+	case "template":
+		return runScenarioTemplateCommand(root, globals, args[1:], stdout, stderr)
+	case "generate":
+		return runScenarioGenerateCommand(root, globals, args[1:], stdout, stderr)
+	case "completeness":
+		return runScenarioCompletenessCommand(root, globals, args[1:], stdout, stderr)
+	case "heal-from-sandbox":
+		return runScenarioHealFromSandboxCommand(root, globals, args[1:], stdout, stderr)
 	default:
-		return runBashScript(root, globals, "cli/commands/scenario/scenario-commands.sh", args...)
+		return fmt.Errorf("unknown scenario command: %s", args[0])
 	}
 }
 
@@ -178,7 +206,11 @@ func runScenarioStartCommand(root string, globals globalOptions, args []string, 
 		})
 
 		if openAfter {
-			if err := runBashScript(root, globals, "cli/commands/scenario/scenario-commands.sh", "open", name); err != nil {
+			url, _, _, err := scenarioURLForPort(root, name, "UI_PORT")
+			if err != nil {
+				return err
+			}
+			if err := scenarioOpenURLFn(url); err != nil {
 				return err
 			}
 		}
@@ -297,7 +329,11 @@ func runScenarioRestartCommand(root string, globals globalOptions, args []string
 	}
 
 	if openAfter {
-		if err := runBashScript(root, globals, "cli/commands/scenario/scenario-commands.sh", "open", name); err != nil {
+		url, _, _, err := scenarioURLForPort(root, name, "UI_PORT")
+		if err != nil {
+			return err
+		}
+		if err := scenarioOpenURLFn(url); err != nil {
 			return err
 		}
 	}
@@ -837,6 +873,7 @@ func showScenarioHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  template [cmd]                    Manage scenario templates")
 	_, _ = fmt.Fprintln(w, "  generate <template>               Scaffold a scenario from a template")
 	_, _ = fmt.Fprintln(w, "  completeness <name>               Calculate completeness score")
+	_, _ = fmt.Fprintln(w, "  heal-from-sandbox                 Relaunch sandbox-rooted scenario processes")
 }
 
 func writeScenarioInfoHuman(w io.Writer, info scenarioInfoScenarioData, runtime scenarioInfoRuntimeData) {

@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 type Record struct {
@@ -35,10 +37,7 @@ type ScenarioRuntime struct {
 }
 
 func HomeDir() (string, error) {
-	if home := strings.TrimSpace(os.Getenv("HOME")); home != "" {
-		return home, nil
-	}
-	return os.UserHomeDir()
+	return config.HomeDir()
 }
 
 func ScenarioProcessDir(home, name string) string {

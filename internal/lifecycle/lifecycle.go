@@ -41,6 +41,13 @@ type StopOptions struct {
 	CustomPath string
 }
 
+type PhaseOptions struct {
+	CustomPath              string
+	Args                    []string
+	AllowSkipMissingRuntime bool
+	ManageRuntime           bool
+}
+
 type Result struct {
 	Scenario           scenario.Scenario
 	AllocatedPorts     map[string]int
@@ -155,6 +162,8 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 	}
 
 	if len(failedDeps) > 0 {
+		// Preserve the degraded marker contract so remaining Bash-backed status
+		// and log flows still recognize a partial best-effort startup.
 		if err := r.writeDegradedState(item.Slug, failedDeps); err != nil {
 			return Result{}, err
 		}
@@ -319,6 +328,53 @@ func (r *Runner) Restart(name string, opts StartOptions) (Result, error) {
 	return r.Start(name, opts)
 }
 
+func (r *Runner) RunPhase(name, phaseName string, opts PhaseOptions) error {
+	item, err := r.loadScenario(name, opts.CustomPath)
+	if err != nil {
+		return err
+	}
+
+	if phaseRequiresBootstrap(phaseName) {
+		ready := make(map[string]struct{})
+		bootstrapOpts := StartOptions{CustomPath: opts.CustomPath}
+		if _, err := r.ensureDependencies(item, bootstrapOpts, ready, []string{item.Slug}); err != nil {
+			return err
+		}
+	}
+
+	envResult, err := r.Ports.BuildEnvironment(item, nil)
+	if err != nil {
+		return err
+	}
+
+	env := make(map[string]string, len(envResult.EnvVars)+3)
+	for key, value := range envResult.EnvVars {
+		env[key] = value
+	}
+	if opts.ManageRuntime {
+		env["TEST_MANAGE_RUNTIME"] = "true"
+	} else if opts.AllowSkipMissingRuntime {
+		env["TEST_ALLOW_SKIP_MISSING_RUNTIME"] = "true"
+	}
+	if strings.TrimSpace(os.Getenv("GOWORK")) == "" {
+		mode := strings.ToLower(strings.TrimSpace(os.Getenv("VROOLI_SCENARIO_GOWORK")))
+		if mode != "on" && mode != "auto" {
+			env["GOWORK"] = "off"
+		}
+	}
+
+	if err := r.runWithLifecycleLog(item.Slug, func(logWriter io.Writer) error {
+		return r.ensureScenarioDatabase(item, env, logWriter)
+	}); err != nil {
+		return err
+	}
+
+	args := append([]string(nil), opts.Args...)
+	return r.runWithLifecycleLog(item.Slug, func(logWriter io.Writer) error {
+		return r.ExecutePhase(item, phaseName, env, args, logWriter)
+	})
+}
+
 func (r *Runner) SetupNeeded(item scenario.Scenario, force bool) (bool, []string, error) {
 	reasons := []string{}
 	if force {
@@ -373,6 +429,15 @@ func (r *Runner) evaluateSetupCheck(item scenario.Scenario, check scenario.Condi
 			return true, "Check failed: " + check.Type, nil
 		}
 		return false, "", nil
+	}
+}
+
+func phaseRequiresBootstrap(phaseName string) bool {
+	switch strings.TrimSpace(phaseName) {
+	case "develop", "test":
+		return true
+	default:
+		return false
 	}
 }
 

@@ -19,7 +19,7 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=5 | LAST: 2026-04-10
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=7 | LAST: 2026-04-10
 
 func TestRunnerStartStopRestart(t *testing.T) {
 	if runtime.GOOS != "linux" {
@@ -451,6 +451,39 @@ func TestStepConditionsMetSupportsFilesystemEnvAndJSONChecks(t *testing.T) {
 	}
 }
 
+func TestStepConditionsMetRejectsDisabledResourceAndInvalidJSON(t *testing.T) {
+	root := t.TempDir()
+
+	item := scenario.Scenario{
+		Slug: "alpha",
+		Path: root,
+		Manifest: scenario.ServiceManifest{
+			Dependencies: scenario.Dependencies{
+				Resources: map[string]scenario.Dependency{
+					"postgres": {Enabled: false},
+				},
+			},
+		},
+	}
+
+	ok, reason, err := stepConditionsMet(item, &scenario.Condition{ResourceEnabled: "postgres"}, nil)
+	if err != nil {
+		t.Fatalf("stepConditionsMet(disabled resource): %v", err)
+	}
+	if ok || !strings.Contains(reason, `resource "postgres" is disabled`) {
+		t.Fatalf("disabled resource => ok=%v reason=%q", ok, reason)
+	}
+
+	brokenJSONPath := filepath.Join(root, "broken.json")
+	if err := os.WriteFile(brokenJSONPath, []byte("{broken"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", brokenJSONPath, err)
+	}
+
+	if _, _, err := stepConditionsMet(item, &scenario.Condition{JSONPathExists: "broken.json:services.0.name"}, nil); err == nil {
+		t.Fatalf("expected invalid JSON path source to fail")
+	}
+}
+
 func TestCLINeedsSetupDetectsMissingAndStaleBinary(t *testing.T) {
 	appRoot := t.TempDir()
 	binDir := t.TempDir()
@@ -716,6 +749,93 @@ func TestEvaluateSetupCheckSupportsFilesystemStateChecks(t *testing.T) {
 	}
 	if needed {
 		t.Fatalf("expected present directory to satisfy setup")
+	}
+}
+
+func TestResourceAndDependencyChecksCoverMarkersAndToolchains(t *testing.T) {
+	root := t.TempDir()
+
+	if !resourcesNeedSetup(root, scenario.ConditionCheck{Resources: []string{"postgres", "redis"}}) {
+		t.Fatalf("expected missing resource markers to require setup")
+	}
+	if err := os.MkdirAll(filepath.Join(root, "data"), 0o755); err != nil {
+		t.Fatalf("mkdir data: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "data", ".postgres-populated"), []byte("ok\n"), 0o644); err != nil {
+		t.Fatalf("write postgres marker: %v", err)
+	}
+	if !resourcesNeedSetup(root, scenario.ConditionCheck{Resources: []string{"postgres", "redis"}}) {
+		t.Fatalf("expected missing redis marker to keep setup required")
+	}
+	if err := os.WriteFile(filepath.Join(root, "data", ".redis-populated"), []byte("ok\n"), 0o644); err != nil {
+		t.Fatalf("write redis marker: %v", err)
+	}
+	if resourcesNeedSetup(root, scenario.ConditionCheck{Resources: []string{"postgres", "redis"}}) {
+		t.Fatalf("expected all resource markers to satisfy setup")
+	}
+
+	goDir := filepath.Join(root, "go-worker")
+	if err := os.MkdirAll(goDir, 0o755); err != nil {
+		t.Fatalf("mkdir go worker: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(goDir, "go.mod"), []byte("module fixture\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	if !dependenciesNeedSetup(root, scenario.ConditionCheck{Paths: []string{"go-worker/go.mod"}}) {
+		t.Fatalf("expected missing go.sum/vendor to require setup")
+	}
+	if err := os.MkdirAll(filepath.Join(goDir, "vendor"), 0o755); err != nil {
+		t.Fatalf("mkdir vendor: %v", err)
+	}
+	if dependenciesNeedSetup(root, scenario.ConditionCheck{Paths: []string{"go-worker/go.mod"}}) {
+		t.Fatalf("expected vendor fallback to satisfy Go dependency check")
+	}
+
+	pythonDir := filepath.Join(root, "python-worker")
+	if err := os.MkdirAll(pythonDir, 0o755); err != nil {
+		t.Fatalf("mkdir python worker: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pythonDir, "requirements.txt"), []byte("pytest\n"), 0o644); err != nil {
+		t.Fatalf("write requirements.txt: %v", err)
+	}
+	if !dependenciesNeedSetup(root, scenario.ConditionCheck{Paths: []string{"python-worker/requirements.txt"}}) {
+		t.Fatalf("expected missing Python virtualenv to require setup")
+	}
+	if err := os.MkdirAll(filepath.Join(pythonDir, ".venv"), 0o755); err != nil {
+		t.Fatalf("mkdir .venv: %v", err)
+	}
+	if dependenciesNeedSetup(root, scenario.ConditionCheck{Paths: []string{"python-worker/requirements.txt"}}) {
+		t.Fatalf("expected .venv to satisfy Python dependency check")
+	}
+
+	rustDir := filepath.Join(root, "rust-worker")
+	if err := os.MkdirAll(rustDir, 0o755); err != nil {
+		t.Fatalf("mkdir rust worker: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(rustDir, "Cargo.toml"), []byte("[package]\nname=\"fixture\"\nversion=\"0.1.0\"\n"), 0o644); err != nil {
+		t.Fatalf("write Cargo.toml: %v", err)
+	}
+	if !dependenciesNeedSetup(root, scenario.ConditionCheck{Paths: []string{"rust-worker/Cargo.toml"}}) {
+		t.Fatalf("expected missing Rust target dir to require setup")
+	}
+	if err := os.MkdirAll(filepath.Join(rustDir, "target"), 0o755); err != nil {
+		t.Fatalf("mkdir target: %v", err)
+	}
+	if dependenciesNeedSetup(root, scenario.ConditionCheck{Paths: []string{"rust-worker/Cargo.toml"}}) {
+		t.Fatalf("expected target dir to satisfy Rust dependency check")
+	}
+
+	if !dependenciesNeedSetup(root, scenario.ConditionCheck{Paths: []string{"config/missing.yaml"}}) {
+		t.Fatalf("expected missing generic dependency path to require setup")
+	}
+	if err := os.MkdirAll(filepath.Join(root, "config"), 0o755); err != nil {
+		t.Fatalf("mkdir config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "config", "missing.yaml"), []byte("ok\n"), 0o644); err != nil {
+		t.Fatalf("write generic dependency marker: %v", err)
+	}
+	if dependenciesNeedSetup(root, scenario.ConditionCheck{Paths: []string{"config/missing.yaml"}}) {
+		t.Fatalf("expected present generic dependency path to satisfy setup")
 	}
 }
 
