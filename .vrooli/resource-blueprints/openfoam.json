@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "openfoam",
+  "display_name": "OpenFOAM",
+  "category": "simulation",
+  "summary": "Computational fluid dynamics platform for flow, heat transfer, and multiphysics engineering analysis.",
+  "why_it_matters": "OpenFOAM remains important engineering capability knowledge, but current Vrooli usage does not justify maintaining the solver stack as an active supported resource.",
+  "when_to_use": [
+    "A future scenario needs CFD or heat-transfer analysis.",
+    "Operators want local or containerized engineering simulation workflows.",
+    "The workflow depends on solver-driven analysis rather than a lightweight calculator."
+  ],
+  "example_scenarios": [
+    "Engineering analysis services",
+    "Design optimization pipelines",
+    "Fluid-system experimentation"
+  ],
+  "integration_kind": "manual",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "Containerization is possible, but HPC assumptions, solver performance, and toolchain complexity still make support uneven across hosts.",
+    "linux": "partial",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "prerequisites": [
+    "Validated solver image or host install path",
+    "Reference case files and sample benchmarks",
+    "Artifact storage for inputs, meshes, and results"
+  ],
+  "dependencies": [],
+  "suggested_template": "manual-resource",
+  "implementation_notes": [
+    "Promotion should validate a specific case-running workflow.",
+    "Keep preprocessing, solve execution, and postprocessing as separate concerns.",
+    "Do not claim support without tested reference cases."
+  ],
+  "operational_notes": [
+    "Performance and artifact size matter as much as installation.",
+    "Validation should include a real sample case solve.",
+    "Long-running jobs need timeout and cleanup policies."
+  ],
+  "risks": [
+    "Scientific solver wrappers become maintenance debt without active users.",
+    "Unsupported host assumptions can fail in opaque ways."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "openfoam"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/openfoam"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

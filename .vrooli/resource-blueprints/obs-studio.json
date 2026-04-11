@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "obs-studio",
+  "display_name": "OBS Studio",
+  "category": "media",
+  "summary": "Desktop broadcasting and recording suite for scene automation, streaming, and capture workflows.",
+  "why_it_matters": "OBS Studio preserves meaningful media-production capability knowledge, but desktop, plugin, and GPU complexity make it better treated as a blueprint until a scenario proves the support model.",
+  "when_to_use": [
+    "A future scenario needs automated recording or live-stream composition.",
+    "Operators want programmable scene switching and capture orchestration.",
+    "The workflow depends on obs-websocket or desktop capture features."
+  ],
+  "example_scenarios": [
+    "Streaming automation",
+    "Screen capture pipelines",
+    "Virtual studio tooling"
+  ],
+  "integration_kind": "desktop-app",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "OBS is cross-platform, but capture permissions, plugins, and GPU/desktop behavior differ substantially across host environments.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Validated obs-websocket setup",
+    "Capture permission strategy",
+    "Defined scene/source configuration storage"
+  ],
+  "dependencies": [],
+  "suggested_template": "desktop-app",
+  "implementation_notes": [
+    "Promotion should validate a real scene automation workflow instead of generic app lifecycle control.",
+    "Keep desktop capture support separate from streaming destination support.",
+    "Plugin expectations should be explicit and version-pinned."
+  ],
+  "operational_notes": [
+    "GPU and capture permission issues are the main support burden.",
+    "Health checks should verify websocket automation if that is the intended contract.",
+    "Desktop apps require stronger environment assumptions than containerized services."
+  ],
+  "risks": [
+    "Desktop media automation is operationally brittle across hosts.",
+    "A shallow wrapper would imply more reliability than exists."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "obs-studio"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/obs-studio"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

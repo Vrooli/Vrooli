@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "terraform",
+  "display_name": "Terraform",
+  "category": "infrastructure",
+  "summary": "Infrastructure-as-code tooling for provisioning and managing external cloud and platform resources.",
+  "why_it_matters": "Terraform remains important capability knowledge for deployment and infra automation, but the repo should preserve it as a blueprint until there is a validated Vrooli support model instead of speculative wrapper code.",
+  "when_to_use": [
+    "A scenario needs repeatable external infrastructure provisioning.",
+    "Operators need IaC workflows for cloud or edge environments.",
+    "The deployment target materially benefits from Terraform state and plan/apply workflows."
+  ],
+  "example_scenarios": [
+    "Infrastructure bootstrap services",
+    "Enterprise environment provisioning",
+    "Hybrid local-plus-cloud deployment orchestration"
+  ],
+  "integration_kind": "external-cli",
+  "platform_support": {
+    "portability_tier": "full",
+    "notes": "The CLI itself is cross-platform, but support quality depends on how Vrooli wants to manage state, providers, and credentials.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "State management strategy",
+    "Credential and secret handling model",
+    "Clear boundary between Vrooli lifecycle and Terraform workflow ownership"
+  ],
+  "dependencies": [],
+  "suggested_template": "external-cli",
+  "implementation_notes": [
+    "Do not build a monolithic Terraform wrapper; focus on config, detection, and validated workflows.",
+    "Future support should define how plans, applies, and state files are surfaced.",
+    "Promotion should wait for a scenario that actually needs Terraform."
+  ],
+  "operational_notes": [
+    "State drift and credentials are the primary operator concerns.",
+    "Version pinning matters for reproducibility.",
+    "Validation should distinguish CLI availability from provider-specific readiness."
+  ],
+  "risks": [
+    "A shallow wrapper adds maintenance load without real workflow value.",
+    "Terraform semantics vary significantly by provider and deployment target."
+  ],
+  "status": "prioritized",
+  "replacement_for": [
+    "terraform"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/terraform"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

@@ -10,7 +10,7 @@ func currentHost() Host {
 		SupportsSysctl:  false,
 		SupportsSystemd: false,
 		Notes: []string{
-			"project-level setup/develop still execute bash-defined lifecycle steps",
+			"project-level setup/develop are native, but resource and scenario lifecycle support still assumes Linux-oriented tooling",
 		},
 	}
 }

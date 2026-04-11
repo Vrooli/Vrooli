@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -87,7 +88,6 @@ func TestRunSetupUsesNativeProjectLifecycle(t *testing.T) {
 
 	root := t.TempDir()
 	home := t.TempDir()
-	writeProjectLifecycleFixture(t, root)
 
 	t.Setenv("HOME", home)
 	resolveSourceRootFn = func() (string, error) { return root, nil }
@@ -96,24 +96,25 @@ func TestRunSetupUsesNativeProjectLifecycle(t *testing.T) {
 		t.Fatalf("setup should not route to bash: %+v", spec)
 		return nil
 	}
+	capturedRoot := ""
+	capturedHome := ""
+	var capturedArgs []string
+	runProjectSetupFn = func(root, home string, args []string, stdout, stderr io.Writer) error {
+		capturedRoot = root
+		capturedHome = home
+		capturedArgs = append([]string(nil), args...)
+		return nil
+	}
 
 	code := run([]string{"setup", "--environment", "minimal", "--resources", "none", "--yes", "yes", "--sudo-mode", "skip"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
-
-	data, err := os.ReadFile(filepath.Join(root, "build", "setup-env.txt"))
-	if err != nil {
-		t.Fatalf("read setup env file: %v", err)
+	if capturedRoot != root || capturedHome != home {
+		t.Fatalf("project setup called with root=%q home=%q", capturedRoot, capturedHome)
 	}
-	if strings.TrimSpace(string(data)) != "minimal|none|yes|skip|docker|Local" {
-		t.Fatalf("setup env = %q", string(data))
-	}
-	if _, err := os.Stat(filepath.Join(root, "data", ".setup-complete")); err != nil {
-		t.Fatalf("expected setup marker: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(root, "data", ".resources-populated")); err != nil {
-		t.Fatalf("expected resources marker: %v", err)
+	if got := strings.Join(capturedArgs, "|"); got != "--environment|minimal|--resources|none|--yes|yes|--sudo-mode|skip" {
+		t.Fatalf("setup args = %q", got)
 	}
 }
 
@@ -123,7 +124,6 @@ func TestRunDevelopUsesNativeProjectLifecycle(t *testing.T) {
 
 	root := t.TempDir()
 	home := t.TempDir()
-	writeProjectLifecycleFixture(t, root)
 
 	t.Setenv("HOME", home)
 	resolveSourceRootFn = func() (string, error) { return root, nil }
@@ -132,65 +132,24 @@ func TestRunDevelopUsesNativeProjectLifecycle(t *testing.T) {
 		t.Fatalf("develop should not route to bash: %+v", spec)
 		return nil
 	}
-
-	var stdout bytes.Buffer
-	code := run([]string{"develop"}, &stdout, &bytes.Buffer{})
-	if code != 0 {
-		t.Fatalf("first develop exit code = %d", code)
-	}
-	setupRuns, err := os.ReadFile(filepath.Join(root, "build", "setup-count.txt"))
-	if err != nil {
-		t.Fatalf("read setup count: %v", err)
-	}
-	developRuns, err := os.ReadFile(filepath.Join(root, "build", "develop-count.txt"))
-	if err != nil {
-		t.Fatalf("read develop count: %v", err)
-	}
-	developPort, err := os.ReadFile(filepath.Join(root, "build", "develop-port.txt"))
-	if err != nil {
-		t.Fatalf("read develop port: %v", err)
-	}
-	if got := strings.Count(strings.TrimSpace(string(setupRuns)), "setup"); got != 1 {
-		t.Fatalf("setup run count = %d, want 1", got)
-	}
-	if got := strings.Count(strings.TrimSpace(string(developRuns)), "develop"); got != 1 {
-		t.Fatalf("develop run count after first run = %d, want 1", got)
-	}
-	if strings.TrimSpace(string(developPort)) != "8092" {
-		t.Fatalf("develop port = %q, want 8092", string(developPort))
-	}
-	if !strings.Contains(stdout.String(), "Running setup before develop") {
-		t.Fatalf("expected setup preflight message, got %q", stdout.String())
+	calls := 0
+	runProjectDevelopFn = func(capturedRoot, capturedHome string, args []string, stdout, stderr io.Writer) error {
+		calls++
+		if capturedRoot != root || capturedHome != home {
+			t.Fatalf("unexpected project context root=%q home=%q", capturedRoot, capturedHome)
+		}
+		if len(args) != 0 {
+			t.Fatalf("develop args = %v", args)
+		}
+		return nil
 	}
 
-	stdout.Reset()
-	code = run([]string{"develop"}, &stdout, &bytes.Buffer{})
+	code := run([]string{"develop"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
-		t.Fatalf("second develop exit code = %d", code)
+		t.Fatalf("develop exit code = %d", code)
 	}
-	setupRuns, err = os.ReadFile(filepath.Join(root, "build", "setup-count.txt"))
-	if err != nil {
-		t.Fatalf("read setup count after second run: %v", err)
-	}
-	developRuns, err = os.ReadFile(filepath.Join(root, "build", "develop-count.txt"))
-	if err != nil {
-		t.Fatalf("read develop count after second run: %v", err)
-	}
-	developPort, err = os.ReadFile(filepath.Join(root, "build", "develop-port.txt"))
-	if err != nil {
-		t.Fatalf("read develop port after second run: %v", err)
-	}
-	if got := strings.Count(strings.TrimSpace(string(setupRuns)), "setup"); got != 1 {
-		t.Fatalf("setup run count after second run = %d, want 1", got)
-	}
-	if got := strings.Count(strings.TrimSpace(string(developRuns)), "develop"); got != 2 {
-		t.Fatalf("develop run count after second run = %d, want 2", got)
-	}
-	if strings.TrimSpace(string(developPort)) != "8092" {
-		t.Fatalf("develop port after second run = %q, want 8092", string(developPort))
-	}
-	if strings.Contains(stdout.String(), "Running setup before develop") {
-		t.Fatalf("unexpected second-run setup preflight message: %q", stdout.String())
+	if calls != 1 {
+		t.Fatalf("develop calls = %d, want 1", calls)
 	}
 }
 
@@ -200,7 +159,6 @@ func TestRunDevelopUsesProjectPortOverride(t *testing.T) {
 
 	root := t.TempDir()
 	home := t.TempDir()
-	writeProjectLifecycleFixture(t, root)
 
 	t.Setenv("HOME", home)
 	t.Setenv("VROOLI_API_PORT", "18094")
@@ -210,18 +168,152 @@ func TestRunDevelopUsesProjectPortOverride(t *testing.T) {
 		t.Fatalf("develop should not route to bash: %+v", spec)
 		return nil
 	}
+	runProjectDevelopFn = func(capturedRoot, capturedHome string, args []string, stdout, stderr io.Writer) error {
+		if got := os.Getenv("VROOLI_API_PORT"); got != "18094" {
+			t.Fatalf("VROOLI_API_PORT = %q", got)
+		}
+		if capturedRoot != root || capturedHome != home {
+			t.Fatalf("unexpected project context root=%q home=%q", capturedRoot, capturedHome)
+		}
+		return nil
+	}
 
 	code := run([]string{"develop"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("develop exit code = %d", code)
 	}
+}
 
-	developPort, err := os.ReadFile(filepath.Join(root, "build", "develop-port.txt"))
-	if err != nil {
-		t.Fatalf("read develop port: %v", err)
+func TestRunSetupPassesDryRunThroughProjectLifecycle(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("setup should not route to bash: %+v", spec)
+		return nil
 	}
-	if strings.TrimSpace(string(developPort)) != "18094" {
-		t.Fatalf("develop port override = %q, want 18094", string(developPort))
+	runProjectSetupFn = func(root, home string, args []string, stdout, stderr io.Writer) error {
+		if got := strings.Join(args, "|"); got != "--dry-run" {
+			t.Fatalf("setup args = %q", got)
+		}
+		return nil
+	}
+
+	code := run([]string{"setup", "--dry-run"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("run exit code = %d", code)
+	}
+}
+
+func TestRunSetupReportsUnsupportedHostAtCLILevel(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	runProjectSetupFn = func(root, home string, args []string, stdout, stderr io.Writer) error {
+		return errors.New("unsupported platform: vrooli setup is not supported on darwin (project-level setup/develop still depend on Linux-oriented shell steps)")
+	}
+
+	var stderr bytes.Buffer
+	code := run([]string{"setup"}, &bytes.Buffer{}, &stderr)
+	if code == 0 {
+		t.Fatal("expected non-zero exit code")
+	}
+	if !strings.Contains(stderr.String(), "not supported on darwin") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestRunDevelopReportsUnsupportedHostAtCLILevel(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	runProjectDevelopFn = func(root, home string, args []string, stdout, stderr io.Writer) error {
+		return errors.New("unsupported platform: vrooli develop is not supported on windows (project-level setup/develop still execute bash-defined lifecycle steps)")
+	}
+
+	var stderr bytes.Buffer
+	code := run([]string{"develop"}, &bytes.Buffer{}, &stderr)
+	if code == 0 {
+		t.Fatal("expected non-zero exit code")
+	}
+	if !strings.Contains(stderr.String(), "not supported on windows") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestRunProjectBackupUsesNativePhaseRunner(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeProjectLifecycleFixture(t, root)
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("backup should not route to bash: %+v", spec)
+		return nil
+	}
+
+	code := run([]string{"backup"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("run exit code = %d", code)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "build", "backup.txt"))
+	if err != nil {
+		t.Fatalf("read backup file: %v", err)
+	}
+	if strings.TrimSpace(string(data)) != "backup" {
+		t.Fatalf("backup output = %q", string(data))
+	}
+}
+
+func TestRunProjectRestoreUsesNativePhaseRunner(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeProjectLifecycleFixture(t, root)
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("restore should not route to bash: %+v", spec)
+		return nil
+	}
+
+	code := run([]string{"restore"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("run exit code = %d", code)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "build", "restore.txt"))
+	if err != nil {
+		t.Fatalf("read restore file: %v", err)
+	}
+	if strings.TrimSpace(string(data)) != "restore" {
+		t.Fatalf("restore output = %q", string(data))
 	}
 }
 
@@ -2773,6 +2865,8 @@ func overrideCLIHooks(t *testing.T) func() {
 	originalScenarioOpenURLFn := scenarioOpenURLFn
 	originalScenarioLaunchDetachedFn := scenarioLaunchDetachedFn
 	originalScenarioExecutableFn := scenarioExecutableFn
+	originalRunProjectSetupFn := runProjectSetupFn
+	originalRunProjectDevelopFn := runProjectDevelopFn
 	return func() {
 		resolveSourceRootFn = originalResolveSourceRootFn
 		isStaleFn = originalIsStaleFn
@@ -2784,6 +2878,8 @@ func overrideCLIHooks(t *testing.T) func() {
 		scenarioOpenURLFn = originalScenarioOpenURLFn
 		scenarioLaunchDetachedFn = originalScenarioLaunchDetachedFn
 		scenarioExecutableFn = originalScenarioExecutableFn
+		runProjectSetupFn = originalRunProjectSetupFn
+		runProjectDevelopFn = originalRunProjectDevelopFn
 	}
 }
 
@@ -2905,7 +3001,7 @@ func writeProjectLifecycleFixture(t *testing.T, root string) {
       "steps": [
         {
           "name": "capture-setup",
-          "run": "mkdir -p data build && printf 'setup\n' >> build/setup-count.txt && printf '%s|%s|%s|%s|%s|%s\n' \"${ENVIRONMENT:-}\" \"${RESOURCES:-}\" \"${YES:-}\" \"${SUDO_MODE:-}\" \"${TARGET:-}\" \"${LOCATION:-}\" > build/setup-env.txt && printf 'ready\n' > data/bootstrap.txt"
+          "run": "mkdir -p data build && printf 'setup\n' >> build/setup-count.txt && printf '%s|%s|%s|%s|%s|%s|%s|%s|%s\n' \"${ENVIRONMENT:-}\" \"${RESOURCES:-}\" \"${YES:-}\" \"${SUDO_MODE:-}\" \"${TARGET:-}\" \"${LOCATION:-}\" \"${DRY_RUN:-false}\" \"${APP_ROOT:-}\" \"${SERVICE_JSON_PATH:-}\" > build/setup-env.txt && printf 'ready\n' > data/bootstrap.txt"
         },
         {
           "name": "add-data",
@@ -2918,6 +3014,22 @@ func writeProjectLifecycleFixture(t *testing.T, root string) {
         {
           "name": "capture-develop",
           "run": "mkdir -p build && printf 'develop\n' >> build/develop-count.txt && printf '%s\n' \"${VROOLI_API_PORT:-}\" > build/develop-port.txt"
+        }
+      ]
+    },
+    "backup": {
+      "steps": [
+        {
+          "name": "capture-backup",
+          "run": "mkdir -p build && printf 'backup\n' > build/backup.txt"
+        }
+      ]
+    },
+    "restore": {
+      "steps": [
+        {
+          "name": "capture-restore",
+          "run": "mkdir -p build && printf 'restore\n' > build/restore.txt"
         }
       ]
     }

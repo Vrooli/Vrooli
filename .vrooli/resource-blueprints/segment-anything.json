@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "segment-anything",
+  "display_name": "Segment Anything",
+  "category": "vision",
+  "summary": "Foundation segmentation service for promptable object segmentation in images and related vision workflows.",
+  "why_it_matters": "Segment Anything preserves a strong computer-vision capability for future use, but there is no current validated scenario that justifies keeping the service as an actively maintained resource.",
+  "when_to_use": [
+    "A future scenario needs object segmentation with minimal prompt engineering.",
+    "Operators want reusable segmentation primitives for vision pipelines.",
+    "The workflow depends on mask generation rather than only classification or detection."
+  ],
+  "example_scenarios": [
+    "Dataset annotation helpers",
+    "Vision preprocessing pipelines",
+    "Media analysis workflows"
+  ],
+  "integration_kind": "docker-service",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "The service can run in containers, but model size, GPU acceleration, and runtime dependencies make support uneven across environments.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Model selection and storage strategy",
+    "GPU or CPU performance expectations",
+    "Defined prompt and output conventions"
+  ],
+  "dependencies": [],
+  "suggested_template": "docker-service",
+  "implementation_notes": [
+    "Promotion should validate a real segmentation workflow with representative inputs.",
+    "Keep model lifecycle and artifact handling explicit.",
+    "Do not imply production support unless inference behavior is tested end to end."
+  ],
+  "operational_notes": [
+    "Model download size and runtime cost matter.",
+    "Validation should run real segmentation examples with expected outputs.",
+    "GPU capability differences strongly affect operator experience."
+  ],
+  "risks": [
+    "Foundation-model wrappers drift quickly if unused.",
+    "Inference support can look portable while performance is not."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "segment-anything"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/segment-anything"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

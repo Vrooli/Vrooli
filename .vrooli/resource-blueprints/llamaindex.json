@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "llamaindex",
+  "display_name": "LlamaIndex",
+  "category": "ai",
+  "summary": "Framework for retrieval, indexing, and LLM-connected data access pipelines.",
+  "why_it_matters": "LlamaIndex preserves useful framework-specific retrieval knowledge, but there is no current need to maintain it as a project-level supported resource.",
+  "when_to_use": [
+    "A future scenario needs LlamaIndex-specific indexing and retrieval workflows.",
+    "Operators want a framework-oriented approach to data-connected LLM tooling.",
+    "The workflow depends on connectors or abstractions specific to LlamaIndex."
+  ],
+  "example_scenarios": [
+    "Retrieval-augmented assistants",
+    "Knowledge indexing services",
+    "Document Q&A systems"
+  ],
+  "integration_kind": "library",
+  "platform_support": {
+    "portability_tier": "full",
+    "notes": "The library is portable, but real support depends on Python environment management and backing model or vector-store choices.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "Python dependency strategy",
+    "Defined backing models and storage services",
+    "Clear reason to prefer LlamaIndex over framework-neutral patterns"
+  ],
+  "dependencies": [],
+  "suggested_template": "manual-resource",
+  "implementation_notes": [
+    "Promotion should be driven by a scenario that really depends on LlamaIndex, not generic RAG interest.",
+    "Keep framework-specific support narrower than the broader retrieval capability.",
+    "Version pinning matters because these libraries evolve quickly."
+  ],
+  "operational_notes": [
+    "Most operational complexity comes from the connected models and stores.",
+    "Validation should run a real indexing and query flow.",
+    "Dependency drift can break integrations quickly."
+  ],
+  "risks": [
+    "Overlapping AI framework support creates low-value maintenance.",
+    "A wrapper may preserve old abstractions after the framework changes."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "llamaindex"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/llamaindex"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

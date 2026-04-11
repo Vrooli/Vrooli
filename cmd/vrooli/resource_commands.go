@@ -15,6 +15,8 @@ func runResourceCommand(controller *resources.Controller, globals globalOptions,
 	}
 
 	switch normalizeResourceSubcommand(args[0]) {
+	case "blueprint":
+		return runResourceBlueprintCommand(controller, globals, args[1:], stdout)
 	case "list":
 		return runResourceListCommand(controller, globals, args[1:], stdout)
 	case "status":
@@ -37,6 +39,26 @@ func runResourceCommand(controller *resources.Controller, globals globalOptions,
 		return runResourceInfoCommand(controller, globals, args[1:], stdout)
 	default:
 		return controller.Run(args[0], args[1:], stdout, stderr)
+	}
+}
+
+func runResourceBlueprintCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
+	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
+		showResourceBlueprintHelp(stdout)
+		return nil
+	}
+
+	switch normalizeResourceSubcommand(args[0]) {
+	case "list":
+		return runResourceBlueprintListCommand(controller, globals, args[1:], stdout)
+	case "info":
+		return runResourceBlueprintInfoCommand(controller, globals, args[1:], stdout)
+	case "search":
+		return runResourceBlueprintSearchCommand(controller, globals, args[1:], stdout)
+	case "validate":
+		return runResourceBlueprintValidateCommand(controller, globals, args[1:], stdout)
+	default:
+		return fmt.Errorf("unknown resource blueprint command: %s", args[0])
 	}
 }
 
@@ -237,7 +259,128 @@ func runResourceInfoCommand(controller *resources.Controller, globals globalOpti
 	})
 }
 
+func runResourceBlueprintListCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
+	if len(args) > 0 {
+		return fmt.Errorf("resource blueprint list does not accept positional arguments")
+	}
+	items, err := controller.ListBlueprints()
+	if err != nil {
+		return err
+	}
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{
+			"success":    true,
+			"blueprints": items,
+		})
+	}
+	rows := make([][]string, 0, len(items))
+	for _, item := range items {
+		rows = append(rows, []string{
+			item.Name,
+			item.Category,
+			item.Status,
+			item.SuggestedTemplate,
+			item.LastReviewed,
+		})
+	}
+	return cliout.RenderTable(stdout, []string{"Name", "Category", "Status", "Template", "Reviewed"}, rows)
+}
+
+func runResourceBlueprintInfoCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
+	if len(args) != 1 {
+		return fmt.Errorf("resource blueprint info requires exactly one blueprint name")
+	}
+	item, err := controller.Blueprint(args[0])
+	if err != nil {
+		return err
+	}
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{
+			"success":   true,
+			"blueprint": item,
+		})
+	}
+	rows := [][]string{
+		{"Name", item.Name},
+		{"Display Name", item.DisplayName},
+		{"Category", item.Category},
+		{"Status", item.Status},
+		{"Integration Kind", item.IntegrationKind},
+		{"Template", item.SuggestedTemplate},
+		{"Reviewed", item.LastReviewed},
+		{"Summary", item.Summary},
+		{"Why It Matters", item.WhyItMatters},
+	}
+	return cliout.RenderTable(stdout, []string{"Field", "Value"}, rows)
+}
+
+func runResourceBlueprintSearchCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
+	if len(args) != 1 {
+		return fmt.Errorf("resource blueprint search requires exactly one query")
+	}
+	items, err := controller.SearchBlueprints(args[0])
+	if err != nil {
+		return err
+	}
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{
+			"success":    true,
+			"query":      args[0],
+			"blueprints": items,
+		})
+	}
+	rows := make([][]string, 0, len(items))
+	for _, item := range items {
+		rows = append(rows, []string{
+			item.Name,
+			item.Category,
+			item.Status,
+			item.Summary,
+		})
+	}
+	return cliout.RenderTable(stdout, []string{"Name", "Category", "Status", "Summary"}, rows)
+}
+
+func runResourceBlueprintValidateCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
+	if len(args) > 0 {
+		return fmt.Errorf("resource blueprint validate does not accept positional arguments")
+	}
+	report, err := controller.ValidateBlueprints()
+	if err != nil {
+		return err
+	}
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{
+			"success": true,
+			"report":  report,
+		})
+	}
+	_, _ = fmt.Fprintf(stdout, "Validated %d resource blueprints\n", report.Count)
+	return nil
+}
+
 func showResourceHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "Usage: vrooli resource <list|status|install|start|start-all|stop|stop-all|enable|disable|info> [...]")
+	_, _ = fmt.Fprintln(w, "       vrooli resource blueprint <list|info|search|validate> [...]")
 	_, _ = fmt.Fprintln(w, "       vrooli resource <name> <command> [options]")
+}
+
+func showResourceBlueprintHelp(w io.Writer) {
+	_, _ = fmt.Fprintln(w, "Usage: vrooli resource blueprint <list|info|search|validate> [...]")
 }

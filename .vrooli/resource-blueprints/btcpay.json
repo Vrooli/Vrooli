@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "btcpay",
+  "display_name": "BTCPay Server",
+  "category": "payments",
+  "summary": "Self-hosted cryptocurrency payment platform for merchant checkout, invoicing, and wallet-connected operations.",
+  "why_it_matters": "BTCPay preserves useful self-hosted payments capability knowledge, but there is no current validated Vrooli workflow that justifies maintaining it as an active supported integration.",
+  "when_to_use": [
+    "A future scenario needs self-hosted Bitcoin or Lightning payment acceptance.",
+    "Operators want sovereign payment infrastructure instead of a third-party processor.",
+    "A commerce workflow needs invoicing or settlement tied to crypto-native tooling."
+  ],
+  "example_scenarios": [
+    "Merchant checkout services",
+    "Donation and tipping flows",
+    "Crypto payment portals"
+  ],
+  "integration_kind": "compose-service",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "Containerized deployment is portable, but payment node setup, networking, and wallet operations add significant operational complexity.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Container runtime with persistent storage",
+    "Wallet and node strategy",
+    "Defined operational ownership for keys, backups, and settlement"
+  ],
+  "dependencies": [],
+  "suggested_template": "compose-service",
+  "implementation_notes": [
+    "Future support should scope the supported payment rails instead of exposing the entire BTCPay surface.",
+    "Promotion should define secret management and wallet backup semantics early.",
+    "Keep the boundary between scenario logic and payment infrastructure explicit."
+  ],
+  "operational_notes": [
+    "Key custody and backup procedures matter more than initial startup.",
+    "Operator ergonomics depend heavily on Lightning and node choices.",
+    "Validation should include invoice creation and settlement visibility."
+  ],
+  "risks": [
+    "Payment infrastructure creates real financial and operational blast radius.",
+    "A low-depth wrapper could mislead users about support quality and safety."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "btcpay"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/btcpay"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

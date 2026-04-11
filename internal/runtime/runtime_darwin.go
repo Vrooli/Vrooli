@@ -13,7 +13,7 @@ func currentHost() Host {
 		SupportsSysctl:  commandAvailable("sysctl"),
 		SupportsSystemd: false,
 		Notes: []string{
-			"project-level setup/develop still depend on Linux-oriented shell steps",
+			"project-level setup/develop are native, but resource and scenario lifecycle support still assumes Linux-oriented tooling",
 		},
 	}
 }

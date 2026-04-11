@@ -89,11 +89,6 @@ required:
     integration_pattern: Pub/Sub for alert distribution
     access_method: resource-redis CLI for queue management
     
-  - resource_name: node-red
-    purpose: Orchestrate monitoring workflows
-    integration_pattern: Scheduled and triggered flows
-    access_method: resource-node-red CLI for flow management
-    
   - resource_name: ollama
     purpose: AI analysis of anomalies (llama3.2:3b)
     integration_pattern: Investigation prompt execution via agent-manager
@@ -115,25 +110,14 @@ scenario_dependencies:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: metric-collector.json
-      location: initialization/node-red/
-      purpose: Collect host metrics and fan out to storage
-      reused_by: [load-tester, api-monitor]
-      
-    - workflow: anomaly-detector.json
-      location: initialization/node-red/
-      purpose: Analyze metric trends and trigger investigations
-      reused_by: [log-analyzer, incident-response-manager]
-      
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-questdb query "SELECT * FROM metrics WHERE time > now() - '1h'"
       purpose: Direct metric queries for analysis
       
     - command: resource-redis publish alerts "{"severity":"critical"}"
       purpose: Distribute alerts to subscribers
       
-  3_direct_api:
+  2_direct_api:
     - justification: Real-time metric ingestion requires ILP protocol
       endpoint: tcp://localhost:9009 (QuestDB ILP)
       note: Configured but API primarily uses in-memory + PostgreSQL fallback
@@ -142,9 +126,9 @@ integration_priorities:
       endpoint: http://localhost:${API_PORT}/api/v1/metrics/current (5s poll interval)
       note: WebSocket types defined but not implemented; UI uses HTTP polling
 
-shared_workflow_validation:
-  - metric-collector.json collects system telemetry for storage
-  - anomaly-detector.json evaluates triggers and opens investigations
+historical_prototypes:
+  - initialization/node-red/metric-collector.json was created as a speculative flow prototype and is not wired into the current scenario runtime
+  - initialization/node-red/anomaly-detector.json was created as a speculative flow prototype and is not wired into the current scenario runtime
 ```
 
 ### Data Models
@@ -367,20 +351,10 @@ endpoints:
 
 ### Event Interface
 ```yaml
-# Note: The event system is configured via Node-RED flows and Redis pub/sub,
-# but no formal event bus with named events is implemented in the Go API.
+# Note: The current event system relies on in-process collectors plus Redis pub/sub.
+# Historical Node-RED flow prototypes remain in initialization/node-red/ but are
+# not wired into the Go API or scenario lifecycle.
 # The following describes the actual integration pattern:
-
-node_red_flows:
-  - name: metric-collector
-    location: initialization/node-red/metric-collector.json
-    trigger: Every 30 seconds
-    action: Collect system metrics, store to PostgreSQL/QuestDB/Redis
-
-  - name: anomaly-detector
-    location: initialization/node-red/anomaly-detector.json
-    trigger: Every 60 seconds
-    action: Check thresholds, trigger alerts
 
 redis_channels:
   - key_patterns: system_metrics:*, system_alerts:*, system_thresholds:*, system_investigations:*

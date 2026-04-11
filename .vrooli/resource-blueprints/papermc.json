@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "papermc",
+  "display_name": "PaperMC",
+  "category": "gaming",
+  "summary": "Performance-focused Minecraft server platform for game hosting, plugin ecosystems, and automation workflows.",
+  "why_it_matters": "PaperMC preserves useful game-server capability knowledge, but there is no active scenario demand that justifies maintaining it as a supported resource.",
+  "when_to_use": [
+    "A future scenario needs a Minecraft server backend.",
+    "Operators want plugin-capable game hosting with automation hooks.",
+    "The workflow depends on a Minecraft world as an application surface."
+  ],
+  "example_scenarios": [
+    "Interactive education worlds",
+    "Community game servers",
+    "Minecraft automation experiments"
+  ],
+  "integration_kind": "manual",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "The Java server is portable, but support quality depends on plugin management, world persistence, and host performance expectations.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Java runtime strategy",
+    "World backup and storage conventions",
+    "Clear plugin and admin model"
+  ],
+  "dependencies": [],
+  "suggested_template": "manual-resource",
+  "implementation_notes": [
+    "Promotion should validate a narrow server lifecycle and automation workflow.",
+    "Keep server provisioning distinct from RCON or gameplay automations.",
+    "Plugin sprawl should be avoided unless explicitly supported."
+  ],
+  "operational_notes": [
+    "World persistence and backups are core operator concerns.",
+    "Validation should prove server startup and safe command execution.",
+    "Support quality depends heavily on plugin scope."
+  ],
+  "risks": [
+    "Game-server ecosystems become maintenance traps without active users.",
+    "A wrapper can imply stronger world and plugin support than exists."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "papermc"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/papermc"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

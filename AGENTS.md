@@ -77,7 +77,7 @@ For recurring tasks (test quality, React performance, etc.), use the AI maintena
 ```bash
 # Setup project (includes CLI installation and system configuration)
 # NOTE: First run requires sudo for kernel parameter configuration when using certain resources
-./scripts/manage.sh setup --yes yes
+make setup
 
 # Start development environment
 vrooli develop
@@ -149,10 +149,10 @@ Skills are lazy-loaded — only pay context cost when relevant. The full instruc
 
 **Examples**:
 ```bash
-./scripts/manage.sh setup --yes yes                           # Full dev setup
-./scripts/manage.sh setup --environment production            # Production (no dev tools)
-./scripts/manage.sh setup --environment minimal --resources none  # Fastest possible
-./scripts/manage.sh setup --resources postgres,redis          # Only specific resources
+make setup                                                   # Full dev setup
+vrooli setup --environment production          # Production (no dev tools)
+vrooli setup --environment minimal --resources none  # Fastest possible
+vrooli setup --resources postgres,redis        # Only specific resources
 ```
 
 **Resource Management**:

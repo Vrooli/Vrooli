@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "gazebo",
+  "display_name": "Gazebo",
+  "category": "robotics",
+  "summary": "3D robotics simulator for testing robot models, sensors, controls, and autonomous system behavior.",
+  "why_it_matters": "Gazebo remains useful robotics capability knowledge, but the repo does not currently validate any simulator-backed scenario that would justify active support.",
+  "when_to_use": [
+    "A future scenario needs robot simulation before real-world deployment.",
+    "Operators need virtual sensor and actuator testing environments.",
+    "The workflow benefits from simulation-backed robotics development."
+  ],
+  "example_scenarios": [
+    "Autonomy prototyping",
+    "Robot integration testing",
+    "Sensor simulation pipelines"
+  ],
+  "integration_kind": "manual",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "Simulator support varies across host OSes, graphics stacks, and ROS integration expectations.",
+    "linux": "partial",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "prerequisites": [
+    "Validated simulator install path",
+    "Graphics and rendering support",
+    "Defined model, world, and artifact storage conventions"
+  ],
+  "dependencies": [],
+  "suggested_template": "manual-resource",
+  "implementation_notes": [
+    "Promotion should define a narrow supported simulator workflow.",
+    "Separate pure simulation use from ROS-integrated workflows.",
+    "Avoid claiming support until a real robot development scenario needs it."
+  ],
+  "operational_notes": [
+    "Graphics stack and driver issues dominate portability.",
+    "Simulation workloads often need large assets and sample environments.",
+    "Validation should run a known world and verify usable startup."
+  ],
+  "risks": [
+    "Robotics simulation stacks are operationally heavy.",
+    "Desktop and GPU assumptions make blanket support claims unreliable."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "gazebo"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/gazebo"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

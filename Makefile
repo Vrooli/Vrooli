@@ -4,6 +4,9 @@
 
 BUILD_DIR := .vrooli/build
 INSTALL_DIR := $(HOME)/.vrooli/bin
+VROOLI_BIN := $(INSTALL_DIR)/vrooli
+SETUP_ARGS ?=
+DEV_ARGS ?=
 GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
 BUILD_TIME := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 BUILDINFO_PKG := github.com/vrooli/vrooli/internal/buildinfo
@@ -33,8 +36,8 @@ help: ## Show available project-level targets
 	@printf "  make validate-week0-week4 Run the combined Week 0-4 acceptance suite\n"
 	@printf "  make validate-week0-week5 Run the combined Week 0-5 acceptance suite\n"
 	@printf "\nCompatibility helpers\n"
-	@printf "  make setup          Run the existing setup workflow\n"
-	@printf "  make dev            Start the existing development workflow\n"
+	@printf "  make setup          Bootstrap the Go CLI and run native setup\n"
+	@printf "  make dev            Start the native development workflow\n"
 	@printf "  make lifecycle-build Run the existing Bash/CLI build phase\n"
 
 build: ## Build project-level Go binaries into .vrooli/build
@@ -443,8 +446,16 @@ validate-week5-cross: ## Run the Week 5 cross-compile suite
 validate-week5: ## Run the repeatable Week 5 acceptance suite
 	$(MAKE) build
 	$(MAKE) install
-	$(MAKE) test
-	go test ./cmd/vrooli -run 'TestRun(SetupUsesNativeProjectLifecycle|DevelopUsesNativeProjectLifecycle)'
+	go test ./cmd/vrooli ./cmd/vrooli-api ./internal/runtime ./internal/setup
+	go test ./internal/setup -run 'TestRun(SetupExportsLegacyEnvironmentContractToResourceInstall|DevelopExportsLegacyEnvironmentContractToAPILaunch)'
+	go test ./cmd/vrooli -run 'TestRun(SetupUsesNativeProjectLifecycle|DevelopUsesNativeProjectLifecycle|ProjectBackupUsesNativePhaseRunner|ProjectRestoreUsesNativePhaseRunner)'
+	tmp_home=$$(mktemp -d); \
+	touch "$$tmp_home/.bashrc"; \
+	HOME="$$tmp_home" ./cli/install.sh --force > /tmp/vrooli-install-week5.log; \
+	HOME="$$tmp_home" PATH="$$tmp_home/.vrooli/bin:/usr/bin:/bin" VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" $(MAKE) setup SETUP_ARGS=--help > /tmp/vrooli-make-setup-week5.log; \
+	test -f "$$tmp_home/.vrooli/bin/vrooli"; \
+	grep -Fq 'Usage: vrooli setup' /tmp/vrooli-make-setup-week5.log; \
+	rm -rf "$$tmp_home"
 	$(MAKE) validate-live-develop-smoke
 	$(MAKE) validate-week5-cross
 
@@ -470,25 +481,32 @@ validate-week0-week5: ## Run the combined Week 0-5 acceptance suite
 clean: ## Remove project-level Go build artifacts
 	rm -rf $(BUILD_DIR)
 
-setup: ## Run the existing setup workflow
-	./scripts/manage.sh setup
+setup: ## Bootstrap the Go CLI and run native setup
+	./cli/install.sh --force
+	$(VROOLI_BIN) setup $(SETUP_ARGS)
 
-dev: ## Start the existing development workflow
-	vrooli develop
+dev: ## Start the native development workflow
+	test -x "$(VROOLI_BIN)"
+	$(VROOLI_BIN) develop $(DEV_ARGS)
 
 develop: dev ## Alias for make dev
 
 deploy: ## Run the existing deploy workflow
-	vrooli deploy
+	test -x "$(VROOLI_BIN)"
+	$(VROOLI_BIN) deploy
 
 status: ## Show current Vrooli status
-	vrooli status
+	test -x "$(VROOLI_BIN)"
+	$(VROOLI_BIN) status
 
 scenarios: ## List scenarios through the existing CLI
-	vrooli scenario list
+	test -x "$(VROOLI_BIN)"
+	$(VROOLI_BIN) scenario list
 
 resources: ## Show resource status through the existing CLI
-	vrooli resource status
+	test -x "$(VROOLI_BIN)"
+	$(VROOLI_BIN) resource status
 
 lifecycle-build: ## Run the existing Bash/CLI build phase
-	vrooli build
+	test -x "$(VROOLI_BIN)"
+	$(VROOLI_BIN) build

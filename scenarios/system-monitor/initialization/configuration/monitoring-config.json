@@ -219,7 +219,7 @@
     },
     "integrations": {
         "node_red": {
-            "enabled": true,
+            "enabled": false,
             "flows": [
                 "anomaly-detector",
                 "metric-collector"

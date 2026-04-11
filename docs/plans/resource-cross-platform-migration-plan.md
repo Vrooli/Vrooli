@@ -955,7 +955,7 @@ Supporting artifacts produced during Phase 0:
 **Status update:** Phase 0 inventory and classification are complete. Current reviewed proposal:
 
 - `29` resources proposed as `keep`
-- `52` resources proposed as `blueprint`
+- `53` resources proposed as `blueprint`
 - `4` resources proposed as `deprecate`
 
 Important decisions made during Phase 0:
@@ -963,20 +963,33 @@ Important decisions made during Phase 0:
 - scenario/resource dependency manifests now use a flat keyed map contract
 - `startup_policy` was introduced and wired into scenario dependency startup behavior
 - `.vrooli/resource-registry/` is treated as transitional metadata, not a canonical source of truth
+- stale `node-red` scenario manifest dependencies were removed; remaining Node-RED artifacts are treated as historical prototypes/blueprint material
 
 ### Phase 1 — Blueprint system
 
 **Goal:** Create a first-class structured replacement for speculative resource code.
 
-- [ ] Define blueprint schema
-- [ ] Add `.vrooli/resource-blueprints/`
-- [ ] Add blueprint docs and operator guidance
-- [ ] Add initial commands for listing and viewing blueprints
-- [ ] Seed blueprints from a first batch of low-risk speculative resources
+- [x] Define blueprint schema
+- [x] Add `.vrooli/resource-blueprints/`
+- [x] Add blueprint docs and operator guidance
+- [x] Add initial commands for listing and viewing blueprints
+- [x] Seed blueprints from a first batch of low-risk speculative resources
 
 **Deliverable:** Resource blueprints exist as a real supported concept.
 
 **Acceptance:** A user can inspect blueprint records without touching `resources/`.
+
+**Status update:** Phase 1 is now inventory-complete rather than seed-only.
+
+- `.vrooli/resource-blueprints/` now covers the full current Phase 0 `blueprint` set
+- the Go test suite validates drift between `docs/resources/resource-phase0-inventory.md` and the blueprint store
+- operator guidance documents blueprint inspection and validation as a supported workflow
+- the Phase 1 closeout validation bundle is:
+  - `vrooli resource blueprint validate`
+  - `vrooli resource blueprint list`
+  - `vrooli resource blueprint info terraform`
+  - `vrooli resource blueprint search network`
+  - `go test ./internal/resources ./cmd/vrooli`
 
 ### Phase 2 — Deprecation and archive lifecycle
 

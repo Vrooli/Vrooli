@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "pihole",
+  "display_name": "Pi-hole",
+  "category": "networking",
+  "summary": "Network-level DNS filtering and blocking service for controlled local network environments.",
+  "why_it_matters": "Pi-hole can be strategically useful for homelab and controlled-network scenarios, but it is not currently justified as an active cross-platform Vrooli integration.",
+  "when_to_use": [
+    "A deployment explicitly needs local DNS-level filtering or sinkholing.",
+    "A scenario targets homelab or appliance-style environments with network control.",
+    "You need demonstrable ad or tracker blocking as part of a managed local stack."
+  ],
+  "example_scenarios": [
+    "Homelab management stacks",
+    "Local privacy appliances",
+    "Controlled family or office network deployments"
+  ],
+  "integration_kind": "docker-service",
+  "platform_support": {
+    "portability_tier": "platform-specific",
+    "notes": "The software can run in containers, but practical usefulness depends heavily on host networking control and local DNS topology.",
+    "linux": "partial",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "prerequisites": [
+    "Administrative control over local network DNS settings",
+    "Stable host networking configuration",
+    "Clear deployment boundary for appliance-like use"
+  ],
+  "dependencies": [],
+  "suggested_template": "docker-service",
+  "implementation_notes": [
+    "Document networking assumptions explicitly if this is ever promoted.",
+    "Avoid representing this as a general-purpose developer dependency.",
+    "Prefer blueprint status until a real managed-network scenario needs it."
+  ],
+  "operational_notes": [
+    "Port conflicts and DNS routing are the main operational risks.",
+    "Restore and backup of DNS configuration must be deliberate.",
+    "Health checks should verify DNS resolution behavior, not just an admin UI."
+  ],
+  "risks": [
+    "Cross-platform value is limited.",
+    "Host networking assumptions vary too much across OSes for casual support claims."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "pihole"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/pihole"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "geonode",
+  "display_name": "GeoNode",
+  "category": "geospatial",
+  "summary": "Geospatial content management stack for map services, dataset publishing, and spatial collaboration workflows.",
+  "why_it_matters": "GeoNode preserves useful GIS platform capability knowledge, but there is no current validated geospatial workflow in Vrooli that warrants supporting the full stack.",
+  "when_to_use": [
+    "A future scenario needs geospatial dataset publishing and map service delivery.",
+    "Operators need a portal for managing spatial assets and metadata.",
+    "The workflow depends on OGC-compatible geospatial services."
+  ],
+  "example_scenarios": [
+    "Spatial data portals",
+    "Environmental monitoring dashboards",
+    "Geospatial collaboration systems"
+  ],
+  "integration_kind": "compose-service",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "The stack is containerizable, but its multiple services, storage needs, and GIS-specific operational assumptions make support non-trivial.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Container runtime and persistent storage",
+    "Spatial database and geospatial service plan",
+    "Clear ownership for datasets, uploads, and backups"
+  ],
+  "dependencies": [],
+  "suggested_template": "compose-service",
+  "implementation_notes": [
+    "Promotion should validate a concrete dataset ingest and map-serving workflow.",
+    "Keep portal concerns and raw geospatial processing concerns separate.",
+    "Do not support the full stack without a scenario that uses it."
+  ],
+  "operational_notes": [
+    "Multi-service health and storage growth are the core concerns.",
+    "Spatial data import paths require explicit validation.",
+    "Backups need to include both metadata and content."
+  ],
+  "risks": [
+    "GIS platform stacks are heavy and easy to keep around speculatively.",
+    "Operational burden is disproportionate without an active consumer."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "geonode"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/geonode"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

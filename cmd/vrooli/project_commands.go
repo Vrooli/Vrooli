@@ -7,12 +7,17 @@ import (
 	projectsetup "github.com/vrooli/vrooli/internal/setup"
 )
 
+var (
+	runProjectSetupFn   = projectsetup.RunSetup
+	runProjectDevelopFn = projectsetup.RunDevelop
+)
+
 func runProjectSetupCommand(root string, args []string, stdout, stderr io.Writer) error {
 	home, err := config.HomeDir()
 	if err != nil {
 		return err
 	}
-	return projectsetup.RunSetup(root, home, args, stdout, stderr)
+	return runProjectSetupFn(root, home, args, stdout, stderr)
 }
 
 func runProjectDevelopCommand(root string, args []string, stdout, stderr io.Writer) error {
@@ -20,5 +25,5 @@ func runProjectDevelopCommand(root string, args []string, stdout, stderr io.Writ
 	if err != nil {
 		return err
 	}
-	return projectsetup.RunDevelop(root, home, args, stdout, stderr)
+	return runProjectDevelopFn(root, home, args, stdout, stderr)
 }

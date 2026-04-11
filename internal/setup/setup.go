@@ -1,16 +1,24 @@
 package setup
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/orchestrator"
+	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/project"
+	"github.com/vrooli/vrooli/internal/resources"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -19,6 +27,7 @@ const (
 	defaultEnvironment = "development"
 	defaultTarget      = "docker"
 	defaultLocation    = "Local"
+	defaultAPIPort     = 8092
 )
 
 type options struct {
@@ -30,18 +39,27 @@ type options struct {
 	Help        bool
 }
 
-type phaseRunner interface {
-	RunPhase(name, phaseName string, opts lifecycle.PhaseOptions) error
-	SetupNeeded(item scenario.Scenario, force bool) (bool, []string, error)
+type apiLaunchSpec struct {
+	Command string
+	Args    []string
+	LogFile string
+	Env     []string
+	Port    int
 }
 
 var (
-	currentHostFn    = vrooliruntime.Current
-	loadProjectFn    = project.LoadProject
-	markCompleteFn   = markComplete
-	newPhaseRunnerFn = func(root, home string, stdout, stderr io.Writer) (phaseRunner, error) {
-		return lifecycle.NewRunner(root, home, stdout, stderr)
+	currentHostFn     = vrooliruntime.Current
+	loadProjectFn     = project.LoadProject
+	markCompleteFn    = markComplete
+	ensureRuntimeFn   = vrooliruntime.Ensure
+	newPortsManagerFn = func(root, home string) (*ports.Manager, error) {
+		return ports.NewManager(root, home)
 	}
+	startProjectAPIFn   = startProjectAPI
+	startOrchestratorFn = startOrchestrator
+	healthCheckFn       = waitForHTTPHealth
+	loadDotEnvFn        = loadDotEnv
+	nowFn               = time.Now
 )
 
 func RunSetup(root, home string, args []string, stdout, stderr io.Writer) error {
@@ -57,25 +75,37 @@ func RunSetup(root, home string, args []string, stdout, stderr io.Writer) error 
 		return err
 	}
 
-	project, err := loadProjectFn(root)
+	projectScenario, err := loadProjectFn(root)
 	if err != nil {
 		return err
 	}
 
-	restoreEnv, err := applyEnvironment(root, project.ServicePath, opts)
+	restoreEnv, err := applyEnvironment(root, projectScenario.ServicePath, opts)
 	if err != nil {
 		return err
 	}
 	defer restoreEnv()
 
-	runner, err := newPhaseRunnerFn(root, home, stdout, stderr)
-	if err != nil {
+	if err := ensureProjectFilesystem(root, home); err != nil {
 		return err
 	}
-	if err := runner.RunPhase(project.Slug, "setup", lifecycle.PhaseOptions{CustomPath: root, ProjectMode: true}); err != nil {
+	if _, err := ensureRuntimeFn(vrooliruntime.EnsureOptions{
+		Environment: opts.Environment,
+		SudoMode:    opts.SudoMode,
+		DryRun:      opts.DryRun,
+		AutoInstall: !opts.DryRun,
+		Stdout:      stdout,
+		Stderr:      stderr,
+	}); err != nil {
 		return err
 	}
-	return markCompleteFn(root, project.Manifest)
+	if err := configureGit(root); err != nil {
+		return err
+	}
+	if err := maybeInstallResources(root, home, opts, stdout, stderr); err != nil {
+		return err
+	}
+	return markCompleteFn(root, projectScenario.Manifest)
 }
 
 func RunDevelop(root, home string, args []string, stdout, stderr io.Writer) error {
@@ -91,41 +121,60 @@ func RunDevelop(root, home string, args []string, stdout, stderr io.Writer) erro
 		return err
 	}
 
-	project, err := loadProjectFn(root)
+	projectScenario, err := loadProjectFn(root)
 	if err != nil {
 		return err
 	}
 
-	restoreEnv, err := applyEnvironment(root, project.ServicePath, opts)
+	restoreEnv, err := applyEnvironment(root, projectScenario.ServicePath, opts)
 	if err != nil {
 		return err
 	}
 	defer restoreEnv()
 
-	runner, err := newPhaseRunnerFn(root, home, stdout, stderr)
-	if err != nil {
-		return err
-	}
-
-	setupNeeded, reasons, err := runner.SetupNeeded(project, forceSetupApplies(project.Slug))
-	if err != nil {
-		return err
-	}
-	if setupNeeded {
-		if len(reasons) > 0 {
-			_, _ = fmt.Fprintf(stdout, "[INFO]    Running setup before develop (%s)\n", strings.Join(reasons, ", "))
-		} else {
-			_, _ = fmt.Fprintln(stdout, "[INFO]    Running setup before develop")
-		}
-		if err := runner.RunPhase(project.Slug, "setup", lifecycle.PhaseOptions{CustomPath: root, ProjectMode: true}); err != nil {
-			return err
-		}
-		if err := markCompleteFn(root, project.Manifest); err != nil {
+	if setupNeeded(root, projectScenario.Slug) {
+		_, _ = fmt.Fprintln(stdout, "[INFO]    Running setup before develop")
+		if err := RunSetup(root, home, args, stdout, stderr); err != nil {
 			return err
 		}
 	}
 
-	return runner.RunPhase(project.Slug, "develop", lifecycle.PhaseOptions{CustomPath: root, ProjectMode: true})
+	manager, err := newPortsManagerFn(root, home)
+	if err != nil {
+		return err
+	}
+	projectEnv, err := manager.BuildProjectEnvironment(projectScenario)
+	if err != nil {
+		return err
+	}
+	if err := applyDotEnv(root); err != nil {
+		return err
+	}
+	env := mergeEnvironment(os.Environ(), projectEnv.EnvVars)
+	apiPort := resolveAPIPort(projectEnv.EnvVars)
+	if apiPort <= 0 {
+		apiPort = defaultAPIPort
+	}
+
+	healthy, err := apiAlreadyHealthy(apiPort)
+	if err != nil {
+		return err
+	}
+	if !healthy {
+		spec, err := buildAPILaunchSpec(root, home, env, apiPort)
+		if err != nil {
+			return err
+		}
+		if err := startProjectAPIFn(root, spec, stdout, stderr); err != nil {
+			return err
+		}
+	}
+
+	if err := healthCheckFn(apiPort, 30*time.Second); err != nil {
+		return err
+	}
+	_, _ = fmt.Fprintf(stdout, "🚀 Vrooli API healthy on port %d with native scenario management\n", apiPort)
+	return startOrchestratorFn(root, home, stdout, stderr)
 }
 
 func parseOptions(command string, args []string) (options, error) {
@@ -311,6 +360,291 @@ func applyEnvironment(root, servicePath string, opts options) (func(), error) {
 			_ = os.Unsetenv(key)
 		}
 	}, nil
+}
+
+func ensureProjectFilesystem(root, home string) error {
+	paths := []string{
+		filepath.Join(root, "data"),
+		filepath.Join(root, ".vrooli", "build"),
+		filepath.Join(root, ".vrooli", "logs"),
+		filepath.Join(home, ".vrooli", "bin"),
+		filepath.Join(home, ".vrooli", "logs"),
+		filepath.Join(home, ".vrooli", "processes"),
+	}
+	for _, path := range paths {
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			return err
+		}
+	}
+	return makeShellScriptsExecutable(root)
+}
+
+func makeShellScriptsExecutable(root string) error {
+	dirs := []string{filepath.Join(root, "scripts"), filepath.Join(root, "cli"), filepath.Join(root, "api")}
+	for _, dir := range dirs {
+		_ = filepath.WalkDir(dir, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil || entry.IsDir() || filepath.Ext(path) != ".sh" {
+				return walkErr
+			}
+			info, err := entry.Info()
+			if err != nil {
+				return err
+			}
+			mode := info.Mode()
+			if mode&0o111 != 0o111 {
+				if err := os.Chmod(path, mode|0o755); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+	return nil
+}
+
+func configureGit(root string) error {
+	if _, err := exec.LookPath("git"); err != nil {
+		return nil
+	}
+	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
+		return nil
+	}
+	cmd := exec.Command("git", "config", "core.filemode", "false")
+	cmd.Dir = root
+	return cmd.Run()
+}
+
+func maybeInstallResources(root, home string, opts options, stdout, stderr io.Writer) error {
+	selection := strings.TrimSpace(opts.Resources)
+	if selection == "" || selection == "none" {
+		return nil
+	}
+
+	controller := resourcesController(root, home)
+	if selection == "enabled" {
+		names, err := enabledResourceNames(root)
+		if err != nil {
+			return err
+		}
+		for _, name := range names {
+			if err := controller.Run(name, []string{"install"}, stdout, stderr); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	for _, raw := range strings.Split(selection, ",") {
+		name := strings.TrimSpace(raw)
+		if name == "" {
+			continue
+		}
+		if err := controller.Run(name, []string{"install"}, stdout, stderr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type resourceRunner interface {
+	Run(name string, args []string, stdout, stderr io.Writer) error
+}
+
+var resourcesController = func(root, home string) resourceRunner {
+	return resources.NewController(root, home)
+}
+
+func enabledResourceNames(root string) ([]string, error) {
+	servicePath := filepath.Join(root, ".vrooli", "service.json")
+	manifest, err := scenario.ReadService(servicePath)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(manifest.Dependencies.Resources))
+	for name, dependency := range manifest.Dependencies.Resources {
+		if dependency.Enabled {
+			names = append(names, name)
+		}
+	}
+	return names, nil
+}
+
+func setupNeeded(root, slug string) bool {
+	if forceSetupApplies(slug) {
+		return true
+	}
+	_, err := os.Stat(filepath.Join(root, "data", ".setup-complete"))
+	return err != nil
+}
+
+func applyDotEnv(root string) error {
+	values, err := loadDotEnvFn(filepath.Join(root, ".env"))
+	if err != nil {
+		return err
+	}
+	for key, value := range values {
+		if err := os.Setenv(key, value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func loadDotEnv(path string) (map[string]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return map[string]string{}, nil
+		}
+		return nil, err
+	}
+	defer file.Close()
+
+	values := map[string]string{}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		line = strings.TrimPrefix(line, "export ")
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.Trim(strings.TrimSpace(value), `"'`)
+		if key != "" {
+			values[key] = value
+		}
+	}
+	return values, scanner.Err()
+}
+
+func mergeEnvironment(base []string, overlay map[string]string) []string {
+	env := append([]string(nil), base...)
+	for key, value := range overlay {
+		prefix := key + "="
+		replaced := false
+		for index, entry := range env {
+			if strings.HasPrefix(entry, prefix) {
+				env[index] = prefix + value
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			env = append(env, prefix+value)
+		}
+	}
+	return env
+}
+
+func resolveAPIPort(values map[string]string) int {
+	if raw := strings.TrimSpace(values["VROOLI_API_PORT"]); raw != "" {
+		if port, err := strconv.Atoi(raw); err == nil && port > 0 {
+			return port
+		}
+	}
+	if raw := strings.TrimSpace(os.Getenv("VROOLI_API_PORT")); raw != "" {
+		if port, err := strconv.Atoi(raw); err == nil && port > 0 {
+			return port
+		}
+	}
+	return defaultAPIPort
+}
+
+func apiAlreadyHealthy(port int) (bool, error) {
+	client := &http.Client{Timeout: 2 * time.Second}
+	response, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/health", port))
+	if err != nil {
+		return false, nil
+	}
+	defer response.Body.Close()
+	return response.StatusCode >= 200 && response.StatusCode < 300, nil
+}
+
+func buildAPILaunchSpec(root, home string, env []string, port int) (apiLaunchSpec, error) {
+	logFile := filepath.Join(root, ".vrooli", "logs", "vrooli-api.log")
+	for _, candidate := range []struct {
+		command string
+		args    []string
+	}{
+		{command: filepath.Join(root, ".vrooli", "build", "vrooli-api")},
+		{command: filepath.Join(home, ".vrooli", "bin", "vrooli-api")},
+		{command: "go", args: []string{"run", "./cmd/vrooli-api"}},
+	} {
+		if candidate.command == "go" {
+			if _, err := exec.LookPath("go"); err != nil {
+				continue
+			}
+		} else if _, err := os.Stat(candidate.command); err != nil {
+			continue
+		}
+		return apiLaunchSpec{
+			Command: candidate.command,
+			Args:    candidate.args,
+			LogFile: logFile,
+			Env:     env,
+			Port:    port,
+		}, nil
+	}
+	return apiLaunchSpec{}, fmt.Errorf("no project-level vrooli-api launcher found")
+}
+
+func startProjectAPI(root string, spec apiLaunchSpec, stdout, stderr io.Writer) error {
+	if err := os.MkdirAll(filepath.Dir(spec.LogFile), 0o755); err != nil {
+		return err
+	}
+	logFile, err := os.OpenFile(spec.LogFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	defer logFile.Close()
+
+	cmd := exec.Command(spec.Command, spec.Args...)
+	cmd.Dir = root
+	cmd.Env = spec.Env
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+	cmd.SysProcAttr = detachedProcessAttr()
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	time.Sleep(200 * time.Millisecond)
+	if err := cmd.Process.Signal(syscall.Signal(0)); err != nil {
+		return fmt.Errorf("vrooli-api exited immediately: %w", err)
+	}
+	return nil
+}
+
+func waitForHTTPHealth(port int, timeout time.Duration) error {
+	deadline := nowFn().Add(timeout)
+	client := &http.Client{Timeout: 2 * time.Second}
+	url := fmt.Sprintf("http://127.0.0.1:%d/health", port)
+	for {
+		response, err := client.Get(url)
+		if err == nil {
+			response.Body.Close()
+			if response.StatusCode >= 200 && response.StatusCode < 300 {
+				return nil
+			}
+		}
+		if nowFn().After(deadline) {
+			return fmt.Errorf("vrooli-api failed health check on port %d", port)
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func startOrchestrator(root, home string, stdout, stderr io.Writer) error {
+	service := orchestrator.New(root, home, stdout, stderr)
+	status, exists, err := service.Status("vrooli-orchestrator")
+	if err == nil && exists && status.Processes > 0 {
+		return nil
+	}
+	_, err = service.Start("vrooli-orchestrator", lifecycle.StartOptions{})
+	return err
 }
 
 func forceSetupApplies(slug string) bool {

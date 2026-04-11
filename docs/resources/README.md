@@ -15,6 +15,13 @@ This architecture allows Vrooli's three-tier AI system to adapt to whatever reso
 
 ## 🚀 Quick Start
 
+## Blueprint Catalog
+
+Structured blueprint records now live under `.vrooli/resource-blueprints/` and can be inspected through `vrooli resource blueprint ...`.
+
+- Blueprint guide: [resource-blueprints.md](resource-blueprints.md)
+- Migration context: [../plans/resource-cross-platform-migration-plan.md](../plans/resource-cross-platform-migration-plan.md)
+
 ### Resource Discovery
 ```bash
 # See what's currently running
@@ -58,7 +65,7 @@ Our scenario system demonstrates real-world resource combinations and generates 
   → [Secure Document Processing](../scenarios/secure-document-processing/) ($20k-40k projects)
 - **Content Creation**: ComfyUI + Ollama
   → [Campaign Content Studio](../scenarios/campaign-content-studio/) ($8k-20k projects)
-- **App Monitoring**: PostgreSQL + Redis + n8n + Node-RED
+- **App Monitoring**: PostgreSQL + Redis + n8n
   → [App Monitor](../scenarios/app-monitor/) ($10k-20k projects)
 
 ### Test Resource Integration
@@ -301,7 +308,7 @@ curl -X POST http://localhost:5679/api/prompt -H "Content-Type: application/json
 - Complex data pipelines
 
 **When to Use**: Business processes, scheduled workflows, external API integration  
-**Alternative**: Node-RED for real-time/IoT
+**Alternative**: custom event-driven services for real-time/IoT
 
 **Quick Example**:
 ```bash
@@ -313,8 +320,13 @@ curl -X POST http://localhost:5678/webhook/my-workflow
 ```
 📖 **Details**: [resources/automation/n8n/README.md](../../resources/n8n/README.md)
 
-## Node-RED - Real-time Flow Programming
-**Event-driven automation with IoT focus and real-time processing**
+## Node-RED - Blueprint-Only Concept
+**Historical workflow-automation concept retained as blueprint material**
+
+**Status**:
+- Not an active implemented resource in this repo
+- Kept as capability knowledge for future blueprint/promotion work
+- Existing references should be treated as historical planning artifacts unless explicitly reintroduced
 
 **Use Cases**:
 - Real-time system monitoring and dashboards
@@ -322,18 +334,8 @@ curl -X POST http://localhost:5678/webhook/my-workflow
 - Event-driven automation and alerts
 - System integration and API development
 
-**When to Use**: Real-time processing, IoT integration, live dashboards, system monitoring  
-**Alternative**: n8n for business workflows, custom code for complex logic
-
-**Quick Example**:
-```bash
-# Access Node-RED editor
-open http://localhost:1880
-
-# Check Node-RED flows API
-curl http://localhost:1880/flows | jq .
-```
-📖 **Details**: [resources/automation/node-red/README.md](../../resources/node-red/README.md)
+**When to Use**: As inspiration for future blueprint promotion, not as a supported current integration  
+**Alternative**: n8n for business workflows, custom event-driven services for real-time logic
 
 ---
 
@@ -561,7 +563,7 @@ redis-cli -h localhost -p 6380 PUBLISH mychannel "Hello World"
 ## Resource Selection Guide
 
 **Choose by Use Case**:
-- **Real-time monitoring**: Node-RED + Agent-S2 + MinIO
+- **Real-time monitoring**: custom event-driven services + Agent-S2 + MinIO
 - **Business automation**: n8n + Browserless + external APIs  
 - **AI processing**: Ollama + Whisper + ComfyUI + MinIO
 - **Domain-specific AI**: Ollama Modelfiles + Qdrant + MinIO (custom chatbots, specialized assistants)
@@ -573,9 +575,9 @@ redis-cli -h localhost -p 6380 PUBLISH mychannel "Hello World"
 
 **Automated interface generation for AI workflows**
 
-Node-RED provides powerful capabilities for creating interactive user interfaces that orchestrate multi-resource AI workflows. Rather than building static UIs, this platform enables **automated UI generation** based on your AI service combinations.
+Historically, Node-RED was considered for interactive user interfaces that orchestrate multi-resource AI workflows. It is now tracked as blueprint material rather than a supported active resource.
 
-### **Node-RED: Real-time AI Dashboards**  
+### **Historical Node-RED Pattern: Real-time AI Dashboards**  
 ```javascript
 // Live AI monitoring and interaction
 - WebSocket-based real-time updates
@@ -584,7 +586,7 @@ Node-RED provides powerful capabilities for creating interactive user interfaces
 - Simple drag-and-drop configuration  
 ```
 
-**When to Use**: Real-time monitoring, IoT integration, rapid prototyping, system dashboards
+**When to Use**: As blueprint inspiration for future real-time monitoring, IoT integration, rapid prototyping, and system dashboards
 
 ### **Multi-Modal AI Assistant Example**
 
@@ -599,13 +601,12 @@ A complete **voice-to-visual-to-action** workflow combining:
 ./resources/tests/run.sh --scenarios "scenario=analytics-dashboard"
 
 # Access the interfaces
-open http://localhost:1880  # Node-RED real-time dashboard  
+# Historical note: Node-RED is blueprint-only and not available as a supported resource in this repo.
 ```
 
 **Revenue Potential**: $10,000-25,000 per project for accessibility and enterprise productivity solutions
 
-📖 **Detailed Guides**:
-- [Node-RED Dashboard Creation](automation/node-red/docs/DASHBOARD_CREATION.md)
+Historical guides should be treated as archival references, not supported operator documentation.
 
 ## Configuration Management
 

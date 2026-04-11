@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "octoprint",
+  "display_name": "OctoPrint",
+  "category": "manufacturing",
+  "summary": "3D printer management platform for remote control, monitoring, job execution, and print workflow automation.",
+  "why_it_matters": "OctoPrint captures useful additive-manufacturing capability knowledge, but hardware coupling and no current usage make it a blueprint rather than a supported resource.",
+  "when_to_use": [
+    "A future scenario needs remote 3D printer management.",
+    "Operators want print job orchestration, monitoring, or webcam integration.",
+    "The workflow depends on existing OctoPrint APIs and plugins."
+  ],
+  "example_scenarios": [
+    "3D print farms",
+    "Rapid prototyping dashboards",
+    "Manufacturing automation helpers"
+  ],
+  "integration_kind": "docker-service",
+  "platform_support": {
+    "portability_tier": "platform-specific",
+    "notes": "The application can run in containers, but useful operation depends on host access to printer hardware and related peripherals.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "unsupported"
+  },
+  "prerequisites": [
+    "Supported 3D printer hardware",
+    "USB or serial device access",
+    "Camera and file storage strategy"
+  ],
+  "dependencies": [],
+  "suggested_template": "docker-service",
+  "implementation_notes": [
+    "Promotion should target one or two validated printer workflows.",
+    "Keep hardware control boundaries explicit and safety-aware.",
+    "Plugin usage should be constrained rather than open-ended."
+  ],
+  "operational_notes": [
+    "Serial access and hardware permissions are the main portability issue.",
+    "Validation should prove job upload and printer communication.",
+    "Print artifacts and timelapses need explicit retention rules."
+  ],
+  "risks": [
+    "Hardware-adjacent automation can create real operational failures.",
+    "A generic wrapper would overpromise portability and support."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "octoprint"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/octoprint"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

@@ -39,9 +39,9 @@ make help
 
 **Alternative commands:**
 ```bash
-./scripts/manage.sh setup   # Direct setup script
-vrooli develop             # Use CLI after setup
-vrooli --help              # See all CLI commands
+./cli/install.sh --force && vrooli setup   # Direct native bootstrap
+vrooli develop                            # Use CLI after setup
+vrooli --help                             # See all CLI commands
 ```
 
 <div align="center">
@@ -179,10 +179,10 @@ Run Vrooli on your own infrastructure with complete control and privacy:
 
 ```bash
 # Quick setup with default resources (includes Ollama AI models)
-./scripts/manage.sh setup
+make setup
 
 # Start your personal development server
-vrooli develop
+make dev
 ```
 
 **Why Local?** This unlocks Vrooli's full potential:

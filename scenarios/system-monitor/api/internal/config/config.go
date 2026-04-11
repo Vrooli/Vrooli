@@ -121,7 +121,7 @@ func Load() *Config {
 			MaxInvestigations: getEnvAsInt("MAX_INVESTIGATIONS", 100),
 		},
 		Resources: ResourcesConfig{
-			NodeRedURL: getEnv("NODE_RED_URL", "http://localhost:1880"),
+			NodeRedURL: getEnv("NODE_RED_URL", ""),
 			OllamaURL:  getEnv("OLLAMA_URL", "http://localhost:11434"),
 			GrafanaURL: getEnv("GRAFANA_URL", "http://localhost:3004"),
 		},

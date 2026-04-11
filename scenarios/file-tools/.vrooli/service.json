@@ -260,12 +260,6 @@
         "required": false,
         "purpose": "Vector database for semantic search and AI features"
       },
-      "node-red": {
-        "type": "node-red",
-        "enabled": false,
-        "required": false,
-        "purpose": "Visual workflow automation (alternative to Windmill)"
-      },
       "ollama": {
         "type": "ollama",
         "enabled": false,

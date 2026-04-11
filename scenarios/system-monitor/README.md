@@ -37,13 +37,12 @@ Real-time server monitoring with threshold-based anomaly detection, AI-driven in
 
 ## Dependencies
 
-### Resources (all required)
+### Resources (active runtime)
 | Resource | Purpose | Config |
 |----------|---------|--------|
 | PostgreSQL | Metrics, thresholds, investigations, reports, system health (6 tables) | `initialization/postgres/schema.sql` |
 | QuestDB | Time-series metrics storage (configured; API defaults to in-memory) | `initialization/questdb/server.conf` |
 | Redis | Real-time alerts queue, metrics caching, session data | `initialization/redis/redis.conf` |
-| Node-RED | Workflow automation (metric collection, anomaly detection) | `initialization/node-red/` |
 | Ollama | AI analysis model (llama3.2:3b) | Pulled during setup |
 
 ### Scenario Dependencies
@@ -51,9 +50,8 @@ Real-time server monitoring with threshold-based anomaly detection, AI-driven in
 |----------|---------|
 | agent-manager | Orchestrates AI-driven investigations |
 
-### Shared Workflows
-- `metric-collector`: Node-RED flow collecting system telemetry every 30s
-- `anomaly-detector`: Node-RED flow evaluating triggers every 60s
+### Historical Prototypes
+- `initialization/node-red/` contains speculative Node-RED flow prototypes from earlier planning. They are not wired into the current Go API or scenario lifecycle and should be treated as blueprint material, not active runtime dependencies.
 
 ## Components
 

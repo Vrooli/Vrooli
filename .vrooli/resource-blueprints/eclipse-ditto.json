@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "eclipse-ditto",
+  "display_name": "Eclipse Ditto",
+  "category": "iot",
+  "summary": "Digital twin platform for modeling connected devices, state synchronization, and policy-driven IoT interactions.",
+  "why_it_matters": "Eclipse Ditto is useful capability knowledge for IoT and digital twin scenarios, but there is no current validated scenario that warrants supporting the platform as an active resource.",
+  "when_to_use": [
+    "A future scenario needs digital twin state for connected devices.",
+    "Operators need a policy-aware IoT backend instead of a simple telemetry store.",
+    "The workflow benefits from twin semantics rather than raw message routing."
+  ],
+  "example_scenarios": [
+    "Industrial device monitoring",
+    "Smart building twins",
+    "Connected product control planes"
+  ],
+  "integration_kind": "compose-service",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "Containers are portable, but the surrounding messaging, auth, and policy stack increases operational complexity across platforms.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Container runtime and persistent storage",
+    "Message broker and auth integration strategy",
+    "Clear twin model and ownership boundaries"
+  ],
+  "dependencies": [],
+  "suggested_template": "compose-service",
+  "implementation_notes": [
+    "Promotion should define a narrow Vrooli-facing twin workflow rather than exposing the full platform surface.",
+    "Device onboarding and policy management need explicit support boundaries.",
+    "Health checks should cover core API readiness, not only container liveness."
+  ],
+  "operational_notes": [
+    "Operational burden comes from the surrounding platform, not just Ditto itself.",
+    "State model drift is a larger risk than startup.",
+    "Validation should include end-to-end twin update and retrieval."
+  ],
+  "risks": [
+    "Digital twin systems become shelfware if there is no strong scenario demand.",
+    "Complex platform composition makes false portability claims likely."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "eclipse-ditto"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/eclipse-ditto"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "kicad",
+  "display_name": "KiCad",
+  "category": "electronics",
+  "summary": "Electronic design automation suite for schematic capture, PCB layout, manufacturing output, and hardware design workflows.",
+  "why_it_matters": "KiCad captures useful hardware-design capability knowledge, but there is no current validated scenario that warrants maintaining it as an active supported resource.",
+  "when_to_use": [
+    "A future scenario needs PCB design or schematic automation.",
+    "Operators want open-source EDA tooling in hardware workflows.",
+    "The workflow depends on manufacturing outputs such as Gerbers or BOMs."
+  ],
+  "example_scenarios": [
+    "Hardware design automation",
+    "Electronics documentation pipelines",
+    "PCB review and export tooling"
+  ],
+  "integration_kind": "desktop-app",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "KiCad is cross-platform, but GUI automation, plugin behavior, and packaging differ by host environment.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Validated KiCad installation path",
+    "Clear project and library storage conventions",
+    "Defined automation or export workflows"
+  ],
+  "dependencies": [],
+  "suggested_template": "desktop-app",
+  "implementation_notes": [
+    "Promotion should focus on validated export or analysis workflows rather than full editor control.",
+    "Library and footprint management need explicit conventions.",
+    "Do not treat desktop install success as proof of usable automation."
+  ],
+  "operational_notes": [
+    "Library path drift and plugin compatibility are long-term maintenance concerns.",
+    "Validation should execute a real project export or batch job.",
+    "GUI-driven and headless tasks should be supported separately."
+  ],
+  "risks": [
+    "EDA workflows are deeper than lifecycle wrappers suggest.",
+    "Cross-platform support claims are easy to overstate without tested projects."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "kicad"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/kicad"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

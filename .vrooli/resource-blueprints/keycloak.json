@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "keycloak",
+  "display_name": "Keycloak",
+  "category": "identity",
+  "summary": "Identity and access management platform for SSO, OIDC, SAML, and tenant-aware authentication flows.",
+  "why_it_matters": "Keycloak preserves important identity-platform capability knowledge, but no current project-level workflow justifies maintaining it as an active supported resource.",
+  "when_to_use": [
+    "A future scenario needs centralized identity or SSO.",
+    "Operators want self-hosted OIDC or SAML infrastructure.",
+    "The workflow requires richer IAM capabilities than a lightweight auth helper."
+  ],
+  "example_scenarios": [
+    "Enterprise auth gateways",
+    "Multi-tenant app authentication",
+    "Identity federation services"
+  ],
+  "integration_kind": "compose-service",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "Containerized deployment is portable, but real support requires clear guidance for realms, persistence, TLS, and identity-provider integration.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Container runtime and persistent database strategy",
+    "Realm and tenant model",
+    "Defined TLS, backup, and operator workflows"
+  ],
+  "dependencies": [],
+  "suggested_template": "compose-service",
+  "implementation_notes": [
+    "Promotion should validate one or two identity workflows instead of claiming broad IAM coverage.",
+    "Realm bootstrap and config export/import need explicit conventions.",
+    "Treat auth integration as higher risk than a generic compose stack."
+  ],
+  "operational_notes": [
+    "Persistence and backup semantics are critical for identity systems.",
+    "Upgrade paths and realm migrations matter over time.",
+    "Validation should cover login and token issuance, not just startup."
+  ],
+  "risks": [
+    "Identity infrastructure has high blast radius when support is shallow.",
+    "A broad wrapper would imply more operational maturity than currently exists."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "keycloak"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/keycloak"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

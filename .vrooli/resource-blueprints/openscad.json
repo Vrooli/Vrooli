@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "openscad",
+  "display_name": "OpenSCAD",
+  "category": "cad",
+  "summary": "Script-first solid-modeling tool for parametric 3D geometry generation and export.",
+  "why_it_matters": "OpenSCAD keeps useful programmatic CAD capability knowledge in the repo, but there is no current validated workflow that justifies active maintenance.",
+  "when_to_use": [
+    "A future scenario needs scriptable parametric geometry generation.",
+    "Operators want reproducible CAD output without GUI-driven modeling.",
+    "The workflow depends on CAD-as-code rather than interactive design."
+  ],
+  "example_scenarios": [
+    "Procedural part generation",
+    "Fixture and enclosure generators",
+    "Manufacturing-ready geometry pipelines"
+  ],
+  "integration_kind": "docker-service",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "OpenSCAD itself is portable and can run in containers, but rendering and file workflows still vary by host setup.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Validated CLI or container execution path",
+    "Artifact storage for models and renders",
+    "Defined script input and output conventions"
+  ],
+  "dependencies": [],
+  "suggested_template": "docker-service",
+  "implementation_notes": [
+    "Promotion should focus on validated render/export workflows instead of full editor support.",
+    "Keep script execution and artifact handling explicit.",
+    "Do not retain speculative CAD wrappers without an active scenario."
+  ],
+  "operational_notes": [
+    "Validation should include a minimal model render or export.",
+    "Version pinning matters for geometry reproducibility.",
+    "Artifacts can be deterministic if inputs are controlled carefully."
+  ],
+  "risks": [
+    "CAD wrappers add little value without real generated design workflows.",
+    "Container or CLI availability alone does not prove useful support."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "openscad"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/openscad"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

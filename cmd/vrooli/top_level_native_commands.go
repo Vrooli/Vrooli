@@ -21,11 +21,11 @@ func runTopLevelDeployCommand(root string, globals globalOptions, args []string,
 }
 
 func runTopLevelBackupCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	return fmt.Errorf("project lifecycle phase %q is not defined in %s/.vrooli/service.json", "backup", root)
+	return runProjectLifecyclePhaseCommand(root, "backup", args, stdout, stderr)
 }
 
 func runTopLevelRestoreCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	return fmt.Errorf("project lifecycle phase %q is not defined in %s/.vrooli/service.json", "restore", root)
+	return runProjectLifecyclePhaseCommand(root, "restore", args, stdout, stderr)
 }
 
 func runTopLevelStatusCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {

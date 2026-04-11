@@ -92,17 +92,24 @@ Implications:
 
 | Registry Entry | Root Enabled | Scenario Refs | Proposed Action | Rationale |
 |---|---:|---:|---|---|
-| `node-red` | no | 3 | `blueprint` | Explicitly designated blueprint; scenario references should eventually be rewritten or downgraded to blueprint knowledge. |
+| `node-red` | no | 0 | `blueprint` | Explicitly designated blueprint. Live scenario manifest references were removed during Phase 0 validation. |
 | `autogen-studio` | no | 0 | `remove-registry` | No implementation and no active usage signal. |
 | `erpnext` | no | 0 | `remove-registry` | No implementation and no active usage signal in current scenario configs. |
-| `langchain` | no | 0 | `remove-registry` | No implementation and no active scenario usage. |
+| `langchain` | no | 0 | `remove-registry` | No implementation, no active scenario usage, and only disabled root config metadata remains. |
 | `musicgen` | no | 0 | `remove-registry` | No implementation and no active scenario usage. |
+
+## Root Config Concepts Without Implementation or Registry
+
+These concepts are outside the registry-vs-implementation mismatch counts above, but still matter for Phase 0 because root `.vrooli/service.json` is part of the source-of-truth set.
+
+| Concept | Root Enabled | Proposed Action | Rationale |
+|---|---:|---|---|
+| `parlant` | no | `blueprint` | Disabled root config concept with no implementation or registry entry; preserve as blueprint knowledge rather than supported integration metadata. |
 
 ## Immediate Follow-up Tasks
 
 1. Carry the blueprint-designated resources above into Phase 0 as pre-decided blueprint candidates.
-2. Rewrite or remove live `node-red` scenario references during Phase 0 so they no longer imply an implemented resource.
-3. Carry the remaining `phase0-review` set into the Phase 0 inventory with a bias toward `blueprint` or `deprecate` unless stronger validation evidence appears.
+2. Carry the remaining `phase0-review` set into the Phase 0 inventory with a bias toward `blueprint` or `deprecate` unless stronger validation evidence appears.
 
 ## Suggested Next Step
 

@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "wikijs",
+  "display_name": "Wiki.js",
+  "category": "knowledge",
+  "summary": "Modern documentation and knowledge-base platform for structured content, collaboration, and searchable internal references.",
+  "why_it_matters": "Wiki.js preserves useful knowledge-platform capability knowledge, but there is no current validated project workflow that justifies active maintenance as a supported resource.",
+  "when_to_use": [
+    "A future scenario needs a self-hosted knowledge base or wiki.",
+    "Operators want searchable documentation with structured content workflows.",
+    "The workflow depends on a collaborative knowledge platform rather than static docs alone."
+  ],
+  "example_scenarios": [
+    "Internal knowledge hubs",
+    "Documentation portals",
+    "Operational runbook systems"
+  ],
+  "integration_kind": "docker-service",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "The app is containerizable, but real support depends on persistence, auth, and content-backup workflows.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Persistent database and content storage strategy",
+    "Authentication and admin model",
+    "Defined content backup and restore workflow"
+  ],
+  "dependencies": [],
+  "suggested_template": "docker-service",
+  "implementation_notes": [
+    "Promotion should validate a real documentation workflow, not only basic startup.",
+    "Keep content-management support narrower than broad wiki customizations.",
+    "Backups and exports need explicit conventions."
+  ],
+  "operational_notes": [
+    "Persistence and backup quality matter more than initial setup.",
+    "Validation should include content creation and retrieval.",
+    "Auth integration changes the support surface materially."
+  ],
+  "risks": [
+    "Knowledge platforms are easy to add and easy to leave unused.",
+    "A wrapper can imply stronger operational maturity than exists."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "wikijs"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/wikijs"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

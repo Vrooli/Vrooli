@@ -1,0 +1,220 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/resource-blueprint.schema.json",
+  "title": "Resource Blueprint Schema",
+  "description": "Schema for structured resource blueprint records that preserve capability knowledge without requiring an implemented resource.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "display_name",
+    "category",
+    "summary",
+    "why_it_matters",
+    "when_to_use",
+    "integration_kind",
+    "platform_support",
+    "suggested_template",
+    "implementation_notes",
+    "operational_notes",
+    "risks",
+    "status",
+    "references",
+    "last_reviewed"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Schema reference for IDE support"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "category": {
+      "type": "string",
+      "minLength": 1
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "why_it_matters": {
+      "type": "string",
+      "minLength": 1
+    },
+    "when_to_use": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "example_scenarios": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "integration_kind": {
+      "type": "string",
+      "enum": [
+        "docker-service",
+        "compose-service",
+        "external-cli",
+        "cloud-api",
+        "library",
+        "desktop-app",
+        "hardware",
+        "manual"
+      ]
+    },
+    "platform_support": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "portability_tier",
+        "notes",
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "properties": {
+        "portability_tier": {
+          "type": "string",
+          "enum": [
+            "full",
+            "partial",
+            "platform-specific"
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1
+        },
+        "linux": {
+          "$ref": "#/definitions/platformLevel"
+        },
+        "macos": {
+          "$ref": "#/definitions/platformLevel"
+        },
+        "windows": {
+          "$ref": "#/definitions/platformLevel"
+        }
+      }
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "suggested_template": {
+      "type": "string",
+      "enum": [
+        "docker-service",
+        "compose-service",
+        "external-cli",
+        "cloud-api",
+        "desktop-app",
+        "manual-resource",
+        "legacy-adapter"
+      ]
+    },
+    "implementation_notes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "operational_notes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "candidate",
+        "validated",
+        "prioritized"
+      ]
+    },
+    "replacement_for": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/reference"
+      }
+    },
+    "last_reviewed": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+  },
+  "definitions": {
+    "platformLevel": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "partial",
+        "unsupported",
+        "unknown"
+      ]
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "value"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "doc",
+            "resource",
+            "scenario",
+            "registry",
+            "website",
+            "note"
+          ]
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

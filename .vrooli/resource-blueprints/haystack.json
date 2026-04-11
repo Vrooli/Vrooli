@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "haystack",
+  "display_name": "Haystack",
+  "category": "ai",
+  "summary": "LLM and retrieval orchestration framework for search, QA, and agent-like pipelines.",
+  "why_it_matters": "Haystack remains useful framework knowledge for retrieval and pipeline composition, but the repo does not currently need to support it as a maintained project-level resource.",
+  "when_to_use": [
+    "A future scenario needs retrieval or QA pipelines built around Haystack.",
+    "Operators want a framework-oriented approach to LLM orchestration.",
+    "The workflow benefits from Haystack-specific nodes or integrations."
+  ],
+  "example_scenarios": [
+    "Document QA systems",
+    "Search-augmented assistants",
+    "Pipeline-based AI services"
+  ],
+  "integration_kind": "library",
+  "platform_support": {
+    "portability_tier": "full",
+    "notes": "The framework is broadly portable, but real support depends on Python environment management and the backing model/vector store choices.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "Python environment and dependency strategy",
+    "Defined backing services such as vector stores or model endpoints",
+    "Clear reason to support Haystack specifically instead of framework-neutral patterns"
+  ],
+  "dependencies": [],
+  "suggested_template": "manual-resource",
+  "implementation_notes": [
+    "Future support should be scenario-driven, not framework-enthusiasm-driven.",
+    "Keep framework-specific support narrower than generic retrieval capabilities.",
+    "Promotion should define how framework configs and pipelines are versioned."
+  ],
+  "operational_notes": [
+    "The framework surface changes over time, so version pinning matters.",
+    "Validation should run a known pipeline rather than only import the package.",
+    "Backing services create most of the real operational complexity."
+  ],
+  "risks": [
+    "Framework wrappers become stale quickly when not used.",
+    "Supporting multiple overlapping AI frameworks creates low-value maintenance."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "haystack"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/haystack"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "step-ca",
+  "display_name": "step-ca",
+  "category": "security",
+  "summary": "Private certificate authority for automated X.509 and SSH certificate issuance and lifecycle management.",
+  "why_it_matters": "step-ca preserves useful private-PKI capability knowledge, but there is no current validated workflow that justifies actively maintaining it as a supported resource.",
+  "when_to_use": [
+    "A future scenario needs internal certificate issuance or renewal.",
+    "Operators want private PKI for services, devices, or SSH access.",
+    "The workflow depends on automated certificate lifecycle management."
+  ],
+  "example_scenarios": [
+    "Internal mTLS infrastructure",
+    "Device certificate provisioning",
+    "Private service mesh bootstrapping"
+  ],
+  "integration_kind": "docker-service",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "The CA can run in containers, but useful support depends on key custody, trust distribution, and TLS integration across the environment.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Key custody and backup model",
+    "Trust distribution plan",
+    "Defined certificate policy and renewal workflow"
+  ],
+  "dependencies": [],
+  "suggested_template": "docker-service",
+  "implementation_notes": [
+    "Promotion should begin with a narrow internal certificate workflow.",
+    "Keep CA operation separate from application-specific TLS automation.",
+    "Do not imply safe PKI operations without end-to-end validation."
+  ],
+  "operational_notes": [
+    "Backup and root/intermediate key handling are critical.",
+    "Validation should cover issuance and trust verification, not just startup.",
+    "Certificate lifecycle mistakes have broad blast radius."
+  ],
+  "risks": [
+    "PKI support is high-trust and easy to get wrong.",
+    "A thin wrapper can be more dangerous than no wrapper."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "step-ca"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/step-ca"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

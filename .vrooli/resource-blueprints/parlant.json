@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "parlant",
+  "display_name": "Parlant",
+  "category": "ai",
+  "summary": "Reserved capability record for a future conversation-oriented AI service tracked only in root configuration, not as an implemented resource.",
+  "why_it_matters": "Parlant exists as capability knowledge because it appears in project configuration, but there is no implementation, registry entry, or validated workflow that should make it look supported today.",
+  "when_to_use": [
+    "A future scenario defines a concrete need for a dedicated conversational service distinct from existing model resources.",
+    "Operators need a named placeholder for a future AI interaction capability.",
+    "The workflow justifies promoting a config-only concept into a real implementation."
+  ],
+  "example_scenarios": [
+    "Conversational service prototypes",
+    "Dialogue orchestration backends",
+    "Agent interaction layers"
+  ],
+  "integration_kind": "cloud-api",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "There is no implementation yet, so portability must remain explicitly uncertain until the real architecture exists.",
+    "linux": "unknown",
+    "macos": "unknown",
+    "windows": "unknown"
+  },
+  "prerequisites": [
+    "Concrete product definition",
+    "Validated architecture and protocol choice",
+    "Decision on whether it should exist separately from current AI resources"
+  ],
+  "dependencies": [],
+  "suggested_template": "cloud-api",
+  "implementation_notes": [
+    "Treat this as preserved intent, not implied support.",
+    "Promotion should only happen after a real scenario proves the need.",
+    "If the capability overlaps with existing resources, prefer consolidation instead of a new integration."
+  ],
+  "operational_notes": [
+    "There is nothing to operate yet, so documentation should stay explicit about that.",
+    "Validation at this stage means metadata coherence only.",
+    "Future support must define ownership, credentials, and lifecycle semantics."
+  ],
+  "risks": [
+    "Config-only concepts can create false impressions of support.",
+    "Speculative names easily survive longer than their actual value."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "parlant"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "note",
+      "value": ".vrooli/service.json"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

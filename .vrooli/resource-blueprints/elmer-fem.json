@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "elmer-fem",
+  "display_name": "Elmer FEM",
+  "category": "simulation",
+  "summary": "Finite element multiphysics solver for thermal, structural, fluid, and electromagnetic simulation workflows.",
+  "why_it_matters": "Elmer FEM preserves useful scientific computing capability knowledge, but there is no current validated scenario that justifies Vrooli actively supporting its installation and runtime complexity.",
+  "when_to_use": [
+    "A future scenario needs multiphysics finite element simulation.",
+    "Operators need local or containerized engineering solvers for research workflows.",
+    "The workflow requires FEM analysis tied to scenario-managed inputs and outputs."
+  ],
+  "example_scenarios": [
+    "Engineering analysis services",
+    "Scientific experiment orchestration",
+    "Parametric design optimization"
+  ],
+  "integration_kind": "manual",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "Containerization is possible, but HPC libraries, MPI, and solver performance expectations vary materially by environment.",
+    "linux": "partial",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "prerequisites": [
+    "Solver image or host installation strategy",
+    "Large artifact and result storage plan",
+    "Validated benchmark and sample problem coverage"
+  ],
+  "dependencies": [],
+  "suggested_template": "manual-resource",
+  "implementation_notes": [
+    "Future support should focus on a narrow simulation workflow with known inputs and outputs.",
+    "Promotion should define how jobs are submitted, monitored, and collected.",
+    "Do not claim cross-platform support without tested solver paths."
+  ],
+  "operational_notes": [
+    "Performance and numerical reproducibility vary by environment.",
+    "Job queueing and artifact cleanup matter more than initial startup.",
+    "Validation should include a known reference solve."
+  ],
+  "risks": [
+    "Scientific solver wrappers are expensive to maintain without active users.",
+    "HPC and MPI assumptions can fail silently on unsupported hosts."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "elmer-fem"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/elmer-fem"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

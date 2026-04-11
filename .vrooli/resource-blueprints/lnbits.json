@@ -1,0 +1,62 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "lnbits",
+  "display_name": "LNbits",
+  "category": "payments",
+  "summary": "Lightning Network wallet and extension platform for fast Bitcoin-native micropayment workflows.",
+  "why_it_matters": "LNbits keeps useful Lightning payments knowledge in the repo, but current Vrooli usage does not justify maintaining it as a supported payment integration.",
+  "when_to_use": [
+    "A future scenario needs Lightning-powered micropayments.",
+    "Operators want wallet-centric Bitcoin payment flows with programmable APIs.",
+    "The workflow depends on extensions or LNURL-style payment UX."
+  ],
+  "example_scenarios": [
+    "Micropayment APIs",
+    "Tip jars and paywalls",
+    "Wallet-backed commerce experiments"
+  ],
+  "integration_kind": "docker-service",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "The app is containerizable, but real support depends on Lightning backends, wallet security, and operational ownership.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Lightning backend strategy",
+    "Wallet and secret management model",
+    "Backup and recovery plan"
+  ],
+  "dependencies": [],
+  "suggested_template": "docker-service",
+  "implementation_notes": [
+    "Promotion should define supported backends and wallet flows explicitly.",
+    "Keep payment application logic separate from wallet infrastructure support.",
+    "Do not imply production-safe financial operations without end-to-end validation."
+  ],
+  "operational_notes": [
+    "Security, backup, and recovery are the critical operator concerns.",
+    "Validation should include invoice generation and settlement behavior.",
+    "Extension management can create drift if left unconstrained."
+  ],
+  "risks": [
+    "Payments tooling creates real financial consequences when support is shallow.",
+    "Backend-specific differences make generic support unreliable."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "lnbits"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/lnbits"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

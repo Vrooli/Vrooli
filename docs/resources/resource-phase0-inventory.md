@@ -10,7 +10,7 @@ Classification rules used in this pass:
 - `blueprint`
   - implemented or known concept, but not currently justified as an actively maintained integration
 - `deprecate`
-  - stale registry-only metadata with no implementation and no current usage signal
+  - stale config/registry metadata with no implementation and no current usage signal
 
 Additional bias applied in this pass:
 
@@ -65,7 +65,7 @@ Additional bias applied in this pass:
 | `keycloak` | implemented | yes | no | 0 | `blueprint` | Explicit blueprint decision. |
 | `kicad` | implemented | yes | no | 0 | `blueprint` | Implemented but no current project/scenario usage signal. |
 | `kokoro` | implemented | no | yes | 1 | `keep` | Used by 1 scenario. |
-| `langchain` | registry-only | yes | no | 0 | `deprecate` | Registry-only stale metadata with no current usage signal. |
+| `langchain` | config+registry-only | yes | no | 0 | `deprecate` | Disabled root config plus stale registry metadata, with no implementation or active scenario usage. |
 | `litellm` | implemented | yes | yes | 0 | `keep` | Project-level enabled. |
 | `llamaindex` | implemented | yes | no | 0 | `blueprint` | Implemented but no current project/scenario usage signal. |
 | `lnbits` | implemented | no | no | 0 | `blueprint` | Implemented but no current project/scenario usage signal. |
@@ -78,7 +78,7 @@ Additional bias applied in this pass:
 | `minio` | implemented | yes | yes | 17 | `keep` | Used by 17 scenarios. |
 | `musicgen` | registry-only | yes | no | 0 | `deprecate` | Registry-only stale metadata with no current usage signal. |
 | `neo4j` | implemented | yes | yes | 0 | `keep` | Project-level enabled. |
-| `node-red` | registry-only | yes | no | 3 | `blueprint` | Explicit blueprint decision despite lingering scenario references. |
+| `node-red` | registry-only | yes | no | 0 | `blueprint` | Explicit blueprint decision. Live scenario manifest references were removed during Phase 0 validation. |
 | `nsfw-detector` | implemented | no | no | 0 | `blueprint` | Implemented but no current project/scenario usage signal. |
 | `obs-studio` | implemented | yes | no | 0 | `blueprint` | Implemented but no current project/scenario usage signal. |
 | `octoprint` | implemented | no | no | 0 | `blueprint` | Implemented but no current project/scenario usage signal. |
@@ -89,6 +89,7 @@ Additional bias applied in this pass:
 | `openrouter` | implemented | yes | yes | 6 | `keep` | Used by 6 scenarios. |
 | `openscad` | implemented | yes | no | 0 | `blueprint` | Implemented but no current project/scenario usage signal. |
 | `papermc` | implemented | no | no | 0 | `blueprint` | Implemented but no current project/scenario usage signal. |
+| `parlant` | config-only | no | no | 0 | `blueprint` | Disabled root config concept with no implementation yet; preserve as blueprint knowledge instead of treating it as supported. |
 | `pihole` | implemented | no | no | 0 | `blueprint` | Explicit blueprint decision. |
 | `postgis` | implemented | yes | yes | 0 | `keep` | Project-level enabled. |
 | `postgres` | implemented | yes | yes | 74 | `keep` | Used by 74 scenarios. |
@@ -124,5 +125,6 @@ Additional bias applied in this pass:
 
 - This table should be treated as the working review artifact for Phase 0 acceptance.
 - Registry presence is included as context only; it is no longer authoritative.
-- `node-red` remains a blueprint even though some scenarios still reference it; those references should be rewritten in a later cleanup pass.
+- `parlant` is intentionally tracked even though it has no implementation or registry entry, because root `.vrooli/service.json` is part of the Phase 0 source-of-truth set.
+- `node-red` remains a blueprint. The stale scenario manifest references were removed during Phase 0 validation; remaining Node-RED files are historical prototypes, not active dependencies.
 - `sqlite` and `kokoro` currently classify as `keep` even without registry entries because they have active scenario usage and/or project-level enablement.

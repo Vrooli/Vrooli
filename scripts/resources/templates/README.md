@@ -7,6 +7,8 @@ This directory contains templates for creating consistent and comprehensive reso
 ### PRD Template (`PRD.md`)
 Complete Product Requirements Document template for resources. This template ensures consistency across all Vrooli resources and prevents capability drift over time.
 
+This is still transitional. Phase 1 of the resource cross-platform migration introduces structured blueprint records under `.vrooli/resource-blueprints/`; canonical implementation templates come later in Phase 3.
+
 **Use this template when:**
 - Creating a new resource
 - Documenting an existing resource
