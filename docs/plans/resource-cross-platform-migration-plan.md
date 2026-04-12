@@ -1268,6 +1268,10 @@ Validation note: the full `go test ./cmd/vrooli/...` bundle still stalls in `Tes
   - no scenario manifests still reference it
 - `vrooli resource list-blueprint-archived`, `restore-blueprint <name>`, and `archive gc-blueprints` are implemented.
 - blueprint-archived resources remain outside normal `vrooli resource list` / `status` discovery and restore only into quarantined paths.
+- The Phase 0 blueprint cleanup pass is complete:
+  - all implemented Phase 0 `blueprint` resources have been archived out of `resources/`
+  - `52` entries now appear in `vrooli resource list-blueprint-archived`
+  - the remaining Phase 0 blueprint records, `node-red` and `parlant`, never had a `resources/<name>/` implementation to archive
 
 Focused validation:
 

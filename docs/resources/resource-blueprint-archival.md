@@ -59,3 +59,11 @@ Use blueprint-only archival when:
 - a future implementation should come from `blueprint -> template -> implementation`
 
 Use deprecation instead when the capability should leave the active surface without remaining part of the blueprint-backed future candidate set.
+
+## Phase 0 Cleanup Status
+
+The initial Phase 0 blueprint cleanup pass is complete.
+
+- all implemented Phase 0 blueprint candidates have been removed from `resources/` through `archive-to-blueprint`
+- `vrooli resource list-blueprint-archived` now contains the archived implementation set for that pass
+- `node-red` and `parlant` remain blueprint-only records without any historical `resources/<name>/` implementation

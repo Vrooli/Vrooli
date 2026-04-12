@@ -67,6 +67,16 @@ type archiveSource struct {
 	bytes      []byte
 }
 
+type ArchiveSkippedPath struct {
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
+}
+
+type archiveCollection struct {
+	Sources []archiveSource      `json:"sources"`
+	Skipped []ArchiveSkippedPath `json:"skipped,omitempty"`
+}
+
 func (c *Controller) ListDeprecatedResources() ([]DeprecatedResource, error) {
 	items, err := c.loadDeprecatedResources()
 	if err != nil {
@@ -113,7 +123,7 @@ func (c *Controller) DeprecateResource(name string) (DeprecationReport, error) {
 	}
 
 	now := time.Now().UTC()
-	sources, err := c.collectArchiveSources(name)
+	collection, err := c.collectArchiveSources(name)
 	if err != nil {
 		return DeprecationReport{}, err
 	}
@@ -121,9 +131,14 @@ func (c *Controller) DeprecateResource(name string) (DeprecationReport, error) {
 	if err := os.MkdirAll(archiveDir, 0o755); err != nil {
 		return DeprecationReport{}, fmt.Errorf("create archive dir %s: %w", archiveDir, err)
 	}
-	archiveHash, err := writeArchive(archiveDir, sources)
+	archiveHash, err := writeArchive(archiveDir, collection.Sources)
 	if err != nil {
 		return DeprecationReport{}, err
+	}
+	if len(collection.Skipped) > 0 {
+		if err := writeJSONMetadata(filepath.Join(archiveDir, "archive-skipped-paths.json"), map[string]any{"paths": collection.Skipped}); err != nil {
+			return DeprecationReport{}, err
+		}
 	}
 
 	record := DeprecatedResource{
@@ -276,21 +291,25 @@ func (c *Controller) writeDeprecatedResources(items []DeprecatedResource) error 
 	return os.WriteFile(path, data, 0o644)
 }
 
-func (c *Controller) collectArchiveSources(name string) ([]archiveSource, error) {
-	sources := make([]archiveSource, 0)
+func (c *Controller) collectArchiveSources(name string) (archiveCollection, error) {
+	collection := archiveCollection{
+		Sources: make([]archiveSource, 0),
+		Skipped: make([]ArchiveSkippedPath, 0),
+	}
 
 	resourcePath := filepath.Join(c.Root, "resources", name)
 	if info, err := os.Stat(resourcePath); err == nil && info.IsDir() {
-		dirSources, err := archiveSourcesFromDir(resourcePath, filepath.Join("resource", name))
+		dirCollection, err := archiveSourcesFromDir(resourcePath, filepath.Join("resource", name))
 		if err != nil {
-			return nil, err
+			return archiveCollection{}, err
 		}
-		sources = append(sources, dirSources...)
+		collection.Sources = append(collection.Sources, dirCollection.Sources...)
+		collection.Skipped = append(collection.Skipped, dirCollection.Skipped...)
 	}
 
 	registryPath := filepath.Join(c.Root, filepath.FromSlash(resourceRegistryDirPath), name+".json")
 	if data, err := os.ReadFile(registryPath); err == nil {
-		sources = append(sources, archiveSource{
+		collection.Sources = append(collection.Sources, archiveSource{
 			kind:       "registry",
 			sourcePath: registryPath,
 			targetPath: filepath.Join("registry", name+".json"),
@@ -299,24 +318,24 @@ func (c *Controller) collectArchiveSources(name string) ([]archiveSource, error)
 	}
 
 	if entry, ok, err := c.serviceConfigEntry(name); err != nil {
-		return nil, err
+		return archiveCollection{}, err
 	} else if ok {
 		data, marshalErr := json.MarshalIndent(entry, "", "  ")
 		if marshalErr != nil {
-			return nil, marshalErr
+			return archiveCollection{}, marshalErr
 		}
 		data = append(data, '\n')
-		sources = append(sources, archiveSource{
+		collection.Sources = append(collection.Sources, archiveSource{
 			kind:       "service-config",
 			targetPath: filepath.Join("config", "service-entry.json"),
 			bytes:      data,
 		})
 	}
 
-	if len(sources) == 0 {
-		return nil, fmt.Errorf("resource %q has no archiveable implementation, registry, or config state", name)
+	if len(collection.Sources) == 0 {
+		return archiveCollection{}, fmt.Errorf("resource %q has no archiveable implementation, registry, or config state", name)
 	}
-	return sources, nil
+	return collection, nil
 }
 
 func (c *Controller) removeActiveResourceState(name string) error {
@@ -336,6 +355,14 @@ func (c *Controller) removeResourceDirectory(name string) error {
 	path := filepath.Join(c.Root, "resources", name)
 	if _, err := os.Stat(path); err == nil {
 		if err := os.RemoveAll(path); err != nil {
+			remnantsRoot := filepath.Join(c.archiveRoot(), "remnants")
+			if mkErr := os.MkdirAll(remnantsRoot, 0o755); mkErr != nil {
+				return fmt.Errorf("remove resource directory %s: %w", path, err)
+			}
+			target := filepath.Join(remnantsRoot, fmt.Sprintf("%s-%s", time.Now().UTC().Format("20060102-150405"), name))
+			if renameErr := os.Rename(path, target); renameErr == nil {
+				return nil
+			}
 			return fmt.Errorf("remove resource directory %s: %w", path, err)
 		}
 	}
@@ -447,22 +474,59 @@ func (c *Controller) archiveRoot() string {
 	return filepath.Join(home, ".vrooli", "archive", "resources")
 }
 
-func archiveSourcesFromDir(root, targetPrefix string) ([]archiveSource, error) {
+func archiveSourcesFromDir(root, targetPrefix string) (archiveCollection, error) {
 	items := make([]archiveSource, 0)
+	skipped := make([]ArchiveSkippedPath, 0)
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		rel = filepath.ToSlash(rel)
 		if err != nil {
+			if os.IsPermission(err) {
+				skipped = append(skipped, ArchiveSkippedPath{Path: rel, Reason: "permission-denied"})
+				return filepath.SkipDir
+			}
 			return err
+		}
+		if rel != "." {
+			if reason, skip := archiveSkipReason(rel); skip {
+				skipped = append(skipped, ArchiveSkippedPath{Path: rel, Reason: reason})
+				if d.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
 		}
 		if d.IsDir() {
 			return nil
 		}
+		if d.Type()&os.ModeSymlink != 0 {
+			info, statErr := os.Stat(path)
+			if statErr != nil {
+				if os.IsPermission(statErr) || os.IsNotExist(statErr) {
+					skipped = append(skipped, ArchiveSkippedPath{Path: rel, Reason: "unreadable-symlink"})
+					return nil
+				}
+				return statErr
+			}
+			if info.IsDir() {
+				skipped = append(skipped, ArchiveSkippedPath{Path: rel, Reason: "symlinked-directory"})
+				return nil
+			}
+		}
 		data, readErr := os.ReadFile(path)
 		if readErr != nil {
+			if os.IsPermission(readErr) {
+				skipped = append(skipped, ArchiveSkippedPath{Path: rel, Reason: "permission-denied"})
+				return nil
+			}
+			if strings.Contains(readErr.Error(), "is a directory") {
+				skipped = append(skipped, ArchiveSkippedPath{Path: rel, Reason: "directory-like-entry"})
+				return nil
+			}
 			return readErr
-		}
-		rel, relErr := filepath.Rel(root, path)
-		if relErr != nil {
-			return relErr
 		}
 		items = append(items, archiveSource{
 			kind:       "resource",
@@ -473,12 +537,33 @@ func archiveSourcesFromDir(root, targetPrefix string) ([]archiveSource, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("collect archive sources from %s: %w", root, err)
+		return archiveCollection{}, fmt.Errorf("collect archive sources from %s: %w", root, err)
 	}
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].targetPath < items[j].targetPath
 	})
-	return items, nil
+	sort.Slice(skipped, func(i, j int) bool {
+		return skipped[i].Path < skipped[j].Path
+	})
+	return archiveCollection{Sources: items, Skipped: skipped}, nil
+}
+
+func archiveSkipReason(rel string) (string, bool) {
+	for _, segment := range strings.Split(rel, "/") {
+		switch segment {
+		case ".venv":
+			return "generated-virtualenv", true
+		case "node_modules":
+			return "generated-node-modules", true
+		case "__pycache__":
+			return "generated-python-cache", true
+		case ".pytest_cache":
+			return "generated-pytest-cache", true
+		case ".mypy_cache":
+			return "generated-mypy-cache", true
+		}
+	}
+	return "", false
 }
 
 func writeArchive(dir string, sources []archiveSource) (string, error) {

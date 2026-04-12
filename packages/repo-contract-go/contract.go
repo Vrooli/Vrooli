@@ -1,0 +1,194 @@
+package repocontract
+
+import (
+	"path/filepath"
+	"slices"
+)
+
+const (
+	defaultContractRelPath = ".vrooli/repo-contract.json"
+	supportedMajorVersion  = 1
+)
+
+type contractDoc struct {
+	Schema      string       `json:"$schema"`
+	Version     string       `json:"version"`
+	Platform    Platform     `json:"platform"`
+	Root        Root         `json:"root"`
+	Layout      Layout       `json:"layout"`
+	Scenario    ScenarioSpec `json:"scenario"`
+	Resource    ResourceSpec `json:"resource"`
+	Globs       GlobSpec     `json:"globs"`
+	Environment struct {
+		Variables map[string]string `json:"variables"`
+	} `json:"environment"`
+	Sandbox struct {
+		FullRepoScopes      []string `json:"full_repo_scopes"`
+		ScenarioScopePrefix string   `json:"scenario_scope_prefix"`
+	} `json:"sandbox"`
+	Profiles map[string]Profile `json:"profiles"`
+}
+
+// Contract is an immutable view of the loaded repo contract.
+type Contract struct {
+	doc contractDoc
+}
+
+type Platform struct {
+	Mode                       string `json:"mode"`
+	LegacyProjectBashSupported bool   `json:"legacy_project_bash_supported"`
+}
+
+type Root struct {
+	Markers RootMarkers `json:"markers"`
+}
+
+type RootMarkers struct {
+	RequiredDirs  []string `json:"required_dirs"`
+	RequiredFiles []string `json:"required_files"`
+}
+
+type Layout struct {
+	ProjectConfigDir string `json:"project_config_dir"`
+	ScenarioDir      string `json:"scenario_dir"`
+	ResourceDir      string `json:"resource_dir"`
+	PackageDir       string `json:"package_dir"`
+	CommandDir       string `json:"command_dir"`
+	InternalDir      string `json:"internal_dir"`
+	DocsDir          string `json:"docs_dir"`
+}
+
+type ScenarioSpec struct {
+	RequiredFiles  []string          `json:"required_files"`
+	WellKnownPaths map[string]string `json:"well_known_paths"`
+}
+
+type ResourceSpec struct {
+	Manifest       string            `json:"manifest"`
+	WellKnownPaths map[string]string `json:"well_known_paths"`
+}
+
+type GlobSpec struct {
+	Syntax        string `json:"syntax"`
+	RootRelative  bool   `json:"root_relative"`
+	CaseSensitive bool   `json:"case_sensitive"`
+	AllowAbsolute bool   `json:"allow_absolute"`
+	PathFormat    string `json:"path_format"`
+}
+
+type Profile struct {
+	Description     string   `json:"description"`
+	Parameters      []string `json:"parameters"`
+	Include         []string `json:"include"`
+	OptionalInclude []string `json:"optional_include"`
+	Exclude         []string `json:"exclude"`
+}
+
+// ResolveParams carries placeholder values used to expand contract profiles.
+type ResolveParams struct {
+	Values map[string]string
+	Lists  map[string][]string
+}
+
+// ResolvedProfile is a parameter-expanded profile ready for consumption.
+type ResolvedProfile struct {
+	Name            string
+	Description     string
+	Include         []string
+	OptionalInclude []string
+	Exclude         []string
+}
+
+func (c *Contract) Schema() string {
+	return c.doc.Schema
+}
+
+func (c *Contract) Version() string {
+	return c.doc.Version
+}
+
+func (c *Contract) Platform() Platform {
+	return c.doc.Platform
+}
+
+func (c *Contract) RootMarkers() RootMarkers {
+	return RootMarkers{
+		RequiredDirs:  slices.Clone(c.doc.Root.Markers.RequiredDirs),
+		RequiredFiles: slices.Clone(c.doc.Root.Markers.RequiredFiles),
+	}
+}
+
+func (c *Contract) Layout() Layout {
+	return c.doc.Layout
+}
+
+func (c *Contract) Scenario() ScenarioSpec {
+	return ScenarioSpec{
+		RequiredFiles:  slices.Clone(c.doc.Scenario.RequiredFiles),
+		WellKnownPaths: cloneStringMap(c.doc.Scenario.WellKnownPaths),
+	}
+}
+
+func (c *Contract) Resource() ResourceSpec {
+	return ResourceSpec{
+		Manifest:       c.doc.Resource.Manifest,
+		WellKnownPaths: cloneStringMap(c.doc.Resource.WellKnownPaths),
+	}
+}
+
+func (c *Contract) Globs() GlobSpec {
+	return c.doc.Globs
+}
+
+func (c *Contract) EnvironmentVariables() map[string]string {
+	return cloneStringMap(c.doc.Environment.Variables)
+}
+
+func (c *Contract) SandboxFullRepoScopes() []string {
+	return slices.Clone(c.doc.Sandbox.FullRepoScopes)
+}
+
+func (c *Contract) SandboxScenarioScopePrefix() string {
+	return c.doc.Sandbox.ScenarioScopePrefix
+}
+
+func (c *Contract) Profile(name string) (Profile, error) {
+	profile, ok := c.doc.Profiles[name]
+	if !ok {
+		return Profile{}, &Error{Kind: ErrNotFound, Message: "profile not found", Details: name}
+	}
+	return Profile{
+		Description:     profile.Description,
+		Parameters:      slices.Clone(profile.Parameters),
+		Include:         slices.Clone(profile.Include),
+		OptionalInclude: slices.Clone(profile.OptionalInclude),
+		Exclude:         slices.Clone(profile.Exclude),
+	}, nil
+}
+
+func (c *Contract) ScenarioRoot(repoRoot, scenario string) (string, error) {
+	scenario, err := cleanIdentifier(scenario)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(filepath.Clean(repoRoot), filepath.FromSlash(c.doc.Layout.ScenarioDir), scenario), nil
+}
+
+func (c *Contract) ResourceRoot(repoRoot, resource string) (string, error) {
+	resource, err := cleanIdentifier(resource)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(filepath.Clean(repoRoot), filepath.FromSlash(c.doc.Layout.ResourceDir), resource), nil
+}
+
+func cloneStringMap(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}

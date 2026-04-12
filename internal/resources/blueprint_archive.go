@@ -89,7 +89,7 @@ func (c *Controller) ArchiveResourceToBlueprint(name string) (BlueprintArchiveRe
 		return BlueprintArchiveReport{}, err
 	}
 	now := time.Now().UTC()
-	sources, err := c.collectArchiveSources(name)
+	collection, err := c.collectArchiveSources(name)
 	if err != nil {
 		return BlueprintArchiveReport{}, err
 	}
@@ -97,9 +97,14 @@ func (c *Controller) ArchiveResourceToBlueprint(name string) (BlueprintArchiveRe
 	if err := os.MkdirAll(archiveDir, 0o755); err != nil {
 		return BlueprintArchiveReport{}, fmt.Errorf("create archive dir %s: %w", archiveDir, err)
 	}
-	archiveHash, err := writeArchive(archiveDir, sources)
+	archiveHash, err := writeArchive(archiveDir, collection.Sources)
 	if err != nil {
 		return BlueprintArchiveReport{}, err
+	}
+	if len(collection.Skipped) > 0 {
+		if err := writeJSONMetadata(filepath.Join(archiveDir, "archive-skipped-paths.json"), map[string]any{"paths": collection.Skipped}); err != nil {
+			return BlueprintArchiveReport{}, err
+		}
 	}
 
 	record := BlueprintArchivedResource{

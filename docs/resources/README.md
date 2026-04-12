@@ -90,6 +90,8 @@ When an old implementation should leave the repo but the capability should remai
 
 This is the acceptance path described in the migration plan: new resource work should naturally go through blueprint, template, and implementation rather than ad hoc shell cloning.
 
+Phase 0 cleanup status: the implemented blueprint backlog has been archived out of `resources/`. The only remaining blueprint-only Phase 0 entries without `blueprint-archived` metadata are `node-red` and `parlant`, because neither ever had a repo implementation directory to archive.
+
 ---
 
 ## 🎯 See Resources in Action

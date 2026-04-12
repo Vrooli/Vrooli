@@ -163,6 +163,74 @@ func TestStatusReportsBlueprintArchivedResource(t *testing.T) {
 	}
 }
 
+func TestArchiveResourceToBlueprintSkipsGeneratedVirtualenvContent(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeBlueprintArchiveFixture(t, root, "fixture")
+	writeResourceCLI(t, root, "fixture")
+	venvDir := filepath.Join(root, "resources", "fixture", ".venv")
+	if err := os.MkdirAll(filepath.Join(venvDir, "lib"), 0o755); err != nil {
+		t.Fatalf("mkdir .venv/lib: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(venvDir, "lib", "module.py"), []byte("print('fixture')\n"), 0o644); err != nil {
+		t.Fatalf("write .venv file: %v", err)
+	}
+	if err := os.Symlink("lib", filepath.Join(venvDir, "lib64")); err != nil {
+		t.Fatalf("symlink .venv/lib64: %v", err)
+	}
+
+	report, err := NewController(root, home).ArchiveResourceToBlueprint("fixture")
+	if err != nil {
+		t.Fatalf("ArchiveResourceToBlueprint: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(report.ArchiveDir, "files", "resource", "fixture", ".venv")); !os.IsNotExist(err) {
+		t.Fatalf("expected .venv to be skipped from archive, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(report.ArchiveDir, "archive-skipped-paths.json")); err != nil {
+		t.Fatalf("expected skipped paths metadata: %v", err)
+	}
+}
+
+func TestArchiveResourceToBlueprintHandlesUnreadableRuntimeDirectory(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeBlueprintArchiveFixture(t, root, "fixture")
+	writeResourceCLI(t, root, "fixture")
+	protectedDir := filepath.Join(root, "resources", "fixture", "data", "protected")
+	if err := os.MkdirAll(protectedDir, 0o755); err != nil {
+		t.Fatalf("mkdir protected dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(protectedDir, "state.db"), []byte("fixture\n"), 0o600); err != nil {
+		t.Fatalf("write protected file: %v", err)
+	}
+	if err := os.Chmod(protectedDir, 0o000); err != nil {
+		t.Fatalf("chmod protected dir: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chmod(protectedDir, 0o755)
+	})
+
+	report, err := NewController(root, home).ArchiveResourceToBlueprint("fixture")
+	if err != nil {
+		t.Fatalf("ArchiveResourceToBlueprint: %v", err)
+	}
+	t.Cleanup(func() {
+		remnantsRoot := filepath.Join(home, ".vrooli", "archive", "resources", "remnants")
+		matches, _ := filepath.Glob(filepath.Join(remnantsRoot, "*-fixture"))
+		for _, match := range matches {
+			_ = os.Chmod(filepath.Join(match, "data", "protected"), 0o755)
+			_ = os.Chmod(filepath.Join(match, "data"), 0o755)
+			_ = os.Chmod(match, 0o755)
+		}
+	})
+	if _, err := os.Stat(filepath.Join(root, "resources", "fixture")); !os.IsNotExist(err) {
+		t.Fatalf("expected resource directory to be removed or moved away, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(report.ArchiveDir, "archive-skipped-paths.json")); err != nil {
+		t.Fatalf("expected skipped paths metadata: %v", err)
+	}
+}
+
 func writeBlueprintArchiveFixture(t *testing.T, root, name string) {
 	t.Helper()
 	path := filepath.Join(root, ".vrooli", "resource-blueprints", name+".json")

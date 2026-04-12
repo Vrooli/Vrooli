@@ -30,9 +30,6 @@
           "timeoutMs": 5000
         }
       },
-      "eclipse-ditto": {
-        "enabled": false
-      },
       "gemini": {
         "description": "Google Gemini AI API integration",
         "enabled": true,
@@ -128,9 +125,6 @@
         },
         "required": true
       },
-      "pybullet": {
-        "enabled": false
-      },
       "qdrant": {
         "container_name": "qdrant",
         "data_directory": "${HOME}/.qdrant/data",
@@ -164,12 +158,6 @@
         "required": true,
         "version": "7"
       },
-      "restic": {
-        "enabled": false
-      },
-      "ros2": {
-        "enabled": false
-      },
       "sagemath": {
         "enabled": true
       },
@@ -178,29 +166,8 @@
         "enabled": true,
         "required": true
       },
-      "segment-anything": {
-        "enabled": false
-      },
-      "simpy": {
-        "data_dir": "~/.vrooli/simpy",
-        "description": "Discrete event simulation framework for modeling complex systems",
-        "enabled": false,
-        "required": false
-      },
       "sqlite": {
         "enabled": true
-      },
-      "step-ca": {
-        "enabled": false
-      },
-      "su2": {
-        "enabled": false
-      },
-      "terraform": {
-        "enabled": false
-      },
-      "traccar": {
-        "enabled": false
       },
       "twilio": {
         "credentials_file": "~/.vrooli/twilio-credentials.json",
@@ -208,9 +175,6 @@
         "description": "SMS, voice, and messaging automation via Twilio API",
         "enabled": true,
         "required": false
-      },
-      "ultralytics-yolo": {
-        "enabled": false
       },
       "unstructured-io": {
         "description": "Document processing and parsing service",
@@ -222,22 +186,10 @@
         "enabled": true,
         "required": true
       },
-      "virustotal": {
-        "enabled": false
-      },
       "whisper": {
         "description": "Speech-to-text processing service",
         "enabled": true,
         "required": false
-      },
-      "wikijs": {
-        "enabled": false
-      },
-      "wireguard": {
-        "enabled": false
-      },
-      "zigbee2mqtt": {
-        "enabled": false
       }
     }
   },
