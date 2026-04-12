@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
@@ -33,15 +33,19 @@ func (a *App) isCustomized(path string) bool {
 	if _, err := os.Stat(filepath.Join(path, ".git")); os.IsNotExist(err) {
 		return false
 	}
-	cmd := exec.Command("git", "status", "--porcelain")
-	cmd.Dir = path
-	out, _ := cmd.Output()
+	out, _ := shell.Output(shell.Spec{
+		Name: "git",
+		Args: []string{"status", "--porcelain"},
+		Dir:  path,
+	})
 	if len(out) > 0 {
 		return true
 	}
-	cmd = exec.Command("git", "rev-list", "--count", "HEAD")
-	cmd.Dir = path
-	out, _ = cmd.Output()
+	out, _ = shell.Output(shell.Spec{
+		Name: "git",
+		Args: []string{"rev-list", "--count", "HEAD"},
+		Dir:  path,
+	})
 	count := strings.TrimSpace(string(out))
 	return count != "0" && count != "1"
 }
@@ -128,10 +132,9 @@ func (a *App) ProtectApp(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) StartApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	scenarioPath := filepath.Join(a.Root, "scenarios", name)
-	if _, err := os.Stat(scenarioPath); err != nil {
+	if err := a.ensureScenarioExists(name); err != nil {
 		a.logWarn("Scenario start requested for missing scenario", logx.AttrScenario, name)
-		respondError(w, newAPIError(http.StatusNotFound, "scenario_not_found", "scenario not found", err))
+		respondError(w, err)
 		return
 	}
 	if err := checkForkBomb(); err != nil {
@@ -150,10 +153,9 @@ func (a *App) StartApp(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) StopApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	scenarioPath := filepath.Join(a.Root, "scenarios", name)
-	if _, err := os.Stat(scenarioPath); err != nil {
+	if err := a.ensureScenarioExists(name); err != nil {
 		a.logWarn("App stop requested for missing app", "app", name)
-		respondError(w, newAPIError(http.StatusNotFound, "scenario_not_found", "scenario not found", err))
+		respondError(w, err)
 		return
 	}
 	if err := a.StopScenarioFn(name); err != nil {
@@ -173,10 +175,9 @@ func (a *App) StopApp(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) RestartApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	scenarioPath := filepath.Join(a.Root, "scenarios", name)
-	if _, err := os.Stat(scenarioPath); err != nil {
+	if err := a.ensureScenarioExists(name); err != nil {
 		a.logWarn("Scenario restart requested for missing scenario", logx.AttrScenario, name)
-		respondError(w, newAPIError(http.StatusNotFound, "scenario_not_found", "scenario not found", err))
+		respondError(w, err)
 		return
 	}
 	if _, err := a.Scenarios.Restart(name, lifecycle.StartOptions{}); err != nil {

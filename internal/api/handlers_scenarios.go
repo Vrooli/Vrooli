@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -135,10 +133,9 @@ func (a *App) StopAllScenariosEndpoint(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) StopScenarioEndpoint(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	scenarioPath := filepath.Join(a.Root, "scenarios", name)
-	if _, err := os.Stat(scenarioPath); err != nil {
+	if err := a.ensureScenarioExists(name); err != nil {
 		a.logWarn("Scenario stop requested for missing scenario", logx.AttrScenario, name)
-		respondError(w, newAPIError(http.StatusNotFound, "scenario_not_found", "scenario not found", err))
+		respondError(w, err)
 		return
 	}
 	if err := a.StopScenarioFn(name); err != nil {

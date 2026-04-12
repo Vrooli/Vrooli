@@ -1,4 +1,4 @@
-package resources
+package manifest
 
 import (
 	"encoding/json"
@@ -12,9 +12,9 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
-const resourceManifestSchemaPath = ".vrooli/schemas/resource.schema.json"
+const SchemaPath = ".vrooli/schemas/resource.schema.json"
 
-var allowedResourceDrivers = []string{
+var AllowedDrivers = []string{
 	"docker-service",
 	"compose-service",
 	"external-cli",
@@ -24,8 +24,8 @@ var allowedResourceDrivers = []string{
 	"legacy-adapter",
 }
 
-var allowedPortabilityTiers = []string{"full", "partial", "platform-specific"}
-var allowedPlatformSupportStates = []string{"supported", "partial", "unsupported"}
+var AllowedPortabilityTiers = []string{"full", "partial", "platform-specific"}
+var AllowedPlatformSupportStates = []string{"supported", "partial", "unsupported"}
 
 type ResourceManifest struct {
 	Schema          string                       `json:"$schema,omitempty"`
@@ -120,7 +120,11 @@ type ResourceManifestCapabilities struct {
 	SupportsContentOps bool `json:"supports_content_ops,omitempty"`
 }
 
-func (c *Controller) loadResourceManifest(path string) (ResourceManifest, error) {
+func DefaultPath(root, name string) string {
+	return filepath.Join(root, "resources", name, "resource.json")
+}
+
+func Load(path string) (ResourceManifest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return ResourceManifest{}, fmt.Errorf("read resource manifest %s: %w", path, err)
@@ -129,33 +133,29 @@ func (c *Controller) loadResourceManifest(path string) (ResourceManifest, error)
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return ResourceManifest{}, fmt.Errorf("parse resource manifest %s: %w", path, err)
 	}
-	if err := validateResourceManifest(manifest); err != nil {
+	if err := Validate(manifest); err != nil {
 		return ResourceManifest{}, fmt.Errorf("validate resource manifest %s: %w", path, err)
 	}
 	return manifest, nil
 }
 
-func (c *Controller) LoadManifest(path string) (ResourceManifest, error) {
-	return c.loadResourceManifest(path)
-}
-
-func validateResourceManifest(manifest ResourceManifest) error {
+func Validate(manifest ResourceManifest) error {
 	if strings.TrimSpace(manifest.Name) == "" {
 		return fmt.Errorf("name is required")
 	}
 	if strings.TrimSpace(manifest.Driver) == "" {
 		return fmt.Errorf("driver is required")
 	}
-	if !slices.Contains(allowedResourceDrivers, strings.TrimSpace(manifest.Driver)) {
+	if !slices.Contains(AllowedDrivers, strings.TrimSpace(manifest.Driver)) {
 		return fmt.Errorf("driver %q is invalid", manifest.Driver)
 	}
 	if strings.TrimSpace(manifest.PortabilityTier) == "" {
 		return fmt.Errorf("portability_tier is required")
 	}
-	if !slices.Contains(allowedPortabilityTiers, strings.TrimSpace(manifest.PortabilityTier)) {
+	if !slices.Contains(AllowedPortabilityTiers, strings.TrimSpace(manifest.PortabilityTier)) {
 		return fmt.Errorf("portability_tier %q is invalid", manifest.PortabilityTier)
 	}
-	if err := validateResourcePlatforms(manifest.Platforms); err != nil {
+	if err := validatePlatforms(manifest.Platforms); err != nil {
 		return err
 	}
 	for _, port := range manifest.Ports {
@@ -164,7 +164,7 @@ func validateResourceManifest(manifest ResourceManifest) error {
 		}
 	}
 	for _, check := range manifest.HealthChecks {
-		if err := validateResourceHealthCheck(check); err != nil {
+		if err := validateHealthCheck(check); err != nil {
 			return err
 		}
 	}
@@ -184,7 +184,7 @@ func validateResourceManifest(manifest ResourceManifest) error {
 			return fmt.Errorf("compose_file is required for compose-service resources")
 		}
 	case "legacy-adapter":
-		if err := validateResourceLegacyAdapter(manifest.LegacyAdapter); err != nil {
+		if err := validateLegacyAdapter(manifest.LegacyAdapter); err != nil {
 			return err
 		}
 	case "external-cli":
@@ -199,7 +199,33 @@ func validateResourceManifest(manifest ResourceManifest) error {
 	return nil
 }
 
-func validateResourceLegacyAdapter(adapter ResourceLegacyAdapter) error {
+func CurrentPlatform() string {
+	switch runtime.GOOS {
+	case "linux":
+		return "linux"
+	case "darwin":
+		return "macos"
+	case "windows":
+		return "windows"
+	default:
+		return runtime.GOOS
+	}
+}
+
+func (platforms ResourcePlatforms) SupportForCurrentPlatform() string {
+	switch CurrentPlatform() {
+	case "linux":
+		return strings.TrimSpace(platforms.Linux)
+	case "macos":
+		return strings.TrimSpace(platforms.MacOS)
+	case "windows":
+		return strings.TrimSpace(platforms.Windows)
+	default:
+		return ""
+	}
+}
+
+func validateLegacyAdapter(adapter ResourceLegacyAdapter) error {
 	if strings.TrimSpace(adapter.Owner) == "" {
 		return fmt.Errorf("legacy_adapter.owner is required for legacy-adapter resources")
 	}
@@ -217,21 +243,21 @@ func validateResourceLegacyAdapter(adapter ResourceLegacyAdapter) error {
 	return nil
 }
 
-func validateResourcePlatforms(platforms ResourcePlatforms) error {
+func validatePlatforms(platforms ResourcePlatforms) error {
 	values := []string{platforms.Linux, platforms.MacOS, platforms.Windows}
 	for _, value := range values {
 		value = strings.TrimSpace(value)
 		if value == "" {
 			continue
 		}
-		if !slices.Contains(allowedPlatformSupportStates, value) {
+		if !slices.Contains(AllowedPlatformSupportStates, value) {
 			return fmt.Errorf("platform support value %q is invalid", value)
 		}
 	}
 	return nil
 }
 
-func validateResourceHealthCheck(check ResourceHealthCheck) error {
+func validateHealthCheck(check ResourceHealthCheck) error {
 	switch strings.TrimSpace(check.Type) {
 	case "tcp", "http":
 		if strings.TrimSpace(check.Target) == "" {
@@ -245,34 +271,4 @@ func validateResourceHealthCheck(check ResourceHealthCheck) error {
 		return fmt.Errorf("health check type %q is invalid", check.Type)
 	}
 	return nil
-}
-
-func currentResourcePlatform() string {
-	switch runtime.GOOS {
-	case "linux":
-		return "linux"
-	case "darwin":
-		return "macos"
-	case "windows":
-		return "windows"
-	default:
-		return runtime.GOOS
-	}
-}
-
-func (platforms ResourcePlatforms) SupportForCurrentPlatform() string {
-	switch currentResourcePlatform() {
-	case "linux":
-		return strings.TrimSpace(platforms.Linux)
-	case "macos":
-		return strings.TrimSpace(platforms.MacOS)
-	case "windows":
-		return strings.TrimSpace(platforms.Windows)
-	default:
-		return ""
-	}
-}
-
-func defaultResourceManifestPath(root, name string) string {
-	return filepath.Join(root, "resources", name, "resource.json")
 }

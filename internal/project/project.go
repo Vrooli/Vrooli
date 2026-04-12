@@ -6,17 +6,19 @@ import (
 	"io"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/hostreqcheck"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
 type Controller struct {
@@ -27,8 +29,15 @@ type Controller struct {
 	Resources             *resources.Controller
 	Scenarios             *orchestrator.Service
 	Maintenance           *maintenance.Controller
+	HostReqValidateFn     func(string, string) (hostreqcheck.Report, error)
 	MaintenanceSnapshotFn func() (maintenance.ProcessSnapshot, error)
 	MaintenanceLocksFn    func() ([]maintenance.LockInfo, error)
+}
+
+type Dependencies struct {
+	Resources   *resources.Controller
+	Scenarios   *orchestrator.Service
+	Maintenance *maintenance.Controller
 }
 
 type DoctorCheck struct {
@@ -62,14 +71,30 @@ type StopOptions struct {
 }
 
 func New(root, home string, stdout, stderr io.Writer) *Controller {
+	return NewWithDependencies(root, home, stdout, stderr, Dependencies{})
+}
+
+func NewWithDependencies(root, home string, stdout, stderr io.Writer, deps Dependencies) *Controller {
+	cleanRoot := filepath.Clean(root)
+	cleanHome := filepath.Clean(home)
+	if deps.Resources == nil {
+		deps.Resources = resources.NewController(cleanRoot, cleanHome)
+	}
+	if deps.Scenarios == nil {
+		deps.Scenarios = orchestrator.New(cleanRoot, cleanHome, stdout, stderr)
+	}
+	if deps.Maintenance == nil {
+		deps.Maintenance = maintenance.NewController(cleanRoot, cleanHome)
+	}
 	return &Controller{
-		Root:        filepath.Clean(root),
-		Home:        filepath.Clean(home),
-		Stdout:      stdout,
-		Stderr:      stderr,
-		Resources:   resources.NewController(root, home),
-		Scenarios:   orchestrator.New(root, home, stdout, stderr),
-		Maintenance: maintenance.NewController(root, home),
+		Root:              cleanRoot,
+		Home:              cleanHome,
+		Stdout:            stdout,
+		Stderr:            stderr,
+		Resources:         deps.Resources,
+		Scenarios:         deps.Scenarios,
+		Maintenance:       deps.Maintenance,
+		HostReqValidateFn: hostreqcheck.Validate,
 	}
 }
 
@@ -79,7 +104,13 @@ func (c *Controller) RunProjectPhase(phase string, args []string) error {
 		return err
 	}
 	if !phaseDefined(project.Manifest, phase) {
-		return fmt.Errorf("project lifecycle phase %q is not defined in %s", phase, project.ServicePath)
+		return &vroolierr.Error{
+			Code:       "project_phase_not_defined",
+			Category:   "Usage",
+			HTTPStatus: 400,
+			Message:    fmt.Sprintf("project lifecycle phase %q is not defined in %s", phase, project.ServicePath),
+			Hint:       "Define the phase in .vrooli/service.json or run a supported lifecycle command.",
+		}
 	}
 
 	runner, err := lifecycle.NewRunner(c.Root, c.Home, c.Stdout, c.Stderr)
@@ -156,7 +187,7 @@ func (c *Controller) Doctor() (DoctorReport, error) {
 	for _, name := range []string{"jq", "curl", "git", "docker", "go", "lsof", "tput"} {
 		status := "missing"
 		message := ""
-		if _, err := exec.LookPath(name); err == nil {
+		if _, err := shell.LookPath(name); err == nil {
 			status = "ok"
 		} else {
 			message = err.Error()
@@ -222,7 +253,46 @@ func (c *Controller) Doctor() (DoctorReport, error) {
 		Message: listenerInspectionMessage(listenerInspection),
 	})
 
+	if c.HostReqValidateFn != nil {
+		report, err := c.HostReqValidateFn(c.Root, c.Home)
+		if err != nil {
+			checks = append(checks, DoctorCheck{
+				Name:    "host_requirements_validation",
+				Status:  "error",
+				Message: err.Error(),
+			})
+		} else {
+			checks = append(checks,
+				summarizeHostReqFindings("hostreq_undeclared_references", report.Findings, hostreqcheck.FindingUndeclaredReference),
+				summarizeHostReqFindings("hostreq_missing_handlers", report.Findings, hostreqcheck.FindingMissingHandler),
+				summarizeHostReqFindings("hostreq_root_overreach", report.Findings, hostreqcheck.FindingRootOverreach),
+			)
+		}
+	}
+
 	return DoctorReport{Checks: checks}, nil
+}
+
+func summarizeHostReqFindings(name string, findings []hostreqcheck.Finding, code hostreqcheck.FindingCode) DoctorCheck {
+	count := 0
+	samples := make([]string, 0, 3)
+	for _, finding := range findings {
+		if finding.Code != code {
+			continue
+		}
+		count++
+		if len(samples) < 3 {
+			samples = append(samples, fmt.Sprintf("%s/%s:%s", finding.OwnerKind, finding.OwnerName, finding.Requirement))
+		}
+	}
+	if count == 0 {
+		return DoctorCheck{Name: name, Status: "ok"}
+	}
+	message := fmt.Sprintf("%d findings", count)
+	if len(samples) > 0 {
+		message += ": " + strings.Join(samples, ", ")
+	}
+	return DoctorCheck{Name: name, Status: "warning", Message: message}
 }
 
 func countStatus(count int) string {

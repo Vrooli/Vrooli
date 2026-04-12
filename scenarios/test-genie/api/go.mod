@@ -10,12 +10,14 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/testcontainers/testcontainers-go v0.31.0
+	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.40.1
 )
 
 require (
+	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
@@ -30,6 +32,8 @@ require (
 )
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
+
+replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect

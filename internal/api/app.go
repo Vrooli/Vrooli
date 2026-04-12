@@ -4,12 +4,13 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"os/exec"
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/gorilla/mux"
 
+	"github.com/vrooli/vrooli/internal/bootstrap"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/logx"
@@ -17,6 +18,8 @@ import (
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/project"
 	"github.com/vrooli/vrooli/internal/resources"
+	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
 type RunningScenario struct {
@@ -50,6 +53,7 @@ type App struct {
 	Root                string
 	Home                string
 	AppsDir             string
+	Services            *bootstrap.Services
 	Scenarios           *orchestrator.Service
 	Resources           *resources.Controller
 	Project             *project.Controller
@@ -115,20 +119,34 @@ func New(root, home string, logger ...*slog.Logger) *App {
 	if len(logger) > 0 && logger[0] != nil {
 		baseLogger = logger[0]
 	}
+	return NewWithServices(bootstrap.New(root, home, ioDiscard{}, ioDiscard{}, baseLogger))
+}
+
+func NewWithServices(services *bootstrap.Services) *App {
+	baseLogger := slog.Default()
+	if services != nil && services.Logger != nil {
+		baseLogger = services.Logger
+	}
 	apiLogger := logx.WithSubsystem(baseLogger, "api")
+	if services == nil {
+		services = bootstrap.New("", "", ioDiscard{}, ioDiscard{}, apiLogger)
+	}
 	app := &App{
-		Root:       filepath.Clean(root),
-		Home:       filepath.Clean(home),
-		AppsDir:    filepath.Join(filepath.Clean(root), "scenarios"),
-		Scenarios:  orchestrator.New(root, home, ioDiscard{}, ioDiscard{}, apiLogger),
-		Resources:  resources.NewController(root, home),
-		Project:    project.New(root, home, ioDiscard{}, ioDiscard{}),
+		Root:       filepath.Clean(services.Root),
+		Home:       filepath.Clean(services.Home),
+		AppsDir:    filepath.Join(filepath.Clean(services.Root), "scenarios"),
+		Services:   services,
+		Scenarios:  services.Orchestrator(),
+		Resources:  services.Resources(),
+		Project:    services.Project(),
 		Logger:     apiLogger,
-		LookPathFn: exec.LookPath,
+		LookPathFn: nil,
 		CommandFn: func(ctx context.Context, name string, args ...string) ([]byte, error) {
-			return exec.CommandContext(ctx, name, args...).Output()
+			return nil, nil
 		},
 	}
+	app.LookPathFn = defaultLookPath
+	app.CommandFn = defaultCommandOutput
 	app.StartAllScenariosFn = func() (control.StartReport, error) {
 		return app.Scenarios.StartAll()
 	}
@@ -164,7 +182,22 @@ type ioDiscard struct{}
 
 func (ioDiscard) Write(p []byte) (int, error) { return len(p), nil }
 
+func defaultLookPath(name string) (string, error) {
+	return shell.LookPath(name)
+}
+
+func defaultCommandOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return shell.Output(shell.Spec{
+		Context: ctx,
+		Name:    name,
+		Args:    args,
+	})
+}
+
 func (a *App) maintenanceController() *maintenance.Controller {
+	if a != nil && a.Services != nil {
+		return a.Services.Maintenance()
+	}
 	return maintenance.NewController(a.Root, a.Home)
 }
 
@@ -173,6 +206,21 @@ func (a *App) processSnapshot() (maintenance.ProcessSnapshot, error) {
 		return a.ProcessSnapshotFn()
 	}
 	return a.maintenanceController().Snapshot()
+}
+
+func (a *App) ensureScenarioExists(name string) error {
+	scenarioPath := filepath.Join(a.Root, "scenarios", name)
+	if _, err := os.Stat(scenarioPath); err != nil {
+		return &vroolierr.Error{
+			Code:       "scenario_not_found",
+			Category:   "Usage",
+			HTTPStatus: http.StatusNotFound,
+			Message:    "scenario not found",
+			Resource:   name,
+			Err:        err,
+		}
+	}
+	return nil
 }
 
 func (a *App) Router() http.Handler {

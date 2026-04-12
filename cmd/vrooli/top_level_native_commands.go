@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 	"io"
-	"os/exec"
 	"strconv"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/project"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 func runTopLevelStatusCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -38,67 +38,7 @@ func runTopLevelStatusCommandWithApp(app *App, ctx *commandContext, args []strin
 	if err != nil {
 		return err
 	}
-	if format == cliout.FormatJSON {
-		return writeSuccessData(ctx.Stdout, "status", report)
-	}
-
-	if !opts.ScenariosOnly {
-		_, _ = fmt.Fprintln(ctx.Stdout, "Resources")
-		rows := make([][]string, 0, len(report.Resources))
-		for _, item := range report.Resources {
-			healthy := "n/a"
-			if item.Healthy != nil {
-				if *item.Healthy {
-					healthy = "healthy"
-				} else {
-					healthy = "unhealthy"
-				}
-			}
-			rows = append(rows, []string{
-				item.Resource.Name,
-				boolLabel(item.Resource.Enabled),
-				boolLabel(item.Running),
-				healthy,
-				item.Message,
-			})
-		}
-		_ = cliout.RenderTable(ctx.Stdout, []string{"Name", "Enabled", "Running", "Health", "Status"}, rows)
-		_, _ = fmt.Fprintln(ctx.Stdout)
-	}
-	if !opts.ResourcesOnly {
-		_, _ = fmt.Fprintln(ctx.Stdout, "Scenarios")
-		rows := make([][]string, 0, len(report.Scenarios))
-		for _, item := range report.Scenarios {
-			health := ""
-			if item.Health != nil {
-				health = fmt.Sprint(item.Health)
-			}
-			rows = append(rows, []string{
-				item.Name,
-				item.Status,
-				fmt.Sprintf("%d", item.Processes),
-				health,
-				item.Runtime,
-			})
-		}
-		_ = cliout.RenderTable(ctx.Stdout, []string{"Name", "Status", "Processes", "Health", "Runtime"}, rows)
-		_, _ = fmt.Fprintln(ctx.Stdout)
-	}
-	if report.Maintenance != nil {
-		_, _ = fmt.Fprintln(ctx.Stdout, "Maintenance")
-		health := report.Maintenance.HealthSnapshot()
-		rows := [][]string{
-			{"Tracked processes", strconv.Itoa(report.Maintenance.TrackedProcesses)},
-			{"Running tracked", strconv.Itoa(report.Maintenance.RunningTracked)},
-			{"Child processes", strconv.Itoa(report.Maintenance.ChildProcesses)},
-			{"Zombie processes", strconv.Itoa(report.Maintenance.ZombieProcesses)},
-			{"Orphan processes", strconv.Itoa(report.Maintenance.OrphanProcesses)},
-			{"Overall health", health.OverallStatus},
-		}
-		_ = cliout.RenderTable(ctx.Stdout, []string{"Check", "Value"}, rows)
-	}
-
-	return nil
+	return writeProjectStatusReport(ctx.Stdout, format, report, opts)
 }
 
 func runTopLevelDoctorCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -125,15 +65,7 @@ func runTopLevelDoctorCommandWithApp(app *App, ctx *commandContext, args []strin
 	if err != nil {
 		return err
 	}
-	if format == cliout.FormatJSON {
-		return writeSuccessData(ctx.Stdout, "checks", report.Checks)
-	}
-
-	rows := make([][]string, 0, len(report.Checks))
-	for _, item := range report.Checks {
-		rows = append(rows, []string{item.Name, item.Status, item.Message})
-	}
-	return cliout.RenderTable(ctx.Stdout, []string{"Check", "Status", "Message"}, rows)
+	return writeDoctorReport(ctx.Stdout, format, report)
 }
 
 func runTopLevelStopCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -458,7 +390,7 @@ func boolLabel(value bool) string {
 }
 
 func installedCommand(name string) bool {
-	_, err := exec.LookPath(name)
+	_, err := shell.LookPath(name)
 	return err == nil
 }
 

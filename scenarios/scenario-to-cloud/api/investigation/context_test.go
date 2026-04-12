@@ -72,6 +72,19 @@ func TestExtractErrorSummary(t *testing.T) {
 	}
 }
 
+func TestBuildDiagnosticChecklistAttachment_UsesContractNeutralScenarioGuidance(t *testing.T) {
+	att := buildDiagnosticChecklistAttachment()
+	if att == nil {
+		t.Fatal("expected attachment")
+	}
+	if strings.Contains(att.Content, "<workdir>/scenarios/<scenario>/.vrooli/service.json") {
+		t.Fatalf("diagnostic checklist should not hard-code scenario path layout: %q", att.Content)
+	}
+	if !strings.Contains(att.Content, "contract-defined scenario root") {
+		t.Fatalf("diagnostic checklist should reference contract-defined scenario root: %q", att.Content)
+	}
+}
+
 func validDeploymentForContext() *domain.Deployment {
 	errStep := "preflight"
 	errMsg := "Cannot negotiate ALPN protocol"

@@ -39,6 +39,29 @@ func TestResolveWorkspaceSandboxScenarioDir(t *testing.T) {
 	})
 }
 
+func TestLoadSchemaSQLPrefersContractResolvedScenarioDir(t *testing.T) {
+	repoRoot := writeRepoContractFixture(t)
+	schemaPath := filepath.Join(repoRoot, "scenarios", "workspace-sandbox", "initialization", "postgres", "schema.sql")
+	if err := os.MkdirAll(filepath.Dir(schemaPath), 0o755); err != nil {
+		t.Fatalf("mkdir schema dir: %v", err)
+	}
+	if err := os.WriteFile(schemaPath, []byte("contract schema"), 0o644); err != nil {
+		t.Fatalf("write schema: %v", err)
+	}
+
+	t.Setenv("VROOLI_SOURCE_ROOT", filepath.Join(repoRoot, "scenarios", "workspace-sandbox", "api"))
+	t.Setenv("VROOLI_ROOT", "")
+	chdirForTest(t, t.TempDir())
+
+	got, err := loadSchemaSQL()
+	if err != nil {
+		t.Fatalf("loadSchemaSQL: %v", err)
+	}
+	if got != "contract schema" {
+		t.Fatalf("loadSchemaSQL() = %q, want %q", got, "contract schema")
+	}
+}
+
 func writeRepoContractFixture(t *testing.T) string {
 	t.Helper()
 

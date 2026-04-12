@@ -1,6 +1,6 @@
 # Host Requirements Declaration And Runtime Redesign Plan
 
-**Status:** In Progress (`Phase 0` complete)
+**Status:** In Progress (`Phases 0-3` complete)
 
 **Last Updated:** 2026-04-12
 
@@ -85,7 +85,8 @@ Today, top-level setup is native:
   - validates host support,
   - creates project/home state directories,
   - marks shell scripts executable,
-  - calls `internal/runtime.Ensure(...)`,
+  - resolves manifest-owned host requirements,
+  - calls `internal/runtime.EnsureRequirements(...)`,
   - configures git,
   - optionally installs resources via `internal/resources.Controller`.
 
@@ -93,11 +94,10 @@ Today, top-level setup is native:
 
 `internal/runtime` currently:
 
-- hardcodes a fixed tool list;
-- does not consume manifest-owned tool declarations;
-- does not model host safeguards;
-- does not expose install/apply/skip reasons with enough structure;
-- is too tightly coupled to today's small set of tools.
+- consumes manifest-owned host requirement resolutions from `internal/hostreq`;
+- dispatches through a native registry for tools and safeguards;
+- supports explicit support classification (`supported`, `unsupported`, `not_applicable`, `manual_only`);
+- still needs broader setup UX/reporting work and later-phase migration/cleanup.
 
 ### Current Shell-era Setup Debt
 
@@ -474,18 +474,18 @@ The implementation work should not begin migrating large batches of tools until 
 
 ### Tasks
 
-- [ ] Extend `.vrooli/schemas/service.schema.json` with `hostTools` and `hostSafeguards`.
-- [ ] Extend `.vrooli/schemas/resource.schema.json` with `hostTools` and `hostSafeguards`.
-- [ ] Extend native manifest structs/parsers:
+- [x] Extend `.vrooli/schemas/service.schema.json` with `hostTools` and `hostSafeguards`.
+- [x] Extend `.vrooli/schemas/resource.schema.json` with `hostTools` and `hostSafeguards`.
+- [x] Extend native manifest structs/parsers:
   - `internal/scenario`
   - `internal/resources`
   - root project manifest loading if separate handling is needed
-- [ ] Add a new native resolver package:
+- [x] Add a new native resolver package:
   - load root/scenario/resource declarations,
   - merge/dedupe,
   - validate declaration shape,
   - attach provenance.
-- [ ] Add unit tests for:
+- [x] Add unit tests for:
   - schema acceptance,
   - manifest parsing,
   - merge behavior,
@@ -495,9 +495,9 @@ The implementation work should not begin migrating large batches of tools until 
 
 ### Acceptance
 
-- [ ] Root, scenario, and resource manifests can declare requirements.
-- [ ] Resolver returns deterministic merged requirements.
-- [ ] Resolver tests are green.
+- [x] Root, scenario, and resource manifests can declare requirements.
+- [x] Resolver returns deterministic merged requirements.
+- [x] Resolver tests are green.
 
 ## Phase 2: Native Runtime Registry Redesign
 
@@ -508,14 +508,14 @@ The implementation work should not begin migrating large batches of tools until 
 
 ### Tasks
 
-- [ ] Refactor `internal/runtime` to separate:
+- [x] Refactor `internal/runtime` to separate:
   - host detection,
   - resolution input,
   - tool inspection,
   - tool install,
   - safeguard applicability,
   - safeguard application.
-- [ ] Add shared runtime helper layer for:
+- [x] Add shared runtime helper layer for:
   - command probing,
   - package-manager abstraction,
   - package name mapping,
@@ -523,16 +523,16 @@ The implementation work should not begin migrating large batches of tools until 
   - sudo policies,
   - dry-run support,
   - structured result capture.
-- [ ] Create registry interfaces for tools and safeguards.
-- [ ] Implement one file per tool/safeguard.
-- [ ] Preserve current `docker`/`go`/`node`/`python`/`helm` support through the new registry.
-- [ ] Add native implementations for the first new declared targets chosen from the audit.
-- [ ] Implement support classification:
+- [x] Create registry interfaces for tools and safeguards.
+- [x] Implement one file per tool/safeguard.
+- [x] Preserve current `docker`/`go`/`node`/`python`/`helm` support through the new registry.
+- [x] Add native implementations for the first new declared targets chosen from the audit.
+- [x] Implement support classification:
   - supported,
   - unsupported,
   - not applicable,
   - manual only.
-- [ ] Add unit tests for:
+- [x] Add unit tests for:
   - host detection,
   - package-manager mapping,
   - tool/safeguard support checks,
@@ -541,9 +541,9 @@ The implementation work should not begin migrating large batches of tools until 
 
 ### Acceptance
 
-- [ ] `internal/runtime` no longer depends on a hardcoded `toolSpecs()` list as the core architecture.
-- [ ] Tools and safeguards are registry-driven.
-- [ ] Per-tool/per-safeguard implementations are small and focused.
+- [x] `internal/runtime` no longer depends on a hardcoded `toolSpecs()` list as the core architecture.
+- [x] Tools and safeguards are registry-driven.
+- [x] Per-tool/per-safeguard implementations are small and focused.
 
 ## Phase 3: Setup Planning, Logging, And UX
 
@@ -554,13 +554,13 @@ The implementation work should not begin migrating large batches of tools until 
 
 ### Tasks
 
-- [ ] Update `internal/setup` to:
+- [x] Update `internal/setup` to:
   - request declarations from the resolver,
   - build a full setup plan,
   - execute tools and safeguards through the runtime registry.
-- [ ] Add a visible setup summary before execution.
-- [ ] Add clear per-item reporting during and after execution.
-- [ ] Distinguish:
+- [x] Add a visible setup summary before execution.
+- [x] Add clear per-item reporting during and after execution.
+- [x] Distinguish:
   - not declared,
   - already present,
   - unsupported on this OS,
@@ -568,9 +568,9 @@ The implementation work should not begin migrating large batches of tools until 
   - manual install required,
   - successfully installed/applied,
   - failed.
-- [ ] Ensure `--dry-run` prints an accurate plan without mutating the host.
-- [ ] Ensure errors remain actionable and concise.
-- [ ] Add tests for:
+- [x] Ensure `--dry-run` prints an accurate plan without mutating the host.
+- [x] Ensure errors remain actionable and concise.
+- [x] Add tests for:
   - plan rendering,
   - dry-run output,
   - unsupported/not-applicable reporting,
@@ -579,9 +579,9 @@ The implementation work should not begin migrating large batches of tools until 
 
 ### Acceptance
 
-- [ ] `vrooli setup` output explains what happened and why.
-- [ ] Dry-run is trustworthy.
-- [ ] Setup logging is materially better than current behavior.
+- [x] `vrooli setup` output explains what happened and why.
+- [x] Dry-run is trustworthy.
+- [x] Setup logging is materially better than current behavior.
 
 ## Phase 4: Migrate Live Owners To Declarations
 

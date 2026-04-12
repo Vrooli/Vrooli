@@ -32,6 +32,10 @@ func resolveContractScenarioPath(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return resolveContractScenarioPathFromRepoRoot(root, name)
+}
+
+func resolveContractScenarioPathFromRepoRoot(root, name string) (string, error) {
 	path, err := repocontract.ResolveScenarioPath(root, name)
 	if err != nil {
 		return "", fmt.Errorf("resolve scenario path: %w", err)

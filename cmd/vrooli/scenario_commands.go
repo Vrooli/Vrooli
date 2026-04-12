@@ -158,31 +158,7 @@ func runScenarioStartCommandWithApp(app *App, ctx *commandContext, args []string
 		}
 	}
 
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(ctx.Stdout, map[string]any{
-			"success":   true,
-			"scenarios": items,
-		})
-	}
-
-	for _, item := range items {
-		if item.Status == "already_running" {
-			_, _ = fmt.Fprintf(ctx.Stdout, "Scenario '%s' is already running", item.Name)
-		} else {
-			_, _ = fmt.Fprintf(ctx.Stdout, "Started scenario '%s'", item.Name)
-		}
-		if item.Health != "" {
-			_, _ = fmt.Fprintf(ctx.Stdout, " (%s)", item.Health)
-		}
-		_, _ = fmt.Fprintln(ctx.Stdout)
-		if len(item.Ports) > 0 {
-			_, _ = fmt.Fprintf(ctx.Stdout, "  Ports: %s\n", formatPortMap(item.Ports))
-		}
-		if len(item.FailedDependencies) > 0 {
-			_, _ = fmt.Fprintf(ctx.Stdout, "  Failed dependencies: %s\n", strings.Join(item.FailedDependencies, ", "))
-		}
-	}
-	return nil
+	return writeScenarioLifecycleItems(ctx.Stdout, format, items)
 }
 
 func runScenarioStopCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -211,16 +187,10 @@ func runScenarioStopCommandWithApp(app *App, ctx *commandContext, args []string)
 		return err
 	}
 
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(ctx.Stdout, map[string]any{
-			"success":  true,
-			"scenario": name,
-			"status":   "stopped",
-		})
-	}
-
-	_, _ = fmt.Fprintf(ctx.Stdout, "Stopped scenario '%s'\n", name)
-	return nil
+	return writeScenarioLifecycleItems(ctx.Stdout, format, []scenarioLifecycleItemOutput{{
+		Name:   name,
+		Status: "stopped",
+	}})
 }
 
 func runScenarioRestartCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -275,25 +245,8 @@ func runScenarioRestartCommandWithApp(app *App, ctx *commandContext, args []stri
 		}
 	}
 
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(ctx.Stdout, map[string]any{
-			"success":  true,
-			"scenario": item,
-		})
-	}
-
-	_, _ = fmt.Fprintf(ctx.Stdout, "Restarted scenario '%s'", item.Name)
-	if item.Health != "" {
-		_, _ = fmt.Fprintf(ctx.Stdout, " (%s)", item.Health)
-	}
-	_, _ = fmt.Fprintln(ctx.Stdout)
-	if len(item.Ports) > 0 {
-		_, _ = fmt.Fprintf(ctx.Stdout, "  Ports: %s\n", formatPortMap(item.Ports))
-	}
-	if len(item.FailedDependencies) > 0 {
-		_, _ = fmt.Fprintf(ctx.Stdout, "  Failed dependencies: %s\n", strings.Join(item.FailedDependencies, ", "))
-	}
-	return nil
+	item.Status = "started"
+	return writeScenarioLifecycleItems(ctx.Stdout, format, []scenarioLifecycleItemOutput{item})
 }
 
 func runScenarioListCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {

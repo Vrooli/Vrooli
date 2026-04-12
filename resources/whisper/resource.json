@@ -13,6 +13,15 @@
     "macos": "partial",
     "windows": "partial"
   },
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Enable local audio format conversion before transcription when source media is not already Whisper-ready",
+      "when": ["setup", "develop"],
+      "notes": "Whisper can run without ffmpeg, but conversion workflows are limited"
+    }
+  ],
   "ports": [
     {
       "name": "http",

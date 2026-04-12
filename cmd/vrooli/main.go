@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/logx"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
@@ -25,7 +25,7 @@ var (
 	isStaleFn           = buildinfo.IsStale
 	checkStalenessFn    = buildinfo.CheckStaleness
 	rebuildAndReexecFn  = buildinfo.RebuildAndReexec
-	lookPathFn          = exec.LookPath
+	lookPathFn          = shell.LookPath
 	execCommandFn       = runExternalCommand
 	newLoggerFn         = createCommandLogger
 )

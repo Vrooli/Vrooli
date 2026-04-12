@@ -2,9 +2,9 @@ package fix
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // PromptConfig contains configuration for building a fix prompt.
@@ -218,9 +218,13 @@ func GetScenarioPath(scenarioName string, scenarioPathOverride string) string {
 	if scenarioPathOverride != "" {
 		return scenarioPathOverride
 	}
-	repoRoot := os.Getenv("VROOLI_ROOT")
-	if repoRoot == "" {
-		repoRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	repoRoot, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		return ""
 	}
-	return filepath.Join(repoRoot, "scenarios", scenarioName)
+	path, err := repocontract.ResolveScenarioPath(repoRoot, scenarioName)
+	if err != nil {
+		return ""
+	}
+	return path
 }

@@ -492,7 +492,7 @@ func getScenariosRoot() string {
 // buildStandardsScanTargets resolves the scenario(s) to scan.
 // When scenarioPathOverride is non-empty (set by a CLI running inside a
 // sandboxed agent), it is used as the scan path for the target scenario
-// instead of resolving via VROOLI_ROOT. This allows the auditor to check
+// instead of resolving via the repo contract. This allows the auditor to check
 // files within the sandbox overlay.
 // See packages/cli-core/cliutil/sandbox.go for sandbox path resolution.
 func buildStandardsScanTargets(scenarioName string, scenarioPathOverride string) ([]standardsScanTarget, error) {
@@ -512,9 +512,13 @@ func buildStandardsScanTargets(scenarioName string, scenarioPathOverride string)
 			if !entry.IsDir() {
 				continue
 			}
+			scenarioPath, err := resolveContractScenarioPathFromRepoRoot(strings.TrimSpace(filepath.Dir(root)), entry.Name())
+			if err != nil {
+				return nil, err
+			}
 			targets = append(targets, standardsScanTarget{
 				Name: entry.Name(),
-				Path: filepath.Join(root, entry.Name()),
+				Path: scenarioPath,
 			})
 		}
 		sort.Slice(targets, func(i, j int) bool {
@@ -526,7 +530,11 @@ func buildStandardsScanTargets(scenarioName string, scenarioPathOverride string)
 	// Use the sandbox-provided path if available, otherwise resolve from root.
 	scenarioPath := scenarioPathOverride
 	if scenarioPath == "" {
-		scenarioPath = filepath.Join(root, scenarioName)
+		var err error
+		scenarioPath, err = resolveContractScenarioPathFromRepoRoot(strings.TrimSpace(filepath.Dir(root)), scenarioName)
+		if err != nil {
+			return nil, err
+		}
 	}
 	info, err := os.Stat(scenarioPath)
 	if err != nil {
@@ -614,7 +622,7 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		// ScenarioPath overrides the scenario directory path. Set by the CLI
 		// when running inside a sandboxed agent, pointing to the overlay's
 		// merged directory for the target scenario. When empty, the API
-		// resolves the path using VROOLI_ROOT + scenario name.
+		// resolves the path using the repo contract.
 		// See packages/cli-core/cliutil/sandbox.go.
 		ScenarioPath string `json:"scenario_path"`
 	}

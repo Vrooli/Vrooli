@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"syscall"
@@ -18,6 +17,8 @@ import (
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
 func (a *App) collectProcessHealthSnapshot() maintenance.HealthSnapshot {
@@ -77,13 +78,20 @@ func isPIDRunning(pid int) bool {
 }
 
 func checkForkBomb() error {
-	cmd := exec.Command("ps", "aux")
-	output, err := cmd.Output()
+	output, err := shell.Output(shell.Spec{
+		Name: "ps",
+		Args: []string{"aux"},
+	})
 	if err != nil {
 		return err
 	}
 	if strings.Count(string(output), "\n") > 2000 {
-		return fmt.Errorf("system overload: too many processes")
+		return &vroolierr.Error{
+			Code:       "system_overload",
+			Category:   "Runtime",
+			HTTPStatus: http.StatusServiceUnavailable,
+			Message:    "system overload: too many processes",
+		}
 	}
 	return nil
 }
@@ -124,7 +132,13 @@ func (a *App) PerformHealthCheck(check HealthCheckConfig, scenarioName string, p
 			target = strings.ReplaceAll(target, "$"+varName, strconv.Itoa(port))
 		}
 		if _, err := url.Parse(target); err != nil {
-			return fmt.Errorf("invalid URL: %s", target)
+			return &vroolierr.Error{
+				Code:       "invalid_healthcheck_url",
+				Category:   "Usage",
+				HTTPStatus: http.StatusBadRequest,
+				Message:    fmt.Sprintf("invalid URL: %s", target),
+				Err:        err,
+			}
 		}
 		timeout := time.Duration(check.Timeout) * time.Millisecond
 		if timeout == 0 {
@@ -137,7 +151,12 @@ func (a *App) PerformHealthCheck(check HealthCheckConfig, scenarioName string, p
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return fmt.Errorf("HTTP %d", resp.StatusCode)
+			return &vroolierr.Error{
+				Code:       "http_healthcheck_failed",
+				Category:   "Runtime",
+				HTTPStatus: http.StatusBadGateway,
+				Message:    fmt.Sprintf("HTTP %d", resp.StatusCode),
+			}
 		}
 		return nil
 	case "postgres":
@@ -156,13 +175,13 @@ func (a *App) PerformHealthCheck(check HealthCheckConfig, scenarioName string, p
 				}
 				if err := json.Unmarshal(output, &status); err == nil {
 					if !status.Installed {
-						return fmt.Errorf("postgres resource not installed")
+						return &vroolierr.Error{Code: "postgres_not_installed", Category: "Runtime", HTTPStatus: http.StatusServiceUnavailable, Message: "postgres resource not installed"}
 					}
 					if !status.Running {
-						return fmt.Errorf("postgres resource not running")
+						return &vroolierr.Error{Code: "postgres_not_running", Category: "Runtime", HTTPStatus: http.StatusServiceUnavailable, Message: "postgres resource not running"}
 					}
 					if status.Healthy != nil && !*status.Healthy {
-						return fmt.Errorf("postgres resource unhealthy")
+						return &vroolierr.Error{Code: "postgres_unhealthy", Category: "Runtime", HTTPStatus: http.StatusServiceUnavailable, Message: "postgres resource unhealthy"}
 					}
 					return nil
 				}
@@ -174,12 +193,23 @@ func (a *App) PerformHealthCheck(check HealthCheckConfig, scenarioName string, p
 		}
 		conn, err := net.DialTimeout("tcp", address, timeout)
 		if err != nil {
-			return fmt.Errorf("postgres health check failed for %q: %w", address, err)
+			return &vroolierr.Error{
+				Code:       "postgres_healthcheck_failed",
+				Category:   "Runtime",
+				HTTPStatus: http.StatusServiceUnavailable,
+				Message:    fmt.Sprintf("postgres health check failed for %q", address),
+				Err:        err,
+			}
 		}
 		_ = conn.Close()
 		return nil
 	default:
-		return fmt.Errorf("unsupported health check type: %s", check.Type)
+		return &vroolierr.Error{
+			Code:       "unsupported_healthcheck_type",
+			Category:   "Usage",
+			HTTPStatus: http.StatusBadRequest,
+			Message:    fmt.Sprintf("unsupported health check type: %s", check.Type),
+		}
 	}
 }
 

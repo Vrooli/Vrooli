@@ -584,7 +584,6 @@ func loadSchemaSQL() (string, error) {
 
 	if cwd, err := os.Getwd(); err == nil {
 		candidates = append(candidates, filepath.Join(cwd, "initialization", "postgres", "schema.sql"))
-		candidates = append(candidates, filepath.Join(cwd, "scenarios", "workspace-sandbox", "initialization", "postgres", "schema.sql"))
 	}
 
 	for _, path := range candidates {

@@ -2,6 +2,30 @@
   "$schema": "schemas/service.schema.json",
   "hostTools": [
     {
+      "name": "git",
+      "required": true,
+      "reason": "Support repository bootstrap, source operations, and setup-time git configuration",
+      "when": ["setup", "develop"],
+      "environments": ["development", "production", "minimal"],
+      "notes": "Root-owned core tool"
+    },
+    {
+      "name": "curl",
+      "required": true,
+      "reason": "Support HTTP-based bootstrap, diagnostics, and resource helper flows",
+      "when": ["setup", "develop"],
+      "environments": ["development", "production", "minimal"],
+      "notes": "Root-owned core tool"
+    },
+    {
+      "name": "jq",
+      "required": true,
+      "reason": "Support JSON parsing across setup, lifecycle, and shell-retained resource helpers",
+      "when": ["setup", "develop"],
+      "environments": ["development", "production", "minimal"],
+      "notes": "Root-owned core tool"
+    },
+    {
       "name": "docker",
       "required": true,
       "reason": "Run containerized resources across setup modes",

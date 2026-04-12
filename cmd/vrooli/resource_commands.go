@@ -112,27 +112,7 @@ func runResourceListCommand(controller *resources.Controller, globals globalOpti
 	if err != nil {
 		return err
 	}
-	if format == cliout.FormatJSON {
-		return writeSuccessData(stdout, "resources", items)
-	}
-
-	rows := make([][]string, 0, len(items))
-	for _, item := range items {
-		decision := ""
-		if item.ControlMode == "legacy-adapter" {
-			decision = item.LegacyAdapter.FinalDisposition
-		}
-		rows = append(rows, []string{
-			item.Name,
-			boolLabel(item.Enabled),
-			item.ControlMode,
-			item.Driver,
-			item.PortabilityTier,
-			decision,
-			boolLabel(item.Registered),
-		})
-	}
-	return cliout.RenderTable(stdout, []string{"Name", "Enabled", "Control", "Driver", "Portability", "Decision", "Registered"}, rows)
+	return writeResourceList(stdout, format, items)
 }
 
 func runResourceStatusCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
@@ -159,29 +139,7 @@ func runResourceStatusCommand(controller *resources.Controller, globals globalOp
 		if err != nil {
 			return err
 		}
-		if format == cliout.FormatJSON {
-			return writeSuccessData(stdout, "resources", items)
-		}
-		rows := make([][]string, 0, len(items))
-		for _, item := range items {
-			healthy := "n/a"
-			if item.Healthy != nil {
-				if *item.Healthy {
-					healthy = "healthy"
-				} else {
-					healthy = "unhealthy"
-				}
-			}
-			rows = append(rows, []string{
-				item.Resource.Name,
-				boolLabel(item.Resource.Enabled),
-				item.Resource.ControlMode,
-				boolLabel(item.Running),
-				healthy,
-				item.Message,
-			})
-		}
-		return cliout.RenderTable(stdout, []string{"Name", "Enabled", "Control", "Running", "Health", "Status"}, rows)
+		return writeResourceStatuses(stdout, format, items)
 	}
 
 	if len(filtered) != 1 {
@@ -191,48 +149,7 @@ func runResourceStatusCommand(controller *resources.Controller, globals globalOp
 	if err != nil {
 		return err
 	}
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success":   true,
-			"name":      item.Resource.Name,
-			"installed": item.Installed,
-			"running":   item.Running,
-			"healthy":   item.Healthy,
-			"status":    item.Message,
-			"resource":  item,
-		})
-	}
-	rows := [][]string{
-		{"Name", item.Resource.Name},
-		{"Enabled", boolLabel(item.Resource.Enabled)},
-		{"Control", item.Resource.ControlMode},
-		{"Driver", item.Resource.Driver},
-		{"Portability", item.Resource.PortabilityTier},
-		{"Installed", boolLabel(item.Installed)},
-		{"Running", boolLabel(item.Running)},
-	}
-	if item.Healthy != nil {
-		rows = append(rows, []string{"Healthy", boolLabel(*item.Healthy)})
-	}
-	if item.StatusCode != "" {
-		rows = append(rows, []string{"Status Code", item.StatusCode})
-	}
-	rows = append(rows, []string{"Status", item.Message})
-	if item.Resource.ControlMode == "legacy-adapter" {
-		rows = append(rows,
-			[]string{"Adapter Owner", item.Resource.LegacyAdapter.Owner},
-			[]string{"Decision Deadline", item.Resource.LegacyAdapter.DecisionDeadline},
-			[]string{"Final Disposition", item.Resource.LegacyAdapter.FinalDisposition},
-			[]string{"Legacy CLI", item.Resource.LegacyAdapter.LegacyCLIPath},
-		)
-		if item.Resource.LegacyAdapter.Notes != "" {
-			rows = append(rows, []string{"Adapter Notes", item.Resource.LegacyAdapter.Notes})
-		}
-	}
-	if item.ProbeError != "" {
-		rows = append(rows, []string{"Probe Error", item.ProbeError})
-	}
-	return cliout.RenderTable(stdout, []string{"Field", "Value"}, rows)
+	return writeResourceStatus(stdout, format, item)
 }
 
 func runSingleResourceControlCommand(controller *resources.Controller, action string, args []string, stdout, stderr io.Writer) error {
@@ -250,21 +167,11 @@ func runResourceStartAllCommand(controller *resources.Controller, globals global
 	if err != nil {
 		return err
 	}
+	format := cliout.FormatHuman
 	if globals.json {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success": true,
-			"started": report.Started,
-			"failed":  report.Failed,
-			"message": report.Message,
-		})
+		format = cliout.FormatJSON
 	}
-	for _, item := range report.Started {
-		_, _ = fmt.Fprintf(stdout, "Started %s\n", item.Name)
-	}
-	for _, item := range report.Failed {
-		_, _ = fmt.Fprintf(stdout, "Failed %s: %s\n", item.Name, item.Error)
-	}
-	return nil
+	return writeControlReport(stdout, format, "report", "Started", report, report.Started, report.Failed)
 }
 
 func runResourceStopAllCommand(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer) error {
@@ -272,21 +179,11 @@ func runResourceStopAllCommand(controller *resources.Controller, globals globalO
 	if err != nil {
 		return err
 	}
+	format := cliout.FormatHuman
 	if globals.json {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success": true,
-			"stopped": report.Stopped,
-			"failed":  report.Failed,
-			"message": report.Message,
-		})
+		format = cliout.FormatJSON
 	}
-	for _, item := range report.Stopped {
-		_, _ = fmt.Fprintf(stdout, "Stopped %s\n", item.Name)
-	}
-	for _, item := range report.Failed {
-		_, _ = fmt.Fprintf(stdout, "Failed %s: %s\n", item.Name, item.Error)
-	}
-	return nil
+	return writeControlReport(stdout, format, "report", "Stopped", report, report.Stopped, report.Failed)
 }
 
 func runResourceToggleCommand(controller *resources.Controller, enabled bool, args []string, stdout io.Writer) error {

@@ -58,7 +58,7 @@ func ensureResolution(opts EnsureOptions, resolution hostreq.Resolution) (Report
 		return Report{}, err
 	}
 	if !opts.AutoInstall {
-		return report, missingRequiredError(report)
+		return report, missingRequiredError(report, opts)
 	}
 
 	for index, status := range report.Tools {
@@ -83,7 +83,7 @@ func ensureResolution(opts EnsureOptions, resolution hostreq.Resolution) (Report
 	}
 
 	report = summarizeReport(report)
-	return report, missingRequiredError(report)
+	return report, missingRequiredError(report, opts)
 }
 
 func inspectResolution(host Host, environment string, resolution hostreq.Resolution) (Report, error) {
@@ -180,7 +180,10 @@ func requirementSatisfied(status ItemStatus) bool {
 	}
 }
 
-func missingRequiredError(report Report) error {
+func missingRequiredError(report Report, opts EnsureOptions) error {
+	if opts.DryRun {
+		return nil
+	}
 	if len(report.MissingRequired) == 0 {
 		return nil
 	}

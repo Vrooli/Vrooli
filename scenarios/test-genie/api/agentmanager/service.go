@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -120,12 +119,12 @@ func DefaultProfileConfig() *ProfileConfig {
 		// 15 minute timeout for thorough test generation
 		TimeoutSeconds: 900,
 		AllowedTools: []string{
-			"Read",   // Read files
-			"Write",  // Create/overwrite files
-			"Edit",   // Modify files
-			"Glob",   // Find files by pattern
-			"Grep",   // Search file contents
-			"Bash",   // Execute allowed commands
+			"Read",  // Read files
+			"Write", // Create/overwrite files
+			"Edit",  // Modify files
+			"Glob",  // Find files by pattern
+			"Grep",  // Search file contents
+			"Bash",  // Execute allowed commands
 		},
 		SkipPermissions:  false, // Require confirmation for safety
 		RequiresSandbox:  false, // In-place execution for test-genie
@@ -242,13 +241,14 @@ func (s *AgentService) SpawnBatch(ctx context.Context, req BatchSpawnRequest) (*
 	results := make([]SpawnResult, len(req.Prompts))
 	var errors []string
 
-	// Determine working directory. Use repoRootOverride if provided
-	// (e.g., from a sandboxed agent's CLI), otherwise fall back to VROOLI_ROOT.
-	repoRoot := os.Getenv("VROOLI_ROOT")
-	if repoRoot == "" {
-		repoRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	repoRoot, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		return nil, fmt.Errorf("resolve repo root: %w", err)
 	}
-	scenarioPath := filepath.Join(repoRoot, "scenarios", req.Scenario)
+	scenarioPath, err := repocontract.ResolveScenarioPath(repoRoot, req.Scenario)
+	if err != nil {
+		return nil, fmt.Errorf("resolve scenario path: %w", err)
+	}
 
 	// Semaphore for concurrency control
 	concurrency := req.Concurrency

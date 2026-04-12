@@ -27,6 +27,16 @@ func TestParseOptionsAcceptsSetupFlags(t *testing.T) {
 	}
 }
 
+func TestParseOptionsAcceptsScenarioSelection(t *testing.T) {
+	opts, err := parseOptions("setup", []string{"--scenarios", "all"})
+	if err != nil {
+		t.Fatalf("parseOptions: %v", err)
+	}
+	if opts.Scenarios != "all" {
+		t.Fatalf("opts.Scenarios = %q", opts.Scenarios)
+	}
+}
+
 func TestApplyEnvironmentSetsDefaultsAndRestoresState(t *testing.T) {
 	t.Setenv("TARGET", "")
 	t.Setenv("LOCATION", "")
@@ -34,6 +44,7 @@ func TestApplyEnvironmentSetsDefaultsAndRestoresState(t *testing.T) {
 	restore, err := applyEnvironment(root, filepath.Join(root, ".vrooli", "service.json"), options{
 		Environment: "production",
 		Resources:   "none",
+		Scenarios:   "scenario-a,scenario-b",
 		Yes:         "yes",
 		SudoMode:    "skip",
 		DryRun:      true,
@@ -56,6 +67,9 @@ func TestApplyEnvironmentSetsDefaultsAndRestoresState(t *testing.T) {
 	}
 	if got := os.Getenv("RESOURCES"); got != "none" {
 		t.Fatalf("RESOURCES = %q", got)
+	}
+	if got := os.Getenv("SCENARIOS"); got != "scenario-a,scenario-b" {
+		t.Fatalf("SCENARIOS = %q", got)
 	}
 	if got := os.Getenv("YES"); got != "yes" {
 		t.Fatalf("YES = %q", got)
@@ -80,6 +94,9 @@ func TestApplyEnvironmentSetsDefaultsAndRestoresState(t *testing.T) {
 	}
 	if got := os.Getenv("SERVICE_JSON_PATH"); got != "" {
 		t.Fatalf("SERVICE_JSON_PATH after restore = %q", got)
+	}
+	if got := os.Getenv("SCENARIOS"); got != "" {
+		t.Fatalf("SCENARIOS after restore = %q", got)
 	}
 }
 
@@ -130,11 +147,20 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{}, nil
 	}
+	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: environment}, nil
+	}
 
 	runtimeCalls := 0
 	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		runtimeCalls++
-		return vrooliruntime.Report{}, nil
+		if opts.DryRun {
+			t.Fatal("expected non-dry-run setup to execute real install/apply path")
+		}
+		if !opts.AutoInstall {
+			t.Fatal("expected AutoInstall to remain enabled during setup execution")
+		}
+		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
 	markCompleteCalled := false
 	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error {
@@ -142,7 +168,7 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 		return nil
 	}
 
-	if err := RunSetup(root, home, []string{"--dry-run", "--resources", "none"}, io.Discard, io.Discard); err != nil {
+	if err := RunSetup(root, home, []string{"--resources", "none"}, io.Discard, io.Discard); err != nil {
 		t.Fatalf("RunSetup: %v", err)
 	}
 	if runtimeCalls != 1 {
@@ -153,6 +179,328 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "data")); err != nil {
 		t.Fatalf("expected data dir: %v", err)
+	}
+}
+
+func TestRunSetupDryRunUsesApplyPlanningAndSkipsMutations(t *testing.T) {
+	restore := stubSetupDeps(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	projectScenario := writeProjectFixture(t, root)
+
+	currentHostFn = func() vrooliruntime.Host {
+		return vrooliruntime.Host{OS: "linux", PackageManager: "apt-get", SupportsSetup: true, SupportsDevelop: true}
+	}
+	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		return hostreq.Resolution{
+			Tools: []hostreq.ResolvedRequirement{
+				{Name: "tmux", Kind: hostreq.KindTool, Required: true},
+			},
+		}, nil
+	}
+	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return reportFromResolution(environment, resolution, false), nil
+	}
+
+	ensureCalls := 0
+	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		ensureCalls++
+		if !opts.DryRun {
+			t.Fatal("expected dry-run setup to preserve DryRun=true")
+		}
+		if !opts.AutoInstall {
+			t.Fatal("expected dry-run setup to use runtime apply planning")
+		}
+		return reportFromResolution(opts.Environment, resolution, true), nil
+	}
+
+	markCompleteCalled := false
+	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error {
+		markCompleteCalled = true
+		return nil
+	}
+
+	resourceInstallCalls := 0
+	resourcesController = func(root, home string) resourceRunner {
+		return resourceRunnerFunc(func(name string, args []string, stdout, stderr io.Writer) error {
+			resourceInstallCalls++
+			return nil
+		})
+	}
+
+	stdout := &strings.Builder{}
+	if err := RunSetup(root, home, []string{"--dry-run", "--resources", "redis", "--scenarios", "alpha"}, stdout, io.Discard); err != nil {
+		t.Fatalf("RunSetup: %v", err)
+	}
+	if ensureCalls != 1 {
+		t.Fatalf("ensureRequirements calls = %d, want 1", ensureCalls)
+	}
+	if markCompleteCalled {
+		t.Fatal("did not expect markCompleteFn during dry-run")
+	}
+	if resourceInstallCalls != 0 {
+		t.Fatalf("resource install calls = %d, want 0", resourceInstallCalls)
+	}
+	if _, err := os.Stat(filepath.Join(root, "data")); !os.IsNotExist(err) {
+		t.Fatalf("expected dry-run to avoid creating data dir, err=%v", err)
+	}
+	if !strings.Contains(stdout.String(), "tmux [required] would_install") {
+		t.Fatalf("stdout missing would_install result:\n%s", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "Dry-run mode skips git configuration, resource installation, and setup completion markers") {
+		t.Fatalf("stdout missing dry-run skip note:\n%s", stdout.String())
+	}
+}
+
+func TestRunSetupPassesScenarioSelectionToResolver(t *testing.T) {
+	restore := stubSetupDeps(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	projectScenario := writeProjectFixture(t, root)
+
+	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+
+	var captured hostreq.ResolveOptions
+	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		captured = opts
+		return hostreq.Resolution{}, nil
+	}
+	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: environment}, nil
+	}
+	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: opts.Environment}, nil
+	}
+	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error { return nil }
+
+	if err := RunSetup(root, home, []string{"--scenarios", "alpha,beta", "--resources", "none", "--dry-run"}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("RunSetup: %v", err)
+	}
+	if captured.Scenarios != "alpha,beta" {
+		t.Fatalf("captured.Scenarios = %q", captured.Scenarios)
+	}
+}
+
+func TestRunSetupPrintsPlanAndDryRunResult(t *testing.T) {
+	restore := stubSetupDeps(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	projectScenario := writeProjectFixture(t, root)
+
+	currentHostFn = func() vrooliruntime.Host {
+		return vrooliruntime.Host{OS: "linux", PackageManager: "apt-get", SupportsSetup: true, SupportsDevelop: true}
+	}
+	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		return hostreq.Resolution{}, nil
+	}
+	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{
+			Environment: environment,
+			Host:        vrooliruntime.Host{OS: "linux", PackageManager: "apt-get"},
+			Tools: []vrooliruntime.ToolStatus{
+				{
+					Name:           "git",
+					Kind:           hostreq.KindTool,
+					Required:       true,
+					ExecutionState: vrooliruntime.ExecutionAlreadyPresent,
+					Reasons:        []string{"repo operations"},
+					Provenance: []hostreq.Provenance{
+						{Kind: "root", Name: "vrooli", Source: ".vrooli/service.json"},
+					},
+				},
+				{
+					Name:           "tmux",
+					Kind:           hostreq.KindTool,
+					Required:       true,
+					ExecutionState: vrooliruntime.ExecutionPending,
+					Reasons:        []string{"scenario shell tooling"},
+					Provenance: []hostreq.Provenance{
+						{Kind: "scenario", Name: "alpha", Source: "scenarios/alpha/.vrooli/service.json"},
+					},
+				},
+			},
+			Safeguards: []vrooliruntime.SafeguardStatus{
+				{
+					Name:           "remote_session_protection",
+					Kind:           hostreq.KindSafeguard,
+					Required:       false,
+					ExecutionState: vrooliruntime.ExecutionNotApplicable,
+					Notes:          []string{"host does not expose sysctl hooks"},
+					Provenance: []hostreq.Provenance{
+						{Kind: "root", Name: "vrooli", Source: ".vrooli/service.json"},
+					},
+				},
+			},
+		}, nil
+	}
+	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{
+			Environment: opts.Environment,
+			Host:        vrooliruntime.Host{OS: "linux", PackageManager: "apt-get"},
+			Tools: []vrooliruntime.ToolStatus{
+				{
+					Name:           "git",
+					Kind:           hostreq.KindTool,
+					Required:       true,
+					ExecutionState: vrooliruntime.ExecutionAlreadyPresent,
+					Reasons:        []string{"repo operations"},
+					Provenance: []hostreq.Provenance{
+						{Kind: "root", Name: "vrooli", Source: ".vrooli/service.json"},
+					},
+				},
+				{
+					Name:           "tmux",
+					Kind:           hostreq.KindTool,
+					Required:       true,
+					ExecutionState: vrooliruntime.ExecutionWouldInstall,
+					Notes:          []string{"dry-run: would run apt-get install -y tmux"},
+					Reasons:        []string{"scenario shell tooling"},
+					Provenance: []hostreq.Provenance{
+						{Kind: "scenario", Name: "alpha", Source: "scenarios/alpha/.vrooli/service.json"},
+					},
+				},
+			},
+			Safeguards: []vrooliruntime.SafeguardStatus{
+				{
+					Name:           "remote_session_protection",
+					Kind:           hostreq.KindSafeguard,
+					Required:       false,
+					ExecutionState: vrooliruntime.ExecutionNotApplicable,
+					Notes:          []string{"host does not expose sysctl hooks"},
+					Provenance: []hostreq.Provenance{
+						{Kind: "root", Name: "vrooli", Source: ".vrooli/service.json"},
+					},
+				},
+			},
+		}, nil
+	}
+	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error { return nil }
+
+	stdout := &strings.Builder{}
+	if err := RunSetup(root, home, []string{"--resources", "none", "--scenarios", "alpha", "--dry-run"}, stdout, io.Discard); err != nil {
+		t.Fatalf("RunSetup: %v", err)
+	}
+
+	output := stdout.String()
+	for _, expected := range []string{
+		"Host requirements plan",
+		"environment=development resources=none scenarios=alpha dry_run=true",
+		"git [required] already_present",
+		"tmux [required] planned_install",
+		"remote_session_protection [optional] not_applicable",
+		"Host requirements dry-run result",
+		"tmux [required] would_install",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("stdout missing %q:\n%s", expected, output)
+		}
+	}
+}
+
+func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T) {
+	restore := stubSetupDeps(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	projectScenario := writeProjectFixtureWithManifest(t, root, `{
+  "version": "1.0.0",
+  "service": {
+    "name": "project-alpha",
+    "displayName": "Project Alpha",
+    "description": "Project-level fixture",
+    "version": "0.1.0"
+  },
+  "dependencies": {
+    "resources": {
+      "redis": { "enabled": false }
+    }
+  },
+  "hostTools": [
+    {"name": "git", "required": true, "reason": "repo operations"},
+    {"name": "docker", "required": true, "reason": "container runtime"}
+  ]
+}`)
+	writeSetupTestFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{
+  "service": {"name": "alpha"},
+  "hostTools": [
+    {"name": "tmux", "required": true, "reason": "scenario shell tooling"}
+  ],
+  "hostSafeguards": [
+    {"name": "remote_session_protection", "required": true, "reason": "protect remote sessions"}
+  ]
+}`)
+	writeSetupTestFile(t, filepath.Join(root, "resources", "redis", "resource.json"), `{
+  "name": "redis",
+  "driver": "external-cli",
+  "binary": "redis-server",
+  "portability_tier": "full",
+  "hostTools": [
+    {"name": "sqlite", "required": false, "reason": "resource cache introspection", "manual": true}
+  ]
+}`)
+
+	currentHostFn = func() vrooliruntime.Host {
+		return vrooliruntime.Host{OS: "linux", PackageManager: "apt-get", SupportsSetup: true, SupportsDevelop: true}
+	}
+	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+
+	var plannedResolution hostreq.Resolution
+	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		plannedResolution = resolution
+		return reportFromResolution(environment, resolution, false), nil
+	}
+	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return reportFromResolution(opts.Environment, resolution, true), nil
+	}
+
+	stdout := &strings.Builder{}
+	if err := RunSetup(root, home, []string{"--resources", "redis", "--scenarios", "alpha", "--dry-run"}, stdout, io.Discard); err != nil {
+		t.Fatalf("RunSetup: %v", err)
+	}
+
+	if len(plannedResolution.Tools) != 4 {
+		t.Fatalf("tool count = %d, want 4", len(plannedResolution.Tools))
+	}
+	if findResolvedRequirement(plannedResolution.Tools, "git") == nil {
+		t.Fatal("expected root git declaration")
+	}
+	if findResolvedRequirement(plannedResolution.Tools, "docker") == nil {
+		t.Fatal("expected root docker declaration")
+	}
+	if findResolvedRequirement(plannedResolution.Tools, "tmux") == nil {
+		t.Fatal("expected scenario tmux declaration")
+	}
+	if findResolvedRequirement(plannedResolution.Tools, "sqlite") == nil {
+		t.Fatal("expected resource sqlite declaration")
+	}
+	if findResolvedRequirement(plannedResolution.Safeguards, "remote_session_protection") == nil {
+		t.Fatal("expected scenario safeguard declaration")
+	}
+
+	output := stdout.String()
+	for _, expected := range []string{
+		"git [required] already_present",
+		"docker [required] planned_install",
+		"tmux [required] planned_install",
+		"sqlite [optional] manual_action_required",
+		"remote_session_protection [required] planned_apply",
+		"docker [required] would_install",
+		"tmux [required] would_install",
+		"remote_session_protection [required] would_apply",
+	} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("stdout missing %q:\n%s", expected, output)
+		}
 	}
 }
 
@@ -169,8 +517,11 @@ func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T)
 	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{}, nil
 	}
+	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: environment}, nil
+	}
 	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
-		return vrooliruntime.Report{}, nil
+		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
 	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error { return nil }
 
@@ -190,6 +541,7 @@ func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T)
 					"SERVICE_JSON_PATH":  os.Getenv("SERVICE_JSON_PATH"),
 					"ENVIRONMENT":        os.Getenv("ENVIRONMENT"),
 					"RESOURCES":          os.Getenv("RESOURCES"),
+					"SCENARIOS":          os.Getenv("SCENARIOS"),
 					"YES":                os.Getenv("YES"),
 					"SUDO_MODE":          os.Getenv("SUDO_MODE"),
 					"SUDO_MODE_EXPLICIT": os.Getenv("SUDO_MODE_EXPLICIT"),
@@ -205,9 +557,9 @@ func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T)
 	err := RunSetup(root, home, []string{
 		"--environment", "minimal",
 		"--resources", "redis,postgres",
+		"--scenarios", "scenario-a,scenario-b",
 		"--yes", "yes",
 		"--sudo-mode", "skip",
-		"--dry-run",
 	}, io.Discard, io.Discard)
 	if err != nil {
 		t.Fatalf("RunSetup: %v", err)
@@ -231,6 +583,9 @@ func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T)
 		if call.env["RESOURCES"] != "redis,postgres" {
 			t.Fatalf("resource %s RESOURCES = %q", call.name, call.env["RESOURCES"])
 		}
+		if call.env["SCENARIOS"] != "scenario-a,scenario-b" {
+			t.Fatalf("resource %s SCENARIOS = %q", call.name, call.env["SCENARIOS"])
+		}
 		if call.env["YES"] != "yes" {
 			t.Fatalf("resource %s YES = %q", call.name, call.env["YES"])
 		}
@@ -243,9 +598,45 @@ func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T)
 		if call.env["LOCATION"] != defaultLocation {
 			t.Fatalf("resource %s LOCATION = %q", call.name, call.env["LOCATION"])
 		}
-		if call.env["DRY_RUN"] != "true" {
+		if call.env["DRY_RUN"] != "" {
 			t.Fatalf("resource %s DRY_RUN = %q", call.name, call.env["DRY_RUN"])
 		}
+	}
+}
+
+func TestRunSetupDryRunSkipsResourceInstallEvenWhenResourcesSelected(t *testing.T) {
+	restore := stubSetupDeps(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	projectScenario := writeProjectFixture(t, root)
+
+	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		return hostreq.Resolution{}, nil
+	}
+	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: environment}, nil
+	}
+	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: opts.Environment}, nil
+	}
+
+	resourceInstallCalls := 0
+	resourcesController = func(root, home string) resourceRunner {
+		return resourceRunnerFunc(func(name string, args []string, stdout, stderr io.Writer) error {
+			resourceInstallCalls++
+			return nil
+		})
+	}
+
+	if err := RunSetup(root, home, []string{"--resources", "redis,postgres", "--dry-run"}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("RunSetup: %v", err)
+	}
+	if resourceInstallCalls != 0 {
+		t.Fatalf("resource install calls = %d, want 0", resourceInstallCalls)
 	}
 }
 
@@ -266,8 +657,11 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{}, nil
 	}
+	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: environment}, nil
+	}
 	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
-		return vrooliruntime.Report{}, nil
+		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
 
 	setupCalls := 0
@@ -335,8 +729,11 @@ func TestRunDevelopExportsLegacyEnvironmentContractToAPILaunch(t *testing.T) {
 	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{}, nil
 	}
+	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: environment}, nil
+	}
 	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
-		return vrooliruntime.Report{}, nil
+		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
 	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error {
 		return os.WriteFile(filepath.Join(root, "data", ".setup-complete"), []byte("ok\n"), 0o644)
@@ -429,8 +826,11 @@ func TestRunDevelopSkipsSetupWhenMarkerExists(t *testing.T) {
 	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{}, nil
 	}
+	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: environment}, nil
+	}
 	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
-		return vrooliruntime.Report{}, nil
+		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
 
 	setupCalls := 0
@@ -499,12 +899,66 @@ func envMapFromList(env []string) map[string]string {
 	return values
 }
 
+func reportFromResolution(environment string, resolution hostreq.Resolution, executed bool) vrooliruntime.Report {
+	report := vrooliruntime.Report{
+		Environment: environment,
+		Host:        vrooliruntime.Host{OS: "linux", PackageManager: "apt-get"},
+		Tools:       make([]vrooliruntime.ToolStatus, 0, len(resolution.Tools)),
+		Safeguards:  make([]vrooliruntime.SafeguardStatus, 0, len(resolution.Safeguards)),
+	}
+	for _, requirement := range resolution.Tools {
+		state := vrooliruntime.ExecutionPending
+		notes := append([]string(nil), requirement.Notes...)
+		if executed {
+			if requirement.Manual {
+				state = vrooliruntime.ExecutionManualActionRequired
+			} else {
+				state = vrooliruntime.ExecutionWouldInstall
+				notes = append(notes, "dry-run: would run apt-get install -y "+requirement.Name)
+			}
+		}
+		if requirement.Name == "git" {
+			state = vrooliruntime.ExecutionAlreadyPresent
+		}
+		report.Tools = append(report.Tools, vrooliruntime.ToolStatus{
+			Name:           requirement.Name,
+			Kind:           requirement.Kind,
+			Required:       requirement.Required,
+			ExecutionState: state,
+			Reasons:        append([]string(nil), requirement.Reasons...),
+			Notes:          notes,
+			Provenance:     append([]hostreq.Provenance(nil), requirement.Provenance...),
+		})
+	}
+	for _, requirement := range resolution.Safeguards {
+		state := vrooliruntime.ExecutionPending
+		notes := append([]string(nil), requirement.Notes...)
+		if requirement.Manual {
+			state = vrooliruntime.ExecutionManualActionRequired
+		} else if executed {
+			state = vrooliruntime.ExecutionWouldApply
+			notes = append(notes, "dry-run: would apply "+requirement.Name)
+		}
+		report.Safeguards = append(report.Safeguards, vrooliruntime.SafeguardStatus{
+			Name:           requirement.Name,
+			Kind:           requirement.Kind,
+			Required:       requirement.Required,
+			ExecutionState: state,
+			Reasons:        append([]string(nil), requirement.Reasons...),
+			Notes:          notes,
+			Provenance:     append([]hostreq.Provenance(nil), requirement.Provenance...),
+		})
+	}
+	return report
+}
+
 func stubSetupDeps(t *testing.T) func() {
 	t.Helper()
 	originalCurrentHostFn := currentHostFn
 	originalLoadProjectFn := loadProjectFn
 	originalMarkCompleteFn := markCompleteFn
 	originalResolveHostRequirementsFn := resolveHostRequirementsFn
+	originalInspectRequirementsFn := inspectRequirementsFn
 	originalEnsureRequirementsFn := ensureRequirementsFn
 	originalStartProjectAPIFn := startProjectAPIFn
 	originalStartOrchestratorFn := startOrchestratorFn
@@ -516,6 +970,7 @@ func stubSetupDeps(t *testing.T) func() {
 		loadProjectFn = originalLoadProjectFn
 		markCompleteFn = originalMarkCompleteFn
 		resolveHostRequirementsFn = originalResolveHostRequirementsFn
+		inspectRequirementsFn = originalInspectRequirementsFn
 		ensureRequirementsFn = originalEnsureRequirementsFn
 		startProjectAPIFn = originalStartProjectAPIFn
 		startOrchestratorFn = originalStartOrchestratorFn
@@ -564,6 +1019,46 @@ func writeProjectFixture(t *testing.T, root string) scenario.Scenario {
 		ServicePath: servicePath,
 		Manifest:    parsed,
 	}
+}
+
+func writeProjectFixtureWithManifest(t *testing.T, root, manifest string) scenario.Scenario {
+	t.Helper()
+	servicePath := filepath.Join(root, ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
+		t.Fatalf("mkdir service dir: %v", err)
+	}
+	if err := os.WriteFile(servicePath, []byte(manifest), 0o644); err != nil {
+		t.Fatalf("write service manifest: %v", err)
+	}
+	parsed, err := scenario.ReadService(servicePath)
+	if err != nil {
+		t.Fatalf("ReadService: %v", err)
+	}
+	return scenario.Scenario{
+		Slug:        parsed.Service.Name,
+		Path:        root,
+		ServicePath: servicePath,
+		Manifest:    parsed,
+	}
+}
+
+func writeSetupTestFile(t *testing.T, path, contents string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%s): %v", path, err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatalf("WriteFile(%s): %v", path, err)
+	}
+}
+
+func findResolvedRequirement(items []hostreq.ResolvedRequirement, name string) *hostreq.ResolvedRequirement {
+	for i := range items {
+		if items[i].Name == name {
+			return &items[i]
+		}
+	}
+	return nil
 }
 
 func writePortRegistryFixture(t *testing.T, root string) {

@@ -63,6 +63,15 @@
       "range": "39400-39499"
     }
   },
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Render replay exports and media conversions for browser automation playback artifacts",
+      "when": ["setup", "develop"],
+      "notes": "Replay export features degrade when ffmpeg is unavailable"
+    }
+  ],
   "lifecycle": {
     "version": "2.0.0",
     "health": {

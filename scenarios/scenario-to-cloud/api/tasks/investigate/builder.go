@@ -215,7 +215,7 @@ When investigating the deployment harness (scenario-to-cloud), examine:
    - Health check execution
 
 2. Key Paths
-   - ~/Vrooli/scenarios/scenario-to-cloud/
+   - scenario-to-cloud scenario root in the deployed workdir
    - Deployment manifest generation
    - VPS setup scripts
 
@@ -254,8 +254,8 @@ When investigating the target scenario (%s), examine:
    - Environment configuration
 
 2. Key Paths
-   - ~/Vrooli/scenarios/%s/
-   - .vrooli/service.json
+   - Target scenario root for %s in the deployed workdir
+   - The target scenario's .vrooli/service.json
    - Application entry points
 
 3. Common Subject Issues

@@ -49,6 +49,22 @@
       "range": "25000-29999"
     }
   },
+  "hostTools": [
+    {
+      "name": "tmux",
+      "required": false,
+      "reason": "Enable persistent detachable sessions that survive web-console restarts",
+      "when": ["setup", "develop"],
+      "notes": "Web console falls back to the standard PTY backend when tmux is unavailable"
+    },
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Preprocess uploaded and streamed audio into Whisper-friendly WAV during voice transcription flows",
+      "when": ["setup", "develop"],
+      "notes": "Voice transcription falls back to raw audio when ffmpeg is unavailable"
+    }
+  ],
   "lifecycle": {
     "version": "2.0.0",
     "health": {

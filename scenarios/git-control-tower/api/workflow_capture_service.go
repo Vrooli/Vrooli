@@ -57,7 +57,10 @@ func CaptureWorkflows(ctx context.Context, deps WorkflowCaptureDeps, req Workflo
 		log.Printf("WARNING: workflow capture cleanup failed for %s: %v", req.ScenarioSlug, err)
 	}
 
-	scenarioRoot := filepath.Join(deps.RepoDir, "scenarios", req.ScenarioSlug)
+	scenarioRoot, err := resolveScenarioPath(deps.RepoDir, req.ScenarioSlug)
+	if err != nil {
+		return nil, fmt.Errorf("resolve scenario path: %w", err)
+	}
 
 	results, videos, totalSize := executeFilteredWorkflows(ctx, deps, filtered, scenarioRoot)
 	results = appendSkippedWorkflows(results, workflows, allowedModes)
@@ -214,10 +217,14 @@ func computeCaptureStatus(results []WorkflowExecutionResult, filtered []discover
 
 // discoverWorkflows walks scenario BAS directories to find workflow JSON files.
 func discoverWorkflows(fs FileIO, repoDir, scenarioSlug string) ([]discoveredWorkflow, error) {
+	scenarioRoot, err := resolveScenarioPath(repoDir, scenarioSlug)
+	if err != nil {
+		return nil, fmt.Errorf("resolve scenario path: %w", err)
+	}
 	baseDirs := []string{
-		filepath.Join(repoDir, "scenarios", scenarioSlug, "bas", "cases"),
-		filepath.Join(repoDir, "scenarios", scenarioSlug, "bas", "flows"),
-		filepath.Join(repoDir, "scenarios", scenarioSlug, "bas", "actions"),
+		filepath.Join(scenarioRoot, "bas", "cases"),
+		filepath.Join(scenarioRoot, "bas", "flows"),
+		filepath.Join(scenarioRoot, "bas", "actions"),
 	}
 
 	var workflows []discoveredWorkflow

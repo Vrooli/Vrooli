@@ -3,39 +3,46 @@ package runtime
 import (
 	"io"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 var (
-	lookPathFn       = exec.LookPath
-	combinedOutputFn = func(name string, args ...string) ([]byte, error) { return exec.Command(name, args...).CombinedOutput() }
-	runCommandFn     = func(name string, args []string, opts EnsureOptions) error {
-		cmd := exec.Command(name, args...)
-		cmd.Stdout = writerOrDiscard(opts.Stdout)
-		cmd.Stderr = writerOrDiscard(opts.Stderr)
-		cmd.Stdin = os.Stdin
-		return cmd.Run()
+	lookPathFn       = shell.LookPath
+	combinedOutputFn = func(name string, args ...string) ([]byte, error) {
+		return shell.CombinedOutput(shell.Spec{Name: name, Args: args})
+	}
+	runCommandFn = func(name string, args []string, opts EnsureOptions) error {
+		return shell.Run(shell.Spec{
+			Name:   name,
+			Args:   args,
+			Stdout: writerOrDiscard(opts.Stdout),
+			Stderr: writerOrDiscard(opts.Stderr),
+			Stdin:  os.Stdin,
+		})
 	}
 )
 
 func baseStatus(requirement hostreq.ResolvedRequirement) ItemStatus {
 	return ItemStatus{
-		Name:         requirement.Name,
-		Kind:         requirement.Kind,
-		Required:     requirement.Required,
-		Manual:       requirement.Manual,
-		SupportClass: SupportSupported,
-		Notes:        append([]string(nil), requirement.Notes...),
-		Provenance:   append([]hostreq.Provenance(nil), requirement.Provenance...),
+		Name:           requirement.Name,
+		Kind:           requirement.Kind,
+		Required:       requirement.Required,
+		Manual:         requirement.Manual,
+		SupportClass:   SupportSupported,
+		ExecutionState: ExecutionPending,
+		Reasons:        append([]string(nil), requirement.Reasons...),
+		Notes:          append([]string(nil), requirement.Notes...),
+		Provenance:     append([]hostreq.Provenance(nil), requirement.Provenance...),
 	}
 }
 
 func unsupportedRequirementStatus(requirement hostreq.ResolvedRequirement, note string) ItemStatus {
 	status := baseStatus(requirement)
 	status.SupportClass = SupportUnsupported
+	status.ExecutionState = ExecutionUnsupported
 	if strings.TrimSpace(note) != "" {
 		status.Notes = append(status.Notes, note)
 	}

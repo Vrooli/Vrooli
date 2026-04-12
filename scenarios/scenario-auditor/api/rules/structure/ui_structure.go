@@ -12,9 +12,7 @@ import (
 	rules "scenario-auditor/rules"
 )
 
-var (
-	ruleDir = discoverRuleDir()
-)
+var ruleDir = discoverRuleDir()
 
 type uiStructurePayload struct {
 	Scenario string   `json:"scenario"`

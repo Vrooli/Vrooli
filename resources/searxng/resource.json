@@ -12,6 +12,15 @@
     "macos": "supported",
     "windows": "partial"
   },
+  "hostTools": [
+    {
+      "name": "yq",
+      "required": false,
+      "reason": "Validate and inspect SearXNG YAML configuration from retained shell workflows",
+      "when": ["setup", "develop"],
+      "notes": "Configuration checks degrade gracefully when yq is unavailable"
+    }
+  ],
   "dependencies": [
     "redis"
   ],

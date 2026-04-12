@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostreqcheck"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/process"
 )
@@ -95,6 +96,14 @@ func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 	controller.MaintenanceLocksFn = func() ([]maintenance.LockInfo, error) {
 		return nil, nil
 	}
+	controller.HostReqValidateFn = func(root, home string) (hostreqcheck.Report, error) {
+		return hostreqcheck.Report{
+			Findings: []hostreqcheck.Finding{
+				{Code: hostreqcheck.FindingUndeclaredReference, OwnerKind: "scenario", OwnerName: "web-console", Requirement: "ffmpeg"},
+				{Code: hostreqcheck.FindingMissingHandler, OwnerKind: "scenario", OwnerName: "scenario-to-desktop", Requirement: "websockify"},
+			},
+		}, nil
+	}
 	report, err := controller.Doctor()
 	if err != nil {
 		t.Fatalf("Doctor: %v", err)
@@ -119,6 +128,15 @@ func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 	}
 	if !strings.Contains(output, "listener_inspection=") {
 		t.Fatalf("doctor checks missing listener inspection status: %s", output)
+	}
+	if !strings.Contains(output, "hostreq_undeclared_references=warning") {
+		t.Fatalf("doctor checks missing undeclared host requirement summary: %s", output)
+	}
+	if !strings.Contains(output, "hostreq_missing_handlers=warning") {
+		t.Fatalf("doctor checks missing missing-handler summary: %s", output)
+	}
+	if !strings.Contains(output, "hostreq_root_overreach=ok") {
+		t.Fatalf("doctor checks missing root-overreach summary: %s", output)
 	}
 }
 

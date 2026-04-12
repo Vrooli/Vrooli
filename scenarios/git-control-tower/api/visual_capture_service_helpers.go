@@ -159,7 +159,10 @@ func prepareForCapture(storage *VisualCaptureStorage, repoID int64, scenarioSlug
 // is outdated by comparing its creation time against file modification times
 // in the scenario's source directory.
 func CheckCaptureStaleness(repoDir, scenarioSlug string, captureTime time.Time) *SnapshotStalenessInfo {
-	scenarioDir := filepath.Join(repoDir, "scenarios", scenarioSlug)
+	scenarioDir, err := resolveScenarioPath(repoDir, scenarioSlug)
+	if err != nil {
+		return &SnapshotStalenessInfo{IsStale: false}
+	}
 
 	// Directories to skip during the walk
 	skipDirs := map[string]bool{
@@ -204,10 +207,9 @@ func discoverPages(fs FileIO, repoDir, scenarioSlug string) []LighthousePage {
 
 // discoverPagesWithMethod reads lighthouse.json and returns pages + discovery method.
 func discoverPagesWithMethod(fs FileIO, repoDir, scenarioSlug string) ([]LighthousePage, string) {
-	searchPaths := []string{
-		filepath.Join(repoDir, "scenarios", scenarioSlug, ".vrooli", "lighthouse.json"),
-		filepath.Join(repoDir, "apps", scenarioSlug, ".vrooli", "lighthouse.json"),
-		filepath.Join(repoDir, "services", scenarioSlug, ".vrooli", "lighthouse.json"),
+	searchPaths := []string{}
+	if scenarioDir, err := resolveScenarioPath(repoDir, scenarioSlug); err == nil {
+		searchPaths = append(searchPaths, filepath.Join(scenarioDir, ".vrooli", "lighthouse.json"))
 	}
 
 	for _, path := range searchPaths {

@@ -3,8 +3,11 @@ package httpserver
 import (
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/queue"
 )
@@ -90,21 +93,21 @@ func executionSummaryPayload(result *orchestrator.SuiteExecutionResult) map[stri
 // handleGetConfig returns configuration values needed by the UI.
 // This includes paths that should NOT be hardcoded in the frontend.
 func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
-	// Get VROOLI_ROOT from environment, with a sensible fallback
-	repoRoot := os.Getenv("VROOLI_ROOT")
-	if repoRoot == "" {
-		// Fallback to HOME-based path if VROOLI_ROOT not set
-		home := os.Getenv("HOME")
-		if home != "" {
-			repoRoot = home + "/Vrooli"
+	repoRoot := s.resolveRepoRoot()
+	scenariosPath := ""
+	testGeniePath := ""
+	if repoRoot != "" {
+		scenariosPath = s.resolveScenariosRoot()
+		if path, err := repocontract.ResolveScenarioPath(repoRoot, "test-genie"); err == nil {
+			testGeniePath = path
 		}
 	}
 
 	response := map[string]interface{}{
 		"repoRoot":          repoRoot,
-		"testGeniePath":     repoRoot + "/scenarios/test-genie",
+		"testGeniePath":     testGeniePath,
 		"testGenieCLI":      "test-genie", // CLI command name (should be on PATH)
-		"scenariosPath":     repoRoot + "/scenarios",
+		"scenariosPath":     scenariosPath,
 		"timestamp":         time.Now().UTC().Format(time.RFC3339),
 		"securityModel":     "allowlist",
 		"directoryScoping":  true,
@@ -113,4 +116,50 @@ func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.writeJSON(w, http.StatusOK, response)
+}
+
+func (s *Server) resolveRepoRoot() string {
+	if s.scenarios != nil {
+		if scenariosRoot := filepath.Clean(s.scenarios.ScenarioRoot()); scenariosRoot != "." && scenariosRoot != "" {
+			root := filepath.Dir(scenariosRoot)
+			if _, err := repocontract.FindRepoRoot(root); err == nil {
+				return root
+			}
+		}
+	}
+
+	for _, start := range []string{
+		strings.TrimSpace(os.Getenv("SCENARIOS_ROOT")),
+		strings.TrimSpace(os.Getenv("VROOLI_ROOT")),
+	} {
+		if start == "" {
+			continue
+		}
+		if root, err := repocontract.FindRepoRoot(start); err == nil {
+			return root
+		}
+	}
+
+	if root, err := repocontract.FindRepoRootFromEnvOrCWD(); err == nil {
+		return root
+	}
+	return ""
+}
+
+func (s *Server) resolveScenariosRoot() string {
+	if s.scenarios != nil {
+		if value := filepath.Clean(s.scenarios.ScenarioRoot()); value != "." && value != "" {
+			return value
+		}
+	}
+
+	if root := s.resolveRepoRoot(); root != "" {
+		contract, err := repocontract.LoadDefault(root)
+		if err == nil {
+			if path, pathErr := contract.TopLevelDir(root, "scenarios"); pathErr == nil {
+				return path
+			}
+		}
+	}
+	return ""
 }

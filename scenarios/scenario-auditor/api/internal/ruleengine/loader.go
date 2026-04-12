@@ -322,6 +322,15 @@ func DiscoverRepoRoot(startPoints ...string) (string, error) {
 	return "", fmt.Errorf("ruleengine: unable to locate repo root: %w", err)
 }
 
+// ResolveScenarioPath resolves a canonical scenario root using the shared repo contract.
+func ResolveScenarioPath(repoRoot, scenario string) (string, error) {
+	path, err := repocontract.ResolveScenarioPath(repoRoot, scenario)
+	if err != nil {
+		return "", fmt.Errorf("ruleengine: resolve scenario path: %w", err)
+	}
+	return path, nil
+}
+
 // RuleFiles returns a list of rule files for tooling/CLI usage.
 func (l *Loader) RuleFiles() ([]string, error) {
 	files := []string{}

@@ -40,6 +40,56 @@
       "description": "Desktop build UI server port"
     }
   },
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Capture screenshots and assemble desktop smoke-test artifacts on Linux",
+      "when": ["setup", "develop"],
+      "platforms": ["linux"],
+      "notes": "Native runtime handler exists; scenario also uses the resource-ffmpeg CLI for recording flows"
+    },
+    {
+      "name": "Xvfb",
+      "required": false,
+      "reason": "Provide a virtual X display for Linux smoke tests and live desktop sessions",
+      "when": ["setup", "develop"],
+      "platforms": ["linux"],
+      "notes": "Declared in Phase 4; native runtime handler still pending"
+    },
+    {
+      "name": "x11vnc",
+      "required": false,
+      "reason": "Expose the Linux virtual desktop over VNC for interactive desktop sessions",
+      "when": ["setup", "develop"],
+      "platforms": ["linux"],
+      "notes": "Declared in Phase 4; native runtime handler still pending"
+    },
+    {
+      "name": "websockify",
+      "required": false,
+      "reason": "Bridge the Linux VNC desktop session to a browser WebSocket endpoint",
+      "when": ["setup", "develop"],
+      "platforms": ["linux"],
+      "notes": "Declared in Phase 4; native runtime handler still pending"
+    },
+    {
+      "name": "openbox",
+      "required": false,
+      "reason": "Provide a lightweight window manager inside the Linux virtual display",
+      "when": ["setup", "develop"],
+      "platforms": ["linux"],
+      "notes": "Declared in Phase 4; native runtime handler still pending"
+    },
+    {
+      "name": "xdotool",
+      "required": false,
+      "reason": "Detect and inspect visible X11 windows during desktop smoke tests",
+      "when": ["setup", "develop"],
+      "platforms": ["linux"],
+      "notes": "Declared in Phase 4; native runtime handler still pending"
+    }
+  ],
   "lifecycle": {
     "health": {
       "description": "Scenario to Desktop health check configuration",

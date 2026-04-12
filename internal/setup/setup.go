@@ -36,6 +36,7 @@ type options struct {
 	SudoMode    string
 	Environment string
 	Resources   string
+	Scenarios   string
 	Yes         string
 	Help        bool
 }
@@ -53,6 +54,7 @@ var (
 	loadProjectFn             = project.LoadProject
 	markCompleteFn            = markComplete
 	resolveHostRequirementsFn = hostreq.Resolve
+	inspectRequirementsFn     = vrooliruntime.InspectRequirements
 	ensureRequirementsFn      = vrooliruntime.EnsureRequirements
 	newPortsManagerFn         = func(root, home string) (*ports.Manager, error) {
 		return ports.NewManager(root, home)
@@ -88,28 +90,42 @@ func RunSetup(root, home string, args []string, stdout, stderr io.Writer) error 
 	}
 	defer restoreEnv()
 
-	if err := ensureProjectFilesystem(root, home); err != nil {
-		return err
+	if !opts.DryRun {
+		if err := ensureProjectFilesystem(root, home); err != nil {
+			return err
+		}
 	}
 	requirements, err := resolveHostRequirementsFn(root, home, hostreq.ResolveOptions{
 		Environment: opts.Environment,
 		When:        "setup",
 		Resources:   opts.Resources,
-		Scenarios:   "none",
+		Scenarios:   opts.Scenarios,
 		Platform:    hostreq.CurrentPlatform(),
 	})
 	if err != nil {
 		return err
 	}
-	if _, err := ensureRequirementsFn(vrooliruntime.EnsureOptions{
+	planReport, err := inspectRequirementsFn(opts.Environment, requirements)
+	if err != nil {
+		return err
+	}
+	renderSetupRequirementPlan(stdout, opts, planReport)
+
+	report, ensureErr := ensureRequirementsFn(vrooliruntime.EnsureOptions{
 		Environment: opts.Environment,
 		SudoMode:    opts.SudoMode,
 		DryRun:      opts.DryRun,
-		AutoInstall: !opts.DryRun,
+		AutoInstall: true,
 		Stdout:      stdout,
 		Stderr:      stderr,
-	}, requirements); err != nil {
-		return err
+	}, requirements)
+	renderSetupRequirementResult(stdout, opts, report)
+	if ensureErr != nil && !opts.DryRun {
+		return ensureErr
+	}
+	if opts.DryRun {
+		_, _ = fmt.Fprintln(stdout, "[INFO]    Dry-run mode skips git configuration, resource installation, and setup completion markers")
+		return nil
 	}
 	if err := configureGit(root); err != nil {
 		return err
@@ -257,6 +273,15 @@ func parseOptions(command string, args []string) (options, error) {
 			opts.Resources = strings.ToLower(strings.TrimSpace(value))
 		case strings.HasPrefix(arg, "--resources="):
 			opts.Resources = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--resources=")))
+		case arg == "--scenarios":
+			value, next, err := requireValue(command, arg, args, index)
+			if err != nil {
+				return options{}, err
+			}
+			index = next
+			opts.Scenarios = strings.ToLower(strings.TrimSpace(value))
+		case strings.HasPrefix(arg, "--scenarios="):
+			opts.Scenarios = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--scenarios=")))
 		case arg == "--yes" || arg == "-y":
 			value, next, err := requireValue(command, arg, args, index)
 			if err != nil {
@@ -286,9 +311,10 @@ func showSetupHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "Options:")
 	_, _ = fmt.Fprintln(w, "  --environment, --env <name>   Set environment profile (development|production|minimal)")
 	_, _ = fmt.Fprintln(w, "  --resources <value>           Resource selection (enabled|none|comma,list)")
+	_, _ = fmt.Fprintln(w, "  --scenarios <value>           Scenario selection (none|all|comma,list)")
 	_, _ = fmt.Fprintln(w, "  --sudo-mode <mode>            Sudo policy (ask|skip|error)")
 	_, _ = fmt.Fprintln(w, "  --yes <value>                 Confirmation policy forwarded to setup steps")
-	_, _ = fmt.Fprintln(w, "  --dry-run                     Export DRY_RUN=true for setup steps")
+	_, _ = fmt.Fprintln(w, "  --dry-run                     Preview setup actions without mutating the host")
 }
 
 func showDevelopHelp(w io.Writer) {
@@ -297,9 +323,10 @@ func showDevelopHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "Options:")
 	_, _ = fmt.Fprintln(w, "  --environment, --env <name>   Set environment profile for auto-setup (development|production|minimal)")
 	_, _ = fmt.Fprintln(w, "  --resources <value>           Resource selection for auto-setup (enabled|none|comma,list)")
+	_, _ = fmt.Fprintln(w, "  --scenarios <value>           Scenario selection for auto-setup (none|all|comma,list)")
 	_, _ = fmt.Fprintln(w, "  --sudo-mode <mode>            Sudo policy for auto-setup (ask|skip|error)")
 	_, _ = fmt.Fprintln(w, "  --yes <value>                 Confirmation policy forwarded to auto-setup")
-	_, _ = fmt.Fprintln(w, "  --dry-run                     Export DRY_RUN=true for auto-setup")
+	_, _ = fmt.Fprintln(w, "  --dry-run                     Preview auto-setup actions without mutating the host")
 }
 
 type envSnapshot struct {
@@ -341,6 +368,11 @@ func applyEnvironment(root, servicePath string, opts options) (func(), error) {
 	}
 	if opts.Resources != "" {
 		if err := set("RESOURCES", opts.Resources, false); err != nil {
+			return nil, err
+		}
+	}
+	if opts.Scenarios != "" {
+		if err := set("SCENARIOS", opts.Scenarios, false); err != nil {
 			return nil, err
 		}
 	}

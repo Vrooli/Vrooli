@@ -158,32 +158,11 @@ func runScenarioStartAllCommandWithApp(app *App, ctx *commandContext, args []str
 		failed = append(failed, scenarioBatchFailure{Name: item.Name, Error: item.Error})
 	}
 
+	format := cliout.FormatHuman
 	if jsonFlag {
-		return cliout.WriteJSON(ctx.Stdout, map[string]any{
-			"success": true,
-			"data": map[string]any{
-				"started": started,
-				"failed":  failed,
-			},
-		})
+		format = cliout.FormatJSON
 	}
-
-	_, _ = fmt.Fprintf(ctx.Stdout, "Started %d scenarios\n", len(started))
-	if len(started) > 0 {
-		_, _ = fmt.Fprintln(ctx.Stdout)
-		_, _ = fmt.Fprintln(ctx.Stdout, "Started scenarios:")
-		for _, item := range started {
-			_, _ = fmt.Fprintf(ctx.Stdout, "  %s: %s\n", item.Name, item.Status)
-		}
-	}
-	if len(failed) > 0 {
-		_, _ = fmt.Fprintln(ctx.Stdout)
-		_, _ = fmt.Fprintln(ctx.Stdout, "Failed to start:")
-		for _, item := range failed {
-			_, _ = fmt.Fprintf(ctx.Stdout, "  %s: %s\n", item.Name, item.Error)
-		}
-	}
-	return nil
+	return writeScenarioBatchReport(ctx.Stdout, format, "Started", started, nil, failed)
 }
 
 func runScenarioStopAllCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -218,31 +197,11 @@ func runScenarioStopAllCommandWithApp(app *App, ctx *commandContext, args []stri
 		failed = append(failed, scenarioBatchFailure{Name: item.Name, Error: item.Error})
 	}
 
+	format := cliout.FormatHuman
 	if jsonFlag {
-		return cliout.WriteJSON(ctx.Stdout, map[string]any{
-			"success": true,
-			"data": map[string]any{
-				"stopped": stopped,
-				"failed":  failed,
-			},
-		})
+		format = cliout.FormatJSON
 	}
-
-	if len(stopped) == 0 && len(failed) == 0 {
-		_, _ = fmt.Fprintln(ctx.Stdout, "No running scenarios found")
-		return nil
-	}
-	if len(stopped) > 0 {
-		_, _ = fmt.Fprintf(ctx.Stdout, "Stopped %d scenarios\n", len(stopped))
-	}
-	if len(failed) > 0 {
-		_, _ = fmt.Fprintln(ctx.Stdout)
-		_, _ = fmt.Fprintln(ctx.Stdout, "Failed to stop:")
-		for _, item := range failed {
-			_, _ = fmt.Fprintf(ctx.Stdout, "  %s: %s\n", item.Name, item.Error)
-		}
-	}
-	return nil
+	return writeScenarioBatchReport(ctx.Stdout, format, "Stopped", nil, stopped, failed)
 }
 
 func runScenarioPortCommandWithApp(app *App, ctx *commandContext, args []string) error {

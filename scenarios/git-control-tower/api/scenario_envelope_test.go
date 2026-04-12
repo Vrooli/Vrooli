@@ -77,9 +77,6 @@ func assertEnvelopeServiceFields(t *testing.T, env *ScenarioEnvelopeResponse) {
 	if env.Description != "A test scenario" {
 		t.Errorf("Description = %q, want %q", env.Description, "A test scenario")
 	}
-	if env.Path != "scenarios/my-scenario" {
-		t.Errorf("Path = %q, want %q", env.Path, "scenarios/my-scenario")
-	}
 	if len(env.Tags) != 2 || env.Tags[0] != "web" || env.Tags[1] != "api" {
 		t.Errorf("Tags = %v, want [web api]", env.Tags)
 	}
@@ -178,6 +175,26 @@ func TestParseServiceJSON_InvalidJSON(t *testing.T) {
 	_, err := ParseServiceJSON([]byte("not json"), "x")
 	if err == nil {
 		t.Fatal("expected error for invalid JSON, got nil")
+	}
+}
+
+func TestParseServiceJSON_UsesRepoContractWhenAvailable(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
+	t.Setenv("VROOLI_ROOT", repoRoot)
+	t.Setenv("VROOLI_SOURCE_ROOT", "")
+
+	raw := `{
+		"service": {"name": "my-scenario", "displayName": "My Scenario", "description": "A test scenario"},
+		"dependencies": {}
+	}`
+
+	env, err := ParseServiceJSON([]byte(raw), "my-scenario")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if env.Path != "scenarios/my-scenario" {
+		t.Fatalf("Path = %q, want %q", env.Path, "scenarios/my-scenario")
 	}
 }
 

@@ -24,10 +24,27 @@ readonly NC='\033[0m'
 # Returns the absolute path to a scenario directory, accounting for sandbox
 # isolation when active. When invoked by a sandboxed agent (VROOLI_SANDBOX_*
 # env vars present), delegates to sandbox-resolve to redirect to the overlay's
-# merged directory. Falls back to VROOLI_ROOT-based resolution.
+# merged directory. Outside sandboxes, sandbox-resolve still uses the shared
+# repo-contract-backed repository root.
 #
 # See packages/cli-core/cliutil/sandbox.go for the Go implementation and
 # packages/cli-core/cmd/sandbox-resolve for the binary wrapper.
+resolve_repo_root() {
+    if ! command -v sandbox-resolve &>/dev/null; then
+        echo "sandbox-resolve is required for contract-backed repo resolution" >&2
+        return 1
+    fi
+
+    local resolved
+    resolved=$(sandbox-resolve repo-root 2>/dev/null) || resolved=""
+    if [[ -z "$resolved" ]]; then
+        echo "failed to resolve repo root via sandbox-resolve" >&2
+        return 1
+    fi
+
+    echo "$resolved"
+}
+
 resolve_scenario_dir() {
     local scenario_name="$1"
     if command -v sandbox-resolve &>/dev/null; then
@@ -38,9 +55,10 @@ resolve_scenario_dir() {
             return
         fi
     fi
-    # Fallback: no sandbox-resolve or it failed.
-    local vrooli_root="${VROOLI_ROOT:-$HOME/Vrooli}"
-    echo "$vrooli_root/scenarios/$scenario_name"
+
+    local repo_root
+    repo_root=$(resolve_repo_root) || return 1
+    echo "$repo_root/scenarios/$scenario_name"
 }
 
 init_config() {
@@ -248,7 +266,7 @@ cmd_scan() {
         echo -e "${RED}✗${NC} Invalid scenario path or name: $scenario_path"
         echo "Provide either:"
         echo "  • A valid directory path (e.g., /home/user/Vrooli/scenarios/my-scenario)"
-        echo "  • A scenario name (e.g., my-scenario) - resolves to \$VROOLI_ROOT/scenarios/<name>"
+        echo "  • A scenario name (e.g., my-scenario) - resolves via the shared repo contract"
         return 1
     fi
 
@@ -927,7 +945,7 @@ COMMANDS
 
     scan [SCENARIO_PATH_OR_NAME] [--timeout SEC]
         Run light scan (lint + type checks) on scenario
-        Accepts either a full path or a scenario name (resolves to \$VROOLI_ROOT/scenarios/<name>)
+        Accepts either a full path or a scenario name (resolves via the shared repo contract)
         Default: current directory, 120s timeout
         Examples:
           tidiness-manager scan tidiness-manager

@@ -96,11 +96,9 @@ func CalculateBundleSHA(repoRoot string, manifest domain.CloudManifest) (string,
 	return hex.EncodeToString(hasher.Sum(nil)), size, nil
 }
 
-// MiniVrooliBundleSpec builds the specification for a mini-Vrooli bundle.
-//
-// Deferred migration note: repo-wide include/exclude policy belongs in the
-// repo contract. This function still carries legacy compatibility rules until
-// scenario-to-cloud is migrated onto the shared contract profile surface.
+// MiniVrooliBundleSpec builds the specification for a mini-Vrooli bundle using
+// the contract-defined mini_vrooli_bundle profile plus manifest-specific
+// augmentations kept in code.
 func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniBundleSpec, error) {
 	scenarioIDs := stringutil.SortedUnique(manifest.Bundle.Scenarios)
 	resourceIDs := stringutil.SortedUnique(manifest.Bundle.Resources)
@@ -203,38 +201,6 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 		Excludes:     excludes,
 		ExtraFiles:   extra,
 	}, nil
-}
-
-// DefaultExcludes returns the standard set of exclusion patterns for bundles.
-func DefaultExcludes() []string {
-	return []string{
-		".git/**",
-		"**/.git/**",
-		"node_modules/**",
-		"**/node_modules/**",
-		".pnpm-store/**",
-		"**/.pnpm-store/**",
-		"coverage/**",
-		"**/coverage/**",
-		"logs/**",
-		"**/logs/**",
-		"data/**",
-		"**/data/**",
-		"projects/**",
-		"**/projects/**",
-		"**/.DS_Store",
-		// Exclude dist folders EXCEPT packages/*/dist (pre-built shared libraries needed at runtime)
-		"scenarios/**/dist/**",
-		"resources/**/dist/**",
-		"dist/**",
-		"**/.next/**",
-		// NEVER bundle mothership secrets - these are generated on the target VPS
-		".vrooli/secrets.json",
-		"**/.vrooli/secrets.json",
-		"cli/**",
-		// Exclude scenario templates - they have placeholder go.mod files that break go.work
-		"scripts/scenarios/templates/**",
-	}
 }
 
 func existingProfileRoots(repoRoot string, required []string, optional []string) []string {

@@ -4,30 +4,37 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func TestResolveScenarioRoot_DefaultsToSwarmManager(t *testing.T) {
+	repoRoot, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("FindRepoRootFromCWD() error: %v", err)
+	}
 	t.Setenv("SCENARIO_ROOT", "")
-	t.Setenv("VROOLI_ROOT", "")
+	t.Setenv("VROOLI_ROOT", repoRoot)
 
 	got := ResolveScenarioRoot("")
-	if !filepath.IsAbs(got) {
-		t.Fatalf("expected absolute path, got %q", got)
-	}
-	base := filepath.Base(got)
-	if base != "swarm-manager" {
-		t.Errorf("expected basename swarm-manager, got %q", base)
+	want := filepath.Join(repoRoot, "scenarios", "swarm-manager")
+	if got != want {
+		t.Fatalf("ResolveScenarioRoot() = %q, want %q", got, want)
 	}
 }
 
 func TestResolveScenarioRoot_TrimsWhitespace(t *testing.T) {
+	repoRoot, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("FindRepoRootFromCWD() error: %v", err)
+	}
 	t.Setenv("SCENARIO_ROOT", "")
-	t.Setenv("VROOLI_ROOT", "")
+	t.Setenv("VROOLI_ROOT", repoRoot)
 
-	got := ResolveScenarioRoot("  my-scenario  ")
-	base := filepath.Base(got)
-	if base != "my-scenario" {
-		t.Errorf("expected basename my-scenario, got %q", base)
+	got := ResolveScenarioRoot("  test-genie  ")
+	want := filepath.Join(repoRoot, "scenarios", "test-genie")
+	if got != want {
+		t.Errorf("expected %q, got %q", want, got)
 	}
 }
 
@@ -55,62 +62,47 @@ func TestResolveScenarioRoot_ScenarioRootEnvWithWhitespace(t *testing.T) {
 	}
 }
 
-func TestResolveScenarioRoot_VrooliRootEnv(t *testing.T) {
-	tmp := t.TempDir()
+func TestResolveScenarioRoot_UsesRepoContractDiscoveryFromVrooliRoot(t *testing.T) {
+	tmp, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("FindRepoRootFromCWD() error: %v", err)
+	}
 	t.Setenv("SCENARIO_ROOT", "")
 	t.Setenv("VROOLI_ROOT", tmp)
 
-	got := ResolveScenarioRoot("test-scenario")
-	want := filepath.Join(tmp, "scenarios", "test-scenario")
+	got := ResolveScenarioRoot("test-genie")
+	want := filepath.Join(tmp, "scenarios", "test-genie")
 	if got != want {
 		t.Errorf("expected %q, got %q", want, got)
 	}
 }
 
-func TestResolveScenarioRoot_WalkUpFindsScenariosDir(t *testing.T) {
-	// Create a temp directory tree: tmp/scenarios/my-sc/
-	tmp := t.TempDir()
-	scenarioDir := filepath.Join(tmp, "scenarios", "my-sc")
-	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
-		t.Fatal(err)
+func TestResolveScenarioRoot_UsesRepoContractDiscoveryFromCWD(t *testing.T) {
+	tmp, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("FindRepoRootFromCWD() error: %v", err)
 	}
-
-	// Set cwd to a child directory under tmp.
-	child := filepath.Join(tmp, "some", "deep", "dir")
-	if err := os.MkdirAll(child, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(child); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(origDir) })
-
+	child := filepath.Join(tmp, "scenarios", "swarm-manager", "api")
+	chdirForTest(t, child)
 	t.Setenv("SCENARIO_ROOT", "")
 	t.Setenv("VROOLI_ROOT", "")
 
-	got := ResolveScenarioRoot("my-sc")
+	got := ResolveScenarioRoot("test-genie")
+	scenarioDir := filepath.Join(tmp, "scenarios", "test-genie")
 	if got != scenarioDir {
-		t.Errorf("expected walk-up to find %q, got %q", scenarioDir, got)
+		t.Errorf("expected contract-backed resolution %q, got %q", scenarioDir, got)
 	}
 }
 
-func TestResolveScenarioRoot_FallbackWhenNothingMatches(t *testing.T) {
-	tmp := t.TempDir() // empty, no scenarios/ subdir
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(origDir) })
-
+func TestResolveScenarioRoot_ReturnsEmptyWhenRepoCannotBeResolved(t *testing.T) {
+	tmp := t.TempDir()
+	chdirForTest(t, tmp)
 	t.Setenv("SCENARIO_ROOT", "")
 	t.Setenv("VROOLI_ROOT", "")
 
 	got := ResolveScenarioRoot("nonexistent")
-	want := filepath.Join(tmp, "scenarios", "nonexistent")
-	if got != want {
-		t.Errorf("expected fallback %q, got %q", want, got)
+	if got != "" {
+		t.Errorf("expected empty path when repo discovery fails, got %q", got)
 	}
 }
 
@@ -124,6 +116,18 @@ func TestResolveScenariosDir(t *testing.T) {
 	if got != want {
 		t.Errorf("expected %q, got %q", want, got)
 	}
+}
+
+func chdirForTest(t *testing.T, dir string) {
+	t.Helper()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir %s: %v", dir, err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
 }
 
 func TestScenariosFromGlobs(t *testing.T) {

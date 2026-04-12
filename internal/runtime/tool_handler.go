@@ -40,11 +40,16 @@ func (h toolHandler) Inspect(host Host, requirement hostreq.ResolvedRequirement)
 	status.InstallSupported = strings.TrimSpace(status.PackageName) != "" && !requirement.Manual
 	if requirement.Manual {
 		status.SupportClass = SupportManualOnly
+		status.ExecutionState = ExecutionManualActionRequired
 		status.InstallSupported = false
+	}
+	if installed {
+		status.ExecutionState = ExecutionAlreadyPresent
 	}
 	if !installed {
 		if status.SupportClass == SupportSupported && strings.TrimSpace(status.PackageName) == "" {
 			status.SupportClass = SupportUnsupported
+			status.ExecutionState = ExecutionUnsupported
 		}
 		if h.installHint != "" {
 			status.Notes = append(status.Notes, h.installHint)
@@ -61,18 +66,26 @@ func (h toolHandler) Inspect(host Host, requirement hostreq.ResolvedRequirement)
 
 func (h toolHandler) Apply(host Host, status ItemStatus, opts EnsureOptions) (ItemStatus, error) {
 	if status.Installed {
+		status.ExecutionState = ExecutionAlreadyPresent
 		return status, nil
 	}
 	switch status.SupportClass {
 	case SupportManualOnly:
+		status.ExecutionState = ExecutionManualActionRequired
 		status.Notes = append(status.Notes, "manual install required by manifest declaration")
 		return status, nil
 	case SupportUnsupported:
+		status.ExecutionState = ExecutionUnsupported
 		status.Notes = append(status.Notes, "automatic install unavailable on this host")
+		return status, nil
+	case SupportNotApplicable:
+		status.ExecutionState = ExecutionNotApplicable
+		status.Notes = append(status.Notes, "requirement is not applicable on this host")
 		return status, nil
 	}
 	if !status.InstallSupported || strings.TrimSpace(status.PackageName) == "" {
 		status.SupportClass = SupportUnsupported
+		status.ExecutionState = ExecutionUnsupported
 		status.Notes = append(status.Notes, "automatic install unavailable on this host")
 		return status, nil
 	}
@@ -80,13 +93,16 @@ func (h toolHandler) Apply(host Host, status ItemStatus, opts EnsureOptions) (It
 	if err != nil {
 		status.Notes = append(status.Notes, err.Error())
 		status.SupportClass = SupportUnsupported
+		status.ExecutionState = ExecutionUnsupported
 		return status, nil
 	}
 	if opts.DryRun {
+		status.ExecutionState = ExecutionWouldInstall
 		status.Notes = append(status.Notes, fmt.Sprintf("dry-run: would run %s %s", command, strings.Join(args, " ")))
 		return status, nil
 	}
 	if err := runInstallCommand(command, args, opts); err != nil {
+		status.ExecutionState = ExecutionFailed
 		status.Notes = append(status.Notes, err.Error())
 		return status, nil
 	}
@@ -95,8 +111,12 @@ func (h toolHandler) Apply(host Host, status ItemStatus, opts EnsureOptions) (It
 	status.Command = commandName
 	status.Installed = installed
 	if installed {
+		status.ExecutionState = ExecutionInstalled
 		status.Version = readVersion(commandName, h.versionArgs)
+		return status, nil
 	}
+	status.ExecutionState = ExecutionFailed
+	status.Notes = append(status.Notes, "install command completed but the tool is still not available on PATH")
 	return status, nil
 }
 

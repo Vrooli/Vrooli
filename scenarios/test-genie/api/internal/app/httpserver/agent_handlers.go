@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -158,10 +156,7 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate and prepend preamble to each prompt
-	repoRoot := os.Getenv("VROOLI_ROOT")
-	if repoRoot == "" {
-		repoRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
-	}
+	repoRoot := s.resolveRepoRoot()
 
 	preambleCfg := agentmanager.PreambleConfig{
 		Scenario:       scenario,
@@ -218,7 +213,7 @@ func (s *Server) handleSpawnAgents(w http.ResponseWriter, r *http.Request) {
 	for i, run := range result.Runs {
 		items[i] = agentSpawnResult{
 			PromptIndex: run.PromptIndex,
-			AgentID:     run.Tag,  // Use tag as agent ID for UI compatibility
+			AgentID:     run.Tag, // Use tag as agent ID for UI compatibility
 			RunID:       run.RunID,
 			Status:      run.Status,
 			Error:       run.Error,
@@ -474,9 +469,9 @@ func runToActiveAgent(run *domainpb.Run) *ActiveAgent {
 	}
 
 	agent := &ActiveAgent{
-		ID:       run.GetTag(),
-		RunID:    run.Id,
-		Status:   AgentStatus(agentmanager.MapRunStatus(run.Status)),
+		ID:     run.GetTag(),
+		RunID:  run.Id,
+		Status: AgentStatus(agentmanager.MapRunStatus(run.Status)),
 	}
 
 	// Extract scenario from tag if possible (format: test-genie-{batchId}-{index})

@@ -1,8 +1,12 @@
 # Repo Contract Phase 4 Implementation Checklist
 
-**Status:** In Progress
+**Status:** Complete
 **Parent plan:** [repo-contract-implementation-plan.md](/home/matthalloran8/Vrooli/docs/plans/repo-contract-implementation-plan.md)
 **Goal:** Fully migrate the remaining high-risk repo-aware consumers onto the shared repo contract and remove duplicated future-state layout logic.
+
+Implementation note:
+- Runtime migration is complete for the Phase 4 consumers.
+- One `scenario-auditor` rule implementation (`api/rules/structure/ui_structure.go`) intentionally remains stdlib-only for its rule-file discovery path because the yaegi rule loader cannot resolve transitive third-party imports such as `repo-contract-go`. That rule-local discovery path is not treated as contract authority.
 
 ## Exit Criteria
 
@@ -12,6 +16,7 @@
 - [x] Each Phase 4 consumer has a single authoritative repo/scenario resolution helper path rather than parallel legacy fallbacks
 - [x] Targeted tests assert repo-contract semantics rather than legacy behavior
 - [x] Focused validation commands pass for every migrated consumer
+- [x] Post-migration residual runtime/help-text heuristics in the Phase 4 consumers have been removed or redirected to contract-backed helpers
 
 ## 1. `swarm-manager`
 
@@ -193,3 +198,12 @@ Validation:
 - [x] 5. `workspace-sandbox`
 - [x] 6. `tidiness-manager`
 - [x] 7. `test-genie`
+
+## Closeout Notes
+
+- `docs/repo-contract.md` now reflects the landed Phase 4 migrations instead of listing these consumers as deferred.
+- `tidiness-manager/api` now passes full `go test ./...`; the earlier targeted-test caveat no longer applies.
+- Consumer closeout included residual surfaces outside the original file lists where they still taught or implemented legacy repo-root/path behavior.
+- `workspace-sandbox` no longer falls back to `cwd/scenarios/workspace-sandbox/...` for schema discovery.
+- `scenario-to-cloud` and `git-control-tower` residual operator/help-text path guidance now avoids teaching `~/Vrooli` or raw `scenarios/<name>` as the canonical model.
+- `scenario-auditor` runtime handlers/stores/providers now use the shared repo-contract helpers; only the yaegi-constrained `ui_structure` rule keeps a local discovery fallback.

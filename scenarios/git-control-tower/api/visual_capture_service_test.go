@@ -25,9 +25,8 @@ func testCaptureSetup(t *testing.T, basHandler http.HandlerFunc) (VisualCaptureD
 
 	tmpDir := t.TempDir()
 	repoDir := filepath.Join(tmpDir, "repo")
-	if err := os.MkdirAll(repoDir, 0o755); err != nil {
-		t.Fatalf("create repo dir: %v", err)
-	}
+	writeRepoContractFixture(t, repoDir)
+	writeServiceJSON(t, repoDir, "test-app", `{"service":{"name":"test-app"}}`)
 
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
 		EnvGet:      func(key string) string { return "" },
@@ -112,12 +111,13 @@ func TestCaptureScenario_NoLighthouseConfig(t *testing.T) {
 	}
 }
 
-func TestDiscoverPages_MultipleLocations(t *testing.T) {
+func TestDiscoverPages_IgnoresLegacyAppsLocation(t *testing.T) {
 	t.Parallel()
 
 	tmpDir := t.TempDir()
+	mkdirAllVisualCaptureRepo(t, tmpDir, "my-app")
 
-	// Create lighthouse.json under apps/ instead of scenarios/
+	// Create lighthouse.json under apps/ instead of the contract-defined scenario path.
 	appsDir := filepath.Join(tmpDir, "apps", "my-app", ".vrooli")
 	if err := os.MkdirAll(appsDir, 0o755); err != nil {
 		t.Fatalf("create apps dir: %v", err)
@@ -136,10 +136,10 @@ func TestDiscoverPages_MultipleLocations(t *testing.T) {
 
 	pages := discoverPages(OSFileIO{}, tmpDir, "my-app")
 	if len(pages) != 1 {
-		t.Fatalf("expected 1 page from apps/ lighthouse.json, got %d", len(pages))
+		t.Fatalf("expected fallback page set, got %d", len(pages))
 	}
-	if pages[0].Path != "/main" {
-		t.Errorf("expected path /main, got %s", pages[0].Path)
+	if pages[0].Path != "/" {
+		t.Errorf("expected fallback path /, got %s", pages[0].Path)
 	}
 }
 
@@ -578,6 +578,7 @@ func TestPrepareForCapture_CaptureMode_PreservesBaseline(t *testing.T) {
 func TestCheckCaptureStaleness_DetectsChanges(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
+	mkdirAllVisualCaptureRepo(t, dir, "test-app")
 
 	// Create scenario files
 	scenarioDir := filepath.Join(dir, "scenarios", "test-app", "ui", "src")
@@ -589,8 +590,11 @@ func TestCheckCaptureStaleness_DetectsChanges(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	// Capture happened 1 second before the file was written
 	captureTime := time.Now().UTC().Add(-2 * time.Second)
+	modTime := captureTime.Add(1 * time.Second)
+	if err := os.Chtimes(filePath, modTime, modTime); err != nil {
+		t.Fatalf("chtimes: %v", err)
+	}
 	result := CheckCaptureStaleness(dir, "test-app", captureTime)
 	if !result.IsStale {
 		t.Error("expected stale when file modified after capture")
@@ -600,6 +604,7 @@ func TestCheckCaptureStaleness_DetectsChanges(t *testing.T) {
 func TestCheckCaptureStaleness_NotStale(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
+	mkdirAllVisualCaptureRepo(t, dir, "test-app")
 
 	scenarioDir := filepath.Join(dir, "scenarios", "test-app")
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
@@ -609,8 +614,12 @@ func TestCheckCaptureStaleness_NotStale(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	// Capture happened well after the file was written
 	captureTime := time.Now().UTC().Add(1 * time.Minute)
+	modTime := captureTime.Add(-1 * time.Minute)
+	target := filepath.Join(scenarioDir, "main.go")
+	if err := os.Chtimes(target, modTime, modTime); err != nil {
+		t.Fatalf("chtimes: %v", err)
+	}
 	result := CheckCaptureStaleness(dir, "test-app", captureTime)
 	if result.IsStale {
 		t.Error("expected not stale when capture is after file changes")
@@ -620,10 +629,19 @@ func TestCheckCaptureStaleness_NotStale(t *testing.T) {
 func TestCheckCaptureStaleness_NoScenarioDir(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
+	mkdirAllVisualCaptureRepo(t, dir, "existing")
 
 	result := CheckCaptureStaleness(dir, "nonexistent", time.Now().UTC())
 	if result.IsStale {
 		t.Error("expected not stale for nonexistent scenario dir")
+	}
+}
+
+func mkdirAllVisualCaptureRepo(t *testing.T, root string, scenarios ...string) {
+	t.Helper()
+	writeRepoContractFixture(t, root)
+	for _, scenario := range scenarios {
+		writeServiceJSON(t, root, scenario, `{"service":{"name":"`+scenario+`"}}`)
 	}
 }
 

@@ -36,9 +36,8 @@ Landed:
 
 Still deferred to later phases:
 
-- high-risk repo-aware scenario/tool migrations such as `swarm-manager`, `scenario-to-cloud`, `tidiness-manager`, and `test-genie`
 - CLI/operator tooling such as `vrooli contract ...`
-- broader drift checks for remaining direct consumers
+- broader drift checks for remaining direct consumers outside the landed migration set
 
 Phase 1 includes:
 
@@ -59,7 +58,7 @@ Phase 1 should be considered complete only when all of the following remain true
 - `.vrooli/schemas/repo-contract.schema.json` enforces the current contract shape
 - `make validate-repo-contract` remains the single documented validation entrypoint
 - `internal/repocontract` catches schema drift, semantic drift, and legacy-path regressions
-- deferred consumers are clearly documented as migration targets rather than contract authority
+- remaining non-migrated consumers are clearly documented as migration targets rather than contract authority
 
 ## Shared Package Adoption
 
@@ -140,13 +139,18 @@ For covered repo-aware work:
 
 Ordinary scenario runtime logic should usually consume higher-level shared packages. Repo-aware infrastructure code may consume `packages/repo-contract-go` directly when repository/layout semantics are part of the job.
 
-## Known Deferred Consumers
+## Landed Consumer Migrations
 
-These are still migration targets and should not be treated as shared-package precedent:
+These high-risk consumers now have repo-contract-backed primary resolution paths and should stay aligned with the contract:
 
-- `swarm-manager` backlog glob validation and counting
-- `scenario-to-cloud` bundle root/include policy
-- `tidiness-manager` scenario location fallback logic
-- `test-genie` CLI repo-root detection
+- `swarm-manager`
+- `scenario-to-cloud`
+- `tidiness-manager`
+- `workspace-sandbox`
+- `test-genie`
+- `scenario-auditor`
+- `git-control-tower`
 
-Their current behavior is legacy compatibility, not contract authority.
+Residual follow-up work should be treated as consumer cleanup, not as alternative contract authority.
+
+One implementation detail remains intentionally local: `scenario-auditor/api/rules/structure/ui_structure.go` keeps stdlib-only rule-file discovery because the yaegi rule loader used for rule validation cannot resolve transitive third-party imports such as `repo-contract-go`. That rule-local fallback is not contract authority and does not change the shared runtime migration status.

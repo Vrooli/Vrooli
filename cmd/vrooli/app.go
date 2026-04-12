@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/bootstrap"
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/lifecycle"
@@ -33,15 +34,18 @@ type App struct {
 }
 
 type commandContext struct {
-	Root     string
-	Globals  globalOptions
-	Stdout   io.Writer
-	Stderr   io.Writer
-	Logger   *slog.Logger
-	app      *App
-	home     string
-	homeErr  error
-	homeSeen bool
+	Root         string
+	Globals      globalOptions
+	Stdout       io.Writer
+	Stderr       io.Writer
+	Logger       *slog.Logger
+	app          *App
+	home         string
+	homeErr      error
+	homeSeen     bool
+	services     *bootstrap.Services
+	servicesErr  error
+	servicesSeen bool
 }
 
 func configuredApp() *App {
@@ -215,48 +219,62 @@ func (ctx *commandContext) HomeDir() (string, error) {
 	return ctx.home, ctx.homeErr
 }
 
+func (ctx *commandContext) Services() (*bootstrap.Services, error) {
+	if ctx.servicesSeen {
+		return ctx.services, ctx.servicesErr
+	}
+	ctx.servicesSeen = true
+	home, err := ctx.HomeDir()
+	if err != nil {
+		ctx.servicesErr = err
+		return nil, err
+	}
+	ctx.services = bootstrap.New(ctx.Root, home, ctx.Stdout, ctx.Stderr, ctx.Logger)
+	return ctx.services, nil
+}
+
 func (app *App) passthroughFlags(globals globalOptions, existing []string) []string {
 	return passthroughFlags(globals, existing)
 }
 
 func (app *App) newScenarioLifecycleRunner(ctx *commandContext) (*lifecycle.Runner, error) {
-	home, err := ctx.HomeDir()
+	services, err := ctx.Services()
 	if err != nil {
 		return nil, err
 	}
-	return lifecycle.NewRunner(ctx.Root, home, ctx.Stdout, ctx.Stderr, ctx.Logger)
+	return services.LifecycleRunner()
 }
 
 func (app *App) newScenarioService(ctx *commandContext) (*orchestrator.Service, error) {
-	home, err := ctx.HomeDir()
+	services, err := ctx.Services()
 	if err != nil {
 		return nil, err
 	}
-	return orchestrator.New(ctx.Root, home, ctx.Stdout, ctx.Stderr, ctx.Logger), nil
+	return services.Orchestrator(), nil
 }
 
 func (app *App) newResourceController(ctx *commandContext) (*resources.Controller, error) {
-	home, err := ctx.HomeDir()
+	services, err := ctx.Services()
 	if err != nil {
 		return nil, err
 	}
-	return resources.NewController(ctx.Root, home), nil
+	return services.Resources(), nil
 }
 
 func (app *App) newProjectController(ctx *commandContext) (*project.Controller, error) {
-	home, err := ctx.HomeDir()
+	services, err := ctx.Services()
 	if err != nil {
 		return nil, err
 	}
-	return project.New(ctx.Root, home, ctx.Stdout, ctx.Stderr), nil
+	return services.Project(), nil
 }
 
 func (app *App) newMaintenanceController(ctx *commandContext) (*maintenance.Controller, error) {
-	home, err := ctx.HomeDir()
+	services, err := ctx.Services()
 	if err != nil {
 		return nil, err
 	}
-	return maintenance.NewController(ctx.Root, home), nil
+	return services.Maintenance(), nil
 }
 
 func (app *App) runTopLevelSetup(ctx *commandContext, args []string) error {

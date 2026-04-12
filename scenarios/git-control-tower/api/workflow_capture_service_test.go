@@ -102,12 +102,23 @@ func TestFilterByExecutionMode(t *testing.T) {
 func TestDiscoverWorkflows_EmptyDir(t *testing.T) {
 	t.Parallel()
 
+	repoDir := writeWorkflowCaptureRepoFixture(t, "test-scenario")
 	fs := NewFakeFileIO()
-	workflows, err := discoverWorkflows(fs, "/nonexistent", "test-scenario")
+	workflows, err := discoverWorkflows(fs, repoDir, "test-scenario")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(workflows) != 0 {
 		t.Errorf("expected 0 workflows, got %d", len(workflows))
 	}
+}
+
+func writeWorkflowCaptureRepoFixture(t *testing.T, scenarios ...string) string {
+	t.Helper()
+	root := t.TempDir()
+	writeRepoContractFixture(t, root)
+	for _, scenario := range scenarios {
+		writeServiceJSON(t, root, scenario, `{"service":{"name":"`+scenario+`"}}`)
+	}
+	return root
 }

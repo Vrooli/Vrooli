@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	"test-genie/agentmanager"
 
@@ -109,9 +108,12 @@ func (s *Service) runImprove(record *Record) {
 	})
 
 	// Build safety preamble
-	repoRoot := os.Getenv("VROOLI_ROOT")
-	if repoRoot == "" {
-		repoRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	repoRoot, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		record.Status = StatusFailed
+		record.Error = fmt.Sprintf("resolve repo root: %v", err)
+		s.store.Update(record)
+		return
 	}
 
 	preambleAttachment := agentmanager.GeneratePreambleAttachment(agentmanager.PreambleConfig{

@@ -4,7 +4,7 @@
   "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
+    "dev": "bash -c '${VROOLI_ROOT:?VROOLI_ROOT must be set by the Vrooli lifecycle}/scripts/lib/ui-guard.sh vite'",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc --noEmit"

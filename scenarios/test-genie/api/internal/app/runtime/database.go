@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	goruntime "runtime"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"test-genie/internal/storage/sqlfiles"
 )
 
@@ -53,12 +54,22 @@ func resolveInitializationFile(name string) (string, error) {
 func scenarioRoot() (string, error) {
 	_, currentFile, _, ok := goruntime.Caller(0)
 	if ok {
-		return filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", "..", "..")), nil
+		root, err := repocontract.FindRepoRoot(currentFile)
+		if err == nil {
+			path, resolveErr := repocontract.ResolveScenarioPath(root, "test-genie")
+			if resolveErr == nil {
+				return path, nil
+			}
+		}
 	}
 
-	wd, err := os.Getwd()
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
 	if err != nil {
-		return "", fmt.Errorf("failed to determine working directory: %w", err)
+		return "", fmt.Errorf("failed to determine test-genie scenario root: %w", err)
 	}
-	return filepath.Dir(wd), nil
+	path, err := repocontract.ResolveScenarioPath(root, "test-genie")
+	if err != nil {
+		return "", fmt.Errorf("resolve test-genie scenario path: %w", err)
+	}
+	return path, nil
 }

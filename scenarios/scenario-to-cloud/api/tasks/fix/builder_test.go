@@ -106,6 +106,26 @@ func TestBuildPromptAndContext_UsesDeploymentLocalNativeCLIInSSHExamples(t *test
 	}
 }
 
+func TestBuildPromptAndContext_UsesContractNeutralPathGuidance(t *testing.T) {
+	out, err := BuildPromptAndContext(validFixInput())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, key := range []string{"focus-harness-fix", "focus-subject-fix"} {
+		att := getAttachment(out.Attachments, key)
+		if att == nil {
+			t.Fatalf("missing attachment %q", key)
+		}
+		if strings.Contains(att.Content, "~/Vrooli/scenarios/") {
+			t.Fatalf("%s should not mention legacy ~/Vrooli scenario paths: %q", key, att.Content)
+		}
+		if !strings.Contains(att.Content, "repo contract") && !strings.Contains(att.Content, "contract-defined") {
+			t.Fatalf("%s should reference contract-backed path guidance: %q", key, att.Content)
+		}
+	}
+}
+
 func validFixInput() shared.TaskInput {
 	errStep := "preflight"
 	errMsg := "preflight failed"

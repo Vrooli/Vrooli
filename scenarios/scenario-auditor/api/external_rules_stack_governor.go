@@ -171,7 +171,9 @@ func (p *stackGovernorProvider) Run(ctx context.Context, scenarioName string, ru
 	now := time.Now().Format(time.RFC3339)
 	scenarioDir := ""
 	if parsed.RepoRoot != "" {
-		scenarioDir = filepath.Join(parsed.RepoRoot, "scenarios", cleaned)
+		if resolvedPath, err := resolveContractScenarioPathFromRepoRoot(parsed.RepoRoot, cleaned); err == nil {
+			scenarioDir = resolvedPath
+		}
 	}
 	var violations []StandardsViolation
 	for _, res := range parsed.Results {

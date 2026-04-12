@@ -437,7 +437,8 @@ func TestRepoContractDocsStayAlignedWithPhase1Contract(t *testing.T) {
 		"canonical scenario manifest path: `scenarios/<name>/.vrooli/service.json`",
 		"canonical resource manifest path: `resources/<name>/resource.json`",
 		"`packages/repo-contract-go`",
-		"`swarm-manager` backlog glob validation and counting",
+		"## Landed Consumer Migrations",
+		"`swarm-manager`",
 	}
 	for _, snippet := range requiredSnippets {
 		if !strings.Contains(docs, snippet) {

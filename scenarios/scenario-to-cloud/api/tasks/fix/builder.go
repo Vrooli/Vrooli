@@ -282,7 +282,7 @@ func buildHarnessFocusAttachment(perms domain.FixPermissions) *domainpb.ContextA
 	}
 
 	content.WriteString("**Key Paths:**\n")
-	content.WriteString("- ~/Vrooli/scenarios/scenario-to-cloud/\n")
+	content.WriteString("- scenario-to-cloud scenario root (resolve via repo contract on the VPS workdir)\n")
 	content.WriteString("- ~/.vrooli/logs/scenario-to-cloud*.log\n")
 
 	return &domainpb.ContextAttachment{
@@ -312,7 +312,7 @@ func buildSubjectFocusAttachment(scenarioID string, perms domain.FixPermissions)
 
 	if perms.Permanent {
 		content.WriteString("**Permanent Fixes:**\n")
-		content.WriteString(fmt.Sprintf("- Edit .vrooli/service.json in scenarios/%s/\n", scenarioID))
+		content.WriteString("- Edit the target scenario's .vrooli/service.json at its contract-defined scenario root\n")
 		content.WriteString("- Fix missing dependencies\n")
 		content.WriteString("- Update port declarations or health endpoints\n\n")
 	}
@@ -325,8 +325,8 @@ func buildSubjectFocusAttachment(scenarioID string, perms domain.FixPermissions)
 	}
 
 	content.WriteString("**Key Paths:**\n")
-	content.WriteString(fmt.Sprintf("- ~/Vrooli/scenarios/%s/\n", scenarioID))
-	content.WriteString(fmt.Sprintf("- ~/Vrooli/scenarios/%s/.vrooli/service.json\n", scenarioID))
+	content.WriteString(fmt.Sprintf("- Target scenario root for %s (resolve via repo contract on the VPS workdir)\n", scenarioID))
+	content.WriteString("- Target scenario .vrooli/service.json\n")
 	content.WriteString(fmt.Sprintf("- ~/.vrooli/logs/%s*.log\n", scenarioID))
 
 	return &domainpb.ContextAttachment{

@@ -136,7 +136,8 @@ type serviceJSONStep struct {
 // ParseServiceJSON reads raw service.json bytes and produces a ScenarioEnvelopeResponse.
 // The slug is used to build the relative path and as a fallback for the test command.
 func ParseServiceJSON(data []byte, slug string) (*ScenarioEnvelopeResponse, error) {
-	return parseServiceJSON(data, "", slug)
+	repoRoot, _ := repocontract.FindRepoRootFromEnvOrCWD()
+	return parseServiceJSON(data, repoRoot, slug)
 }
 
 func parseServiceJSON(data []byte, repoRoot, slug string) (*ScenarioEnvelopeResponse, error) {
@@ -150,7 +151,7 @@ func parseServiceJSON(data []byte, repoRoot, slug string) (*ScenarioEnvelopeResp
 		tags = []string{}
 	}
 
-	scenarioPath := fmt.Sprintf("scenarios/%s", slug)
+	scenarioPath := ""
 	if strings.TrimSpace(repoRoot) != "" {
 		if resolvedPath, err := resolveScenarioPathRelative(repoRoot, slug); err == nil {
 			scenarioPath = resolvedPath

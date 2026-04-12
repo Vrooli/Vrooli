@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
@@ -40,17 +41,21 @@ var (
 	nowFunc          = func() time.Time { return time.Now().UTC() }
 	executablePathFn = os.Executable
 	commandOutputFn  = func(dir, name string, args ...string) ([]byte, error) {
-		cmd := exec.Command(name, args...)
-		cmd.Dir = dir
-		return cmd.Output()
+		return shell.Output(shell.Spec{
+			Name: name,
+			Args: args,
+			Dir:  dir,
+		})
 	}
 	goBuildFn = func(dir string, args []string) error {
-		cmd := exec.Command("go", args...)
-		cmd.Dir = dir
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		return cmd.Run()
+		return shell.Run(shell.Spec{
+			Name:   "go",
+			Args:   args,
+			Dir:    dir,
+			Stdout: os.Stdout,
+			Stderr: os.Stderr,
+			Stdin:  os.Stdin,
+		})
 	}
 	execFn = func(argv0 string, argv []string, envv []string) error {
 		return syscall.Exec(argv0, argv, envv)

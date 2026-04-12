@@ -1,8 +1,10 @@
 package runtime
 
 import (
+	"errors"
 	"os"
 	goruntime "runtime"
+	"sort"
 	"strings"
 	"testing"
 
@@ -80,6 +82,8 @@ func TestEnsureRequirementsSupportsDeclaredToolAndSafeguard(t *testing.T) {
 		switch name {
 		case "docker":
 			return "/usr/bin/docker", nil
+		case "apt-get", "sysctl", "systemctl":
+			return "/usr/bin/" + name, nil
 		default:
 			return "", os.ErrNotExist
 		}
@@ -96,16 +100,19 @@ func TestEnsureRequirementsSupportsDeclaredToolAndSafeguard(t *testing.T) {
 			{Name: "sqlite", Kind: hostreq.KindTool, Required: false, Manual: true, Reasons: []string{"manual sqlite"}},
 		},
 		Safeguards: []hostreq.ResolvedRequirement{
-			{Name: "remote_session_protection", Kind: hostreq.KindSafeguard, Required: false, Reasons: []string{"linux guard"}},
+			{Name: "remote_session_protection", Kind: hostreq.KindSafeguard, Required: true, Reasons: []string{"linux guard"}},
 		},
 	})
-	if err == nil {
-		t.Fatal("expected missing required tmux error")
+	if err != nil {
+		t.Fatalf("EnsureRequirements: %v", err)
 	}
 
 	tmux := findStatus(t, report.Tools, "tmux")
 	if tmux.SupportClass != SupportSupported {
 		t.Fatalf("tmux support class = %q", tmux.SupportClass)
+	}
+	if tmux.ExecutionState != ExecutionWouldInstall {
+		t.Fatalf("tmux execution state = %q", tmux.ExecutionState)
 	}
 	if !containsNote(tmux.Notes, "dry-run: would run") {
 		t.Fatalf("tmux notes = %v", tmux.Notes)
@@ -115,10 +122,58 @@ func TestEnsureRequirementsSupportsDeclaredToolAndSafeguard(t *testing.T) {
 	if sqlite.SupportClass != SupportManualOnly {
 		t.Fatalf("sqlite support class = %q", sqlite.SupportClass)
 	}
+	if sqlite.ExecutionState != ExecutionManualActionRequired {
+		t.Fatalf("sqlite execution state = %q", sqlite.ExecutionState)
+	}
 
 	safeguard := findStatus(t, report.Safeguards, "remote_session_protection")
 	if safeguard.Kind != hostreq.KindSafeguard {
 		t.Fatalf("safeguard kind = %q", safeguard.Kind)
+	}
+	if safeguard.ExecutionState != ExecutionWouldApply {
+		t.Fatalf("safeguard execution state = %q", safeguard.ExecutionState)
+	}
+}
+
+func TestEnsureRequirementsReportsFailedInstallWithoutPretendingSuccess(t *testing.T) {
+	restore := stubRuntimeLookups(t)
+	defer restore()
+
+	lookPathFn = func(name string) (string, error) {
+		if name == "sudo" {
+			return "/usr/bin/sudo", nil
+		}
+		if name == "apt-get" {
+			return "/usr/bin/apt-get", nil
+		}
+		return "", os.ErrNotExist
+	}
+	runCommandFn = func(name string, args []string, opts EnsureOptions) error {
+		return errors.New("install exploded")
+	}
+
+	report, err := EnsureRequirements(EnsureOptions{
+		Environment: "development",
+		AutoInstall: true,
+		SudoMode:    "ask",
+	}, hostreq.Resolution{
+		Tools: []hostreq.ResolvedRequirement{
+			{Name: "tmux", Kind: hostreq.KindTool, Required: true},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected missing required tmux error")
+	}
+
+	tmux := findStatus(t, report.Tools, "tmux")
+	if tmux.Installed {
+		t.Fatalf("tmux should remain uninstalled: %+v", tmux)
+	}
+	if tmux.ExecutionState != ExecutionFailed {
+		t.Fatalf("tmux execution state = %q", tmux.ExecutionState)
+	}
+	if !containsNote(tmux.Notes, "install exploded") {
+		t.Fatalf("tmux notes = %v", tmux.Notes)
 	}
 }
 
@@ -134,6 +189,9 @@ func TestInspectRequirementsMarksUnknownHandlerUnsupported(t *testing.T) {
 	status := findStatus(t, report.Tools, "missing-tool")
 	if status.SupportClass != SupportUnsupported {
 		t.Fatalf("support class = %q", status.SupportClass)
+	}
+	if status.ExecutionState != ExecutionUnsupported {
+		t.Fatalf("execution state = %q", status.ExecutionState)
 	}
 }
 
@@ -158,6 +216,7 @@ func TestInspectRequirementsIncludesNewCoreHandlers(t *testing.T) {
 			{Name: "git", Kind: hostreq.KindTool, Required: true},
 			{Name: "curl", Kind: hostreq.KindTool, Required: true},
 			{Name: "jq", Kind: hostreq.KindTool, Required: true},
+			{Name: "ffmpeg", Kind: hostreq.KindTool, Required: false},
 		},
 	})
 	if err != nil {
@@ -168,12 +227,22 @@ func TestInspectRequirementsIncludesNewCoreHandlers(t *testing.T) {
 	if !git.Installed || git.SupportClass != SupportSupported {
 		t.Fatalf("git status = %+v", git)
 	}
+	if git.ExecutionState != ExecutionAlreadyPresent {
+		t.Fatalf("git execution state = %q", git.ExecutionState)
+	}
 	jq := findStatus(t, report.Tools, "jq")
 	if jq.SupportClass != SupportSupported || jq.PackageName != "jq" {
 		t.Fatalf("jq status = %+v", jq)
 	}
+	if jq.ExecutionState != ExecutionPending {
+		t.Fatalf("jq execution state = %q", jq.ExecutionState)
+	}
 	if !contains(report.MissingRequired, "jq") {
 		t.Fatalf("missing required = %v", report.MissingRequired)
+	}
+	ffmpeg := findStatus(t, report.Tools, "ffmpeg")
+	if ffmpeg.SupportClass != SupportSupported || ffmpeg.PackageName != "ffmpeg" {
+		t.Fatalf("ffmpeg status = %+v", ffmpeg)
 	}
 }
 
@@ -187,6 +256,9 @@ func TestRemoteSessionProtectionClassifiesUnsupportedAndNotApplicable(t *testing
 	if unsupported.SupportClass != SupportUnsupported {
 		t.Fatalf("unsupported class = %q", unsupported.SupportClass)
 	}
+	if unsupported.ExecutionState != ExecutionUnsupported {
+		t.Fatalf("unsupported execution state = %q", unsupported.ExecutionState)
+	}
 
 	notApplicable := inspectRequirement(Host{
 		OS:              "linux",
@@ -198,6 +270,9 @@ func TestRemoteSessionProtectionClassifiesUnsupportedAndNotApplicable(t *testing
 	})
 	if notApplicable.SupportClass != SupportNotApplicable {
 		t.Fatalf("notApplicable class = %q", notApplicable.SupportClass)
+	}
+	if notApplicable.ExecutionState != ExecutionNotApplicable {
+		t.Fatalf("notApplicable execution state = %q", notApplicable.ExecutionState)
 	}
 }
 
@@ -229,13 +304,59 @@ func TestInstallCommandMappings(t *testing.T) {
 	}
 }
 
+func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
+	toolNames := runtimeRegistry.names(hostreq.KindTool)
+	if len(toolNames) == 0 {
+		t.Fatal("expected tool handlers")
+	}
+	if !sort.StringsAreSorted(toolNames) {
+		t.Fatalf("tool names not sorted: %v", toolNames)
+	}
+	if !contains(toolNames, "docker") || !contains(toolNames, "ffmpeg") || !contains(toolNames, "tmux") {
+		t.Fatalf("tool names missing expected entries: %v", toolNames)
+	}
+
+	safeguardNames := runtimeRegistry.names(hostreq.KindSafeguard)
+	if got := strings.Join(safeguardNames, ","); got != "remote_session_protection" {
+		t.Fatalf("safeguard names = %q", got)
+	}
+}
+
+func TestDetectFirstAvailableUsesSharedLookup(t *testing.T) {
+	restore := stubRuntimeLookups(t)
+	defer restore()
+
+	lookPathFn = func(name string) (string, error) {
+		if name == "apk" {
+			return "/sbin/apk", nil
+		}
+		return "", os.ErrNotExist
+	}
+
+	if got := detectFirstAvailable([]string{"apt-get", "apk", "brew"}); got != "apk" {
+		t.Fatalf("detectFirstAvailable = %q", got)
+	}
+}
+
+func TestNewRegistryRejectsDuplicateHandlers(t *testing.T) {
+	defer func() {
+		if recovered := recover(); recovered == nil {
+			t.Fatal("expected duplicate handler panic")
+		}
+	}()
+
+	newRegistry(newDockerTool(), newDockerTool())
+}
+
 func stubRuntimeLookups(t *testing.T) func() {
 	t.Helper()
 	originalLookPathFn := lookPathFn
 	originalCombinedOutputFn := combinedOutputFn
+	originalRunCommandFn := runCommandFn
 	return func() {
 		lookPathFn = originalLookPathFn
 		combinedOutputFn = originalCombinedOutputFn
+		runCommandFn = originalRunCommandFn
 	}
 }
 

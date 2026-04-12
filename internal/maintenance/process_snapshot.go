@@ -4,13 +4,13 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 type processTableEntry struct {
@@ -245,8 +245,10 @@ func isTrackedOrAncestorTracked(pid int, tracked map[int]struct{}, processTable 
 }
 
 func listProcessTable() (map[int]processTableEntry, error) {
-	cmd := exec.Command("ps", "-eo", "pid=,ppid=,pgid=,state=,command=")
-	output, err := cmd.Output()
+	output, err := shell.Output(shell.Spec{
+		Name: "ps",
+		Args: []string{"-eo", "pid=,ppid=,pgid=,state=,command="},
+	})
 	if err != nil {
 		return nil, fmt.Errorf("inspect process table: %w", err)
 	}
