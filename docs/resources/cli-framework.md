@@ -1,5 +1,7 @@
 # Vrooli Resource CLI Framework
 
+> Historical/transitional document. This describes the older shell-first `cli.sh` resource framework and is no longer the default path for new resources. For current work, start with [resource-blueprints.md](resource-blueprints.md), [resource-templates.md](resource-templates.md), and [resource-deprecation.md](resource-deprecation.md).
+
 ## Overview
 
 The Vrooli Resource CLI Framework provides a standardized way to create command-line interfaces for individual resources. This framework ensures consistency across all resource CLIs while providing flexibility for resource-specific functionality.

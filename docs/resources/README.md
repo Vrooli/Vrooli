@@ -22,11 +22,12 @@ Structured blueprint records now live under `.vrooli/resource-blueprints/` and c
 - Blueprint guide: [resource-blueprints.md](resource-blueprints.md)
 - Template guide: [resource-templates.md](resource-templates.md)
 - Deprecation guide: [resource-deprecation.md](resource-deprecation.md)
+- Blueprint archival guide: [resource-blueprint-archival.md](resource-blueprint-archival.md)
 - Migration context: [../plans/resource-cross-platform-migration-plan.md](../plans/resource-cross-platform-migration-plan.md)
 
 ## Template Scaffolding
 
-Phase 3 introduces canonical resource templates so new resources no longer start from cloning a stale directory.
+Canonical resource creation now starts with `blueprint -> template -> implementation`. New resources should not start from cloning an old `resources/<name>/` directory or from copying shell-era `cli.sh` patterns.
 
 ```bash
 vrooli resource template list
@@ -45,13 +46,14 @@ go run ./cmd/vrooli resource template show docker-service
 
 ### Resource Discovery
 ```bash
-# Native list / status entrypoints
+# Active resource surface: manifest-native resources and explicit legacy adapters only
 vrooli resource list
 vrooli resource status postgres
 
-# Inspect structured blueprint and deprecation state
+# Structured blueprint and deprecation state live outside the active surface
 vrooli resource blueprint list
 vrooli resource list-deprecated
+vrooli resource list-blueprint-archived
 ```
 
 ### Installation
@@ -66,12 +68,27 @@ vrooli resource template generate --from-blueprint terraform --dry-run
 
 ### Management
 ```bash
-# Legacy shell paths still exist for older resources, but they are no longer the
-# recommended starting point for new resource work.
+# Legacy shell paths still exist behind some explicit legacy-adapter resources, but
+# they are compatibility shims rather than the starting point for new resource work.
 vrooli resource template list
 vrooli resource blueprint info terraform
 vrooli resource deprecate autogen-studio
+vrooli resource archive-to-blueprint blender
 ```
+
+## Default Workflow
+
+For Phase 7 and later, the stable default path is:
+
+1. Create or refine a blueprint under `.vrooli/resource-blueprints/`
+2. Select the canonical resource template
+3. Generate a manifest-backed resource scaffold
+4. Implement driver-owned lifecycle/status behavior
+5. Keep shell compatibility only when an explicit `legacy-adapter` manifest justifies it
+
+When an old implementation should leave the repo but the capability should remain a future candidate, use the blueprint archival workflow instead of deprecation.
+
+This is the acceptance path described in the migration plan: new resource work should naturally go through blueprint, template, and implementation rather than ad hoc shell cloning.
 
 ---
 
@@ -118,10 +135,15 @@ vrooli scenario run <scenario-name>
 ### Where to Find Tests
 Our testing system is distributed across multiple layers for comprehensive validation:
 
-#### **Individual Resource Tests**
-- **Location**: Resource-local `test/` directories (see each resource README)
-- **Purpose**: Test individual resource functionality, health checks, and API endpoints
-- **Execution**: Run the resource’s `test/run-tests.sh` (when present) or the resource-specific scripts documented in its README
+#### **Active Control Plane Tests**
+- **Location**: Go tests under `internal/resources/` and `cmd/vrooli/`
+- **Purpose**: Validate manifest schemas, blueprint/template workflows, deprecation/archive behavior, driver-backed lifecycle handling, and active discovery rules
+- **Execution**: `go test ./internal/resources ./cmd/vrooli/...`
+
+#### **Legacy Adapter Tests**
+- **Location**: Resource-local `test/` directories for shell-backed compatibility resources
+- **Purpose**: Validate compatibility-only custom subcommands that have not yet migrated into the Go driver path
+- **Execution**: Run the resource-local scripts documented in the resource README when that compatibility surface is still active
 
 #### **Multi-Resource Integration Tests**  
 - **Location**: `scenarios/scenario-name/test.sh`
@@ -174,11 +196,7 @@ cd ./resources/ollama && ./test/integration-test.sh
 ```
 
 ### Interface Validation System
-Vrooli uses a **three-layer validation system** for resource quality assurance:
-
-- **Layer 1: Syntax Validation** (< 1 second) - Static analysis of manage.sh scripts
-- **Layer 2: Behavioral Testing** (< 30 seconds) - Function execution in controlled environment  
-- **Layer 3: Integration Testing** (< 5 minutes) - Real-world functionality validation
+The active resource architecture is validated primarily through manifest, blueprint, template, and driver tests in the Go control plane. Shell-level validation remains transitional and should only apply to resources that are still explicitly tagged as `legacy-adapter`.
 
 ```bash
 # Quick syntax validation
@@ -192,10 +210,10 @@ Vrooli uses a **three-layer validation system** for resource quality assurance:
 
 ### Development Workflow
 1. **Explore**: Browse scenarios in `scenarios/` for working examples
-2. **Develop**: Create resource following [CLI Framework](cli-framework.md) and [Interface Standards](interface-standards.md)
-3. **Unit Test**: Write comprehensive unit tests - see [Unit Testing Guide](UNIT_TESTING_GUIDE.md)
-4. **Test**: Use `__test/resources/single/` for individual resource validation  
-5. **Validate**: Run three-layer interface validation during development
+2. **Blueprint**: Define the capability in [resource-blueprints.md](resource-blueprints.md)
+3. **Scaffold**: Generate from [resource-templates.md](resource-templates.md)
+4. **Implement**: Add manifest-backed driver logic and only keep shell shims when an explicit legacy adapter is intended
+5. **Validate**: Run `go test ./internal/resources ./cmd/vrooli/...`, `vrooli resource blueprint validate`, and `vrooli resource template validate`
 6. **Integrate**: Build complex workflows following scenario patterns
 7. **Deploy**: Run scenarios directly using `vrooli scenario run`
 

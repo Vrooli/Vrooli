@@ -42,7 +42,7 @@ powershell -ExecutionPolicy Bypass -File packages/cli-core/install.ps1 -ModulePa
 
 Notes:
 - Default install dir: `~/.vrooli/bin` (override with `--install-dir`).
-- `APP_ROOT` can override repo root detection when running from a different working dir.
+- Canonical repo-root variables are `VROOLI_ROOT` and `VROOLI_SOURCE_ROOT`. Historical fallbacks are compatibility behavior, not part of the repo contract.
 
 ## Scenario wiring checklist
 - Use `cliapp.StandardScenarioEnv("<scenario-name>", ...)` to derive API/config/source-root/timeout env vars (keeps names consistent across CLIs). Scenario-specific API port envs are checked before global `API_PORT`.

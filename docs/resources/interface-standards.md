@@ -1,5 +1,7 @@
 # Resource Interface Standards v2.0
 
+> Historical/transitional document. This contract captures the shell-era universal CLI shape and remains relevant only for explicit compatibility surfaces. It is not the default starting point for new resources after the manifest-native migration. Use the blueprint/template workflow in [README.md](README.md) for new resource work.
+
 This document defines the v2.0 Universal CLI Contract that all Vrooli resources must implement.
 
 ## 🔧 Quick Reference

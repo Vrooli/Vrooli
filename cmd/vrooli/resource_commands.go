@@ -29,8 +29,14 @@ func runResourceCommand(controller *resources.Controller, globals globalOptions,
 		return runResourceDeprecateCommand(controller, globals, args[1:], stdout)
 	case "list-deprecated":
 		return runResourceListDeprecatedCommand(controller, globals, args[1:], stdout)
+	case "archive-to-blueprint":
+		return runResourceArchiveToBlueprintCommand(controller, globals, args[1:], stdout)
+	case "list-blueprint-archived":
+		return runResourceListBlueprintArchivedCommand(controller, globals, args[1:], stdout)
 	case "restore":
 		return runResourceRestoreCommand(controller, globals, args[1:], stdout)
+	case "restore-blueprint":
+		return runResourceRestoreBlueprintCommand(controller, globals, args[1:], stdout)
 	case "archive":
 		return runResourceArchiveCommand(controller, globals, args[1:], stdout)
 	case "list":
@@ -86,6 +92,8 @@ func runResourceArchiveCommand(controller *resources.Controller, globals globalO
 	switch normalizeResourceSubcommand(args[0]) {
 	case "gc":
 		return runResourceArchiveGCCommand(controller, globals, args[1:], stdout)
+	case "gc-blueprints":
+		return runResourceArchiveBlueprintGCCommand(controller, globals, args[1:], stdout)
 	default:
 		return fmt.Errorf("unknown resource archive command: %s", args[0])
 	}
@@ -392,6 +400,88 @@ func runResourceRestoreCommand(controller *resources.Controller, globals globalO
 	return nil
 }
 
+func runResourceArchiveToBlueprintCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
+	if len(args) != 1 {
+		return fmt.Errorf("resource archive-to-blueprint requires exactly one resource name")
+	}
+	report, err := controller.ArchiveResourceToBlueprint(args[0])
+	if err != nil {
+		return err
+	}
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{
+			"success": true,
+			"report":  report,
+		})
+	}
+	_, _ = fmt.Fprintf(stdout, "Archived %s to blueprint-only state\n", report.Resource.Name)
+	if report.ArchiveDir != "" {
+		_, _ = fmt.Fprintf(stdout, "Archive: %s\n", report.ArchiveDir)
+	}
+	return nil
+}
+
+func runResourceListBlueprintArchivedCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
+	if len(args) > 0 {
+		return fmt.Errorf("resource list-blueprint-archived does not accept positional arguments")
+	}
+	items, err := controller.ListBlueprintArchivedResources()
+	if err != nil {
+		return err
+	}
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{
+			"success":   true,
+			"resources": items,
+		})
+	}
+	rows := make([][]string, 0, len(items))
+	for _, item := range items {
+		state := "blueprint-archived"
+		if strings.TrimSpace(item.PurgedAt) != "" {
+			state = "purged"
+		}
+		rows = append(rows, []string{
+			item.Name,
+			state,
+			item.ArchivedAt,
+			item.PurgeAfter,
+			item.BlueprintName,
+		})
+	}
+	return cliout.RenderTable(stdout, []string{"Name", "State", "Archived", "Purge After", "Blueprint"}, rows)
+}
+
+func runResourceRestoreBlueprintCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
+	if len(args) != 1 {
+		return fmt.Errorf("resource restore-blueprint requires exactly one resource name")
+	}
+	report, err := controller.RestoreBlueprintArchivedResource(args[0])
+	if err != nil {
+		return err
+	}
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{
+			"success": true,
+			"report":  report,
+		})
+	}
+	_, _ = fmt.Fprintf(stdout, "Restored blueprint-archived %s to %s\n", report.Resource.Name, report.RestoredPath)
+	return nil
+}
+
 func runResourceArchiveGCCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) > 0 {
 		return fmt.Errorf("resource archive gc does not accept positional arguments")
@@ -411,6 +501,28 @@ func runResourceArchiveGCCommand(controller *resources.Controller, globals globa
 		})
 	}
 	_, _ = fmt.Fprintf(stdout, "Purged %d deprecated resource archives\n", len(report.Removed))
+	return nil
+}
+
+func runResourceArchiveBlueprintGCCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
+	if len(args) > 0 {
+		return fmt.Errorf("resource archive gc-blueprints does not accept positional arguments")
+	}
+	report, err := controller.GarbageCollectBlueprintArchives(timeNowForResourceGC())
+	if err != nil {
+		return err
+	}
+	format, err := cliout.ParseFormat("", globals.json)
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(stdout, map[string]any{
+			"success": true,
+			"report":  report,
+		})
+	}
+	_, _ = fmt.Fprintf(stdout, "Purged %d blueprint resource archives\n", len(report.Removed))
 	return nil
 }
 
@@ -531,8 +643,8 @@ func runResourceBlueprintValidateCommand(controller *resources.Controller, globa
 }
 
 func showResourceHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli resource <list|status|install|start|start-all|stop|stop-all|enable|disable|info|deprecate|list-deprecated|restore> [...]")
-	_, _ = fmt.Fprintln(w, "       vrooli resource archive <gc> [...]")
+	_, _ = fmt.Fprintln(w, "Usage: vrooli resource <list|status|install|start|start-all|stop|stop-all|enable|disable|info|deprecate|list-deprecated|archive-to-blueprint|list-blueprint-archived|restore|restore-blueprint> [...]")
+	_, _ = fmt.Fprintln(w, "       vrooli resource archive <gc|gc-blueprints> [...]")
 	_, _ = fmt.Fprintln(w, "       vrooli resource blueprint <list|info|search|validate> [...]")
 	_, _ = fmt.Fprintln(w, "       vrooli resource template <list|show|validate|generate> [...]")
 	_, _ = fmt.Fprintln(w, "       vrooli resource <name> <command> [options]")
@@ -543,5 +655,5 @@ func showResourceBlueprintHelp(w io.Writer) {
 }
 
 func showResourceArchiveHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli resource archive <gc> [...]")
+	_, _ = fmt.Fprintln(w, "Usage: vrooli resource archive <gc|gc-blueprints> [...]")
 }

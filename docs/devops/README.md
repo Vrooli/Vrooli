@@ -70,21 +70,22 @@ The `vrooli` CLI provides a unified interface for all development operations:
     *   **Features**: Auto-restart, live reloading, integrated logging
 
 *   **`vrooli build`**:
-    *   **Purpose**: Validate scenarios for production deployment
-    *   **Key Functions**: Validates configurations, checks dependencies, prepares deployment
+    *   **Purpose**: Run the repo-root build lifecycle
+    *   **Key Functions**: Executes the `build` phase from `.vrooli/service.json`, typically for build preparation and validation
     *   **Usage**: `vrooli build`
-    *   **Features**: Resource validation, configuration checking, deployment preparation
+    *   **Features**: Native Go dispatch, lifecycle step execution, `--help` support without running the phase
 
 *   **`vrooli deploy`**:
-    *   **Purpose**: Deploy applications to production or staging environments
-    *   **Key Functions**: Handles deployment orchestration, environment-specific configurations
+    *   **Purpose**: Run the repo-root deploy lifecycle
+    *   **Key Functions**: Executes the `deploy` phase from `.vrooli/service.json`
     *   **Usage**: `vrooli deploy`
-    *   **Features**: Environment management, rollback capabilities, health checks
+    *   **Features**: Native Go dispatch, lifecycle step execution, `--help` support without running the phase
 
 *   **`vrooli clean`**:
-    *   **Purpose**: Clean deployment files and reset environment state
-    *   **Key Functions**: Removes build files, resets containers, clears caches
+    *   **Purpose**: Run the repo-root clean lifecycle
+    *   **Key Functions**: Executes the `clean` phase from `.vrooli/service.json`
     *   **Usage**: `vrooli clean`
+    *   **Related**: Use `vrooli cleanup locks` or `vrooli cleanup orphans` for maintenance cleanup tasks
 
 *   **`vrooli status`**:
     *   **Purpose**: Show comprehensive system health and component status

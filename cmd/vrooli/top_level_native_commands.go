@@ -22,6 +22,10 @@ func runTopLevelDeployCommand(root string, globals globalOptions, args []string,
 	return runProjectLifecyclePhaseCommand(root, "deploy", args, stdout, stderr)
 }
 
+func runTopLevelCleanCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	return runProjectLifecyclePhaseCommand(root, "clean", args, stdout, stderr)
+}
+
 func runTopLevelBackupCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
 	return runProjectLifecyclePhaseCommand(root, "backup", args, stdout, stderr)
 }
@@ -421,12 +425,31 @@ func parseTopLevelStatusArgs(args []string) (topLevelStatusOptions, error) {
 }
 
 func runProjectLifecyclePhaseCommand(root, phase string, args []string, stdout, stderr io.Writer) error {
+	if wantsCommandHelp(args) {
+		showProjectLifecycleHelp(stdout, phase)
+		return nil
+	}
+
 	home, err := config.HomeDir()
 	if err != nil {
 		return err
 	}
 	controller := project.New(root, home, stdout, stderr)
 	return controller.RunProjectPhase(phase, args)
+}
+
+func wantsCommandHelp(args []string) bool {
+	for _, arg := range args {
+		switch arg {
+		case "--help", "-h", "help":
+			return true
+		}
+	}
+	return false
+}
+
+func showProjectLifecycleHelp(w io.Writer, phase string) {
+	_, _ = fmt.Fprintf(w, "Usage: vrooli %s\n", phase)
 }
 
 func showStatusHelp(w io.Writer) {

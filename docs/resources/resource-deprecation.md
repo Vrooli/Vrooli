@@ -4,6 +4,8 @@ Phase 2 introduces a first-class deprecation lifecycle for project-level resourc
 
 The goal is to remove stale resource code and metadata from the active repo surface without losing short-term recoverability.
 
+If the capability should remain a blueprint-backed future candidate rather than becoming deprecated, use [resource-blueprint-archival.md](resource-blueprint-archival.md) instead.
+
 ## What Deprecation Does
 
 - archives the resource's active repo state under `~/.vrooli/archive/resources/`

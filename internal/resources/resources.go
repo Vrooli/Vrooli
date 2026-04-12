@@ -107,16 +107,13 @@ func (c *Controller) Discover() ([]Resource, error) {
 		return nil, err
 	}
 
-	filesystemNames, err := c.filesystemNames()
+	manifestNames, err := c.manifestNames()
 	if err != nil {
 		return nil, err
 	}
 
-	namesMap := make(map[string]struct{}, len(configEntries)+len(filesystemNames))
-	for name := range configEntries {
-		namesMap[name] = struct{}{}
-	}
-	for _, name := range filesystemNames {
+	namesMap := make(map[string]struct{}, len(manifestNames))
+	for _, name := range manifestNames {
 		namesMap[name] = struct{}{}
 	}
 
@@ -172,8 +169,6 @@ func (c *Controller) Discover() ([]Resource, error) {
 			} else {
 				item.ControlMode = "manifest-native"
 			}
-		} else if item.HasCLI || item.HasScript {
-			item.ControlMode = "legacy-shell"
 		}
 		items = append(items, item)
 	}
@@ -186,6 +181,11 @@ func (c *Controller) Status(name string, fast bool) (Status, error) {
 		return Status{}, err
 	} else if deprecated {
 		return Status{}, fmt.Errorf("resource %q is deprecated; use `vrooli resource list-deprecated` or `vrooli resource restore %s`", name, name)
+	}
+	if archived, err := c.IsBlueprintArchived(name); err != nil {
+		return Status{}, err
+	} else if archived {
+		return Status{}, fmt.Errorf("resource %q is blueprint-archived; use `vrooli resource list-blueprint-archived` or `vrooli resource restore-blueprint %s`", name, name)
 	}
 	resources, err := c.Discover()
 	if err != nil {
@@ -235,6 +235,11 @@ func (c *Controller) Run(name string, args []string, stdout, stderr io.Writer) e
 		return err
 	} else if deprecated {
 		return fmt.Errorf("resource %q is deprecated and cannot be run from the active control surface", name)
+	}
+	if archived, err := c.IsBlueprintArchived(name); err != nil {
+		return err
+	} else if archived {
+		return fmt.Errorf("resource %q is blueprint-archived and cannot be run from the active control surface", name)
 	}
 	operation := "invoke"
 	if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
@@ -453,6 +458,23 @@ func (c *Controller) filesystemNames() ([]string, error) {
 		}
 	}
 	sort.Strings(names)
+	return names, nil
+}
+
+func (c *Controller) manifestNames() ([]string, error) {
+	filesystemNames, err := c.filesystemNames()
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(filesystemNames))
+	for _, name := range filesystemNames {
+		manifestPath := defaultResourceManifestPath(c.Root, name)
+		if _, err := os.Stat(manifestPath); err == nil {
+			names = append(names, name)
+		} else if !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
 	return names, nil
 }
 

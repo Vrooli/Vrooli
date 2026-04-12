@@ -157,7 +157,7 @@ Start with a narrow but high-value scope.
 - canonical top-level directories
 - canonical scenario layout
 - canonical resource layout where the future-state structure is stable
-- canonical file locations for shared scenario metadata
+- canonical file locations for shared scenario manifests
 - root-relative glob semantics
 - repo-aware bundle/deploy profiles
 - environment variables that are part of the cross-platform platform contract
@@ -202,7 +202,6 @@ An initial contract shape should look roughly like this:
     "required_files": [".vrooli/service.json"],
     "well_known_paths": {
       "service": ".vrooli/service.json",
-      "metadata": ".vrooli/metadata.json",
       "docs": "docs",
       "requirements": "requirements",
       "api": "api",
@@ -212,7 +211,7 @@ An initial contract shape should look roughly like this:
     }
   },
   "resource": {
-    "manifest": ".vrooli/resource.json",
+    "manifest": "resource.json",
     "well_known_paths": {
       "docs": "docs",
       "initialization": "initialization"
@@ -224,8 +223,8 @@ An initial contract shape should look roughly like this:
     "case_sensitive": true,
     "allow_absolute": false
   },
-  "sandbox": {
-    "env": {
+  "environment": {
+    "variables": {
       "repo_root": "VROOLI_ROOT",
       "source_root": "VROOLI_SOURCE_ROOT",
       "sandbox_id": "VROOLI_SANDBOX_ID",
@@ -233,22 +232,39 @@ An initial contract shape should look roughly like this:
       "sandbox_scope": "VROOLI_SANDBOX_SCOPE"
     }
   },
+  "sandbox": {
+    "full_repo_scopes": ["", ".", "/"],
+    "scenario_scope_prefix": "scenarios/"
+  },
   "profiles": {
     "mini_vrooli_bundle": {
+      "parameters": ["scenario", "resources[*]"],
       "include": [
         ".vrooli",
-        "packages",
-        "resources/{resources[*]}",
-        "scenarios/{scenario}",
         "cmd",
-        "internal"
+        "internal",
+        "packages",
+        "scenarios/{scenario}",
+        "resources/{resources[*]}"
+      ],
+      "optional_include": [
+        "docs",
+        "go.mod",
+        "go.work",
+        "go.work.sum",
+        "Makefile",
+        "README.md",
+        "LICENSE"
       ],
       "exclude": [
         ".git/**",
         "**/node_modules/**",
         "**/coverage/**",
         "**/data/**",
+        ".vrooli/secrets.json",
+        "**/.vrooli/secrets.json",
         "scripts/lib/**",
+        "scripts/manage.sh",
         "cli/**"
       ]
     }

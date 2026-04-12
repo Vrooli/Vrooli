@@ -6,7 +6,7 @@ The Vrooli Service Schema System provides a modular, extensible configuration fr
 
 ## Schema Architecture
 
-The schema system is composed of six modular JSON schemas that work together:
+The schema system is composed of seven modular JSON schemas that work together:
 
 ### 1. `service.schema.json` (Main Schema)
 The primary schema that references all other schemas. Defines complete service configurations including metadata, resources, execution environments, deployment strategies, and lifecycle management.
@@ -65,6 +65,16 @@ Handles deployment, monitoring, and scaling:
 - **Networking**: Ingress, service mesh, CDN, load balancing
 - **Observability**: SLOs, SLIs, error budgets
 - **Resilience**: Circuit breakers, retries, rate limiting
+
+### 7. `repo-contract.schema.json` (Repository Structure Contract)
+Defines the future-state cross-platform repository contract used by repo-aware tooling:
+- **Root markers**: required top-level directories and files used for canonical repo detection
+- **Layout**: canonical top-level directories such as `.vrooli/`, `scenarios/`, `resources/`, `packages/`, `cmd/`, and `internal/`
+- **Scenario layout**: `scenarios/<name>/.vrooli/service.json` and other shared well-known scenario paths
+- **Resource layout**: `resources/<name>/resource.json` plus stable optional subpaths
+- **Glob semantics**: root-relative, slash-normalized, `doublestar`-style semantics
+- **Shared env vars**: `VROOLI_ROOT`, `VROOLI_SOURCE_ROOT`, and sandbox env vars
+- **Repo-aware profiles**: named include/exclude profiles for future adapter-backed bundle tooling
 
 ## Usage Examples
 
@@ -224,6 +234,15 @@ npm install -g ajv-cli
 # Validate a service configuration
 ajv validate -s .vrooli/schemas/service.schema.json -d .vrooli/service.json
 ```
+
+Validate the repository contract and its schema:
+
+```bash
+python3 .vrooli/schemas/validate-repo-contract.py
+make validate-repo-contract
+```
+
+The repo contract is future-state only. Do not add transitional project-level shell paths, historical repo-root fallbacks, or other legacy structure to `.vrooli/repo-contract.json`.
 
 ## Migration from Existing Configuration
 

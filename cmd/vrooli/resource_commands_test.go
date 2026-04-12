@@ -89,6 +89,9 @@ func TestShowResourceHelpIncludesBlueprintCommands(t *testing.T) {
 	if !strings.Contains(stdout.String(), "resource template") {
 		t.Fatalf("help missing resource template usage: %q", stdout.String())
 	}
+	if !strings.Contains(stdout.String(), "archive-to-blueprint") || !strings.Contains(stdout.String(), "list-blueprint-archived") {
+		t.Fatalf("help missing blueprint archival usage: %q", stdout.String())
+	}
 }
 
 func TestRunResourceTemplateListCommandJSON(t *testing.T) {
@@ -170,6 +173,31 @@ func TestRunResourceListDeprecatedCommandJSON(t *testing.T) {
 	}
 }
 
+func TestRunResourceListBlueprintArchivedCommandJSON(t *testing.T) {
+	root := t.TempDir()
+	controller := resources.NewController(root, t.TempDir())
+	writeBlueprintArchivedMetadataForCLI(t, root, resources.BlueprintArchivedResource{
+		Name:                "fixture",
+		ArchivedAt:          "2026-04-11",
+		Reason:              "test",
+		BlueprintName:       "fixture",
+		ArchivePath:         "/tmp/archive",
+		ArchiveHash:         "abc",
+		RetentionPolicyDays: 90,
+		RestoreSupported:    true,
+		PurgeAfter:          "2026-07-10",
+	})
+	var stdout bytes.Buffer
+
+	if err := runResourceListBlueprintArchivedCommand(controller, globalOptions{json: true}, nil, &stdout); err != nil {
+		t.Fatalf("runResourceListBlueprintArchivedCommand: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, `"success": true`) || !strings.Contains(output, `"resources":`) {
+		t.Fatalf("unexpected output: %q", output)
+	}
+}
+
 func TestRunResourceDeprecateCommandHuman(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -181,6 +209,21 @@ func TestRunResourceDeprecateCommandHuman(t *testing.T) {
 		t.Fatalf("runResourceDeprecateCommand: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "Deprecated fixture") {
+		t.Fatalf("unexpected output: %q", stdout.String())
+	}
+}
+
+func TestRunResourceArchiveToBlueprintCommandHuman(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeBlueprintFixtureForCLI(t, root, "fixture")
+	writeResourceCLIForCLI(t, root, "fixture")
+	var stdout bytes.Buffer
+
+	if err := runResourceArchiveToBlueprintCommand(resources.NewController(root, home), globalOptions{}, []string{"fixture"}, &stdout); err != nil {
+		t.Fatalf("runResourceArchiveToBlueprintCommand: %v", err)
+	}
+	if !strings.Contains(stdout.String(), "Archived fixture to blueprint-only state") {
 		t.Fatalf("unexpected output: %q", stdout.String())
 	}
 }
@@ -200,6 +243,25 @@ func TestRunResourceRestoreCommandHuman(t *testing.T) {
 		t.Fatalf("runResourceRestoreCommand: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "Restored fixture") {
+		t.Fatalf("unexpected output: %q", stdout.String())
+	}
+}
+
+func TestRunResourceRestoreBlueprintCommandHuman(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeBlueprintFixtureForCLI(t, root, "fixture")
+	writeResourceCLIForCLI(t, root, "fixture")
+	controller := resources.NewController(root, home)
+	if _, err := controller.ArchiveResourceToBlueprint("fixture"); err != nil {
+		t.Fatalf("ArchiveResourceToBlueprint: %v", err)
+	}
+	var stdout bytes.Buffer
+
+	if err := runResourceRestoreBlueprintCommand(controller, globalOptions{}, []string{"fixture"}, &stdout); err != nil {
+		t.Fatalf("runResourceRestoreBlueprintCommand: %v", err)
+	}
+	if !strings.Contains(stdout.String(), "Restored blueprint-archived fixture") {
 		t.Fatalf("unexpected output: %q", stdout.String())
 	}
 }
@@ -229,6 +291,38 @@ func TestRunResourceArchiveGCCommandJSON(t *testing.T) {
 	}()
 	if err := runResourceArchiveGCCommand(controller, globalOptions{json: true}, nil, &stdout); err != nil {
 		t.Fatalf("runResourceArchiveGCCommand: %v", err)
+	}
+	if !strings.Contains(stdout.String(), `"success": true`) {
+		t.Fatalf("unexpected output: %q", stdout.String())
+	}
+}
+
+func TestRunResourceArchiveBlueprintGCCommandJSON(t *testing.T) {
+	root := t.TempDir()
+	controller := resources.NewController(root, t.TempDir())
+	writeBlueprintArchivedMetadataForCLI(t, root, resources.BlueprintArchivedResource{
+		Name:                "fixture",
+		ArchivedAt:          "2026-01-01",
+		Reason:              "test",
+		BlueprintName:       "fixture",
+		ArchivePath:         filepath.Join(root, "archive", "fixture"),
+		ArchiveHash:         "abc",
+		RetentionPolicyDays: 90,
+		RestoreSupported:    true,
+		PurgeAfter:          "2026-01-02",
+	})
+	if err := os.MkdirAll(filepath.Join(root, "archive", "fixture"), 0o755); err != nil {
+		t.Fatalf("mkdir archive: %v", err)
+	}
+	var stdout bytes.Buffer
+
+	originalNow := timeNowForResourceGC
+	timeNowForResourceGC = func() time.Time { return time.Date(2026, 4, 11, 0, 0, 0, 0, time.UTC) }
+	defer func() {
+		timeNowForResourceGC = originalNow
+	}()
+	if err := runResourceArchiveBlueprintGCCommand(controller, globalOptions{json: true}, nil, &stdout); err != nil {
+		t.Fatalf("runResourceArchiveBlueprintGCCommand: %v", err)
 	}
 	if !strings.Contains(stdout.String(), `"success": true`) {
 		t.Fatalf("unexpected output: %q", stdout.String())
@@ -462,6 +556,23 @@ func writeDeprecatedMetadataForCLI(t *testing.T, root string, item resources.Dep
 	}
 }
 
+func writeBlueprintArchivedMetadataForCLI(t *testing.T, root string, item resources.BlueprintArchivedResource) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir .vrooli: %v", err)
+	}
+	payload, err := json.MarshalIndent(map[string]any{
+		"resources": []resources.BlueprintArchivedResource{item},
+	}, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal item: %v", err)
+	}
+	payload = append(payload, '\n')
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "blueprint-archived-resources.json"), payload, 0o644); err != nil {
+		t.Fatalf("write blueprint archived metadata: %v", err)
+	}
+}
+
 func writeResourceConfigForCLI(t *testing.T, root, name string, enabled bool) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
@@ -505,6 +616,40 @@ func writeResourceManifestForCLI(t *testing.T, root, name, contents string) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
 	}
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func writeBlueprintFixtureForCLI(t *testing.T, root, name string) {
+	t.Helper()
+	path := filepath.Join(root, ".vrooli", "resource-blueprints", name+".json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	contents := `{
+  "name": "` + name + `",
+  "display_name": "Fixture",
+  "category": "testing",
+  "summary": "Fixture resource",
+  "why_it_matters": "Used in tests.",
+  "when_to_use": ["Testing archive lifecycle"],
+  "integration_kind": "docker-service",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "Fixture",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "suggested_template": "docker-service",
+  "implementation_notes": ["Implement with a docker-service template."],
+  "operational_notes": ["Keep archived until needed again."],
+  "risks": ["Stale if not reviewed."],
+  "status": "candidate",
+  "references": [{"kind": "note", "value": "fixture"}],
+  "last_reviewed": "2026-04-11"
+}`
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}

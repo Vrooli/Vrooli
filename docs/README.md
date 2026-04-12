@@ -9,6 +9,7 @@ Comprehensive development guide for the Vrooli platform. For quick reference, se
 - [Project Overview](#project-overview)
 - [Technology Stack](#technology-stack)
 - [Architecture Overview](ARCHITECTURE_OVERVIEW.md)
+- [Repository Contract](repo-contract.md)
 - [Development Guidelines](#development-guidelines)
 - **[Testing Guide](#testing-guide)** → **[Complete Testing Documentation](TESTING.md)**
 - [Task Management System](#task-management-system)
@@ -52,7 +53,7 @@ Vrooli is a resource orchestration platform for generating complete business app
 - **Architecture**: Resource + Scenario orchestration system
 - **Resources**: 30+ local services (AI, automation, storage, agents)
 - **Scenarios**: Business applications that orchestrate resources
-- **Management**: Unified CLI and bash automation scripts
+- **Management**: Unified Go-native `vrooli` control plane with manifest-backed active resources
 - **Deployment**: Direct scenario execution from source
 
 ### Core Resources
@@ -82,7 +83,7 @@ See **[ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md)** for complete archit
 ### Resource Operations
 - Start local resources: `vrooli resource start-all`
 - Check resource status: `vrooli resource status`
-- Manage specific resource: `resource-postgres start` (direct resource CLI)
+- Manage specific resource: `vrooli resource start postgres` or compatibility-only direct resource CLIs when explicitly retained
 - Database access: PostgreSQL resource handles schema and migrations
 
 ### Scenario Operations
@@ -133,13 +134,16 @@ vrooli scenario run <scenario-name>      # Run scenario directly
 ### Working with Resources
 Resources provide the foundational capabilities (AI, storage, automation) that scenarios orchestrate.
 
+New resource development now defaults to `blueprint -> template -> implementation`. Shell-first cloning is transitional only.
+
 ```bash
 # Manage resources
 vrooli resource list                   # See available resources
 vrooli resource status                 # Check resource health
 vrooli resource start-all              # Start all enabled resources
-resource-postgres start                # Start specific resource
-resource-ollama logs                   # View resource logs
+vrooli resource start postgres         # Start specific resource
+vrooli resource blueprint list         # Inspect blueprint catalog
+vrooli resource template list          # Inspect canonical templates
 ```
 
 ### Common Development Tasks
@@ -167,6 +171,7 @@ You have no persistent memory between sessions. **After every memory reset, rely
 - **[risks.md](risks.md)** - Technical, strategic, operational risks and mitigation
 - **[roadmap.md](roadmap.md)** - Project milestones and future vision
 - **[tools.md](tools.md)** - Available commands and tools
+- **[repo-contract.md](repo-contract.md)** - Canonical future-state repository structure and exclusions for repo-aware tooling
 
 ### Scenario Management:
 - **[scenarios/](scenarios/)** - Business application scenarios and templates

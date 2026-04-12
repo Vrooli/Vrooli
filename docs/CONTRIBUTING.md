@@ -79,6 +79,18 @@ vrooli develop
 
 Follow our coding standards and ensure all tests pass before committing.
 
+### Resource Contributions
+
+If you are adding or reshaping a resource, the expected path is:
+
+1. Create or update the resource blueprint
+2. Choose the canonical template
+3. Generate a manifest-backed scaffold
+4. Implement driver-owned lifecycle/status behavior
+5. Keep shell compatibility only if the resource is intentionally retained as an explicit `legacy-adapter`
+
+Do not start new resource work by cloning an old `resources/<name>/` directory or by treating shell `cli.sh` patterns as the default architecture.
+
 ## Coding Standards
 
 ### TypeScript Guidelines
@@ -126,6 +138,7 @@ Follow our coding standards and ensure all tests pass before committing.
 2. **Event-Driven Design**: Use the event bus for component communication
 3. **Emergent Capabilities**: Don't hard-code what can emerge from agent intelligence
 4. **Type Safety**: Maintain type safety across package boundaries
+5. **Repo Contract**: For repo-aware code, follow [/docs/repo-contract.md](/home/matthalloran8/Vrooli/docs/repo-contract.md). Do not add new repo-root heuristics, canonical-path assembly helpers, or legacy shell-era paths as fresh dependencies.
 
 ## Testing Requirements
 
@@ -159,8 +172,8 @@ pnpm test
 # Run scenario tests
 vrooli scenario test <scenario-name>
 
-# Run resource tests
-vrooli test resources
+# Run active resource control plane tests
+go test ./internal/resources ./cmd/vrooli/...
 
 # Watch mode for development
 vrooli test --watch

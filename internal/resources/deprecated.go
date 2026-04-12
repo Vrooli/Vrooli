@@ -50,9 +50,9 @@ type RestoreReport struct {
 }
 
 type ArchiveGCItem struct {
-	Name       string `json:"name"`
+	Name        string `json:"name"`
 	ArchivePath string `json:"archive_path,omitempty"`
-	Removed    bool   `json:"removed"`
+	Removed     bool   `json:"removed"`
 }
 
 type ArchiveGCReport struct {
@@ -61,10 +61,10 @@ type ArchiveGCReport struct {
 }
 
 type archiveSource struct {
-	kind        string
-	sourcePath  string
-	targetPath  string
-	bytes       []byte
+	kind       string
+	sourcePath string
+	targetPath string
+	bytes      []byte
 }
 
 func (c *Controller) ListDeprecatedResources() ([]DeprecatedResource, error) {
@@ -356,6 +356,9 @@ func (c *Controller) removeResourceConfigEntry(name string) error {
 	configPath := filepath.Join(c.Root, filepath.FromSlash(resourceConfigPath))
 	data, err := os.ReadFile(configPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return err
 	}
 
@@ -381,6 +384,9 @@ func (c *Controller) serviceConfigEntry(name string) (map[string]any, bool, erro
 	configPath := filepath.Join(c.Root, filepath.FromSlash(resourceConfigPath))
 	data, err := os.ReadFile(configPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, false, nil
+		}
 		return nil, false, err
 	}
 	var payload map[string]any
@@ -495,6 +501,10 @@ func writeArchive(dir string, sources []archiveSource) (string, error) {
 }
 
 func writeArchiveMetadata(path string, item DeprecatedResource) error {
+	return writeJSONMetadata(path, item)
+}
+
+func writeJSONMetadata(path string, item any) error {
 	data, err := json.MarshalIndent(item, "", "  ")
 	if err != nil {
 		return err

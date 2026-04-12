@@ -21,7 +21,8 @@ pnpm cache clean && vrooli setup
 ```bash
 # Start development environment
 vrooli develop
-# Note: For rebuild options, use vrooli clean first, then vrooli develop
+# To run the project clean lifecycle first:
+vrooli clean
 ```
 
 
@@ -31,12 +32,14 @@ vrooli develop
 
 ## Build for deployment:
 ```bash
+# Runs the repo-root build lifecycle defined in .vrooli/service.json
 vrooli build
 ```
 **Run `vrooli build --help` for available options**
 
 ## Deploy (typically run in remote server), after sending the build to it:
 ```bash
+# Runs the repo-root deploy lifecycle defined in .vrooli/service.json
 vrooli deploy
 ```
 **Run `vrooli deploy --help` for available options**

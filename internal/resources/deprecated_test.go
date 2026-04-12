@@ -132,6 +132,22 @@ func TestDiscoverExcludesDeprecatedResources(t *testing.T) {
 	home := t.TempDir()
 	writeResourceConfig(t, root, "active", true)
 	writeResourceConfig(t, root, "deprecated-fixture", false)
+	writeResourceManifest(t, root, "active", `{
+  "name": "active",
+  "display_name": "Active",
+  "description": "Active manifest-backed resource",
+  "template": "docker-service",
+  "driver": "docker-service",
+  "portability_tier": "partial",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "runtime": {
+    "image": "active:latest"
+  }
+}`)
 	writeResourceCLI(t, root, "active")
 	writeResourceCLI(t, root, "deprecated-fixture")
 	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {

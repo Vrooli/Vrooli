@@ -1211,16 +1211,71 @@ Phase 6 is considered complete once the active project keep-set has no hidden `l
 
 **Goal:** Make the new model the default and remove drift.
 
-- [ ] Make blueprints, templates, and deprecation workflows part of official docs
-- [ ] Update contributor guidance
-- [ ] Remove obsolete resource framework dependencies
-- [ ] Narrow active resource discovery to new manifests
-- [ ] Move old contract docs into historical/transitional context if needed
-- [ ] Add maintenance checks to keep the active resource set small and validated
+- [x] Make blueprints, templates, and deprecation workflows part of official docs
+- [x] Update contributor guidance
+- [x] Remove obsolete resource framework dependencies
+- [x] Narrow active resource discovery to new manifests
+- [x] Move old contract docs into historical/transitional context if needed
+- [x] Add maintenance checks to keep the active resource set small and validated
 
 **Deliverable:** The new resource architecture is the stable default.
 
 **Acceptance:** Adding a new resource naturally goes through blueprint -> template -> implementation, not ad hoc shell cloning.
+
+**Status update:** Phase 7 is implemented as the default active resource policy and documentation baseline.
+
+- `resources.Controller.Discover()` now exposes only manifest-backed active resources, so plain `resources/<name>/` directories without `resource.json` no longer appear in `vrooli resource list` / `status`.
+- The active control plane surface is now limited to:
+  - `manifest-native` resources
+  - explicit `legacy-adapter` resources
+  - deprecated resources only through `list-deprecated` / `restore`
+- Official resource docs now point new work to blueprints, templates, deprecation, and manifest-backed implementation rather than shell cloning.
+- Legacy shell-era framework/contract docs are now marked as historical/transitional instead of competing with the default architecture.
+- Repo tests now enforce the Phase 7 invariant that active discovery contains only manifest-backed resources with `manifest-native` or `legacy-adapter` control modes.
+
+Focused Phase 7 validation:
+
+- `go test ./internal/resources`
+- targeted `go test ./cmd/vrooli` resource command coverage
+- `go run ./cmd/vrooli resource blueprint validate`
+- `go run ./cmd/vrooli resource template validate`
+- `go run ./cmd/vrooli resource list`
+- `go run ./cmd/vrooli resource status`
+- `go run ./cmd/vrooli resource list-deprecated`
+
+Validation note: the full `go test ./cmd/vrooli/...` bundle still stalls in `TestRunScenarioStartStopRestartLifecycleCommands`, which appears unrelated to resource migration changes. The resource-focused Phase 7 slice is green.
+
+### Phase 7.5 — Blueprint-only archival cleanup
+
+**Goal:** Remove stale `resources/<name>/` implementations for blueprint-backed candidates without misclassifying them as deprecated.
+
+- [x] Add distinct metadata for blueprint-archived resources
+- [x] Implement archive / list / restore / GC commands for blueprint-backed archival
+- [x] Add safety gates so active resources cannot be archive-to-blueprint candidates
+- [x] Keep blueprint-archived resources out of active discovery
+- [x] Document the distinction between `blueprint-archived` and `deprecated`
+
+**Deliverable:** Blueprint-only candidates can leave `resources/` cleanly while remaining preserved through structured blueprints.
+
+**Acceptance:** A stale implementation can be archived out of the repo after blueprint preservation, without being mislabeled as deprecated.
+
+**Status update:** Blueprint-only archival is now implemented as a separate Go-native lifecycle.
+
+- `.vrooli/blueprint-archived-resources.json` tracks blueprint-backed archival metadata separately from deprecated resources.
+- `vrooli resource archive-to-blueprint <name>` archives and removes an old implementation only when:
+  - a matching blueprint exists
+  - the resource is not active in root project config
+  - no scenario manifests still reference it
+- `vrooli resource list-blueprint-archived`, `restore-blueprint <name>`, and `archive gc-blueprints` are implemented.
+- blueprint-archived resources remain outside normal `vrooli resource list` / `status` discovery and restore only into quarantined paths.
+
+Focused validation:
+
+- `go test ./internal/resources`
+- `go test ./cmd/vrooli -count=1 -run 'TestRunResource'`
+- `go run ./cmd/vrooli resource blueprint validate`
+- `go run ./cmd/vrooli resource list-blueprint-archived`
+- `go run ./cmd/vrooli resource archive gc-blueprints`
 
 ---
 

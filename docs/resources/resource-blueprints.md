@@ -4,6 +4,8 @@ Resource blueprints are the Phase 1 replacement for keeping speculative or stale
 
 They preserve capability knowledge in a structured, searchable form without implying that a resource is currently implemented or supported by the active control plane.
 
+When an old repo implementation should be removed while keeping the capability alive as a future candidate, pair the blueprint with the blueprint-only archival workflow described in [resource-blueprint-archival.md](resource-blueprint-archival.md).
+
 ## What a Blueprint Is
 
 - A structured JSON record under `.vrooli/resource-blueprints/`
@@ -83,8 +85,11 @@ Phase 1 makes blueprints a supported concept, a validated data model, and the ca
 It does not yet:
 
 - replace active implemented resources with manifest-driven drivers
+- automatically archive an existing `resources/<name>/` implementation by itself
 
 Phase 2 added deprecation/archive lifecycle support, and Phase 3 now allows blueprint-seeded template scaffolding through `vrooli resource template generate --from-blueprint <name>`.
+
+Later cleanup work adds a distinct blueprint-only archival lifecycle for removing stale implementations from the repo without classifying the capability as deprecated.
 
 Phase 3 also makes `suggested_template` enforceable rather than advisory-only: blueprint validation now checks that `integration_kind` and `suggested_template` obey the supported recommendation rules used by the template generator.
 

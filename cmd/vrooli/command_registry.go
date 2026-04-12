@@ -29,7 +29,7 @@ var topLevelCommandTable = []commandDescriptor{
 	{Name: "develop", Group: "Lifecycle Commands", Summary: "Start development servers", Handler: runTopLevelDevelopCommand, Suggestable: true},
 	{Name: "build", Group: "Lifecycle Commands", Summary: "Build the project", Handler: runTopLevelBuildCommand, Suggestable: true},
 	{Name: "deploy", Group: "Lifecycle Commands", Summary: "Deploy to production", Handler: runTopLevelDeployCommand, Suggestable: true},
-	{Name: "clean", Group: "Lifecycle Commands", Summary: "Clean build artifacts", Handler: runTopLevelCleanupCommand, Suggestable: true},
+	{Name: "clean", Group: "Lifecycle Commands", Summary: "Clean build artifacts", Handler: runTopLevelCleanCommand, Suggestable: true},
 	{Name: "status", Group: "Lifecycle Commands", Summary: "Show system health and status overview", Handler: runTopLevelStatusCommand, Suggestable: true},
 	{Name: "stop", Group: "Lifecycle Commands", Summary: "Stop all or specific components", Handler: runTopLevelStopCommand, Suggestable: true},
 	{Name: "backup", Group: "Lifecycle Commands", Summary: "Run the project backup lifecycle when defined", Handler: runTopLevelBackupCommand, Suggestable: true},

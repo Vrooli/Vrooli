@@ -149,7 +149,7 @@ cd scenarios/customer-call-assistant
 vrooli scenario run customer-call-assistant
 
 # Orchestrates:
-# ✅ Resource startup (via manage.sh scripts)
+# ✅ Resource startup (via `vrooli resource` and manifest-backed drivers)
 # ✅ Data injection (via lib/inject.sh scripts)
 # ✅ Application services startup
 # ✅ Health monitoring and access URLs

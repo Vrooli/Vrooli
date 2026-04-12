@@ -1,4 +1,4 @@
-.PHONY: help build install test clean setup dev develop deploy status scenarios resources lifecycle-build validate-live-develop-smoke validate-week0-week1 validate-week2 validate-week3 validate-week3-live validate-week4 validate-week5 validate-week5-cross validate-week6-slice validate-week6-secrets validate-week0-week2 validate-week0-week3 validate-week0-week4 validate-week0-week5
+.PHONY: help build install test clean setup dev develop deploy status scenarios resources lifecycle-build validate-repo-contract validate-live-develop-smoke validate-week0-week1 validate-week2 validate-week3 validate-week3-live validate-week4 validate-week5 validate-week5-cross validate-week6-slice validate-week6-secrets validate-week0-week2 validate-week0-week3 validate-week0-week4 validate-week0-week5 validate-week0-week6
 
 .DEFAULT_GOAL := help
 
@@ -23,6 +23,7 @@ help: ## Show available project-level targets
 	@printf "  make build          Build project-level Go binaries into %s\n" "$(BUILD_DIR)"
 	@printf "  make install        Install project-level Go binaries into %s\n" "$(INSTALL_DIR)"
 	@printf "  make test           Run project-level Go tests\n"
+	@printf "  make validate-repo-contract Validate the repo contract schema, data, and drift checks\n"
 	@printf "  make clean          Remove project-level Go build artifacts\n"
 	@printf "  make validate-week0-week1 Run the repeatable Week 0/1 acceptance suite\n"
 	@printf "  make validate-week2 Run the repeatable Week 2 acceptance suite\n"
@@ -37,6 +38,7 @@ help: ## Show available project-level targets
 	@printf "  make validate-week0-week3 Run the combined Week 0-3 acceptance suite\n"
 	@printf "  make validate-week0-week4 Run the combined Week 0-4 acceptance suite\n"
 	@printf "  make validate-week0-week5 Run the combined Week 0-5 acceptance suite\n"
+	@printf "  make validate-week0-week6 Run the combined Week 0-6 acceptance suite\n"
 	@printf "\nProject helpers\n"
 	@printf "  make setup          Bootstrap the Go CLI and run native setup\n"
 	@printf "  make dev            Start the native development workflow\n"
@@ -53,10 +55,15 @@ install: build ## Install project-level Go binaries into ~/.vrooli/bin
 	install -m 0755 $(BUILD_DIR)/vrooli $(INSTALL_DIR)/vrooli
 
 test: ## Run project-level Go tests
+	$(MAKE) validate-repo-contract
 	go test ./internal/...
 	go test ./cmd/vrooli-buildmeta
 	go test ./cmd/vrooli
 	go test -tags testing ./cmd/vrooli-api
+
+validate-repo-contract: ## Validate the repo contract schema, data, and drift checks
+	python3 .vrooli/schemas/validate-repo-contract.py
+	go test ./internal/repocontract
 
 validate-week0-week1: ## Run the repeatable Week 0/1 acceptance suite
 	$(MAKE) clean
@@ -446,14 +453,14 @@ validate-week6-slice: ## Run the expanded Week 6 native command slice
 	! rg -n 'cli/commands/clean-commands\.sh|cli/commands/doctor\.sh|cli/commands/resource-commands\.sh|cli/commands/resource-discovery\.sh|cli/commands/status-command\.sh|cli/commands/stop-commands\.sh|cli/lib/arg-parser\.sh|cli/lib/output-formatter\.sh' scripts cmd internal packages api resources -g '!*.md'
 	$(MAKE) validate-scenario-to-cloud-native
 	go test ./internal/network ./internal/maintenance ./internal/project
-	go test ./cmd/vrooli -run 'TestRun(ProjectBackup(UsesNativePhaseRunner|ErrorsWhenPhaseUndefined)|ProjectRestore(UsesNativePhaseRunner|ErrorsWhenPhaseUndefined)|DispatchesTopLevelCommandsToExpectedHandlers|CleanupLocksUsesNativeMaintenance|Info(ListJSONOutput|CommandUsesManifestAndListMode|CommandRejectsUnknownOption|CommandErrorsWhenNoSourcesConfigured|CommandSkipsMissingSourcesInJSONMode|CommandHelpAndJSONMissingFiles)|LocksCommand(ListsNativeState|HumanOutput)|DiagnosePort(ReturnsJSON|HumanOutput))'
+	go test ./cmd/vrooli -run 'TestRun(Project(Build|Clean|Deploy|Backup|Restore)(UsesNativePhaseRunner|ErrorsWhenPhaseUndefined)|ProjectLifecycleCommandsShowHelp|DispatchesTopLevelCommandsToExpectedHandlers|CleanupLocksUsesNativeMaintenance|Info(ListJSONOutput|CommandUsesManifestAndListMode|CommandRejectsUnknownOption|CommandErrorsWhenNoSourcesConfigured|CommandSkipsMissingSourcesInJSONMode|CommandHelpAndJSONMissingFiles)|LocksCommand(ListsNativeState|HumanOutput)|DiagnosePort(ReturnsJSON|HumanOutput))'
 	set -e; \
 	tmp_home=$$(mktemp -d); \
 	tmp_root=$$(mktemp -d); \
 	mkdir -p "$$tmp_home/.vrooli/state/scenarios" "$$tmp_root/.vrooli" "$$tmp_root/docs" "$$tmp_root/scenarios/alpha/.vrooli" "$$tmp_root/build" "$$tmp_root/scripts/resources"; \
 	printf 'ghost:999999:1\n' > "$$tmp_home/.vrooli/state/scenarios/.port_21234.lock"; \
 	printf '%s\n' '{"resource_ports":{},"reserved_ranges":{}}' > "$$tmp_root/scripts/resources/port_registry.json"; \
-	printf '%s\n' '{"version":"1.0.0","service":{"name":"vrooli-week6","displayName":"Week 6 Fixture","description":"Week 6 validation fixture","version":"0.1.0"},"lifecycle":{"version":"2.0.0","backup":{"description":"backup","steps":[{"name":"write-backup","run":"mkdir -p build && printf '\''backup\n'\'' > build/backup.txt"}]},"restore":{"description":"restore","steps":[{"name":"write-restore","run":"mkdir -p build && printf '\''restore\n'\'' > build/restore.txt"}]}}}' > "$$tmp_root/.vrooli/service.json"; \
+	printf '%s\n' '{"version":"1.0.0","service":{"name":"vrooli-week6","displayName":"Week 6 Fixture","description":"Week 6 validation fixture","version":"0.1.0"},"lifecycle":{"version":"2.0.0","build":{"description":"build","steps":[{"name":"write-build","run":"mkdir -p build && printf '\''build\n'\'' > build/build.txt"}]},"clean":{"description":"clean","steps":[{"name":"write-clean","run":"mkdir -p build && printf '\''clean\n'\'' > build/clean.txt"}]},"deploy":{"description":"deploy","steps":[{"name":"write-deploy","run":"mkdir -p build && printf '\''deploy\n'\'' > build/deploy.txt"}]},"backup":{"description":"backup","steps":[{"name":"write-backup","run":"mkdir -p build && printf '\''backup\n'\'' > build/backup.txt"}]},"restore":{"description":"restore","steps":[{"name":"write-restore","run":"mkdir -p build && printf '\''restore\n'\'' > build/restore.txt"}]}}}' > "$$tmp_root/.vrooli/service.json"; \
 	printf '%s\n' '{"files":["docs/context.md"]}' > "$$tmp_root/.vrooli/info-manifest.json"; \
 	printf 'Week 6 context\n' > "$$tmp_root/docs/context.md"; \
 	printf '%s\n' '{"version":"1.0.0","service":{"name":"alpha","displayName":"Alpha","description":"Alpha scenario","version":"0.1.0"},"lifecycle":{"version":"2.0.0"}}' > "$$tmp_root/scenarios/alpha/.vrooli/service.json"; \
@@ -478,6 +485,12 @@ validate-week6-slice: ## Run the expanded Week 6 native command slice
 	grep -Fq '"port": 21234' /tmp/vrooli-week6-diagnose.json; \
 	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check stop scenarios --json > /tmp/vrooli-week6-stop.json; \
 	grep -Fq '"success": true' /tmp/vrooli-week6-stop.json; \
+	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check build; \
+	test "$$(cat "$$tmp_root/build/build.txt")" = "build"; \
+	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check clean; \
+	test "$$(cat "$$tmp_root/build/clean.txt")" = "clean"; \
+	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check deploy; \
+	test "$$(cat "$$tmp_root/build/deploy.txt")" = "deploy"; \
 	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check backup; \
 	test "$$(cat "$$tmp_root/build/backup.txt")" = "backup"; \
 	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check restore; \
@@ -487,7 +500,7 @@ validate-week6-slice: ## Run the expanded Week 6 native command slice
 validate-week6-secrets: ## Run the Week 6 encrypted secrets slice
 	$(MAKE) build
 	$(MAKE) install
-	go test ./internal/secrets ./internal/resources
+	go test ./internal/secrets
 	go test ./internal/resources -run 'TestLoadResourceEnvironmentUses(EncryptedSecrets|TypedDefaultsAndSecrets)'
 
 validate-week0-week2: ## Run the combined Week 0-2 acceptance suite
@@ -508,6 +521,11 @@ validate-week0-week4: ## Run the combined Week 0-4 acceptance suite
 validate-week0-week5: ## Run the combined Week 0-5 acceptance suite
 	$(MAKE) validate-week0-week4
 	$(MAKE) validate-week5
+
+validate-week0-week6: ## Run the combined Week 0-6 acceptance suite
+	$(MAKE) validate-week0-week5
+	$(MAKE) validate-week6-slice
+	$(MAKE) validate-week6-secrets
 
 clean: ## Remove project-level Go build artifacts
 	rm -rf $(BUILD_DIR)

@@ -289,6 +289,93 @@ func TestRunProjectBackupUsesNativePhaseRunner(t *testing.T) {
 	}
 }
 
+func TestRunProjectBuildUsesNativePhaseRunner(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeProjectLifecycleFixture(t, root)
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("build should not route to bash: %+v", spec)
+		return nil
+	}
+
+	code := run([]string{"build"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("run exit code = %d", code)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "build", "build.txt"))
+	if err != nil {
+		t.Fatalf("read build file: %v", err)
+	}
+	if strings.TrimSpace(string(data)) != "build" {
+		t.Fatalf("build output = %q", string(data))
+	}
+}
+
+func TestRunProjectCleanUsesNativePhaseRunner(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeProjectLifecycleFixture(t, root)
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("clean should not route to bash: %+v", spec)
+		return nil
+	}
+
+	code := run([]string{"clean"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("run exit code = %d", code)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "build", "clean.txt"))
+	if err != nil {
+		t.Fatalf("read clean file: %v", err)
+	}
+	if strings.TrimSpace(string(data)) != "clean" {
+		t.Fatalf("clean output = %q", string(data))
+	}
+}
+
+func TestRunProjectDeployUsesNativePhaseRunner(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeProjectLifecycleFixture(t, root)
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("deploy should not route to bash: %+v", spec)
+		return nil
+	}
+
+	code := run([]string{"deploy"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("run exit code = %d", code)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "build", "deploy.txt"))
+	if err != nil {
+		t.Fatalf("read deploy file: %v", err)
+	}
+	if strings.TrimSpace(string(data)) != "deploy" {
+		t.Fatalf("deploy output = %q", string(data))
+	}
+}
+
 func TestRunProjectRestoreUsesNativePhaseRunner(t *testing.T) {
 	restore := overrideCLIHooks(t)
 	defer restore()
@@ -315,6 +402,39 @@ func TestRunProjectRestoreUsesNativePhaseRunner(t *testing.T) {
 	}
 	if strings.TrimSpace(string(data)) != "restore" {
 		t.Fatalf("restore output = %q", string(data))
+	}
+}
+
+func TestRunProjectLifecycleCommandsShowHelp(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeProjectLifecycleFixture(t, root)
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("project lifecycle help should not route to bash: %+v", spec)
+		return nil
+	}
+
+	for _, command := range []string{"build", "clean", "deploy", "backup", "restore"} {
+		t.Run(command, func(t *testing.T) {
+			var stdout bytes.Buffer
+			code := run([]string{command, "--help"}, &stdout, &bytes.Buffer{})
+			if code != 0 {
+				t.Fatalf("run exit code = %d", code)
+			}
+			if got := stdout.String(); !strings.Contains(got, "Usage: vrooli "+command) {
+				t.Fatalf("stdout = %q", got)
+			}
+			if _, err := os.Stat(filepath.Join(root, "build", command+".txt")); !os.IsNotExist(err) {
+				t.Fatalf("expected no lifecycle output for help, stat err=%v", err)
+			}
+		})
 	}
 }
 
@@ -352,6 +472,120 @@ func TestRunProjectBackupErrorsWhenPhaseUndefined(t *testing.T) {
 		t.Fatal("expected non-zero exit code")
 	}
 	if !strings.Contains(stderr.String(), `project lifecycle phase "backup" is not defined`) {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestRunProjectBuildErrorsWhenPhaseUndefined(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeScenarioPortRegistryFixture(t, root)
+	writeTestFile(t, root, ".vrooli/service.json", `{
+  "version": "1.0.0",
+  "service": {
+    "name": "project-alpha",
+    "displayName": "Project Alpha",
+    "description": "Project-level lifecycle fixture",
+    "version": "0.1.0"
+  },
+  "lifecycle": {
+    "version": "2.0.0"
+  }
+}`)
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("build should not route to bash: %+v", spec)
+		return nil
+	}
+
+	var stderr bytes.Buffer
+	code := run([]string{"build"}, &bytes.Buffer{}, &stderr)
+	if code == 0 {
+		t.Fatal("expected non-zero exit code")
+	}
+	if !strings.Contains(stderr.String(), `project lifecycle phase "build" is not defined`) {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestRunProjectCleanErrorsWhenPhaseUndefined(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeScenarioPortRegistryFixture(t, root)
+	writeTestFile(t, root, ".vrooli/service.json", `{
+  "version": "1.0.0",
+  "service": {
+    "name": "project-alpha",
+    "displayName": "Project Alpha",
+    "description": "Project-level lifecycle fixture",
+    "version": "0.1.0"
+  },
+  "lifecycle": {
+    "version": "2.0.0"
+  }
+}`)
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("clean should not route to bash: %+v", spec)
+		return nil
+	}
+
+	var stderr bytes.Buffer
+	code := run([]string{"clean"}, &bytes.Buffer{}, &stderr)
+	if code == 0 {
+		t.Fatal("expected non-zero exit code")
+	}
+	if !strings.Contains(stderr.String(), `project lifecycle phase "clean" is not defined`) {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestRunProjectDeployErrorsWhenPhaseUndefined(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeScenarioPortRegistryFixture(t, root)
+	writeTestFile(t, root, ".vrooli/service.json", `{
+  "version": "1.0.0",
+  "service": {
+    "name": "project-alpha",
+    "displayName": "Project Alpha",
+    "description": "Project-level lifecycle fixture",
+    "version": "0.1.0"
+  },
+  "lifecycle": {
+    "version": "2.0.0"
+  }
+}`)
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("deploy should not route to bash: %+v", spec)
+		return nil
+	}
+
+	var stderr bytes.Buffer
+	code := run([]string{"deploy"}, &bytes.Buffer{}, &stderr)
+	if code == 0 {
+		t.Fatal("expected non-zero exit code")
+	}
+	if !strings.Contains(stderr.String(), `project lifecycle phase "deploy" is not defined`) {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 }
@@ -3166,6 +3400,30 @@ func writeProjectLifecycleFixture(t *testing.T, root string) {
         {
           "name": "capture-develop",
           "run": "mkdir -p build && printf 'develop\n' >> build/develop-count.txt && printf '%s\n' \"${VROOLI_API_PORT:-}\" > build/develop-port.txt"
+        }
+      ]
+    },
+    "build": {
+      "steps": [
+        {
+          "name": "capture-build",
+          "run": "mkdir -p build && printf 'build\n' > build/build.txt"
+        }
+      ]
+    },
+    "clean": {
+      "steps": [
+        {
+          "name": "capture-clean",
+          "run": "mkdir -p build && printf 'clean\n' > build/clean.txt"
+        }
+      ]
+    },
+    "deploy": {
+      "steps": [
+        {
+          "name": "capture-deploy",
+          "run": "mkdir -p build && printf 'deploy\n' > build/deploy.txt"
         }
       ]
     },

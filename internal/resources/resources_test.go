@@ -16,7 +16,7 @@ import (
 	"testing"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=2 | LAST: 2026-04-11
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-11
 
 func TestStatusForResourceReportsUnavailableCommand(t *testing.T) {
 	root := t.TempDir()
@@ -190,6 +190,25 @@ func TestStartAllUsesBestEffortWhenStatusProbeIsDegraded(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writeResourceConfig(t, root, "fixture", true)
+	writeResourceManifestFixture(t, root, `{
+  "name": "fixture",
+  "display_name": "Fixture adapter",
+  "description": "Fixture legacy adapter",
+  "template": "legacy-adapter",
+  "driver": "legacy-adapter",
+  "legacy_adapter": {
+    "owner": "Matthew Halloran",
+    "decision_deadline": "2026-05-31",
+    "final_disposition": "migrate",
+    "legacy_cli_path": "resources/fixture/cli.sh"
+  },
+  "portability_tier": "partial",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  }
+}`)
 	scriptPath := filepath.Join(root, "resources", "fixture", "cli.sh")
 	markerPath := filepath.Join(root, "fixture-started.txt")
 	if err := os.MkdirAll(filepath.Dir(scriptPath), 0o755); err != nil {
@@ -227,6 +246,25 @@ func TestStopAllFallsBackWhenStatusProbeIsDegraded(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writeResourceConfig(t, root, "fixture", false)
+	writeResourceManifestFixture(t, root, `{
+  "name": "fixture",
+  "display_name": "Fixture adapter",
+  "description": "Fixture legacy adapter",
+  "template": "legacy-adapter",
+  "driver": "legacy-adapter",
+  "legacy_adapter": {
+    "owner": "Matthew Halloran",
+    "decision_deadline": "2026-05-31",
+    "final_disposition": "migrate",
+    "legacy_cli_path": "resources/fixture/cli.sh"
+  },
+  "portability_tier": "partial",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  }
+}`)
 	scriptPath := filepath.Join(root, "resources", "fixture", "cli.sh")
 	markerPath := filepath.Join(root, "fixture-stopped.txt")
 	if err := os.MkdirAll(filepath.Dir(scriptPath), 0o755); err != nil {
@@ -294,6 +332,35 @@ func TestDiscoverMarksManifestNativeResources(t *testing.T) {
 	}
 	if items[0].Driver != "docker-service" {
 		t.Fatalf("Driver = %q, want docker-service", items[0].Driver)
+	}
+}
+
+func TestDiscoverHidesLegacyShellDirectoriesWithoutManifest(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeResourceConfig(t, root, "fixture", true)
+	writeResourceScript(t, root, "fixture", "#!/usr/bin/env bash\nexit 0\n")
+
+	items, err := NewController(root, home).Discover()
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("len(items) = %d, want 0: %#v", len(items), items)
+	}
+}
+
+func TestDiscoverHidesConfigOnlyResourcesWithoutManifest(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeResourceConfig(t, root, "fixture", true)
+
+	items, err := NewController(root, home).Discover()
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("len(items) = %d, want 0: %#v", len(items), items)
 	}
 }
 
@@ -753,6 +820,30 @@ func TestProjectPhase6LegacyAdaptersHaveDecisionMetadata(t *testing.T) {
 	}
 }
 
+func TestProjectPhase7ActiveDiscoveryOnlyIncludesManifestBackedResources(t *testing.T) {
+	root := projectRootForResourcesTest(t)
+	controller := NewController(root, t.TempDir())
+
+	items, err := controller.Discover()
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if len(items) == 0 {
+		t.Fatal("expected at least one active resource")
+	}
+
+	for _, item := range items {
+		if item.ManifestPath == "" {
+			t.Fatalf("%s missing manifest path in active discovery", item.Name)
+		}
+		switch item.ControlMode {
+		case "manifest-native", "legacy-adapter":
+		default:
+			t.Fatalf("%s ControlMode = %q, want manifest-native or legacy-adapter", item.Name, item.ControlMode)
+		}
+	}
+}
+
 func TestProjectDockerResourceStatusesUseNativeManifests(t *testing.T) {
 	projectRoot := projectRootForResourcesTest(t)
 	root := t.TempDir()
@@ -1000,7 +1091,12 @@ func shellQuote(value string) string {
 
 func writeResourceManifestFixture(t *testing.T, root, contents string) {
 	t.Helper()
-	path := defaultResourceManifestPath(root, "fixture")
+	writeResourceManifest(t, root, "fixture", contents)
+}
+
+func writeResourceManifest(t *testing.T, root, name, contents string) {
+	t.Helper()
+	path := defaultResourceManifestPath(root, name)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
 	}
