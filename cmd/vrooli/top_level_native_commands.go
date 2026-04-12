@@ -11,7 +11,6 @@ import (
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/project"
-	"github.com/vrooli/vrooli/internal/resources"
 )
 
 func runTopLevelBuildCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
@@ -58,15 +57,12 @@ func runTopLevelStatusCommand(root string, globals globalOptions, args []string,
 		return err
 	}
 
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success": true,
-			"status":  report,
-		})
+		return writeSuccessData(stdout, "status", report)
 	}
 
 	if !opts.ScenariosOnly {
@@ -135,15 +131,12 @@ func runTopLevelDoctorCommand(root string, globals globalOptions, args []string,
 		return err
 	}
 
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success": true,
-			"checks":  report.Checks,
-		})
+		return writeSuccessData(stdout, "checks", report.Checks)
 	}
 
 	rows := make([][]string, 0, len(report.Checks))
@@ -171,15 +164,12 @@ func runTopLevelStopCommand(root string, globals globalOptions, args []string, s
 		return err
 	}
 
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success": true,
-			"data":    result,
-		})
+		return writeSuccessData(stdout, "data", result)
 	}
 
 	for _, item := range result.Stopped {
@@ -192,11 +182,17 @@ func runTopLevelStopCommand(root string, globals globalOptions, args []string, s
 }
 
 func runTopLevelResourceCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	home, err := config.HomeDir()
+	app := configuredApp()
+	controller, err := app.newResourceController(&commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	})
 	if err != nil {
 		return err
 	}
-	controller := resources.NewController(root, home)
 	return runResourceCommand(controller, globals, args, stdout, stderr)
 }
 
@@ -220,7 +216,7 @@ func runTopLevelOrphansCommand(root string, globals globalOptions, args []string
 		}
 	}
 
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
@@ -230,7 +226,7 @@ func runTopLevelOrphansCommand(root string, globals globalOptions, args []string
 			return err
 		}
 		if format == cliout.FormatJSON {
-			return cliout.WriteJSON(stdout, map[string]any{"success": true, "data": report})
+			return writeSuccessData(stdout, "data", report)
 		}
 		for _, item := range report.Stopped {
 			_, _ = fmt.Fprintf(stdout, "Stopped orphan PID %s (%s)\n", item.Name, item.Message)
@@ -249,7 +245,7 @@ func runTopLevelOrphansCommand(root string, globals globalOptions, args []string
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{"success": true, "orphans": orphans})
+		return writeSuccessData(stdout, "orphans", orphans)
 	}
 	if len(orphans) == 0 {
 		_, _ = fmt.Fprintln(stdout, "No orphaned Vrooli processes found.")
@@ -282,7 +278,7 @@ func runTopLevelLocksCommand(root string, globals globalOptions, args []string, 
 		}
 	}
 
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
@@ -292,7 +288,7 @@ func runTopLevelLocksCommand(root string, globals globalOptions, args []string, 
 			return err
 		}
 		if format == cliout.FormatJSON {
-			return cliout.WriteJSON(stdout, map[string]any{"success": true, "data": report})
+			return writeSuccessData(stdout, "data", report)
 		}
 		for _, item := range report.Stopped {
 			_, _ = fmt.Fprintf(stdout, "Removed stale lock for port %s\n", item.Name)
@@ -311,7 +307,7 @@ func runTopLevelLocksCommand(root string, globals globalOptions, args []string, 
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{"success": true, "locks": locks})
+		return writeSuccessData(stdout, "locks", locks)
 	}
 	if len(locks) == 0 {
 		_, _ = fmt.Fprintln(stdout, "No port locks found.")
@@ -360,12 +356,12 @@ func runTopLevelDiagnosePortCommand(root string, globals globalOptions, args []s
 		return err
 	}
 
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{"success": true, "diagnostic": diagnostic})
+		return writeSuccessData(stdout, "diagnostic", diagnostic)
 	}
 
 	_, _ = fmt.Fprintf(stdout, "Port %d\n", diagnostic.Port)

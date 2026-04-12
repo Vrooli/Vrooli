@@ -45,11 +45,11 @@ done
 cli::init "twilio" "Twilio cloud communications platform management" "v2"
 
 # Override default handlers to point directly to twilio implementations
-CLI_COMMAND_HANDLERS["manage::install"]="twilio::install::execute"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="twilio::install::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="twilio::docker::start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="twilio::docker::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="twilio::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="twilio::test::smoke"
 CLI_COMMAND_HANDLERS["test::integration"]="twilio::test::integration"
 CLI_COMMAND_HANDLERS["test::unit"]="twilio::test::unit"
@@ -114,8 +114,8 @@ cli::register_subcommand "content" "whatsapp-export" "Export WhatsApp history to
 cli::register_subcommand "content" "whatsapp-setup" "WhatsApp sandbox setup guide" "setup_whatsapp_sandbox"
 
 # Additional information commands
-cli::register_command "status" "Show detailed resource status" "twilio::status::new"
-cli::register_command "logs" "Show Twilio logs" "twilio::docker::logs"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
+cli::register_command "logs" "Show Twilio logs" "cli::delegate_logs"
 cli::register_command "config" "View/update Twilio configuration" "twilio::config"
 
 # Only execute if script is run directly (not sourced)

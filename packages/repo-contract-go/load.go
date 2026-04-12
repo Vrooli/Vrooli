@@ -2,12 +2,13 @@ package repocontract
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 )
+
+var readFile = os.ReadFile
 
 // Load reads and semantically validates a repo-contract file.
 func Load(path string) (*Contract, error) {
@@ -16,7 +17,7 @@ func Load(path string) (*Contract, error) {
 		return nil, &Error{Kind: ErrInvalidInput, Message: "contract path is required"}
 	}
 
-	data, err := os.ReadFile(path)
+	data, err := readFile(path)
 	if err != nil {
 		return nil, &Error{Kind: ErrNotFound, Message: "read contract", Details: path, Err: err}
 	}
@@ -261,8 +262,4 @@ func cleanIdentifier(value string) (string, error) {
 		return "", &Error{Kind: ErrInvalidInput, Message: "identifier must not contain path traversal", Details: value}
 	}
 	return value, nil
-}
-
-func unexpectedFieldError(field string, err error) error {
-	return &Error{Kind: ErrInvalidContract, Message: fmt.Sprintf("invalid %s", field), Err: err}
 }

@@ -68,6 +68,7 @@ export JUDGE0_STARTUP_WAIT="30"          # seconds to wait for startup
 export JUDGE0_API_PREFIX="/api/v1"
 export JUDGE0_ENABLE_AUTHENTICATION="true"
 export JUDGE0_API_KEY_LENGTH="32"
+export JUDGE0_API_KEY="${JUDGE0_API_KEY:-vrooli-judge0-dev-token}"
 
 # ============================================================================
 # PATHS AND DIRECTORIES

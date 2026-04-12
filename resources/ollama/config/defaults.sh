@@ -10,6 +10,8 @@ readonly OLLAMA_VERSION="${OLLAMA_CUSTOM_VERSION:-v0.11.7}"  # Specific version 
 readonly OLLAMA_PORT="${OLLAMA_CUSTOM_PORT:-$(resources::get_default_port "ollama" 2>/dev/null || echo "11434")}"
 readonly OLLAMA_BASE_URL="http://localhost:${OLLAMA_PORT}"
 readonly OLLAMA_SERVICE_NAME="ollama"
+readonly OLLAMA_CONTAINER_NAME="${OLLAMA_CONTAINER_NAME:-ollama}"
+readonly OLLAMA_IMAGE="${OLLAMA_IMAGE:-ollama/ollama:${OLLAMA_VERSION#v}}"
 readonly OLLAMA_INSTALL_DIR="/usr/local/bin"
 readonly OLLAMA_USER="ollama"
 
@@ -66,7 +68,7 @@ readonly DEFAULT_MODELS=(
 # Export configuration variables
 #######################################
 ollama::export_config() {
-    export OLLAMA_VERSION OLLAMA_PORT OLLAMA_BASE_URL OLLAMA_SERVICE_NAME
+    export OLLAMA_VERSION OLLAMA_PORT OLLAMA_BASE_URL OLLAMA_SERVICE_NAME OLLAMA_CONTAINER_NAME OLLAMA_IMAGE
     export OLLAMA_INSTALL_DIR OLLAMA_USER
     export OLLAMA_NUM_PARALLEL OLLAMA_MAX_LOADED_MODELS OLLAMA_FLASH_ATTENTION OLLAMA_ORIGINS
     # Note: Arrays MODEL_CATALOG and DEFAULT_MODELS are already available to sourcing scripts

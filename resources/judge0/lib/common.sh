@@ -83,7 +83,7 @@ judge0::get_api_key() {
     if [[ -f "$config_file" ]]; then
         cat "$config_file"
     else
-        echo ""
+        echo "${JUDGE0_API_KEY:-}"
     fi
 }
 

@@ -46,11 +46,11 @@ cli::init "unstructured-io" "Unstructured.io document processing and analysis" "
 # ==============================================================================
 # REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
 # ==============================================================================
-CLI_COMMAND_HANDLERS["manage::install"]="unstructured_io::install"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="unstructured_io::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="unstructured_io::start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="unstructured_io::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="unstructured_io::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="unstructured_io::test::smoke"
 CLI_COMMAND_HANDLERS["test::integration"]="unstructured_io::test::integration"
 CLI_COMMAND_HANDLERS["test::unit"]="unstructured_io::test::unit"
@@ -77,8 +77,8 @@ cli::register_subcommand "content" "clear-cache" "Clear processing cache" "unstr
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
-cli::register_command "status" "Show detailed resource status" "unstructured_io::status"
-cli::register_command "logs" "Show resource logs" "unstructured_io::logs"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
+cli::register_command "logs" "Show resource logs" "cli::delegate_logs"
 
 # ==============================================================================
 # OPTIONAL RESOURCE-SPECIFIC COMMANDS

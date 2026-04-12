@@ -45,11 +45,11 @@ cli::init "neo4j" "Neo4j graph database management" "v2"
 
 # Override default handlers to point directly to neo4j implementations
 # shellcheck disable=SC2034  # CLI_COMMAND_HANDLERS is used by the framework
-CLI_COMMAND_HANDLERS["manage::install"]="neo4j_install"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="neo4j_uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="neo4j_start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="neo4j_stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="neo4j_restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 
 # Override content handlers for Neo4j-specific graph database functionality
 CLI_COMMAND_HANDLERS["content::add"]="neo4j_inject"
@@ -91,8 +91,8 @@ cli::register_subcommand "content" "load-balancing" "Configure load balancing" "
 cli::register_subcommand "content" "cluster-backup" "Cluster backup strategy" "neo4j_cluster_backup_strategy"
 
 # Additional information commands
-cli::register_command "status" "Show detailed resource status" "neo4j_status"
-cli::register_command "logs" "Show Neo4j logs" "neo4j_logs"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
+cli::register_command "logs" "Show Neo4j logs" "cli::delegate_logs"
 cli::register_command "credentials" "Show connection credentials" "neo4j_credentials"
 
 # APOC plugin management

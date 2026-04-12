@@ -43,11 +43,11 @@ fi
 
 cli::init "opencode" "OpenCode AI CLI" "v2"
 
-CLI_COMMAND_HANDLERS["manage::install"]="opencode::install::execute"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="opencode::install::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="opencode::docker::start"
-CLI_COMMAND_HANDLERS["manage::stop"]="opencode::docker::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="opencode::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 
 CLI_COMMAND_HANDLERS["test::smoke"]="opencode::test::smoke"
 CLI_COMMAND_HANDLERS["test::integration"]="opencode::test::integration"
@@ -72,10 +72,10 @@ opencode::cli::dispatch() {
     fi
 }
 
-cli::register_command "status" "Show OpenCode status" "opencode::status"
+cli::register_command "status" "Show OpenCode status" "cli::delegate_status"
 cli::register_command "models" "List available models" "opencode::models::list"
 cli::register_command "run" "Execute raw OpenCode CLI commands" "opencode::cli::dispatch"
-cli::register_command "logs" "Show log directory" "opencode::docker::logs"
+cli::register_command "logs" "Show log directory" "cli::delegate_logs"
 
 opencode::agents::delegate() {
     "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="opencode" "$@"

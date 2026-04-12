@@ -50,11 +50,11 @@ cli::init "minio" "MinIO S3-compatible object storage management" "v2"
 # ==============================================================================
 # REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
 # ==============================================================================
-CLI_COMMAND_HANDLERS["manage::install"]="minio::install"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="minio::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="minio::docker::start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="minio::docker::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="minio::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="minio::test::smoke_handler"
 CLI_COMMAND_HANDLERS["test::integration"]="minio::test::integration_handler"
 CLI_COMMAND_HANDLERS["test::unit"]="minio::test::unit_handler"
@@ -70,8 +70,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="minio::content::inject_data"
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
-cli::register_command "status" "Show detailed MinIO status" "minio::status_wrapper"
-cli::register_command "logs" "Show MinIO logs" "minio::logs"
+cli::register_command "status" "Show detailed MinIO status" "cli::delegate_status"
+cli::register_command "logs" "Show MinIO logs" "cli::delegate_logs"
 
 # ==============================================================================
 # OPTIONAL RESOURCE-SPECIFIC COMMANDS

@@ -2,22 +2,47 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "opencode",
   "display_name": "OpenCode",
-  "description": "Transitional OpenCode resource kept behind a typed legacy adapter while native external-cli/manual ownership is scoped.",
-  "template": "legacy-adapter",
-  "driver": "legacy-adapter",
-  "legacy_adapter": {
-    "owner": "Matthew Halloran",
-    "decision_deadline": "2026-05-31",
-    "final_disposition": "migrate",
-    "legacy_cli_path": "resources/opencode/cli.sh",
-    "notes": "Phase 0 keep resource because it remains enabled and scenario-backed; reassess whether it belongs on external-cli or manual template."
-  },
+  "description": "OpenCode CLI resource with native binary/install/status handling and shell-retained higher-level workflows.",
+  "template": "external-cli",
+  "driver": "external-cli",
+  "binary": "opencode",
+  "version_args": [
+    "--version"
+  ],
   "portability_tier": "partial",
   "category": "development",
   "platforms": {
     "linux": "supported",
     "macos": "supported",
     "windows": "partial"
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "command": [
+        "opencode",
+        "--version"
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "install": {
+    "platforms": {
+      "linux": [
+        "bash",
+        "-lc",
+        "source resources/opencode/lib/install.sh && opencode::install::execute"
+      ],
+      "macos": [
+        "bash",
+        "-lc",
+        "source resources/opencode/lib/install.sh && opencode::install::execute"
+      ]
+    }
+  },
+  "capabilities": {
+    "supports_logs": false,
+    "supports_content_ops": true
   },
   "template_version": "1"
 }

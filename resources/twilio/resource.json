@@ -2,15 +2,16 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "twilio",
   "display_name": "Twilio",
-  "description": "Transitional Twilio resource kept behind a typed legacy adapter while native cloud-api ownership is scoped.",
-  "template": "legacy-adapter",
-  "driver": "legacy-adapter",
-  "legacy_adapter": {
-    "owner": "Matthew Halloran",
-    "decision_deadline": "2026-05-31",
-    "final_disposition": "migrate",
-    "legacy_cli_path": "resources/twilio/cli.sh",
-    "notes": "Phase 0 keep resource because it remains project-enabled; likely end state is native cloud-api validation plus thin actions."
+  "description": "Hosted Twilio API resource with native credential/status checks and shell-retained messaging actions.",
+  "template": "cloud-api",
+  "driver": "cloud-api",
+  "endpoint": "https://api.twilio.com/2010-04-01/Accounts.json",
+  "credentials": {
+    "env": [
+      "TWILIO_ACCOUNT_SID",
+      "TWILIO_AUTH_TOKEN"
+    ],
+    "secret_ref": "secret/resources/twilio"
   },
   "portability_tier": "full",
   "category": "communications",
@@ -18,6 +19,22 @@
     "linux": "supported",
     "macos": "supported",
     "windows": "supported"
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "https://api.twilio.com/2010-04-01/Accounts.json",
+      "expected_status": [
+        200,
+        401,
+        403
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "capabilities": {
+    "supports_logs": false,
+    "supports_content_ops": true
   },
   "template_version": "1"
 }

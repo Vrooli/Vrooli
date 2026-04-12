@@ -67,41 +67,95 @@ var skippedDirs = map[string]struct{}{
 	"tmp":          {},
 }
 
+// FingerprintOptions controls how source fingerprint requests validate their
+// target set. The zero value preserves the lenient migration-era behavior.
+type FingerprintOptions struct {
+	RequireExistingTargets bool
+	RequireGoFiles         bool
+}
+
+// FingerprintReport describes the source set that participated in a fingerprint
+// calculation. It is primarily intended for build tooling and diagnostics.
+type FingerprintReport struct {
+	Root           string
+	Targets        []string
+	MissingTargets []string
+	MatchedFiles   int
+	Fingerprint    string
+}
+
+// StaleCheck describes the outcome of comparing the embedded build fingerprint
+// to the current source tree.
+type StaleCheck struct {
+	Root                string
+	Targets             []string
+	CurrentFingerprint  string
+	EmbeddedFingerprint string
+	Stale               bool
+}
+
+type missingTargetsError struct {
+	targets []string
+}
+
+func (e missingTargetsError) Error() string {
+	return fmt.Sprintf("missing fingerprint targets: %s", strings.Join(e.targets, ", "))
+}
+
+type noGoFilesMatchedError struct {
+	root    string
+	targets []string
+}
+
+func (e noGoFilesMatchedError) Error() string {
+	return fmt.Sprintf("no Go files matched beneath root %q for targets %s", e.root, strings.Join(e.targets, ", "))
+}
+
 // ComputeSourceFingerprint returns a deterministic fingerprint of all Go files
 // reachable beneath the provided root directory.
 func ComputeSourceFingerprint(rootDir string) (string, error) {
 	return ComputeSourceFingerprintForPaths(rootDir)
 }
 
-// ComputeSourceFingerprintForPaths returns a deterministic fingerprint of all Go
-// files beneath the provided relative paths. When no paths are provided, the
-// entire root is scanned.
-func ComputeSourceFingerprintForPaths(rootDir string, relPaths ...string) (string, error) {
+// ComputeSourceFingerprintReport returns a fingerprint plus details about the
+// source set that participated in the calculation.
+func ComputeSourceFingerprintReport(rootDir string, options FingerprintOptions, relPaths ...string) (FingerprintReport, error) {
 	rootDir = strings.TrimSpace(rootDir)
 	if rootDir == "" {
-		return "", errors.New("root directory is required")
+		return FingerprintReport{}, errors.New("root directory is required")
 	}
-	rootDir = filepath.Clean(rootDir)
+	absoluteRoot, err := filepath.Abs(filepath.Clean(rootDir))
+	if err != nil {
+		return FingerprintReport{}, fmt.Errorf("resolve root directory: %w", err)
+	}
 
 	targets := normalizeTargets(relPaths)
 	if len(targets) == 0 {
 		targets = []string{"."}
 	}
 
+	report := FingerprintReport{
+		Root:    absoluteRoot,
+		Targets: append([]string(nil), targets...),
+	}
 	entries := make([]fingerprintEntry, 0)
 	for _, target := range targets {
-		base := filepath.Join(rootDir, filepath.FromSlash(target))
+		base, err := resolveTargetPath(absoluteRoot, target)
+		if err != nil {
+			return FingerprintReport{}, err
+		}
 		info, err := os.Stat(base)
 		if err != nil {
 			if os.IsNotExist(err) {
+				report.MissingTargets = append(report.MissingTargets, target)
 				continue
 			}
-			return "", fmt.Errorf("stat %s: %w", target, err)
+			return FingerprintReport{}, fmt.Errorf("stat %s: %w", target, err)
 		}
 
 		if info.IsDir() {
-			if err := collectFingerprintEntries(rootDir, base, &entries); err != nil {
-				return "", err
+			if err := collectFingerprintEntries(absoluteRoot, base, &entries); err != nil {
+				return FingerprintReport{}, err
 			}
 			continue
 		}
@@ -109,23 +163,47 @@ func ComputeSourceFingerprintForPaths(rootDir string, relPaths ...string) (strin
 		if !strings.HasSuffix(info.Name(), ".go") {
 			continue
 		}
-		entry, err := fingerprintFile(rootDir, base)
+		entry, err := fingerprintFile(absoluteRoot, base)
 		if err != nil {
-			return "", err
+			return FingerprintReport{}, err
 		}
 		entries = append(entries, entry)
+	}
+
+	if options.RequireExistingTargets && len(report.MissingTargets) > 0 {
+		return FingerprintReport{}, missingTargetsError{targets: append([]string(nil), report.MissingTargets...)}
 	}
 
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].rel < entries[j].rel
 	})
 
+	report.MatchedFiles = len(entries)
 	hasher := sha256.New()
 	for _, entry := range entries {
 		fmt.Fprintf(hasher, "%s|%d|%x\n", entry.rel, entry.size, entry.hash)
 	}
+	report.Fingerprint = fmt.Sprintf("%x", hasher.Sum(nil))
 
-	return fmt.Sprintf("%x", hasher.Sum(nil)), nil
+	if options.RequireGoFiles && report.MatchedFiles == 0 {
+		return FingerprintReport{}, noGoFilesMatchedError{
+			root:    report.Root,
+			targets: append([]string(nil), report.Targets...),
+		}
+	}
+
+	return report, nil
+}
+
+// ComputeSourceFingerprintForPaths returns a deterministic fingerprint of all Go
+// files beneath the provided relative paths. When no paths are provided, the
+// entire root is scanned.
+func ComputeSourceFingerprintForPaths(rootDir string, relPaths ...string) (string, error) {
+	report, err := ComputeSourceFingerprintReport(rootDir, FingerprintOptions{}, relPaths...)
+	if err != nil {
+		return "", err
+	}
+	return report.Fingerprint, nil
 }
 
 // ResolveSourceRoot returns the repository root used for source fingerprinting.
@@ -155,30 +233,59 @@ func ResolveSourceRoot() (string, error) {
 
 // CurrentFingerprint computes the fingerprint for the current binary's source set.
 func CurrentFingerprint() (string, error) {
-	root, err := ResolveSourceRoot()
+	report, err := CurrentFingerprintReport()
 	if err != nil {
 		return "", err
+	}
+	return report.Fingerprint, nil
+}
+
+// CurrentFingerprintReport computes the current binary's source fingerprint and
+// returns metadata about the source set used for the calculation.
+func CurrentFingerprintReport() (FingerprintReport, error) {
+	root, err := ResolveSourceRoot()
+	if err != nil {
+		return FingerprintReport{}, err
 	}
 
 	targets, err := fingerprintTargets()
 	if err != nil {
-		return "", err
+		return FingerprintReport{}, err
 	}
-	return ComputeSourceFingerprintForPaths(root, targets...)
+	return ComputeSourceFingerprintReport(root, FingerprintOptions{
+		RequireExistingTargets: true,
+		RequireGoFiles:         true,
+	}, targets...)
 }
 
 // IsStale returns true when the embedded fingerprint differs from current sources.
 func IsStale() bool {
-	if strings.TrimSpace(Fingerprint) == "" || Fingerprint == "unknown" {
-		return false
-	}
-
-	current, err := CurrentFingerprint()
+	status, err := CheckStaleness()
 	if err != nil {
 		return false
 	}
+	return status.Stale
+}
 
-	return current != Fingerprint
+// CheckStaleness compares the embedded build fingerprint to the current source
+// fingerprint and returns the comparison result plus diagnostic metadata.
+func CheckStaleness() (StaleCheck, error) {
+	status := StaleCheck{
+		EmbeddedFingerprint: strings.TrimSpace(Fingerprint),
+	}
+	if status.EmbeddedFingerprint == "" || status.EmbeddedFingerprint == "unknown" {
+		return status, nil
+	}
+
+	report, err := CurrentFingerprintReport()
+	if err != nil {
+		return StaleCheck{}, err
+	}
+	status.Root = report.Root
+	status.Targets = append([]string(nil), report.Targets...)
+	status.CurrentFingerprint = report.Fingerprint
+	status.Stale = status.CurrentFingerprint != status.EmbeddedFingerprint
+	return status, nil
 }
 
 // RebuildAndReexec rebuilds the current binary from source and re-execs it.
@@ -318,6 +425,29 @@ func normalizeTargets(paths []string) []string {
 	}
 	sort.Strings(targets)
 	return targets
+}
+
+func resolveTargetPath(rootDir, target string) (string, error) {
+	if filepath.IsAbs(target) {
+		return "", fmt.Errorf("target %q must be relative to the repository root", target)
+	}
+
+	base := filepath.Join(rootDir, filepath.FromSlash(target))
+	absoluteBase, err := filepath.Abs(base)
+	if err != nil {
+		return "", fmt.Errorf("resolve target %s: %w", target, err)
+	}
+
+	relToRoot, err := filepath.Rel(rootDir, absoluteBase)
+	if err != nil {
+		return "", fmt.Errorf("resolve target %s: %w", target, err)
+	}
+	relToRoot = filepath.ToSlash(relToRoot)
+	if relToRoot == ".." || strings.HasPrefix(relToRoot, "../") {
+		return "", fmt.Errorf("target %q escapes repository root %s", target, rootDir)
+	}
+
+	return absoluteBase, nil
 }
 
 func shouldSkipDir(rel string) bool {

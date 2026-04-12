@@ -44,11 +44,11 @@ done
 cli::init "cloudflare-ai-gateway" "Cloudflare AI Gateway management" "v2"
 
 # Override default handlers to point directly to cloudflare-ai-gateway implementations
-CLI_COMMAND_HANDLERS["manage::install"]="install_cloudflare_ai_gateway"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="uninstall_cloudflare_ai_gateway"
-CLI_COMMAND_HANDLERS["manage::start"]="gateway_start"
-CLI_COMMAND_HANDLERS["manage::stop"]="gateway_stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="cloudflare_ai_gateway_restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="cloudflare_ai_gateway_test_smoke"
 CLI_COMMAND_HANDLERS["content::add"]="handle_content_add"
 CLI_COMMAND_HANDLERS["content::list"]="cloudflare_ai_gateway_content_list" 
@@ -60,8 +60,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="handle_content_execute"
 cli::register_subcommand "content" "configure" "Configure gateway settings" "gateway_configure"
 
 # Additional information commands
-cli::register_command "status" "Show detailed gateway status" "cloudflare_ai_gateway_status"
-cli::register_command "logs" "Show gateway logs" "gateway_logs"
+cli::register_command "status" "Show detailed gateway status" "cli::delegate_status"
+cli::register_command "logs" "Show gateway logs" "cli::delegate_logs"
 cli::register_command "info" "Display gateway configuration" "gateway_info"
 
 # Gateway restart handler

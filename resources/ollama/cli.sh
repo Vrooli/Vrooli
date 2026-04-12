@@ -49,15 +49,37 @@ done
 # Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
 cli::init "ollama" "Ollama AI inference server management" "v2"
 
+ollama::invoke_runtime() {
+    if command -v ollama &>/dev/null; then
+        ollama "$@"
+        return $?
+    fi
+    if command -v docker &>/dev/null; then
+        docker exec -i "${OLLAMA_CONTAINER_NAME:-ollama}" ollama "$@"
+        return $?
+    fi
+    log::error "Ollama runtime is unavailable"
+    return 1
+}
+
+ollama::smoke_test() {
+    if curl -fsS --max-time 10 "${OLLAMA_BASE_URL}/api/tags" >/dev/null 2>&1; then
+        log::success "Ollama API is responsive"
+        return 0
+    fi
+    log::error "Ollama API is unavailable at ${OLLAMA_BASE_URL}"
+    return 1
+}
+
 # ==============================================================================
 # REQUIRED HANDLERS - Direct mapping to existing functions
 # ==============================================================================
-CLI_COMMAND_HANDLERS["manage::install"]="ollama::install"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="ollama::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="ollama::start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="ollama::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="ollama::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="ollama::test"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="ollama::smoke_test"
 
 # Content handlers - AI business operations
 CLI_COMMAND_HANDLERS["content::add"]="ollama_pull_model"
@@ -69,8 +91,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="ollama_generate"
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
-cli::register_command "status" "Show detailed resource status" "ollama::status"
-cli::register_command "logs" "Show resource logs" "ollama::logs"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
+cli::register_command "logs" "Show resource logs" "cli::delegate_logs"
 
 # ==============================================================================
 # OLLAMA-SPECIFIC CONTENT COMMANDS (AI Model Operations)
@@ -134,24 +156,13 @@ ollama::setup_agent_cleanup() {
 ################################################################################
 
 ollama_list_models() {
-    if command -v ollama &>/dev/null; then
-        ollama list
-    else
-        log::error "Ollama CLI not available"
-        return 1
-    fi
+    ollama::invoke_runtime list
 }
 
 # Internal pull function (wrapped by agent manager)
 ollama_pull_model_internal() {
     local model="$1"
-    
-    if command -v ollama &>/dev/null; then
-        ollama pull "$model"
-    else
-        log::error "Ollama CLI not available"
-        return 1
-    fi
+    ollama::invoke_runtime pull "$model"
 }
 
 ollama_pull_model() {
@@ -189,12 +200,7 @@ ollama_remove_model() {
         return 1
     fi
     
-    if command -v ollama &>/dev/null; then
-        ollama rm "$model"
-    else
-        log::error "Ollama CLI not available"
-        return 1
-    fi
+    ollama::invoke_runtime rm "$model"
 }
 
 ollama_show_model() {
@@ -206,25 +212,15 @@ ollama_show_model() {
         return 1
     fi
     
-    if command -v ollama &>/dev/null; then
-        ollama show "$model"
-    else
-        log::error "Ollama CLI not available"
-        return 1
-    fi
+    ollama::invoke_runtime show "$model"
 }
 
 # Internal chat function (wrapped by agent manager)
 ollama_chat_internal() {
     local model="$1"
     
-    if command -v ollama &>/dev/null; then
-        log::info "Starting chat with $model (type /bye to exit)"
-        ollama run "$model"
-    else
-        log::error "Ollama CLI not available"
-        return 1
-    fi
+    log::info "Starting chat with $model (type /bye to exit)"
+    ollama::invoke_runtime run "$model"
 }
 
 ollama_chat() {
@@ -322,14 +318,6 @@ ollama_generate() {
         return 1
     fi
     
-    # Check if Ollama is available
-    if ! command -v ollama &>/dev/null; then
-        if [[ "$quiet" == false ]]; then
-            log::error "Ollama CLI not available"
-        fi
-        return 1
-    fi
-    
     # Use ollama run for generation with metrics tracking
     if [[ "$quiet" == false ]]; then
         log::info "Generating text with $model"
@@ -343,7 +331,7 @@ ollama_generate() {
         agents::metrics::increment "${REGISTRY_FILE:-${APP_ROOT}/.vrooli/ollama-agents.json}" "$agent_id" "requests" 1
     fi
     
-    ollama run "$model" "$prompt"
+    ollama::invoke_runtime run "$model" "$prompt"
     result=$?
     
     # Track operation completion metrics

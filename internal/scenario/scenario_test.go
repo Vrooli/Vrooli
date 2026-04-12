@@ -1,6 +1,7 @@
 package scenario
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -101,6 +102,23 @@ func TestLoadUsesSandboxScenarioWhenInScope(t *testing.T) {
 	}
 }
 
+func TestLoadUsesContractDefinedScenarioLayout(t *testing.T) {
+	root := t.TempDir()
+	writeRepoContract(t, root, "apps")
+	writeScenarioServiceUnderBase(t, filepath.Join(root, "apps"), "alpha", "Contract alpha")
+
+	loaded, err := Load(root, "alpha", SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if want := filepath.Join(root, "apps", "alpha"); loaded.Path != want {
+		t.Fatalf("loaded path = %q, want %q", loaded.Path, want)
+	}
+	if want := filepath.Join(root, "apps", "alpha", ".vrooli", "service.json"); loaded.ServicePath != want {
+		t.Fatalf("loaded service path = %q, want %q", loaded.ServicePath, want)
+	}
+}
+
 func TestLoadFallsBackToCanonicalScenarioWhenSandboxPathMissing(t *testing.T) {
 	root := t.TempDir()
 	writeScenarioService(t, root, "alpha", "Canonical alpha")
@@ -141,6 +159,27 @@ func TestResolveScenarioPathIgnoresOutOfScopeSandbox(t *testing.T) {
 	}
 	if want := filepath.Join(root, "scenarios", "alpha"); path != want {
 		t.Fatalf("ResolveScenarioPath = %q, want %q", path, want)
+	}
+}
+
+func TestDiscoverUsesContractDefinedScenarioBase(t *testing.T) {
+	root := t.TempDir()
+	writeRepoContract(t, root, "apps")
+	writeScenarioServiceUnderBase(t, filepath.Join(root, "apps"), "alpha", "Contract alpha")
+	writeScenarioServiceUnderBase(t, filepath.Join(root, "apps"), "beta", "Contract beta")
+
+	scenarios, err := Discover(root, SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+	if len(scenarios) != 2 {
+		t.Fatalf("scenario count = %d, want 2", len(scenarios))
+	}
+	if scenarios[0].Path != filepath.Join(root, "apps", "alpha") {
+		t.Fatalf("alpha path = %q", scenarios[0].Path)
+	}
+	if scenarios[1].Path != filepath.Join(root, "apps", "beta") {
+		t.Fatalf("beta path = %q", scenarios[1].Path)
 	}
 }
 
@@ -535,6 +574,11 @@ func writeScenarioService(t *testing.T, root, name, description string) {
 	writeScenarioServiceAtPath(t, filepath.Join(root, "scenarios", name), description)
 }
 
+func writeScenarioServiceUnderBase(t *testing.T, baseDir, name, description string) {
+	t.Helper()
+	writeScenarioServiceAtPath(t, filepath.Join(baseDir, name), description)
+}
+
 func writeScenarioServiceAtPath(t *testing.T, scenarioPath, description string) {
 	t.Helper()
 	servicePath := filepath.Join(scenarioPath, ".vrooli", "service.json")
@@ -571,6 +615,87 @@ func writeScenarioServiceAtPath(t *testing.T, scenarioPath, description string) 
 }`
 	if err := os.WriteFile(servicePath, []byte(data), 0o644); err != nil {
 		t.Fatalf("write %s: %v", servicePath, err)
+	}
+}
+
+func writeRepoContract(t *testing.T, root, scenarioDir string) {
+	t.Helper()
+
+	doc := map[string]any{
+		"$schema": "schemas/repo-contract.schema.json",
+		"version": "1.0.0",
+		"platform": map[string]any{
+			"mode":                          "cross_platform_go_native",
+			"legacy_project_bash_supported": false,
+		},
+		"root": map[string]any{
+			"markers": map[string]any{
+				"required_dirs":  []string{".vrooli", scenarioDir, "resources", "packages", "cmd", "internal"},
+				"required_files": []string{"go.mod"},
+			},
+		},
+		"layout": map[string]any{
+			"project_config_dir": ".vrooli",
+			"scenario_dir":       scenarioDir,
+			"resource_dir":       "resources",
+			"package_dir":        "packages",
+			"command_dir":        "cmd",
+			"internal_dir":       "internal",
+			"docs_dir":           "docs",
+		},
+		"scenario": map[string]any{
+			"required_files": []string{".vrooli/service.json"},
+			"well_known_paths": map[string]string{
+				"service": ".vrooli/service.json",
+			},
+		},
+		"resource": map[string]any{
+			"manifest": "resource.json",
+		},
+		"globs": map[string]any{
+			"syntax":         "doublestar",
+			"root_relative":  true,
+			"case_sensitive": true,
+			"allow_absolute": false,
+			"path_format":    "slash_normalized",
+		},
+		"environment": map[string]any{
+			"variables": map[string]string{
+				"repo_root":      "VROOLI_ROOT",
+				"source_root":    "VROOLI_SOURCE_ROOT",
+				"sandbox_id":     "VROOLI_SANDBOX_ID",
+				"sandbox_merged": "VROOLI_SANDBOX_MERGED",
+				"sandbox_scope":  "VROOLI_SANDBOX_SCOPE",
+			},
+		},
+		"sandbox": map[string]any{
+			"full_repo_scopes":      []string{"", ".", "/"},
+			"scenario_scope_prefix": "scenarios/",
+		},
+		"profiles": map[string]any{
+			"mini_vrooli_bundle": map[string]any{
+				"description": "test profile",
+				"parameters":  []string{"scenario"},
+				"include":     []string{scenarioDir + "/{scenario}"},
+			},
+		},
+	}
+
+	for _, dir := range []string{".vrooli", scenarioDir, "resources", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module test"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+
+	data, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal contract: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), data, 0o644); err != nil {
+		t.Fatalf("write contract: %v", err)
 	}
 }
 

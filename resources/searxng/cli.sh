@@ -46,11 +46,11 @@ cli::init "searxng" "SearXNG privacy-respecting search engine management" "v2"
 # ==============================================================================
 # REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
 # ==============================================================================
-CLI_COMMAND_HANDLERS["manage::install"]="searxng::install"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="searxng::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="searxng::start_container"  
-CLI_COMMAND_HANDLERS["manage::stop"]="searxng::stop_container"
-CLI_COMMAND_HANDLERS["manage::restart"]="searxng::restart_container"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 # Test handlers for v2.0 compliance
 CLI_COMMAND_HANDLERS["test::smoke"]="searxng::test"
 CLI_COMMAND_HANDLERS["test::integration"]="searxng::test"
@@ -67,8 +67,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="searxng::execute_search"
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
-cli::register_command "status" "Show detailed resource status" "searxng::status"
-cli::register_command "logs" "Show SearXNG logs" "searxng::get_logs"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
+cli::register_command "logs" "Show SearXNG logs" "cli::delegate_logs"
 
 # ==============================================================================
 # OPTIONAL SEARXNG-SPECIFIC COMMANDS

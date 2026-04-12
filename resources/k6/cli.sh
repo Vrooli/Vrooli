@@ -45,11 +45,11 @@ done
 cli::init "k6" "K6 load testing platform management" "v2"
 
 # Override default handlers to point directly to k6 implementations
-CLI_COMMAND_HANDLERS["manage::install"]="k6::install::execute"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="k6::install::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="k6::docker::start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="k6::docker::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="k6::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="k6::test::smoke"
 
 # Override content handlers for K6-specific performance testing functionality
@@ -63,8 +63,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="k6::content::execute"
 cli::register_subcommand "content" "results" "Show recent performance test results" "k6::content::show_results"
 
 # Additional information commands
-cli::register_command "status" "Show detailed resource status" "k6::status"
-cli::register_command "logs" "Show K6 logs" "k6::docker::logs"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
+cli::register_command "logs" "Show K6 logs" "cli::delegate_logs"
 cli::register_command "credentials" "Show K6 credentials for integration" "k6::core::credentials"
 
 # Only execute if script is run directly (not sourced)

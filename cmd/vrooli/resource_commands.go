@@ -108,12 +108,12 @@ func runResourceListCommand(controller *resources.Controller, globals globalOpti
 		return err
 	}
 
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{"success": true, "resources": items})
+		return writeSuccessData(stdout, "resources", items)
 	}
 
 	rows := make([][]string, 0, len(items))
@@ -149,7 +149,7 @@ func runResourceStatusCommand(controller *resources.Controller, globals globalOp
 		}
 	}
 
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func runResourceStatusCommand(controller *resources.Controller, globals globalOp
 			return err
 		}
 		if format == cliout.FormatJSON {
-			return cliout.WriteJSON(stdout, map[string]any{"success": true, "resources": items})
+			return writeSuccessData(stdout, "resources", items)
 		}
 		rows := make([][]string, 0, len(items))
 		for _, item := range items {

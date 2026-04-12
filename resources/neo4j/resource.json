@@ -2,22 +2,78 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "neo4j",
   "display_name": "Neo4j",
-  "description": "Transitional Neo4j resource kept behind a typed legacy adapter while native docker-service migration is scoped.",
-  "template": "legacy-adapter",
-  "driver": "legacy-adapter",
-  "legacy_adapter": {
-    "owner": "Matthew Halloran",
-    "decision_deadline": "2026-05-31",
-    "final_disposition": "migrate",
-    "legacy_cli_path": "resources/neo4j/cli.sh",
-    "notes": "Phase 0 keep resource because it remains project-enabled; strong candidate for the next docker-service migration batch."
-  },
+  "description": "Managed Neo4j graph database service with native docker lifecycle and shell-retained graph operations.",
+  "template": "docker-service",
+  "driver": "docker-service",
   "portability_tier": "full",
   "category": "database",
   "platforms": {
     "linux": "supported",
     "macos": "supported",
     "windows": "partial"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "http",
+      "container": 7474,
+      "host": 7474
+    },
+    {
+      "name": "bolt",
+      "container": 7687,
+      "host": 7687
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:7474/",
+      "expected_status": [
+        200,
+        401
+      ],
+      "timeout_seconds": 10
+    }
+  ],
+  "runtime": {
+    "image": "neo4j:5.15.0",
+    "container_name": "vrooli-neo4j",
+    "env": {
+      "NEO4J_AUTH": "none",
+      "NEO4J_server_memory_heap_initial__size": "512M",
+      "NEO4J_server_memory_heap_max__size": "512M",
+      "NEO4J_PLUGINS": "[\"apoc\"]",
+      "NEO4J_apoc_export_file_enabled": "true",
+      "NEO4J_apoc_import_file_enabled": "true"
+    },
+    "volumes": [
+      {
+        "source": "${ROOT}/data/resources/neo4j/data",
+        "target": "/data"
+      },
+      {
+        "source": "${ROOT}/data/resources/neo4j/logs",
+        "target": "/logs"
+      },
+      {
+        "source": "${ROOT}/data/resources/neo4j/import",
+        "target": "/var/lib/neo4j/import"
+      },
+      {
+        "source": "${ROOT}/data/resources/neo4j/plugins",
+        "target": "/plugins"
+      }
+    ]
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30,
+    "retries": 3
+  },
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
   },
   "template_version": "1"
 }

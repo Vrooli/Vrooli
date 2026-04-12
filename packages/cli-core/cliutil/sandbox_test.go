@@ -1,6 +1,7 @@
 package cliutil
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -142,10 +143,14 @@ func TestResolveMergedPath(t *testing.T) {
 }
 
 func TestResolveScenarioPath(t *testing.T) {
+	oldFindRepoRoot := findRepoRoot
+	t.Cleanup(func() { findRepoRoot = oldFindRepoRoot })
+
 	t.Run("sandbox active and in scope returns merged path", func(t *testing.T) {
 		t.Setenv("VROOLI_SANDBOX_MERGED", "/tmp/sandbox/merged")
 		t.Setenv("VROOLI_SANDBOX_SCOPE", "scenarios/my-app")
 		t.Setenv("VROOLI_ROOT", "/home/user/Vrooli")
+		findRepoRoot = func() (string, error) { return "/home/user/Vrooli", nil }
 
 		got := ResolveScenarioPath("my-app")
 		want := "/tmp/sandbox/merged"
@@ -158,6 +163,7 @@ func TestResolveScenarioPath(t *testing.T) {
 		t.Setenv("VROOLI_SANDBOX_MERGED", "/tmp/sandbox/merged")
 		t.Setenv("VROOLI_SANDBOX_SCOPE", "scenarios/my-app")
 		t.Setenv("VROOLI_ROOT", "/home/user/Vrooli")
+		findRepoRoot = func() (string, error) { return "/home/user/Vrooli", nil }
 
 		got := ResolveScenarioPath("other-scenario")
 		want := filepath.Join("/home/user/Vrooli", "scenarios", "other-scenario")
@@ -170,6 +176,7 @@ func TestResolveScenarioPath(t *testing.T) {
 		t.Setenv("VROOLI_SANDBOX_MERGED", "")
 		t.Setenv("VROOLI_SANDBOX_SCOPE", "")
 		t.Setenv("VROOLI_ROOT", "/home/user/Vrooli")
+		findRepoRoot = func() (string, error) { return "/home/user/Vrooli", nil }
 
 		got := ResolveScenarioPath("my-app")
 		want := filepath.Join("/home/user/Vrooli", "scenarios", "my-app")
@@ -182,6 +189,7 @@ func TestResolveScenarioPath(t *testing.T) {
 		t.Setenv("VROOLI_SANDBOX_MERGED", "")
 		t.Setenv("VROOLI_SANDBOX_SCOPE", "")
 		t.Setenv("VROOLI_ROOT", "")
+		findRepoRoot = func() (string, error) { return "", errors.New("not found") }
 
 		home := os.Getenv("HOME")
 		got := ResolveScenarioPath("my-app")
@@ -195,6 +203,7 @@ func TestResolveScenarioPath(t *testing.T) {
 		t.Setenv("VROOLI_SANDBOX_MERGED", "/tmp/sandbox/merged")
 		t.Setenv("VROOLI_SANDBOX_SCOPE", "scenarios")
 		t.Setenv("VROOLI_ROOT", "/home/user/Vrooli")
+		findRepoRoot = func() (string, error) { return "/home/user/Vrooli", nil }
 
 		got := ResolveScenarioPath("any-scenario")
 		want := filepath.Join("/tmp/sandbox/merged", "any-scenario")
@@ -205,10 +214,14 @@ func TestResolveScenarioPath(t *testing.T) {
 }
 
 func TestResolveRepoRoot(t *testing.T) {
+	oldFindRepoRoot := findRepoRoot
+	t.Cleanup(func() { findRepoRoot = oldFindRepoRoot })
+
 	t.Run("sandbox with root scope returns merged path", func(t *testing.T) {
 		t.Setenv("VROOLI_SANDBOX_MERGED", "/tmp/sandbox/merged")
 		t.Setenv("VROOLI_SANDBOX_SCOPE", ".")
 		t.Setenv("VROOLI_ROOT", "/home/user/Vrooli")
+		findRepoRoot = func() (string, error) { return "/home/user/Vrooli", nil }
 
 		got := ResolveRepoRoot()
 		if got != "/tmp/sandbox/merged" {
@@ -220,6 +233,7 @@ func TestResolveRepoRoot(t *testing.T) {
 		t.Setenv("VROOLI_SANDBOX_MERGED", "/tmp/sandbox/merged")
 		t.Setenv("VROOLI_SANDBOX_SCOPE", "scenarios/my-app")
 		t.Setenv("VROOLI_ROOT", "/home/user/Vrooli")
+		findRepoRoot = func() (string, error) { return "/home/user/Vrooli", nil }
 
 		got := ResolveRepoRoot()
 		if got != "/home/user/Vrooli" {
@@ -231,6 +245,7 @@ func TestResolveRepoRoot(t *testing.T) {
 		t.Setenv("VROOLI_SANDBOX_MERGED", "")
 		t.Setenv("VROOLI_SANDBOX_SCOPE", "")
 		t.Setenv("VROOLI_ROOT", "/home/user/Vrooli")
+		findRepoRoot = func() (string, error) { return "/home/user/Vrooli", nil }
 
 		got := ResolveRepoRoot()
 		if got != "/home/user/Vrooli" {
@@ -243,6 +258,7 @@ func TestResolveRepoRoot(t *testing.T) {
 		t.Setenv("VROOLI_SANDBOX_SCOPE", "")
 		// Empty scope means IsSandboxActive is false, so falls back.
 		t.Setenv("VROOLI_ROOT", "/home/user/Vrooli")
+		findRepoRoot = func() (string, error) { return "/home/user/Vrooli", nil }
 
 		got := ResolveRepoRoot()
 		if got != "/home/user/Vrooli" {

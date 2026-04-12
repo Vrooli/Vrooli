@@ -460,6 +460,95 @@ func TestRunManifestNativeDockerLifecycle(t *testing.T) {
 	}
 }
 
+func TestStatusForManifestNativeComposeResource(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeResourceConfig(t, root, "fixture", true)
+	writeResourceManifestFixture(t, root, `{
+  "name": "fixture",
+  "display_name": "Fixture Compose",
+  "description": "Fixture compose resource",
+  "template": "compose-service",
+  "driver": "compose-service",
+  "compose_file": "compose.yaml",
+  "portability_tier": "partial",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  }
+}`)
+	writeResourceFileFixture(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:latest\n")
+	stateFile := writeFakeDocker(t)
+	if err := os.WriteFile(stateFile, []byte("running\n"), 0o644); err != nil {
+		t.Fatalf("write state: %v", err)
+	}
+
+	status, err := NewController(root, home).Status("fixture", true)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if !status.Installed || !status.Running {
+		t.Fatalf("status = %#v, expected installed/running", status)
+	}
+	if status.Healthy == nil || !*status.Healthy {
+		t.Fatalf("Healthy = %#v, want true", status.Healthy)
+	}
+}
+
+func TestRunManifestNativeComposeLifecycle(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeResourceConfig(t, root, "fixture", true)
+	writeResourceManifestFixture(t, root, `{
+  "name": "fixture",
+  "display_name": "Fixture Compose",
+  "description": "Fixture compose resource",
+  "template": "compose-service",
+  "driver": "compose-service",
+  "compose_file": "compose.yaml",
+  "portability_tier": "partial",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  }
+}`)
+	writeResourceFileFixture(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:latest\n")
+	stateFile := writeFakeDocker(t)
+
+	controller := NewController(root, home)
+	if err := controller.Run("fixture", []string{"start"}, ioDiscard{}, ioDiscard{}); err != nil {
+		t.Fatalf("Run(start): %v", err)
+	}
+	data, err := os.ReadFile(stateFile)
+	if err != nil {
+		t.Fatalf("read state: %v", err)
+	}
+	if strings.TrimSpace(string(data)) != "running" {
+		t.Fatalf("state after start = %q, want running", string(data))
+	}
+
+	var stdout bytes.Buffer
+	if err := controller.Run("fixture", []string{"logs"}, &stdout, ioDiscard{}); err != nil {
+		t.Fatalf("Run(logs): %v", err)
+	}
+	if !strings.Contains(stdout.String(), "fixture logs") {
+		t.Fatalf("logs output = %q", stdout.String())
+	}
+
+	if err := controller.Run("fixture", []string{"stop"}, ioDiscard{}, ioDiscard{}); err != nil {
+		t.Fatalf("Run(stop): %v", err)
+	}
+	data, err = os.ReadFile(stateFile)
+	if err != nil {
+		t.Fatalf("read state: %v", err)
+	}
+	if strings.TrimSpace(string(data)) != "stopped" {
+		t.Fatalf("state after stop = %q, want stopped", string(data))
+	}
+}
+
 func TestStatusForManifestNativeUnsupportedPlatform(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -668,15 +757,28 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 	}
 
 	expected := map[string]string{
-		"postgres":    "docker-service",
-		"redis":       "docker-service",
-		"qdrant":      "docker-service",
-		"browserless": "docker-service",
-		"vault":       "docker-service",
-		"claude-code": "external-cli",
-		"codex":       "external-cli",
-		"gemini":      "cloud-api",
-		"openrouter":  "cloud-api",
+		"postgres":              "docker-service",
+		"redis":                 "docker-service",
+		"qdrant":                "docker-service",
+		"browserless":           "docker-service",
+		"vault":                 "docker-service",
+		"litellm":               "docker-service",
+		"minio":                 "docker-service",
+		"neo4j":                 "docker-service",
+		"questdb":               "docker-service",
+		"searxng":               "docker-service",
+		"claude-code":           "external-cli",
+		"codex":                 "external-cli",
+		"k6":                    "external-cli",
+		"opencode":              "external-cli",
+		"sqlite":                "external-cli",
+		"ollama":                "docker-service",
+		"judge0":                "compose-service",
+		"unstructured-io":       "docker-service",
+		"gemini":                "cloud-api",
+		"openrouter":            "cloud-api",
+		"twilio":                "cloud-api",
+		"cloudflare-ai-gateway": "cloud-api",
 	}
 	seen := make(map[string]Resource)
 	for _, item := range items {
@@ -705,7 +807,7 @@ func TestProjectPhase5ResourceManifestsValidate(t *testing.T) {
 	root := projectRootForResourcesTest(t)
 	controller := NewController(root, t.TempDir())
 
-	for _, name := range []string{"postgres", "redis", "qdrant", "browserless", "vault", "claude-code", "codex", "gemini", "openrouter"} {
+	for _, name := range []string{"postgres", "redis", "qdrant", "browserless", "vault", "litellm", "minio", "neo4j", "questdb", "searxng", "claude-code", "codex", "k6", "opencode", "sqlite", "ollama", "judge0", "unstructured-io", "gemini", "openrouter", "twilio", "cloudflare-ai-gateway"} {
 		manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(root, name))
 		if err != nil {
 			t.Fatalf("loadResourceManifest(%s): %v", name, err)
@@ -771,25 +873,12 @@ func TestProjectPhase6LegacyAdaptersHaveDecisionMetadata(t *testing.T) {
 	controller := NewController(root, t.TempDir())
 
 	adapterNames := []string{
-		"cloudflare-ai-gateway",
 		"comfyui",
 		"home-assistant",
-		"judge0",
-		"k6",
 		"kokoro",
-		"litellm",
 		"mail-in-a-box",
-		"minio",
-		"neo4j",
-		"ollama",
-		"opencode",
 		"postgis",
-		"questdb",
 		"sagemath",
-		"searxng",
-		"sqlite",
-		"twilio",
-		"unstructured-io",
 		"whisper",
 	}
 	deadlinePattern := regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
@@ -1144,6 +1233,57 @@ cmd="${1:-}"
 shift || true
 
 case "$cmd" in
+  compose)
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -f|--project-name)
+          shift 2
+          ;;
+        *)
+          break
+          ;;
+      esac
+    done
+    subcmd="${1:-}"
+    shift || true
+    case "$subcmd" in
+      ps)
+        if [[ "${1:-}" == "-a" ]]; then
+          shift
+        fi
+        if [[ "${1:-}" == "--format" ]]; then
+          shift 2
+        fi
+        if [[ -f "$state_file" ]]; then
+          state="$(tr -d '\n' < "$state_file")"
+          if [[ "$state" == "running" ]]; then
+            printf '[{"Service":"app","State":"running","Health":"healthy"}]'
+          else
+            printf '[{"Service":"app","State":"exited","Health":""}]'
+          fi
+        else
+          printf '[]'
+        fi
+        exit 0
+        ;;
+      pull|up)
+        printf 'running\n' > "$state_file"
+        exit 0
+        ;;
+      stop)
+        printf 'stopped\n' > "$state_file"
+        exit 0
+        ;;
+      down)
+        rm -f "$state_file"
+        exit 0
+        ;;
+      logs)
+        echo "fixture logs"
+        exit 0
+        ;;
+    esac
+    ;;
   image)
     if [[ "${1:-}" == "inspect" ]]; then
       exit 0
@@ -1203,6 +1343,17 @@ exit 1
 		lookPathCommandFn = originalLookPath
 	})
 	return stateFile
+}
+
+func writeResourceFileFixture(t *testing.T, root, relPath, contents string) {
+	t.Helper()
+	path := filepath.Join(root, relPath)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
 }
 
 func projectRootForResourcesTest(t *testing.T) string {

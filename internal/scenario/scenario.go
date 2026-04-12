@@ -13,9 +13,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 var ErrNotFound = errors.New("scenario not found")
+
+const defaultScenarioServiceRelPath = ".vrooli/service.json"
 
 type SandboxEnv struct {
 	ID     string
@@ -211,7 +215,7 @@ func Load(root, name string, env SandboxEnv) (Scenario, error) {
 	}
 
 	scenarioPath, redirected := ResolveScenarioPath(root, name, env)
-	servicePath := filepath.Join(scenarioPath, ".vrooli", "service.json")
+	servicePath := scenarioServicePath(root, name, scenarioPath)
 	manifest, err := ReadService(servicePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -235,7 +239,7 @@ func Load(root, name string, env SandboxEnv) (Scenario, error) {
 func Discover(root string, env SandboxEnv) ([]Scenario, error) {
 	names := make(map[string]struct{})
 
-	canonicalNames, err := scanScenarioNames(filepath.Join(root, "scenarios"))
+	canonicalNames, err := scanScenarioNames(scenarioBaseDir(root))
 	if err != nil {
 		return nil, err
 	}
@@ -309,13 +313,13 @@ func (deps *Dependencies) UnmarshalJSON(data []byte) error {
 }
 
 func ResolveScenarioPath(root, name string, env SandboxEnv) (string, bool) {
-	defaultPath := filepath.Clean(filepath.Join(root, "scenarios", name))
+	defaultPath := scenarioRootPath(root, name)
 	if !env.Enabled() || !ScenarioInScope(name, env.Scope) {
 		return defaultPath, false
 	}
 
 	mergedPath := filepath.Clean(ResolveMergedPath(name, env.Scope, env.Merged))
-	mergedServicePath := filepath.Join(mergedPath, ".vrooli", "service.json")
+	mergedServicePath := filepath.Join(mergedPath, filepath.FromSlash(defaultScenarioServiceRelPath))
 	if info, err := os.Stat(mergedPath); err == nil && info.IsDir() {
 		if _, err := os.Stat(mergedServicePath); err == nil {
 			return mergedPath, true
@@ -643,7 +647,7 @@ func scanScenarioNames(baseDir string) ([]string, error) {
 		if !entry.IsDir() {
 			continue
 		}
-		servicePath := filepath.Join(baseDir, entry.Name(), ".vrooli", "service.json")
+		servicePath := filepath.Join(baseDir, entry.Name(), filepath.FromSlash(defaultScenarioServiceRelPath))
 		if _, err := os.Stat(servicePath); err == nil {
 			names = append(names, entry.Name())
 		}
@@ -673,10 +677,36 @@ func scanSandboxScenarioNames(env SandboxEnv) ([]string, error) {
 		name := strings.TrimPrefix(scope, "scenarios/")
 		name = strings.SplitN(name, "/", 2)[0]
 		resolved := ResolveMergedPath(name, env.Scope, env.Merged)
-		if _, err := os.Stat(filepath.Join(resolved, ".vrooli", "service.json")); err == nil {
+		if _, err := os.Stat(filepath.Join(resolved, filepath.FromSlash(defaultScenarioServiceRelPath))); err == nil {
 			return []string{name}, nil
 		}
 	}
 
 	return nil, nil
+}
+
+func scenarioBaseDir(root string) string {
+	contract, err := repocontract.LoadDefault(root)
+	if err != nil {
+		return filepath.Join(root, "scenarios")
+	}
+	path, err := contract.TopLevelDir(root, "scenarios")
+	if err != nil {
+		return filepath.Join(root, "scenarios")
+	}
+	return path
+}
+
+func scenarioRootPath(root, name string) string {
+	if path, err := repocontract.ResolveScenarioPath(root, name); err == nil {
+		return filepath.Clean(path)
+	}
+	return filepath.Clean(filepath.Join(root, "scenarios", name))
+}
+
+func scenarioServicePath(root, name, scenarioPath string) string {
+	if path, err := repocontract.ResolveScenarioFile(root, name, "service"); err == nil {
+		return filepath.Clean(path)
+	}
+	return filepath.Join(scenarioPath, filepath.FromSlash(defaultScenarioServiceRelPath))
 }

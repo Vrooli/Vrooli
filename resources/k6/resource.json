@@ -2,22 +2,54 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "k6",
   "display_name": "k6",
-  "description": "Transitional k6 resource kept behind a typed legacy adapter while native external-cli/manual lifecycle ownership is scoped.",
-  "template": "legacy-adapter",
-  "driver": "legacy-adapter",
-  "legacy_adapter": {
-    "owner": "Matthew Halloran",
-    "decision_deadline": "2026-05-31",
-    "final_disposition": "migrate",
-    "legacy_cli_path": "resources/k6/cli.sh",
-    "notes": "Phase 0 keep resource because it remains project-enabled; reassess whether it belongs on external-cli or manual template."
-  },
+  "description": "Grafana k6 CLI for load and performance testing, with native binary/install/status handling.",
+  "template": "external-cli",
+  "driver": "external-cli",
+  "binary": "k6",
+  "version_args": [
+    "version"
+  ],
   "portability_tier": "full",
   "category": "development",
   "platforms": {
     "linux": "supported",
     "macos": "supported",
     "windows": "supported"
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "command": [
+        "k6",
+        "version"
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "install": {
+    "platforms": {
+      "linux": [
+        "bash",
+        "-lc",
+        "if command -v snap >/dev/null 2>&1; then sudo snap install k6; elif command -v apt-get >/dev/null 2>&1; then sudo gpg -k >/dev/null 2>&1 || true; sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69 2>/dev/null || wget -q -O - https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg; echo 'deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main' | sudo tee /etc/apt/sources.list.d/k6.list >/dev/null; sudo apt-get update; sudo apt-get install -y k6; else tmp_dir=$(mktemp -d); arch=$(uname -m); case \"$arch\" in x86_64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; *) echo \"Unsupported architecture: $arch\" >&2; exit 1 ;; esac; url=\"https://github.com/grafana/k6/releases/download/v0.49.0/k6-v0.49.0-linux-$arch.tar.gz\"; curl -fsSL \"$url\" -o \"$tmp_dir/k6.tar.gz\"; tar -xzf \"$tmp_dir/k6.tar.gz\" -C \"$tmp_dir\"; sudo mv \"$tmp_dir/k6-v0.49.0-linux-$arch/k6\" /usr/local/bin/k6; sudo chmod +x /usr/local/bin/k6; rm -rf \"$tmp_dir\"; fi"
+      ],
+      "macos": [
+        "brew",
+        "install",
+        "k6"
+      ],
+      "windows": [
+        "winget",
+        "install",
+        "--id",
+        "Grafana.k6",
+        "-e"
+      ]
+    }
+  },
+  "capabilities": {
+    "supports_logs": false,
+    "supports_content_ops": true
   },
   "template_version": "1"
 }

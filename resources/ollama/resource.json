@@ -2,22 +2,56 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "ollama",
   "display_name": "Ollama",
-  "description": "Transitional Ollama resource kept behind a typed legacy adapter while native model-serving lifecycle ownership is scoped.",
-  "template": "legacy-adapter",
-  "driver": "legacy-adapter",
-  "legacy_adapter": {
-    "owner": "Matthew Halloran",
-    "decision_deadline": "2026-05-31",
-    "final_disposition": "migrate",
-    "legacy_cli_path": "resources/ollama/cli.sh",
-    "notes": "Highest-value remaining Phase 0 keep resource by scenario usage; native migration should prioritize model management and health checks."
-  },
+  "description": "Managed Ollama model-serving runtime for local inference workloads.",
+  "template": "docker-service",
+  "driver": "docker-service",
   "portability_tier": "partial",
   "category": "ai",
   "platforms": {
     "linux": "supported",
     "macos": "supported",
     "windows": "partial"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 11434,
+      "host": 11434
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:11434/api/tags",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "runtime": {
+    "image": "ollama/ollama:0.11.7",
+    "container_name": "ollama",
+    "env": {
+      "OLLAMA_HOST": "0.0.0.0:11434",
+      "OLLAMA_NUM_PARALLEL": "16",
+      "OLLAMA_MAX_LOADED_MODELS": "3",
+      "OLLAMA_FLASH_ATTENTION": "1",
+      "OLLAMA_ORIGINS": "*"
+    },
+    "volumes": [
+      {
+        "source": "${HOME}/.ollama",
+        "target": "/root/.ollama"
+      }
+    ]
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30,
+    "retries": 5
+  },
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
   },
   "template_version": "1"
 }

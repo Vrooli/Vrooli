@@ -7,17 +7,15 @@ import (
 	"github.com/vrooli/vrooli/internal/logx"
 )
 
-func createCommandLogger(verbose bool, stderr io.Writer) *slog.Logger {
-	level := logx.LevelFromEnv()
-	if verbose && level > slog.LevelDebug {
-		level = slog.LevelDebug
-	}
-
-	handler := slog.NewTextHandler(stderr, &slog.HandlerOptions{
-		Level: level,
+func createCommandLogger(globals globalOptions, stderr io.Writer) (*slog.Logger, func()) {
+	logger, _, restore := logx.Install(logx.Options{
+		Component:      "vrooli",
+		Writer:         stderr,
+		Verbose:        globals.verbose,
+		SetDefault:     true,
+		RedirectStdlib: true,
 	})
-	logger := slog.New(handler).With("component", "vrooli")
-	return logger
+	return logger, restore
 }
 
 func debugLog(logger *slog.Logger, msg string, args ...any) {

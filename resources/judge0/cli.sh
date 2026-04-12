@@ -51,11 +51,11 @@ done
 cli::init "judge0" "Secure code execution service management" "v2"
 
 # Override default handlers to point directly to judge0 implementations
-CLI_COMMAND_HANDLERS["manage::install"]="judge0::install::main"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="judge0::install::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="judge0::docker::start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="judge0::docker::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="judge0::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="judge0::status::is_healthy"
 
 # Override content handlers for Judge0-specific code execution functionality
@@ -96,8 +96,8 @@ cli::register_command "health-stop" "Stop health monitoring" "judge0::health::mo
 cli::register_command "health-cache-clear" "Clear health cache" "judge0::health::monitor::cache_clear"
 
 # Additional information commands
-cli::register_command "status" "Show detailed resource status" "judge0::status"
-cli::register_command "logs" "Show Judge0 logs" "judge0::docker::logs"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
+cli::register_command "logs" "Show Judge0 logs" "cli::delegate_logs"
 cli::register_command "credentials" "Show Judge0 credentials for integration" "judge0::core::credentials"
 cli::register_command "info" "Get system information" "judge0::api::system_info"
 

@@ -30,6 +30,8 @@ func driverForManifest(manifest ResourceManifest) (resourceDriver, error) {
 	switch manifest.Driver {
 	case "docker-service":
 		return dockerServiceDriver{}, nil
+	case "compose-service":
+		return composeServiceDriver{}, nil
 	case "external-cli":
 		return externalCLIDriver{}, nil
 	case "cloud-api":
@@ -53,6 +55,136 @@ func ensureSupportedPlatform(manifest ResourceManifest) error {
 type dockerServiceDriver struct{}
 
 func (dockerServiceDriver) Name() string { return "docker-service" }
+
+type composeServiceDriver struct{}
+
+func (composeServiceDriver) Name() string { return "compose-service" }
+
+func (composeServiceDriver) Status(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, fast bool) (Status, error) {
+	status := Status{
+		Resource:   item,
+		StatusCode: StatusCodeOK,
+		Message:    "stopped",
+	}
+
+	if err := ensureSupportedPlatform(manifest); err != nil {
+		status.StatusCode = StatusCodeUnsupportedPlatform
+		status.Message = err.Error()
+		status.ProbeError = err.Error()
+		return status, nil
+	}
+	if _, err := lookPathCommandFn("docker"); err != nil {
+		status.StatusCode = StatusCodeUnavailable
+		status.Message = "docker is unavailable"
+		status.ProbeError = err.Error()
+		return status, nil
+	}
+
+	services, err := inspectComposeServices(ctx, controller, manifest)
+	if err != nil {
+		status.StatusCode = StatusCodeCommandError
+		status.Message = "docker compose ps failed"
+		status.ProbeError = err.Error()
+		return status, nil
+	}
+	if len(services) == 0 {
+		status.Message = "not installed"
+		return status, nil
+	}
+
+	status.Installed = true
+	for _, service := range services {
+		if strings.EqualFold(strings.TrimSpace(service.State), "running") {
+			status.Running = true
+			break
+		}
+	}
+	if !status.Running {
+		healthy := false
+		status.Healthy = &healthy
+		status.Health = "stopped"
+		status.Message = "stopped"
+		return status, nil
+	}
+
+	healthy := true
+	status.Healthy = &healthy
+	status.Health = "running"
+	status.Message = "running"
+	if len(manifest.HealthChecks) > 0 {
+		health, err := controller.runResourceHealthChecks(ctx, manifest)
+		if err != nil {
+			status.StatusCode = StatusCodeCommandError
+			status.Message = "health checks failed"
+			status.ProbeError = err.Error()
+			return status, nil
+		}
+		healthy = health.Healthy
+		status.Healthy = &healthy
+		if strings.TrimSpace(health.Message) != "" {
+			status.Message = health.Message
+		}
+	}
+	if healthy {
+		status.Health = "healthy"
+		status.Message = "healthy"
+	} else {
+		status.Health = "unhealthy"
+		status.Message = "unhealthy"
+	}
+	return status, nil
+}
+
+func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, args []string, stdout, stderr io.Writer) error {
+	if err := ensureSupportedPlatform(manifest); err != nil {
+		return &Error{
+			Code:      ErrorCodeCommandUnavailable,
+			Resource:  item.Name,
+			Operation: action,
+			Category:  "Platform",
+			Err:       err,
+		}
+	}
+
+	switch action {
+	case "status":
+		status, err := d.Status(ctx, controller, item, manifest, !containsString(args, "--no-fast"))
+		if err != nil {
+			return err
+		}
+		if containsString(args, "--format") && nextArgValue(args, "--format") == "json" {
+			return json.NewEncoder(stdout).Encode(map[string]any{
+				"installed": status.Installed,
+				"running":   status.Running,
+				"healthy":   status.Healthy,
+				"health":    status.Health,
+				"message":   status.Message,
+			})
+		}
+		_, err = fmt.Fprintf(stdout, "%s: %s\n", item.Name, status.Message)
+		return err
+	case "install":
+		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "pull")
+	case "start":
+		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "up", "-d")
+	case "restart":
+		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "up", "-d", "--force-recreate")
+	case "stop":
+		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "stop")
+	case "uninstall":
+		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "down", "-v", "--remove-orphans")
+	case "logs":
+		return composeCommand(ctx, controller, manifest, stdout, stderr, "logs")
+	default:
+		return &Error{
+			Code:      ErrorCodeCommandUnavailable,
+			Resource:  item.Name,
+			Operation: action,
+			Category:  "Driver",
+			Err:       fmt.Errorf("action %q is not supported by driver %q", action, d.Name()),
+		}
+	}
+}
 
 func (dockerServiceDriver) Status(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, fast bool) (Status, error) {
 	status := Status{
@@ -179,11 +311,67 @@ type dockerState struct {
 	Running bool `json:"Running"`
 }
 
+type composeServiceState struct {
+	Service string `json:"Service"`
+	State   string `json:"State"`
+	Health  string `json:"Health"`
+}
+
 func dockerContainerName(manifest ResourceManifest) string {
 	if strings.TrimSpace(manifest.Runtime.ContainerName) != "" {
 		return strings.TrimSpace(manifest.Runtime.ContainerName)
 	}
 	return "vrooli-" + manifest.Name
+}
+
+func composeProjectName(manifest ResourceManifest) string {
+	replacer := strings.NewReplacer("/", "-", "\\", "-", " ", "-", "_", "-")
+	return "vrooli-" + replacer.Replace(strings.TrimSpace(manifest.Name))
+}
+
+func composeFilePath(controller *Controller, manifest ResourceManifest) string {
+	composeFile := strings.TrimSpace(manifest.ComposeFile)
+	if composeFile == "" {
+		return filepath.Join(controller.Root, "resources", manifest.Name, "compose.yaml")
+	}
+	if filepath.IsAbs(composeFile) {
+		return composeFile
+	}
+	return filepath.Join(controller.Root, "resources", manifest.Name, filepath.FromSlash(composeFile))
+}
+
+func inspectComposeServices(ctx context.Context, controller *Controller, manifest ResourceManifest) ([]composeServiceState, error) {
+	output, err := composeOutput(ctx, controller, manifest, "ps", "-a", "--format", "json")
+	if err != nil {
+		return nil, err
+	}
+	trimmed := strings.TrimSpace(string(output))
+	if trimmed == "" {
+		return nil, nil
+	}
+
+	var services []composeServiceState
+	if strings.HasPrefix(trimmed, "[") {
+		if err := json.Unmarshal(output, &services); err != nil {
+			return nil, fmt.Errorf("parse docker compose ps output: %w", err)
+		}
+		return services, nil
+	}
+
+	lines := strings.Split(trimmed, "\n")
+	services = make([]composeServiceState, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var service composeServiceState
+		if err := json.Unmarshal([]byte(line), &service); err != nil {
+			return nil, fmt.Errorf("parse docker compose ps line: %w", err)
+		}
+		services = append(services, service)
+	}
+	return services, nil
 }
 
 func inspectDockerContainer(ctx context.Context, controller *Controller, manifest ResourceManifest) (dockerState, bool, error) {
@@ -250,8 +438,22 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 		if !filepath.IsAbs(source) {
 			source = filepath.Join(resourceDir, filepath.FromSlash(source))
 		}
-		if err := os.MkdirAll(source, 0o755); err != nil {
-			return fmt.Errorf("create volume source %s: %w", source, err)
+		if volumeSourceLooksLikeFile(volume) {
+			parent := filepath.Dir(source)
+			if err := os.MkdirAll(parent, 0o755); err != nil {
+				return fmt.Errorf("create volume source parent %s: %w", parent, err)
+			}
+			if _, err := os.Stat(source); os.IsNotExist(err) {
+				file, createErr := os.Create(source)
+				if createErr != nil {
+					return fmt.Errorf("create volume source file %s: %w", source, createErr)
+				}
+				_ = file.Close()
+			}
+		} else {
+			if err := os.MkdirAll(source, 0o755); err != nil {
+				return fmt.Errorf("create volume source %s: %w", source, err)
+			}
 		}
 		args = append(args, "-v", source+":"+volume.Target)
 	}
@@ -322,6 +524,18 @@ func dockerCommand(ctx context.Context, controller *Controller, stdout, stderr i
 	return waitErr
 }
 
+func composeOutput(ctx context.Context, controller *Controller, manifest ResourceManifest, args ...string) ([]byte, error) {
+	cmdArgs := []string{"compose", "-f", composeFilePath(controller, manifest), "--project-name", composeProjectName(manifest)}
+	cmdArgs = append(cmdArgs, args...)
+	return dockerOutput(ctx, controller, cmdArgs...)
+}
+
+func composeCommand(ctx context.Context, controller *Controller, manifest ResourceManifest, stdout, stderr io.Writer, args ...string) error {
+	cmdArgs := []string{"compose", "-f", composeFilePath(controller, manifest), "--project-name", composeProjectName(manifest)}
+	cmdArgs = append(cmdArgs, args...)
+	return dockerCommand(ctx, controller, stdout, stderr, cmdArgs...)
+}
+
 func containsString(items []string, target string) bool {
 	for _, item := range items {
 		if item == target {
@@ -349,6 +563,15 @@ func expandResourceRuntimeValue(controller *Controller, value string) string {
 	value = strings.ReplaceAll(value, "${ROOT}", controller.Root)
 	value = strings.ReplaceAll(value, "$ROOT", controller.Root)
 	return value
+}
+
+func volumeSourceLooksLikeFile(volume ResourceVolume) bool {
+	sourceBase := filepath.Base(filepath.FromSlash(volume.Source))
+	targetBase := filepath.Base(filepath.FromSlash(volume.Target))
+	if strings.HasPrefix(sourceBase, ".") || strings.HasPrefix(targetBase, ".") {
+		return true
+	}
+	return strings.Contains(sourceBase, ".") || strings.Contains(targetBase, ".")
 }
 
 type externalCLIDriver struct{}

@@ -2,22 +2,55 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "searxng",
   "display_name": "SearXNG",
-  "description": "Transitional SearXNG resource kept behind a typed legacy adapter while native docker-service migration is scoped.",
-  "template": "legacy-adapter",
-  "driver": "legacy-adapter",
-  "legacy_adapter": {
-    "owner": "Matthew Halloran",
-    "decision_deadline": "2026-05-31",
-    "final_disposition": "migrate",
-    "legacy_cli_path": "resources/searxng/cli.sh",
-    "notes": "Phase 0 keep resource because it remains project-enabled and scenario-backed."
-  },
+  "description": "Managed SearXNG metasearch service with native docker lifecycle and shell-retained search/configuration workflows.",
+  "template": "docker-service",
+  "driver": "docker-service",
   "portability_tier": "full",
   "category": "search",
   "platforms": {
     "linux": "supported",
     "macos": "supported",
     "windows": "partial"
+  },
+  "dependencies": [
+    "redis"
+  ],
+  "ports": [
+    {
+      "name": "http",
+      "container": 8080,
+      "host": 8280
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8280/stats",
+      "timeout_seconds": 10
+    }
+  ],
+  "runtime": {
+    "image": "searxng/searxng:2025.1.31-157c9267e",
+    "container_name": "searxng",
+    "env": {
+      "SEARXNG_BASE_URL": "http://localhost:8280",
+      "SEARXNG_SECRET": "vrooli-searxng-dev-secret"
+    },
+    "volumes": [
+      {
+        "source": "${HOME}/.searxng",
+        "target": "/etc/searxng"
+      }
+    ]
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30,
+    "retries": 3
+  },
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
   },
   "template_version": "1"
 }

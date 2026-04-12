@@ -32,6 +32,7 @@ type ResourceManifest struct {
 	Description     string                       `json:"description,omitempty"`
 	Template        string                       `json:"template,omitempty"`
 	Driver          string                       `json:"driver"`
+	ComposeFile     string                       `json:"compose_file,omitempty"`
 	LegacyAdapter   ResourceLegacyAdapter        `json:"legacy_adapter,omitempty"`
 	Binary          string                       `json:"binary,omitempty"`
 	VersionArgs     []string                     `json:"version_args,omitempty"`
@@ -163,6 +164,10 @@ func validateResourceManifest(manifest ResourceManifest) error {
 	case "docker-service":
 		if strings.TrimSpace(manifest.Runtime.Image) == "" {
 			return fmt.Errorf("runtime.image is required for docker-service resources")
+		}
+	case "compose-service":
+		if strings.TrimSpace(manifest.ComposeFile) == "" {
+			return fmt.Errorf("compose_file is required for compose-service resources")
 		}
 	case "legacy-adapter":
 		if err := validateResourceLegacyAdapter(manifest.LegacyAdapter); err != nil {

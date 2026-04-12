@@ -2,22 +2,49 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "unstructured-io",
   "display_name": "Unstructured IO",
-  "description": "Transitional Unstructured IO resource kept behind a typed legacy adapter while native docker-service migration is scoped.",
-  "template": "legacy-adapter",
-  "driver": "legacy-adapter",
-  "legacy_adapter": {
-    "owner": "Matthew Halloran",
-    "decision_deadline": "2026-05-31",
-    "final_disposition": "migrate",
-    "legacy_cli_path": "resources/unstructured-io/cli.sh",
-    "notes": "Phase 0 keep resource because active scenario usage still exists; likely next docker-service or compose-service migration candidate."
-  },
+  "description": "Managed Unstructured API service for document partitioning and OCR-backed extraction.",
+  "template": "docker-service",
+  "driver": "docker-service",
   "portability_tier": "full",
   "category": "ai",
   "platforms": {
     "linux": "supported",
     "macos": "supported",
     "windows": "partial"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 8000,
+      "host": 11450
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:11450/healthcheck",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "runtime": {
+    "image": "downloads.unstructured.io/unstructured-io/unstructured-api:latest",
+    "container_name": "vrooli-unstructured-io",
+    "env": {
+      "UNSTRUCTURED_API_LOG_LEVEL": "INFO",
+      "UNSTRUCTURED_API_MAX_REQUEST_SIZE": "52428800",
+      "UNSTRUCTURED_API_WORKERS": "1",
+      "UNSTRUCTURED_API_PORT": "8000"
+    }
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30,
+    "retries": 5
+  },
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
   },
   "template_version": "1"
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/logx"
 )
 
 const (
@@ -24,6 +22,7 @@ const (
 var (
 	resolveSourceRootFn = buildinfo.ResolveSourceRoot
 	isStaleFn           = buildinfo.IsStale
+	checkStalenessFn    = buildinfo.CheckStaleness
 	rebuildAndReexecFn  = buildinfo.RebuildAndReexec
 	lookPathFn          = exec.LookPath
 	execCommandFn       = runExternalCommand
@@ -37,8 +36,6 @@ const (
 	errorCategoryEnvironment = "Environment"
 	errorCategoryRuntime     = "Runtime"
 )
-
-type topLevelCommandHandler func(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error
 
 type globalOptions struct {
 	json         bool
@@ -85,60 +82,11 @@ func main() {
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
-	parsed, err := parseArgs(args)
-	if err != nil {
-		printErrorWithContext(stderr, newErrorWithCategory(err, errorCategoryUsage, "Use --help for available commands", nil))
-		return 1
-	}
-	parsed.globals, parsed.args = consumeInlineGlobalFlags(parsed.globals, parsed.args)
-	logger := newLoggerFn(parsed.globals.verbose, stderr)
-	slog.SetDefault(logger)
-	logx.RedirectStandardLibrary(logger)
-	debugLog(logger, "Parsed command", "command", parsed.command, "args", parsed.args, "json", parsed.globals.json, "verbose", parsed.globals.verbose)
-
-	root, err := resolveRoot()
-	if err != nil {
-		printErrorWithContext(stderr, newErrorWithCategory(err, errorCategoryEnvironment, "Run from a Vrooli repository root or set VROOLI_SOURCE_ROOT", nil))
-		return 1
-	}
-	debugLog(logger, "Resolved root", "path", root)
-	primeRootEnv(root)
-
-	if parsed.globals.noColor {
-		_ = os.Setenv("NO_COLOR", "1")
-	}
-	if parsed.globals.noColor {
-		debugLog(logger, "NO_COLOR requested by user flags")
-	}
-
-	if !parsed.globals.noStaleCheck && isStaleFn() {
-		debugLog(logger, "Stale check triggered")
-		if err := rebuildAndReexecFn(args); err != nil {
-			printErrorWithContext(stderr, newErrorWithCategory(
-				fmt.Errorf("stale binary check failed: %w", err),
-				errorCategoryRuntime,
-				"Use --no-stale-check for local experiments",
-				nil,
-			))
-			return 1
-		}
-		debugLog(logger, "Rebuilt command binary and re-executed")
-		return 0
-	}
-
-	if err := dispatch(root, parsed, stdout, stderr); err != nil {
-		printErrorWithContext(stderr, err)
-		return exitCode(err)
-	}
-	return 0
+	return configuredApp().Run(args, stdout, stderr)
 }
 
 func resolveRoot() (string, error) {
-	root, err := resolveSourceRootFn()
-	if err != nil {
-		return "", fmt.Errorf("resolve Vrooli root: %w", err)
-	}
-	return filepath.Clean(root), nil
+	return configuredApp().resolveRoot()
 }
 
 func primeRootEnv(root string) {
@@ -199,39 +147,39 @@ func consumeInlineGlobalFlags(globals globalOptions, args []string) (globalOptio
 	return globals, filtered
 }
 
-func dispatch(root string, parsed parsedArgs, stdout, stderr io.Writer) error {
+func dispatch(app *App, ctx *commandContext, parsed parsedArgs) error {
 	switch parsed.command {
 	case "help":
-		return runMainHelpCommand(root, parsed.globals, parsed.args, stdout, stderr)
+		return app.runMainHelpCommand(ctx, parsed.args)
 	case "version":
-		return runVersionCommand(root, parsed.globals, parsed.args, stdout, stderr)
+		return app.runVersionCommand(ctx, parsed.args)
 	}
 	handler, ok := topLevelCommands[parsed.command]
 	if !ok {
 		return newUnknownCommandError(parsed.command)
 	}
-	return handler(root, parsed.globals, parsed.args, stdout, stderr)
+	return handler(app, ctx, parsed.args)
 }
 
-func runMainHelpCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	showMainHelp(stdout)
+func (app *App) runMainHelpCommand(ctx *commandContext, args []string) error {
+	showMainHelp(ctx.Stdout)
 	return nil
 }
 
-func runVersionCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	return showVersion(stdout, root, globals)
+func (app *App) runVersionCommand(ctx *commandContext, args []string) error {
+	return showVersion(ctx.Stdout, ctx.Root, ctx.Globals)
 }
 
-func runTopLevelCleanupCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	return runCleanupCommand(root, parsedArgs{globals: globals, args: args}, stdout, stderr)
+func (app *App) runTopLevelCleanupCommand(ctx *commandContext, args []string) error {
+	return runCleanupCommand(ctx.Root, parsedArgs{globals: ctx.Globals, args: args}, ctx.Stdout, ctx.Stderr)
 }
 
-func runTopLevelSetupCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	return runProjectSetupCommand(root, args, stdout, stderr)
+func (app *App) runTopLevelSetupCommand(ctx *commandContext, args []string) error {
+	return app.runTopLevelSetup(ctx, args)
 }
 
-func runTopLevelDevelopCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	return runProjectDevelopCommand(root, args, stdout, stderr)
+func (app *App) runTopLevelDevelopCommand(ctx *commandContext, args []string) error {
+	return app.runTopLevelDevelop(ctx, args)
 }
 
 func runCleanupCommand(root string, parsed parsedArgs, stdout, stderr io.Writer) error {
@@ -405,15 +353,7 @@ func containsArg(args []string, target string) bool {
 }
 
 func commandEnv(root string, globals globalOptions) []string {
-	env := os.Environ()
-	env = setEnvValue(env, "VROOLI_ROOT", root)
-	if strings.TrimSpace(os.Getenv(buildinfo.SourceRootEnvVar)) == "" {
-		env = setEnvValue(env, buildinfo.SourceRootEnvVar, root)
-	}
-	if globals.noColor {
-		env = setEnvValue(env, "NO_COLOR", "1")
-	}
-	return env
+	return configuredApp().commandEnv(root, globals)
 }
 
 func setEnvValue(env []string, key, value string) []string {

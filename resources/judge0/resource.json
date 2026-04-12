@@ -2,22 +2,35 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "judge0",
   "display_name": "Judge0",
-  "description": "Transitional Judge0 resource kept behind a typed legacy adapter while native container orchestration is scoped.",
-  "template": "legacy-adapter",
-  "driver": "legacy-adapter",
-  "legacy_adapter": {
-    "owner": "Matthew Halloran",
-    "decision_deadline": "2026-05-31",
-    "final_disposition": "migrate",
-    "legacy_cli_path": "resources/judge0/cli.sh",
-    "notes": "Phase 0 keep resource because it remains project-enabled and scenario-backed."
-  },
+  "description": "Managed Judge0 execution stack for sandboxed code execution with Redis and PostgreSQL sidecars.",
+  "template": "compose-service",
+  "driver": "compose-service",
+  "compose_file": "compose.yaml",
   "portability_tier": "full",
   "category": "development",
   "platforms": {
     "linux": "supported",
     "macos": "supported",
     "windows": "partial"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 2358,
+      "host": 2358
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:2358/version",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
   },
   "template_version": "1"
 }

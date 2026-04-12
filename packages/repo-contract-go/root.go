@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+var (
+	statPath     = os.Stat
+	loadContract = Load
+)
+
 // FindRepoRoot locates the nearest ancestor that contains a valid repo contract
 // and matches its required root markers.
 func FindRepoRoot(start string) (string, error) {
@@ -15,7 +20,7 @@ func FindRepoRoot(start string) (string, error) {
 	}
 
 	current := filepath.Clean(start)
-	info, err := os.Stat(current)
+	info, err := statPath(current)
 	if err != nil {
 		return "", &Error{Kind: ErrNotFound, Message: "stat start path", Details: start, Err: err}
 	}
@@ -25,8 +30,8 @@ func FindRepoRoot(start string) (string, error) {
 
 	for {
 		contractPath := filepath.Join(current, filepath.FromSlash(defaultContractRelPath))
-		if _, err := os.Stat(contractPath); err == nil {
-			contract, loadErr := Load(contractPath)
+		if _, err := statPath(contractPath); err == nil {
+			contract, loadErr := loadContract(contractPath)
 			if loadErr != nil {
 				return "", loadErr
 			}
@@ -52,7 +57,7 @@ func FindRepoRoot(start string) (string, error) {
 func candidateMatchesRootMarkers(candidate string, markers RootMarkers) (bool, error) {
 	for _, dir := range markers.RequiredDirs {
 		path := filepath.Join(candidate, filepath.FromSlash(dir))
-		info, err := os.Stat(path)
+		info, err := statPath(path)
 		if err != nil {
 			if os.IsNotExist(err) {
 				return false, nil
@@ -65,7 +70,7 @@ func candidateMatchesRootMarkers(candidate string, markers RootMarkers) (bool, e
 	}
 	for _, file := range markers.RequiredFiles {
 		path := filepath.Join(candidate, filepath.FromSlash(file))
-		info, err := os.Stat(path)
+		info, err := statPath(path)
 		if err != nil {
 			if os.IsNotExist(err) {
 				return false, nil

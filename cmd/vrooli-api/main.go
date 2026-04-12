@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -112,12 +110,16 @@ func performHealthCheck(check HealthCheckConfig, scenarioName string, ports map[
 }
 
 func main() {
-	logger := logx.New(logx.Options{Name: "vrooli-api"})
-	slog.SetDefault(logger)
-	logx.RedirectStandardLibrary(logger)
+	logger, _, restoreLogger := logx.Install(logx.Options{
+		Component:      "vrooli-api",
+		SetDefault:     true,
+		RedirectStdlib: true,
+	})
+	defer restoreLogger()
 
 	if err := enforceStrictFingerprint(); err != nil {
-		log.Fatalf("stale fingerprint check failed: %v", err)
+		logger.Error("Stale fingerprint check failed", "error", err)
+		os.Exit(1)
 	}
 
 	port := os.Getenv("VROOLI_API_PORT")
@@ -125,11 +127,12 @@ func main() {
 		port = "8092"
 	}
 
-	log.Printf(
-		"build metadata loaded fingerprint=%s commit=%s build_time=%s",
-		buildinfo.Fingerprint,
-		buildinfo.GitCommit,
-		buildinfo.BuildTime,
+	logger.Info(
+		"Build metadata loaded",
+		"fingerprint", buildinfo.Fingerprint,
+		"commit", buildinfo.GitCommit,
+		"build_time", buildinfo.BuildTime,
+		"port", port,
 	)
 
 	app := buildApp()
@@ -137,10 +140,11 @@ func main() {
 		Handler: app.Router(),
 		Port:    port,
 		Logger: func(format string, args ...interface{}) {
-			log.Printf(format, args...)
+			logger.Info(fmt.Sprintf(format, args...))
 		},
 	}); err != nil {
-		log.Fatalf("API server failed: %v", err)
+		logger.Error("API server failed", "error", err)
+		os.Exit(1)
 	}
 }
 

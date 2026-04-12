@@ -39,6 +39,9 @@
         "legacy-adapter"
       ]
     },
+    "compose_file": {
+      "type": "string"
+    },
     "legacy_adapter": {
       "type": "object",
       "properties": {

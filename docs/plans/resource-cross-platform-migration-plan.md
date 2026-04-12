@@ -1141,9 +1141,14 @@ Current status:
 
 - `postgres`, `redis`, `qdrant`, and `browserless` now have native `docker-service` manifests and Go driver-backed lifecycle/status coverage.
 - `vault` now has a native `docker-service` manifest and Go-native standard lifecycle/status/log handling, while the retained Vault-specific secret commands still use compatibility shims.
+- `litellm`, `minio`, `neo4j`, `questdb`, and `searxng` now have native `docker-service` manifests and Go-native standard lifecycle/status/log handling.
+- `ollama` and `unstructured-io` now have native `docker-service` manifests and Go-native standard lifecycle/status/log handling.
+- `judge0` now has a native `compose-service` manifest and Go-native standard lifecycle/status/log handling for its multi-container stack.
 - `browserless` has been reduced to a thin compatibility surface centered on `status`, `logs`, `screenshot`, and `diagnostics`, while keeping Browserless-shaped `/pressure`, `/function`, and structured status support for `test-genie`.
 - `claude-code` and `codex` now have native `external-cli` manifests and Go-native standard lifecycle/status handling.
+- `k6`, `opencode`, and `sqlite` now have native `external-cli` manifests and Go-native standard lifecycle/status handling.
 - `gemini` and `openrouter` now have native `cloud-api` manifests and Go-native status/configuration checks.
+- `twilio` and `cloudflare-ai-gateway` now have native `cloud-api` manifests and Go-native credential/status checks.
 - Resource-specific non-standard commands can still fall back to legacy shell entrypoints when the native driver does not own that subcommand yet.
 - Phase 5 validation now explicitly covers that the migrated core set uses the native driver path for standard commands even when a legacy `cli.sh` compatibility shim is present.
 - Migrated resource `cli.sh` entrypoints now delegate standard lifecycle, status, and logs commands back to `vrooli resource`, leaving only compatibility-only custom subcommands in shell where native ownership is intentionally incomplete.
@@ -1178,25 +1183,12 @@ Current status:
 
 Current explicit Phase 6 adapter backlog:
 
-- `cloudflare-ai-gateway` -> `migrate`
 - `comfyui` -> `migrate`
 - `home-assistant` -> `migrate`
-- `judge0` -> `migrate`
-- `k6` -> `migrate`
 - `kokoro` -> `migrate`
-- `litellm` -> `migrate`
 - `mail-in-a-box` -> `migrate`
-- `minio` -> `migrate`
-- `neo4j` -> `migrate`
-- `ollama` -> `migrate`
-- `opencode` -> `migrate`
 - `postgis` -> `migrate`
-- `questdb` -> `migrate`
 - `sagemath` -> `migrate`
-- `searxng` -> `migrate`
-- `sqlite` -> `migrate`
-- `twilio` -> `migrate`
-- `unstructured-io` -> `migrate`
 - `whisper` -> `migrate`
 
 The focused Phase 6 closeout validation bundle is:

@@ -30,8 +30,18 @@ func TestMigratedResourceCLIsDelegateStandardCommandsToNativeControlPlane(t *tes
 		{resource: "vault", args: []string{"manage", "restart"}, want: "resource restart vault"},
 		{resource: "claude-code", args: []string{"logs"}, want: "resource logs claude-code"},
 		{resource: "codex", args: []string{"manage", "stop"}, want: "resource stop codex"},
+		{resource: "k6", args: []string{"status"}, want: "resource status k6"},
+		{resource: "opencode", args: []string{"manage", "start"}, want: "resource start opencode"},
+		{resource: "sqlite", args: []string{"manage", "install"}, want: "resource install sqlite"},
 		{resource: "gemini", args: []string{"manage", "start"}, want: "resource start gemini"},
 		{resource: "openrouter", args: []string{"status", "--fast"}, want: "resource status openrouter --fast"},
+		{resource: "twilio", args: []string{"logs"}, want: "resource logs twilio"},
+		{resource: "cloudflare-ai-gateway", args: []string{"manage", "restart"}, want: "resource restart cloudflare-ai-gateway"},
+		{resource: "minio", args: []string{"logs"}, want: "resource logs minio"},
+		{resource: "litellm", args: []string{"manage", "stop"}, want: "resource stop litellm"},
+		{resource: "neo4j", args: []string{"status"}, want: "resource status neo4j"},
+		{resource: "questdb", args: []string{"manage", "start"}, want: "resource start questdb"},
+		{resource: "searxng", args: []string{"manage", "restart"}, want: "resource restart searxng"},
 	}
 
 	for _, tc := range cases {

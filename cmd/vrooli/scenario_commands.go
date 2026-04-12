@@ -102,7 +102,14 @@ func runScenarioCommand(root string, globals globalOptions, args []string, stdou
 	if !ok {
 		return newUnknownScenarioCommandError(args[0])
 	}
-	return handler(root, globals, args[1:], stdout, stderr)
+	app := configuredApp()
+	return handler(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args[1:])
 }
 
 func runScenarioStartCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
@@ -304,19 +311,23 @@ func runScenarioRestartCommand(root string, globals globalOptions, args []string
 }
 
 func newScenarioLifecycleRunner(root string, stdout, stderr io.Writer) (*lifecycle.Runner, error) {
-	home, err := process.HomeDir()
-	if err != nil {
-		return nil, err
-	}
-	return lifecycle.NewRunner(root, home, stdout, stderr)
+	app := configuredApp()
+	return app.newScenarioLifecycleRunner(&commandContext{
+		Root:   root,
+		Stdout: stdout,
+		Stderr: stderr,
+		app:    app,
+	})
 }
 
 func newScenarioService(root string, stdout, stderr io.Writer) (*orchestrator.Service, error) {
-	home, err := process.HomeDir()
-	if err != nil {
-		return nil, err
-	}
-	return orchestrator.New(root, home, stdout, stderr), nil
+	app := configuredApp()
+	return app.newScenarioService(&commandContext{
+		Root:   root,
+		Stdout: stdout,
+		Stderr: stderr,
+		app:    app,
+	})
 }
 
 func runScenarioListCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
@@ -628,9 +639,8 @@ func runtimePortOutputs(bindings []scenario.RuntimePortBinding) []scenarioListPo
 	return listPorts
 }
 
-// buildListPorts remains as a thin adapter because the CLI tests and week-4
-// wrappers still assert the legacy output contract while the orchestration
-// logic now lives in internal/scenario and internal/orchestrator.
+// buildListPorts preserves the historical CLI output contract while the
+// underlying runtime/port logic lives in internal/scenario.
 func buildListPorts(manifest scenario.ServiceManifest, records []process.Record) ([]scenarioListPortOutput, map[string]int) {
 	bindings, ports := scenario.RuntimePortBindings(manifest, records)
 	return runtimePortOutputs(bindings), copyIntMap(ports)

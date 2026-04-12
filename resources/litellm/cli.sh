@@ -51,11 +51,11 @@ done
 cli::init "litellm" "LiteLLM unified LLM proxy server management" "v2"
 
 # Override default handlers to point directly to litellm implementations
-CLI_COMMAND_HANDLERS["manage::install"]="litellm::install::execute"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="litellm::install::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="litellm::docker::start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="litellm::docker::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="litellm::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="litellm::test::smoke"
 CLI_COMMAND_HANDLERS["test::integration"]="litellm::test::integration"
 CLI_COMMAND_HANDLERS["test::all"]="litellm::test::all"
@@ -71,8 +71,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="litellm::content::execute"
 cli::register_subcommand "content" "models" "List available AI models" "litellm::list_models"
 
 # Additional information commands
-cli::register_command "status" "Show detailed resource status" "litellm::status"
-cli::register_command "logs" "Show LiteLLM logs" "litellm::docker::logs"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
+cli::register_command "logs" "Show LiteLLM logs" "cli::delegate_logs"
 cli::register_command "credentials" "Show LiteLLM credentials for integration" "litellm::core::credentials"
 # Create wrapper for agents command that delegates to manager
 litellm::agents::command() {

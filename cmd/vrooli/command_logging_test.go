@@ -10,18 +10,22 @@ import (
 	"testing"
 )
 
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-11
+
 func TestCreateCommandLoggerRespectsVerboseAndLogLevel(t *testing.T) {
 	t.Setenv("VROOLI_LOG_LEVEL", "info")
 
 	var normal bytes.Buffer
-	logger := createCommandLogger(false, &normal)
+	logger, restore := createCommandLogger(globalOptions{}, &normal)
+	defer restore()
 	logger.Debug("debug should be hidden")
 	if normal.Len() != 0 {
 		t.Fatalf("debug message should be hidden at info level: %q", normal.String())
 	}
 
 	var verbose bytes.Buffer
-	logger = createCommandLogger(true, &verbose)
+	logger, restore = createCommandLogger(globalOptions{verbose: true}, &verbose)
+	defer restore()
 	logger.Debug("debug should be visible with verbose")
 	if !strings.Contains(verbose.String(), "debug should be visible with verbose") {
 		t.Fatalf("verbose logger did not emit debug output: %q", verbose.String())
@@ -29,25 +33,24 @@ func TestCreateCommandLoggerRespectsVerboseAndLogLevel(t *testing.T) {
 }
 
 func TestRunEmitsDebugLogsWhenVerbose(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	var captured bytes.Buffer
-	newLoggerFn = func(verbose bool, _ io.Writer) *slog.Logger {
+	app := configuredApp()
+	app.newLogger = func(globals globalOptions, _ io.Writer) (*slog.Logger, func()) {
 		level := slog.LevelInfo
-		if verbose {
+		if globals.verbose {
 			level = slog.LevelDebug
 		}
 		return slog.New(slog.NewTextHandler(&captured, &slog.HandlerOptions{
 			Level: level,
-		}))
+		})), func() {}
 	}
-	resolveSourceRootFn = func() (string, error) { return "/repo", nil }
-	isStaleFn = func() bool { return false }
+	app.resolveSourceRoot = func() (string, error) { return "/repo", nil }
+	app.isStale = func() bool { return false }
+	app.checkStaleness = nil
 	t.Setenv("VROOLI_LOG_LEVEL", "info")
 
 	var stdout bytes.Buffer
-	code := run([]string{"--verbose", "version"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"--verbose", "version"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}

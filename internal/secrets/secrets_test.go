@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=2 | LAST: 2026-04-11
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-11
 
 func TestNewProjectStoreUsesDefaultBoundaries(t *testing.T) {
 	root := t.TempDir()
@@ -20,22 +21,28 @@ func TestNewProjectStoreUsesDefaultBoundaries(t *testing.T) {
 	if store.Root != filepath.Clean(root) {
 		t.Fatalf("Root = %q, want %q", store.Root, filepath.Clean(root))
 	}
-	if store.KeySource == nil {
-		t.Fatal("KeySource is nil")
+	if store.KeyProvider == nil {
+		t.Fatal("KeyProvider is nil")
 	}
-	if store.deps.readFile == nil || store.deps.writeFile == nil || store.deps.mkdirAll == nil || store.deps.removeFile == nil {
+	if store.EnvLookup == nil {
+		t.Fatal("EnvLookup is nil")
+	}
+	if store.LoadPolicy != LoadPolicyStrict {
+		t.Fatalf("LoadPolicy = %v, want %v", store.LoadPolicy, LoadPolicyStrict)
+	}
+	if store.deps.readFile == nil || store.deps.createTemp == nil || store.deps.rename == nil || store.deps.openFile == nil || store.deps.mkdirAll == nil || store.deps.removeFile == nil {
 		t.Fatal("store deps not fully initialized")
 	}
-	if store.deps.randReader == nil {
-		t.Fatal("randReader is nil")
+	if store.deps.randReader == nil || store.deps.now == nil || store.deps.sleep == nil {
+		t.Fatal("store deps missing timing or entropy boundaries")
 	}
 }
 
 func TestStoreMethodsUseDefaultDepsWhenConstructedDirectly(t *testing.T) {
 	root := t.TempDir()
 	store := &Store{
-		Root:      root,
-		KeySource: staticKeySource("test-passphrase"),
+		Root:        root,
+		KeyProvider: staticKeyProvider("test-passphrase"),
 	}
 
 	if err := store.Save(map[string]string{"API_KEY": "secret"}); err != nil {
@@ -81,6 +88,33 @@ func TestStoreSaveAndLoadEncryptedRoundTrip(t *testing.T) {
 	}
 }
 
+func TestStoreSaveUsesAtomicRename(t *testing.T) {
+	store := newTestStore(t)
+	if err := store.Save(map[string]string{"API_KEY": "first"}); err != nil {
+		t.Fatalf("Save initial payload: %v", err)
+	}
+	before, err := os.ReadFile(store.EncryptedPath())
+	if err != nil {
+		t.Fatalf("ReadFile(%s): %v", store.EncryptedPath(), err)
+	}
+
+	store.deps.rename = func(oldPath, newPath string) error {
+		return errors.New("rename failed")
+	}
+	err = store.Save(map[string]string{"API_KEY": "second"})
+	if err == nil || !errors.Is(err, ErrEncryptedWrite) || !strings.Contains(err.Error(), "rename encrypted secrets") {
+		t.Fatalf("Save error = %v, want ErrEncryptedWrite rename failure", err)
+	}
+
+	after, err := os.ReadFile(store.EncryptedPath())
+	if err != nil {
+		t.Fatalf("ReadFile(%s) after failed save: %v", store.EncryptedPath(), err)
+	}
+	if string(after) != string(before) {
+		t.Fatal("failed save should not modify the original encrypted file")
+	}
+}
+
 func TestStoreLoadPrefersEncryptedOverLegacy(t *testing.T) {
 	store := newTestStore(t)
 	writeLegacySecrets(t, store, `{"POSTGRES_PASSWORD":"legacy"}`)
@@ -110,17 +144,51 @@ func TestStoreLoadFallsBackToLegacyPlaintext(t *testing.T) {
 	}
 }
 
-func TestStoreLoadEncryptedRequiresKey(t *testing.T) {
-	writer := newTestStore(t)
-	if err := writer.Save(map[string]string{"API_KEY": "secret"}); err != nil {
-		t.Fatalf("Save: %v", err)
-	}
+func TestStoreLoadWithPolicyMakesLegacyFallbackExplicit(t *testing.T) {
+	t.Run("strict load fails when encrypted file exists but key is missing", func(t *testing.T) {
+		writer := newTestStore(t)
+		writeLegacySecrets(t, writer, `{"API_KEY":"legacy"}`)
+		if err := writer.Save(map[string]string{"API_KEY": "encrypted"}); err != nil {
+			t.Fatalf("Save: %v", err)
+		}
 
-	reader := NewProjectStore(writer.Root)
-	_, err := reader.Load()
-	if !errors.Is(err, ErrMissingKey) {
-		t.Fatalf("Load error = %v, want ErrMissingKey", err)
-	}
+		reader := NewProjectStore(writer.Root)
+		_, err := reader.Load()
+		if !errors.Is(err, ErrMissingKey) {
+			t.Fatalf("Load error = %v, want ErrMissingKey", err)
+		}
+	})
+
+	t.Run("best effort load falls back to legacy when encrypted read cannot succeed", func(t *testing.T) {
+		writer := newTestStore(t)
+		writeLegacySecrets(t, writer, `{"API_KEY":"legacy"}`)
+		if err := writer.Save(map[string]string{"API_KEY": "encrypted"}); err != nil {
+			t.Fatalf("Save: %v", err)
+		}
+
+		reader := NewProjectStore(writer.Root)
+		values, err := reader.LoadWithPolicy(LoadPolicyBestEffortLegacy)
+		if err != nil {
+			t.Fatalf("LoadWithPolicy: %v", err)
+		}
+		if got := values["API_KEY"]; got != "legacy" {
+			t.Fatalf("API_KEY = %q, want legacy", got)
+		}
+	})
+
+	t.Run("best effort load also falls back when encrypted payload is invalid", func(t *testing.T) {
+		store := newTestStore(t)
+		writeLegacySecrets(t, store, `{"API_KEY":"legacy"}`)
+		writeEncryptedPayload(t, store, `{`)
+
+		values, err := store.LoadWithPolicy(LoadPolicyBestEffortLegacy)
+		if err != nil {
+			t.Fatalf("LoadWithPolicy: %v", err)
+		}
+		if got := values["API_KEY"]; got != "legacy" {
+			t.Fatalf("API_KEY = %q, want legacy", got)
+		}
+	})
 }
 
 func TestStoreLoadEncryptedPropagatesReadFailure(t *testing.T) {
@@ -130,8 +198,8 @@ func TestStoreLoadEncryptedPropagatesReadFailure(t *testing.T) {
 	}
 
 	_, err := store.LoadEncrypted()
-	if err == nil || !strings.Contains(err.Error(), "read encrypted secrets") {
-		t.Fatalf("LoadEncrypted error = %v, want wrapped read error", err)
+	if err == nil || !errors.Is(err, ErrEncryptedRead) || !strings.Contains(err.Error(), "read encrypted secrets") {
+		t.Fatalf("LoadEncrypted error = %v, want ErrEncryptedRead", err)
 	}
 }
 
@@ -139,31 +207,37 @@ func TestStoreLoadEncryptedRejectsInvalidPayloads(t *testing.T) {
 	tests := []struct {
 		name     string
 		payload  string
+		wantErr  error
 		wantText string
 	}{
 		{
 			name:     "invalid-json",
 			payload:  `{`,
+			wantErr:  ErrEncryptedInvalid,
 			wantText: "parse encrypted secrets",
 		},
 		{
 			name:     "unsupported-version",
 			payload:  `{"version":2,"algorithm":"AES-256-GCM","nonce":"bm9uY2U=","ciphertext":"Y2lwaGVy"}`,
+			wantErr:  ErrUnsupportedVersion,
 			wantText: "unsupported secrets version",
 		},
 		{
 			name:     "unsupported-algorithm",
 			payload:  `{"version":1,"algorithm":"age","nonce":"bm9uY2U=","ciphertext":"Y2lwaGVy"}`,
+			wantErr:  ErrUnsupportedAlgorithm,
 			wantText: "unsupported secrets algorithm",
 		},
 		{
 			name:     "invalid-nonce",
 			payload:  `{"version":1,"algorithm":"AES-256-GCM","nonce":"***","ciphertext":"Y2lwaGVy"}`,
+			wantErr:  ErrEncryptedInvalid,
 			wantText: "decode nonce",
 		},
 		{
 			name:     "invalid-ciphertext",
 			payload:  `{"version":1,"algorithm":"AES-256-GCM","nonce":"bm9uY2U=","ciphertext":"***"}`,
+			wantErr:  ErrEncryptedInvalid,
 			wantText: "decode ciphertext",
 		},
 	}
@@ -173,8 +247,8 @@ func TestStoreLoadEncryptedRejectsInvalidPayloads(t *testing.T) {
 			store := newTestStore(t)
 			writeEncryptedPayload(t, store, tc.payload)
 			_, err := store.LoadEncrypted()
-			if err == nil || !strings.Contains(err.Error(), tc.wantText) {
-				t.Fatalf("LoadEncrypted error = %v, want substring %q", err, tc.wantText)
+			if err == nil || !errors.Is(err, tc.wantErr) || !strings.Contains(err.Error(), tc.wantText) {
+				t.Fatalf("LoadEncrypted error = %v, want %v containing %q", err, tc.wantErr, tc.wantText)
 			}
 		})
 	}
@@ -187,10 +261,10 @@ func TestStoreLoadEncryptedRejectsWrongKeyAndTampering(t *testing.T) {
 	}
 
 	wrongKeyStore := NewProjectStore(store.Root)
-	wrongKeyStore.KeySource = staticKeySource("different-passphrase")
+	wrongKeyStore.KeyProvider = staticKeyProvider("different-passphrase")
 	_, err := wrongKeyStore.LoadEncrypted()
-	if err == nil || !strings.Contains(err.Error(), "decrypt secrets") {
-		t.Fatalf("LoadEncrypted wrong-key error = %v, want decrypt error", err)
+	if err == nil || !errors.Is(err, ErrDecryptFailed) || !strings.Contains(err.Error(), "decrypt secrets") {
+		t.Fatalf("LoadEncrypted wrong-key error = %v, want ErrDecryptFailed", err)
 	}
 
 	payloadBytes, err := os.ReadFile(store.EncryptedPath())
@@ -214,8 +288,8 @@ func TestStoreLoadEncryptedRejectsWrongKeyAndTampering(t *testing.T) {
 	writeEncryptedPayload(t, store, string(mutated))
 
 	_, err = store.LoadEncrypted()
-	if err == nil || !strings.Contains(err.Error(), "decrypt secrets") {
-		t.Fatalf("LoadEncrypted tamper error = %v, want decrypt error", err)
+	if err == nil || !errors.Is(err, ErrDecryptFailed) || !strings.Contains(err.Error(), "decrypt secrets") {
+		t.Fatalf("LoadEncrypted tamper error = %v, want ErrDecryptFailed", err)
 	}
 }
 
@@ -237,8 +311,8 @@ func TestStoreLoadLegacyPropagatesReadFailure(t *testing.T) {
 	}
 
 	_, err := store.LoadLegacy()
-	if err == nil || !strings.Contains(err.Error(), "read legacy secrets") {
-		t.Fatalf("LoadLegacy error = %v, want wrapped read error", err)
+	if err == nil || !errors.Is(err, ErrLegacyRead) || !strings.Contains(err.Error(), "read legacy secrets") {
+		t.Fatalf("LoadLegacy error = %v, want ErrLegacyRead", err)
 	}
 }
 
@@ -246,8 +320,8 @@ func TestStoreLoadLegacyRejectsInvalidJSON(t *testing.T) {
 	store := newTestStore(t)
 	writeLegacySecrets(t, store, `{`)
 	_, err := store.LoadLegacy()
-	if err == nil || !strings.Contains(err.Error(), "parse legacy secrets") {
-		t.Fatalf("LoadLegacy error = %v, want parse error", err)
+	if err == nil || !errors.Is(err, ErrLegacyInvalid) || !strings.Contains(err.Error(), "parse legacy secrets") {
+		t.Fatalf("LoadLegacy error = %v, want ErrLegacyInvalid", err)
 	}
 }
 
@@ -255,6 +329,7 @@ func TestStoreSaveHonorsInjectedBoundaries(t *testing.T) {
 	tests := []struct {
 		name       string
 		override   func(*Store)
+		wantErr    error
 		wantSubstr string
 	}{
 		{
@@ -267,13 +342,24 @@ func TestStoreSaveHonorsInjectedBoundaries(t *testing.T) {
 			wantSubstr: "mkdir secrets dir",
 		},
 		{
-			name: "write-failure",
+			name: "temp-create-failure",
 			override: func(store *Store) {
-				store.deps.writeFile = func(path string, data []byte, mode os.FileMode) error {
-					return errors.New("write failed")
+				store.deps.createTemp = func(dir, pattern string) (*os.File, error) {
+					return nil, errors.New("temp failed")
 				}
 			},
-			wantSubstr: "write encrypted secrets",
+			wantErr:    ErrEncryptedWrite,
+			wantSubstr: "create temporary secrets file",
+		},
+		{
+			name: "rename-failure",
+			override: func(store *Store) {
+				store.deps.rename = func(oldPath, newPath string) error {
+					return errors.New("rename failed")
+				}
+			},
+			wantErr:    ErrEncryptedWrite,
+			wantSubstr: "rename encrypted secrets",
 		},
 		{
 			name: "nonce-failure",
@@ -292,13 +378,16 @@ func TestStoreSaveHonorsInjectedBoundaries(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), tc.wantSubstr) {
 				t.Fatalf("Save error = %v, want substring %q", err, tc.wantSubstr)
 			}
+			if tc.wantErr != nil && !errors.Is(err, tc.wantErr) {
+				t.Fatalf("Save error = %v, want errors.Is(_, %v)", err, tc.wantErr)
+			}
 		})
 	}
 }
 
 func TestStoreSaveRequiresEncryptionKey(t *testing.T) {
 	store := newTestStore(t)
-	store.KeySource = nil
+	store.KeyProvider = nil
 
 	err := store.Save(map[string]string{"API_KEY": "secret"})
 	if !errors.Is(err, ErrMissingKey) {
@@ -342,8 +431,33 @@ func TestStoreSaveKeyPropagatesLoadFailure(t *testing.T) {
 	}
 
 	err := store.SaveKey("POSTGRES_USER", "vrooli")
-	if err == nil || !strings.Contains(err.Error(), "read encrypted secrets") {
-		t.Fatalf("SaveKey error = %v, want wrapped load error", err)
+	if err == nil || !errors.Is(err, ErrEncryptedRead) || !strings.Contains(err.Error(), "read encrypted secrets") {
+		t.Fatalf("SaveKey error = %v, want ErrEncryptedRead", err)
+	}
+}
+
+func TestStoreSaveKeyUsesExclusiveLockForReadModifyWrite(t *testing.T) {
+	store := newTestStore(t)
+	lockPath := store.LockPath()
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(lockPath), err)
+	}
+	lockFile, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatalf("OpenFile(%s): %v", lockPath, err)
+	}
+	t.Cleanup(func() {
+		_ = lockFile.Close()
+		_ = os.Remove(lockPath)
+	})
+
+	now := time.Now()
+	store.deps.now = sequentialNow(now, now.Add(lockTimeout), now.Add(lockTimeout))
+	store.deps.sleep = func(time.Duration) {}
+
+	err = store.SaveKey("POSTGRES_USER", "vrooli")
+	if err == nil || !errors.Is(err, ErrLockTimeout) {
+		t.Fatalf("SaveKey error = %v, want ErrLockTimeout", err)
 	}
 }
 
@@ -415,7 +529,7 @@ func TestStoreMigrateLegacyScenarios(t *testing.T) {
 	t.Run("save failure aborts migration", func(t *testing.T) {
 		store := newTestStore(t)
 		writeLegacySecrets(t, store, `{"POSTGRES_PASSWORD":"legacy-secret"}`)
-		store.KeySource = nil
+		store.KeyProvider = nil
 
 		migrated, err := store.MigrateLegacy(true)
 		if migrated {
@@ -433,15 +547,7 @@ func TestStoreResolveBoundaries(t *testing.T) {
 		if err := store.Save(map[string]string{"API_KEY": "stored"}); err != nil {
 			t.Fatalf("Save: %v", err)
 		}
-		store.KeySource = func(key string) (string, bool) {
-			if key == KeyEnvVar {
-				return "test-passphrase", true
-			}
-			if key == "API_KEY" {
-				return "from-env", true
-			}
-			return "", false
-		}
+		store.EnvLookup = staticEnvLookup(map[string]string{"API_KEY": "from-env"})
 
 		value, ok, err := store.Resolve("API_KEY")
 		if err != nil {
@@ -454,12 +560,7 @@ func TestStoreResolveBoundaries(t *testing.T) {
 
 	t.Run("falls back to env value", func(t *testing.T) {
 		store := newTestStore(t)
-		store.KeySource = func(key string) (string, bool) {
-			if key == "API_KEY" {
-				return "from-env", true
-			}
-			return "", false
-		}
+		store.EnvLookup = staticEnvLookup(map[string]string{"API_KEY": "from-env"})
 
 		value, ok, err := store.Resolve("API_KEY")
 		if err != nil {
@@ -472,12 +573,7 @@ func TestStoreResolveBoundaries(t *testing.T) {
 
 	t.Run("ignores blank env value", func(t *testing.T) {
 		store := newTestStore(t)
-		store.KeySource = func(key string) (string, bool) {
-			if key == "API_KEY" {
-				return "   ", true
-			}
-			return "", false
-		}
+		store.EnvLookup = staticEnvLookup(map[string]string{"API_KEY": "   "})
 
 		value, ok, err := store.Resolve("API_KEY")
 		if err != nil {
@@ -493,25 +589,17 @@ func TestStoreResolveBoundaries(t *testing.T) {
 		store.deps.readFile = func(path string) ([]byte, error) {
 			return nil, errors.New("read failed")
 		}
-		store.KeySource = func(key string) (string, bool) {
-			if key == "API_KEY" {
-				return "from-env", true
-			}
-			if key == KeyEnvVar {
-				return "test-passphrase", true
-			}
-			return "", false
-		}
+		store.EnvLookup = staticEnvLookup(map[string]string{"API_KEY": "from-env"})
 
 		_, _, err := store.Resolve("API_KEY")
-		if err == nil || !strings.Contains(err.Error(), "read encrypted secrets") {
-			t.Fatalf("Resolve error = %v, want wrapped load error", err)
+		if err == nil || !errors.Is(err, ErrEncryptedRead) {
+			t.Fatalf("Resolve error = %v, want ErrEncryptedRead", err)
 		}
 	})
 
-	t.Run("returns empty when key source absent and no stored value", func(t *testing.T) {
+	t.Run("returns empty when env lookup absent and no stored value", func(t *testing.T) {
 		store := newTestStore(t)
-		store.KeySource = nil
+		store.EnvLookup = nil
 
 		value, ok, err := store.Resolve("API_KEY")
 		if err != nil {
@@ -555,9 +643,9 @@ func TestDeriveKeyBoundaries(t *testing.T) {
 }
 
 func TestEncryptionKeyBoundaries(t *testing.T) {
-	t.Run("requires key source", func(t *testing.T) {
+	t.Run("requires key provider", func(t *testing.T) {
 		store := newTestStore(t)
-		store.KeySource = nil
+		store.KeyProvider = nil
 
 		_, err := store.encryptionKey()
 		if !errors.Is(err, ErrMissingKey) {
@@ -565,9 +653,9 @@ func TestEncryptionKeyBoundaries(t *testing.T) {
 		}
 	})
 
-	t.Run("requires configured env var", func(t *testing.T) {
+	t.Run("requires configured key", func(t *testing.T) {
 		store := newTestStore(t)
-		store.KeySource = func(key string) (string, bool) { return "", false }
+		store.KeyProvider = func() (string, bool) { return "", false }
 
 		_, err := store.encryptionKey()
 		if !errors.Is(err, ErrMissingKey) {
@@ -682,7 +770,7 @@ func TestStoreDepsAppliesDefaultsForPartialInjection(t *testing.T) {
 	}
 
 	deps := store.storeDeps()
-	if deps.readFile == nil || deps.writeFile == nil || deps.removeFile == nil || deps.mkdirAll == nil || deps.randReader == nil {
+	if deps.readFile == nil || deps.createTemp == nil || deps.rename == nil || deps.openFile == nil || deps.removeFile == nil || deps.mkdirAll == nil || deps.randReader == nil || deps.now == nil || deps.sleep == nil {
 		t.Fatal("storeDeps did not fill default boundaries")
 	}
 	data, err := deps.readFile("ignored")
@@ -698,16 +786,35 @@ func newTestStore(t *testing.T) *Store {
 	t.Helper()
 	root := t.TempDir()
 	store := NewProjectStore(root)
-	store.KeySource = staticKeySource("test-passphrase")
+	store.KeyProvider = staticKeyProvider("test-passphrase")
 	return store
 }
 
-func staticKeySource(value string) func(string) (string, bool) {
+func staticKeyProvider(value string) KeyProvider {
+	return func() (string, bool) {
+		return value, true
+	}
+}
+
+func staticEnvLookup(values map[string]string) LookupFunc {
 	return func(key string) (string, bool) {
-		if key == KeyEnvVar {
-			return value, true
+		value, ok := values[key]
+		return value, ok
+	}
+}
+
+func sequentialNow(values ...time.Time) func() time.Time {
+	index := 0
+	return func() time.Time {
+		if len(values) == 0 {
+			return time.Now()
 		}
-		return "", false
+		if index >= len(values) {
+			return values[len(values)-1]
+		}
+		current := values[index]
+		index++
+		return current
 	}
 }
 

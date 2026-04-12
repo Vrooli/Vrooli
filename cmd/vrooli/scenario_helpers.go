@@ -43,6 +43,7 @@ func runScenarioSubprocess(spec scenarioSubprocessSpec) error {
 }
 
 func locateTestGenieCLI(root, home string) (string, error) {
+	app := configuredApp()
 	if override := strings.TrimSpace(os.Getenv("VROOLI_TEST_GENIE_CLI")); override != "" {
 		if isExecutable(override) {
 			return override, nil
@@ -54,7 +55,7 @@ func locateTestGenieCLI(root, home string) (string, error) {
 		return homeCLI, nil
 	}
 
-	if pathCLI, err := lookPathFn("test-genie"); err == nil && isExecutable(pathCLI) {
+	if pathCLI, err := app.lookPath("test-genie"); err == nil && isExecutable(pathCLI) {
 		return pathCLI, nil
 	}
 
@@ -67,7 +68,8 @@ func locateTestGenieCLI(root, home string) (string, error) {
 }
 
 func locateScenarioCompletenessCLI(root string) (string, error) {
-	if pathCLI, err := lookPathFn("scenario-completeness-scoring"); err == nil && isExecutable(pathCLI) {
+	app := configuredApp()
+	if pathCLI, err := app.lookPath("scenario-completeness-scoring"); err == nil && isExecutable(pathCLI) {
 		return pathCLI, nil
 	}
 
@@ -100,28 +102,30 @@ func writerSupportsStreaming(w io.Writer) bool {
 }
 
 func openScenarioURL(url string) error {
+	app := configuredApp()
 	switch runtime.GOOS {
 	case "linux":
-		if binary, err := lookPathFn("xdg-open"); err == nil {
-			return runScenarioSubprocessFn(scenarioSubprocessSpec{name: binary, args: []string{url}})
+		if binary, err := app.lookPath("xdg-open"); err == nil {
+			return app.runScenarioSubprocess(scenarioSubprocessSpec{name: binary, args: []string{url}})
 		}
 		for _, browser := range []string{"firefox", "google-chrome", "chromium"} {
-			if binary, err := lookPathFn(browser); err == nil {
-				return runScenarioSubprocessFn(scenarioSubprocessSpec{name: binary, args: []string{url}})
+			if binary, err := app.lookPath(browser); err == nil {
+				return app.runScenarioSubprocess(scenarioSubprocessSpec{name: binary, args: []string{url}})
 			}
 		}
 		return fmt.Errorf("no browser found for %s", url)
 	case "darwin":
-		return runScenarioSubprocessFn(scenarioSubprocessSpec{name: "open", args: []string{url}})
+		return app.runScenarioSubprocess(scenarioSubprocessSpec{name: "open", args: []string{url}})
 	case "windows":
-		return runScenarioSubprocessFn(scenarioSubprocessSpec{name: "cmd", args: []string{"/c", "start", "", url}})
+		return app.runScenarioSubprocess(scenarioSubprocessSpec{name: "cmd", args: []string{"/c", "start", "", url}})
 	default:
 		return fmt.Errorf("unsupported platform for opening URLs: %s", runtime.GOOS)
 	}
 }
 
 func launchDetachedScenario(root string, globals globalOptions, args ...string) error {
-	executable, err := scenarioExecutableFn()
+	app := configuredApp()
+	executable, err := app.scenarioExecutable()
 	if err != nil {
 		return err
 	}

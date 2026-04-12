@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=4 | LAST: 2026-04-10
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=5 | LAST: 2026-04-11
 
 func TestComputeSourceFingerprintDetectsChanges(t *testing.T) {
 	root := t.TempDir()
@@ -54,6 +54,35 @@ func TestComputeSourceFingerprintUsesWholeRoot(t *testing.T) {
 	}
 }
 
+func TestComputeSourceFingerprintReportIncludesMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+	writeTestFile(t, root, "internal/logx/logx.go", "package logx\n")
+
+	report, err := ComputeSourceFingerprintReport(root, FingerprintOptions{
+		RequireExistingTargets: true,
+		RequireGoFiles:         true,
+	}, "cmd/vrooli", "internal")
+	if err != nil {
+		t.Fatalf("ComputeSourceFingerprintReport: %v", err)
+	}
+	if report.Root != root {
+		t.Fatalf("report root = %q, want %q", report.Root, root)
+	}
+	if got, want := strings.Join(report.Targets, ","), "cmd/vrooli,internal"; got != want {
+		t.Fatalf("targets = %q, want %q", got, want)
+	}
+	if report.MatchedFiles != 2 {
+		t.Fatalf("matched files = %d, want 2", report.MatchedFiles)
+	}
+	if len(report.MissingTargets) != 0 {
+		t.Fatalf("missing targets = %v, want none", report.MissingTargets)
+	}
+	if len(report.Fingerprint) != 64 {
+		t.Fatalf("fingerprint length = %d, want 64", len(report.Fingerprint))
+	}
+}
+
 func TestComputeSourceFingerprintForPathsSkipsMissingTargets(t *testing.T) {
 	root := t.TempDir()
 
@@ -69,6 +98,18 @@ func TestComputeSourceFingerprintForPathsSkipsMissingTargets(t *testing.T) {
 
 	if got != want {
 		t.Fatalf("fingerprint = %s, want %s", got, want)
+	}
+}
+
+func TestComputeSourceFingerprintReportRejectsMissingTargetsWhenStrict(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+
+	_, err := ComputeSourceFingerprintReport(root, FingerprintOptions{
+		RequireExistingTargets: true,
+	}, "cmd/vrooli", "internal")
+	if err == nil || !strings.Contains(err.Error(), "missing fingerprint targets: internal") {
+		t.Fatalf("ComputeSourceFingerprintReport error = %v", err)
 	}
 }
 
@@ -94,9 +135,40 @@ func TestComputeSourceFingerprintForPathsIgnoresNonGoFiles(t *testing.T) {
 	}
 }
 
+func TestComputeSourceFingerprintReportRejectsTargetsWithoutGoFilesWhenStrict(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "docs/README.md", "ignored\n")
+
+	_, err := ComputeSourceFingerprintReport(root, FingerprintOptions{
+		RequireExistingTargets: true,
+		RequireGoFiles:         true,
+	}, "docs")
+	if err == nil || !strings.Contains(err.Error(), "no Go files matched") {
+		t.Fatalf("ComputeSourceFingerprintReport error = %v", err)
+	}
+}
+
 func TestComputeSourceFingerprintForPathsRequiresRootDir(t *testing.T) {
 	if _, err := ComputeSourceFingerprintForPaths("   ", "internal"); err == nil {
 		t.Fatalf("expected blank root directory to fail")
+	}
+}
+
+func TestComputeSourceFingerprintForPathsRejectsAbsoluteTarget(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "cmd", "vrooli", "main.go")
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+
+	if _, err := ComputeSourceFingerprintForPaths(root, target); err == nil || !strings.Contains(err.Error(), "must be relative") {
+		t.Fatalf("ComputeSourceFingerprintForPaths error = %v", err)
+	}
+}
+
+func TestComputeSourceFingerprintForPathsRejectsEscapingTarget(t *testing.T) {
+	root := t.TempDir()
+
+	if _, err := ComputeSourceFingerprintForPaths(root, "../outside"); err == nil || !strings.Contains(err.Error(), "escapes repository root") {
+		t.Fatalf("ComputeSourceFingerprintForPaths error = %v", err)
 	}
 }
 
@@ -170,6 +242,19 @@ func TestCurrentFingerprintUsesConfiguredPaths(t *testing.T) {
 	}
 }
 
+func TestCurrentFingerprintReportUsesStrictTargetValidation(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+
+	t.Setenv(SourceRootEnvVar, root)
+	t.Setenv(FingerprintPathsEnvVar, "cmd/vrooli,internal")
+
+	if _, err := CurrentFingerprintReport(); err == nil || !strings.Contains(err.Error(), "missing fingerprint targets: internal") {
+		t.Fatalf("CurrentFingerprintReport error = %v", err)
+	}
+}
+
 func TestFingerprintTargetsUsesConfiguredPaths(t *testing.T) {
 	t.Setenv(FingerprintPathsEnvVar, " internal , ./cmd/vrooli ")
 
@@ -223,6 +308,62 @@ func TestIsStaleChecksCurrentFingerprint(t *testing.T) {
 	Fingerprint = "unknown"
 	if IsStale() {
 		t.Fatalf("expected unknown fingerprint to skip stale detection")
+	}
+}
+
+func TestCheckStalenessReportsMetadata(t *testing.T) {
+	originalFingerprint := Fingerprint
+	t.Cleanup(func() {
+		Fingerprint = originalFingerprint
+	})
+
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+	writeTestFile(t, root, "internal/logx/logx.go", "package logx\n")
+
+	t.Setenv(SourceRootEnvVar, root)
+	t.Setenv(FingerprintPathsEnvVar, "cmd/vrooli,internal")
+	current, err := CurrentFingerprint()
+	if err != nil {
+		t.Fatalf("CurrentFingerprint: %v", err)
+	}
+
+	Fingerprint = current
+	status, err := CheckStaleness()
+	if err != nil {
+		t.Fatalf("CheckStaleness: %v", err)
+	}
+	if status.Stale {
+		t.Fatalf("expected fresh status")
+	}
+	if status.Root != root {
+		t.Fatalf("root = %q, want %q", status.Root, root)
+	}
+	if got, want := strings.Join(status.Targets, ","), "cmd/vrooli,internal"; got != want {
+		t.Fatalf("targets = %q, want %q", got, want)
+	}
+	if status.CurrentFingerprint != current || status.EmbeddedFingerprint != current {
+		t.Fatalf("status fingerprints = %+v, want %q", status, current)
+	}
+}
+
+func TestCheckStalenessPropagatesFingerprintErrors(t *testing.T) {
+	originalFingerprint := Fingerprint
+	t.Cleanup(func() {
+		Fingerprint = originalFingerprint
+	})
+
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+
+	t.Setenv(SourceRootEnvVar, root)
+	t.Setenv(FingerprintPathsEnvVar, "cmd/vrooli,internal")
+	Fingerprint = "embedded"
+
+	if _, err := CheckStaleness(); err == nil || !strings.Contains(err.Error(), "missing fingerprint targets: internal") {
+		t.Fatalf("CheckStaleness error = %v", err)
 	}
 }
 
@@ -724,6 +865,19 @@ func TestNormalizeTargetsDeduplicatesAndSorts(t *testing.T) {
 	want := []string{"cmd/vrooli-api", "internal"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("normalizeTargets = %v, want %v", got, want)
+	}
+}
+
+func TestResolveTargetPathRejectsAbsoluteAndEscapingTargets(t *testing.T) {
+	root := t.TempDir()
+
+	absoluteTarget := filepath.Join(root, "cmd", "vrooli", "main.go")
+	if _, err := resolveTargetPath(root, absoluteTarget); err == nil || !strings.Contains(err.Error(), "must be relative") {
+		t.Fatalf("absolute target error = %v", err)
+	}
+
+	if _, err := resolveTargetPath(root, "../outside"); err == nil || !strings.Contains(err.Error(), "escapes repository root") {
+		t.Fatalf("escaping target error = %v", err)
 	}
 }
 

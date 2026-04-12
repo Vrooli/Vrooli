@@ -112,7 +112,7 @@ func loadResourceDefinitions(root string) (resourceDefinitionsFile, error) {
 
 func loadSecrets(root string) (map[string]string, error) {
 	store := secrets.NewProjectStore(root)
-	values, err := store.Load()
+	values, err := store.LoadWithPolicy(secrets.LoadPolicyBestEffortLegacy)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return map[string]string{}, nil

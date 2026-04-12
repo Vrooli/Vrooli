@@ -15,12 +15,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=4 | LAST: 2026-04-11
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=5 | LAST: 2026-04-11
 
 func TestParseArgsRecognizesLeadingGlobalFlags(t *testing.T) {
 	parsed, err := parseArgs([]string{"--json", "--verbose", "--no-color", "scenario", "list"})
@@ -49,28 +50,24 @@ func TestConsumeInlineGlobalFlagsPromotesCommandScopedGlobals(t *testing.T) {
 }
 
 func TestRunScenarioTestUsesNativePhaseRunner(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeScenarioTestPhaseFixture(t, root, "alpha")
 	writeScenarioPortRegistryFixture(t, root)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("scenario test should not route to bash: %+v", spec)
 		return nil
 	}
-	rebuildAndReexecFn = func(args []string) error {
+	app.rebuildAndReexec = func(args []string) error {
 		t.Fatalf("unexpected rebuild")
 		return nil
 	}
 
 	var stdout bytes.Buffer
-	code := run([]string{"scenario", "test", "alpha", "unit"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"scenario", "test", "alpha", "unit"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -84,30 +81,29 @@ func TestRunScenarioTestUsesNativePhaseRunner(t *testing.T) {
 }
 
 func TestRunSetupUsesNativeProjectLifecycle(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := configuredApp()
+	app.resolveSourceRoot = func() (string, error) { return root, nil }
+	app.isStale = func() bool { return false }
+	app.checkStaleness = nil
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("setup should not route to bash: %+v", spec)
 		return nil
 	}
 	capturedRoot := ""
 	capturedHome := ""
 	var capturedArgs []string
-	runProjectSetupFn = func(root, home string, args []string, stdout, stderr io.Writer) error {
+	app.runProjectSetup = func(root, home string, args []string, stdout, stderr io.Writer) error {
 		capturedRoot = root
 		capturedHome = home
 		capturedArgs = append([]string(nil), args...)
 		return nil
 	}
 
-	code := run([]string{"setup", "--environment", "minimal", "--resources", "none", "--yes", "yes", "--sudo-mode", "skip"}, &bytes.Buffer{}, &bytes.Buffer{})
+	code := app.Run([]string{"setup", "--environment", "minimal", "--resources", "none", "--yes", "yes", "--sudo-mode", "skip"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -120,21 +116,20 @@ func TestRunSetupUsesNativeProjectLifecycle(t *testing.T) {
 }
 
 func TestRunDevelopUsesNativeProjectLifecycle(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := configuredApp()
+	app.resolveSourceRoot = func() (string, error) { return root, nil }
+	app.isStale = func() bool { return false }
+	app.checkStaleness = nil
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("develop should not route to bash: %+v", spec)
 		return nil
 	}
 	calls := 0
-	runProjectDevelopFn = func(capturedRoot, capturedHome string, args []string, stdout, stderr io.Writer) error {
+	app.runProjectDevelop = func(capturedRoot, capturedHome string, args []string, stdout, stderr io.Writer) error {
 		calls++
 		if capturedRoot != root || capturedHome != home {
 			t.Fatalf("unexpected project context root=%q home=%q", capturedRoot, capturedHome)
@@ -145,7 +140,7 @@ func TestRunDevelopUsesNativeProjectLifecycle(t *testing.T) {
 		return nil
 	}
 
-	code := run([]string{"develop"}, &bytes.Buffer{}, &bytes.Buffer{})
+	code := app.Run([]string{"develop"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("develop exit code = %d", code)
 	}
@@ -155,21 +150,17 @@ func TestRunDevelopUsesNativeProjectLifecycle(t *testing.T) {
 }
 
 func TestRunDevelopUsesProjectPortOverride(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 
 	t.Setenv("HOME", home)
 	t.Setenv("VROOLI_API_PORT", "18094")
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("develop should not route to bash: %+v", spec)
 		return nil
 	}
-	runProjectDevelopFn = func(capturedRoot, capturedHome string, args []string, stdout, stderr io.Writer) error {
+	app.runProjectDevelop = func(capturedRoot, capturedHome string, args []string, stdout, stderr io.Writer) error {
 		if got := os.Getenv("VROOLI_API_PORT"); got != "18094" {
 			t.Fatalf("VROOLI_API_PORT = %q", got)
 		}
@@ -179,55 +170,47 @@ func TestRunDevelopUsesProjectPortOverride(t *testing.T) {
 		return nil
 	}
 
-	code := run([]string{"develop"}, &bytes.Buffer{}, &bytes.Buffer{})
+	code := app.Run([]string{"develop"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("develop exit code = %d", code)
 	}
 }
 
 func TestRunSetupPassesDryRunThroughProjectLifecycle(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("setup should not route to bash: %+v", spec)
 		return nil
 	}
-	runProjectSetupFn = func(root, home string, args []string, stdout, stderr io.Writer) error {
+	app.runProjectSetup = func(root, home string, args []string, stdout, stderr io.Writer) error {
 		if got := strings.Join(args, "|"); got != "--dry-run" {
 			t.Fatalf("setup args = %q", got)
 		}
 		return nil
 	}
 
-	code := run([]string{"setup", "--dry-run"}, &bytes.Buffer{}, &bytes.Buffer{})
+	code := app.Run([]string{"setup", "--dry-run"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
 }
 
 func TestRunSetupReportsUnsupportedHostAtCLILevel(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	runProjectSetupFn = func(root, home string, args []string, stdout, stderr io.Writer) error {
+	app := newTestApp(root)
+	app.runProjectSetup = func(root, home string, args []string, stdout, stderr io.Writer) error {
 		return errors.New("unsupported platform: vrooli setup is not supported on darwin (project-level setup/develop still depend on Linux-oriented shell steps)")
 	}
 
 	var stderr bytes.Buffer
-	code := run([]string{"setup"}, &bytes.Buffer{}, &stderr)
+	code := app.Run([]string{"setup"}, &bytes.Buffer{}, &stderr)
 	if code == 0 {
 		t.Fatal("expected non-zero exit code")
 	}
@@ -237,21 +220,17 @@ func TestRunSetupReportsUnsupportedHostAtCLILevel(t *testing.T) {
 }
 
 func TestRunDevelopReportsUnsupportedHostAtCLILevel(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	runProjectDevelopFn = func(root, home string, args []string, stdout, stderr io.Writer) error {
+	app := newTestApp(root)
+	app.runProjectDevelop = func(root, home string, args []string, stdout, stderr io.Writer) error {
 		return errors.New("unsupported platform: vrooli develop is not supported on windows (project-level setup/develop still execute bash-defined lifecycle steps)")
 	}
 
 	var stderr bytes.Buffer
-	code := run([]string{"develop"}, &bytes.Buffer{}, &stderr)
+	code := app.Run([]string{"develop"}, &bytes.Buffer{}, &stderr)
 	if code == 0 {
 		t.Fatal("expected non-zero exit code")
 	}
@@ -1227,6 +1206,28 @@ func TestRunTriggersRebuildBeforeDispatch(t *testing.T) {
 	}
 }
 
+func TestRunReportsStaleCheckFailure(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	resolveSourceRootFn = func() (string, error) { return "/repo", nil }
+	checkStalenessFn = func() (buildinfo.StaleCheck, error) {
+		return buildinfo.StaleCheck{}, errors.New("fingerprint targets drifted")
+	}
+
+	var stderr bytes.Buffer
+	code := run([]string{"scenario", "list"}, &bytes.Buffer{}, &stderr)
+	if code != 1 {
+		t.Fatalf("run exit code = %d", code)
+	}
+	if !strings.Contains(stderr.String(), "Runtime error: stale binary check failed: fingerprint targets drifted") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "Use --no-stale-check for local experiments") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
 func TestRunInfoCommandUsesManifestAndListMode(t *testing.T) {
 	restore := overrideCLIHooks(t)
 	defer restore()
@@ -1268,14 +1269,13 @@ func TestRunInfoCommandErrorsWhenNoSourcesConfigured(t *testing.T) {
 }
 
 func TestRunVersionJSONOutput(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
-	resolveSourceRootFn = func() (string, error) { return "/repo", nil }
-	isStaleFn = func() bool { return false }
+	app := configuredApp()
+	app.resolveSourceRoot = func() (string, error) { return "/repo", nil }
+	app.isStale = func() bool { return false }
+	app.checkStaleness = nil
 
 	var stdout bytes.Buffer
-	code := run([]string{"--json", "--version"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"--json", "--version"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -3233,6 +3233,7 @@ func overrideCLIHooks(t *testing.T) func() {
 	t.Helper()
 	originalResolveSourceRootFn := resolveSourceRootFn
 	originalIsStaleFn := isStaleFn
+	originalCheckStalenessFn := checkStalenessFn
 	originalRebuildAndReexecFn := rebuildAndReexecFn
 	originalLookPathFn := lookPathFn
 	originalExecCommandFn := execCommandFn
@@ -3243,9 +3244,11 @@ func overrideCLIHooks(t *testing.T) func() {
 	originalScenarioExecutableFn := scenarioExecutableFn
 	originalRunProjectSetupFn := runProjectSetupFn
 	originalRunProjectDevelopFn := runProjectDevelopFn
+	checkStalenessFn = nil
 	return func() {
 		resolveSourceRootFn = originalResolveSourceRootFn
 		isStaleFn = originalIsStaleFn
+		checkStalenessFn = originalCheckStalenessFn
 		rebuildAndReexecFn = originalRebuildAndReexecFn
 		lookPathFn = originalLookPathFn
 		execCommandFn = originalExecCommandFn
@@ -3257,6 +3260,14 @@ func overrideCLIHooks(t *testing.T) func() {
 		runProjectSetupFn = originalRunProjectSetupFn
 		runProjectDevelopFn = originalRunProjectDevelopFn
 	}
+}
+
+func newTestApp(root string) *App {
+	app := configuredApp()
+	app.resolveSourceRoot = func() (string, error) { return root, nil }
+	app.isStale = func() bool { return false }
+	app.checkStaleness = nil
+	return app
 }
 
 func writeTestFile(t *testing.T, root, rel, contents string) {
@@ -3471,6 +3482,25 @@ func writeResourceStatusFixture(t *testing.T, root, name, statusJSON string) {
         "enabled": true
       }
     }
+  }
+}`)
+	writeTestFile(t, root, filepath.Join("resources", name, "resource.json"), `{
+  "name": "`+name+`",
+  "display_name": "`+name+`",
+  "description": "Fixture resource",
+  "template": "legacy-adapter",
+  "driver": "legacy-adapter",
+  "legacy_adapter": {
+    "owner": "CLI tests",
+    "decision_deadline": "2026-12-31",
+    "final_disposition": "migrate",
+    "legacy_cli_path": "resources/`+name+`/cli.sh"
+  },
+  "portability_tier": "partial",
+  "platforms": {
+    "linux": "supported",
+    "macos": "partial",
+    "windows": "unsupported"
   }
 }`)
 	script := "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"status\" ]]; then\n  printf '%s\\n' '" + statusJSON + "'\n  exit 0\nfi\nprintf '{\"message\":\"ok\"}\\n'\n"

@@ -45,11 +45,11 @@ done
 cli::init "questdb" "QuestDB high-performance time-series database management" "v2"
 
 # Override default handlers to point directly to QuestDB implementations
-CLI_COMMAND_HANDLERS["manage::install"]="questdb::install::run"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="questdb::install::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="questdb::docker::start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="questdb::docker::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="questdb::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="questdb::status::check"
 
 # Override content handlers for QuestDB-specific time-series functionality
@@ -67,8 +67,8 @@ cli::register_subcommand "content" "api" "Make API request" "questdb::content::a
 cli::register_subcommand "content" "console" "Open web console" "questdb::content::console"
 
 # Additional information commands
-cli::register_command "status" "Show detailed resource status" "questdb::status::check"
-cli::register_command "logs" "Show QuestDB logs" "questdb::docker::logs"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
+cli::register_command "logs" "Show QuestDB logs" "cli::delegate_logs"
 cli::register_command "credentials" "Show QuestDB credentials for integration" "questdb::core::credentials"
 
 # Only execute if script is run directly (not sourced)

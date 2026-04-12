@@ -4,7 +4,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
+
+var findRepoRoot = repocontract.FindRepoRootFromEnvOrCWD
 
 // ---------------------------------------------------------------------------
 // Sandbox-aware path resolution for scenario CLIs
@@ -171,6 +175,9 @@ func ResolveMergedPath(scenarioName, scope, merged string) string {
 // Deferred migration note: the HOME-based fallback is legacy compatibility and
 // should not be treated as future-state repo-contract authority.
 func defaultRepoRoot() string {
+	if root, err := findRepoRoot(); err == nil {
+		return root
+	}
 	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
 		return root
 	}
@@ -199,7 +206,14 @@ func ResolveScenarioPath(scenarioName string) string {
 	if sbx.IsSandboxActive() && ScenarioInScope(scenarioName, sbx.Scope) {
 		return ResolveMergedPath(scenarioName, sbx.Scope, sbx.Merged)
 	}
-	return filepath.Join(defaultRepoRoot(), "scenarios", scenarioName)
+	root := defaultRepoRoot()
+	if root == "" {
+		return ""
+	}
+	if path, err := repocontract.ResolveScenarioPath(root, scenarioName); err == nil {
+		return path
+	}
+	return filepath.Join(root, "scenarios", scenarioName)
 }
 
 // ResolveRepoRoot returns the effective repository root directory.
