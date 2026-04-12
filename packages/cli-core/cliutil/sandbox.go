@@ -167,6 +167,9 @@ func ResolveMergedPath(scenarioName, scope, merged string) string {
 
 // defaultRepoRoot returns the standard Vrooli repository root from env or
 // filesystem convention.
+//
+// Deferred migration note: the HOME-based fallback is legacy compatibility and
+// should not be treated as future-state repo-contract authority.
 func defaultRepoRoot() string {
 	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
 		return root

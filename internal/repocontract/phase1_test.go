@@ -94,6 +94,15 @@ func TestRepoContractJSONParsesAndMatchesPhase1Semantics(t *testing.T) {
 	if got := doc.Environment.Variables["source_root"]; got != "VROOLI_SOURCE_ROOT" {
 		t.Fatalf("source_root env = %q", got)
 	}
+	if got, want := doc.Environment.Variables, map[string]string{
+		"repo_root":      "VROOLI_ROOT",
+		"source_root":    "VROOLI_SOURCE_ROOT",
+		"sandbox_id":     "VROOLI_SANDBOX_ID",
+		"sandbox_merged": "VROOLI_SANDBOX_MERGED",
+		"sandbox_scope":  "VROOLI_SANDBOX_SCOPE",
+	}; !mapsEqual(got, want) {
+		t.Fatalf("environment.variables = %#v, want %#v", got, want)
+	}
 	if got := doc.Globs.Syntax; got != "doublestar" {
 		t.Fatalf("globs.syntax = %q", got)
 	}
@@ -116,6 +125,75 @@ func TestRepoContractJSONParsesAndMatchesPhase1Semantics(t *testing.T) {
 	}
 	if !contains(mini.Parameters, "scenario") || !contains(mini.Parameters, "resources[*]") {
 		t.Fatalf("unexpected profile parameters: %v", mini.Parameters)
+	}
+}
+
+func TestRepoContractCanonicalMarkersAndPathsStayExact(t *testing.T) {
+	doc := loadContract(t, repoRoot(t))
+
+	if got, want := doc.Root.Markers.RequiredDirs, []string{
+		".vrooli",
+		"scenarios",
+		"resources",
+		"packages",
+		"cmd",
+		"internal",
+	}; !slices.Equal(got, want) {
+		t.Fatalf("root.markers.required_dirs = %v, want %v", got, want)
+	}
+
+	if got, want := doc.Root.Markers.RequiredFiles, []string{"go.mod"}; !slices.Equal(got, want) {
+		t.Fatalf("root.markers.required_files = %v, want %v", got, want)
+	}
+
+	if got := doc.Layout.ProjectConfigDir; got != ".vrooli" {
+		t.Fatalf("layout.project_config_dir = %q", got)
+	}
+	if got := doc.Layout.ScenarioDir; got != "scenarios" {
+		t.Fatalf("layout.scenario_dir = %q", got)
+	}
+	if got := doc.Layout.ResourceDir; got != "resources" {
+		t.Fatalf("layout.resource_dir = %q", got)
+	}
+	if got := doc.Layout.PackageDir; got != "packages" {
+		t.Fatalf("layout.package_dir = %q", got)
+	}
+	if got := doc.Layout.CommandDir; got != "cmd" {
+		t.Fatalf("layout.command_dir = %q", got)
+	}
+	if got := doc.Layout.InternalDir; got != "internal" {
+		t.Fatalf("layout.internal_dir = %q", got)
+	}
+	if got := doc.Layout.DocsDir; got != "docs" {
+		t.Fatalf("layout.docs_dir = %q", got)
+	}
+
+	if got, want := doc.Scenario.RequiredFiles, []string{".vrooli/service.json"}; !slices.Equal(got, want) {
+		t.Fatalf("scenario.required_files = %v, want %v", got, want)
+	}
+
+	expectedScenarioPaths := map[string]string{
+		"service":        ".vrooli/service.json",
+		"docs":           "docs",
+		"requirements":   "requirements",
+		"api":            "api",
+		"ui":             "ui",
+		"cli":            "cli",
+		"initialization": "initialization",
+	}
+	if !mapsEqual(doc.Scenario.WellKnownPaths, expectedScenarioPaths) {
+		t.Fatalf("scenario.well_known_paths = %#v, want %#v", doc.Scenario.WellKnownPaths, expectedScenarioPaths)
+	}
+
+	expectedResourcePaths := map[string]string{
+		"docs":           "docs",
+		"initialization": "initialization",
+	}
+	if doc.Resource.Manifest != "resource.json" {
+		t.Fatalf("resource.manifest = %q", doc.Resource.Manifest)
+	}
+	if !mapsEqual(doc.Resource.WellKnownPaths, expectedResourcePaths) {
+		t.Fatalf("resource.well_known_paths = %#v, want %#v", doc.Resource.WellKnownPaths, expectedResourcePaths)
 	}
 }
 
@@ -289,6 +367,85 @@ func TestRepoContractProfileRootsStayWithinCanonicalLayout(t *testing.T) {
 	}
 }
 
+func TestRepoContractBundleProfileStaysWithinPhase1Policy(t *testing.T) {
+	doc := loadContract(t, repoRoot(t))
+	profile, ok := doc.Profiles["mini_vrooli_bundle"]
+	if !ok {
+		t.Fatal("missing mini_vrooli_bundle profile")
+	}
+
+	if got, want := profile.Parameters, []string{"scenario", "resources[*]"}; !slices.Equal(got, want) {
+		t.Fatalf("profile.parameters = %v, want %v", got, want)
+	}
+
+	requiredIncludes := []string{
+		".vrooli",
+		"cmd",
+		"internal",
+		"packages",
+		"scenarios/{scenario}",
+		"resources/{resources[*]}",
+	}
+	for _, include := range requiredIncludes {
+		if !contains(profile.Include, include) {
+			t.Fatalf("profile.include missing %q in %v", include, profile.Include)
+		}
+	}
+
+	for _, forbidden := range []string{
+		"api",
+		"src",
+		"scripts",
+		"platforms",
+		"assets",
+		"package.json",
+		"pnpm-lock.yaml",
+		"pnpm-workspace.yaml",
+		".npmrc",
+		".env-example",
+	} {
+		if contains(profile.Include, forbidden) || contains(profile.OptionalInclude, forbidden) {
+			t.Fatalf("bundle profile unexpectedly treats legacy/transitional root %q as canonical", forbidden)
+		}
+	}
+
+	for _, exclude := range []string{
+		".git/**",
+		"**/.git/**",
+		"**/node_modules/**",
+		"**/coverage/**",
+		"**/data/**",
+		".vrooli/secrets.json",
+		"**/.vrooli/secrets.json",
+		"cli/**",
+		"scripts/lib/**",
+		"scripts/manage.sh",
+	} {
+		if !contains(profile.Exclude, exclude) {
+			t.Fatalf("profile.exclude missing %q in %v", exclude, profile.Exclude)
+		}
+	}
+}
+
+func TestRepoContractDocsStayAlignedWithPhase1Contract(t *testing.T) {
+	root := repoRoot(t)
+	docs := string(mustReadFile(t, filepath.Join(root, "docs", "repo-contract.md")))
+
+	requiredSnippets := []string{
+		"Phase 1 implementation status:",
+		"make validate-repo-contract",
+		"canonical scenario manifest path: `scenarios/<name>/.vrooli/service.json`",
+		"canonical resource manifest path: `resources/<name>/resource.json`",
+		"`packages/repo-contract-go`",
+		"`swarm-manager` backlog glob validation and counting",
+	}
+	for _, snippet := range requiredSnippets {
+		if !strings.Contains(docs, snippet) {
+			t.Fatalf("docs/repo-contract.md missing required snippet %q", snippet)
+		}
+	}
+}
+
 func repoRoot(t *testing.T) string {
 	t.Helper()
 	dir, err := os.Getwd()
@@ -327,6 +484,18 @@ func contains(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func mapsEqual(got, want map[string]string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for key, wantValue := range want {
+		if gotValue, ok := got[key]; !ok || gotValue != wantValue {
+			return false
+		}
+	}
+	return true
 }
 
 func stringValue(value any) string {

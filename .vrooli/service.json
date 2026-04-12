@@ -86,20 +86,6 @@
         },
         "required": false
       },
-      "nsfw-detector": {
-        "enabled": false
-      },
-      "obs-studio": {
-        "data_dir": "~/.vrooli/obs-studio",
-        "description": "Professional streaming and recording software with programmatic control via WebSocket API",
-        "enabled": false,
-        "recording_path": "~/Videos/obs-recordings",
-        "required": false,
-        "websocket_port": 4455
-      },
-      "octoprint": {
-        "enabled": false
-      },
       "ollama": {
         "enabled": true,
         "healthCheck": {
@@ -111,31 +97,15 @@
           "running": true
         }
       },
-      "open-data-cube": {
-        "enabled": false
-      },
       "opencode": {
         "enabled": true
-      },
-      "openfoam": {
-        "enabled": false
       },
       "openrouter": {
         "description": "Unified API to many model providers for AI access",
         "enabled": true,
         "required": false
       },
-      "openscad": {
-        "description": "Programmatic 3D CAD modeler",
-        "enabled": false
-      },
-      "papermc": {
-        "enabled": false
-      },
       "parlant": {
-        "enabled": false
-      },
-      "pihole": {
         "enabled": false
       },
       "postgis": {
@@ -157,13 +127,6 @@
           "timeoutMs": 5000
         },
         "required": true
-      },
-      "pushover": {
-        "credentials_file": "~/.vrooli/pushover-credentials.json",
-        "data_dir": "~/.vrooli/pushover",
-        "description": "Real-time mobile and desktop notification service for instant alerts and messaging",
-        "enabled": false,
-        "required": false
       },
       "pybullet": {
         "enabled": false

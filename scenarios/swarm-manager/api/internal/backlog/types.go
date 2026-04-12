@@ -137,6 +137,10 @@ func validateEffort(raw string) (string, error) {
 	}
 }
 
+// validateGlobs is legacy compatibility logic until swarm-manager migrates to
+// the shared repo contract. Keep behavior changes here aligned with
+// docs/repo-contract.md and prefer contract-backed semantics in later phases.
+//
 // validateGlobs checks that each glob pattern is non-empty, relative, and
 // syntactically valid.
 func validateGlobs(globs []string) error {

@@ -139,6 +139,7 @@ Do not start new resource work by cloning an old `resources/<name>/` directory o
 3. **Emergent Capabilities**: Don't hard-code what can emerge from agent intelligence
 4. **Type Safety**: Maintain type safety across package boundaries
 5. **Repo Contract**: For repo-aware code, follow [/docs/repo-contract.md](/home/matthalloran8/Vrooli/docs/repo-contract.md). Do not add new repo-root heuristics, canonical-path assembly helpers, or legacy shell-era paths as fresh dependencies.
+6. **Repo Contract Changes**: If you change the contract, update `.vrooli/repo-contract.json`, `.vrooli/schemas/repo-contract.schema.json`, the relevant docs, and `internal/repocontract` coverage in the same change. Validate with `make validate-repo-contract`.
 
 ## Testing Requirements
 

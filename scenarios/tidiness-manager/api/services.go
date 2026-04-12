@@ -25,6 +25,9 @@ type ScenarioLocator struct {
 }
 
 // NewScenarioLocator builds a locator with sensible defaults derived from env.
+//
+// Deferred migration note: the fallback behavior here is legacy compatibility
+// and is intentionally not treated as repo-contract authority.
 func NewScenarioLocator(cacheTTL time.Duration) *ScenarioLocator {
 	root := os.Getenv("VROOLI_ROOT")
 	if root == "" {
@@ -58,6 +61,9 @@ func (sl *ScenarioLocator) ValidateScenarioName(name string) (string, error) {
 }
 
 // defaultScenarioPath provides a fallback scenario path based on environment variables.
+//
+// This is a transitional helper and should be removed once tidiness-manager
+// resolves scenario roots through shared contract-backed helpers.
 func defaultScenarioPath(scenario string) string {
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {

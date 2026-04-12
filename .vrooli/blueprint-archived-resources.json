@@ -274,6 +274,105 @@
       "retention_policy_days": 90,
       "restore_supported": true,
       "purge_after": "2026-07-11"
+    },
+    {
+      "name": "nsfw-detector",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "nsfw-detector",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-025028-nsfw-detector",
+      "archive_hash": "0a8519f78b85f797ed215c8f014bbd9997f46ad225895668f401e89cba6f5748",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "obs-studio",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "obs-studio",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-025037-obs-studio",
+      "archive_hash": "0299a0c4e8a61e2455f36c8fffd913113175f4ddf40e9f4093a210c954c30cd7",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "octoprint",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "octoprint",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-025041-octoprint",
+      "archive_hash": "8db00a3c565755d96e8f4b3214bb36685ec9122fd45bff4dca6efe3feb4f1a2c",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "open-data-cube",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "open-data-cube",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-025045-open-data-cube",
+      "archive_hash": "dd460e5e8bec00ea19c8448eac4c01df45c87b58d31dfb86c3b2bc0ecb35e5b5",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "openfoam",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "openfoam",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-025049-openfoam",
+      "archive_hash": "9b5d816857bedc373275782ead14067fdcf6a14b1253318215f7db36119c74b0",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "openscad",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "openscad",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-025147-openscad",
+      "archive_hash": "e63bc686c04346405a96aec586395b294f4858d60fe4acbedf9be1897526d1fe",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "papermc",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "papermc",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-025151-papermc",
+      "archive_hash": "efbbd7b508e2b7cff58ed8d0ab9b14a137d17053d4cfbfaf814f625c5c90fc73",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "pihole",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "pihole",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-025155-pihole",
+      "archive_hash": "f225cf1dfd790250f228747b72d3305c204fb5e8d3c16208e1f2414397132519",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "pushover",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "pushover",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-025159-pushover",
+      "archive_hash": "0d2024808327e9fb8b037f8819ae72ff83341bfa8b33ef81db74261aab40fd47",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
     }
   ]
 }

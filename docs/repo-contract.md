@@ -20,6 +20,14 @@ The authoritative artifacts are:
 
 Phase 1 defines and validates the contract. It does not yet require every consumer to use a language adapter.
 
+Phase 1 implementation status:
+
+- the versioned contract is landed
+- the schema is landed
+- repo conformance and drift tests are landed
+- validation entrypoints are landed
+- consumer migration remains deferred to later phases
+
 Phase 1 includes:
 
 - a versioned JSON contract
@@ -34,6 +42,16 @@ Phase 1 excludes:
 - `packages/repo-contract-go`
 - broad consumer migration
 - new runtime behavior beyond validation and documentation
+
+## Phase 1 Completion Rules
+
+Phase 1 should be considered complete only when all of the following remain true:
+
+- `.vrooli/repo-contract.json` stays aligned with the future-state repo shape
+- `.vrooli/schemas/repo-contract.schema.json` enforces the current contract shape
+- `make validate-repo-contract` remains the single documented validation entrypoint
+- `internal/repocontract` catches schema drift, semantic drift, and legacy-path regressions
+- deferred consumers are clearly documented as migration targets rather than contract authority
 
 ## Canonical Rules
 
@@ -88,6 +106,7 @@ Validation currently covers:
 - contract instance validation against the schema
 - live repo conformance tests
 - explicit checks that excluded legacy paths do not appear in the contract
+- semantic drift checks for profile roots, required markers, and canonical path/value invariants
 
 ## Adoption Rules
 
@@ -97,6 +116,8 @@ For covered repo-aware work:
 - do not add new hard-coded canonical scenario path assembly
 - do not introduce new repo-aware glob semantics outside the shared contract path
 - do not treat historical fallbacks as future-state architecture
+- when changing the contract, update the schema, docs, and `internal/repocontract` coverage in the same change
+- add a new structural rule to the contract only if it is intentionally shared, future-state aligned, and stable enough to version
 
 Ordinary scenario runtime logic should usually consume higher-level shared packages. Repo-aware infrastructure code may consume a future adapter directly once Phase 2 lands.
 

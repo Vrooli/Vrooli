@@ -19,6 +19,10 @@ var (
 )
 
 // Root returns the repository root directory, caching the result.
+//
+// Deferred migration note: this heuristic exists for legacy compatibility and
+// is intentionally weaker than the repo contract. Do not copy this behavior
+// into new repo-aware tooling.
 func Root() string {
 	rootOnce.Do(func() {
 		dir, _ := os.Getwd()

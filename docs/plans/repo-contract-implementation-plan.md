@@ -337,6 +337,19 @@ Deliverables:
 
 **Goal:** Define the versioned language-agnostic contract format.
 
+**Implementation status (2026-04-11):** Core artifacts for Phase 1 are already landed:
+- `.vrooli/repo-contract.json`
+- `.vrooli/schemas/repo-contract.schema.json`
+- `docs/repo-contract.md`
+- `internal/repocontract` conformance tests
+- `make validate-repo-contract`
+
+Remaining Phase 1 work should be treated as cleanup and hardening only:
+- strengthen semantic drift checks
+- keep docs and validation entrypoints aligned
+- explicitly fence deferred consumers off from being treated as contract authority
+- avoid introducing Phase 2 adapter behavior under the guise of Phase 1 polish
+
 Tasks:
 1. Draft `.vrooli/schemas/repo-contract.schema.json`
 2. Draft `.vrooli/repo-contract.json`
@@ -351,6 +364,13 @@ Deliverables:
 - initial spec
 - versioning policy
 - compatibility policy
+
+Exit criteria for fully closed Phase 1:
+- schema, contract, docs, and validation entrypoints agree on the same canonical rules
+- `make validate-repo-contract` validates schema, instance data, and semantic drift checks
+- explicit exclusions are regression-tested
+- deferred consumers are documented as legacy compatibility rather than precedent
+- no Phase 2 adapter code is required to enforce the Phase 1 contract
 
 ### Phase 2 — Go Adapter Implementation
 

@@ -96,6 +96,10 @@ func CalculateBundleSHA(repoRoot string, manifest domain.CloudManifest) (string,
 }
 
 // MiniVrooliBundleSpec builds the specification for a mini-Vrooli bundle.
+//
+// Deferred migration note: repo-wide include/exclude policy belongs in the
+// repo contract. This function still carries legacy compatibility rules until
+// scenario-to-cloud is migrated onto the shared contract profile surface.
 func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniBundleSpec, error) {
 	scenarioIDs := stringutil.SortedUnique(manifest.Bundle.Scenarios)
 	resourceIDs := stringutil.SortedUnique(manifest.Bundle.Resources)

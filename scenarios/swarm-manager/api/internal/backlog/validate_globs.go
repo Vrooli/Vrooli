@@ -31,6 +31,10 @@ type validateGlobsResponse struct {
 
 // ValidateGlobs checks an array of glob patterns for syntax validity and
 // counts how many files match each pattern within the project directory.
+//
+// Deferred migration note: this handler still derives repo root from the local
+// scenario layout and still couples bespoke matching behavior to legacy
+// validation logic. It is intentionally not Phase 1 contract authority.
 func (h *Handler) ValidateGlobs(w http.ResponseWriter, r *http.Request) {
 	var req validateGlobsRequest
 	if err := httputil.DecodeJSONStrict(r, &req); err != nil {
