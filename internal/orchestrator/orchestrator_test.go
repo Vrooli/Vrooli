@@ -2,12 +2,15 @@ package orchestrator
 
 import (
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
@@ -94,6 +97,78 @@ func TestResolvePortRejectsStoppedScenario(t *testing.T) {
 	}
 	if got := vroolierr.Code(err, ""); got != "scenario_not_running" {
 		t.Fatalf("error code = %q, want scenario_not_running", got)
+	}
+}
+
+func TestStartDetailedUsesInjectedRunnerFactory(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeScenarioService(t, root, "alpha", "Alpha", "running")
+	writeProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
+
+	service := New(root, home, io.Discard, io.Discard)
+	service.newRunner = func(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) (lifecycleRunner, error) {
+		return fakeLifecycleRunner{
+			startFn: func(name string, opts lifecycle.StartOptions) (lifecycle.Result, error) {
+				return lifecycle.Result{
+					Scenario: scenarioFixture(name, filepath.Join(root, "scenarios", name)),
+					AllocatedPorts: map[string]int{
+						"API_PORT": 18080,
+					},
+					Health: "healthy",
+				}, nil
+			},
+		}, nil
+	}
+
+	result, err := service.StartDetailed("alpha", lifecycle.StartOptions{})
+	if err != nil {
+		t.Fatalf("StartDetailed: %v", err)
+	}
+	if result.View.Name != "alpha" {
+		t.Fatalf("view name = %q", result.View.Name)
+	}
+}
+
+type fakeLifecycleRunner struct {
+	startFn   func(name string, opts lifecycle.StartOptions) (lifecycle.Result, error)
+	restartFn func(name string, opts lifecycle.StartOptions) (lifecycle.Result, error)
+	stopFn    func(name string, opts lifecycle.StopOptions) error
+}
+
+func (f fakeLifecycleRunner) Start(name string, opts lifecycle.StartOptions) (lifecycle.Result, error) {
+	if f.startFn == nil {
+		return lifecycle.Result{}, nil
+	}
+	return f.startFn(name, opts)
+}
+
+func (f fakeLifecycleRunner) Restart(name string, opts lifecycle.StartOptions) (lifecycle.Result, error) {
+	if f.restartFn == nil {
+		return lifecycle.Result{}, nil
+	}
+	return f.restartFn(name, opts)
+}
+
+func (f fakeLifecycleRunner) Stop(name string, opts lifecycle.StopOptions) error {
+	if f.stopFn == nil {
+		return nil
+	}
+	return f.stopFn(name, opts)
+}
+
+func scenarioFixture(name, path string) scenario.Scenario {
+	return scenario.Scenario{
+		Slug: name,
+		Path: path,
+		Manifest: scenario.ServiceManifest{
+			Service: scenario.ServiceMetadata{
+				Name: name,
+			},
+			Ports: map[string]scenario.Port{
+				"api": {EnvVar: "API_PORT"},
+			},
+		},
 	}
 }
 

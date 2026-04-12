@@ -50,6 +50,16 @@
       "range": "25000-29999"
     }
   },
+  "hostTools": [
+    {
+      "name": "bats",
+      "required": false,
+      "reason": "Execute discovered BATS suites during integration-test orchestration",
+      "when": ["setup"],
+      "environments": ["development"],
+      "notes": "Test Genie degrades with a clear missing-dependency error when bats is unavailable"
+    }
+  ],
   "lifecycle": {
     "version": "2.0.0",
     "health": {

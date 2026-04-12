@@ -64,7 +64,7 @@ func runScenarioSetupCommandWithApp(app *App, ctx *commandContext, args []string
 		return err
 	}
 
-	runner, err := app.newScenarioLifecycleRunner(ctx)
+	runner, _, err := app.newScenarioLifecycleRunnerForFormat(ctx, false)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func runScenarioTestCommandWithApp(app *App, ctx *commandContext, args []string)
 		return err
 	}
 
-	runner, err := app.newScenarioLifecycleRunner(ctx)
+	runner, _, err := app.newScenarioLifecycleRunnerForFormat(ctx, false)
 	if err != nil {
 		return err
 	}
@@ -134,13 +134,7 @@ func runScenarioStartAllCommandWithApp(app *App, ctx *commandContext, args []str
 		}
 	}
 
-	runnerOut := ctx.Stdout
-	if jsonFlag {
-		runnerOut = ctx.Stderr
-	}
-	serviceCtx := *ctx
-	serviceCtx.Stdout = runnerOut
-	service, err := app.newScenarioService(&serviceCtx)
+	service, format, err := app.newScenarioServiceForFormat(ctx, jsonFlag)
 	if err != nil {
 		return err
 	}
@@ -158,10 +152,6 @@ func runScenarioStartAllCommandWithApp(app *App, ctx *commandContext, args []str
 		failed = append(failed, scenarioBatchFailure{Name: item.Name, Error: item.Error})
 	}
 
-	format := cliout.FormatHuman
-	if jsonFlag {
-		format = cliout.FormatJSON
-	}
 	return writeScenarioBatchReport(ctx.Stdout, format, "Started", started, nil, failed)
 }
 
@@ -179,7 +169,7 @@ func runScenarioStopAllCommandWithApp(app *App, ctx *commandContext, args []stri
 		}
 	}
 
-	service, err := app.newScenarioService(ctx)
+	service, format, err := app.newScenarioServiceForFormat(ctx, jsonFlag)
 	if err != nil {
 		return err
 	}
@@ -197,10 +187,6 @@ func runScenarioStopAllCommandWithApp(app *App, ctx *commandContext, args []stri
 		failed = append(failed, scenarioBatchFailure{Name: item.Name, Error: item.Error})
 	}
 
-	format := cliout.FormatHuman
-	if jsonFlag {
-		format = cliout.FormatJSON
-	}
 	return writeScenarioBatchReport(ctx.Stdout, format, "Stopped", nil, stopped, failed)
 }
 

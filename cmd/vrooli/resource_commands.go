@@ -167,9 +167,9 @@ func runResourceStartAllCommand(controller *resources.Controller, globals global
 	if err != nil {
 		return err
 	}
-	format := cliout.FormatHuman
-	if globals.json {
-		format = cliout.FormatJSON
+	format, err := parseOutputFormat(globals)
+	if err != nil {
+		return err
 	}
 	return writeControlReport(stdout, format, "report", "Started", report, report.Started, report.Failed)
 }
@@ -179,9 +179,9 @@ func runResourceStopAllCommand(controller *resources.Controller, globals globalO
 	if err != nil {
 		return err
 	}
-	format := cliout.FormatHuman
-	if globals.json {
-		format = cliout.FormatJSON
+	format, err := parseOutputFormat(globals)
+	if err != nil {
+		return err
 	}
 	return writeControlReport(stdout, format, "report", "Stopped", report, report.Stopped, report.Failed)
 }
@@ -209,10 +209,7 @@ func runResourceInfoCommand(controller *resources.Controller, globals globalOpti
 	if err != nil {
 		return err
 	}
-	return cliout.WriteJSON(stdout, map[string]any{
-		"success":  true,
-		"resource": item,
-	})
+	return writeSuccessData(stdout, "resource", item)
 }
 
 func runResourceDeprecateCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
@@ -223,15 +220,12 @@ func runResourceDeprecateCommand(controller *resources.Controller, globals globa
 	if err != nil {
 		return err
 	}
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success": true,
-			"report":  report,
-		})
+		return writeSuccessData(stdout, "report", report)
 	}
 	_, _ = fmt.Fprintf(stdout, "Deprecated %s\n", report.Resource.Name)
 	if report.ArchiveDir != "" {
@@ -248,15 +242,12 @@ func runResourceListDeprecatedCommand(controller *resources.Controller, globals 
 	if err != nil {
 		return err
 	}
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success":   true,
-			"resources": items,
-		})
+		return writeSuccessData(stdout, "resources", items)
 	}
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
@@ -283,15 +274,12 @@ func runResourceRestoreCommand(controller *resources.Controller, globals globalO
 	if err != nil {
 		return err
 	}
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success": true,
-			"report":  report,
-		})
+		return writeSuccessData(stdout, "report", report)
 	}
 	_, _ = fmt.Fprintf(stdout, "Restored %s to %s\n", report.Resource.Name, report.RestoredPath)
 	return nil
@@ -305,15 +293,12 @@ func runResourceArchiveToBlueprintCommand(controller *resources.Controller, glob
 	if err != nil {
 		return err
 	}
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success": true,
-			"report":  report,
-		})
+		return writeSuccessData(stdout, "report", report)
 	}
 	_, _ = fmt.Fprintf(stdout, "Archived %s to blueprint-only state\n", report.Resource.Name)
 	if report.ArchiveDir != "" {
@@ -330,15 +315,12 @@ func runResourceListBlueprintArchivedCommand(controller *resources.Controller, g
 	if err != nil {
 		return err
 	}
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success":   true,
-			"resources": items,
-		})
+		return writeSuccessData(stdout, "resources", items)
 	}
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
@@ -365,15 +347,12 @@ func runResourceRestoreBlueprintCommand(controller *resources.Controller, global
 	if err != nil {
 		return err
 	}
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success": true,
-			"report":  report,
-		})
+		return writeSuccessData(stdout, "report", report)
 	}
 	_, _ = fmt.Fprintf(stdout, "Restored blueprint-archived %s to %s\n", report.Resource.Name, report.RestoredPath)
 	return nil
@@ -387,15 +366,12 @@ func runResourceArchiveGCCommand(controller *resources.Controller, globals globa
 	if err != nil {
 		return err
 	}
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success": true,
-			"report":  report,
-		})
+		return writeSuccessData(stdout, "report", report)
 	}
 	_, _ = fmt.Fprintf(stdout, "Purged %d deprecated resource archives\n", len(report.Removed))
 	return nil
@@ -409,15 +385,12 @@ func runResourceArchiveBlueprintGCCommand(controller *resources.Controller, glob
 	if err != nil {
 		return err
 	}
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success": true,
-			"report":  report,
-		})
+		return writeSuccessData(stdout, "report", report)
 	}
 	_, _ = fmt.Fprintf(stdout, "Purged %d blueprint resource archives\n", len(report.Removed))
 	return nil
@@ -431,15 +404,12 @@ func runResourceBlueprintListCommand(controller *resources.Controller, globals g
 	if err != nil {
 		return err
 	}
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success":    true,
-			"blueprints": items,
-		})
+		return writeSuccessData(stdout, "blueprints", items)
 	}
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
@@ -462,15 +432,12 @@ func runResourceBlueprintInfoCommand(controller *resources.Controller, globals g
 	if err != nil {
 		return err
 	}
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success":   true,
-			"blueprint": item,
-		})
+		return writeSuccessData(stdout, "blueprint", item)
 	}
 	rows := [][]string{
 		{"Name", item.Name},
@@ -494,7 +461,7 @@ func runResourceBlueprintSearchCommand(controller *resources.Controller, globals
 	if err != nil {
 		return err
 	}
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
@@ -525,15 +492,12 @@ func runResourceBlueprintValidateCommand(controller *resources.Controller, globa
 	if err != nil {
 		return err
 	}
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := parseOutputFormat(globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success": true,
-			"report":  report,
-		})
+		return writeSuccessData(stdout, "report", report)
 	}
 	_, _ = fmt.Fprintf(stdout, "Validated %d resource blueprints\n", report.Count)
 	return nil

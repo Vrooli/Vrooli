@@ -20,7 +20,17 @@ type Service struct {
 	Stdout io.Writer
 	Stderr io.Writer
 	Logger *slog.Logger
+
+	newRunner lifecycleRunnerFactory
 }
+
+type lifecycleRunner interface {
+	Start(name string, opts lifecycle.StartOptions) (lifecycle.Result, error)
+	Restart(name string, opts lifecycle.StartOptions) (lifecycle.Result, error)
+	Stop(name string, opts lifecycle.StopOptions) error
+}
+
+type lifecycleRunnerFactory func(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) (lifecycleRunner, error)
 
 type ScenarioView struct {
 	Name        string         `json:"name"`
@@ -46,6 +56,9 @@ func New(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) *S
 		Stdout: stdout,
 		Stderr: stderr,
 		Logger: logx.WithSubsystem(baseLogger, "orchestrator"),
+		newRunner: func(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) (lifecycleRunner, error) {
+			return lifecycle.NewRunner(root, home, stdout, stderr, logger...)
+		},
 	}
 }
 
@@ -107,7 +120,7 @@ func (s *Service) Start(name string, opts lifecycle.StartOptions) (ScenarioView,
 
 func (s *Service) Stop(name string, opts lifecycle.StopOptions) error {
 	s.logger().Info("Scenario stop dispatched", logx.AttrScenario, name)
-	runner, err := lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr, s.logger())
+	runner, err := s.runner()
 	if err != nil {
 		logx.Error(s.logger(), "Failed to construct lifecycle runner for stop", err, logx.AttrScenario, name)
 		return err
@@ -136,7 +149,7 @@ func (s *Service) StartAll() (control.StartReport, error) {
 	if err != nil {
 		return control.StartReport{}, err
 	}
-	runner, err := lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr, s.logger())
+	runner, err := s.runner()
 	if err != nil {
 		return control.StartReport{}, err
 	}
@@ -165,7 +178,7 @@ func (s *Service) StopAll() (control.StopReport, error) {
 	if err != nil {
 		return control.StopReport{}, err
 	}
-	runner, err := lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr, s.logger())
+	runner, err := s.runner()
 	if err != nil {
 		return control.StopReport{}, err
 	}
@@ -194,6 +207,13 @@ func (s *Service) logger() *slog.Logger {
 		return logx.WithSubsystem(slog.Default(), "orchestrator")
 	}
 	return s.Logger
+}
+
+func (s *Service) runner() (lifecycleRunner, error) {
+	if s != nil && s.newRunner != nil {
+		return s.newRunner(s.Root, s.Home, s.Stdout, s.Stderr, s.logger())
+	}
+	return lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr, s.logger())
 }
 
 func (s *Service) viewForScenario(item scenario.Scenario) (ScenarioView, error) {

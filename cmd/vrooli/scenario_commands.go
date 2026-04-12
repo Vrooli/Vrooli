@@ -111,19 +111,7 @@ func runScenarioStartCommandWithApp(app *App, ctx *commandContext, args []string
 		return usageErrorf("scenario start", "scenario start with --path accepts exactly one scenario name")
 	}
 
-	format, err := cliout.ParseFormat("", jsonFlag)
-	if err != nil {
-		return err
-	}
-
-	runnerOut := ctx.Stdout
-	if format == cliout.FormatJSON {
-		runnerOut = ctx.Stderr
-	}
-
-	runnerCtx := *ctx
-	runnerCtx.Stdout = runnerOut
-	service, err := app.newScenarioService(&runnerCtx)
+	service, format, err := app.newScenarioServiceForFormat(ctx, jsonFlag)
 	if err != nil {
 		return err
 	}
@@ -167,19 +155,7 @@ func runScenarioStopCommandWithApp(app *App, ctx *commandContext, args []string)
 		return err
 	}
 
-	format, err := cliout.ParseFormat("", jsonFlag)
-	if err != nil {
-		return err
-	}
-
-	runnerOut := ctx.Stdout
-	if format == cliout.FormatJSON {
-		runnerOut = ctx.Stderr
-	}
-
-	runnerCtx := *ctx
-	runnerCtx.Stdout = runnerOut
-	runner, err := app.newScenarioLifecycleRunner(&runnerCtx)
+	runner, format, err := app.newScenarioLifecycleRunnerForFormat(ctx, jsonFlag)
 	if err != nil {
 		return err
 	}
@@ -206,19 +182,7 @@ func runScenarioRestartCommandWithApp(app *App, ctx *commandContext, args []stri
 		return err
 	}
 
-	format, err := cliout.ParseFormat("", jsonFlag)
-	if err != nil {
-		return err
-	}
-
-	runnerOut := ctx.Stdout
-	if format == cliout.FormatJSON {
-		runnerOut = ctx.Stderr
-	}
-
-	runnerCtx := *ctx
-	runnerCtx.Stdout = runnerOut
-	service, err := app.newScenarioService(&runnerCtx)
+	service, format, err := app.newScenarioServiceForFormat(ctx, jsonFlag)
 	if err != nil {
 		return err
 	}
@@ -245,7 +209,6 @@ func runScenarioRestartCommandWithApp(app *App, ctx *commandContext, args []stri
 		}
 	}
 
-	item.Status = "started"
 	return writeScenarioLifecycleItems(ctx.Stdout, format, []scenarioLifecycleItemOutput{item})
 }
 
@@ -271,7 +234,7 @@ func runScenarioListCommandWithApp(app *App, ctx *commandContext, args []string)
 		}
 	}
 
-	format, err := cliout.ParseFormat("", jsonFlag)
+	format, err := ctx.outputFormat(jsonFlag)
 	if err != nil {
 		return err
 	}
@@ -361,7 +324,7 @@ func runScenarioInfoCommandWithApp(app *App, ctx *commandContext, args []string)
 		return err
 	}
 
-	format, err := cliout.ParseFormat("", jsonFlag)
+	format, err := ctx.outputFormat(jsonFlag)
 	if err != nil {
 		return err
 	}
@@ -410,7 +373,7 @@ func runScenarioStatusCommandWithApp(app *App, ctx *commandContext, args []strin
 		return err
 	}
 
-	format, err := cliout.ParseFormat("", jsonFlag)
+	format, err := ctx.outputFormat(jsonFlag)
 	if err != nil {
 		return err
 	}

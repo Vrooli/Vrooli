@@ -12,6 +12,15 @@
     "macos": "supported",
     "windows": "supported"
   },
+  "hostTools": [
+    {
+      "name": "yq",
+      "required": false,
+      "reason": "Inspect and summarize retained LiteLLM YAML configuration from shell status workflows",
+      "when": ["setup", "develop"],
+      "notes": "Status output degrades gracefully when yq is unavailable"
+    }
+  ],
   "dependencies": [],
   "ports": [
     {

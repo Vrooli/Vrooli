@@ -312,7 +312,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	if !sort.StringsAreSorted(toolNames) {
 		t.Fatalf("tool names not sorted: %v", toolNames)
 	}
-	if !contains(toolNames, "docker") || !contains(toolNames, "ffmpeg") || !contains(toolNames, "tmux") {
+	if !contains(toolNames, "docker") || !contains(toolNames, "ffmpeg") || !contains(toolNames, "tmux") || !contains(toolNames, "bats") || !contains(toolNames, "yq") {
 		t.Fatalf("tool names missing expected entries: %v", toolNames)
 	}
 

@@ -12,6 +12,15 @@
     "macos": "supported",
     "windows": "partial"
   },
+  "hostTools": [
+    {
+      "name": "yq",
+      "required": false,
+      "reason": "Parse resource secrets.yaml templates and initialization metadata from retained Vault shell workflows",
+      "when": ["setup", "develop"],
+      "notes": "Vault secret helper scripts fall back to basic parsing when yq is unavailable"
+    }
+  ],
   "dependencies": [],
   "ports": [
     {

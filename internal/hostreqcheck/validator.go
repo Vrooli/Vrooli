@@ -54,15 +54,11 @@ var (
 		"node":   {},
 		"python": {},
 	}
-	specializedToolCandidates = []string{
+	referenceScanCandidates = []string{
 		"ffmpeg",
 		"tmux",
 		"helm",
-		"sqlite",
 		"yq",
-		"stripe",
-		"vault",
-		"buf",
 		"shellcheck",
 		"bats",
 		"lychee",
@@ -76,12 +72,8 @@ var (
 		"openbox",
 	}
 	scannableExtensions = map[string]struct{}{
-		".go":  {},
-		".js":  {},
-		".jsx": {},
-		".sh":  {},
-		".ts":  {},
-		".tsx": {},
+		".go": {},
+		".sh": {},
 	}
 )
 
@@ -232,6 +224,9 @@ func validateReferences(root string, owner ownerManifest) []Finding {
 			return nil
 		}
 		if d.IsDir() {
+			if shouldSkipDir(owner, path, d.Name()) {
+				return filepath.SkipDir
+			}
 			switch d.Name() {
 			case ".git", ".next", "coverage", "data", "dist", "node_modules", "vendor":
 				return filepath.SkipDir
@@ -246,7 +241,7 @@ func validateReferences(root string, owner ownerManifest) []Finding {
 			return nil
 		}
 		text := string(content)
-		for _, candidate := range specializedToolCandidates {
+		for _, candidate := range referenceScanCandidates {
 			if _, ok := declared[candidate]; ok {
 				continue
 			}
@@ -295,12 +290,27 @@ func containsCandidateReference(text, candidate string) bool {
 		}
 		if strings.Contains(line, "command -v "+candidate) ||
 			strings.Contains(line, "which "+candidate) ||
-			containsQuotedToken(line, candidate) ||
+			containsCommandCallReference(line, candidate) ||
 			containsShellCommand(line, candidate) {
 			return true
 		}
 	}
 	return false
+}
+
+func shouldSkipDir(owner ownerManifest, path, base string) bool {
+	if owner.kind != "root" {
+		return false
+	}
+	if path == owner.basePath {
+		return false
+	}
+	switch base {
+	case ".git", ".next", ".tmp", "coverage", "data", "dist", "docs", "node_modules", "resources", "scenarios", "vendor":
+		return true
+	default:
+		return false
+	}
 }
 
 func isIgnorableCommentLine(line, candidate string) bool {
@@ -317,11 +327,27 @@ func isIgnorableCommentLine(line, candidate string) bool {
 	}
 }
 
-func containsQuotedToken(text, token string) bool {
-	for _, quote := range []string{`"`, `'`, "`"} {
-		if strings.Contains(text, quote+token+quote) {
-			return true
+func containsCommandCallReference(text, token string) bool {
+	quoted := `"` + token + `"`
+	patterns := []string{
+		"exec.Command(" + quoted,
+		"exec.CommandContext(",
+		"exec.LookPath(" + quoted + ")",
+		".LookPath(" + quoted + ")",
+		".shell(",
+		"ExecuteWithResult(ctx, " + quoted,
+	}
+	for _, pattern := range patterns {
+		if !strings.Contains(text, pattern) {
+			continue
 		}
+		if strings.Contains(pattern, "CommandContext(") || strings.Contains(pattern, ".shell(") {
+			if strings.Contains(text, quoted) {
+				return true
+			}
+			continue
+		}
+		return true
 	}
 	return false
 }

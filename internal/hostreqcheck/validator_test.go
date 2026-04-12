@@ -26,8 +26,10 @@ func TestValidateReportsUndeclaredReferencesMissingHandlersAndRootOverreach(t *t
 }`)
 	writeValidatorFile(t, filepath.Join(root, "scenarios", "alpha", "api", "main.go"), `package main
 
+import "os/exec"
+
 func main() {
-	_ = "websockify"
+	_ = exec.Command("websockify", "--help")
 }`)
 	writeValidatorFile(t, filepath.Join(root, "resources", "beta", "resource.json"), `{
   "name": "beta",

@@ -235,7 +235,7 @@ func runInfoCommand(root string, globals globalOptions, args []string, stdout, s
 		}
 	}
 
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := formatFromJSON(globals.json)
 	if err != nil {
 		return err
 	}
@@ -389,7 +389,7 @@ func setEnvValue(env []string, key, value string) []string {
 }
 
 func showVersion(w io.Writer, root string, globals globalOptions) error {
-	format, err := cliout.ParseFormat("", globals.json)
+	format, err := formatFromJSON(globals.json)
 	if err != nil {
 		return err
 	}

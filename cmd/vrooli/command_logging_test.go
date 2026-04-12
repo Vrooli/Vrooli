@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-11
@@ -100,6 +102,37 @@ func TestCreateCommandLoggerEmitsConfigurationWarningsOnce(t *testing.T) {
 	}
 	if strings.Count(got, "invalid_log_format") != 1 {
 		t.Fatalf("expected one invalid_log_format warning, got %q", got)
+	}
+}
+
+func TestCommandContextOutputFormatRespectsForceJSON(t *testing.T) {
+	ctx := &commandContext{Globals: globalOptions{}}
+
+	format, err := ctx.outputFormat(true)
+	if err != nil {
+		t.Fatalf("outputFormat: %v", err)
+	}
+	if format != cliout.FormatJSON {
+		t.Fatalf("format = %q, want %q", format, cliout.FormatJSON)
+	}
+}
+
+func TestExecutionContextForFormatRedirectsJSONRunnerOutput(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	ctx := &commandContext{
+		Stdout: &stdout,
+		Stderr: &stderr,
+	}
+
+	jsonCtx := ctx.executionContextForFormat(cliout.FormatJSON)
+	if jsonCtx.Stdout != ctx.Stderr {
+		t.Fatalf("json stdout was not redirected to stderr")
+	}
+
+	humanCtx := ctx.executionContextForFormat(cliout.FormatHuman)
+	if humanCtx.Stdout != ctx.Stdout {
+		t.Fatalf("human stdout changed unexpectedly")
 	}
 }
 

@@ -26,18 +26,41 @@ type Controller struct {
 	Home                  string
 	Stdout                io.Writer
 	Stderr                io.Writer
-	Resources             *resources.Controller
-	Scenarios             *orchestrator.Service
-	Maintenance           *maintenance.Controller
+	Resources             ResourceController
+	Scenarios             ScenarioController
+	Maintenance           MaintenanceController
 	HostReqValidateFn     func(string, string) (hostreqcheck.Report, error)
 	MaintenanceSnapshotFn func() (maintenance.ProcessSnapshot, error)
 	MaintenanceLocksFn    func() ([]maintenance.LockInfo, error)
+	NewPhaseRunner        func(root, home string, stdout, stderr io.Writer) (PhaseRunner, error)
 }
 
 type Dependencies struct {
-	Resources   *resources.Controller
-	Scenarios   *orchestrator.Service
-	Maintenance *maintenance.Controller
+	Resources   ResourceController
+	Scenarios   ScenarioController
+	Maintenance MaintenanceController
+}
+
+type ResourceController interface {
+	ListStatuses(fast bool, includeDisabled bool) ([]resources.Status, error)
+	StopAll(stdout, stderr io.Writer) (control.StopReport, error)
+	Run(name string, args []string, stdout, stderr io.Writer) error
+}
+
+type ScenarioController interface {
+	List() ([]orchestrator.ScenarioView, error)
+	Status(name string) (orchestrator.ScenarioView, bool, error)
+	StopAll() (control.StopReport, error)
+	Stop(name string, opts lifecycle.StopOptions) error
+}
+
+type MaintenanceController interface {
+	Snapshot() (maintenance.ProcessSnapshot, error)
+	ListLocks() ([]maintenance.LockInfo, error)
+}
+
+type PhaseRunner interface {
+	RunPhase(name, phase string, opts lifecycle.PhaseOptions) error
 }
 
 type DoctorCheck struct {
@@ -95,6 +118,9 @@ func NewWithDependencies(root, home string, stdout, stderr io.Writer, deps Depen
 		Scenarios:         deps.Scenarios,
 		Maintenance:       deps.Maintenance,
 		HostReqValidateFn: hostreqcheck.Validate,
+		NewPhaseRunner: func(root, home string, stdout, stderr io.Writer) (PhaseRunner, error) {
+			return lifecycle.NewRunner(root, home, stdout, stderr)
+		},
 	}
 }
 
@@ -113,7 +139,13 @@ func (c *Controller) RunProjectPhase(phase string, args []string) error {
 		}
 	}
 
-	runner, err := lifecycle.NewRunner(c.Root, c.Home, c.Stdout, c.Stderr)
+	newRunner := c.NewPhaseRunner
+	if newRunner == nil {
+		newRunner = func(root, home string, stdout, stderr io.Writer) (PhaseRunner, error) {
+			return lifecycle.NewRunner(root, home, stdout, stderr)
+		}
+	}
+	runner, err := newRunner(c.Root, c.Home, c.Stdout, c.Stderr)
 	if err != nil {
 		return err
 	}

@@ -81,6 +81,8 @@ var runtimeRegistry = newRegistry(
 	newTmuxTool(),
 	newSQLiteTool(),
 	newFFmpegTool(),
+	newBatsTool(),
+	newYQTool(),
 	newRemoteSessionProtectionSafeguard(),
 )
 

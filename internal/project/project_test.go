@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostreqcheck"
+	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/process"
 )
@@ -204,6 +205,38 @@ func TestRunProjectPhaseExecutesDefinedLifecycle(t *testing.T) {
 	}
 }
 
+func TestRunProjectPhaseUsesInjectedPhaseRunner(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeProjectService(t, root, `{
+  "service": { "name": "project-alpha" },
+  "lifecycle": {
+    "build": {
+      "steps": [{ "name": "noop", "run": "true" }]
+    }
+  }
+}`)
+
+	controller := New(root, home, io.Discard, io.Discard)
+	called := false
+	controller.NewPhaseRunner = func(root, home string, stdout, stderr io.Writer) (PhaseRunner, error) {
+		return phaseRunnerFunc(func(name, phase string, opts lifecycle.PhaseOptions) error {
+			called = true
+			if name != "project-alpha" || phase != "build" {
+				t.Fatalf("runner called with name=%q phase=%q", name, phase)
+			}
+			return nil
+		}), nil
+	}
+
+	if err := controller.RunProjectPhase("build", nil); err != nil {
+		t.Fatalf("RunProjectPhase(build): %v", err)
+	}
+	if !called {
+		t.Fatalf("expected injected phase runner to be used")
+	}
+}
+
 func TestLoadProjectFallsBackToDirectoryNameWhenServiceNameMissing(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "project-alpha")
 	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
@@ -229,6 +262,12 @@ func writeProjectService(t *testing.T, root, contents string) {
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
+}
+
+type phaseRunnerFunc func(name, phase string, opts lifecycle.PhaseOptions) error
+
+func (fn phaseRunnerFunc) RunPhase(name, phase string, opts lifecycle.PhaseOptions) error {
+	return fn(name, phase, opts)
 }
 
 func writeScenarioService(t *testing.T, root, name string) {
