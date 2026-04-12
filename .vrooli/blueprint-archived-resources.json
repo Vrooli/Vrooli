@@ -1,0 +1,279 @@
+{
+  "resources": [
+    {
+      "name": "blender",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "blender",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024231-blender",
+      "archive_hash": "e85c5c3c8ca3a72fed1a65a8940320c3f541170e0c0deb6a0f535db075892f17",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "btcpay",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "btcpay",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024235-btcpay",
+      "archive_hash": "a688ec1757316defc20d087a7a94988164771d7b177e0af6597f5a4877b6d447",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "cncjs",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "cncjs",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024238-cncjs",
+      "archive_hash": "18cf98e99854778a0bcbeb1be73999920034fb45f496df03e55b01a089128bcf",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "earthly",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "earthly",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024242-earthly",
+      "archive_hash": "0a614fdedcdb2bcbb4dd0867707e79168843eb339083ea878e2334bbc1bcc259",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "elmer-fem",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "elmer-fem",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024302-elmer-fem",
+      "archive_hash": "5fc8dd28f1bda241901b03f784ae899bc18d792c40ffea20c471d6781e910835",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "esphome",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "esphome",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024518-esphome",
+      "archive_hash": "a0afdf63f7a9af34e73abcc92aea6042644087c322fe30996ffb7a98a0987b1b",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "ffmpeg",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "ffmpeg",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024522-ffmpeg",
+      "archive_hash": "b9d98363a75487fd45e59c1a96d6aa2c4d593c2e987b20e18f4dbd3c18ebe64e",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "freecad",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "freecad",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024526-freecad",
+      "archive_hash": "0b5cfb3132dd2533e88c38db3d34b0d4564f94196dc5a6b7cdfc7272cd01458a",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "gazebo",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "gazebo",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024530-gazebo",
+      "archive_hash": "2b5ee32fa7291fde18e4c165864cf7b9ddad04afcb4650c7d1146af2105692fa",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "geonode",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "geonode",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024537-geonode",
+      "archive_hash": "f68acf1d0e7384ac826ae18d3f12101aa26110404ed68d38bf467888d2c8d249",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "geth",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "geth",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024533-geth",
+      "archive_hash": "3169e17537b3110da1a4ad8ddec06169054bf4e0774d8aa55189f48d9aae04c9",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "ggwave",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "ggwave",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024541-ggwave",
+      "archive_hash": "5111ddebfdff32aefee0ff80e8882220b42c0727cb11e06dea0b778f5ae5b90b",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "godot",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "godot",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024545-godot",
+      "archive_hash": "7228a86c1998bf8a4c52a7d18838fa2af6e27e683207a8c44f4e84c25a22e56c",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "gridlabd",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "gridlabd",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024549-gridlabd",
+      "archive_hash": "f85276a2ba953811e0630dd54165f52fea702f2dc2100aca0675dde37c93550e",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "haystack",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "haystack",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024552-haystack",
+      "archive_hash": "91448ed761ba2c6d8d85d565d0747bb086fd5d907516c482b9074cf7639f294b",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "kafka",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "kafka",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024649-kafka",
+      "archive_hash": "4fda928318b82645874de500e49b526cb092fd1b6639da15910638f814684215",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "keycloak",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "keycloak",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024653-keycloak",
+      "archive_hash": "694428c0bf14d996f6f6768ebda55f3d3792e97db9cb6725abea2249038d20b6",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "kicad",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "kicad",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024656-kicad",
+      "archive_hash": "0b2724bc2c874bbc31f94a0151b1b07818bcfde3b952c091de53c178b9293bec",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "llamaindex",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "llamaindex",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024700-llamaindex",
+      "archive_hash": "defc6525369d9aba14b3f755e6e45710de95b772f700d46fc8edc9ac9dd3465b",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "lnbits",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "lnbits",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024704-lnbits",
+      "archive_hash": "401012c4326982d0b9d61f34484e2759ed12093cbfead4fd397cf865f471cf23",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "mathlib",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "mathlib",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024752-mathlib",
+      "archive_hash": "b2a229ecde8a45fabf6c18db4880db0d97948a935df65d19df9a182c1f7814d2",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "matrix-synapse",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "matrix-synapse",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024756-matrix-synapse",
+      "archive_hash": "875e3c4b48c9ce4524030add20eaca94569c2d7948a6834b42dfee835302ad61",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "mcrcon",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "mcrcon",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024759-mcrcon",
+      "archive_hash": "06ec516ce6f0799bcda6c17c6c0fc906ecdfc2a09b2d74c256849c10c61352c3",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "meep",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "meep",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024803-meep",
+      "archive_hash": "3bae05c28affef282b976f850ec82667f589c02a2248f46331db82e14de3c324",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    },
+    {
+      "name": "mifos",
+      "archived_at": "2026-04-12",
+      "reason": "Archived from active repo implementation after blueprint preservation.",
+      "blueprint_name": "mifos",
+      "archive_path": "/home/matthalloran8/.vrooli/archive/resources/20260412-024807-mifos",
+      "archive_hash": "9eda6d52aad6acd3c42a46827bf3cab607f2c2804f8c44cb5ffad01226a0ee12",
+      "retention_policy_days": 90,
+      "restore_supported": true,
+      "purge_after": "2026-07-11"
+    }
+  ]
+}

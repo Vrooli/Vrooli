@@ -2,11 +2,6 @@
   "$schema": "schemas/service.schema.json",
   "dependencies": {
     "resources": {
-      "blender": {
-        "description": "Professional 3D creation suite with Python API",
-        "enabled": false,
-        "required": false
-      },
       "browserless": {
         "enabled": true,
         "healthCheck": {
@@ -15,9 +10,6 @@
         },
         "required": true
       },
-      "btcpay": {
-        "enabled": false
-      },
       "claude-code": {
         "description": "Claude Code development assistant",
         "enabled": true,
@@ -25,9 +17,6 @@
       },
       "cloudflare-ai-gateway": {
         "enabled": true
-      },
-      "cncjs": {
-        "enabled": false
       },
       "codex": {
         "description": "AI-powered code generation and completion via OpenAI GPT models",
@@ -41,55 +30,12 @@
           "timeoutMs": 5000
         }
       },
-      "earthly": {
-        "enabled": false
-      },
       "eclipse-ditto": {
-        "enabled": false
-      },
-      "elmer-fem": {
-        "enabled": false
-      },
-      "esphome": {
-        "enabled": false
-      },
-      "ffmpeg": {
-        "description": "Universal media processing framework for video/audio conversion, streaming, and analysis",
-        "enabled": false,
-        "output_dir": "~/.vrooli/ffmpeg/output",
-        "required": false,
-        "temp_dir": "~/.vrooli/ffmpeg/temp"
-      },
-      "freecad": {
-        "enabled": false
-      },
-      "gazebo": {
         "enabled": false
       },
       "gemini": {
         "description": "Google Gemini AI API integration",
         "enabled": true,
-        "required": false
-      },
-      "geonode": {
-        "enabled": false
-      },
-      "geth": {
-        "enabled": false
-      },
-      "ggwave": {
-        "enabled": false
-      },
-      "godot": {
-        "enabled": false
-      },
-      "gridlabd": {
-        "enabled": false
-      },
-      "haystack": {
-        "data_dir": "~/.vrooli/haystack",
-        "description": "End-to-end framework for question answering and search",
-        "enabled": false,
         "required": false
       },
       "home-assistant": {
@@ -114,20 +60,6 @@
         },
         "healthy": false
       },
-      "kafka": {
-        "enabled": false
-      },
-      "keycloak": {
-        "admin_port": 9990,
-        "data_dir": "~/.vrooli/keycloak",
-        "description": "Identity and access management solution for securing applications and services",
-        "enabled": false,
-        "required": false
-      },
-      "kicad": {
-        "enabled": false,
-        "order": 52
-      },
       "kokoro": {
         "description": "Text-to-speech synthesis service",
         "enabled": true,
@@ -136,31 +68,8 @@
       "litellm": {
         "enabled": true
       },
-      "llamaindex": {
-        "data_dir": "~/.vrooli/llamaindex",
-        "description": "Data framework for LLM applications with RAG capabilities",
-        "enabled": false
-      },
-      "lnbits": {
-        "enabled": false
-      },
       "mail-in-a-box": {
         "enabled": true
-      },
-      "mathlib": {
-        "enabled": false
-      },
-      "matrix-synapse": {
-        "enabled": false
-      },
-      "mcrcon": {
-        "enabled": false
-      },
-      "meep": {
-        "enabled": false
-      },
-      "mifos": {
-        "enabled": false
       },
       "minio": {
         "description": "S3-compatible object storage service",
@@ -472,11 +381,11 @@
           "run": "VROOLI_SETUP_MODE=true bash scripts/lib/setup.sh",
           "timeout": "15m"
         },
-  {
-    "description": "Install Vrooli CLI command",
-    "name": "install-cli",
-    "run": "if command -v make >/dev/null 2>&1 && [[ -f Makefile ]]; then make install; else echo '⚠️  make or Makefile not found, skipping CLI install'; fi"
-  },
+        {
+          "description": "Install Vrooli CLI command",
+          "name": "install-cli",
+          "run": "if command -v make \u003e/dev/null 2\u003e\u00261 \u0026\u0026 [[ -f Makefile ]]; then make install; else echo '⚠️  make or Makefile not found, skipping CLI install'; fi"
+        },
         {
           "description": "Add app data to resources (skipped during setup)",
           "name": "add-data",
