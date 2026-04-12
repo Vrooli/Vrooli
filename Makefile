@@ -21,24 +21,14 @@ help: ## Show available project-level targets
 	@printf "  make test           Run project-level Go tests\n"
 	@printf "  make validate-repo-contract Validate the repo contract schema, data, and drift checks\n"
 	@printf "  make clean          Remove project-level Go build artifacts\n"
-	@printf "  make validate-week0-week1 Run the repeatable Week 0/1 acceptance suite\n"
-	@printf "  make validate-week2 Run the repeatable Week 2 acceptance suite\n"
-	@printf "  make validate-week3 Run the repeatable Week 3 acceptance suite\n"
-	@printf "  make validate-week3-live Run live Week 3 native scenario smokes\n"
-	@printf "  make validate-week4 Run the repeatable Week 4 acceptance suite\n"
-	@printf "  make validate-week5 Run the repeatable Week 5 acceptance suite\n"
-	@printf "  make validate-week5-cross Run the Week 5 cross-compile suite\n"
-	@printf "  make validate-week6-slice Run the expanded Week 6 native command slice\n"
-	@printf "  make validate-week6-secrets Run the Week 6 encrypted secrets slice\n"
-	@printf "  make validate-week0-week2 Run the combined Week 0-2 acceptance suite\n"
-	@printf "  make validate-week0-week3 Run the combined Week 0-3 acceptance suite\n"
-	@printf "  make validate-week0-week4 Run the combined Week 0-4 acceptance suite\n"
-	@printf "  make validate-week0-week5 Run the combined Week 0-5 acceptance suite\n"
-	@printf "  make validate-week0-week6 Run the combined Week 0-6 acceptance suite\n"
 	@printf "\nProject helpers\n"
 	@printf "  make setup          Bootstrap the Go CLI and run native setup\n"
 	@printf "  make dev            Start the native development workflow\n"
-	@printf "  make lifecycle-build Run the existing Bash/CLI build phase\n"
+	@printf "  make lifecycle-build Run the native project build command via the installed CLI\n"
+	@printf "\nMigration validation\n"
+	@printf "  make validate-week0-week6 Run the retained migration acceptance suite\n"
+	@printf "  make validate-week6-slice Run the retained native command validation slice\n"
+	@printf "  make validate-week6-secrets Run the retained encrypted secrets validation slice\n"
 
 build: ## Build project-level Go binaries into .vrooli/build
 	@mkdir -p $(BUILD_DIR)
@@ -554,6 +544,6 @@ resources: ## Show resource status through the existing CLI
 	test -x "$(VROOLI_BIN)"
 	$(VROOLI_BIN) resource status
 
-lifecycle-build: ## Run the existing Bash/CLI build phase
+lifecycle-build: ## Run the native project build command via the installed CLI
 	test -x "$(VROOLI_BIN)"
 	$(VROOLI_BIN) build

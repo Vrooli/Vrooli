@@ -291,12 +291,6 @@
       "description": "Initialize system for scenario development",
       "steps": [
         {
-          "description": "Execute generic setup (e.g. network, system, git)",
-          "name": "base-setup",
-          "run": "VROOLI_SETUP_MODE=true bash scripts/lib/setup.sh",
-          "timeout": "15m"
-        },
-        {
           "description": "Install Vrooli CLI command",
           "name": "install-cli",
           "run": "if command -v make \u003e/dev/null 2\u003e\u00261 \u0026\u0026 [[ -f Makefile ]]; then make install; else echo '⚠️  make or Makefile not found, skipping CLI install'; fi"

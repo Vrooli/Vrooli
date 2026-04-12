@@ -38,6 +38,39 @@ func (p JSONPayload) MarshalJSON() ([]byte, error) {
 	return json.MarshalIndent(m, "", "  ")
 }
 
+func parseVPSSecretsData(data []byte) (*VPSSecretsData, error) {
+	if len(strings.TrimSpace(string(data))) == 0 {
+		return &VPSSecretsData{Secrets: map[string]string{}}, nil
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, fmt.Errorf("invalid secrets.json: %w", err)
+	}
+
+	parsed := &VPSSecretsData{
+		Secrets: map[string]string{},
+	}
+	for key, value := range raw {
+		if key == "_metadata" {
+			var metadata Metadata
+			if err := json.Unmarshal(value, &metadata); err != nil {
+				return nil, fmt.Errorf("invalid secrets metadata: %w", err)
+			}
+			parsed.Metadata = metadata
+			continue
+		}
+
+		var secret string
+		if err := json.Unmarshal(value, &secret); err != nil {
+			return nil, fmt.Errorf("secret %q must be a JSON string", key)
+		}
+		parsed.Secrets[key] = secret
+	}
+
+	return parsed, nil
+}
+
 // ReadFromVPS reads existing secrets.json from the VPS if it exists.
 // Returns nil map if file doesn't exist (not an error - just means fresh install).
 func ReadFromVPS(
@@ -56,24 +89,12 @@ func ReadFromVPS(
 	}
 
 	// Parse the JSON to extract existing secrets
-	var rawJSON map[string]interface{}
-	if err := json.Unmarshal([]byte(result.Stdout), &rawJSON); err != nil {
-		// If we can't parse it, treat as empty (fresh install)
-		return make(map[string]string), nil
+	parsed, err := parseVPSSecretsData([]byte(result.Stdout))
+	if err != nil {
+		return nil, err
 	}
 
-	// Extract string values (skip _metadata)
-	existing := make(map[string]string)
-	for k, v := range rawJSON {
-		if k == "_metadata" {
-			continue
-		}
-		if strVal, ok := v.(string); ok {
-			existing[k] = strVal
-		}
-	}
-
-	return existing, nil
+	return parsed.Secrets, nil
 }
 
 // WriteToVPS writes secrets.json to the VPS via SSH.
@@ -96,8 +117,7 @@ func WriteToVPS(
 	// This prevents "password authentication failed" errors when redeploying
 	existingSecrets, err := ReadFromVPS(ctx, sshRunner, cfg, workdir)
 	if err != nil {
-		// Log but don't fail - treat as fresh install
-		existingSecrets = make(map[string]string)
+		return fmt.Errorf("read existing secrets.json: %w", err)
 	}
 
 	// Build secrets map, preserving existing values for per_install_generated secrets
@@ -211,51 +231,7 @@ func ReadAllFromVPS(
 		return nil, fmt.Errorf("read secrets.json: %w", err)
 	}
 
-	// Parse the JSON
-	var rawJSON map[string]interface{}
-	if err := json.Unmarshal([]byte(result.Stdout), &rawJSON); err != nil {
-		// If we can't parse it, return empty data
-		return &VPSSecretsData{
-			Secrets: make(map[string]string),
-		}, nil
-	}
-
-	data := &VPSSecretsData{
-		Secrets: make(map[string]string),
-	}
-
-	// Extract metadata if present
-	if metadataRaw, ok := rawJSON["_metadata"].(map[string]interface{}); ok {
-		if env, ok := metadataRaw["environment"].(string); ok {
-			data.Metadata.Environment = env
-		}
-		if lastUpdated, ok := metadataRaw["last_updated"].(string); ok {
-			if t, err := time.Parse(time.RFC3339, lastUpdated); err == nil {
-				data.Metadata.LastUpdated = t
-			}
-		}
-		if notes, ok := metadataRaw["notes"].(string); ok {
-			data.Metadata.Notes = notes
-		}
-		if generatedBy, ok := metadataRaw["generated_by"].(string); ok {
-			data.Metadata.GeneratedBy = generatedBy
-		}
-		if scenarioID, ok := metadataRaw["scenario_id"].(string); ok {
-			data.Metadata.ScenarioID = scenarioID
-		}
-	}
-
-	// Extract secrets (skip _metadata)
-	for k, v := range rawJSON {
-		if k == "_metadata" {
-			continue
-		}
-		if strVal, ok := v.(string); ok {
-			data.Secrets[k] = strVal
-		}
-	}
-
-	return data, nil
+	return parseVPSSecretsData([]byte(result.Stdout))
 }
 
 // AddSecretToVPS adds a new secret to the VPS secrets.json file.

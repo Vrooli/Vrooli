@@ -191,7 +191,10 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 		return MiniBundleSpec{}, fmt.Errorf("build scenario service.json with fixed ports: %w", err)
 	}
 	if len(scenarioServiceJSON) > 0 {
-		scenarioServicePath := filepath.Join("scenarios", manifest.Scenario.ID, ".vrooli", "service.json")
+		scenarioServicePath, err := ResolveScenarioFileRelative(repoRoot, manifest.Scenario.ID, "service")
+		if err != nil {
+			return MiniBundleSpec{}, fmt.Errorf("resolve scenario service.json path: %w", err)
+		}
 		extra[scenarioServicePath] = scenarioServiceJSON
 	}
 
@@ -688,7 +691,10 @@ func buildScenarioServiceJSONWithFixedPorts(repoRoot string, manifest domain.Clo
 	}
 
 	// Read the scenario's service.json
-	path := filepath.Join(repoRoot, "scenarios", manifest.Scenario.ID, ".vrooli", "service.json")
+	path, err := ResolveScenarioFile(repoRoot, manifest.Scenario.ID, "service")
+	if err != nil {
+		return nil, err
+	}
 	b, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {

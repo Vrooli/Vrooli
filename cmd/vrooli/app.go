@@ -11,7 +11,9 @@ import (
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/orchestrator"
+	"github.com/vrooli/vrooli/internal/project"
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
@@ -70,6 +72,29 @@ func (app *App) Run(args []string, stdout, stderr io.Writer) int {
 	defer restoreLogger()
 	debugLog(logger, "Parsed command", "command", parsed.command, "args", parsed.args, "json", parsed.globals.json, "verbose", parsed.globals.verbose)
 
+	ctx := &commandContext{
+		Globals: parsed.globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		Logger:  logger,
+		app:     app,
+	}
+
+	if app.canRunWithoutRoot(parsed) {
+		if parsed.command == "version" {
+			if root, err := app.resolveRoot(); err == nil {
+				ctx.Root = root
+				debugLog(logger, "Resolved root", "path", root)
+				primeRootEnv(root)
+			}
+		}
+		if err := normalizeCommandError(dispatch(app, ctx, parsed)); err != nil {
+			printErrorWithContext(stderr, err)
+			return exitCode(err)
+		}
+		return 0
+	}
+
 	root, err := app.resolveRoot()
 	if err != nil {
 		printErrorWithContext(stderr, newErrorWithCategory(err, errorCategoryEnvironment, "Run from a Vrooli repository root or set VROOLI_SOURCE_ROOT", nil))
@@ -77,15 +102,7 @@ func (app *App) Run(args []string, stdout, stderr io.Writer) int {
 	}
 	debugLog(logger, "Resolved root", "path", root)
 	primeRootEnv(root)
-
-	ctx := &commandContext{
-		Root:    root,
-		Globals: parsed.globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		Logger:  logger,
-		app:     app,
-	}
+	ctx.Root = root
 
 	if parsed.globals.noColor {
 		_ = os.Setenv("NO_COLOR", "1")
@@ -119,11 +136,39 @@ func (app *App) Run(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 
-	if err := dispatch(app, ctx, parsed); err != nil {
+	if err := normalizeCommandError(dispatch(app, ctx, parsed)); err != nil {
 		printErrorWithContext(stderr, err)
 		return exitCode(err)
 	}
 	return 0
+}
+
+func (app *App) canRunWithoutRoot(parsed parsedArgs) bool {
+	switch parsed.command {
+	case "help", "version":
+		return true
+	}
+	if _, ok := topLevelCommands[parsed.command]; !ok {
+		return true
+	}
+	switch parsed.command {
+	case "scenario":
+		if len(parsed.args) == 0 || wantsCommandHelp(parsed.args) {
+			return true
+		}
+		if _, ok := scenarioCommands[parsed.args[0]]; !ok {
+			return true
+		}
+		return wantsCommandHelp(parsed.args[1:])
+	case "resource":
+		return len(parsed.args) == 0 || wantsCommandHelp(parsed.args)
+	case "cleanup":
+		return len(parsed.args) == 0 || wantsCommandHelp(parsed.args)
+	case "build", "deploy", "clean", "backup", "restore", "status", "doctor", "stop", "info", "orphans", "locks", "diagnose-port":
+		return wantsCommandHelp(parsed.args)
+	default:
+		return false
+	}
 }
 
 func (app *App) shouldRebuild() (bool, error) {
@@ -195,6 +240,22 @@ func (app *App) newResourceController(ctx *commandContext) (*resources.Controlle
 		return nil, err
 	}
 	return resources.NewController(ctx.Root, home), nil
+}
+
+func (app *App) newProjectController(ctx *commandContext) (*project.Controller, error) {
+	home, err := ctx.HomeDir()
+	if err != nil {
+		return nil, err
+	}
+	return project.New(ctx.Root, home, ctx.Stdout, ctx.Stderr), nil
+}
+
+func (app *App) newMaintenanceController(ctx *commandContext) (*maintenance.Controller, error) {
+	home, err := ctx.HomeDir()
+	if err != nil {
+		return nil, err
+	}
+	return maintenance.NewController(ctx.Root, home), nil
 }
 
 func (app *App) runTopLevelSetup(ctx *commandContext, args []string) error {

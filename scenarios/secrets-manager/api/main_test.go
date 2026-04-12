@@ -811,7 +811,7 @@ func TestFileContentHandler(t *testing.T) {
 		// Create a test file
 		testFile := filepath.Join(env.TempDir, "test.txt")
 		content := []byte("test content")
-		if err := os.WriteFile(testFile, content, 0644); err != nil {
+		if err := os.WriteFile(testFile, content, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -909,12 +909,12 @@ func TestHelperFunctions(t *testing.T) {
 
 		// Create test files
 		textFile := filepath.Join(env.TempDir, "test.txt")
-		if err := os.WriteFile(textFile, []byte("text content"), 0644); err != nil {
+		if err := os.WriteFile(textFile, []byte("text content"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
 		binaryFile := filepath.Join(env.TempDir, "test.bin")
-		if err := os.WriteFile(binaryFile, []byte{0xFF, 0xFE, 0x00, 0x01}, 0644); err != nil {
+		if err := os.WriteFile(binaryFile, []byte{0xFF, 0xFE, 0x00, 0x01}, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -982,7 +982,6 @@ func TestRouterSetup(t *testing.T) {
 		t.Logf("Route: %s Methods: %v", path, methods)
 		return nil
 	})
-
 	if err != nil {
 		t.Errorf("Error walking routes: %v", err)
 	}
@@ -1068,6 +1067,63 @@ func TestSaveSecretsToLocalStore(t *testing.T) {
 			t.Errorf("Expected count 0, got %d", count)
 		}
 	})
+}
+
+func TestLocalSecretsStoreRoundTripPreservesMetadata(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	root := t.TempDir()
+	path := filepath.Join(root, ".vrooli", "secrets.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(`{"_metadata":{"environment":"development","last_updated":"before"},"API_KEY":"old"}`), 0o600); err != nil {
+		t.Fatalf("write seed: %v", err)
+	}
+
+	t.Setenv("VROOLI_ROOT", root)
+
+	count, err := saveSecretsToLocalStore(map[string]string{
+		"API_KEY":   "updated",
+		"EXTRA_KEY": "extra",
+	})
+	if err != nil {
+		t.Fatalf("saveSecretsToLocalStore: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("count = %d, want 2", count)
+	}
+
+	store, err := loadLocalSecretsFile()
+	if err != nil {
+		t.Fatalf("loadLocalSecretsFile: %v", err)
+	}
+	if got := store["API_KEY"]; got != "updated" {
+		t.Fatalf("API_KEY = %#v, want updated", got)
+	}
+	if got := store["EXTRA_KEY"]; got != "extra" {
+		t.Fatalf("EXTRA_KEY = %#v, want extra", got)
+	}
+	meta, ok := store["_metadata"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("_metadata = %#v, want map", store["_metadata"])
+	}
+	if got := meta["environment"]; got != "development" {
+		t.Fatalf("metadata environment = %#v, want development", got)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read secrets file: %v", err)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("unmarshal saved file: %v", err)
+	}
+	if _, ok := raw["_metadata"]; !ok {
+		t.Fatal("expected _metadata to remain in saved file")
+	}
 }
 
 // Validation boundaries are owned by SecretValidator; these tests keep the single pipeline exercised even without DB wiring.

@@ -158,6 +158,9 @@ func TestNewVerboseOverridesConfiguredInfoLevel(t *testing.T) {
 	if got := diagnostics.Level; got != slog.LevelDebug {
 		t.Fatalf("level = %v, want debug", got)
 	}
+	if got := diagnostics.LevelSource; got != ConfigSourceVerboseOverride {
+		t.Fatalf("level source = %q, want %q", got, ConfigSourceVerboseOverride)
+	}
 
 	logger.Debug("visible")
 	record := decodeSingleJSONRecord(t, buffer.Bytes())
@@ -176,6 +179,9 @@ func TestNewUsesFormatFromEnv(t *testing.T) {
 	})
 	if diagnostics.Format != FormatJSON {
 		t.Fatalf("format = %v, want json", diagnostics.Format)
+	}
+	if got := diagnostics.FormatSource; got != ConfigSourceEnv {
+		t.Fatalf("format source = %q, want %q", got, ConfigSourceEnv)
 	}
 
 	logger.Info("env driven")
@@ -215,8 +221,46 @@ func TestNewInvalidFormatReturnsWarning(t *testing.T) {
 	if diagnostics.Warnings[0].Code != WarningCodeInvalidLogFormat {
 		t.Fatalf("warning code = %q, want %q", diagnostics.Warnings[0].Code, WarningCodeInvalidLogFormat)
 	}
+	if diagnostics.Warnings[0].Source != ConfigSourceEnv {
+		t.Fatalf("warning source = %q, want %q", diagnostics.Warnings[0].Source, ConfigSourceEnv)
+	}
 	if diagnostics.Format != FormatText {
 		t.Fatalf("format = %v, want text", diagnostics.Format)
+	}
+	if diagnostics.FormatSource != ConfigSourceDefault {
+		t.Fatalf("format source = %q, want %q", diagnostics.FormatSource, ConfigSourceDefault)
+	}
+}
+
+func TestNewInvalidExplicitFormatReturnsWarning(t *testing.T) {
+	t.Parallel()
+
+	var buffer bytes.Buffer
+	logger, diagnostics := New(Options{
+		Writer: &buffer,
+		Format: Format("yaml"),
+	})
+	if logger == nil {
+		t.Fatal("expected logger")
+	}
+	if len(diagnostics.Warnings) != 1 {
+		t.Fatalf("warnings = %v, want 1 warning", diagnostics.Warnings)
+	}
+	warning := diagnostics.Warnings[0]
+	if warning.Code != WarningCodeInvalidLogFormat {
+		t.Fatalf("warning code = %q, want %q", warning.Code, WarningCodeInvalidLogFormat)
+	}
+	if warning.Source != ConfigSourceOptions {
+		t.Fatalf("warning source = %q, want %q", warning.Source, ConfigSourceOptions)
+	}
+	if warning.Value != "yaml" {
+		t.Fatalf("warning value = %q, want %q", warning.Value, "yaml")
+	}
+	if diagnostics.Format != FormatText {
+		t.Fatalf("format = %v, want text", diagnostics.Format)
+	}
+	if diagnostics.FormatSource != ConfigSourceDefault {
+		t.Fatalf("format source = %q, want %q", diagnostics.FormatSource, ConfigSourceDefault)
 	}
 }
 
@@ -380,6 +424,53 @@ func TestInstallRestoreReinstatesPriorLoggerState(t *testing.T) {
 	}
 }
 
+func TestInstallRestoreReinstatesPriorLoggerStateWithoutStdlibRedirect(t *testing.T) {
+	originalDefault := slog.Default()
+	originalWriter := log.Writer()
+	originalFlags := log.Flags()
+	originalPrefix := log.Prefix()
+
+	var sink bytes.Buffer
+	log.SetOutput(&sink)
+	log.SetFlags(log.Lshortfile)
+	log.SetPrefix("before:")
+	t.Cleanup(func() {
+		log.SetOutput(originalWriter)
+		log.SetFlags(originalFlags)
+		log.SetPrefix(originalPrefix)
+		slog.SetDefault(originalDefault)
+	})
+
+	var buffer bytes.Buffer
+	logger, _, restore := Install(Options{
+		Writer:     &buffer,
+		SetDefault: true,
+	})
+	if slog.Default() != logger {
+		t.Fatal("expected Install to set the default slog logger")
+	}
+	if log.Flags() != 0 {
+		t.Fatalf("expected stdlib flags to be cleared after SetDefault, got %d", log.Flags())
+	}
+
+	restore()
+
+	if slog.Default() != originalDefault {
+		t.Fatal("expected original slog default to be restored")
+	}
+	if log.Flags() != log.Lshortfile {
+		t.Fatalf("flags = %d, want %d", log.Flags(), log.Lshortfile)
+	}
+	if log.Prefix() != "before:" {
+		t.Fatalf("prefix = %q, want %q", log.Prefix(), "before:")
+	}
+
+	log.Print("restored output")
+	if !strings.Contains(sink.String(), "restored output") {
+		t.Fatalf("expected restored stdlib output to reach prior sink, got %q", sink.String())
+	}
+}
+
 func TestRedirectStandardLibrary(t *testing.T) {
 	var buffer bytes.Buffer
 	logger, diagnostics := New(Options{
@@ -395,6 +486,23 @@ func TestRedirectStandardLibrary(t *testing.T) {
 	record := decodeSingleJSONRecord(t, buffer.Bytes())
 	if got := record["msg"]; got != "redirected log" {
 		t.Fatalf("msg = %#v, want %q", got, "redirected log")
+	}
+}
+
+func TestRedirectStandardLibraryDefaultsToInfoSeverity(t *testing.T) {
+	var buffer bytes.Buffer
+	logger, _ := New(Options{
+		Writer: &buffer,
+		JSON:   true,
+	})
+
+	restore := RedirectStandardLibrary(logger, nil)
+	defer restore()
+
+	log.Printf("redirected info")
+	record := decodeSingleJSONRecord(t, buffer.Bytes())
+	if got := record["level"]; got != "INFO" {
+		t.Fatalf("level = %#v, want %q", got, "INFO")
 	}
 }
 
@@ -465,6 +573,25 @@ func TestWithSubsystemFallsBackToDefaultLogger(t *testing.T) {
 	record := decodeSingleJSONRecord(t, buffer.Bytes())
 	if got := record["msg"]; got != "hello" {
 		t.Fatalf("msg = %#v, want %q", got, "hello")
+	}
+}
+
+func TestEmitWarningsFallsBackToDefaultLogger(t *testing.T) {
+	originalDefault := slog.Default()
+	var buffer bytes.Buffer
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buffer, nil)))
+	t.Cleanup(func() { slog.SetDefault(originalDefault) })
+
+	EmitWarnings(nil, []Warning{{
+		Code:    WarningCodeInvalidLogFormat,
+		Message: "warn",
+		Source:  ConfigSourceOptions,
+		Value:   "yaml",
+	}})
+
+	record := decodeSingleJSONRecord(t, buffer.Bytes())
+	if got := record[AttrSource]; got != string(ConfigSourceOptions) {
+		t.Fatalf("source = %#v, want %q", got, ConfigSourceOptions)
 	}
 }
 
@@ -587,7 +714,7 @@ func TestErrorAttrCapturesExecExitMetadata(t *testing.T) {
 func TestErrorAttrCapturesURLContext(t *testing.T) {
 	t.Parallel()
 
-	target := &url.Error{Op: "Get", URL: "http://localhost:1", Err: context.DeadlineExceeded}
+	target := &url.Error{Op: "Get", URL: "http://demo:secret@localhost:1?token=abc123", Err: context.DeadlineExceeded}
 	var buffer bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buffer, nil))
 	logger.Error("failed", ErrorAttr(target))
@@ -597,8 +724,70 @@ func TestErrorAttrCapturesURLContext(t *testing.T) {
 	if got := errField["category"]; got != string(ErrorCategoryTimeout) {
 		t.Fatalf("error.category = %#v, want %q", got, ErrorCategoryTimeout)
 	}
-	if got := errField["url"]; got != "http://localhost:1" {
-		t.Fatalf("error.url = %#v, want %q", got, "http://localhost:1")
+	if got := errField["url"]; got != "http://redacted@localhost:1?token=%5BREDACTED%5D" {
+		t.Fatalf("error.url = %#v, want redacted url", got)
+	}
+}
+
+func TestDescribeErrorClassifiesAndCapturesContext(t *testing.T) {
+	t.Parallel()
+
+	target := &fs.PathError{Op: "open", Path: "/tmp/missing", Err: fs.ErrNotExist}
+	details := DescribeError(target)
+	if details.Category != ErrorCategoryNotFound {
+		t.Fatalf("category = %q, want %q", details.Category, ErrorCategoryNotFound)
+	}
+	if details.Operation != "open" {
+		t.Fatalf("operation = %q, want %q", details.Operation, "open")
+	}
+	if details.Path != "/tmp/missing" {
+		t.Fatalf("path = %q, want %q", details.Path, "/tmp/missing")
+	}
+}
+
+func TestDescribeErrorSanitizesSensitiveDetails(t *testing.T) {
+	t.Parallel()
+
+	cmd := exec.Command("bash", "-lc", "printf 'token=abc123 password=hunter2' >&2; exit 7")
+	_, err := cmd.Output()
+	if err == nil {
+		t.Fatal("expected command failure")
+	}
+
+	details := DescribeError(err)
+	if details.ExitCode != 7 {
+		t.Fatalf("exit code = %d, want 7", details.ExitCode)
+	}
+	if strings.Contains(details.Stderr, "abc123") || strings.Contains(details.Stderr, "hunter2") {
+		t.Fatalf("stderr should be redacted, got %q", details.Stderr)
+	}
+	if !strings.Contains(details.Stderr, "[REDACTED]") {
+		t.Fatalf("stderr should include redaction marker, got %q", details.Stderr)
+	}
+}
+
+func TestClassifyErrorCoversAdditionalCategories(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		err  error
+		want ErrorCategory
+	}{
+		{name: "already exists", err: fs.ErrExist, want: ErrorCategoryAlreadyExist},
+		{name: "invalid", err: os.ErrInvalid, want: ErrorCategoryInvalid},
+		{name: "network", err: &url.Error{Op: "Get", URL: "http://localhost", Err: errors.New("dial failed")}, want: ErrorCategoryNetwork},
+		{name: "runtime", err: errors.New("boom"), want: ErrorCategoryRuntime},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := ClassifyError(tc.err); got != tc.want {
+				t.Fatalf("ClassifyError(%v) = %q, want %q", tc.err, got, tc.want)
+			}
+		})
 	}
 }
 

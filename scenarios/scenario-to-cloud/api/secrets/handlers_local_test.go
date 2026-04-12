@@ -35,6 +35,17 @@ func TestLocalSecretSetGetDeleteScenarioScope(t *testing.T) {
 	if setRec.Code != http.StatusOK {
 		t.Fatalf("set expected 200, got %d body=%s", setRec.Code, setRec.Body.String())
 	}
+	contents, err := os.ReadFile(filepath.Join(scenarioDir, "secrets.json"))
+	if err != nil {
+		t.Fatalf("read secrets file: %v", err)
+	}
+	var stored map[string]interface{}
+	if err := json.Unmarshal(contents, &stored); err != nil {
+		t.Fatalf("decode stored secrets: %v", err)
+	}
+	if _, ok := stored["_metadata"]; !ok {
+		t.Fatal("expected _metadata to be written")
+	}
 
 	// Get
 	getReq := httptest.NewRequest(http.MethodGet, "/api/v1/local-secrets/scenario/LPBS_SERVICE_SECRET?scenario_id=landing-page-business-suite&reveal=true", nil)
@@ -88,5 +99,26 @@ func TestLocalSecretGenerateHex(t *testing.T) {
 	}
 	if len(getResp.Value) != 64 {
 		t.Fatalf("expected generated length 64, got %d", len(getResp.Value))
+	}
+}
+
+func TestLocalSecretGetRejectsUnsafeWorkspaceSecretsFile(t *testing.T) {
+	root := t.TempDir()
+	writeRepoContractFixture(t, root)
+	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", root)
+
+	path := filepath.Join(root, ".vrooli", "secrets.json")
+	if err := os.WriteFile(path, []byte(`{"LPBS_SERVICE_SECRET":"abc123"}`), 0o644); err != nil {
+		t.Fatalf("write insecure secrets file: %v", err)
+	}
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/local-secrets/{scope}/{key}", HandleGetLocalSecret()).Methods("GET")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/local-secrets/workspace/LPBS_SERVICE_SECRET?reveal=true", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409 for insecure secrets file, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }

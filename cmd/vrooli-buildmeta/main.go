@@ -1,3 +1,5 @@
+// vrooli-buildmeta computes deterministic Go-source fingerprint metadata for
+// project-level build tooling.
 package main
 
 import (
@@ -7,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
@@ -50,6 +53,19 @@ type errorResponse struct {
 	Kind    errorKind `json:"kind"`
 	Root    string    `json:"root,omitempty"`
 	Targets []string  `json:"targets,omitempty"`
+}
+
+type successResponse struct {
+	Root         string   `json:"root"`
+	Targets      []string `json:"targets"`
+	MatchedFiles int      `json:"matched_files"`
+	Fingerprint  string   `json:"fingerprint"`
+}
+
+type classifiedError struct {
+	kind     errorKind
+	message  string
+	exitCode int
 }
 
 func main() {
@@ -99,8 +115,16 @@ func (c command) parse(args []string, stderr io.Writer) (request, int, bool, err
 		return request{}, exitCodeUsage, true, writeUsage(stderr, flags)
 	}
 
+	resolvedRoot, err := normalizeRoot(*root)
+	if err != nil {
+		if writeErr := writeLine(stderr, fmt.Sprintf("vrooli-buildmeta: invalid root %q: %v", *root, err)); writeErr != nil {
+			return request{}, exitCodeInternal, true, writeErr
+		}
+		return request{}, exitCodeUsage, true, writeUsage(stderr, flags)
+	}
+
 	return request{
-		root:    *root,
+		root:    resolvedRoot,
 		targets: append([]string(nil), flags.Args()...),
 		json:    *jsonOutput,
 		verbose: *verbose,
@@ -124,22 +148,6 @@ func (c command) execute(req request) (result, error) {
 }
 
 func renderSuccess(stdout, stderr io.Writer, req request, res result) int {
-	if req.json {
-		if err := writeJSON(stdout, res.report); err != nil {
-			if writeErr := writeLine(stderr, fmt.Sprintf("vrooli-buildmeta: encode JSON output: %v", err)); writeErr != nil {
-				return exitCodeInternal
-			}
-			return exitCodeInternal
-		}
-	} else {
-		if err := writeLine(stdout, res.report.Fingerprint); err != nil {
-			if writeErr := writeLine(stderr, fmt.Sprintf("vrooli-buildmeta: write fingerprint: %v", err)); writeErr != nil {
-				return exitCodeInternal
-			}
-			return exitCodeInternal
-		}
-	}
-
 	if req.verbose {
 		if err := writeLine(stderr, fmt.Sprintf("vrooli-buildmeta: fingerprinted %d Go files under %q for targets %s",
 			res.report.MatchedFiles,
@@ -148,53 +156,41 @@ func renderSuccess(stdout, stderr io.Writer, req request, res result) int {
 			return exitCodeInternal
 		}
 	}
+
+	if req.json {
+		response := successResponse{
+			Root:         res.report.Root,
+			Targets:      append([]string(nil), res.report.Targets...),
+			MatchedFiles: res.report.MatchedFiles,
+			Fingerprint:  res.report.Fingerprint,
+		}
+		if err := writeJSON(stdout, response); err != nil {
+			if writeErr := writeLine(stderr, fmt.Sprintf("vrooli-buildmeta: encode JSON output: %v", err)); writeErr != nil {
+				return exitCodeInternal
+			}
+			return exitCodeInternal
+		}
+		return exitCodeSuccess
+	}
+
+	if err := writeLine(stdout, res.report.Fingerprint); err != nil {
+		if writeErr := writeLine(stderr, fmt.Sprintf("vrooli-buildmeta: write fingerprint: %v", err)); writeErr != nil {
+			return exitCodeInternal
+		}
+		return exitCodeInternal
+	}
 	return exitCodeSuccess
 }
 
 func renderError(stdout, stderr io.Writer, err error, req request) int {
-	var missing buildinfo.MissingTargetsError
-	var noGoFiles buildinfo.NoGoFilesMatchedError
-	var targetPath buildinfo.TargetPathError
-
+	classification := classifyError(err)
 	response := errorResponse{
-		Error:   err.Error(),
-		Kind:    errorKindInternal,
+		Error:   classification.message,
+		Kind:    classification.kind,
 		Root:    req.root,
 		Targets: append([]string(nil), req.targets...),
 	}
-	message := fmt.Sprintf("vrooli-buildmeta: %v (root=%q targets=%s)", err, req.root, strings.Join(req.targets, ","))
-	exitCode := exitCodeInternal
-
-	switch {
-	case errors.As(err, &missing):
-		response.Kind = errorKindMissingTargets
-		response.Error = fmt.Sprintf("requested targets do not exist: %s", strings.Join(missing.Targets, ","))
-		message = fmt.Sprintf("vrooli-buildmeta: requested targets do not exist: %s (root=%q targets=%s)",
-			strings.Join(missing.Targets, ","),
-			req.root,
-			strings.Join(req.targets, ","),
-		)
-		exitCode = exitCodeValidation
-	case errors.As(err, &noGoFiles):
-		response.Kind = errorKindNoGoFiles
-		response.Error = fmt.Sprintf("requested targets do not contain any Go files: %s", strings.Join(noGoFiles.Targets, ","))
-		message = fmt.Sprintf("vrooli-buildmeta: requested targets do not contain any Go files: %s (root=%q targets=%s)",
-			strings.Join(noGoFiles.Targets, ","),
-			req.root,
-			strings.Join(req.targets, ","),
-		)
-		exitCode = exitCodeValidation
-	case errors.As(err, &targetPath):
-		response.Kind = errorKindInvalidTarget
-		response.Error = fmt.Sprintf("invalid target %q: %v", targetPath.Target, err)
-		message = fmt.Sprintf("vrooli-buildmeta: invalid target %q: %v (root=%q targets=%s)",
-			targetPath.Target,
-			err,
-			req.root,
-			strings.Join(req.targets, ","),
-		)
-		exitCode = exitCodeValidation
-	}
+	message := fmt.Sprintf("vrooli-buildmeta: %s (root=%q targets=%s)", classification.message, req.root, strings.Join(req.targets, ","))
 
 	if req.json {
 		if encodeErr := writeJSON(stdout, response); encodeErr != nil {
@@ -203,13 +199,13 @@ func renderError(stdout, stderr io.Writer, err error, req request) int {
 			}
 			return exitCodeInternal
 		}
-		return exitCode
+		return classification.exitCode
 	}
 
 	if writeErr := writeLine(stderr, message); writeErr != nil {
 		return exitCodeInternal
 	}
-	return exitCode
+	return classification.exitCode
 }
 
 func writeUsage(stderr io.Writer, flags *flag.FlagSet) error {
@@ -246,4 +242,45 @@ func writeJSON(w io.Writer, value any) error {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(value)
+}
+
+func normalizeRoot(root string) (string, error) {
+	root = strings.TrimSpace(root)
+	if root == "" {
+		return "", errors.New("root directory is required")
+	}
+	absoluteRoot, err := filepath.Abs(filepath.Clean(root))
+	if err != nil {
+		return "", fmt.Errorf("resolve absolute path: %w", err)
+	}
+	return absoluteRoot, nil
+}
+
+func classifyError(err error) classifiedError {
+	var missing buildinfo.MissingTargetsError
+	var noGoFiles buildinfo.NoGoFilesMatchedError
+	var targetPath buildinfo.TargetPathError
+
+	classification := classifiedError{
+		kind:     errorKindInternal,
+		message:  err.Error(),
+		exitCode: exitCodeInternal,
+	}
+
+	switch {
+	case errors.As(err, &missing):
+		classification.kind = errorKindMissingTargets
+		classification.message = fmt.Sprintf("requested targets do not exist: %s", strings.Join(missing.Targets, ","))
+		classification.exitCode = exitCodeValidation
+	case errors.As(err, &noGoFiles):
+		classification.kind = errorKindNoGoFiles
+		classification.message = fmt.Sprintf("requested targets do not contain any Go files: %s", strings.Join(noGoFiles.Targets, ","))
+		classification.exitCode = exitCodeValidation
+	case errors.As(err, &targetPath):
+		classification.kind = errorKindInvalidTarget
+		classification.message = err.Error()
+		classification.exitCode = exitCodeValidation
+	}
+
+	return classification
 }

@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -14,6 +12,7 @@ import (
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 
 	"scenario-to-cloud/agentmanager"
+	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/persistence"
 	"scenario-to-cloud/tasks/fix"
@@ -309,9 +308,9 @@ func (s *Service) executeAgent(
 	invID, tag, prompt string,
 	attachments []*domainpb.ContextAttachment,
 ) (*AgentResult, error) {
-	workingDir := os.Getenv("VROOLI_ROOT")
-	if workingDir == "" {
-		workingDir = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	workingDir, err := bundle.FindRepoRootFromCWD()
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve repo root: %w", err)
 	}
 
 	// Use a timeout context (1 hour)

@@ -13,8 +13,24 @@
 // Operational guidance:
 //   - Use InstallAndReport at process bootstrap so configuration warnings are
 //     emitted consistently.
+//   - Treat Install and RedirectStandardLibrary as process-bootstrap helpers;
+//     they mutate process-global logger state and are not request-scoped.
 //   - Use WithSubsystem to scope child loggers without changing the top-level
 //     component identity.
 //   - Use Error or ErrorArgs when emitting failures so category and diagnostic
 //     fields remain consistent across the codebase.
+//
+// Bootstrap example:
+//
+//	logger, _, restore := logx.InstallAndReport(logx.Options{
+//		Component:      "vrooli",
+//		SetDefault:     true,
+//		RedirectStdlib: true,
+//	})
+//	defer restore()
+//
+// Subsystem and error example:
+//
+//	logger := logx.WithSubsystem(logger, "lifecycle")
+//	logx.Error(logger, "Scenario start failed", err, logx.AttrScenario, "demo")
 package logx

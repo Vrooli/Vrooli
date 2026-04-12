@@ -89,7 +89,7 @@ func (r *Runner) RunPhase(name, phaseName string, opts PhaseOptions) error {
 }
 
 func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (PhaseResult, error) {
-	r.logInfo("Scenario phase requested", logx.AttrScenario, name, logx.AttrPhase, phaseName, "project_mode", opts.ProjectMode)
+	r.logInfo("Scenario phase requested", logx.AttrScenario, name, logx.AttrPhase, phaseName, logx.AttrProjectMode, opts.ProjectMode)
 	item, err := r.loadScenario(name, opts.CustomPath)
 	if err != nil {
 		r.logError("Failed to load scenario for phase", err, logx.AttrScenario, name, logx.AttrPhase, phaseName)

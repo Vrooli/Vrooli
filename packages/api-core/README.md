@@ -5,6 +5,7 @@ Shared Go utilities for Vrooli scenario APIs. Provides:
 - **Preflight checks** - Staleness detection, auto-rebuild, lifecycle management
 - **Database connections** - Auto-configured from environment with retry and backoff
 - **Scenario discovery** - Runtime port resolution for inter-scenario communication
+- **Secrets access** - Contract-backed local plaintext secret loading with trust validation
 - **Storage path resolution** - Profile-aware runtime directories with safe joins and atomic writes
 - **Retry utilities** - Exponential backoff with jitter for reliable connections
 
@@ -543,3 +544,21 @@ func main() {
 **Retry:**
 - Used internally by `database.Connect()`
 - Available for HTTP clients, external APIs, etc.
+
+**Secrets:**
+- `api-core/secrets` is the shared boundary for local `.vrooli/secrets.json`
+- Uses `repo-contract-go` for path discovery and enforces trust checks before reads
+- Preserves `_metadata` while requiring all secret values to be JSON strings
+- Supports both project-scoped stores and explicit-path stores for scenario-local files
+
+Typical usage:
+
+```go
+store, err := secrets.NewProjectStoreFromEnvOrCWD(secrets.Config{
+	EnvLookup: os.Getenv,
+})
+
+resolved, err := store.Resolve("API_KEY")
+err = store.SaveKey("API_KEY", "value")
+deleted, err := store.DeleteKey("API_KEY")
+```

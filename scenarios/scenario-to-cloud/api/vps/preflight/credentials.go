@@ -25,7 +25,7 @@ type CredentialValidator interface {
 
 	// Validate checks credentials and returns a domain.PreflightCheck result
 	Validate(ctx context.Context, cfg ssh.Config, sshRunner ssh.Runner,
-		manifest domain.CloudManifest, secrets map[string]interface{}) domain.PreflightCheck
+		manifest domain.CloudManifest, secrets map[string]string) domain.PreflightCheck
 }
 
 // credentialValidators is the registry of all credential validators.
@@ -92,7 +92,7 @@ func RunCredentialValidation(
 	return checks
 }
 
-func readSecretsForValidation(ctx context.Context, cfg ssh.Config, sshRunner ssh.Runner, workdir string) (map[string]interface{}, error) {
+func readSecretsForValidation(ctx context.Context, cfg ssh.Config, sshRunner ssh.Runner, workdir string) (map[string]string, error) {
 	secretsPath := shellutil.SafeRemoteJoin(workdir, ".vrooli", "secrets.json")
 	readCmd := fmt.Sprintf("cat %s 2>/dev/null", shellutil.QuoteSingle(secretsPath))
 	result, err := sshRunner.Run(ctx, cfg, readCmd, ssh.DefaultRunOptions())
@@ -100,9 +100,20 @@ func readSecretsForValidation(ctx context.Context, cfg ssh.Config, sshRunner ssh
 		return nil, fmt.Errorf("secrets.json not found")
 	}
 
-	var secrets map[string]interface{}
-	if err := json.Unmarshal([]byte(result.Stdout), &secrets); err != nil {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(result.Stdout), &raw); err != nil {
 		return nil, fmt.Errorf("invalid JSON: %w", err)
+	}
+	secrets := make(map[string]string, len(raw))
+	for key, value := range raw {
+		if key == "_metadata" {
+			continue
+		}
+		var parsed string
+		if err := json.Unmarshal(value, &parsed); err != nil {
+			return nil, fmt.Errorf("secret %q must be a JSON string", key)
+		}
+		secrets[key] = parsed
 	}
 	return secrets, nil
 }
@@ -124,9 +135,9 @@ func (v *PostgresCredentialValidator) Validate(
 	cfg ssh.Config,
 	sshRunner ssh.Runner,
 	manifest domain.CloudManifest,
-	secrets map[string]interface{},
+	secrets map[string]string,
 ) domain.PreflightCheck {
-	password, ok := secrets["POSTGRES_PASSWORD"].(string)
+	password, ok := secrets["POSTGRES_PASSWORD"]
 	if !ok || password == "" {
 		return domain.PreflightCheck{
 			ID:      v.CheckID(),

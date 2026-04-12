@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	apisecrets "github.com/vrooli/api-core/secrets"
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/shellutil"
@@ -124,8 +125,19 @@ func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[strin
 	}
 
 	repoRoot, _ := bundle.FindRepoRootFromCWD()
-	workspaceSecrets := readLocalSecretsMap(filepath.Join(repoRoot, ".vrooli", "secrets.json"))
-	scenarioSecrets := readLocalSecretsMap(filepath.Join(repoRoot, "scenarios", manifest.Scenario.ID, ".vrooli", "secrets.json"))
+	workspaceSecrets := map[string]string{}
+	if repoRoot != "" {
+		if projectStore, err := apisecrets.NewProjectStore(apisecrets.Config{RepoRoot: repoRoot}); err == nil {
+			repoRoot = projectStore.RepoRoot()
+			workspaceSecrets = readLocalSecretsMap(projectStore.PlaintextPath())
+		}
+	}
+	scenarioSecrets := map[string]string{}
+	if repoRoot != "" {
+		if scenarioSecretsPath, err := bundle.ResolveScenarioPath(repoRoot, manifest.Scenario.ID); err == nil {
+			scenarioSecrets = readLocalSecretsMap(filepath.Join(scenarioSecretsPath, ".vrooli", "secrets.json"))
+		}
+	}
 
 	out := make(map[string]string)
 	for _, secret := range manifest.Secrets.BundleSecrets {
@@ -160,27 +172,11 @@ func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[strin
 }
 
 func readLocalSecretsMap(path string) map[string]string {
-	out := make(map[string]string)
-	if strings.TrimSpace(path) == "" {
-		return out
-	}
-	data, err := os.ReadFile(path)
+	values, err := apisecrets.LoadFile(path)
 	if err != nil {
-		return out
+		return map[string]string{}
 	}
-	var raw map[string]interface{}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return out
-	}
-	for k, v := range raw {
-		if strings.HasPrefix(k, "_") {
-			continue
-		}
-		if str, ok := v.(string); ok {
-			out[k] = str
-		}
-	}
-	return out
+	return values
 }
 
 // ServiceJSON represents the structure of .vrooli/service.json
@@ -230,26 +226,7 @@ type DefaultBundleFinder struct{}
 
 // FindRepoRootFromCWD finds the repo root from the current working directory.
 func (DefaultBundleFinder) FindRepoRootFromCWD() (string, error) {
-	// Use environment variable if set, otherwise search
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		return root, nil
-	}
-	// Walk up looking for .git directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	dir := cwd
-	for {
-		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", fmt.Errorf("repo root not found from %s", cwd)
-		}
-		dir = parent
-	}
+	return bundle.FindRepoRootFromCWD()
 }
 
 var bundleFinder BundleFinder = DefaultBundleFinder{}
@@ -261,7 +238,10 @@ func RequiredResourcesForScenario(scenarioID string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("repo root not found for dependency validation: %w", err)
 	}
-	serviceJSONPath := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+	serviceJSONPath, err := bundle.ResolveScenarioFile(repoRoot, scenarioID, "service")
+	if err != nil {
+		return nil, fmt.Errorf("resolve service.json for dependency validation: %w", err)
+	}
 	data, err := os.ReadFile(serviceJSONPath)
 	if err != nil {
 		return nil, fmt.Errorf("read service.json for dependency validation: %w", err)

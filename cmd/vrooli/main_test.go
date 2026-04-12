@@ -2638,13 +2638,12 @@ func TestRunCleanupCommandHelpAndUnknownTarget(t *testing.T) {
 		t.Fatalf("missing cleanup help output: %s", stdout.String())
 	}
 
-	var stderr bytes.Buffer
-	err := runCleanupCommand("/repo", parsedArgs{args: []string{"bogus"}}, &bytes.Buffer{}, &stderr)
+	err := runCleanupCommand("/repo", parsedArgs{args: []string{"bogus"}}, &bytes.Buffer{}, &bytes.Buffer{})
 	if exitCode(err) != 1 {
 		t.Fatalf("exitCode = %d, want 1", exitCode(err))
 	}
-	if !strings.Contains(stderr.String(), "Unknown cleanup target") {
-		t.Fatalf("stderr = %q", stderr.String())
+	if !strings.Contains(err.Error(), "unknown cleanup target: bogus") {
+		t.Fatalf("err = %v", err)
 	}
 }
 
@@ -2688,23 +2687,29 @@ func TestCollectInfoSourcesPrefersEnvAndFallsBackOnInvalidManifest(t *testing.T)
 	root := t.TempDir()
 	t.Setenv("VROOLI_INFO_FILES", "docs/context.md:/tmp/extra.md")
 
-	files, err := collectInfoSources(root)
+	files, warnings, err := collectInfoSourcesDetailed(root)
 	if err != nil {
 		t.Fatalf("collectInfoSources env: %v", err)
 	}
 	if got, want := strings.Join(files, ","), "docs/context.md,/tmp/extra.md"; got != want {
 		t.Fatalf("files = %q, want %q", got, want)
 	}
+	if len(warnings) != 0 {
+		t.Fatalf("warnings = %#v, want none", warnings)
+	}
 
 	t.Setenv("VROOLI_INFO_FILES", "")
 	writeTestFile(t, root, ".vrooli/info-manifest.json", `{"files":`)
 
-	files, err = collectInfoSources(root)
+	files, warnings, err = collectInfoSourcesDetailed(root)
 	if err != nil {
 		t.Fatalf("collectInfoSources fallback: %v", err)
 	}
 	if got, want := strings.Join(files, ","), strings.Join(infoDefaultFiles, ","); got != want {
 		t.Fatalf("files = %q, want %q", got, want)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "Invalid info manifest") {
+		t.Fatalf("warnings = %#v", warnings)
 	}
 }
 
@@ -2740,17 +2745,46 @@ func TestShowVersionAndHelpOutput(t *testing.T) {
 	}
 }
 
-func TestRunReturnsErrorWhenRootCannotBeResolved(t *testing.T) {
+func TestRunVersionDoesNotRequireRootResolution(t *testing.T) {
 	app := configuredApp()
 	app.resolveSourceRoot = func() (string, error) { return "", errors.New("boom") }
 	app.checkStaleness = nil
 
+	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	code := app.Run([]string{"version"}, &bytes.Buffer{}, &stderr)
-	if code != 1 {
+	code := app.Run([]string{"version"}, &stdout, &stderr)
+	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
-	if !strings.Contains(stderr.String(), "resolve Vrooli root") {
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "Vrooli CLI v"+cliVersion) {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestRunMainHelpAndUnknownCommandDoNotRequireRootResolution(t *testing.T) {
+	app := configuredApp()
+	app.resolveSourceRoot = func() (string, error) {
+		t.Fatal("root resolution should be skipped")
+		return "", nil
+	}
+	app.checkStaleness = nil
+
+	var help bytes.Buffer
+	if code := app.Run([]string{"--help"}, &help, &bytes.Buffer{}); code != 0 {
+		t.Fatalf("help exit code = %d", code)
+	}
+	if !strings.Contains(help.String(), "Vrooli CLI - AI Platform Management Tool") {
+		t.Fatalf("help output = %q", help.String())
+	}
+
+	var stderr bytes.Buffer
+	if code := app.Run([]string{"statuz"}, &bytes.Buffer{}, &stderr); code != 1 {
+		t.Fatalf("unknown-command exit code = %d", code)
+	}
+	if !strings.Contains(stderr.String(), "Unknown command: statuz") {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 }
@@ -2761,7 +2795,7 @@ func TestCommandEnvPreservesExistingSourceRootAndNoColor(t *testing.T) {
 	t.Setenv("LANG", "C")
 	t.Setenv("VROOLI_SOURCE_ROOT", "/custom/source")
 
-	env := commandEnv("/repo", globalOptions{noColor: true})
+	env := configuredApp().commandEnv("/repo", globalOptions{noColor: true})
 	got := strings.Join(env, "\n")
 	if !strings.Contains(got, "VROOLI_ROOT=/repo") {
 		t.Fatalf("env missing VROOLI_ROOT: %v", env)

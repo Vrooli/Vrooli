@@ -5,15 +5,16 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	apisecrets "github.com/vrooli/api-core/secrets"
 
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
@@ -77,11 +78,7 @@ func HandleGetLocalSecret() http.HandlerFunc {
 
 		payload, err := readLocalSecretsFile(secretsPath)
 		if err != nil {
-			httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-				Code:    "read_local_secrets_failed",
-				Message: "Failed to read local secrets file",
-				Hint:    err.Error(),
-			})
+			writeLocalSecretsError(w, "read_local_secrets_failed", "Failed to read local secrets file", err)
 			return
 		}
 
@@ -169,23 +166,17 @@ func HandleSetLocalSecret() http.HandlerFunc {
 			return
 		}
 
-		payload, err := readLocalSecretsFile(secretsPath)
+		store, err := newLocalSecretsStore(secretsPath)
 		if err != nil {
-			httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-				Code:    "read_local_secrets_failed",
-				Message: "Failed to read local secrets file",
-				Hint:    err.Error(),
-			})
+			writeLocalSecretsError(w, "read_local_secrets_failed", "Failed to initialize local secrets store", err)
 			return
 		}
-
-		payload[key] = value
-		if err := writeLocalSecretsFile(secretsPath, payload); err != nil {
-			httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-				Code:    "write_local_secrets_failed",
-				Message: "Failed to write local secrets file",
-				Hint:    err.Error(),
-			})
+		if err := store.Update(func(doc *apisecrets.Document) error {
+			setManagedMetadata(doc)
+			doc.Secrets[key] = value
+			return nil
+		}); err != nil {
+			writeLocalSecretsError(w, "write_local_secrets_failed", "Failed to write local secrets file", err)
 			return
 		}
 
@@ -226,30 +217,29 @@ func HandleDeleteLocalSecret() http.HandlerFunc {
 			return
 		}
 
-		payload, err := readLocalSecretsFile(secretsPath)
+		store, err := newLocalSecretsStore(secretsPath)
 		if err != nil {
-			httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-				Code:    "read_local_secrets_failed",
-				Message: "Failed to read local secrets file",
-				Hint:    err.Error(),
-			})
+			writeLocalSecretsError(w, "read_local_secrets_failed", "Failed to initialize local secrets store", err)
 			return
 		}
-
-		if _, exists := payload[key]; !exists {
+		found := false
+		err = store.Update(func(doc *apisecrets.Document) error {
+			if _, exists := doc.Secrets[key]; !exists {
+				return nil
+			}
+			delete(doc.Secrets, key)
+			setManagedMetadata(doc)
+			found = true
+			return nil
+		})
+		if err != nil {
+			writeLocalSecretsError(w, "write_local_secrets_failed", "Failed to write local secrets file", err)
+			return
+		}
+		if !found {
 			httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
 				Code:    "secret_not_found",
 				Message: fmt.Sprintf("Secret %q not found", key),
-			})
-			return
-		}
-		delete(payload, key)
-
-		if err := writeLocalSecretsFile(secretsPath, payload); err != nil {
-			httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-				Code:    "write_local_secrets_failed",
-				Message: "Failed to write local secrets file",
-				Hint:    err.Error(),
 			})
 			return
 		}
@@ -261,12 +251,21 @@ func HandleDeleteLocalSecret() http.HandlerFunc {
 func resolveLocalSecretsPath(scope, scenarioID string) (string, error) {
 	repoRoot, err := bundle.FindRepoRootFromCWD()
 	if err != nil {
+		projectStore, projectErr := apisecrets.NewProjectStoreFromEnvOrCWD(apisecrets.Config{})
+		if projectErr != nil {
+			return "", fmt.Errorf("repo root not found: %w", err)
+		}
+		repoRoot = projectStore.RepoRoot()
+	}
+	projectStore, err := apisecrets.NewProjectStore(apisecrets.Config{RepoRoot: repoRoot})
+	if err != nil {
 		return "", fmt.Errorf("repo root not found: %w", err)
 	}
+	repoRoot = projectStore.RepoRoot()
 
 	switch scope {
 	case localSecretsScopeWorkspace:
-		return filepath.Join(repoRoot, ".vrooli", "secrets.json"), nil
+		return projectStore.PlaintextPath(), nil
 	case localSecretsScopeScenario:
 		if strings.TrimSpace(scenarioID) == "" {
 			return "", fmt.Errorf("scenario_id is required for scope=%q", localSecretsScopeScenario)
@@ -274,61 +273,47 @@ func resolveLocalSecretsPath(scope, scenarioID string) (string, error) {
 		if strings.Contains(scenarioID, "..") || strings.ContainsAny(scenarioID, `/\`) {
 			return "", fmt.Errorf("invalid scenario_id %q", scenarioID)
 		}
-		return filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "secrets.json"), nil
+		scenarioPath, err := bundle.ResolveScenarioPath(repoRoot, scenarioID)
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(scenarioPath, ".vrooli", "secrets.json"), nil
 	default:
 		return "", fmt.Errorf("unknown scope %q (valid scopes: %s, %s)", scope, localSecretsScopeWorkspace, localSecretsScopeScenario)
 	}
 }
 
 func readLocalSecretsFile(path string) (map[string]string, error) {
-	out := map[string]string{}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return out, nil
-		}
-		return nil, err
-	}
-	if len(strings.TrimSpace(string(data))) == 0 {
-		return out, nil
-	}
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, err
-	}
-	for k, v := range raw {
-		if strings.HasPrefix(k, "_") {
-			continue
-		}
-		if str, ok := v.(string); ok {
-			out[k] = str
-		}
-	}
-	return out, nil
+	return apisecrets.LoadFile(path)
 }
 
-func writeLocalSecretsFile(path string, payload map[string]string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
+func newLocalSecretsStore(path string) (*apisecrets.Store, error) {
+	return apisecrets.NewFileStore(path)
+}
 
-	doc := map[string]interface{}{
-		"_metadata": map[string]interface{}{
-			"managed_by":   "scenario-to-cloud",
-			"last_updated": time.Now().UTC().Format(time.RFC3339),
-		},
+func setManagedMetadata(doc *apisecrets.Document) {
+	if doc.Metadata == nil {
+		doc.Metadata = map[string]json.RawMessage{}
 	}
-	for k, v := range payload {
-		doc[k] = v
-	}
+	doc.Metadata["_metadata"] = json.RawMessage(fmt.Sprintf(`{"managed_by":"scenario-to-cloud","last_updated":%q}`, time.Now().UTC().Format(time.RFC3339)))
+}
 
-	encoded, err := json.MarshalIndent(doc, "", "  ")
-	if err != nil {
-		return err
+func writeLocalSecretsError(w http.ResponseWriter, code, message string, err error) {
+	status := http.StatusInternalServerError
+	var secretsErr *apisecrets.Error
+	if errors.As(err, &secretsErr) {
+		switch secretsErr.Kind {
+		case apisecrets.ErrInvalidInput:
+			status = http.StatusBadRequest
+		case apisecrets.ErrInvalidData, apisecrets.ErrInsecurePermissions, apisecrets.ErrSymlinkPath:
+			status = http.StatusConflict
+		}
 	}
-	encoded = append(encoded, '\n')
-	return os.WriteFile(path, encoded, 0o600)
+	httputil.WriteAPIError(w, status, httputil.APIError{
+		Code:    code,
+		Message: message,
+		Hint:    err.Error(),
+	})
 }
 
 func generateSecretValue(spec string) (string, error) {

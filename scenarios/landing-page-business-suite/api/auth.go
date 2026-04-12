@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 	"unicode"
 
 	"github.com/gorilla/sessions"
+	apisecrets "github.com/vrooli/api-core/secrets"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -46,77 +46,31 @@ const (
 	seededAdminID            = 1                                                              // Reserved ID for the seeded/default admin account
 )
 
-// resolveSecret implements the same 3-layer secret resolution as the shell secrets::resolve().
-// Priority: 1) Environment variable, 2) .vrooli/secrets.json, 3) empty string
+// resolveSecret resolves a secret from environment first, then the shared local
+// plaintext project secrets file.
 func resolveSecret(key string) string {
-	// Layer 1: Environment variable
-	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
-		return value
+	store, err := apisecrets.NewProjectStoreFromEnvOrCWD(apisecrets.Config{
+		EnvLookup: os.Getenv,
+	})
+	if err != nil {
+		return strings.TrimSpace(os.Getenv(key))
 	}
-
-	// Layer 2: .vrooli/secrets.json (used by scenario-to-cloud deployments)
-	secretsFile := findSecretsFile()
-	if secretsFile != "" {
-		if value := readSecretFromJSON(secretsFile, key); value != "" {
-			return value
-		}
-	}
-
-	// Layer 3: Not found
-	return ""
+	return strings.TrimSpace(store.ResolveValue(key))
 }
 
-// findSecretsFile locates .vrooli/secrets.json by walking up from cwd or using VROOLI_ROOT
+// findSecretsFile returns the resolved local plaintext project secrets path when
+// it exists.
 func findSecretsFile() string {
-	// Try VROOLI_ROOT first (production deployments set this)
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		candidate := filepath.Join(root, ".vrooli", "secrets.json")
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-	}
-
-	// Walk up from current working directory to find .vrooli/secrets.json
-	cwd, err := os.Getwd()
+	store, err := apisecrets.NewProjectStoreFromEnvOrCWD(apisecrets.Config{
+		EnvLookup: os.Getenv,
+	})
 	if err != nil {
 		return ""
 	}
-
-	dir := cwd
-	for {
-		candidate := filepath.Join(dir, ".vrooli", "secrets.json")
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break // Reached root
-		}
-		dir = parent
+	path := store.PlaintextPath()
+	if _, err := os.Stat(path); err == nil {
+		return path
 	}
-
-	return ""
-}
-
-// readSecretFromJSON reads a single key from a JSON file
-func readSecretFromJSON(filePath, key string) string {
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return ""
-	}
-
-	var secrets map[string]interface{}
-	if err := json.Unmarshal(data, &secrets); err != nil {
-		return ""
-	}
-
-	if value, ok := secrets[key]; ok {
-		if str, ok := value.(string); ok {
-			return strings.TrimSpace(str)
-		}
-	}
-
 	return ""
 }
 

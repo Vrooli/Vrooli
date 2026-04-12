@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	apisecrets "github.com/vrooli/api-core/secrets"
 	"gopkg.in/yaml.v2"
 )
 
@@ -242,24 +242,16 @@ func checkVaultForSecret(resourceName, secretName string) bool {
 }
 
 func loadLocalSecret(key string) (string, error) {
-	secretsPath := filepath.Join(getVrooliRoot(), ".vrooli", "secrets.json")
-	data, err := os.ReadFile(secretsPath)
+	secretsPath, err := getLocalSecretsPath()
 	if err != nil {
 		return "", err
 	}
-
-	var payload map[string]interface{}
-	if err := json.Unmarshal(data, &payload); err != nil {
+	values, err := apisecrets.LoadFile(secretsPath)
+	if err != nil {
 		return "", err
 	}
-
-	if value, ok := payload[key]; ok {
-		switch v := value.(type) {
-		case string:
-			if strings.TrimSpace(v) != "" {
-				return v, nil
-			}
-		}
+	if value, ok := values[key]; ok && strings.TrimSpace(value) != "" {
+		return value, nil
 	}
 
 	return "", fmt.Errorf("secret %s not found in local store", key)

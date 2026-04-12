@@ -16,7 +16,7 @@ func (r *Runner) WaitForHealth(item scenario.Scenario, env map[string]string) (s
 		return "running", nil
 	}
 	ports := healthPortsFromEnv(item.Manifest, env)
-	r.logDebug("Waiting for scenario health", logx.AttrScenario, item.Slug, "checks", len(health.Checks), "ports", ports)
+	r.logDebug("Waiting for scenario health", logx.AttrScenario, item.Slug, logx.AttrChecks, len(health.Checks), logx.AttrPorts, ports)
 
 	if health.StartupGracePeriod > 0 {
 		time.Sleep(time.Duration(health.StartupGracePeriod) * time.Millisecond)

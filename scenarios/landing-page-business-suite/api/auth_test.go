@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -526,6 +528,27 @@ func TestResolveSecret(t *testing.T) {
 	result := resolveSecret("NON_EXISTENT_KEY_12345")
 	if result != "" {
 		t.Errorf("Expected empty string for non-existent key, got '%s'", result)
+	}
+}
+
+func TestResolveSecretFromProjectSecretsFile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".vrooli", "secrets.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(`{"SESSION_SECRET":"file-secret"}`), 0o600); err != nil {
+		t.Fatalf("write secrets: %v", err)
+	}
+
+	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("SESSION_SECRET", "")
+
+	if got := resolveSecret("SESSION_SECRET"); got != "file-secret" {
+		t.Fatalf("resolveSecret = %q, want file-secret", got)
+	}
+	if got := findSecretsFile(); got != path {
+		t.Fatalf("findSecretsFile = %q, want %q", got, path)
 	}
 }
 

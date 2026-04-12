@@ -34,13 +34,22 @@ type scenarioStepLogInfo struct {
 var errScenarioLogsUsage = errors.New("scenario logs requires a scenario name")
 
 func runScenarioLogsCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	_ = globals
+	app := configuredApp()
+	return runScenarioLogsCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
 
+func runScenarioLogsCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	name, opts, err := parseScenarioLogsArgs(args)
 	if err != nil {
 		var usageErr *showScenarioLogsUsageError
 		if errors.As(err, &usageErr) {
-			showErr := showScenarioLogsUsage(stdout)
+			showErr := showScenarioLogsUsage(ctx.Stdout)
 			if showErr != nil && !errors.Is(showErr, errScenarioLogsUsage) {
 				return showErr
 			}
@@ -49,24 +58,24 @@ func runScenarioLogsCommand(root string, globals globalOptions, args []string, s
 		return err
 	}
 	if name == "" {
-		return showScenarioLogsUsage(stdout)
+		return showScenarioLogsUsage(ctx.Stdout)
 	}
 
-	home, err := process.HomeDir()
+	home, err := ctx.HomeDir()
 	if err != nil {
 		return err
 	}
 
 	if opts.clean {
-		return cleanScenarioLogs(root, home, name, stdout)
+		return cleanScenarioLogs(ctx.Root, home, name, ctx.Stdout)
 	}
 	if opts.runtime {
-		return showScenarioRuntimeLogs(home, name, opts, stdout)
+		return showScenarioRuntimeLogs(home, name, opts, ctx.Stdout)
 	}
 	if opts.stepName != "" {
-		return showScenarioStepLog(home, name, opts, stdout)
+		return showScenarioStepLog(home, name, opts, ctx.Stdout)
 	}
-	return showScenarioLifecycleLog(root, home, name, opts, stdout, stderr)
+	return showScenarioLifecycleLog(ctx.Root, home, name, opts, ctx.Stdout, ctx.Stderr)
 }
 
 func parseScenarioLogsArgs(args []string) (string, scenarioLogOptions, error) {

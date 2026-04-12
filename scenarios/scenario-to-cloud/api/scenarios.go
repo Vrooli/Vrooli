@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -136,7 +135,15 @@ func (s *Server) handleListScenarios(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scenariosDir := filepath.Join(repoRoot, "scenarios")
+	scenariosDir, err := bundle.ResolveScenariosDir(repoRoot)
+	if err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
+			Code:    "scenarios_dir_resolve_failed",
+			Message: "Unable to resolve scenarios directory",
+			Hint:    err.Error(),
+		})
+		return
+	}
 	entries, err := os.ReadDir(scenariosDir)
 	if err != nil {
 		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
@@ -154,24 +161,26 @@ func (s *Server) handleListScenarios(w http.ResponseWriter, r *http.Request) {
 		}
 
 		scenarioID := entry.Name()
-		serviceJSONPath := filepath.Join(scenariosDir, scenarioID, ".vrooli", "service.json")
+		serviceJSONPath, pathErr := bundle.ResolveScenarioFile(repoRoot, scenarioID, "service")
 
 		info := ScenarioInfo{
 			ID: scenarioID,
 		}
 
 		// Try to read service.json for additional metadata
-		if data, err := os.ReadFile(serviceJSONPath); err == nil {
-			var svc ServiceJSON
-			if json.Unmarshal(data, &svc) == nil {
-				if svc.Service.DisplayName != "" {
-					info.DisplayName = svc.Service.DisplayName
-				}
-				if svc.Service.Description != "" {
-					info.Description = svc.Service.Description
-				}
-				if len(svc.Ports) > 0 {
-					info.Ports = svc.Ports
+		if pathErr == nil {
+			if data, err := os.ReadFile(serviceJSONPath); err == nil {
+				var svc ServiceJSON
+				if json.Unmarshal(data, &svc) == nil {
+					if svc.Service.DisplayName != "" {
+						info.DisplayName = svc.Service.DisplayName
+					}
+					if svc.Service.Description != "" {
+						info.Description = svc.Service.Description
+					}
+					if len(svc.Ports) > 0 {
+						info.Ports = svc.Ports
+					}
 				}
 			}
 		}
@@ -207,7 +216,15 @@ func (s *Server) handleScenarioPorts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	serviceJSONPath := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+	serviceJSONPath, err := bundle.ResolveScenarioFile(repoRoot, scenarioID, "service")
+	if err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
+			Code:    "service_json_path_resolve_failed",
+			Message: "Unable to resolve service.json path",
+			Hint:    err.Error(),
+		})
+		return
+	}
 	data, err := os.ReadFile(serviceJSONPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -490,7 +507,10 @@ func (s *Server) extractDependenciesFromServiceJSON(scenarioID string) (*Scenari
 		return nil, err
 	}
 
-	serviceJSONPath := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+	serviceJSONPath, err := bundle.ResolveScenarioFile(repoRoot, scenarioID, "service")
+	if err != nil {
+		return nil, fmt.Errorf("resolve service.json path: %w", err)
+	}
 	data, err := os.ReadFile(serviceJSONPath)
 	if err != nil {
 		return nil, err
@@ -603,7 +623,15 @@ func (s *Server) handleGetExpectedSecrets(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	serviceJSONPath := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+	serviceJSONPath, err := bundle.ResolveScenarioFile(repoRoot, scenarioID, "service")
+	if err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
+			Code:    "service_json_path_resolve_failed",
+			Message: "Unable to resolve service.json path",
+			Hint:    err.Error(),
+		})
+		return
+	}
 	data, err := os.ReadFile(serviceJSONPath)
 	if err != nil {
 		if os.IsNotExist(err) {

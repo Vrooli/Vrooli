@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -193,15 +194,57 @@ func TestRunPrintsJSONReport(t *testing.T) {
 		t.Fatalf("run exit code = %d, want %d, stderr = %q", code, exitCodeSuccess, stderr.String())
 	}
 
-	var report buildinfo.FingerprintReport
+	var report successResponse
 	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
 		t.Fatalf("json output: %v (%q)", err, stdout.String())
 	}
 	if report.Fingerprint != "abc123" || report.MatchedFiles != 2 {
 		t.Fatalf("report = %+v", report)
 	}
+	if report.Root != "/repo" {
+		t.Fatalf("root = %q, want /repo", report.Root)
+	}
+	if got, want := strings.Join(report.Targets, ","), "cmd/vrooli,internal"; got != want {
+		t.Fatalf("targets = %q, want %q", got, want)
+	}
 	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestRunJSONReportUsesStableFieldNames(t *testing.T) {
+	cmd := command{
+		computeFingerprint: func(root string, options buildinfo.FingerprintOptions, relPaths ...string) (buildinfo.FingerprintReport, error) {
+			return buildinfo.FingerprintReport{
+				Root:         "/repo",
+				Targets:      []string{"cmd/vrooli-buildmeta"},
+				MatchedFiles: 2,
+				Fingerprint:  "abc123",
+			}, nil
+		},
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := cmd.run([]string{"--json", "--root", "/repo", "cmd/vrooli-buildmeta"}, &stdout, &stderr)
+	if code != exitCodeSuccess {
+		t.Fatalf("run exit code = %d, want %d, stderr = %q", code, exitCodeSuccess, stderr.String())
+	}
+
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("json output: %v (%q)", err, stdout.String())
+	}
+
+	for _, key := range []string{"root", "targets", "matched_files", "fingerprint"} {
+		if _, ok := payload[key]; !ok {
+			t.Fatalf("json output missing key %q: %s", key, stdout.String())
+		}
+	}
+	for _, key := range []string{"Root", "Targets", "MatchedFiles", "Fingerprint", "MissingTargets"} {
+		if _, ok := payload[key]; ok {
+			t.Fatalf("json output unexpectedly exposed legacy key %q: %s", key, stdout.String())
+		}
 	}
 }
 
@@ -248,8 +291,8 @@ func TestRunReturnsInternalExitCodeWhenVerboseWriteFails(t *testing.T) {
 	if code != exitCodeInternal {
 		t.Fatalf("run exit code = %d, want %d", code, exitCodeInternal)
 	}
-	if stdout.String() != "abc123\n" {
-		t.Fatalf("stdout = %q", stdout.String())
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout should be empty, got %q", stdout.String())
 	}
 }
 
@@ -360,6 +403,31 @@ func TestRunJSONErrorOutput(t *testing.T) {
 	}
 }
 
+func TestRunJSONErrorOutputUsesNormalizedRoot(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "cmd/vrooli-buildmeta/main.go", "package main\n")
+
+	cmd := command{computeFingerprint: buildinfo.ComputeSourceFingerprintReport}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := cmd.run([]string{"--json", "--root", filepath.Join(root, "."), "missing"}, &stdout, &stderr)
+	if code != exitCodeValidation {
+		t.Fatalf("run exit code = %d, want %d, stderr = %q", code, exitCodeValidation, stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+
+	var response errorResponse
+	if err := json.Unmarshal(stdout.Bytes(), &response); err != nil {
+		t.Fatalf("json output: %v (%q)", err, stdout.String())
+	}
+	if response.Root != root {
+		t.Fatalf("root = %q, want %q", response.Root, root)
+	}
+}
+
 func TestRunReturnsInternalExitCodeWhenFingerprintWriteFails(t *testing.T) {
 	cmd := command{
 		computeFingerprint: func(root string, options buildinfo.FingerprintOptions, relPaths ...string) (buildinfo.FingerprintReport, error) {
@@ -411,6 +479,84 @@ func TestRunReturnsInternalExitCodeWhenJSONErrorEncodeFails(t *testing.T) {
 	}
 }
 
+func TestRunReturnsUsageExitCodeForBlankRoot(t *testing.T) {
+	cmd := command{}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := cmd.run([]string{"--root", "   ", "cmd/vrooli-buildmeta"}, &stdout, &stderr)
+	if code != exitCodeUsage {
+		t.Fatalf("run exit code = %d, want %d", code, exitCodeUsage)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "invalid root") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestCLIProcessSuccessJSON(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "cmd/vrooli-buildmeta/main.go", "package main\n")
+
+	run := runCLIProcess(t, root, "--json", "--root", root, "cmd/vrooli-buildmeta")
+	if run.exitCode != exitCodeSuccess {
+		t.Fatalf("exit code = %d, want %d, stderr = %q", run.exitCode, exitCodeSuccess, run.stderr)
+	}
+	if run.stderr != "" {
+		t.Fatalf("stderr = %q", run.stderr)
+	}
+
+	var payload successResponse
+	if err := json.Unmarshal([]byte(run.stdout), &payload); err != nil {
+		t.Fatalf("json output: %v (%q)", err, run.stdout)
+	}
+	if payload.Root != root {
+		t.Fatalf("root = %q, want %q", payload.Root, root)
+	}
+	if payload.MatchedFiles != 1 {
+		t.Fatalf("matched_files = %d, want 1", payload.MatchedFiles)
+	}
+	if len(payload.Fingerprint) != 64 {
+		t.Fatalf("fingerprint length = %d, want 64 (%q)", len(payload.Fingerprint), payload.Fingerprint)
+	}
+}
+
+func TestCLIProcessValidationExitCodeAndJSONError(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "cmd/vrooli-buildmeta/main.go", "package main\n")
+
+	run := runCLIProcess(t, root, "--json", "--root", root, "missing")
+	if run.exitCode != exitCodeValidation {
+		t.Fatalf("exit code = %d, want %d, stdout = %q, stderr = %q", run.exitCode, exitCodeValidation, run.stdout, run.stderr)
+	}
+	if run.stderr != "" {
+		t.Fatalf("stderr = %q", run.stderr)
+	}
+
+	var payload errorResponse
+	if err := json.Unmarshal([]byte(run.stdout), &payload); err != nil {
+		t.Fatalf("json output: %v (%q)", err, run.stdout)
+	}
+	if payload.Kind != errorKindMissingTargets {
+		t.Fatalf("kind = %q, want %q", payload.Kind, errorKindMissingTargets)
+	}
+	if payload.Root != root {
+		t.Fatalf("root = %q, want %q", payload.Root, root)
+	}
+}
+
+func TestCLIProcessHelpExitCode(t *testing.T) {
+	run := runCLIProcess(t, t.TempDir(), "-h")
+	if run.exitCode != exitCodeSuccess {
+		t.Fatalf("exit code = %d, want %d, stderr = %q", run.exitCode, exitCodeSuccess, run.stderr)
+	}
+	if !strings.Contains(run.stderr, "Usage: vrooli-buildmeta") {
+		t.Fatalf("stderr = %q", run.stderr)
+	}
+}
+
 func writeTestFile(t *testing.T, root, rel, contents string) {
 	t.Helper()
 	path := filepath.Join(root, filepath.FromSlash(rel))
@@ -426,4 +572,65 @@ type failingWriter struct{}
 
 func (failingWriter) Write(_ []byte) (int, error) {
 	return 0, io.ErrClosedPipe
+}
+
+type cliRunResult struct {
+	stdout   string
+	stderr   string
+	exitCode int
+}
+
+func runCLIProcess(t *testing.T, dir string, args ...string) cliRunResult {
+	t.Helper()
+
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatalf("resolve test executable: %v", err)
+	}
+
+	cmdArgs := append([]string{"-test.run=TestCLIHelperProcess", "--"}, args...)
+	cmd := exec.Command(executable, cmdArgs...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GO_WANT_CLI_HELPER_PROCESS=1")
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	runErr := cmd.Run()
+
+	exitCode := exitCodeSuccess
+	if runErr != nil {
+		var exitErr *exec.ExitError
+		if !errors.As(runErr, &exitErr) {
+			t.Fatalf("run helper process: %v", runErr)
+		}
+		exitCode = exitErr.ExitCode()
+	}
+
+	return cliRunResult{
+		stdout:   stdout.String(),
+		stderr:   stderr.String(),
+		exitCode: exitCode,
+	}
+}
+
+func TestCLIHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_CLI_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	separator := 0
+	for i, arg := range os.Args {
+		if arg == "--" {
+			separator = i
+			break
+		}
+	}
+	if separator == 0 {
+		os.Exit(exitCodeInternal)
+	}
+
+	cmd := command{computeFingerprint: buildinfo.ComputeSourceFingerprintReport}
+	os.Exit(cmd.run(os.Args[separator+1:], os.Stdout, os.Stderr))
 }

@@ -217,7 +217,18 @@ func runScenarioStartCommandWithApp(app *App, ctx *commandContext, args []string
 }
 
 func runScenarioStopCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	name, jsonFlag, err := parseScenarioNameAndJSON("stop", globals.json, args)
+	app := configuredApp()
+	return runScenarioStopCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runScenarioStopCommandWithApp(app *App, ctx *commandContext, args []string) error {
+	name, jsonFlag, err := parseScenarioNameAndJSON("stop", ctx.Globals.json, args)
 	if err != nil {
 		return err
 	}
@@ -227,12 +238,14 @@ func runScenarioStopCommand(root string, globals globalOptions, args []string, s
 		return err
 	}
 
-	runnerOut := stdout
+	runnerOut := ctx.Stdout
 	if format == cliout.FormatJSON {
-		runnerOut = stderr
+		runnerOut = ctx.Stderr
 	}
 
-	runner, err := newScenarioLifecycleRunner(root, runnerOut, stderr)
+	runnerCtx := *ctx
+	runnerCtx.Stdout = runnerOut
+	runner, err := app.newScenarioLifecycleRunner(&runnerCtx)
 	if err != nil {
 		return err
 	}
@@ -241,14 +254,14 @@ func runScenarioStopCommand(root string, globals globalOptions, args []string, s
 	}
 
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
+		return cliout.WriteJSON(ctx.Stdout, map[string]any{
 			"success":  true,
 			"scenario": name,
 			"status":   "stopped",
 		})
 	}
 
-	_, _ = fmt.Fprintf(stdout, "Stopped scenario '%s'\n", name)
+	_, _ = fmt.Fprintf(ctx.Stdout, "Stopped scenario '%s'\n", name)
 	return nil
 }
 
@@ -357,8 +370,19 @@ func newScenarioService(root string, stdout, stderr io.Writer) (*orchestrator.Se
 }
 
 func runScenarioListCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
+	app := configuredApp()
+	return runScenarioListCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  io.Discard,
+		app:     app,
+	}, args)
+}
+
+func runScenarioListCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	includePorts := false
-	jsonFlag := globals.json
+	jsonFlag := ctx.Globals.json
 	for _, arg := range args {
 		switch arg {
 		case "--json":
@@ -366,7 +390,7 @@ func runScenarioListCommand(root string, globals globalOptions, args []string, s
 		case "--include-ports":
 			includePorts = true
 		case "--help", "-h":
-			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario list [--json] [--include-ports]")
+			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario list [--json] [--include-ports]")
 			return nil
 		default:
 			return fmt.Errorf("unknown option for scenario list: %s", arg)
@@ -378,7 +402,10 @@ func runScenarioListCommand(root string, globals globalOptions, args []string, s
 		return err
 	}
 
-	service, err := newScenarioService(root, io.Discard, io.Discard)
+	serviceCtx := *ctx
+	serviceCtx.Stdout = io.Discard
+	serviceCtx.Stderr = io.Discard
+	service, err := app.newScenarioService(&serviceCtx)
 	if err != nil {
 		return err
 	}
@@ -413,7 +440,7 @@ func runScenarioListCommand(root string, globals globalOptions, args []string, s
 	}
 
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
+		return cliout.WriteJSON(ctx.Stdout, map[string]any{
 			"success": true,
 			"summary": map[string]int{
 				"total_scenarios": len(items),
@@ -424,7 +451,7 @@ func runScenarioListCommand(root string, globals globalOptions, args []string, s
 		})
 	}
 
-	_, _ = fmt.Fprintln(stdout, "[INFO]    Available scenarios:")
+	_, _ = fmt.Fprintln(ctx.Stdout, "[INFO]    Available scenarios:")
 	for _, item := range items {
 		line := "  • " + item.Name
 		if item.Description != "" {
@@ -437,20 +464,31 @@ func runScenarioListCommand(root string, globals globalOptions, args []string, s
 			}
 			line += " (ports: " + strings.Join(portParts, ", ") + ")"
 		}
-		_, _ = fmt.Fprintln(stdout, line)
+		_, _ = fmt.Fprintln(ctx.Stdout, line)
 	}
 	return nil
 }
 
 func runScenarioInfoCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
+	app := configuredApp()
+	return runScenarioInfoCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  io.Discard,
+		app:     app,
+	}, args)
+}
+
+func runScenarioInfoCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario info <name> [--json]")
+			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario info <name> [--json]")
 			return nil
 		}
 	}
 
-	name, jsonFlag, err := parseScenarioNameAndJSON("info", globals.json, args)
+	name, jsonFlag, err := parseScenarioNameAndJSON("info", ctx.Globals.json, args)
 	if err != nil {
 		return err
 	}
@@ -460,7 +498,10 @@ func runScenarioInfoCommand(root string, globals globalOptions, args []string, s
 		return err
 	}
 
-	service, err := newScenarioService(root, io.Discard, io.Discard)
+	serviceCtx := *ctx
+	serviceCtx.Stdout = io.Discard
+	serviceCtx.Stderr = io.Discard
+	service, err := app.newScenarioService(&serviceCtx)
 	if err != nil {
 		return err
 	}
@@ -476,22 +517,33 @@ func runScenarioInfoCommand(root string, globals globalOptions, args []string, s
 	}
 
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, output)
+		return cliout.WriteJSON(ctx.Stdout, output)
 	}
 
-	writeScenarioInfoHuman(stdout, output.Scenario, output.Runtime)
+	writeScenarioInfoHuman(ctx.Stdout, output.Scenario, output.Runtime)
 	return nil
 }
 
 func runScenarioStatusCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
+	app := configuredApp()
+	return runScenarioStatusCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  io.Discard,
+		app:     app,
+	}, args)
+}
+
+func runScenarioStatusCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario status [name] [--json]")
+			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario status [name] [--json]")
 			return nil
 		}
 	}
 
-	name, jsonFlag, err := parseOptionalScenarioNameAndJSON("status", globals.json, args)
+	name, jsonFlag, err := parseOptionalScenarioNameAndJSON("status", ctx.Globals.json, args)
 	if err != nil {
 		return err
 	}
@@ -502,7 +554,10 @@ func runScenarioStatusCommand(root string, globals globalOptions, args []string,
 	}
 
 	if name == "" {
-		service, err := newScenarioService(root, io.Discard, io.Discard)
+		serviceCtx := *ctx
+		serviceCtx.Stdout = io.Discard
+		serviceCtx.Stderr = io.Discard
+		service, err := app.newScenarioService(&serviceCtx)
 		if err != nil {
 			return err
 		}
@@ -522,7 +577,7 @@ func runScenarioStatusCommand(root string, globals globalOptions, args []string,
 		}
 
 		if format == cliout.FormatJSON {
-			return cliout.WriteJSON(stdout, map[string]any{
+			return cliout.WriteJSON(ctx.Stdout, map[string]any{
 				"success": true,
 				"summary": map[string]int{
 					"total_scenarios": len(items),
@@ -533,11 +588,14 @@ func runScenarioStatusCommand(root string, globals globalOptions, args []string,
 			})
 		}
 
-		writeScenarioStatusTable(stdout, items)
+		writeScenarioStatusTable(ctx.Stdout, items)
 		return nil
 	}
 
-	service, err := newScenarioService(root, io.Discard, io.Discard)
+	serviceCtx := *ctx
+	serviceCtx.Stdout = io.Discard
+	serviceCtx.Stderr = io.Discard
+	service, err := app.newScenarioService(&serviceCtx)
 	if err != nil {
 		return err
 	}
@@ -554,10 +612,10 @@ func runScenarioStatusCommand(root string, globals globalOptions, args []string,
 	}
 
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, output)
+		return cliout.WriteJSON(ctx.Stdout, output)
 	}
 
-	writeScenarioStatusHuman(stdout, output)
+	writeScenarioStatusHuman(ctx.Stdout, output)
 	return nil
 }
 

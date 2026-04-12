@@ -1,6 +1,6 @@
 # Host Requirements Declaration And Runtime Redesign Plan
 
-**Status:** Proposed
+**Status:** In Progress (`Phase 0` complete)
 
 **Last Updated:** 2026-04-12
 
@@ -417,40 +417,53 @@ The implementation work should not begin migrating large batches of tools until 
 
 ### Tasks
 
-- [ ] Audit current host tool and safeguard usage across:
+- [x] Audit current host tool and safeguard usage across:
   - root setup,
   - scenario manifests,
   - resource manifests,
   - shell scripts,
   - package scripts,
   - tests and CI targets.
-- [ ] Build a source-of-truth map:
+- [x] Build a source-of-truth map:
   - tool/safeguard name,
   - current implicit owner,
   - current install path,
   - intended future owner,
   - future classification (`core`, declared tool, declared safeguard, delete).
-- [ ] Finalize manifest schema additions for:
+- [x] Finalize manifest schema additions for:
   - root service schema,
   - scenario service schema,
   - resource schema.
-- [ ] Finalize CLI setup selection semantics:
+- [x] Finalize CLI setup selection semantics:
   - `--resources enabled|none|list`
   - scenario selection support
   - future profile support
-- [ ] Finalize reporting/result model for setup planning and execution.
-- [ ] Decide exact package naming and directory structure for:
+- [x] Finalize reporting/result model for setup planning and execution.
+- [x] Decide exact package naming and directory structure for:
   - resolver,
   - tool registry,
   - safeguard registry,
   - shared helpers.
 
+### Phase 0 Outputs
+
+- Approved audit artifact:
+  [host-requirements-phase0-audit.md](/home/matthalloran8/Vrooli/docs/plans/host-requirements-phase0-audit.md)
+- Approved declaration contract:
+  top-level `hostTools` and `hostSafeguards` arrays on root/scenario/resource manifests
+- Approved selector contract:
+  keep `--resources enabled|none|<csv>`, add `--scenarios none|all|<csv>`, default scenarios to `none`
+- Approved ownership rule:
+  keep root core intentionally small; scenario/resource-specific tools must not be promoted to root by convenience
+- Approved early decisions:
+  `python` remains root-owned only for `development`, `tmux` and `yq` are not core, `remote_session_protection` is a host-profile safeguard
+
 ### Acceptance
 
-- [ ] Schema shape approved.
-- [ ] Runtime package layout approved.
-- [ ] Audit table exists in the plan or an adjacent reference artifact.
-- [ ] No unresolved ambiguity about root vs scenario vs resource ownership rules.
+- [x] Schema shape approved.
+- [x] Runtime package layout approved.
+- [x] Audit table exists in the plan or an adjacent reference artifact.
+- [x] No unresolved ambiguity about root vs scenario vs resource ownership rules.
 
 ## Phase 1: Schema And Resolver Foundation
 
@@ -739,15 +752,22 @@ This plan is not complete until the following are either deleted or intentionall
 - [ ] stale tests/docs asserting old setup behavior
 - [ ] old helper patterns that reintroduce hidden host setup assumptions
 
-## Open Decisions To Resolve Early
+## Phase 0 Decisions Resolved Early
 
-- [ ] exact JSON shape for declarations
-- [ ] whether root core declarations live directly in `.vrooli/service.json` or in a nested setup-specific section
-- [ ] whether setup profile declarations are needed in phase 1 or can land later
-- [ ] exact CLI selector surface for scenario selection
-- [ ] whether `python` remains core by default
-- [ ] whether `tmux` and `yq` are core or declared after audit
-- [ ] whether `remote_session_protection` should be host-profile-driven, scenario-declared, or both
+- [x] exact JSON shape for declarations
+  `hostTools` and `hostSafeguards` are approved as top-level arrays with required `name`, `required`, and `reason` fields plus bounded optional metadata
+- [x] whether root core declarations live directly in `.vrooli/service.json` or in a nested setup-specific section
+  root declarations live directly in `.vrooli/service.json`
+- [x] whether setup profile declarations are needed in phase 1 or can land later
+  profile selectors are deferred until after the base resolver exists
+- [x] exact CLI selector surface for scenario selection
+  use `--scenarios none|all|<csv>`, defaulting to `none`
+- [x] whether `python` remains core by default
+  root-owned for `development`; not a universal requirement for `production` or `minimal`
+- [x] whether `tmux` and `yq` are core or declared after audit
+  both are explicit declared tools, not root core
+- [x] whether `remote_session_protection` should be host-profile-driven, scenario-declared, or both
+  host-profile-driven first; not scenario-owned in the initial model
 
 ## Recommended Execution Order
 

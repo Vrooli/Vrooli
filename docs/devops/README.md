@@ -16,13 +16,18 @@ This directory contains documentation for Vrooli's simplified DevOps approach ba
 Vrooli uses a unified CLI tool (`vrooli`) for direct scenario management. The architecture centers around:
 
 ```
-cli/                        # Vrooli CLI implementation
+cmd/                        # Native project entrypoints
 ├── vrooli                  # Main CLI executable
-└── commands/               # CLI command implementations
+└── vrooli-api              # Project API executable
 
-scripts/                    # Backend automation scripts
-├── manage.sh               # Core system management
-├── lib/                    # Shared libraries and utilities
+internal/                   # Native project control-plane packages
+├── lifecycle/              # Scenario lifecycle execution
+├── process/                # Runtime process state
+├── ports/                  # Port allocation and locks
+└── setup/                  # Repo-root setup/develop orchestration
+
+scripts/                    # Shared shell debt outside the project control plane
+├── lib/                    # Shared helpers still used by resources/scenarios
 ├── resources/              # Resource management system
 └── scenarios/              # Scenario and app management
 
@@ -120,12 +125,12 @@ The `vrooli` CLI provides a unified interface for all development operations:
 
 The Vrooli CLI is supported by a sophisticated backend system organized into several key areas:
 
-### **🔧 Core Systems (`scripts/lib/`)**
-*   **System Management**: Clock synchronization, dependency checks, kernel configuration
-*   **Network Utilities**: Firewall management, SSH setup, port management, connectivity diagnostics
-*   **Runtime Support**: Docker, Node.js, Python, Go, Helm integration and management
-*   **Process Management**: Service lifecycle, process tracking, graceful shutdown handling
-*   **Security & Auth**: Permission management, key authentication, secure communications
+### **🔧 Project Control Plane (`cmd/` + `internal/`)**
+*   **CLI + API**: `cmd/vrooli` and `cmd/vrooli-api` provide the native project entrypoints
+*   **Lifecycle + Process**: `internal/lifecycle`, `internal/process`, and `internal/ports` own scenario execution contracts
+*   **Setup + Runtime**: `internal/setup` and `internal/runtime` own repo-root bootstrap and host probing
+*   **Secrets + Network**: `internal/secrets` and `internal/network` own the native maintenance-facing project surface
+*   **Status**: Remaining shell under `scripts/lib/` is shared resource/scenario debt, not the authoritative project orchestration path
 
 ### **📦 Resource Framework (`scripts/resources/`)**
 *   **Resource Lifecycle**: Installation, configuration, health monitoring, backup management

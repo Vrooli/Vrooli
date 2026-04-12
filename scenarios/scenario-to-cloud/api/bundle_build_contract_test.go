@@ -169,6 +169,47 @@ func TestBuildMiniVrooliBundle_DeterministicNameAndBytes(t *testing.T) {
 	}
 }
 
+func TestBundleHelpersResolveScenarioPathsFromContract(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
+	writeFileBytes(t, repoRoot, "scenarios/demo/.vrooli/service.json", []byte(`{"service":{"name":"demo"}}`))
+	writeFileBytes(t, repoRoot, "scenarios/scenario-to-cloud/.vrooli/service.json", []byte(`{"service":{"name":"scenario-to-cloud"}}`))
+	mkdirAll(t, repoRoot, "scenarios/scenario-to-cloud/coverage/bundles")
+
+	scenariosDir, err := bundle.ResolveScenariosDir(repoRoot)
+	if err != nil {
+		t.Fatalf("ResolveScenariosDir: %v", err)
+	}
+	if got, want := scenariosDir, filepath.Join(repoRoot, "scenarios"); got != want {
+		t.Fatalf("ResolveScenariosDir = %q, want %q", got, want)
+	}
+
+	scenarioPath, err := bundle.ResolveScenarioPathRelative(repoRoot, "demo")
+	if err != nil {
+		t.Fatalf("ResolveScenarioPathRelative: %v", err)
+	}
+	if scenarioPath != "scenarios/demo" {
+		t.Fatalf("ResolveScenarioPathRelative = %q, want %q", scenarioPath, "scenarios/demo")
+	}
+
+	servicePath, err := bundle.ResolveScenarioFileRelative(repoRoot, "demo", "service")
+	if err != nil {
+		t.Fatalf("ResolveScenarioFileRelative: %v", err)
+	}
+	if servicePath != "scenarios/demo/.vrooli/service.json" {
+		t.Fatalf("ResolveScenarioFileRelative = %q, want %q", servicePath, "scenarios/demo/.vrooli/service.json")
+	}
+
+	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", repoRoot)
+	bundlesDir, err := bundle.GetLocalBundlesDir()
+	if err != nil {
+		t.Fatalf("GetLocalBundlesDir: %v", err)
+	}
+	if got, want := bundlesDir, filepath.Join(repoRoot, "scenarios", "scenario-to-cloud", "coverage", "bundles"); got != want {
+		t.Fatalf("GetLocalBundlesDir = %q, want %q", got, want)
+	}
+}
+
 func readTarNames(t *testing.T, path string) []string {
 	t.Helper()
 	f, err := os.Open(path)

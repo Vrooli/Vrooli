@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/internal/httputil"
 )
 
@@ -151,12 +152,21 @@ func (s *Server) getDocsDir() string {
 		return dir
 	}
 
+	if repoRoot, err := bundle.FindRepoRootFromCWD(); err == nil {
+		if docsDir, docsErr := bundle.ResolveScenarioFile(repoRoot, "scenario-to-cloud", "docs"); docsErr == nil {
+			if info, statErr := os.Stat(docsDir); statErr == nil && info.IsDir() {
+				if _, err := os.Stat(filepath.Join(docsDir, "manifest.json")); err == nil {
+					return docsDir
+				}
+			}
+		}
+	}
+
 	// Look for docs directory relative to typical locations
 	candidates := []string{
 		"docs",
 		"../docs",
 		"../../docs",
-		filepath.Join(os.Getenv("HOME"), "Vrooli/scenarios/scenario-to-cloud/docs"),
 	}
 
 	for _, candidate := range candidates {

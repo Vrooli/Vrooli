@@ -1,10 +1,10 @@
 package env
 
 import (
-	"encoding/json"
 	"os"
-	"path/filepath"
 	"strings"
+
+	apisecrets "github.com/vrooli/api-core/secrets"
 )
 
 // SecretResolution describes where a secret value was resolved from.
@@ -22,65 +22,25 @@ func ResolveSecret(key string) string {
 
 // ResolveSecretWithSource resolves a secret and reports where it came from.
 func ResolveSecretWithSource(key string) SecretResolution {
-	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
-		return SecretResolution{
-			Value:  value,
-			Source: "env",
-		}
-	}
-
-	if file := findSecretsFile(); file != "" {
-		if value := readSecretFromJSON(file, key); value != "" {
+	store, err := apisecrets.NewProjectStoreFromEnvOrCWD(apisecrets.Config{
+		EnvLookup: os.Getenv,
+	})
+	if err != nil {
+		if value := strings.TrimSpace(os.Getenv(key)); value != "" {
 			return SecretResolution{
-				Value:      value,
-				Source:     "file",
-				SourcePath: file,
+				Value:  value,
+				Source: apisecrets.SourceEnv,
 			}
 		}
+		return SecretResolution{Source: apisecrets.SourceMissing}
+	}
+	resolved, err := store.Resolve(key)
+	if err != nil {
+		return SecretResolution{Source: apisecrets.SourceMissing}
 	}
 	return SecretResolution{
-		Source: "missing",
+		Value:      resolved.Value,
+		Source:     resolved.Source,
+		SourcePath: resolved.SourcePath,
 	}
-}
-
-func findSecretsFile() string {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
-		candidate := filepath.Join(root, ".vrooli", "secrets.json")
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-	dir := cwd
-	for {
-		candidate := filepath.Join(dir, ".vrooli", "secrets.json")
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return ""
-}
-
-func readSecretFromJSON(path, key string) string {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	var raw map[string]interface{}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return ""
-	}
-	if value, ok := raw[key].(string); ok {
-		return strings.TrimSpace(value)
-	}
-	return ""
 }

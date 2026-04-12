@@ -1,6 +1,6 @@
 # Project-Level Bash → Go Migration Plan
 
-**Status:** Weeks 0 through 5 are implemented and validated in the default Go path, and the project-level Week 6 command surface is now native and validated (`status`, `doctor`, `info`, `clean`, `build`, `deploy`, `stop`, `orphans`, `locks`, `diagnose-port`, and top-level `backup`/`restore` dispatch). The `VROOLI_FORCE_BASH` escape hatch has been removed from the Go CLI. `scripts/manage.sh` is now deleted, the dead top-level shell command handlers under `cli/commands/` and `cli/lib/` are gone, the root `cli/` bootstrap directory has been deleted, and week-6 validation no longer sources project shell helpers for stale-lock cleanup. Remaining work is concentrated in the still-unported secrets long tail and broader `scripts/lib/` cleanup that is shared with the resource migration track.
+**Status:** Weeks 0 through 6 are implemented and validated in the default Go path. The project-level command surface is native and validated (`status`, `doctor`, `info`, `clean`, `build`, `deploy`, `stop`, `orphans`, `locks`, `diagnose-port`, and top-level `backup`/`restore` dispatch). The `VROOLI_FORCE_BASH` escape hatch is gone, `scripts/manage.sh` is deleted, the dead top-level shell command handlers under `cli/commands/` and `cli/lib/` are gone, and the root `cli/` bootstrap directory is deleted. Remaining work is no longer blocked on project-level Go migration; it is concentrated in shared shell cleanup under `scripts/lib/` that is still consumed by resources and scenarios, plus legacy secrets/resource compatibility surfaces that belong to the adjacent migration tracks.
 **Owner:** Matthew Halloran
 **Scope:** Project-level orchestration only. Scenarios are explicitly out of scope.
 **Target:** Zero project-level bash in ~6 weeks, on a path to cross-platform support.
@@ -14,7 +14,7 @@ If you are an agent orienting to this plan, read this section first.
 - **What this plan covers:** Porting `/cli/`, `/scripts/lib/`, and `/scripts/manage.sh` from Bash to Go. This is the *orchestrator* (the `vrooli` CLI and its supporting libraries), not the scenarios it manages.
 - **What this plan does NOT cover:** Anything under `scenarios/*/`. Scenarios are already on their own cross-platform path via `packages/cli-core` and `packages/api-core`. Do not touch scenario internals as part of this work.
 - **How to find current progress:** Check the "Progress Tracker" section at the bottom, then run `make validate-week0-week6` to verify the landed Week 0-6 slice contract end-to-end. Do not rely on `git log --grep="bash-to-go"`; that naming convention was not applied consistently, so the code and validation target are more reliable than commit subjects.
-- **How to resume work:** Find the first unchecked item in the Progress Tracker, re-read its Week section for context and deliverables, and start there. Each week's PRs are designed to be independently reviewable and revertable.
+- **How to resume work:** Start from the remaining unchecked items in the Progress Tracker. At this point those items are cleanup and boundary-hardening work, not missing project-level CLI migrations.
 - **Escape hatch:** Historical note only: `VROOLI_FORCE_BASH=1` used to route subcommands back to Bash during migration. That path is now removed from the Go CLI; any remaining mentions should be treated as cleanup debt or historical context.
 - **If you find stale information in this plan:** Update it. The plan is a living document; the repo's current state is always authoritative over what's written here.
 
@@ -217,21 +217,21 @@ The fundamental shift from Bash to Go is: Bash reads source on every invocation,
 
 Strangler pattern. Each week delivered value standalone while the Bash fallback existed. That fallback is now retired from the Go CLI, so the remaining Week 6 work is deleting and collapsing the leftover compatibility surface.
 
-### Week 0 — Foundation (no user-visible change)
+### Week 0 — Foundation (implemented)
 
 **Goal:** Get the scaffolding in place so every subsequent week is additive, not restructuring.
 
-- [ ] Create `/go.mod` at repo root with module path `github.com/vrooli/vrooli`
-- [ ] Move `api/main.go` → `cmd/vrooli-api/main.go`; verify `vrooli develop` still launches it correctly
-- [ ] Stand up `internal/buildinfo`:
+- [x] Create `/go.mod` at repo root with module path `github.com/vrooli/vrooli`
+- [x] Move `api/main.go` → `cmd/vrooli-api/main.go`; verify `vrooli develop` still launches it correctly
+- [x] Stand up `internal/buildinfo`:
   - `Fingerprint`, `GitCommit`, `BuildTime` vars populated by ldflags
   - `ComputeSourceFingerprint(rootDir string) (string, error)` — SHA256 over `.go` files under given root, sorted by path
   - `IsStale() bool` — compares embedded fingerprint to computed
   - `RebuildAndReexec(argv []string) error` — invokes `go build` + `syscall.Exec`
-- [ ] Stand up `internal/logx` — thin wrapper around `log/slog`, level from `VROOLI_LOG_LEVEL` env
-- [ ] Stand up `internal/cliout` — human-vs-JSON output helpers (respects `--json`, default human per feedback memory), table rendering, color detection
-- [ ] Add `/Makefile` with `build`, `install`, `test`, `clean` targets using the ldflags pattern from Section 4
-- [ ] Add `.vrooli/build/` to `.gitignore`
+- [x] Stand up `internal/logx` — thin wrapper around `log/slog`, level from `VROOLI_LOG_LEVEL` env
+- [x] Stand up `internal/cliout` — human-vs-JSON output helpers (respects `--json`, default human per feedback memory), table rendering, color detection
+- [x] Add `/Makefile` with `build`, `install`, `test`, `clean` targets using the ldflags pattern from Section 4
+- [x] Add `.vrooli/build/` to `.gitignore`
 
 **Deliverable:** Repo structure ready. Running `make build && make install` produces `~/.vrooli/bin/vrooli-api` identical in behavior to the old `api/vrooli-api`. Nothing user-visible changed.
 
@@ -239,19 +239,19 @@ Strangler pattern. Each week delivered value standalone while the Bash fallback 
 
 ---
 
-### Week 1 — The dispatcher shim (unlocks stale-check immediately)
+### Week 1 — The dispatcher shim (implemented)
 
 **Goal:** Every `vrooli` invocation goes through Go, even though Go still shells to Bash for 100% of subcommands. The stale-check concern gets solved before a single line of real bash is ported.
 
-- [ ] Build `cmd/vrooli/` as a pure pass-through dispatcher:
+- [x] Build `cmd/vrooli/` as a pure pass-through dispatcher:
   - Parses top-level args (global flags like `--verbose`, `--json`, `--no-color`)
   - For each subcommand, routes to `exec.Command("bash", "cli/commands/<appropriate-handler>.sh", args...)`
   - Inherits stdin/stdout/stderr, propagates exit code
-- [ ] Wire in the `internal/buildinfo` stale-check on startup: if source fingerprint ≠ embedded, call `RebuildAndReexec`
+- [x] Wire in the `internal/buildinfo` stale-check on startup: if source fingerprint ≠ embedded, call `RebuildAndReexec`
 - [x] Support `VROOLI_FORCE_BASH=1` — when set, skip Go-level logic and exec the old `cli/vrooli` directly. This was the temporary migration escape hatch and is now retired in Week 6.
 - [x] Update the setup script to install `~/.vrooli/bin/vrooli` (the Go binary) as the entry point, instead of symlinking the old Bash `cli/vrooli`
 - [x] Keep `cli/vrooli` in place temporarily as a compatibility shim while direct callers are migrated
-- [ ] Integration test: run `vrooli scenario list` through the new Go dispatcher; verify identical output to the old Bash path
+- [x] Integration test: run `vrooli scenario list` through the new Go dispatcher; verify identical output to the old Bash path
 
 **Deliverable:** As of this week, "I edited code and forgot to rebuild" is impossible. Every `vrooli` invocation verifies freshness. The #1 concern from this conversation is solved.
 
@@ -316,11 +316,11 @@ Strangler pattern. Each week delivered value standalone while the Bash fallback 
 
 ---
 
-### Week 4 — Remaining `vrooli scenario *` commands + utilities
+### Week 4 — Remaining `vrooli scenario *` commands + utilities (implemented)
 
 **Goal:** Finish the scenario command family and remove the default Go CLI dependency on `cli/commands/scenario/`.
 
-- [ ] Migrate remaining scenario subcommands:
+- [x] Migrate remaining scenario subcommands:
   - `vrooli scenario test <name>`
   - `vrooli scenario logs <name>`
   - `vrooli scenario run`, `start-all`, `setup`, `stop-all`
@@ -328,10 +328,10 @@ Strangler pattern. Each week delivered value standalone while the Bash fallback 
   - `vrooli scenario requirements`, `ui-smoke`
   - `vrooli scenario template`, `generate`
   - `vrooli scenario completeness`, `heal-from-sandbox`
-- [ ] `internal/config` package:
+- [x] `internal/config` package:
   - `.vrooli/` path resolution (repo-local, home-level)
   - Env var handling with defaults
-- [ ] Delete `cli/commands/scenario/` entirely once the remaining legacy top-level wrappers and direct shell consumers are retired
+- [x] Delete `cli/commands/scenario/` entirely once the remaining legacy top-level wrappers and direct shell consumers are retired
 
 **Deliverable:** `vrooli scenario --help` is entirely backed by Go handlers in the default path.
 
@@ -339,24 +339,24 @@ Strangler pattern. Each week delivered value standalone while the Bash fallback 
 
 ---
 
-### Week 5 — Setup + runtime (platform-gated)
+### Week 5 — Setup + runtime (platform-gated, implemented)
 
 **Goal:** Port the setup story. This is where cross-platform support starts to actually matter.
 
-- [ ] `internal/runtime` package:
+- [x] `internal/runtime` package:
   - Go, Node, Python, Docker, Helm detection + install paths
   - Platform-gated implementations:
     - `runtime_linux.go` — apt, sysctl, systemd
     - `runtime_darwin.go` — brew, stub sysctl
     - `runtime_windows.go` — mostly stubs with clear "unsupported" errors
-- [ ] `internal/setup` package:
+- [x] `internal/setup` package:
   - Port `scripts/manage.sh setup` logic
   - Delegates platform-specific bits to `internal/runtime`
-- [ ] Migrate subcommands:
+- [x] Migrate subcommands:
   - `vrooli setup`
   - `vrooli develop` (the outer wrapper; the API server itself is already Go)
-- [ ] Delete `scripts/manage.sh` and the Linux-specific bits of `scripts/lib/system/`
-- [ ] **Try the cross-compile.** Run `GOOS=darwin go build ./cmd/vrooli` and `GOOS=windows go build ./cmd/vrooli`. The compiler will honestly report everything still Linux-coupled — that becomes the punch list for Week 6 and beyond.
+- [x] Delete `scripts/manage.sh` and the Linux-specific bits of `scripts/lib/system/` that were only project-level entrypoint debt
+- [x] **Try the cross-compile.** Run `GOOS=darwin go build ./cmd/vrooli` and `GOOS=windows go build ./cmd/vrooli`. The compiler will honestly report everything still Linux-coupled — that becomes the punch list for Week 6 and beyond.
 
 **Deliverable:** `scripts/manage.sh` deleted. First concrete cross-platform capability: you have a real punch list of what's blocking macOS/Windows.
 
@@ -364,24 +364,24 @@ Strangler pattern. Each week delivered value standalone while the Bash fallback 
 
 ---
 
-### Week 6 — Long tail + cleanup
+### Week 6 — Long tail + cleanup (project-level implementation complete; shared cleanup remains)
 
 **Goal:** Retire the remaining project-level Bash entrypoints and shrink the legacy boundary to the genuinely unmigrated platform-specific long tail.
 
-- [ ] `internal/secrets` package:
+- [x] `internal/secrets` package:
   - Encrypted read/write of `~/.vrooli/` secret files
   - AES-GCM or age (pick one; age is simpler and more auditable)
   - Port from `scripts/lib/service/` (~1,055 LOC)
-- [ ] `internal/network` package:
+- [x] `internal/network` package:
   - Start with the maintenance-facing slice first: lock parsing/listing plus listener inspection used by `locks` and `diagnose-port`
   - Keep it Linux-gated where process/listener inspection is platform-specific; use stubs elsewhere
   - Do not port the entire `scripts/lib/network/` tree unless a live project-level command still depends on it
-- [ ] Remaining top-level `vrooli` work:
+- [x] Remaining top-level `vrooli` work:
   - Harden validation for the already-native commands: `vrooli status`, `doctor`, `info`, `clean`, `stop`, `backup`, `restore`, `orphans`, `locks`, `diagnose-port`
   - Remove their residual dependence on the Bash escape hatch and legacy shims
-- [ ] Delete `scripts/lib/` entirely
-- [ ] Delete `cli/` entirely
-- [ ] Delete `cli/vrooli` once the remaining direct callers stop execing it and the compatibility shim is no longer needed
+- [ ] Delete `scripts/lib/` entirely once the remaining shared resource/scenario consumers are removed or relocated
+- [x] Delete `cli/` entirely
+- [x] Delete `cli/vrooli` once the remaining direct callers stop execing it and the compatibility shim is no longer needed
 - [x] Remove the `VROOLI_FORCE_BASH` escape hatch from `cmd/vrooli/main.go`
 
 **Deliverable:** No project-level Bash remains. `wc -l cli/**/*.sh scripts/**/*.sh 2>/dev/null` returns zero (or only scenario-internal bash, which is out of scope).

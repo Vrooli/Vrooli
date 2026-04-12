@@ -88,6 +88,34 @@ func newErrorWithCategory(err error, category, hint string, suggestions []string
 	}
 }
 
+func normalizeCommandError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if _, ok := err.(commandError); ok {
+		return err
+	}
+	lower := strings.ToLower(strings.TrimSpace(err.Error()))
+	switch {
+	case strings.HasPrefix(lower, "unknown option for "),
+		strings.HasPrefix(lower, "unknown cleanup target"),
+		strings.HasPrefix(lower, "usage: "),
+		strings.HasPrefix(lower, "invalid port:"),
+		strings.HasPrefix(lower, "missing required value:"),
+		strings.Contains(lower, " requires exactly "),
+		strings.Contains(lower, " requires a "),
+		strings.Contains(lower, " requires at least "),
+		strings.Contains(lower, " accepts exactly "),
+		strings.Contains(lower, " accepts at most "),
+		strings.Contains(lower, " accepts only "),
+		strings.Contains(lower, " does not accept "),
+		strings.HasPrefix(lower, "missing required values:"):
+		return newErrorWithCategory(err, errorCategoryUsage, "Use --help for available commands", nil)
+	default:
+		return err
+	}
+}
+
 func newUnknownCommandError(command string) error {
 	return &vroolierr.Error{
 		Err:         fmt.Errorf("unknown command: %s", command),

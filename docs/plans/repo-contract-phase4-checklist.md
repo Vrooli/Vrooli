@@ -6,13 +6,18 @@
 
 ## Exit Criteria
 
-- [ ] No Phase 4 consumer validates repo globs outside `packages/repo-contract-go`
+- [x] No Phase 4 consumer validates repo globs outside `packages/repo-contract-go`
 - [ ] No Phase 4 consumer derives repo root from `$HOME/Vrooli`, `.git`, `pnpm-workspace.yaml`, or handler-relative path climbing
 - [ ] No Phase 4 consumer hard-codes canonical `scenarios/<name>` or `.vrooli/service.json` paths where contract helpers already cover them
+- [ ] Each Phase 4 consumer has a single authoritative repo/scenario resolution helper path rather than parallel legacy fallbacks
 - [ ] Targeted tests assert repo-contract semantics rather than legacy behavior
 - [ ] Focused validation commands pass for every migrated consumer
 
 ## 1. `swarm-manager`
+
+Status:
+- [x] Runtime migration complete for Phase 4 scope
+- [x] Contract-backed regression coverage added
 
 Files:
 - [scenarios/swarm-manager/api/internal/backlog/types.go](/home/matthalloran8/Vrooli/scenarios/swarm-manager/api/internal/backlog/types.go)
@@ -21,32 +26,54 @@ Files:
 - [scenarios/swarm-manager/api/internal/backlog/validate_globs_test.go](/home/matthalloran8/Vrooli/scenarios/swarm-manager/api/internal/backlog/validate_globs_test.go)
 
 Tasks:
-- [ ] Replace `filepath.Match` glob validation with `repocontract.ValidateRepoGlob`
-- [ ] Replace handler-side `doublestar.FilepathGlob` counting with `repocontract.FileMatchCount`
-- [ ] Replace handler-relative repo-root derivation with repo-contract root resolution
-- [ ] Add regression coverage for `**`, `./`, absolute-path rejection, and parent traversal rejection
+- [x] Replace `filepath.Match` glob validation with `repocontract.ValidateRepoGlob`
+- [x] Replace handler-side `doublestar.FilepathGlob` counting with `repocontract.FileMatchCount`
+- [x] Replace handler-relative repo-root derivation with repo-contract root resolution
+- [x] Add regression coverage for `**`, `./`, absolute-path rejection, and parent traversal rejection
 
 Validation:
-- [ ] `go test ./api/internal/backlog/...`
+- [x] `go test ./internal/backlog/...`
 
 ## 2. `scenario-to-cloud`
 
+Status:
+- [x] Bundle/profile migration landed
+- [x] Runtime repo/scenario/service helpers consolidated
+- [x] Legacy repo-root fallbacks removed from investigation/task/VPS paths
+- [x] Contract-backed validation completed
+
 Files:
 - [scenarios/scenario-to-cloud/api/bundle/builder.go](/home/matthalloran8/Vrooli/scenarios/scenario-to-cloud/api/bundle/builder.go)
+- [scenarios/scenario-to-cloud/api/bundle/storage.go](/home/matthalloran8/Vrooli/scenarios/scenario-to-cloud/api/bundle/storage.go)
 - [scenarios/scenario-to-cloud/api/bundling_rules_test.go](/home/matthalloran8/Vrooli/scenarios/scenario-to-cloud/api/bundling_rules_test.go)
 - [scenarios/scenario-to-cloud/api/freshness.go](/home/matthalloran8/Vrooli/scenarios/scenario-to-cloud/api/freshness.go)
 - [scenarios/scenario-to-cloud/api/scenarios.go](/home/matthalloran8/Vrooli/scenarios/scenario-to-cloud/api/scenarios.go)
+- [scenarios/scenario-to-cloud/api/handlers_manifest.go](/home/matthalloran8/Vrooli/scenarios/scenario-to-cloud/api/handlers_manifest.go)
+- [scenarios/scenario-to-cloud/api/deployment/manifest_refresh.go](/home/matthalloran8/Vrooli/scenarios/scenario-to-cloud/api/deployment/manifest_refresh.go)
+- [scenarios/scenario-to-cloud/api/vps/deploy.go](/home/matthalloran8/Vrooli/scenarios/scenario-to-cloud/api/vps/deploy.go)
+- [scenarios/scenario-to-cloud/api/secrets/handlers_local.go](/home/matthalloran8/Vrooli/scenarios/scenario-to-cloud/api/secrets/handlers_local.go)
+- [scenarios/scenario-to-cloud/api/tasks/service.go](/home/matthalloran8/Vrooli/scenarios/scenario-to-cloud/api/tasks/service.go)
+- [scenarios/scenario-to-cloud/api/investigation/service.go](/home/matthalloran8/Vrooli/scenarios/scenario-to-cloud/api/investigation/service.go)
+- [scenarios/scenario-to-cloud/api/handlers_docs.go](/home/matthalloran8/Vrooli/scenarios/scenario-to-cloud/api/handlers_docs.go)
 
 Tasks:
-- [ ] Replace bespoke include/exclude policy with `mini_vrooli_bundle` contract profile resolution
-- [ ] Keep manifest-specific augmentation in code only
-- [ ] Replace canonical scenario/service path assembly with repo-contract helpers where appropriate
-- [ ] Update bundle tests to assert contract-backed roots and excludes
+- [x] Replace bespoke include/exclude policy with `mini_vrooli_bundle` contract profile resolution
+- [x] Keep manifest-specific augmentation in code only
+- [x] Add one shared contract-backed helper surface for repo root, scenario root, scenario service path, and the `scenario-to-cloud` scenario root
+- [x] Replace remaining `filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")` joins with repo-contract helpers
+- [x] Replace legacy `.git` / raw `VROOLI_ROOT` repo-root discovery in `vps/deploy.go`
+- [x] Replace `$HOME/Vrooli` working-dir fallbacks in investigation/task execution paths
+- [x] Replace scenario-to-cloud docs discovery fallback with contract-backed scenario docs resolution
+- [x] Update/add tests for scenario/service path helpers, manifest refresh, VPS dependency validation, local secrets resolution, and docs discovery
 
 Validation:
-- [ ] `go test ./api/...`
+- [x] `go test ./...`
 
 ## 3. `tidiness-manager`
+
+Status:
+- [x] Core runtime migration landed
+- [ ] Checklist-level test coverage still incomplete
 
 Files:
 - [scenarios/tidiness-manager/api/services.go](/home/matthalloran8/Vrooli/scenarios/tidiness-manager/api/services.go)
@@ -54,15 +81,20 @@ Files:
 - [scenarios/tidiness-manager/api/smart_scanner_test.go](/home/matthalloran8/Vrooli/scenarios/tidiness-manager/api/smart_scanner_test.go)
 
 Tasks:
-- [ ] Replace `$HOME/Vrooli` and raw `VROOLI_ROOT` fallbacks with repo-contract root resolution
-- [ ] Replace scenario path construction with repo-contract helpers
-- [ ] Preserve explicit absolute-path overrides for sandbox/agent callers
-- [ ] Add tests for repo discovery, contract failure, and override behavior
+- [x] Replace `$HOME/Vrooli` and raw `VROOLI_ROOT` fallbacks with repo-contract root resolution
+- [x] Replace scenario path construction with repo-contract helpers
+- [x] Preserve explicit absolute-path overrides for sandbox/agent callers
+- [ ] Add explicit tests for repo discovery failure and absolute-path override behavior
+- [ ] Confirm broader package test expectations or narrow validation target in the checklist if unrelated failures remain
 
 Validation:
-- [ ] `go test ./api/...`
+- [ ] `go test ./...`
 
 ## 4. `workspace-sandbox`
+
+Status:
+- [x] Core runtime migration landed
+- [ ] Contract-backed test coverage still thin
 
 Files:
 - [scenarios/workspace-sandbox/api/internal/toolexecution/executor.go](/home/matthalloran8/Vrooli/scenarios/workspace-sandbox/api/internal/toolexecution/executor.go)
@@ -71,15 +103,20 @@ Files:
 - [scenarios/workspace-sandbox/api/internal/sandbox/service.go](/home/matthalloran8/Vrooli/scenarios/workspace-sandbox/api/internal/sandbox/service.go)
 
 Tasks:
-- [ ] Replace `$HOME/Vrooli` project-root fallback with repo-contract-backed resolution
-- [ ] Resolve the `workspace-sandbox` scenario directory via the contract for profile store initialization
-- [ ] Consolidate default project-root discovery to one helper
-- [ ] Add tests for default root resolution and explicit override precedence
+- [x] Replace `$HOME/Vrooli` project-root fallback with repo-contract-backed resolution
+- [x] Resolve the `workspace-sandbox` scenario directory via the contract for profile store initialization
+- [x] Consolidate default project-root discovery to one helper
+- [ ] Add tests for contract-backed default root resolution and explicit override precedence
+- [ ] Update user-facing/toolregistry text that still claims `VROOLI_ROOT` is the default project-root source
 
 Validation:
-- [ ] `go test ./api/...`
+- [x] `go test ./...`
 
 ## 5. `test-genie`
+
+Status:
+- [x] Runtime migration complete for Phase 4 scope
+- [x] Contract-backed tests added
 
 Files:
 - [scenarios/test-genie/cli/internal/repo/detect.go](/home/matthalloran8/Vrooli/scenarios/test-genie/cli/internal/repo/detect.go)
@@ -88,15 +125,19 @@ Files:
 - [scenarios/test-genie/cli/execute/report/artifacts.go](/home/matthalloran8/Vrooli/scenarios/test-genie/cli/execute/report/artifacts.go)
 
 Tasks:
-- [ ] Replace `.git` / `pnpm-workspace.yaml` root heuristics with repo-contract root resolution
-- [ ] Keep `coverage/` discovery scenario-local
-- [ ] Preserve sandbox-aware scenario execution behavior already handled by `cli-core`
-- [ ] Update tests to use contract markers instead of `.git`
+- [x] Replace `.git` / `pnpm-workspace.yaml` root heuristics with repo-contract root resolution
+- [x] Keep `coverage/` discovery scenario-local
+- [x] Preserve sandbox-aware scenario execution behavior already handled by `cli-core`
+- [x] Update tests to use contract markers instead of `.git`
 
 Validation:
-- [ ] `go test ./cli/... ./api/...`
+- [x] `go test ./internal/repo/... ./execute/report/...`
 
 ## 6. `scenario-auditor`
+
+Status:
+- [ ] Primary standards/store path migration landed
+- [ ] Parallel legacy repo-root helpers still remain
 
 Files:
 - [scenarios/scenario-auditor/api/handlers_standards.go](/home/matthalloran8/Vrooli/scenarios/scenario-auditor/api/handlers_standards.go)
@@ -105,17 +146,27 @@ Files:
 - [scenarios/scenario-auditor/api/standards_store.go](/home/matthalloran8/Vrooli/scenarios/scenario-auditor/api/standards_store.go)
 - [scenarios/scenario-auditor/api/vulnerability_store.go](/home/matthalloran8/Vrooli/scenarios/scenario-auditor/api/vulnerability_store.go)
 - [scenarios/scenario-auditor/api/protected_scenarios_store.go](/home/matthalloran8/Vrooli/scenarios/scenario-auditor/api/protected_scenarios_store.go)
+- [scenarios/scenario-auditor/api/handlers_claude.go](/home/matthalloran8/Vrooli/scenarios/scenario-auditor/api/handlers_claude.go)
+- [scenarios/scenario-auditor/api/agent_manager.go](/home/matthalloran8/Vrooli/scenarios/scenario-auditor/api/agent_manager.go)
+- [scenarios/scenario-auditor/api/handlers_issue_tracker.go](/home/matthalloran8/Vrooli/scenarios/scenario-auditor/api/handlers_issue_tracker.go)
+- [scenarios/scenario-auditor/api/internal/ruleengine/loader.go](/home/matthalloran8/Vrooli/scenarios/scenario-auditor/api/internal/ruleengine/loader.go)
 
 Tasks:
-- [ ] Replace `VROOLI_ROOT` / `$HOME/Vrooli` scenario-root helpers with repo-contract-backed resolution
-- [ ] Enumerate “all scenarios” from the contract-defined scenario directory
-- [ ] Preserve explicit sandbox path override behavior for agent-driven scans
-- [ ] Add/update tests for single-scenario and all-scenarios scans
+- [x] Replace `VROOLI_ROOT` / `$HOME/Vrooli` scenario-root helpers in standards/store flows with repo-contract-backed resolution
+- [x] Enumerate “all scenarios” from the contract-defined scenario directory
+- [x] Preserve explicit sandbox path override behavior for agent-driven scans
+- [ ] Remove the parallel legacy `getVrooliRoot` / `resolveScenarioPath` path from Claude, issue-tracker, and agent-manager flows
+- [ ] Decide whether `internal/ruleengine/loader.go` should consume the shared helper or remain a justified bootstrap exception
+- [ ] Add/update tests for single-scenario and all-scenarios scans plus the remaining Claude/agent-manager resolution paths
 
 Validation:
-- [ ] `go test ./api/...`
+- [x] `go test ./...`
 
 ## 7. `git-control-tower`
+
+Status:
+- [x] Main repo/scenario/service resolution migration landed
+- [ ] Scope-prefix and handler test cleanup still remain
 
 Files:
 - [scenarios/git-control-tower/api/git_runner_core.go](/home/matthalloran8/Vrooli/scenarios/git-control-tower/api/git_runner_core.go)
@@ -124,20 +175,21 @@ Files:
 - [scenarios/git-control-tower/api/review_handler.go](/home/matthalloran8/Vrooli/scenarios/git-control-tower/api/review_handler.go)
 
 Tasks:
-- [ ] Replace repo-root discovery internals with repo-contract-backed resolution
-- [ ] Replace canonical scenario/service path joins with repo-contract helpers
-- [ ] Keep Git validation and active-repo selection logic in `RepoService`
-- [ ] Add tests for contract-backed scenario resolution in envelope/tidiness/review paths
+- [x] Replace repo-root discovery internals with repo-contract-backed resolution
+- [x] Replace canonical scenario/service path joins with repo-contract helpers
+- [x] Keep Git validation and active-repo selection logic in `RepoService`
+- [ ] Replace remaining hard-coded `scenarios/%s/` scope-prefix generation with contract-backed sandbox scope helpers
+- [ ] Add tests for contract-backed scenario resolution in tidiness/review paths, not just envelope
 
 Validation:
-- [ ] `go test ./api/...`
+- [x] `go test ./...`
 
 ## Execution Order
 
-- [ ] 1. `swarm-manager`
-- [ ] 2. `scenario-to-cloud`
-- [ ] 3. `tidiness-manager`
-- [ ] 4. `workspace-sandbox`
-- [ ] 5. `test-genie`
-- [ ] 6. `scenario-auditor`
-- [ ] 7. `git-control-tower`
+- [x] 1. `swarm-manager`
+- [x] 2. `scenario-to-cloud`
+- [ ] 3. `scenario-auditor`
+- [ ] 4. `git-control-tower`
+- [ ] 5. `workspace-sandbox`
+- [ ] 6. `tidiness-manager`
+- [x] 7. `test-genie`

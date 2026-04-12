@@ -19,7 +19,11 @@ func GetLocalBundlesDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(repoRoot, "scenarios", "scenario-to-cloud", "coverage", "bundles"), nil
+	scenarioDir, err := ResolveScenarioPath(repoRoot, "scenario-to-cloud")
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(scenarioDir, "coverage", "bundles"), nil
 }
 
 // ListBundles lists all bundles in the given directory.
@@ -238,4 +242,57 @@ func FindRepoRootFromCWD() (string, error) {
 // FindRepoRoot finds the repository root starting from the given directory.
 func FindRepoRoot(start string) (string, error) {
 	return repocontract.FindRepoRoot(start)
+}
+
+// ResolveScenariosDir returns the contract-defined top-level scenarios directory.
+func ResolveScenariosDir(repoRoot string) (string, error) {
+	contract, err := repocontract.LoadDefault(repoRoot)
+	if err != nil {
+		return "", fmt.Errorf("load repo contract: %w", err)
+	}
+	return contract.TopLevelDir(repoRoot, "scenarios")
+}
+
+// ResolveScenarioPath returns the contract-defined root for a scenario.
+func ResolveScenarioPath(repoRoot, scenarioID string) (string, error) {
+	path, err := repocontract.ResolveScenarioPath(repoRoot, scenarioID)
+	if err != nil {
+		return "", fmt.Errorf("resolve scenario path: %w", err)
+	}
+	return path, nil
+}
+
+// ResolveScenarioPathRelative returns a slash-normalized repo-relative scenario root.
+func ResolveScenarioPathRelative(repoRoot, scenarioID string) (string, error) {
+	path, err := ResolveScenarioPath(repoRoot, scenarioID)
+	if err != nil {
+		return "", err
+	}
+	return relativeToRepoRoot(repoRoot, path)
+}
+
+// ResolveScenarioFile returns the contract-defined well-known file/path for a scenario.
+func ResolveScenarioFile(repoRoot, scenarioID, key string) (string, error) {
+	path, err := repocontract.ResolveScenarioFile(repoRoot, scenarioID, key)
+	if err != nil {
+		return "", fmt.Errorf("resolve scenario %s path %q: %w", scenarioID, key, err)
+	}
+	return path, nil
+}
+
+// ResolveScenarioFileRelative returns a slash-normalized repo-relative well-known scenario path.
+func ResolveScenarioFileRelative(repoRoot, scenarioID, key string) (string, error) {
+	path, err := ResolveScenarioFile(repoRoot, scenarioID, key)
+	if err != nil {
+		return "", err
+	}
+	return relativeToRepoRoot(repoRoot, path)
+}
+
+func relativeToRepoRoot(repoRoot, path string) (string, error) {
+	rel, err := filepath.Rel(repoRoot, path)
+	if err != nil {
+		return "", fmt.Errorf("relative path from repo root: %w", err)
+	}
+	return filepath.ToSlash(rel), nil
 }

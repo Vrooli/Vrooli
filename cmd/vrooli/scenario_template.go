@@ -62,9 +62,17 @@ type scenarioGenerateOptions struct {
 var unresolvedTemplatePattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)
 
 func runScenarioTemplateCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	_ = globals
-	_ = stderr
+	app := configuredApp()
+	return runScenarioTemplateCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
 
+func runScenarioTemplateCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	action := "list"
 	if len(args) > 0 {
 		action = args[0]
@@ -73,11 +81,11 @@ func runScenarioTemplateCommand(root string, globals globalOptions, args []strin
 
 	switch action {
 	case "list":
-		return runScenarioTemplateListCommand(root, globals, args, stdout)
+		return runScenarioTemplateListCommand(ctx.Root, ctx.Globals, args, ctx.Stdout)
 	case "show":
-		return runScenarioTemplateShowCommand(root, globals, args, stdout)
+		return runScenarioTemplateShowCommand(ctx.Root, ctx.Globals, args, ctx.Stdout)
 	case "help", "--help", "-h":
-		showScenarioTemplateHelp(stdout)
+		showScenarioTemplateHelp(ctx.Stdout)
 		return nil
 	default:
 		return fmt.Errorf("unknown template command: %s", action)
@@ -663,10 +671,6 @@ func writeScenarioTemplateHooks(w io.Writer, manifest scenarioTemplateManifest) 
 		}
 		_, _ = fmt.Fprintf(w, "  - %s\n", line)
 	}
-}
-
-func runScenarioTemplateHooks(root string, globals globalOptions, destination string, manifest scenarioTemplateManifest, stdout, stderr io.Writer) error {
-	return runScenarioTemplateHooksWithApp(configuredApp(), root, globals, destination, manifest, stdout, stderr)
 }
 
 func runScenarioTemplateHooksWithApp(app *App, root string, globals globalOptions, destination string, manifest scenarioTemplateManifest, stdout, stderr io.Writer) error {

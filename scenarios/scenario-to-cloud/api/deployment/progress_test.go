@@ -1,6 +1,11 @@
 package deployment
 
 import (
+	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -199,5 +204,113 @@ func TestDeploySteps(t *testing.T) {
 		if step.Weight <= 0 {
 			t.Errorf("DeployStep %s has non-positive weight: %f", step.ID, step.Weight)
 		}
+	}
+}
+
+func TestDefaultPortsFetcherUsesContractResolvedServicePath(t *testing.T) {
+	root := t.TempDir()
+	writeRepoContractFixture(t, root)
+	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", root)
+
+	writeJSONFile(t, filepath.Join(root, "scenarios", "demo", ".vrooli", "service.json"), map[string]interface{}{
+		"service": map[string]interface{}{"name": "demo"},
+		"ports": map[string]interface{}{
+			"api": map[string]interface{}{"port": 8080},
+			"ui":  map[string]interface{}{"port": 3000},
+		},
+	})
+
+	got, err := (&DefaultPortsFetcher{}).FetchPorts(context.Background(), "demo")
+	if err != nil {
+		t.Fatalf("FetchPorts: %v", err)
+	}
+	want := map[string]int{"api": 8080, "ui": 3000}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("FetchPorts = %#v, want %#v", got, want)
+	}
+}
+
+func TestServiceJSONDependenciesFetcherUsesContractResolvedServicePath(t *testing.T) {
+	root := t.TempDir()
+	writeRepoContractFixture(t, root)
+	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", root)
+
+	writeJSONFile(t, filepath.Join(root, "scenarios", "demo", ".vrooli", "service.json"), map[string]interface{}{
+		"service": map[string]interface{}{"name": "demo"},
+		"dependencies": map[string]interface{}{
+			"resources": map[string]interface{}{
+				"postgres": map[string]interface{}{"enabled": true},
+				"redis":    map[string]interface{}{"enabled": true},
+				"vault":    map[string]interface{}{"enabled": false},
+			},
+			"scenarios": map[string]interface{}{
+				"dep-a": map[string]interface{}{"enabled": true},
+				"dep-b": map[string]interface{}{"enabled": false},
+			},
+		},
+	})
+
+	resources, scenarios, err := ServiceJSONDependenciesFetcher("demo")
+	if err != nil {
+		t.Fatalf("ServiceJSONDependenciesFetcher: %v", err)
+	}
+	if !reflect.DeepEqual(resources, []string{"postgres", "redis"}) {
+		t.Fatalf("resources = %#v, want %#v", resources, []string{"postgres", "redis"})
+	}
+	if !reflect.DeepEqual(scenarios, []string{"dep-a"}) {
+		t.Fatalf("scenarios = %#v, want %#v", scenarios, []string{"dep-a"})
+	}
+}
+
+func writeRepoContractFixture(t *testing.T, root string) {
+	t.Helper()
+
+	for _, dir := range []string{".vrooli", "scenarios", "resources", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module fixture\n\ngo 1.24.0\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+
+	contract := `{
+  "$schema": "schemas/repo-contract.schema.json",
+  "version": "1.0.0",
+  "platform": {"mode": "cross_platform_go_native", "legacy_project_bash_supported": false},
+  "root": {"markers": {"required_dirs": [".vrooli", "scenarios", "resources", "packages", "cmd", "internal"], "required_files": ["go.mod"]}},
+  "layout": {"project_config_dir": ".vrooli", "scenario_dir": "scenarios", "resource_dir": "resources", "package_dir": "packages", "command_dir": "cmd", "internal_dir": "internal", "docs_dir": "docs"},
+  "scenario": {"required_files": [".vrooli/service.json"], "well_known_paths": {"service": ".vrooli/service.json", "docs": "docs", "requirements": "requirements", "api": "api", "ui": "ui", "cli": "cli", "initialization": "initialization"}},
+  "resource": {"manifest": "resource.json", "well_known_paths": {"docs": "docs", "initialization": "initialization"}},
+  "globs": {"syntax": "doublestar", "root_relative": true, "case_sensitive": true, "allow_absolute": false, "path_format": "slash_normalized"},
+  "environment": {"variables": {"repo_root": "VROOLI_ROOT", "source_root": "VROOLI_SOURCE_ROOT", "sandbox_id": "VROOLI_SANDBOX_ID", "sandbox_merged": "VROOLI_SANDBOX_MERGED", "sandbox_scope": "VROOLI_SANDBOX_SCOPE"}},
+  "sandbox": {"full_repo_scopes": ["", ".", "/"], "scenario_scope_prefix": "scenarios/"},
+  "profiles": {
+    "mini_vrooli_bundle": {
+      "description": "fixture profile",
+      "parameters": ["scenario", "resources[*]"],
+      "include": [".vrooli", "cmd", "internal", "packages", "scenarios/{scenario}", "resources/{resources[*]}"],
+      "optional_include": ["docs", "go.mod"],
+      "exclude": [".git/**"]
+    }
+  }
+}`
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), []byte(contract), 0o644); err != nil {
+		t.Fatalf("write repo-contract.json: %v", err)
+	}
+}
+
+func writeJSONFile(t *testing.T, path string, payload map[string]interface{}) {
+	t.Helper()
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir for %s: %v", path, err)
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal %s: %v", path, err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
 	}
 }

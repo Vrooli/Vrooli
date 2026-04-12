@@ -58,8 +58,10 @@ var (
 	ErrSymlinkPath          = errors.New("secret file must not be a symlink")
 )
 
-type LookupFunc func(string) (string, bool)
-type KeyProvider func() (string, bool)
+type (
+	LookupFunc  func(string) (string, bool)
+	KeyProvider func() (string, bool)
+)
 
 type LoadPolicy int
 
@@ -419,6 +421,9 @@ func parseSecretMap(data []byte) (map[string]string, error) {
 
 	result := make(map[string]string, len(payload))
 	for key, value := range payload {
+		if strings.HasPrefix(key, "_") {
+			continue
+		}
 		var parsed string
 		if err := json.Unmarshal(value, &parsed); err != nil {
 			return nil, fmt.Errorf("secret %q must be a JSON string", key)

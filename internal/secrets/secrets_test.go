@@ -706,6 +706,7 @@ func TestEncryptionKeyBoundaries(t *testing.T) {
 
 func TestParseSecretMapRequiresStringValues(t *testing.T) {
 	values, err := parseSecretMap([]byte(`{
+		"_metadata":{"environment":"development"},
 		"STRING":"value"
 	}`))
 	if err != nil {
@@ -713,6 +714,9 @@ func TestParseSecretMapRequiresStringValues(t *testing.T) {
 	}
 	if values["STRING"] != "value" {
 		t.Fatalf("STRING = %q, want value", values["STRING"])
+	}
+	if _, ok := values["_metadata"]; ok {
+		t.Fatalf("expected metadata keys to be ignored, got %#v", values)
 	}
 }
 

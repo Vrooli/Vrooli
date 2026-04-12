@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	apisecrets "github.com/vrooli/api-core/secrets"
 )
 
 // -----------------------------------------------------------------------------
@@ -498,7 +499,6 @@ func scanResourceDirectory(resourceName, resourceDir string) ([]ResourceSecret, 
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -593,12 +593,13 @@ func getVaultSecretImpl(ctx context.Context, key string) (string, error) {
 }
 
 func getLocalSecretsPath() (string, error) {
-	secretsDir := filepath.Join(getVrooliRoot(), ".vrooli")
-	if err := os.MkdirAll(secretsDir, 0o755); err != nil {
-		return "", err
+	store, err := apisecrets.NewProjectStore(apisecrets.Config{
+		RepoRoot: getVrooliRoot(),
+	})
+	if err != nil {
+		return filepath.Join(getVrooliRoot(), ".vrooli", "secrets.json"), nil
 	}
-
-	return filepath.Join(secretsDir, "secrets.json"), nil
+	return store.PlaintextPath(), nil
 }
 
 func loadLocalSecretsFile() (map[string]interface{}, error) {
@@ -607,32 +608,32 @@ func loadLocalSecretsFile() (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	store := map[string]interface{}{}
-
-	data, err := os.ReadFile(path)
+	storeFile, err := apisecrets.NewFileStore(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			store["_metadata"] = map[string]interface{}{
-				"environment":  "development",
-				"last_updated": time.Now().Format(time.RFC3339),
-			}
-			return store, nil
-		}
+		return nil, err
+	}
+	doc, err := storeFile.Document()
+	if err != nil {
 		return nil, err
 	}
 
-	if len(data) == 0 {
+	store := map[string]interface{}{}
+	for key, value := range doc.Secrets {
+		store[key] = value
+	}
+	for key, raw := range doc.Metadata {
+		var decoded interface{}
+		if err := json.Unmarshal(raw, &decoded); err != nil {
+			return nil, err
+		}
+		store[key] = decoded
+	}
+	if len(store) == 0 {
 		store["_metadata"] = map[string]interface{}{
 			"environment":  "development",
 			"last_updated": time.Now().Format(time.RFC3339),
 		}
-		return store, nil
 	}
-
-	if err := json.Unmarshal(data, &store); err != nil {
-		return nil, err
-	}
-
 	return store, nil
 }
 
@@ -664,13 +665,37 @@ func saveSecretsToLocalStore(secrets map[string]string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	storeFile, err := apisecrets.NewFileStore(path)
+	if err != nil {
+		return 0, err
+	}
 
 	encoded, err := json.MarshalIndent(store, "", "  ")
 	if err != nil {
 		return 0, err
 	}
-
-	if err := os.WriteFile(path, encoded, 0o600); err != nil {
+	if err := storeFile.Update(func(doc *apisecrets.Document) error {
+		var payload map[string]json.RawMessage
+		if err := json.Unmarshal(encoded, &payload); err != nil {
+			return err
+		}
+		doc.Secrets = map[string]string{}
+		if doc.Metadata == nil {
+			doc.Metadata = map[string]json.RawMessage{}
+		}
+		for key, value := range payload {
+			if strings.HasPrefix(key, "_") {
+				doc.Metadata[key] = append(json.RawMessage(nil), value...)
+				continue
+			}
+			var parsed string
+			if err := json.Unmarshal(value, &parsed); err != nil {
+				return fmt.Errorf("secret %s must be a string: %w", key, err)
+			}
+			doc.Secrets[key] = parsed
+		}
+		return nil
+	}); err != nil {
 		return 0, err
 	}
 

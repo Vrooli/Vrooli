@@ -8,46 +8,89 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/config"
-	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/project"
 )
 
 func runTopLevelBuildCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	return runProjectLifecyclePhaseCommand(root, "build", args, stdout, stderr)
+	app := configuredApp()
+	return runProjectLifecyclePhaseCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, "build", args)
 }
 
 func runTopLevelDeployCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	return runProjectLifecyclePhaseCommand(root, "deploy", args, stdout, stderr)
+	app := configuredApp()
+	return runProjectLifecyclePhaseCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, "deploy", args)
 }
 
 func runTopLevelCleanCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	return runProjectLifecyclePhaseCommand(root, "clean", args, stdout, stderr)
+	app := configuredApp()
+	return runProjectLifecyclePhaseCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, "clean", args)
 }
 
 func runTopLevelBackupCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	return runProjectLifecyclePhaseCommand(root, "backup", args, stdout, stderr)
+	app := configuredApp()
+	return runProjectLifecyclePhaseCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, "backup", args)
 }
 
 func runTopLevelRestoreCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	return runProjectLifecyclePhaseCommand(root, "restore", args, stdout, stderr)
+	app := configuredApp()
+	return runProjectLifecyclePhaseCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, "restore", args)
 }
 
 func runTopLevelStatusCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	app := configuredApp()
+	return runTopLevelStatusCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runTopLevelStatusCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	opts, err := parseTopLevelStatusArgs(args)
 	if err != nil {
 		return err
 	}
 	if opts.Help {
-		showStatusHelp(stdout)
+		showStatusHelp(ctx.Stdout)
 		return nil
 	}
 
-	home, err := config.HomeDir()
+	controller, err := app.newProjectController(ctx)
 	if err != nil {
 		return err
 	}
-	controller := project.New(root, home, stdout, stderr)
 	report, err := controller.Status(project.StatusOptions{
 		ResourcesOnly: opts.ResourcesOnly,
 		ScenariosOnly: opts.ScenariosOnly,
@@ -57,16 +100,16 @@ func runTopLevelStatusCommand(root string, globals globalOptions, args []string,
 		return err
 	}
 
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return writeSuccessData(stdout, "status", report)
+		return writeSuccessData(ctx.Stdout, "status", report)
 	}
 
 	if !opts.ScenariosOnly {
-		_, _ = fmt.Fprintln(stdout, "Resources")
+		_, _ = fmt.Fprintln(ctx.Stdout, "Resources")
 		rows := make([][]string, 0, len(report.Resources))
 		for _, item := range report.Resources {
 			healthy := "n/a"
@@ -85,11 +128,11 @@ func runTopLevelStatusCommand(root string, globals globalOptions, args []string,
 				item.Message,
 			})
 		}
-		_ = cliout.RenderTable(stdout, []string{"Name", "Enabled", "Running", "Health", "Status"}, rows)
-		_, _ = fmt.Fprintln(stdout)
+		_ = cliout.RenderTable(ctx.Stdout, []string{"Name", "Enabled", "Running", "Health", "Status"}, rows)
+		_, _ = fmt.Fprintln(ctx.Stdout)
 	}
 	if !opts.ResourcesOnly {
-		_, _ = fmt.Fprintln(stdout, "Scenarios")
+		_, _ = fmt.Fprintln(ctx.Stdout, "Scenarios")
 		rows := make([][]string, 0, len(report.Scenarios))
 		for _, item := range report.Scenarios {
 			health := ""
@@ -104,104 +147,141 @@ func runTopLevelStatusCommand(root string, globals globalOptions, args []string,
 				item.Runtime,
 			})
 		}
-		_ = cliout.RenderTable(stdout, []string{"Name", "Status", "Processes", "Health", "Runtime"}, rows)
+		_ = cliout.RenderTable(ctx.Stdout, []string{"Name", "Status", "Processes", "Health", "Runtime"}, rows)
 	}
 
 	return nil
 }
 
 func runTopLevelDoctorCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	app := configuredApp()
+	return runTopLevelDoctorCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runTopLevelDoctorCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	for _, arg := range args {
 		switch arg {
 		case "--help", "-h":
-			showDoctorHelp(stdout)
+			showDoctorHelp(ctx.Stdout)
 			return nil
 		default:
 			return fmt.Errorf("unknown option for doctor: %s", arg)
 		}
 	}
 
-	home, err := config.HomeDir()
+	controller, err := app.newProjectController(ctx)
 	if err != nil {
 		return err
 	}
-	controller := project.New(root, home, stdout, stderr)
 	report, err := controller.Doctor()
 	if err != nil {
 		return err
 	}
 
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return writeSuccessData(stdout, "checks", report.Checks)
+		return writeSuccessData(ctx.Stdout, "checks", report.Checks)
 	}
 
 	rows := make([][]string, 0, len(report.Checks))
 	for _, item := range report.Checks {
 		rows = append(rows, []string{item.Name, item.Status})
 	}
-	return cliout.RenderTable(stdout, []string{"Check", "Status"}, rows)
+	return cliout.RenderTable(ctx.Stdout, []string{"Check", "Status"}, rows)
 }
 
 func runTopLevelStopCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	app := configuredApp()
+	return runTopLevelStopCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runTopLevelStopCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			showStopHelp(stdout)
+			showStopHelp(ctx.Stdout)
 			return nil
 		}
 	}
 
-	home, err := config.HomeDir()
+	controller, err := app.newProjectController(ctx)
 	if err != nil {
 		return err
 	}
-	controller := project.New(root, home, stdout, stderr)
 	result, err := controller.Stop(project.StopOptions{Args: args})
 	if err != nil {
 		return err
 	}
 
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return writeSuccessData(stdout, "data", result)
+		return writeSuccessData(ctx.Stdout, "data", result)
 	}
 
 	for _, item := range result.Stopped {
-		_, _ = fmt.Fprintf(stdout, "Stopped %s\n", item.Name)
+		_, _ = fmt.Fprintf(ctx.Stdout, "Stopped %s\n", item.Name)
 	}
 	for _, item := range result.Failed {
-		_, _ = fmt.Fprintf(stdout, "Failed %s: %s\n", item.Name, item.Error)
+		_, _ = fmt.Fprintf(ctx.Stdout, "Failed %s: %s\n", item.Name, item.Error)
 	}
 	return nil
 }
 
 func runTopLevelResourceCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
 	app := configuredApp()
-	controller, err := app.newResourceController(&commandContext{
+	return runTopLevelResourceCommandWithApp(app, &commandContext{
 		Root:    root,
 		Globals: globals,
 		Stdout:  stdout,
 		Stderr:  stderr,
 		app:     app,
-	})
+	}, args)
+}
+
+func runTopLevelResourceCommandWithApp(app *App, ctx *commandContext, args []string) error {
+	if len(args) == 0 || wantsCommandHelp(args) {
+		return runResourceCommand(nil, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	}
+	controller, err := app.newResourceController(ctx)
 	if err != nil {
 		return err
 	}
-	return runResourceCommand(controller, globals, args, stdout, stderr)
+	return runResourceCommand(controller, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
 }
 
 func runTopLevelOrphansCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	home, err := config.HomeDir()
+	app := configuredApp()
+	return runTopLevelOrphansCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runTopLevelOrphansCommandWithApp(app *App, ctx *commandContext, args []string) error {
+	controller, err := app.newMaintenanceController(ctx)
 	if err != nil {
 		return err
 	}
-	controller := maintenance.NewController(root, home)
 
 	mode := "list"
 	for _, arg := range args {
@@ -209,14 +289,14 @@ func runTopLevelOrphansCommand(root string, globals globalOptions, args []string
 		case "kill":
 			mode = "kill"
 		case "--help", "-h", "help":
-			_, _ = fmt.Fprintln(stdout, "Usage: vrooli orphans [kill] [--json]")
+			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli orphans [kill] [--json]")
 			return nil
 		default:
 			return fmt.Errorf("unknown option for orphans: %s", arg)
 		}
 	}
 
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return err
 	}
@@ -226,16 +306,16 @@ func runTopLevelOrphansCommand(root string, globals globalOptions, args []string
 			return err
 		}
 		if format == cliout.FormatJSON {
-			return writeSuccessData(stdout, "data", report)
+			return writeSuccessData(ctx.Stdout, "data", report)
 		}
 		for _, item := range report.Stopped {
-			_, _ = fmt.Fprintf(stdout, "Stopped orphan PID %s (%s)\n", item.Name, item.Message)
+			_, _ = fmt.Fprintf(ctx.Stdout, "Stopped orphan PID %s (%s)\n", item.Name, item.Message)
 		}
 		for _, item := range report.Failed {
-			_, _ = fmt.Fprintf(stdout, "Failed orphan PID %s: %s\n", item.Name, item.Error)
+			_, _ = fmt.Fprintf(ctx.Stdout, "Failed orphan PID %s: %s\n", item.Name, item.Error)
 		}
 		if len(report.Stopped) == 0 && len(report.Failed) == 0 {
-			_, _ = fmt.Fprintln(stdout, "No orphaned Vrooli processes found.")
+			_, _ = fmt.Fprintln(ctx.Stdout, "No orphaned Vrooli processes found.")
 		}
 		return nil
 	}
@@ -245,25 +325,35 @@ func runTopLevelOrphansCommand(root string, globals globalOptions, args []string
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return writeSuccessData(stdout, "orphans", orphans)
+		return writeSuccessData(ctx.Stdout, "orphans", orphans)
 	}
 	if len(orphans) == 0 {
-		_, _ = fmt.Fprintln(stdout, "No orphaned Vrooli processes found.")
+		_, _ = fmt.Fprintln(ctx.Stdout, "No orphaned Vrooli processes found.")
 		return nil
 	}
 	rows := make([][]string, 0, len(orphans))
 	for _, item := range orphans {
 		rows = append(rows, []string{strconv.Itoa(item.PID), strconv.Itoa(item.PPID), item.Command})
 	}
-	return cliout.RenderTable(stdout, []string{"PID", "PPID", "Command"}, rows)
+	return cliout.RenderTable(ctx.Stdout, []string{"PID", "PPID", "Command"}, rows)
 }
 
 func runTopLevelLocksCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	home, err := config.HomeDir()
+	app := configuredApp()
+	return runTopLevelLocksCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runTopLevelLocksCommandWithApp(app *App, ctx *commandContext, args []string) error {
+	controller, err := app.newMaintenanceController(ctx)
 	if err != nil {
 		return err
 	}
-	controller := maintenance.NewController(root, home)
 
 	mode := "list"
 	for _, arg := range args {
@@ -271,14 +361,14 @@ func runTopLevelLocksCommand(root string, globals globalOptions, args []string, 
 		case "clean":
 			mode = "clean"
 		case "--help", "-h", "help":
-			_, _ = fmt.Fprintln(stdout, "Usage: vrooli locks [clean] [--json]")
+			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli locks [clean] [--json]")
 			return nil
 		default:
 			return fmt.Errorf("unknown option for locks: %s", arg)
 		}
 	}
 
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return err
 	}
@@ -288,16 +378,16 @@ func runTopLevelLocksCommand(root string, globals globalOptions, args []string, 
 			return err
 		}
 		if format == cliout.FormatJSON {
-			return writeSuccessData(stdout, "data", report)
+			return writeSuccessData(ctx.Stdout, "data", report)
 		}
 		for _, item := range report.Stopped {
-			_, _ = fmt.Fprintf(stdout, "Removed stale lock for port %s\n", item.Name)
+			_, _ = fmt.Fprintf(ctx.Stdout, "Removed stale lock for port %s\n", item.Name)
 		}
 		for _, item := range report.Failed {
-			_, _ = fmt.Fprintf(stdout, "Failed to remove lock for port %s: %s\n", item.Name, item.Error)
+			_, _ = fmt.Fprintf(ctx.Stdout, "Failed to remove lock for port %s: %s\n", item.Name, item.Error)
 		}
 		if len(report.Stopped) == 0 && len(report.Failed) == 0 {
-			_, _ = fmt.Fprintln(stdout, "No stale port locks found.")
+			_, _ = fmt.Fprintln(ctx.Stdout, "No stale port locks found.")
 		}
 		return nil
 	}
@@ -307,10 +397,10 @@ func runTopLevelLocksCommand(root string, globals globalOptions, args []string, 
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return writeSuccessData(stdout, "locks", locks)
+		return writeSuccessData(ctx.Stdout, "locks", locks)
 	}
 	if len(locks) == 0 {
-		_, _ = fmt.Fprintln(stdout, "No port locks found.")
+		_, _ = fmt.Fprintln(ctx.Stdout, "No port locks found.")
 		return nil
 	}
 	rows := make([][]string, 0, len(locks))
@@ -326,15 +416,26 @@ func runTopLevelLocksCommand(root string, globals globalOptions, args []string, 
 			status,
 		})
 	}
-	return cliout.RenderTable(stdout, []string{"Port", "Scenario", "PID", "Status"}, rows)
+	return cliout.RenderTable(ctx.Stdout, []string{"Port", "Scenario", "PID", "Status"}, rows)
 }
 
 func runTopLevelDiagnosePortCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	app := configuredApp()
+	return runTopLevelDiagnosePortCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runTopLevelDiagnosePortCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("usage: vrooli diagnose-port <port> [scenario] [--json]")
 	}
 	if args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
-		_, _ = fmt.Fprintln(stdout, "Usage: vrooli diagnose-port <port> [scenario] [--json]")
+		_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli diagnose-port <port> [scenario] [--json]")
 		return nil
 	}
 	port, err := strconv.Atoi(strings.TrimSpace(args[0]))
@@ -346,45 +447,44 @@ func runTopLevelDiagnosePortCommand(root string, globals globalOptions, args []s
 		scenarioName = args[1]
 	}
 
-	home, err := config.HomeDir()
+	controller, err := app.newMaintenanceController(ctx)
 	if err != nil {
 		return err
 	}
-	controller := maintenance.NewController(root, home)
 	diagnostic, err := controller.DiagnosePort(port, scenarioName)
 	if err != nil {
 		return err
 	}
 
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return writeSuccessData(stdout, "diagnostic", diagnostic)
+		return writeSuccessData(ctx.Stdout, "diagnostic", diagnostic)
 	}
 
-	_, _ = fmt.Fprintf(stdout, "Port %d\n", diagnostic.Port)
+	_, _ = fmt.Fprintf(ctx.Stdout, "Port %d\n", diagnostic.Port)
 	if diagnostic.Scenario != "" {
-		_, _ = fmt.Fprintf(stdout, "Scenario: %s\n", diagnostic.Scenario)
+		_, _ = fmt.Fprintf(ctx.Stdout, "Scenario: %s\n", diagnostic.Scenario)
 	}
 	if diagnostic.InUse {
-		_, _ = fmt.Fprintln(stdout, "Listeners:")
+		_, _ = fmt.Fprintln(ctx.Stdout, "Listeners:")
 		for _, listener := range diagnostic.Listeners {
-			_, _ = fmt.Fprintf(stdout, "  PID %d  zombie=%t  %s\n", listener.PID, listener.Zombie, listener.Command)
+			_, _ = fmt.Fprintf(ctx.Stdout, "  PID %d  zombie=%t  %s\n", listener.PID, listener.Zombie, listener.Command)
 		}
 	} else {
-		_, _ = fmt.Fprintln(stdout, "Listeners: none")
+		_, _ = fmt.Fprintln(ctx.Stdout, "Listeners: none")
 	}
 	if diagnostic.Lock != nil {
-		_, _ = fmt.Fprintf(stdout, "Lock: %s (scenario=%s pid=%d stale=%t)\n", diagnostic.Lock.Path, diagnostic.Lock.Scenario, diagnostic.Lock.PID, diagnostic.Lock.Stale)
+		_, _ = fmt.Fprintf(ctx.Stdout, "Lock: %s (scenario=%s pid=%d stale=%t)\n", diagnostic.Lock.Path, diagnostic.Lock.Scenario, diagnostic.Lock.PID, diagnostic.Lock.Stale)
 	} else {
-		_, _ = fmt.Fprintln(stdout, "Lock: none")
+		_, _ = fmt.Fprintln(ctx.Stdout, "Lock: none")
 	}
-	_, _ = fmt.Fprintf(stdout, "Orphans detected: %d\n", diagnostic.OrphanCount)
-	_, _ = fmt.Fprintln(stdout, "Recommended actions:")
+	_, _ = fmt.Fprintf(ctx.Stdout, "Orphans detected: %d\n", diagnostic.OrphanCount)
+	_, _ = fmt.Fprintln(ctx.Stdout, "Recommended actions:")
 	for _, recommendation := range diagnostic.Recommendations {
-		_, _ = fmt.Fprintf(stdout, "  - %s\n", recommendation)
+		_, _ = fmt.Fprintf(ctx.Stdout, "  - %s\n", recommendation)
 	}
 	return nil
 }
@@ -421,16 +521,25 @@ func parseTopLevelStatusArgs(args []string) (topLevelStatusOptions, error) {
 }
 
 func runProjectLifecyclePhaseCommand(root, phase string, args []string, stdout, stderr io.Writer) error {
+	app := configuredApp()
+	return runProjectLifecyclePhaseCommandWithApp(app, &commandContext{
+		Root:   root,
+		Stdout: stdout,
+		Stderr: stderr,
+		app:    app,
+	}, phase, args)
+}
+
+func runProjectLifecyclePhaseCommandWithApp(app *App, ctx *commandContext, phase string, args []string) error {
 	if wantsCommandHelp(args) {
-		showProjectLifecycleHelp(stdout, phase)
+		showProjectLifecycleHelp(ctx.Stdout, phase)
 		return nil
 	}
 
-	home, err := config.HomeDir()
+	controller, err := app.newProjectController(ctx)
 	if err != nil {
 		return err
 	}
-	controller := project.New(root, home, stdout, stderr)
 	return controller.RunProjectPhase(phase, args)
 }
 

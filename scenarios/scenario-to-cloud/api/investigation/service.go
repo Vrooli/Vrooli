@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -14,6 +12,7 @@ import (
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 
 	"scenario-to-cloud/agentmanager"
+	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/persistence"
 )
@@ -135,9 +134,10 @@ func (s *Service) runInvestigation(
 	s.broadcastProgress(deployment.ID, invID, "investigation_progress", 10, "Agent executing investigation...")
 
 	// Execute via agent-manager
-	workingDir := os.Getenv("VROOLI_ROOT")
-	if workingDir == "" {
-		workingDir = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	workingDir, err := bundle.FindRepoRootFromCWD()
+	if err != nil {
+		s.handleInvestigationError(ctx, invID, deployment.ID, fmt.Sprintf("failed to resolve repo root: %v", err))
+		return
 	}
 
 	// Use a timeout context for the agent execution (1 hour - agents can take a while)
@@ -457,9 +457,10 @@ func (s *Service) runFixApplication(
 	s.broadcastProgress(deployment.ID, fixInvID, "fix_progress", 10, "Agent applying fixes...")
 
 	// Execute via agent-manager
-	workingDir := os.Getenv("VROOLI_ROOT")
-	if workingDir == "" {
-		workingDir = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	workingDir, err := bundle.FindRepoRootFromCWD()
+	if err != nil {
+		s.handleInvestigationError(ctx, fixInvID, deployment.ID, fmt.Sprintf("failed to resolve repo root: %v", err))
+		return
 	}
 
 	// Use a timeout context for the agent execution (1 hour - agents can take a while)

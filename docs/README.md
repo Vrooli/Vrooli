@@ -67,7 +67,7 @@ Vrooli is a resource orchestration platform for generating complete business app
 - **Orchestration**: Kubernetes with Helm charts for production
 - **Secrets**: HashiCorp Vault resource for secret management
 - **CI/CD**: GitHub Actions with scenario-based testing
-- **Management**: Bash scripting with process managers and port allocation
+- **Management**: Go-native `vrooli` project control plane with typed lifecycle, process, port, setup, and secrets packages
 
 ## Architecture Overview
 

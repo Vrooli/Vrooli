@@ -1,23 +1,23 @@
 package main
 
 func (app *App) runTopLevelBuildCommand(ctx *commandContext, args []string) error {
-	return runTopLevelBuildCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runProjectLifecyclePhaseCommandWithApp(app, ctx, "build", args)
 }
 
 func (app *App) runTopLevelDeployCommand(ctx *commandContext, args []string) error {
-	return runTopLevelDeployCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runProjectLifecyclePhaseCommandWithApp(app, ctx, "deploy", args)
 }
 
 func (app *App) runTopLevelCleanCommand(ctx *commandContext, args []string) error {
-	return runTopLevelCleanCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runProjectLifecyclePhaseCommandWithApp(app, ctx, "clean", args)
 }
 
 func (app *App) runTopLevelBackupCommand(ctx *commandContext, args []string) error {
-	return runTopLevelBackupCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runProjectLifecyclePhaseCommandWithApp(app, ctx, "backup", args)
 }
 
 func (app *App) runTopLevelRestoreCommand(ctx *commandContext, args []string) error {
-	return runTopLevelRestoreCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runProjectLifecyclePhaseCommandWithApp(app, ctx, "restore", args)
 }
 
 func (app *App) runInfoCommand(ctx *commandContext, args []string) error {
@@ -38,31 +38,31 @@ func (app *App) runScenarioCommand(ctx *commandContext, args []string) error {
 }
 
 func (app *App) runTopLevelStatusCommand(ctx *commandContext, args []string) error {
-	return runTopLevelStatusCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runTopLevelStatusCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runTopLevelDoctorCommand(ctx *commandContext, args []string) error {
-	return runTopLevelDoctorCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runTopLevelDoctorCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runTopLevelStopCommand(ctx *commandContext, args []string) error {
-	return runTopLevelStopCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runTopLevelStopCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runTopLevelResourceCommand(ctx *commandContext, args []string) error {
-	return runTopLevelResourceCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runTopLevelResourceCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runTopLevelOrphansCommand(ctx *commandContext, args []string) error {
-	return runTopLevelOrphansCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runTopLevelOrphansCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runTopLevelLocksCommand(ctx *commandContext, args []string) error {
-	return runTopLevelLocksCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runTopLevelLocksCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runTopLevelDiagnosePortCommand(ctx *commandContext, args []string) error {
-	return runTopLevelDiagnosePortCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runTopLevelDiagnosePortCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioStartCommand(ctx *commandContext, args []string) error {
@@ -70,7 +70,7 @@ func (app *App) runScenarioStartCommand(ctx *commandContext, args []string) erro
 }
 
 func (app *App) runScenarioStopCommand(ctx *commandContext, args []string) error {
-	return runScenarioStopCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioStopCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioRestartCommand(ctx *commandContext, args []string) error {
@@ -78,15 +78,15 @@ func (app *App) runScenarioRestartCommand(ctx *commandContext, args []string) er
 }
 
 func (app *App) runScenarioListCommand(ctx *commandContext, args []string) error {
-	return runScenarioListCommand(ctx.Root, ctx.Globals, args, ctx.Stdout)
+	return runScenarioListCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioInfoCommand(ctx *commandContext, args []string) error {
-	return runScenarioInfoCommand(ctx.Root, ctx.Globals, args, ctx.Stdout)
+	return runScenarioInfoCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioStatusCommand(ctx *commandContext, args []string) error {
-	return runScenarioStatusCommand(ctx.Root, ctx.Globals, args, ctx.Stdout)
+	return runScenarioStatusCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioRunCommand(ctx *commandContext, args []string) error {
@@ -94,23 +94,23 @@ func (app *App) runScenarioRunCommand(ctx *commandContext, args []string) error 
 }
 
 func (app *App) runScenarioSetupCommand(ctx *commandContext, args []string) error {
-	return runScenarioSetupCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioSetupCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioStartAllCommand(ctx *commandContext, args []string) error {
-	return runScenarioStartAllCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioStartAllCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioStopAllCommand(ctx *commandContext, args []string) error {
-	return runScenarioStopAllCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioStopAllCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioTestCommand(ctx *commandContext, args []string) error {
-	return runScenarioTestCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioTestCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioLogsCommand(ctx *commandContext, args []string) error {
-	return runScenarioLogsCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioLogsCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioOpenCommand(ctx *commandContext, args []string) error {
@@ -118,7 +118,7 @@ func (app *App) runScenarioOpenCommand(ctx *commandContext, args []string) error
 }
 
 func (app *App) runScenarioPortCommand(ctx *commandContext, args []string) error {
-	return runScenarioPortCommand(ctx.Root, ctx.Globals, args, ctx.Stdout)
+	return runScenarioPortCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioUISmokeCommand(ctx *commandContext, args []string) error {
@@ -130,7 +130,7 @@ func (app *App) runScenarioRequirementsCommand(ctx *commandContext, args []strin
 }
 
 func (app *App) runScenarioTemplateCommand(ctx *commandContext, args []string) error {
-	return runScenarioTemplateCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioTemplateCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioGenerateCommand(ctx *commandContext, args []string) error {

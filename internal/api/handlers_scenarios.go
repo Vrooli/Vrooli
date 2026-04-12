@@ -108,7 +108,7 @@ func (a *App) GetScenarioStatusNative(w http.ResponseWriter, r *http.Request) {
 		"health_status":   details.Health,
 		"process_count":   runtime.ProcessCount,
 	})
-	a.logInfo("Scenario status request completed", logx.AttrScenario, name, logx.AttrStatus, details.Status, "processes", runtime.ProcessCount)
+	a.logInfo("Scenario status request completed", logx.AttrScenario, name, logx.AttrStatus, details.Status, logx.AttrProcesses, runtime.ProcessCount)
 }
 
 func (a *App) StartAllScenariosEndpoint(w http.ResponseWriter, r *http.Request) {

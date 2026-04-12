@@ -142,7 +142,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 			r.logInfo("Scenario already running and healthy",
 				logx.AttrScenario, item.Slug,
 				logx.AttrStatus, health,
-				"processes", runtime.ProcessCount,
+				logx.AttrProcesses, runtime.ProcessCount,
 			)
 			return Result{
 				Scenario:           item,

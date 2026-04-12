@@ -52,9 +52,20 @@ func runScenarioRunCommand(root string, globals globalOptions, args []string, st
 }
 
 func runScenarioSetupCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	app := configuredApp()
+	return runScenarioSetupCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runScenarioSetupCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario setup <name> [--path <path>]")
+			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario setup <name> [--path <path>]")
 			return nil
 		}
 	}
@@ -64,7 +75,7 @@ func runScenarioSetupCommand(root string, globals globalOptions, args []string, 
 		return err
 	}
 
-	runner, err := newScenarioLifecycleRunner(root, stdout, stderr)
+	runner, err := app.newScenarioLifecycleRunner(ctx)
 	if err != nil {
 		return err
 	}
@@ -73,8 +84,8 @@ func runScenarioSetupCommand(root string, globals globalOptions, args []string, 
 		return err
 	}
 
-	if globals.json {
-		return cliout.WriteJSON(stdout, map[string]any{
+	if ctx.Globals.json {
+		return cliout.WriteJSON(ctx.Stdout, map[string]any{
 			"success":  true,
 			"scenario": name,
 			"phase":    "setup",
@@ -89,29 +100,40 @@ func runScenarioSetupCommand(root string, globals globalOptions, args []string, 
 
 	switch result.Status {
 	case lifecycle.PhaseExecutionCompleted:
-		_, _ = fmt.Fprintf(stdout, "Completed setup for scenario '%s' (%d executed, %d skipped)\n", name, result.ExecutedSteps, result.SkippedSteps)
+		_, _ = fmt.Fprintf(ctx.Stdout, "Completed setup for scenario '%s' (%d executed, %d skipped)\n", name, result.ExecutedSteps, result.SkippedSteps)
 	case lifecycle.PhaseExecutionSkipped:
-		_, _ = fmt.Fprintf(stdout, "Setup phase for scenario '%s' ran no steps (%d skipped)\n", name, result.SkippedSteps)
+		_, _ = fmt.Fprintf(ctx.Stdout, "Setup phase for scenario '%s' ran no steps (%d skipped)\n", name, result.SkippedSteps)
 	default:
-		_, _ = fmt.Fprintf(stdout, "Scenario '%s' does not define a setup phase\n", name)
+		_, _ = fmt.Fprintf(ctx.Stdout, "Scenario '%s' does not define a setup phase\n", name)
 	}
 	return nil
 }
 
 func runScenarioTestCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	app := configuredApp()
+	return runScenarioTestCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runScenarioTestCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario test <name> [phase|all|e2e] [--allow-skip-missing-runtime] [--manage-runtime]")
+			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario test <name> [phase|all|e2e] [--allow-skip-missing-runtime] [--manage-runtime]")
 			return nil
 		}
 	}
 
-	name, opts, err := parseScenarioTestArgs(globals, args)
+	name, opts, err := parseScenarioTestArgs(ctx.Globals, args)
 	if err != nil {
 		return err
 	}
 
-	runner, err := newScenarioLifecycleRunner(root, stdout, stderr)
+	runner, err := app.newScenarioLifecycleRunner(ctx)
 	if err != nil {
 		return err
 	}
@@ -119,14 +141,25 @@ func runScenarioTestCommand(root string, globals globalOptions, args []string, s
 }
 
 func runScenarioStartAllCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	jsonFlag := globals.json
+	app := configuredApp()
+	return runScenarioStartAllCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runScenarioStartAllCommandWithApp(app *App, ctx *commandContext, args []string) error {
+	jsonFlag := ctx.Globals.json
 	if len(args) > 0 {
 		for _, arg := range args {
 			switch arg {
 			case "--json":
 				jsonFlag = true
 			case "--help", "-h":
-				_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario start-all [--json]")
+				_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario start-all [--json]")
 				return nil
 			default:
 				return fmt.Errorf("unknown option for scenario start-all: %s", arg)
@@ -134,11 +167,13 @@ func runScenarioStartAllCommand(root string, globals globalOptions, args []strin
 		}
 	}
 
-	runnerOut := stdout
+	runnerOut := ctx.Stdout
 	if jsonFlag {
-		runnerOut = stderr
+		runnerOut = ctx.Stderr
 	}
-	service, err := newScenarioService(root, runnerOut, stderr)
+	serviceCtx := *ctx
+	serviceCtx.Stdout = runnerOut
+	service, err := app.newScenarioService(&serviceCtx)
 	if err != nil {
 		return err
 	}
@@ -157,7 +192,7 @@ func runScenarioStartAllCommand(root string, globals globalOptions, args []strin
 	}
 
 	if jsonFlag {
-		return cliout.WriteJSON(stdout, map[string]any{
+		return cliout.WriteJSON(ctx.Stdout, map[string]any{
 			"success": true,
 			"data": map[string]any{
 				"started": started,
@@ -166,39 +201,50 @@ func runScenarioStartAllCommand(root string, globals globalOptions, args []strin
 		})
 	}
 
-	_, _ = fmt.Fprintf(stdout, "Started %d scenarios\n", len(started))
+	_, _ = fmt.Fprintf(ctx.Stdout, "Started %d scenarios\n", len(started))
 	if len(started) > 0 {
-		_, _ = fmt.Fprintln(stdout)
-		_, _ = fmt.Fprintln(stdout, "Started scenarios:")
+		_, _ = fmt.Fprintln(ctx.Stdout)
+		_, _ = fmt.Fprintln(ctx.Stdout, "Started scenarios:")
 		for _, item := range started {
-			_, _ = fmt.Fprintf(stdout, "  %s: %s\n", item.Name, item.Status)
+			_, _ = fmt.Fprintf(ctx.Stdout, "  %s: %s\n", item.Name, item.Status)
 		}
 	}
 	if len(failed) > 0 {
-		_, _ = fmt.Fprintln(stdout)
-		_, _ = fmt.Fprintln(stdout, "Failed to start:")
+		_, _ = fmt.Fprintln(ctx.Stdout)
+		_, _ = fmt.Fprintln(ctx.Stdout, "Failed to start:")
 		for _, item := range failed {
-			_, _ = fmt.Fprintf(stdout, "  %s: %s\n", item.Name, item.Error)
+			_, _ = fmt.Fprintf(ctx.Stdout, "  %s: %s\n", item.Name, item.Error)
 		}
 	}
 	return nil
 }
 
 func runScenarioStopAllCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	jsonFlag := globals.json
+	app := configuredApp()
+	return runScenarioStopAllCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runScenarioStopAllCommandWithApp(app *App, ctx *commandContext, args []string) error {
+	jsonFlag := ctx.Globals.json
 	for _, arg := range args {
 		switch arg {
 		case "--json":
 			jsonFlag = true
 		case "--help", "-h":
-			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario stop-all [--json]")
+			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario stop-all [--json]")
 			return nil
 		default:
 			return fmt.Errorf("unknown option for scenario stop-all: %s", arg)
 		}
 	}
 
-	service, err := newScenarioService(root, stdout, stderr)
+	service, err := app.newScenarioService(ctx)
 	if err != nil {
 		return err
 	}
@@ -217,7 +263,7 @@ func runScenarioStopAllCommand(root string, globals globalOptions, args []string
 	}
 
 	if jsonFlag {
-		return cliout.WriteJSON(stdout, map[string]any{
+		return cliout.WriteJSON(ctx.Stdout, map[string]any{
 			"success": true,
 			"data": map[string]any{
 				"stopped": stopped,
@@ -227,33 +273,44 @@ func runScenarioStopAllCommand(root string, globals globalOptions, args []string
 	}
 
 	if len(stopped) == 0 && len(failed) == 0 {
-		_, _ = fmt.Fprintln(stdout, "No running scenarios found")
+		_, _ = fmt.Fprintln(ctx.Stdout, "No running scenarios found")
 		return nil
 	}
 	if len(stopped) > 0 {
-		_, _ = fmt.Fprintf(stdout, "Stopped %d scenarios\n", len(stopped))
+		_, _ = fmt.Fprintf(ctx.Stdout, "Stopped %d scenarios\n", len(stopped))
 	}
 	if len(failed) > 0 {
-		_, _ = fmt.Fprintln(stdout)
-		_, _ = fmt.Fprintln(stdout, "Failed to stop:")
+		_, _ = fmt.Fprintln(ctx.Stdout)
+		_, _ = fmt.Fprintln(ctx.Stdout, "Failed to stop:")
 		for _, item := range failed {
-			_, _ = fmt.Fprintf(stdout, "  %s: %s\n", item.Name, item.Error)
+			_, _ = fmt.Fprintf(ctx.Stdout, "  %s: %s\n", item.Name, item.Error)
 		}
 	}
 	return nil
 }
 
 func runScenarioPortCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
+	app := configuredApp()
+	return runScenarioPortCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  io.Discard,
+		app:     app,
+	}, args)
+}
+
+func runScenarioPortCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	scenarioName := ""
 	portName := ""
-	jsonFlag := globals.json
+	jsonFlag := ctx.Globals.json
 
 	for _, arg := range args {
 		switch {
 		case arg == "--json":
 			jsonFlag = true
 		case arg == "--help" || arg == "-h":
-			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario port <scenario-name> [<port-name>] [--json]")
+			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario port <scenario-name> [<port-name>] [--json]")
 			return nil
 		case strings.HasPrefix(arg, "-"):
 			return fmt.Errorf("unknown option for scenario port: %s", arg)
@@ -270,7 +327,10 @@ func runScenarioPortCommand(root string, globals globalOptions, args []string, s
 		return errors.New("scenario port requires a scenario name")
 	}
 
-	service, err := newScenarioService(root, io.Discard, io.Discard)
+	serviceCtx := *ctx
+	serviceCtx.Stdout = io.Discard
+	serviceCtx.Stderr = io.Discard
+	service, err := app.newScenarioService(&serviceCtx)
 	if err != nil {
 		return err
 	}
@@ -283,7 +343,7 @@ func runScenarioPortCommand(root string, globals globalOptions, args []string, s
 	if portName == "" {
 		if detail.Runtime.ProcessCount == 0 || len(portsMap) == 0 {
 			if jsonFlag {
-				return cliout.WriteJSON(stdout, scenarioPortListOutput{
+				return cliout.WriteJSON(ctx.Stdout, scenarioPortListOutput{
 					Success:  false,
 					Scenario: scenarioName,
 					Ports:    []scenarioListPortOutput{},
@@ -293,7 +353,7 @@ func runScenarioPortCommand(root string, globals globalOptions, args []string, s
 			return fmt.Errorf("no running processes found for scenario %q", scenarioName)
 		}
 		if jsonFlag {
-			return cliout.WriteJSON(stdout, scenarioPortListOutput{
+			return cliout.WriteJSON(ctx.Stdout, scenarioPortListOutput{
 				Success:  true,
 				Scenario: scenarioName,
 				Ports:    listPorts,
@@ -301,7 +361,7 @@ func runScenarioPortCommand(root string, globals globalOptions, args []string, s
 			})
 		}
 		for _, port := range listPorts {
-			_, _ = fmt.Fprintf(stdout, "%s=%d\n", port.Key, port.Port)
+			_, _ = fmt.Fprintf(ctx.Stdout, "%s=%d\n", port.Key, port.Port)
 		}
 		return nil
 	}
@@ -309,7 +369,7 @@ func runScenarioPortCommand(root string, globals globalOptions, args []string, s
 	resolved, err := service.ResolvePort(scenarioName, portName)
 	if err != nil {
 		if jsonFlag {
-			return cliout.WriteJSON(stdout, scenarioPortSingleOutput{
+			return cliout.WriteJSON(ctx.Stdout, scenarioPortSingleOutput{
 				Success:  false,
 				Scenario: scenarioName,
 				PortName: portName,
@@ -320,7 +380,7 @@ func runScenarioPortCommand(root string, globals globalOptions, args []string, s
 	}
 
 	if jsonFlag {
-		return cliout.WriteJSON(stdout, scenarioPortSingleOutput{
+		return cliout.WriteJSON(ctx.Stdout, scenarioPortSingleOutput{
 			Success:  true,
 			Scenario: scenarioName,
 			PortName: resolved.Name,
@@ -328,7 +388,7 @@ func runScenarioPortCommand(root string, globals globalOptions, args []string, s
 			Port:     resolved.Port,
 		})
 	}
-	_, _ = fmt.Fprintln(stdout, resolved.Port)
+	_, _ = fmt.Fprintln(ctx.Stdout, resolved.Port)
 	return nil
 }
 

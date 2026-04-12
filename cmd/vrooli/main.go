@@ -93,10 +93,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 	return configuredApp().Run(args, stdout, stderr)
 }
 
-func resolveRoot() (string, error) {
-	return configuredApp().resolveRoot()
-}
-
 func primeRootEnv(root string) {
 	_ = os.Setenv("VROOLI_ROOT", root)
 	if strings.TrimSpace(os.Getenv(buildinfo.SourceRootEnvVar)) == "" {
@@ -179,7 +175,7 @@ func (app *App) runVersionCommand(ctx *commandContext, args []string) error {
 }
 
 func (app *App) runTopLevelCleanupCommand(ctx *commandContext, args []string) error {
-	return runCleanupCommand(ctx.Root, parsedArgs{globals: ctx.Globals, args: args}, ctx.Stdout, ctx.Stderr)
+	return runCleanupCommandWithApp(app, ctx, parsedArgs{globals: ctx.Globals, args: args})
 }
 
 func (app *App) runTopLevelSetupCommand(ctx *commandContext, args []string) error {
@@ -191,8 +187,19 @@ func (app *App) runTopLevelDevelopCommand(ctx *commandContext, args []string) er
 }
 
 func runCleanupCommand(root string, parsed parsedArgs, stdout, stderr io.Writer) error {
+	app := configuredApp()
+	return runCleanupCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: parsed.globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, parsed)
+}
+
+func runCleanupCommandWithApp(app *App, ctx *commandContext, parsed parsedArgs) error {
 	if len(parsed.args) == 0 {
-		showCleanupHelp(stdout)
+		showCleanupHelp(ctx.Stdout)
 		return nil
 	}
 
@@ -200,16 +207,19 @@ func runCleanupCommand(root string, parsed parsedArgs, stdout, stderr io.Writer)
 	rest := parsed.args[1:]
 	switch target {
 	case "orphans":
-		return runTopLevelOrphansCommand(root, parsed.globals, append([]string{"kill"}, rest...), stdout, stderr)
+		return runTopLevelOrphansCommandWithApp(app, ctx, append([]string{"kill"}, rest...))
 	case "locks":
-		return runTopLevelLocksCommand(root, parsed.globals, append([]string{"clean"}, rest...), stdout, stderr)
+		return runTopLevelLocksCommandWithApp(app, ctx, append([]string{"clean"}, rest...))
 	case "help", "--help", "-h":
-		showCleanupHelp(stdout)
+		showCleanupHelp(ctx.Stdout)
 		return nil
 	default:
-		_, _ = fmt.Fprintf(stderr, "Unknown cleanup target: %s\n", target)
-		_, _ = fmt.Fprintln(stderr, "Run 'vrooli cleanup help' for usage")
-		return exitCodeError{code: 1, message: "unknown cleanup target"}
+		return newErrorWithCategory(
+			exitCodeError{code: 1, message: fmt.Sprintf("unknown cleanup target: %s", target)},
+			errorCategoryUsage,
+			"Run 'vrooli cleanup help' for usage",
+			[]string{"orphans", "locks"},
+		)
 	}
 }
 
@@ -236,12 +246,15 @@ func runInfoCommand(root string, globals globalOptions, args []string, stdout, s
 		return err
 	}
 
-	infoFiles, err := collectInfoSources(root)
+	infoFiles, warnings, err := collectInfoSourcesDetailed(root)
 	if err != nil {
 		return err
 	}
 	if len(infoFiles) == 0 {
 		return errors.New("no context sources defined for vrooli info")
+	}
+	for _, warning := range warnings {
+		_, _ = fmt.Fprintf(stderr, "[WARNING] %s\n", warning)
 	}
 
 	if showPathsOnly {
@@ -307,6 +320,11 @@ func runInfoCommand(root string, globals globalOptions, args []string, stdout, s
 }
 
 func collectInfoSources(root string) ([]string, error) {
+	files, _, err := collectInfoSourcesDetailed(root)
+	return files, err
+}
+
+func collectInfoSourcesDetailed(root string) ([]string, []string, error) {
 	if envValue := strings.TrimSpace(os.Getenv("VROOLI_INFO_FILES")); envValue != "" {
 		parts := strings.Split(envValue, ":")
 		files := make([]string, 0, len(parts))
@@ -316,18 +334,22 @@ func collectInfoSources(root string) ([]string, error) {
 				files = append(files, entry)
 			}
 		}
-		return files, nil
+		return files, nil, nil
 	}
 
 	manifestPath := filepath.Join(root, ".vrooli", "info-manifest.json")
 	if data, err := os.ReadFile(manifestPath); err == nil {
 		var manifest infoManifest
 		if err := json.Unmarshal(data, &manifest); err == nil && len(manifest.Files) > 0 {
-			return manifest.Files, nil
+			return manifest.Files, nil, nil
+		} else if err != nil {
+			return append([]string(nil), infoDefaultFiles...),
+				[]string{fmt.Sprintf("Invalid info manifest %s: %v. Falling back to defaults.", manifestPath, err)},
+				nil
 		}
 	}
 
-	return append([]string(nil), infoDefaultFiles...), nil
+	return append([]string(nil), infoDefaultFiles...), nil, nil
 }
 
 func resolveInfoPath(root, path string) string {
@@ -358,10 +380,6 @@ func containsArg(args []string, target string) bool {
 		}
 	}
 	return false
-}
-
-func commandEnv(root string, globals globalOptions) []string {
-	return configuredApp().commandEnv(root, globals)
 }
 
 func setEnvValue(env []string, key, value string) []string {

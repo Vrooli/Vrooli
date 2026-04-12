@@ -135,10 +135,10 @@ func main() {
 
 	logger.Info(
 		"Build metadata loaded",
-		"fingerprint", buildinfo.Fingerprint,
-		"commit", buildinfo.GitCommit,
-		"build_time", buildinfo.BuildTime,
-		"port", port,
+		logx.AttrFingerprint, buildinfo.Fingerprint,
+		logx.AttrCommit, buildinfo.GitCommit,
+		logx.AttrBuildTime, buildinfo.BuildTime,
+		logx.AttrPort, port,
 	)
 
 	app := buildApp()
