@@ -51,11 +51,11 @@ cli::init "gemini" "Google Gemini AI API integration" "v2"
 # ==============================================================================
 # REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
 # ==============================================================================
-CLI_COMMAND_HANDLERS["manage::install"]="gemini::install"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="gemini::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="gemini::docker::start_noop"  
-CLI_COMMAND_HANDLERS["manage::stop"]="gemini::docker::stop_noop"
-CLI_COMMAND_HANDLERS["manage::restart"]="gemini::docker::restart_noop"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="gemini::test::smoke_wrapper"
 CLI_COMMAND_HANDLERS["test::integration"]="gemini::test::integration_wrapper"
 CLI_COMMAND_HANDLERS["test::unit"]="gemini::test::unit_wrapper"
@@ -88,8 +88,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="gemini::content::execute"
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
-cli::register_command "status" "Show detailed resource status" "gemini::status"
-cli::register_command "logs" "Show resource logs (N/A for API service)" "gemini::logs_noop"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
+cli::register_command "logs" "Show resource logs (N/A for API service)" "cli::delegate_logs"
 # Create wrapper for agents command that delegates to manager
 gemini::agents::command() {
     if type -t agent_manager::load_config &>/dev/null; then

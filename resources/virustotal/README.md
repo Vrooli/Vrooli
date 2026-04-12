@@ -289,7 +289,7 @@ jobs:
       
       - name: Setup Vrooli
         run: |
-          ./scripts/manage.sh setup --yes yes
+          vrooli setup --yes yes
           vrooli resource virustotal manage install
           vrooli resource virustotal manage start --wait
       

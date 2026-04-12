@@ -1,0 +1,23 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "mail-in-a-box",
+  "display_name": "Mail-in-a-Box",
+  "description": "Transitional Mail-in-a-Box resource kept behind a typed legacy adapter while support boundaries are re-evaluated.",
+  "template": "legacy-adapter",
+  "driver": "legacy-adapter",
+  "legacy_adapter": {
+    "owner": "Matthew Halloran",
+    "decision_deadline": "2026-05-31",
+    "final_disposition": "migrate",
+    "legacy_cli_path": "resources/mail-in-a-box/cli.sh",
+    "notes": "Phase 0 keep resource only because it remains project-enabled; native/manual viability should be revalidated before long-term retention."
+  },
+  "portability_tier": "platform-specific",
+  "category": "infrastructure",
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "template_version": "1"
+}

@@ -318,6 +318,82 @@ func TestRunProjectRestoreUsesNativePhaseRunner(t *testing.T) {
 	}
 }
 
+func TestRunProjectBackupErrorsWhenPhaseUndefined(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeScenarioPortRegistryFixture(t, root)
+	writeTestFile(t, root, ".vrooli/service.json", `{
+  "version": "1.0.0",
+  "service": {
+    "name": "project-alpha",
+    "displayName": "Project Alpha",
+    "description": "Project-level lifecycle fixture",
+    "version": "0.1.0"
+  },
+  "lifecycle": {
+    "version": "2.0.0"
+  }
+}`)
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("backup should not route to bash: %+v", spec)
+		return nil
+	}
+
+	var stderr bytes.Buffer
+	code := run([]string{"backup"}, &bytes.Buffer{}, &stderr)
+	if code == 0 {
+		t.Fatal("expected non-zero exit code")
+	}
+	if !strings.Contains(stderr.String(), `project lifecycle phase "backup" is not defined`) {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestRunProjectRestoreErrorsWhenPhaseUndefined(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeScenarioPortRegistryFixture(t, root)
+	writeTestFile(t, root, ".vrooli/service.json", `{
+  "version": "1.0.0",
+  "service": {
+    "name": "project-alpha",
+    "displayName": "Project Alpha",
+    "description": "Project-level lifecycle fixture",
+    "version": "0.1.0"
+  },
+  "lifecycle": {
+    "version": "2.0.0"
+  }
+}`)
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+	execCommandFn = func(spec commandSpec) error {
+		t.Fatalf("restore should not route to bash: %+v", spec)
+		return nil
+	}
+
+	var stderr bytes.Buffer
+	code := run([]string{"restore"}, &bytes.Buffer{}, &stderr)
+	if code == 0 {
+		t.Fatal("expected non-zero exit code")
+	}
+	if !strings.Contains(stderr.String(), `project lifecycle phase "restore" is not defined`) {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
 func TestRunNoStaleCheckBypassesFreshnessProbe(t *testing.T) {
 	restore := overrideCLIHooks(t)
 	defer restore()
@@ -1322,20 +1398,20 @@ func TestCanonicalSetupInstallContract(t *testing.T) {
 	if installStep == "" {
 		t.Fatalf("expected lifecycle.setup.steps to include install-cli")
 	}
-	if !strings.Contains(installStep, "cli/install.sh") {
-		t.Fatalf("install-cli step does not invoke cli/install.sh: %q", installStep)
+	if !strings.Contains(installStep, "make install") {
+		t.Fatalf("install-cli step does not invoke make install: %q", installStep)
 	}
 
-	installScript, err := os.ReadFile(filepath.Join(repoRoot, "cli", "install.sh"))
+	makefileData, err := os.ReadFile(filepath.Join(repoRoot, "Makefile"))
 	if err != nil {
-		t.Fatalf("read cli/install.sh: %v", err)
+		t.Fatalf("read Makefile: %v", err)
 	}
-	installContents := string(installScript)
-	if !strings.Contains(installContents, "make install") {
-		t.Fatalf("cli/install.sh no longer invokes make install")
+	makefileContents := string(makefileData)
+	if !strings.Contains(makefileContents, "install: build") {
+		t.Fatalf("Makefile no longer defines the install target contract")
 	}
-	if !strings.Contains(installContents, "${HOME}/.vrooli/bin") {
-		t.Fatalf("cli/install.sh no longer targets ~/.vrooli/bin")
+	if !strings.Contains(makefileContents, "INSTALL_DIR = $(HOME)/.vrooli/bin") {
+		t.Fatalf("Makefile no longer targets ~/.vrooli/bin")
 	}
 }
 
@@ -1360,6 +1436,31 @@ func TestRunLocksCommandListsNativeState(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), `"stale": true`) || !strings.Contains(stdout.String(), `"port": 21234`) {
 		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestRunLocksCommandHumanOutput(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeTestFile(t, root, "scripts/resources/port_registry.json", `{"resource_ports":{},"reserved_ranges":{}}`)
+	lockPath := filepath.Join(home, ".vrooli", "state", "scenarios", ".port_21234.lock")
+	writeTestFile(t, filepath.Dir(lockPath), filepath.Base(lockPath), "ghost:999999:1\n")
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+
+	var stdout bytes.Buffer
+	code := run([]string{"locks"}, &stdout, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("run exit code = %d", code)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "Port") || !strings.Contains(output, "21234") || !strings.Contains(output, "stale") {
+		t.Fatalf("stdout = %q", output)
 	}
 }
 
@@ -1388,6 +1489,35 @@ func TestRunDiagnosePortReturnsJSON(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), `"port": 21234`) || !strings.Contains(stdout.String(), `"scenario": "alpha"`) {
 		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestRunDiagnosePortHumanOutput(t *testing.T) {
+	restore := overrideCLIHooks(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeTestFile(t, root, "scripts/resources/port_registry.json", `{"resource_ports":{},"reserved_ranges":{}}`)
+	lockPath := filepath.Join(home, ".vrooli", "state", "scenarios", ".port_21234.lock")
+	writeTestFile(t, filepath.Dir(lockPath), filepath.Base(lockPath), "ghost:999999:1\n")
+
+	t.Setenv("HOME", home)
+	resolveSourceRootFn = func() (string, error) { return root, nil }
+	isStaleFn = func() bool { return false }
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := run([]string{"diagnose-port", "21234", "alpha"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("run exit code = %d", code)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "Port 21234") || !strings.Contains(output, "Scenario: alpha") || !strings.Contains(output, "Recommended actions:") {
+		t.Fatalf("stdout = %q", output)
 	}
 }
 

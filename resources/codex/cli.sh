@@ -51,11 +51,11 @@ done
 cli::init "codex" "AI-powered code completion and generation via OpenAI Codex" "v2"
 
 # Override default handlers to point directly to codex implementations
-CLI_COMMAND_HANDLERS["manage::install"]="codex::install::execute"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="codex::install::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="codex::docker::start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="codex::docker::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="codex::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="codex::test::smoke"
 CLI_COMMAND_HANDLERS["test::integration"]="codex::test::integration"
 CLI_COMMAND_HANDLERS["test::all"]="codex::test::all"
@@ -72,8 +72,8 @@ cli::register_subcommand "content" "run" "Run a script with Codex API" "codex::r
 cli::register_subcommand "content" "inject" "Inject a script for Codex processing" "codex::inject"
 
 # Additional information commands
-cli::register_command "status" "Show detailed resource status" "codex::status"
-cli::register_command "logs" "Show Codex logs" "codex::docker::logs"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
+cli::register_command "logs" "Show Codex logs" "cli::delegate_logs"
 
 # Codex CLI management commands
 cli::register_subcommand "manage" "install-cli" "Install OpenAI Codex CLI tool" "codex::cli::install"

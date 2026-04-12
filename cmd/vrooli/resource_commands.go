@@ -110,16 +110,21 @@ func runResourceListCommand(controller *resources.Controller, globals globalOpti
 
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
+		decision := ""
+		if item.ControlMode == "legacy-adapter" {
+			decision = item.LegacyAdapter.FinalDisposition
+		}
 		rows = append(rows, []string{
 			item.Name,
 			boolLabel(item.Enabled),
 			item.ControlMode,
 			item.Driver,
 			item.PortabilityTier,
+			decision,
 			boolLabel(item.Registered),
 		})
 	}
-	return cliout.RenderTable(stdout, []string{"Name", "Enabled", "Control", "Driver", "Portability", "Registered"}, rows)
+	return cliout.RenderTable(stdout, []string{"Name", "Enabled", "Control", "Driver", "Portability", "Decision", "Registered"}, rows)
 }
 
 func runResourceStatusCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
@@ -205,6 +210,17 @@ func runResourceStatusCommand(controller *resources.Controller, globals globalOp
 		rows = append(rows, []string{"Status Code", item.StatusCode})
 	}
 	rows = append(rows, []string{"Status", item.Message})
+	if item.Resource.ControlMode == "legacy-adapter" {
+		rows = append(rows,
+			[]string{"Adapter Owner", item.Resource.LegacyAdapter.Owner},
+			[]string{"Decision Deadline", item.Resource.LegacyAdapter.DecisionDeadline},
+			[]string{"Final Disposition", item.Resource.LegacyAdapter.FinalDisposition},
+			[]string{"Legacy CLI", item.Resource.LegacyAdapter.LegacyCLIPath},
+		)
+		if item.Resource.LegacyAdapter.Notes != "" {
+			rows = append(rows, []string{"Adapter Notes", item.Resource.LegacyAdapter.Notes})
+		}
+	}
 	if item.ProbeError != "" {
 		rows = append(rows, []string{"Probe Error", item.ProbeError})
 	}

@@ -66,12 +66,12 @@ This scenario showcases Vrooli's flexible architecture approach:
 
 ### 1. Setup
 ```bash
-./scripts/manage.sh setup
+vrooli setup
 ```
 
 ### 2. Start Services
 ```bash
-./scripts/manage.sh develop
+vrooli develop
 ```
 
 ### 3. Access the Application

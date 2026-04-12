@@ -149,7 +149,7 @@ VAULT_SECRET_ID=prod-secret-id
 EOF
 
 # 3. Deploy with Vault integration
-./scripts/manage.sh deploy --source docker --environment production
+vrooli deploy --source docker --environment production
 ```
 
 ### Kubernetes Deployment with Vault
@@ -162,7 +162,7 @@ EOF
 # 3. Applications consume secrets as environment variables
 
 # Deploy with Kubernetes + Vault integration
-./scripts/manage.sh deploy --source k8s --environment production
+vrooli deploy --source k8s --environment production
 ```
 
 ## Troubleshooting
@@ -201,7 +201,7 @@ vault login -method=approle role_id=$VAULT_ROLE_ID secret_id=$VAULT_SECRET_ID
 ls -la jwt_*.pem
 
 # Regenerate if missing
-./scripts/manage.sh setup
+vrooli setup
 
 # Verify keys are loaded
 echo "JWT_PRIV length: ${#JWT_PRIV}"

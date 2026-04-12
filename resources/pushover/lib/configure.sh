@@ -28,9 +28,10 @@ pushover::configure() {
             echo "  - Local credentials file"
         fi
         if command -v resource-vault >/dev/null 2>&1; then
-            local vault_data
-            vault_data=$(resource-vault get pushover 2>/dev/null)
-            if [[ -n "$vault_data" ]]; then
+            local vault_app_token vault_user_key
+            vault_app_token=$(resource-vault content get --path "resources/pushover/app_token" --format raw 2>/dev/null || echo "")
+            vault_user_key=$(resource-vault content get --path "resources/pushover/user_key" --format raw 2>/dev/null || echo "")
+            if [[ -n "$vault_app_token" && -n "$vault_user_key" ]]; then
                 echo "  - Vault (secure storage)"
             fi
         fi
@@ -79,17 +80,11 @@ pushover::configure() {
         local vault_status
         vault_status=$(resource-vault status --format json 2>/dev/null)
         
-        if echo "$vault_status" | jq -e '.unsealed == true' >/dev/null 2>&1; then
+        if [[ -n "$vault_status" ]]; then
             log::info "Storing credentials in Vault (secure)..."
-            
-            # Create JSON for Vault
-            local vault_json
-            vault_json=$(jq -n \
-                --arg app_token "$app_token" \
-                --arg user_key "$user_key" \
-                '{app_token: $app_token, user_key: $user_key}')
-            
-            if echo "$vault_json" | resource-vault set pushover - >/dev/null 2>&1; then
+
+            if resource-vault content add --path "resources/pushover/app_token" --value "$app_token" >/dev/null 2>&1 &&
+                resource-vault content add --path "resources/pushover/user_key" --value "$user_key" >/dev/null 2>&1; then
                 log::success "Credentials stored in Vault"
                 storage_method="vault"
             else
@@ -176,7 +171,10 @@ pushover::clear_credentials() {
     
     # Clear from Vault
     if command -v resource-vault >/dev/null 2>&1; then
-        if resource-vault delete pushover >/dev/null 2>&1; then
+        if resource-vault content remove --path "resources/pushover/app_token" >/dev/null 2>&1; then
+            cleared=true
+        fi
+        if resource-vault content remove --path "resources/pushover/user_key" >/dev/null 2>&1; then
             log::info "Cleared credentials from Vault"
             cleared=true
         fi

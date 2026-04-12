@@ -1,0 +1,23 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "whisper",
+  "display_name": "Whisper",
+  "description": "Transitional Whisper resource kept behind a typed legacy adapter while native model/runtime ownership is scoped.",
+  "template": "legacy-adapter",
+  "driver": "legacy-adapter",
+  "legacy_adapter": {
+    "owner": "Matthew Halloran",
+    "decision_deadline": "2026-05-31",
+    "final_disposition": "migrate",
+    "legacy_cli_path": "resources/whisper/cli.sh",
+    "notes": "Phase 0 keep resource because active scenario usage still exists; native migration depends on clearer model/runtime support boundaries."
+  },
+  "portability_tier": "partial",
+  "category": "ai",
+  "platforms": {
+    "linux": "supported",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "template_version": "1"
+}

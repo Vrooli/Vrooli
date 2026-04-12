@@ -57,11 +57,11 @@ cli::init "browserless" "Browserless headless Chrome automation service" "v2"
 # ==============================================================================
 # REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
 # ==============================================================================
-CLI_COMMAND_HANDLERS["manage::install"]="install_browserless"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="uninstall_browserless"
-CLI_COMMAND_HANDLERS["manage::start"]="start_browserless"
-CLI_COMMAND_HANDLERS["manage::stop"]="stop_browserless"
-CLI_COMMAND_HANDLERS["manage::restart"]="browserless::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="browserless::test::smoke"
 CLI_COMMAND_HANDLERS["test::integration"]="browserless::test::integration"
 CLI_COMMAND_HANDLERS["test::unit"]="browserless::test::unit"
@@ -70,8 +70,8 @@ CLI_COMMAND_HANDLERS["test::all"]="browserless::test::all"
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
-cli::register_command "status" "Show detailed browserless status" "status"
-cli::register_command "logs" "Show browserless logs" "browserless::logs"
+cli::register_command "status" "Show detailed browserless status" "cli::delegate_status"
+cli::register_command "logs" "Show browserless logs" "cli::delegate_logs"
 
 # ==============================================================================
 # BROWSERLESS-SPECIFIC COMMANDS - retained compatibility surface

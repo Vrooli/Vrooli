@@ -105,15 +105,15 @@ Scripts detect their context automatically:
 ### For Vrooli Development
 ```bash
 # Unified management interface:
-./scripts/manage.sh setup --target native-linux
-./scripts/manage.sh develop --detached yes
-./scripts/manage.sh build --environment production
-./scripts/manage.sh deploy --target k8s
+vrooli setup --target native-linux
+vrooli develop --detached yes
+vrooli build --environment production
+vrooli deploy --target k8s
 ```
 
 ### For Standalone Apps
 Standalone apps get:
-- `scripts/manage.sh` (entry point)
+- a generated lifecycle entrypoint
 - `scripts/lib/` (universal libraries)
 - Their own `.vrooli/service.json` (lifecycle configuration)
 
@@ -208,7 +208,7 @@ The lifecycle engine (`lib/lifecycle/engine.sh`) is the heart of the system:
 
 Example lifecycle execution:
 ```bash
-./scripts/manage.sh develop --target docker
+vrooli develop --target docker
 # 1. Reads lifecycle.develop from service.json
 # 2. Merges universal steps with docker-specific steps
 # 3. Executes each step in order
@@ -217,7 +217,7 @@ Example lifecycle execution:
 
 ## Best Practices
 
-1. **Always use manage.sh** - Don't call lifecycle scripts directly
+1. **Always use the lifecycle entrypoint** - Don't call lifecycle scripts directly
 2. **Keep app/ pure** - No universal code in app/ directory
 3. **Keep lib/ generic** - No Vrooli-specific code in lib/
 4. **Document dependencies** - If a lib/ script needs something, document it

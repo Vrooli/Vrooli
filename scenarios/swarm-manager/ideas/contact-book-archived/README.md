@@ -36,7 +36,7 @@ vrooli scenario run contact-book
 # Or set up manually
 cd scenarios/contact-book
 vrooli setup
-./scripts/manage.sh setup
+vrooli setup
 ```
 
 ### Basic Usage

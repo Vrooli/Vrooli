@@ -36,7 +36,7 @@ Secrets Manager is a comprehensive security dashboard that discovers, validates,
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Vrooli CLI installed (`./scripts/manage.sh setup --yes yes` from repo root)
+- Vrooli CLI installed (`vrooli setup --yes yes` from repo root)
 - PostgreSQL resource running (`vrooli resource start postgres`)
 - Vault resource running (`vrooli resource start vault`)
 

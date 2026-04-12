@@ -45,11 +45,11 @@ done
 cli::init "redis" "Redis cache and data structure server management" "v2"
 
 # Override default handlers to point directly to Redis implementations
-CLI_COMMAND_HANDLERS["manage::install"]="redis::install::main"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="redis::install::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="redis::docker::start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="redis::docker::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="redis::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="redis::common::is_healthy"
 
 # Override content handlers for Redis-specific key-value operations
@@ -66,8 +66,8 @@ cli::register_subcommand "content" "list-backups" "List available backups" "redi
 cli::register_subcommand "content" "flush" "Flush all Redis data" "redis::content::flush"
 
 # Additional information commands
-cli::register_command "status" "Show detailed resource status" "redis::status::show"
-cli::register_command "logs" "Show Redis logs" "redis::docker::logs"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
+cli::register_command "logs" "Show Redis logs" "cli::delegate_logs"
 cli::register_command "ping" "Test Redis connectivity" "redis::common::ping"
 
 # Content operation functions - implement missing handlers for key-value operations

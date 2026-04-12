@@ -65,11 +65,11 @@ cli::init "qdrant" "Qdrant vector database resource" "v2"
 # ==============================================================================
 # REQUIRED HANDLERS - Universal Contract v2.0 compliance
 # ==============================================================================
-CLI_COMMAND_HANDLERS["manage::install"]="qdrant::install"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="qdrant::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="qdrant::docker::start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="qdrant::docker::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="qdrant::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="qdrant::check_basic_health"
 CLI_COMMAND_HANDLERS["test::integration"]="qdrant::test_integration"
 CLI_COMMAND_HANDLERS["test::unit"]="qdrant::test_unit"
@@ -85,8 +85,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="qdrant::content::execute"
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
-cli::register_command "status" "Show detailed Qdrant status" "qdrant::status"
-cli::register_command "logs" "Show Qdrant logs" "qdrant::docker::logs"
+cli::register_command "status" "Show detailed Qdrant status" "cli::delegate_status"
+cli::register_command "logs" "Show Qdrant logs" "cli::delegate_logs"
 
 # ==============================================================================
 # QDRANT-SPECIFIC CUSTOM COMMANDS

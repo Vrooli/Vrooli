@@ -403,7 +403,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup environment
-        run: ./scripts/manage.sh setup --yes yes --resources none
+        run: vrooli setup --yes yes --resources none
 
       - name: Start scenario
         run: vrooli scenario start my-scenario

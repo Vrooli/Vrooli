@@ -1,0 +1,69 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "vault",
+  "display_name": "HashiCorp Vault",
+  "description": "Managed Vault service for local secret storage and resource secret validation.",
+  "template": "docker-service",
+  "driver": "docker-service",
+  "portability_tier": "full",
+  "category": "storage",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "http",
+      "container": 8200,
+      "host": 8200
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8200/v1/sys/health",
+      "expected_status": [200, 429, 472, 473, 501, 503],
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "runtime": {
+    "image": "hashicorp/vault:1.17",
+    "container_name": "vault",
+    "env": {
+      "VAULT_ADDR": "http://0.0.0.0:8200",
+      "VAULT_API_ADDR": "http://localhost:8200"
+    },
+    "volumes": [
+      {
+        "source": "${HOME}/.vault/data",
+        "target": "/vault/data"
+      },
+      {
+        "source": "${HOME}/.vault/config",
+        "target": "/vault/config"
+      },
+      {
+        "source": "${HOME}/.vault/logs",
+        "target": "/vault/logs"
+      }
+    ],
+    "command": [
+      "server",
+      "-dev",
+      "-dev-root-token-id=myroot",
+      "-dev-listen-address=0.0.0.0:8200"
+    ]
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 60,
+    "stop_timeout_seconds": 30,
+    "retries": 5
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "1"
+}

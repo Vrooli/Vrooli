@@ -22,7 +22,7 @@ Before starting, ensure you have:
 If Vrooli isn't set up yet:
 ```bash
 cd ~/Vrooli
-./scripts/manage.sh setup --yes yes
+vrooli setup --yes yes
 ```
 
 ---

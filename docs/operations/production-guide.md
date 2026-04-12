@@ -379,7 +379,7 @@ npm run build
 module.exports = {
   apps: [{
     name: 'vrooli-scenario',
-    script: 'scripts/manage.sh',
+    script: '~/.vrooli/bin/vrooli',
     args: 'develop',
     instances: 1,
     env: {

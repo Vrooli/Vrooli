@@ -384,8 +384,9 @@ export_migrations() {
         cat > "$package_path/migrations/migration_status.txt" << EOF
 Migration system not initialized for this instance.
 To use migrations in the deployed environment:
-1. Initialize: ./scripts/manage.sh --action migrate-init --instance <name>
-2. Run migrations: ./scripts/manage.sh --action migrate --instance <name> --migrations-dir ./migrations
+1. Review the SQL files in ./migrations
+2. Apply them in order with your deployment tooling or psql, for example:
+   psql -h localhost -p 5432 -U "\$DATABASE_USER" -d "\$DATABASE_NAME" -f ./migrations/001_initial_setup.sql
 EOF
     fi
     

@@ -472,11 +472,11 @@
           "run": "VROOLI_SETUP_MODE=true bash scripts/lib/setup.sh",
           "timeout": "15m"
         },
-        {
-          "description": "Install Vrooli CLI command",
-          "name": "install-cli",
-          "run": "if [[ -f cli/install.sh ]]; then cli/install.sh; else echo '⚠️  CLI installer not found, skipping'; fi"
-        },
+  {
+    "description": "Install Vrooli CLI command",
+    "name": "install-cli",
+    "run": "if command -v make >/dev/null 2>&1 && [[ -f Makefile ]]; then make install; else echo '⚠️  make or Makefile not found, skipping CLI install'; fi"
+  },
         {
           "description": "Add app data to resources (skipped during setup)",
           "name": "add-data",

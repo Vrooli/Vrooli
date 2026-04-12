@@ -3,8 +3,8 @@
 .DEFAULT_GOAL := help
 
 BUILD_DIR := .vrooli/build
-INSTALL_DIR := $(HOME)/.vrooli/bin
-VROOLI_BIN := $(INSTALL_DIR)/vrooli
+INSTALL_DIR = $(HOME)/.vrooli/bin
+VROOLI_BIN = $(INSTALL_DIR)/vrooli
 SETUP_ARGS ?=
 DEV_ARGS ?=
 GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
@@ -37,7 +37,7 @@ help: ## Show available project-level targets
 	@printf "  make validate-week0-week3 Run the combined Week 0-3 acceptance suite\n"
 	@printf "  make validate-week0-week4 Run the combined Week 0-4 acceptance suite\n"
 	@printf "  make validate-week0-week5 Run the combined Week 0-5 acceptance suite\n"
-	@printf "\nCompatibility helpers\n"
+	@printf "\nProject helpers\n"
 	@printf "  make setup          Bootstrap the Go CLI and run native setup\n"
 	@printf "  make dev            Start the native development workflow\n"
 	@printf "  make lifecycle-build Run the existing Bash/CLI build phase\n"
@@ -70,18 +70,10 @@ validate-week0-week1: ## Run the repeatable Week 0/1 acceptance suite
 	grep -Fq "test-genie" "$$tmp_go"; \
 	rm -f "$$tmp_go"
 	tmp_home=$$(mktemp -d); \
-	tmp_legacy_root=$$(mktemp -d); \
-	touch "$$tmp_home/.bashrc"; \
-	mkdir -p "$$tmp_home/.local/bin" "$$tmp_home/.vrooli/bin"; \
-	mkdir -p "$$tmp_legacy_root/cli"; \
-	printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$$tmp_legacy_root/cli/vrooli"; \
-	chmod +x "$$tmp_legacy_root/cli/vrooli"; \
-	ln -s "$$tmp_legacy_root/cli/vrooli" "$$tmp_home/.local/bin/vrooli"; \
-	HOME="$$tmp_home" PATH="/usr/bin:/bin:$$PATH" ./cli/install.sh --force > /tmp/vrooli-install-smoke.log; \
+	HOME="$$tmp_home" $(MAKE) install > /tmp/vrooli-install-smoke.log; \
 	test -x "$$tmp_home/.vrooli/bin/vrooli"; \
-	test ! -e "$$tmp_home/.local/bin/vrooli"; \
-	grep -Fq "export PATH=\"$$tmp_home/.vrooli/bin:\$$PATH\"" "$$tmp_home/.bashrc"; \
-	rm -rf "$$tmp_home" "$$tmp_legacy_root"
+	test -x "$$tmp_home/.vrooli/bin/vrooli-api"; \
+	rm -rf "$$tmp_home"
 	tmp_source=$$(mktemp); \
 	cp cmd/vrooli/main.go "$$tmp_source"; \
 	trap 'cp "$$tmp_source" cmd/vrooli/main.go; rm -f "$$tmp_source"; $(MAKE) install > /tmp/vrooli-restore.log' EXIT; \
@@ -106,6 +98,7 @@ validate-week0-week1: ## Run the repeatable Week 0/1 acceptance suite
 		if curl -fsS "http://127.0.0.1:18092/health" > /dev/null 2> /dev/null; then \
 			ok=1; \
 			break; \
+		fi; \
 		sleep 1; \
 	done; \
 	kill "$$pid" > /dev/null 2> /dev/null || true; \
@@ -416,8 +409,7 @@ validate-week5: ## Run the repeatable Week 5 acceptance suite
 	go test ./internal/setup -run 'TestRun(SetupExportsLegacyEnvironmentContractToResourceInstall|DevelopExportsLegacyEnvironmentContractToAPILaunch)'
 	go test ./cmd/vrooli -run 'TestRun(SetupUsesNativeProjectLifecycle|DevelopUsesNativeProjectLifecycle|ProjectBackupUsesNativePhaseRunner|ProjectRestoreUsesNativePhaseRunner)'
 	tmp_home=$$(mktemp -d); \
-	touch "$$tmp_home/.bashrc"; \
-	HOME="$$tmp_home" ./cli/install.sh --force > /tmp/vrooli-install-week5.log; \
+	HOME="$$tmp_home" $(MAKE) install > /tmp/vrooli-install-week5.log; \
 	HOME="$$tmp_home" PATH="$$tmp_home/.vrooli/bin:/usr/bin:/bin" VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" $(MAKE) setup SETUP_ARGS=--help > /tmp/vrooli-make-setup-week5.log; \
 	test -f "$$tmp_home/.vrooli/bin/vrooli"; \
 	grep -Fq 'Usage: vrooli setup' /tmp/vrooli-make-setup-week5.log; \
@@ -442,28 +434,19 @@ validate-scenario-to-cloud-native: ## Validate scenario-to-cloud's native deploy
 	cd scenarios/scenario-to-cloud/cli && go test ./...
 
 validate-week6-slice: ## Run the expanded Week 6 native command slice
-	test ! -d cli/commands/scenario
-	test -z "$$(find cli/commands -maxdepth 1 -name '*.sh' -print -quit)"
-	test -z "$$(find cli/lib -maxdepth 1 -name '*.sh' -print -quit)"
+	test ! -d cli
 	$(MAKE) build
 	$(MAKE) install
 	test ! -e cli/vrooli
-	rg -n 'exec "\$$GO_CLI_BIN" "\$$@"' scripts/manage.sh
-	! rg -n 'source .*scripts/lib|MAIN_SCRIPT_DIR|manage::main|json::validate_config|lifecycle::run_phase' scripts/manage.sh
-	./scripts/manage.sh --version > /tmp/vrooli-week6-manage-version.txt
-	grep -Fq 'Vrooli CLI v' /tmp/vrooli-week6-manage-version.txt
+	test ! -e scripts/manage.sh
+	~/.vrooli/bin/vrooli --version > /tmp/vrooli-week6-cli-version.txt
+	grep -Fq 'Vrooli CLI v' /tmp/vrooli-week6-cli-version.txt
 	! rg -n '"/vrooli/cli/vrooli"|[[:<:]]cli/vrooli[[:>:]]' scenarios cmd internal packages api -g '*.go'
+	! rg -n 'scripts/manage\.sh' docs scripts cmd internal api packages -g '!docs/plans/*' -g '!scripts/scenarios/templates/*'
 	! rg -n 'cli/commands/clean-commands\.sh|cli/commands/doctor\.sh|cli/commands/resource-commands\.sh|cli/commands/resource-discovery\.sh|cli/commands/status-command\.sh|cli/commands/stop-commands\.sh|cli/lib/arg-parser\.sh|cli/lib/output-formatter\.sh' scripts cmd internal packages api resources -g '!*.md'
-	set -e; \
-	tmp_home=$$(mktemp -d); \
-	mkdir -p "$$tmp_home/.vrooli/state/scenarios"; \
-	printf 'ghost:999999:1\n' > "$$tmp_home/.vrooli/state/scenarios/.port_19999.lock"; \
-	HOME="$$tmp_home" bash -lc 'cd "$(CURDIR)" && source scripts/lib/scenario/runner.sh && scenario::clean_stale_locks'; \
-	test ! -f "$$tmp_home/.vrooli/state/scenarios/.port_19999.lock"; \
-	rm -rf "$$tmp_home"
 	$(MAKE) validate-scenario-to-cloud-native
 	go test ./internal/network ./internal/maintenance ./internal/project
-	go test ./cmd/vrooli -run 'TestRun(ProjectBackupUsesNativePhaseRunner|ProjectRestoreUsesNativePhaseRunner|DispatchesTopLevelCommandsToExpectedHandlers|CleanupLocksUsesNativeMaintenance|Info(ListJSONOutput|CommandUsesManifestAndListMode|CommandRejectsUnknownOption|CommandErrorsWhenNoSourcesConfigured|CommandSkipsMissingSourcesInJSONMode|CommandHelpAndJSONMissingFiles)|LocksCommandListsNativeState|DiagnosePortReturnsJSON)'
+	go test ./cmd/vrooli -run 'TestRun(ProjectBackup(UsesNativePhaseRunner|ErrorsWhenPhaseUndefined)|ProjectRestore(UsesNativePhaseRunner|ErrorsWhenPhaseUndefined)|DispatchesTopLevelCommandsToExpectedHandlers|CleanupLocksUsesNativeMaintenance|Info(ListJSONOutput|CommandUsesManifestAndListMode|CommandRejectsUnknownOption|CommandErrorsWhenNoSourcesConfigured|CommandSkipsMissingSourcesInJSONMode|CommandHelpAndJSONMissingFiles)|LocksCommand(ListsNativeState|HumanOutput)|DiagnosePort(ReturnsJSON|HumanOutput))'
 	set -e; \
 	tmp_home=$$(mktemp -d); \
 	tmp_root=$$(mktemp -d); \
@@ -502,6 +485,8 @@ validate-week6-slice: ## Run the expanded Week 6 native command slice
 	rm -rf "$$tmp_home" "$$tmp_root"
 
 validate-week6-secrets: ## Run the Week 6 encrypted secrets slice
+	$(MAKE) build
+	$(MAKE) install
 	go test ./internal/secrets ./internal/resources
 	go test ./internal/resources -run 'TestLoadResourceEnvironmentUses(EncryptedSecrets|TypedDefaultsAndSecrets)'
 
@@ -528,7 +513,7 @@ clean: ## Remove project-level Go build artifacts
 	rm -rf $(BUILD_DIR)
 
 setup: ## Bootstrap the Go CLI and run native setup
-	./cli/install.sh --force
+	$(MAKE) install
 	$(VROOLI_BIN) setup $(SETUP_ARGS)
 
 dev: ## Start the native development workflow

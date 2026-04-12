@@ -345,7 +345,7 @@ After setup, verify all dependencies:
 bash scripts/helpers/deploy/k8s-dependencies-check.sh --environment your-env
 
 # Test deployment
-./scripts/manage.sh deploy --source k8s --environment your-env
+vrooli deploy --source k8s --environment your-env
 ```
 
 ## Troubleshooting

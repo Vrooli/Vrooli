@@ -1117,7 +1117,7 @@ Recommended order:
    - [x] redis
    - [x] qdrant
    - [x] browserless
-   - [ ] vault if still clearly active
+   - [x] vault
 2. active external tooling
    - [x] claude-code
    - [x] codex
@@ -1130,7 +1130,7 @@ For each migrated resource:
 - [x] assign canonical template
 - [x] create `resource.json`
 - [x] implement driver-backed lifecycle
-- [ ] remove bespoke duplicated shell logic where possible
+- [x] remove bespoke duplicated shell logic where possible
 - [x] add validation tests
 
 **Deliverable:** The active resource set is substantially Go-native and cross-platform-aware.
@@ -1140,27 +1140,72 @@ For each migrated resource:
 Current status:
 
 - `postgres`, `redis`, `qdrant`, and `browserless` now have native `docker-service` manifests and Go driver-backed lifecycle/status coverage.
+- `vault` now has a native `docker-service` manifest and Go-native standard lifecycle/status/log handling, while the retained Vault-specific secret commands still use compatibility shims.
 - `browserless` has been reduced to a thin compatibility surface centered on `status`, `logs`, `screenshot`, and `diagnostics`, while keeping Browserless-shaped `/pressure`, `/function`, and structured status support for `test-genie`.
 - `claude-code` and `codex` now have native `external-cli` manifests and Go-native standard lifecycle/status handling.
 - `gemini` and `openrouter` now have native `cloud-api` manifests and Go-native status/configuration checks.
 - Resource-specific non-standard commands can still fall back to legacy shell entrypoints when the native driver does not own that subcommand yet.
 - Phase 5 validation now explicitly covers that the migrated core set uses the native driver path for standard commands even when a legacy `cli.sh` compatibility shim is present.
-- `vault` is intentionally deferred for later migration work.
+- Migrated resource `cli.sh` entrypoints now delegate standard lifecycle, status, and logs commands back to `vrooli resource`, leaving only compatibility-only custom subcommands in shell where native ownership is intentionally incomplete.
+- Before native `vault` migration, the supported Vault-specific CLI surface was intentionally reduced to the commands active repo code still uses: `status`, `content add|get|remove`, and `secrets check|init|validate|export|create-template`.
+- Historical admin, audit, security-monitoring, backup/restore, and migration subcommands were removed rather than carried forward, because there was no non-`vault` code usage to justify migrating them.
 
 ### Phase 6 — Legacy adapter shrinking
 
 **Goal:** Collapse the old shell estate without forcing premature rewrites.
 
-- [ ] Convert any remaining not-yet-deprecated shell resources into explicit `legacy-adapter` form
-- [ ] Add deadlines/owners for each remaining adapter
-- [ ] Decide per adapter:
-  - [ ] migrate fully
-  - [ ] convert to blueprint
-  - [ ] deprecate and archive
+- [x] Convert any remaining not-yet-deprecated shell resources into explicit `legacy-adapter` form
+- [x] Add deadlines/owners for each remaining adapter
+- [x] Decide per adapter:
+  - [x] migrate fully
+  - [x] convert to blueprint
+  - [x] deprecate and archive
 
 **Deliverable:** The remaining shell-based resources are a small explicit backlog, not a sprawling default.
 
 **Acceptance:** Every remaining shell resource has an explicit plan and no hidden status.
+
+**Status update:** Phase 6 is now implemented as an explicit legacy-adapter backlog in the native resource manifest system.
+
+- The remaining active shell-backed Phase 0 `keep` set now carries typed `resource.json` manifests with `driver: legacy-adapter` instead of surfacing as implicit `legacy-shell` discovery results.
+- Each adapter manifest now records:
+  - `legacy_adapter.owner`
+  - `legacy_adapter.decision_deadline`
+  - `legacy_adapter.final_disposition`
+  - `legacy_adapter.legacy_cli_path`
+- `vrooli resource list` and `vrooli resource status` now expose legacy-adapter decision metadata so the backlog is visible from the control plane rather than buried in docs.
+- Repo-level tests now enforce that every Phase 0 `keep` resource is either `manifest-native` or `legacy-adapter`; raw `legacy-shell` is no longer acceptable for the active set.
+
+Current explicit Phase 6 adapter backlog:
+
+- `cloudflare-ai-gateway` -> `migrate`
+- `comfyui` -> `migrate`
+- `home-assistant` -> `migrate`
+- `judge0` -> `migrate`
+- `k6` -> `migrate`
+- `kokoro` -> `migrate`
+- `litellm` -> `migrate`
+- `mail-in-a-box` -> `migrate`
+- `minio` -> `migrate`
+- `neo4j` -> `migrate`
+- `ollama` -> `migrate`
+- `opencode` -> `migrate`
+- `postgis` -> `migrate`
+- `questdb` -> `migrate`
+- `sagemath` -> `migrate`
+- `searxng` -> `migrate`
+- `sqlite` -> `migrate`
+- `twilio` -> `migrate`
+- `unstructured-io` -> `migrate`
+- `whisper` -> `migrate`
+
+The focused Phase 6 closeout validation bundle is:
+
+- `go test ./internal/resources ./cmd/vrooli/...`
+- `go run ./cmd/vrooli resource list`
+- `go run ./cmd/vrooli resource status`
+
+Phase 6 is considered complete once the active project keep-set has no hidden `legacy-shell` entries and every remaining adapter has visible owner/deadline/disposition metadata in the Go-native control surface.
 
 ### Phase 7 — Cleanup and contract hardening
 

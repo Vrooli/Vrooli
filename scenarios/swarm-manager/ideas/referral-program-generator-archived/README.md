@@ -18,7 +18,7 @@ The Referral Program Generator is a permanent business intelligence capability t
 ### 1. Setup
 ```bash
 # Install and configure
-./scripts/manage.sh setup --yes yes
+vrooli setup --yes yes
 
 # Start the scenario
 vrooli scenario run referral-program-generator

@@ -42,8 +42,8 @@ get_cloudflare_credentials() {
     
     # Try to get from Vault first
     if command -v resource-vault &>/dev/null; then
-        account_id=$(resource-vault get cloudflare_account_id 2>/dev/null || echo "")
-        api_token=$(resource-vault get cloudflare_api_token 2>/dev/null || echo "")
+        account_id=$(resource-vault content get --path "resources/cloudflare/account_id" --format raw 2>/dev/null || echo "")
+        api_token=$(resource-vault content get --path "resources/cloudflare/api_token" --format raw 2>/dev/null || echo "")
     fi
     
     # Fall back to environment variables

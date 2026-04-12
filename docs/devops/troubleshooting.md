@@ -51,7 +51,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 2. **Run setup manually:**
    ```bash
    # Run setup first, then develop
-   ./scripts/manage.sh setup --target local-services
+   vrooli setup --target local-services
    vrooli develop --target local-services
    ```
 
@@ -84,7 +84,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    
    # Or regenerate via setup
    rm -f .env-dev
-   ./scripts/manage.sh setup --target local-services
+   vrooli setup --target local-services
    ```
 
 2. **Check file permissions:**
@@ -185,7 +185,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 2. **Check sourcing paths:**
    ```bash
    # Debug script loading
-   bash -x scripts/manage.sh setup 2>&1 | grep "source\|load"
+   VROOLI_LOG_LEVEL=debug vrooli setup
    ```
 
 3. **Reinstall if corrupted:**
@@ -504,7 +504,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
    
    # Regenerate
    rm .env-dev
-   ./scripts/manage.sh setup --target local-services
+   vrooli setup --target local-services
    
    # Restore custom values if needed
    diff .env-dev.backup .env-dev

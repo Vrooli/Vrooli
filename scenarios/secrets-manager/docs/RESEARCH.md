@@ -17,14 +17,17 @@ This document captures references, patterns, and learnings discovered during sec
 
 **CLI Command Reference**:
 ```bash
-# List all secrets in a path
-resource-vault secrets list secret/resources/postgres
+# Validate all configured resource secrets
+resource-vault secrets validate
 
-# Validate a specific secret exists
-resource-vault secrets check secret/resources/postgres/db_password
+# Check one resource's required secrets
+resource-vault secrets check postgres
 
-# Get secret metadata (without value)
-resource-vault secrets info secret/resources/postgres/db_password
+# Read a specific secret value
+resource-vault content get --path "resources/postgres/db_password" --format raw
+
+# Write a specific secret value
+resource-vault content add --path "resources/postgres/db_password" --value "secret"
 ```
 
 **Fallback Strategy**:

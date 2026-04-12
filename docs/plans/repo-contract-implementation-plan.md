@@ -288,6 +288,12 @@ The contract should be versioned independently from any one adapter.
 
 **Goal:** Define what belongs in the contract and what is explicitly out of scope.
 
+Phase 0 discovery artifacts:
+
+- [repo-contract-phase0-scope.md](/home/matthalloran8/Vrooli/docs/plans/repo-contract-phase0-scope.md)
+- [repo-contract-phase0-exclusions.md](/home/matthalloran8/Vrooli/docs/plans/repo-contract-phase0-exclusions.md)
+- [repo-contract-phase0-migration-targets.md](/home/matthalloran8/Vrooli/docs/plans/repo-contract-phase0-migration-targets.md)
+
 Tasks:
 1. Inventory structural assumptions from future-state plans and current Go-native project code.
 2. Classify assumptions into:

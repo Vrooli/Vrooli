@@ -32,6 +32,7 @@ type ResourceManifest struct {
 	Description     string                       `json:"description,omitempty"`
 	Template        string                       `json:"template,omitempty"`
 	Driver          string                       `json:"driver"`
+	LegacyAdapter   ResourceLegacyAdapter        `json:"legacy_adapter,omitempty"`
 	Binary          string                       `json:"binary,omitempty"`
 	VersionArgs     []string                     `json:"version_args,omitempty"`
 	Endpoint        string                       `json:"endpoint,omitempty"`
@@ -47,6 +48,14 @@ type ResourceManifest struct {
 	Lifecycle       ResourceLifecycle            `json:"lifecycle,omitempty"`
 	Capabilities    ResourceManifestCapabilities `json:"capabilities,omitempty"`
 	TemplateVersion string                       `json:"template_version,omitempty"`
+}
+
+type ResourceLegacyAdapter struct {
+	Owner            string `json:"owner,omitempty"`
+	DecisionDeadline string `json:"decision_deadline,omitempty"`
+	FinalDisposition string `json:"final_disposition,omitempty"`
+	LegacyCLIPath    string `json:"legacy_cli_path,omitempty"`
+	Notes            string `json:"notes,omitempty"`
 }
 
 type ResourcePlatforms struct {
@@ -155,6 +164,10 @@ func validateResourceManifest(manifest ResourceManifest) error {
 		if strings.TrimSpace(manifest.Runtime.Image) == "" {
 			return fmt.Errorf("runtime.image is required for docker-service resources")
 		}
+	case "legacy-adapter":
+		if err := validateResourceLegacyAdapter(manifest.LegacyAdapter); err != nil {
+			return err
+		}
 	case "external-cli":
 		if strings.TrimSpace(manifest.Binary) == "" {
 			return fmt.Errorf("binary is required for external-cli resources")
@@ -163,6 +176,24 @@ func validateResourceManifest(manifest ResourceManifest) error {
 		if strings.TrimSpace(manifest.Endpoint) == "" {
 			return fmt.Errorf("endpoint is required for cloud-api resources")
 		}
+	}
+	return nil
+}
+
+func validateResourceLegacyAdapter(adapter ResourceLegacyAdapter) error {
+	if strings.TrimSpace(adapter.Owner) == "" {
+		return fmt.Errorf("legacy_adapter.owner is required for legacy-adapter resources")
+	}
+	if strings.TrimSpace(adapter.DecisionDeadline) == "" {
+		return fmt.Errorf("legacy_adapter.decision_deadline is required for legacy-adapter resources")
+	}
+	switch strings.TrimSpace(adapter.FinalDisposition) {
+	case "migrate", "blueprint", "deprecate":
+	default:
+		return fmt.Errorf("legacy_adapter.final_disposition %q is invalid", adapter.FinalDisposition)
+	}
+	if strings.TrimSpace(adapter.LegacyCLIPath) == "" {
+		return fmt.Errorf("legacy_adapter.legacy_cli_path is required for legacy-adapter resources")
 	}
 	return nil
 }

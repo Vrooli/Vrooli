@@ -275,7 +275,7 @@ type SessionMetadata struct {
 
 **System Dependency:**
 
-tmux is installed as a common system dependency via `scripts/lib/system/common_deps.sh` (line: `system::check_and_install "tmux"`). Running `./scripts/manage.sh setup` installs it automatically. The backend registry's availability check (`checkTmuxAvailable()`) confirms it's present at runtime.
+tmux is installed as a common system dependency via `scripts/lib/system/common_deps.sh` (line: `system::check_and_install "tmux"`). Running `vrooli setup` installs it automatically. The backend registry's availability check (`checkTmuxAvailable()`) confirms it's present at runtime.
 
 **tmux Session Naming Convention:**
 
@@ -892,7 +892,7 @@ No CLI changes required.
 
 - **No live migration** — Converting a running raw PTY session to tmux is not possible at the OS level. Do not attempt fake migration (spawn new + copy scrollback) as it breaks running processes. This is a launch-time choice only.
 - **No compatibility shims** — This is greenfield. Don't add code to handle "old sessions without backend field" or "sessions created before this feature." The schema has a default, and that's sufficient.
-- **No ad-hoc tmux installation** — tmux is registered in `scripts/lib/system/common_deps.sh` and installed via `./scripts/manage.sh setup`. The implementing agent must not install tmux manually or add scenario-local installation logic.
+- **No ad-hoc tmux installation** — tmux is registered in `scripts/lib/system/common_deps.sh` and installed via `vrooli setup`. The implementing agent must not install tmux manually or add scenario-local installation logic.
 - **No custom session multiplexer** — Don't reimplement tmux. Use tmux directly.
 - **No screen support** — tmux only. Screen is legacy and lacks programmatic control. The registry supports adding backends later if needed.
 - **No desktop tier concerns** — tmux is inherently a server-side tool. Desktop bundles would use standard sessions. Don't add complexity for hypothetical desktop persistent sessions.

@@ -760,7 +760,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Setup Vrooli
-        run: ./scripts/manage.sh setup --yes yes
+        run: vrooli setup --yes yes
       - name: Start analyzer
         run: vrooli scenario run scenario-dependency-analyzer
       - name: Scan dependencies

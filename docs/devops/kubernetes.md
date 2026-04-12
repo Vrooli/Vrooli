@@ -89,7 +89,7 @@ export SECRETS_SOURCE=vault
 vrooli develop --target k8s-cluster
 
 # Alternative: Just the Kubernetes setup portion
-./scripts/manage.sh setup --target k8s-cluster
+vrooli setup --target k8s-cluster
 ```
 
 ## Scenario Deployment Patterns
@@ -343,7 +343,7 @@ kubectl get vaultsecret my-scenario-secrets
 
 ```bash
 # Run comprehensive infrastructure check
-./scripts/manage.sh status --target k8s-cluster
+vrooli status --resources
 
 # This script validates:
 # - CRD installations  

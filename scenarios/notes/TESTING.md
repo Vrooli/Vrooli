@@ -503,7 +503,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Setup Vrooli
-        run: ./scripts/manage.sh setup
+        run: vrooli setup
 
       - name: Start resources
         run: |

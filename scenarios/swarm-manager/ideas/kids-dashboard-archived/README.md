@@ -19,7 +19,7 @@ The Kids Dashboard provides a curated, age-appropriate interface for children ag
 
 ```bash
 # Setup the scenario
-./scripts/manage.sh setup
+vrooli setup
 
 # Run the dashboard
 vrooli scenario run kids-dashboard

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -604,6 +605,7 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 		"redis":       "docker-service",
 		"qdrant":      "docker-service",
 		"browserless": "docker-service",
+		"vault":       "docker-service",
 		"claude-code": "external-cli",
 		"codex":       "external-cli",
 		"gemini":      "cloud-api",
@@ -636,7 +638,7 @@ func TestProjectPhase5ResourceManifestsValidate(t *testing.T) {
 	root := projectRootForResourcesTest(t)
 	controller := NewController(root, t.TempDir())
 
-	for _, name := range []string{"postgres", "redis", "qdrant", "browserless", "claude-code", "codex", "gemini", "openrouter"} {
+	for _, name := range []string{"postgres", "redis", "qdrant", "browserless", "vault", "claude-code", "codex", "gemini", "openrouter"} {
 		manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(root, name))
 		if err != nil {
 			t.Fatalf("loadResourceManifest(%s): %v", name, err)
@@ -646,6 +648,107 @@ func TestProjectPhase5ResourceManifestsValidate(t *testing.T) {
 		}
 		if strings.TrimSpace(manifest.Driver) == "" {
 			t.Fatalf("%s driver is empty", name)
+		}
+	}
+}
+
+func TestProjectPhase6KeepResourcesAreExplicitlyTyped(t *testing.T) {
+	root := projectRootForResourcesTest(t)
+	controller := NewController(root, t.TempDir())
+
+	items, err := controller.Discover()
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+
+	keepResources := phase0InventoryResourcesByState(t, root, "keep")
+	discovered := make(map[string]Resource, len(items))
+	for _, item := range items {
+		discovered[item.Name] = item
+	}
+
+	for _, name := range keepResources {
+		item, ok := discovered[name]
+		if !ok {
+			t.Fatalf("keep resource %q not discovered", name)
+		}
+		if item.ControlMode == "legacy-shell" {
+			t.Fatalf("keep resource %q is still hidden as legacy-shell", name)
+		}
+		switch item.ControlMode {
+		case "manifest-native":
+			if item.ManifestPath == "" {
+				t.Fatalf("%s manifest-native resource missing manifest path", name)
+			}
+		case "legacy-adapter":
+			if item.LegacyAdapter.Owner == "" {
+				t.Fatalf("%s legacy adapter owner is empty", name)
+			}
+			if item.LegacyAdapter.DecisionDeadline == "" {
+				t.Fatalf("%s legacy adapter deadline is empty", name)
+			}
+			if item.LegacyAdapter.FinalDisposition == "" {
+				t.Fatalf("%s legacy adapter final disposition is empty", name)
+			}
+			if item.LegacyAdapter.LegacyCLIPath == "" {
+				t.Fatalf("%s legacy adapter legacy cli path is empty", name)
+			}
+		default:
+			t.Fatalf("%s ControlMode = %q, want manifest-native or legacy-adapter", name, item.ControlMode)
+		}
+	}
+}
+
+func TestProjectPhase6LegacyAdaptersHaveDecisionMetadata(t *testing.T) {
+	root := projectRootForResourcesTest(t)
+	controller := NewController(root, t.TempDir())
+
+	adapterNames := []string{
+		"cloudflare-ai-gateway",
+		"comfyui",
+		"home-assistant",
+		"judge0",
+		"k6",
+		"kokoro",
+		"litellm",
+		"mail-in-a-box",
+		"minio",
+		"neo4j",
+		"ollama",
+		"opencode",
+		"postgis",
+		"questdb",
+		"sagemath",
+		"searxng",
+		"sqlite",
+		"twilio",
+		"unstructured-io",
+		"whisper",
+	}
+	deadlinePattern := regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
+
+	for _, name := range adapterNames {
+		manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(root, name))
+		if err != nil {
+			t.Fatalf("loadResourceManifest(%s): %v", name, err)
+		}
+		if manifest.Driver != "legacy-adapter" {
+			t.Fatalf("%s driver = %q, want legacy-adapter", name, manifest.Driver)
+		}
+		if manifest.Template != "legacy-adapter" {
+			t.Fatalf("%s template = %q, want legacy-adapter", name, manifest.Template)
+		}
+		if manifest.LegacyAdapter.Owner == "" {
+			t.Fatalf("%s owner is empty", name)
+		}
+		if !deadlinePattern.MatchString(manifest.LegacyAdapter.DecisionDeadline) {
+			t.Fatalf("%s deadline = %q, want YYYY-MM-DD", name, manifest.LegacyAdapter.DecisionDeadline)
+		}
+		if manifest.LegacyAdapter.FinalDisposition != "migrate" && manifest.LegacyAdapter.FinalDisposition != "blueprint" && manifest.LegacyAdapter.FinalDisposition != "deprecate" {
+			t.Fatalf("%s final disposition = %q", name, manifest.LegacyAdapter.FinalDisposition)
+		}
+		if manifest.LegacyAdapter.LegacyCLIPath != filepath.ToSlash(filepath.Join("resources", name, "cli.sh")) {
+			t.Fatalf("%s legacy cli path = %q", name, manifest.LegacyAdapter.LegacyCLIPath)
 		}
 	}
 }
@@ -661,17 +764,20 @@ func TestProjectDockerResourceStatusesUseNativeManifests(t *testing.T) {
 	writeResourceConfig(t, root, "redis", true)
 	writeResourceConfig(t, root, "qdrant", true)
 	writeResourceConfig(t, root, "browserless", true)
+	writeResourceConfig(t, root, "vault", true)
 
 	postgresPort := mustAllocatePort(t)
 	redisPort := mustAllocatePort(t)
 	qdrantPort := mustAllocatePort(t)
 	qdrantGRPCPort := mustAllocatePort(t)
 	browserlessPort := mustAllocatePort(t)
+	vaultPort := mustAllocatePort(t)
 
 	copyManifestWithOverrides(t, projectRoot, root, "postgres", postgresPort, postgresPort, "tcp", "")
 	copyManifestWithOverrides(t, projectRoot, root, "redis", redisPort, redisPort, "tcp", "")
 	copyManifestWithOverrides(t, projectRoot, root, "qdrant", qdrantPort, qdrantGRPCPort, "http", "/")
 	copyManifestWithOverrides(t, projectRoot, root, "browserless", browserlessPort, browserlessPort, "http", "/pressure")
+	copyManifestWithOverrides(t, projectRoot, root, "vault", vaultPort, vaultPort, "http", "/v1/sys/health")
 
 	postgresListener := mustListenTCP(t, "127.0.0.1:"+strconv.Itoa(postgresPort))
 	defer postgresListener.Close()
@@ -692,11 +798,20 @@ func TestProjectDockerResourceStatusesUseNativeManifests(t *testing.T) {
 	})
 	defer browserlessServer.Shutdown(context.Background())
 
+	vaultServer := startHTTPServer(t, "127.0.0.1:"+strconv.Itoa(vaultPort), func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/sys/health" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"initialized":true,"sealed":false}`))
+	})
+	defer vaultServer.Shutdown(context.Background())
+
 	if err := os.WriteFile(stateFile, []byte("running\n"), 0o644); err != nil {
 		t.Fatalf("write fake docker state: %v", err)
 	}
 
-	for _, name := range []string{"postgres", "redis", "qdrant", "browserless"} {
+	for _, name := range []string{"postgres", "redis", "qdrant", "browserless", "vault"} {
 		status, err := controller.Status(name, true)
 		if err != nil {
 			t.Fatalf("Status(%s): %v", name, err)
@@ -1074,6 +1189,14 @@ func copyManifestWithOverrides(t *testing.T, srcRoot, dstRoot, name string, prim
 			manifest.HealthChecks[0].Type = healthType
 			manifest.HealthChecks[0].Target = "http://127.0.0.1:" + strconv.Itoa(primaryPort) + healthPath
 		}
+	case "vault":
+		if len(manifest.Ports) > 0 {
+			manifest.Ports[0].Host = primaryPort
+		}
+		if len(manifest.HealthChecks) > 0 {
+			manifest.HealthChecks[0].Type = healthType
+			manifest.HealthChecks[0].Target = "http://127.0.0.1:" + strconv.Itoa(primaryPort) + healthPath
+		}
 	}
 
 	data, err := json.MarshalIndent(manifest, "", "  ")
@@ -1087,4 +1210,35 @@ func copyManifestWithOverrides(t *testing.T, srcRoot, dstRoot, name string, prim
 	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
+}
+
+func phase0InventoryResourcesByState(t *testing.T, root, state string) []string {
+	t.Helper()
+	path := filepath.Join(root, "docs", "resources", "resource-phase0-inventory.md")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	lines := strings.Split(string(data), "\n")
+	results := make([]string, 0)
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "| `") {
+			continue
+		}
+		parts := strings.Split(line, "|")
+		if len(parts) < 7 {
+			continue
+		}
+		name := strings.TrimSpace(parts[1])
+		proposedState := strings.TrimSpace(parts[6])
+		name = strings.Trim(name, "`")
+		proposedState = strings.Trim(proposedState, "`")
+		if proposedState == state {
+			results = append(results, name)
+		}
+	}
+	if len(results) == 0 {
+		t.Fatalf("no Phase 0 inventory resources found for state %q", state)
+	}
+	return results
 }

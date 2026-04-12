@@ -1,0 +1,23 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "kokoro",
+  "display_name": "Kokoro",
+  "description": "Transitional Kokoro resource kept behind a typed legacy adapter while native model/runtime ownership is scoped.",
+  "template": "legacy-adapter",
+  "driver": "legacy-adapter",
+  "legacy_adapter": {
+    "owner": "Matthew Halloran",
+    "decision_deadline": "2026-05-31",
+    "final_disposition": "migrate",
+    "legacy_cli_path": "resources/kokoro/cli.sh",
+    "notes": "Phase 0 keep resource because it still has scenario usage and root enablement."
+  },
+  "portability_tier": "partial",
+  "category": "ai",
+  "platforms": {
+    "linux": "supported",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "template_version": "1"
+}

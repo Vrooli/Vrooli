@@ -196,8 +196,8 @@ In Vrooli, deployment simply means running the scenario in a production environm
 ### Local "Deployment"
 ```bash
 # Run locally
-cd scenarios/invoice-generator
-../../scripts/manage.sh develop
+cd ~/Vrooli
+vrooli develop
 ```
 
 ### Production "Deployment"
@@ -266,8 +266,8 @@ Some scenarios support hot reloading during development:
 
 ```bash
 # Start with development mode
-cd scenarios/my-app
-DEVELOPMENT=true ../../scripts/manage.sh develop
+cd ~/Vrooli
+DEVELOPMENT=true vrooli develop
 
 # Edit files - changes appear instantly
 # No rebuild, no restart, just automatic updates

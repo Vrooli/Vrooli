@@ -235,7 +235,6 @@ func DefaultExcludes() []string {
 		// NEVER bundle mothership secrets - these are generated on the target VPS
 		".vrooli/secrets.json",
 		"**/.vrooli/secrets.json",
-		"scripts/manage.sh",
 		"cli/**",
 		// Exclude scenario templates - they have placeholder go.mod files that break go.work
 		"scripts/scenarios/templates/**",

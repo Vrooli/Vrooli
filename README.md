@@ -39,7 +39,7 @@ make help
 
 **Alternative commands:**
 ```bash
-./cli/install.sh --force && vrooli setup   # Direct native bootstrap
+make install && ~/.vrooli/bin/vrooli setup # Direct native bootstrap
 vrooli develop                            # Use CLI after setup
 vrooli --help                             # See all CLI commands
 ```

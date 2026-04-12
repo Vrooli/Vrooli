@@ -53,13 +53,13 @@ cli::init "openrouter" "OpenRouter unified API to many AI model providers" "v2"
 # ==============================================================================
 # REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
 # ==============================================================================
-CLI_COMMAND_HANDLERS["manage::install"]="openrouter::install"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="openrouter::uninstall"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
 
 # OpenRouter is an API service - no docker containers to manage
-CLI_COMMAND_HANDLERS["manage::start"]="openrouter::service::noop_start"
-CLI_COMMAND_HANDLERS["manage::stop"]="openrouter::service::noop_stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="openrouter::service::noop_restart"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 
 # Test handlers - delegate to test library
 CLI_COMMAND_HANDLERS["test::smoke"]="openrouter::test::smoke"
@@ -85,10 +85,10 @@ CLI_COMMAND_HANDLERS["usage::all"]="openrouter::usage::all"
 # ==============================================================================
 cli::register_command "info" "Show structured resource information" "openrouter::info"
 cli::register_command "usage" "Show usage analytics and costs" "openrouter::usage"
-cli::register_command "status" "Show detailed resource status" "openrouter::status"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
 
 # OpenRouter is API service - no logs to show
-cli::register_command "logs" "Show OpenRouter logs (API service - no logs)" "openrouter::service::noop_logs"
+cli::register_command "logs" "Show OpenRouter logs (API service - no logs)" "cli::delegate_logs"
 
 # ==============================================================================
 # OPTIONAL RESOURCE-SPECIFIC COMMANDS

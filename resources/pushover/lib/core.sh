@@ -62,18 +62,12 @@ pushover::load_vault_credentials() {
         local vault_status
         vault_status=$(resource-vault status --format json 2>/dev/null)
         
-        if echo "$vault_status" | jq -e '.unsealed == true' >/dev/null 2>&1; then
-            # Try to get credentials from vault
-            local vault_data
-            vault_data=$(resource-vault get pushover 2>/dev/null)
-            
-            if [[ -n "$vault_data" ]]; then
-                export PUSHOVER_APP_TOKEN=$(echo "$vault_data" | jq -r '.app_token // empty' 2>/dev/null || echo "")
-                export PUSHOVER_USER_KEY=$(echo "$vault_data" | jq -r '.user_key // empty' 2>/dev/null || echo "")
-                
-                if [[ "$verbose" == "true" ]]; then
-                    log::info "Loaded credentials from Vault"
-                fi
+        if [[ -n "$vault_status" ]]; then
+            export PUSHOVER_APP_TOKEN=$(resource-vault content get --path "resources/pushover/app_token" --format raw 2>/dev/null || echo "")
+            export PUSHOVER_USER_KEY=$(resource-vault content get --path "resources/pushover/user_key" --format raw 2>/dev/null || echo "")
+
+            if [[ -n "$PUSHOVER_APP_TOKEN" && -n "$PUSHOVER_USER_KEY" && "$verbose" == "true" ]]; then
+                log::info "Loaded credentials from Vault"
             fi
         fi
     fi

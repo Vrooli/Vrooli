@@ -266,6 +266,40 @@ func TestRunResourceListCommandShowsManifestMetadata(t *testing.T) {
 	}
 }
 
+func TestRunResourceListCommandShowsLegacyAdapterDecision(t *testing.T) {
+	root := t.TempDir()
+	writeResourceConfigForCLI(t, root, "fixture", true)
+	writeResourceManifestForCLI(t, root, "fixture", `{
+  "name": "fixture",
+  "display_name": "Fixture",
+  "description": "Fixture resource",
+  "template": "legacy-adapter",
+  "driver": "legacy-adapter",
+  "legacy_adapter": {
+    "owner": "Matthew Halloran",
+    "decision_deadline": "2026-05-31",
+    "final_disposition": "blueprint",
+    "legacy_cli_path": "resources/fixture/cli.sh"
+  },
+  "portability_tier": "partial",
+  "platforms": {
+    "linux": "supported",
+    "macos": "partial",
+    "windows": "unsupported"
+  }
+}`)
+	controller := resources.NewController(root, t.TempDir())
+	var stdout bytes.Buffer
+
+	if err := runResourceListCommand(controller, globalOptions{}, nil, &stdout); err != nil {
+		t.Fatalf("runResourceListCommand: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "legacy-adapter") || !strings.Contains(output, "blueprint") {
+		t.Fatalf("unexpected output: %q", output)
+	}
+}
+
 func TestRunResourceStatusCommandShowsManifestMetadata(t *testing.T) {
 	root := t.TempDir()
 	writeResourceConfigForCLI(t, root, "fixture", true)
@@ -297,6 +331,44 @@ func TestRunResourceStatusCommandShowsManifestMetadata(t *testing.T) {
 	}
 }
 
+func TestRunResourceStatusCommandShowsLegacyAdapterMetadata(t *testing.T) {
+	root := t.TempDir()
+	writeResourceConfigForCLI(t, root, "fixture", true)
+	writeResourceManifestForCLI(t, root, "fixture", `{
+  "name": "fixture",
+  "display_name": "Fixture",
+  "description": "Fixture resource",
+  "template": "legacy-adapter",
+  "driver": "legacy-adapter",
+  "legacy_adapter": {
+    "owner": "Matthew Halloran",
+    "decision_deadline": "2026-05-31",
+    "final_disposition": "deprecate",
+    "legacy_cli_path": "resources/fixture/cli.sh",
+    "notes": "Adapter note"
+  },
+  "portability_tier": "platform-specific",
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  }
+}`)
+	writeResourceScriptForCLI(t, root, "fixture", "#!/usr/bin/env bash\nprintf '{\"installed\":true,\"running\":false,\"healthy\":false,\"message\":\"legacy adapter\"}\\n'\n")
+	controller := resources.NewController(root, t.TempDir())
+	var stdout bytes.Buffer
+
+	if err := runResourceStatusCommand(controller, globalOptions{}, []string{"fixture"}, &stdout); err != nil {
+		t.Fatalf("runResourceStatusCommand: %v", err)
+	}
+	output := stdout.String()
+	for _, want := range []string{"legacy-adapter", "Matthew Halloran", "2026-05-31", "deprecate", "resources/fixture/cli.sh", "Adapter note"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected %q in output: %q", want, output)
+		}
+	}
+}
+
 func TestRunResourceListCommandShowsMigratedCoreResources(t *testing.T) {
 	controller := resources.NewController(projectRootForCLI(t), t.TempDir())
 	var stdout bytes.Buffer
@@ -305,7 +377,7 @@ func TestRunResourceListCommandShowsMigratedCoreResources(t *testing.T) {
 		t.Fatalf("runResourceListCommand: %v", err)
 	}
 	output := stdout.String()
-	for _, name := range []string{"postgres", "redis", "qdrant", "browserless"} {
+	for _, name := range []string{"postgres", "redis", "qdrant", "browserless", "vault"} {
 		if !strings.Contains(output, name) {
 			t.Fatalf("expected %q in output: %q", name, output)
 		}
@@ -413,12 +485,16 @@ func writeResourceConfigForCLI(t *testing.T, root, name string, enabled bool) {
 }
 
 func writeResourceCLIForCLI(t *testing.T, root, name string) {
+	writeResourceScriptForCLI(t, root, name, "#!/usr/bin/env bash\nexit 0\n")
+}
+
+func writeResourceScriptForCLI(t *testing.T, root, name, contents string) {
 	t.Helper()
 	path := filepath.Join(root, "resources", name, "cli.sh")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
 	}
-	if err := os.WriteFile(path, []byte("#!/usr/bin/env bash\nexit 0\n"), 0o755); err != nil {
+	if err := os.WriteFile(path, []byte(contents), 0o755); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
 }

@@ -155,6 +155,42 @@ cli::register_command() {
 }
 
 #######################################
+# Delegate a standard command to the native `vrooli resource` control plane.
+# Uses the installed `vrooli` binary when available, and falls back to
+# `go run ./cmd/vrooli` from the repository root for local development/tests.
+# Args: $@ - resource subcommand arguments, excluding the resource name
+#######################################
+cli::delegate_to_vrooli_resource() {
+    local action="${1:-}"
+    shift || true
+    local cmd=()
+
+    if [[ -n "${VROOLI_CLI_BIN:-}" ]]; then
+        cmd=("${VROOLI_CLI_BIN}")
+    elif command -v vrooli &>/dev/null; then
+        cmd=("$(command -v vrooli)")
+    elif [[ -f "${APP_ROOT}/go.mod" ]] && command -v go &>/dev/null; then
+        cmd=("go" "run" "./cmd/vrooli")
+    else
+        log::error "Native Vrooli CLI is unavailable for delegated resource command"
+        return 1
+    fi
+
+    (
+        builtin cd "${APP_ROOT}" || exit 1
+        "${cmd[@]}" resource "${action}" "${CLI_RESOURCE_NAME}" "$@"
+    )
+}
+
+cli::delegate_status() { cli::delegate_to_vrooli_resource "status" "$@"; }
+cli::delegate_logs() { cli::delegate_to_vrooli_resource "logs" "$@"; }
+cli::delegate_install() { cli::delegate_to_vrooli_resource "install" "$@"; }
+cli::delegate_uninstall() { cli::delegate_to_vrooli_resource "uninstall" "$@"; }
+cli::delegate_start() { cli::delegate_to_vrooli_resource "start" "$@"; }
+cli::delegate_stop() { cli::delegate_to_vrooli_resource "stop" "$@"; }
+cli::delegate_restart() { cli::delegate_to_vrooli_resource "restart" "$@"; }
+
+#######################################
 # Main command dispatcher
 # Args: $@ - command line arguments
 #######################################

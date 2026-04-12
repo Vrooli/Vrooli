@@ -47,11 +47,11 @@ cli::init "postgres" "PostgreSQL database with multi-instance support" "v2"
 # ==============================================================================
 # REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
 # ==============================================================================
-CLI_COMMAND_HANDLERS["manage::install"]="postgres::install"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="postgres::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="postgres::docker::start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="postgres::docker::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="postgres::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 
 # Test handlers - delegate to test scripts per v2.0 contract
 CLI_COMMAND_HANDLERS["test::smoke"]="postgres::test::smoke"
@@ -71,8 +71,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="postgres::content::execute"
 # ==============================================================================
 cli::register_command "info" "Show resource information from runtime.json" "postgres::info"
 cli::register_command "help" "Show comprehensive help with examples" "postgres::help"
-cli::register_command "status" "Show detailed PostgreSQL status" "postgres::status::show"
-cli::register_command "logs" "Show PostgreSQL logs" "postgres::docker::logs"
+cli::register_command "status" "Show detailed PostgreSQL status" "cli::delegate_status"
+cli::register_command "logs" "Show PostgreSQL logs" "cli::delegate_logs"
 
 # ==============================================================================
 # POSTGRES-SPECIFIC COMMANDS

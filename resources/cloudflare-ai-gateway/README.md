@@ -33,8 +33,8 @@ vrooli resource install cloudflare-ai-gateway
 ### Configuration
 ```bash
 # Store credentials in Vault (recommended)
-resource-vault set cloudflare_account_id YOUR_ACCOUNT_ID
-resource-vault set cloudflare_api_token YOUR_API_TOKEN
+resource-vault content add --path "resources/cloudflare/account_id" --value "YOUR_ACCOUNT_ID"
+resource-vault content add --path "resources/cloudflare/api_token" --value "YOUR_API_TOKEN"
 
 # Or use environment variables
 export CLOUDFLARE_ACCOUNT_ID=YOUR_ACCOUNT_ID

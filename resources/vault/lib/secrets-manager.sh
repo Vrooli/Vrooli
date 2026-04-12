@@ -624,9 +624,6 @@ vault_secrets_command() {
     shift || true
     
     case "$subcommand" in
-        scan)
-            secrets_scan "$@"
-            ;;
         check)
             secrets_check "$@"
             ;;
@@ -642,9 +639,6 @@ vault_secrets_command() {
         create-template)
             secrets_create_template "$@"
             ;;
-        discover)
-            secrets_discover "$@"
-            ;;
         help|"")
             cat << EOF
 Vault Secrets Management Commands
@@ -652,17 +646,14 @@ Vault Secrets Management Commands
 Usage: resource-vault secrets <subcommand> [options]
 
 Subcommands:
-  scan                    Scan all resources for secrets.yaml files
   check <resource>        Check secrets status for a specific resource
   init <resource>         Initialize secrets for a resource (interactive)
   validate                Validate all resource secrets are configured
   export <resource>       Export secrets as environment variables
   create-template <res>   Create a secrets.yaml template for a resource
-  discover <resource>     Find potentially hardcoded secrets in resource code
   help                    Show this help message
 
 Examples:
-  resource-vault secrets scan
   resource-vault secrets check openrouter
   resource-vault secrets init postgres
   resource-vault secrets export n8n > n8n-env.sh

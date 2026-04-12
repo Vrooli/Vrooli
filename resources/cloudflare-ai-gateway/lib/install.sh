@@ -35,7 +35,7 @@ install_cloudflare_ai_gateway() {
     
     # Check Vault first
     if command -v resource-vault &>/dev/null; then
-        if resource-vault get cloudflare_account_id &>/dev/null 2>&1; then
+        if resource-vault content get --path "resources/cloudflare/account_id" --format raw &>/dev/null 2>&1; then
             has_creds=true
             echo "✓ Found Cloudflare credentials in Vault"
         fi
@@ -59,8 +59,8 @@ install_cloudflare_ai_gateway() {
         echo ""
         echo "You can set credentials using:"
         echo "  Option 1: Vault (recommended)"
-        echo "    resource-vault set cloudflare_account_id YOUR_ACCOUNT_ID"
-        echo "    resource-vault set cloudflare_api_token YOUR_API_TOKEN"
+        echo "    resource-vault content add --path resources/cloudflare/account_id --value YOUR_ACCOUNT_ID"
+        echo "    resource-vault content add --path resources/cloudflare/api_token --value YOUR_API_TOKEN"
         echo ""
         echo "  Option 2: Environment variables"
         echo "    export CLOUDFLARE_ACCOUNT_ID=YOUR_ACCOUNT_ID"

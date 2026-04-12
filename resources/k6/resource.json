@@ -1,0 +1,23 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "k6",
+  "display_name": "k6",
+  "description": "Transitional k6 resource kept behind a typed legacy adapter while native external-cli/manual lifecycle ownership is scoped.",
+  "template": "legacy-adapter",
+  "driver": "legacy-adapter",
+  "legacy_adapter": {
+    "owner": "Matthew Halloran",
+    "decision_deadline": "2026-05-31",
+    "final_disposition": "migrate",
+    "legacy_cli_path": "resources/k6/cli.sh",
+    "notes": "Phase 0 keep resource because it remains project-enabled; reassess whether it belongs on external-cli or manual template."
+  },
+  "portability_tier": "full",
+  "category": "development",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "template_version": "1"
+}

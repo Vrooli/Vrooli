@@ -49,12 +49,12 @@ func (v *DefaultVaultCLI) GetSecretsStatus(ctx context.Context, resourceFilter s
 	return getVaultSecretsStatusFromCLI(resourceFilter)
 }
 
-// GetSecret implements VaultCLI by calling resource-vault secrets get.
+// GetSecret implements VaultCLI by calling resource-vault content get.
 func (v *DefaultVaultCLI) GetSecret(ctx context.Context, key string) (string, error) {
 	return getVaultSecretImpl(ctx, key)
 }
 
-// PutSecret implements VaultCLI by calling resource-vault content put-secret.
+// PutSecret implements VaultCLI by calling resource-vault content add.
 func (v *DefaultVaultCLI) PutSecret(ctx context.Context, path, vaultKey, value string) error {
 	return putSecretInVaultImpl(ctx, path, vaultKey, value)
 }
@@ -517,16 +517,51 @@ func getVaultSecret(key string) (string, error) {
 	return defaultVaultCLI.GetSecret(ctx, key)
 }
 
+func resolveVaultSecretMapping(key string) (secretMapping, bool) {
+	key = strings.ToUpper(strings.TrimSpace(key))
+	if key == "" {
+		return secretMapping{}, false
+	}
+
+	for _, resourceName := range listKnownResources() {
+		mappings := buildSecretMappings(resourceName)
+		if mapping, ok := mappings[key]; ok {
+			if mapping.VaultKey == "" {
+				mapping.VaultKey = "value"
+			}
+			return mapping, true
+		}
+	}
+
+	return secretMapping{}, false
+}
+
 // getVaultSecretImpl is the underlying implementation using resource-vault CLI.
 func getVaultSecretImpl(ctx context.Context, key string) (string, error) {
-	// Use resource-vault CLI to get secret value
+	// Resolve logical secret names from secrets.yaml metadata onto canonical Vault paths.
+	mapping, ok := resolveVaultSecretMapping(key)
+	if !ok {
+		return "", fmt.Errorf("secret mapping not found for %s", key)
+	}
+
 	// Apply timeout if not already set
 	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 	}
-	cmd := exec.CommandContext(ctx, "resource-vault", "secrets", "get", key)
+	cmd := exec.CommandContext(
+		ctx,
+		"resource-vault",
+		"content",
+		"get",
+		"--path",
+		mapping.Path,
+		"--key",
+		mapping.VaultKey,
+		"--format",
+		"raw",
+	)
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -700,7 +735,7 @@ func putSecretInVault(path, vaultKey, value string) error {
 
 // putSecretInVaultImpl is the underlying implementation using resource-vault CLI.
 func putSecretInVaultImpl(ctx context.Context, path, vaultKey, value string) error {
-	args := []string{"content", "put-secret", "--path", path, "--value", value}
+	args := []string{"content", "add", "--path", path, "--value", value}
 	if vaultKey != "" && vaultKey != "value" {
 		args = append(args, "--key", vaultKey)
 	}

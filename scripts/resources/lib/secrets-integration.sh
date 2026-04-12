@@ -162,9 +162,9 @@ get_resource_secret() {
     
     # Try to get from Vault
     if command -v resource-vault &>/dev/null && resource-vault status &>/dev/null 2>&1; then
-        local path="secret/resources/${resource_name}/${secret_name}"
+        local path="resources/${resource_name}/${secret_name}"
         local value
-        value=$(resource-vault content get --path "$path" 2>/dev/null | jq -r '.data.data.value // empty' 2>/dev/null)
+        value=$(resource-vault content get --path "$path" --format raw 2>/dev/null)
         
         if [[ -n "$value" ]]; then
             echo "$value"

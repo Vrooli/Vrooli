@@ -1,0 +1,23 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "litellm",
+  "display_name": "LiteLLM",
+  "description": "Transitional LiteLLM resource kept behind a typed legacy adapter while native proxy/runtime ownership is scoped.",
+  "template": "legacy-adapter",
+  "driver": "legacy-adapter",
+  "legacy_adapter": {
+    "owner": "Matthew Halloran",
+    "decision_deadline": "2026-05-31",
+    "final_disposition": "migrate",
+    "legacy_cli_path": "resources/litellm/cli.sh",
+    "notes": "Phase 0 keep resource because it remains project-enabled even without current scenario references."
+  },
+  "portability_tier": "full",
+  "category": "ai",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "template_version": "1"
+}

@@ -17,7 +17,7 @@ echo "Checking gateway status..."
 resource-cloudflare-ai-gateway status
 
 # Check for credentials
-if ! resource-vault get cloudflare_account_id &>/dev/null 2>&1; then
+if ! resource-vault content get --path "resources/cloudflare/account_id" --format raw &>/dev/null 2>&1; then
     echo ""
     echo "⚠️  Cloudflare credentials not configured!"
     echo ""
@@ -25,8 +25,8 @@ if ! resource-vault get cloudflare_account_id &>/dev/null 2>&1; then
     echo "  1. Get your Account ID from: https://dash.cloudflare.com"
     echo "  2. Create an API token at: https://dash.cloudflare.com/profile/api-tokens"
     echo "  3. Store credentials:"
-    echo "     resource-vault set cloudflare_account_id YOUR_ACCOUNT_ID"
-    echo "     resource-vault set cloudflare_api_token YOUR_API_TOKEN"
+    echo "     resource-vault content add --path resources/cloudflare/account_id --value YOUR_ACCOUNT_ID"
+    echo "     resource-vault content add --path resources/cloudflare/api_token --value YOUR_API_TOKEN"
     echo ""
     exit 1
 fi

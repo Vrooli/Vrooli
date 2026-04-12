@@ -362,7 +362,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup
-        run: ./scripts/manage.sh setup --yes yes --resources none
+        run: vrooli setup --yes yes --resources none
       - name: Quick tests
         run: test-genie execute my-scenario --preset ci-fast
 
@@ -372,7 +372,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup
-        run: ./scripts/manage.sh setup --yes yes
+        run: vrooli setup --yes yes
       - name: Start scenario
         run: vrooli scenario start my-scenario
       - name: Full tests

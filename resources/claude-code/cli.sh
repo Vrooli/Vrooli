@@ -66,11 +66,11 @@ done
 cli::init "claude-code" "Claude Code AI development assistant" "v2"
 
 # Override default handlers to point directly to claude-code implementations
-CLI_COMMAND_HANDLERS["manage::install"]="claude_code::install"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="claude_code::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="claude_code::start"
-CLI_COMMAND_HANDLERS["manage::stop"]="claude_code::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="claude_code::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="claude_code::test"
 CLI_COMMAND_HANDLERS["test::integration"]="claude_code::test"
 CLI_COMMAND_HANDLERS["test::all"]="claude_code::test"
@@ -100,8 +100,8 @@ cli::register_command "reset-usage" "Reset usage counters (testing)" "claude_cod
 cli::register_command "test-rate-limit" "Test rate limit detection (diagnostic)" "claude_code_test_rate_limit"
 
 # Information commands
-cli::register_command "status" "Show detailed resource status" "claude_code::status"
-cli::register_command "logs" "Show Claude Code logs" "claude_code::logs"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
+cli::register_command "logs" "Show Claude Code logs" "cli::delegate_logs"
 
 # Agent management commands
 # Create wrapper for agents command that delegates to manager

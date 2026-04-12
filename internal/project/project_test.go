@@ -204,6 +204,14 @@ func writeResourceCLI(t *testing.T, root, name, statusJSON string) {
 	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
+	installedPath := filepath.Join(root, "test-bin", "resource-"+name)
+	if err := os.MkdirAll(filepath.Dir(installedPath), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(installedPath), err)
+	}
+	if err := os.WriteFile(installedPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write %s: %v", installedPath, err)
+	}
+	t.Setenv("PATH", filepath.Dir(installedPath)+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
 func writeScenarioProcess(t *testing.T, home, name string, port int) {

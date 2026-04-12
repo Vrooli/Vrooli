@@ -1,0 +1,23 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "minio",
+  "display_name": "MinIO",
+  "description": "Transitional MinIO resource kept behind a typed legacy adapter while native docker-service migration is scoped.",
+  "template": "legacy-adapter",
+  "driver": "legacy-adapter",
+  "legacy_adapter": {
+    "owner": "Matthew Halloran",
+    "decision_deadline": "2026-05-31",
+    "final_disposition": "migrate",
+    "legacy_cli_path": "resources/minio/cli.sh",
+    "notes": "High-value Phase 0 keep resource with broad scenario usage; prioritize after the current core docker set."
+  },
+  "portability_tier": "full",
+  "category": "storage",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "template_version": "1"
+}

@@ -41,20 +41,21 @@ type ConfigEntry struct {
 }
 
 type Resource struct {
-	Name            string      `json:"name"`
-	Path            string      `json:"path"`
-	Exists          bool        `json:"exists"`
-	Registered      bool        `json:"registered"`
-	Enabled         bool        `json:"enabled"`
-	Required        bool        `json:"required"`
-	HasCLI          bool        `json:"has_cli"`
-	HasScript       bool        `json:"has_script"`
-	Config          ConfigEntry `json:"config"`
-	ControlMode     string      `json:"control_mode,omitempty"`
-	Driver          string      `json:"driver,omitempty"`
-	Template        string      `json:"template,omitempty"`
-	PortabilityTier string      `json:"portability_tier,omitempty"`
-	ManifestPath    string      `json:"manifest_path,omitempty"`
+	Name            string                `json:"name"`
+	Path            string                `json:"path"`
+	Exists          bool                  `json:"exists"`
+	Registered      bool                  `json:"registered"`
+	Enabled         bool                  `json:"enabled"`
+	Required        bool                  `json:"required"`
+	HasCLI          bool                  `json:"has_cli"`
+	HasScript       bool                  `json:"has_script"`
+	Config          ConfigEntry           `json:"config"`
+	ControlMode     string                `json:"control_mode,omitempty"`
+	Driver          string                `json:"driver,omitempty"`
+	Template        string                `json:"template,omitempty"`
+	PortabilityTier string                `json:"portability_tier,omitempty"`
+	ManifestPath    string                `json:"manifest_path,omitempty"`
+	LegacyAdapter   ResourceLegacyAdapter `json:"legacy_adapter,omitempty"`
 }
 
 type Status struct {
@@ -165,6 +166,7 @@ func (c *Controller) Discover() ([]Resource, error) {
 			item.Template = manifest.Template
 			item.PortabilityTier = manifest.PortabilityTier
 			item.ManifestPath = manifestPath
+			item.LegacyAdapter = manifest.LegacyAdapter
 			if manifest.Driver == "legacy-adapter" {
 				item.ControlMode = "legacy-adapter"
 			} else {

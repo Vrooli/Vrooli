@@ -38,7 +38,7 @@ The Game Dialog Generator transforms game character development by providing AI-
 
 2. **Run the setup:**
    ```bash
-   ./scripts/manage.sh setup --yes yes
+   vrooli setup --yes yes
    ```
 
 3. **Start the jungle adventure:**

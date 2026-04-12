@@ -352,11 +352,8 @@ cd ~
 git clone https://github.com/Vrooli/Vrooli.git
 cd Vrooli
 
-# Make management script executable
-chmod +x scripts/manage.sh
-
 # Run server setup
-./scripts/manage.sh setup --target docker-daemon --environment production
+vrooli setup --target docker-daemon --environment production
 ```
 
 The setup script will automatically install:

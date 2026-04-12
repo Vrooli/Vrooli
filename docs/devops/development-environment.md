@@ -195,8 +195,8 @@ vrooli scenario run my-app       # Run scenario directly from source
 vrooli scenario test my-app      # Test scenario integration
 
 # Direct Execution (alternative)
-cd scenarios/my-app
-../../scripts/manage.sh develop  # Alternative: Run from scenario directory
+cd ~/Vrooli
+vrooli develop                   # Alternative: Run from repo root
 
 # System Management
 vrooli status                    # Overall system health

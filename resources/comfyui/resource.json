@@ -1,0 +1,23 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "comfyui",
+  "display_name": "ComfyUI",
+  "description": "Transitional ComfyUI resource kept behind a typed legacy adapter while native GPU-aware lifecycle support is scoped.",
+  "template": "legacy-adapter",
+  "driver": "legacy-adapter",
+  "legacy_adapter": {
+    "owner": "Matthew Halloran",
+    "decision_deadline": "2026-05-31",
+    "final_disposition": "migrate",
+    "legacy_cli_path": "resources/comfyui/cli.sh",
+    "notes": "Phase 0 keep resource because active scenario usage still exists; native migration depends on clearer platform/GPU support boundaries."
+  },
+  "portability_tier": "partial",
+  "category": "ai",
+  "platforms": {
+    "linux": "supported",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "template_version": "1"
+}

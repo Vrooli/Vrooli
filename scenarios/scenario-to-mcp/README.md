@@ -11,7 +11,7 @@ Scenario to MCP adds Model Context Protocol (MCP) support to any Vrooli scenario
 ```bash
 # Setup the scenario
 cd scenarios/scenario-to-mcp
-../../scripts/manage.sh setup --yes yes
+vrooli setup --yes yes
 
 # Start the services
 vrooli scenario run scenario-to-mcp

@@ -39,6 +39,31 @@
         "legacy-adapter"
       ]
     },
+    "legacy_adapter": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "type": "string"
+        },
+        "decision_deadline": {
+          "type": "string"
+        },
+        "final_disposition": {
+          "type": "string",
+          "enum": [
+            "migrate",
+            "blueprint",
+            "deprecate"
+          ]
+        },
+        "legacy_cli_path": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
     "binary": {
       "type": "string"
     },
