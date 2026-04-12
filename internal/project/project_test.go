@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/process"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=1 | LAST: 2026-04-11
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=2 | LAST: 2026-04-12
 
 func TestStatusAggregatesResourcesAndScenarios(t *testing.T) {
 	root := t.TempDir()
@@ -26,10 +27,17 @@ func TestStatusAggregatesResourcesAndScenarios(t *testing.T) {
   }
 }`)
 	writeScenarioService(t, root, "alpha")
+	writeResourceManifest(t, root, "redis")
 	writeResourceCLI(t, root, "redis", `{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)
 	writeScenarioProcess(t, home, "alpha", 18081)
 
 	controller := New(root, home, io.Discard, io.Discard)
+	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
+		return maintenance.ProcessSnapshot{TrackedProcesses: 1}, nil
+	}
+	controller.MaintenanceLocksFn = func() ([]maintenance.LockInfo, error) {
+		return nil, nil
+	}
 	report, err := controller.Status(StatusOptions{Fast: true})
 	if err != nil {
 		t.Fatalf("Status: %v", err)
@@ -40,6 +48,12 @@ func TestStatusAggregatesResourcesAndScenarios(t *testing.T) {
 	}
 	if got := report.Summary["scenarios_running"]; got != 1 {
 		t.Fatalf("scenarios_running = %d, want 1", got)
+	}
+	if got := report.Summary["maintenance_orphan_processes"]; got != 0 {
+		t.Fatalf("maintenance_orphan_processes = %d, want 0", got)
+	}
+	if report.Maintenance == nil {
+		t.Fatalf("maintenance snapshot missing")
 	}
 	if len(report.Resources) != 1 || report.Resources[0].Resource.Name != "redis" {
 		t.Fatalf("resources = %#v", report.Resources)
@@ -75,6 +89,12 @@ func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 	t.Setenv("VROOLI_API_PORT", "18092")
 
 	controller := New(root, home, io.Discard, io.Discard)
+	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
+		return maintenance.ProcessSnapshot{}, nil
+	}
+	controller.MaintenanceLocksFn = func() ([]maintenance.LockInfo, error) {
+		return nil, nil
+	}
 	report, err := controller.Doctor()
 	if err != nil {
 		t.Fatalf("Doctor: %v", err)
@@ -91,6 +111,15 @@ func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 	if !strings.Contains(output, "service_json=present") {
 		t.Fatalf("doctor checks missing service manifest: %s", output)
 	}
+	if !strings.Contains(output, "orphan_processes=ok") {
+		t.Fatalf("doctor checks missing orphan status: %s", output)
+	}
+	if !strings.Contains(output, "stale_port_locks=ok") {
+		t.Fatalf("doctor checks missing stale lock status: %s", output)
+	}
+	if !strings.Contains(output, "listener_inspection=") {
+		t.Fatalf("doctor checks missing listener inspection status: %s", output)
+	}
 }
 
 func TestStatusSupportsResourceAndScenarioFilters(t *testing.T) {
@@ -98,10 +127,17 @@ func TestStatusSupportsResourceAndScenarioFilters(t *testing.T) {
 	home := t.TempDir()
 	writeProjectService(t, root, `{"service":{"name":"project-alpha"}}`)
 	writeScenarioService(t, root, "alpha")
+	writeResourceManifest(t, root, "redis")
 	writeResourceCLI(t, root, "redis", `{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)
 	writeScenarioProcess(t, home, "alpha", 18081)
 
 	controller := New(root, home, io.Discard, io.Discard)
+	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
+		return maintenance.ProcessSnapshot{}, nil
+	}
+	controller.MaintenanceLocksFn = func() ([]maintenance.LockInfo, error) {
+		return nil, nil
+	}
 	resourcesOnly, err := controller.Status(StatusOptions{Fast: true, ResourcesOnly: true})
 	if err != nil {
 		t.Fatalf("Status(resources only): %v", err)
@@ -212,6 +248,24 @@ func writeResourceCLI(t *testing.T, root, name, statusJSON string) {
 		t.Fatalf("write %s: %v", installedPath, err)
 	}
 	t.Setenv("PATH", filepath.Dir(installedPath)+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+func writeResourceManifest(t *testing.T, root, name string) {
+	t.Helper()
+	path := filepath.Join(root, "resources", name, "resource.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	data := `{
+  "name": "` + name + `",
+  "driver": "external-cli",
+  "binary": "resource-` + name + `",
+  "portability_tier": "full",
+  "platforms": { "linux": "supported" }
+}`
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
 }
 
 func writeScenarioProcess(t *testing.T, home, name string, port int) {

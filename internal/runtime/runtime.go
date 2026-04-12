@@ -4,39 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"os/exec"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/hostreq"
 )
 
-type Tool string
-
-const (
-	ToolDocker Tool = "docker"
-	ToolGo     Tool = "go"
-	ToolNode   Tool = "node"
-	ToolPython Tool = "python"
-	ToolHelm   Tool = "helm"
-)
-
-type ToolStatus struct {
-	Name             Tool     `json:"name"`
-	Command          string   `json:"command,omitempty"`
-	Version          string   `json:"version,omitempty"`
-	Installed        bool     `json:"installed"`
-	Required         bool     `json:"required"`
-	InstallSupported bool     `json:"install_supported"`
-	PackageName      string   `json:"package_name,omitempty"`
-	Notes            []string `json:"notes,omitempty"`
-}
-
-type Report struct {
-	Environment     string       `json:"environment"`
-	Host            Host         `json:"host"`
-	Tools           []ToolStatus `json:"tools"`
-	MissingRequired []string     `json:"missing_required,omitempty"`
-	MissingOptional []string     `json:"missing_optional,omitempty"`
-}
+var ErrUnsupportedPlatform = errors.New("unsupported platform")
 
 type EnsureOptions struct {
 	Environment string
@@ -57,45 +30,30 @@ type Host struct {
 	Notes           []string `json:"notes,omitempty"`
 }
 
-type toolSpec struct {
-	Name         Tool
-	Commands     []string
-	VersionArgs  []string
-	PackageName  string
-	RequiredEnvs map[string]bool
-	InstallHint  string
-}
-
-var ErrUnsupportedPlatform = errors.New("unsupported platform")
-
-var (
-	lookPathFn       = exec.LookPath
-	combinedOutputFn = func(name string, args ...string) ([]byte, error) {
-		return exec.Command(name, args...).CombinedOutput()
-	}
-	installToolFn = installTool
-)
-
 func Current() Host {
 	return currentHost()
 }
 
 func Inspect(environment string) (Report, error) {
-	host := Current()
-	env := normalizedEnvironment(environment)
-	tools := make([]ToolStatus, 0, len(toolSpecs()))
-	for _, spec := range toolSpecs() {
-		tools = append(tools, probeTool(host, env, spec))
-	}
-	return summarizeReport(Report{
-		Environment: env,
-		Host:        host,
-		Tools:       tools,
-	}), nil
+	return Report{}, errors.New("runtime inspection requires explicit host requirements; use InspectRequirements")
+}
+
+func InspectRequirements(environment string, resolution hostreq.Resolution) (Report, error) {
+	env := hostreq.NormalizeEnvironment(environment)
+	return inspectResolution(Current(), env, resolution)
 }
 
 func Ensure(opts EnsureOptions) (Report, error) {
-	report, err := Inspect(opts.Environment)
+	return Report{}, errors.New("runtime ensure requires explicit host requirements; use EnsureRequirements")
+}
+
+func EnsureRequirements(opts EnsureOptions, resolution hostreq.Resolution) (Report, error) {
+	opts.Environment = hostreq.NormalizeEnvironment(opts.Environment)
+	return ensureResolution(opts, resolution)
+}
+
+func ensureResolution(opts EnsureOptions, resolution hostreq.Resolution) (Report, error) {
+	report, err := inspectResolution(Current(), opts.Environment, resolution)
 	if err != nil {
 		return Report{}, err
 	}
@@ -104,18 +62,62 @@ func Ensure(opts EnsureOptions) (Report, error) {
 	}
 
 	for index, status := range report.Tools {
-		if status.Installed || !status.Required {
+		if requirementSatisfied(status) || !status.Required {
 			continue
 		}
-		updated, installErr := installToolFn(report.Host, status, opts)
-		if installErr != nil {
-			return Report{}, installErr
+		updated, applyErr := applyRequirement(report.Host, status, opts)
+		if applyErr != nil {
+			return Report{}, applyErr
 		}
 		report.Tools[index] = updated
+	}
+	for index, status := range report.Safeguards {
+		if requirementSatisfied(status) || !status.Required {
+			continue
+		}
+		updated, applyErr := applyRequirement(report.Host, status, opts)
+		if applyErr != nil {
+			return Report{}, applyErr
+		}
+		report.Safeguards[index] = updated
 	}
 
 	report = summarizeReport(report)
 	return report, missingRequiredError(report)
+}
+
+func inspectResolution(host Host, environment string, resolution hostreq.Resolution) (Report, error) {
+	report := Report{
+		Environment: environment,
+		Host:        host,
+		Tools:       make([]ToolStatus, 0, len(resolution.Tools)),
+		Safeguards:  make([]SafeguardStatus, 0, len(resolution.Safeguards)),
+	}
+	for _, requirement := range resolution.Tools {
+		report.Tools = append(report.Tools, inspectRequirement(host, requirement))
+	}
+	for _, requirement := range resolution.Safeguards {
+		report.Safeguards = append(report.Safeguards, inspectRequirement(host, requirement))
+	}
+	return summarizeReport(report), nil
+}
+
+func inspectRequirement(host Host, requirement hostreq.ResolvedRequirement) ItemStatus {
+	handler := lookupHandler(requirement.Kind, requirement.Name)
+	if handler == nil {
+		return unsupportedRequirementStatus(requirement, "no native runtime handler registered")
+	}
+	return handler.Inspect(host, requirement)
+}
+
+func applyRequirement(host Host, status ItemStatus, opts EnsureOptions) (ItemStatus, error) {
+	handler := lookupHandler(status.Kind, status.Name)
+	if handler == nil {
+		status.Notes = append(status.Notes, "no native runtime handler registered")
+		status.SupportClass = SupportUnsupported
+		return status, nil
+	}
+	return handler.Apply(host, status, opts)
 }
 
 func (h Host) ValidateSetup() error {
@@ -146,213 +148,41 @@ func defaultOS(value string) string {
 	return value
 }
 
-func normalizedEnvironment(environment string) string {
-	switch strings.ToLower(strings.TrimSpace(environment)) {
-	case "production":
-		return "production"
-	case "minimal":
-		return "minimal"
-	default:
-		return "development"
-	}
-}
-
-func toolSpecs() []toolSpec {
-	return []toolSpec{
-		{
-			Name:        ToolDocker,
-			Commands:    []string{"docker"},
-			VersionArgs: []string{"--version"},
-			PackageName: "docker.io",
-			RequiredEnvs: map[string]bool{
-				"development": true,
-				"production":  true,
-				"minimal":     true,
-			},
-			InstallHint: "Install Docker Engine or Docker Desktop",
-		},
-		{
-			Name:        ToolGo,
-			Commands:    []string{"go"},
-			VersionArgs: []string{"version"},
-			PackageName: "golang-go",
-			RequiredEnvs: map[string]bool{
-				"development": true,
-			},
-			InstallHint: "Install Go 1.22+",
-		},
-		{
-			Name:        ToolNode,
-			Commands:    []string{"node"},
-			VersionArgs: []string{"--version"},
-			PackageName: "nodejs",
-			RequiredEnvs: map[string]bool{
-				"development": true,
-			},
-			InstallHint: "Install Node.js 20+",
-		},
-		{
-			Name:        ToolPython,
-			Commands:    []string{"python3", "python"},
-			VersionArgs: []string{"--version"},
-			PackageName: "python3",
-			RequiredEnvs: map[string]bool{
-				"development": true,
-			},
-			InstallHint: "Install Python 3.10+",
-		},
-		{
-			Name:         ToolHelm,
-			Commands:     []string{"helm"},
-			VersionArgs:  []string{"version", "--short"},
-			PackageName:  "helm",
-			RequiredEnvs: map[string]bool{},
-			InstallHint:  "Install Helm for Kubernetes packaging flows",
-		},
-	}
-}
-
-func probeTool(host Host, environment string, spec toolSpec) ToolStatus {
-	status := ToolStatus{
-		Name:             spec.Name,
-		Required:         spec.RequiredEnvs[environment],
-		InstallSupported: host.PackageManager != "",
-		PackageName:      packageNameForHost(host, spec),
-	}
-	command, installed := resolveCommand(spec.Commands)
-	status.Command = command
-	status.Installed = installed
-	if !installed {
-		if spec.InstallHint != "" {
-			status.Notes = append(status.Notes, spec.InstallHint)
-		}
-		return status
-	}
-
-	version := readVersion(command, spec.VersionArgs)
-	if version != "" {
-		status.Version = version
-	}
-	return status
-}
-
-func resolveCommand(candidates []string) (string, bool) {
-	for _, candidate := range candidates {
-		if _, err := lookPathFn(candidate); err == nil {
-			return candidate, true
-		}
-	}
-	return "", false
-}
-
-func readVersion(command string, args []string) string {
-	if command == "" || len(args) == 0 {
-		return ""
-	}
-	output, err := combinedOutputFn(command, args...)
-	if err != nil {
-		return ""
-	}
-	return firstLine(strings.TrimSpace(string(output)))
-}
-
-func firstLine(value string) string {
-	lines := strings.Split(strings.TrimSpace(value), "\n")
-	if len(lines) == 0 {
-		return ""
-	}
-	return strings.TrimSpace(lines[0])
-}
-
-func packageNameForHost(host Host, spec toolSpec) string {
-	if host.PackageManager != "brew" {
-		return spec.PackageName
-	}
-	switch spec.Name {
-	case ToolDocker:
-		return "docker"
-	case ToolGo:
-		return "go"
-	case ToolNode:
-		return "node"
-	case ToolPython:
-		return "python"
-	default:
-		return spec.PackageName
-	}
-}
-
 func summarizeReport(report Report) Report {
 	report.MissingRequired = report.MissingRequired[:0]
 	report.MissingOptional = report.MissingOptional[:0]
 	for _, tool := range report.Tools {
-		name := string(tool.Name)
-		if tool.Installed {
-			continue
-		}
-		if tool.Required {
-			report.MissingRequired = append(report.MissingRequired, name)
-		} else {
-			report.MissingOptional = append(report.MissingOptional, name)
-		}
+		appendMissingRequirement(&report, tool)
+	}
+	for _, safeguard := range report.Safeguards {
+		appendMissingRequirement(&report, safeguard)
 	}
 	return report
+}
+
+func appendMissingRequirement(report *Report, status ItemStatus) {
+	if requirementSatisfied(status) {
+		return
+	}
+	if status.Required {
+		report.MissingRequired = append(report.MissingRequired, status.Name)
+		return
+	}
+	report.MissingOptional = append(report.MissingOptional, status.Name)
+}
+
+func requirementSatisfied(status ItemStatus) bool {
+	switch status.Kind {
+	case hostreq.KindSafeguard:
+		return status.Applied
+	default:
+		return status.Installed
+	}
 }
 
 func missingRequiredError(report Report) error {
 	if len(report.MissingRequired) == 0 {
 		return nil
 	}
-	return fmt.Errorf("missing required tools for %s: %s", normalizedEnvironment(report.Environment), strings.Join(report.MissingRequired, ", "))
-}
-
-func installTool(host Host, status ToolStatus, opts EnsureOptions) (ToolStatus, error) {
-	if !status.InstallSupported || strings.TrimSpace(status.PackageName) == "" {
-		status.Notes = append(status.Notes, "automatic install unavailable on this host")
-		return status, nil
-	}
-	command, args, err := installCommand(host, status.PackageName, opts.SudoMode)
-	if err != nil {
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
-	}
-	if opts.DryRun {
-		status.Notes = append(status.Notes, fmt.Sprintf("dry-run: would run %s %s", command, strings.Join(args, " ")))
-		return status, nil
-	}
-
-	cmd := exec.Command(command, args...)
-	cmd.Stdout = writerOrDiscard(opts.Stdout)
-	cmd.Stderr = writerOrDiscard(opts.Stderr)
-	cmd.Stdin = os.Stdin
-	if err := cmd.Run(); err != nil {
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
-	}
-
-	commandName, installed := resolveCommand([]string{status.Command, string(status.Name)})
-	status.Command = commandName
-	status.Installed = installed
-	if installed {
-		status.Version = readVersion(commandName, defaultVersionArgs(status.Name))
-	}
-	return status, nil
-}
-
-func defaultVersionArgs(name Tool) []string {
-	switch name {
-	case ToolGo:
-		return []string{"version"}
-	case ToolHelm:
-		return []string{"version", "--short"}
-	default:
-		return []string{"--version"}
-	}
-}
-
-func writerOrDiscard(w io.Writer) io.Writer {
-	if w != nil {
-		return w
-	}
-	return io.Discard
+	return fmt.Errorf("missing required host requirements for %s: %s", hostreq.NormalizeEnvironment(report.Environment), strings.Join(report.MissingRequired, ", "))
 }

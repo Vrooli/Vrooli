@@ -296,6 +296,7 @@ func TestResolveVrooliRootFromWorkingDirectory(t *testing.T) {
 
 	tmp := t.TempDir()
 	repoRoot := filepath.Join(tmp, "repo")
+	writeRepoContractFixtureAtRoot(t, repoRoot)
 	scenarioRoot := filepath.Join(repoRoot, "scenarios", "scenario-auditor")
 	if err := os.MkdirAll(filepath.Join(scenarioRoot, "api", "rules"), 0o755); err != nil {
 		t.Fatalf("failed to create rule directory structure: %v", err)

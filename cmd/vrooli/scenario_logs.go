@@ -33,17 +33,6 @@ type scenarioStepLogInfo struct {
 
 var errScenarioLogsUsage = errors.New("scenario logs requires a scenario name")
 
-func runScenarioLogsCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runScenarioLogsCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
-}
-
 func runScenarioLogsCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	name, opts, err := parseScenarioLogsArgs(args)
 	if err != nil {
@@ -92,7 +81,7 @@ func parseScenarioLogsArgs(args []string) (string, scenarioLogOptions, error) {
 			opts.forceFollow = true
 		case "--step":
 			if index+1 >= len(args) {
-				return "", scenarioLogOptions{}, errors.New("scenario logs --step requires a step name")
+				return "", scenarioLogOptions{}, usageErrorf("scenario logs", "scenario logs --step requires a step name")
 			}
 			index++
 			opts.stepName = args[index]
@@ -108,10 +97,10 @@ func parseScenarioLogsArgs(args []string) (string, scenarioLogOptions, error) {
 			return "", scenarioLogOptions{}, &showScenarioLogsUsageError{}
 		default:
 			if strings.HasPrefix(arg, "-") {
-				return "", scenarioLogOptions{}, fmt.Errorf("unknown option for scenario logs: %s", arg)
+				return "", scenarioLogOptions{}, unknownOptionError("scenario logs", arg)
 			}
 			if name != "" {
-				return "", scenarioLogOptions{}, errors.New("scenario logs accepts exactly one scenario name")
+				return "", scenarioLogOptions{}, usageErrorf("scenario logs", "scenario logs accepts exactly one scenario name")
 			}
 			name = arg
 		}

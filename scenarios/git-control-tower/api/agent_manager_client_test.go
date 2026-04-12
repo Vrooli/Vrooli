@@ -99,6 +99,29 @@ func TestAgentManagerClient_CreateTaskAndRun(t *testing.T) {
 	})
 }
 
+func TestBuildAgentTaskDataUsesContractBackedScenarioScope(t *testing.T) {
+	t.Parallel()
+
+	repoDir := t.TempDir()
+	writeRepoContractFixture(t, repoDir)
+
+	task := buildAgentTaskData(repoDir, AgentRunRequest{
+		ScenarioSlug:  "my-app",
+		Prompt:        "Review this scenario",
+		AttachmentIDs: []string{"att-1"},
+	})
+
+	if task.ScopePath != "scenarios/my-app/" {
+		t.Fatalf("ScopePath = %q, want %q", task.ScopePath, "scenarios/my-app/")
+	}
+	if task.Title != "GCT review: my-app" {
+		t.Fatalf("Title = %q", task.Title)
+	}
+	if len(task.ContextAttachments) != 1 || task.ContextAttachments[0].AttachmentID != "att-1" {
+		t.Fatalf("ContextAttachments = %#v", task.ContextAttachments)
+	}
+}
+
 func handleFakeTaskCreate(t *testing.T) http.HandlerFunc {
 	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {

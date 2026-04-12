@@ -179,6 +179,47 @@ func TestLoadMissingScenarioReturnsNotFound(t *testing.T) {
 	}
 }
 
+func TestReadServiceParsesHostRequirements(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, ".vrooli", "service.json")
+	writeFile(t, servicePath, `{
+  "service": {"name": "alpha"},
+  "hostTools": [
+    {"name": "docker", "required": true, "reason": "run containers", "when": ["setup"]}
+  ],
+  "hostSafeguards": [
+    {"name": "remote_session_protection", "required": false, "reason": "protect sessions", "platforms": ["linux"]}
+  ]
+}`)
+
+	manifest, err := ReadService(servicePath)
+	if err != nil {
+		t.Fatalf("ReadService: %v", err)
+	}
+	if len(manifest.HostTools) != 1 || manifest.HostTools[0].Name != "docker" {
+		t.Fatalf("hostTools = %+v", manifest.HostTools)
+	}
+	if len(manifest.HostSafeguards) != 1 || manifest.HostSafeguards[0].Name != "remote_session_protection" {
+		t.Fatalf("hostSafeguards = %+v", manifest.HostSafeguards)
+	}
+}
+
+func TestReadServiceRejectsDuplicateHostRequirements(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, ".vrooli", "service.json")
+	writeFile(t, servicePath, `{
+  "service": {"name": "alpha"},
+  "hostTools": [
+    {"name": "docker", "required": true, "reason": "one"},
+    {"name": "docker", "required": false, "reason": "two"}
+  ]
+}`)
+
+	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), `duplicate tool declaration "docker"`) {
+		t.Fatalf("ReadService error = %v", err)
+	}
+}
+
 func TestResolveScenarioPathIgnoresOutOfScopeSandbox(t *testing.T) {
 	root := t.TempDir()
 	writeScenarioService(t, root, "alpha", "Canonical alpha")
@@ -711,6 +752,16 @@ func writeScenarioServiceAtPath(t *testing.T, scenarioPath, description string) 
 }`
 	if err := os.WriteFile(servicePath, []byte(data), 0o644); err != nil {
 		t.Fatalf("write %s: %v", servicePath, err)
+	}
+}
+
+func writeFile(t *testing.T, path, contents string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
 	}
 }
 

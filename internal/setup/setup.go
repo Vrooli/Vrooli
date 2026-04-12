@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/ports"
@@ -48,11 +49,12 @@ type apiLaunchSpec struct {
 }
 
 var (
-	currentHostFn     = vrooliruntime.Current
-	loadProjectFn     = project.LoadProject
-	markCompleteFn    = markComplete
-	ensureRuntimeFn   = vrooliruntime.Ensure
-	newPortsManagerFn = func(root, home string) (*ports.Manager, error) {
+	currentHostFn             = vrooliruntime.Current
+	loadProjectFn             = project.LoadProject
+	markCompleteFn            = markComplete
+	resolveHostRequirementsFn = hostreq.Resolve
+	ensureRequirementsFn      = vrooliruntime.EnsureRequirements
+	newPortsManagerFn         = func(root, home string) (*ports.Manager, error) {
 		return ports.NewManager(root, home)
 	}
 	startProjectAPIFn   = startProjectAPI
@@ -89,14 +91,24 @@ func RunSetup(root, home string, args []string, stdout, stderr io.Writer) error 
 	if err := ensureProjectFilesystem(root, home); err != nil {
 		return err
 	}
-	if _, err := ensureRuntimeFn(vrooliruntime.EnsureOptions{
+	requirements, err := resolveHostRequirementsFn(root, home, hostreq.ResolveOptions{
+		Environment: opts.Environment,
+		When:        "setup",
+		Resources:   opts.Resources,
+		Scenarios:   "none",
+		Platform:    hostreq.CurrentPlatform(),
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := ensureRequirementsFn(vrooliruntime.EnsureOptions{
 		Environment: opts.Environment,
 		SudoMode:    opts.SudoMode,
 		DryRun:      opts.DryRun,
 		AutoInstall: !opts.DryRun,
 		Stdout:      stdout,
 		Stderr:      stderr,
-	}); err != nil {
+	}, requirements); err != nil {
 		return err
 	}
 	if err := configureGit(root); err != nil {

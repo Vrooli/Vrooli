@@ -80,7 +80,7 @@ func runResourceBlueprintCommand(controller *resources.Controller, globals globa
 	case "validate":
 		return runResourceBlueprintValidateCommand(controller, globals, args[1:], stdout)
 	default:
-		return fmt.Errorf("unknown resource blueprint command: %s", args[0])
+		return usageErrorf("resource blueprint", "unknown resource blueprint command: %s", args[0])
 	}
 }
 
@@ -95,13 +95,13 @@ func runResourceArchiveCommand(controller *resources.Controller, globals globalO
 	case "gc-blueprints":
 		return runResourceArchiveBlueprintGCCommand(controller, globals, args[1:], stdout)
 	default:
-		return fmt.Errorf("unknown resource archive command: %s", args[0])
+		return usageErrorf("resource archive", "unknown resource archive command: %s", args[0])
 	}
 }
 
 func runResourceListCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) > 0 {
-		return fmt.Errorf("resource list does not accept positional arguments")
+		return usageErrorf("resource list", "resource list does not accept positional arguments")
 	}
 	items, err := controller.Discover()
 	if err != nil {
@@ -185,7 +185,7 @@ func runResourceStatusCommand(controller *resources.Controller, globals globalOp
 	}
 
 	if len(filtered) != 1 {
-		return fmt.Errorf("resource status accepts at most one resource name")
+		return usageErrorf("resource status", "resource status accepts at most one resource name")
 	}
 	item, err := controller.Status(filtered[0], fast)
 	if err != nil {
@@ -237,7 +237,7 @@ func runResourceStatusCommand(controller *resources.Controller, globals globalOp
 
 func runSingleResourceControlCommand(controller *resources.Controller, action string, args []string, stdout, stderr io.Writer) error {
 	if len(args) != 1 {
-		return fmt.Errorf("resource %s requires exactly one resource name", action)
+		return usageErrorf("resource "+action, "resource %s requires exactly one resource name", action)
 	}
 	if err := controller.Run(args[0], []string{action}, stdout, stderr); err != nil {
 		return err
@@ -295,7 +295,7 @@ func runResourceToggleCommand(controller *resources.Controller, enabled bool, ar
 		if !enabled {
 			action = "disable"
 		}
-		return fmt.Errorf("resource %s requires exactly one resource name", action)
+		return usageErrorf("resource "+action, "resource %s requires exactly one resource name", action)
 	}
 	if err := controller.SetEnabled(args[0], enabled); err != nil {
 		return err
@@ -306,7 +306,7 @@ func runResourceToggleCommand(controller *resources.Controller, enabled bool, ar
 
 func runResourceInfoCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) != 1 {
-		return fmt.Errorf("resource info requires exactly one resource name")
+		return usageErrorf("resource info", "resource info requires exactly one resource name")
 	}
 	item, err := controller.Status(args[0], true)
 	if err != nil {
@@ -320,7 +320,7 @@ func runResourceInfoCommand(controller *resources.Controller, globals globalOpti
 
 func runResourceDeprecateCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) != 1 {
-		return fmt.Errorf("resource deprecate requires exactly one resource name")
+		return usageErrorf("resource deprecate", "resource deprecate requires exactly one resource name")
 	}
 	report, err := controller.DeprecateResource(args[0])
 	if err != nil {
@@ -345,7 +345,7 @@ func runResourceDeprecateCommand(controller *resources.Controller, globals globa
 
 func runResourceListDeprecatedCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) > 0 {
-		return fmt.Errorf("resource list-deprecated does not accept positional arguments")
+		return usageErrorf("resource list-deprecated", "resource list-deprecated does not accept positional arguments")
 	}
 	items, err := controller.ListDeprecatedResources()
 	if err != nil {
@@ -380,7 +380,7 @@ func runResourceListDeprecatedCommand(controller *resources.Controller, globals 
 
 func runResourceRestoreCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) != 1 {
-		return fmt.Errorf("resource restore requires exactly one resource name")
+		return usageErrorf("resource restore", "resource restore requires exactly one resource name")
 	}
 	report, err := controller.RestoreDeprecatedResource(args[0])
 	if err != nil {
@@ -402,7 +402,7 @@ func runResourceRestoreCommand(controller *resources.Controller, globals globalO
 
 func runResourceArchiveToBlueprintCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) != 1 {
-		return fmt.Errorf("resource archive-to-blueprint requires exactly one resource name")
+		return usageErrorf("resource archive-to-blueprint", "resource archive-to-blueprint requires exactly one resource name")
 	}
 	report, err := controller.ArchiveResourceToBlueprint(args[0])
 	if err != nil {
@@ -427,7 +427,7 @@ func runResourceArchiveToBlueprintCommand(controller *resources.Controller, glob
 
 func runResourceListBlueprintArchivedCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) > 0 {
-		return fmt.Errorf("resource list-blueprint-archived does not accept positional arguments")
+		return usageErrorf("resource list-blueprint-archived", "resource list-blueprint-archived does not accept positional arguments")
 	}
 	items, err := controller.ListBlueprintArchivedResources()
 	if err != nil {
@@ -462,7 +462,7 @@ func runResourceListBlueprintArchivedCommand(controller *resources.Controller, g
 
 func runResourceRestoreBlueprintCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) != 1 {
-		return fmt.Errorf("resource restore-blueprint requires exactly one resource name")
+		return usageErrorf("resource restore-blueprint", "resource restore-blueprint requires exactly one resource name")
 	}
 	report, err := controller.RestoreBlueprintArchivedResource(args[0])
 	if err != nil {
@@ -484,7 +484,7 @@ func runResourceRestoreBlueprintCommand(controller *resources.Controller, global
 
 func runResourceArchiveGCCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) > 0 {
-		return fmt.Errorf("resource archive gc does not accept positional arguments")
+		return usageErrorf("resource archive", "resource archive gc does not accept positional arguments")
 	}
 	report, err := controller.GarbageCollectDeprecatedArchives(timeNowForResourceGC())
 	if err != nil {
@@ -506,7 +506,7 @@ func runResourceArchiveGCCommand(controller *resources.Controller, globals globa
 
 func runResourceArchiveBlueprintGCCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) > 0 {
-		return fmt.Errorf("resource archive gc-blueprints does not accept positional arguments")
+		return usageErrorf("resource archive", "resource archive gc-blueprints does not accept positional arguments")
 	}
 	report, err := controller.GarbageCollectBlueprintArchives(timeNowForResourceGC())
 	if err != nil {
@@ -528,7 +528,7 @@ func runResourceArchiveBlueprintGCCommand(controller *resources.Controller, glob
 
 func runResourceBlueprintListCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) > 0 {
-		return fmt.Errorf("resource blueprint list does not accept positional arguments")
+		return usageErrorf("resource blueprint", "resource blueprint list does not accept positional arguments")
 	}
 	items, err := controller.ListBlueprints()
 	if err != nil {
@@ -559,7 +559,7 @@ func runResourceBlueprintListCommand(controller *resources.Controller, globals g
 
 func runResourceBlueprintInfoCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) != 1 {
-		return fmt.Errorf("resource blueprint info requires exactly one blueprint name")
+		return usageErrorf("resource blueprint", "resource blueprint info requires exactly one blueprint name")
 	}
 	item, err := controller.Blueprint(args[0])
 	if err != nil {
@@ -591,7 +591,7 @@ func runResourceBlueprintInfoCommand(controller *resources.Controller, globals g
 
 func runResourceBlueprintSearchCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) != 1 {
-		return fmt.Errorf("resource blueprint search requires exactly one query")
+		return usageErrorf("resource blueprint", "resource blueprint search requires exactly one query")
 	}
 	items, err := controller.SearchBlueprints(args[0])
 	if err != nil {
@@ -622,7 +622,7 @@ func runResourceBlueprintSearchCommand(controller *resources.Controller, globals
 
 func runResourceBlueprintValidateCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) > 0 {
-		return fmt.Errorf("resource blueprint validate does not accept positional arguments")
+		return usageErrorf("resource blueprint", "resource blueprint validate does not accept positional arguments")
 	}
 	report, err := controller.ValidateBlueprints()
 	if err != nil {

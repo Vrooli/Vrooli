@@ -39,6 +39,22 @@ func resolveContractScenarioPath(name string) (string, error) {
 	return path, nil
 }
 
+func resolveScenarioAuditorRoot() (string, error) {
+	return resolveContractScenarioPath("scenario-auditor")
+}
+
+func relativeToRepoRoot(path string) string {
+	root, err := resolveRepoRoot()
+	if err != nil {
+		return filepath.ToSlash(path)
+	}
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return filepath.ToSlash(path)
+	}
+	return filepath.ToSlash(rel)
+}
+
 func resolveScenarioAuditorDataDir() (string, error) {
 	root, err := resolveRepoRoot()
 	if err != nil {

@@ -17,10 +17,11 @@ import (
 
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/logx"
+	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/process"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=2 | LAST: 2026-04-11
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-12
 
 func TestStartAllScenariosEndpointReturnsTypedReport(t *testing.T) {
 	app := New(t.TempDir(), t.TempDir())
@@ -275,6 +276,49 @@ func TestHandleLifecycleReturnsProjectError(t *testing.T) {
 	}
 	if !strings.Contains(payload["error"].(string), "not defined") {
 		t.Fatalf("error = %v", payload["error"])
+	}
+}
+
+func TestCollectProcessHealthSnapshotUsesMaintenanceSnapshot(t *testing.T) {
+	app := New(t.TempDir(), t.TempDir())
+	app.ProcessSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
+		return maintenance.ProcessSnapshot{
+			ZombieProcesses: 7,
+			OrphanProcesses: 4,
+		}, nil
+	}
+
+	health := app.collectProcessHealthSnapshot()
+	if health.ZombieCount != 7 || health.OrphanCount != 4 {
+		t.Fatalf("health = %#v", health)
+	}
+	if health.ZombieStatus != "warning" || health.OrphanStatus != "normal" || health.OverallStatus != "warning" {
+		t.Fatalf("health status = %#v", health)
+	}
+}
+
+func TestGetEnhancedProcessMetricsUsesMaintenanceSnapshot(t *testing.T) {
+	app := New(t.TempDir(), t.TempDir())
+	app.ProcessSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
+		return maintenance.ProcessSnapshot{
+			TrackedProcesses: 3,
+			RunningTracked:   2,
+			ChildProcesses:   5,
+			TotalProcesses:   9,
+			ZombieProcesses:  1,
+			OrphanProcesses:  2,
+		}, nil
+	}
+
+	metrics := app.getEnhancedProcessMetrics()
+	if metrics["tracked_processes"] != 3 || metrics["running_tracked"] != 2 {
+		t.Fatalf("metrics = %#v", metrics)
+	}
+	if metrics["child_processes"] != 5 || metrics["total_processes"] != 9 {
+		t.Fatalf("metrics = %#v", metrics)
+	}
+	if metrics["zombie_processes"] != 1 || metrics["orphan_processes"] != 2 {
+		t.Fatalf("metrics = %#v", metrics)
 	}
 }
 

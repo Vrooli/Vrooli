@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -14,6 +13,7 @@ import (
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/logx"
+	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/project"
 	"github.com/vrooli/vrooli/internal/resources"
@@ -59,6 +59,7 @@ type App struct {
 	StartAllScenariosFn func() (control.StartReport, error)
 	StopAllScenariosFn  func() (control.StopReport, error)
 	StopScenarioFn      func(string) error
+	ProcessSnapshotFn   func() (maintenance.ProcessSnapshot, error)
 }
 
 type messageData struct {
@@ -97,30 +98,6 @@ type stoppedAppData struct {
 	Ports     map[string]int `json:"ports"`
 }
 
-type processTableEntry struct {
-	PID     int
-	PPID    int
-	PGID    int
-	State   string
-	Command string
-}
-
-type trackedProcessStats struct {
-	trackedPIDs    map[int]struct{}
-	trackedCount   int
-	runningTracked int
-}
-
-type ProcessHealthSnapshot struct {
-	ZombieCount   int
-	ZombieStatus  string
-	ZombieEmoji   string
-	OrphanCount   int
-	OrphanStatus  string
-	OrphanEmoji   string
-	OverallStatus string
-}
-
 type appInfo struct {
 	Name          string                 `json:"name"`
 	Path          string                 `json:"path"`
@@ -132,8 +109,6 @@ type appInfo struct {
 	Ports         map[string]interface{} `json:"ports,omitempty"`
 	PID           *int                   `json:"pid,omitempty"`
 }
-
-var orphanCommandPattern = regexp.MustCompile(`(/vrooli/|/scenarios/.*/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel|vrooli-.*-api)`)
 
 func New(root, home string, logger ...*slog.Logger) *App {
 	baseLogger := slog.Default()
@@ -188,6 +163,17 @@ func (a *App) logError(msg string, err error, args ...any) {
 type ioDiscard struct{}
 
 func (ioDiscard) Write(p []byte) (int, error) { return len(p), nil }
+
+func (a *App) maintenanceController() *maintenance.Controller {
+	return maintenance.NewController(a.Root, a.Home)
+}
+
+func (a *App) processSnapshot() (maintenance.ProcessSnapshot, error) {
+	if a != nil && a.ProcessSnapshotFn != nil {
+		return a.ProcessSnapshotFn()
+	}
+	return a.maintenanceController().Snapshot()
+}
 
 func (a *App) Router() http.Handler {
 	r := mux.NewRouter()

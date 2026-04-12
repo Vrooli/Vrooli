@@ -92,37 +92,6 @@ type scenarioLifecycleItemOutput struct {
 	FailedDependencies []string       `json:"failed_dependencies,omitempty"`
 }
 
-func runScenarioCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
-		showScenarioHelp(stdout)
-		return nil
-	}
-
-	handler, ok := scenarioCommands[args[0]]
-	if !ok {
-		return newUnknownScenarioCommandError(args[0])
-	}
-	app := configuredApp()
-	return handler(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args[1:])
-}
-
-func runScenarioStartCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runScenarioStartCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
-}
-
 func runScenarioStartCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
@@ -136,10 +105,10 @@ func runScenarioStartCommandWithApp(app *App, ctx *commandContext, args []string
 		return err
 	}
 	if len(names) == 0 {
-		return fmt.Errorf("scenario start requires at least one scenario name")
+		return usageErrorf("scenario start", "scenario start requires at least one scenario name")
 	}
 	if opts.CustomPath != "" && len(names) != 1 {
-		return fmt.Errorf("scenario start with --path accepts exactly one scenario name")
+		return usageErrorf("scenario start", "scenario start with --path accepts exactly one scenario name")
 	}
 
 	format, err := cliout.ParseFormat("", jsonFlag)
@@ -216,17 +185,6 @@ func runScenarioStartCommandWithApp(app *App, ctx *commandContext, args []string
 	return nil
 }
 
-func runScenarioStopCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runScenarioStopCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
-}
-
 func runScenarioStopCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	name, jsonFlag, err := parseScenarioNameAndJSON("stop", ctx.Globals.json, args)
 	if err != nil {
@@ -263,17 +221,6 @@ func runScenarioStopCommandWithApp(app *App, ctx *commandContext, args []string)
 
 	_, _ = fmt.Fprintf(ctx.Stdout, "Stopped scenario '%s'\n", name)
 	return nil
-}
-
-func runScenarioRestartCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runScenarioRestartCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
 }
 
 func runScenarioRestartCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -349,35 +296,9 @@ func runScenarioRestartCommandWithApp(app *App, ctx *commandContext, args []stri
 	return nil
 }
 
-func newScenarioLifecycleRunner(root string, stdout, stderr io.Writer) (*lifecycle.Runner, error) {
-	app := configuredApp()
-	return app.newScenarioLifecycleRunner(&commandContext{
-		Root:   root,
-		Stdout: stdout,
-		Stderr: stderr,
-		app:    app,
-	})
-}
-
-func newScenarioService(root string, stdout, stderr io.Writer) (*orchestrator.Service, error) {
-	app := configuredApp()
-	return app.newScenarioService(&commandContext{
-		Root:   root,
-		Stdout: stdout,
-		Stderr: stderr,
-		app:    app,
-	})
-}
-
 func runScenarioListCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
-	app := configuredApp()
-	return runScenarioListCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  io.Discard,
-		app:     app,
-	}, args)
+	app, ctx := newConfiguredCommandContext(root, globals, stdout, io.Discard)
+	return runScenarioListCommandWithApp(app, ctx, args)
 }
 
 func runScenarioListCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -393,7 +314,7 @@ func runScenarioListCommandWithApp(app *App, ctx *commandContext, args []string)
 			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario list [--json] [--include-ports]")
 			return nil
 		default:
-			return fmt.Errorf("unknown option for scenario list: %s", arg)
+			return unknownOptionError("scenario list", arg)
 		}
 	}
 
@@ -470,14 +391,8 @@ func runScenarioListCommandWithApp(app *App, ctx *commandContext, args []string)
 }
 
 func runScenarioInfoCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
-	app := configuredApp()
-	return runScenarioInfoCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  io.Discard,
-		app:     app,
-	}, args)
+	app, ctx := newConfiguredCommandContext(root, globals, stdout, io.Discard)
+	return runScenarioInfoCommandWithApp(app, ctx, args)
 }
 
 func runScenarioInfoCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -525,14 +440,8 @@ func runScenarioInfoCommandWithApp(app *App, ctx *commandContext, args []string)
 }
 
 func runScenarioStatusCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
-	app := configuredApp()
-	return runScenarioStatusCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  io.Discard,
-		app:     app,
-	}, args)
+	app, ctx := newConfiguredCommandContext(root, globals, stdout, io.Discard)
+	return runScenarioStatusCommandWithApp(app, ctx, args)
 }
 
 func runScenarioStatusCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -620,7 +529,8 @@ func runScenarioStatusCommandWithApp(app *App, ctx *commandContext, args []strin
 }
 
 func loadScenarioState(root string) ([]scenario.Scenario, map[string]process.ScenarioRuntime, error) {
-	service, err := newScenarioService(root, io.Discard, io.Discard)
+	app, ctx := newConfiguredCommandContext(root, globalOptions{}, io.Discard, io.Discard)
+	service, err := app.newScenarioService(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -641,7 +551,8 @@ func loadScenarioState(root string) ([]scenario.Scenario, map[string]process.Sce
 }
 
 func loadScenarioDetail(root, name string) (scenario.Scenario, process.ScenarioRuntime, string, error) {
-	service, err := newScenarioService(root, io.Discard, io.Discard)
+	app, ctx := newConfiguredCommandContext(root, globalOptions{}, io.Discard, io.Discard)
+	service, err := app.newScenarioService(ctx)
 	if err != nil {
 		return scenario.Scenario{}, process.ScenarioRuntime{}, "", err
 	}
@@ -751,7 +662,7 @@ func parseScenarioNameAndJSON(command string, defaultJSON bool, args []string) (
 		return "", false, err
 	}
 	if name == "" {
-		return "", false, fmt.Errorf("scenario %s requires a scenario name", command)
+		return "", false, usageErrorf("scenario "+command, "scenario %s requires a scenario name", command)
 	}
 	return name, jsonFlag, nil
 }
@@ -767,10 +678,10 @@ func parseOptionalScenarioNameAndJSON(command string, defaultJSON bool, args []s
 			return "", false, fmt.Errorf("usage requested")
 		default:
 			if strings.HasPrefix(arg, "-") {
-				return "", false, fmt.Errorf("unknown option for scenario %s: %s", command, arg)
+				return "", false, unknownOptionError("scenario "+command, arg)
 			}
 			if name != "" {
-				return "", false, fmt.Errorf("scenario %s accepts at most one scenario name", command)
+				return "", false, usageErrorf("scenario "+command, "scenario %s accepts at most one scenario name", command)
 			}
 			name = arg
 		}
@@ -797,7 +708,7 @@ func parseScenarioStartArgs(defaultJSON bool, args []string) ([]string, lifecycl
 			opts.CleanStale = true
 		case "--path":
 			if index+1 >= len(args) {
-				return nil, lifecycle.StartOptions{}, false, false, fmt.Errorf("scenario start --path requires a value")
+				return nil, lifecycle.StartOptions{}, false, false, usageErrorf("scenario start", "scenario start --path requires a value")
 			}
 			index++
 			opts.CustomPath = args[index]
@@ -805,7 +716,7 @@ func parseScenarioStartArgs(defaultJSON bool, args []string) ([]string, lifecycl
 			return nil, lifecycle.StartOptions{}, false, false, fmt.Errorf("usage requested")
 		default:
 			if strings.HasPrefix(arg, "-") {
-				return nil, lifecycle.StartOptions{}, false, false, fmt.Errorf("unknown option for scenario start: %s", arg)
+				return nil, lifecycle.StartOptions{}, false, false, unknownOptionError("scenario start", arg)
 			}
 			names = append(names, arg)
 		}
@@ -819,10 +730,10 @@ func parseScenarioSingleStartArgs(command string, defaultJSON bool, args []strin
 		return "", lifecycle.StartOptions{}, false, false, err
 	}
 	if len(names) == 0 {
-		return "", lifecycle.StartOptions{}, false, false, fmt.Errorf("scenario %s requires a scenario name", command)
+		return "", lifecycle.StartOptions{}, false, false, usageErrorf("scenario "+command, "scenario %s requires a scenario name", command)
 	}
 	if len(names) > 1 {
-		return "", lifecycle.StartOptions{}, false, false, fmt.Errorf("scenario %s accepts exactly one scenario name", command)
+		return "", lifecycle.StartOptions{}, false, false, usageErrorf("scenario "+command, "scenario %s accepts exactly one scenario name", command)
 	}
 	return names[0], opts, jsonFlag, openAfter, nil
 }

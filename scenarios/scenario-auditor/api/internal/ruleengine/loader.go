@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	rulespkg "scenario-auditor/rules"
 )
 
@@ -275,9 +276,14 @@ func BuildExecutionInfo(rule Info) ExecutionInfo {
 
 // DiscoverRuleDirs attempts to find rule directories under the provided repository root.
 func DiscoverRuleDirs(repoRoot string) ([]string, error) {
+	scenarioAuditorRoot, err := repocontract.ResolveScenarioPath(repoRoot, "scenario-auditor")
+	if err != nil {
+		return nil, fmt.Errorf("ruleengine: resolve scenario-auditor path: %w", err)
+	}
+
 	candidates := []string{
-		filepath.Join(repoRoot, "scenarios", "scenario-auditor", "api", "rules"),
-		filepath.Join(repoRoot, "scenarios", "scenario-auditor", "rules"),
+		filepath.Join(scenarioAuditorRoot, "api", "rules"),
+		filepath.Join(scenarioAuditorRoot, "rules"),
 	}
 
 	dirs := make([]string, 0, len(candidates))
@@ -295,50 +301,25 @@ func DiscoverRuleDirs(repoRoot string) ([]string, error) {
 	return dirs, nil
 }
 
-// DiscoverRepoRoot walks up from the provided starting points to locate the repository root containing scenarios/scenario-auditor.
+// DiscoverRepoRoot locates the repository root using the repo contract markers.
 func DiscoverRepoRoot(startPoints ...string) (string, error) {
-	queue := []string{}
-	seen := make(map[string]struct{})
-
-	for _, p := range startPoints {
-		if p == "" {
+	for _, start := range startPoints {
+		start = strings.TrimSpace(start)
+		if start == "" {
 			continue
 		}
-		queue = append(queue, p)
-	}
-
-	if wd, err := os.Getwd(); err == nil {
-		queue = append(queue, wd)
-	}
-
-	for len(queue) > 0 {
-		current := queue[0]
-		queue = queue[1:]
-
-		if _, ok := seen[current]; ok {
-			continue
-		}
-		seen[current] = struct{}{}
-
-		probe := filepath.Join(current, "scenarios", "scenario-auditor")
-		if info, err := os.Stat(probe); err == nil && info.IsDir() {
-			return current, nil
-		}
-
-		parent := filepath.Dir(current)
-		if parent != current {
-			queue = append(queue, parent)
+		root, err := repocontract.FindRepoRoot(start)
+		if err == nil {
+			return root, nil
 		}
 	}
 
-	if home := strings.TrimSpace(os.Getenv("HOME")); home != "" {
-		fallback := filepath.Join(home, "Vrooli")
-		if info, err := os.Stat(fallback); err == nil && info.IsDir() {
-			return fallback, nil
-		}
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err == nil {
+		return root, nil
 	}
 
-	return "", fmt.Errorf("ruleengine: unable to locate Vrooli root; set VROOLI_ROOT")
+	return "", fmt.Errorf("ruleengine: unable to locate repo root: %w", err)
 }
 
 // RuleFiles returns a list of rule files for tooling/CLI usage.

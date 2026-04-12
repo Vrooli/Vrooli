@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/resources"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -126,9 +127,12 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 
 	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
 	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		return hostreq.Resolution{}, nil
+	}
 
 	runtimeCalls := 0
-	ensureRuntimeFn = func(opts vrooliruntime.EnsureOptions) (vrooliruntime.Report, error) {
+	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		runtimeCalls++
 		return vrooliruntime.Report{}, nil
 	}
@@ -142,7 +146,7 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 		t.Fatalf("RunSetup: %v", err)
 	}
 	if runtimeCalls != 1 {
-		t.Fatalf("ensureRuntime calls = %d, want 1", runtimeCalls)
+		t.Fatalf("ensureRequirements calls = %d, want 1", runtimeCalls)
 	}
 	if !markCompleteCalled {
 		t.Fatal("expected markCompleteFn to be called")
@@ -162,7 +166,10 @@ func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T)
 
 	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
 	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	ensureRuntimeFn = func(opts vrooliruntime.EnsureOptions) (vrooliruntime.Report, error) {
+	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		return hostreq.Resolution{}, nil
+	}
+	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{}, nil
 	}
 	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error { return nil }
@@ -256,7 +263,10 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 
 	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
 	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	ensureRuntimeFn = func(opts vrooliruntime.EnsureOptions) (vrooliruntime.Report, error) {
+	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		return hostreq.Resolution{}, nil
+	}
+	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{}, nil
 	}
 
@@ -322,7 +332,10 @@ func TestRunDevelopExportsLegacyEnvironmentContractToAPILaunch(t *testing.T) {
 
 	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
 	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	ensureRuntimeFn = func(opts vrooliruntime.EnsureOptions) (vrooliruntime.Report, error) {
+	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		return hostreq.Resolution{}, nil
+	}
+	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{}, nil
 	}
 	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error {
@@ -413,7 +426,10 @@ func TestRunDevelopSkipsSetupWhenMarkerExists(t *testing.T) {
 
 	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
 	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	ensureRuntimeFn = func(opts vrooliruntime.EnsureOptions) (vrooliruntime.Report, error) {
+	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		return hostreq.Resolution{}, nil
+	}
+	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{}, nil
 	}
 
@@ -488,7 +504,8 @@ func stubSetupDeps(t *testing.T) func() {
 	originalCurrentHostFn := currentHostFn
 	originalLoadProjectFn := loadProjectFn
 	originalMarkCompleteFn := markCompleteFn
-	originalEnsureRuntimeFn := ensureRuntimeFn
+	originalResolveHostRequirementsFn := resolveHostRequirementsFn
+	originalEnsureRequirementsFn := ensureRequirementsFn
 	originalStartProjectAPIFn := startProjectAPIFn
 	originalStartOrchestratorFn := startOrchestratorFn
 	originalHealthCheckFn := healthCheckFn
@@ -498,7 +515,8 @@ func stubSetupDeps(t *testing.T) func() {
 		currentHostFn = originalCurrentHostFn
 		loadProjectFn = originalLoadProjectFn
 		markCompleteFn = originalMarkCompleteFn
-		ensureRuntimeFn = originalEnsureRuntimeFn
+		resolveHostRequirementsFn = originalResolveHostRequirementsFn
+		ensureRequirementsFn = originalEnsureRequirementsFn
 		startProjectAPIFn = originalStartProjectAPIFn
 		startOrchestratorFn = originalStartOrchestratorFn
 		healthCheckFn = originalHealthCheckFn

@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 )
 
@@ -16,7 +15,7 @@ func installCommand(host Host, packageName, sudoMode string) (string, []string, 
 		}
 		return "brew", []string{"install", packageName}, nil
 	case "windows":
-		if _, err := exec.LookPath("winget"); err != nil {
+		if _, err := lookPathFn("winget"); err != nil {
 			return "", nil, fmt.Errorf("automatic install is unavailable without winget")
 		}
 		return "winget", []string{"install", "--id", packageName, "--accept-package-agreements", "--accept-source-agreements"}, nil
@@ -62,6 +61,6 @@ func withSudo(mode, command string, args []string) (string, []string, error) {
 }
 
 func sudoAvailable() bool {
-	_, err := exec.LookPath("sudo")
+	_, err := lookPathFn("sudo")
 	return err == nil
 }

@@ -837,6 +837,53 @@ func TestProjectPhase5ResourceManifestsValidate(t *testing.T) {
 	}
 }
 
+func TestLoadResourceManifestParsesHostRequirements(t *testing.T) {
+	root := t.TempDir()
+	controller := NewController(root, t.TempDir())
+	writeResourceManifestFixture(t, root, `{
+  "name": "fixture",
+  "driver": "external-cli",
+  "binary": "fixture",
+  "portability_tier": "full",
+  "hostTools": [
+    {"name": "sqlite", "required": true, "reason": "resource sqlite", "when": ["setup"]}
+  ],
+  "hostSafeguards": [
+    {"name": "remote_session_protection", "required": false, "reason": "resource safeguard", "platforms": ["linux"]}
+  ]
+}`)
+
+	manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(root, "fixture"))
+	if err != nil {
+		t.Fatalf("loadResourceManifest: %v", err)
+	}
+	if len(manifest.HostTools) != 1 || manifest.HostTools[0].Name != "sqlite" {
+		t.Fatalf("hostTools = %+v", manifest.HostTools)
+	}
+	if len(manifest.HostSafeguards) != 1 || manifest.HostSafeguards[0].Name != "remote_session_protection" {
+		t.Fatalf("hostSafeguards = %+v", manifest.HostSafeguards)
+	}
+}
+
+func TestLoadResourceManifestRejectsDuplicateHostRequirements(t *testing.T) {
+	root := t.TempDir()
+	controller := NewController(root, t.TempDir())
+	writeResourceManifestFixture(t, root, `{
+  "name": "fixture",
+  "driver": "external-cli",
+  "binary": "fixture",
+  "portability_tier": "full",
+  "hostTools": [
+    {"name": "sqlite", "required": true, "reason": "one"},
+    {"name": "sqlite", "required": false, "reason": "two"}
+  ]
+}`)
+
+	if _, err := controller.loadResourceManifest(defaultResourceManifestPath(root, "fixture")); err == nil || !strings.Contains(err.Error(), `duplicate tool declaration "sqlite"`) {
+		t.Fatalf("loadResourceManifest error = %v", err)
+	}
+}
+
 func TestProjectPhase6KeepResourcesAreExplicitlyTyped(t *testing.T) {
 	root := projectRootForResourcesTest(t)
 	controller := NewController(root, t.TempDir())

@@ -806,13 +806,7 @@ func buildViolationArtifact(rule Rule, scenarios []string, ruleInfo RuleInfo) st
 		}
 
 		for _, violation := range violations {
-			relPath := violation.FilePath
-			if vrooliRoot := getVrooliRoot(); vrooliRoot != "" {
-				if rel, err := filepath.Rel(vrooliRoot, violation.FilePath); err == nil {
-					relPath = filepath.ToSlash(rel)
-				}
-			}
-			relPath = filepath.ToSlash(relPath)
+			relPath := relativeToRepoRoot(violation.FilePath)
 
 			b.WriteString(fmt.Sprintf("#### File: `%s:%d`\n\n", relPath, violation.LineNumber))
 
@@ -864,7 +858,11 @@ func scanScenarioForRule(scenarioName, ruleID string, ruleInfo RuleInfo) []rules
 		return nil
 	}
 
-	scenarioPath := filepath.Join(vrooliRoot, "scenarios", scenarioName)
+	scenarioPath, err := resolveContractScenarioPath(scenarioName)
+	if err != nil {
+		logger.Warn(fmt.Sprintf("Unable to resolve scenario path: %s", scenarioName), map[string]any{"error": err.Error()})
+		return nil
+	}
 
 	statInfo, statErr := os.Stat(scenarioPath)
 	if statErr != nil {
@@ -880,7 +878,7 @@ func scanScenarioForRule(scenarioName, ruleID string, ruleInfo RuleInfo) []rules
 	var violations []rulespkg.Violation
 
 	// Walk the scenario directory
-	err := filepath.Walk(scenarioPath, func(path string, info os.FileInfo, walkErr error) error {
+	err = filepath.Walk(scenarioPath, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			return nil // Skip errors, continue walking
 		}

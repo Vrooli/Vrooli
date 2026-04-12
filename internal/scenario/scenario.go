@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 var ErrNotFound = errors.New("scenario not found")
@@ -46,14 +48,16 @@ type Scenario struct {
 }
 
 type ServiceManifest struct {
-	Schema       string            `json:"$schema,omitempty"`
-	Version      string            `json:"version,omitempty"`
-	Service      ServiceMetadata   `json:"service"`
-	Ports        map[string]Port   `json:"ports,omitempty"`
-	Lifecycle    Lifecycle         `json:"lifecycle,omitempty"`
-	Health       *HealthConfig     `json:"health,omitempty"`
-	Dependencies Dependencies      `json:"dependencies,omitempty"`
-	Environment  map[string]string `json:"environment,omitempty"`
+	Schema         string                    `json:"$schema,omitempty"`
+	Version        string                    `json:"version,omitempty"`
+	Service        ServiceMetadata           `json:"service"`
+	Ports          map[string]Port           `json:"ports,omitempty"`
+	Lifecycle      Lifecycle                 `json:"lifecycle,omitempty"`
+	Health         *HealthConfig             `json:"health,omitempty"`
+	Dependencies   Dependencies              `json:"dependencies,omitempty"`
+	Environment    map[string]string         `json:"environment,omitempty"`
+	HostTools      []hostreqspec.Declaration `json:"hostTools,omitempty"`
+	HostSafeguards []hostreqspec.Declaration `json:"hostSafeguards,omitempty"`
 }
 
 type ServiceMetadata struct {
@@ -286,6 +290,12 @@ func ReadService(path string) (ServiceManifest, error) {
 	}
 	if manifest.Lifecycle.Health == nil && manifest.Health != nil {
 		manifest.Lifecycle.Health = manifest.Health
+	}
+	if err := hostreqspec.ValidateDeclarations(hostreqspec.KindTool, manifest.HostTools); err != nil {
+		return ServiceManifest{}, fmt.Errorf("validate hostTools in %s: %w", path, err)
+	}
+	if err := hostreqspec.ValidateDeclarations(hostreqspec.KindSafeguard, manifest.HostSafeguards); err != nil {
+		return ServiceManifest{}, fmt.Errorf("validate hostSafeguards in %s: %w", path, err)
 	}
 	return manifest, nil
 }

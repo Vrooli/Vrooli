@@ -35,13 +35,13 @@ func runResourceTemplateCommand(controller *resources.Controller, globals global
 	case "generate":
 		return runResourceTemplateGenerateCommand(controller, globals, args[1:], stdout, stderr)
 	default:
-		return fmt.Errorf("unknown resource template command: %s", args[0])
+		return usageErrorf("resource template", "unknown resource template command: %s", args[0])
 	}
 }
 
 func runResourceTemplateListCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) > 0 {
-		return fmt.Errorf("resource template list does not accept positional arguments")
+		return usageErrorf("resource template list", "resource template list does not accept positional arguments")
 	}
 	items, err := controller.ListResourceTemplates()
 	if err != nil {
@@ -78,7 +78,7 @@ func runResourceTemplateListCommand(controller *resources.Controller, globals gl
 
 func runResourceTemplateShowCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) != 1 {
-		return fmt.Errorf("resource template show requires exactly one template name")
+		return usageErrorf("resource template show", "resource template show requires exactly one template name")
 	}
 	info, err := controller.ResourceTemplate(args[0])
 	if err != nil {
@@ -135,7 +135,7 @@ func runResourceTemplateShowCommand(controller *resources.Controller, globals gl
 
 func runResourceTemplateValidateCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
 	if len(args) > 0 {
-		return fmt.Errorf("resource template validate does not accept positional arguments")
+		return usageErrorf("resource template validate", "resource template validate does not accept positional arguments")
 	}
 	report, err := controller.ValidateResourceTemplates()
 	if err != nil {
@@ -220,7 +220,7 @@ func parseResourceTemplateGenerateArgs(controller *resources.Controller, args []
 		switch {
 		case arg == "--from-blueprint":
 			if index+1 >= len(args) {
-				return resourceTemplateGenerateOptions{}, fmt.Errorf("resource template generate --from-blueprint requires a value")
+				return resourceTemplateGenerateOptions{}, usageErrorf("resource template generate", "resource template generate --from-blueprint requires a value")
 			}
 			index++
 			opts.BlueprintName = args[index]
@@ -263,7 +263,7 @@ func parseResourceTemplateGenerateArgs(controller *resources.Controller, args []
 			continue
 		case arg == "--dest" || arg == "--destination":
 			if index+1 >= len(args) {
-				return resourceTemplateGenerateOptions{}, fmt.Errorf("%s requires a value", arg)
+				return resourceTemplateGenerateOptions{}, usageErrorf("resource template generate", "%s requires a value", arg)
 			}
 			index++
 			opts.Destination = args[index]
@@ -277,7 +277,7 @@ func parseResourceTemplateGenerateArgs(controller *resources.Controller, args []
 			opts.DryRun = true
 		case arg == "--var":
 			if index+1 >= len(args) {
-				return resourceTemplateGenerateOptions{}, fmt.Errorf("resource template generate --var requires KEY=VALUE")
+				return resourceTemplateGenerateOptions{}, usageErrorf("resource template generate", "resource template generate --var requires KEY=VALUE")
 			}
 			index++
 			key, value, err := parseScenarioTemplateKeyValue(args[index])
@@ -306,7 +306,7 @@ func parseResourceTemplateGenerateArgs(controller *resources.Controller, args []
 			}
 			opts.Values[key] = flagValue
 		default:
-			return resourceTemplateGenerateOptions{}, fmt.Errorf("unexpected argument: %s", arg)
+			return resourceTemplateGenerateOptions{}, usageErrorf("resource template generate", "unexpected argument: %s", arg)
 		}
 	}
 

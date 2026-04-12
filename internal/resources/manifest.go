@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 const resourceManifestSchemaPath = ".vrooli/schemas/resource.schema.json"
@@ -49,6 +51,8 @@ type ResourceManifest struct {
 	Lifecycle       ResourceLifecycle            `json:"lifecycle,omitempty"`
 	Capabilities    ResourceManifestCapabilities `json:"capabilities,omitempty"`
 	TemplateVersion string                       `json:"template_version,omitempty"`
+	HostTools       []hostreqspec.Declaration    `json:"hostTools,omitempty"`
+	HostSafeguards  []hostreqspec.Declaration    `json:"hostSafeguards,omitempty"`
 }
 
 type ResourceLegacyAdapter struct {
@@ -131,6 +135,10 @@ func (c *Controller) loadResourceManifest(path string) (ResourceManifest, error)
 	return manifest, nil
 }
 
+func (c *Controller) LoadManifest(path string) (ResourceManifest, error) {
+	return c.loadResourceManifest(path)
+}
+
 func validateResourceManifest(manifest ResourceManifest) error {
 	if strings.TrimSpace(manifest.Name) == "" {
 		return fmt.Errorf("name is required")
@@ -159,6 +167,12 @@ func validateResourceManifest(manifest ResourceManifest) error {
 		if err := validateResourceHealthCheck(check); err != nil {
 			return err
 		}
+	}
+	if err := hostreqspec.ValidateDeclarations(hostreqspec.KindTool, manifest.HostTools); err != nil {
+		return err
+	}
+	if err := hostreqspec.ValidateDeclarations(hostreqspec.KindSafeguard, manifest.HostSafeguards); err != nil {
+		return err
 	}
 	switch manifest.Driver {
 	case "docker-service":

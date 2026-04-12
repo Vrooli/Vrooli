@@ -139,6 +139,18 @@
         "type": "string"
       }
     },
+    "hostTools": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/hostRequirement"
+      }
+    },
+    "hostSafeguards": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/hostRequirement"
+      }
+    },
     "ports": {
       "type": "array",
       "items": {
@@ -255,6 +267,57 @@
     },
     "template_version": {
       "type": "string"
+    }
+  },
+  "definitions": {
+    "hostRequirement": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "when": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "environments": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "notes": {
+          "type": "string"
+        },
+        "manual": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "required",
+        "reason"
+      ],
+      "additionalProperties": false
     }
   }
 }

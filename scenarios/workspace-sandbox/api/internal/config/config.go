@@ -288,8 +288,9 @@ type DriverConfig struct {
 	UseFuseOverlayfs bool
 
 	// ProjectRoot is the default project root for sandboxes.
-	// Set via PROJECT_ROOT env var, falls back to VROOLI_ROOT if not set.
-	// If both are empty, must be specified per-request.
+	// Set via PROJECT_ROOT env var, otherwise resolved from repo-contract-aware
+	// root discovery (VROOLI_SOURCE_ROOT/VROOLI_ROOT/CWD).
+	// If root discovery fails, it must be specified per-request.
 	ProjectRoot string
 }
 

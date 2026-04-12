@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -30,7 +31,7 @@ func TestNewProjectStoreUsesDefaultBoundaries(t *testing.T) {
 	if store.LoadPolicy != LoadPolicyStrict {
 		t.Fatalf("LoadPolicy = %v, want %v", store.LoadPolicy, LoadPolicyStrict)
 	}
-	if store.deps.readFile == nil || store.deps.createTemp == nil || store.deps.rename == nil || store.deps.openFile == nil || store.deps.mkdirAll == nil || store.deps.removeFile == nil {
+	if store.deps.readFile == nil || store.deps.createTemp == nil || store.deps.rename == nil || store.deps.open == nil || store.deps.openFile == nil || store.deps.mkdirAll == nil || store.deps.removeFile == nil {
 		t.Fatal("store deps not fully initialized")
 	}
 	if store.deps.randReader == nil || store.deps.now == nil || store.deps.sleep == nil {
@@ -396,6 +397,16 @@ func TestStoreSaveHonorsInjectedBoundaries(t *testing.T) {
 			wantSubstr: "rename encrypted secrets",
 		},
 		{
+			name: "dir-open-failure-after-rename",
+			override: func(store *Store) {
+				store.deps.open = func(path string) (*os.File, error) {
+					return nil, errors.New("open failed")
+				}
+			},
+			wantErr:    ErrEncryptedWrite,
+			wantSubstr: "open secrets dir for sync",
+		},
+		{
 			name: "nonce-failure",
 			override: func(store *Store) {
 				store.deps.randReader = failingReader{err: errors.New("entropy failed")}
@@ -429,13 +440,33 @@ func TestStoreSaveRequiresEncryptionKey(t *testing.T) {
 	}
 }
 
+func TestStoreSaveRejectsReservedAndConflictingKeys(t *testing.T) {
+	store := newTestStore(t)
+
+	err := store.Save(map[string]string{"_metadata": "value"})
+	if err == nil || !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("Save reserved-key error = %v, want ErrInvalidInput", err)
+	}
+
+	err = store.Save(map[string]string{
+		" API_KEY ": "first",
+		"API_KEY":   "second",
+	})
+	if err == nil || !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("Save duplicate-normalized-key error = %v, want ErrInvalidInput", err)
+	}
+}
+
 func TestStoreSaveKeyValidationAndMerge(t *testing.T) {
 	store := newTestStore(t)
 
-	if err := store.SaveKey("   ", "value"); err == nil || !strings.Contains(err.Error(), "secret name is required") {
+	if err := store.SaveKey("   ", "value"); err == nil || !errors.Is(err, ErrInvalidInput) || !strings.Contains(err.Error(), "secret name is required") {
 		t.Fatalf("SaveKey blank-name error = %v", err)
 	}
-	if err := store.SaveKey("NAME", ""); err == nil || !strings.Contains(err.Error(), "secret value is required") {
+	if err := store.SaveKey("_metadata", "value"); err == nil || !errors.Is(err, ErrInvalidInput) || !strings.Contains(err.Error(), "reserved for metadata") {
+		t.Fatalf("SaveKey reserved-name error = %v", err)
+	}
+	if err := store.SaveKey("NAME", ""); err == nil || !errors.Is(err, ErrInvalidInput) || !strings.Contains(err.Error(), "secret value is required") {
 		t.Fatalf("SaveKey blank-value error = %v", err)
 	}
 
@@ -546,6 +577,52 @@ func TestStoreMigrateLegacyScenarios(t *testing.T) {
 		}
 		if _, err := os.Stat(store.LegacyPath()); err != nil {
 			t.Fatalf("legacy file missing after keep-source migration: %v", err)
+		}
+	})
+
+	t.Run("matching encrypted secrets only remove legacy when requested", func(t *testing.T) {
+		store := newTestStore(t)
+		writeLegacySecrets(t, store, `{"POSTGRES_PASSWORD":"same-secret"}`)
+		if err := store.Save(map[string]string{"POSTGRES_PASSWORD": "same-secret"}); err != nil {
+			t.Fatalf("Save: %v", err)
+		}
+
+		migrated, err := store.MigrateLegacy(true)
+		if err != nil {
+			t.Fatalf("MigrateLegacy: %v", err)
+		}
+		if !migrated {
+			t.Fatal("expected cleanup migration when removing matching legacy source")
+		}
+		if _, err := os.Stat(store.LegacyPath()); !os.IsNotExist(err) {
+			t.Fatalf("legacy file still exists or wrong error: %v", err)
+		}
+	})
+
+	t.Run("conflicting encrypted secrets fail closed", func(t *testing.T) {
+		store := newTestStore(t)
+		writeLegacySecrets(t, store, `{"POSTGRES_PASSWORD":"legacy-secret"}`)
+		if err := store.Save(map[string]string{"POSTGRES_PASSWORD": "encrypted-secret"}); err != nil {
+			t.Fatalf("Save: %v", err)
+		}
+
+		migrated, err := store.MigrateLegacy(true)
+		if migrated {
+			t.Fatal("expected migration to report false when encrypted secrets conflict")
+		}
+		if err == nil || !errors.Is(err, ErrMigrationConflict) {
+			t.Fatalf("MigrateLegacy error = %v, want ErrMigrationConflict", err)
+		}
+
+		values, loadErr := store.Load()
+		if loadErr != nil {
+			t.Fatalf("Load after conflict: %v", loadErr)
+		}
+		if got := values["POSTGRES_PASSWORD"]; got != "encrypted-secret" {
+			t.Fatalf("POSTGRES_PASSWORD = %q, want encrypted-secret", got)
+		}
+		if _, statErr := os.Stat(store.LegacyPath()); statErr != nil {
+			t.Fatalf("legacy file should remain after conflict: %v", statErr)
 		}
 	})
 
@@ -810,7 +887,7 @@ func TestStoreDepsAppliesDefaultsForPartialInjection(t *testing.T) {
 	}
 
 	deps := store.storeDeps()
-	if deps.readFile == nil || deps.createTemp == nil || deps.rename == nil || deps.openFile == nil || deps.removeFile == nil || deps.mkdirAll == nil || deps.randReader == nil || deps.now == nil || deps.sleep == nil {
+	if deps.readFile == nil || deps.createTemp == nil || deps.rename == nil || deps.open == nil || deps.openFile == nil || deps.removeFile == nil || deps.mkdirAll == nil || deps.randReader == nil || deps.now == nil || deps.sleep == nil {
 		t.Fatal("storeDeps did not fill default boundaries")
 	}
 	data, err := deps.readFile("ignored")
@@ -819,6 +896,56 @@ func TestStoreDepsAppliesDefaultsForPartialInjection(t *testing.T) {
 	}
 	if string(data) != "fixture" {
 		t.Fatalf("readFile returned %q, want fixture", string(data))
+	}
+}
+
+func TestStoreSaveKeyRecoversStaleLock(t *testing.T) {
+	store := newTestStore(t)
+	lockPath := store.LockPath()
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(lockPath), err)
+	}
+	if err := os.WriteFile(lockPath, []byte("pid=999999\n"), 0o600); err != nil {
+		t.Fatalf("write %s: %v", lockPath, err)
+	}
+	staleTime := time.Now().Add(-lockStaleAfter - time.Second)
+	if err := os.Chtimes(lockPath, staleTime, staleTime); err != nil {
+		t.Fatalf("chtimes %s: %v", lockPath, err)
+	}
+
+	if err := store.SaveKey("API_KEY", "secret"); err != nil {
+		t.Fatalf("SaveKey: %v", err)
+	}
+
+	values, err := store.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := values["API_KEY"]; got != "secret" {
+		t.Fatalf("API_KEY = %q, want secret", got)
+	}
+}
+
+func TestStoreSaveKeyDoesNotBreakLiveStaleAgedLock(t *testing.T) {
+	store := newTestStore(t)
+	lockPath := store.LockPath()
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(lockPath), err)
+	}
+	if err := os.WriteFile(lockPath, []byte("pid="+strconv.Itoa(os.Getpid())+"\n"), 0o600); err != nil {
+		t.Fatalf("write %s: %v", lockPath, err)
+	}
+	staleTime := time.Now().Add(-lockStaleAfter - time.Second)
+	if err := os.Chtimes(lockPath, staleTime, staleTime); err != nil {
+		t.Fatalf("chtimes %s: %v", lockPath, err)
+	}
+	now := time.Now()
+	store.deps.now = sequentialNow(now, now.Add(lockTimeout), now.Add(lockTimeout))
+	store.deps.sleep = func(time.Duration) {}
+
+	err := store.SaveKey("POSTGRES_USER", "vrooli")
+	if err == nil || !errors.Is(err, ErrLockTimeout) {
+		t.Fatalf("SaveKey error = %v, want ErrLockTimeout", err)
 	}
 }
 

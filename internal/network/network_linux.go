@@ -11,9 +11,37 @@ import (
 )
 
 func ListenersForPort(port int) ([]PortListener, error) {
-	pids, err := listListeningPIDs(port)
+	inspection, err := inspectPortListeners(port)
 	if err != nil {
 		return nil, err
+	}
+	return inspection.Listeners, nil
+}
+
+func listenerInspectionStatus() ListenerInspection {
+	path, err := exec.LookPath("lsof")
+	if err != nil {
+		return ListenerInspection{
+			Available: false,
+			Tool:      "lsof",
+			Reason:    "lsof is not installed",
+		}
+	}
+	return ListenerInspection{
+		Available: true,
+		Tool:      path,
+	}
+}
+
+func inspectPortListeners(port int) (PortInspection, error) {
+	status := listenerInspectionStatus()
+	if !status.Available {
+		return PortInspection{Inspection: status}, nil
+	}
+
+	pids, err := listListeningPIDs(port)
+	if err != nil {
+		return PortInspection{}, err
 	}
 	listeners := make([]PortListener, 0, len(pids))
 	for _, pid := range pids {
@@ -27,7 +55,10 @@ func ListenersForPort(port int) ([]PortListener, error) {
 			Zombie:  state == "Z",
 		})
 	}
-	return listeners, nil
+	return PortInspection{
+		Listeners:  listeners,
+		Inspection: status,
+	}, nil
 }
 
 func listListeningPIDs(port int) ([]int, error) {

@@ -61,17 +61,6 @@ type scenarioGenerateOptions struct {
 
 var unresolvedTemplatePattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)
 
-func runScenarioTemplateCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runScenarioTemplateCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
-}
-
 func runScenarioTemplateCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	action := "list"
 	if len(args) > 0 {
@@ -88,25 +77,14 @@ func runScenarioTemplateCommandWithApp(app *App, ctx *commandContext, args []str
 		showScenarioTemplateHelp(ctx.Stdout)
 		return nil
 	default:
-		return fmt.Errorf("unknown template command: %s", action)
+		return usageErrorf("scenario template", "unknown template command: %s", action)
 	}
-}
-
-func runScenarioGenerateCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runScenarioGenerateCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
 }
 
 func runScenarioGenerateCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	if len(args) == 0 {
 		showScenarioGenerateHelp(ctx.Stdout)
-		return errors.New("scenario generate requires a template name")
+		return usageErrorf("scenario generate", "scenario generate requires a template name")
 	}
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
@@ -127,7 +105,7 @@ func runScenarioGenerateCommandWithApp(app *App, ctx *commandContext, args []str
 	}
 
 	if opts.Values["SCENARIO_ID"] == "" {
-		return errors.New("missing required value: --id")
+		return usageErrorf("scenario generate", "missing required value: --id")
 	}
 
 	missing := make([]string, 0)
@@ -143,7 +121,7 @@ func runScenarioGenerateCommandWithApp(app *App, ctx *commandContext, args []str
 	sort.Strings(missing)
 	if len(missing) > 0 {
 		showScenarioGenerateHelp(ctx.Stdout)
-		return fmt.Errorf("missing required values: %s", strings.Join(missing, ", "))
+		return usageErrorf("scenario generate", "missing required values: %s", strings.Join(missing, ", "))
 	}
 
 	currentDate := currentDateUTC()
@@ -220,7 +198,7 @@ func runScenarioTemplateListCommand(root string, globals globalOptions, args []s
 				showScenarioTemplateHelp(stdout)
 				return nil
 			}
-			return fmt.Errorf("unknown option for scenario template list: %s", arg)
+			return unknownOptionError("scenario template", arg)
 		}
 	}
 
@@ -257,10 +235,10 @@ func runScenarioTemplateListCommand(root string, globals globalOptions, args []s
 func runScenarioTemplateShowCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
 	_ = globals
 	if len(args) == 0 {
-		return errors.New("scenario template show requires a template name")
+		return usageErrorf("scenario template show", "scenario template show requires a template name")
 	}
 	if len(args) > 1 {
-		return errors.New("scenario template show accepts exactly one template name")
+		return usageErrorf("scenario template show", "scenario template show accepts exactly one template name")
 	}
 
 	info, err := loadScenarioTemplate(root, args[0])
@@ -438,7 +416,7 @@ func parseScenarioGenerateArgs(args []string, manifest scenarioTemplateManifest,
 		switch {
 		case arg == "--dest":
 			if index+1 >= len(args) {
-				return scenarioGenerateOptions{}, errors.New("scenario generate --dest requires a value")
+				return scenarioGenerateOptions{}, usageErrorf("scenario generate", "scenario generate --dest requires a value")
 			}
 			index++
 			opts.Destination = args[index]
@@ -452,7 +430,7 @@ func parseScenarioGenerateArgs(args []string, manifest scenarioTemplateManifest,
 			opts.RunHooks = true
 		case arg == "--var":
 			if index+1 >= len(args) {
-				return scenarioGenerateOptions{}, errors.New("scenario generate --var requires KEY=VALUE")
+				return scenarioGenerateOptions{}, usageErrorf("scenario generate", "scenario generate --var requires KEY=VALUE")
 			}
 			index++
 			key, value, err := parseScenarioTemplateKeyValue(args[index])
@@ -481,7 +459,7 @@ func parseScenarioGenerateArgs(args []string, manifest scenarioTemplateManifest,
 			}
 			opts.Values[key] = flagValue
 		default:
-			return scenarioGenerateOptions{}, fmt.Errorf("unexpected argument: %s", arg)
+			return scenarioGenerateOptions{}, usageErrorf("scenario generate", "unexpected argument: %s", arg)
 		}
 	}
 
@@ -492,12 +470,12 @@ func parseScenarioTemplateFlag(arg string, args []string, index int) (string, st
 	if strings.Contains(arg, "=") {
 		parts := strings.SplitN(strings.TrimPrefix(arg, "--"), "=", 2)
 		if parts[1] == "" {
-			return "", "", false, fmt.Errorf("--%s requires a value", parts[0])
+			return "", "", false, usageErrorf("scenario generate", "--%s requires a value", parts[0])
 		}
 		return parts[0], parts[1], false, nil
 	}
 	if index+1 >= len(args) {
-		return "", "", false, fmt.Errorf("%s requires a value", arg)
+		return "", "", false, usageErrorf("scenario generate", "%s requires a value", arg)
 	}
 	return strings.TrimPrefix(arg, "--"), args[index+1], true, nil
 }
@@ -505,7 +483,7 @@ func parseScenarioTemplateFlag(arg string, args []string, index int) (string, st
 func parseScenarioTemplateKeyValue(value string) (string, string, error) {
 	parts := strings.SplitN(value, "=", 2)
 	if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" {
-		return "", "", fmt.Errorf("invalid KEY=VALUE pair: %s", value)
+		return "", "", usageErrorf("scenario generate", "invalid KEY=VALUE pair: %s", value)
 	}
 	return parts[0], parts[1], nil
 }

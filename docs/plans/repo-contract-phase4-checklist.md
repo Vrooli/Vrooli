@@ -7,11 +7,11 @@
 ## Exit Criteria
 
 - [x] No Phase 4 consumer validates repo globs outside `packages/repo-contract-go`
-- [ ] No Phase 4 consumer derives repo root from `$HOME/Vrooli`, `.git`, `pnpm-workspace.yaml`, or handler-relative path climbing
-- [ ] No Phase 4 consumer hard-codes canonical `scenarios/<name>` or `.vrooli/service.json` paths where contract helpers already cover them
-- [ ] Each Phase 4 consumer has a single authoritative repo/scenario resolution helper path rather than parallel legacy fallbacks
-- [ ] Targeted tests assert repo-contract semantics rather than legacy behavior
-- [ ] Focused validation commands pass for every migrated consumer
+- [x] No Phase 4 consumer derives repo root from `$HOME/Vrooli`, `.git`, `pnpm-workspace.yaml`, or handler-relative path climbing
+- [x] No Phase 4 consumer hard-codes canonical `scenarios/<name>` or `.vrooli/service.json` paths where contract helpers already cover them
+- [x] Each Phase 4 consumer has a single authoritative repo/scenario resolution helper path rather than parallel legacy fallbacks
+- [x] Targeted tests assert repo-contract semantics rather than legacy behavior
+- [x] Focused validation commands pass for every migrated consumer
 
 ## 1. `swarm-manager`
 
@@ -73,7 +73,7 @@ Validation:
 
 Status:
 - [x] Core runtime migration landed
-- [ ] Checklist-level test coverage still incomplete
+- [x] Checklist-level test coverage completed
 
 Files:
 - [scenarios/tidiness-manager/api/services.go](/home/matthalloran8/Vrooli/scenarios/tidiness-manager/api/services.go)
@@ -84,17 +84,17 @@ Tasks:
 - [x] Replace `$HOME/Vrooli` and raw `VROOLI_ROOT` fallbacks with repo-contract root resolution
 - [x] Replace scenario path construction with repo-contract helpers
 - [x] Preserve explicit absolute-path overrides for sandbox/agent callers
-- [ ] Add explicit tests for repo discovery failure and absolute-path override behavior
-- [ ] Confirm broader package test expectations or narrow validation target in the checklist if unrelated failures remain
+- [x] Add explicit tests for repo discovery failure and absolute-path override behavior
+- [x] Confirm broader package test expectations with full package validation
 
 Validation:
-- [ ] `go test ./...`
+- [x] `go test ./...`
 
 ## 4. `workspace-sandbox`
 
 Status:
 - [x] Core runtime migration landed
-- [ ] Contract-backed test coverage still thin
+- [x] Contract-backed test coverage completed
 
 Files:
 - [scenarios/workspace-sandbox/api/internal/toolexecution/executor.go](/home/matthalloran8/Vrooli/scenarios/workspace-sandbox/api/internal/toolexecution/executor.go)
@@ -106,8 +106,8 @@ Tasks:
 - [x] Replace `$HOME/Vrooli` project-root fallback with repo-contract-backed resolution
 - [x] Resolve the `workspace-sandbox` scenario directory via the contract for profile store initialization
 - [x] Consolidate default project-root discovery to one helper
-- [ ] Add tests for contract-backed default root resolution and explicit override precedence
-- [ ] Update user-facing/toolregistry text that still claims `VROOLI_ROOT` is the default project-root source
+- [x] Add tests for contract-backed default root resolution and explicit override precedence
+- [x] Update user-facing/toolregistry text that still claims `VROOLI_ROOT` is the default project-root source
 
 Validation:
 - [x] `go test ./...`
@@ -136,8 +136,8 @@ Validation:
 ## 6. `scenario-auditor`
 
 Status:
-- [ ] Primary standards/store path migration landed
-- [ ] Parallel legacy repo-root helpers still remain
+- [x] Primary standards/store path migration landed
+- [x] Parallel legacy repo-root helpers removed
 
 Files:
 - [scenarios/scenario-auditor/api/handlers_standards.go](/home/matthalloran8/Vrooli/scenarios/scenario-auditor/api/handlers_standards.go)
@@ -155,9 +155,9 @@ Tasks:
 - [x] Replace `VROOLI_ROOT` / `$HOME/Vrooli` scenario-root helpers in standards/store flows with repo-contract-backed resolution
 - [x] Enumerate “all scenarios” from the contract-defined scenario directory
 - [x] Preserve explicit sandbox path override behavior for agent-driven scans
-- [ ] Remove the parallel legacy `getVrooliRoot` / `resolveScenarioPath` path from Claude, issue-tracker, and agent-manager flows
-- [ ] Decide whether `internal/ruleengine/loader.go` should consume the shared helper or remain a justified bootstrap exception
-- [ ] Add/update tests for single-scenario and all-scenarios scans plus the remaining Claude/agent-manager resolution paths
+- [x] Remove the parallel legacy `getVrooliRoot` / `resolveScenarioPath` path from Claude, issue-tracker, and agent-manager flows
+- [x] Move `internal/ruleengine/loader.go` onto repo-contract-backed repo/scenario discovery
+- [x] Add/update tests for single-scenario and all-scenarios scans plus the remaining Claude/agent-manager resolution paths
 
 Validation:
 - [x] `go test ./...`
@@ -166,7 +166,7 @@ Validation:
 
 Status:
 - [x] Main repo/scenario/service resolution migration landed
-- [ ] Scope-prefix and handler test cleanup still remain
+- [x] Scope-prefix and handler test cleanup completed
 
 Files:
 - [scenarios/git-control-tower/api/git_runner_core.go](/home/matthalloran8/Vrooli/scenarios/git-control-tower/api/git_runner_core.go)
@@ -178,8 +178,8 @@ Tasks:
 - [x] Replace repo-root discovery internals with repo-contract-backed resolution
 - [x] Replace canonical scenario/service path joins with repo-contract helpers
 - [x] Keep Git validation and active-repo selection logic in `RepoService`
-- [ ] Replace remaining hard-coded `scenarios/%s/` scope-prefix generation with contract-backed sandbox scope helpers
-- [ ] Add tests for contract-backed scenario resolution in tidiness/review paths, not just envelope
+- [x] Replace remaining hard-coded `scenarios/%s/` scope-prefix generation with contract-backed sandbox scope helpers
+- [x] Add tests for contract-backed scenario resolution in tidiness/review paths, not just envelope
 
 Validation:
 - [x] `go test ./...`
@@ -188,8 +188,8 @@ Validation:
 
 - [x] 1. `swarm-manager`
 - [x] 2. `scenario-to-cloud`
-- [ ] 3. `scenario-auditor`
-- [ ] 4. `git-control-tower`
-- [ ] 5. `workspace-sandbox`
-- [ ] 6. `tidiness-manager`
+- [x] 3. `scenario-auditor`
+- [x] 4. `git-control-tower`
+- [x] 5. `workspace-sandbox`
+- [x] 6. `tidiness-manager`
 - [x] 7. `test-genie`

@@ -61,6 +61,17 @@ func configuredApp() *App {
 	}
 }
 
+func newConfiguredCommandContext(root string, globals globalOptions, stdout, stderr io.Writer) (*App, *commandContext) {
+	app := configuredApp()
+	return app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}
+}
+
 func (app *App) Run(args []string, stdout, stderr io.Writer) int {
 	parsed, err := parseArgs(args)
 	if err != nil {
@@ -88,7 +99,7 @@ func (app *App) Run(args []string, stdout, stderr io.Writer) int {
 				primeRootEnv(root)
 			}
 		}
-		if err := normalizeCommandError(dispatch(app, ctx, parsed)); err != nil {
+		if err := dispatch(app, ctx, parsed); err != nil {
 			printErrorWithContext(stderr, err)
 			return exitCode(err)
 		}
@@ -136,7 +147,7 @@ func (app *App) Run(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 
-	if err := normalizeCommandError(dispatch(app, ctx, parsed)); err != nil {
+	if err := dispatch(app, ctx, parsed); err != nil {
 		printErrorWithContext(stderr, err)
 		return exitCode(err)
 	}
@@ -148,27 +159,17 @@ func (app *App) canRunWithoutRoot(parsed parsedArgs) bool {
 	case "help", "version":
 		return true
 	}
-	if _, ok := topLevelCommands[parsed.command]; !ok {
+	descriptor, ok := topLevelCommandDescriptors[parsed.command]
+	if !ok {
 		return true
 	}
-	switch parsed.command {
-	case "scenario":
-		if len(parsed.args) == 0 || wantsCommandHelp(parsed.args) {
-			return true
-		}
-		if _, ok := scenarioCommands[parsed.args[0]]; !ok {
-			return true
-		}
-		return wantsCommandHelp(parsed.args[1:])
-	case "resource":
-		return len(parsed.args) == 0 || wantsCommandHelp(parsed.args)
-	case "cleanup":
-		return len(parsed.args) == 0 || wantsCommandHelp(parsed.args)
-	case "build", "deploy", "clean", "backup", "restore", "status", "doctor", "stop", "info", "orphans", "locks", "diagnose-port":
-		return wantsCommandHelp(parsed.args)
-	default:
+	if !descriptor.RequiresRoot {
+		return true
+	}
+	if descriptor.CanRunWithoutRoot == nil {
 		return false
 	}
+	return descriptor.CanRunWithoutRoot(parsed.args)
 }
 
 func (app *App) shouldRebuild() (bool, error) {

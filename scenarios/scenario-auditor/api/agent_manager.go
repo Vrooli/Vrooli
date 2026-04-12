@@ -612,37 +612,12 @@ func safeValue(value string) string {
 
 func getScenarioRoot() string {
 	scenarioRootOnce.Do(func() {
-		base := getVrooliRoot()
-		if base != "" {
-			candidate := filepath.Join(base, "scenarios", "scenario-auditor")
-			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-				scenarioRootPath = candidate
-				return
-			}
-		}
-
-		wd, err := os.Getwd()
-		if err != nil {
-			scenarioRootPath = "."
+		root, err := resolveScenarioAuditorRoot()
+		if err == nil {
+			scenarioRootPath = root
 			return
 		}
-
-		dir := filepath.Clean(wd)
-		for {
-			if filepath.Base(dir) == "scenario-auditor" {
-				if info, err := os.Stat(dir); err == nil && info.IsDir() {
-					scenarioRootPath = dir
-					return
-				}
-			}
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
-			}
-			dir = parent
-		}
-
-		scenarioRootPath = filepath.Clean(wd)
+		scenarioRootPath = ""
 	})
 
 	return scenarioRootPath
@@ -650,42 +625,12 @@ func getScenarioRoot() string {
 
 func getVrooliRoot() string {
 	vrooliRootOnce.Do(func() {
-		if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
-			if info, err := os.Stat(filepath.Join(root, "scenarios")); err == nil && info.IsDir() {
-				vrooliRootPath = filepath.Clean(root)
-				return
-			}
-		}
-
-		wd, err := os.Getwd()
+		root, err := resolveRepoRoot()
 		if err == nil {
-			dir := filepath.Clean(wd)
-			for {
-				if info, err := os.Stat(filepath.Join(dir, "scenarios")); err == nil && info.IsDir() {
-					vrooliRootPath = dir
-					return
-				}
-				parent := filepath.Dir(dir)
-				if parent == dir {
-					break
-				}
-				dir = parent
-			}
+			vrooliRootPath = root
+			return
 		}
-
-		if vrooliRootPath == "" {
-			if home, err := os.UserHomeDir(); err == nil {
-				candidate := filepath.Join(home, "Vrooli")
-				if info, err := os.Stat(filepath.Join(candidate, "scenarios")); err == nil && info.IsDir() {
-					vrooliRootPath = candidate
-					return
-				}
-			}
-		}
-
-		if vrooliRootPath == "" && err == nil {
-			vrooliRootPath = filepath.Clean(wd)
-		}
+		vrooliRootPath = ""
 	})
 
 	return vrooliRootPath

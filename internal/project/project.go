@@ -12,23 +12,29 @@ import (
 
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/maintenance"
+	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 type Controller struct {
-	Root      string
-	Home      string
-	Stdout    io.Writer
-	Stderr    io.Writer
-	Resources *resources.Controller
-	Scenarios *orchestrator.Service
+	Root                  string
+	Home                  string
+	Stdout                io.Writer
+	Stderr                io.Writer
+	Resources             *resources.Controller
+	Scenarios             *orchestrator.Service
+	Maintenance           *maintenance.Controller
+	MaintenanceSnapshotFn func() (maintenance.ProcessSnapshot, error)
+	MaintenanceLocksFn    func() ([]maintenance.LockInfo, error)
 }
 
 type DoctorCheck struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	Name    string `json:"name"`
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
 }
 
 type DoctorReport struct {
@@ -42,9 +48,10 @@ type StatusOptions struct {
 }
 
 type StatusReport struct {
-	Resources []resources.Status          `json:"resources,omitempty"`
-	Scenarios []orchestrator.ScenarioView `json:"scenarios,omitempty"`
-	Summary   map[string]int              `json:"summary"`
+	Resources   []resources.Status           `json:"resources,omitempty"`
+	Scenarios   []orchestrator.ScenarioView  `json:"scenarios,omitempty"`
+	Maintenance *maintenance.ProcessSnapshot `json:"maintenance,omitempty"`
+	Summary     map[string]int               `json:"summary"`
 }
 
 type StopOptions struct {
@@ -56,12 +63,13 @@ type StopOptions struct {
 
 func New(root, home string, stdout, stderr io.Writer) *Controller {
 	return &Controller{
-		Root:      filepath.Clean(root),
-		Home:      filepath.Clean(home),
-		Stdout:    stdout,
-		Stderr:    stderr,
-		Resources: resources.NewController(root, home),
-		Scenarios: orchestrator.New(root, home, stdout, stderr),
+		Root:        filepath.Clean(root),
+		Home:        filepath.Clean(home),
+		Stdout:      stdout,
+		Stderr:      stderr,
+		Resources:   resources.NewController(root, home),
+		Scenarios:   orchestrator.New(root, home, stdout, stderr),
+		Maintenance: maintenance.NewController(root, home),
 	}
 }
 
@@ -121,6 +129,25 @@ func (c *Controller) Status(opts StatusOptions) (StatusReport, error) {
 			}
 		}
 	}
+	maintenanceSnapshot, err := c.maintenanceSnapshot()
+	if err != nil {
+		return StatusReport{}, err
+	}
+	report.Maintenance = &maintenanceSnapshot
+	report.Summary["maintenance_tracked_processes"] = maintenanceSnapshot.TrackedProcesses
+	report.Summary["maintenance_zombie_processes"] = maintenanceSnapshot.ZombieProcesses
+	report.Summary["maintenance_orphan_processes"] = maintenanceSnapshot.OrphanProcesses
+	locks, err := c.maintenanceLocks()
+	if err != nil {
+		return StatusReport{}, err
+	}
+	staleLocks := 0
+	for _, lock := range locks {
+		if lock.Stale {
+			staleLocks++
+		}
+	}
+	report.Summary["maintenance_stale_locks"] = staleLocks
 	return report, nil
 }
 
@@ -128,10 +155,13 @@ func (c *Controller) Doctor() (DoctorReport, error) {
 	checks := make([]DoctorCheck, 0, 8)
 	for _, name := range []string{"jq", "curl", "git", "docker", "go", "lsof", "tput"} {
 		status := "missing"
+		message := ""
 		if _, err := exec.LookPath(name); err == nil {
 			status = "ok"
+		} else {
+			message = err.Error()
 		}
-		checks = append(checks, DoctorCheck{Name: name, Status: status})
+		checks = append(checks, DoctorCheck{Name: name, Status: status, Message: message})
 	}
 
 	apiPort := strings.TrimSpace(os.Getenv("VROOLI_API_PORT"))
@@ -147,10 +177,86 @@ func (c *Controller) Doctor() (DoctorReport, error) {
 	if _, err := os.Stat(servicePath); err == nil {
 		checks = append(checks, DoctorCheck{Name: "service_json", Status: "present"})
 	} else {
-		checks = append(checks, DoctorCheck{Name: "service_json", Status: "missing"})
+		checks = append(checks, DoctorCheck{Name: "service_json", Status: "missing", Message: err.Error()})
 	}
 
+	maintenanceSnapshot, err := c.maintenanceSnapshot()
+	if err != nil {
+		return DoctorReport{}, err
+	}
+	checks = append(checks, DoctorCheck{
+		Name:    "orphan_processes",
+		Status:  countStatus(maintenanceSnapshot.OrphanProcesses),
+		Message: fmt.Sprintf("%d orphaned Vrooli processes detected", maintenanceSnapshot.OrphanProcesses),
+	})
+	checks = append(checks, DoctorCheck{
+		Name:    "zombie_processes",
+		Status:  countStatus(maintenanceSnapshot.ZombieProcesses),
+		Message: fmt.Sprintf("%d zombie processes detected", maintenanceSnapshot.ZombieProcesses),
+	})
+
+	locks, err := c.maintenanceLocks()
+	if err != nil {
+		return DoctorReport{}, err
+	}
+	staleLocks := 0
+	for _, lock := range locks {
+		if lock.Stale {
+			staleLocks++
+		}
+	}
+	checks = append(checks, DoctorCheck{
+		Name:    "stale_port_locks",
+		Status:  countStatus(staleLocks),
+		Message: fmt.Sprintf("%d stale port locks detected", staleLocks),
+	})
+
+	listenerInspection := network.ListenerInspectionStatus()
+	listenerStatus := "ok"
+	if !listenerInspection.Available {
+		listenerStatus = "degraded"
+	}
+	checks = append(checks, DoctorCheck{
+		Name:    "listener_inspection",
+		Status:  listenerStatus,
+		Message: listenerInspectionMessage(listenerInspection),
+	})
+
 	return DoctorReport{Checks: checks}, nil
+}
+
+func countStatus(count int) string {
+	if count > 0 {
+		return "warning"
+	}
+	return "ok"
+}
+
+func listenerInspectionMessage(status network.ListenerInspection) string {
+	if status.Available {
+		if strings.TrimSpace(status.Tool) != "" {
+			return fmt.Sprintf("listener inspection available via %s", status.Tool)
+		}
+		return "listener inspection available"
+	}
+	if strings.TrimSpace(status.Reason) != "" {
+		return status.Reason
+	}
+	return "listener inspection unavailable"
+}
+
+func (c *Controller) maintenanceSnapshot() (maintenance.ProcessSnapshot, error) {
+	if c.MaintenanceSnapshotFn != nil {
+		return c.MaintenanceSnapshotFn()
+	}
+	return c.Maintenance.Snapshot()
+}
+
+func (c *Controller) maintenanceLocks() ([]maintenance.LockInfo, error) {
+	if c.MaintenanceLocksFn != nil {
+		return c.MaintenanceLocksFn()
+	}
+	return c.Maintenance.ListLocks()
 }
 
 func (c *Controller) Stop(opts StopOptions) (control.StopReport, error) {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -48,18 +47,8 @@ type scenarioBatchFailure struct {
 }
 
 func runScenarioRunCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	return runScenarioStartCommand(root, globals, args, stdout, stderr)
-}
-
-func runScenarioSetupCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runScenarioSetupCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
+	app, ctx := newConfiguredCommandContext(root, globals, stdout, stderr)
+	return runScenarioStartCommandWithApp(app, ctx, args)
 }
 
 func runScenarioSetupCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -109,17 +98,6 @@ func runScenarioSetupCommandWithApp(app *App, ctx *commandContext, args []string
 	return nil
 }
 
-func runScenarioTestCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runScenarioTestCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
-}
-
 func runScenarioTestCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
@@ -140,17 +118,6 @@ func runScenarioTestCommandWithApp(app *App, ctx *commandContext, args []string)
 	return runner.RunPhase(name, "test", opts)
 }
 
-func runScenarioStartAllCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runScenarioStartAllCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
-}
-
 func runScenarioStartAllCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	jsonFlag := ctx.Globals.json
 	if len(args) > 0 {
@@ -162,7 +129,7 @@ func runScenarioStartAllCommandWithApp(app *App, ctx *commandContext, args []str
 				_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario start-all [--json]")
 				return nil
 			default:
-				return fmt.Errorf("unknown option for scenario start-all: %s", arg)
+				return unknownOptionError("scenario start-all", arg)
 			}
 		}
 	}
@@ -219,17 +186,6 @@ func runScenarioStartAllCommandWithApp(app *App, ctx *commandContext, args []str
 	return nil
 }
 
-func runScenarioStopAllCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runScenarioStopAllCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
-}
-
 func runScenarioStopAllCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	jsonFlag := ctx.Globals.json
 	for _, arg := range args {
@@ -240,7 +196,7 @@ func runScenarioStopAllCommandWithApp(app *App, ctx *commandContext, args []stri
 			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario stop-all [--json]")
 			return nil
 		default:
-			return fmt.Errorf("unknown option for scenario stop-all: %s", arg)
+			return unknownOptionError("scenario stop-all", arg)
 		}
 	}
 
@@ -289,17 +245,6 @@ func runScenarioStopAllCommandWithApp(app *App, ctx *commandContext, args []stri
 	return nil
 }
 
-func runScenarioPortCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
-	app := configuredApp()
-	return runScenarioPortCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  io.Discard,
-		app:     app,
-	}, args)
-}
-
 func runScenarioPortCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	scenarioName := ""
 	portName := ""
@@ -313,18 +258,18 @@ func runScenarioPortCommandWithApp(app *App, ctx *commandContext, args []string)
 			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario port <scenario-name> [<port-name>] [--json]")
 			return nil
 		case strings.HasPrefix(arg, "-"):
-			return fmt.Errorf("unknown option for scenario port: %s", arg)
+			return unknownOptionError("scenario port", arg)
 		case scenarioName == "":
 			scenarioName = arg
 		case portName == "":
 			portName = arg
 		default:
-			return fmt.Errorf("scenario port accepts at most two positional arguments")
+			return usageErrorf("scenario port", "scenario port accepts at most two positional arguments")
 		}
 	}
 
 	if scenarioName == "" {
-		return errors.New("scenario port requires a scenario name")
+		return usageErrorf("scenario port", "scenario port requires a scenario name")
 	}
 
 	serviceCtx := *ctx
@@ -392,17 +337,6 @@ func runScenarioPortCommandWithApp(app *App, ctx *commandContext, args []string)
 	return nil
 }
 
-func runScenarioOpenCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runScenarioOpenCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
-}
-
 func runScenarioOpenCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	scenarioName := ""
 	portName := "UI_PORT"
@@ -417,7 +351,7 @@ func runScenarioOpenCommandWithApp(app *App, ctx *commandContext, args []string)
 			return nil
 		case "--port":
 			if index+1 >= len(args) {
-				return fmt.Errorf("scenario open --port requires a value")
+				return usageErrorf("scenario open", "scenario open --port requires a value")
 			}
 			index++
 			portName = args[index]
@@ -427,17 +361,17 @@ func runScenarioOpenCommandWithApp(app *App, ctx *commandContext, args []string)
 			jsonFlag = true
 		default:
 			if strings.HasPrefix(arg, "-") {
-				return fmt.Errorf("unknown option for scenario open: %s", arg)
+				return unknownOptionError("scenario open", arg)
 			}
 			if scenarioName != "" {
-				return errors.New("scenario open accepts exactly one scenario name")
+				return usageErrorf("scenario open", "scenario open accepts exactly one scenario name")
 			}
 			scenarioName = arg
 		}
 	}
 
 	if scenarioName == "" {
-		return errors.New("scenario open requires a scenario name")
+		return usageErrorf("scenario open", "scenario open requires a scenario name")
 	}
 
 	serviceCtx := *ctx
@@ -472,17 +406,6 @@ func runScenarioOpenCommandWithApp(app *App, ctx *commandContext, args []string)
 	return nil
 }
 
-func runScenarioUISmokeCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runScenarioUISmokeCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
-}
-
 func runScenarioUISmokeCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	home, err := ctx.HomeDir()
 	if err != nil {
@@ -506,17 +429,6 @@ func runScenarioUISmokeCommandWithApp(app *App, ctx *commandContext, args []stri
 	})
 }
 
-func runScenarioCompletenessCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runScenarioCompletenessCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
-}
-
 func runScenarioCompletenessCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	cliPath, err := app.locateScenarioCompletenessCLI(ctx.Root)
 	if err != nil {
@@ -535,17 +447,6 @@ func runScenarioCompletenessCommandWithApp(app *App, ctx *commandContext, args [
 		stdout: ctx.Stdout,
 		stderr: ctx.Stderr,
 	})
-}
-
-func runScenarioRequirementsCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runScenarioRequirementsCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
 }
 
 func runScenarioRequirementsCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -581,17 +482,6 @@ func runScenarioRequirementsCommandWithApp(app *App, ctx *commandContext, args [
 	})
 }
 
-func runScenarioHealFromSandboxCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runScenarioHealFromSandboxCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
-}
-
 func runScenarioHealFromSandboxCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	mergedPath := strings.TrimSpace(os.Getenv("SANDBOX_MERGED_DIR"))
 	dryRun := false
@@ -600,7 +490,7 @@ func runScenarioHealFromSandboxCommandWithApp(app *App, ctx *commandContext, arg
 		switch args[index] {
 		case "--merged-path":
 			if index+1 >= len(args) {
-				return fmt.Errorf("scenario heal-from-sandbox --merged-path requires a value")
+				return usageErrorf("scenario heal-from-sandbox", "scenario heal-from-sandbox --merged-path requires a value")
 			}
 			index++
 			mergedPath = args[index]
@@ -610,12 +500,12 @@ func runScenarioHealFromSandboxCommandWithApp(app *App, ctx *commandContext, arg
 			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario heal-from-sandbox [--merged-path <path>] [--dry-run]")
 			return nil
 		default:
-			return fmt.Errorf("unknown option for scenario heal-from-sandbox: %s", args[index])
+			return unknownOptionError("scenario heal-from-sandbox", args[index])
 		}
 	}
 
 	if strings.TrimSpace(mergedPath) == "" {
-		return errors.New("heal-from-sandbox requires SANDBOX_MERGED_DIR or --merged-path")
+		return usageErrorf("scenario heal-from-sandbox", "heal-from-sandbox requires SANDBOX_MERGED_DIR or --merged-path")
 	}
 
 	home, err := ctx.HomeDir()
@@ -719,7 +609,7 @@ func translateScenarioRequirementsArgs(root string, globals globalOptions, args 
 	case "manual-log":
 		return translateScenarioRequirementsSimple(root, globals, "manual-log", rest, true, false)
 	default:
-		return nil, "", fmt.Errorf("unsupported requirements subcommand: %s", subcommand)
+		return nil, "", usageErrorf("scenario requirements", "unsupported requirements subcommand: %s", subcommand)
 	}
 }
 
@@ -749,17 +639,17 @@ func translateScenarioRequirementsSimple(root string, globals globalOptions, sub
 		return translated, root, nil
 	}
 	if scenarioName == "" {
-		return nil, "", fmt.Errorf("scenario requirements %s requires a scenario name", subcommand)
+		return nil, "", usageErrorf("scenario requirements", "scenario requirements %s requires a scenario name", subcommand)
 	}
 
 	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
 	if info, err := os.Stat(scenarioDir); err != nil || !info.IsDir() {
-		return nil, "", fmt.Errorf("scenario directory not found: %s", scenarioDir)
+		return nil, "", usageErrorf("scenario requirements", "scenario directory not found: %s", scenarioDir)
 	}
 
 	if subcommand != "init" {
 		if info, err := os.Stat(filepath.Join(scenarioDir, "requirements")); err != nil || !info.IsDir() {
-			return nil, "", fmt.Errorf("scenario %s does not define requirements/", scenarioName)
+			return nil, "", usageErrorf("scenario requirements", "scenario %s does not define requirements/", scenarioName)
 		}
 	}
 
@@ -791,16 +681,16 @@ func runScenarioRequirementsSnapshot(root string, args []string, stdout io.Write
 			return nil
 		default:
 			if strings.HasPrefix(arg, "-") {
-				return fmt.Errorf("unknown option for scenario requirements snapshot: %s", arg)
+				return unknownOptionError("scenario requirements snapshot", arg)
 			}
 			if scenarioName != "" {
-				return errors.New("scenario requirements snapshot accepts exactly one scenario name")
+				return usageErrorf("scenario requirements snapshot", "scenario requirements snapshot accepts exactly one scenario name")
 			}
 			scenarioName = arg
 		}
 	}
 	if scenarioName == "" {
-		return errors.New("scenario requirements snapshot requires a scenario name")
+		return usageErrorf("scenario requirements snapshot", "scenario requirements snapshot requires a scenario name")
 	}
 
 	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
@@ -842,7 +732,7 @@ func parseScenarioPhaseArgs(command string, args []string) (string, lifecycle.Ph
 		switch arg {
 		case "--path":
 			if index+1 >= len(args) {
-				return "", lifecycle.PhaseOptions{}, fmt.Errorf("scenario %s --path requires a value", command)
+				return "", lifecycle.PhaseOptions{}, usageErrorf("scenario "+command, "scenario %s --path requires a value", command)
 			}
 			index++
 			opts.CustomPath = args[index]
@@ -859,7 +749,7 @@ func parseScenarioPhaseArgs(command string, args []string) (string, lifecycle.Ph
 		}
 	}
 	if name == "" {
-		return "", lifecycle.PhaseOptions{}, fmt.Errorf("scenario %s requires a scenario name", command)
+		return "", lifecycle.PhaseOptions{}, usageErrorf("scenario "+command, "scenario %s requires a scenario name", command)
 	}
 	return name, opts, nil
 }
@@ -875,7 +765,7 @@ func parseScenarioTestArgs(globals globalOptions, args []string) (string, lifecy
 		switch arg {
 		case "--path":
 			if index+1 >= len(args) {
-				return "", lifecycle.PhaseOptions{}, fmt.Errorf("scenario test --path requires a value")
+				return "", lifecycle.PhaseOptions{}, usageErrorf("scenario test", "scenario test --path requires a value")
 			}
 			index++
 			opts.CustomPath = args[index]
@@ -899,7 +789,7 @@ func parseScenarioTestArgs(globals globalOptions, args []string) (string, lifecy
 	}
 
 	if name == "" {
-		return "", lifecycle.PhaseOptions{}, errors.New("scenario test requires a scenario name")
+		return "", lifecycle.PhaseOptions{}, usageErrorf("scenario test", "scenario test requires a scenario name")
 	}
 	if selection != "" {
 		valid := map[string]string{
@@ -914,7 +804,7 @@ func parseScenarioTestArgs(globals globalOptions, args []string) (string, lifecy
 		}
 		mapped, ok := valid[selection]
 		if !ok {
-			return "", lifecycle.PhaseOptions{}, fmt.Errorf("invalid test selector: %s", selection)
+			return "", lifecycle.PhaseOptions{}, usageErrorf("scenario test", "invalid test selector: %s", selection)
 		}
 		remaining = append([]string{mapped}, remaining...)
 	}
@@ -929,7 +819,8 @@ func parseScenarioTestArgs(globals globalOptions, args []string) (string, lifecy
 }
 
 func loadScenarioPorts(root, name string) (scenario.Scenario, process.ScenarioRuntime, []scenarioListPortOutput, map[string]int, error) {
-	service, err := newScenarioService(root, io.Discard, io.Discard)
+	app, ctx := newConfiguredCommandContext(root, globalOptions{}, io.Discard, io.Discard)
+	service, err := app.newScenarioService(ctx)
 	if err != nil {
 		return scenario.Scenario{}, process.ScenarioRuntime{}, nil, nil, err
 	}
@@ -993,7 +884,8 @@ func resolveRequestedPort(manifest scenario.ServiceManifest, listPorts []scenari
 }
 
 func scenarioURLForPort(root, scenarioName, portName string) (string, string, int, error) {
-	service, err := newScenarioService(root, io.Discard, io.Discard)
+	app, ctx := newConfiguredCommandContext(root, globalOptions{}, io.Discard, io.Discard)
+	service, err := app.newScenarioService(ctx)
 	if err != nil {
 		return "", "", 0, err
 	}

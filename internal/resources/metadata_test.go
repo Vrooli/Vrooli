@@ -182,6 +182,40 @@ func TestLoadResourceEnvironmentFallsBackToLegacySecretsDuringMigration(t *testi
 	}
 }
 
+func TestLoadResourceEnvironmentFallsBackWhenEncryptedSecretsAreInvalid(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	writeJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), `{
+  "resource_ports": {
+    "postgres": 5433
+  },
+  "reserved_ranges": {}
+}`)
+	writeJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), `{
+  "definitions": {
+    "resourceSchemas": {
+      "postgres": {
+        "properties": {}
+      }
+    }
+  }
+}`)
+	writeJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), `{
+  "POSTGRES_PASSWORD": "legacy-secret",
+  "POSTGRES_USER": "vrooli"
+}`, 0o600)
+	writeJSONMode(t, filepath.Join(root, ".vrooli", "secrets.enc.json"), `{`, 0o600)
+
+	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(postgres): %v", err)
+	}
+	if got := postgresEnv["POSTGRES_PASSWORD"]; got != "legacy-secret" {
+		t.Fatalf("POSTGRES_PASSWORD = %q, want legacy-secret", got)
+	}
+}
+
 func writeJSON(t *testing.T, path, contents string) {
 	t.Helper()
 	writeJSONMode(t, path, contents, 0o644)

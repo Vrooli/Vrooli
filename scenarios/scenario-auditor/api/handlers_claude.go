@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -27,8 +25,10 @@ type claudeFixTarget struct {
 	IssueIDs []string `json:"issue_ids"`
 }
 
-const maxBulkFixAgents = 10
-const maxIssuesPerAgent = 50
+const (
+	maxBulkFixAgents  = 10
+	maxIssuesPerAgent = 50
+)
 
 type fixPlan struct {
 	FixType           string
@@ -62,7 +62,6 @@ func newPlanError(status int, message string, err error) *fixPlanError {
 }
 
 func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
-
 	var req claudeFixRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		HTTPError(w, "Invalid request body", http.StatusBadRequest, err)
@@ -782,22 +781,12 @@ func prepareBulkVulnerabilityTargets(targets []claudeFixTarget) ([]vulnerability
 	return result, collectedIDs, nil
 }
 
-// resolveScenarioPath locates another scenario by joining the shared Vrooli root
-// with the scenarios directory. The auditor root is discovered once via getVrooliRoot.
 func resolveScenarioPath(scenario string) (string, error) {
 	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
 		return "", fmt.Errorf("scenario name is empty")
 	}
-
-	if root := getVrooliRoot(); root != "" {
-		candidate := filepath.Join(root, "scenarios", scenario)
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return candidate, nil
-		}
-	}
-
-	return "", fmt.Errorf("scenario %s not found", scenario)
+	return resolveContractScenarioPath(scenario)
 }
 
 func clampAgentCount(requested, total int) int {

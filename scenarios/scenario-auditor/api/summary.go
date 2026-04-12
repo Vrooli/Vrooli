@@ -276,13 +276,9 @@ func filterSummaryViolations(violations []ViolationExcerpt, limit int, minSeveri
 }
 
 func persistScanArtifact(scanType, scenarioName, jobID string, payload any) (*ScanArtifactRef, error) {
-	root := getVrooliRoot()
-	if root == "" {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return nil, err
-		}
-		root = cwd
+	root, err := resolveRepoRoot()
+	if err != nil {
+		return nil, err
 	}
 
 	dir := filepath.Join(root, scanArtifactRootDir, scanType, sanitizePathComponent(scenarioName))
@@ -323,13 +319,9 @@ func resolveArtifactAbsolutePath(relPath string) (string, error) {
 		return "", fmt.Errorf("artifact path missing")
 	}
 
-	root := getVrooliRoot()
-	if root == "" {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return "", err
-		}
-		root = cwd
+	root, err := resolveRepoRoot()
+	if err != nil {
+		return "", err
 	}
 
 	cleanRoot := filepath.Clean(root)

@@ -12,6 +12,19 @@
 // Secret files are expected to be regular files with private permissions.
 // Symlinks are rejected, and on Unix-like platforms group/world-readable secret
 // files are rejected before parsing.
+//
+// The project-level store treats encrypted secrets as authoritative once they
+// exist. Migration helpers may read legacy plaintext during controlled
+// transition paths, but they do not overwrite a readable encrypted file with
+// conflicting legacy state.
+//
+// Keys that begin with "_" are reserved for metadata in legacy plaintext files.
+// Those keys are ignored on read and rejected on encrypted writes so write and
+// read behavior stay symmetric.
+//
+// VROOLI_SECRETS_KEY accepts either:
+//   - a base64-encoded 32-byte AES key
+//   - an arbitrary passphrase, which is normalized through SHA-256
 package secrets
 
 import (
@@ -27,6 +40,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -40,10 +54,12 @@ const (
 	encryptionVersion   = 1
 	lockTimeout         = 5 * time.Second
 	lockRetryInterval   = 50 * time.Millisecond
+	lockStaleAfter      = 30 * time.Second
 )
 
 var (
 	ErrMissingKey           = errors.New("missing VROOLI_SECRETS_KEY for encrypted secrets")
+	ErrInvalidInput         = errors.New("invalid secrets input")
 	ErrEncryptedRead        = errors.New("encrypted secrets read failed")
 	ErrLegacyRead           = errors.New("legacy secrets read failed")
 	ErrEncryptedWrite       = errors.New("encrypted secrets write failed")
@@ -56,6 +72,7 @@ var (
 	ErrLockTimeout          = errors.New("timed out waiting for secrets lock")
 	ErrInsecurePermissions  = errors.New("secret file has insecure permissions")
 	ErrSymlinkPath          = errors.New("secret file must not be a symlink")
+	ErrMigrationConflict    = errors.New("legacy secrets conflict with encrypted secrets")
 )
 
 type (
@@ -97,6 +114,7 @@ type storeDeps struct {
 	mkdirAll   func(string, os.FileMode) error
 	createTemp func(string, string) (*os.File, error)
 	rename     func(string, string) error
+	open       func(string) (*os.File, error)
 	openFile   func(string, int, os.FileMode) (*os.File, error)
 	lstat      func(string) (os.FileInfo, error)
 	randReader io.Reader
@@ -144,7 +162,7 @@ func (s *Store) Load() (map[string]string, error) {
 // LoadWithPolicy reads secrets using the provided policy.
 //
 // Strict loads use the encrypted file whenever it exists. Best-effort loads
-// fall back to the legacy plaintext file if the encrypted file cannot be
+// fall back to the legacy plaintext file only when the encrypted file cannot be
 // consumed.
 func (s *Store) LoadWithPolicy(policy LoadPolicy) (map[string]string, error) {
 	if data, err := s.loadEncryptedUnlocked(); err == nil {
@@ -245,21 +263,25 @@ func (s *Store) Save(values map[string]string) error {
 
 func (s *Store) saveUnlocked(values map[string]string) error {
 	deps := s.storeDeps()
+	normalized, err := normalizeSecretValues(values)
+	if err != nil {
+		return err
+	}
 	key, err := s.encryptionKey()
 	if err != nil {
 		return err
 	}
-	payload, err := encryptValuesWithReader(values, key, deps.randReader)
+	payload, err := encryptValuesWithReader(normalized, key, deps.randReader)
 	if err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
-		return fmt.Errorf("marshal encrypted secrets: %w", err)
+		return &Error{Kind: ErrEncryptedWrite, Op: "marshal encrypted secrets", Path: s.EncryptedPath(), Err: err}
 	}
 	path := s.EncryptedPath()
 	if err := deps.mkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("mkdir secrets dir: %w", err)
+		return &Error{Kind: ErrEncryptedWrite, Op: "mkdir secrets dir", Path: filepath.Dir(path), Err: err}
 	}
 	if err := s.writeFileAtomically(path, append(data, '\n')); err != nil {
 		return err
@@ -271,10 +293,13 @@ func (s *Store) saveUnlocked(values map[string]string) error {
 func (s *Store) SaveKey(name, value string) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return fmt.Errorf("secret name is required")
+		return &Error{Kind: ErrInvalidInput, Op: "validate secret key", Err: errors.New("secret name is required")}
+	}
+	if strings.HasPrefix(name, "_") {
+		return &Error{Kind: ErrInvalidInput, Op: "validate secret key", Err: fmt.Errorf("secret name %q is reserved for metadata", name)}
 	}
 	if value == "" {
-		return fmt.Errorf("secret value is required")
+		return &Error{Kind: ErrInvalidInput, Op: "validate secret value", Err: fmt.Errorf("secret value is required for %q", name)}
 	}
 	return s.withWriteLock(func() error {
 		values, err := s.LoadWithPolicy(s.LoadPolicy)
@@ -289,11 +314,42 @@ func (s *Store) SaveKey(name, value string) error {
 // MigrateLegacy copies legacy plaintext secrets into encrypted storage.
 //
 // When removeSource is true, the legacy plaintext file is removed after a
-// successful encrypted write.
+// successful encrypted write or when the legacy file already matches the
+// authoritative encrypted file. If both files exist and differ, migration fails
+// with ErrMigrationConflict rather than overwriting encrypted state.
 func (s *Store) MigrateLegacy(removeSource bool) (bool, error) {
 	deps := s.storeDeps()
 	var migrated bool
 	err := s.withWriteLock(func() error {
+		encryptedValues, encryptedErr := s.loadEncryptedUnlocked()
+		switch {
+		case encryptedErr == nil:
+			legacyValues, legacyErr := s.loadLegacyUnlocked()
+			if legacyErr != nil {
+				return legacyErr
+			}
+			if len(legacyValues) == 0 {
+				return nil
+			}
+			if !secretMapsEqual(encryptedValues, legacyValues) {
+				return &Error{
+					Kind: ErrMigrationConflict,
+					Op:   "migrate legacy secrets",
+					Path: s.LegacyPath(),
+					Err:  fmt.Errorf("encrypted secrets at %s already differ", s.EncryptedPath()),
+				}
+			}
+			if removeSource {
+				if err := deps.removeFile(s.LegacyPath()); err != nil && !os.IsNotExist(err) {
+					return &Error{Kind: ErrEncryptedWrite, Op: "remove legacy secrets", Path: s.LegacyPath(), Err: err}
+				}
+				migrated = true
+			}
+			return nil
+		case !errors.Is(encryptedErr, os.ErrNotExist):
+			return encryptedErr
+		}
+
 		values, err := s.loadLegacyUnlocked()
 		if err != nil {
 			return err
@@ -307,7 +363,7 @@ func (s *Store) MigrateLegacy(removeSource bool) (bool, error) {
 		migrated = true
 		if removeSource {
 			if err := deps.removeFile(s.LegacyPath()); err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("remove legacy secrets %s: %w", s.LegacyPath(), err)
+				return &Error{Kind: ErrEncryptedWrite, Op: "remove legacy secrets", Path: s.LegacyPath(), Err: err}
 			}
 		}
 		return nil
@@ -316,7 +372,8 @@ func (s *Store) MigrateLegacy(removeSource bool) (bool, error) {
 }
 
 // Resolve returns the named secret from stored values first, then from the
-// configured EnvLookup fallback.
+// configured EnvLookup fallback. Project-level resolution remains store-first
+// so on-disk operator state is authoritative once persisted.
 func (s *Store) Resolve(name string) (string, bool, error) {
 	values, err := s.LoadWithPolicy(s.LoadPolicy)
 	if err != nil {
@@ -440,6 +497,7 @@ func defaultStoreDeps() storeDeps {
 		mkdirAll:   os.MkdirAll,
 		createTemp: os.CreateTemp,
 		rename:     os.Rename,
+		open:       os.Open,
 		openFile:   os.OpenFile,
 		lstat:      os.Lstat,
 		randReader: rand.Reader,
@@ -466,6 +524,9 @@ func (s *Store) storeDeps() storeDeps {
 	if deps.rename == nil {
 		deps.rename = defaults.rename
 	}
+	if deps.open == nil {
+		deps.open = defaults.open
+	}
 	if deps.openFile == nil {
 		deps.openFile = defaults.openFile
 	}
@@ -491,7 +552,7 @@ func (s *Store) validateSecretFile(path string) error {
 		if os.IsNotExist(err) {
 			return os.ErrNotExist
 		}
-		return err
+		return &Error{Kind: ErrInvalidSecretData, Op: "stat secret file", Path: path, Err: err}
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
 		return &Error{Kind: ErrSymlinkPath, Op: "validate secret file", Path: path, Err: errors.New("symlink paths are not allowed")}
@@ -566,6 +627,9 @@ func (s *Store) writeFileAtomically(path string, data []byte) error {
 	if err := deps.rename(tmpPath, path); err != nil {
 		return &Error{Kind: ErrEncryptedWrite, Op: "rename encrypted secrets", Path: path, Err: err}
 	}
+	if err := s.syncDir(dir); err != nil {
+		return err
+	}
 	cleanup = false
 	return nil
 }
@@ -583,7 +647,7 @@ func (s *Store) acquireWriteLock() (func(), error) {
 	deps := s.storeDeps()
 	lockPath := s.LockPath()
 	if err := deps.mkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
-		return nil, fmt.Errorf("mkdir secrets dir: %w", err)
+		return nil, &Error{Kind: ErrEncryptedWrite, Op: "mkdir secrets dir", Path: filepath.Dir(lockPath), Err: err}
 	}
 	deadline := deps.now().Add(lockTimeout)
 	for {
@@ -598,9 +662,123 @@ func (s *Store) acquireWriteLock() (func(), error) {
 		if !os.IsExist(err) {
 			return nil, &Error{Kind: ErrEncryptedWrite, Op: "acquire secrets lock", Path: lockPath, Err: err}
 		}
+		recovered, recoverErr := s.recoverStaleLock(lockPath)
+		if recoverErr != nil {
+			return nil, recoverErr
+		}
+		if recovered {
+			continue
+		}
 		if !deps.now().Before(deadline) {
 			return nil, &Error{Kind: ErrLockTimeout, Op: "acquire secrets lock", Path: lockPath, Err: err}
 		}
 		deps.sleep(lockRetryInterval)
 	}
+}
+
+func (s *Store) syncDir(path string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	deps := s.storeDeps()
+	dir, err := deps.open(path)
+	if err != nil {
+		return &Error{Kind: ErrEncryptedWrite, Op: "open secrets dir for sync", Path: path, Err: err}
+	}
+	defer dir.Close()
+	if err := dir.Sync(); err != nil {
+		return &Error{Kind: ErrEncryptedWrite, Op: "sync secrets dir", Path: path, Err: err}
+	}
+	return nil
+}
+
+func (s *Store) recoverStaleLock(lockPath string) (bool, error) {
+	deps := s.storeDeps()
+	info, err := deps.lstat(lockPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, &Error{Kind: ErrEncryptedWrite, Op: "stat secrets lock", Path: lockPath, Err: err}
+	}
+	if deps.now().Sub(info.ModTime()) < lockStaleAfter {
+		return false, nil
+	}
+	data, err := deps.readFile(lockPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, &Error{Kind: ErrEncryptedWrite, Op: "read secrets lock", Path: lockPath, Err: err}
+	}
+	pid, ok := parseLockPID(data)
+	if ok && pid > 0 && processAlive(pid) {
+		return false, nil
+	}
+	if err := deps.removeFile(lockPath); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, &Error{Kind: ErrEncryptedWrite, Op: "remove stale secrets lock", Path: lockPath, Err: err}
+	}
+	return true, nil
+}
+
+func parseLockPID(data []byte) (int, bool) {
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "pid=") {
+			continue
+		}
+		pid, err := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(line, "pid=")))
+		if err != nil {
+			return 0, false
+		}
+		return pid, true
+	}
+	return 0, false
+}
+
+func processAlive(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	_, err := os.Stat(filepath.Join("/proc", strconv.Itoa(pid)))
+	return err == nil
+}
+
+func normalizeSecretValues(values map[string]string) (map[string]string, error) {
+	if len(values) == 0 {
+		return map[string]string{}, nil
+	}
+	normalized := make(map[string]string, len(values))
+	for rawKey, value := range values {
+		key := strings.TrimSpace(rawKey)
+		if key == "" {
+			return nil, &Error{Kind: ErrInvalidInput, Op: "validate secret key", Err: errors.New("secret key is required")}
+		}
+		if strings.HasPrefix(key, "_") {
+			return nil, &Error{Kind: ErrInvalidInput, Op: "validate secret key", Err: fmt.Errorf("secret key %q is reserved for metadata", key)}
+		}
+		if existing, ok := normalized[key]; ok && existing != value {
+			return nil, &Error{Kind: ErrInvalidInput, Op: "normalize secret values", Err: fmt.Errorf("multiple values provided for normalized key %q", key)}
+		}
+		normalized[key] = value
+	}
+	return normalized, nil
+}
+
+func secretMapsEqual(left, right map[string]string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for key, leftValue := range left {
+		if rightValue, ok := right[key]; !ok || rightValue != leftValue {
+			return false
+		}
+	}
+	return true
 }

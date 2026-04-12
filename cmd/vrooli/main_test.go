@@ -1228,6 +1228,9 @@ func TestRunDispatchesTopLevelCommandsToExpectedHandlers(t *testing.T) {
 		if !strings.Contains(stdout.String(), `"name": "alpha"`) {
 			t.Fatalf("stdout = %q", stdout.String())
 		}
+		if !strings.Contains(stdout.String(), `"maintenance"`) {
+			t.Fatalf("stdout missing maintenance snapshot: %q", stdout.String())
+		}
 	})
 
 	t.Run("status accepts trailing global json flag", func(t *testing.T) {
@@ -1272,6 +1275,9 @@ func TestRunDispatchesTopLevelCommandsToExpectedHandlers(t *testing.T) {
 			t.Fatalf("run exit code = %d", code)
 		}
 		if !strings.Contains(stdout.String(), `"checks"`) {
+			t.Fatalf("stdout = %q", stdout.String())
+		}
+		if !strings.Contains(stdout.String(), `"listener_inspection"`) {
 			t.Fatalf("stdout = %q", stdout.String())
 		}
 	})
@@ -1571,6 +1577,9 @@ func TestRunDiagnosePortReturnsJSON(t *testing.T) {
 	if !strings.Contains(stdout.String(), `"port": 21234`) || !strings.Contains(stdout.String(), `"scenario": "alpha"`) {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
+	if !strings.Contains(stdout.String(), `"listener_inspection"`) {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
 }
 
 func TestRunDiagnosePortHumanOutput(t *testing.T) {
@@ -1593,7 +1602,7 @@ func TestRunDiagnosePortHumanOutput(t *testing.T) {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 	output := stdout.String()
-	if !strings.Contains(output, "Port 21234") || !strings.Contains(output, "Scenario: alpha") || !strings.Contains(output, "Recommended actions:") {
+	if !strings.Contains(output, "Port 21234") || !strings.Contains(output, "Scenario: alpha") || !strings.Contains(output, "Listener inspection:") || !strings.Contains(output, "Recommended actions:") {
 		t.Fatalf("stdout = %q", output)
 	}
 }

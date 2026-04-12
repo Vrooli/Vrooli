@@ -187,14 +187,8 @@ func (app *App) runTopLevelDevelopCommand(ctx *commandContext, args []string) er
 }
 
 func runCleanupCommand(root string, parsed parsedArgs, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runCleanupCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: parsed.globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, parsed)
+	app, ctx := newConfiguredCommandContext(root, parsed.globals, stdout, stderr)
+	return runCleanupCommandWithApp(app, ctx, parsed)
 }
 
 func runCleanupCommandWithApp(app *App, ctx *commandContext, parsed parsedArgs) error {
@@ -215,9 +209,9 @@ func runCleanupCommandWithApp(app *App, ctx *commandContext, parsed parsedArgs) 
 		return nil
 	default:
 		return newErrorWithCategory(
-			exitCodeError{code: 1, message: fmt.Sprintf("unknown cleanup target: %s", target)},
+			errors.New(fmt.Sprintf("unknown cleanup target: %s", target)),
 			errorCategoryUsage,
-			"Run 'vrooli cleanup help' for usage",
+			usageHint("cleanup"),
 			[]string{"orphans", "locks"},
 		)
 	}
@@ -237,7 +231,7 @@ func runInfoCommand(root string, globals globalOptions, args []string, stdout, s
 			_, _ = fmt.Fprintln(stdout, "    --list     Print the resolved file paths without emitting file contents.")
 			return nil
 		default:
-			return fmt.Errorf("unknown option for info: %s", arg)
+			return unknownOptionError("info", arg)
 		}
 	}
 

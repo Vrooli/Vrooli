@@ -11,72 +11,6 @@ import (
 	"github.com/vrooli/vrooli/internal/project"
 )
 
-func runTopLevelBuildCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runProjectLifecyclePhaseCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, "build", args)
-}
-
-func runTopLevelDeployCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runProjectLifecyclePhaseCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, "deploy", args)
-}
-
-func runTopLevelCleanCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runProjectLifecyclePhaseCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, "clean", args)
-}
-
-func runTopLevelBackupCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runProjectLifecyclePhaseCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, "backup", args)
-}
-
-func runTopLevelRestoreCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runProjectLifecyclePhaseCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, "restore", args)
-}
-
-func runTopLevelStatusCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runTopLevelStatusCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
-}
-
 func runTopLevelStatusCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	opts, err := parseTopLevelStatusArgs(args)
 	if err != nil {
@@ -148,20 +82,23 @@ func runTopLevelStatusCommandWithApp(app *App, ctx *commandContext, args []strin
 			})
 		}
 		_ = cliout.RenderTable(ctx.Stdout, []string{"Name", "Status", "Processes", "Health", "Runtime"}, rows)
+		_, _ = fmt.Fprintln(ctx.Stdout)
+	}
+	if report.Maintenance != nil {
+		_, _ = fmt.Fprintln(ctx.Stdout, "Maintenance")
+		health := report.Maintenance.HealthSnapshot()
+		rows := [][]string{
+			{"Tracked processes", strconv.Itoa(report.Maintenance.TrackedProcesses)},
+			{"Running tracked", strconv.Itoa(report.Maintenance.RunningTracked)},
+			{"Child processes", strconv.Itoa(report.Maintenance.ChildProcesses)},
+			{"Zombie processes", strconv.Itoa(report.Maintenance.ZombieProcesses)},
+			{"Orphan processes", strconv.Itoa(report.Maintenance.OrphanProcesses)},
+			{"Overall health", health.OverallStatus},
+		}
+		_ = cliout.RenderTable(ctx.Stdout, []string{"Check", "Value"}, rows)
 	}
 
 	return nil
-}
-
-func runTopLevelDoctorCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runTopLevelDoctorCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
 }
 
 func runTopLevelDoctorCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -171,7 +108,7 @@ func runTopLevelDoctorCommandWithApp(app *App, ctx *commandContext, args []strin
 			showDoctorHelp(ctx.Stdout)
 			return nil
 		default:
-			return fmt.Errorf("unknown option for doctor: %s", arg)
+			return unknownOptionError("doctor", arg)
 		}
 	}
 
@@ -194,20 +131,9 @@ func runTopLevelDoctorCommandWithApp(app *App, ctx *commandContext, args []strin
 
 	rows := make([][]string, 0, len(report.Checks))
 	for _, item := range report.Checks {
-		rows = append(rows, []string{item.Name, item.Status})
+		rows = append(rows, []string{item.Name, item.Status, item.Message})
 	}
-	return cliout.RenderTable(ctx.Stdout, []string{"Check", "Status"}, rows)
-}
-
-func runTopLevelStopCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runTopLevelStopCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
+	return cliout.RenderTable(ctx.Stdout, []string{"Check", "Status", "Message"}, rows)
 }
 
 func runTopLevelStopCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -244,17 +170,6 @@ func runTopLevelStopCommandWithApp(app *App, ctx *commandContext, args []string)
 	return nil
 }
 
-func runTopLevelResourceCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runTopLevelResourceCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
-}
-
 func runTopLevelResourceCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	if len(args) == 0 || wantsCommandHelp(args) {
 		return runResourceCommand(nil, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
@@ -264,17 +179,6 @@ func runTopLevelResourceCommandWithApp(app *App, ctx *commandContext, args []str
 		return err
 	}
 	return runResourceCommand(controller, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
-}
-
-func runTopLevelOrphansCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runTopLevelOrphansCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
 }
 
 func runTopLevelOrphansCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -292,7 +196,7 @@ func runTopLevelOrphansCommandWithApp(app *App, ctx *commandContext, args []stri
 			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli orphans [kill] [--json]")
 			return nil
 		default:
-			return fmt.Errorf("unknown option for orphans: %s", arg)
+			return unknownOptionError("orphans", arg)
 		}
 	}
 
@@ -338,17 +242,6 @@ func runTopLevelOrphansCommandWithApp(app *App, ctx *commandContext, args []stri
 	return cliout.RenderTable(ctx.Stdout, []string{"PID", "PPID", "Command"}, rows)
 }
 
-func runTopLevelLocksCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runTopLevelLocksCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
-}
-
 func runTopLevelLocksCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	controller, err := app.newMaintenanceController(ctx)
 	if err != nil {
@@ -364,7 +257,7 @@ func runTopLevelLocksCommandWithApp(app *App, ctx *commandContext, args []string
 			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli locks [clean] [--json]")
 			return nil
 		default:
-			return fmt.Errorf("unknown option for locks: %s", arg)
+			return unknownOptionError("locks", arg)
 		}
 	}
 
@@ -419,20 +312,9 @@ func runTopLevelLocksCommandWithApp(app *App, ctx *commandContext, args []string
 	return cliout.RenderTable(ctx.Stdout, []string{"Port", "Scenario", "PID", "Status"}, rows)
 }
 
-func runTopLevelDiagnosePortCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runTopLevelDiagnosePortCommandWithApp(app, &commandContext{
-		Root:    root,
-		Globals: globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		app:     app,
-	}, args)
-}
-
 func runTopLevelDiagnosePortCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: vrooli diagnose-port <port> [scenario] [--json]")
+		return newUsageError("usage: vrooli diagnose-port <port> [scenario] [--json]", "diagnose-port")
 	}
 	if args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
 		_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli diagnose-port <port> [scenario] [--json]")
@@ -440,7 +322,7 @@ func runTopLevelDiagnosePortCommandWithApp(app *App, ctx *commandContext, args [
 	}
 	port, err := strconv.Atoi(strings.TrimSpace(args[0]))
 	if err != nil || port <= 0 {
-		return fmt.Errorf("invalid port: %s", args[0])
+		return usageErrorf("diagnose-port", "invalid port: %s", args[0])
 	}
 	scenarioName := ""
 	if len(args) > 1 {
@@ -467,6 +349,15 @@ func runTopLevelDiagnosePortCommandWithApp(app *App, ctx *commandContext, args [
 	_, _ = fmt.Fprintf(ctx.Stdout, "Port %d\n", diagnostic.Port)
 	if diagnostic.Scenario != "" {
 		_, _ = fmt.Fprintf(ctx.Stdout, "Scenario: %s\n", diagnostic.Scenario)
+	}
+	if diagnostic.ListenerInspection.Available {
+		if strings.TrimSpace(diagnostic.ListenerInspection.Tool) != "" {
+			_, _ = fmt.Fprintf(ctx.Stdout, "Listener inspection: available via %s\n", diagnostic.ListenerInspection.Tool)
+		} else {
+			_, _ = fmt.Fprintln(ctx.Stdout, "Listener inspection: available")
+		}
+	} else {
+		_, _ = fmt.Fprintf(ctx.Stdout, "Listener inspection: unavailable (%s)\n", diagnostic.ListenerInspection.Reason)
 	}
 	if diagnostic.InUse {
 		_, _ = fmt.Fprintln(ctx.Stdout, "Listeners:")
@@ -511,23 +402,13 @@ func parseTopLevelStatusArgs(args []string) (topLevelStatusOptions, error) {
 		case "--no-fast":
 			opts.Fast = false
 		default:
-			return topLevelStatusOptions{}, fmt.Errorf("unknown option for status: %s", arg)
+			return topLevelStatusOptions{}, unknownOptionError("status", arg)
 		}
 	}
 	if opts.ResourcesOnly && opts.ScenariosOnly {
-		return topLevelStatusOptions{}, fmt.Errorf("status accepts only one of --resources or --scenarios")
+		return topLevelStatusOptions{}, usageErrorf("status", "status accepts only one of --resources or --scenarios")
 	}
 	return opts, nil
-}
-
-func runProjectLifecyclePhaseCommand(root, phase string, args []string, stdout, stderr io.Writer) error {
-	app := configuredApp()
-	return runProjectLifecyclePhaseCommandWithApp(app, &commandContext{
-		Root:   root,
-		Stdout: stdout,
-		Stderr: stderr,
-		app:    app,
-	}, phase, args)
 }
 
 func runProjectLifecyclePhaseCommandWithApp(app *App, ctx *commandContext, phase string, args []string) error {

@@ -90,7 +90,7 @@ func (app *App) runScenarioStatusCommand(ctx *commandContext, args []string) err
 }
 
 func (app *App) runScenarioRunCommand(ctx *commandContext, args []string) error {
-	return runScenarioRunCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioStartCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioSetupCommand(ctx *commandContext, args []string) error {

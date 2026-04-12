@@ -62,7 +62,7 @@ func (p *SandboxToolProvider) createSandboxTool() *toolspb.ToolDefinition {
 				},
 				"project_root": {
 					Type:        "string",
-					Description: "Root path of the project. Defaults to VROOLI_ROOT if not specified.",
+					Description: "Root path of the project. Defaults to the repo-contract-resolved repository root when not specified.",
 				},
 				"owner": {
 					Type:        "string",
