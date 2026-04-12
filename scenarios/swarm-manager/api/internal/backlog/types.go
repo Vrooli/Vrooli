@@ -6,9 +6,9 @@ package backlog
 import (
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strings"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/identity"
 )
@@ -145,13 +145,7 @@ func validateEffort(raw string) (string, error) {
 // syntactically valid.
 func validateGlobs(globs []string) error {
 	for i, g := range globs {
-		if strings.TrimSpace(g) == "" {
-			return fmt.Errorf("glob[%d]: empty string not allowed", i)
-		}
-		if filepath.IsAbs(g) {
-			return fmt.Errorf("glob[%d]: absolute paths not allowed: %s", i, g)
-		}
-		if _, err := filepath.Match(g, ""); err != nil {
+		if err := repocontract.ValidateRepoGlob(g); err != nil {
 			return fmt.Errorf("glob[%d]: invalid pattern %q: %w", i, g, err)
 		}
 	}

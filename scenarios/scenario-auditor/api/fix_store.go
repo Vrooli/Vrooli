@@ -98,16 +98,12 @@ func initAutomatedFixStore() *AutomatedFixStore {
 }
 
 func (s *AutomatedFixStore) enablePersistence() {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if strings.TrimSpace(vrooliRoot) == "" {
-		home := os.Getenv("HOME")
-		if strings.TrimSpace(home) == "" {
-			return
-		}
-		vrooliRoot = filepath.Join(home, "Vrooli")
+	dataDir, err := resolveScenarioAuditorDataDir()
+	if err != nil {
+		logger.Error("Failed to resolve scenario-auditor data directory", err)
+		return
 	}
 
-	dataDir := filepath.Join(vrooliRoot, ".vrooli", "data", "scenario-auditor")
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		logger.Error(fmt.Sprintf("Failed to ensure data directory %s", dataDir), err)
 		return

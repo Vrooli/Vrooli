@@ -12,6 +12,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/logx"
 )
 
 const (
@@ -42,6 +43,13 @@ type globalOptions struct {
 	verbose      bool
 	noColor      bool
 	noStaleCheck bool
+}
+
+func (g globalOptions) logFormat() logx.Format {
+	if g.json {
+		return logx.FormatJSON
+	}
+	return ""
 }
 
 type parsedArgs struct {

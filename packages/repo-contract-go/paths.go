@@ -6,7 +6,13 @@ import (
 )
 
 func ScenarioRoot(repoRoot, scenario string) string {
-	return filepath.Join(filepath.Clean(repoRoot), "scenarios", filepath.Clean(scenario))
+	repoRoot = filepath.Clean(repoRoot)
+	if contract, err := LoadDefault(repoRoot); err == nil {
+		if resolved, err := contract.ScenarioRoot(repoRoot, scenario); err == nil {
+			return resolved
+		}
+	}
+	return filepath.Join(repoRoot, "scenarios", filepath.Clean(scenario))
 }
 
 func (c *Contract) ScenarioFile(repoRoot, scenario, key string) (string, error) {

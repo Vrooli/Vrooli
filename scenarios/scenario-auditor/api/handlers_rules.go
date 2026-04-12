@@ -44,12 +44,14 @@ func initRuleStateStore() *RuleStateStore {
 }
 
 func (rs *RuleStateStore) enablePersistence() {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	dataDir, err := resolveScenarioAuditorDataDir()
+	if err != nil {
+		logger.Error("Failed to resolve scenario-auditor data directory", err)
+		logger.Info("Rule state store will operate in memory-only mode (no persistence)")
+		return
 	}
 
-	parentDir := filepath.Join(vrooliRoot, ".vrooli", "data")
+	parentDir := filepath.Dir(dataDir)
 	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
 		if err := os.MkdirAll(parentDir, 0o755); err != nil {
 			logger.Error(fmt.Sprintf("Failed to create parent data directory %s", parentDir), err)
@@ -58,7 +60,6 @@ func (rs *RuleStateStore) enablePersistence() {
 		}
 	}
 
-	dataDir := filepath.Join(parentDir, "scenario-auditor")
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		logger.Error(fmt.Sprintf("Failed to create scenario-auditor data directory %s", dataDir), err)
 		logger.Info("Rule state store will operate in memory-only mode (no persistence)")

@@ -2,22 +2,35 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "kokoro",
   "display_name": "Kokoro",
-  "description": "Transitional Kokoro resource kept behind a typed legacy adapter while native model/runtime ownership is scoped.",
-  "template": "legacy-adapter",
-  "driver": "legacy-adapter",
-  "legacy_adapter": {
-    "owner": "Matthew Halloran",
-    "decision_deadline": "2026-05-31",
-    "final_disposition": "migrate",
-    "legacy_cli_path": "resources/kokoro/cli.sh",
-    "notes": "Phase 0 keep resource because it still has scenario usage and root enablement."
-  },
+  "description": "Managed Kokoro text-to-speech service with native compose-backed lifecycle and shell-retained voice synthesis workflows.",
+  "template": "compose-service",
+  "driver": "compose-service",
+  "compose_file": "docker/docker-compose.yml",
   "portability_tier": "partial",
   "category": "ai",
   "platforms": {
     "linux": "supported",
     "macos": "partial",
     "windows": "partial"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 8880,
+      "host": 8880
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8880/v1/audio/voices",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
   },
   "template_version": "1"
 }

@@ -34,12 +34,26 @@ done
 # Initialize CLI framework in v2.0 mode
 cli::init "mail-in-a-box" "Mail-in-a-Box email server management" "v2"
 
+mailinabox::native::resource() {
+    local operation="$1"
+    shift || true
+    vrooli resource mail-in-a-box "$operation" "$@"
+}
+
+mailinabox::native::install() { mailinabox::native::resource install "$@"; }
+mailinabox::native::uninstall() { mailinabox::native::resource uninstall "$@"; }
+mailinabox::native::start() { mailinabox::native::resource start "$@"; }
+mailinabox::native::stop() { mailinabox::native::resource stop "$@"; }
+mailinabox::native::restart() { mailinabox::native::resource restart "$@"; }
+mailinabox::native::status() { mailinabox::native::resource status "$@"; }
+mailinabox::native::logs() { mailinabox::native::resource logs "$@"; }
+
 # Manage handlers (REQUIRED)
-CLI_COMMAND_HANDLERS["manage::install"]="mailinabox_install"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="mailinabox_uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="mailinabox_start"
-CLI_COMMAND_HANDLERS["manage::stop"]="mailinabox_stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="mailinabox_restart"
+CLI_COMMAND_HANDLERS["manage::install"]="mailinabox::native::install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="mailinabox::native::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="mailinabox::native::start"
+CLI_COMMAND_HANDLERS["manage::stop"]="mailinabox::native::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="mailinabox::native::restart"
 
 # Restart handler function
 mailinabox_restart() {
@@ -71,8 +85,8 @@ cli::register_subcommand "content" "test-autoconfig" "Test email client auto-con
 cli::register_subcommand "content" "import" "Import email configuration from file" "mailinabox_inject_file"
 
 # Information commands (REQUIRED)
-cli::register_command "status" "Show detailed resource status" "mailinabox_simple_status"
-cli::register_command "logs" "Show Mail-in-a-Box logs" "mailinabox_show_logs"
+cli::register_command "status" "Show detailed resource status" "mailinabox::native::status"
+cli::register_command "logs" "Show Mail-in-a-Box logs" "mailinabox::native::logs"
 cli::register_command "version" "Show Mail-in-a-Box version" "mailinabox_get_version"
 
 # Extended functionality commands

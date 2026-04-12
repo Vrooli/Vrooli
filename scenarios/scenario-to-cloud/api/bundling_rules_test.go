@@ -22,8 +22,8 @@ import (
 func TestMiniVrooliBundleSpec_IncludesAutohealAndPackagesAndFiltersScenariosResources(t *testing.T) {
 	// [REQ:STC-P0-002] deterministic mini-Vrooli tarball include/exclude rules
 	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
 
-	mkdir(t, repoRoot, ".vrooli")
 	mkdir(t, repoRoot, "scripts")
 	mkdir(t, repoRoot, "api")
 	mkdir(t, repoRoot, "src")
@@ -96,6 +96,7 @@ func TestMiniVrooliBundleSpec_IncludesAutohealAndPackagesAndFiltersScenariosReso
 func TestWriteDeterministicTarGz_IsReproducibleAndRelative(t *testing.T) {
 	// [REQ:STC-P0-008] tarball is reproducible and self-contained (no absolute paths)
 	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
 	writeFile(t, repoRoot, "packages/pkg-a/README.md", "pkg-a\n")
 	writeFile(t, repoRoot, "scenarios/app-a/README.md", "app-a\n")
 	writeFile(t, repoRoot, "scenarios/vrooli-autoheal/README.md", "autoheal\n")
@@ -156,6 +157,7 @@ func TestWriteDeterministicTarGz_IsReproducibleAndRelative(t *testing.T) {
 func TestMiniVrooliBundleSpec_GeneratesNativeMiniRootManifest(t *testing.T) {
 	// [REQ:STC-P0-002] mini-Vrooli bundle should emit a native root manifest without legacy setup wiring
 	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
 	writeFile(t, repoRoot, ".vrooli/service.json", `{
   "version": "2.0.0",
   "lifecycle": {
@@ -272,6 +274,7 @@ func TestMiniVrooliBundleSpec_GeneratesNativeMiniRootManifest(t *testing.T) {
 
 func TestMiniVrooliBundleSpec_ManifestOmitsSecrets(t *testing.T) {
 	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
 	writeFile(t, repoRoot, "scenarios/app-a/README.md", "app-a\n")
 
 	m := domain.CloudManifest{
@@ -324,6 +327,7 @@ func TestMiniVrooliBundleSpec_ManifestOmitsSecrets(t *testing.T) {
 func TestMiniVrooliBundleSpec_EmbedsTrimmedGoWork(t *testing.T) {
 	// [REQ:STC-P0-002] mini-Vrooli bundle must not ship a go.work that references stripped modules.
 	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
 
 	writeFile(t, repoRoot, "go.work", `go 1.23.0
 
@@ -387,6 +391,7 @@ func TestBuildMiniVrooliBundle_Smoke_ProducesSelfContainedMiniRepo(t *testing.T)
 	// [REQ:STC-P0-002] bundle build produces a deployable mini-Vrooli tarball
 	// [REQ:STC-P0-008] tarball is self-contained (no excluded dirs, no absolute paths)
 	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
 	outDir := filepath.Join(t.TempDir(), "out")
 
 	// Minimal repo skeleton for bundling.

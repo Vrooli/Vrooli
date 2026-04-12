@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -11,9 +12,11 @@ import (
 func (r *Runner) WaitForHealth(item scenario.Scenario, env map[string]string) (string, error) {
 	health := item.Manifest.HealthConfig()
 	if health == nil || len(health.Checks) == 0 {
+		r.logInfo("Scenario has no health checks; treating as running", logx.AttrScenario, item.Slug, logx.AttrStatus, "running")
 		return "running", nil
 	}
 	ports := healthPortsFromEnv(item.Manifest, env)
+	r.logDebug("Waiting for scenario health", logx.AttrScenario, item.Slug, "checks", len(health.Checks), "ports", ports)
 
 	if health.StartupGracePeriod > 0 {
 		time.Sleep(time.Duration(health.StartupGracePeriod) * time.Millisecond)
@@ -36,12 +39,15 @@ func (r *Runner) WaitForHealth(item scenario.Scenario, env map[string]string) (s
 	for {
 		lastStatus = scenario.EvaluateHealth(health, ports)
 		if lastStatus == "healthy" {
+			r.logInfo("Scenario reported healthy", logx.AttrScenario, item.Slug, logx.AttrStatus, lastStatus)
 			return lastStatus, nil
 		}
 		if time.Now().After(deadline) {
 			if lastStatus == "degraded" {
+				r.logWarn("Scenario health checks degraded after timeout", logx.AttrScenario, item.Slug, logx.AttrStatus, lastStatus)
 				return lastStatus, nil
 			}
+			r.logWarn("Scenario health checks failed before timeout", logx.AttrScenario, item.Slug, logx.AttrStatus, lastStatus)
 			return lastStatus, fmt.Errorf("scenario %q failed health checks", item.Slug)
 		}
 		time.Sleep(interval)

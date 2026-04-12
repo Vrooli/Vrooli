@@ -1,0 +1,12 @@
+services:
+  home-assistant:
+    image: homeassistant/home-assistant:stable
+    container_name: home-assistant
+    privileged: true
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TZ: America/New_York
+    volumes:
+      - ${APP_ROOT}/data/resources/home-assistant/config:/config
+      - /etc/localtime:/etc/localtime:ro

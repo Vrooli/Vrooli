@@ -13,6 +13,8 @@ import (
 	"testing"
 )
 
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=5 | LAST: 2026-04-12
+
 func TestSandboxEnvFromEnv(t *testing.T) {
 	t.Setenv("VROOLI_SANDBOX_ID", "sandbox-123")
 	t.Setenv("VROOLI_SANDBOX_MERGED", "/tmp/merged")
@@ -25,6 +27,9 @@ func TestSandboxEnvFromEnv(t *testing.T) {
 }
 
 func TestScenarioInScope(t *testing.T) {
+	root := t.TempDir()
+	writeRepoContract(t, root, "scenarios")
+
 	tests := []struct {
 		name     string
 		scenario string
@@ -40,7 +45,7 @@ func TestScenarioInScope(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := ScenarioInScope(tc.scenario, tc.scope); got != tc.want {
+			if got := ScenarioInScope(root, tc.scenario, tc.scope); got != tc.want {
 				t.Fatalf("ScenarioInScope(%q, %q) = %v, want %v", tc.scenario, tc.scope, got, tc.want)
 			}
 		})
@@ -48,15 +53,46 @@ func TestScenarioInScope(t *testing.T) {
 }
 
 func TestResolveMergedPath(t *testing.T) {
+	root := t.TempDir()
+	writeRepoContract(t, root, "scenarios")
+
 	merged := "/tmp/sandbox/merged"
-	if got := ResolveMergedPath("alpha", "scenarios/alpha", merged); got != merged {
+	if got := ResolveMergedPath(root, "alpha", "scenarios/alpha", merged); got != merged {
 		t.Fatalf("exact scope path = %q", got)
 	}
-	if got := ResolveMergedPath("alpha", "scenarios", merged); got != filepath.Join(merged, "alpha") {
+	if got := ResolveMergedPath(root, "alpha", "scenarios", merged); got != filepath.Join(merged, "alpha") {
 		t.Fatalf("scenarios scope path = %q", got)
 	}
-	if got := ResolveMergedPath("alpha", "", merged); got != filepath.Join(merged, "scenarios", "alpha") {
+	if got := ResolveMergedPath(root, "alpha", "", merged); got != filepath.Join(merged, "scenarios", "alpha") {
 		t.Fatalf("root scope path = %q", got)
+	}
+}
+
+func TestScenarioInScopeUsesContractDefinedScopePrefix(t *testing.T) {
+	root := t.TempDir()
+	writeRepoContract(t, root, "apps")
+
+	if !ScenarioInScope(root, "alpha", "apps/alpha/api") {
+		t.Fatal("expected contract-defined app scope to match scenario")
+	}
+	if ScenarioInScope(root, "alpha", "scenarios/alpha") {
+		t.Fatal("unexpected legacy scenarios/ scope match under apps contract")
+	}
+}
+
+func TestResolveMergedPathUsesContractDefinedScenarioDir(t *testing.T) {
+	root := t.TempDir()
+	writeRepoContract(t, root, "apps")
+
+	merged := "/tmp/sandbox/merged"
+	if got := ResolveMergedPath(root, "alpha", "", merged); got != filepath.Join(merged, "apps", "alpha") {
+		t.Fatalf("root scope path = %q", got)
+	}
+	if got := ResolveMergedPath(root, "alpha", "apps", merged); got != filepath.Join(merged, "alpha") {
+		t.Fatalf("apps scope path = %q", got)
+	}
+	if got := ResolveMergedPath(root, "alpha", "apps/alpha", merged); got != merged {
+		t.Fatalf("exact app scope path = %q", got)
 	}
 }
 
@@ -180,6 +216,44 @@ func TestDiscoverUsesContractDefinedScenarioBase(t *testing.T) {
 	}
 	if scenarios[1].Path != filepath.Join(root, "apps", "beta") {
 		t.Fatalf("beta path = %q", scenarios[1].Path)
+	}
+}
+
+func TestScenarioPathHelpersUseInjectedContractResolver(t *testing.T) {
+	original := contractPaths
+	t.Cleanup(func() {
+		contractPaths = original
+	})
+
+	contractPaths = fakeScenarioContractPaths{
+		baseDir:     "/repo/apps",
+		scenarioDir: "/repo/apps/alpha",
+		servicePath: "/repo/apps/alpha/.custom/service.json",
+	}
+
+	if got := scenarioBaseDir("/repo"); got != "/repo/apps" {
+		t.Fatalf("scenarioBaseDir = %q", got)
+	}
+	if got := scenarioRootPath("/repo", "alpha"); got != "/repo/apps/alpha" {
+		t.Fatalf("scenarioRootPath = %q", got)
+	}
+	if got := scenarioServicePath("/repo", "alpha", "/repo/apps/alpha"); got != "/repo/apps/alpha/.custom/service.json" {
+		t.Fatalf("scenarioServicePath = %q", got)
+	}
+}
+
+func TestRepoContractPathsFallbacksWithoutContract(t *testing.T) {
+	root := t.TempDir()
+	resolver := repoContractPaths{}
+
+	if got, want := resolver.ScenarioBaseDir(root), filepath.Join(root, "scenarios"); got != want {
+		t.Fatalf("ScenarioBaseDir = %q, want %q", got, want)
+	}
+	if got, want := resolver.ScenarioRootPath(root, "alpha"), filepath.Join(root, "scenarios", "alpha"); got != want {
+		t.Fatalf("ScenarioRootPath = %q, want %q", got, want)
+	}
+	if got, want := resolver.ScenarioServicePath(root, "alpha", filepath.Join(root, "scenarios", "alpha")), filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"); got != want {
+		t.Fatalf("ScenarioServicePath = %q, want %q", got, want)
 	}
 }
 
@@ -431,10 +505,13 @@ func TestPerformHealthCheckRejectsInvalidHTTPURL(t *testing.T) {
 }
 
 func TestScanSandboxScenarioNamesRespectsScope(t *testing.T) {
+	root := t.TempDir()
+	writeRepoContract(t, root, "scenarios")
+
 	merged := t.TempDir()
 	writeScenarioServiceAtPath(t, merged, "Scoped alpha")
 
-	names, err := scanSandboxScenarioNames(SandboxEnv{Merged: merged, Scope: "scenarios/alpha"})
+	names, err := scanSandboxScenarioNames(root, SandboxEnv{Merged: merged, Scope: "scenarios/alpha"})
 	if err != nil {
 		t.Fatalf("scanSandboxScenarioNames: %v", err)
 	}
@@ -442,7 +519,7 @@ func TestScanSandboxScenarioNamesRespectsScope(t *testing.T) {
 		t.Fatalf("sandbox names = %q, want alpha", got)
 	}
 
-	names, err = scanSandboxScenarioNames(SandboxEnv{Merged: merged, Scope: "packages/shared"})
+	names, err = scanSandboxScenarioNames(root, SandboxEnv{Merged: merged, Scope: "packages/shared"})
 	if err != nil {
 		t.Fatalf("scanSandboxScenarioNames unrelated scope: %v", err)
 	}
@@ -452,10 +529,29 @@ func TestScanSandboxScenarioNamesRespectsScope(t *testing.T) {
 }
 
 func TestScanSandboxScenarioNamesSupportsRepoRootScope(t *testing.T) {
+	root := t.TempDir()
+	writeRepoContract(t, root, "scenarios")
+
 	merged := t.TempDir()
 	writeScenarioServiceAtPath(t, filepath.Join(merged, "scenarios", "alpha"), "Sandbox alpha")
 
-	names, err := scanSandboxScenarioNames(SandboxEnv{Merged: merged, Scope: ""})
+	names, err := scanSandboxScenarioNames(root, SandboxEnv{Merged: merged, Scope: ""})
+	if err != nil {
+		t.Fatalf("scanSandboxScenarioNames repo scope: %v", err)
+	}
+	if got := strings.Join(names, ","); got != "alpha" {
+		t.Fatalf("sandbox names = %q, want alpha", got)
+	}
+}
+
+func TestScanSandboxScenarioNamesUsesContractDefinedScenarioDir(t *testing.T) {
+	root := t.TempDir()
+	writeRepoContract(t, root, "apps")
+
+	merged := t.TempDir()
+	writeScenarioServiceAtPath(t, filepath.Join(merged, "apps", "alpha"), "Sandbox alpha")
+
+	names, err := scanSandboxScenarioNames(root, SandboxEnv{Merged: merged, Scope: ""})
 	if err != nil {
 		t.Fatalf("scanSandboxScenarioNames repo scope: %v", err)
 	}
@@ -670,7 +766,7 @@ func writeRepoContract(t *testing.T, root, scenarioDir string) {
 		},
 		"sandbox": map[string]any{
 			"full_repo_scopes":      []string{"", ".", "/"},
-			"scenario_scope_prefix": "scenarios/",
+			"scenario_scope_prefix": scenarioDir + "/",
 		},
 		"profiles": map[string]any{
 			"mini_vrooli_bundle": map[string]any{
@@ -712,4 +808,37 @@ func extractPort(t *testing.T, rawURL string) int {
 		t.Fatalf("parse port from %q: %v", rawURL, err)
 	}
 	return value
+}
+
+type fakeScenarioContractPaths struct {
+	baseDir     string
+	scenarioDir string
+	servicePath string
+	scenarioKey string
+	scopePrefix string
+}
+
+func (f fakeScenarioContractPaths) ScenarioBaseDir(root string) string {
+	return f.baseDir
+}
+
+func (f fakeScenarioContractPaths) ScenarioRootPath(root, name string) string {
+	return f.scenarioDir
+}
+
+func (f fakeScenarioContractPaths) ScenarioServicePath(root, name, scenarioPath string) string {
+	return f.servicePath
+}
+
+func (f fakeScenarioContractPaths) ScenarioDirName(root string) string {
+	return f.scenarioKey
+}
+
+func (f fakeScenarioContractPaths) ScenarioScopePrefix(root string) string {
+	return f.scopePrefix
+}
+
+func (f fakeScenarioContractPaths) IsFullRepoScope(root, scope string) bool {
+	scope = strings.TrimSpace(strings.TrimSuffix(filepath.ToSlash(scope), "/"))
+	return scope == "" || scope == "." || scope == "/"
 }

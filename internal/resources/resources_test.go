@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -108,6 +107,16 @@ func TestStatusForResourceCategorizesProbeFailures(t *testing.T) {
 			t.Fatalf("status.StatusCode = %q, want %q", status.StatusCode, StatusCodeInvalidStatusPayload)
 		}
 	})
+}
+
+func TestNormalizeComposePSOutputIgnoresWarnings(t *testing.T) {
+	output := []byte(`time="2026-04-12T00:04:48-04:00" level=warning msg="compose warning"
+{"Service":"fixture","State":"running","Health":"healthy"}`)
+
+	normalized := normalizeComposePSOutput(output)
+	if normalized != `{"Service":"fixture","State":"running","Health":"healthy"}` {
+		t.Fatalf("normalizeComposePSOutput() = %q", normalized)
+	}
 }
 
 func TestStatusForResourceParsesStructuredPayload(t *testing.T) {
@@ -767,6 +776,12 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 		"neo4j":                 "docker-service",
 		"questdb":               "docker-service",
 		"searxng":               "docker-service",
+		"comfyui":               "docker-service",
+		"home-assistant":        "compose-service",
+		"kokoro":                "compose-service",
+		"mail-in-a-box":         "compose-service",
+		"sagemath":              "docker-service",
+		"whisper":               "compose-service",
 		"claude-code":           "external-cli",
 		"codex":                 "external-cli",
 		"k6":                    "external-cli",
@@ -774,6 +789,7 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 		"sqlite":                "external-cli",
 		"ollama":                "docker-service",
 		"judge0":                "compose-service",
+		"postgis":               "compose-service",
 		"unstructured-io":       "docker-service",
 		"gemini":                "cloud-api",
 		"openrouter":            "cloud-api",
@@ -807,7 +823,7 @@ func TestProjectPhase5ResourceManifestsValidate(t *testing.T) {
 	root := projectRootForResourcesTest(t)
 	controller := NewController(root, t.TempDir())
 
-	for _, name := range []string{"postgres", "redis", "qdrant", "browserless", "vault", "litellm", "minio", "neo4j", "questdb", "searxng", "claude-code", "codex", "k6", "opencode", "sqlite", "ollama", "judge0", "unstructured-io", "gemini", "openrouter", "twilio", "cloudflare-ai-gateway"} {
+	for _, name := range []string{"postgres", "redis", "qdrant", "browserless", "vault", "litellm", "minio", "neo4j", "questdb", "searxng", "comfyui", "home-assistant", "kokoro", "mail-in-a-box", "sagemath", "whisper", "claude-code", "codex", "k6", "opencode", "sqlite", "ollama", "judge0", "postgis", "unstructured-io", "gemini", "openrouter", "twilio", "cloudflare-ai-gateway"} {
 		manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(root, name))
 		if err != nil {
 			t.Fatalf("loadResourceManifest(%s): %v", name, err)
@@ -868,43 +884,42 @@ func TestProjectPhase6KeepResourcesAreExplicitlyTyped(t *testing.T) {
 	}
 }
 
-func TestProjectPhase6LegacyAdaptersHaveDecisionMetadata(t *testing.T) {
+func TestProjectPhase6LegacyAdapterBacklogIsCleared(t *testing.T) {
 	root := projectRootForResourcesTest(t)
 	controller := NewController(root, t.TempDir())
 
-	adapterNames := []string{
-		"comfyui",
-		"home-assistant",
-		"kokoro",
-		"mail-in-a-box",
-		"postgis",
-		"sagemath",
-		"whisper",
+	items, err := controller.Discover()
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
 	}
-	deadlinePattern := regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
+	for _, item := range items {
+		if item.ControlMode == "legacy-adapter" {
+			t.Fatalf("%s unexpectedly remains a legacy-adapter resource", item.Name)
+		}
+	}
+}
 
-	for _, name := range adapterNames {
-		manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(root, name))
+func TestProjectMigratedResourcesUseNativeDrivers(t *testing.T) {
+	root := projectRootForResourcesTest(t)
+	controller := NewController(root, t.TempDir())
+
+	expected := map[string]string{
+		"kokoro":        "compose-service",
+		"mail-in-a-box": "compose-service",
+		"sagemath":      "docker-service",
+		"whisper":       "compose-service",
+	}
+
+	for name, driver := range expected {
+		status, err := controller.Status(name, true)
 		if err != nil {
-			t.Fatalf("loadResourceManifest(%s): %v", name, err)
+			t.Fatalf("Status(%s): %v", name, err)
 		}
-		if manifest.Driver != "legacy-adapter" {
-			t.Fatalf("%s driver = %q, want legacy-adapter", name, manifest.Driver)
+		if status.Resource.ControlMode != "manifest-native" {
+			t.Fatalf("%s ControlMode = %q, want manifest-native", name, status.Resource.ControlMode)
 		}
-		if manifest.Template != "legacy-adapter" {
-			t.Fatalf("%s template = %q, want legacy-adapter", name, manifest.Template)
-		}
-		if manifest.LegacyAdapter.Owner == "" {
-			t.Fatalf("%s owner is empty", name)
-		}
-		if !deadlinePattern.MatchString(manifest.LegacyAdapter.DecisionDeadline) {
-			t.Fatalf("%s deadline = %q, want YYYY-MM-DD", name, manifest.LegacyAdapter.DecisionDeadline)
-		}
-		if manifest.LegacyAdapter.FinalDisposition != "migrate" && manifest.LegacyAdapter.FinalDisposition != "blueprint" && manifest.LegacyAdapter.FinalDisposition != "deprecate" {
-			t.Fatalf("%s final disposition = %q", name, manifest.LegacyAdapter.FinalDisposition)
-		}
-		if manifest.LegacyAdapter.LegacyCLIPath != filepath.ToSlash(filepath.Join("resources", name, "cli.sh")) {
-			t.Fatalf("%s legacy cli path = %q", name, manifest.LegacyAdapter.LegacyCLIPath)
+		if status.Resource.Driver != driver {
+			t.Fatalf("%s Driver = %q, want %q", name, status.Resource.Driver, driver)
 		}
 	}
 }

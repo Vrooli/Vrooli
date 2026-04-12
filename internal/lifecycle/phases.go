@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -88,8 +89,10 @@ func (r *Runner) RunPhase(name, phaseName string, opts PhaseOptions) error {
 }
 
 func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (PhaseResult, error) {
+	r.logInfo("Scenario phase requested", logx.AttrScenario, name, logx.AttrPhase, phaseName, "project_mode", opts.ProjectMode)
 	item, err := r.loadScenario(name, opts.CustomPath)
 	if err != nil {
+		r.logError("Failed to load scenario for phase", err, logx.AttrScenario, name, logx.AttrPhase, phaseName)
 		return PhaseResult{}, err
 	}
 
@@ -143,8 +146,16 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 		result, executeErr = r.ExecutePhaseDetailed(item, phaseName, env, args, logWriter)
 		return executeErr
 	}); err != nil {
+		r.logError("Scenario phase failed", err, logx.AttrScenario, item.Slug, logx.AttrPhase, phaseName)
 		return result, err
 	}
+	r.logInfo("Scenario phase completed",
+		logx.AttrScenario, item.Slug,
+		logx.AttrPhase, phaseName,
+		logx.AttrStatus, result.Status,
+		"executed_steps", result.ExecutedSteps,
+		"skipped_steps", result.SkippedSteps,
+	)
 	return result, nil
 }
 
@@ -165,9 +176,11 @@ func (r *Runner) ExecutePhase(item scenario.Scenario, phaseName string, env map[
 func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, env map[string]string, args []string, logWriter io.Writer) (PhaseResult, error) {
 	phase, ok := lookupPhase(item.Manifest, phaseName)
 	if !ok {
+		r.logDebug("Scenario phase not defined", logx.AttrScenario, item.Slug, logx.AttrPhase, phaseName)
 		return undefinedPhaseResult(item.Slug, phaseName), nil
 	}
 	if !phaseDefined(phase) {
+		r.logDebug("Scenario phase empty; treating as undefined", logx.AttrScenario, item.Slug, logx.AttrPhase, phaseName)
 		return undefinedPhaseResult(item.Slug, phaseName), nil
 	}
 
@@ -188,11 +201,23 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 		}
 		if !ok {
 			r.infof(logWriter, "[%d/%d] Skipping %s - %s", index+1, len(phase.Steps), step.Name, reason)
+			r.logDebug("Skipping lifecycle step",
+				logx.AttrScenario, item.Slug,
+				logx.AttrPhase, phaseName,
+				logx.AttrStep, step.Name,
+				"reason", reason,
+			)
 			result.SkippedSteps++
 			continue
 		}
 
 		r.infof(logWriter, "[%d/%d] %s", index+1, len(phase.Steps), step.Name)
+		r.logDebug("Executing lifecycle step",
+			logx.AttrScenario, item.Slug,
+			logx.AttrPhase, phaseName,
+			logx.AttrStep, step.Name,
+			"background", step.Background,
+		)
 
 		finalCmd := step.Run
 		if phaseName == "test" && len(args) > 0 {
@@ -215,6 +240,11 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 		if err := r.runForegroundStep(item, phaseName, finalCmd, env, logWriter); err != nil {
 			if phaseName == "stop" {
 				r.warnf(logWriter, "Stop step completed with non-zero exit: %s", step.Name)
+				r.logWarn("Stop lifecycle step returned non-zero exit but execution will continue",
+					logx.AttrScenario, item.Slug,
+					logx.AttrPhase, phaseName,
+					logx.AttrStep, step.Name,
+				)
 				result.ExecutedSteps++
 				result.Status = PhaseExecutionCompleted
 				continue

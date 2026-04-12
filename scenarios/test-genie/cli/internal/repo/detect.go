@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // Paths holds discovered scenario directory paths.
@@ -18,15 +20,13 @@ var (
 	rootPath string
 )
 
-// Root returns the repository root directory, caching the result.
-//
-// Deferred migration note: this heuristic exists for legacy compatibility and
-// is intentionally weaker than the repo contract. Do not copy this behavior
-// into new repo-aware tooling.
 func Root() string {
 	rootOnce.Do(func() {
-		dir, _ := os.Getwd()
-		rootPath = locateRoot(dir)
+		dir, err := os.Getwd()
+		if err != nil {
+			return
+		}
+		rootPath, _ = repocontract.FindRepoRootFromPath(dir)
 	})
 	return rootPath
 }
@@ -37,7 +37,10 @@ func DiscoverScenarioPaths(scenario string) Paths {
 	if root == "" {
 		return Paths{}
 	}
-	scenarioDir := filepath.Join(root, "scenarios", scenario)
+	scenarioDir, err := repocontract.ResolveScenarioPath(root, scenario)
+	if err != nil {
+		return Paths{}
+	}
 	info, err := os.Stat(scenarioDir)
 	if err != nil || !info.IsDir() {
 		return Paths{}
@@ -93,21 +96,4 @@ func FileState(path string) (exists bool, empty bool) {
 		return tryPath(filepath.Join(root, path))
 	}
 	return false, false
-}
-
-func locateRoot(start string) string {
-	dir := start
-	for i := 0; i < 8 && dir != "" && dir != string(filepath.Separator); i++ {
-		if dir == "" {
-			break
-		}
-		if Exists(filepath.Join(dir, ".git")) {
-			return dir
-		}
-		if Exists(filepath.Join(dir, "pnpm-workspace.yaml")) {
-			return dir
-		}
-		dir = filepath.Dir(dir)
-	}
-	return ""
 }

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   kokoro:
     image: ${KOKORO_IMAGE:-ghcr.io/remsky/kokoro-fastapi-cpu:latest}
@@ -8,8 +6,6 @@ services:
     restart: unless-stopped
     ports:
       - "${KOKORO_BIND_ADDRESS:-127.0.0.1}:${KOKORO_PORT:-8880}:8880"
-    volumes:
-      - kokoro_models:/app/api/src/voices:rw
     networks:
       - kokoro-network
     healthcheck:
@@ -29,14 +25,6 @@ services:
           memory: ${KOKORO_MEMORY_LIMIT:-8G}
         reservations:
           memory: ${KOKORO_MEMORY_RESERVATION:-4G}
-
-volumes:
-  kokoro_models:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: "${KOKORO_VOICES_DIR:-$HOME/.kokoro/voices}"
 
 networks:
   kokoro-network:

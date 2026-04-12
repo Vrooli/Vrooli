@@ -125,12 +125,16 @@ func setupTestServerNoData(t *testing.T) *Server {
 		config: &Config{
 			Port: "8080",
 		},
-		db:              db,
-		store:           NewTidinessStore(db),
-		router:          mux.NewRouter(),
-		campaignMgr:     NewCampaignManager(),
-		scenarioLocator: NewScenarioLocator(5 * time.Minute),
+		db:          db,
+		store:       NewTidinessStore(db),
+		router:      mux.NewRouter(),
+		campaignMgr: NewCampaignManager(),
 	}
+	locator, err := NewScenarioLocator(5 * time.Minute)
+	if err != nil {
+		t.Fatalf("Failed to initialize scenario locator: %v", err)
+	}
+	srv.scenarioLocator = locator
 	srv.scanCoordinator = NewScanCoordinator(
 		db,
 		srv.scenarioLocator,

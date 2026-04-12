@@ -1,7 +1,10 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/process"
 )
 
@@ -87,6 +91,54 @@ func TestStopScenarioEndpointReturnsTypedMessage(t *testing.T) {
 	data := payload["data"].(map[string]any)
 	if data["message"] != "Scenario alpha stopped successfully" {
 		t.Fatalf("data.message = %v", data["message"])
+	}
+}
+
+func TestStartAppLogsFailures(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	var logs bytes.Buffer
+	logger, _ := logx.New(logx.Options{Component: "vrooli-api", Writer: &logs, JSON: true})
+	originalDefault := slog.Default()
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(originalDefault) })
+
+	app := New(root, home, logger)
+	rec := httptest.NewRecorder()
+	req := mux.SetURLVars(httptest.NewRequest(http.MethodPost, "/apps/missing/start", nil), map[string]string{"name": "missing"})
+	app.StartApp(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if !strings.Contains(logs.String(), `"msg":"Scenario start requested for missing scenario"`) {
+		t.Fatalf("expected missing-scenario log, got %q", logs.String())
+	}
+	if !strings.Contains(logs.String(), `"scenario":"missing"`) {
+		t.Fatalf("expected structured scenario field, got %q", logs.String())
+	}
+}
+
+func TestStartAllScenariosEndpointLogsFailures(t *testing.T) {
+	var logs bytes.Buffer
+	logger, _ := logx.New(logx.Options{Component: "vrooli-api", Writer: &logs, JSON: true})
+	app := New(t.TempDir(), t.TempDir(), logger)
+	app.StartAllScenariosFn = func() (control.StartReport, error) {
+		return control.StartReport{}, errors.New("boom")
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/scenarios/start-all", nil)
+	app.StartAllScenariosEndpoint(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if !strings.Contains(logs.String(), `"msg":"Scenario start-all request failed"`) {
+		t.Fatalf("expected start-all failure log, got %q", logs.String())
+	}
+	if !strings.Contains(logs.String(), `"operation":"start_all_scenarios"`) {
+		t.Fatalf("expected structured operation field, got %q", logs.String())
 	}
 }
 
@@ -182,6 +234,7 @@ func TestGetScenarioStatusNativeReturnsDetailedScenarioData(t *testing.T) {
 func TestListResourcesReturnsTypedStatusPayload(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
+	t.Setenv("PATH", "/usr/bin:/bin")
 	writeResourceServiceConfig(t, root, "redis", true)
 	writeResourceCLI(t, root, "redis", `{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)
 
@@ -283,8 +336,26 @@ func writeResourceServiceConfig(t *testing.T, root, name string, enabled bool) {
 
 func writeResourceCLI(t *testing.T, root, name, statusJSON string) {
 	t.Helper()
+	manifestPath := filepath.Join(root, "resources", name, "resource.json")
+	manifest := `{
+  "name": "` + name + `",
+  "display_name": "` + name + `",
+  "description": "fixture resource",
+  "template": "legacy-adapter",
+  "driver": "legacy-adapter",
+  "legacy_adapter": {
+    "owner": "Matthew Halloran",
+    "decision_deadline": "2026-05-31",
+    "final_disposition": "migrate",
+    "legacy_cli_path": "resources/` + name + `/cli.sh"
+  },
+  "portability_tier": "partial"
+}`
+	if err := osWriteFileAll(manifestPath, manifest+"\n"); err != nil {
+		t.Fatalf("write resource manifest: %v", err)
+	}
 	scriptPath := filepath.Join(root, "resources", name, "cli.sh")
-	script := "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"status\" ]]; then\n  printf '%s\\n' '" + statusJSON + "'\n  exit 0\nfi\nprintf '{\"message\":\"ok\"}\\n'\n"
+	script := "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"status\" ]]; then\n  printf '%s\\n' '" + statusJSON + "'\n  exit 0\nfi\nprintf '{\"message\":\"ok\"}\\n'\nexit 0\n"
 	if err := osWriteFileAll(scriptPath, script); err != nil {
 		t.Fatalf("write resource cli: %v", err)
 	}

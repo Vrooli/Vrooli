@@ -62,6 +62,47 @@ func TestRunEmitsDebugLogsWhenVerbose(t *testing.T) {
 	}
 }
 
+func TestCreateCommandLoggerUsesJSONWhenCommandOutputIsJSON(t *testing.T) {
+	var captured bytes.Buffer
+	logger, restore := createCommandLogger(globalOptions{json: true}, &captured)
+	defer restore()
+
+	logger.Info("machine readable")
+	if !strings.Contains(captured.String(), `"msg":"machine readable"`) {
+		t.Fatalf("expected json log output, got %q", captured.String())
+	}
+}
+
+func TestCreateCommandLoggerUsesEnvFormatWhenCommandOutputIsHuman(t *testing.T) {
+	t.Setenv("VROOLI_LOG_FORMAT", "json")
+
+	var captured bytes.Buffer
+	logger, restore := createCommandLogger(globalOptions{}, &captured)
+	defer restore()
+
+	logger.Info("env format")
+	if !strings.Contains(captured.String(), `"msg":"env format"`) {
+		t.Fatalf("expected env-driven json log output, got %q", captured.String())
+	}
+}
+
+func TestCreateCommandLoggerEmitsConfigurationWarningsOnce(t *testing.T) {
+	t.Setenv("VROOLI_LOG_LEVEL", "trace")
+	t.Setenv("VROOLI_LOG_FORMAT", "yaml")
+
+	var captured bytes.Buffer
+	_, restore := createCommandLogger(globalOptions{}, &captured)
+	defer restore()
+
+	got := captured.String()
+	if strings.Count(got, "invalid_log_level") != 1 {
+		t.Fatalf("expected one invalid_log_level warning, got %q", got)
+	}
+	if strings.Count(got, "invalid_log_format") != 1 {
+		t.Fatalf("expected one invalid_log_format warning, got %q", got)
+	}
+}
+
 func TestPrintErrorWithContextCategorizesRuntimeError(t *testing.T) {
 	var output bytes.Buffer
 	err := newErrorWithCategory(

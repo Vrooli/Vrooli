@@ -1,0 +1,29 @@
+services:
+  postgis:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vrooli/postgis-routing:16-3.4
+    container_name: postgis-main
+    restart: unless-stopped
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: spatial
+      POSTGRES_USER: vrooli
+      POSTGRES_PASSWORD: vrooli
+      POSTGRES_INITDB_ARGS: --encoding=UTF8
+    command:
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - max_connections=100
+    volumes:
+      - ${HOME}/.vrooli/postgis/data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U vrooli -d spatial
+      interval: 10s
+      timeout: 5s
+      retries: 5

@@ -197,13 +197,14 @@ The fundamental shift from Bash to Go is: Bash reads source on every invocation,
 8. **Makefile targets** (baseline — add to `/Makefile` in Week 0):
    ```makefile
    LDFLAGS := -s -w \
-       -X vrooli.com/internal/buildinfo.Fingerprint=$(shell ./hack/fingerprint.sh) \
-       -X vrooli.com/internal/buildinfo.GitCommit=$(shell git rev-parse HEAD) \
-       -X vrooli.com/internal/buildinfo.BuildTime=$(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+       -X github.com/vrooli/vrooli/internal/buildinfo.GitCommit=$(shell git rev-parse HEAD) \
+       -X github.com/vrooli/vrooli/internal/buildinfo.BuildTime=$(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
    build:
-       CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o .vrooli/build/vrooli ./cmd/vrooli
-       CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o .vrooli/build/vrooli-api ./cmd/vrooli-api
+       VROOLI_CLI_FINGERPRINT=$$(go run ./cmd/vrooli-buildmeta --root . cmd/vrooli internal); \
+           CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS) -X github.com/vrooli/vrooli/internal/buildinfo.Fingerprint=$$VROOLI_CLI_FINGERPRINT" -o .vrooli/build/vrooli ./cmd/vrooli
+       VROOLI_API_FINGERPRINT=$$(go run ./cmd/vrooli-buildmeta --root . cmd/vrooli-api internal); \
+           CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS) -X github.com/vrooli/vrooli/internal/buildinfo.Fingerprint=$$VROOLI_API_FINGERPRINT" -o .vrooli/build/vrooli-api ./cmd/vrooli-api
 
    install: build
        install -m 0755 .vrooli/build/vrooli ~/.vrooli/bin/vrooli

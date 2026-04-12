@@ -12,38 +12,58 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
+
+func resolveRepoRootForTidiness() (string, error) {
+	for _, key := range []string{"VROOLI_ROOT", "VROOLI_SOURCE_ROOT"} {
+		if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+			root, err := repocontract.FindRepoRoot(value)
+			if err == nil {
+				return root, nil
+			}
+		}
+	}
+
+	return repocontract.FindRepoRootFromCWD()
+}
 
 // ScenarioLocator centralizes scenario path resolution and discovery so handlers
 // don't reinvent path validation or caching logic.
 type ScenarioLocator struct {
-	vrooliRoot   string
+	repoRoot     string
 	scenariosDir string
 	cache        []string
 	cacheTime    time.Time
 	cacheTTL     time.Duration
 }
 
-// NewScenarioLocator builds a locator with sensible defaults derived from env.
-//
-// Deferred migration note: the fallback behavior here is legacy compatibility
-// and is intentionally not treated as repo-contract authority.
-func NewScenarioLocator(cacheTTL time.Duration) *ScenarioLocator {
-	root := os.Getenv("VROOLI_ROOT")
-	if root == "" {
-		root = filepath.Join(os.Getenv("HOME"), "Vrooli")
+// NewScenarioLocator builds a locator from the active repo contract.
+func NewScenarioLocator(cacheTTL time.Duration) (*ScenarioLocator, error) {
+	root, err := resolveRepoRootForTidiness()
+	if err != nil {
+		return nil, fmt.Errorf("resolve repo root: %w", err)
 	}
+	contract, err := repocontract.LoadDefault(root)
+	if err != nil {
+		return nil, fmt.Errorf("load repo contract: %w", err)
+	}
+	layout := contract.Layout()
 
 	return &ScenarioLocator{
-		vrooliRoot:   root,
-		scenariosDir: filepath.Join(root, "scenarios"),
+		repoRoot:     root,
+		scenariosDir: filepath.Join(root, filepath.FromSlash(layout.ScenarioDir)),
 		cacheTTL:     cacheTTL,
-	}
+	}, nil
 }
 
-// ScenarioPath returns the absolute path for a scenario name within Vrooli.
-func (sl *ScenarioLocator) ScenarioPath(name string) string {
-	return filepath.Join(sl.scenariosDir, name)
+// ScenarioPath returns the absolute contract-backed path for a scenario.
+func (sl *ScenarioLocator) ScenarioPath(name string) (string, error) {
+	if sl == nil {
+		return "", errors.New("scenario locator not configured")
+	}
+	return repocontract.ResolveScenarioPath(sl.repoRoot, name)
 }
 
 // ValidateScenarioName ensures the scenario name cannot escape the scenarios directory.
@@ -60,16 +80,12 @@ func (sl *ScenarioLocator) ValidateScenarioName(name string) (string, error) {
 	return trimmed, nil
 }
 
-// defaultScenarioPath provides a fallback scenario path based on environment variables.
-//
-// This is a transitional helper and should be removed once tidiness-manager
-// resolves scenario roots through shared contract-backed helpers.
-func defaultScenarioPath(scenario string) string {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+func resolveDefaultScenarioPath(scenario string) (string, error) {
+	root, err := resolveRepoRootForTidiness()
+	if err != nil {
+		return "", fmt.Errorf("resolve repo root: %w", err)
 	}
-	return filepath.Join(vrooliRoot, "scenarios", scenario)
+	return repocontract.ResolveScenarioPath(root, scenario)
 }
 
 // ResolveRequestedPath validates and normalizes a requested scenario path.
@@ -270,7 +286,14 @@ func (sc *ScanCoordinator) LightScan(ctx context.Context, req LightScanRequest) 
 	result.LongFilesCount = len(result.LongFiles)
 
 	// Collect and persist detailed file metrics to database (TM-FM-001, TM-FM-002)
-	scenarioPath := sc.scenarios.ScenarioPath(result.Scenario)
+	scenarioPath, err := sc.scenarios.ScenarioPath(result.Scenario)
+	if err != nil {
+		return nil, &ScanError{
+			Status:  http.StatusInternalServerError,
+			Message: "failed to resolve scenario path",
+			Err:     err,
+		}
+	}
 
 	filePaths := make([]string, len(result.FileMetrics))
 	for i, fm := range result.FileMetrics {
@@ -433,7 +456,10 @@ func (sc *ScanCoordinator) EnsureFileMetrics(ctx context.Context, scenario strin
 		return fmt.Errorf("scenario locator not configured")
 	}
 
-	scenarioPath := sc.scenarios.ScenarioPath(scenarioName)
+	scenarioPath, err := sc.scenarios.ScenarioPath(scenarioName)
+	if err != nil {
+		return fmt.Errorf("failed to resolve scenario path: %w", err)
+	}
 	if _, err := os.Stat(scenarioPath); err != nil {
 		return fmt.Errorf("scenario path does not exist: %w", err)
 	}

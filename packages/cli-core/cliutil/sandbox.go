@@ -2,13 +2,12 @@ package cliutil
 
 import (
 	"os"
-	"path/filepath"
-	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 var findRepoRoot = repocontract.FindRepoRootFromEnvOrCWD
+var loadContract = repocontract.LoadDefaultFromEnvOrCWD
 
 // ---------------------------------------------------------------------------
 // Sandbox-aware path resolution for scenario CLIs
@@ -100,33 +99,9 @@ func (s SandboxEnv) IsSandboxActive() bool {
 //	"scenarios/other"        → does NOT match "foo"
 //	"packages/shared"        → no scenarios match (scope outside scenarios/)
 func ScenarioInScope(scenarioName, scope string) bool {
-	// Empty scope or root scope means the overlay covers everything.
-	if scope == "" || scope == "/" || scope == "." {
-		return true
+	if contract, err := activeContract(); err == nil {
+		return contract.ScenarioScopeMatch(scenarioName, scope)
 	}
-
-	// Normalize: remove trailing slash.
-	scope = strings.TrimRight(scope, "/")
-
-	// If scope IS "scenarios", all scenarios are in scope.
-	if scope == "scenarios" {
-		return true
-	}
-
-	// If scope starts with "scenarios/", check if this specific scenario matches.
-	// Extract the first path component after "scenarios/" and compare.
-	// e.g. scope="scenarios/foo/api" → scopedName="foo" → matches scenario "foo"
-	if strings.HasPrefix(scope, "scenarios/") {
-		remainder := strings.TrimPrefix(scope, "scenarios/")
-		// Take only the first path component (before any slash).
-		scopedName := remainder
-		if idx := strings.Index(remainder, "/"); idx >= 0 {
-			scopedName = remainder[:idx]
-		}
-		return scenarioName == scopedName
-	}
-
-	// Scope is outside scenarios/ (e.g., "packages/shared") — no scenarios match.
 	return false
 }
 
@@ -143,48 +118,22 @@ func ScenarioInScope(scenarioName, scope string) bool {
 // The algorithm: compute the scenario's full relative path ("scenarios/{name}"),
 // then strip the scope prefix to get the remaining path within the merged dir.
 func ResolveMergedPath(scenarioName, scope, merged string) string {
-	// Normalize: remove trailing slash from scope.
-	scope = strings.TrimRight(scope, "/")
-
-	// The full canonical path to the scenario relative to project root.
-	scenarioRel := filepath.Join("scenarios", scenarioName)
-
-	// If scope is empty/root, merged/ is the project root — use full relative path.
-	if scope == "" || scope == "/" || scope == "." {
-		return filepath.Join(merged, scenarioRel)
-	}
-
-	// Strip the scope prefix from the scenario's relative path.
-	if scenarioRel == scope {
-		// Scope exactly matches the scenario path — merged/ IS the scenario dir.
-		return merged
-	}
-	if strings.HasPrefix(scenarioRel, scope+"/") {
-		// Scope is a parent dir — strip it to get the relative path within merged/.
-		relative := strings.TrimPrefix(scenarioRel, scope+"/")
-		return filepath.Join(merged, relative)
-	}
-
-	// Fallback: shouldn't happen if ScenarioInScope passed, but be safe.
-	return filepath.Join(merged, scenarioRel)
-}
-
-// defaultRepoRoot returns the standard Vrooli repository root from env or
-// filesystem convention.
-//
-// Deferred migration note: the HOME-based fallback is legacy compatibility and
-// should not be treated as future-state repo-contract authority.
-func defaultRepoRoot() string {
-	if root, err := findRepoRoot(); err == nil {
-		return root
-	}
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
-		return root
-	}
-	if home := os.Getenv("HOME"); home != "" {
-		return filepath.Join(home, "Vrooli")
+	if contract, err := activeContract(); err == nil {
+		if resolved, ok, err := contract.ResolveSandboxScenarioPath(merged, scope, scenarioName); err == nil && ok {
+			return resolved
+		}
 	}
 	return ""
+}
+
+// defaultRepoRoot returns the standard Vrooli repository root using the shared
+// repo contract discovery rules.
+func defaultRepoRoot() string {
+	root, err := findRepoRoot()
+	if err != nil {
+		return ""
+	}
+	return root
 }
 
 // ResolveScenarioPath returns the absolute filesystem path to a scenario's
@@ -195,8 +144,8 @@ func defaultRepoRoot() string {
 //     to the scenario within the overlay — reflecting any agent changes.
 //   - If the scenario is outside the scope, the real repo path is returned.
 //
-// When called outside a sandbox, this falls back to VROOLI_ROOT resolution
-// (VROOLI_ROOT env var → $HOME/Vrooli fallback).
+// When called outside a sandbox, this falls back to repo-contract-backed root
+// discovery.
 //
 // This is the primary function most CLIs should call. It combines
 // DetectSandbox(), ScenarioInScope(), and ResolveMergedPath() into a single
@@ -213,14 +162,14 @@ func ResolveScenarioPath(scenarioName string) string {
 	if path, err := repocontract.ResolveScenarioPath(root, scenarioName); err == nil {
 		return path
 	}
-	return filepath.Join(root, "scenarios", scenarioName)
+	return ""
 }
 
 // ResolveRepoRoot returns the effective repository root directory.
 //
 // In a sandbox context where the scope covers the full project (scope is
 // empty, ".", or "/"), returns the merged path as the effective root.
-// Otherwise returns VROOLI_ROOT or $HOME/Vrooli fallback.
+// Otherwise returns the repo-contract-backed root.
 //
 // Note: For scenario-scoped sandboxes (e.g., scope="scenarios/my-scenario"),
 // the merged directory does NOT represent the full project root — it only
@@ -230,10 +179,14 @@ func ResolveScenarioPath(scenarioName string) string {
 func ResolveRepoRoot() string {
 	sbx := DetectSandbox()
 	if sbx.IsSandboxActive() {
-		scope := strings.TrimRight(sbx.Scope, "/")
-		if scope == "" || scope == "/" || scope == "." {
+		if contract, err := activeContract(); err == nil && contract.IsFullRepoScope(sbx.Scope) {
 			return sbx.Merged
 		}
 	}
 	return defaultRepoRoot()
+}
+
+func activeContract() (*repocontract.Contract, error) {
+	contract, _, err := loadContract()
+	return contract, err
 }

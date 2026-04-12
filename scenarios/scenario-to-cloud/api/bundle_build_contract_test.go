@@ -21,6 +21,7 @@ import (
 func TestBundleBuildEndpoint_BuildsTarballArtifact(t *testing.T) {
 	// [REQ:STC-P0-002] API can build a mini-Vrooli tarball from a manifest
 	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
 
 	mkdirAll(t, repoRoot, ".vrooli")
 	mkdirAll(t, repoRoot, "scripts")
@@ -111,9 +112,9 @@ func TestBundleBuildEndpoint_BuildsTarballArtifact(t *testing.T) {
 func TestBuildMiniVrooliBundle_DeterministicNameAndBytes(t *testing.T) {
 	// [REQ:STC-P0-002] bundle output name and bytes should be deterministic for the same inputs
 	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
 	outDir := filepath.Join(repoRoot, "out")
 
-	mkdirAll(t, repoRoot, ".vrooli")
 	writeFileBytes(t, repoRoot, ".vrooli/service.json", []byte(`{"version":"2.0.0","resources":{"postgres":{"enabled":true},"redis":{"enabled":true}}}`))
 	writeFileBytes(t, repoRoot, "packages/pkg-a/README.md", []byte("pkg-a\n"))
 	writeFileBytes(t, repoRoot, "scenarios/app-a/README.md", []byte("app-a\n"))

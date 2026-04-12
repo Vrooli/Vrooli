@@ -1144,6 +1144,9 @@ Current status:
 - `litellm`, `minio`, `neo4j`, `questdb`, and `searxng` now have native `docker-service` manifests and Go-native standard lifecycle/status/log handling.
 - `ollama` and `unstructured-io` now have native `docker-service` manifests and Go-native standard lifecycle/status/log handling.
 - `judge0` now has a native `compose-service` manifest and Go-native standard lifecycle/status/log handling for its multi-container stack.
+- `comfyui` now has a native `docker-service` manifest and Go-native standard lifecycle/status/log handling, while workflow/model/GPU-specific commands remain in the shell compatibility surface.
+- `home-assistant` now has a native `compose-service` manifest and Go-native standard lifecycle/status/log handling, while automation, backup, component, and voice commands remain in the shell compatibility surface.
+- `postgis` now has a native `compose-service` manifest and Go-native standard lifecycle/status/log handling, while GIS import/export and advanced spatial analysis commands remain in the shell compatibility surface.
 - `browserless` has been reduced to a thin compatibility surface centered on `status`, `logs`, `screenshot`, and `diagnostics`, while keeping Browserless-shaped `/pressure`, `/function`, and structured status support for `test-genie`.
 - `claude-code` and `codex` now have native `external-cli` manifests and Go-native standard lifecycle/status handling.
 - `k6`, `opencode`, and `sqlite` now have native `external-cli` manifests and Go-native standard lifecycle/status handling.
@@ -1170,26 +1173,19 @@ Current status:
 
 **Acceptance:** Every remaining shell resource has an explicit plan and no hidden status.
 
-**Status update:** Phase 6 is now implemented as an explicit legacy-adapter backlog in the native resource manifest system.
+**Status update:** Phase 6 is now fully burned down in the active project keep-set.
 
-- The remaining active shell-backed Phase 0 `keep` set now carries typed `resource.json` manifests with `driver: legacy-adapter` instead of surfacing as implicit `legacy-shell` discovery results.
-- Each adapter manifest now records:
-  - `legacy_adapter.owner`
-  - `legacy_adapter.decision_deadline`
-  - `legacy_adapter.final_disposition`
-  - `legacy_adapter.legacy_cli_path`
-- `vrooli resource list` and `vrooli resource status` now expose legacy-adapter decision metadata so the backlog is visible from the control plane rather than buried in docs.
-- Repo-level tests now enforce that every Phase 0 `keep` resource is either `manifest-native` or `legacy-adapter`; raw `legacy-shell` is no longer acceptable for the active set.
+- The former active shell-backed Phase 0 `keep` adapters now carry native `resource.json` manifests using canonical drivers:
+  - `kokoro` -> `compose-service`
+  - `mail-in-a-box` -> `compose-service`
+  - `sagemath` -> `docker-service`
+  - `whisper` -> `compose-service`
+- `vrooli resource list` and `vrooli resource status` now show those resources as `manifest-native`.
+- Repo-level tests now enforce the stronger invariant that the active keep-set has no remaining project `legacy-adapter` entries.
 
 Current explicit Phase 6 adapter backlog:
 
-- `comfyui` -> `migrate`
-- `home-assistant` -> `migrate`
-- `kokoro` -> `migrate`
-- `mail-in-a-box` -> `migrate`
-- `postgis` -> `migrate`
-- `sagemath` -> `migrate`
-- `whisper` -> `migrate`
+- none
 
 The focused Phase 6 closeout validation bundle is:
 
@@ -1197,7 +1193,7 @@ The focused Phase 6 closeout validation bundle is:
 - `go run ./cmd/vrooli resource list`
 - `go run ./cmd/vrooli resource status`
 
-Phase 6 is considered complete once the active project keep-set has no hidden `legacy-shell` entries and every remaining adapter has visible owner/deadline/disposition metadata in the Go-native control surface.
+Phase 6 is considered complete once the active project keep-set has no hidden `legacy-shell` entries and no remaining project `legacy-adapter` backlog.
 
 ### Phase 7 — Cleanup and contract hardening
 

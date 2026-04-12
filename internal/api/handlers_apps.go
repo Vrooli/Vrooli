@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
@@ -67,6 +68,7 @@ func (a *App) readTail(path, lines string) (string, error) {
 func (a *App) ListApps(w http.ResponseWriter, r *http.Request) {
 	entries, err := os.ReadDir(a.AppsDir)
 	if err != nil {
+		a.logError("App list request failed", err, logx.AttrOperation, "list_apps")
 		respondError(w, newAPIError(http.StatusInternalServerError, "apps_directory_unreadable", "cannot read apps directory", err))
 		return
 	}
@@ -103,6 +105,7 @@ func (a *App) ListApps(w http.ResponseWriter, r *http.Request) {
 		}
 		apps = append(apps, item)
 	}
+	a.logInfo("App list request completed", "count", len(apps))
 	respondSuccess(w, http.StatusOK, apps)
 }
 
@@ -110,6 +113,7 @@ func (a *App) ProtectApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	appPath := filepath.Join(a.AppsDir, name)
 	if _, err := os.Stat(appPath); err != nil {
+		a.logWarn("Protect app requested for missing app", "app", name)
 		respondError(w, newAPIError(http.StatusNotFound, "app_not_found", "app not found", err))
 		return
 	}
@@ -118,6 +122,7 @@ func (a *App) ProtectApp(w http.ResponseWriter, r *http.Request) {
 	protectFile := filepath.Join(protectDir, ".protected")
 	content := fmt.Sprintf("Protected on %s\n", time.Now().UTC().Format(time.RFC3339))
 	_ = os.WriteFile(protectFile, []byte(content), 0o644)
+	a.logInfo("App protection marker written", "app", name)
 	respondSuccess(w, http.StatusOK, map[string]bool{"protected": true})
 }
 
@@ -125,17 +130,21 @@ func (a *App) StartApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	scenarioPath := filepath.Join(a.Root, "scenarios", name)
 	if _, err := os.Stat(scenarioPath); err != nil {
+		a.logWarn("Scenario start requested for missing scenario", logx.AttrScenario, name)
 		respondError(w, newAPIError(http.StatusNotFound, "scenario_not_found", "scenario not found", err))
 		return
 	}
 	if err := checkForkBomb(); err != nil {
+		a.logError("Scenario start blocked by system overload protection", err, logx.AttrScenario, name)
 		respondError(w, newAPIError(http.StatusServiceUnavailable, "system_overload", err.Error(), err))
 		return
 	}
 	if _, err := a.Scenarios.Start(name, lifecycle.StartOptions{}); err != nil {
+		a.logError("Scenario start request failed", err, logx.AttrScenario, name)
 		respondError(w, newAPIError(http.StatusInternalServerError, "scenario_start_failed", fmt.Sprintf("failed to start scenario %s", name), err))
 		return
 	}
+	a.logInfo("Scenario start request completed", logx.AttrScenario, name)
 	respondSuccess(w, http.StatusOK, messageData{Message: fmt.Sprintf("Scenario %s started successfully", name)})
 }
 
@@ -143,6 +152,7 @@ func (a *App) StopApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	scenarioPath := filepath.Join(a.Root, "scenarios", name)
 	if _, err := os.Stat(scenarioPath); err != nil {
+		a.logWarn("App stop requested for missing app", "app", name)
 		respondError(w, newAPIError(http.StatusNotFound, "scenario_not_found", "scenario not found", err))
 		return
 	}
@@ -153,9 +163,11 @@ func (a *App) StopApp(w http.ResponseWriter, r *http.Request) {
 			status = http.StatusNotFound
 			code = "app_not_found"
 		}
+		a.logError("App stop request failed", err, "app", name)
 		respondError(w, newAPIError(status, code, fmt.Sprintf("failed to stop app %s", name), err))
 		return
 	}
+	a.logInfo("App stop request completed", "app", name)
 	respondSuccess(w, http.StatusOK, messageData{Message: fmt.Sprintf("App %s stopped successfully", name)})
 }
 
@@ -163,13 +175,16 @@ func (a *App) RestartApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	scenarioPath := filepath.Join(a.Root, "scenarios", name)
 	if _, err := os.Stat(scenarioPath); err != nil {
+		a.logWarn("Scenario restart requested for missing scenario", logx.AttrScenario, name)
 		respondError(w, newAPIError(http.StatusNotFound, "scenario_not_found", "scenario not found", err))
 		return
 	}
 	if _, err := a.Scenarios.Restart(name, lifecycle.StartOptions{}); err != nil {
+		a.logError("Scenario restart request failed", err, logx.AttrScenario, name)
 		respondError(w, newAPIError(http.StatusInternalServerError, "scenario_restart_failed", fmt.Sprintf("failed to restart scenario %s", name), err))
 		return
 	}
+	a.logInfo("Scenario restart request completed", logx.AttrScenario, name)
 	respondSuccess(w, http.StatusOK, messageData{Message: fmt.Sprintf("Scenario %s restarted successfully", name)})
 }
 
@@ -187,42 +202,51 @@ func (a *App) GetAppLogs(w http.ResponseWriter, r *http.Request) {
 			status = http.StatusNotFound
 			code = "scenario_not_found"
 		}
+		a.logError("Scenario logs request failed", err, logx.AttrScenario, name, logx.AttrOperation, "scenario_logs")
 		respondError(w, newAPIError(status, code, fmt.Sprintf("failed to get logs for %s", name), err))
 		return
 	}
 	logPath := filepath.Join(a.Home, ".vrooli", "logs", name+".log")
 	output, err := a.readTail(logPath, lines)
 	if err != nil {
+		a.logError("Scenario log file read failed", err, logx.AttrScenario, name)
 		respondError(w, newAPIError(http.StatusInternalServerError, "scenario_logs_read_failed", "failed to get logs", err))
 		return
 	}
+	a.logInfo("Scenario logs request completed", logx.AttrScenario, name, "lines", lines)
 	respondSuccess(w, http.StatusOK, appLogsData{Logs: output, Scenario: view.Name})
 }
 
 func (a *App) GetRunningApps(w http.ResponseWriter, r *http.Request) {
 	scenarios, err := a.discoverRunningScenarios()
 	if err != nil {
+		a.logError("Running apps request failed", err, logx.AttrOperation, "running_apps")
 		respondError(w, newAPIError(http.StatusInternalServerError, "running_scenarios_failed", "failed to get running scenarios", err))
 		return
 	}
+	a.logInfo("Running apps request completed", "count", len(scenarios))
 	respondSuccess(w, http.StatusOK, scenarios)
 }
 
 func (a *App) StartAllApps(w http.ResponseWriter, r *http.Request) {
 	result, err := a.StartAllScenariosFn()
 	if err != nil {
+		a.logError("App start-all request failed", err, logx.AttrOperation, "start_all_apps")
 		respondError(w, newAPIError(http.StatusInternalServerError, "start_all_failed", "failed to start scenarios", err))
 		return
 	}
+	a.logInfo("App start-all request completed", "started", len(result.Started), "failed", len(result.Failed))
 	respondSuccess(w, http.StatusOK, result)
 }
 
 func (a *App) StopAllApps(w http.ResponseWriter, r *http.Request) {
 	result, err := a.StopAllScenariosFn()
 	if err != nil {
+		a.logError("App stop-all request failed", err, logx.AttrOperation, "stop_all_apps")
 		respondError(w, newAPIError(http.StatusInternalServerError, "stop_all_failed", "failed to stop scenarios", err))
 		return
 	}
+	a.logInfo("App stop-all request completed", "stopped", len(result.Stopped), "failed", len(result.Failed))
 	respondSuccess(w, http.StatusOK, result)
 }
 
@@ -231,12 +255,15 @@ func (a *App) GetDetailedAppStatus(w http.ResponseWriter, r *http.Request) {
 	item, _, details, err := a.loadScenarioRuntime(name)
 	if err != nil {
 		if vroolierr.Code(err, "") == "scenario_not_found" {
+			a.logInfo("Detailed app status requested for missing app; returning stopped payload", "app", name)
 			respondSuccess(w, http.StatusOK, stoppedAppData{Name: name, Status: "stopped", Processes: 0, Runtime: "N/A", Ports: map[string]int{}})
 			return
 		}
+		a.logError("Detailed app status request failed", err, "app", name)
 		respondError(w, err)
 		return
 	}
+	a.logInfo("Detailed app status request completed", "app", name, logx.AttrStatus, details.Status)
 	respondSuccess(w, http.StatusOK, map[string]any{
 		"name":          item.Slug,
 		"status":        details.Status,

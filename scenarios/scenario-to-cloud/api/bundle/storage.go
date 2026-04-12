@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"scenario-to-cloud/domain"
 )
 
@@ -229,29 +230,12 @@ func DeleteAllOldBundles(bundlesDir string, keepLatestPerScenario int) ([]domain
 // FindRepoRootFromCWD finds the repository root starting from the current working directory.
 func FindRepoRootFromCWD() (string, error) {
 	if override := strings.TrimSpace(os.Getenv("SCENARIO_TO_CLOUD_REPO_ROOT")); override != "" {
-		return filepath.Clean(override), nil
+		return repocontract.FindRepoRoot(override)
 	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	return FindRepoRoot(cwd)
+	return repocontract.FindRepoRootFromCWD()
 }
 
 // FindRepoRoot finds the repository root starting from the given directory.
 func FindRepoRoot(start string) (string, error) {
-	dir := filepath.Clean(start)
-	for i := 0; i < 20; i++ {
-		// Repo root detection must not depend on a committed `go.work`.
-		// Some deployments intentionally omit `go.work` to avoid workspace-mode coupling.
-		if dirExists(filepath.Join(dir, ".vrooli")) && dirExists(filepath.Join(dir, "scenarios")) && dirExists(filepath.Join(dir, "resources")) {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return "", fmt.Errorf("repo root not found from %q", start)
+	return repocontract.FindRepoRoot(start)
 }

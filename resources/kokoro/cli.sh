@@ -51,13 +51,27 @@ done
 # Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
 cli::init "kokoro" "Kokoro text-to-speech synthesis service" "v2"
 
-# Override default handlers to point directly to kokoro implementations
-CLI_COMMAND_HANDLERS["manage::install"]="kokoro::install"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="kokoro::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="kokoro::start"
-CLI_COMMAND_HANDLERS["manage::stop"]="kokoro::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="kokoro::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="kokoro::status"
+kokoro::native::resource() {
+    local operation="$1"
+    shift || true
+    vrooli resource kokoro "$operation" "$@"
+}
+
+kokoro::native::install() { kokoro::native::resource install "$@"; }
+kokoro::native::uninstall() { kokoro::native::resource uninstall "$@"; }
+kokoro::native::start() { kokoro::native::resource start "$@"; }
+kokoro::native::stop() { kokoro::native::resource stop "$@"; }
+kokoro::native::restart() { kokoro::native::resource restart "$@"; }
+kokoro::native::status() { kokoro::native::resource status "$@"; }
+kokoro::native::logs() { kokoro::native::resource logs "$@"; }
+
+# Standard lifecycle/status/logs now route through the native control plane.
+CLI_COMMAND_HANDLERS["manage::install"]="kokoro::native::install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="kokoro::native::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="kokoro::native::start"
+CLI_COMMAND_HANDLERS["manage::stop"]="kokoro::native::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="kokoro::native::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="kokoro::native::status"
 
 # Override content handlers for Kokoro-specific text-to-speech functionality
 CLI_COMMAND_HANDLERS["content::execute"]="kokoro::synthesize_text"
@@ -67,8 +81,8 @@ cli::register_subcommand "content" "synthesize" "Synthesize text to speech" "kok
 cli::register_subcommand "content" "voices" "List available voices" "kokoro::list_voices"
 
 # Additional information commands
-cli::register_command "status" "Show detailed resource status" "kokoro::status"
-cli::register_command "logs" "Show Kokoro logs" "kokoro::show_logs"
+cli::register_command "status" "Show detailed resource status" "kokoro::native::status"
+cli::register_command "logs" "Show Kokoro logs" "kokoro::native::logs"
 # Create wrapper for agents command that delegates to manager
 kokoro::agents::command() {
     if type -t agent_manager::load_config &>/dev/null; then

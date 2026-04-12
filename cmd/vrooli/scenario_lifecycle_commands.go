@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -334,16 +333,27 @@ func runScenarioPortCommand(root string, globals globalOptions, args []string, s
 }
 
 func runScenarioOpenCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	app := configuredApp()
+	return runScenarioOpenCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runScenarioOpenCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	scenarioName := ""
 	portName := "UI_PORT"
 	printURL := false
-	jsonFlag := globals.json
+	jsonFlag := ctx.Globals.json
 
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
 		switch arg {
 		case "--help", "-h":
-			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario open <scenario-name> [--port <name>] [--print-url]")
+			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario open <scenario-name> [--port <name>] [--print-url]")
 			return nil
 		case "--port":
 			if index+1 >= len(args) {
@@ -370,7 +380,10 @@ func runScenarioOpenCommand(root string, globals globalOptions, args []string, s
 		return errors.New("scenario open requires a scenario name")
 	}
 
-	service, err := newScenarioService(root, io.Discard, io.Discard)
+	serviceCtx := *ctx
+	serviceCtx.Stdout = io.Discard
+	serviceCtx.Stderr = io.Discard
+	service, err := app.newScenarioService(&serviceCtx)
 	if err != nil {
 		return err
 	}
@@ -380,7 +393,7 @@ func runScenarioOpenCommand(root string, globals globalOptions, args []string, s
 	}
 
 	if jsonFlag {
-		return cliout.WriteJSON(stdout, scenarioOpenOutput{
+		return cliout.WriteJSON(ctx.Stdout, scenarioOpenOutput{
 			Success:  true,
 			Scenario: scenarioName,
 			PortName: resolved.Name,
@@ -389,93 +402,137 @@ func runScenarioOpenCommand(root string, globals globalOptions, args []string, s
 		})
 	}
 	if printURL {
-		_, _ = fmt.Fprintln(stdout, resolved.URL)
+		_, _ = fmt.Fprintln(ctx.Stdout, resolved.URL)
 		return nil
 	}
-	if err := scenarioOpenURLFn(resolved.URL); err != nil {
+	if err := app.openScenarioURL(resolved.URL); err != nil {
 		return err
 	}
-	_, _ = fmt.Fprintf(stderr, "Opening %s at %s\n", scenarioName, resolved.URL)
+	_, _ = fmt.Fprintf(ctx.Stderr, "Opening %s at %s\n", scenarioName, resolved.URL)
 	return nil
 }
 
 func runScenarioUISmokeCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	home, err := config.HomeDir()
+	app := configuredApp()
+	return runScenarioUISmokeCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runScenarioUISmokeCommandWithApp(app *App, ctx *commandContext, args []string) error {
+	home, err := ctx.HomeDir()
 	if err != nil {
 		return err
 	}
-	cliPath, err := locateTestGenieCLI(root, home)
+	cliPath, err := app.locateTestGenieCLI(ctx.Root, home)
 	if err != nil {
 		return err
 	}
 
 	commandArgs := []string{"ui-smoke"}
 	commandArgs = append(commandArgs, args...)
-	commandArgs = append(commandArgs, passthroughFlags(globals, commandArgs)...)
-	return runScenarioSubprocessFn(scenarioSubprocessSpec{
+	commandArgs = append(commandArgs, app.passthroughFlags(ctx.Globals, commandArgs)...)
+	return app.runScenarioSubprocess(scenarioSubprocessSpec{
 		name:   cliPath,
 		args:   commandArgs,
-		dir:    root,
-		env:    commandEnv(root, globals),
-		stdout: stdout,
-		stderr: stderr,
+		dir:    ctx.Root,
+		env:    app.commandEnv(ctx.Root, ctx.Globals),
+		stdout: ctx.Stdout,
+		stderr: ctx.Stderr,
 	})
 }
 
 func runScenarioCompletenessCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	cliPath, err := locateScenarioCompletenessCLI(root)
+	app := configuredApp()
+	return runScenarioCompletenessCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runScenarioCompletenessCommandWithApp(app *App, ctx *commandContext, args []string) error {
+	cliPath, err := app.locateScenarioCompletenessCLI(ctx.Root)
 	if err != nil {
 		return err
 	}
 
 	commandArgs := append([]string{}, args...)
-	if globals.json && !containsArg(commandArgs, "--json") && !containsArg(commandArgs, "--format") {
+	if ctx.Globals.json && !containsArg(commandArgs, "--json") && !containsArg(commandArgs, "--format") {
 		commandArgs = append(commandArgs, "--json")
 	}
-	return runScenarioSubprocessFn(scenarioSubprocessSpec{
+	return app.runScenarioSubprocess(scenarioSubprocessSpec{
 		name:   cliPath,
 		args:   commandArgs,
-		dir:    root,
-		env:    commandEnv(root, globals),
-		stdout: stdout,
-		stderr: stderr,
+		dir:    ctx.Root,
+		env:    app.commandEnv(ctx.Root, ctx.Globals),
+		stdout: ctx.Stdout,
+		stderr: ctx.Stderr,
 	})
 }
 
 func runScenarioRequirementsCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	app := configuredApp()
+	return runScenarioRequirementsCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runScenarioRequirementsCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		showScenarioRequirementsHelp(stdout)
+		showScenarioRequirementsHelp(ctx.Stdout)
 		return nil
 	}
 
 	if args[0] == "snapshot" {
-		return runScenarioRequirementsSnapshot(root, args[1:], stdout)
+		return runScenarioRequirementsSnapshot(ctx.Root, args[1:], ctx.Stdout)
 	}
 
-	home, err := config.HomeDir()
+	home, err := ctx.HomeDir()
 	if err != nil {
 		return err
 	}
-	cliPath, err := locateTestGenieCLI(root, home)
+	cliPath, err := app.locateTestGenieCLI(ctx.Root, home)
 	if err != nil {
 		return err
 	}
 
-	commandArgs, workdir, err := translateScenarioRequirementsArgs(root, globals, args)
+	commandArgs, workdir, err := translateScenarioRequirementsArgs(ctx.Root, ctx.Globals, args)
 	if err != nil {
 		return err
 	}
-	return runScenarioSubprocessFn(scenarioSubprocessSpec{
+	return app.runScenarioSubprocess(scenarioSubprocessSpec{
 		name:   cliPath,
 		args:   commandArgs,
 		dir:    workdir,
-		env:    commandEnv(root, globals),
-		stdout: stdout,
-		stderr: stderr,
+		env:    app.commandEnv(ctx.Root, ctx.Globals),
+		stdout: ctx.Stdout,
+		stderr: ctx.Stderr,
 	})
 }
 
 func runScenarioHealFromSandboxCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	app := configuredApp()
+	return runScenarioHealFromSandboxCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runScenarioHealFromSandboxCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	mergedPath := strings.TrimSpace(os.Getenv("SANDBOX_MERGED_DIR"))
 	dryRun := false
 
@@ -490,7 +547,7 @@ func runScenarioHealFromSandboxCommand(root string, globals globalOptions, args 
 		case "--dry-run":
 			dryRun = true
 		case "--help", "-h":
-			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario heal-from-sandbox [--merged-path <path>] [--dry-run]")
+			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario heal-from-sandbox [--merged-path <path>] [--dry-run]")
 			return nil
 		default:
 			return fmt.Errorf("unknown option for scenario heal-from-sandbox: %s", args[index])
@@ -501,7 +558,7 @@ func runScenarioHealFromSandboxCommand(root string, globals globalOptions, args 
 		return errors.New("heal-from-sandbox requires SANDBOX_MERGED_DIR or --merged-path")
 	}
 
-	home, err := process.HomeDir()
+	home, err := ctx.HomeDir()
 	if err != nil {
 		return err
 	}
@@ -537,26 +594,26 @@ func runScenarioHealFromSandboxCommand(root string, globals globalOptions, args 
 		return nil
 	}
 	if dryRun {
-		_, _ = fmt.Fprintf(stdout, "heal-from-sandbox: dry-run mode, would stop and restart: %s\n", strings.Join(affected, ", "))
+		_, _ = fmt.Fprintf(ctx.Stdout, "heal-from-sandbox: dry-run mode, would stop and restart: %s\n", strings.Join(affected, ", "))
 		return nil
 	}
 
-	runner, err := newScenarioLifecycleRunner(root, stdout, stderr)
+	runner, err := app.newScenarioLifecycleRunner(ctx)
 	if err != nil {
 		return err
 	}
 	for _, name := range affected {
 		if stopErr := runner.Stop(name, lifecycle.StopOptions{}); stopErr != nil {
-			_, _ = fmt.Fprintf(stderr, "heal-from-sandbox: stop %s failed: %v\n", name, stopErr)
+			_, _ = fmt.Fprintf(ctx.Stderr, "heal-from-sandbox: stop %s failed: %v\n", name, stopErr)
 		}
 	}
 	time.Sleep(1 * time.Second)
 	for _, name := range affected {
-		if startErr := scenarioLaunchDetachedFn(root, globals, "start", name); startErr != nil {
+		if startErr := app.launchDetachedScenario(ctx.Root, ctx.Globals, "start", name); startErr != nil {
 			return startErr
 		}
 	}
-	_, _ = fmt.Fprintf(stdout, "heal-from-sandbox: stopped and relaunched %d scenario(s)\n", len(affected))
+	_, _ = fmt.Fprintf(ctx.Stdout, "heal-from-sandbox: stopped and relaunched %d scenario(s)\n", len(affected))
 	return nil
 }
 

@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-11
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=4 | LAST: 2026-04-12
 
 func TestNewProjectStoreUsesDefaultBoundaries(t *testing.T) {
 	root := t.TempDir()
@@ -193,6 +193,9 @@ func TestStoreLoadWithPolicyMakesLegacyFallbackExplicit(t *testing.T) {
 
 func TestStoreLoadEncryptedPropagatesReadFailure(t *testing.T) {
 	store := newTestStore(t)
+	if err := store.Save(map[string]string{"API_KEY": "secret"}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
 	store.deps.readFile = func(path string) ([]byte, error) {
 		return nil, errors.New("read failed")
 	}
@@ -306,6 +309,7 @@ func TestStoreLoadLegacyReturnsEmptyWhenMissing(t *testing.T) {
 
 func TestStoreLoadLegacyPropagatesReadFailure(t *testing.T) {
 	store := newTestStore(t)
+	writeLegacySecrets(t, store, `{"API_KEY":"legacy"}`)
 	store.deps.readFile = func(path string) ([]byte, error) {
 		return nil, errors.New("read failed")
 	}
@@ -322,6 +326,36 @@ func TestStoreLoadLegacyRejectsInvalidJSON(t *testing.T) {
 	_, err := store.LoadLegacy()
 	if err == nil || !errors.Is(err, ErrLegacyInvalid) || !strings.Contains(err.Error(), "parse legacy secrets") {
 		t.Fatalf("LoadLegacy error = %v, want ErrLegacyInvalid", err)
+	}
+}
+
+func TestStoreRejectsInsecureSecretFilePermissions(t *testing.T) {
+	store := newTestStore(t)
+	writeLegacySecretsWithMode(t, store, `{"API_KEY":"legacy"}`, 0o644)
+
+	_, err := store.LoadLegacy()
+	if err == nil || !errors.Is(err, ErrInsecurePermissions) {
+		t.Fatalf("LoadLegacy error = %v, want ErrInsecurePermissions", err)
+	}
+}
+
+func TestStoreRejectsSymlinkSecretFiles(t *testing.T) {
+	store := newTestStore(t)
+	target := filepath.Join(t.TempDir(), "target.json")
+	if err := os.WriteFile(target, []byte("{\"API_KEY\":\"legacy\"}\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(%s): %v", target, err)
+	}
+	path := store.LegacyPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.Symlink(target, path); err != nil {
+		t.Fatalf("Symlink(%s -> %s): %v", path, target, err)
+	}
+
+	_, err := store.LoadLegacy()
+	if err == nil || !errors.Is(err, ErrSymlinkPath) {
+		t.Fatalf("LoadLegacy error = %v, want ErrSymlinkPath", err)
 	}
 }
 
@@ -426,6 +460,9 @@ func TestStoreSaveKeyValidationAndMerge(t *testing.T) {
 
 func TestStoreSaveKeyPropagatesLoadFailure(t *testing.T) {
 	store := newTestStore(t)
+	if err := store.Save(map[string]string{"POSTGRES_PASSWORD": "secret"}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
 	store.deps.readFile = func(path string) ([]byte, error) {
 		return nil, errors.New("read failed")
 	}
@@ -586,6 +623,9 @@ func TestStoreResolveBoundaries(t *testing.T) {
 
 	t.Run("returns load error before env fallback", func(t *testing.T) {
 		store := newTestStore(t)
+		if err := store.Save(map[string]string{"OTHER_KEY": "secret"}); err != nil {
+			t.Fatalf("Save: %v", err)
+		}
 		store.deps.readFile = func(path string) ([]byte, error) {
 			return nil, errors.New("read failed")
 		}
@@ -664,40 +704,15 @@ func TestEncryptionKeyBoundaries(t *testing.T) {
 	})
 }
 
-func TestParseSecretMapConvertsSupportedScalarsAndIgnoresCompositeValues(t *testing.T) {
+func TestParseSecretMapRequiresStringValues(t *testing.T) {
 	values, err := parseSecretMap([]byte(`{
-		"STRING":"value",
-		"BOOL_TRUE":true,
-		"BOOL_FALSE":false,
-		"INT":42,
-		"FLOAT":4.25,
-		"OBJECT":{"nested":"x"},
-		"ARRAY":[1,2,3]
+		"STRING":"value"
 	}`))
 	if err != nil {
 		t.Fatalf("parseSecretMap: %v", err)
 	}
-
-	want := map[string]string{
-		"STRING":     "value",
-		"BOOL_TRUE":  "true",
-		"BOOL_FALSE": "false",
-		"INT":        "42",
-		"FLOAT":      "4.25",
-	}
-	if len(values) != len(want) {
-		t.Fatalf("len(values) = %d, want %d (%#v)", len(values), len(want), values)
-	}
-	for key, expected := range want {
-		if values[key] != expected {
-			t.Fatalf("%s = %q, want %q", key, values[key], expected)
-		}
-	}
-	if _, exists := values["OBJECT"]; exists {
-		t.Fatal("OBJECT should be ignored")
-	}
-	if _, exists := values["ARRAY"]; exists {
-		t.Fatal("ARRAY should be ignored")
+	if values["STRING"] != "value" {
+		t.Fatalf("STRING = %q, want value", values["STRING"])
 	}
 }
 
@@ -705,6 +720,27 @@ func TestParseSecretMapRejectsInvalidJSON(t *testing.T) {
 	_, err := parseSecretMap([]byte(`{`))
 	if err == nil {
 		t.Fatal("expected parse error")
+	}
+}
+
+func TestParseSecretMapRejectsNonStringValues(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload string
+	}{
+		{name: "bool", payload: `{"BOOL":true}`},
+		{name: "number", payload: `{"INT":42}`},
+		{name: "object", payload: `{"OBJECT":{"nested":"x"}}`},
+		{name: "array", payload: `{"ARRAY":[1,2,3]}`},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := parseSecretMap([]byte(tc.payload))
+			if err == nil || !strings.Contains(err.Error(), "must be a JSON string") {
+				t.Fatalf("parseSecretMap error = %v, want string-type validation error", err)
+			}
+		})
 	}
 }
 
@@ -824,7 +860,18 @@ func writeLegacySecrets(t *testing.T, store *Store, contents string) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
 	}
-	if err := os.WriteFile(path, []byte(contents+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(contents+"\n"), 0o600); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func writeLegacySecretsWithMode(t *testing.T, store *Store, contents string, mode os.FileMode) {
+	t.Helper()
+	path := store.LegacyPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(contents+"\n"), mode); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
 }

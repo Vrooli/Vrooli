@@ -12,9 +12,12 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/lib/pq v1.10.9
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000
 	google.golang.org/protobuf v1.36.11
 )
+
+require github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
@@ -22,5 +25,7 @@ require (
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto

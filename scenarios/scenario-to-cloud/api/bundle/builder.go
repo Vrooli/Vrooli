@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/stringutil"
 )
@@ -109,49 +110,37 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 		sort.Strings(scenarioIDs)
 	}
 
-	var roots []string
-	addDirIfExists := func(rel string) {
-		if dirExists(filepath.Join(repoRoot, rel)) {
-			roots = append(roots, rel)
+	contract, err := repocontract.LoadDefault(repoRoot)
+	if err != nil {
+		return MiniBundleSpec{}, fmt.Errorf("load repo contract: %w", err)
+	}
+	resolvedProfile, err := contract.ResolveProfile("mini_vrooli_bundle", repocontract.ResolveParams{
+		Values: map[string]string{
+			"scenario": manifest.Scenario.ID,
+		},
+		Lists: map[string][]string{
+			"resources": resourceIDs,
+		},
+	})
+	if err != nil {
+		return MiniBundleSpec{}, fmt.Errorf("resolve mini bundle profile: %w", err)
+	}
+
+	roots := existingProfileRoots(repoRoot, resolvedProfile.Include, resolvedProfile.OptionalInclude)
+	if manifest.Bundle.IncludeAutoheal {
+		if autohealRoot, err := contract.ScenarioRoot(repoRoot, "vrooli-autoheal"); err == nil {
+			rel, relErr := filepath.Rel(repoRoot, autohealRoot)
+			if relErr == nil {
+				rel = filepath.ToSlash(rel)
+				if dirExists(filepath.Join(repoRoot, filepath.FromSlash(rel))) && !stringutil.Contains(roots, rel) {
+					roots = append(roots, rel)
+				}
+			}
 		}
 	}
-	addFileIfExists := func(rel string) {
-		if fileExists(filepath.Join(repoRoot, rel)) {
-			roots = append(roots, rel)
-		}
-	}
-
-	addDirIfExists(".vrooli")
-	addDirIfExists("api")
-	addDirIfExists("src")
-	addDirIfExists("scripts")
-	addDirIfExists("platforms")
-	addDirIfExists("assets")
-	if manifest.Bundle.IncludePackages {
-		addDirIfExists("packages")
-	}
-
-	for _, id := range scenarioIDs {
-		addDirIfExists(filepath.Join("scenarios", id))
-	}
-	for _, id := range resourceIDs {
-		addDirIfExists(filepath.Join("resources", id))
-	}
-
-	addFileIfExists("go.work")
-	addFileIfExists("go.work.sum")
-	addFileIfExists("package.json")
-	addFileIfExists("pnpm-lock.yaml")
-	addFileIfExists("pnpm-workspace.yaml")
-	addFileIfExists(".npmrc")
-	addFileIfExists(".env-example")
-	addFileIfExists("Makefile")
-	addFileIfExists("README.md")
-	addFileIfExists("LICENSE")
-
 	sort.Strings(roots)
 
-	excludes := DefaultExcludes()
+	excludes := append([]string(nil), resolvedProfile.Exclude...)
 
 	manifestForBundle := manifest
 	// Secrets are fetched/provisioned during deployment execution and do not need to be
@@ -243,6 +232,28 @@ func DefaultExcludes() []string {
 		// Exclude scenario templates - they have placeholder go.mod files that break go.work
 		"scripts/scenarios/templates/**",
 	}
+}
+
+func existingProfileRoots(repoRoot string, required []string, optional []string) []string {
+	var roots []string
+	addIfExists := func(rel string) {
+		rel = filepath.ToSlash(filepath.Clean(rel))
+		rel = strings.TrimPrefix(rel, "./")
+		if rel == "." || rel == "" {
+			return
+		}
+		fullPath := filepath.Join(repoRoot, filepath.FromSlash(rel))
+		if dirExists(fullPath) || fileExists(fullPath) {
+			roots = append(roots, rel)
+		}
+	}
+	for _, rel := range required {
+		addIfExists(rel)
+	}
+	for _, rel := range optional {
+		addIfExists(rel)
+	}
+	return roots
 }
 
 func buildMiniGoWork(repoRoot string, includeRoots []string, excludes []string) (string, error) {

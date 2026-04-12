@@ -44,14 +44,28 @@ done
 # Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
 cli::init "sagemath" "SageMath mathematical computation system" "v2"
 
+sagemath::native::resource() {
+    local operation="$1"
+    shift || true
+    vrooli resource sagemath "$operation" "$@"
+}
+
+sagemath::native::install() { sagemath::native::resource install "$@"; }
+sagemath::native::uninstall() { sagemath::native::resource uninstall "$@"; }
+sagemath::native::start() { sagemath::native::resource start "$@"; }
+sagemath::native::stop() { sagemath::native::resource stop "$@"; }
+sagemath::native::restart() { sagemath::native::resource restart "$@"; }
+sagemath::native::status() { sagemath::native::resource status "$@"; }
+sagemath::native::logs() { sagemath::native::resource logs "$@"; }
+
 # ==============================================================================
 # REQUIRED HANDLERS - Universal Contract v2.0 compliance
 # ==============================================================================
-CLI_COMMAND_HANDLERS["manage::install"]="sagemath::install::execute"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="sagemath::install::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="sagemath::docker::start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="sagemath::docker::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="sagemath::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="sagemath::native::install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="sagemath::native::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="sagemath::native::start"
+CLI_COMMAND_HANDLERS["manage::stop"]="sagemath::native::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="sagemath::native::restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="sagemath::test::smoke"
 CLI_COMMAND_HANDLERS["test::unit"]="sagemath::test::unit"
 CLI_COMMAND_HANDLERS["test::integration"]="sagemath::test::integration"
@@ -67,8 +81,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="sagemath::content::execute"
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
-cli::register_command "status" "Show detailed SageMath status" "sagemath::status"
-cli::register_command "logs" "Show SageMath container logs" "sagemath::docker::logs"
+cli::register_command "status" "Show detailed SageMath status" "sagemath::native::status"
+cli::register_command "logs" "Show SageMath container logs" "sagemath::native::logs"
 cli::register_command "health" "Check SageMath health status" "sagemath::health::check"
 
 # ==============================================================================

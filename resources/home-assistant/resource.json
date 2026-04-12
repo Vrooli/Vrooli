@@ -2,22 +2,35 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "home-assistant",
   "display_name": "Home Assistant",
-  "description": "Transitional Home Assistant resource kept behind a typed legacy adapter while native docker/manual lifecycle ownership is scoped.",
-  "template": "legacy-adapter",
-  "driver": "legacy-adapter",
-  "legacy_adapter": {
-    "owner": "Matthew Halloran",
-    "decision_deadline": "2026-05-31",
-    "final_disposition": "migrate",
-    "legacy_cli_path": "resources/home-assistant/cli.sh",
-    "notes": "Phase 0 keep resource because it is project-enabled and still referenced by an active scenario."
-  },
+  "description": "Managed Home Assistant service with native compose-backed lifecycle and shell-retained automation, backup, and voice workflows.",
+  "template": "compose-service",
+  "driver": "compose-service",
+  "compose_file": "compose.yaml",
   "portability_tier": "partial",
   "category": "automation",
   "platforms": {
     "linux": "supported",
     "macos": "partial",
     "windows": "partial"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 8123,
+      "host": 8123
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8123/api/",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
   },
   "template_version": "1"
 }

@@ -45,11 +45,11 @@ done
 cli::init "home-assistant" "Home Assistant automation platform management" "v2"
 
 # Override default handlers to point directly to home-assistant implementations
-CLI_COMMAND_HANDLERS["manage::install"]="home_assistant::install"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="home_assistant::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="home_assistant::docker::start"
-CLI_COMMAND_HANDLERS["manage::stop"]="home_assistant::docker::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="home_assistant::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 
 # Test handlers for Home Assistant health checks
 CLI_COMMAND_HANDLERS["test::smoke"]="home_assistant::test::smoke"
@@ -67,8 +67,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="home_assistant::reload_automations"
 CLI_COMMAND_HANDLERS["content::get"]="home_assistant::export_config"
 
 # Additional information commands
-cli::register_command "status" "Show detailed resource status" "home_assistant::status"
-cli::register_command "logs" "Show Home Assistant logs" "home_assistant::docker::logs"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
+cli::register_command "logs" "Show Home Assistant logs" "cli::delegate_logs"
 
 # Custom Home Assistant commands for API access and configuration
 cli::register_command "api-info" "Show Home Assistant API information" "home_assistant::get_api_info"

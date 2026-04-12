@@ -2,10 +2,8 @@ package backlog
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
 
-	"github.com/bmatcuk/doublestar/v4"
+	repocontract "github.com/vrooli/repo-contract-go"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 )
@@ -42,8 +40,11 @@ func (h *Handler) ValidateGlobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Resolve the project root (parent of the swarm-manager scenario).
-	projectRoot := filepath.Dir(filepath.Dir(h.rootDir))
+	projectRoot, err := repocontract.FindRepoRootFromPath(h.rootDir)
+	if err != nil {
+		apierr.MapError(w, "[backlog] validate-globs", apierr.Internal("failed to resolve repo root"))
+		return
+	}
 
 	results := make([]validateGlobResult, 0, len(req.Patterns))
 	for _, pattern := range req.Patterns {
@@ -57,24 +58,14 @@ func (h *Handler) ValidateGlobs(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Count matching files using doublestar for ** support.
-		fullPattern := filepath.Join(projectRoot, pattern)
-		matches, err := doublestar.FilepathGlob(fullPattern)
+		count, err := repocontract.FileMatchCount(projectRoot, pattern)
 		if err != nil {
 			res.Valid = false
-			res.Error = "invalid glob syntax: " + err.Error()
+			res.Error = err.Error()
 			results = append(results, res)
 			continue
 		}
 
-		// Filter out directories — only count files.
-		count := 0
-		for _, m := range matches {
-			info, err := os.Stat(m)
-			if err == nil && !info.IsDir() {
-				count++
-			}
-		}
 		res.MatchCount = count
 		if count == 0 {
 			res.Warning = "No files match this pattern"

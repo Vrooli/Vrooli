@@ -8,9 +8,10 @@ import (
 )
 
 func createCommandLogger(globals globalOptions, stderr io.Writer) (*slog.Logger, func()) {
-	logger, _, restore := logx.Install(logx.Options{
+	logger, _, restore := logx.InstallAndReport(logx.Options{
 		Component:      "vrooli",
 		Writer:         stderr,
+		Format:         globals.logFormat(),
 		Verbose:        globals.verbose,
 		SetDefault:     true,
 		RedirectStdlib: true,

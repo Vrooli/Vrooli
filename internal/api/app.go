@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/project"
 	"github.com/vrooli/vrooli/internal/resources"
@@ -51,6 +53,7 @@ type App struct {
 	Scenarios           *orchestrator.Service
 	Resources           *resources.Controller
 	Project             *project.Controller
+	Logger              *slog.Logger
 	LookPathFn          func(string) (string, error)
 	CommandFn           func(context.Context, string, ...string) ([]byte, error)
 	StartAllScenariosFn func() (control.StartReport, error)
@@ -132,14 +135,20 @@ type appInfo struct {
 
 var orphanCommandPattern = regexp.MustCompile(`(/vrooli/|/scenarios/.*/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel|vrooli-.*-api)`)
 
-func New(root, home string) *App {
+func New(root, home string, logger ...*slog.Logger) *App {
+	baseLogger := slog.Default()
+	if len(logger) > 0 && logger[0] != nil {
+		baseLogger = logger[0]
+	}
+	apiLogger := logx.WithSubsystem(baseLogger, "api")
 	app := &App{
 		Root:       filepath.Clean(root),
 		Home:       filepath.Clean(home),
 		AppsDir:    filepath.Join(filepath.Clean(root), "scenarios"),
-		Scenarios:  orchestrator.New(root, home, ioDiscard{}, ioDiscard{}),
+		Scenarios:  orchestrator.New(root, home, ioDiscard{}, ioDiscard{}, apiLogger),
 		Resources:  resources.NewController(root, home),
 		Project:    project.New(root, home, ioDiscard{}, ioDiscard{}),
+		Logger:     apiLogger,
 		LookPathFn: exec.LookPath,
 		CommandFn: func(ctx context.Context, name string, args ...string) ([]byte, error) {
 			return exec.CommandContext(ctx, name, args...).Output()
@@ -155,6 +164,25 @@ func New(root, home string) *App {
 		return app.Scenarios.Stop(name, lifecycle.StopOptions{})
 	}
 	return app
+}
+
+func (a *App) logger() *slog.Logger {
+	if a == nil || a.Logger == nil {
+		return logx.WithSubsystem(slog.Default(), "api")
+	}
+	return a.Logger
+}
+
+func (a *App) logInfo(msg string, args ...any) {
+	a.logger().Info(msg, args...)
+}
+
+func (a *App) logWarn(msg string, args ...any) {
+	a.logger().Warn(msg, args...)
+}
+
+func (a *App) logError(msg string, err error, args ...any) {
+	logx.Error(a.logger(), msg, err, args...)
 }
 
 type ioDiscard struct{}

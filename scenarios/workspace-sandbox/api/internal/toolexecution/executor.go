@@ -7,9 +7,9 @@ package toolexecution
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 
+	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/sandbox"
 	"workspace-sandbox/internal/types"
 
@@ -191,10 +191,7 @@ func (e *ServerExecutor) createSandbox(ctx context.Context, args map[string]inte
 
 	projectRoot := getStringArg(args, "project_root", "")
 	if projectRoot == "" {
-		projectRoot = os.Getenv("VROOLI_ROOT")
-		if projectRoot == "" {
-			projectRoot = os.Getenv("HOME") + "/Vrooli"
-		}
+		projectRoot = config.ResolveDefaultProjectRoot()
 	}
 
 	owner := getStringArg(args, "owner", "")

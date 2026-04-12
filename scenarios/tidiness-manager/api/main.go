@@ -51,13 +51,17 @@ func NewServer() (*Server, error) {
 	if err := store.EnsureTypeSafetyColumns(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to ensure type-safety columns: %w", err)
 	}
+	scenarioLocator, err := NewScenarioLocator(5 * time.Minute)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize scenario locator: %w", err)
+	}
 	srv := &Server{
 		config:          &Config{},
 		db:              db,
 		store:           store,
 		router:          mux.NewRouter(),
 		campaignMgr:     NewCampaignManager(),
-		scenarioLocator: NewScenarioLocator(5 * time.Minute),
+		scenarioLocator: scenarioLocator,
 	}
 
 	srv.scanCoordinator = NewScanCoordinator(
@@ -234,7 +238,11 @@ func (s *Server) ensureScanCoordinator() error {
 	}
 
 	if s.scenarioLocator == nil {
-		s.scenarioLocator = NewScenarioLocator(5 * time.Minute)
+		locator, err := NewScenarioLocator(5 * time.Minute)
+		if err != nil {
+			return err
+		}
+		s.scenarioLocator = locator
 	}
 
 	if s.db == nil {

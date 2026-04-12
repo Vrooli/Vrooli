@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -109,16 +110,21 @@ func performHealthCheck(check HealthCheckConfig, scenarioName string, ports map[
 	return buildApp().PerformHealthCheck(check, scenarioName, ports)
 }
 
-func main() {
-	logger, _, restoreLogger := logx.Install(logx.Options{
+func installAPILogger() (*slog.Logger, func()) {
+	logger, _, restore := logx.InstallAndReport(logx.Options{
 		Component:      "vrooli-api",
 		SetDefault:     true,
 		RedirectStdlib: true,
 	})
+	return logger, restore
+}
+
+func main() {
+	logger, restoreLogger := installAPILogger()
 	defer restoreLogger()
 
 	if err := enforceStrictFingerprint(); err != nil {
-		logger.Error("Stale fingerprint check failed", "error", err)
+		logger.Error("Stale fingerprint check failed", logx.ErrorArgs(err)...)
 		os.Exit(1)
 	}
 
@@ -143,7 +149,7 @@ func main() {
 			logger.Info(fmt.Sprintf(format, args...))
 		},
 	}); err != nil {
-		logger.Error("API server failed", "error", err)
+		logger.Error("API server failed", logx.ErrorArgs(err)...)
 		os.Exit(1)
 	}
 }

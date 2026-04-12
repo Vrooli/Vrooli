@@ -482,11 +482,11 @@ func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTar
 }
 
 func getScenariosRoot() string {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	root, err := resolveScenariosRoot()
+	if err != nil {
+		return ""
 	}
-	return filepath.Join(vrooliRoot, "scenarios")
+	return root
 }
 
 // buildStandardsScanTargets resolves the scenario(s) to scan.

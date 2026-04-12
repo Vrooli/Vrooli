@@ -85,24 +85,35 @@ func runScenarioTemplateCommand(root string, globals globalOptions, args []strin
 }
 
 func runScenarioGenerateCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	app := configuredApp()
+	return runScenarioGenerateCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runScenarioGenerateCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	if len(args) == 0 {
-		showScenarioGenerateHelp(stdout)
+		showScenarioGenerateHelp(ctx.Stdout)
 		return errors.New("scenario generate requires a template name")
 	}
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			showScenarioGenerateHelp(stdout)
+			showScenarioGenerateHelp(ctx.Stdout)
 			return nil
 		}
 	}
 
 	templateName := args[0]
-	info, err := loadScenarioTemplate(root, templateName)
+	info, err := loadScenarioTemplate(ctx.Root, templateName)
 	if err != nil {
 		return err
 	}
 
-	opts, err := parseScenarioGenerateArgs(args[1:], info.Manifest, stderr)
+	opts, err := parseScenarioGenerateArgs(args[1:], info.Manifest, ctx.Stderr)
 	if err != nil {
 		return err
 	}
@@ -123,7 +134,7 @@ func runScenarioGenerateCommand(root string, globals globalOptions, args []strin
 	}
 	sort.Strings(missing)
 	if len(missing) > 0 {
-		showScenarioGenerateHelp(stdout)
+		showScenarioGenerateHelp(ctx.Stdout)
 		return fmt.Errorf("missing required values: %s", strings.Join(missing, ", "))
 	}
 
@@ -150,16 +161,16 @@ func runScenarioGenerateCommand(root string, globals globalOptions, args []strin
 
 	destination := opts.Destination
 	if destination == "" {
-		destination = filepath.Join(root, "scenarios", values["SCENARIO_ID"])
+		destination = filepath.Join(ctx.Root, "scenarios", values["SCENARIO_ID"])
 	}
 	if !filepath.IsAbs(destination) {
-		destination = filepath.Join(root, filepath.FromSlash(destination))
+		destination = filepath.Join(ctx.Root, filepath.FromSlash(destination))
 	}
 	destination = filepath.Clean(destination)
 
 	if opts.DryRun {
-		_, _ = fmt.Fprintf(stdout, "[DRY-RUN] Would generate template %s at %s\n", info.Name, destination)
-		writeScenarioTemplateValues(stdout, values)
+		_, _ = fmt.Fprintf(ctx.Stdout, "[DRY-RUN] Would generate template %s at %s\n", info.Name, destination)
+		writeScenarioTemplateValues(ctx.Stdout, values)
 		return nil
 	}
 
@@ -179,16 +190,16 @@ func runScenarioGenerateCommand(root string, globals globalOptions, args []strin
 		return err
 	}
 
-	_, _ = fmt.Fprintf(stdout, "Created %s at %s\n", coalesce(values["SCENARIO_DISPLAY_NAME"], values["SCENARIO_ID"]), destination)
-	writeScenarioTemplateValues(stdout, values)
-	writeScenarioTemplateNextSteps(stdout, destination, info.Manifest)
+	_, _ = fmt.Fprintf(ctx.Stdout, "Created %s at %s\n", coalesce(values["SCENARIO_DISPLAY_NAME"], values["SCENARIO_ID"]), destination)
+	writeScenarioTemplateValues(ctx.Stdout, values)
+	writeScenarioTemplateNextSteps(ctx.Stdout, destination, info.Manifest)
 
 	if opts.RunHooks {
-		if err := runScenarioTemplateHooks(root, globals, destination, info.Manifest, stdout, stderr); err != nil {
+		if err := runScenarioTemplateHooksWithApp(app, ctx.Root, ctx.Globals, destination, info.Manifest, ctx.Stdout, ctx.Stderr); err != nil {
 			return err
 		}
 	} else {
-		writeScenarioTemplateHooks(stdout, info.Manifest)
+		writeScenarioTemplateHooks(ctx.Stdout, info.Manifest)
 	}
 
 	return nil
@@ -655,6 +666,10 @@ func writeScenarioTemplateHooks(w io.Writer, manifest scenarioTemplateManifest) 
 }
 
 func runScenarioTemplateHooks(root string, globals globalOptions, destination string, manifest scenarioTemplateManifest, stdout, stderr io.Writer) error {
+	return runScenarioTemplateHooksWithApp(configuredApp(), root, globals, destination, manifest, stdout, stderr)
+}
+
+func runScenarioTemplateHooksWithApp(app *App, root string, globals globalOptions, destination string, manifest scenarioTemplateManifest, stdout, stderr io.Writer) error {
 	if len(manifest.PostHooks) == 0 {
 		_, _ = fmt.Fprintln(stdout, "No post hooks defined for this template")
 		return nil
@@ -670,11 +685,11 @@ func runScenarioTemplateHooks(root string, globals globalOptions, destination st
 		if strings.TrimSpace(hook.Cwd) != "" && hook.Cwd != "." {
 			cwd = filepath.Join(destination, filepath.FromSlash(hook.Cwd))
 		}
-		if err := runScenarioSubprocessFn(scenarioSubprocessSpec{
+		if err := app.runScenarioSubprocess(scenarioSubprocessSpec{
 			name:   "bash",
 			args:   []string{"-lc", hook.Cmd},
 			dir:    cwd,
-			env:    commandEnv(root, globals),
+			env:    app.commandEnv(root, globals),
 			stdout: stdout,
 			stderr: stderr,
 		}); err != nil {

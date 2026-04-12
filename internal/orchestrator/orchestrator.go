@@ -3,12 +3,14 @@ package orchestrator
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"path/filepath"
 	"sort"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -17,6 +19,7 @@ type Service struct {
 	Home   string
 	Stdout io.Writer
 	Stderr io.Writer
+	Logger *slog.Logger
 }
 
 type ScenarioView struct {
@@ -32,12 +35,17 @@ type ScenarioView struct {
 	Health      any            `json:"health_status,omitempty"`
 }
 
-func New(root, home string, stdout, stderr io.Writer) *Service {
+func New(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) *Service {
+	baseLogger := slog.Default()
+	if len(logger) > 0 && logger[0] != nil {
+		baseLogger = logger[0]
+	}
 	return &Service{
 		Root:   filepath.Clean(root),
 		Home:   filepath.Clean(home),
 		Stdout: stdout,
 		Stderr: stderr,
+		Logger: logx.WithSubsystem(baseLogger, "orchestrator"),
 	}
 }
 
@@ -87,20 +95,39 @@ func (s *Service) Status(name string) (ScenarioView, bool, error) {
 }
 
 func (s *Service) Start(name string, opts lifecycle.StartOptions) (ScenarioView, error) {
+	s.logger().Info("Scenario start dispatched", logx.AttrScenario, name)
 	result, err := s.StartDetailed(name, opts)
+	if err != nil {
+		logx.Error(s.logger(), "Scenario start failed", err, logx.AttrScenario, name)
+		return ScenarioView{}, err
+	}
+	s.logger().Info("Scenario start resolved", logx.AttrScenario, name, logx.AttrStatus, result.Details.Health)
 	return result.View, err
 }
 
 func (s *Service) Stop(name string, opts lifecycle.StopOptions) error {
-	runner, err := lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr)
+	s.logger().Info("Scenario stop dispatched", logx.AttrScenario, name)
+	runner, err := lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr, s.logger())
 	if err != nil {
+		logx.Error(s.logger(), "Failed to construct lifecycle runner for stop", err, logx.AttrScenario, name)
 		return err
 	}
-	return runner.Stop(name, opts)
+	if err := runner.Stop(name, opts); err != nil {
+		logx.Error(s.logger(), "Scenario stop failed", err, logx.AttrScenario, name)
+		return err
+	}
+	s.logger().Info("Scenario stop resolved", logx.AttrScenario, name)
+	return nil
 }
 
 func (s *Service) Restart(name string, opts lifecycle.StartOptions) (ScenarioView, error) {
+	s.logger().Info("Scenario restart dispatched", logx.AttrScenario, name)
 	result, err := s.RestartDetailed(name, opts)
+	if err != nil {
+		logx.Error(s.logger(), "Scenario restart failed", err, logx.AttrScenario, name)
+		return ScenarioView{}, err
+	}
+	s.logger().Info("Scenario restart resolved", logx.AttrScenario, name, logx.AttrStatus, result.Details.Health)
 	return result.View, err
 }
 
@@ -109,7 +136,7 @@ func (s *Service) StartAll() (control.StartReport, error) {
 	if err != nil {
 		return control.StartReport{}, err
 	}
-	runner, err := lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr)
+	runner, err := lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr, s.logger())
 	if err != nil {
 		return control.StartReport{}, err
 	}
@@ -118,11 +145,14 @@ func (s *Service) StartAll() (control.StartReport, error) {
 	failed := make([]control.ResultItem, 0)
 	for _, item := range items {
 		if _, err := runner.Start(item.Slug, lifecycle.StartOptions{}); err != nil {
+			args := append([]any{logx.AttrScenario, item.Slug}, logx.ErrorArgs(err)...)
+			s.logger().Warn("Scenario start-all item failed", args...)
 			failed = append(failed, control.Failed(item.Slug, err))
 			continue
 		}
 		started = append(started, control.Started(item.Slug, "Started successfully"))
 	}
+	s.logger().Info("Scenario start-all completed", "started", len(started), "failed", len(failed))
 	return control.StartReport{
 		Started: started,
 		Failed:  failed,
@@ -135,7 +165,7 @@ func (s *Service) StopAll() (control.StopReport, error) {
 	if err != nil {
 		return control.StopReport{}, err
 	}
-	runner, err := lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr)
+	runner, err := lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr, s.logger())
 	if err != nil {
 		return control.StopReport{}, err
 	}
@@ -144,16 +174,26 @@ func (s *Service) StopAll() (control.StopReport, error) {
 	failed := make([]control.ResultItem, 0)
 	for _, item := range running {
 		if err := runner.Stop(item.Name, lifecycle.StopOptions{}); err != nil {
+			args := append([]any{logx.AttrScenario, item.Name}, logx.ErrorArgs(err)...)
+			s.logger().Warn("Scenario stop-all item failed", args...)
 			failed = append(failed, control.Failed(item.Name, err))
 			continue
 		}
 		stopped = append(stopped, control.Stopped(item.Name, "Stopped successfully"))
 	}
+	s.logger().Info("Scenario stop-all completed", "stopped", len(stopped), "failed", len(failed))
 	return control.StopReport{
 		Stopped: stopped,
 		Failed:  failed,
 		Message: fmt.Sprintf("Stopped %d scenarios, %d failed", len(stopped), len(failed)),
 	}, nil
+}
+
+func (s *Service) logger() *slog.Logger {
+	if s == nil || s.Logger == nil {
+		return logx.WithSubsystem(slog.Default(), "orchestrator")
+	}
+	return s.Logger
 }
 
 func (s *Service) viewForScenario(item scenario.Scenario) (ScenarioView, error) {

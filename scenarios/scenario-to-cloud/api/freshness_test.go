@@ -154,9 +154,8 @@ func setupFreshnessFixture(t *testing.T, scenarioID, serviceVersion, uiVersion s
 	t.Helper()
 
 	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
 	for _, dir := range []string{
-		".vrooli",
-		"resources",
 		"scripts",
 		filepath.Join("scenarios", scenarioID, ".vrooli"),
 		filepath.Join("scenarios", scenarioID, "ui"),

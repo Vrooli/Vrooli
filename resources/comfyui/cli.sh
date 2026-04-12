@@ -38,11 +38,11 @@ done
 
 cli::init "comfyui" "ComfyUI AI image generation and manipulation platform" "v2"
 
-CLI_COMMAND_HANDLERS["manage::install"]="install::install"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="install::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="comfyui::docker::start"  
-CLI_COMMAND_HANDLERS["manage::stop"]="comfyui::docker::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="comfyui::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="comfyui::status"
 CLI_COMMAND_HANDLERS["test::integration"]="comfyui::test::integration"
 
@@ -54,8 +54,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="workflows::execute_workflow"
 
 cli::register_subcommand "content" "models" "List available AI models" "models::list_models"
 cli::register_subcommand "content" "download" "Download default AI models" "models::download_default_models" "modifies-system"
-cli::register_command "status" "Show detailed resource status" "comfyui::status"
-cli::register_command "logs" "Show ComfyUI logs" "comfyui::docker::logs"
+cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
+cli::register_command "logs" "Show ComfyUI logs" "cli::delegate_logs"
 cli::register_command "credentials" "Show ComfyUI credentials for integration" "comfyui::credentials"
 cli::register_command "gpu-info" "Show GPU information for AI workloads" "gpu::get_gpu_info"
 # Create wrapper for agents command that delegates to manager

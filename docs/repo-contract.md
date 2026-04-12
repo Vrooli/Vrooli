@@ -16,9 +16,7 @@ The authoritative artifacts are:
 - [.vrooli/repo-contract.json](/home/matthalloran8/Vrooli/.vrooli/repo-contract.json)
 - [.vrooli/schemas/repo-contract.schema.json](/home/matthalloran8/Vrooli/.vrooli/schemas/repo-contract.schema.json)
 
-## Phase 1 Scope
-
-Phase 1 defines and validates the contract. It does not yet require every consumer to use a language adapter.
+## Implementation Status
 
 Phase 1 implementation status:
 
@@ -26,7 +24,21 @@ Phase 1 implementation status:
 - the schema is landed
 - repo conformance and drift tests are landed
 - validation entrypoints are landed
-- consumer migration remains deferred to later phases
+
+Landed:
+
+- Phase 1 contract definition and validation
+- Phase 2 Go adapter implementation in `packages/repo-contract-go`
+- the initial Phase 3 shared-package integration slice in:
+  - `packages/api-core/scenario`
+  - `packages/cli-core/cliutil/sandbox`
+  - `internal/scenario`
+
+Still deferred to later phases:
+
+- high-risk repo-aware scenario/tool migrations such as `swarm-manager`, `scenario-to-cloud`, `tidiness-manager`, and `test-genie`
+- CLI/operator tooling such as `vrooli contract ...`
+- broader drift checks for remaining direct consumers
 
 Phase 1 includes:
 
@@ -37,11 +49,7 @@ Phase 1 includes:
 - conformance tests against the live repo
 - validation entrypoints suitable for CI
 
-Phase 1 excludes:
-
-- `packages/repo-contract-go`
-- broad consumer migration
-- new runtime behavior beyond validation and documentation
+Phase 1 excluded broad consumer migration and runtime behavior beyond validation/documentation. Those exclusions no longer apply to the landed Phase 2 adapter and the current shared-package Phase 3 slice.
 
 ## Phase 1 Completion Rules
 
@@ -52,6 +60,17 @@ Phase 1 should be considered complete only when all of the following remain true
 - `make validate-repo-contract` remains the single documented validation entrypoint
 - `internal/repocontract` catches schema drift, semantic drift, and legacy-path regressions
 - deferred consumers are clearly documented as migration targets rather than contract authority
+
+## Shared Package Adoption
+
+The current shared-package baseline is:
+
+- `packages/repo-contract-go` is the authoritative Go adapter for contract-backed repo/layout semantics
+- `packages/api-core/scenario` uses the contract for repo-root detection, scenario-root discovery, and canonical manifest lookup
+- `packages/cli-core/cliutil/sandbox` uses the contract for repo-root defaults, sandbox scope matching, and scenario path resolution
+- `internal/scenario` uses the contract-backed adapter for canonical scenario layout and sandbox path resolution, while keeping manifest/runtime behavior local
+
+Shared packages should consume only the contract slices that are relevant to their own domain. They should not become generic pass-through wrappers for the full contract surface.
 
 ## Canonical Rules
 
@@ -119,16 +138,15 @@ For covered repo-aware work:
 - when changing the contract, update the schema, docs, and `internal/repocontract` coverage in the same change
 - add a new structural rule to the contract only if it is intentionally shared, future-state aligned, and stable enough to version
 
-Ordinary scenario runtime logic should usually consume higher-level shared packages. Repo-aware infrastructure code may consume a future adapter directly once Phase 2 lands.
+Ordinary scenario runtime logic should usually consume higher-level shared packages. Repo-aware infrastructure code may consume `packages/repo-contract-go` directly when repository/layout semantics are part of the job.
 
 ## Known Deferred Consumers
 
-These are still migration targets and should not be treated as Phase 1 precedent:
+These are still migration targets and should not be treated as shared-package precedent:
 
 - `swarm-manager` backlog glob validation and counting
 - `scenario-to-cloud` bundle root/include policy
 - `tidiness-manager` scenario location fallback logic
 - `test-genie` CLI repo-root detection
-- `packages/cli-core` repo-root fallback behavior
 
 Their current behavior is legacy compatibility, not contract authority.

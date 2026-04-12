@@ -552,11 +552,7 @@ func LoadFromEnv() (Config, error) {
 	cfg.Policy.TeardownTimeout = envDuration("WORKSPACE_SANDBOX_TEARDOWN_TIMEOUT", cfg.Policy.TeardownTimeout)
 
 	// Driver config
-	// PROJECT_ROOT takes precedence, falls back to VROOLI_ROOT if not set
-	cfg.Driver.ProjectRoot = os.Getenv("PROJECT_ROOT")
-	if cfg.Driver.ProjectRoot == "" {
-		cfg.Driver.ProjectRoot = os.Getenv("VROOLI_ROOT")
-	}
+	cfg.Driver.ProjectRoot = ResolveDefaultProjectRoot()
 	if baseDir := os.Getenv("SANDBOX_BASE_DIR"); baseDir != "" {
 		cfg.Driver.BaseDir = baseDir
 	}

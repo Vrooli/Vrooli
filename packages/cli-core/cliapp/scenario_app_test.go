@@ -1,6 +1,7 @@
 package cliapp
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -163,6 +164,9 @@ func TestScenarioAppHTTPTimeoutFromEnv(t *testing.T) {
 }
 
 func TestIsScenarioLocalCLIExecutablePath(t *testing.T) {
+	root := writeScenarioRepoFixture(t, "scenarios")
+	t.Setenv("VROOLI_ROOT", root)
+
 	tests := []struct {
 		name       string
 		appName    string
@@ -172,7 +176,7 @@ func TestIsScenarioLocalCLIExecutablePath(t *testing.T) {
 		{
 			name:       "scenario-local path",
 			appName:    "swarm-manager",
-			executable: "/home/user/Vrooli/scenarios/swarm-manager/cli/swarm-manager",
+			executable: filepath.Join(root, "scenarios", "swarm-manager", "cli", "swarm-manager"),
 			want:       true,
 		},
 		{
@@ -184,7 +188,7 @@ func TestIsScenarioLocalCLIExecutablePath(t *testing.T) {
 		{
 			name:       "different scenario local path",
 			appName:    "swarm-manager",
-			executable: "/home/user/Vrooli/scenarios/scenario-to-desktop/cli/scenario-to-desktop",
+			executable: filepath.Join(root, "scenarios", "scenario-to-desktop", "cli", "scenario-to-desktop"),
 			want:       false,
 		},
 	}
@@ -197,4 +201,130 @@ func TestIsScenarioLocalCLIExecutablePath(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIsScenarioLocalCLIExecutablePathUsesContractDefinedLayout(t *testing.T) {
+	root := writeScenarioRepoFixture(t, "apps")
+	t.Setenv("VROOLI_ROOT", root)
+
+	if !isScenarioLocalCLIExecutablePath("swarm-manager", filepath.Join(root, "apps", "swarm-manager", "cli", "swarm-manager")) {
+		t.Fatal("expected contract-defined app-local CLI path to match")
+	}
+	if isScenarioLocalCLIExecutablePath("swarm-manager", filepath.Join(root, "scenarios", "swarm-manager", "cli", "swarm-manager")) {
+		t.Fatal("unexpected legacy scenarios path match under apps contract")
+	}
+}
+
+func TestResolveScenarioLocalCLIContextUsesContractDefinedLayout(t *testing.T) {
+	root := writeScenarioRepoFixture(t, "apps")
+	t.Setenv("VROOLI_ROOT", root)
+
+	relativeScenario, cliDir, ok := resolveScenarioLocalCLIContext("swarm-manager")
+	if !ok {
+		t.Fatal("expected contract-backed CLI context to resolve")
+	}
+	if relativeScenario != "apps/swarm-manager" {
+		t.Fatalf("relativeScenario = %q, want %q", relativeScenario, "apps/swarm-manager")
+	}
+	if cliDir != filepath.Join(root, "apps", "swarm-manager", "cli") {
+		t.Fatalf("cliDir = %q, want %q", cliDir, filepath.Join(root, "apps", "swarm-manager", "cli"))
+	}
+}
+
+func writeScenarioRepoFixture(t *testing.T, scenarioDir string) string {
+	t.Helper()
+
+	root := t.TempDir()
+	doc := map[string]any{
+		"$schema": "schemas/repo-contract.schema.json",
+		"version": "1.0.0",
+		"platform": map[string]any{
+			"mode":                          "cross_platform_go_native",
+			"legacy_project_bash_supported": false,
+		},
+		"root": map[string]any{
+			"markers": map[string]any{
+				"required_dirs":  []string{".vrooli", scenarioDir, "resources", "packages", "cmd", "internal"},
+				"required_files": []string{"go.mod"},
+			},
+		},
+		"layout": map[string]any{
+			"project_config_dir": ".vrooli",
+			"scenario_dir":       scenarioDir,
+			"resource_dir":       "resources",
+			"package_dir":        "packages",
+			"command_dir":        "cmd",
+			"internal_dir":       "internal",
+			"docs_dir":           "docs",
+		},
+		"scenario": map[string]any{
+			"required_files": []string{".vrooli/service.json"},
+			"well_known_paths": map[string]string{
+				"service": ".vrooli/service.json",
+				"api":     "api",
+				"cli":     "cli",
+			},
+		},
+		"resource": map[string]any{
+			"manifest": "resource.json",
+		},
+		"globs": map[string]any{
+			"syntax":         "doublestar",
+			"root_relative":  true,
+			"case_sensitive": true,
+			"allow_absolute": false,
+			"path_format":    "slash_normalized",
+		},
+		"environment": map[string]any{
+			"variables": map[string]string{
+				"repo_root":      "VROOLI_ROOT",
+				"source_root":    "VROOLI_SOURCE_ROOT",
+				"sandbox_id":     "VROOLI_SANDBOX_ID",
+				"sandbox_merged": "VROOLI_SANDBOX_MERGED",
+				"sandbox_scope":  "VROOLI_SANDBOX_SCOPE",
+			},
+		},
+		"sandbox": map[string]any{
+			"full_repo_scopes":      []string{"", ".", "/"},
+			"scenario_scope_prefix": scenarioDir + "/",
+		},
+		"profiles": map[string]any{
+			"mini_vrooli_bundle": map[string]any{
+				"description": "test profile",
+				"parameters":  []string{"scenario"},
+				"include":     []string{scenarioDir + "/{scenario}"},
+			},
+		},
+	}
+
+	for _, dir := range []string{".vrooli", scenarioDir, "resources", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module fixture\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	for _, scenario := range []string{"swarm-manager", "scenario-to-desktop"} {
+		servicePath := filepath.Join(root, scenarioDir, scenario, ".vrooli", "service.json")
+		if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
+			t.Fatalf("mkdir service dir: %v", err)
+		}
+		if err := os.MkdirAll(filepath.Join(root, scenarioDir, scenario, "cli"), 0o755); err != nil {
+			t.Fatalf("mkdir cli dir: %v", err)
+		}
+		if err := os.WriteFile(servicePath, []byte(`{"service":{"name":"`+scenario+`"}}`), 0o644); err != nil {
+			t.Fatalf("write service: %v", err)
+		}
+	}
+
+	data, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal contract: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), data, 0o644); err != nil {
+		t.Fatalf("write contract: %v", err)
+	}
+
+	return root
 }

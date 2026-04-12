@@ -164,7 +164,10 @@ func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, i
 		_, err = fmt.Fprintf(stdout, "%s: %s\n", item.Name, status.Message)
 		return err
 	case "install":
-		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "pull")
+		if err := composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "pull"); err == nil {
+			return nil
+		}
+		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "build")
 	case "start":
 		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "up", "-d")
 	case "restart":
@@ -345,7 +348,7 @@ func inspectComposeServices(ctx context.Context, controller *Controller, manifes
 	if err != nil {
 		return nil, err
 	}
-	trimmed := strings.TrimSpace(string(output))
+	trimmed := strings.TrimSpace(normalizeComposePSOutput(output))
 	if trimmed == "" {
 		return nil, nil
 	}
@@ -372,6 +375,21 @@ func inspectComposeServices(ctx context.Context, controller *Controller, manifes
 		services = append(services, service)
 	}
 	return services, nil
+}
+
+func normalizeComposePSOutput(output []byte) string {
+	lines := strings.Split(string(output), "\n")
+	jsonLines := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[") {
+			jsonLines = append(jsonLines, trimmed)
+		}
+	}
+	return strings.Join(jsonLines, "\n")
 }
 
 func inspectDockerContainer(ctx context.Context, controller *Controller, manifest ResourceManifest) (dockerState, bool, error) {

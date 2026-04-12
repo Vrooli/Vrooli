@@ -184,14 +184,10 @@ func NewServer() (*Server, error) {
 	// Initialize process logger (Phase 2)
 	processLogger := process.NewLogger(process.DefaultLogConfig(cfg.Driver.BaseDir))
 
-	// Initialize profile store for isolation profiles
-	// Determine scenario base directory from VROOLI_ROOT
-	scenarioDir := os.Getenv("VROOLI_ROOT")
-	if scenarioDir != "" {
-		scenarioDir = filepath.Join(scenarioDir, "scenarios", "workspace-sandbox")
-	} else {
-		// Fallback to current directory
-		scenarioDir, _ = os.Getwd()
+	// Initialize profile store for isolation profiles.
+	scenarioDir, err := resolveWorkspaceSandboxScenarioDir()
+	if err != nil {
+		return nil, err
 	}
 	profileStore := config.NewFileProfileStore(scenarioDir)
 
@@ -582,8 +578,8 @@ func ensureSchema(db *sql.DB) error {
 func loadSchemaSQL() (string, error) {
 	candidates := []string{}
 
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		candidates = append(candidates, filepath.Join(root, "scenarios", "workspace-sandbox", "initialization", "postgres", "schema.sql"))
+	if scenarioDir, err := resolveWorkspaceSandboxScenarioDir(); err == nil {
+		candidates = append(candidates, filepath.Join(scenarioDir, "initialization", "postgres", "schema.sql"))
 	}
 
 	if cwd, err := os.Getwd(); err == nil {

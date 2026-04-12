@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -760,7 +761,20 @@ func TestScoreReflectsIssueResolution(t *testing.T) {
 	scenario := "test-resolution-v2"
 
 	_, _ = srv.db.ExecContext(ctx, "DELETE FROM issues WHERE scenario = $1", scenario)
+	_, _ = srv.db.ExecContext(ctx, "DELETE FROM file_metrics WHERE scenario = $1", scenario)
 	defer func() { _, _ = srv.db.ExecContext(ctx, "DELETE FROM issues WHERE scenario = $1", scenario) }()
+	defer func() { _, _ = srv.db.ExecContext(ctx, "DELETE FROM file_metrics WHERE scenario = $1", scenario) }()
+
+	for i := 0; i < 20; i++ {
+		path := fmt.Sprintf("f%d.go", i+1)
+		_, _ = srv.db.ExecContext(ctx, `
+			INSERT INTO file_metrics (
+				scenario, file_path, line_count, code_lines, todo_count, fixme_count, hack_count,
+				has_test_file, comment_to_code_ratio, complexity_max, complexity_avg, duplication_pct
+			)
+			VALUES ($1, $2, 200, 160, 0, 0, 0, true, 0.10, 3, 2.0, 0.0)
+		`, scenario, path)
+	}
 
 	_, _ = srv.db.ExecContext(ctx, `
 		INSERT INTO issues (scenario, file_path, category, severity, title, status)

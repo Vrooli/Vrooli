@@ -111,6 +111,13 @@ func TestComputeSourceFingerprintReportRejectsMissingTargetsWhenStrict(t *testin
 	if err == nil || !strings.Contains(err.Error(), "missing fingerprint targets: internal") {
 		t.Fatalf("ComputeSourceFingerprintReport error = %v", err)
 	}
+	var typedErr MissingTargetsError
+	if !errors.As(err, &typedErr) {
+		t.Fatalf("expected MissingTargetsError, got %T", err)
+	}
+	if strings.Join(typedErr.Targets, ",") != "internal" {
+		t.Fatalf("targets = %v", typedErr.Targets)
+	}
 }
 
 func TestComputeSourceFingerprintForPathsIgnoresNonGoFiles(t *testing.T) {
@@ -145,6 +152,13 @@ func TestComputeSourceFingerprintReportRejectsTargetsWithoutGoFilesWhenStrict(t 
 	}, "docs")
 	if err == nil || !strings.Contains(err.Error(), "no Go files matched") {
 		t.Fatalf("ComputeSourceFingerprintReport error = %v", err)
+	}
+	var typedErr NoGoFilesMatchedError
+	if !errors.As(err, &typedErr) {
+		t.Fatalf("expected NoGoFilesMatchedError, got %T", err)
+	}
+	if typedErr.Root != root {
+		t.Fatalf("root = %q, want %q", typedErr.Root, root)
 	}
 }
 
@@ -874,10 +888,26 @@ func TestResolveTargetPathRejectsAbsoluteAndEscapingTargets(t *testing.T) {
 	absoluteTarget := filepath.Join(root, "cmd", "vrooli", "main.go")
 	if _, err := resolveTargetPath(root, absoluteTarget); err == nil || !strings.Contains(err.Error(), "must be relative") {
 		t.Fatalf("absolute target error = %v", err)
+	} else {
+		var typedErr TargetPathError
+		if !errors.As(err, &typedErr) {
+			t.Fatalf("expected TargetPathError, got %T", err)
+		}
+		if typedErr.Reason != TargetPathMustBeRelative {
+			t.Fatalf("reason = %q", typedErr.Reason)
+		}
 	}
 
 	if _, err := resolveTargetPath(root, "../outside"); err == nil || !strings.Contains(err.Error(), "escapes repository root") {
 		t.Fatalf("escaping target error = %v", err)
+	} else {
+		var typedErr TargetPathError
+		if !errors.As(err, &typedErr) {
+			t.Fatalf("expected TargetPathError, got %T", err)
+		}
+		if typedErr.Reason != TargetPathEscapesRoot {
+			t.Fatalf("reason = %q", typedErr.Reason)
+		}
 	}
 }
 

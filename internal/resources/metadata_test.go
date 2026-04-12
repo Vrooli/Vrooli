@@ -60,11 +60,11 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
     }
   }
 }`)
-	writeJSON(t, filepath.Join(root, ".vrooli", "secrets.json"), `{
+	writeJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), `{
   "POSTGRES_PASSWORD": "secret",
   "POSTGRES_USER": "vrooli",
   "BROWSERLESS_TOKEN": "abc123"
-}`)
+}`, 0o600)
 
 	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
 	if err != nil {
@@ -139,12 +139,60 @@ func TestLoadResourceEnvironmentUsesEncryptedSecrets(t *testing.T) {
 	}
 }
 
+func TestLoadResourceEnvironmentFallsBackToLegacySecretsDuringMigration(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	writeJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), `{
+  "resource_ports": {
+    "postgres": 5433
+  },
+  "reserved_ranges": {}
+}`)
+	writeJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), `{
+  "definitions": {
+    "resourceSchemas": {
+      "postgres": {
+        "properties": {}
+      }
+    }
+  }
+}`)
+	writeJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), `{
+  "POSTGRES_PASSWORD": "legacy-secret",
+  "POSTGRES_USER": "vrooli"
+}`, 0o600)
+
+	t.Setenv(secrets.KeyEnvVar, "writer-secret-key")
+	store := secrets.NewProjectStore(root)
+	if err := store.Save(map[string]string{
+		"POSTGRES_PASSWORD": "encrypted-secret",
+		"POSTGRES_USER":     "vrooli",
+	}); err != nil {
+		t.Fatalf("Save encrypted secrets: %v", err)
+	}
+	t.Setenv(secrets.KeyEnvVar, "")
+
+	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(postgres): %v", err)
+	}
+	if got := postgresEnv["POSTGRES_PASSWORD"]; got != "legacy-secret" {
+		t.Fatalf("POSTGRES_PASSWORD = %q, want legacy-secret", got)
+	}
+}
+
 func writeJSON(t *testing.T, path, contents string) {
+	t.Helper()
+	writeJSONMode(t, path, contents, 0o644)
+}
+
+func writeJSONMode(t *testing.T, path, contents string, mode os.FileMode) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
 	}
-	if err := os.WriteFile(path, []byte(contents+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(contents+"\n"), mode); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
 }

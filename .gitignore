@@ -438,3 +438,4 @@ packages/cli-core/sandbox-resolve
 scripts/scenarios/templates/landing-page-react-vite/api/landing-manager-api
 scripts/main/generated/test-genie
 .vrooli/build/
+vrooli

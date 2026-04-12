@@ -42,8 +42,7 @@ func runScenarioSubprocess(spec scenarioSubprocessSpec) error {
 	return cmd.Run()
 }
 
-func locateTestGenieCLI(root, home string) (string, error) {
-	app := configuredApp()
+func (app *App) locateTestGenieCLI(root, home string) (string, error) {
 	if override := strings.TrimSpace(os.Getenv("VROOLI_TEST_GENIE_CLI")); override != "" {
 		if isExecutable(override) {
 			return override, nil
@@ -67,8 +66,11 @@ func locateTestGenieCLI(root, home string) (string, error) {
 	return "", fmt.Errorf("test-genie CLI not found (checked VROOLI_TEST_GENIE_CLI, PATH, %s, and %s)", homeCLI, repoCLI)
 }
 
-func locateScenarioCompletenessCLI(root string) (string, error) {
-	app := configuredApp()
+func locateTestGenieCLI(root, home string) (string, error) {
+	return configuredApp().locateTestGenieCLI(root, home)
+}
+
+func (app *App) locateScenarioCompletenessCLI(root string) (string, error) {
 	if pathCLI, err := app.lookPath("scenario-completeness-scoring"); err == nil && isExecutable(pathCLI) {
 		return pathCLI, nil
 	}
@@ -79,6 +81,10 @@ func locateScenarioCompletenessCLI(root string) (string, error) {
 	}
 
 	return "", fmt.Errorf("scenario-completeness-scoring CLI not found (checked PATH and %s)", repoCLI)
+}
+
+func locateScenarioCompletenessCLI(root string) (string, error) {
+	return configuredApp().locateScenarioCompletenessCLI(root)
 }
 
 func isExecutable(path string) bool {
@@ -101,8 +107,7 @@ func writerSupportsStreaming(w io.Writer) bool {
 	return info.Mode()&os.ModeCharDevice != 0
 }
 
-func openScenarioURL(url string) error {
-	app := configuredApp()
+func (app *App) openScenarioURL(url string) error {
 	switch runtime.GOOS {
 	case "linux":
 		if binary, err := app.lookPath("xdg-open"); err == nil {
@@ -123,8 +128,11 @@ func openScenarioURL(url string) error {
 	}
 }
 
-func launchDetachedScenario(root string, globals globalOptions, args ...string) error {
-	app := configuredApp()
+func openScenarioURL(url string) error {
+	return configuredApp().openScenarioURL(url)
+}
+
+func (app *App) launchDetachedScenario(root string, globals globalOptions, args ...string) error {
 	executable, err := app.scenarioExecutable()
 	if err != nil {
 		return err
@@ -156,6 +164,10 @@ func launchDetachedScenario(root string, globals globalOptions, args ...string) 
 	})
 	cmd.SysProcAttr = detachedProcessAttr()
 	return cmd.Start()
+}
+
+func launchDetachedScenario(root string, globals globalOptions, args ...string) error {
+	return configuredApp().launchDetachedScenario(root, globals, args...)
 }
 
 func unsetEnvKeys(env []string, keys ...string) []string {

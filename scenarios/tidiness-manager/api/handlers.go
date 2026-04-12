@@ -313,7 +313,11 @@ func (s *Server) handleTypeSafetyScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scenarioPath := s.scenarioLocator.ScenarioPath(scenarioName)
+	scenarioPath, err := s.scenarioLocator.ScenarioPath(scenarioName)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	analyzer := NewTypeSafetyAnalyzer(scenarioPath)
 	result := analyzer.Analyze()
 
@@ -351,7 +355,11 @@ func (s *Server) handleTypeSafetyFix(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scenarioPath := s.scenarioLocator.ScenarioPath(scenarioName)
+	scenarioPath, err := s.scenarioLocator.ScenarioPath(scenarioName)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	analyzer := NewTypeSafetyAnalyzer(scenarioPath)
 	result, fixErr := analyzer.FixTSConfig()
 	if fixErr != nil {

@@ -8,6 +8,7 @@ OPENCODE_DIR="${APP_ROOT}/resources/opencode"
 
 # Logging utilities (needed when common.sh is sourced standalone via shim)
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/service/secrets.sh" 2>/dev/null || true
 
 # Load defaults
 source "${OPENCODE_DIR}/config/defaults.sh"
@@ -130,27 +131,23 @@ opencode::load_secrets() {
         fi
     fi
 
-    if command -v jq &>/dev/null; then
-        local vrooli_root="${VROOLI_ROOT:-"$HOME/Vrooli"}"
-        local secrets_file="${vrooli_root}/.vrooli/secrets.json"
-        if [[ -f "${secrets_file}" ]]; then
-            local vars=(
-                OPENROUTER_API_KEY
-                CLOUDFLARE_API_TOKEN
-                CLOUDFLARE_ACCOUNT_ID
-                CLOUDFLARE_AI_GATEWAY_SLUG
-            )
-            for var_name in "${vars[@]}"; do
-                if [[ -z "${!var_name:-}" ]] || opencode::secret_value_invalid "${!var_name:-}"; then
-                    local value
-                    value=$(jq -r --arg key "${var_name}" '.[$key] // empty' "${secrets_file}" 2>/dev/null)
-                    if [[ -n "${value}" && "${value}" != "null" ]] && opencode::secret_value_valid "${value}"; then
-                        export "${var_name}"="${value}"
-                    fi
-                fi
-            done
+    local vars=(
+        OPENROUTER_API_KEY
+        CLOUDFLARE_API_TOKEN
+        CLOUDFLARE_ACCOUNT_ID
+        CLOUDFLARE_AI_GATEWAY_SLUG
+    )
+    for var_name in "${vars[@]}"; do
+        if [[ -z "${!var_name:-}" ]] || opencode::secret_value_invalid "${!var_name:-}"; then
+            local value=""
+            if declare -f secrets::read_project_secret >/dev/null 2>&1; then
+                value=$(secrets::read_project_secret "${var_name}" 2>/dev/null || true)
+            fi
+            if [[ -n "${value}" ]] && opencode::secret_value_valid "${value}"; then
+                export "${var_name}"="${value}"
+            fi
         fi
-    fi
+    done
 
     if [[ -z "${OPENROUTER_API_KEY:-}" || "${OPENROUTER_API_KEY}" == auto-null-* ]] || opencode::secret_value_invalid "${OPENROUTER_API_KEY:-}"; then
         local credentials_file="${var_ROOT_DIR:-${APP_ROOT}}/data/credentials/openrouter-credentials.json"

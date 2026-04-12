@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -22,11 +24,12 @@ import (
 )
 
 type Runner struct {
-	Root  string
-	Home  string
-	Out   io.Writer
-	Err   io.Writer
-	Ports *ports.Manager
+	Root   string
+	Home   string
+	Out    io.Writer
+	Err    io.Writer
+	Ports  *ports.Manager
+	Logger *slog.Logger
 }
 
 type StartOptions struct {
@@ -57,23 +60,45 @@ type Result struct {
 	AlreadyRunning     bool
 }
 
-func NewRunner(root, home string, stdout, stderr io.Writer) (*Runner, error) {
+func NewRunner(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) (*Runner, error) {
 	manager, err := ports.NewManager(root, home)
 	if err != nil {
 		return nil, err
 	}
+	baseLogger := slog.Default()
+	if len(logger) > 0 && logger[0] != nil {
+		baseLogger = logger[0]
+	}
 	return &Runner{
-		Root:  filepath.Clean(root),
-		Home:  filepath.Clean(home),
-		Out:   stdout,
-		Err:   stderr,
-		Ports: manager,
+		Root:   filepath.Clean(root),
+		Home:   filepath.Clean(home),
+		Out:    stdout,
+		Err:    stderr,
+		Ports:  manager,
+		Logger: logx.WithSubsystem(baseLogger, "lifecycle"),
 	}, nil
 }
 
 func (r *Runner) Start(name string, opts StartOptions) (Result, error) {
+	r.logInfo("Scenario start requested",
+		logx.AttrScenario, name,
+		"best_effort", opts.BestEffort,
+		"clean_stale", opts.CleanStale,
+		"force_setup", opts.ForceSetup,
+	)
 	ready := make(map[string]struct{})
-	return r.startWithState(name, opts, ready, nil)
+	result, err := r.startWithState(name, opts, ready, nil)
+	if err != nil {
+		r.logError("Scenario start failed", err, logx.AttrScenario, name)
+		return Result{}, err
+	}
+	r.logInfo("Scenario start completed",
+		logx.AttrScenario, name,
+		logx.AttrStatus, result.Health,
+		"already_running", result.AlreadyRunning,
+		"failed_dependencies", len(result.FailedDependencies),
+	)
+	return result, nil
 }
 
 func (r *Runner) startWithState(name string, opts StartOptions, ready map[string]struct{}, stack []string) (Result, error) {
@@ -86,6 +111,7 @@ func (r *Runner) startWithState(name string, opts StartOptions, ready map[string
 
 func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, stack []string) (Result, error) {
 	if opts.CleanStale && len(stack) == 0 {
+		r.logDebug("Cleaning stale port locks before scenario start", logx.AttrScenario, item.Slug)
 		if err := r.Ports.CleanStaleLocks(); err != nil {
 			return Result{}, err
 		}
@@ -113,6 +139,11 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		if strictHealthy && !setupNeeded {
 			currentPorts := r.runtimePorts(item.Manifest, runtime.Records)
 			health := scenario.EvaluateHealth(item.Manifest.HealthConfig(), currentPorts)
+			r.logInfo("Scenario already running and healthy",
+				logx.AttrScenario, item.Slug,
+				logx.AttrStatus, health,
+				"processes", runtime.ProcessCount,
+			)
 			return Result{
 				Scenario:           item,
 				AllocatedPorts:     currentPorts,
@@ -144,6 +175,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 	}
 
 	if setupNeeded {
+		r.logInfo("Executing setup phase for scenario", logx.AttrScenario, item.Slug, logx.AttrPhase, "setup")
 		if err := r.runWithLifecycleLog(item.Slug, func(logWriter io.Writer) error {
 			return r.ExecutePhase(item, "setup", env.EnvVars, nil, logWriter)
 		}); err != nil {
@@ -151,6 +183,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		}
 	}
 
+	r.logInfo("Executing develop phase for scenario", logx.AttrScenario, item.Slug, logx.AttrPhase, "develop")
 	if err := r.runWithLifecycleLog(item.Slug, func(logWriter io.Writer) error {
 		return r.ExecutePhase(item, "develop", env.EnvVars, nil, logWriter)
 	}); err != nil {
@@ -163,6 +196,11 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 	}
 
 	if len(failedDeps) > 0 {
+		r.logWarn("Scenario started in degraded mode",
+			logx.AttrScenario, item.Slug,
+			logx.AttrStatus, healthStatus,
+			"failed_dependencies", failedDeps,
+		)
 		// Preserve the degraded marker contract so remaining Bash-backed status
 		// and log flows still recognize a partial best-effort startup.
 		if err := r.writeDegradedState(item.Slug, failedDeps); err != nil {
@@ -179,8 +217,10 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 }
 
 func (r *Runner) Stop(name string, opts StopOptions) error {
+	r.logInfo("Scenario stop requested", logx.AttrScenario, name)
 	records, err := readScenarioRecords(r.Home, name)
 	if err != nil {
+		r.logError("Failed to read scenario records before stop", err, logx.AttrScenario, name)
 		return err
 	}
 
@@ -223,6 +263,7 @@ func (r *Runner) Stop(name string, opts StopOptions) error {
 	portsToCheck := make(map[int]struct{})
 	locks, err := r.Ports.LocksForScenario(name)
 	if err != nil {
+		r.logError("Failed to read scenario locks before stop", err, logx.AttrScenario, name)
 		return err
 	}
 	for _, lock := range locks {
@@ -238,23 +279,57 @@ func (r *Runner) Stop(name string, opts StopOptions) error {
 	}
 
 	if err := r.killOrphansOnPorts(portsToCheck); err != nil {
+		r.logError("Failed to clean orphaned listeners", err, logx.AttrScenario, name)
 		return err
 	}
 
 	if err := r.Ports.RemoveScenarioLocks(name); err != nil {
+		r.logError("Failed to remove scenario locks", err, logx.AttrScenario, name)
 		return err
 	}
+	r.logInfo("Scenario stop completed", logx.AttrScenario, name)
 	return nil
 }
 
 func (r *Runner) Restart(name string, opts StartOptions) (Result, error) {
+	r.logInfo("Scenario restart requested", logx.AttrScenario, name)
 	if err := r.Stop(name, StopOptions{}); err != nil {
+		r.logError("Scenario restart failed during stop", err, logx.AttrScenario, name)
 		return Result{}, err
 	}
 	time.Sleep(1 * time.Second)
 	opts.ForceSetup = true
 	opts.ForceSetupScenario = name
-	return r.Start(name, opts)
+	result, err := r.Start(name, opts)
+	if err != nil {
+		r.logError("Scenario restart failed during start", err, logx.AttrScenario, name)
+		return Result{}, err
+	}
+	r.logInfo("Scenario restart completed", logx.AttrScenario, name, logx.AttrStatus, result.Health)
+	return result, nil
+}
+
+func (r *Runner) logger() *slog.Logger {
+	if r == nil || r.Logger == nil {
+		return logx.WithSubsystem(slog.Default(), "lifecycle")
+	}
+	return r.Logger
+}
+
+func (r *Runner) logDebug(msg string, args ...any) {
+	r.logger().Debug(msg, args...)
+}
+
+func (r *Runner) logInfo(msg string, args ...any) {
+	r.logger().Info(msg, args...)
+}
+
+func (r *Runner) logWarn(msg string, args ...any) {
+	r.logger().Warn(msg, args...)
+}
+
+func (r *Runner) logError(msg string, err error, args ...any) {
+	logx.Error(r.logger(), msg, err, args...)
 }
 
 func (r *Runner) writeDegradedState(name string, failedDeps []string) error {

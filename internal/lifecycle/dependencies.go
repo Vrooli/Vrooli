@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -38,10 +39,12 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 			}
 		}
 		if startupPolicy == "ignore" {
+			r.logDebug("Skipping ignored dependency", logx.AttrScenario, item.Slug, "dependency", dependencyName)
 			continue
 		}
 
 		if _, ok := ready[dependencyName]; ok {
+			r.logDebug("Dependency already ready", logx.AttrScenario, item.Slug, "dependency", dependencyName)
 			continue
 		}
 		if containsString(stack, dependencyName) {
@@ -51,6 +54,11 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 		dependencyItem, err := r.loadScenario(dependencyName, "")
 		if err != nil {
 			if opts.BestEffort || startupPolicy == "try_start" {
+				r.logWarn("Dependency could not be loaded; continuing in best-effort mode",
+					logx.AttrScenario, item.Slug,
+					"dependency", dependencyName,
+					logx.AttrOperation, "load_dependency",
+				)
 				failed = append(failed, dependencyName)
 				continue
 			}
@@ -68,6 +76,7 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 			return nil, err
 		}
 		if dependencyRuntime.ProcessCount > 0 && r.isScenarioHealthyStrict(dependencyItem, dependencyRuntime.Records) && !setupNeeded {
+			r.logDebug("Dependency already running and healthy", logx.AttrScenario, item.Slug, "dependency", dependencyName)
 			ready[dependencyName] = struct{}{}
 			continue
 		}
@@ -78,6 +87,11 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 
 		if _, err := r.startScenario(dependencyItem, dependencyOpts, ready, append(stack, dependencyName)); err != nil {
 			if opts.BestEffort || startupPolicy == "try_start" {
+				r.logWarn("Dependency failed to start; continuing in best-effort mode",
+					logx.AttrScenario, item.Slug,
+					"dependency", dependencyName,
+					logx.AttrOperation, "start_dependency",
+				)
 				failed = append(failed, dependencyName)
 				continue
 			}

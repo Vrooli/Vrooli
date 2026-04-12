@@ -2,22 +2,77 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "comfyui",
   "display_name": "ComfyUI",
-  "description": "Transitional ComfyUI resource kept behind a typed legacy adapter while native GPU-aware lifecycle support is scoped.",
-  "template": "legacy-adapter",
-  "driver": "legacy-adapter",
-  "legacy_adapter": {
-    "owner": "Matthew Halloran",
-    "decision_deadline": "2026-05-31",
-    "final_disposition": "migrate",
-    "legacy_cli_path": "resources/comfyui/cli.sh",
-    "notes": "Phase 0 keep resource because active scenario usage still exists; native migration depends on clearer platform/GPU support boundaries."
-  },
+  "description": "Managed ComfyUI workflow service with native lifecycle handling and shell-retained workflow, model, and GPU compatibility commands.",
+  "template": "docker-service",
+  "driver": "docker-service",
   "portability_tier": "partial",
   "category": "ai",
   "platforms": {
     "linux": "supported",
     "macos": "partial",
     "windows": "partial"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 8188,
+      "host": 8188
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8188/system_stats",
+      "interval_seconds": 10,
+      "timeout_seconds": 30
+    }
+  ],
+  "runtime": {
+    "image": "zhangp365/comfyui:latest",
+    "container_name": "comfyui",
+    "env": {
+      "WORKSPACE": "/workspace/ComfyUI",
+      "CF_QUICK_TUNNELS": "false",
+      "WEB_ENABLE_AUTH": "false",
+      "SERVERLESS": "false",
+      "PUBLIC_KEY": "",
+      "CUDA_VISIBLE_DEVICES": ""
+    },
+    "volumes": [
+      {
+        "source": "${HOME}/.comfyui/models",
+        "target": "/workspace/ComfyUI/models"
+      },
+      {
+        "source": "${HOME}/.comfyui/custom_nodes",
+        "target": "/workspace/ComfyUI/custom_nodes"
+      },
+      {
+        "source": "${HOME}/.comfyui/outputs",
+        "target": "/workspace/ComfyUI/outputs"
+      },
+      {
+        "source": "${HOME}/.comfyui/input",
+        "target": "/workspace/ComfyUI/input"
+      },
+      {
+        "source": "${HOME}/.comfyui/workflows",
+        "target": "/workspace/ComfyUI/workflows"
+      },
+      {
+        "source": "${HOME}/.comfyui/user",
+        "target": "/workspace/ComfyUI/user"
+      }
+    ]
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 120,
+    "stop_timeout_seconds": 30,
+    "retries": 5
+  },
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
   },
   "template_version": "1"
 }

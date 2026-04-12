@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -20,6 +21,48 @@ import (
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/control"
 )
+
+func TestInstallAPILoggerEmitsStartupWarnings(t *testing.T) {
+	t.Setenv("VROOLI_LOG_LEVEL", "trace")
+	t.Setenv("VROOLI_LOG_FORMAT", "yaml")
+
+	originalStderr := os.Stderr
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	os.Stderr = writer
+	t.Cleanup(func() {
+		os.Stderr = originalStderr
+		_ = reader.Close()
+		_ = writer.Close()
+	})
+
+	originalDefault := slog.Default()
+	logger, restore := installAPILogger()
+	t.Cleanup(func() {
+		restore()
+		slog.SetDefault(originalDefault)
+	})
+
+	logger.Info("api bootstrap ready")
+	_ = writer.Close()
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("read stderr: %v", err)
+	}
+	got := string(data)
+	if !strings.Contains(got, "invalid_log_level") {
+		t.Fatalf("missing invalid_log_level warning: %q", got)
+	}
+	if !strings.Contains(got, "invalid_log_format") {
+		t.Fatalf("missing invalid_log_format warning: %q", got)
+	}
+	if !strings.Contains(got, "api bootstrap ready") {
+		t.Fatalf("missing info log: %q", got)
+	}
+}
 
 func stubStartAllScenarios(t *testing.T, result control.StartReport, err error) {
 	t.Helper()

@@ -25,7 +25,16 @@ func (app *App) runInfoCommand(ctx *commandContext, args []string) error {
 }
 
 func (app *App) runScenarioCommand(ctx *commandContext, args []string) error {
-	return runScenarioCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
+		showScenarioHelp(ctx.Stdout)
+		return nil
+	}
+
+	handler, ok := scenarioCommands[args[0]]
+	if !ok {
+		return newUnknownScenarioCommandError(args[0])
+	}
+	return handler(app, ctx, args[1:])
 }
 
 func (app *App) runTopLevelStatusCommand(ctx *commandContext, args []string) error {
@@ -57,7 +66,7 @@ func (app *App) runTopLevelDiagnosePortCommand(ctx *commandContext, args []strin
 }
 
 func (app *App) runScenarioStartCommand(ctx *commandContext, args []string) error {
-	return runScenarioStartCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioStartCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioStopCommand(ctx *commandContext, args []string) error {
@@ -65,7 +74,7 @@ func (app *App) runScenarioStopCommand(ctx *commandContext, args []string) error
 }
 
 func (app *App) runScenarioRestartCommand(ctx *commandContext, args []string) error {
-	return runScenarioRestartCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioRestartCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioListCommand(ctx *commandContext, args []string) error {
@@ -105,7 +114,7 @@ func (app *App) runScenarioLogsCommand(ctx *commandContext, args []string) error
 }
 
 func (app *App) runScenarioOpenCommand(ctx *commandContext, args []string) error {
-	return runScenarioOpenCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioOpenCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioPortCommand(ctx *commandContext, args []string) error {
@@ -113,11 +122,11 @@ func (app *App) runScenarioPortCommand(ctx *commandContext, args []string) error
 }
 
 func (app *App) runScenarioUISmokeCommand(ctx *commandContext, args []string) error {
-	return runScenarioUISmokeCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioUISmokeCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioRequirementsCommand(ctx *commandContext, args []string) error {
-	return runScenarioRequirementsCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioRequirementsCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioTemplateCommand(ctx *commandContext, args []string) error {
@@ -125,13 +134,13 @@ func (app *App) runScenarioTemplateCommand(ctx *commandContext, args []string) e
 }
 
 func (app *App) runScenarioGenerateCommand(ctx *commandContext, args []string) error {
-	return runScenarioGenerateCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioGenerateCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioCompletenessCommand(ctx *commandContext, args []string) error {
-	return runScenarioCompletenessCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioCompletenessCommandWithApp(app, ctx, args)
 }
 
 func (app *App) runScenarioHealFromSandboxCommand(ctx *commandContext, args []string) error {
-	return runScenarioHealFromSandboxCommand(ctx.Root, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+	return runScenarioHealFromSandboxCommandWithApp(app, ctx, args)
 }

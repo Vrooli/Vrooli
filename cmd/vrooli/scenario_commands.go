@@ -113,14 +113,25 @@ func runScenarioCommand(root string, globals globalOptions, args []string, stdou
 }
 
 func runScenarioStartCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	app := configuredApp()
+	return runScenarioStartCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runScenarioStartCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario start <name> [name2...] [--path <path>] [--best-effort] [--clean-stale] [--open] [--json]")
+			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario start <name> [name2...] [--path <path>] [--best-effort] [--clean-stale] [--open] [--json]")
 			return nil
 		}
 	}
 
-	names, opts, jsonFlag, openAfter, err := parseScenarioStartArgs(globals.json, args)
+	names, opts, jsonFlag, openAfter, err := parseScenarioStartArgs(ctx.Globals.json, args)
 	if err != nil {
 		return err
 	}
@@ -136,12 +147,14 @@ func runScenarioStartCommand(root string, globals globalOptions, args []string, 
 		return err
 	}
 
-	runnerOut := stdout
+	runnerOut := ctx.Stdout
 	if format == cliout.FormatJSON {
-		runnerOut = stderr
+		runnerOut = ctx.Stderr
 	}
 
-	service, err := newScenarioService(root, runnerOut, stderr)
+	runnerCtx := *ctx
+	runnerCtx.Stdout = runnerOut
+	service, err := app.newScenarioService(&runnerCtx)
 	if err != nil {
 		return err
 	}
@@ -170,14 +183,14 @@ func runScenarioStartCommand(root string, globals globalOptions, args []string, 
 			if err != nil {
 				return err
 			}
-			if err := scenarioOpenURLFn(resolved.URL); err != nil {
+			if err := app.openScenarioURL(resolved.URL); err != nil {
 				return err
 			}
 		}
 	}
 
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
+		return cliout.WriteJSON(ctx.Stdout, map[string]any{
 			"success":   true,
 			"scenarios": items,
 		})
@@ -185,19 +198,19 @@ func runScenarioStartCommand(root string, globals globalOptions, args []string, 
 
 	for _, item := range items {
 		if item.Status == "already_running" {
-			_, _ = fmt.Fprintf(stdout, "Scenario '%s' is already running", item.Name)
+			_, _ = fmt.Fprintf(ctx.Stdout, "Scenario '%s' is already running", item.Name)
 		} else {
-			_, _ = fmt.Fprintf(stdout, "Started scenario '%s'", item.Name)
+			_, _ = fmt.Fprintf(ctx.Stdout, "Started scenario '%s'", item.Name)
 		}
 		if item.Health != "" {
-			_, _ = fmt.Fprintf(stdout, " (%s)", item.Health)
+			_, _ = fmt.Fprintf(ctx.Stdout, " (%s)", item.Health)
 		}
-		_, _ = fmt.Fprintln(stdout)
+		_, _ = fmt.Fprintln(ctx.Stdout)
 		if len(item.Ports) > 0 {
-			_, _ = fmt.Fprintf(stdout, "  Ports: %s\n", formatPortMap(item.Ports))
+			_, _ = fmt.Fprintf(ctx.Stdout, "  Ports: %s\n", formatPortMap(item.Ports))
 		}
 		if len(item.FailedDependencies) > 0 {
-			_, _ = fmt.Fprintf(stdout, "  Failed dependencies: %s\n", strings.Join(item.FailedDependencies, ", "))
+			_, _ = fmt.Fprintf(ctx.Stdout, "  Failed dependencies: %s\n", strings.Join(item.FailedDependencies, ", "))
 		}
 	}
 	return nil
@@ -240,14 +253,25 @@ func runScenarioStopCommand(root string, globals globalOptions, args []string, s
 }
 
 func runScenarioRestartCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	app := configuredApp()
+	return runScenarioRestartCommandWithApp(app, &commandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}, args)
+}
+
+func runScenarioRestartCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario restart <name> [--path <path>] [--best-effort] [--clean-stale] [--open] [--json]")
+			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario restart <name> [--path <path>] [--best-effort] [--clean-stale] [--open] [--json]")
 			return nil
 		}
 	}
 
-	name, opts, jsonFlag, openAfter, err := parseScenarioSingleStartArgs("restart", globals.json, args)
+	name, opts, jsonFlag, openAfter, err := parseScenarioSingleStartArgs("restart", ctx.Globals.json, args)
 	if err != nil {
 		return err
 	}
@@ -257,12 +281,14 @@ func runScenarioRestartCommand(root string, globals globalOptions, args []string
 		return err
 	}
 
-	runnerOut := stdout
+	runnerOut := ctx.Stdout
 	if format == cliout.FormatJSON {
-		runnerOut = stderr
+		runnerOut = ctx.Stderr
 	}
 
-	service, err := newScenarioService(root, runnerOut, stderr)
+	runnerCtx := *ctx
+	runnerCtx.Stdout = runnerOut
+	service, err := app.newScenarioService(&runnerCtx)
 	if err != nil {
 		return err
 	}
@@ -284,28 +310,28 @@ func runScenarioRestartCommand(root string, globals globalOptions, args []string
 		if err != nil {
 			return err
 		}
-		if err := scenarioOpenURLFn(resolved.URL); err != nil {
+		if err := app.openScenarioURL(resolved.URL); err != nil {
 			return err
 		}
 	}
 
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
+		return cliout.WriteJSON(ctx.Stdout, map[string]any{
 			"success":  true,
 			"scenario": item,
 		})
 	}
 
-	_, _ = fmt.Fprintf(stdout, "Restarted scenario '%s'", item.Name)
+	_, _ = fmt.Fprintf(ctx.Stdout, "Restarted scenario '%s'", item.Name)
 	if item.Health != "" {
-		_, _ = fmt.Fprintf(stdout, " (%s)", item.Health)
+		_, _ = fmt.Fprintf(ctx.Stdout, " (%s)", item.Health)
 	}
-	_, _ = fmt.Fprintln(stdout)
+	_, _ = fmt.Fprintln(ctx.Stdout)
 	if len(item.Ports) > 0 {
-		_, _ = fmt.Fprintf(stdout, "  Ports: %s\n", formatPortMap(item.Ports))
+		_, _ = fmt.Fprintf(ctx.Stdout, "  Ports: %s\n", formatPortMap(item.Ports))
 	}
 	if len(item.FailedDependencies) > 0 {
-		_, _ = fmt.Fprintf(stdout, "  Failed dependencies: %s\n", strings.Join(item.FailedDependencies, ", "))
+		_, _ = fmt.Fprintf(ctx.Stdout, "  Failed dependencies: %s\n", strings.Join(item.FailedDependencies, ", "))
 	}
 	return nil
 }

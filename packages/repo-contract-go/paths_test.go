@@ -1,6 +1,7 @@
 package repocontract
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -74,6 +75,27 @@ func TestTopLevelDirAndStandaloneScenarioRoot(t *testing.T) {
 
 	if got := ScenarioRoot("/repo", "demo"); got != filepath.Join("/repo", "scenarios", "demo") {
 		t.Fatalf("ScenarioRoot() = %q", got)
+	}
+}
+
+func TestStandaloneScenarioRootUsesContractLayoutWhenAvailable(t *testing.T) {
+	root := t.TempDir()
+	doc := validContractDoc()
+	doc.Root.Markers.RequiredDirs[1] = "apps"
+	doc.Layout.ScenarioDir = "apps"
+
+	writeContractFile(t, root, doc)
+	for _, dir := range []string{"apps", "resources", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("MkdirAll(%q) error = %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module fixture\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile(go.mod) error = %v", err)
+	}
+
+	if got := ScenarioRoot(root, "demo"); got != filepath.Join(root, "apps", "demo") {
+		t.Fatalf("ScenarioRoot() = %q, want %q", got, filepath.Join(root, "apps", "demo"))
 	}
 }
 

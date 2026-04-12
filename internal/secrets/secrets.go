@@ -1,3 +1,17 @@
+// Package secrets manages project-level secret persistence under .vrooli/.
+//
+// The package supports two on-disk formats:
+//   - .vrooli/secrets.enc.json: the current encrypted format
+//   - .vrooli/secrets.json: the legacy plaintext format used during migration
+//
+// Store.Load defaults to strict behavior. If an encrypted file exists but cannot
+// be read, validated, or decrypted, strict loads fail rather than silently
+// falling back. Callers that are explicitly migration-tolerant can opt into
+// LoadPolicyBestEffortLegacy via Store.LoadWithPolicy.
+//
+// Secret files are expected to be regular files with private permissions.
+// Symlinks are rejected, and on Unix-like platforms group/world-readable secret
+// files are rejected before parsing.
 package secrets
 
 import (
@@ -12,6 +26,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -39,6 +54,8 @@ var (
 	ErrUnsupportedAlgorithm = errors.New("unsupported secrets algorithm")
 	ErrDecryptFailed        = errors.New("decrypt secrets failed")
 	ErrLockTimeout          = errors.New("timed out waiting for secrets lock")
+	ErrInsecurePermissions  = errors.New("secret file has insecure permissions")
+	ErrSymlinkPath          = errors.New("secret file must not be a symlink")
 )
 
 type LookupFunc func(string) (string, bool)
@@ -47,7 +64,13 @@ type KeyProvider func() (string, bool)
 type LoadPolicy int
 
 const (
+	// LoadPolicyStrict requires the encrypted file to be authoritative whenever it
+	// exists. Any encrypted-file read, validation, or decrypt error is returned to
+	// the caller without falling back to legacy plaintext.
 	LoadPolicyStrict LoadPolicy = iota
+	// LoadPolicyBestEffortLegacy allows callers to fall back to the legacy
+	// plaintext file when encrypted secrets exist but cannot be used. This is
+	// intended only for explicitly migration-tolerant read paths.
 	LoadPolicyBestEffortLegacy
 )
 
@@ -73,11 +96,17 @@ type storeDeps struct {
 	createTemp func(string, string) (*os.File, error)
 	rename     func(string, string) error
 	openFile   func(string, int, os.FileMode) (*os.File, error)
+	lstat      func(string) (os.FileInfo, error)
 	randReader io.Reader
 	now        func() time.Time
 	sleep      func(time.Duration)
 }
 
+// NewProjectStore returns a Store rooted at the given project path.
+//
+// The default store is strict, reads the encryption key from
+// VROOLI_SECRETS_KEY, and uses process environment lookup for Resolve
+// fallbacks.
 func NewProjectStore(root string) *Store {
 	return &Store{
 		Root: filepath.Clean(root),
@@ -90,22 +119,31 @@ func NewProjectStore(root string) *Store {
 	}
 }
 
+// EncryptedPath returns the canonical encrypted project secrets path.
 func (s *Store) EncryptedPath() string {
 	return filepath.Join(s.Root, filepath.FromSlash(ProjectSecretsPath))
 }
 
+// LegacyPath returns the canonical legacy plaintext secrets path.
 func (s *Store) LegacyPath() string {
 	return filepath.Join(s.Root, filepath.FromSlash(LegacySecretsPath))
 }
 
+// LockPath returns the advisory lock used to serialize mutating operations.
 func (s *Store) LockPath() string {
 	return filepath.Join(filepath.Dir(s.EncryptedPath()), lockFileName)
 }
 
+// Load reads secrets using the store's configured LoadPolicy.
 func (s *Store) Load() (map[string]string, error) {
 	return s.LoadWithPolicy(s.LoadPolicy)
 }
 
+// LoadWithPolicy reads secrets using the provided policy.
+//
+// Strict loads use the encrypted file whenever it exists. Best-effort loads
+// fall back to the legacy plaintext file if the encrypted file cannot be
+// consumed.
 func (s *Store) LoadWithPolicy(policy LoadPolicy) (map[string]string, error) {
 	if data, err := s.loadEncryptedUnlocked(); err == nil {
 		return data, nil
@@ -117,6 +155,7 @@ func (s *Store) LoadWithPolicy(policy LoadPolicy) (map[string]string, error) {
 	return s.loadLegacyUnlocked()
 }
 
+// LoadEncrypted reads only the encrypted file and never falls back.
 func (s *Store) LoadEncrypted() (map[string]string, error) {
 	return s.loadEncryptedUnlocked()
 }
@@ -124,6 +163,12 @@ func (s *Store) LoadEncrypted() (map[string]string, error) {
 func (s *Store) loadEncryptedUnlocked() (map[string]string, error) {
 	deps := s.storeDeps()
 	path := s.EncryptedPath()
+	if err := s.validateSecretFile(path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, os.ErrNotExist
+		}
+		return nil, err
+	}
 	data, err := deps.readFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -158,6 +203,7 @@ func (s *Store) loadEncryptedUnlocked() (map[string]string, error) {
 	return result, nil
 }
 
+// LoadLegacy reads only the legacy plaintext file.
 func (s *Store) LoadLegacy() (map[string]string, error) {
 	return s.loadLegacyUnlocked()
 }
@@ -165,6 +211,12 @@ func (s *Store) LoadLegacy() (map[string]string, error) {
 func (s *Store) loadLegacyUnlocked() (map[string]string, error) {
 	deps := s.storeDeps()
 	path := s.LegacyPath()
+	if err := s.validateSecretFile(path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return map[string]string{}, nil
+		}
+		return nil, err
+	}
 	data, err := deps.readFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -179,6 +231,10 @@ func (s *Store) loadLegacyUnlocked() (map[string]string, error) {
 	return result, nil
 }
 
+// Save replaces the encrypted secrets file with the provided values.
+//
+// The write is serialized through the store lock and committed via atomic
+// rename so readers never observe a partially written encrypted file.
 func (s *Store) Save(values map[string]string) error {
 	return s.withWriteLock(func() error {
 		return s.saveUnlocked(values)
@@ -209,6 +265,7 @@ func (s *Store) saveUnlocked(values map[string]string) error {
 	return nil
 }
 
+// SaveKey merges a single key/value pair into encrypted storage.
 func (s *Store) SaveKey(name, value string) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -227,6 +284,10 @@ func (s *Store) SaveKey(name, value string) error {
 	})
 }
 
+// MigrateLegacy copies legacy plaintext secrets into encrypted storage.
+//
+// When removeSource is true, the legacy plaintext file is removed after a
+// successful encrypted write.
 func (s *Store) MigrateLegacy(removeSource bool) (bool, error) {
 	deps := s.storeDeps()
 	var migrated bool
@@ -252,6 +313,8 @@ func (s *Store) MigrateLegacy(removeSource bool) (bool, error) {
 	return migrated, err
 }
 
+// Resolve returns the named secret from stored values first, then from the
+// configured EnvLookup fallback.
 func (s *Store) Resolve(name string) (string, bool, error) {
 	values, err := s.LoadWithPolicy(s.LoadPolicy)
 	if err != nil {
@@ -349,29 +412,18 @@ func decryptPayload(payload encryptedFile, key []byte) ([]byte, error) {
 }
 
 func parseSecretMap(data []byte) (map[string]string, error) {
-	var payload map[string]any
+	var payload map[string]json.RawMessage
 	if err := json.Unmarshal(data, &payload); err != nil {
 		return nil, err
 	}
 
 	result := make(map[string]string, len(payload))
 	for key, value := range payload {
-		switch typed := value.(type) {
-		case string:
-			result[key] = typed
-		case bool:
-			if typed {
-				result[key] = "true"
-			} else {
-				result[key] = "false"
-			}
-		case float64:
-			if typed == float64(int64(typed)) {
-				result[key] = fmt.Sprintf("%d", int64(typed))
-			} else {
-				result[key] = fmt.Sprintf("%v", typed)
-			}
+		var parsed string
+		if err := json.Unmarshal(value, &parsed); err != nil {
+			return nil, fmt.Errorf("secret %q must be a JSON string", key)
 		}
+		result[key] = parsed
 	}
 	return result, nil
 }
@@ -384,6 +436,7 @@ func defaultStoreDeps() storeDeps {
 		createTemp: os.CreateTemp,
 		rename:     os.Rename,
 		openFile:   os.OpenFile,
+		lstat:      os.Lstat,
 		randReader: rand.Reader,
 		now:        time.Now,
 		sleep:      time.Sleep,
@@ -411,6 +464,9 @@ func (s *Store) storeDeps() storeDeps {
 	if deps.openFile == nil {
 		deps.openFile = defaults.openFile
 	}
+	if deps.lstat == nil {
+		deps.lstat = defaults.lstat
+	}
 	if deps.randReader == nil {
 		deps.randReader = defaults.randReader
 	}
@@ -421,6 +477,27 @@ func (s *Store) storeDeps() storeDeps {
 		deps.sleep = defaults.sleep
 	}
 	return deps
+}
+
+func (s *Store) validateSecretFile(path string) error {
+	deps := s.storeDeps()
+	info, err := deps.lstat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return os.ErrNotExist
+		}
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return &Error{Kind: ErrSymlinkPath, Op: "validate secret file", Path: path, Err: errors.New("symlink paths are not allowed")}
+	}
+	if !info.Mode().IsRegular() {
+		return &Error{Kind: ErrInvalidSecretData, Op: "validate secret file", Path: path, Err: fmt.Errorf("expected regular file, got mode %s", info.Mode())}
+	}
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0 {
+		return &Error{Kind: ErrInsecurePermissions, Op: "validate secret file permissions", Path: path, Err: fmt.Errorf("mode %o is too broad", info.Mode().Perm())}
+	}
+	return nil
 }
 
 type Error struct {

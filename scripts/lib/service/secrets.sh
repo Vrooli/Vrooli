@@ -59,6 +59,94 @@ secrets::get_service_file() {
 }
 
 #######################################
+# Validate the local plaintext secrets file trust boundary
+# Arguments:
+#   $1 - path to secrets.json
+# Returns:
+#   0 - file is safe to read or does not exist
+#   1 - file should not be trusted
+#######################################
+secrets::validate_local_file() {
+    local secrets_file="${1:-}"
+    if [[ -z "$secrets_file" ]]; then
+        echo "ERROR: Secrets file path is required" >&2
+        return 1
+    fi
+
+    if [[ ! -e "$secrets_file" ]]; then
+        return 0
+    fi
+
+    if [[ -L "$secrets_file" ]]; then
+        echo "ERROR: Refusing to read symlinked secrets file: $secrets_file" >&2
+        return 1
+    fi
+
+    if [[ ! -f "$secrets_file" ]]; then
+        echo "ERROR: Refusing to read non-regular secrets file: $secrets_file" >&2
+        return 1
+    fi
+
+    local perms
+    perms=$(stat -c "%a" "$secrets_file" 2>/dev/null || echo "")
+    if [[ -n "$perms" ]]; then
+        local perms_octal
+        perms_octal=$((8#$perms))
+        if (( (perms_octal & 077) != 0 )); then
+            echo "ERROR: Refusing to read secrets file with broad permissions ($perms): $secrets_file" >&2
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
+#######################################
+# Read a secret directly from the local plaintext secrets file
+# Arguments:
+#   $1 - secret key name
+# Returns:
+#   0 - success, secret printed to stdout
+#   1 - secret missing or local file unavailable/untrusted
+#######################################
+secrets::read_project_secret() {
+    local key="${1:-}"
+    local secrets_file
+    secrets_file="$(secrets::get_secrets_file)"
+
+    if [[ -z "$key" ]]; then
+        return 1
+    fi
+
+    if [[ ! -f "$secrets_file" ]]; then
+        return 1
+    fi
+
+    if ! secrets::validate_local_file "$secrets_file"; then
+        return 1
+    fi
+
+    if ! command -v jq &>/dev/null; then
+        return 1
+    fi
+
+    local json_secret
+    if json_secret=$(jq -er --arg key "$key" '
+        if has($key) and (.[$key] | type) == "string" and (.[$key] | length) > 0
+        then .[$key]
+        else empty
+        end
+    ' "$secrets_file" 2>/dev/null); then
+        if [[ -n "$json_secret" ]]; then
+            echo "$json_secret"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+#######################################
 # Resolve secret using 3-layer fallback strategy
 # Arguments:
 #   $1 - secret key name
@@ -93,15 +181,11 @@ secrets::resolve() {
     fi
     
     # Layer 2: Project .vrooli/secrets.json
-    local secrets_file
-    secrets_file="$(secrets::get_secrets_file)"
-    if [[ -f "$secrets_file" ]]; then
-        local json_secret
-        if json_secret=$(jq -r ".$key // empty" "$secrets_file" 2>/dev/null); then
-            if [[ -n "$json_secret" && "$json_secret" != "null" ]]; then
-                echo "$json_secret"
-                return 0
-            fi
+    local json_secret
+    if json_secret=$(secrets::read_project_secret "$key" 2>/dev/null); then
+        if [[ -n "$json_secret" ]]; then
+            echo "$json_secret"
+            return 0
         fi
     fi
     
@@ -457,6 +541,9 @@ secrets::save_key() {
     # Load existing secrets or create new structure
     local secrets_json
     if [[ -f "$secrets_file" ]]; then
+        if ! secrets::validate_local_file "$secrets_file"; then
+            return 1
+        fi
         # Backup existing file
         cp "$secrets_file" "${secrets_file}.backup" 2>/dev/null || true
         secrets_json=$(cat "$secrets_file")
@@ -479,8 +566,11 @@ secrets::save_key() {
     ')
     
     # Write updated secrets with secure permissions
-    echo "$updated_json" > "$secrets_file"
-    chmod 600 "$secrets_file"
+    local tmp_file
+    tmp_file=$(mktemp "${secrets_dir}/secrets.json.tmp.XXXXXX")
+    printf '%s\n' "$updated_json" > "$tmp_file"
+    chmod 600 "$tmp_file"
+    mv "$tmp_file" "$secrets_file"
     
     return 0
 }
@@ -559,11 +649,7 @@ secrets::validate_storage() {
     
     # Check if secrets.json exists and has proper permissions
     if [[ -f "$secrets_file" ]]; then
-        local perms
-        perms=$(stat -c "%a" "$secrets_file" 2>/dev/null || echo "000")
-        if [[ "$perms" != "600" ]]; then
-            echo "WARNING: Secrets file has incorrect permissions: $perms (should be 600)" >&2
-            echo "Fix with: chmod 600 $secrets_file" >&2
+        if ! secrets::validate_local_file "$secrets_file"; then
             ((issues++))
         fi
     fi

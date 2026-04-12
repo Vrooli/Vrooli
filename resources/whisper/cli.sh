@@ -51,13 +51,27 @@ done
 # Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
 cli::init "whisper" "OpenAI Whisper speech-to-text service" "v2"
 
-# Override default handlers to point directly to whisper implementations
-CLI_COMMAND_HANDLERS["manage::install"]="whisper::install"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="whisper::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="whisper::start"
-CLI_COMMAND_HANDLERS["manage::stop"]="whisper::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="whisper::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="whisper::status"
+whisper::native::resource() {
+    local operation="$1"
+    shift || true
+    vrooli resource whisper "$operation" "$@"
+}
+
+whisper::native::install() { whisper::native::resource install "$@"; }
+whisper::native::uninstall() { whisper::native::resource uninstall "$@"; }
+whisper::native::start() { whisper::native::resource start "$@"; }
+whisper::native::stop() { whisper::native::resource stop "$@"; }
+whisper::native::restart() { whisper::native::resource restart "$@"; }
+whisper::native::status() { whisper::native::resource status "$@"; }
+whisper::native::logs() { whisper::native::resource logs "$@"; }
+
+# Standard lifecycle/status/logs now route through the native control plane.
+CLI_COMMAND_HANDLERS["manage::install"]="whisper::native::install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="whisper::native::uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="whisper::native::start"
+CLI_COMMAND_HANDLERS["manage::stop"]="whisper::native::stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="whisper::native::restart"
+CLI_COMMAND_HANDLERS["test::smoke"]="whisper::native::status"
 
 # Override content handlers for Whisper-specific audio transcription functionality
 CLI_COMMAND_HANDLERS["content::execute"]="whisper::transcribe_audio"
@@ -68,8 +82,8 @@ cli::register_subcommand "content" "models" "List available models" "whisper::sh
 cli::register_subcommand "content" "languages" "List supported languages" "whisper::show_languages"
 
 # Additional information commands
-cli::register_command "status" "Show detailed resource status" "whisper::status"
-cli::register_command "logs" "Show Whisper logs" "whisper::show_logs"
+cli::register_command "status" "Show detailed resource status" "whisper::native::status"
+cli::register_command "logs" "Show Whisper logs" "whisper::native::logs"
 # Create wrapper for agents command that delegates to manager
 whisper::agents::command() {
     if type -t agent_manager::load_config &>/dev/null; then

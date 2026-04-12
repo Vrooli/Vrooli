@@ -178,7 +178,7 @@ func (app *App) newScenarioLifecycleRunner(ctx *commandContext) (*lifecycle.Runn
 	if err != nil {
 		return nil, err
 	}
-	return lifecycle.NewRunner(ctx.Root, home, ctx.Stdout, ctx.Stderr)
+	return lifecycle.NewRunner(ctx.Root, home, ctx.Stdout, ctx.Stderr, ctx.Logger)
 }
 
 func (app *App) newScenarioService(ctx *commandContext) (*orchestrator.Service, error) {
@@ -186,7 +186,7 @@ func (app *App) newScenarioService(ctx *commandContext) (*orchestrator.Service, 
 	if err != nil {
 		return nil, err
 	}
-	return orchestrator.New(ctx.Root, home, ctx.Stdout, ctx.Stderr), nil
+	return orchestrator.New(ctx.Root, home, ctx.Stdout, ctx.Stderr, ctx.Logger), nil
 }
 
 func (app *App) newResourceController(ctx *commandContext) (*resources.Controller, error) {

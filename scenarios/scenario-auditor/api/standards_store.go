@@ -45,21 +45,18 @@ func initStandardsStore() *StandardsStore {
 
 // enablePersistence attempts to enable file-based persistence
 func (ss *StandardsStore) enablePersistence() {
-
-	// Get Vrooli root directory
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = os.Getenv("HOME") + "/Vrooli"
+	dataDir, err := resolveScenarioAuditorDataDir()
+	if err != nil {
+		logger.Error("Failed to resolve scenario-auditor data directory", err)
+		logger.Info("Standards store will operate in memory-only mode (no persistence)")
+		return
 	}
 
-	// Create data directory if it doesn't exist
-	dataDir := filepath.Join(vrooliRoot, ".vrooli", "data", "scenario-auditor")
-
 	// Check if parent directory exists first
-	parentDir := filepath.Join(vrooliRoot, ".vrooli", "data")
+	parentDir := filepath.Dir(dataDir)
 	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
 		// Try to create parent directory structure
-		if err := os.MkdirAll(parentDir, 0755); err != nil {
+		if err := os.MkdirAll(parentDir, 0o755); err != nil {
 			logger.Error(fmt.Sprintf("Failed to create parent data directory %s", parentDir), err)
 			logger.Info("Standards store will operate in memory-only mode (no persistence)")
 			return
@@ -67,7 +64,7 @@ func (ss *StandardsStore) enablePersistence() {
 	}
 
 	// Now create our specific directory
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		logger.Error(fmt.Sprintf("Failed to create scenario-auditor data directory %s", dataDir), err)
 		logger.Info("Standards store will operate in memory-only mode (no persistence)")
 		return
@@ -314,7 +311,7 @@ func (ss *StandardsStore) saveToFile() error {
 		return fmt.Errorf("failed to marshal standards data: %w", err)
 	}
 
-	if err := os.WriteFile(ss.filePath, jsonData, 0644); err != nil {
+	if err := os.WriteFile(ss.filePath, jsonData, 0o644); err != nil {
 		return fmt.Errorf("failed to write standards data to %s: %w", ss.filePath, err)
 	}
 

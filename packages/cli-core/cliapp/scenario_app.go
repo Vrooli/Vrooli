@@ -11,6 +11,16 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
+	repocontract "github.com/vrooli/repo-contract-go"
+)
+
+var (
+	currentExecutablePath  = os.Executable
+	findScenarioRepoRoot   = repocontract.FindRepoRootFromEnvOrCWD
+	resolveScenarioRoot    = repocontract.ResolveScenarioPath
+	resolveScenarioCLIPath = func(root, scenario string) (string, error) {
+		return repocontract.ResolveScenarioFile(root, scenario, "cli")
+	}
 )
 
 // ScenarioOptions bundles common wiring for scenario CLIs so individual
@@ -184,16 +194,16 @@ func (a *ScenarioApp) warnIfRunningScenarioLocalBinary() {
 	if a.warnedLocal || strings.TrimSpace(os.Getenv("VROOLI_SUPPRESS_CLI_PATH_WARNING")) != "" {
 		return
 	}
-	executablePath, err := os.Executable()
+	executablePath, err := currentExecutablePath()
 	if err != nil {
 		return
 	}
-	if !isScenarioLocalCLIExecutablePath(a.options.Name, executablePath) {
+	relativeScenario, cliDir, ok := resolveScenarioLocalCLIContext(a.options.Name)
+	if !ok || !sameScenarioPath(filepath.Dir(executablePath), cliDir) {
 		return
 	}
 
 	a.warnedLocal = true
-	relativeScenario := filepath.ToSlash(filepath.Join("scenarios", a.options.Name))
 	fmt.Fprintf(os.Stderr, "Warning: running %s from a scenario-local CLI binary (%s).\n", a.options.Name, executablePath)
 	fmt.Fprintf(os.Stderr, "Install and run the canonical binary instead:\n")
 	fmt.Fprintf(os.Stderr, "  cd %s/cli && ./install.sh\n", relativeScenario)
@@ -201,17 +211,49 @@ func (a *ScenarioApp) warnIfRunningScenarioLocalBinary() {
 }
 
 func isScenarioLocalCLIExecutablePath(appName, executablePath string) bool {
-	normalizedName := strings.ToLower(strings.TrimSpace(appName))
-	if normalizedName == "" {
+	_, cliDir, ok := resolveScenarioLocalCLIContext(appName)
+	if !ok {
 		return false
+	}
+	return sameScenarioPath(filepath.Dir(executablePath), cliDir)
+}
+
+func resolveScenarioLocalCLIContext(appName string) (string, string, bool) {
+	normalizedName := strings.TrimSpace(appName)
+	if normalizedName == "" {
+		return "", "", false
 	}
 
-	path := filepath.ToSlash(strings.ToLower(strings.TrimSpace(executablePath)))
-	if path == "" {
+	root, err := findScenarioRepoRoot()
+	if err != nil {
+		return "", "", false
+	}
+	scenarioRoot, err := resolveScenarioRoot(root, normalizedName)
+	if err != nil {
+		return "", "", false
+	}
+	cliDir, err := resolveScenarioCLIPath(root, normalizedName)
+	if err != nil {
+		return "", "", false
+	}
+	relativeScenario, err := filepath.Rel(root, scenarioRoot)
+	if err != nil {
+		return "", "", false
+	}
+	relativeScenario = filepath.ToSlash(relativeScenario)
+	if relativeScenario == "." || strings.HasPrefix(relativeScenario, "../") {
+		return "", "", false
+	}
+	return relativeScenario, cliDir, true
+}
+
+func sameScenarioPath(a, b string) bool {
+	a = filepath.ToSlash(filepath.Clean(strings.TrimSpace(a)))
+	b = filepath.ToSlash(filepath.Clean(strings.TrimSpace(b)))
+	if a == "" || b == "" {
 		return false
 	}
-	needle := "/scenarios/" + normalizedName + "/cli/"
-	return strings.Contains(path, needle)
+	return strings.EqualFold(a, b)
 }
 
 // APIBaseOptions returns the current API base resolution options for use in

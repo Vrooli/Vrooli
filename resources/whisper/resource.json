@@ -2,22 +2,35 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "whisper",
   "display_name": "Whisper",
-  "description": "Transitional Whisper resource kept behind a typed legacy adapter while native model/runtime ownership is scoped.",
-  "template": "legacy-adapter",
-  "driver": "legacy-adapter",
-  "legacy_adapter": {
-    "owner": "Matthew Halloran",
-    "decision_deadline": "2026-05-31",
-    "final_disposition": "migrate",
-    "legacy_cli_path": "resources/whisper/cli.sh",
-    "notes": "Phase 0 keep resource because active scenario usage still exists; native migration depends on clearer model/runtime support boundaries."
-  },
+  "description": "Managed Whisper speech-to-text service with native compose-backed lifecycle and shell-retained transcription workflows.",
+  "template": "compose-service",
+  "driver": "compose-service",
+  "compose_file": "docker/docker-compose.yml",
   "portability_tier": "partial",
   "category": "ai",
   "platforms": {
     "linux": "supported",
     "macos": "partial",
     "windows": "partial"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "container": 9000,
+      "host": 8090
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8090/",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
   },
   "template_version": "1"
 }

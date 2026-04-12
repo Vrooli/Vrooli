@@ -14,6 +14,7 @@ import (
 
 func TestLocalSecretSetGetDeleteScenarioScope(t *testing.T) {
 	root := t.TempDir()
+	writeRepoContractFixture(t, root)
 	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", root)
 
 	scenarioDir := filepath.Join(root, "scenarios", "landing-page-business-suite", ".vrooli")
@@ -61,10 +62,8 @@ func TestLocalSecretSetGetDeleteScenarioScope(t *testing.T) {
 
 func TestLocalSecretGenerateHex(t *testing.T) {
 	root := t.TempDir()
+	writeRepoContractFixture(t, root)
 	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", root)
-	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("mkdir workspace .vrooli: %v", err)
-	}
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/local-secrets/{scope}/{key}", HandleSetLocalSecret()).Methods("PUT")

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -31,7 +33,12 @@ func TestRunnerStartStopRestart(t *testing.T) {
 	home := t.TempDir()
 	writeLifecycleFixture(t, root, "alpha")
 
-	runner, err := NewRunner(root, home, io.Discard, io.Discard)
+	var logs bytes.Buffer
+	originalDefault := slog.Default()
+	logger, _ := logx.New(logx.Options{Component: "vrooli", Writer: &logs, JSON: true})
+	slog.SetDefault(logger)
+	t.Cleanup(func() { slog.SetDefault(originalDefault) })
+	runner, err := NewRunner(root, home, io.Discard, io.Discard, logger)
 	if err != nil {
 		t.Fatalf("NewRunner: %v", err)
 	}
@@ -89,6 +96,15 @@ func TestRunnerStartStopRestart(t *testing.T) {
 	}
 	if len(process.LiveRecords(records)) != 0 {
 		t.Fatalf("expected no live records after stop: %#v", records)
+	}
+	if !strings.Contains(logs.String(), `"msg":"Scenario start completed"`) {
+		t.Fatalf("expected structured start log, got %q", logs.String())
+	}
+	if !strings.Contains(logs.String(), `"msg":"Scenario stop completed"`) {
+		t.Fatalf("expected structured stop log, got %q", logs.String())
+	}
+	if !strings.Contains(logs.String(), `"scenario":"alpha"`) {
+		t.Fatalf("expected scenario attribute in logs, got %q", logs.String())
 	}
 }
 

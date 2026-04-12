@@ -10,6 +10,7 @@ MAILINABOX_CONFIG_DIR="${APP_ROOT}/resources/mail-in-a-box/config"
 source "$MAILINABOX_CONFIG_DIR/defaults.sh"
 source "${APP_ROOT}/scripts/lib/utils/format.sh"
 source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/service/secrets.sh" 2>/dev/null || true
 
 # Cache flag so we do not repeatedly call Vault export
 MAILINABOX_SECRETS_LOADED=${MAILINABOX_SECRETS_LOADED:-0}
@@ -29,62 +30,57 @@ mailinabox_load_secrets() {
         fi
     fi
 
-    # Fall back to ~/.vrooli/secrets.json if Vault export is unavailable
-    if command -v jq &>/dev/null; then
-        local vrooli_root="${VROOLI_ROOT:-"$HOME/Vrooli"}"
-        local secrets_file="${vrooli_root}/.vrooli/secrets.json"
-        if [[ -f "$secrets_file" ]]; then
-            local vars=(
-                MAILINABOX_ADMIN_EMAIL
-                MAILINABOX_ADMIN_PASSWORD
-                MAILINABOX_PRIMARY_HOSTNAME
-                MAILINABOX_POSTMASTER_ALIAS
-                MAILINABOX_DEFAULT_MAILBOX
-                MAILINABOX_DEFAULT_MAILBOX_PASSWORD
-                MAILINABOX_SSL_CERT
-                MAILINABOX_SSL_KEY
-                MAILINABOX_SSL_CHAIN
-                MAILINABOX_SSL_CERT_BUNDLE
-                MAILINABOX_DKIM_PRIVATE_KEY
-            )
+    local vars=(
+        MAILINABOX_ADMIN_EMAIL
+        MAILINABOX_ADMIN_PASSWORD
+        MAILINABOX_PRIMARY_HOSTNAME
+        MAILINABOX_POSTMASTER_ALIAS
+        MAILINABOX_DEFAULT_MAILBOX
+        MAILINABOX_DEFAULT_MAILBOX_PASSWORD
+        MAILINABOX_SSL_CERT
+        MAILINABOX_SSL_KEY
+        MAILINABOX_SSL_CHAIN
+        MAILINABOX_SSL_CERT_BUNDLE
+        MAILINABOX_DKIM_PRIVATE_KEY
+    )
 
-            for var_name in "${vars[@]}"; do
-                local current="${!var_name:-}"
-                local is_default="false"
-                case "$var_name" in
-                    MAILINABOX_ADMIN_EMAIL)
-                        [[ "$current" == "admin@mail.local" ]] && is_default="true"
-                        ;;
-                    MAILINABOX_ADMIN_PASSWORD)
-                        [[ "$current" == "ChangeMe123!" ]] && is_default="true"
-                        ;;
-                    MAILINABOX_PRIMARY_HOSTNAME)
-                        [[ "$current" == "mail.local" ]] && is_default="true"
-                        ;;
-                    MAILINABOX_POSTMASTER_ALIAS)
-                        [[ "$current" == "" || "$current" == "postmaster@mail.local" ]] && is_default="true"
-                        ;;
-                    MAILINABOX_DEFAULT_MAILBOX)
-                        [[ -z "$current" ]] && is_default="true"
-                        ;;
-                    MAILINABOX_DEFAULT_MAILBOX_PASSWORD)
-                        [[ -z "$current" ]] && is_default="true"
-                        ;;
-                    MAILINABOX_SSL_CERT|MAILINABOX_SSL_KEY|MAILINABOX_SSL_CHAIN|MAILINABOX_SSL_CERT_BUNDLE|MAILINABOX_DKIM_PRIVATE_KEY)
-                        [[ -z "$current" ]] && is_default="true"
-                        ;;
-                esac
+    for var_name in "${vars[@]}"; do
+        local current="${!var_name:-}"
+        local is_default="false"
+        case "$var_name" in
+            MAILINABOX_ADMIN_EMAIL)
+                [[ "$current" == "admin@mail.local" ]] && is_default="true"
+                ;;
+            MAILINABOX_ADMIN_PASSWORD)
+                [[ "$current" == "ChangeMe123!" ]] && is_default="true"
+                ;;
+            MAILINABOX_PRIMARY_HOSTNAME)
+                [[ "$current" == "mail.local" ]] && is_default="true"
+                ;;
+            MAILINABOX_POSTMASTER_ALIAS)
+                [[ "$current" == "" || "$current" == "postmaster@mail.local" ]] && is_default="true"
+                ;;
+            MAILINABOX_DEFAULT_MAILBOX)
+                [[ -z "$current" ]] && is_default="true"
+                ;;
+            MAILINABOX_DEFAULT_MAILBOX_PASSWORD)
+                [[ -z "$current" ]] && is_default="true"
+                ;;
+            MAILINABOX_SSL_CERT|MAILINABOX_SSL_KEY|MAILINABOX_SSL_CHAIN|MAILINABOX_SSL_CERT_BUNDLE|MAILINABOX_DKIM_PRIVATE_KEY)
+                [[ -z "$current" ]] && is_default="true"
+                ;;
+        esac
 
-                if [[ -z "$current" || "$is_default" == "true" ]]; then
-                    local value
-                    value=$(jq -r --arg key "$var_name" '.[$key] // empty' "$secrets_file" 2>/dev/null)
-                    if [[ -n "$value" && "$value" != "null" ]]; then
-                        export "$var_name"="$value"
-                    fi
-                fi
-            done
+        if [[ -z "$current" || "$is_default" == "true" ]]; then
+            local value=""
+            if declare -f secrets::read_project_secret >/dev/null 2>&1; then
+                value=$(secrets::read_project_secret "$var_name" 2>/dev/null || true)
+            fi
+            if [[ -n "$value" ]]; then
+                export "$var_name"="$value"
+            fi
         fi
-    fi
+    done
 
     MAILINABOX_SECRETS_LOADED=1
     return 0

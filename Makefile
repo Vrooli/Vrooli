@@ -10,13 +10,9 @@ DEV_ARGS ?=
 GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
 BUILD_TIME := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 BUILDINFO_PKG := github.com/vrooli/vrooli/internal/buildinfo
-VROOLI_API_FINGERPRINT := $(shell go run ./cmd/vrooli-buildmeta --root . cmd/vrooli-api internal)
-VROOLI_CLI_FINGERPRINT := $(shell go run ./cmd/vrooli-buildmeta --root . cmd/vrooli internal)
 COMMON_LDFLAGS := -s -w \
 	-X $(BUILDINFO_PKG).GitCommit=$(GIT_COMMIT) \
 	-X $(BUILDINFO_PKG).BuildTime=$(BUILD_TIME)
-VROOLI_API_LDFLAGS := $(COMMON_LDFLAGS) -X $(BUILDINFO_PKG).Fingerprint=$(VROOLI_API_FINGERPRINT)
-VROOLI_CLI_LDFLAGS := $(COMMON_LDFLAGS) -X $(BUILDINFO_PKG).Fingerprint=$(VROOLI_CLI_FINGERPRINT)
 
 help: ## Show available project-level targets
 	@printf "Vrooli project-level Go targets\n\n"
@@ -46,8 +42,10 @@ help: ## Show available project-level targets
 
 build: ## Build project-level Go binaries into .vrooli/build
 	@mkdir -p $(BUILD_DIR)
-	CGO_ENABLED=0 go build -trimpath -ldflags "$(VROOLI_API_LDFLAGS)" -o $(BUILD_DIR)/vrooli-api ./cmd/vrooli-api
-	CGO_ENABLED=0 go build -trimpath -ldflags "$(VROOLI_CLI_LDFLAGS)" -o $(BUILD_DIR)/vrooli ./cmd/vrooli
+	VROOLI_API_FINGERPRINT="$$(go run ./cmd/vrooli-buildmeta --root . cmd/vrooli-api internal)"; \
+	CGO_ENABLED=0 go build -trimpath -ldflags "$(COMMON_LDFLAGS) -X $(BUILDINFO_PKG).Fingerprint=$$VROOLI_API_FINGERPRINT" -o $(BUILD_DIR)/vrooli-api ./cmd/vrooli-api
+	VROOLI_CLI_FINGERPRINT="$$(go run ./cmd/vrooli-buildmeta --root . cmd/vrooli internal)"; \
+	CGO_ENABLED=0 go build -trimpath -ldflags "$(COMMON_LDFLAGS) -X $(BUILDINFO_PKG).Fingerprint=$$VROOLI_CLI_FINGERPRINT" -o $(BUILD_DIR)/vrooli ./cmd/vrooli
 
 install: build ## Install project-level Go binaries into ~/.vrooli/bin
 	@mkdir -p $(INSTALL_DIR)

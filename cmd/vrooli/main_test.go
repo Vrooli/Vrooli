@@ -240,22 +240,18 @@ func TestRunDevelopReportsUnsupportedHostAtCLILevel(t *testing.T) {
 }
 
 func TestRunProjectBackupUsesNativePhaseRunner(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeProjectLifecycleFixture(t, root)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("backup should not route to bash: %+v", spec)
 		return nil
 	}
 
-	code := run([]string{"backup"}, &bytes.Buffer{}, &bytes.Buffer{})
+	code := app.Run([]string{"backup"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -269,22 +265,18 @@ func TestRunProjectBackupUsesNativePhaseRunner(t *testing.T) {
 }
 
 func TestRunProjectBuildUsesNativePhaseRunner(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeProjectLifecycleFixture(t, root)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("build should not route to bash: %+v", spec)
 		return nil
 	}
 
-	code := run([]string{"build"}, &bytes.Buffer{}, &bytes.Buffer{})
+	code := app.Run([]string{"build"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -298,22 +290,18 @@ func TestRunProjectBuildUsesNativePhaseRunner(t *testing.T) {
 }
 
 func TestRunProjectCleanUsesNativePhaseRunner(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeProjectLifecycleFixture(t, root)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("clean should not route to bash: %+v", spec)
 		return nil
 	}
 
-	code := run([]string{"clean"}, &bytes.Buffer{}, &bytes.Buffer{})
+	code := app.Run([]string{"clean"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -327,22 +315,18 @@ func TestRunProjectCleanUsesNativePhaseRunner(t *testing.T) {
 }
 
 func TestRunProjectDeployUsesNativePhaseRunner(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeProjectLifecycleFixture(t, root)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("deploy should not route to bash: %+v", spec)
 		return nil
 	}
 
-	code := run([]string{"deploy"}, &bytes.Buffer{}, &bytes.Buffer{})
+	code := app.Run([]string{"deploy"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -356,22 +340,18 @@ func TestRunProjectDeployUsesNativePhaseRunner(t *testing.T) {
 }
 
 func TestRunProjectRestoreUsesNativePhaseRunner(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeProjectLifecycleFixture(t, root)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("restore should not route to bash: %+v", spec)
 		return nil
 	}
 
-	code := run([]string{"restore"}, &bytes.Buffer{}, &bytes.Buffer{})
+	code := app.Run([]string{"restore"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -385,17 +365,13 @@ func TestRunProjectRestoreUsesNativePhaseRunner(t *testing.T) {
 }
 
 func TestRunProjectLifecycleCommandsShowHelp(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeProjectLifecycleFixture(t, root)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("project lifecycle help should not route to bash: %+v", spec)
 		return nil
 	}
@@ -403,7 +379,7 @@ func TestRunProjectLifecycleCommandsShowHelp(t *testing.T) {
 	for _, command := range []string{"build", "clean", "deploy", "backup", "restore"} {
 		t.Run(command, func(t *testing.T) {
 			var stdout bytes.Buffer
-			code := run([]string{command, "--help"}, &stdout, &bytes.Buffer{})
+			code := app.Run([]string{command, "--help"}, &stdout, &bytes.Buffer{})
 			if code != 0 {
 				t.Fatalf("run exit code = %d", code)
 			}
@@ -418,9 +394,6 @@ func TestRunProjectLifecycleCommandsShowHelp(t *testing.T) {
 }
 
 func TestRunProjectBackupErrorsWhenPhaseUndefined(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeScenarioPortRegistryFixture(t, root)
@@ -435,18 +408,17 @@ func TestRunProjectBackupErrorsWhenPhaseUndefined(t *testing.T) {
   "lifecycle": {
     "version": "2.0.0"
   }
-}`)
+	}`)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("backup should not route to bash: %+v", spec)
 		return nil
 	}
 
 	var stderr bytes.Buffer
-	code := run([]string{"backup"}, &bytes.Buffer{}, &stderr)
+	code := app.Run([]string{"backup"}, &bytes.Buffer{}, &stderr)
 	if code == 0 {
 		t.Fatal("expected non-zero exit code")
 	}
@@ -456,9 +428,6 @@ func TestRunProjectBackupErrorsWhenPhaseUndefined(t *testing.T) {
 }
 
 func TestRunProjectBuildErrorsWhenPhaseUndefined(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeScenarioPortRegistryFixture(t, root)
@@ -473,18 +442,17 @@ func TestRunProjectBuildErrorsWhenPhaseUndefined(t *testing.T) {
   "lifecycle": {
     "version": "2.0.0"
   }
-}`)
+	}`)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("build should not route to bash: %+v", spec)
 		return nil
 	}
 
 	var stderr bytes.Buffer
-	code := run([]string{"build"}, &bytes.Buffer{}, &stderr)
+	code := app.Run([]string{"build"}, &bytes.Buffer{}, &stderr)
 	if code == 0 {
 		t.Fatal("expected non-zero exit code")
 	}
@@ -494,9 +462,6 @@ func TestRunProjectBuildErrorsWhenPhaseUndefined(t *testing.T) {
 }
 
 func TestRunProjectCleanErrorsWhenPhaseUndefined(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeScenarioPortRegistryFixture(t, root)
@@ -511,18 +476,17 @@ func TestRunProjectCleanErrorsWhenPhaseUndefined(t *testing.T) {
   "lifecycle": {
     "version": "2.0.0"
   }
-}`)
+	}`)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("clean should not route to bash: %+v", spec)
 		return nil
 	}
 
 	var stderr bytes.Buffer
-	code := run([]string{"clean"}, &bytes.Buffer{}, &stderr)
+	code := app.Run([]string{"clean"}, &bytes.Buffer{}, &stderr)
 	if code == 0 {
 		t.Fatal("expected non-zero exit code")
 	}
@@ -532,9 +496,6 @@ func TestRunProjectCleanErrorsWhenPhaseUndefined(t *testing.T) {
 }
 
 func TestRunProjectDeployErrorsWhenPhaseUndefined(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeScenarioPortRegistryFixture(t, root)
@@ -549,18 +510,17 @@ func TestRunProjectDeployErrorsWhenPhaseUndefined(t *testing.T) {
   "lifecycle": {
     "version": "2.0.0"
   }
-}`)
+	}`)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("deploy should not route to bash: %+v", spec)
 		return nil
 	}
 
 	var stderr bytes.Buffer
-	code := run([]string{"deploy"}, &bytes.Buffer{}, &stderr)
+	code := app.Run([]string{"deploy"}, &bytes.Buffer{}, &stderr)
 	if code == 0 {
 		t.Fatal("expected non-zero exit code")
 	}
@@ -570,9 +530,6 @@ func TestRunProjectDeployErrorsWhenPhaseUndefined(t *testing.T) {
 }
 
 func TestRunProjectRestoreErrorsWhenPhaseUndefined(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeScenarioPortRegistryFixture(t, root)
@@ -587,18 +544,17 @@ func TestRunProjectRestoreErrorsWhenPhaseUndefined(t *testing.T) {
   "lifecycle": {
     "version": "2.0.0"
   }
-}`)
+	}`)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("restore should not route to bash: %+v", spec)
 		return nil
 	}
 
 	var stderr bytes.Buffer
-	code := run([]string{"restore"}, &bytes.Buffer{}, &stderr)
+	code := app.Run([]string{"restore"}, &bytes.Buffer{}, &stderr)
 	if code == 0 {
 		t.Fatal("expected non-zero exit code")
 	}
@@ -608,26 +564,23 @@ func TestRunProjectRestoreErrorsWhenPhaseUndefined(t *testing.T) {
 }
 
 func TestRunNoStaleCheckBypassesFreshnessProbe(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeScenarioSetupOnlyFixture(t, root, "alpha")
 	writeScenarioPortRegistryFixture(t, root)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool {
+	app := newTestApp(root)
+	app.isStale = func() bool {
 		t.Fatalf("stale check should be skipped when --no-stale-check is set")
 		return false
 	}
-	execCommandFn = func(spec commandSpec) error {
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("scenario setup should not route to bash: %+v", spec)
 		return nil
 	}
 
-	code := run([]string{"--no-stale-check", "scenario", "setup", "alpha"}, &bytes.Buffer{}, &bytes.Buffer{})
+	code := app.Run([]string{"--no-stale-check", "scenario", "setup", "alpha"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -637,24 +590,20 @@ func TestRunNoStaleCheckBypassesFreshnessProbe(t *testing.T) {
 }
 
 func TestRunScenarioSetupReportsUndefinedPhase(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeScenarioWithoutSetupFixture(t, root, "alpha")
 	writeScenarioPortRegistryFixture(t, root)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("scenario setup should not route to bash: %+v", spec)
 		return nil
 	}
 
 	var stdout bytes.Buffer
-	code := run([]string{"scenario", "setup", "alpha", "--json"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"scenario", "setup", "alpha", "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -664,9 +613,6 @@ func TestRunScenarioSetupReportsUndefinedPhase(t *testing.T) {
 }
 
 func TestRunScenarioListJSONOutput(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeTestScenarioService(t, root, "alpha", "Alpha scenario")
@@ -677,15 +623,14 @@ func TestRunScenarioListJSONOutput(t *testing.T) {
 	writeScenarioProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("scenario list should not shell to bash")
 		return nil
 	}
 
 	var stdout bytes.Buffer
-	code := run([]string{"scenario", "list", "--json"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"scenario", "list", "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -701,20 +646,16 @@ func TestRunScenarioListJSONOutput(t *testing.T) {
 }
 
 func TestRunScenarioInfoJSONOutput(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeTestScenarioService(t, root, "alpha", "Alpha scenario")
 	writeScenarioProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
-	code := run([]string{"scenario", "info", "alpha", "--json"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"scenario", "info", "alpha", "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -730,9 +671,6 @@ func TestRunScenarioInfoJSONOutput(t *testing.T) {
 }
 
 func TestRunScenarioStatusJSONDoesNotRequireAPI(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeTestScenarioService(t, root, "alpha", "Alpha scenario")
@@ -740,11 +678,10 @@ func TestRunScenarioStatusJSONDoesNotRequireAPI(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	t.Setenv("VROOLI_API_PORT", "1")
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
-	code := run([]string{"scenario", "status", "alpha", "--json"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"scenario", "status", "alpha", "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -757,24 +694,20 @@ func TestRunScenarioStatusJSONDoesNotRequireAPI(t *testing.T) {
 }
 
 func TestRunScenarioListHumanOutputIncludesPorts(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeTestScenarioService(t, root, "alpha", "Alpha scenario")
 	writeScenarioProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("scenario list should not shell to bash")
 		return nil
 	}
 
 	var stdout bytes.Buffer
-	code := run([]string{"scenario", "list", "--include-ports"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"scenario", "list", "--include-ports"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -791,20 +724,16 @@ func TestRunScenarioListHumanOutputIncludesPorts(t *testing.T) {
 }
 
 func TestRunScenarioStatusHumanOutput(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeTestScenarioService(t, root, "alpha", "Alpha scenario")
 	writeScenarioProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
-	code := run([]string{"scenario", "status", "alpha"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"scenario", "status", "alpha"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -825,29 +754,25 @@ func TestRunScenarioStartStopRestartLifecycleCommands(t *testing.T) {
 		t.Skip("lifecycle process management currently targets linux")
 	}
 
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeLifecycleScenarioService(t, root, "alpha")
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("week 3 lifecycle commands should not shell to bash: %#v", spec)
 		return nil
 	}
 
 	t.Cleanup(func() {
 		var stdout bytes.Buffer
-		_ = run([]string{"scenario", "stop", "alpha"}, &stdout, &bytes.Buffer{})
+		_ = app.Run([]string{"scenario", "stop", "alpha"}, &stdout, &bytes.Buffer{})
 	})
 
 	var startOut bytes.Buffer
 	var startErr bytes.Buffer
-	code := run([]string{"scenario", "start", "alpha", "--json"}, &startOut, &startErr)
+	code := app.Run([]string{"scenario", "start", "alpha", "--json"}, &startOut, &startErr)
 	if code != 0 {
 		t.Fatalf("start exit code = %d, output=%s stderr=%s", code, startOut.String(), startErr.String())
 	}
@@ -874,7 +799,7 @@ func TestRunScenarioStartStopRestartLifecycleCommands(t *testing.T) {
 
 	var restartOut bytes.Buffer
 	var restartErr bytes.Buffer
-	code = run([]string{"scenario", "restart", "alpha", "--json"}, &restartOut, &restartErr)
+	code = app.Run([]string{"scenario", "restart", "alpha", "--json"}, &restartOut, &restartErr)
 	if code != 0 {
 		t.Fatalf("restart exit code = %d, output=%s stderr=%s", code, restartOut.String(), restartErr.String())
 	}
@@ -896,7 +821,7 @@ func TestRunScenarioStartStopRestartLifecycleCommands(t *testing.T) {
 
 	var stopOut bytes.Buffer
 	var stopErr bytes.Buffer
-	code = run([]string{"scenario", "stop", "alpha", "--json"}, &stopOut, &stopErr)
+	code = app.Run([]string{"scenario", "stop", "alpha", "--json"}, &stopOut, &stopErr)
 	if code != 0 {
 		t.Fatalf("stop exit code = %d, output=%s stderr=%s", code, stopOut.String(), stopErr.String())
 	}
@@ -920,24 +845,20 @@ func TestRunScenarioStartSupportsCustomPath(t *testing.T) {
 		t.Skip("lifecycle process management currently targets linux")
 	}
 
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	customPath := t.TempDir()
 	writeLifecycleScenarioServiceAtPath(t, root, customPath, "alpha")
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("custom-path lifecycle start should not shell to bash: %#v", spec)
 		return nil
 	}
 
 	var stdout bytes.Buffer
-	code := run([]string{"scenario", "start", "alpha", "--path", customPath, "--json"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"scenario", "start", "alpha", "--path", customPath, "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("start exit code = %d, output=%s", code, stdout.String())
 	}
@@ -955,7 +876,7 @@ func TestRunScenarioStartSupportsCustomPath(t *testing.T) {
 	}
 
 	var stopOut bytes.Buffer
-	code = run([]string{"scenario", "stop", "alpha", "--json"}, &stopOut, &bytes.Buffer{})
+	code = app.Run([]string{"scenario", "stop", "alpha", "--json"}, &stopOut, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("stop exit code = %d, output=%s", code, stopOut.String())
 	}
@@ -965,9 +886,6 @@ func TestRunScenarioStartCleanStaleRemovesDeadLock(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("lifecycle process management currently targets linux")
 	}
-
-	restore := overrideCLIHooks(t)
-	defer restore()
 
 	root := t.TempDir()
 	home := t.TempDir()
@@ -984,11 +902,10 @@ func TestRunScenarioStartCleanStaleRemovesDeadLock(t *testing.T) {
 	}
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
-	code := run([]string{"scenario", "start", "alpha", "--clean-stale", "--json"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"scenario", "start", "alpha", "--clean-stale", "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("start exit code = %d, output=%s", code, stdout.String())
 	}
@@ -1002,7 +919,7 @@ func TestRunScenarioStartCleanStaleRemovesDeadLock(t *testing.T) {
 	}
 
 	var stopOut bytes.Buffer
-	code = run([]string{"scenario", "stop", "alpha", "--json"}, &stopOut, &bytes.Buffer{})
+	code = app.Run([]string{"scenario", "stop", "alpha", "--json"}, &stopOut, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("stop exit code = %d, output=%s", code, stopOut.String())
 	}
@@ -1013,19 +930,15 @@ func TestRunScenarioStartBestEffortCapturesFailedDependencies(t *testing.T) {
 		t.Skip("lifecycle process management currently targets linux")
 	}
 
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeBestEffortLifecycleScenarioService(t, root, "alpha", "missing-dep")
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
-	code := run([]string{"scenario", "start", "alpha", "--best-effort", "--json"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"scenario", "start", "alpha", "--best-effort", "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("start exit code = %d, output=%s", code, stdout.String())
 	}
@@ -1056,7 +969,7 @@ func TestRunScenarioStartBestEffortCapturesFailedDependencies(t *testing.T) {
 	}
 
 	var stopOut bytes.Buffer
-	code = run([]string{"scenario", "stop", "alpha", "--json"}, &stopOut, &bytes.Buffer{})
+	code = app.Run([]string{"scenario", "stop", "alpha", "--json"}, &stopOut, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("stop exit code = %d, output=%s", code, stopOut.String())
 	}
@@ -1067,28 +980,24 @@ func TestRunScenarioStartReportsAlreadyRunning(t *testing.T) {
 		t.Skip("lifecycle process management currently targets linux")
 	}
 
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeLifecycleScenarioService(t, root, "alpha")
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("already-running lifecycle start should not shell to bash: %#v", spec)
 		return nil
 	}
 
 	t.Cleanup(func() {
 		var stdout bytes.Buffer
-		_ = run([]string{"scenario", "stop", "alpha"}, &stdout, &bytes.Buffer{})
+		_ = app.Run([]string{"scenario", "stop", "alpha"}, &stdout, &bytes.Buffer{})
 	})
 
 	var firstOut bytes.Buffer
-	code := run([]string{"scenario", "start", "alpha", "--json"}, &firstOut, &bytes.Buffer{})
+	code := app.Run([]string{"scenario", "start", "alpha", "--json"}, &firstOut, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("first start exit code = %d, output=%s", code, firstOut.String())
 	}
@@ -1104,7 +1013,7 @@ func TestRunScenarioStartReportsAlreadyRunning(t *testing.T) {
 	firstPID := live[0].PID
 
 	var secondOut bytes.Buffer
-	code = run([]string{"scenario", "start", "alpha", "--json"}, &secondOut, &bytes.Buffer{})
+	code = app.Run([]string{"scenario", "start", "alpha", "--json"}, &secondOut, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("second start exit code = %d, output=%s", code, secondOut.String())
 	}
@@ -1126,14 +1035,10 @@ func TestRunScenarioStartReportsAlreadyRunning(t *testing.T) {
 }
 
 func TestRunScenarioHelpListsMigratedCommands(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
-	resolveSourceRootFn = func() (string, error) { return "/repo", nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp("/repo")
 
 	var stdout bytes.Buffer
-	code := run([]string{"scenario"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"scenario"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -1147,14 +1052,10 @@ func TestRunScenarioHelpListsMigratedCommands(t *testing.T) {
 }
 
 func TestRunScenarioInfoRequiresName(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
-	resolveSourceRootFn = func() (string, error) { return "/repo", nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp("/repo")
 
 	var stderr bytes.Buffer
-	code := run([]string{"scenario", "info"}, &bytes.Buffer{}, &stderr)
+	code := app.Run([]string{"scenario", "info"}, &bytes.Buffer{}, &stderr)
 	if code != 1 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -1164,14 +1065,10 @@ func TestRunScenarioInfoRequiresName(t *testing.T) {
 }
 
 func TestRunScenarioListRejectsUnknownFlag(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
-	resolveSourceRootFn = func() (string, error) { return "/repo", nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp("/repo")
 
 	var stderr bytes.Buffer
-	code := run([]string{"scenario", "list", "--bogus"}, &bytes.Buffer{}, &stderr)
+	code := app.Run([]string{"scenario", "list", "--bogus"}, &bytes.Buffer{}, &stderr)
 	if code != 1 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -1181,23 +1078,20 @@ func TestRunScenarioListRejectsUnknownFlag(t *testing.T) {
 }
 
 func TestRunTriggersRebuildBeforeDispatch(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
-	resolveSourceRootFn = func() (string, error) { return "/repo", nil }
-	isStaleFn = func() bool { return true }
+	app := newTestApp("/repo")
+	app.isStale = func() bool { return true }
 
 	var rebuiltArgs []string
-	rebuildAndReexecFn = func(args []string) error {
+	app.rebuildAndReexec = func(args []string) error {
 		rebuiltArgs = append([]string(nil), args...)
 		return nil
 	}
-	execCommandFn = func(spec commandSpec) error {
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("dispatcher should not run when stale rebuild succeeds")
 		return nil
 	}
 
-	code := run([]string{"scenario", "list"}, &bytes.Buffer{}, &bytes.Buffer{})
+	code := app.Run([]string{"scenario", "list"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -1207,16 +1101,13 @@ func TestRunTriggersRebuildBeforeDispatch(t *testing.T) {
 }
 
 func TestRunReportsStaleCheckFailure(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
-	resolveSourceRootFn = func() (string, error) { return "/repo", nil }
-	checkStalenessFn = func() (buildinfo.StaleCheck, error) {
+	app := newTestApp("/repo")
+	app.checkStaleness = func() (buildinfo.StaleCheck, error) {
 		return buildinfo.StaleCheck{}, errors.New("fingerprint targets drifted")
 	}
 
 	var stderr bytes.Buffer
-	code := run([]string{"scenario", "list"}, &bytes.Buffer{}, &stderr)
+	code := app.Run([]string{"scenario", "list"}, &bytes.Buffer{}, &stderr)
 	if code != 1 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -1229,17 +1120,13 @@ func TestRunReportsStaleCheckFailure(t *testing.T) {
 }
 
 func TestRunInfoCommandUsesManifestAndListMode(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	writeTestFile(t, root, ".vrooli/info-manifest.json", `{"files":["docs/context.md"]}`)
 	writeTestFile(t, root, "docs/context.md", "hello world\n")
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
-	code := run([]string{"info", "--list"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"info", "--list"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -1293,24 +1180,20 @@ func TestRunVersionJSONOutput(t *testing.T) {
 }
 
 func TestRunDispatchesTopLevelCommandsToExpectedHandlers(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	t.Run("resource status uses native controller", func(t *testing.T) {
 		root := t.TempDir()
 		home := t.TempDir()
 		writeResourceStatusFixture(t, root, "fixture-resource", `{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)
 
 		t.Setenv("HOME", home)
-		resolveSourceRootFn = func() (string, error) { return root, nil }
-		isStaleFn = func() bool { return false }
-		execCommandFn = func(spec commandSpec) error {
+		app := newTestApp(root)
+		app.execCommand = func(spec commandSpec) error {
 			t.Fatalf("resource status should not route through CLI bash shim: %+v", spec)
 			return nil
 		}
 
 		var stdout bytes.Buffer
-		code := run([]string{"resource", "status", "fixture-resource"}, &stdout, &bytes.Buffer{})
+		code := app.Run([]string{"resource", "status", "fixture-resource"}, &stdout, &bytes.Buffer{})
 		if code != 0 {
 			t.Fatalf("run exit code = %d", code)
 		}
@@ -1328,15 +1211,14 @@ func TestRunDispatchesTopLevelCommandsToExpectedHandlers(t *testing.T) {
 		writeScenarioProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
 
 		t.Setenv("HOME", home)
-		resolveSourceRootFn = func() (string, error) { return root, nil }
-		isStaleFn = func() bool { return false }
-		execCommandFn = func(spec commandSpec) error {
+		app := newTestApp(root)
+		app.execCommand = func(spec commandSpec) error {
 			t.Fatalf("status should not route through CLI bash shim: %+v", spec)
 			return nil
 		}
 
 		var stdout bytes.Buffer
-		code := run([]string{"--json", "status", "--scenarios"}, &stdout, &bytes.Buffer{})
+		code := app.Run([]string{"--json", "status", "--scenarios"}, &stdout, &bytes.Buffer{})
 		if code != 0 {
 			t.Fatalf("run exit code = %d", code)
 		}
@@ -1356,15 +1238,14 @@ func TestRunDispatchesTopLevelCommandsToExpectedHandlers(t *testing.T) {
 		writeScenarioProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
 
 		t.Setenv("HOME", home)
-		resolveSourceRootFn = func() (string, error) { return root, nil }
-		isStaleFn = func() bool { return false }
-		execCommandFn = func(spec commandSpec) error {
+		app := newTestApp(root)
+		app.execCommand = func(spec commandSpec) error {
 			t.Fatalf("status should not route through CLI bash shim: %+v", spec)
 			return nil
 		}
 
 		var stdout bytes.Buffer
-		code := run([]string{"status", "--scenarios", "--json"}, &stdout, &bytes.Buffer{})
+		code := app.Run([]string{"status", "--scenarios", "--json"}, &stdout, &bytes.Buffer{})
 		if code != 0 {
 			t.Fatalf("run exit code = %d", code)
 		}
@@ -1379,15 +1260,14 @@ func TestRunDispatchesTopLevelCommandsToExpectedHandlers(t *testing.T) {
 		writeProjectLifecycleFixture(t, root)
 
 		t.Setenv("HOME", home)
-		resolveSourceRootFn = func() (string, error) { return root, nil }
-		isStaleFn = func() bool { return false }
-		execCommandFn = func(spec commandSpec) error {
+		app := newTestApp(root)
+		app.execCommand = func(spec commandSpec) error {
 			t.Fatalf("doctor should not route through CLI bash shim: %+v", spec)
 			return nil
 		}
 
 		var stdout bytes.Buffer
-		code := run([]string{"doctor", "--json"}, &stdout, &bytes.Buffer{})
+		code := app.Run([]string{"doctor", "--json"}, &stdout, &bytes.Buffer{})
 		if code != 0 {
 			t.Fatalf("run exit code = %d", code)
 		}
@@ -1402,15 +1282,14 @@ func TestRunDispatchesTopLevelCommandsToExpectedHandlers(t *testing.T) {
 		writeProjectLifecycleFixture(t, root)
 
 		t.Setenv("HOME", home)
-		resolveSourceRootFn = func() (string, error) { return root, nil }
-		isStaleFn = func() bool { return false }
-		execCommandFn = func(spec commandSpec) error {
+		app := newTestApp(root)
+		app.execCommand = func(spec commandSpec) error {
 			t.Fatalf("stop should not route through CLI bash shim: %+v", spec)
 			return nil
 		}
 
 		var stdout bytes.Buffer
-		code := run([]string{"stop", "--json"}, &stdout, &bytes.Buffer{})
+		code := app.Run([]string{"stop", "--json"}, &stdout, &bytes.Buffer{})
 		if code != 0 {
 			t.Fatalf("run exit code = %d", code)
 		}
@@ -1421,9 +1300,6 @@ func TestRunDispatchesTopLevelCommandsToExpectedHandlers(t *testing.T) {
 }
 
 func TestRunCleanupLocksUsesNativeMaintenance(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeTestFile(t, root, "scripts/resources/port_registry.json", `{"resource_ports":{},"reserved_ranges":{}}`)
@@ -1431,11 +1307,10 @@ func TestRunCleanupLocksUsesNativeMaintenance(t *testing.T) {
 	writeTestFile(t, filepath.Dir(lockPath), filepath.Base(lockPath), "ghost:999999:1\n")
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
-	code := run([]string{"--json", "cleanup", "locks"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"--json", "cleanup", "locks"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -1448,17 +1323,13 @@ func TestRunCleanupLocksUsesNativeMaintenance(t *testing.T) {
 }
 
 func TestRunInfoListJSONOutput(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	writeTestFile(t, root, ".vrooli/info-manifest.json", `{"files":["docs/context.md"]}`)
 	writeTestFile(t, root, "docs/context.md", "hello world\n")
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
-	code := run([]string{"--json", "info", "--list"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"--json", "info", "--list"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -1479,18 +1350,14 @@ func TestRunInfoListJSONOutput(t *testing.T) {
 }
 
 func TestRunInfoCommandSkipsMissingSourcesInJSONMode(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	writeTestFile(t, root, ".vrooli/info-manifest.json", `{"files":["docs/context.md","docs/missing.md"]}`)
 	writeTestFile(t, root, "docs/context.md", "hello world\n")
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	code := run([]string{"--json", "info"}, &stdout, &stderr)
+	code := app.Run([]string{"--json", "info"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -1506,9 +1373,6 @@ func TestRunInfoCommandSkipsMissingSourcesInJSONMode(t *testing.T) {
 }
 
 func TestRunScenarioStatusAllJSONSummaryOutput(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeTestScenarioService(t, root, "alpha", "Alpha scenario")
@@ -1516,11 +1380,10 @@ func TestRunScenarioStatusAllJSONSummaryOutput(t *testing.T) {
 	writeScenarioProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
-	code := run([]string{"scenario", "status", "--json"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"scenario", "status", "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -1533,9 +1396,6 @@ func TestRunScenarioStatusAllJSONSummaryOutput(t *testing.T) {
 }
 
 func TestRunScenarioStatusAllHumanOutput(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeTestScenarioService(t, root, "alpha", "Alpha scenario")
@@ -1543,11 +1403,10 @@ func TestRunScenarioStatusAllHumanOutput(t *testing.T) {
 	writeScenarioProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
-	code := run([]string{"scenario", "status"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"scenario", "status"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -1650,9 +1509,6 @@ func TestCanonicalSetupInstallContract(t *testing.T) {
 }
 
 func TestRunLocksCommandListsNativeState(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeTestFile(t, root, "scripts/resources/port_registry.json", `{"resource_ports":{},"reserved_ranges":{}}`)
@@ -1660,11 +1516,10 @@ func TestRunLocksCommandListsNativeState(t *testing.T) {
 	writeTestFile(t, filepath.Dir(lockPath), filepath.Base(lockPath), "ghost:999999:1\n")
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
-	code := run([]string{"locks", "--json"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"locks", "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -1674,9 +1529,6 @@ func TestRunLocksCommandListsNativeState(t *testing.T) {
 }
 
 func TestRunLocksCommandHumanOutput(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeTestFile(t, root, "scripts/resources/port_registry.json", `{"resource_ports":{},"reserved_ranges":{}}`)
@@ -1684,11 +1536,10 @@ func TestRunLocksCommandHumanOutput(t *testing.T) {
 	writeTestFile(t, filepath.Dir(lockPath), filepath.Base(lockPath), "ghost:999999:1\n")
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
-	code := run([]string{"locks"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"locks"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -1699,9 +1550,6 @@ func TestRunLocksCommandHumanOutput(t *testing.T) {
 }
 
 func TestRunDiagnosePortReturnsJSON(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeTestFile(t, root, "scripts/resources/port_registry.json", `{"resource_ports":{},"reserved_ranges":{}}`)
@@ -1709,12 +1557,11 @@ func TestRunDiagnosePortReturnsJSON(t *testing.T) {
 	writeTestFile(t, filepath.Dir(lockPath), filepath.Base(lockPath), "ghost:999999:1\n")
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	code := run([]string{"--json", "diagnose-port", "21234", "alpha"}, &stdout, &stderr)
+	code := app.Run([]string{"--json", "diagnose-port", "21234", "alpha"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -1727,9 +1574,6 @@ func TestRunDiagnosePortReturnsJSON(t *testing.T) {
 }
 
 func TestRunDiagnosePortHumanOutput(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeTestFile(t, root, "scripts/resources/port_registry.json", `{"resource_ports":{},"reserved_ranges":{}}`)
@@ -1737,12 +1581,11 @@ func TestRunDiagnosePortHumanOutput(t *testing.T) {
 	writeTestFile(t, filepath.Dir(lockPath), filepath.Base(lockPath), "ghost:999999:1\n")
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	code := run([]string{"diagnose-port", "21234", "alpha"}, &stdout, &stderr)
+	code := app.Run([]string{"diagnose-port", "21234", "alpha"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -1892,37 +1735,39 @@ func TestRunScenarioStartOpenUsesNativeURLLauncher(t *testing.T) {
 		t.Skip("lifecycle process management currently targets linux")
 	}
 
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeLifecycleScenarioService(t, root, "alpha")
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
-	execCommandFn = func(spec commandSpec) error { return nil }
-	openedURL := ""
-	scenarioOpenURLFn = func(url string) error {
-		openedURL = url
+	app.execCommand = func(spec commandSpec) error { return nil }
+	var opened scenarioSubprocessSpec
+	app.lookPath = func(file string) (string, error) {
+		if file == "xdg-open" {
+			return "/usr/bin/xdg-open", nil
+		}
+		return "", exec.ErrNotFound
+	}
+	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
+		opened = spec
 		return nil
 	}
 
 	t.Cleanup(func() {
 		var stdout bytes.Buffer
-		_ = run([]string{"scenario", "stop", "alpha"}, &stdout, &bytes.Buffer{})
+		_ = app.Run([]string{"scenario", "stop", "alpha"}, &stdout, &bytes.Buffer{})
 	})
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	code := run([]string{"scenario", "start", "alpha", "--open"}, &stdout, &stderr)
+	code := app.Run([]string{"scenario", "start", "alpha", "--open"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("start --open exit code = %d, stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
-	if !strings.HasPrefix(openedURL, "http://localhost:") {
-		t.Fatalf("openedURL = %q", openedURL)
+	if opened.name != "/usr/bin/xdg-open" || len(opened.args) != 1 || !strings.HasPrefix(opened.args[0], "http://localhost:") {
+		t.Fatalf("opened = %+v", opened)
 	}
 }
 
@@ -1931,50 +1776,49 @@ func TestRunScenarioRestartOpenUsesNativeURLLauncher(t *testing.T) {
 		t.Skip("lifecycle process management currently targets linux")
 	}
 
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeLifecycleScenarioService(t, root, "alpha")
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
-	execCommandFn = func(spec commandSpec) error { return nil }
-	openedURL := ""
-	scenarioOpenURLFn = func(url string) error {
-		openedURL = url
+	app.execCommand = func(spec commandSpec) error { return nil }
+	var opened scenarioSubprocessSpec
+	app.lookPath = func(file string) (string, error) {
+		if file == "xdg-open" {
+			return "/usr/bin/xdg-open", nil
+		}
+		return "", exec.ErrNotFound
+	}
+	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
+		opened = spec
 		return nil
 	}
 
 	t.Cleanup(func() {
 		var stdout bytes.Buffer
-		_ = run([]string{"scenario", "stop", "alpha"}, &stdout, &bytes.Buffer{})
+		_ = app.Run([]string{"scenario", "stop", "alpha"}, &stdout, &bytes.Buffer{})
 	})
 
-	if code := run([]string{"scenario", "start", "alpha"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "start", "alpha"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("initial start exit code = %d", code)
 	}
 
-	openedURL = ""
+	opened = scenarioSubprocessSpec{}
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	code := run([]string{"scenario", "restart", "alpha", "--open"}, &stdout, &stderr)
+	code := app.Run([]string{"scenario", "restart", "alpha", "--open"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("restart --open exit code = %d, stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
-	if !strings.HasPrefix(openedURL, "http://localhost:") {
-		t.Fatalf("openedURL = %q", openedURL)
+	if opened.name != "/usr/bin/xdg-open" || len(opened.args) != 1 || !strings.HasPrefix(opened.args[0], "http://localhost:") {
+		t.Fatalf("opened = %+v", opened)
 	}
 }
 
 func TestRunScenarioPortAndOpenCommandsUseNativeState(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeScenarioServiceWithPorts(t, root, "alpha")
@@ -1982,15 +1826,14 @@ func TestRunScenarioPortAndOpenCommandsUseNativeState(t *testing.T) {
 	writeScenarioProcessRecord(t, home, "alpha", "start-ui", os.Getpid(), 38080, time.Now().Add(-time.Minute))
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("scenario port/open should not route to bash: %+v", spec)
 		return nil
 	}
 
 	var portStdout bytes.Buffer
-	if code := run([]string{"scenario", "port", "alpha", "UI_PORT"}, &portStdout, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "port", "alpha", "UI_PORT"}, &portStdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario port exit code = %d", code)
 	}
 	if strings.TrimSpace(portStdout.String()) != "38080" {
@@ -1998,7 +1841,7 @@ func TestRunScenarioPortAndOpenCommandsUseNativeState(t *testing.T) {
 	}
 
 	var openStdout bytes.Buffer
-	if code := run([]string{"scenario", "open", "alpha", "--print-url"}, &openStdout, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "open", "alpha", "--print-url"}, &openStdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario open exit code = %d", code)
 	}
 	if strings.TrimSpace(openStdout.String()) != "http://localhost:38080" {
@@ -2007,9 +1850,6 @@ func TestRunScenarioPortAndOpenCommandsUseNativeState(t *testing.T) {
 }
 
 func TestRunScenarioLogsCleanRemovesOrphans(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeTestScenarioService(t, root, "alpha", "Alpha scenario")
@@ -2022,10 +1862,9 @@ func TestRunScenarioLogsCleanRemovesOrphans(t *testing.T) {
 	writeTestFile(t, home, ".vrooli/logs/scenarios/alpha/vrooli.develop.alpha.orphan-worker.log", "orphan\n")
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
-	if code := run([]string{"scenario", "logs", "alpha", "--clean"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "logs", "alpha", "--clean"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario logs --clean exit code = %d", code)
 	}
 	if _, err := os.Stat(filepath.Join(logsDir, "vrooli.develop.alpha.start-api.log")); err != nil {
@@ -2037,23 +1876,19 @@ func TestRunScenarioLogsCleanRemovesOrphans(t *testing.T) {
 }
 
 func TestRunScenarioTemplateGenerateScaffoldsFiles(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	templateBase := filepath.Join(root, "templates")
 	writeScenarioTemplateFixture(t, templateBase, "demo")
 
 	t.Setenv(config.TemplateBaseDirEnvVar, templateBase)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	execCommandFn = func(spec commandSpec) error {
+	app := newTestApp(root)
+	app.execCommand = func(spec commandSpec) error {
 		t.Fatalf("scenario generate should not route to bash: %+v", spec)
 		return nil
 	}
 
 	var listStdout bytes.Buffer
-	if code := run([]string{"scenario", "template", "list"}, &listStdout, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "template", "list"}, &listStdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario template list exit code = %d", code)
 	}
 	if !strings.Contains(listStdout.String(), "demo") {
@@ -2061,7 +1896,7 @@ func TestRunScenarioTemplateGenerateScaffoldsFiles(t *testing.T) {
 	}
 
 	var stdout bytes.Buffer
-	code := run([]string{
+	code := app.Run([]string{
 		"scenario", "generate", "demo",
 		"--id", "alpha",
 		"--display-name", "Alpha App",
@@ -2085,17 +1920,13 @@ func TestRunScenarioTemplateGenerateScaffoldsFiles(t *testing.T) {
 }
 
 func TestRunScenarioRequirementsSnapshotReadsLatestFile(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	writeTestFile(t, root, "scenarios/alpha/coverage/requirements-sync/latest.json", `{"synced_at":"2026-04-10T12:00:00Z","tests_run":["vrooli scenario test alpha"]}`)
 
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
-	if code := run([]string{"scenario", "requirements", "snapshot", "alpha"}, &stdout, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "requirements", "snapshot", "alpha"}, &stdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario requirements snapshot exit code = %d", code)
 	}
 	if !strings.Contains(stdout.String(), "Requirements snapshot (alpha)") || !strings.Contains(stdout.String(), "vrooli scenario test alpha") {
@@ -2104,9 +1935,6 @@ func TestRunScenarioRequirementsSnapshotReadsLatestFile(t *testing.T) {
 }
 
 func TestRunScenarioHealFromSandboxRelaunchesAffectedScenarios(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeTestScenarioService(t, root, "alpha", "Alpha scenario")
@@ -2114,19 +1942,23 @@ func TestRunScenarioHealFromSandboxRelaunchesAffectedScenarios(t *testing.T) {
 	writeScenarioProcessRecordWithWorkingDir(t, home, "alpha", "start-api", 999999, 18080, time.Now().Add(-time.Minute), filepath.Join("/merged", "scenarios", "alpha"))
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
-	var relaunched []string
-	scenarioLaunchDetachedFn = func(root string, globals globalOptions, args ...string) error {
-		relaunched = append(relaunched, strings.Join(args, " "))
-		return nil
+	relaunchLog := filepath.Join(root, "relaunch.log")
+	app.scenarioExecutable = func() (string, error) {
+		return writeFakeExecutable(t, root, "bin/fake-vrooli", fmt.Sprintf("#!/usr/bin/env bash\nprintf '%%s\\n' \"$@\" >> %q\n", relaunchLog)), nil
 	}
 
-	if code := run([]string{"scenario", "heal-from-sandbox", "--merged-path", "/merged"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "heal-from-sandbox", "--merged-path", "/merged"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario heal-from-sandbox exit code = %d", code)
 	}
-	if len(relaunched) != 1 || relaunched[0] != "start alpha" {
+	waitForTestFile(t, relaunchLog)
+	data, err := os.ReadFile(relaunchLog)
+	if err != nil {
+		t.Fatalf("read relaunch log: %v", err)
+	}
+	relaunched := strings.Fields(string(data))
+	if len(relaunched) != 3 || strings.Join(relaunched, " ") != "scenario start alpha" {
 		t.Fatalf("relaunched = %#v", relaunched)
 	}
 	if _, err := os.Stat(filepath.Join(home, ".vrooli", "processes", "scenarios", "alpha", "start-api.json")); !os.IsNotExist(err) {
@@ -2139,9 +1971,6 @@ func TestRunScenarioStartAllAndStopAllUseNativeLifecycle(t *testing.T) {
 		t.Skip("lifecycle process management currently targets linux")
 	}
 
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	alphaPort := reserveFreePort(t)
@@ -2150,11 +1979,10 @@ func TestRunScenarioStartAllAndStopAllUseNativeLifecycle(t *testing.T) {
 	writeFixedPortLifecycleScenarioService(t, root, "beta", betaPort)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var startStdout bytes.Buffer
-	if code := run([]string{"scenario", "start-all", "--json"}, &startStdout, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "start-all", "--json"}, &startStdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario start-all exit code = %d", code)
 	}
 	var startPayload struct {
@@ -2187,7 +2015,7 @@ func TestRunScenarioStartAllAndStopAllUseNativeLifecycle(t *testing.T) {
 	}
 
 	var stopStdout bytes.Buffer
-	if code := run([]string{"scenario", "stop-all", "--json"}, &stopStdout, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "stop-all", "--json"}, &stopStdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario stop-all exit code = %d", code)
 	}
 	var stopPayload struct {
@@ -2221,24 +2049,20 @@ func TestRunScenarioStartAllAndStopAllUseNativeLifecycle(t *testing.T) {
 }
 
 func TestRunScenarioUISmokeUsesTranslatedSubprocess(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	fakeCLI := writeFakeExecutable(t, home, ".vrooli/bin/test-genie", "#!/usr/bin/env bash\nexit 0\n")
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var captured scenarioSubprocessSpec
-	runScenarioSubprocessFn = func(spec scenarioSubprocessSpec) error {
+	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
 		captured = spec
 		return nil
 	}
 
-	if code := run([]string{"scenario", "ui-smoke", "alpha", "--json"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "ui-smoke", "alpha", "--json"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario ui-smoke exit code = %d", code)
 	}
 	if captured.name != fakeCLI {
@@ -2250,25 +2074,21 @@ func TestRunScenarioUISmokeUsesTranslatedSubprocess(t *testing.T) {
 }
 
 func TestRunScenarioRequirementsReportUsesTranslatedSubprocess(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	fakeCLI := writeFakeExecutable(t, home, ".vrooli/bin/test-genie", "#!/usr/bin/env bash\nexit 0\n")
 	writeTestFile(t, root, "scenarios/alpha/requirements/index.json", `{"ok":true}`)
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var captured scenarioSubprocessSpec
-	runScenarioSubprocessFn = func(spec scenarioSubprocessSpec) error {
+	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
 		captured = spec
 		return nil
 	}
 
-	if code := run([]string{"scenario", "requirements", "report", "alpha", "--json"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "requirements", "report", "alpha", "--json"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario requirements report exit code = %d", code)
 	}
 	if captured.name != fakeCLI {
@@ -2281,25 +2101,21 @@ func TestRunScenarioRequirementsReportUsesTranslatedSubprocess(t *testing.T) {
 }
 
 func TestRunScenarioCompletenessUsesTranslatedSubprocess(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	cliPath := writeFakeExecutable(t, root, "scenarios/scenario-completeness-scoring/cli/scenario-completeness-scoring", "#!/usr/bin/env bash\nexit 0\n")
 
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
-	lookPathFn = func(file string) (string, error) {
+	app := newTestApp(root)
+	app.lookPath = func(file string) (string, error) {
 		return "", exec.ErrNotFound
 	}
 
 	var captured scenarioSubprocessSpec
-	runScenarioSubprocessFn = func(spec scenarioSubprocessSpec) error {
+	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
 		captured = spec
 		return nil
 	}
 
-	if code := run([]string{"scenario", "completeness", "alpha", "--format", "json"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "completeness", "alpha", "--format", "json"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario completeness exit code = %d", code)
 	}
 	if captured.name != cliPath {
@@ -2311,9 +2127,6 @@ func TestRunScenarioCompletenessUsesTranslatedSubprocess(t *testing.T) {
 }
 
 func TestRunScenarioLogsHelpAndViews(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeScenarioServiceWithPorts(t, root, "alpha")
@@ -2326,11 +2139,10 @@ func TestRunScenarioLogsHelpAndViews(t *testing.T) {
 	writeTestFile(t, home, ".vrooli/logs/scenarios/beta/vrooli.develop.beta.start-api.log", "beta line\n")
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var help bytes.Buffer
-	if code := run([]string{"scenario", "logs", "--help"}, &help, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "logs", "--help"}, &help, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario logs --help exit code = %d", code)
 	}
 	if !strings.Contains(help.String(), "Available scenarios with logs:") || !strings.Contains(help.String(), "alpha") || !strings.Contains(help.String(), "beta") {
@@ -2338,7 +2150,7 @@ func TestRunScenarioLogsHelpAndViews(t *testing.T) {
 	}
 
 	var runtimeStdout bytes.Buffer
-	if code := run([]string{"scenario", "logs", "alpha", "--runtime", "--follow"}, &runtimeStdout, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "logs", "alpha", "--runtime", "--follow"}, &runtimeStdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario logs --runtime --follow exit code = %d", code)
 	}
 	runtimeOutput := runtimeStdout.String()
@@ -2347,7 +2159,7 @@ func TestRunScenarioLogsHelpAndViews(t *testing.T) {
 	}
 
 	var stepStdout bytes.Buffer
-	if code := run([]string{"scenario", "logs", "alpha", "--step", "start-api", "--previous"}, &stepStdout, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "logs", "alpha", "--step", "start-api", "--previous"}, &stepStdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario logs --step --previous exit code = %d", code)
 	}
 	if !strings.Contains(stepStdout.String(), "previous api line") {
@@ -2355,7 +2167,7 @@ func TestRunScenarioLogsHelpAndViews(t *testing.T) {
 	}
 
 	var lifecycleStdout bytes.Buffer
-	if code := run([]string{"scenario", "logs", "alpha"}, &lifecycleStdout, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "logs", "alpha"}, &lifecycleStdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario logs exit code = %d", code)
 	}
 	lifecycleOutput := lifecycleStdout.String()
@@ -2412,9 +2224,6 @@ func TestScenarioLogHelperReaders(t *testing.T) {
 }
 
 func TestRunScenarioTemplateShowAndHooks(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	templateBase := filepath.Join(root, "templates")
 	writeScenarioTemplateFixture(t, templateBase, "demo")
@@ -2440,11 +2249,10 @@ func TestRunScenarioTemplateShowAndHooks(t *testing.T) {
 }`)
 
 	t.Setenv(config.TemplateBaseDirEnvVar, templateBase)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var showStdout bytes.Buffer
-	if code := run([]string{"scenario", "template", "show", "demo"}, &showStdout, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "template", "show", "demo"}, &showStdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario template show exit code = %d", code)
 	}
 	showOutput := showStdout.String()
@@ -2459,13 +2267,13 @@ func TestRunScenarioTemplateShowAndHooks(t *testing.T) {
 	}
 
 	var captured scenarioSubprocessSpec
-	runScenarioSubprocessFn = func(spec scenarioSubprocessSpec) error {
+	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
 		captured = spec
 		return nil
 	}
 
 	var generateStdout bytes.Buffer
-	if code := run([]string{
+	if code := app.Run([]string{
 		"scenario", "generate", "demo",
 		"--id", "alpha",
 		"--display-name", "Alpha App",
@@ -2535,15 +2343,13 @@ func TestScenarioTemplateParsersAndFormatting(t *testing.T) {
 }
 
 func TestScenarioHelperCLIResolution(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
+	app := newTestApp(root)
 	overrideCLI := writeFakeExecutable(t, root, "override/test-genie", "#!/usr/bin/env bash\nexit 0\n")
 	t.Setenv("VROOLI_TEST_GENIE_CLI", overrideCLI)
 
-	path, err := locateTestGenieCLI(root, home)
+	path, err := app.locateTestGenieCLI(root, home)
 	if err != nil {
 		t.Fatalf("locateTestGenieCLI override: %v", err)
 	}
@@ -2553,8 +2359,8 @@ func TestScenarioHelperCLIResolution(t *testing.T) {
 
 	t.Setenv("VROOLI_TEST_GENIE_CLI", "")
 	homeCLI := writeFakeExecutable(t, home, ".vrooli/bin/test-genie", "#!/usr/bin/env bash\nexit 0\n")
-	lookPathFn = func(file string) (string, error) { return "", exec.ErrNotFound }
-	path, err = locateTestGenieCLI(root, home)
+	app.lookPath = func(file string) (string, error) { return "", exec.ErrNotFound }
+	path, err = app.locateTestGenieCLI(root, home)
 	if err != nil {
 		t.Fatalf("locateTestGenieCLI home: %v", err)
 	}
@@ -2566,8 +2372,8 @@ func TestScenarioHelperCLIResolution(t *testing.T) {
 	}
 
 	pathCLI := writeFakeExecutable(t, root, "bin/test-genie", "#!/usr/bin/env bash\nexit 0\n")
-	lookPathFn = func(file string) (string, error) { return pathCLI, nil }
-	path, err = locateTestGenieCLI(root, home)
+	app.lookPath = func(file string) (string, error) { return pathCLI, nil }
+	path, err = app.locateTestGenieCLI(root, home)
 	if err != nil {
 		t.Fatalf("locateTestGenieCLI PATH: %v", err)
 	}
@@ -2576,8 +2382,8 @@ func TestScenarioHelperCLIResolution(t *testing.T) {
 	}
 
 	repoCLI := writeFakeExecutable(t, root, "scenarios/test-genie/cli/test-genie", "#!/usr/bin/env bash\nexit 0\n")
-	lookPathFn = func(file string) (string, error) { return "", exec.ErrNotFound }
-	path, err = locateTestGenieCLI(root, home)
+	app.lookPath = func(file string) (string, error) { return "", exec.ErrNotFound }
+	path, err = app.locateTestGenieCLI(root, home)
 	if err != nil {
 		t.Fatalf("locateTestGenieCLI repo: %v", err)
 	}
@@ -2586,7 +2392,7 @@ func TestScenarioHelperCLIResolution(t *testing.T) {
 	}
 
 	completenessCLI := writeFakeExecutable(t, root, "scenarios/scenario-completeness-scoring/cli/scenario-completeness-scoring", "#!/usr/bin/env bash\nexit 0\n")
-	path, err = locateScenarioCompletenessCLI(root)
+	path, err = app.locateScenarioCompletenessCLI(root)
 	if err != nil {
 		t.Fatalf("locateScenarioCompletenessCLI: %v", err)
 	}
@@ -2596,20 +2402,18 @@ func TestScenarioHelperCLIResolution(t *testing.T) {
 }
 
 func TestScenarioHelperProcessUtilities(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	if writerSupportsStreaming(&bytes.Buffer{}) {
 		t.Fatalf("bytes.Buffer should not be treated as a streaming writer")
 	}
 
+	app := newTestApp(t.TempDir())
 	url := "http://localhost:1234"
 	var opened scenarioSubprocessSpec
-	runScenarioSubprocessFn = func(spec scenarioSubprocessSpec) error {
+	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
 		opened = spec
 		return nil
 	}
-	lookPathFn = func(file string) (string, error) {
+	app.lookPath = func(file string) (string, error) {
 		switch runtime.GOOS {
 		case "linux":
 			if file == "xdg-open" {
@@ -2620,7 +2424,7 @@ func TestScenarioHelperProcessUtilities(t *testing.T) {
 		}
 		return "", exec.ErrNotFound
 	}
-	if err := openScenarioURL(url); err != nil {
+	if err := app.openScenarioURL(url); err != nil {
 		t.Fatalf("openScenarioURL: %v", err)
 	}
 	switch runtime.GOOS {
@@ -2661,14 +2465,12 @@ func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
 		t.Skip("detached-process validation uses a bash fixture")
 	}
 
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
+	app := newTestApp(root)
 	argsPath := filepath.Join(root, "args.txt")
 	envPath := filepath.Join(root, "env.txt")
 	executable := writeFakeExecutable(t, root, "bin/fake-vrooli", fmt.Sprintf("#!/usr/bin/env bash\nprintf '%%s\\n' \"$@\" > %q\nenv | sort > %q\n", argsPath, envPath))
-	scenarioExecutableFn = func() (string, error) { return executable, nil }
+	app.scenarioExecutable = func() (string, error) { return executable, nil }
 
 	t.Setenv("VROOLI_SANDBOX_ID", "sandbox-123")
 	t.Setenv("VROOLI_SANDBOX_MERGED", "/merged")
@@ -2676,7 +2478,7 @@ func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
 	t.Setenv("SANDBOX_MERGED_DIR", "/merged")
 	t.Setenv("VROOLI_SOURCE_ROOT", "/source-root")
 
-	if err := launchDetachedScenario(root, globalOptions{json: true, verbose: true, noColor: true}, "start", "alpha"); err != nil {
+	if err := app.launchDetachedScenario(root, globalOptions{json: true, verbose: true, noColor: true}, "start", "alpha"); err != nil {
 		t.Fatalf("launchDetachedScenario: %v", err)
 	}
 
@@ -2713,9 +2515,6 @@ func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
 }
 
 func TestRunScenarioRequirementsHelpAndInitTranslation(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	scenarioDir := filepath.Join(root, "scenarios", "alpha")
@@ -2725,11 +2524,10 @@ func TestRunScenarioRequirementsHelpAndInitTranslation(t *testing.T) {
 	fakeCLI := writeFakeExecutable(t, home, ".vrooli/bin/test-genie", "#!/usr/bin/env bash\nexit 0\n")
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var help bytes.Buffer
-	if code := run([]string{"scenario", "requirements", "--help"}, &help, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"scenario", "requirements", "--help"}, &help, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario requirements --help exit code = %d", code)
 	}
 	if !strings.Contains(help.String(), "snapshot <name>") || !strings.Contains(help.String(), "manual-log <name> <req>") {
@@ -2737,12 +2535,12 @@ func TestRunScenarioRequirementsHelpAndInitTranslation(t *testing.T) {
 	}
 
 	var captured scenarioSubprocessSpec
-	runScenarioSubprocessFn = func(spec scenarioSubprocessSpec) error {
+	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
 		captured = spec
 		return nil
 	}
 
-	if code := run([]string{"--json", "scenario", "requirements", "init", "alpha"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
+	if code := app.Run([]string{"--json", "scenario", "requirements", "init", "alpha"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario requirements init exit code = %d", code)
 	}
 	if captured.name != fakeCLI {
@@ -2790,9 +2588,6 @@ func TestScenarioTemplateHelpAndManualHooksOutput(t *testing.T) {
 }
 
 func TestRunCleanupCommandRoutesTargets(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	t.Run("orphans", func(t *testing.T) {
 		root := t.TempDir()
 		home := t.TempDir()
@@ -2914,14 +2709,10 @@ func TestCollectInfoSourcesPrefersEnvAndFallsBackOnInvalidManifest(t *testing.T)
 }
 
 func TestRunUnknownCommandSuggestsNearestMatch(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
-	resolveSourceRootFn = func() (string, error) { return "/repo", nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp("/repo")
 
 	var stderr bytes.Buffer
-	code := run([]string{"statuz"}, &bytes.Buffer{}, &stderr)
+	code := app.Run([]string{"statuz"}, &bytes.Buffer{}, &stderr)
 	if code != 1 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -2950,13 +2741,12 @@ func TestShowVersionAndHelpOutput(t *testing.T) {
 }
 
 func TestRunReturnsErrorWhenRootCannotBeResolved(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
-	resolveSourceRootFn = func() (string, error) { return "", errors.New("boom") }
+	app := configuredApp()
+	app.resolveSourceRoot = func() (string, error) { return "", errors.New("boom") }
+	app.checkStaleness = nil
 
 	var stderr bytes.Buffer
-	code := run([]string{"version"}, &bytes.Buffer{}, &stderr)
+	code := app.Run([]string{"version"}, &bytes.Buffer{}, &stderr)
 	if code != 1 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -3020,9 +2810,6 @@ func TestRunExternalCommandAndExitCodeError(t *testing.T) {
 }
 
 func TestRunScenarioStatusAllJSONOutput(t *testing.T) {
-	restore := overrideCLIHooks(t)
-	defer restore()
-
 	root := t.TempDir()
 	home := t.TempDir()
 	writeTestScenarioService(t, root, "alpha", "Alpha scenario")
@@ -3030,11 +2817,10 @@ func TestRunScenarioStatusAllJSONOutput(t *testing.T) {
 	writeScenarioProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
 
 	t.Setenv("HOME", home)
-	resolveSourceRootFn = func() (string, error) { return root, nil }
-	isStaleFn = func() bool { return false }
+	app := newTestApp(root)
 
 	var stdout bytes.Buffer
-	code := run([]string{"scenario", "status", "--json"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"scenario", "status", "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
@@ -3226,39 +3012,6 @@ func TestCopyHelpersReturnIndependentSlices(t *testing.T) {
 	copiedRecords[0].PID = 99
 	if originalStrings[0] != "alpha" || originalRecords[0].PID != 1234 {
 		t.Fatalf("expected copies to avoid mutating originals")
-	}
-}
-
-func overrideCLIHooks(t *testing.T) func() {
-	t.Helper()
-	originalResolveSourceRootFn := resolveSourceRootFn
-	originalIsStaleFn := isStaleFn
-	originalCheckStalenessFn := checkStalenessFn
-	originalRebuildAndReexecFn := rebuildAndReexecFn
-	originalLookPathFn := lookPathFn
-	originalExecCommandFn := execCommandFn
-	originalNewLoggerFn := newLoggerFn
-	originalRunScenarioSubprocessFn := runScenarioSubprocessFn
-	originalScenarioOpenURLFn := scenarioOpenURLFn
-	originalScenarioLaunchDetachedFn := scenarioLaunchDetachedFn
-	originalScenarioExecutableFn := scenarioExecutableFn
-	originalRunProjectSetupFn := runProjectSetupFn
-	originalRunProjectDevelopFn := runProjectDevelopFn
-	checkStalenessFn = nil
-	return func() {
-		resolveSourceRootFn = originalResolveSourceRootFn
-		isStaleFn = originalIsStaleFn
-		checkStalenessFn = originalCheckStalenessFn
-		rebuildAndReexecFn = originalRebuildAndReexecFn
-		lookPathFn = originalLookPathFn
-		execCommandFn = originalExecCommandFn
-		newLoggerFn = originalNewLoggerFn
-		runScenarioSubprocessFn = originalRunScenarioSubprocessFn
-		scenarioOpenURLFn = originalScenarioOpenURLFn
-		scenarioLaunchDetachedFn = originalScenarioLaunchDetachedFn
-		scenarioExecutableFn = originalScenarioExecutableFn
-		runProjectSetupFn = originalRunProjectSetupFn
-		runProjectDevelopFn = originalRunProjectDevelopFn
 	}
 }
 

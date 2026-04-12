@@ -13,8 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 var ErrNotFound = errors.New("scenario not found")
@@ -247,7 +245,7 @@ func Discover(root string, env SandboxEnv) ([]Scenario, error) {
 		names[name] = struct{}{}
 	}
 
-	sandboxNames, err := scanSandboxScenarioNames(env)
+	sandboxNames, err := scanSandboxScenarioNames(root, env)
 	if err != nil {
 		return nil, err
 	}
@@ -314,11 +312,11 @@ func (deps *Dependencies) UnmarshalJSON(data []byte) error {
 
 func ResolveScenarioPath(root, name string, env SandboxEnv) (string, bool) {
 	defaultPath := scenarioRootPath(root, name)
-	if !env.Enabled() || !ScenarioInScope(name, env.Scope) {
+	if !env.Enabled() || !ScenarioInScope(root, name, env.Scope) {
 		return defaultPath, false
 	}
 
-	mergedPath := filepath.Clean(ResolveMergedPath(name, env.Scope, env.Merged))
+	mergedPath := filepath.Clean(ResolveMergedPath(root, name, env.Scope, env.Merged))
 	mergedServicePath := filepath.Join(mergedPath, filepath.FromSlash(defaultScenarioServiceRelPath))
 	if info, err := os.Stat(mergedPath); err == nil && info.IsDir() {
 		if _, err := os.Stat(mergedServicePath); err == nil {
@@ -389,32 +387,36 @@ func addLegacyDependencies(dst map[string]Dependency, items []legacyDependency, 
 	}
 }
 
-func ScenarioInScope(name, scope string) bool {
-	scope = strings.TrimSpace(scope)
-	if scope == "" || scope == "/" || scope == "." {
+func ScenarioInScope(root, name, scope string) bool {
+	scope = normalizeSandboxScope(scope)
+	if contractPaths.IsFullRepoScope(root, scope) {
 		return true
 	}
 
-	scope = strings.TrimSuffix(scope, "/")
-	if scope == "scenarios" {
+	scenarioDir := strings.Trim(strings.TrimSpace(filepath.ToSlash(contractPaths.ScenarioDirName(root))), "/")
+	if scope == scenarioDir {
 		return true
 	}
 
-	if strings.HasPrefix(scope, "scenarios/") {
-		scopedName := strings.TrimPrefix(scope, "scenarios/")
-		scopedName = strings.SplitN(scopedName, "/", 2)[0]
-		return name == scopedName
+	prefix := strings.Trim(strings.TrimSpace(filepath.ToSlash(contractPaths.ScenarioScopePrefix(root))), "/")
+	if prefix == "" {
+		prefix = scenarioDir
+	}
+	if !strings.HasPrefix(scope, prefix+"/") {
+		return false
 	}
 
-	return false
+	scopedName := strings.TrimPrefix(scope, prefix+"/")
+	scopedName = strings.SplitN(scopedName, "/", 2)[0]
+	return name == scopedName
 }
 
-func ResolveMergedPath(name, scope, merged string) string {
-	scope = strings.TrimSpace(strings.TrimSuffix(scope, "/"))
+func ResolveMergedPath(root, name, scope, merged string) string {
+	scope = normalizeSandboxScope(scope)
 	merged = filepath.Clean(merged)
-	scenarioRel := filepath.ToSlash(filepath.Join("scenarios", name))
+	scenarioRel := filepath.ToSlash(filepath.Join(contractPaths.ScenarioDirName(root), name))
 
-	if scope == "" || scope == "/" || scope == "." {
+	if contractPaths.IsFullRepoScope(root, scope) {
 		return filepath.Join(merged, filepath.FromSlash(scenarioRel))
 	}
 
@@ -659,24 +661,28 @@ func scanScenarioNames(baseDir string) ([]string, error) {
 // scanSandboxScenarioNames mirrors the bash sandbox discovery contract: the
 // merged dir can represent the repo root, the scenarios directory, or one
 // specific scenario depending on the active sandbox scope.
-func scanSandboxScenarioNames(env SandboxEnv) ([]string, error) {
+func scanSandboxScenarioNames(root string, env SandboxEnv) ([]string, error) {
 	if !env.Enabled() {
 		return nil, nil
 	}
 	if info, err := os.Stat(env.Merged); err != nil || !info.IsDir() {
 		return nil, nil
 	}
-
-	scope := strings.TrimSpace(strings.TrimSuffix(env.Scope, "/"))
+	scope := normalizeSandboxScope(env.Scope)
+	scenarioDir := strings.Trim(strings.TrimSpace(filepath.ToSlash(contractPaths.ScenarioDirName(root))), "/")
+	prefix := strings.Trim(strings.TrimSpace(filepath.ToSlash(contractPaths.ScenarioScopePrefix(root))), "/")
+	if prefix == "" {
+		prefix = scenarioDir
+	}
 	switch {
-	case scope == "" || scope == "." || scope == "/":
-		return scanScenarioNames(filepath.Join(env.Merged, "scenarios"))
-	case scope == "scenarios":
+	case contractPaths.IsFullRepoScope(root, scope):
+		return scanScenarioNames(filepath.Join(env.Merged, filepath.FromSlash(scenarioDir)))
+	case scope == scenarioDir:
 		return scanScenarioNames(env.Merged)
-	case strings.HasPrefix(scope, "scenarios/"):
-		name := strings.TrimPrefix(scope, "scenarios/")
+	case strings.HasPrefix(scope, prefix+"/"):
+		name := strings.TrimPrefix(scope, prefix+"/")
 		name = strings.SplitN(name, "/", 2)[0]
-		resolved := ResolveMergedPath(name, env.Scope, env.Merged)
+		resolved := ResolveMergedPath(root, name, env.Scope, env.Merged)
 		if _, err := os.Stat(filepath.Join(resolved, filepath.FromSlash(defaultScenarioServiceRelPath))); err == nil {
 			return []string{name}, nil
 		}
@@ -685,28 +691,20 @@ func scanSandboxScenarioNames(env SandboxEnv) ([]string, error) {
 	return nil, nil
 }
 
+func normalizeSandboxScope(scope string) string {
+	scope = strings.TrimSpace(filepath.ToSlash(scope))
+	scope = strings.TrimSuffix(scope, "/")
+	return scope
+}
+
 func scenarioBaseDir(root string) string {
-	contract, err := repocontract.LoadDefault(root)
-	if err != nil {
-		return filepath.Join(root, "scenarios")
-	}
-	path, err := contract.TopLevelDir(root, "scenarios")
-	if err != nil {
-		return filepath.Join(root, "scenarios")
-	}
-	return path
+	return contractPaths.ScenarioBaseDir(root)
 }
 
 func scenarioRootPath(root, name string) string {
-	if path, err := repocontract.ResolveScenarioPath(root, name); err == nil {
-		return filepath.Clean(path)
-	}
-	return filepath.Clean(filepath.Join(root, "scenarios", name))
+	return contractPaths.ScenarioRootPath(root, name)
 }
 
 func scenarioServicePath(root, name, scenarioPath string) string {
-	if path, err := repocontract.ResolveScenarioFile(root, name, "service"); err == nil {
-		return filepath.Clean(path)
-	}
-	return filepath.Join(scenarioPath, filepath.FromSlash(defaultScenarioServiceRelPath))
+	return contractPaths.ScenarioServicePath(root, name, scenarioPath)
 }

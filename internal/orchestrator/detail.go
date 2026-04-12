@@ -110,7 +110,7 @@ func (s *Service) Detail(name string) (Detail, error) {
 }
 
 func (s *Service) StartDetailed(name string, opts lifecycle.StartOptions) (StartResult, error) {
-	runner, err := lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr)
+	runner, err := lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr, s.logger())
 	if err != nil {
 		return StartResult{}, err
 	}
@@ -133,7 +133,7 @@ func (s *Service) StartDetailed(name string, opts lifecycle.StartOptions) (Start
 }
 
 func (s *Service) RestartDetailed(name string, opts lifecycle.StartOptions) (StartResult, error) {
-	runner, err := lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr)
+	runner, err := lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr, s.logger())
 	if err != nil {
 		return StartResult{}, err
 	}

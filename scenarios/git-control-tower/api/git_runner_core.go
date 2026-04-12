@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // ExecGitRunner implements GitRunner by executing the real git binary.
@@ -207,16 +209,12 @@ func (r *ExecGitRunner) LookPath() (string, error) {
 	return exec.LookPath(r.gitPath())
 }
 
-// ResolveRepoRoot returns the repository root directory.
-// Priority: VROOLI_ROOT env var > git rev-parse --show-toplevel > empty string.
-// DECISION BOUNDARY: This determines which repository the API operates on.
 func (r *ExecGitRunner) ResolveRepoRoot(ctx context.Context) string {
-	// First, check for explicit VROOLI_ROOT configuration
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err == nil {
 		return root
 	}
 
-	// Fall back to git's repository detection
 	cmd := exec.CommandContext(ctx, r.gitPath(), "rev-parse", "--show-toplevel")
 	out, err := cmd.Output()
 	if err == nil {

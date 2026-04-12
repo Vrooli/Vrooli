@@ -2,22 +2,66 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "mail-in-a-box",
   "display_name": "Mail-in-a-Box",
-  "description": "Transitional Mail-in-a-Box resource kept behind a typed legacy adapter while support boundaries are re-evaluated.",
-  "template": "legacy-adapter",
-  "driver": "legacy-adapter",
-  "legacy_adapter": {
-    "owner": "Matthew Halloran",
-    "decision_deadline": "2026-05-31",
-    "final_disposition": "migrate",
-    "legacy_cli_path": "resources/mail-in-a-box/cli.sh",
-    "notes": "Phase 0 keep resource only because it remains project-enabled; native/manual viability should be revalidated before long-term retention."
-  },
+  "description": "Managed self-hosted mail stack with native compose-backed lifecycle and shell-retained account, domain, API, and CalDAV workflows.",
+  "template": "compose-service",
+  "driver": "compose-service",
+  "compose_file": "docker-compose.yml",
   "portability_tier": "platform-specific",
   "category": "infrastructure",
   "platforms": {
     "linux": "supported",
     "macos": "unsupported",
     "windows": "unsupported"
+  },
+  "ports": [
+    {
+      "name": "smtp",
+      "container": 25,
+      "host": 25
+    },
+    {
+      "name": "submission",
+      "container": 587,
+      "host": 587
+    },
+    {
+      "name": "imaps",
+      "container": 993,
+      "host": 993
+    },
+    {
+      "name": "pop3s",
+      "container": 995,
+      "host": 995
+    },
+    {
+      "name": "webmail",
+      "container": 80,
+      "host": 8880
+    },
+    {
+      "name": "caldav",
+      "container": 5232,
+      "host": 5232
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "tcp",
+      "target": "127.0.0.1:25",
+      "interval_seconds": 10,
+      "timeout_seconds": 5
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8880/",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "capabilities": {
+    "supports_logs": true,
+    "supports_content_ops": true
   },
   "template_version": "1"
 }

@@ -51,11 +51,11 @@ cli::init "postgis" "Spatial database extension for PostgreSQL" "v2"
 # REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
 # ==============================================================================
 # shellcheck disable=SC2034  # CLI_COMMAND_HANDLERS is used by CLI framework
-CLI_COMMAND_HANDLERS["manage::install"]="postgis::install::execute"
-CLI_COMMAND_HANDLERS["manage::uninstall"]="postgis::install::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="postgis::docker::start"
-CLI_COMMAND_HANDLERS["manage::stop"]="postgis::docker::stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="postgis::docker::restart"
+CLI_COMMAND_HANDLERS["manage::install"]="cli::delegate_install"
+CLI_COMMAND_HANDLERS["manage::uninstall"]="cli::delegate_uninstall"
+CLI_COMMAND_HANDLERS["manage::start"]="cli::delegate_start"
+CLI_COMMAND_HANDLERS["manage::stop"]="cli::delegate_stop"
+CLI_COMMAND_HANDLERS["manage::restart"]="cli::delegate_restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="postgis::status::check"
 CLI_COMMAND_HANDLERS["test::unit"]="postgis::test::unit"
 CLI_COMMAND_HANDLERS["test::integration"]="postgis::test::integration"
@@ -80,8 +80,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="postgis::content::execute"
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
-cli::register_command "status" "Show detailed PostGIS status" "postgis::status"
-cli::register_command "logs" "Show PostGIS container logs" "postgis::docker::logs"
+cli::register_command "status" "Show detailed PostGIS status" "cli::delegate_status"
+cli::register_command "logs" "Show PostGIS container logs" "cli::delegate_logs"
 cli::register_command "credentials" "Display integration credentials" "postgis::credentials"
 
 # ==============================================================================

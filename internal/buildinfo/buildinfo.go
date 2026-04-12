@@ -94,21 +94,51 @@ type StaleCheck struct {
 	Stale               bool
 }
 
-type missingTargetsError struct {
-	targets []string
+// MissingTargetsError reports targets that were requested but do not exist
+// beneath the repository root.
+type MissingTargetsError struct {
+	Targets []string
 }
 
-func (e missingTargetsError) Error() string {
-	return fmt.Sprintf("missing fingerprint targets: %s", strings.Join(e.targets, ", "))
+func (e MissingTargetsError) Error() string {
+	return fmt.Sprintf("missing fingerprint targets: %s", strings.Join(e.Targets, ", "))
 }
 
-type noGoFilesMatchedError struct {
-	root    string
-	targets []string
+// NoGoFilesMatchedError reports that the requested targets exist but do not
+// include any Go files in the fingerprint set.
+type NoGoFilesMatchedError struct {
+	Root    string
+	Targets []string
 }
 
-func (e noGoFilesMatchedError) Error() string {
-	return fmt.Sprintf("no Go files matched beneath root %q for targets %s", e.root, strings.Join(e.targets, ", "))
+func (e NoGoFilesMatchedError) Error() string {
+	return fmt.Sprintf("no Go files matched beneath root %q for targets %s", e.Root, strings.Join(e.Targets, ", "))
+}
+
+type TargetPathErrorReason string
+
+const (
+	TargetPathMustBeRelative TargetPathErrorReason = "must_be_relative"
+	TargetPathEscapesRoot    TargetPathErrorReason = "escapes_root"
+)
+
+// TargetPathError reports invalid target path requests before the filesystem is
+// accessed.
+type TargetPathError struct {
+	Target string
+	Root   string
+	Reason TargetPathErrorReason
+}
+
+func (e TargetPathError) Error() string {
+	switch e.Reason {
+	case TargetPathMustBeRelative:
+		return fmt.Sprintf("target %q must be relative to the repository root", e.Target)
+	case TargetPathEscapesRoot:
+		return fmt.Sprintf("target %q escapes repository root %s", e.Target, e.Root)
+	default:
+		return fmt.Sprintf("target %q is invalid", e.Target)
+	}
 }
 
 // ComputeSourceFingerprint returns a deterministic fingerprint of all Go files
@@ -171,7 +201,7 @@ func ComputeSourceFingerprintReport(rootDir string, options FingerprintOptions, 
 	}
 
 	if options.RequireExistingTargets && len(report.MissingTargets) > 0 {
-		return FingerprintReport{}, missingTargetsError{targets: append([]string(nil), report.MissingTargets...)}
+		return FingerprintReport{}, MissingTargetsError{Targets: append([]string(nil), report.MissingTargets...)}
 	}
 
 	sort.Slice(entries, func(i, j int) bool {
@@ -186,9 +216,9 @@ func ComputeSourceFingerprintReport(rootDir string, options FingerprintOptions, 
 	report.Fingerprint = fmt.Sprintf("%x", hasher.Sum(nil))
 
 	if options.RequireGoFiles && report.MatchedFiles == 0 {
-		return FingerprintReport{}, noGoFilesMatchedError{
-			root:    report.Root,
-			targets: append([]string(nil), report.Targets...),
+		return FingerprintReport{}, NoGoFilesMatchedError{
+			Root:    report.Root,
+			Targets: append([]string(nil), report.Targets...),
 		}
 	}
 
@@ -429,7 +459,7 @@ func normalizeTargets(paths []string) []string {
 
 func resolveTargetPath(rootDir, target string) (string, error) {
 	if filepath.IsAbs(target) {
-		return "", fmt.Errorf("target %q must be relative to the repository root", target)
+		return "", TargetPathError{Target: target, Reason: TargetPathMustBeRelative}
 	}
 
 	base := filepath.Join(rootDir, filepath.FromSlash(target))
@@ -444,7 +474,7 @@ func resolveTargetPath(rootDir, target string) (string, error) {
 	}
 	relToRoot = filepath.ToSlash(relToRoot)
 	if relToRoot == ".." || strings.HasPrefix(relToRoot, "../") {
-		return "", fmt.Errorf("target %q escapes repository root %s", target, rootDir)
+		return "", TargetPathError{Target: target, Root: rootDir, Reason: TargetPathEscapesRoot}
 	}
 
 	return absoluteBase, nil

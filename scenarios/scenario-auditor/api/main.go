@@ -642,14 +642,17 @@ func checkFilesystemHealth() map[string]any {
 		"checks": map[string]any{},
 	}
 
-	// Check VROOLI_ROOT
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	scenariosDir, err := resolveScenariosRoot()
+	if err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]any{
+			"code":      "SCENARIOS_DIR_NOT_ACCESSIBLE",
+			"message":   "Cannot resolve scenarios directory: " + err.Error(),
+			"category":  "configuration",
+			"retryable": false,
+		}
+		return health
 	}
-
-	// Check scenarios directory
-	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
 	if info, err := os.Stat(scenariosDir); err != nil {
 		health["status"] = "unhealthy"
 		health["error"] = map[string]any{

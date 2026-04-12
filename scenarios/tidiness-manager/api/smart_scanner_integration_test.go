@@ -17,6 +17,7 @@ import (
 func TestSmartScanner_ScanScenarioEndToEnd(t *testing.T) {
 	// Create test scenario files
 	vrooliRoot := t.TempDir()
+	writeRepoContractFixture(t, vrooliRoot)
 	scenarioName := "test-scenario"
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", scenarioName)
 
@@ -173,6 +174,7 @@ func TestSmartScanner_ScanScenarioEndToEnd(t *testing.T) {
 // [REQ:TM-SS-001] Test batch processing with AI resource errors
 func TestSmartScanner_BatchProcessingWithErrors(t *testing.T) {
 	vrooliRoot := t.TempDir()
+	writeRepoContractFixture(t, vrooliRoot)
 	scenarioName := "test-scenario"
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", scenarioName)
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
@@ -284,6 +286,7 @@ func TestSmartScanner_BatchProcessingWithErrors(t *testing.T) {
 // [REQ:TM-SS-001] Test concurrent batch processing
 func TestSmartScanner_ConcurrentBatchProcessing(t *testing.T) {
 	vrooliRoot := t.TempDir()
+	writeRepoContractFixture(t, vrooliRoot)
 	scenarioName := "test-scenario"
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", scenarioName)
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
@@ -376,6 +379,7 @@ func TestSmartScanner_ConcurrentBatchProcessing(t *testing.T) {
 // [REQ:TM-SS-007] Test context cancellation during batch processing
 func TestSmartScanner_ContextCancellation(t *testing.T) {
 	vrooliRoot := t.TempDir()
+	writeRepoContractFixture(t, vrooliRoot)
 	scenarioName := "test-scenario"
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", scenarioName)
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
