@@ -37,6 +37,7 @@ var topLevelCommandTable = []commandDescriptor{
 	{Name: "orphans", Group: "Maintenance Commands", Summary: "Inspect or clean orphaned Vrooli processes", Handler: (*App).runTopLevelOrphansCommand, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 	{Name: "locks", Group: "Maintenance Commands", Summary: "Inspect or clean stale port lock files", Handler: (*App).runTopLevelLocksCommand, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 	{Name: "diagnose-port", Group: "Maintenance Commands", Summary: "Diagnose port conflicts and stale lock ownership", Handler: (*App).runTopLevelDiagnosePortCommand, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
+	{Name: "contract", Group: "Maintenance Commands", Summary: "Inspect and validate the repository contract", Handler: (*App).runContractCommand, Suggestable: true, RequiresRoot: false},
 }
 
 var scenarioCommandTable = []commandDescriptor{

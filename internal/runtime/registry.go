@@ -78,11 +78,17 @@ var runtimeRegistry = newRegistry(
 	newNodeTool(),
 	newPythonTool(),
 	newHelmTool(),
+	newStripeTool(),
 	newTmuxTool(),
 	newSQLiteTool(),
 	newFFmpegTool(),
 	newBatsTool(),
 	newYQTool(),
+	newXvfbTool(),
+	newX11VNCTool(),
+	newXDoTool(),
+	newWebsockifyTool(),
+	newOpenboxTool(),
 	newRemoteSessionProtectionSafeguard(),
 )
 

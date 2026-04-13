@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/repocontractcheck"
 )
 
 type contractDoc struct {
@@ -427,15 +429,27 @@ func TestRepoContractBundleProfileStaysWithinPhase1Policy(t *testing.T) {
 	}
 }
 
+func TestRepoContractChecksPackagePasses(t *testing.T) {
+	report, err := repocontractcheck.Run(repoRoot(t))
+	if err != nil {
+		t.Fatalf("repocontractcheck.Run(): %v", err)
+	}
+	if !report.Success {
+		t.Fatalf("repocontractcheck report = %+v", report)
+	}
+}
+
 func TestRepoContractDocsStayAlignedWithPhase1Contract(t *testing.T) {
 	root := repoRoot(t)
 	docs := string(mustReadFile(t, filepath.Join(root, "docs", "repo-contract.md")))
 
 	requiredSnippets := []string{
-		"Phase 1 implementation status:",
+		"`vrooli contract validate`",
+		"`vrooli contract show`",
+		"`vrooli contract resolve scenario <name> --file service`",
+		"`vrooli contract match-glob <pattern> <path>`",
 		"make validate-repo-contract",
-		"canonical scenario manifest path: `scenarios/<name>/.vrooli/service.json`",
-		"canonical resource manifest path: `resources/<name>/resource.json`",
+		"CI/automation entrypoint",
 		"`packages/repo-contract-go`",
 		"## Landed Consumer Migrations",
 		"`swarm-manager`",

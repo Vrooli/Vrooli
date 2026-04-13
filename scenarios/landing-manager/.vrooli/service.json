@@ -1,5 +1,15 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "hostTools": [
+    {
+      "name": "stripe",
+      "required": false,
+      "reason": "Forward local Stripe webhooks and trigger payment events while validating landing-page billing flows",
+      "when": ["setup", "develop", "test"],
+      "environments": ["development"],
+      "notes": "Landing Manager docs and generated scenarios rely on the Stripe CLI for local webhook workflows"
+    }
+  ],
   "version": "1.0.0",
   "service": {
     "parent": "vrooli",

@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -52,346 +51,59 @@ func runScenarioRunCommand(root string, globals globalOptions, args []string, st
 }
 
 func runScenarioSetupCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario setup <name> [--path <path>]")
-			return nil
-		}
-	}
-
-	name, opts, err := parseScenarioPhaseArgs("setup", args)
-	if err != nil {
-		return err
-	}
-
-	runner, _, err := app.newScenarioLifecycleRunnerForFormat(ctx, false)
-	if err != nil {
-		return err
-	}
-	result, err := runner.RunPhaseDetailed(name, "setup", opts)
-	if err != nil {
-		return err
-	}
-
-	if ctx.Globals.json {
-		return cliout.WriteJSON(ctx.Stdout, map[string]any{
-			"success":  true,
-			"scenario": name,
-			"phase":    "setup",
-			"status":   result.Status,
-			"defined":  result.Defined,
-			"steps": map[string]int{
-				"executed": result.ExecutedSteps,
-				"skipped":  result.SkippedSteps,
-			},
-		})
-	}
-
-	switch result.Status {
-	case lifecycle.PhaseExecutionCompleted:
-		_, _ = fmt.Fprintf(ctx.Stdout, "Completed setup for scenario '%s' (%d executed, %d skipped)\n", name, result.ExecutedSteps, result.SkippedSteps)
-	case lifecycle.PhaseExecutionSkipped:
-		_, _ = fmt.Fprintf(ctx.Stdout, "Setup phase for scenario '%s' ran no steps (%d skipped)\n", name, result.SkippedSteps)
-	default:
-		_, _ = fmt.Fprintf(ctx.Stdout, "Scenario '%s' does not define a setup phase\n", name)
-	}
-	return nil
+	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioSetupRequest, lifecycle.PhaseResult]{
+		parse:  parseScenarioSetupRequest,
+		run:    runScenarioSetupRequest,
+		render: renderScenarioSetupResponse,
+	})
 }
 
 func runScenarioTestCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario test <name> [phase|all|e2e] [--allow-skip-missing-runtime] [--manage-runtime]")
-			return nil
-		}
-	}
-
-	name, opts, err := parseScenarioTestArgs(ctx.Globals, args)
-	if err != nil {
-		return err
-	}
-
-	runner, _, err := app.newScenarioLifecycleRunnerForFormat(ctx, false)
-	if err != nil {
-		return err
-	}
-	return runner.RunPhase(name, "test", opts)
+	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioTestRequest, struct{}]{
+		parse:  parseScenarioTestRequest,
+		run:    runScenarioTestRequest,
+		render: renderScenarioTestResponse,
+	})
 }
 
 func runScenarioStartAllCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	jsonFlag := ctx.Globals.json
-	if len(args) > 0 {
-		for _, arg := range args {
-			switch arg {
-			case "--json":
-				jsonFlag = true
-			case "--help", "-h":
-				_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario start-all [--json]")
-				return nil
-			default:
-				return unknownOptionError("scenario start-all", arg)
-			}
-		}
-	}
-
-	service, format, err := app.newScenarioServiceForFormat(ctx, jsonFlag)
-	if err != nil {
-		return err
-	}
-	report, err := service.StartAll()
-	if err != nil {
-		return err
-	}
-
-	started := make([]scenarioLifecycleItemOutput, 0, len(report.Started))
-	for _, item := range report.Started {
-		started = append(started, scenarioLifecycleItemOutput{Name: item.Name, Status: "started"})
-	}
-	failed := make([]scenarioBatchFailure, 0, len(report.Failed))
-	for _, item := range report.Failed {
-		failed = append(failed, scenarioBatchFailure{Name: item.Name, Error: item.Error})
-	}
-
-	return writeScenarioBatchReport(ctx.Stdout, format, "Started", started, nil, failed)
+	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioStartAllRequest, scenarioBatchResponse]{
+		parse:  parseScenarioStartAllRequest,
+		run:    runScenarioStartAllRequest,
+		render: renderScenarioBatchResponse,
+	})
 }
 
 func runScenarioStopAllCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	jsonFlag := ctx.Globals.json
-	for _, arg := range args {
-		switch arg {
-		case "--json":
-			jsonFlag = true
-		case "--help", "-h":
-			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario stop-all [--json]")
-			return nil
-		default:
-			return unknownOptionError("scenario stop-all", arg)
-		}
-	}
-
-	service, format, err := app.newScenarioServiceForFormat(ctx, jsonFlag)
-	if err != nil {
-		return err
-	}
-	report, err := service.StopAll()
-	if err != nil {
-		return err
-	}
-
-	stopped := make([]string, 0, len(report.Stopped))
-	for _, item := range report.Stopped {
-		stopped = append(stopped, item.Name)
-	}
-	failed := make([]scenarioBatchFailure, 0, len(report.Failed))
-	for _, item := range report.Failed {
-		failed = append(failed, scenarioBatchFailure{Name: item.Name, Error: item.Error})
-	}
-
-	return writeScenarioBatchReport(ctx.Stdout, format, "Stopped", nil, stopped, failed)
+	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioStopAllRequest, scenarioBatchResponse]{
+		parse:  parseScenarioStopAllRequest,
+		run:    runScenarioStopAllRequest,
+		render: renderScenarioBatchResponse,
+	})
 }
 
 func runScenarioPortCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	scenarioName := ""
-	portName := ""
-	jsonFlag := ctx.Globals.json
-
-	for _, arg := range args {
-		switch {
-		case arg == "--json":
-			jsonFlag = true
-		case arg == "--help" || arg == "-h":
-			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario port <scenario-name> [<port-name>] [--json]")
-			return nil
-		case strings.HasPrefix(arg, "-"):
-			return unknownOptionError("scenario port", arg)
-		case scenarioName == "":
-			scenarioName = arg
-		case portName == "":
-			portName = arg
-		default:
-			return usageErrorf("scenario port", "scenario port accepts at most two positional arguments")
-		}
-	}
-
-	if scenarioName == "" {
-		return usageErrorf("scenario port", "scenario port requires a scenario name")
-	}
-
-	serviceCtx := *ctx
-	serviceCtx.Stdout = io.Discard
-	serviceCtx.Stderr = io.Discard
-	service, err := app.newScenarioService(&serviceCtx)
-	if err != nil {
-		return err
-	}
-	detail, err := service.Detail(scenarioName)
-	if err != nil {
-		return err
-	}
-	listPorts, portsMap := buildListPorts(detail.Scenario.Manifest, detail.Runtime.Records)
-
-	if portName == "" {
-		if detail.Runtime.ProcessCount == 0 || len(portsMap) == 0 {
-			if jsonFlag {
-				return cliout.WriteJSON(ctx.Stdout, scenarioPortListOutput{
-					Success:  false,
-					Scenario: scenarioName,
-					Ports:    []scenarioListPortOutput{},
-					Error:    "No running processes found for scenario",
-				})
-			}
-			return fmt.Errorf("no running processes found for scenario %q", scenarioName)
-		}
-		if jsonFlag {
-			return cliout.WriteJSON(ctx.Stdout, scenarioPortListOutput{
-				Success:  true,
-				Scenario: scenarioName,
-				Ports:    listPorts,
-				Metadata: map[string]int{"count": len(listPorts)},
-			})
-		}
-		for _, port := range listPorts {
-			_, _ = fmt.Fprintf(ctx.Stdout, "%s=%d\n", port.Key, port.Port)
-		}
-		return nil
-	}
-
-	resolved, err := service.ResolvePort(scenarioName, portName)
-	if err != nil {
-		if jsonFlag {
-			return cliout.WriteJSON(ctx.Stdout, scenarioPortSingleOutput{
-				Success:  false,
-				Scenario: scenarioName,
-				PortName: portName,
-				Error:    err.Error(),
-			})
-		}
-		return err
-	}
-
-	if jsonFlag {
-		return cliout.WriteJSON(ctx.Stdout, scenarioPortSingleOutput{
-			Success:  true,
-			Scenario: scenarioName,
-			PortName: resolved.Name,
-			Step:     resolved.Step,
-			Port:     resolved.Port,
-		})
-	}
-	_, _ = fmt.Fprintln(ctx.Stdout, resolved.Port)
-	return nil
+	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioPortRequest, scenarioPortResponse]{
+		parse:  parseScenarioPortRequest,
+		run:    runScenarioPortRequest,
+		render: renderScenarioPortResponse,
+	})
 }
 
 func runScenarioOpenCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	scenarioName := ""
-	portName := "UI_PORT"
-	printURL := false
-	jsonFlag := ctx.Globals.json
-
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch arg {
-		case "--help", "-h":
-			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario open <scenario-name> [--port <name>] [--print-url]")
-			return nil
-		case "--port":
-			if index+1 >= len(args) {
-				return usageErrorf("scenario open", "scenario open --port requires a value")
-			}
-			index++
-			portName = args[index]
-		case "--print-url":
-			printURL = true
-		case "--json":
-			jsonFlag = true
-		default:
-			if strings.HasPrefix(arg, "-") {
-				return unknownOptionError("scenario open", arg)
-			}
-			if scenarioName != "" {
-				return usageErrorf("scenario open", "scenario open accepts exactly one scenario name")
-			}
-			scenarioName = arg
-		}
-	}
-
-	if scenarioName == "" {
-		return usageErrorf("scenario open", "scenario open requires a scenario name")
-	}
-
-	serviceCtx := *ctx
-	serviceCtx.Stdout = io.Discard
-	serviceCtx.Stderr = io.Discard
-	service, err := app.newScenarioService(&serviceCtx)
-	if err != nil {
-		return err
-	}
-	resolved, err := service.ResolvePort(scenarioName, portName)
-	if err != nil {
-		return err
-	}
-
-	if jsonFlag {
-		return cliout.WriteJSON(ctx.Stdout, scenarioOpenOutput{
-			Success:  true,
-			Scenario: scenarioName,
-			PortName: resolved.Name,
-			Port:     resolved.Port,
-			URL:      resolved.URL,
-		})
-	}
-	if printURL {
-		_, _ = fmt.Fprintln(ctx.Stdout, resolved.URL)
-		return nil
-	}
-	if err := app.openScenarioURL(resolved.URL); err != nil {
-		return err
-	}
-	_, _ = fmt.Fprintf(ctx.Stderr, "Opening %s at %s\n", scenarioName, resolved.URL)
-	return nil
+	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioOpenRequest, scenarioOpenOutput]{
+		parse:  parseScenarioOpenRequest,
+		run:    runScenarioOpenRequest,
+		render: renderScenarioOpenResponse,
+	})
 }
 
 func runScenarioUISmokeCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	home, err := ctx.HomeDir()
-	if err != nil {
-		return err
-	}
-	cliPath, err := app.locateTestGenieCLI(ctx.Root, home)
-	if err != nil {
-		return err
-	}
-
-	commandArgs := []string{"ui-smoke"}
-	commandArgs = append(commandArgs, args...)
-	commandArgs = append(commandArgs, app.passthroughFlags(ctx.Globals, commandArgs)...)
-	return app.runScenarioSubprocess(scenarioSubprocessSpec{
-		name:   cliPath,
-		args:   commandArgs,
-		dir:    ctx.Root,
-		env:    app.commandEnv(ctx.Root, ctx.Globals),
-		stdout: ctx.Stdout,
-		stderr: ctx.Stderr,
-	})
+	return app.runScenarioTestGenieCommand(ctx, buildUISmokeArgs(ctx.Globals, args))
 }
 
 func runScenarioCompletenessCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	cliPath, err := app.locateScenarioCompletenessCLI(ctx.Root)
-	if err != nil {
-		return err
-	}
-
-	commandArgs := append([]string{}, args...)
-	if ctx.Globals.json && !containsArg(commandArgs, "--json") && !containsArg(commandArgs, "--format") {
-		commandArgs = append(commandArgs, "--json")
-	}
-	return app.runScenarioSubprocess(scenarioSubprocessSpec{
-		name:   cliPath,
-		args:   commandArgs,
-		dir:    ctx.Root,
-		env:    app.commandEnv(ctx.Root, ctx.Globals),
-		stdout: ctx.Stdout,
-		stderr: ctx.Stderr,
-	})
+	return app.runScenarioCompletenessSubprocessCommand(ctx, buildScenarioCompletenessArgs(ctx.Globals, args))
 }
 
 func runScenarioRequirementsCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -417,13 +129,10 @@ func runScenarioRequirementsCommandWithApp(app *App, ctx *commandContext, args [
 	if err != nil {
 		return err
 	}
-	return app.runScenarioSubprocess(scenarioSubprocessSpec{
-		name:   cliPath,
-		args:   commandArgs,
-		dir:    workdir,
-		env:    app.commandEnv(ctx.Root, ctx.Globals),
-		stdout: ctx.Stdout,
-		stderr: ctx.Stderr,
+	return app.runScenarioExternalCommand(ctx, scenarioExternalCommandSpec{
+		name: cliPath,
+		args: commandArgs,
+		dir:  workdir,
 	})
 }
 

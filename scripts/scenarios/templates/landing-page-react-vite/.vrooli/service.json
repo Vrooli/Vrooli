@@ -1,5 +1,15 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "hostTools": [
+    {
+      "name": "stripe",
+      "required": false,
+      "reason": "Support local Stripe webhook forwarding and payment event triggers in generated landing-page scenarios",
+      "when": ["setup", "develop", "test"],
+      "environments": ["development"],
+      "notes": "Generated landing-page scenarios document Stripe CLI workflows for /api/v1/webhooks/stripe"
+    }
+  ],
   "version": "1.0.0",
   "service": {
     "parent": "vrooli",

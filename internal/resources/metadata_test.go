@@ -182,7 +182,7 @@ func TestLoadResourceEnvironmentFallsBackToLegacySecretsDuringMigration(t *testi
 	}
 }
 
-func TestLoadResourceEnvironmentFallsBackWhenEncryptedSecretsAreInvalid(t *testing.T) {
+func TestLoadResourceEnvironmentFailsClosedWhenEncryptedSecretsAreInvalid(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
@@ -207,12 +207,9 @@ func TestLoadResourceEnvironmentFallsBackWhenEncryptedSecretsAreInvalid(t *testi
 }`, 0o600)
 	writeJSONMode(t, filepath.Join(root, ".vrooli", "secrets.enc.json"), `{`, 0o600)
 
-	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
-	if err != nil {
-		t.Fatalf("LoadResourceEnvironment(postgres): %v", err)
-	}
-	if got := postgresEnv["POSTGRES_PASSWORD"]; got != "legacy-secret" {
-		t.Fatalf("POSTGRES_PASSWORD = %q, want legacy-secret", got)
+	_, err := LoadResourceEnvironment(root, home, "postgres")
+	if err == nil {
+		t.Fatal("expected invalid encrypted secrets to fail closed")
 	}
 }
 

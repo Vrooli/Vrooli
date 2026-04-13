@@ -28,9 +28,6 @@ func TestNewProjectStoreUsesDefaultBoundaries(t *testing.T) {
 	if store.EnvLookup == nil {
 		t.Fatal("EnvLookup is nil")
 	}
-	if store.LoadPolicy != LoadPolicyStrict {
-		t.Fatalf("LoadPolicy = %v, want %v", store.LoadPolicy, LoadPolicyStrict)
-	}
 	if store.deps.readFile == nil || store.deps.createTemp == nil || store.deps.rename == nil || store.deps.open == nil || store.deps.openFile == nil || store.deps.mkdirAll == nil || store.deps.removeFile == nil {
 		t.Fatal("store deps not fully initialized")
 	}
@@ -145,7 +142,7 @@ func TestStoreLoadFallsBackToLegacyPlaintext(t *testing.T) {
 	}
 }
 
-func TestStoreLoadWithPolicyMakesLegacyFallbackExplicit(t *testing.T) {
+func TestStoreLoadMigrationCompatibleMakesLegacyFallbackExplicit(t *testing.T) {
 	t.Run("strict load fails when encrypted file exists but key is missing", func(t *testing.T) {
 		writer := newTestStore(t)
 		writeLegacySecrets(t, writer, `{"API_KEY":"legacy"}`)
@@ -168,26 +165,23 @@ func TestStoreLoadWithPolicyMakesLegacyFallbackExplicit(t *testing.T) {
 		}
 
 		reader := NewProjectStore(writer.Root)
-		values, err := reader.LoadWithPolicy(LoadPolicyBestEffortLegacy)
+		values, err := reader.LoadMigrationCompatible()
 		if err != nil {
-			t.Fatalf("LoadWithPolicy: %v", err)
+			t.Fatalf("LoadMigrationCompatible: %v", err)
 		}
 		if got := values["API_KEY"]; got != "legacy" {
 			t.Fatalf("API_KEY = %q, want legacy", got)
 		}
 	})
 
-	t.Run("best effort load also falls back when encrypted payload is invalid", func(t *testing.T) {
+	t.Run("migration-compatible load fails closed when encrypted payload is invalid", func(t *testing.T) {
 		store := newTestStore(t)
 		writeLegacySecrets(t, store, `{"API_KEY":"legacy"}`)
 		writeEncryptedPayload(t, store, `{`)
 
-		values, err := store.LoadWithPolicy(LoadPolicyBestEffortLegacy)
-		if err != nil {
-			t.Fatalf("LoadWithPolicy: %v", err)
-		}
-		if got := values["API_KEY"]; got != "legacy" {
-			t.Fatalf("API_KEY = %q, want legacy", got)
+		_, err := store.LoadMigrationCompatible()
+		if err == nil || !errors.Is(err, ErrEncryptedInvalid) {
+			t.Fatalf("LoadMigrationCompatible error = %v, want ErrEncryptedInvalid", err)
 		}
 	})
 }
@@ -222,15 +216,15 @@ func TestStoreLoadEncryptedRejectsInvalidPayloads(t *testing.T) {
 		},
 		{
 			name:     "unsupported-version",
-			payload:  `{"version":2,"algorithm":"AES-256-GCM","nonce":"bm9uY2U=","ciphertext":"Y2lwaGVy"}`,
+			payload:  `{"version":99,"algorithm":"AES-256-GCM","nonce":"bm9uY2U=","ciphertext":"Y2lwaGVy"}`,
 			wantErr:  ErrUnsupportedVersion,
-			wantText: "unsupported secrets version",
+			wantText: "validate encrypted secrets version",
 		},
 		{
 			name:     "unsupported-algorithm",
 			payload:  `{"version":1,"algorithm":"age","nonce":"bm9uY2U=","ciphertext":"Y2lwaGVy"}`,
 			wantErr:  ErrUnsupportedAlgorithm,
-			wantText: "unsupported secrets algorithm",
+			wantText: "validate encrypted secrets algorithm",
 		},
 		{
 			name:     "invalid-nonce",
@@ -360,6 +354,19 @@ func TestStoreRejectsSymlinkSecretFiles(t *testing.T) {
 	}
 }
 
+func TestStoreRejectsNonRegularSecretFiles(t *testing.T) {
+	store := newTestStore(t)
+	path := store.LegacyPath()
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", path, err)
+	}
+
+	_, err := store.LoadLegacy()
+	if err == nil || !errors.Is(err, ErrInvalidSecretData) {
+		t.Fatalf("LoadLegacy error = %v, want ErrInvalidSecretData", err)
+	}
+}
+
 func TestStoreSaveHonorsInjectedBoundaries(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -409,6 +416,7 @@ func TestStoreSaveHonorsInjectedBoundaries(t *testing.T) {
 		{
 			name: "nonce-failure",
 			override: func(store *Store) {
+				store.KeyProvider = staticKeyProvider(base64.StdEncoding.EncodeToString(bytesRepeat(0x42, 32)))
 				store.deps.randReader = failingReader{err: errors.New("entropy failed")}
 			},
 			wantSubstr: "generate nonce",
@@ -446,6 +454,11 @@ func TestStoreSaveRejectsReservedAndConflictingKeys(t *testing.T) {
 	err := store.Save(map[string]string{"_metadata": "value"})
 	if err == nil || !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("Save reserved-key error = %v, want ErrInvalidInput", err)
+	}
+
+	err = store.Save(map[string]string{"API_KEY": "   "})
+	if err == nil || !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("Save blank-value error = %v, want ErrInvalidInput", err)
 	}
 
 	err = store.Save(map[string]string{
@@ -759,6 +772,75 @@ func TestDeriveKeyBoundaries(t *testing.T) {
 	})
 }
 
+func TestDeriveWriteAndReadKeyVersionTwoBoundaries(t *testing.T) {
+	t.Run("raw key payload round trip", func(t *testing.T) {
+		raw := bytesRepeat(0x2a, 32)
+		encoded := base64.StdEncoding.EncodeToString(raw)
+
+		keySpec, err := deriveWriteKey(encoded, strings.NewReader("0123456789abcdef0123456789abcdef"))
+		if err != nil {
+			t.Fatalf("deriveWriteKey: %v", err)
+		}
+		if keySpec.KDF != kdfRaw32 {
+			t.Fatalf("KDF = %q, want %q", keySpec.KDF, kdfRaw32)
+		}
+
+		readKey, err := deriveReadKey(encryptedFile{
+			Version:   encryptionVersionV2,
+			Algorithm: encryptionAlgorithm,
+			KDF:       kdfRaw32,
+		}, encoded)
+		if err != nil {
+			t.Fatalf("deriveReadKey: %v", err)
+		}
+		if string(readKey) != string(raw) {
+			t.Fatal("deriveReadKey returned unexpected raw key bytes")
+		}
+	})
+
+	t.Run("passphrase payload uses PBKDF2 metadata", func(t *testing.T) {
+		keySpec, err := deriveWriteKey("passphrase", strings.NewReader("0123456789abcdef"))
+		if err != nil {
+			t.Fatalf("deriveWriteKey: %v", err)
+		}
+		if keySpec.KDF != kdfPBKDF2SHA256 {
+			t.Fatalf("KDF = %q, want %q", keySpec.KDF, kdfPBKDF2SHA256)
+		}
+		if len(keySpec.Salt) != kdfSaltBytes {
+			t.Fatalf("len(Salt) = %d, want %d", len(keySpec.Salt), kdfSaltBytes)
+		}
+		if keySpec.Iterations != pbkdf2Iterations {
+			t.Fatalf("Iterations = %d, want %d", keySpec.Iterations, pbkdf2Iterations)
+		}
+
+		payload := encryptedFile{
+			Version:    encryptionVersionV2,
+			Algorithm:  encryptionAlgorithm,
+			KDF:        keySpec.KDF,
+			Salt:       base64.StdEncoding.EncodeToString(keySpec.Salt),
+			Iterations: keySpec.Iterations,
+		}
+		readKey, err := deriveReadKey(payload, "passphrase")
+		if err != nil {
+			t.Fatalf("deriveReadKey: %v", err)
+		}
+		if string(readKey) != string(keySpec.Key) {
+			t.Fatal("deriveReadKey should reproduce PBKDF2 output")
+		}
+	})
+
+	t.Run("rejects unsupported kdf", func(t *testing.T) {
+		_, err := deriveReadKey(encryptedFile{
+			Version:   encryptionVersionV2,
+			Algorithm: encryptionAlgorithm,
+			KDF:       "unknown",
+		}, "passphrase")
+		if err == nil || !errors.Is(err, ErrUnsupportedKDF) {
+			t.Fatalf("deriveReadKey error = %v, want ErrUnsupportedKDF", err)
+		}
+	})
+}
+
 func TestEncryptionKeyBoundaries(t *testing.T) {
 	t.Run("requires key provider", func(t *testing.T) {
 		store := newTestStore(t)
@@ -830,14 +912,14 @@ func TestEncryptValuesWithReaderRejectsEntropyFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("deriveKey: %v", err)
 	}
-	_, err = encryptValuesWithReader(map[string]string{"API_KEY": "secret"}, key, failingReader{err: errors.New("entropy failed")})
+	_, err = encryptValuesWithReader(map[string]string{"API_KEY": "secret"}, keyMaterial{Key: key, KDF: kdfRaw32}, failingReader{err: errors.New("entropy failed")})
 	if err == nil || !strings.Contains(err.Error(), "generate nonce") {
 		t.Fatalf("encryptValuesWithReader error = %v, want generate nonce", err)
 	}
 }
 
 func TestEncryptValuesWithReaderRejectsInvalidKeyLength(t *testing.T) {
-	_, err := encryptValuesWithReader(map[string]string{"API_KEY": "secret"}, []byte("short"), strings.NewReader("0123456789abcdef"))
+	_, err := encryptValuesWithReader(map[string]string{"API_KEY": "secret"}, keyMaterial{Key: []byte("short"), KDF: kdfRaw32}, strings.NewReader("0123456789abcdef"))
 	if err == nil || !strings.Contains(err.Error(), "create cipher") {
 		t.Fatalf("encryptValuesWithReader error = %v, want create cipher error", err)
 	}
@@ -868,7 +950,7 @@ func TestEncryptValuesWrapperRoundTrip(t *testing.T) {
 
 func TestDecryptPayloadRejectsInvalidKeyLength(t *testing.T) {
 	_, err := decryptPayload(encryptedFile{
-		Version:    encryptionVersion,
+		Version:    encryptionVersionV1,
 		Algorithm:  encryptionAlgorithm,
 		Nonce:      base64.StdEncoding.EncodeToString(bytesRepeat(0x01, 12)),
 		Ciphertext: base64.StdEncoding.EncodeToString([]byte("ciphertext")),
@@ -896,6 +978,29 @@ func TestStoreDepsAppliesDefaultsForPartialInjection(t *testing.T) {
 	}
 	if string(data) != "fixture" {
 		t.Fatalf("readFile returned %q, want fixture", string(data))
+	}
+}
+
+func TestRecoverStaleLockIgnoresMalformedMetadata(t *testing.T) {
+	store := newTestStore(t)
+	lockPath := store.LockPath()
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(lockPath), err)
+	}
+	if err := os.WriteFile(lockPath, []byte("pid=not-a-number\n"), 0o600); err != nil {
+		t.Fatalf("write %s: %v", lockPath, err)
+	}
+	staleTime := time.Now().Add(-lockStaleAfter - time.Second)
+	if err := os.Chtimes(lockPath, staleTime, staleTime); err != nil {
+		t.Fatalf("chtimes %s: %v", lockPath, err)
+	}
+
+	recovered, err := store.recoverStaleLock(lockPath)
+	if err != nil {
+		t.Fatalf("recoverStaleLock: %v", err)
+	}
+	if !recovered {
+		t.Fatal("expected malformed stale lock metadata to be recoverable")
 	}
 }
 

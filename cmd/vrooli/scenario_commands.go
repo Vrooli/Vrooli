@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -93,123 +92,27 @@ type scenarioLifecycleItemOutput struct {
 }
 
 func runScenarioStartCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario start <name> [name2...] [--path <path>] [--best-effort] [--clean-stale] [--open] [--json]")
-			return nil
-		}
-	}
-
-	names, opts, jsonFlag, openAfter, err := parseScenarioStartArgs(ctx.Globals.json, args)
-	if err != nil {
-		return err
-	}
-	if len(names) == 0 {
-		return usageErrorf("scenario start", "scenario start requires at least one scenario name")
-	}
-	if opts.CustomPath != "" && len(names) != 1 {
-		return usageErrorf("scenario start", "scenario start with --path accepts exactly one scenario name")
-	}
-
-	service, format, err := app.newScenarioServiceForFormat(ctx, jsonFlag)
-	if err != nil {
-		return err
-	}
-
-	items := make([]scenarioLifecycleItemOutput, 0, len(names))
-	for _, name := range names {
-		result, err := service.StartDetailed(name, opts)
-		if err != nil {
-			return err
-		}
-
-		status := "started"
-		if result.AlreadyRunning {
-			status = "already_running"
-		}
-		items = append(items, scenarioLifecycleItemOutput{
-			Name:               result.Scenario.Slug,
-			Status:             status,
-			Health:             result.Details.Health,
-			Ports:              envPortMap(result.Scenario.Manifest, result.AllocatedPorts),
-			FailedDependencies: append([]string(nil), result.FailedDependencies...),
-		})
-
-		if openAfter {
-			resolved, err := service.ResolvePort(name, "UI_PORT")
-			if err != nil {
-				return err
-			}
-			if err := app.openScenarioURL(resolved.URL); err != nil {
-				return err
-			}
-		}
-	}
-
-	return writeScenarioLifecycleItems(ctx.Stdout, format, items)
+	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioStartRequest, []scenarioLifecycleItemOutput]{
+		parse:  parseScenarioStartRequest,
+		run:    runScenarioStartRequest,
+		render: renderScenarioLifecycleResponse,
+	})
 }
 
 func runScenarioStopCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	name, jsonFlag, err := parseScenarioNameAndJSON("stop", ctx.Globals.json, args)
-	if err != nil {
-		return err
-	}
-
-	runner, format, err := app.newScenarioLifecycleRunnerForFormat(ctx, jsonFlag)
-	if err != nil {
-		return err
-	}
-	if err := runner.Stop(name, lifecycle.StopOptions{}); err != nil {
-		return err
-	}
-
-	return writeScenarioLifecycleItems(ctx.Stdout, format, []scenarioLifecycleItemOutput{{
-		Name:   name,
-		Status: "stopped",
-	}})
+	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioStopRequest, []scenarioLifecycleItemOutput]{
+		parse:  parseScenarioStopRequest,
+		run:    runScenarioStopRequest,
+		render: renderScenarioLifecycleResponse,
+	})
 }
 
 func runScenarioRestartCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario restart <name> [--path <path>] [--best-effort] [--clean-stale] [--open] [--json]")
-			return nil
-		}
-	}
-
-	name, opts, jsonFlag, openAfter, err := parseScenarioSingleStartArgs("restart", ctx.Globals.json, args)
-	if err != nil {
-		return err
-	}
-
-	service, format, err := app.newScenarioServiceForFormat(ctx, jsonFlag)
-	if err != nil {
-		return err
-	}
-	result, err := service.RestartDetailed(name, opts)
-	if err != nil {
-		return err
-	}
-
-	item := scenarioLifecycleItemOutput{
-		Name:               result.Scenario.Slug,
-		Status:             "restarted",
-		Health:             result.Details.Health,
-		Ports:              envPortMap(result.Scenario.Manifest, result.AllocatedPorts),
-		FailedDependencies: append([]string(nil), result.FailedDependencies...),
-	}
-
-	if openAfter {
-		resolved, err := service.ResolvePort(name, "UI_PORT")
-		if err != nil {
-			return err
-		}
-		if err := app.openScenarioURL(resolved.URL); err != nil {
-			return err
-		}
-	}
-
-	return writeScenarioLifecycleItems(ctx.Stdout, format, []scenarioLifecycleItemOutput{item})
+	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioRestartRequest, []scenarioLifecycleItemOutput]{
+		parse:  parseScenarioRestartRequest,
+		run:    runScenarioRestartRequest,
+		render: renderScenarioLifecycleResponse,
+	})
 }
 
 func runScenarioListCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
@@ -218,92 +121,11 @@ func runScenarioListCommand(root string, globals globalOptions, args []string, s
 }
 
 func runScenarioListCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	includePorts := false
-	jsonFlag := ctx.Globals.json
-	for _, arg := range args {
-		switch arg {
-		case "--json":
-			jsonFlag = true
-		case "--include-ports":
-			includePorts = true
-		case "--help", "-h":
-			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario list [--json] [--include-ports]")
-			return nil
-		default:
-			return unknownOptionError("scenario list", arg)
-		}
-	}
-
-	format, err := ctx.outputFormat(jsonFlag)
-	if err != nil {
-		return err
-	}
-
-	serviceCtx := *ctx
-	serviceCtx.Stdout = io.Discard
-	serviceCtx.Stderr = io.Discard
-	service, err := app.newScenarioService(&serviceCtx)
-	if err != nil {
-		return err
-	}
-	inventory, err := service.Inventory()
-	if err != nil {
-		return err
-	}
-
-	items := make([]scenarioListItemOutput, 0, len(inventory))
-	runningCount := 0
-	for _, item := range inventory {
-		status := "available"
-		if item.Details.Status == "running" {
-			status = item.Details.Status
-			runningCount++
-		}
-
-		listPorts := []scenarioListPortOutput{}
-		if includePorts && item.Details.Status == "running" {
-			listPorts = runtimePortOutputs(item.Details.PortBindings)
-		}
-
-		items = append(items, scenarioListItemOutput{
-			Name:        item.Scenario.Slug,
-			Description: item.Scenario.Manifest.Service.Description,
-			Version:     item.Scenario.Manifest.Service.Version,
-			Status:      status,
-			Tags:        copyStrings(item.Scenario.Manifest.Service.Tags),
-			Path:        item.Scenario.Path + string(os.PathSeparator),
-			Ports:       listPorts,
-		})
-	}
-
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(ctx.Stdout, map[string]any{
-			"success": true,
-			"summary": map[string]int{
-				"total_scenarios": len(items),
-				"running":         runningCount,
-				"available":       len(items) - runningCount,
-			},
-			"scenarios": items,
-		})
-	}
-
-	_, _ = fmt.Fprintln(ctx.Stdout, "[INFO]    Available scenarios:")
-	for _, item := range items {
-		line := "  • " + item.Name
-		if item.Description != "" {
-			line += " - " + item.Description
-		}
-		if includePorts && len(item.Ports) > 0 {
-			portParts := make([]string, 0, len(item.Ports))
-			for _, port := range item.Ports {
-				portParts = append(portParts, fmt.Sprintf("%s=%d", port.Key, port.Port))
-			}
-			line += " (ports: " + strings.Join(portParts, ", ") + ")"
-		}
-		_, _ = fmt.Fprintln(ctx.Stdout, line)
-	}
-	return nil
+	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioListRequest, scenarioListResponse]{
+		parse:  parseScenarioListRequest,
+		run:    runScenarioListRequest,
+		render: renderScenarioListResponse,
+	})
 }
 
 func runScenarioInfoCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
@@ -312,47 +134,11 @@ func runScenarioInfoCommand(root string, globals globalOptions, args []string, s
 }
 
 func runScenarioInfoCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario info <name> [--json]")
-			return nil
-		}
-	}
-
-	name, jsonFlag, err := parseScenarioNameAndJSON("info", ctx.Globals.json, args)
-	if err != nil {
-		return err
-	}
-
-	format, err := ctx.outputFormat(jsonFlag)
-	if err != nil {
-		return err
-	}
-
-	serviceCtx := *ctx
-	serviceCtx.Stdout = io.Discard
-	serviceCtx.Stderr = io.Discard
-	service, err := app.newScenarioService(&serviceCtx)
-	if err != nil {
-		return err
-	}
-	detail, err := service.Detail(name)
-	if err != nil {
-		return err
-	}
-
-	output := scenarioInfoOutput{
-		Success:  true,
-		Scenario: buildScenarioInfoData(detail.Scenario),
-		Runtime:  buildScenarioRuntimeData(detail.Scenario.Manifest, detail.Runtime),
-	}
-
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(ctx.Stdout, output)
-	}
-
-	writeScenarioInfoHuman(ctx.Stdout, output.Scenario, output.Runtime)
-	return nil
+	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioInfoRequest, scenarioInfoOutput]{
+		parse:  parseScenarioInfoRequest,
+		run:    runScenarioInfoRequest,
+		render: renderScenarioInfoResponse,
+	})
 }
 
 func runScenarioStatusCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
@@ -361,87 +147,11 @@ func runScenarioStatusCommand(root string, globals globalOptions, args []string,
 }
 
 func runScenarioStatusCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario status [name] [--json]")
-			return nil
-		}
-	}
-
-	name, jsonFlag, err := parseOptionalScenarioNameAndJSON("status", ctx.Globals.json, args)
-	if err != nil {
-		return err
-	}
-
-	format, err := ctx.outputFormat(jsonFlag)
-	if err != nil {
-		return err
-	}
-
-	if name == "" {
-		serviceCtx := *ctx
-		serviceCtx.Stdout = io.Discard
-		serviceCtx.Stderr = io.Discard
-		service, err := app.newScenarioService(&serviceCtx)
-		if err != nil {
-			return err
-		}
-		inventory, err := service.Inventory()
-		if err != nil {
-			return err
-		}
-
-		items := make([]scenarioStatusItemOutput, 0, len(inventory))
-		runningCount := 0
-		for _, item := range inventory {
-			statusItem := buildScenarioStatusDetail(item)
-			if statusItem.Status == "running" {
-				runningCount++
-			}
-			items = append(items, statusItem)
-		}
-
-		if format == cliout.FormatJSON {
-			return cliout.WriteJSON(ctx.Stdout, map[string]any{
-				"success": true,
-				"summary": map[string]int{
-					"total_scenarios": len(items),
-					"running":         runningCount,
-					"stopped":         len(items) - runningCount,
-				},
-				"scenarios": items,
-			})
-		}
-
-		writeScenarioStatusTable(ctx.Stdout, items)
-		return nil
-	}
-
-	serviceCtx := *ctx
-	serviceCtx.Stdout = io.Discard
-	serviceCtx.Stderr = io.Discard
-	service, err := app.newScenarioService(&serviceCtx)
-	if err != nil {
-		return err
-	}
-	detail, err := service.Detail(name)
-	if err != nil {
-		return err
-	}
-
-	output := scenarioStatusSingleOutput{
-		Success:  true,
-		Scenario: buildScenarioStatusDetail(detail),
-		Info:     buildScenarioInfoData(detail.Scenario),
-		Runtime:  buildScenarioRuntimeData(detail.Scenario.Manifest, detail.Runtime),
-	}
-
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(ctx.Stdout, output)
-	}
-
-	writeScenarioStatusHuman(ctx.Stdout, output)
-	return nil
+	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioStatusRequest, scenarioStatusResponse]{
+		parse:  parseScenarioStatusRequest,
+		run:    runScenarioStatusRequest,
+		render: renderScenarioStatusResponse,
+	})
 }
 
 func loadScenarioState(root string) ([]scenario.Scenario, map[string]process.ScenarioRuntime, error) {

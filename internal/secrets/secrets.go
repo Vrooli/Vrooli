@@ -1,13 +1,16 @@
 // Package secrets manages project-level secret persistence under .vrooli/.
 //
-// The package supports two on-disk formats:
-//   - .vrooli/secrets.enc.json: the current encrypted format
-//   - .vrooli/secrets.json: the legacy plaintext format used during migration
+// The package intentionally separates steady-state storage from migration
+// compatibility:
+//   - .vrooli/secrets.enc.json is the authoritative encrypted format
+//   - .vrooli/secrets.json is a legacy plaintext migration source
 //
-// Store.Load defaults to strict behavior. If an encrypted file exists but cannot
-// be read, validated, or decrypted, strict loads fail rather than silently
-// falling back. Callers that are explicitly migration-tolerant can opt into
-// LoadPolicyBestEffortLegacy via Store.LoadWithPolicy.
+// Store.Load is strict. If an encrypted file exists but cannot be validated or
+// decrypted, the load fails closed rather than silently reactivating plaintext
+// state. Callers that are explicitly migration-tolerant must opt into the
+// narrower LoadMigrationCompatible path, which only falls back to legacy
+// plaintext when the encrypted file exists but the decryption key is
+// unavailable.
 //
 // Secret files are expected to be regular files with private permissions.
 // Symlinks are rejected, and on Unix-like platforms group/world-readable secret
@@ -24,12 +27,18 @@
 //
 // VROOLI_SECRETS_KEY accepts either:
 //   - a base64-encoded 32-byte AES key
-//   - an arbitrary passphrase, which is normalized through SHA-256
+//   - an arbitrary passphrase, which is derived with PBKDF2-HMAC-SHA256 in the
+//     current envelope format
+//
+// Version 1 encrypted files derived passphrases via unsalted SHA-256. Reads
+// remain backward compatible, while new writes use version 2 with explicit KDF
+// metadata and per-file salt.
 package secrets
 
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -51,10 +60,15 @@ const (
 	LegacySecretsPath   = ".vrooli/secrets.json"
 	lockFileName        = "secrets.lock"
 	encryptionAlgorithm = "AES-256-GCM"
-	encryptionVersion   = 1
+	encryptionVersionV1 = 1
+	encryptionVersionV2 = 2
 	lockTimeout         = 5 * time.Second
 	lockRetryInterval   = 50 * time.Millisecond
 	lockStaleAfter      = 30 * time.Second
+	pbkdf2Iterations    = 100_000
+	kdfSaltBytes        = 16
+	kdfRaw32            = "raw-32"
+	kdfPBKDF2SHA256     = "pbkdf2-sha256"
 )
 
 var (
@@ -68,6 +82,7 @@ var (
 	ErrInvalidSecretData    = errors.New("invalid secrets data")
 	ErrUnsupportedVersion   = errors.New("unsupported secrets version")
 	ErrUnsupportedAlgorithm = errors.New("unsupported secrets algorithm")
+	ErrUnsupportedKDF       = errors.New("unsupported secrets key derivation")
 	ErrDecryptFailed        = errors.New("decrypt secrets failed")
 	ErrLockTimeout          = errors.New("timed out waiting for secrets lock")
 	ErrInsecurePermissions  = errors.New("secret file has insecure permissions")
@@ -80,22 +95,32 @@ type (
 	KeyProvider func() (string, bool)
 )
 
-type LoadPolicy int
+type ErrorCode string
 
 const (
-	// LoadPolicyStrict requires the encrypted file to be authoritative whenever it
-	// exists. Any encrypted-file read, validation, or decrypt error is returned to
-	// the caller without falling back to legacy plaintext.
-	LoadPolicyStrict LoadPolicy = iota
-	// LoadPolicyBestEffortLegacy allows callers to fall back to the legacy
-	// plaintext file when encrypted secrets exist but cannot be used. This is
-	// intended only for explicitly migration-tolerant read paths.
-	LoadPolicyBestEffortLegacy
+	CodeInvalidInput         ErrorCode = "invalid_input"
+	CodeEncryptedRead        ErrorCode = "encrypted_read"
+	CodeLegacyRead           ErrorCode = "legacy_read"
+	CodeEncryptedWrite       ErrorCode = "encrypted_write"
+	CodeEncryptedInvalid     ErrorCode = "encrypted_invalid"
+	CodeLegacyInvalid        ErrorCode = "legacy_invalid"
+	CodeInvalidSecretData    ErrorCode = "invalid_secret_data"
+	CodeUnsupportedVersion   ErrorCode = "unsupported_version"
+	CodeUnsupportedAlgorithm ErrorCode = "unsupported_algorithm"
+	CodeUnsupportedKDF       ErrorCode = "unsupported_kdf"
+	CodeDecryptFailed        ErrorCode = "decrypt_failed"
+	CodeLockTimeout          ErrorCode = "lock_timeout"
+	CodeInsecurePermissions  ErrorCode = "insecure_permissions"
+	CodeSymlinkPath          ErrorCode = "symlink_path"
+	CodeMigrationConflict    ErrorCode = "migration_conflict"
 )
 
 type encryptedFile struct {
 	Version    int    `json:"version"`
 	Algorithm  string `json:"algorithm"`
+	KDF        string `json:"kdf,omitempty"`
+	Salt       string `json:"salt,omitempty"`
+	Iterations int    `json:"iterations,omitempty"`
 	Nonce      string `json:"nonce"`
 	Ciphertext string `json:"ciphertext"`
 }
@@ -104,7 +129,6 @@ type Store struct {
 	Root        string
 	KeyProvider KeyProvider
 	EnvLookup   LookupFunc
-	LoadPolicy  LoadPolicy
 	deps        storeDeps
 }
 
@@ -125,17 +149,15 @@ type storeDeps struct {
 // NewProjectStore returns a Store rooted at the given project path.
 //
 // The default store is strict, reads the encryption key from
-// VROOLI_SECRETS_KEY, and uses process environment lookup for Resolve
-// fallbacks.
+// VROOLI_SECRETS_KEY, and uses process environment lookup for Resolve fallbacks.
 func NewProjectStore(root string) *Store {
 	return &Store{
 		Root: filepath.Clean(root),
 		KeyProvider: func() (string, bool) {
 			return os.LookupEnv(KeyEnvVar)
 		},
-		EnvLookup:  os.LookupEnv,
-		LoadPolicy: LoadPolicyStrict,
-		deps:       defaultStoreDeps(),
+		EnvLookup: os.LookupEnv,
+		deps:      defaultStoreDeps(),
 	}
 }
 
@@ -156,20 +178,31 @@ func (s *Store) LockPath() string {
 
 // Load reads secrets using the store's configured LoadPolicy.
 func (s *Store) Load() (map[string]string, error) {
-	return s.LoadWithPolicy(s.LoadPolicy)
+	return s.loadStrict()
 }
 
-// LoadWithPolicy reads secrets using the provided policy.
-//
-// Strict loads use the encrypted file whenever it exists. Best-effort loads
-// fall back to the legacy plaintext file only when the encrypted file cannot be
-// consumed.
-func (s *Store) LoadWithPolicy(policy LoadPolicy) (map[string]string, error) {
+func (s *Store) loadStrict() (map[string]string, error) {
+	data, err := s.loadEncryptedUnlocked()
+	if err == nil {
+		return data, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return s.loadLegacyUnlocked()
+	}
+	return nil, err
+}
+
+// LoadMigrationCompatible reads secrets using the authoritative encrypted file
+// when it is readable, but allows a narrowly-scoped legacy fallback when an
+// encrypted file exists and the only blocker is that the decryption key is not
+// currently available. Corrupt, tampered, or unsupported encrypted payloads
+// fail closed.
+func (s *Store) LoadMigrationCompatible() (map[string]string, error) {
 	if data, err := s.loadEncryptedUnlocked(); err == nil {
 		return data, nil
 	} else if errors.Is(err, os.ErrNotExist) {
 		return s.loadLegacyUnlocked()
-	} else if policy != LoadPolicyBestEffortLegacy {
+	} else if !errors.Is(err, ErrMissingKey) {
 		return nil, err
 	}
 	return s.loadLegacyUnlocked()
@@ -199,16 +232,20 @@ func (s *Store) loadEncryptedUnlocked() (map[string]string, error) {
 
 	var payload encryptedFile
 	if err := json.Unmarshal(data, &payload); err != nil {
-		return nil, &Error{Kind: ErrEncryptedInvalid, Op: "parse encrypted secrets", Path: path, Err: err}
+		return nil, &Error{Code: CodeEncryptedInvalid, Kind: ErrEncryptedInvalid, Op: "parse encrypted secrets", Path: path, Err: err}
 	}
-	if payload.Version != encryptionVersion {
-		return nil, fmt.Errorf("%w: encrypted secrets %s version %d", ErrUnsupportedVersion, path, payload.Version)
+	if payload.Version != encryptionVersionV1 && payload.Version != encryptionVersionV2 {
+		return nil, &Error{Code: CodeUnsupportedVersion, Kind: ErrUnsupportedVersion, Op: "validate encrypted secrets version", Path: path, Err: fmt.Errorf("version %d", payload.Version)}
 	}
 	if payload.Algorithm != encryptionAlgorithm {
-		return nil, fmt.Errorf("%w: encrypted secrets %s algorithm %q", ErrUnsupportedAlgorithm, path, payload.Algorithm)
+		return nil, &Error{Code: CodeUnsupportedAlgorithm, Kind: ErrUnsupportedAlgorithm, Op: "validate encrypted secrets algorithm", Path: path, Err: fmt.Errorf("algorithm %q", payload.Algorithm)}
 	}
 
-	key, err := s.encryptionKey()
+	rawKey, err := s.keyInput()
+	if err != nil {
+		return nil, err
+	}
+	key, err := deriveReadKey(payload, rawKey)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +255,7 @@ func (s *Store) loadEncryptedUnlocked() (map[string]string, error) {
 	}
 	result, err := parseSecretMap(plaintext)
 	if err != nil {
-		return nil, &Error{Kind: ErrInvalidSecretData, Op: "parse decrypted secrets", Path: path, Err: err}
+		return nil, &Error{Code: CodeInvalidSecretData, Kind: ErrInvalidSecretData, Op: "parse decrypted secrets", Path: path, Err: err}
 	}
 	return result, nil
 }
@@ -242,11 +279,11 @@ func (s *Store) loadLegacyUnlocked() (map[string]string, error) {
 		if os.IsNotExist(err) {
 			return map[string]string{}, nil
 		}
-		return nil, &Error{Kind: ErrLegacyRead, Op: "read legacy secrets", Path: path, Err: err}
+		return nil, &Error{Code: CodeLegacyRead, Kind: ErrLegacyRead, Op: "read legacy secrets", Path: path, Err: err}
 	}
 	result, err := parseSecretMap(data)
 	if err != nil {
-		return nil, &Error{Kind: ErrLegacyInvalid, Op: "parse legacy secrets", Path: path, Err: err}
+		return nil, &Error{Code: CodeLegacyInvalid, Kind: ErrLegacyInvalid, Op: "parse legacy secrets", Path: path, Err: err}
 	}
 	return result, nil
 }
@@ -267,21 +304,25 @@ func (s *Store) saveUnlocked(values map[string]string) error {
 	if err != nil {
 		return err
 	}
-	key, err := s.encryptionKey()
+	rawKey, err := s.keyInput()
 	if err != nil {
 		return err
 	}
-	payload, err := encryptValuesWithReader(normalized, key, deps.randReader)
+	keyMaterial, err := deriveWriteKey(rawKey, deps.randReader)
+	if err != nil {
+		return err
+	}
+	payload, err := encryptValuesWithReader(normalized, keyMaterial, deps.randReader)
 	if err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
-		return &Error{Kind: ErrEncryptedWrite, Op: "marshal encrypted secrets", Path: s.EncryptedPath(), Err: err}
+		return &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "marshal encrypted secrets", Path: s.EncryptedPath(), Err: err}
 	}
 	path := s.EncryptedPath()
 	if err := deps.mkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return &Error{Kind: ErrEncryptedWrite, Op: "mkdir secrets dir", Path: filepath.Dir(path), Err: err}
+		return &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "mkdir secrets dir", Path: filepath.Dir(path), Err: err}
 	}
 	if err := s.writeFileAtomically(path, append(data, '\n')); err != nil {
 		return err
@@ -293,16 +334,16 @@ func (s *Store) saveUnlocked(values map[string]string) error {
 func (s *Store) SaveKey(name, value string) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return &Error{Kind: ErrInvalidInput, Op: "validate secret key", Err: errors.New("secret name is required")}
+		return &Error{Code: CodeInvalidInput, Kind: ErrInvalidInput, Op: "validate secret key", Err: errors.New("secret name is required")}
 	}
 	if strings.HasPrefix(name, "_") {
-		return &Error{Kind: ErrInvalidInput, Op: "validate secret key", Err: fmt.Errorf("secret name %q is reserved for metadata", name)}
+		return &Error{Code: CodeInvalidInput, Kind: ErrInvalidInput, Op: "validate secret key", Err: fmt.Errorf("secret name %q is reserved for metadata", name)}
 	}
-	if value == "" {
-		return &Error{Kind: ErrInvalidInput, Op: "validate secret value", Err: fmt.Errorf("secret value is required for %q", name)}
+	if strings.TrimSpace(value) == "" {
+		return &Error{Code: CodeInvalidInput, Kind: ErrInvalidInput, Op: "validate secret value", Err: fmt.Errorf("secret value is required for %q", name)}
 	}
 	return s.withWriteLock(func() error {
-		values, err := s.LoadWithPolicy(s.LoadPolicy)
+		values, err := s.Load()
 		if err != nil {
 			return err
 		}
@@ -333,6 +374,7 @@ func (s *Store) MigrateLegacy(removeSource bool) (bool, error) {
 			}
 			if !secretMapsEqual(encryptedValues, legacyValues) {
 				return &Error{
+					Code: CodeMigrationConflict,
 					Kind: ErrMigrationConflict,
 					Op:   "migrate legacy secrets",
 					Path: s.LegacyPath(),
@@ -341,7 +383,7 @@ func (s *Store) MigrateLegacy(removeSource bool) (bool, error) {
 			}
 			if removeSource {
 				if err := deps.removeFile(s.LegacyPath()); err != nil && !os.IsNotExist(err) {
-					return &Error{Kind: ErrEncryptedWrite, Op: "remove legacy secrets", Path: s.LegacyPath(), Err: err}
+					return &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "remove legacy secrets", Path: s.LegacyPath(), Err: err}
 				}
 				migrated = true
 			}
@@ -363,7 +405,7 @@ func (s *Store) MigrateLegacy(removeSource bool) (bool, error) {
 		migrated = true
 		if removeSource {
 			if err := deps.removeFile(s.LegacyPath()); err != nil && !os.IsNotExist(err) {
-				return &Error{Kind: ErrEncryptedWrite, Op: "remove legacy secrets", Path: s.LegacyPath(), Err: err}
+				return &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "remove legacy secrets", Path: s.LegacyPath(), Err: err}
 			}
 		}
 		return nil
@@ -375,7 +417,7 @@ func (s *Store) MigrateLegacy(removeSource bool) (bool, error) {
 // configured EnvLookup fallback. Project-level resolution remains store-first
 // so on-disk operator state is authoritative once persisted.
 func (s *Store) Resolve(name string) (string, bool, error) {
-	values, err := s.LoadWithPolicy(s.LoadPolicy)
+	values, err := s.Load()
 	if err != nil {
 		return "", false, err
 	}
@@ -391,40 +433,124 @@ func (s *Store) Resolve(name string) (string, bool, error) {
 	return "", false, nil
 }
 
-func (s *Store) encryptionKey() ([]byte, error) {
+func (s *Store) keyInput() (string, error) {
 	if s.KeyProvider == nil {
-		return nil, ErrMissingKey
+		return "", ErrMissingKey
 	}
 	raw, ok := s.KeyProvider()
 	if !ok || strings.TrimSpace(raw) == "" {
-		return nil, ErrMissingKey
+		return "", ErrMissingKey
 	}
-	return deriveKey(raw)
+	return raw, nil
+}
+
+func (s *Store) encryptionKey() ([]byte, error) {
+	raw, err := s.keyInput()
+	if err != nil {
+		return nil, err
+	}
+	return deriveLegacyKey(raw)
 }
 
 func deriveKey(raw string) ([]byte, error) {
+	return deriveLegacyKey(raw)
+}
+
+func deriveLegacyKey(raw string) ([]byte, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
 		return nil, ErrMissingKey
 	}
-	if decoded, err := base64.StdEncoding.DecodeString(trimmed); err == nil && len(decoded) == 32 {
+	if decoded, ok := decodeRaw32Key(trimmed); ok {
 		return decoded, nil
 	}
 	sum := sha256.Sum256([]byte(trimmed))
 	return sum[:], nil
 }
 
-func encryptValues(values map[string]string, key []byte) (encryptedFile, error) {
-	return encryptValuesWithReader(values, key, rand.Reader)
+type keyMaterial struct {
+	Key        []byte
+	KDF        string
+	Salt       []byte
+	Iterations int
 }
 
-func encryptValuesWithReader(values map[string]string, key []byte, random io.Reader) (encryptedFile, error) {
+func deriveWriteKey(raw string, random io.Reader) (keyMaterial, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return keyMaterial{}, ErrMissingKey
+	}
+	if decoded, ok := decodeRaw32Key(trimmed); ok {
+		return keyMaterial{Key: decoded, KDF: kdfRaw32}, nil
+	}
+	salt := make([]byte, kdfSaltBytes)
+	if _, err := io.ReadFull(random, salt); err != nil {
+		return keyMaterial{}, fmt.Errorf("generate KDF salt: %w", err)
+	}
+	return keyMaterial{
+		Key:        pbkdf2SHA256([]byte(trimmed), salt, pbkdf2Iterations, 32),
+		KDF:        kdfPBKDF2SHA256,
+		Salt:       salt,
+		Iterations: pbkdf2Iterations,
+	}, nil
+}
+
+func deriveReadKey(payload encryptedFile, raw string) ([]byte, error) {
+	switch payload.Version {
+	case encryptionVersionV1:
+		return deriveLegacyKey(raw)
+	case encryptionVersionV2:
+		switch payload.KDF {
+		case kdfRaw32:
+			if decoded, ok := decodeRaw32Key(strings.TrimSpace(raw)); ok {
+				return decoded, nil
+			}
+			return nil, &Error{Code: CodeUnsupportedKDF, Kind: ErrUnsupportedKDF, Op: "derive secrets key", Err: errors.New("version 2 raw-32 payload requires a base64-encoded 32-byte key")}
+		case kdfPBKDF2SHA256:
+			trimmed := strings.TrimSpace(raw)
+			if trimmed == "" {
+				return nil, ErrMissingKey
+			}
+			if payload.Iterations <= 0 {
+				return nil, &Error{Code: CodeEncryptedInvalid, Kind: ErrEncryptedInvalid, Op: "derive secrets key", Err: errors.New("missing or invalid PBKDF2 iteration count")}
+			}
+			salt, err := base64.StdEncoding.DecodeString(payload.Salt)
+			if err != nil || len(salt) == 0 {
+				return nil, &Error{Code: CodeEncryptedInvalid, Kind: ErrEncryptedInvalid, Op: "derive secrets key", Err: errors.New("missing or invalid PBKDF2 salt")}
+			}
+			return pbkdf2SHA256([]byte(trimmed), salt, payload.Iterations, 32), nil
+		default:
+			return nil, &Error{Code: CodeUnsupportedKDF, Kind: ErrUnsupportedKDF, Op: "derive secrets key", Err: fmt.Errorf("KDF %q", payload.KDF)}
+		}
+	default:
+		return nil, &Error{Code: CodeUnsupportedVersion, Kind: ErrUnsupportedVersion, Op: "derive secrets key", Err: fmt.Errorf("version %d", payload.Version)}
+	}
+}
+
+func decodeRaw32Key(raw string) ([]byte, bool) {
+	decoded, err := base64.StdEncoding.DecodeString(raw)
+	if err != nil || len(decoded) != 32 {
+		return nil, false
+	}
+	key := make([]byte, 32)
+	copy(key, decoded)
+	return key, true
+}
+
+func encryptValues(values map[string]string, key []byte) (encryptedFile, error) {
+	return encryptValuesWithReader(values, keyMaterial{
+		Key: key,
+		KDF: kdfRaw32,
+	}, rand.Reader)
+}
+
+func encryptValuesWithReader(values map[string]string, keySpec keyMaterial, random io.Reader) (encryptedFile, error) {
 	plaintext, err := json.Marshal(values)
 	if err != nil {
 		return encryptedFile{}, fmt.Errorf("marshal secrets: %w", err)
 	}
 
-	block, err := aes.NewCipher(key)
+	block, err := aes.NewCipher(keySpec.Key)
 	if err != nil {
 		return encryptedFile{}, fmt.Errorf("create cipher: %w", err)
 	}
@@ -437,22 +563,28 @@ func encryptValuesWithReader(values map[string]string, key []byte, random io.Rea
 		return encryptedFile{}, fmt.Errorf("generate nonce: %w", err)
 	}
 	ciphertext := aead.Seal(nil, nonce, plaintext, nil)
-	return encryptedFile{
-		Version:    encryptionVersion,
+	payload := encryptedFile{
+		Version:    encryptionVersionV2,
 		Algorithm:  encryptionAlgorithm,
+		KDF:        keySpec.KDF,
+		Iterations: keySpec.Iterations,
 		Nonce:      base64.StdEncoding.EncodeToString(nonce),
 		Ciphertext: base64.StdEncoding.EncodeToString(ciphertext),
-	}, nil
+	}
+	if len(keySpec.Salt) > 0 {
+		payload.Salt = base64.StdEncoding.EncodeToString(keySpec.Salt)
+	}
+	return payload, nil
 }
 
 func decryptPayload(payload encryptedFile, key []byte) ([]byte, error) {
 	nonce, err := base64.StdEncoding.DecodeString(payload.Nonce)
 	if err != nil {
-		return nil, &Error{Kind: ErrEncryptedInvalid, Op: "decode nonce", Err: err}
+		return nil, &Error{Code: CodeEncryptedInvalid, Kind: ErrEncryptedInvalid, Op: "decode nonce", Err: err}
 	}
 	ciphertext, err := base64.StdEncoding.DecodeString(payload.Ciphertext)
 	if err != nil {
-		return nil, &Error{Kind: ErrEncryptedInvalid, Op: "decode ciphertext", Err: err}
+		return nil, &Error{Code: CodeEncryptedInvalid, Kind: ErrEncryptedInvalid, Op: "decode ciphertext", Err: err}
 	}
 
 	block, err := aes.NewCipher(key)
@@ -465,7 +597,7 @@ func decryptPayload(payload encryptedFile, key []byte) ([]byte, error) {
 	}
 	plaintext, err := aead.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return nil, &Error{Kind: ErrDecryptFailed, Op: "decrypt secrets", Err: err}
+		return nil, &Error{Code: CodeDecryptFailed, Kind: ErrDecryptFailed, Op: "decrypt secrets", Err: err}
 	}
 	return plaintext, nil
 }
@@ -552,21 +684,22 @@ func (s *Store) validateSecretFile(path string) error {
 		if os.IsNotExist(err) {
 			return os.ErrNotExist
 		}
-		return &Error{Kind: ErrInvalidSecretData, Op: "stat secret file", Path: path, Err: err}
+		return &Error{Code: CodeInvalidSecretData, Kind: ErrInvalidSecretData, Op: "stat secret file", Path: path, Err: err}
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
-		return &Error{Kind: ErrSymlinkPath, Op: "validate secret file", Path: path, Err: errors.New("symlink paths are not allowed")}
+		return &Error{Code: CodeSymlinkPath, Kind: ErrSymlinkPath, Op: "validate secret file", Path: path, Err: errors.New("symlink paths are not allowed")}
 	}
 	if !info.Mode().IsRegular() {
-		return &Error{Kind: ErrInvalidSecretData, Op: "validate secret file", Path: path, Err: fmt.Errorf("expected regular file, got mode %s", info.Mode())}
+		return &Error{Code: CodeInvalidSecretData, Kind: ErrInvalidSecretData, Op: "validate secret file", Path: path, Err: fmt.Errorf("expected regular file, got mode %s", info.Mode())}
 	}
 	if runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0 {
-		return &Error{Kind: ErrInsecurePermissions, Op: "validate secret file permissions", Path: path, Err: fmt.Errorf("mode %o is too broad", info.Mode().Perm())}
+		return &Error{Code: CodeInsecurePermissions, Kind: ErrInsecurePermissions, Op: "validate secret file permissions", Path: path, Err: fmt.Errorf("mode %o is too broad", info.Mode().Perm())}
 	}
 	return nil
 }
 
 type Error struct {
+	Code ErrorCode
 	Kind error
 	Op   string
 	Path string
@@ -601,7 +734,7 @@ func (s *Store) writeFileAtomically(path string, data []byte) error {
 	dir := filepath.Dir(path)
 	tmp, err := deps.createTemp(dir, ".secrets-*.tmp")
 	if err != nil {
-		return &Error{Kind: ErrEncryptedWrite, Op: "create temporary secrets file", Path: dir, Err: err}
+		return &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "create temporary secrets file", Path: dir, Err: err}
 	}
 	tmpPath := tmp.Name()
 	cleanup := true
@@ -613,19 +746,19 @@ func (s *Store) writeFileAtomically(path string, data []byte) error {
 	}()
 
 	if err := tmp.Chmod(0o600); err != nil {
-		return &Error{Kind: ErrEncryptedWrite, Op: "chmod temporary secrets file", Path: tmpPath, Err: err}
+		return &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "chmod temporary secrets file", Path: tmpPath, Err: err}
 	}
 	if _, err := tmp.Write(data); err != nil {
-		return &Error{Kind: ErrEncryptedWrite, Op: "write encrypted secrets", Path: tmpPath, Err: err}
+		return &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "write encrypted secrets", Path: tmpPath, Err: err}
 	}
 	if err := tmp.Sync(); err != nil {
-		return &Error{Kind: ErrEncryptedWrite, Op: "sync encrypted secrets", Path: tmpPath, Err: err}
+		return &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "sync encrypted secrets", Path: tmpPath, Err: err}
 	}
 	if err := tmp.Close(); err != nil {
-		return &Error{Kind: ErrEncryptedWrite, Op: "close temporary secrets file", Path: tmpPath, Err: err}
+		return &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "close temporary secrets file", Path: tmpPath, Err: err}
 	}
 	if err := deps.rename(tmpPath, path); err != nil {
-		return &Error{Kind: ErrEncryptedWrite, Op: "rename encrypted secrets", Path: path, Err: err}
+		return &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "rename encrypted secrets", Path: path, Err: err}
 	}
 	if err := s.syncDir(dir); err != nil {
 		return err
@@ -647,7 +780,7 @@ func (s *Store) acquireWriteLock() (func(), error) {
 	deps := s.storeDeps()
 	lockPath := s.LockPath()
 	if err := deps.mkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
-		return nil, &Error{Kind: ErrEncryptedWrite, Op: "mkdir secrets dir", Path: filepath.Dir(lockPath), Err: err}
+		return nil, &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "mkdir secrets dir", Path: filepath.Dir(lockPath), Err: err}
 	}
 	deadline := deps.now().Add(lockTimeout)
 	for {
@@ -660,7 +793,7 @@ func (s *Store) acquireWriteLock() (func(), error) {
 			}, nil
 		}
 		if !os.IsExist(err) {
-			return nil, &Error{Kind: ErrEncryptedWrite, Op: "acquire secrets lock", Path: lockPath, Err: err}
+			return nil, &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "acquire secrets lock", Path: lockPath, Err: err}
 		}
 		recovered, recoverErr := s.recoverStaleLock(lockPath)
 		if recoverErr != nil {
@@ -670,7 +803,7 @@ func (s *Store) acquireWriteLock() (func(), error) {
 			continue
 		}
 		if !deps.now().Before(deadline) {
-			return nil, &Error{Kind: ErrLockTimeout, Op: "acquire secrets lock", Path: lockPath, Err: err}
+			return nil, &Error{Code: CodeLockTimeout, Kind: ErrLockTimeout, Op: "acquire secrets lock", Path: lockPath, Err: err}
 		}
 		deps.sleep(lockRetryInterval)
 	}
@@ -683,11 +816,11 @@ func (s *Store) syncDir(path string) error {
 	deps := s.storeDeps()
 	dir, err := deps.open(path)
 	if err != nil {
-		return &Error{Kind: ErrEncryptedWrite, Op: "open secrets dir for sync", Path: path, Err: err}
+		return &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "open secrets dir for sync", Path: path, Err: err}
 	}
 	defer dir.Close()
 	if err := dir.Sync(); err != nil {
-		return &Error{Kind: ErrEncryptedWrite, Op: "sync secrets dir", Path: path, Err: err}
+		return &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "sync secrets dir", Path: path, Err: err}
 	}
 	return nil
 }
@@ -699,7 +832,7 @@ func (s *Store) recoverStaleLock(lockPath string) (bool, error) {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
-		return false, &Error{Kind: ErrEncryptedWrite, Op: "stat secrets lock", Path: lockPath, Err: err}
+		return false, &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "stat secrets lock", Path: lockPath, Err: err}
 	}
 	if deps.now().Sub(info.ModTime()) < lockStaleAfter {
 		return false, nil
@@ -709,7 +842,7 @@ func (s *Store) recoverStaleLock(lockPath string) (bool, error) {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
-		return false, &Error{Kind: ErrEncryptedWrite, Op: "read secrets lock", Path: lockPath, Err: err}
+		return false, &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "read secrets lock", Path: lockPath, Err: err}
 	}
 	pid, ok := parseLockPID(data)
 	if ok && pid > 0 && processAlive(pid) {
@@ -719,7 +852,7 @@ func (s *Store) recoverStaleLock(lockPath string) (bool, error) {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
-		return false, &Error{Kind: ErrEncryptedWrite, Op: "remove stale secrets lock", Path: lockPath, Err: err}
+		return false, &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "remove stale secrets lock", Path: lockPath, Err: err}
 	}
 	return true, nil
 }
@@ -739,17 +872,6 @@ func parseLockPID(data []byte) (int, bool) {
 	return 0, false
 }
 
-func processAlive(pid int) bool {
-	if pid <= 0 {
-		return false
-	}
-	if runtime.GOOS != "linux" {
-		return false
-	}
-	_, err := os.Stat(filepath.Join("/proc", strconv.Itoa(pid)))
-	return err == nil
-}
-
 func normalizeSecretValues(values map[string]string) (map[string]string, error) {
 	if len(values) == 0 {
 		return map[string]string{}, nil
@@ -758,17 +880,55 @@ func normalizeSecretValues(values map[string]string) (map[string]string, error) 
 	for rawKey, value := range values {
 		key := strings.TrimSpace(rawKey)
 		if key == "" {
-			return nil, &Error{Kind: ErrInvalidInput, Op: "validate secret key", Err: errors.New("secret key is required")}
+			return nil, &Error{Code: CodeInvalidInput, Kind: ErrInvalidInput, Op: "validate secret key", Err: errors.New("secret key is required")}
 		}
 		if strings.HasPrefix(key, "_") {
-			return nil, &Error{Kind: ErrInvalidInput, Op: "validate secret key", Err: fmt.Errorf("secret key %q is reserved for metadata", key)}
+			return nil, &Error{Code: CodeInvalidInput, Kind: ErrInvalidInput, Op: "validate secret key", Err: fmt.Errorf("secret key %q is reserved for metadata", key)}
+		}
+		if strings.TrimSpace(value) == "" {
+			return nil, &Error{Code: CodeInvalidInput, Kind: ErrInvalidInput, Op: "validate secret value", Err: fmt.Errorf("secret value is required for %q", key)}
 		}
 		if existing, ok := normalized[key]; ok && existing != value {
-			return nil, &Error{Kind: ErrInvalidInput, Op: "normalize secret values", Err: fmt.Errorf("multiple values provided for normalized key %q", key)}
+			return nil, &Error{Code: CodeInvalidInput, Kind: ErrInvalidInput, Op: "normalize secret values", Err: fmt.Errorf("multiple values provided for normalized key %q", key)}
 		}
 		normalized[key] = value
 	}
 	return normalized, nil
+}
+
+func pbkdf2SHA256(password, salt []byte, iterations, keyLen int) []byte {
+	if iterations <= 0 || keyLen <= 0 {
+		return nil
+	}
+	hashLen := sha256.Size
+	numBlocks := (keyLen + hashLen - 1) / hashLen
+	out := make([]byte, 0, numBlocks*hashLen)
+	buf := make([]byte, len(salt)+4)
+	copy(buf, salt)
+	for block := 1; block <= numBlocks; block++ {
+		buf[len(salt)] = byte(block >> 24)
+		buf[len(salt)+1] = byte(block >> 16)
+		buf[len(salt)+2] = byte(block >> 8)
+		buf[len(salt)+3] = byte(block)
+
+		u := pbkdf2PRF(password, buf)
+		t := make([]byte, len(u))
+		copy(t, u)
+		for i := 1; i < iterations; i++ {
+			u = pbkdf2PRF(password, u)
+			for j := range t {
+				t[j] ^= u[j]
+			}
+		}
+		out = append(out, t...)
+	}
+	return out[:keyLen]
+}
+
+func pbkdf2PRF(key, data []byte) []byte {
+	mac := hmac.New(sha256.New, key)
+	_, _ = mac.Write(data)
+	return mac.Sum(nil)
 }
 
 func secretMapsEqual(left, right map[string]string) bool {

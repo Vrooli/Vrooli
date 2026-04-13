@@ -65,7 +65,7 @@
       "reason": "Protect remote Linux GUI sessions when the deployment profile calls for it",
       "when": ["setup"],
       "platforms": ["linux"],
-      "notes": "Reserved for later safeguard implementation"
+      "notes": "Native runtime applies managed Linux sysctl and systemd protections for remote sessions"
     }
   ],
   "dependencies": {

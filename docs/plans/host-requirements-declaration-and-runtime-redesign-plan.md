@@ -1,6 +1,6 @@
 # Host Requirements Declaration And Runtime Redesign Plan
 
-**Status:** In Progress (`Phases 0-3` complete)
+**Status:** In Progress (`Phases 0-3` complete, `Phase 5` implemented, later cleanup/enforcement pending)
 
 **Last Updated:** 2026-04-12
 
@@ -130,7 +130,7 @@ Introduce two explicit declaration types:
 
 These are intentionally separate:
 
-- a host tool is an installable executable or host dependency such as `docker`, `node`, `stripe`, `vault`, `ffmpeg`, `buf`;
+- a host tool is an installable executable or host dependency such as `docker`, `node`, `stripe`, `ffmpeg`, `buf`;
 - a host safeguard is a host-level protection or policy application such as `remote_session_protection` or future GPU/container/runtime guardrails.
 
 ### 2. Declaration Locations
@@ -178,7 +178,6 @@ Examples:
 
 - `internal/runtime/tools/docker.go`
 - `internal/runtime/tools/stripe.go`
-- `internal/runtime/tools/vault.go`
 - `internal/runtime/safeguards/remote_session_protection.go`
 
 ### 5. Shared Runtime Helpers
@@ -327,7 +326,7 @@ This is the first-pass ownership map to make phase 0 execution-ready. It is inte
 | `tmux` | tool | declared candidate | root or scenario-specific | detachable sessions and operator workflows | audit current real usage |
 | `yq` | tool | declared candidate | resource/scenario-specific | YAML inspection/manipulation | audit whether root setup still needs it |
 | `stripe` | tool | declared | payment-related scenarios | local webhook/payment tooling | explicit mention: landing-manager and payment scenarios |
-| `vault` | tool | declared | vault-integrated scenarios/resources | direct Vault CLI use where needed | do not confuse with deleted shell helper library |
+| `vault` | tool | delete | none | host Vault CLI is retired; use `resource-vault` instead | do not reintroduce host `vault` declarations |
 | `buf` | tool | declared | protobuf/codegen owners | schema/codegen workflows | not a universal prerequisite |
 | `sqlite` | tool | declared | sqlite-using resources/scenarios | sqlite DB operations | not global by default |
 | `ffmpeg` | tool | declared | media/screen-recording owners | capture/transcoding workflows | heavy, specialized |
@@ -366,7 +365,6 @@ To avoid trying to port every historical setup behavior at once, implement in th
 - `tmux`
 - `yq`
 - `stripe`
-- `vault`
 - `buf`
 - `sqlite`
 
@@ -456,7 +454,7 @@ The implementation work should not begin migrating large batches of tools until 
 - Approved ownership rule:
   keep root core intentionally small; scenario/resource-specific tools must not be promoted to root by convenience
 - Approved early decisions:
-  `python` remains root-owned only for `development`, `tmux` and `yq` are not core, `remote_session_protection` is a host-profile safeguard
+  `python` remains root-owned only for `development`, `tmux` and `yq` are not core, `remote_session_protection` is a host-profile safeguard, and host `vault` is retired in favor of `resource-vault`
 
 ### Acceptance
 
@@ -619,23 +617,22 @@ The implementation work should not begin migrating large batches of tools until 
 
 ### Tasks
 
-- [ ] Decide which deleted historical capabilities should return as:
+- [x] Decide which deleted historical capabilities should return as:
   - native tool implementations,
   - native safeguard implementations,
   - declarations only,
   - permanent deletion.
-- [ ] Re-implement `remote_session_protection` natively if audit confirms continued value.
-- [ ] Add native tool entries for high-value declared tools such as:
+- [x] Re-implement `remote_session_protection` natively if audit confirms continued value.
+- [x] Add native tool entries for high-value declared tools such as:
   - `stripe`
-  - `vault`
   - other audited live needs
-- [ ] Explicitly reject or defer low-value historical setup features with rationale.
-- [ ] Add platform/applicability tests for safeguards.
+- [x] Explicitly reject or defer low-value historical setup features with rationale, including the retired host `vault` CLI path.
+- [x] Add platform/applicability tests for safeguards.
 
 ### Acceptance
 
-- [ ] Important missing capabilities are restored in the new architecture.
-- [ ] No deleted shell-era feature is reintroduced casually without explicit ownership and tests.
+- [x] Important missing capabilities are restored in the new architecture.
+- [x] No deleted shell-era feature is reintroduced casually without explicit ownership and tests.
 
 ## Phase 6: Remove Old Host Setup Approaches
 

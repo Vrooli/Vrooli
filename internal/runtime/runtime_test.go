@@ -80,7 +80,7 @@ func TestEnsureRequirementsSupportsDeclaredToolAndSafeguard(t *testing.T) {
 
 	lookPathFn = func(name string) (string, error) {
 		switch name {
-		case "docker":
+		case "docker", "sh":
 			return "/usr/bin/docker", nil
 		case "apt-get", "sysctl", "systemctl":
 			return "/usr/bin/" + name, nil
@@ -246,7 +246,70 @@ func TestInspectRequirementsIncludesNewCoreHandlers(t *testing.T) {
 	}
 }
 
+func TestInspectRequirementsIncludesStripeHandler(t *testing.T) {
+	restore := stubRuntimeLookups(t)
+	defer restore()
+
+	lookPathFn = func(name string) (string, error) {
+		if name == "apt-get" {
+			return "/usr/bin/apt-get", nil
+		}
+		return "", os.ErrNotExist
+	}
+
+	report, err := InspectRequirements("development", hostreq.Resolution{
+		Tools: []hostreq.ResolvedRequirement{
+			{Name: "stripe", Kind: hostreq.KindTool, Required: false},
+		},
+	})
+	if err != nil {
+		t.Fatalf("InspectRequirements: %v", err)
+	}
+
+	stripe := findStatus(t, report.Tools, "stripe")
+	if stripe.SupportClass != SupportSupported {
+		t.Fatalf("stripe support class = %q", stripe.SupportClass)
+	}
+	if stripe.PackageName != "stripe" {
+		t.Fatalf("stripe package name = %q", stripe.PackageName)
+	}
+	if stripe.ExecutionState != ExecutionPending {
+		t.Fatalf("stripe execution state = %q", stripe.ExecutionState)
+	}
+}
+
 func TestRemoteSessionProtectionClassifiesUnsupportedAndNotApplicable(t *testing.T) {
+	restore := stubRuntimeLookups(t)
+	defer restore()
+
+	readFileFn = func(path string) ([]byte, error) {
+		switch path {
+		case remoteSessionSysctlPath:
+			return []byte(remoteSessionSysctlContent), nil
+		case remoteSessionSystemdPath:
+			return []byte(remoteSessionUnitContent), nil
+		case remoteSessionLogindPath:
+			return []byte(remoteSessionLogindContent), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	applied := inspectRequirement(Host{
+		OS:              "linux",
+		SupportsSysctl:  true,
+		SupportsSystemd: true,
+	}, hostreq.ResolvedRequirement{
+		Name: "remote_session_protection",
+		Kind: hostreq.KindSafeguard,
+	})
+	if !applied.Applied {
+		t.Fatalf("expected applied safeguard, got %+v", applied)
+	}
+	if applied.ExecutionState != ExecutionAlreadyPresent {
+		t.Fatalf("applied execution state = %q", applied.ExecutionState)
+	}
+
 	unsupported := inspectRequirement(Host{
 		OS: "darwin",
 	}, hostreq.ResolvedRequirement{
@@ -273,6 +336,53 @@ func TestRemoteSessionProtectionClassifiesUnsupportedAndNotApplicable(t *testing
 	}
 	if notApplicable.ExecutionState != ExecutionNotApplicable {
 		t.Fatalf("notApplicable execution state = %q", notApplicable.ExecutionState)
+	}
+}
+
+func TestRemoteSessionProtectionApplyRunsManagedScript(t *testing.T) {
+	restore := stubRuntimeLookups(t)
+	defer restore()
+
+	lookPathFn = func(name string) (string, error) {
+		switch name {
+		case "sudo", "sh", "sysctl", "systemctl":
+			return "/usr/bin/" + name, nil
+		default:
+			return "", os.ErrNotExist
+		}
+	}
+
+	var ranName string
+	var ranArgs []string
+	runCommandFn = func(name string, args []string, opts EnsureOptions) error {
+		ranName = name
+		ranArgs = append([]string(nil), args...)
+		return nil
+	}
+
+	status, err := applyRequirement(Host{
+		OS:              "linux",
+		SupportsSysctl:  true,
+		SupportsSystemd: true,
+	}, ItemStatus{
+		Name:         "remote_session_protection",
+		Kind:         hostreq.KindSafeguard,
+		Required:     true,
+		SupportClass: SupportSupported,
+	}, EnsureOptions{
+		SudoMode: "ask",
+	})
+	if err != nil {
+		t.Fatalf("applyRequirement: %v", err)
+	}
+	if !status.Applied || status.ExecutionState != ExecutionApplied {
+		t.Fatalf("status = %+v", status)
+	}
+	if ranName != "sudo" {
+		t.Fatalf("command = %q, want sudo", ranName)
+	}
+	if got := strings.Join(ranArgs, " "); !strings.Contains(got, remoteSessionSysctlPath) || !strings.Contains(got, remoteSessionSystemdPath) {
+		t.Fatalf("script args missing managed paths: %v", ranArgs)
 	}
 }
 
@@ -312,7 +422,17 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	if !sort.StringsAreSorted(toolNames) {
 		t.Fatalf("tool names not sorted: %v", toolNames)
 	}
-	if !contains(toolNames, "docker") || !contains(toolNames, "ffmpeg") || !contains(toolNames, "tmux") || !contains(toolNames, "bats") || !contains(toolNames, "yq") {
+	if !contains(toolNames, "docker") ||
+		!contains(toolNames, "ffmpeg") ||
+		!contains(toolNames, "stripe") ||
+		!contains(toolNames, "tmux") ||
+		!contains(toolNames, "bats") ||
+		!contains(toolNames, "yq") ||
+		!contains(toolNames, "Xvfb") ||
+		!contains(toolNames, "x11vnc") ||
+		!contains(toolNames, "xdotool") ||
+		!contains(toolNames, "websockify") ||
+		!contains(toolNames, "openbox") {
 		t.Fatalf("tool names missing expected entries: %v", toolNames)
 	}
 
@@ -351,10 +471,12 @@ func TestNewRegistryRejectsDuplicateHandlers(t *testing.T) {
 func stubRuntimeLookups(t *testing.T) func() {
 	t.Helper()
 	originalLookPathFn := lookPathFn
+	originalReadFileFn := readFileFn
 	originalCombinedOutputFn := combinedOutputFn
 	originalRunCommandFn := runCommandFn
 	return func() {
 		lookPathFn = originalLookPathFn
+		readFileFn = originalReadFileFn
 		combinedOutputFn = originalCombinedOutputFn
 		runCommandFn = originalRunCommandFn
 	}

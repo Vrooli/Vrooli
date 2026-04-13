@@ -11,6 +11,7 @@ import (
 
 var (
 	lookPathFn       = shell.LookPath
+	readFileFn       = os.ReadFile
 	combinedOutputFn = func(name string, args ...string) ([]byte, error) {
 		return shell.CombinedOutput(shell.Spec{Name: name, Args: args})
 	}
@@ -93,5 +94,13 @@ func writerOrDiscard(w io.Writer) io.Writer {
 }
 
 func runInstallCommand(command string, args []string, opts EnsureOptions) error {
+	return runCommandFn(command, args, opts)
+}
+
+func runShellScript(script, sudoMode string, opts EnsureOptions) error {
+	command, args, err := withSudo(sudoMode, "sh", []string{"-c", script})
+	if err != nil {
+		return err
+	}
 	return runCommandFn(command, args, opts)
 }

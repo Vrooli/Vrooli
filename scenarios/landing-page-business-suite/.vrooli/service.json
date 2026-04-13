@@ -1,5 +1,15 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "hostTools": [
+    {
+      "name": "stripe",
+      "required": false,
+      "reason": "Run local Stripe webhook forwarding and payment test flows for landing-page subscriptions, bundles, and coupons",
+      "when": ["setup", "develop", "test"],
+      "environments": ["development"],
+      "notes": "Use the Stripe CLI to forward /api/v1/webhooks/stripe and trigger test events during scenario validation"
+    }
+  ],
   "dependencies": {
     "resources": {
       "postgres": {

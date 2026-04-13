@@ -55,6 +55,7 @@ var (
 		"python": {},
 	}
 	referenceScanCandidates = []string{
+		"stripe",
 		"ffmpeg",
 		"tmux",
 		"helm",
@@ -306,7 +307,7 @@ func shouldSkipDir(owner ownerManifest, path, base string) bool {
 		return false
 	}
 	switch base {
-	case ".git", ".next", ".tmp", "coverage", "data", "dist", "docs", "node_modules", "resources", "scenarios", "vendor":
+	case ".git", ".next", ".tmp", "__test", "coverage", "data", "dist", "docs", "internal", "k8s", "node_modules", "resources", "scenarios", "scripts", "vendor":
 		return true
 	default:
 		return false

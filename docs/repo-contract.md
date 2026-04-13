@@ -36,7 +36,6 @@ Landed:
 
 Still deferred to later phases:
 
-- CLI/operator tooling such as `vrooli contract ...`
 - broader drift checks for remaining direct consumers outside the landed migration set
 
 Phase 1 includes:
@@ -114,9 +113,13 @@ These do not belong in the contract:
 Use either of these:
 
 ```bash
+vrooli contract validate
 python3 .vrooli/schemas/validate-repo-contract.py
 make validate-repo-contract
 ```
+
+The `vrooli contract ...` commands are the operator/developer-facing inspection
+surface. `make validate-repo-contract` remains the CI/automation entrypoint.
 
 Validation currently covers:
 
@@ -125,6 +128,24 @@ Validation currently covers:
 - live repo conformance tests
 - explicit checks that excluded legacy paths do not appear in the contract
 - semantic drift checks for profile roots, required markers, and canonical path/value invariants
+
+## CLI Tooling
+
+The top-level CLI now exposes the contract directly:
+
+```bash
+vrooli contract validate
+vrooli contract show
+vrooli contract resolve scenario <name> --file service
+vrooli contract match-glob <pattern> <path>
+```
+
+Use `--json` with each command for machine-readable output.
+
+- `vrooli contract validate` runs the schema validator plus in-process semantic and live drift checks
+- `vrooli contract show` prints the loaded contract, root, and the current policy surface
+- `vrooli contract resolve scenario <name> --file <key>` resolves canonical scenario paths from the contract
+- `vrooli contract match-glob <pattern> <path>` evaluates a path against the contract-defined root-relative glob semantics
 
 ## Adoption Rules
 

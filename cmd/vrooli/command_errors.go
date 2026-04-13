@@ -36,6 +36,9 @@ func printErrorWithContext(w io.Writer, err error) {
 	if err == nil {
 		return
 	}
+	if silent, ok := err.(interface{ Silent() bool }); ok && silent.Silent() {
+		return
+	}
 	annotated, ok := err.(commandError)
 	if !ok {
 		_, _ = fmt.Fprintln(w, err)
@@ -166,6 +169,7 @@ func exitCode(err error) int {
 type exitCodeError struct {
 	code    int
 	message string
+	silent  bool
 }
 
 func (e exitCodeError) Error() string {
@@ -177,4 +181,8 @@ func (e exitCodeError) Error() string {
 
 func (e exitCodeError) ExitCode() int {
 	return e.code
+}
+
+func (e exitCodeError) Silent() bool {
+	return e.silent
 }

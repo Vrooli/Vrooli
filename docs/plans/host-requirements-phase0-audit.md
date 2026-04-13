@@ -155,8 +155,8 @@ This table is the Phase 0 source of truth for implementation ordering.
 | `helm` | tool | hardcoded in `internal/runtime`; shell-installed in `scripts/lib/setup.sh` | packaging/deployment flows only | root or scenario manifests | `declared tool` | yes | keep, remove from implicit core |
 | `tmux` | tool | optional shell-era common dependency | operator workflows; active implementation work appears scenario-specific rather than repo-critical | scenario manifests or future profile | `declared tool` | later | defer from early migration |
 | `yq` | tool | optional shell-era common dependency; ad hoc binary installer exists | shell YAML utilities in `scripts/resources` and `scripts/lib/service` | scenario/resource manifests only if still needed | `declared tool` | later | defer; do not make core |
-| `stripe` | tool | not part of native runtime; appears as scenario/business tooling | payment and webhook-oriented scenarios | scenario manifests | `declared tool` | later | defer until a live owner declares it |
-| `vault` | tool | not in native runtime; root also has a `vault` resource | direct Vault CLI usage is specialized; dockerized Vault resource does not imply host CLI ownership | scenario/resource manifests | `declared tool` | yes | keep as explicit non-core tool |
+| `stripe` | tool | not part of native runtime; appears as scenario/business tooling | payment and webhook-oriented scenarios | scenario manifests | `declared tool` | yes | keep and declare for landing-page scenarios/templates |
+| `vault` | tool | not in native runtime; root also has a `vault` resource | host Vault CLI usage is retired in favor of `resource-vault` | none | `delete` | no | permanently retire host `vault` ownership |
 | `buf` | tool | shell-installed via `scripts/lib/tools/buf.sh` | protobuf/codegen owners | root or scenario manifests | `declared tool` | yes | keep, but not default core |
 | `sqlite` | tool | shell-installed via `scripts/lib/runtimes/sqlite.sh` | sqlite-using resources/tests and external-cli resource flows | resource/scenario manifests | `declared tool` | yes | keep as explicit non-core tool |
 | `shellcheck` | tool | shell-installed dev dependency | shell lint/test workflows | root dev/test profile or scenario manifests | `declared tool` | yes | keep as non-core dev tooling |
@@ -171,7 +171,7 @@ This table is the Phase 0 source of truth for implementation ordering.
 | `x11vnc` | tool | shell-installed Linux-only optional dependency | `scenario-to-desktop` live desktop/VNC bridge | scenario/resource manifests | `declared tool` | yes | keep as Linux-specific specialized tool |
 | `websockify` | tool | shell-installed Linux-only optional dependency | `scenario-to-desktop` WebSocket VNC proxy | scenario/resource manifests | `declared tool` | yes | keep as Linux-specific specialized tool |
 | `openbox` | tool | shell-installed Linux-only optional dependency | `scenario-to-desktop` virtual display window manager | scenario/resource manifests | `declared tool` | yes | keep as Linux-specific specialized tool |
-| `remote_session_protection` | safeguard | historical shell safeguard idea only; no current native implementation | remote Linux/VPS deployment profile, not a specific scenario runtime | root host profile | `declared safeguard` | yes | defer implementation until Phase 5, but reserve contract now |
+| `remote_session_protection` | safeguard | historical shell safeguard idea only; no current native implementation | remote Linux/VPS deployment profile, not a specific scenario runtime | root host profile | `declared safeguard` | yes | implement in Phase 5 as a native sysctl/systemd safeguard |
 
 ## Adjacent Compatibility Surfaces To Migrate Later
 
@@ -191,6 +191,7 @@ These are live migration targets but not host requirements themselves.
 - `tmux` is not core.
 - `yq` is not core.
 - `remote_session_protection` should be modeled first as a host-profile safeguard, not a scenario declaration.
+- Host `vault` is retired; `resource-vault` is the only supported Vault CLI surface.
 - Setup profiles are deferred until after the resolver exists; the declaration schema still allows `when` and `environments`.
 
 ## Phase 0 Exit Statement

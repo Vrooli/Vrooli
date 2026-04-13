@@ -16,6 +16,15 @@
     "macos": "supported",
     "windows": "partial"
   },
+  "hostTools": [
+    {
+      "name": "yq",
+      "required": false,
+      "reason": "Inspect Codex YAML-backed test fixtures from retained resource unit-test workflows",
+      "when": ["setup", "test"],
+      "notes": "Codex resource unit checks degrade gracefully when yq is unavailable"
+    }
+  ],
   "health_checks": [
     {
       "type": "command",

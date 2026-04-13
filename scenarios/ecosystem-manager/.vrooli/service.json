@@ -49,6 +49,16 @@
       "description": "Ecosystem Manager UI port"
     }
   },
+  "hostTools": [
+    {
+      "name": "bats",
+      "required": false,
+      "reason": "Parse and reason about BATS-based shell metrics and generated test artifacts during scenario analysis",
+      "when": ["setup", "develop", "test"],
+      "environments": ["development"],
+      "notes": "Ecosystem analysis can continue without bats, but shell-test introspection is reduced"
+    }
+  ],
   "lifecycle": {
     "version": "2.0.0",
     "health": {

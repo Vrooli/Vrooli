@@ -53,6 +53,16 @@
       "range": "25000-29999"
     }
   },
+  "hostTools": [
+    {
+      "name": "bats",
+      "required": false,
+      "reason": "Detect and score shell integration coverage that uses BATS suites",
+      "when": ["setup", "develop", "test"],
+      "environments": ["development"],
+      "notes": "Coverage scoring still runs without bats, but shell-suite detection is less complete"
+    }
+  ],
   "lifecycle": {
     "version": "2.0.0",
     "health": {
