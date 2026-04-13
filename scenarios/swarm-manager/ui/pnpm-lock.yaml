@@ -34,7 +34,7 @@ importers:
         version: file:../../../packages/iframe-bridge
       '@vrooli/proto-types':
         specifier: file:../../../packages/proto/gen/typescript
-        version: file:../../../packages/proto/gen/typescript(@bufbuild/protobuf@2.11.0)
+        version: file:../../../packages/proto/gen/typescript
       '@xyflow/react':
         specifier: ^12.10.2
         version: 12.10.2(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1474,8 +1474,6 @@ packages:
   '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
     resolution: {directory: ../../../packages/proto/gen/typescript, type: directory}
     engines: {node: '>=18.0.0'}
-    peerDependencies:
-      '@bufbuild/protobuf': ^2.10.1
 
   '@xyflow/react@12.10.2':
     resolution: {integrity: sha512-CgIi6HwlcHXwlkTpr0fxLv/0sRVNZ8IdwKLzzeCscaYBwpvfcH1QFOCeaTCuEn1FQEs/B8CjnTSjhs8udgmBgQ==}
@@ -4862,7 +4860,7 @@ snapshots:
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 
-  '@vrooli/proto-types@file:../../../packages/proto/gen/typescript(@bufbuild/protobuf@2.11.0)':
+  '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
     dependencies:
       '@bufbuild/protobuf': 2.11.0
 

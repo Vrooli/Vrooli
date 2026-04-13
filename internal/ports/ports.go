@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/process"
-	"github.com/vrooli/vrooli/internal/resources"
+	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -47,7 +47,7 @@ type Environment struct {
 }
 
 func NewManager(root, home string) (*Manager, error) {
-	registry, err := resources.LoadPortRegistry(root)
+	registry, err := resourceenv.LoadPortRegistry(root)
 	if err != nil {
 		return nil, err
 	}
@@ -357,24 +357,13 @@ func (m *Manager) BuildEnvironment(item scenario.Scenario, records []process.Rec
 		return Environment{}, err
 	}
 
-	for resourceName, dep := range item.Manifest.Dependencies.Resources {
-		if !dep.Enabled && !dep.Required {
-			continue
-		}
-		if port, ok := m.ResourcePorts[resourceName]; ok {
-			envVars[strings.ToUpper(strings.ReplaceAll(resourceName, "-", "_"))+"_PORT"] = strconv.Itoa(port)
-		}
-	}
-
-	resourceEnv, err := m.loadResourceEnvironment(item.Manifest)
+	resourceEnv, err := m.loadResourceEnvironment(item.Slug, item.Manifest)
 	if err != nil {
 		return Environment{}, err
 	}
 	for key, value := range resourceEnv {
 		envVars[key] = value
 	}
-
-	m.applyPostgresOverride(item.Slug, item.Manifest, envVars)
 
 	scenarioVars := map[string]string{
 		"SCENARIO_NAME":       item.Slug,
@@ -425,7 +414,7 @@ func (m *Manager) BuildProjectEnvironment(item scenario.Scenario) (Environment, 
 		envVars[portSummary.EnvVar] = strconv.Itoa(port)
 	}
 
-	resourceEnv, err := m.loadResourceEnvironment(item.Manifest)
+	resourceEnv, err := m.loadResourceEnvironment(item.Slug, item.Manifest)
 	if err != nil {
 		return Environment{}, err
 	}
@@ -603,52 +592,12 @@ func isTCPPortInUse(port int) (bool, error) {
 	return false, nil
 }
 
-func (m *Manager) loadResourceEnvironment(manifest scenario.ServiceManifest) (map[string]string, error) {
-	env := make(map[string]string)
-	for resourceName, dep := range manifest.Dependencies.Resources {
-		if !dep.Enabled && !dep.Required {
-			continue
-		}
-
-		loaded, err := resources.LoadResourceEnvironment(m.Root, m.Home, resourceName)
-		if err != nil {
-			return nil, err
-		}
-		for key, value := range loaded {
-			env[key] = value
-		}
+func (m *Manager) loadResourceEnvironment(scenarioName string, manifest scenario.ServiceManifest) (map[string]string, error) {
+	resolution, err := resourceenv.ResolveScenario(m.Root, m.Home, scenarioName, manifest)
+	if err != nil {
+		return nil, err
 	}
-	return env, nil
-}
-
-func (m *Manager) applyPostgresOverride(scenarioName string, manifest scenario.ServiceManifest, envVars map[string]string) {
-	dep, ok := manifest.Dependencies.Resources["postgres"]
-	if !ok || (!dep.Enabled && !dep.Required) {
-		return
-	}
-
-	dbName := strings.TrimSpace(dep.Database)
-	if dbName == "" {
-		dbName = "vrooli_" + strings.ReplaceAll(scenarioName, "-", "_")
-	}
-
-	host := defaultString(envVars["POSTGRES_HOST"], "localhost")
-	port := defaultString(envVars["POSTGRES_PORT"], "5433")
-	user := defaultString(envVars["POSTGRES_USER"], "vrooli")
-	password := envVars["POSTGRES_PASSWORD"]
-	sslmode := defaultString(envVars["POSTGRES_SSLMODE"], "disable")
-
-	url := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", user, password, host, port, dbName, sslmode)
-	envVars["POSTGRES_DB"] = dbName
-	envVars["POSTGRES_URL"] = url
-	envVars["DATABASE_URL"] = url
-}
-
-func defaultString(value, fallback string) string {
-	if strings.TrimSpace(value) == "" {
-		return fallback
-	}
-	return value
+	return resolution.Values, nil
 }
 
 func expandTemplate(value string, env map[string]string) string {

@@ -8,14 +8,17 @@ import (
 	"path/filepath"
 	"strings"
 
+	projectapp "github.com/vrooli/vrooli/internal/app/project"
 	"github.com/vrooli/vrooli/internal/bootstrap"
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/project"
 	"github.com/vrooli/vrooli/internal/resources"
+	projectsetup "github.com/vrooli/vrooli/internal/setup"
 )
 
 type App struct {
@@ -26,6 +29,7 @@ type App struct {
 	rebuildAndReexec      func([]string) error
 	lookPath              func(string) (string, error)
 	newLogger             func(globalOptions, io.Writer) (*slog.Logger, func())
+	runProjectBuild       func(string, string, []string, io.Writer, io.Writer) error
 	runProjectSetup       func(string, string, []string, io.Writer, io.Writer) error
 	runProjectDevelop     func(string, string, []string, io.Writer, io.Writer) error
 	runScenarioSubprocess func(scenarioSubprocessSpec) error
@@ -56,8 +60,9 @@ func configuredApp() *App {
 		rebuildAndReexec:      rebuildAndReexecFn,
 		lookPath:              lookPathFn,
 		newLogger:             newLoggerFn,
-		runProjectSetup:       runProjectSetupFn,
-		runProjectDevelop:     runProjectDevelopFn,
+		runProjectBuild:       projectsetup.RunBuild,
+		runProjectSetup:       projectsetup.RunSetup,
+		runProjectDevelop:     projectsetup.RunDevelop,
 		runScenarioSubprocess: runScenarioSubprocessFn,
 		scenarioExecutable:    scenarioExecutableFn,
 	}
@@ -161,17 +166,17 @@ func (app *App) canRunWithoutRoot(parsed parsedArgs) bool {
 	case "help", "version":
 		return true
 	}
-	descriptor, ok := topLevelCommandDescriptors[parsed.command]
+	descriptor, ok := topLevelCommandDescriptors[commandtree.NormalizeName(parsed.command)]
 	if !ok {
 		return true
 	}
-	if !descriptor.RequiresRoot {
+	if !descriptor.RootPolicy.RequiresRoot {
 		return true
 	}
-	if descriptor.CanRunWithoutRoot == nil {
+	if descriptor.RootPolicy.CanRunWithoutRoot == nil {
 		return false
 	}
-	return descriptor.CanRunWithoutRoot(parsed.args)
+	return descriptor.RootPolicy.CanRunWithoutRoot(parsed.args)
 }
 
 func (app *App) shouldRebuild() (bool, error) {
@@ -275,12 +280,35 @@ func (app *App) newMaintenanceController(ctx *commandContext) (*maintenance.Cont
 	return services.Maintenance(), nil
 }
 
+func (app *App) newProjectCommandService(ctx *commandContext) (projectapp.Service, error) {
+	projectController, err := app.newProjectController(ctx)
+	if err != nil {
+		return projectapp.Service{}, err
+	}
+	maintenanceController, err := app.newMaintenanceController(ctx)
+	if err != nil {
+		return projectapp.Service{}, err
+	}
+	return projectapp.Service{
+		Project:     projectController,
+		Maintenance: maintenanceController,
+	}, nil
+}
+
 func (app *App) runTopLevelSetup(ctx *commandContext, args []string) error {
 	home, err := ctx.HomeDir()
 	if err != nil {
 		return err
 	}
 	return app.runProjectSetup(ctx.Root, home, args, ctx.Stdout, ctx.Stderr)
+}
+
+func (app *App) runTopLevelBuild(ctx *commandContext, args []string) error {
+	home, err := ctx.HomeDir()
+	if err != nil {
+		return err
+	}
+	return app.runProjectBuild(ctx.Root, home, args, ctx.Stdout, ctx.Stderr)
 }
 
 func (app *App) runTopLevelDevelop(ctx *commandContext, args []string) error {

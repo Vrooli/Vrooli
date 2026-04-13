@@ -3,59 +3,19 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
+	packageapp "github.com/vrooli/vrooli/internal/app/package"
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
+	"github.com/vrooli/vrooli/internal/cli/packagecli"
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/packagegov"
-	"github.com/vrooli/vrooli/internal/shell"
 )
 
-var packageCommandTable = []appSubcommandDescriptor{
-	{Name: "list", Summary: "List governed packages", Handler: bindGlobalCommand(parsePackageListRequest, runPackageListRequest, renderPackageListResponse)},
-	{Name: "info", Summary: "Show package manifest metadata", Handler: bindGlobalCommand(parsePackageInfoRequest, runPackageInfoRequest, renderPackageInfoResponse)},
-	{Name: "dependents", Summary: "List package consumers", Handler: bindGlobalCommand(parsePackageDependentsRequest, runPackageDependentsRequest, renderPackageDependentsResponse)},
-	{Name: "validate", Summary: "Validate package manifests and package adoption policy", Handler: bindGlobalCommand(parsePackageValidateRequest, runPackageValidateRequest, renderPackageValidateResponse)},
-	{Name: "build", Summary: "Run the package build lifecycle", Handler: bindGlobalCommand(parsePackageRunRequest("build"), runPackageBuildRequest, renderPackageRunResponse)},
-	{Name: "generate", Summary: "Run the package generation lifecycle", Handler: bindGlobalCommand(parsePackageRunRequest("generate"), runPackageGenerateRequest, renderPackageRunResponse)},
-	{Name: "refresh", Summary: "Rebuild/regenerate a package and propagate to affected consumers", Handler: bindGlobalCommand(parsePackageRefreshRequest, runPackageRefreshRequest, renderPackageRefreshResponse)},
-	{Name: "audit", Summary: "Report governance drift and unsupported package adoption", Handler: bindGlobalCommand(parsePackageAuditRequest, runPackageAuditRequest, renderPackageAuditResponse)},
-}
+var packageCommandTable = buildPackageCommandTable()
 
-var packageCommandHandlers = buildAppSubcommandMap(packageCommandTable)
-
-type packageListRequest struct{}
-
-type packageInfoRequest struct {
-	Name string
-}
-
-type packageDependentsRequest struct {
-	Name string
-}
-
-type packageValidateRequest struct {
-	Name string
-	All  bool
-}
-
-type packageRunRequest struct {
-	Name string
-}
-
-type packageRefreshRequest struct {
-	Name      string
-	Target    string
-	NoRestart bool
-}
-
-type packageAuditRequest struct {
-	Name string
-	All  bool
-}
+var packageCommandHandlers = commandtree.BuildHandlerMap(packageCommandTable)
 
 type packageListResponse struct {
 	Packages []packagegov.Package `json:"packages"`
@@ -76,16 +36,6 @@ type packageRunResponse struct {
 	Action      string `json:"action"`
 }
 
-type packageRefreshItem struct {
-	Scenario string `json:"scenario"`
-	Status   string `json:"status"`
-}
-
-type packageRefreshResponse struct {
-	PackageName string               `json:"package_name"`
-	Items       []packageRefreshItem `json:"items"`
-}
-
 type packageAuditResponse struct {
 	Report packagegov.AuditReport `json:"report"`
 }
@@ -95,22 +45,17 @@ func runPackageRootCommand(app *App, ctx *commandContext, args []string) error {
 }
 
 func showPackageHelp(w io.Writer) {
-	renderSubcommandHelp(w, "Vrooli Package Commands", "vrooli package <subcommand> [options]", "Package Governance", packageCommandTable)
+	packagecli.RenderCommandHelp(w)
 }
 
-func parsePackageListRequest(globals globalOptions, args []string) (packageListRequest, error) {
-	if len(args) > 0 {
-		return packageListRequest{}, unknownOptionError("package list", args[0])
-	}
-	return packageListRequest{}, nil
-}
-
-func runPackageListRequest(app *App, ctx *commandContext, req packageListRequest) (cliout.Format, packageListResponse, error) {
+func runPackageListRequest(app *App, ctx *commandContext, req packagecli.ListRequest) (cliout.Format, packageListResponse, error) {
+	_ = app
+	_ = req
 	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", packageListResponse{}, err
 	}
-	items, issues, err := packagegov.LoadAll(ctx.Root)
+	items, issues, err := packageapp.Service{Root: ctx.Root}.List()
 	if err != nil {
 		return "", packageListResponse{}, err
 	}
@@ -122,52 +67,28 @@ func runPackageListRequest(app *App, ctx *commandContext, req packageListRequest
 	return format, packageListResponse{Packages: items}, nil
 }
 
-func parsePackageInfoRequest(globals globalOptions, args []string) (packageInfoRequest, error) {
-	if len(args) != 1 {
-		return packageInfoRequest{}, usageErrorf("package info", "package info requires exactly one package name")
-	}
-	return packageInfoRequest{Name: args[0]}, nil
-}
-
-func runPackageInfoRequest(app *App, ctx *commandContext, req packageInfoRequest) (cliout.Format, packagegov.Package, error) {
+func runPackageInfoRequest(app *App, ctx *commandContext, req packagecli.InfoRequest) (cliout.Format, packagegov.Package, error) {
+	_ = app
 	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", packagegov.Package{}, err
 	}
-	items, _, err := packagegov.LoadAll(ctx.Root)
+	item, err := packageapp.Service{Root: ctx.Root}.Info(req.Name)
 	if err != nil {
-		return "", packagegov.Package{}, err
-	}
-	item, ok := packagegov.FindByName(items, req.Name)
-	if !ok {
-		return "", packagegov.Package{}, usageErrorf("package info", "package %q not found", req.Name)
+		return "", packagegov.Package{}, usageErrorf("package info", err.Error())
 	}
 	return format, item, nil
 }
 
-func parsePackageDependentsRequest(globals globalOptions, args []string) (packageDependentsRequest, error) {
-	if len(args) != 1 {
-		return packageDependentsRequest{}, usageErrorf("package dependents", "package dependents requires exactly one package name")
-	}
-	return packageDependentsRequest{Name: args[0]}, nil
-}
-
-func runPackageDependentsRequest(app *App, ctx *commandContext, req packageDependentsRequest) (cliout.Format, packageDependentsResponse, error) {
+func runPackageDependentsRequest(app *App, ctx *commandContext, req packagecli.DependentsRequest) (cliout.Format, packageDependentsResponse, error) {
+	_ = app
 	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", packageDependentsResponse{}, err
 	}
-	items, _, err := packagegov.LoadAll(ctx.Root)
+	item, report, err := packageapp.Service{Root: ctx.Root}.Dependents(req.Name)
 	if err != nil {
-		return "", packageDependentsResponse{}, err
-	}
-	item, ok := packagegov.FindByName(items, req.Name)
-	if !ok {
-		return "", packageDependentsResponse{}, usageErrorf("package dependents", "package %q not found", req.Name)
-	}
-	report, err := packagegov.DiscoverDependents(ctx.Root, item)
-	if err != nil {
-		return "", packageDependentsResponse{}, err
+		return "", packageDependentsResponse{}, usageErrorf("package dependents", err.Error())
 	}
 	return format, packageDependentsResponse{
 		PackageName: item.Name,
@@ -176,29 +97,8 @@ func runPackageDependentsRequest(app *App, ctx *commandContext, req packageDepen
 	}, nil
 }
 
-func parsePackageValidateRequest(globals globalOptions, args []string) (packageValidateRequest, error) {
-	req := packageValidateRequest{}
-	for _, arg := range args {
-		switch arg {
-		case "--all":
-			req.All = true
-		default:
-			if strings.HasPrefix(arg, "-") {
-				return packageValidateRequest{}, unknownOptionError("package validate", arg)
-			}
-			if req.Name != "" {
-				return packageValidateRequest{}, usageErrorf("package validate", "package validate accepts at most one package name")
-			}
-			req.Name = arg
-		}
-	}
-	if !req.All && req.Name == "" {
-		req.All = true
-	}
-	return req, nil
-}
-
-func runPackageValidateRequest(app *App, ctx *commandContext, req packageValidateRequest) (cliout.Format, packageValidateResponse, error) {
+func runPackageValidateRequest(app *App, ctx *commandContext, req packagecli.ValidateRequest) (cliout.Format, packageValidateResponse, error) {
+	_ = app
 	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", packageValidateResponse{}, err
@@ -207,254 +107,88 @@ func runPackageValidateRequest(app *App, ctx *commandContext, req packageValidat
 	if req.All {
 		name = ""
 	}
-	report, err := packagegov.Validate(ctx.Root, name)
+	report, err := packageapp.Service{Root: ctx.Root}.Validate(name)
 	if err != nil {
 		return "", packageValidateResponse{}, err
 	}
 	return format, packageValidateResponse{Report: report}, nil
 }
 
-func parsePackageRunRequest(action string) func(globalOptions, []string) (packageRunRequest, error) {
-	return func(globals globalOptions, args []string) (packageRunRequest, error) {
-		if len(args) != 1 {
-			return packageRunRequest{}, usageErrorf("package "+action, "package %s requires exactly one package name", action)
-		}
-		return packageRunRequest{Name: args[0]}, nil
-	}
-}
-
-func runPackageBuildRequest(app *App, ctx *commandContext, req packageRunRequest) (cliout.Format, packageRunResponse, error) {
-	return runPackageLifecycle(ctx, req.Name, "build")
-}
-
-func runPackageGenerateRequest(app *App, ctx *commandContext, req packageRunRequest) (cliout.Format, packageRunResponse, error) {
-	return runPackageLifecycle(ctx, req.Name, "generate")
-}
-
-func runPackageLifecycle(ctx *commandContext, name, action string) (cliout.Format, packageRunResponse, error) {
+func runPackageBuildRequest(app *App, ctx *commandContext, req packagecli.RunRequest) (cliout.Format, packageRunResponse, error) {
+	_ = app
 	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", packageRunResponse{}, err
 	}
-	item, err := loadNamedPackage(ctx.Root, name)
+	writers := packageCommandOutputWriters(ctx, format)
+	resp, err := packageapp.Service{Root: ctx.Root, Stdout: writers.stdout, Stderr: writers.stderr}.Build(req.Name)
 	if err != nil {
 		return "", packageRunResponse{}, err
 	}
-	var commands []packagegov.CommandSpec
-	switch action {
-	case "build":
-		commands = item.Manifest.Package.Lifecycle.Build
-	case "generate":
-		commands = item.Manifest.Package.Lifecycle.Generate
-	}
-	if err := packagegov.RunCommands(item.RootPath, commands, ctx.Stdout, ctx.Stderr); err != nil {
-		return "", packageRunResponse{}, err
-	}
-	return format, packageRunResponse{PackageName: item.Name, Action: action}, nil
+	return format, packageRunResponse(resp), nil
 }
 
-func parsePackageRefreshRequest(globals globalOptions, args []string) (packageRefreshRequest, error) {
-	req := packageRefreshRequest{Target: "all"}
-	for _, arg := range args {
-		switch arg {
-		case "--no-restart":
-			req.NoRestart = true
-		default:
-			if strings.HasPrefix(arg, "-") {
-				return packageRefreshRequest{}, unknownOptionError("package refresh", arg)
-			}
-			if req.Name == "" {
-				req.Name = arg
-				continue
-			}
-			if req.Target == "all" {
-				req.Target = arg
-				continue
-			}
-			return packageRefreshRequest{}, usageErrorf("package refresh", "package refresh accepts at most a package name and one target scenario")
-		}
-	}
-	if req.Name == "" {
-		return packageRefreshRequest{}, usageErrorf("package refresh", "package refresh requires a package name")
-	}
-	return req, nil
-}
-
-func runPackageRefreshRequest(app *App, ctx *commandContext, req packageRefreshRequest) (cliout.Format, packageRefreshResponse, error) {
+func runPackageGenerateRequest(app *App, ctx *commandContext, req packagecli.RunRequest) (cliout.Format, packageRunResponse, error) {
+	_ = app
 	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
-		return "", packageRefreshResponse{}, err
+		return "", packageRunResponse{}, err
 	}
-	item, err := loadNamedPackage(ctx.Root, req.Name)
+	writers := packageCommandOutputWriters(ctx, format)
+	resp, err := packageapp.Service{Root: ctx.Root, Stdout: writers.stdout, Stderr: writers.stderr}.Generate(req.Name)
 	if err != nil {
-		return "", packageRefreshResponse{}, err
+		return "", packageRunResponse{}, err
 	}
+	return format, packageRunResponse(resp), nil
+}
 
-	if item.Manifest.Package.Refresh.Strategy == packagegov.RefreshGenerateThenSetup {
-		if err := packagegov.RunCommands(item.RootPath, item.Manifest.Package.Lifecycle.Generate, ctx.Stdout, ctx.Stderr); err != nil {
-			return "", packageRefreshResponse{}, err
-		}
-	}
-	if err := packagegov.RunCommands(item.RootPath, item.Manifest.Package.Lifecycle.Build, ctx.Stdout, ctx.Stderr); err != nil {
-		return "", packageRefreshResponse{}, err
-	}
-
-	discovery, err := packagegov.DiscoverDependents(ctx.Root, item)
+func runPackageRefreshRequest(app *App, ctx *commandContext, req packagecli.RefreshRequest) (cliout.Format, packageapp.RefreshResponse, error) {
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
-		return "", packageRefreshResponse{}, err
+		return "", packageapp.RefreshResponse{}, err
 	}
-	targets := packagegov.MatchDependents(discovery.Dependents, req.Target)
-	byScenario := make(map[string]struct{})
-	for _, dep := range targets {
-		if strings.HasPrefix(string(dep.ConsumerClass), "scenario_") {
-			byScenario[dep.ConsumerName] = struct{}{}
-		}
+	opCtx := ctx
+	if format == cliout.FormatJSON {
+		cloned := *ctx
+		cloned.Stdout = ctx.Stderr
+		opCtx = &cloned
 	}
-	names := make([]string, 0, len(byScenario))
-	for name := range byScenario {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-
-	service, err := app.newScenarioService(ctx)
+	writers := packageCommandOutputWriters(opCtx, format)
+	resp, err := packageapp.Service{
+		Root:   ctx.Root,
+		Stdout: writers.stdout,
+		Stderr: writers.stderr,
+		ScenarioService: func() (packageapp.ScenarioRuntime, error) {
+			return app.newScenarioService(opCtx)
+		},
+		ScenarioRunner: func() (packageapp.ScenarioPhaseRunner, error) {
+			return app.newScenarioLifecycleRunner(opCtx)
+		},
+	}.Refresh(packageapp.RefreshRequest{
+		PackageName: req.Name,
+		Target:      req.Target,
+		NoRestart:   req.NoRestart,
+	})
 	if err != nil {
-		return "", packageRefreshResponse{}, err
-	}
-	runner, err := app.newScenarioLifecycleRunner(ctx)
-	if err != nil {
-		return "", packageRefreshResponse{}, err
-	}
-
-	resp := packageRefreshResponse{PackageName: item.Name}
-	for _, scenarioName := range names {
-		depsForScenario := make([]packagegov.Dependent, 0, len(targets))
-		for _, dep := range targets {
-			if dep.ConsumerName == scenarioName {
-				depsForScenario = append(depsForScenario, dep)
-			}
-		}
-
-		status := "no_action"
-
-		switch item.Manifest.Package.Refresh.Strategy {
-		case packagegov.RefreshScenarioSetup, packagegov.RefreshGenerateThenSetup:
-			detail, _, err := service.Lookup(scenarioName)
-			if err != nil {
-				return "", packageRefreshResponse{}, err
-			}
-			wasRunning := detail.Runtime.ProcessCount > 0
-			if wasRunning {
-				if err := runner.Stop(scenarioName, lifecycle.StopOptions{}); err != nil {
-					return "", packageRefreshResponse{}, err
-				}
-			}
-			if _, err := runner.RunPhaseDetailed(scenarioName, "setup", lifecycle.PhaseOptions{}); err != nil {
-				return "", packageRefreshResponse{}, err
-			}
-			status = "setup_only"
-			if wasRunning && !req.NoRestart && item.Manifest.Package.Refresh.RestartRunningConsumers {
-				if _, err := service.StartDetailed(scenarioName, lifecycle.StartOptions{}); err != nil {
-					return "", packageRefreshResponse{}, err
-				}
-				status = "restarted"
-			} else if wasRunning {
-				status = "stopped_after_setup"
-			}
-		case packagegov.RefreshRestartConsumers:
-			detail, _, err := service.Lookup(scenarioName)
-			if err != nil {
-				return "", packageRefreshResponse{}, err
-			}
-			wasRunning := detail.Runtime.ProcessCount > 0
-			if !wasRunning {
-				status = "not_running"
-				break
-			}
-			if req.NoRestart || !item.Manifest.Package.Refresh.RestartRunningConsumers {
-				status = "running_not_restarted"
-				break
-			}
-			if err := runner.Stop(scenarioName, lifecycle.StopOptions{}); err != nil {
-				return "", packageRefreshResponse{}, err
-			}
-			if _, err := service.StartDetailed(scenarioName, lifecycle.StartOptions{}); err != nil {
-				return "", packageRefreshResponse{}, err
-			}
-			status = "restarted"
-		case packagegov.RefreshRebuildCLI:
-			rebuilt, err := rebuildGoConsumerTargets(depsForScenario, ctx.Stdout, ctx.Stderr)
-			if err != nil {
-				return "", packageRefreshResponse{}, err
-			}
-			if rebuilt {
-				status = "rebuilt"
-			}
-		case packagegov.RefreshNone:
-			status = "no_action"
-		}
-
-		resp.Items = append(resp.Items, packageRefreshItem{Scenario: scenarioName, Status: status})
+		return "", packageapp.RefreshResponse{}, err
 	}
 	return format, resp, nil
 }
 
-func rebuildGoConsumerTargets(dependents []packagegov.Dependent, stdout, stderr io.Writer) (bool, error) {
-	seen := make(map[string]struct{}, len(dependents))
-	rebuilt := false
-	for _, dep := range dependents {
-		buildPath := filepath.Clean(dep.ConsumerPath)
-		if strings.EqualFold(filepath.Base(dep.DependencyFile), "go.mod") {
-			buildPath = filepath.Dir(dep.DependencyFile)
-		}
-		if buildPath == "." || buildPath == "" {
-			continue
-		}
-		if _, ok := seen[buildPath]; ok {
-			continue
-		}
-		seen[buildPath] = struct{}{}
-		if _, err := os.Stat(filepath.Join(buildPath, "go.mod")); err != nil {
-			continue
-		}
-		spec := shell.Spec{
-			Name:   "go",
-			Args:   []string{"build", "./..."},
-			Dir:    buildPath,
-			Env:    append(os.Environ(), "GOWORK=off"),
-			Stdout: stdout,
-			Stderr: stderr,
-		}
-		if err := shell.Run(spec); err != nil {
-			return rebuilt, err
-		}
-		rebuilt = true
-	}
-	return rebuilt, nil
+type packageCommandWriters struct {
+	stdout io.Writer
+	stderr io.Writer
 }
 
-func parsePackageAuditRequest(globals globalOptions, args []string) (packageAuditRequest, error) {
-	req := packageAuditRequest{}
-	for _, arg := range args {
-		switch arg {
-		case "--all":
-			req.All = true
-		default:
-			if strings.HasPrefix(arg, "-") {
-				return packageAuditRequest{}, unknownOptionError("package audit", arg)
-			}
-			if req.Name != "" {
-				return packageAuditRequest{}, usageErrorf("package audit", "package audit accepts at most one package name")
-			}
-			req.Name = arg
-		}
+func packageCommandOutputWriters(ctx *commandContext, format cliout.Format) packageCommandWriters {
+	if format == cliout.FormatJSON {
+		return packageCommandWriters{stdout: ctx.Stderr, stderr: ctx.Stderr}
 	}
-	if req.Name == "" {
-		req.All = true
-	}
-	return req, nil
+	return packageCommandWriters{stdout: ctx.Stdout, stderr: ctx.Stderr}
 }
 
-func runPackageAuditRequest(app *App, ctx *commandContext, req packageAuditRequest) (cliout.Format, packageAuditResponse, error) {
+func runPackageAuditRequest(app *App, ctx *commandContext, req packagecli.AuditRequest) (cliout.Format, packageAuditResponse, error) {
+	_ = app
 	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", packageAuditResponse{}, err
@@ -463,23 +197,11 @@ func runPackageAuditRequest(app *App, ctx *commandContext, req packageAuditReque
 	if req.All {
 		name = ""
 	}
-	report, err := packagegov.Audit(ctx.Root, name)
+	report, err := packageapp.Service{Root: ctx.Root}.Audit(name)
 	if err != nil {
 		return "", packageAuditResponse{}, err
 	}
 	return format, packageAuditResponse{Report: report}, nil
-}
-
-func loadNamedPackage(root, name string) (packagegov.Package, error) {
-	items, _, err := packagegov.LoadAll(root)
-	if err != nil {
-		return packagegov.Package{}, err
-	}
-	item, ok := packagegov.FindByName(items, name)
-	if !ok {
-		return packagegov.Package{}, usageErrorf("package", "package %q not found", name)
-	}
-	return item, nil
 }
 
 func renderPackageListResponse(w io.Writer, format cliout.Format, resp packageListResponse) error {
@@ -542,16 +264,24 @@ func renderPackageRunResponse(w io.Writer, format cliout.Format, resp packageRun
 	return nil
 }
 
-func renderPackageRefreshResponse(w io.Writer, format cliout.Format, resp packageRefreshResponse) error {
+func renderPackageRefreshResponse(w io.Writer, format cliout.Format, resp packageapp.RefreshResponse) error {
 	if format == cliout.FormatJSON {
 		return writeSuccessData(w, "refresh", resp)
 	}
 	if len(resp.Items) == 0 {
-		_, _ = fmt.Fprintf(w, "refreshed %s with no affected scenario consumers\n", resp.PackageName)
+		_, _ = fmt.Fprintf(w, "refreshed %s with no affected governed consumers\n", resp.PackageName)
 		return nil
 	}
 	for _, item := range resp.Items {
-		_, _ = fmt.Fprintf(w, "%s\t%s\n", item.Scenario, item.Status)
+		classText := string(item.Class)
+		if len(item.Classes) > 1 {
+			parts := make([]string, 0, len(item.Classes))
+			for _, class := range item.Classes {
+				parts = append(parts, string(class))
+			}
+			classText = strings.Join(parts, ",")
+		}
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", item.Consumer, classText, item.Action, item.Status)
 	}
 	return nil
 }
@@ -568,4 +298,94 @@ func renderPackageAuditResponse(w io.Writer, format cliout.Format, resp packageA
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", issue.Severity, issue.Code, filepath.ToSlash(issue.Path), issue.Message)
 	}
 	return nil
+}
+
+func buildPackageCommandTable() []commandtree.Spec[appCommandHandler] {
+	handlerMap := map[packagecli.CommandID]appCommandHandler{
+		packagecli.CommandList: bindGlobalCommand(
+			func(globals globalOptions, args []string) (packagecli.ListRequest, error) {
+				_ = globals
+				return packagecli.ParseListRequest(args)
+			},
+			runPackageListRequest,
+			renderPackageListResponse,
+		),
+		packagecli.CommandInfo: bindGlobalCommand(
+			func(globals globalOptions, args []string) (packagecli.InfoRequest, error) {
+				_ = globals
+				return packagecli.ParseInfoRequest(args)
+			},
+			runPackageInfoRequest,
+			renderPackageInfoResponse,
+		),
+		packagecli.CommandDependents: bindGlobalCommand(
+			func(globals globalOptions, args []string) (packagecli.DependentsRequest, error) {
+				_ = globals
+				return packagecli.ParseDependentsRequest(args)
+			},
+			runPackageDependentsRequest,
+			renderPackageDependentsResponse,
+		),
+		packagecli.CommandValidate: bindGlobalCommand(
+			func(globals globalOptions, args []string) (packagecli.ValidateRequest, error) {
+				_ = globals
+				return packagecli.ParseValidateRequest(args)
+			},
+			runPackageValidateRequest,
+			renderPackageValidateResponse,
+		),
+		packagecli.CommandBuild: bindGlobalCommand(
+			func(globals globalOptions, args []string) (packagecli.RunRequest, error) {
+				_ = globals
+				return packagecli.ParseRunRequest("build", args)
+			},
+			runPackageBuildRequest,
+			renderPackageRunResponse,
+		),
+		packagecli.CommandGenerate: bindGlobalCommand(
+			func(globals globalOptions, args []string) (packagecli.RunRequest, error) {
+				_ = globals
+				return packagecli.ParseRunRequest("generate", args)
+			},
+			runPackageGenerateRequest,
+			renderPackageRunResponse,
+		),
+		packagecli.CommandRefresh: bindGlobalCommand(
+			func(globals globalOptions, args []string) (packagecli.RefreshRequest, error) {
+				_ = globals
+				return packagecli.ParseRefreshRequest(args)
+			},
+			runPackageRefreshRequest,
+			renderPackageRefreshResponse,
+		),
+		packagecli.CommandAudit: bindGlobalCommand(
+			func(globals globalOptions, args []string) (packagecli.AuditRequest, error) {
+				_ = globals
+				return packagecli.ParseAuditRequest(args)
+			},
+			runPackageAuditRequest,
+			renderPackageAuditResponse,
+		),
+	}
+
+	source := packagecli.CommandSpecs()
+	specs := make([]commandtree.Spec[appCommandHandler], 0, len(source))
+	for _, spec := range source {
+		handler, ok := handlerMap[spec.Handler]
+		if !ok {
+			continue
+		}
+		specs = append(specs, commandtree.Spec[appCommandHandler]{
+			Name:        spec.Name,
+			Aliases:     append([]string(nil), spec.Aliases...),
+			Group:       spec.Group,
+			Summary:     spec.Summary,
+			Hidden:      spec.Hidden,
+			Suggestable: spec.Suggestable,
+			RootPolicy:  spec.RootPolicy,
+			Help:        spec.Help,
+			Handler:     handler,
+		})
+	}
+	return specs
 }

@@ -30,6 +30,7 @@ What already exists:
 - a working shared Go `docker-service` driver for standard lifecycle/status/logs
 - manifest-native discovery via `resources/<name>/resource.json`
 - partial native resource environment loading via `internal/resources/metadata.go`
+- native scenario start/restart env assembly through `internal/ports.BuildEnvironment()`, which already bypasses `config/exports.sh`
 
 What is still shell-era and live:
 
@@ -40,6 +41,12 @@ What is still shell-era and live:
 - shell-era config/test/docs assumptions around `defaults.sh`, `runtime.json`, `messages.sh`, and `capabilities.yaml`
 
 The migration goal is not "delete Bash blindly." It is to make Bash non-authoritative and then removable.
+
+This is therefore replacement work, not greenfield addition:
+
+- standard lifecycle is already mostly replaced for `docker-service`
+- scenario start/restart env assembly is already mostly replaced
+- what remains is to close the parity gaps, make the contract explicit, add validation, and then delete the leftover shell path
 
 ## Current Active Docker-Service Set
 
@@ -64,6 +71,13 @@ Reference:
 
 - [drivers.go](/home/matthalloran8/Vrooli/internal/resources/drivers.go)
 - `go run ./cmd/vrooli resource list --json`
+
+Current scenario-facing env contract status:
+
+- explicitly native: `browserless`, `comfyui`, `minio`, `ollama`, `postgres`, `qdrant`, `questdb`, `redis`, `searxng`, `unstructured-io`, `vault`
+- intentionally not yet given scenario env exports: `litellm`, `neo4j`, `sagemath`
+
+The remaining set is intentional. A repo audit did not find active scenario dependency consumers for `litellm`, `neo4j`, or `sagemath`, so this proposal does not invent scenario-facing env contracts for them prematurely.
 
 ## What Is Already Native
 
@@ -91,6 +105,27 @@ References:
 - [manifest.go](/home/matthalloran8/Vrooli/internal/resources/manifest/manifest.go)
 
 This is the correct baseline and should become the only standard lifecycle path for `docker-service`.
+
+Scenario lifecycle environment assembly is also already native on the main start/restart path:
+
+- [internal/lifecycle/lifecycle.go](/home/matthalloran8/Vrooli/internal/lifecycle/lifecycle.go:168)
+- [internal/ports/ports.go](/home/matthalloran8/Vrooli/internal/ports/ports.go:352)
+
+Current start path:
+
+```text
+Runner.Start()
+  -> Ports.BuildEnvironment()
+  -> loadResourceEnvironment()
+  -> resources.LoadResourceEnvironment()
+  -> inject env into setup/develop/test phases
+```
+
+Important implication:
+
+- `vrooli scenario start` and `restart` already ignore `config/exports.sh`
+- this is not inherently broken, because a native replacement already exists
+- but native parity with the old shell export surface is incomplete, so there is still drift risk
 
 ## Live Shell-Era Dependencies That Still Matter
 
@@ -125,6 +160,16 @@ The native path currently derives env from:
 - hard-coded special cases
 
 This is real and in use, but incomplete relative to the old shell export surface.
+
+Known parity gaps:
+
+- `POSTGRES_URL` and `DATABASE_URL` are handled natively through `applyPostgresOverride`, but this logic is special-cased in `internal/ports`
+- `REDIS_URL` is still a shell-era concept not reproduced natively in the current generic path
+- `QDRANT_URL` and `QDRANT_GRPC_URL` are still shell-era concepts not reproduced natively
+- `OLLAMA_URL` is still a shell-era concept not reproduced natively
+
+So the correct question is not "should we add native env export logic?" The repo already has some.
+The correct question is "how do we replace the incomplete native-plus-shell hybrid with one explicit native contract?"
 
 ### 2. Direct Scenario Sourcing Of Resource Shell Files
 
@@ -167,6 +212,8 @@ These file classes still appear across active `docker-service` resources:
 - `lib/*.sh`
 
 These should not all survive. They need classification.
+
+They also need explicit removal planning so contributors are not left guessing which files still matter.
 
 ## File Classification Rules
 
@@ -257,6 +304,8 @@ If any of those still require shell, the resource is not fully native.
 
 The shell-era `exports.sh` behavior should be replaced with an explicit native model.
 
+This should be modeled directly in `resource.json`, not in a sidecar shell file and not in `.vrooli/schemas/resource-definitions.json`.
+
 Suggested addition:
 
 ```json
@@ -265,20 +314,39 @@ Suggested addition:
     "POSTGRES_HOST": "localhost",
     "POSTGRES_SSLMODE": "disable"
   },
-  "derived": [
-    {
-      "name": "POSTGRES_URL",
-      "from": "postgres_connection_url"
+  "from_ports": {
+    "POSTGRES_PORT": "postgresql"
+  },
+  "from_runtime_env": [
+    "POSTGRES_USER",
+    "POSTGRES_PASSWORD",
+    "POSTGRES_DB"
+  ],
+  "derived": {
+    "POSTGRES_URL": {
+      "template": "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${POSTGRES_SSLMODE}"
     },
-    {
-      "name": "DATABASE_URL",
-      "from": "postgres_connection_url"
+    "DATABASE_URL": {
+      "template": "${POSTGRES_URL}"
     }
-  ]
+  }
 }
 ```
 
-The exact schema can vary, but the important point is:
+This proposal intentionally keeps the structure small and readable:
+
+- `static`
+  - literal values the resource always exports
+- `from_ports`
+  - env var name -> manifest port name
+- `from_runtime_env`
+  - selected keys copied from `runtime.env` after secrets/default resolution
+- `derived`
+  - computed values built from templates
+
+This makes the contract inspectable in one place and avoids hiding behavior in Bash, generated JSON, or hard-coded Go maps.
+
+The important point is:
 
 - exported scenario-facing env vars must be declared and generated natively
 - resource env injection must not depend on shell sourcing
@@ -289,6 +357,123 @@ This should replace the current hidden dependence on:
 - `exports.sh`
 - `.vrooli/schemas/resource-definitions.json`
 - hard-coded special cases in Go
+
+### 3.1 Example Flow
+
+Target flow:
+
+```text
+scenario .vrooli/service.json
+  -> declares dependency on postgres
+  -> may supply overrides such as database/schema/model/base_url
+        |
+        v
+resource.json
+  -> runtime
+  -> ports
+  -> environment_exports
+        |
+        v
+native resource env resolver
+  -> resolves secrets/defaults
+  -> maps named ports
+  -> applies scenario overrides
+  -> renders derived values
+  -> validates collisions/ambiguity
+        |
+        v
+final scenario env
+  -> setup/develop/test/runtime phases
+```
+
+Example scenario override:
+
+```json
+"dependencies": {
+  "resources": {
+    "postgres": {
+      "enabled": true,
+      "required": true,
+      "database": "tech_tree_designer"
+    }
+  }
+}
+```
+
+Result:
+
+```text
+resource default contract
+  -> exports POSTGRES_DB and derived URLs
+
+scenario dependency override
+  -> replaces POSTGRES_DB with tech_tree_designer
+
+resolver recomputes
+  -> POSTGRES_URL
+  -> DATABASE_URL
+```
+
+### 3.2 Responsibility split
+
+The future-state responsibility split should be:
+
+```text
+internal/ports
+  -> scenario runtime port allocation only
+
+internal/resources/env (or similar)
+  -> resource-provided scenario env resolution
+  -> environment_exports evaluation
+  -> dependency override application
+  -> derived URL generation
+  -> collision/conflict detection
+```
+
+`internal/ports` should not remain the long-term home for resource env semantics.
+
+Keep in `internal/ports`:
+
+- scenario port range allocation
+- lock management
+- runtime port reuse
+- listener/lock collision handling
+
+Move out of `internal/ports`:
+
+- resource env export semantics
+- resource-specific overrides
+- derived resource URL construction
+
+Suggested package shape:
+
+```text
+internal/resources/env/
+├── resolver.go
+├── overrides.go
+├── templates.go
+├── validate.go
+└── types.go
+```
+
+Responsibilities:
+
+- `resolver.go`
+  - build final exported env map for one resource dependency
+- `overrides.go`
+  - apply scenario dependency overrides such as `database`, `schema`, `models`
+- `templates.go`
+  - render derived env values safely and deterministically
+- `validate.go`
+  - local and scenario-level collision checks
+- `types.go`
+  - typed structures for env export declarations and diagnostics
+
+Migration note:
+
+- `internal/resources/metadata.go` should become a short-term adapter or be retired entirely once the native resolver owns the contract
+- `.vrooli/schemas/resource-definitions.json` should no longer be used as an authoritative source for resource export semantics
+- `internal/ports` should call the new resolver rather than continuing to own resource env behavior itself
 
 ## 4. Compatibility Layout
 
@@ -311,6 +496,151 @@ Rules:
 - compatibility code is not part of the canonical template
 - compatibility code is not authoritative for standard lifecycle
 - compatibility code must have explicit ownership and removal criteria
+- compatibility code must not be required for `scenario start` or `scenario restart`
+
+Suggested `compat/bridge.json` fields:
+
+```json
+{
+  "owner": "resources-team",
+  "reason": "custom admin commands not yet ported",
+  "authoritative_for": [],
+  "commands": ["backup", "restore"],
+  "decision_deadline": "2026-06-30",
+  "removal_criteria": [
+    "native env resolver shipped",
+    "native validation shipped",
+    "all scenario callers migrated"
+  ]
+}
+```
+
+## Validation And Conflict Detection
+
+The native contract should not just replace shell behavior. It should be stricter and easier to audit.
+
+### Resource-local validation
+
+For each `docker-service` resource:
+
+- detect duplicate port names
+- detect duplicate fixed host ports within the same resource
+- detect duplicate exported environment variable names
+- detect invalid derived env templates
+- detect references to missing ports, runtime values, or secrets
+
+### Scenario-level validation
+
+For one scenario with multiple enabled resources:
+
+- detect overlapping exported env keys across enabled resources
+- detect resource exports that collide with scenario-defined env vars
+- detect invalid scenario overrides that break derived env output
+
+### Cross-resource static validation
+
+Across active `docker-service` resources:
+
+- detect conflicting fixed host port declarations
+- detect exported env names that are claimed by multiple resources incompatibly
+
+### Recommended command surface
+
+Expose this through native CLI validation:
+
+```text
+vrooli resource validate
+vrooli resource validate <name>
+vrooli scenario validate-env <scenario>
+```
+
+Recommended behavior:
+
+- `vrooli resource validate`
+  - validates manifest shape, env export declarations, local collisions, and fixed-port conflicts across resources
+- `vrooli resource validate <name>`
+  - validates one resource and prints actionable diagnostics
+- `vrooli scenario validate-env <scenario>`
+  - resolves enabled dependency exports
+  - prints the final env set
+  - reports collisions, overrides, and ambiguity
+
+Recommended output shape:
+
+```text
+$ vrooli resource validate postgres
+resource: postgres
+status: invalid
+
+errors:
+- duplicate exported env key: DATABASE_URL
+- derived export POSTGRES_URL references unknown variable: POSTGRES_SSLMODE
+
+warnings:
+- fixed host port 5433 overlaps with resource questdb
+```
+
+```text
+$ vrooli scenario validate-env tech-tree-designer
+scenario: tech-tree-designer
+status: invalid
+
+resource exports:
+- postgres -> POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_URL, DATABASE_URL
+- redis -> REDIS_HOST, REDIS_PORT, REDIS_URL
+
+overrides:
+- postgres.database = tech_tree_designer
+
+errors:
+- env key collision: DATABASE_URL provided by postgres and scenario api.env
+```
+
+Recommended command ownership:
+
+- `vrooli resource validate`
+  - resource manifest schema validation
+  - env export declaration validation
+  - cross-resource fixed-port conflict detection
+- `vrooli scenario validate-env`
+  - dependency resolution preview
+  - final merged env inspection
+  - scenario-level env collision detection
+
+These commands should exist before the docker-service template is updated.
+
+## Cleanup And Removal Plan
+
+The migration should explicitly name what gets added, what gets replaced, and what gets deleted.
+
+### Add
+
+- `resource.json.environment_exports`
+- native resource env resolver package
+- native validation commands and diagnostics
+- explicit `compat/bridge.json` when temporary shell compatibility is still needed
+
+### Replace
+
+- `internal/resources/metadata.go` env export semantics
+- `internal/ports` resource env assembly behavior
+- Postgres shell bootstrap in scenario setup
+- direct scenario sourcing of `resources/*/config/exports.sh`
+
+### Delete After Validation
+
+- `config/exports.sh`
+- shell fallback env loading from `scripts/lib/network/ports.sh`
+- `.vrooli/schemas/resource-definitions.json` as an authoritative env-export source
+- any `cli.sh` or `lib/*.sh` paths still serving standard lifecycle or scenario env injection
+
+Deletion gates:
+
+1. Native parity tests exist for every exported variable still relied on by scenarios.
+2. `vrooli resource validate` passes for all active docker-service resources.
+3. `vrooli scenario validate-env` passes for scenarios using those resources.
+4. All direct scenario sourcing of resource shell exports has been removed.
+5. Native Postgres bootstrap is in place.
 
 ## Audit Of Active Docker-Service Resources
 
@@ -356,9 +686,14 @@ These have large shell command surfaces and should not be migrated by mechanical
 Do first:
 
 1. Define native env export contract for `docker-service`
-2. Replace shell-based scenario env loading with Go-native loading only
-3. Replace Postgres DB bootstrap with native Go logic
-4. Define compatibility isolation layout and contract checks
+2. Replace the current partial `internal/resources/metadata.go` + `internal/ports` hybrid with an explicit native env resolver
+3. Replace shell-based scenario env loading and side-channel `exports.sh` sourcing with native loading only
+4. Replace Postgres DB bootstrap with native Go logic
+5. Define compatibility isolation layout and contract checks
+6. Add resource-local, scenario-level, and cross-resource conflict validation
+7. Add the native CLI validation surface
+
+Do not update the canonical `docker-service` template until Cohort A is implemented and validated.
 
 Without this, resource-by-resource migration will keep leaking shell assumptions back into the platform.
 
@@ -414,6 +749,7 @@ Recommended enforcement:
 - canonical `docker-service` template generates no Bash
 - canonical `docker-service` template includes native env export declaration
 - canonical `docker-service` template includes no shell-first docs
+- template changes happen only after the native env/export/validation foundation is landed
 
 ### Active Resource Rules
 
@@ -423,6 +759,8 @@ For `driver = docker-service`:
 - compatibility code must live under explicit compatibility layout if present
 - `cli.sh` at resource root should not remain a silent default forever
 - `exports.sh` must not be required for scenario env injection
+- shell-era direct scenario sourcing must be treated as migration debt and removed
+- shell-era side-channel files must have explicit `migrate`, `compat`, or `delete` disposition
 
 ### Documentation Rules
 
@@ -445,12 +783,16 @@ These need explicit follow-up investigation or design:
 ## Recommended Immediate Next Steps
 
 1. Add a first-class native env export section to `resource.json`
-2. Replace `internal/ports` dependency on `resource-definitions.json` + special cases with manifest-native env export resolution
-3. Replace Postgres shell bootstrap with native Go DB bootstrap helpers
-4. Add contract checks that canonical resource templates contain no Bash files
-5. Add contract checks that `docker-service` resources cannot rely on root-level `cli.sh` for standard lifecycle
-6. Move any retained shell compatibility under explicit compatibility paths
-7. Audit repo usage of custom resource commands before migrating large custom command surfaces
+2. Introduce a dedicated native resource env resolution package and move env semantics out of `internal/ports`
+3. Replace `internal/ports` dependency on `resource-definitions.json` + special cases with manifest-native env export resolution
+4. Replace Postgres shell bootstrap with native Go DB bootstrap helpers
+5. Add resource-local and scenario-level conflict validation
+6. Expose validation through native `vrooli` commands
+7. Add contract checks that canonical resource templates contain no Bash files
+8. Add contract checks that `docker-service` resources cannot rely on root-level `cli.sh` for standard lifecycle
+9. Move any retained shell compatibility under explicit compatibility paths
+10. Audit repo usage of custom resource commands before migrating large custom command surfaces
+11. Only after steps 1-10 are landed and validated, update the canonical `docker-service` template
 
 ## Bottom Line
 
@@ -462,5 +804,19 @@ The real blockers are not the shared driver. They are:
 - shell-based side effects in lifecycle/bootstrap
 - unbounded custom shell command surfaces
 - lack of explicit compatibility isolation
+
+The sequencing matters:
+
+```text
+first:
+  native env/export contract
+  native validation
+  native bootstrap replacement
+  explicit cleanup/removal plan
+
+then:
+  update docker-service template
+  migrate resources against the finalized contract
+```
 
 Fix those four things, and `docker-service` becomes a real cross-platform native archetype instead of a manifest layered on top of hidden Bash.

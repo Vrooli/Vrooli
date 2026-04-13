@@ -432,7 +432,16 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["binaries", "cli", "ui-bundle", "directory", "file", "command"]
+          "enum": [
+            "binaries",
+            "cli",
+            "ui-bundle",
+            "resources",
+            "dependencies",
+            "data",
+            "files",
+            "directories"
+          ]
         },
         "targets": {
           "type": "array",

@@ -276,7 +276,7 @@ func TestHandleLifecycleReturnsProjectError(t *testing.T) {
 	if payload["success"] != false {
 		t.Fatalf("success = %v", payload["success"])
 	}
-	if !strings.Contains(payload["error"].(string), "not defined") {
+	if !strings.Contains(payload["error"].(string), "native-only") {
 		t.Fatalf("error = %v", payload["error"])
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 type CheckResult struct {
@@ -50,7 +51,7 @@ func Run(root string) (Report, error) {
 	}
 	root = filepath.Clean(root)
 
-	contractPath := filepath.Join(root, ".vrooli", "repo-contract.json")
+	contractPath := repocontractmeta.ContractPath(root)
 	data, err := os.ReadFile(contractPath)
 	if err != nil {
 		return Report{}, fmt.Errorf("read repo contract: %w", err)
@@ -97,10 +98,10 @@ func Run(root string) (Report, error) {
 }
 
 func checkPhase1Semantics(contract *repocontract.Contract, root string, raw string) error {
-	if contract.Schema() != "schemas/repo-contract.schema.json" {
+	if contract.Schema() != repocontractmeta.ContractSchemaRef {
 		return fmt.Errorf("schema = %q", contract.Schema())
 	}
-	if contract.Version() != "1.0.0" {
+	if contract.Version() != repocontractmeta.DefaultContractVersion {
 		return fmt.Errorf("version = %q", contract.Version())
 	}
 	platform := contract.Platform()
@@ -138,12 +139,12 @@ func checkPhase1Semantics(contract *repocontract.Contract, root string, raw stri
 	if scopePrefix := contract.SandboxScenarioScopePrefix(); scopePrefix != "scenarios/" {
 		return fmt.Errorf("sandbox.scenario_scope_prefix = %q", scopePrefix)
 	}
-	mini, ok := contract.Profiles()["mini_vrooli_bundle"]
+	mini, ok := contract.Profiles()[repocontractmeta.MiniBundleProfile]
 	if !ok {
-		return fmt.Errorf("missing mini_vrooli_bundle profile")
+		return fmt.Errorf("missing %s profile", repocontractmeta.MiniBundleProfile)
 	}
 	if len(mini.Include) == 0 || len(mini.Exclude) == 0 {
-		return fmt.Errorf("mini_vrooli_bundle must define include and exclude paths")
+		return fmt.Errorf("%s must define include and exclude paths", repocontractmeta.MiniBundleProfile)
 	}
 	if !contains(mini.Parameters, "scenario") || !contains(mini.Parameters, "resources[*]") {
 		return fmt.Errorf("unexpected profile parameters: %v", mini.Parameters)
@@ -313,9 +314,9 @@ func checkProfileRootsWithinCanonicalLayout(contract *repocontract.Contract, roo
 }
 
 func checkBundleProfilePolicy(contract *repocontract.Contract, root string, raw string) error {
-	profile, ok := contract.Profiles()["mini_vrooli_bundle"]
+	profile, ok := contract.Profiles()[repocontractmeta.MiniBundleProfile]
 	if !ok {
-		return fmt.Errorf("missing mini_vrooli_bundle profile")
+		return fmt.Errorf("missing %s profile", repocontractmeta.MiniBundleProfile)
 	}
 	if got, want := profile.Parameters, []string{"scenario", "resources[*]"}; !slices.Equal(got, want) {
 		return fmt.Errorf("profile.parameters = %v, want %v", got, want)

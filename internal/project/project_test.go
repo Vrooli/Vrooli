@@ -84,6 +84,27 @@ func TestRunProjectPhaseRejectsUndefinedPhase(t *testing.T) {
 	}
 }
 
+func TestRunProjectPhaseRejectsNativeOnlyPhase(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	testkitvrooli.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "project-alpha"},
+		Lifecycle: scenario.Lifecycle{
+			Build: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "noop", Run: "true"}}},
+		},
+	})
+
+	controller := New(root, home, io.Discard, io.Discard)
+	err := controller.RunProjectPhase("develop", nil)
+	if err == nil {
+		t.Fatal("expected native-only phase to fail")
+	}
+	if !strings.Contains(err.Error(), "native-only") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -184,23 +205,23 @@ func TestRunProjectPhaseExecutesDefinedLifecycle(t *testing.T) {
 	testkitvrooli.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "project-alpha"},
 		Lifecycle: scenario.Lifecycle{
-			Build: scenario.Phase{
-				Steps: []scenario.PhaseStep{{Name: "write-build-file", Run: "mkdir -p build && printf 'built\n' > build/build.txt"}},
+			Clean: scenario.Phase{
+				Steps: []scenario.PhaseStep{{Name: "write-clean-file", Run: "mkdir -p build && printf 'cleaned\n' > build/clean.txt"}},
 			},
 		},
 	})
 	writeProjectPortRegistry(t, root)
 
 	controller := New(root, home, io.Discard, io.Discard)
-	if err := controller.RunProjectPhase("build", nil); err != nil {
-		t.Fatalf("RunProjectPhase(build): %v", err)
+	if err := controller.RunProjectPhase("clean", nil); err != nil {
+		t.Fatalf("RunProjectPhase(clean): %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(root, "build", "build.txt"))
+	data, err := os.ReadFile(filepath.Join(root, "build", "clean.txt"))
 	if err != nil {
-		t.Fatalf("read build output: %v", err)
+		t.Fatalf("read clean output: %v", err)
 	}
-	if strings.TrimSpace(string(data)) != "built" {
-		t.Fatalf("build output = %q", string(data))
+	if strings.TrimSpace(string(data)) != "cleaned" {
+		t.Fatalf("clean output = %q", string(data))
 	}
 }
 
@@ -210,7 +231,7 @@ func TestRunProjectPhaseUsesInjectedPhaseRunner(t *testing.T) {
 	testkitvrooli.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "project-alpha"},
 		Lifecycle: scenario.Lifecycle{
-			Build: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "noop", Run: "true"}}},
+			Clean: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "noop", Run: "true"}}},
 		},
 	})
 
@@ -219,15 +240,15 @@ func TestRunProjectPhaseUsesInjectedPhaseRunner(t *testing.T) {
 	controller.NewPhaseRunner = func(root, home string, stdout, stderr io.Writer) (PhaseRunner, error) {
 		return phaseRunnerFunc(func(name, phase string, opts lifecycle.PhaseOptions) error {
 			called = true
-			if name != "project-alpha" || phase != "build" {
+			if name != "project-alpha" || phase != "clean" {
 				t.Fatalf("runner called with name=%q phase=%q", name, phase)
 			}
 			return nil
 		}), nil
 	}
 
-	if err := controller.RunProjectPhase("build", nil); err != nil {
-		t.Fatalf("RunProjectPhase(build): %v", err)
+	if err := controller.RunProjectPhase("clean", nil); err != nil {
+		t.Fatalf("RunProjectPhase(clean): %v", err)
 	}
 	if !called {
 		t.Fatalf("expected injected phase runner to be used")

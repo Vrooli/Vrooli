@@ -6,26 +6,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
+	"github.com/vrooli/vrooli/internal/cli/resourcecli"
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
-type resourceTemplateGenerateOptions struct {
-	TemplateName  string
-	BlueprintName string
-	Destination   string
-	Force         bool
-	DryRun        bool
-	Values        map[string]string
-}
+var resourceTemplateCommandTable = buildResourceTemplateCommandTable()
 
-var resourceTemplateCommandTable = []resourceSubcommandDescriptor{
-	{Name: "list", Summary: "List resource templates", Handler: bindResourceCommand(parseResourceTemplateListRequest, runResourceTemplateListRequest, renderResourceTemplateListResponse)},
-	{Name: "show", Summary: "Show template details", Handler: bindResourceCommand(parseResourceTemplateShowRequest, runResourceTemplateShowRequest, renderResourceTemplateShowResponse)},
-	{Name: "validate", Summary: "Validate template manifests", Handler: bindResourceCommand(parseResourceTemplateValidateRequest, runResourceTemplateValidateRequest, renderResourceTemplateValidateResponse)},
-	{Name: "generate", Summary: "Generate files from a template", Handler: runResourceTemplateGenerateCommandWithApp},
-}
-
-var resourceTemplateCommandHandlers = buildResourceSubcommandMap(resourceTemplateCommandTable)
+var resourceTemplateCommandHandlers = commandtree.BuildHandlerMap(resourceTemplateCommandTable)
 
 func runResourceTemplateCommand(controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer) error {
 	app, ctx := newConfiguredCommandContext("", globals, stdout, stderr)
@@ -40,8 +28,8 @@ func runResourceTemplateCommandWithApp(app *App, ctx *commandContext, controller
 }
 
 func runResourceTemplateGenerateCommandWithApp(app *App, ctx *commandContext, controller *resources.Controller, args []string) error {
-	return executeResourceCommandWithApp(app, ctx, controller, args, boundCommandAction[*resources.Controller, resourceTemplateGenerateOptions, resources.ResourceTemplateGenerateReport]{
-		parse: func(globals globalOptions, args []string) (resourceTemplateGenerateOptions, error) {
+	return executeResourceCommandWithApp(app, ctx, controller, args, resourceCommandAction[resourcecli.TemplateGenerateOptions, resources.ResourceTemplateGenerateReport]{
+		parse: func(globals globalOptions, args []string) (resourcecli.TemplateGenerateOptions, error) {
 			return parseResourceTemplateGenerateRequest(controller, globals, args, ctx.Stderr)
 		},
 		run:    runResourceTemplateGenerateRequest,
@@ -49,125 +37,12 @@ func runResourceTemplateGenerateCommandWithApp(app *App, ctx *commandContext, co
 	})
 }
 
-func parseResourceTemplateGenerateArgs(controller *resources.Controller, args []string, stderr io.Writer) (resourceTemplateGenerateOptions, error) {
-	opts := resourceTemplateGenerateOptions{Values: map[string]string{}}
-
-	if len(args) > 0 && !strings.HasPrefix(args[0], "--") {
-		opts.TemplateName = args[0]
-		args = args[1:]
-	}
-
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch {
-		case arg == "--from-blueprint":
-			if index+1 >= len(args) {
-				return resourceTemplateGenerateOptions{}, usageErrorf("resource template generate", "resource template generate --from-blueprint requires a value")
-			}
-			index++
-			opts.BlueprintName = args[index]
-		case strings.HasPrefix(arg, "--from-blueprint="):
-			opts.BlueprintName = strings.TrimPrefix(arg, "--from-blueprint=")
-		}
-	}
-
-	var manifest resources.ResourceTemplateManifest
-	if opts.TemplateName != "" || opts.BlueprintName != "" {
-		info, err := controller.ResolveTemplateGenerationRequest(resources.ResourceTemplateGenerateRequest{
-			TemplateName:  opts.TemplateName,
-			BlueprintName: opts.BlueprintName,
-		})
-		if err != nil {
-			return resourceTemplateGenerateOptions{}, err
-		}
-		manifest = info.Manifest
-		opts.TemplateName = info.Name
-	}
-
-	flagMap := make(map[string]string, len(manifest.RequiredVars)+len(manifest.OptionalVars))
-	for key, variable := range manifest.RequiredVars {
-		if variable.Flag != "" {
-			flagMap[variable.Flag] = key
-		}
-	}
-	for key, variable := range manifest.OptionalVars {
-		if variable.Flag != "" {
-			flagMap[variable.Flag] = key
-		}
-	}
-
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch {
-		case arg == "--from-blueprint":
-			index++
-		case strings.HasPrefix(arg, "--from-blueprint="):
-			continue
-		case arg == "--dest" || arg == "--destination":
-			if index+1 >= len(args) {
-				return resourceTemplateGenerateOptions{}, usageErrorf("resource template generate", "%s requires a value", arg)
-			}
-			index++
-			opts.Destination = args[index]
-		case strings.HasPrefix(arg, "--dest="):
-			opts.Destination = strings.TrimPrefix(arg, "--dest=")
-		case strings.HasPrefix(arg, "--destination="):
-			opts.Destination = strings.TrimPrefix(arg, "--destination=")
-		case arg == "--force":
-			opts.Force = true
-		case arg == "--dry-run":
-			opts.DryRun = true
-		case arg == "--var":
-			if index+1 >= len(args) {
-				return resourceTemplateGenerateOptions{}, usageErrorf("resource template generate", "resource template generate --var requires KEY=VALUE")
-			}
-			index++
-			key, value, err := parseScenarioTemplateKeyValue(args[index])
-			if err != nil {
-				return resourceTemplateGenerateOptions{}, err
-			}
-			opts.Values[key] = value
-		case strings.HasPrefix(arg, "--var="):
-			key, value, err := parseScenarioTemplateKeyValue(strings.TrimPrefix(arg, "--var="))
-			if err != nil {
-				return resourceTemplateGenerateOptions{}, err
-			}
-			opts.Values[key] = value
-		case strings.HasPrefix(arg, "--"):
-			flagName, flagValue, consumesNext, err := parseScenarioTemplateFlag(arg, args, index)
-			if err != nil {
-				return resourceTemplateGenerateOptions{}, err
-			}
-			if consumesNext {
-				index++
-			}
-			key, ok := flagMap[flagName]
-			if !ok {
-				_, _ = fmt.Fprintf(stderr, "Warning: unknown flag --%s; use --var KEY=VALUE for arbitrary placeholders\n", flagName)
-				continue
-			}
-			opts.Values[key] = flagValue
-		default:
-			return resourceTemplateGenerateOptions{}, usageErrorf("resource template generate", "unexpected argument: %s", arg)
-		}
-	}
-
-	return opts, nil
-}
-
 func showResourceTemplateHelp(w io.Writer) {
-	renderResourceSubcommandHelp(w, "", "vrooli resource template <subcommand> [options]", "Resource Templates", resourceTemplateCommandTable)
+	resourcecli.RenderCommandHelp(w, "", "vrooli resource template <subcommand> [options]", "Resource Templates", resourceTemplateCommandTable)
 }
 
 func showResourceTemplateGenerateHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli resource template generate <template> [options]")
-	_, _ = fmt.Fprintln(w, "       vrooli resource template generate --from-blueprint <name> [options]")
-	_, _ = fmt.Fprintln(w, "Options:")
-	_, _ = fmt.Fprintln(w, "  --from-blueprint <name>  Seed values from an existing blueprint")
-	_, _ = fmt.Fprintln(w, "  --dest <path>            Destination directory (defaults to resources/<name>)")
-	_, _ = fmt.Fprintln(w, "  --var KEY=VALUE          Additional placeholder override (repeatable)")
-	_, _ = fmt.Fprintln(w, "  --force                  Overwrite destination if it already exists")
-	_, _ = fmt.Fprintln(w, "  --dry-run                Print the planned actions without writing files")
+	_, _ = fmt.Fprintln(w, resourcecli.RenderTemplateGenerateHelpText())
 }
 
 func writeResourceTemplateVarTable(w io.Writer, title string, vars map[string]resources.ResourceTemplateVar) {
@@ -237,4 +112,23 @@ func writeResourceTemplateValues(w io.Writer, values map[string]string) {
 	for _, key := range keys {
 		_, _ = fmt.Fprintf(w, "  - %s=%s\n", key, values[key])
 	}
+}
+
+func buildResourceTemplateCommandTable() []commandtree.Spec[resourceCommandHandler] {
+	handlerMap := map[resourcecli.TemplateCommandID]resourceCommandHandler{
+		resourcecli.TemplateCommandList:     bindResourceCommand(parseResourceTemplateListRequest, runResourceTemplateListRequest, renderResourceTemplateListResponse),
+		resourcecli.TemplateCommandShow:     bindResourceCommand(parseResourceTemplateShowRequest, runResourceTemplateShowRequest, renderResourceTemplateShowResponse),
+		resourcecli.TemplateCommandValidate: bindResourceCommand(parseResourceTemplateValidateRequest, runResourceTemplateValidateRequest, renderResourceTemplateValidateResponse),
+		resourcecli.TemplateCommandGenerate: runResourceTemplateGenerateCommandWithApp,
+	}
+	source := resourcecli.TemplateCommandSpecs()
+	specs := make([]commandtree.Spec[resourceCommandHandler], 0, len(source))
+	for _, spec := range source {
+		handler, ok := handlerMap[spec.Handler]
+		if !ok {
+			continue
+		}
+		specs = append(specs, commandtree.Spec[resourceCommandHandler]{Name: spec.Name, Summary: spec.Summary, Handler: handler})
+	}
+	return specs
 }

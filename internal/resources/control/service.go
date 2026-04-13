@@ -12,7 +12,6 @@ import (
 
 	batchcontrol "github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/resources/catalog"
-	compatpkg "github.com/vrooli/vrooli/internal/resources/compat"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
@@ -55,7 +54,7 @@ type Service struct {
 	LoadManifestFn       func(path string) (manifestpkg.ResourceManifest, error)
 	DriverStatusFn       func(ctx context.Context, item catalog.Resource, manifest manifestpkg.ResourceManifest, fast bool) (Status, error)
 	DriverRunFn          func(ctx context.Context, item catalog.Resource, manifest manifestpkg.ResourceManifest, operation string, args []string, stdout, stderr io.Writer) error
-	RunLegacyFn          func(name, operation string, args []string, stdout, stderr io.Writer) error
+	RunResourceCommandFn func(name, operation string, args []string, stdout, stderr io.Writer) error
 	CommandForResourceFn func(name string, args ...string) (*exec.Cmd, error)
 	RunCommandFn         func(ctx context.Context, cmd *exec.Cmd) CommandResult
 }
@@ -119,7 +118,7 @@ func (s *Service) Run(name string, args []string, stdout, stderr io.Writer) erro
 	if s.useManifestNativeControl(item) {
 		return s.runNativeResourceCommand(*item, operation, args[1:], stdout, stderr)
 	}
-	return s.runLegacyResourceCommand(name, operation, args[1:], stdout, stderr)
+	return s.runResourceCommand(name, operation, args[1:], stdout, stderr)
 }
 
 func (s *Service) validateActiveResource(name string, forStatus bool) error {
@@ -168,9 +167,6 @@ func (s *Service) runNativeResourceCommand(item catalog.Resource, operation stri
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	if err := s.DriverRunFn(ctx, item, manifest, operation, args, stdout, stderr); err != nil {
-		if shouldFallbackToLegacyResourceCommand(err) {
-			return s.runLegacyResourceCommand(item.Name, operation, args, stdout, stderr)
-		}
 		var resourceErr *vroolierr.Error
 		if errors.As(err, &resourceErr) {
 			return err
@@ -186,8 +182,8 @@ func (s *Service) runNativeResourceCommand(item catalog.Resource, operation stri
 	return nil
 }
 
-func (s *Service) runLegacyResourceCommand(name, operation string, args []string, stdout, stderr io.Writer) error {
-	return s.RunLegacyFn(name, operation, args, stdout, stderr)
+func (s *Service) runResourceCommand(name, operation string, args []string, stdout, stderr io.Writer) error {
+	return s.RunResourceCommandFn(name, operation, args, stdout, stderr)
 }
 
 func (s *Service) StartAll(stdout, stderr io.Writer) (batchcontrol.StartReport, error) {
@@ -300,7 +296,7 @@ func (s *Service) StatusForResource(item catalog.Resource, fast bool) (Status, e
 		return status, nil
 	}
 
-	rawJSON, ok := compatpkg.ExtractJSONPayload(result.Output)
+	rawJSON, ok := extractJSONPayload(result.Output)
 	if !ok {
 		if result.Err != nil {
 			status.StatusCode = StatusCodeCommandError
@@ -323,15 +319,15 @@ func (s *Service) StatusForResource(item catalog.Resource, fast bool) (Status, e
 		return status, nil
 	}
 
-	status.Installed = compatpkg.BoolValue(payload["installed"], status.Installed)
-	status.Running = compatpkg.BoolValue(payload["running"], false)
-	status.Message = compatpkg.StringValue(payload["message"])
+	status.Installed = boolValue(payload["installed"], status.Installed)
+	status.Running = boolValue(payload["running"], false)
+	status.Message = stringValue(payload["message"])
 	if status.Message == "" {
-		status.Message = compatpkg.StringValue(payload["status"])
+		status.Message = stringValue(payload["status"])
 	}
-	status.Health = compatpkg.StringValue(payload["health"])
+	status.Health = stringValue(payload["health"])
 	if healthy, ok := payload["healthy"]; ok {
-		value := compatpkg.BoolValue(healthy, false)
+		value := boolValue(healthy, false)
 		status.Healthy = &value
 	} else if status.Health != "" {
 		value := strings.EqualFold(status.Health, "healthy")
@@ -359,12 +355,4 @@ func fastArgs(fast bool) []string {
 		return []string{"--fast"}
 	}
 	return nil
-}
-
-func shouldFallbackToLegacyResourceCommand(err error) bool {
-	var resourceErr *vroolierr.Error
-	if !errors.As(err, &resourceErr) {
-		return false
-	}
-	return resourceErr.Code == ErrorCodeCommandUnavailable && resourceErr.Category == "Driver"
 }

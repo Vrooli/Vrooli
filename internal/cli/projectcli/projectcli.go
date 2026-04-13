@@ -33,10 +33,7 @@ type LocksResponse struct {
 
 func RenderStatusReport(w io.Writer, format cliout.Format, resp StatusResponse) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
-			"status":  resp.Report,
-		})
+		return cliout.WriteSuccessJSON(w, "status", resp.Report)
 	}
 
 	if !resp.Options.ScenariosOnly {
@@ -101,10 +98,7 @@ func RenderStatusReport(w io.Writer, format cliout.Format, resp StatusResponse) 
 
 func RenderDoctorReport(w io.Writer, format cliout.Format, report project.DoctorReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
-			"checks":  report.Checks,
-		})
+		return cliout.WriteSuccessJSON(w, "checks", report.Checks)
 	}
 
 	rows := make([][]string, 0, len(report.Checks))
@@ -116,10 +110,7 @@ func RenderDoctorReport(w io.Writer, format cliout.Format, report project.Doctor
 
 func RenderStopReport(w io.Writer, format cliout.Format, report control.StopReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
-			"data":    report,
-		})
+		return cliout.WriteSuccessJSON(w, "data", report)
 	}
 	for _, item := range report.Stopped {
 		_, _ = fmt.Fprintf(w, "Stopped %s\n", item.Name)
@@ -134,10 +125,7 @@ func RenderOrphansResponse(w io.Writer, format cliout.Format, resp OrphansRespon
 	if resp.KillReport != nil {
 		typed := *resp.KillReport
 		if format == cliout.FormatJSON {
-			return cliout.WriteJSON(w, map[string]any{
-				"success": true,
-				"data":    typed,
-			})
+			return cliout.WriteSuccessJSON(w, "data", typed)
 		}
 		for _, item := range typed.Stopped {
 			_, _ = fmt.Fprintf(w, "Stopped orphan PID %s (%s)\n", item.Name, item.Message)
@@ -151,10 +139,7 @@ func RenderOrphansResponse(w io.Writer, format cliout.Format, resp OrphansRespon
 		return nil
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
-			"orphans": resp.List,
-		})
+		return cliout.WriteSuccessJSON(w, "orphans", resp.List)
 	}
 	if len(resp.List) == 0 {
 		_, _ = fmt.Fprintln(w, "No orphaned Vrooli processes found.")
@@ -171,10 +156,7 @@ func RenderLocksResponse(w io.Writer, format cliout.Format, resp LocksResponse) 
 	if resp.CleanReport != nil {
 		typed := *resp.CleanReport
 		if format == cliout.FormatJSON {
-			return cliout.WriteJSON(w, map[string]any{
-				"success": true,
-				"data":    typed,
-			})
+			return cliout.WriteSuccessJSON(w, "data", typed)
 		}
 		for _, item := range typed.Stopped {
 			_, _ = fmt.Fprintf(w, "Removed stale lock for port %s\n", item.Name)
@@ -188,10 +170,7 @@ func RenderLocksResponse(w io.Writer, format cliout.Format, resp LocksResponse) 
 		return nil
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
-			"locks":   resp.List,
-		})
+		return cliout.WriteSuccessJSON(w, "locks", resp.List)
 	}
 	if len(resp.List) == 0 {
 		_, _ = fmt.Fprintln(w, "No port locks found.")
@@ -210,10 +189,7 @@ func RenderLocksResponse(w io.Writer, format cliout.Format, resp LocksResponse) 
 
 func RenderPortDiagnostic(w io.Writer, format cliout.Format, diagnostic maintenance.PortDiagnostic) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success":    true,
-			"diagnostic": diagnostic,
-		})
+		return cliout.WriteSuccessJSON(w, "diagnostic", diagnostic)
 	}
 
 	_, _ = fmt.Fprintf(w, "Port %d\n", diagnostic.Port)

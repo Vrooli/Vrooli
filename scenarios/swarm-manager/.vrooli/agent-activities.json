@@ -5802,15 +5802,16 @@
     "interaction_type": "spawn",
     "task_id": "920dbf96-29c6-44dd-b617-ed58ada1eafb",
     "run_id": "371ef1c6-5fe4-43ab-9f05-c86b0ace4a06",
-    "status": "running",
+    "status": "complete",
     "requested_at": "2026-04-10T17:46:41Z",
     "started_at": "2026-04-10T17:46:41Z",
+    "finished_at": "2026-04-10T17:50:25Z",
     "requested_by": "swarm-manager",
     "metadata": {
       "entrypoint": "backlog.research",
       "mode": "workshop",
       "skill_id": "swarm-manager-workshop"
     },
-    "updated_at": "2026-04-10T17:46:41Z"
+    "updated_at": "2026-04-13T20:12:10Z"
   }
 ]

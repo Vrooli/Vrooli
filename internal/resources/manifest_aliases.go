@@ -4,21 +4,27 @@ import manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 
 const resourceManifestSchemaPath = manifestpkg.SchemaPath
 
-type ResourceManifest = manifestpkg.ResourceManifest
-type ResourceLegacyAdapter = manifestpkg.ResourceLegacyAdapter
-type ResourcePlatforms = manifestpkg.ResourcePlatforms
-type ResourcePort = manifestpkg.ResourcePort
-type ResourceHealthCheck = manifestpkg.ResourceHealthCheck
-type ResourceInstall = manifestpkg.ResourceInstall
-type ResourceCredentials = manifestpkg.ResourceCredentials
-type ResourceRuntime = manifestpkg.ResourceRuntime
-type ResourceVolume = manifestpkg.ResourceVolume
-type ResourceLifecycle = manifestpkg.ResourceLifecycle
-type ResourceManifestCapabilities = manifestpkg.ResourceManifestCapabilities
+type (
+	ResourceManifest             = manifestpkg.ResourceManifest
+	ResourceLegacyAdapter        = manifestpkg.ResourceLegacyAdapter
+	ResourcePlatforms            = manifestpkg.ResourcePlatforms
+	ResourcePort                 = manifestpkg.ResourcePort
+	ResourceHealthCheck          = manifestpkg.ResourceHealthCheck
+	ResourceInstall              = manifestpkg.ResourceInstall
+	ResourceCredentials          = manifestpkg.ResourceCredentials
+	ResourceRuntime              = manifestpkg.ResourceRuntime
+	ResourceEnvironmentExports   = manifestpkg.ResourceEnvironmentExports
+	ResourceDerivedTemplate      = manifestpkg.ResourceDerivedTemplate
+	ResourceVolume               = manifestpkg.ResourceVolume
+	ResourceLifecycle            = manifestpkg.ResourceLifecycle
+	ResourceManifestCapabilities = manifestpkg.ResourceManifestCapabilities
+)
 
-var allowedResourceDrivers = manifestpkg.AllowedDrivers
-var allowedPortabilityTiers = manifestpkg.AllowedPortabilityTiers
-var allowedPlatformSupportStates = manifestpkg.AllowedPlatformSupportStates
+var (
+	allowedResourceDrivers       = manifestpkg.AllowedDrivers
+	allowedPortabilityTiers      = manifestpkg.AllowedPortabilityTiers
+	allowedPlatformSupportStates = manifestpkg.AllowedPlatformSupportStates
+)
 
 func (c *Controller) loadResourceManifest(path string) (ResourceManifest, error) {
 	return manifestpkg.Load(path)

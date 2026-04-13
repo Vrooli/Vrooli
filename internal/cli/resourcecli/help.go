@@ -1,0 +1,25 @@
+package resourcecli
+
+const (
+	ListHelpText                  = "Usage: vrooli resource list"
+	ValidateHelpText              = "Usage: vrooli resource validate [name]"
+	StatusHelpText                = "Usage: vrooli resource status [name] [--fast|--no-fast] [--json]"
+	InfoHelpText                  = "Usage: vrooli resource info <name>"
+	DeprecateHelpText             = "Usage: vrooli resource deprecate <name>"
+	ListDeprecatedHelpText        = "Usage: vrooli resource list-deprecated"
+	RestoreHelpText               = "Usage: vrooli resource restore <name>"
+	ArchiveToBlueprintHelpText    = "Usage: vrooli resource archive-to-blueprint <name>"
+	ListBlueprintArchivedHelpText = "Usage: vrooli resource list-blueprint-archived"
+	RestoreBlueprintHelpText      = "Usage: vrooli resource restore-blueprint <name>"
+	ArchiveGCHelpText             = "Usage: vrooli resource archive gc"
+	ArchiveBlueprintGCHelpText    = "Usage: vrooli resource archive gc-blueprints"
+	BlueprintListHelpText         = "Usage: vrooli resource blueprint list"
+	BlueprintInfoHelpText         = "Usage: vrooli resource blueprint info <name>"
+	BlueprintSearchHelpText       = "Usage: vrooli resource blueprint search <query>"
+	BlueprintValidateHelpText     = "Usage: vrooli resource blueprint validate"
+	StartAllHelpText              = "Usage: vrooli resource start-all"
+	StopAllHelpText               = "Usage: vrooli resource stop-all"
+	TemplateListHelpText          = "Usage: vrooli resource template list"
+	TemplateShowHelpText          = "Usage: vrooli resource template show <name>"
+	TemplateValidateHelpText      = "Usage: vrooli resource template validate"
+)

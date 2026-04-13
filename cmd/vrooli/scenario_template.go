@@ -17,82 +17,77 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
+	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/config"
 )
 
-type scenarioTemplateVar struct {
-	Flag        string `json:"flag,omitempty"`
-	Description string `json:"description,omitempty"`
-	Default     string `json:"default,omitempty"`
-}
-
-type scenarioTemplateHook struct {
-	Description string `json:"description,omitempty"`
-	Cmd         string `json:"cmd,omitempty"`
-	Cwd         string `json:"cwd,omitempty"`
-}
-
-type scenarioTemplateManifest struct {
-	Name         string                         `json:"name,omitempty"`
-	DisplayName  string                         `json:"displayName,omitempty"`
-	Description  string                         `json:"description,omitempty"`
-	Stack        []string                       `json:"stack,omitempty"`
-	RequiredVars map[string]scenarioTemplateVar `json:"requiredVars,omitempty"`
-	OptionalVars map[string]scenarioTemplateVar `json:"optionalVars,omitempty"`
-	Docs         map[string]string              `json:"docs,omitempty"`
-	PostHooks    []scenarioTemplateHook         `json:"postHooks,omitempty"`
-}
-
-type scenarioTemplateInfo struct {
-	Name     string
-	Path     string
-	Manifest scenarioTemplateManifest
-	Missing  bool
-}
-
-type scenarioGenerateOptions struct {
-	Destination string
-	Force       bool
-	DryRun      bool
-	RunHooks    bool
-	Values      map[string]string
-}
+type (
+	scenarioTemplateVar      = scenariocli.TemplateVar
+	scenarioTemplateHook     = scenariocli.TemplateHook
+	scenarioTemplateManifest = scenariocli.TemplateManifest
+	scenarioTemplateInfo     = scenariocli.TemplateInfo
+	scenarioGenerateOptions  = scenariocli.GenerateOptions
+)
 
 var unresolvedTemplatePattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)
 
-var scenarioTemplateCommandTable = []appSubcommandDescriptor{
-	{Name: "list", Group: "Scenario Templates", Summary: "List scenario templates", Handler: bindContextCommand(parseScenarioTemplateListRequest, runScenarioTemplateListRequest, renderScenarioTemplateListResponse)},
-	{Name: "show", Group: "Scenario Templates", Summary: "Show scenario template details", Handler: bindContextCommand(parseScenarioTemplateShowRequest, runScenarioTemplateShowRequest, renderScenarioTemplateShowResponse)},
-}
-
-var scenarioTemplateCommandHandlers = buildAppSubcommandMap(scenarioTemplateCommandTable)
-
 func runScenarioTemplateCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	if len(args) == 0 {
-		return scenarioTemplateCommandHandlers["list"](app, ctx, nil)
+		return bindContextCommand(
+			func(ctx *commandContext, args []string) (scenariocli.TemplateListRequest, error) {
+				return scenariocli.ParseTemplateListRequest(args)
+			},
+			runScenarioTemplateListRequest,
+			scenariocli.RenderTemplateListResponse,
+		)(app, ctx, nil)
 	}
-	return runAppSubcommandSet(app, ctx, args, showScenarioTemplateHelp, "scenario template", scenarioTemplateCommandHandlers)
+	switch commandtree.NormalizeName(args[0]) {
+	case "list":
+		return bindContextCommand(
+			func(ctx *commandContext, args []string) (scenariocli.TemplateListRequest, error) {
+				return scenariocli.ParseTemplateListRequest(args)
+			},
+			runScenarioTemplateListRequest,
+			scenariocli.RenderTemplateListResponse,
+		)(app, ctx, args[1:])
+	case "show":
+		return bindContextCommand(
+			func(ctx *commandContext, args []string) (scenariocli.TemplateShowRequest, error) {
+				return scenariocli.ParseTemplateShowRequest(args)
+			},
+			runScenarioTemplateShowRequest,
+			scenariocli.RenderTemplateShowResponse,
+		)(app, ctx, args[1:])
+	case "--help", "-h":
+		showScenarioTemplateHelp(ctx.Stdout)
+		return nil
+	default:
+		return usageErrorf("scenario template", "unknown scenario template command: %s", args[0])
+	}
 }
 
 func runScenarioGenerateCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return bindContextCommand(parseScenarioGenerateRequest, runScenarioGenerateRequest, renderScenarioGenerateResponse)(app, ctx, args)
+	return bindContextCommand(
+		func(ctx *commandContext, args []string) (scenariocli.GenerateRequest, error) {
+			return scenariocli.ParseGenerateRequest(
+				args,
+				ctx.Stderr,
+				func(name string) (scenariocli.TemplateInfo, error) { return loadScenarioTemplate(ctx.Root, name) },
+				scenariocli.ParseGenerateArgs,
+			)
+		},
+		runScenarioGenerateRequest,
+		scenariocli.RenderGenerateResponse,
+	)(app, ctx, args)
 }
 
 func showScenarioTemplateHelp(w io.Writer) {
-	renderSubcommandHelp(w, "Scenario Template Commands", "vrooli scenario template <subcommand>", "Scenario Templates", scenarioTemplateCommandTable)
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Related:")
-	_, _ = fmt.Fprintln(w, "  vrooli scenario generate <template> [options]")
+	scenariocli.RenderTemplateHelp(w)
 }
 
 func showScenarioGenerateHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli scenario generate <template> --id <slug> --display-name <name> --description <text> [options]")
-	_, _ = fmt.Fprintln(w, "Options:")
-	_, _ = fmt.Fprintln(w, "  --dest <path>         Destination directory (defaults to scenarios/<id>)")
-	_, _ = fmt.Fprintln(w, "  --var KEY=VALUE       Additional placeholder override (repeatable)")
-	_, _ = fmt.Fprintln(w, "  --force               Overwrite destination if it already exists")
-	_, _ = fmt.Fprintln(w, "  --dry-run             Print the planned actions without writing files")
-	_, _ = fmt.Fprintln(w, "  --run-hooks           Execute template post hooks after generation")
+	scenariocli.RenderGenerateHelp(w)
 }
 
 func loadScenarioTemplates(root string) ([]scenarioTemplateInfo, error) {
@@ -166,97 +161,6 @@ func loadScenarioTemplate(root, name string) (scenarioTemplateInfo, error) {
 		Path:     templateDir,
 		Manifest: manifest,
 	}, nil
-}
-
-func parseScenarioGenerateArgs(args []string, manifest scenarioTemplateManifest, stderr io.Writer) (scenarioGenerateOptions, error) {
-	opts := scenarioGenerateOptions{Values: map[string]string{}}
-	flagMap := make(map[string]string, len(manifest.RequiredVars)+len(manifest.OptionalVars))
-	for key, variable := range manifest.RequiredVars {
-		if variable.Flag != "" {
-			flagMap[variable.Flag] = key
-		}
-	}
-	for key, variable := range manifest.OptionalVars {
-		if variable.Flag != "" {
-			flagMap[variable.Flag] = key
-		}
-	}
-
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch {
-		case arg == "--dest":
-			if index+1 >= len(args) {
-				return scenarioGenerateOptions{}, usageErrorf("scenario generate", "scenario generate --dest requires a value")
-			}
-			index++
-			opts.Destination = args[index]
-		case strings.HasPrefix(arg, "--dest="):
-			opts.Destination = strings.TrimPrefix(arg, "--dest=")
-		case arg == "--force":
-			opts.Force = true
-		case arg == "--dry-run":
-			opts.DryRun = true
-		case arg == "--run-hooks":
-			opts.RunHooks = true
-		case arg == "--var":
-			if index+1 >= len(args) {
-				return scenarioGenerateOptions{}, usageErrorf("scenario generate", "scenario generate --var requires KEY=VALUE")
-			}
-			index++
-			key, value, err := parseScenarioTemplateKeyValue(args[index])
-			if err != nil {
-				return scenarioGenerateOptions{}, err
-			}
-			opts.Values[key] = value
-		case strings.HasPrefix(arg, "--var="):
-			key, value, err := parseScenarioTemplateKeyValue(strings.TrimPrefix(arg, "--var="))
-			if err != nil {
-				return scenarioGenerateOptions{}, err
-			}
-			opts.Values[key] = value
-		case strings.HasPrefix(arg, "--"):
-			flagName, flagValue, consumesNext, err := parseScenarioTemplateFlag(arg, args, index)
-			if err != nil {
-				return scenarioGenerateOptions{}, err
-			}
-			if consumesNext {
-				index++
-			}
-			key, ok := flagMap[flagName]
-			if !ok {
-				_, _ = fmt.Fprintf(stderr, "Warning: unknown flag --%s; use --var KEY=VALUE for arbitrary placeholders\n", flagName)
-				continue
-			}
-			opts.Values[key] = flagValue
-		default:
-			return scenarioGenerateOptions{}, usageErrorf("scenario generate", "unexpected argument: %s", arg)
-		}
-	}
-
-	return opts, nil
-}
-
-func parseScenarioTemplateFlag(arg string, args []string, index int) (string, string, bool, error) {
-	if strings.Contains(arg, "=") {
-		parts := strings.SplitN(strings.TrimPrefix(arg, "--"), "=", 2)
-		if parts[1] == "" {
-			return "", "", false, usageErrorf("scenario generate", "--%s requires a value", parts[0])
-		}
-		return parts[0], parts[1], false, nil
-	}
-	if index+1 >= len(args) {
-		return "", "", false, usageErrorf("scenario generate", "%s requires a value", arg)
-	}
-	return strings.TrimPrefix(arg, "--"), args[index+1], true, nil
-}
-
-func parseScenarioTemplateKeyValue(value string) (string, string, error) {
-	parts := strings.SplitN(value, "=", 2)
-	if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" {
-		return "", "", usageErrorf("scenario generate", "invalid KEY=VALUE pair: %s", value)
-	}
-	return parts[0], parts[1], nil
 }
 
 func copyScenarioTemplate(templateDir, destination string, values map[string]string) error {

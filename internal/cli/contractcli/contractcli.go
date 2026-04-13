@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/repocontractcheck"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 type ValidationOutput struct {
@@ -67,7 +67,7 @@ func ResolveRoot() (string, error) {
 }
 
 func RunSchemaValidation(root string) (string, bool) {
-	cmd := exec.Command("python3", filepath.Join(root, ".vrooli", "schemas", "validate-repo-contract.py"))
+	cmd := exec.Command("python3", repocontractmeta.ValidationScriptPath(root))
 	cmd.Dir = root
 	output, err := cmd.CombinedOutput()
 	message := strings.TrimSpace(string(output))
@@ -109,7 +109,7 @@ func LoadShowOutput() (ShowOutput, error) {
 	return ShowOutput{
 		Success:      true,
 		Root:         root,
-		ContractPath: filepath.Join(root, ".vrooli", "repo-contract.json"),
+		ContractPath: repocontractmeta.ContractPath(root),
 		Schema:       contract.Schema(),
 		Version:      contract.Version(),
 		Platform:     contract.Platform(),
@@ -163,7 +163,7 @@ func MatchGlob(pattern, path string) (MatchGlobOutput, error) {
 }
 
 func LoadProfiles(contract *repocontract.Contract) map[string]repocontract.Profile {
-	names := []string{"mini_vrooli_bundle"}
+	names := []string{repocontractmeta.MiniBundleProfile}
 	profiles := make(map[string]repocontract.Profile, len(names))
 	for _, name := range names {
 		profile, err := contract.Profile(name)

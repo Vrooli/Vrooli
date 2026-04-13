@@ -240,10 +240,7 @@ func CopyProcessRecords(values []process.Record) []process.Record {
 
 func WriteLifecycleItems(w io.Writer, format cliout.Format, items []LifecycleItemOutput) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success":   true,
-			"scenarios": items,
-		})
+		return cliout.WriteSuccessJSON(w, "scenarios", items)
 	}
 
 	for _, item := range items {
@@ -280,10 +277,7 @@ func WriteBatchReport(w io.Writer, format cliout.Format, resp BatchResponse) err
 		if len(resp.Stopped) > 0 {
 			data["stopped"] = resp.Stopped
 		}
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
-			"data":    data,
-		})
+		return cliout.WriteSuccessJSON(w, "data", data)
 	}
 
 	if len(resp.Started) == 0 && len(resp.Stopped) == 0 && len(resp.Failed) == 0 {
@@ -316,8 +310,7 @@ func WriteBatchReport(w io.Writer, format cliout.Format, resp BatchResponse) err
 
 func RenderListResponse(w io.Writer, format cliout.Format, resp ListResponse) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
+		return cliout.WriteSuccessFields(w, map[string]any{
 			"summary": map[string]int{
 				"total_scenarios": len(resp.Items),
 				"running":         resp.RunningCount,
@@ -362,8 +355,7 @@ func RenderStatusResponse(w io.Writer, format cliout.Format, resp StatusResponse
 					runningCount++
 				}
 			}
-			return cliout.WriteJSON(w, map[string]any{
-				"success": true,
+			return cliout.WriteSuccessFields(w, map[string]any{
 				"summary": map[string]int{
 					"total_scenarios": len(resp.List),
 					"running":         runningCount,
@@ -385,8 +377,7 @@ func RenderStatusResponse(w io.Writer, format cliout.Format, resp StatusResponse
 
 func RenderSetupResponse(w io.Writer, format cliout.Format, result lifecycle.PhaseResult) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
+		return cliout.WriteSuccessFields(w, map[string]any{
 			"phase":   "setup",
 			"status":  result.Status,
 			"defined": result.Defined,

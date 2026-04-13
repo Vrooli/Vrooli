@@ -8,20 +8,6 @@
 workflows::execute_workflow() {
     log::header "🎨 Executing Workflow"
     
-    # Register agent for tracking if agents library is available
-    local agent_id=""
-    if type -t agents::generate_id &>/dev/null && type -t agents::register &>/dev/null; then
-        agent_id=$(agents::generate_id)
-        local workflow_name="${WORKFLOW_PATH:-unknown_workflow}"
-        workflow_name=$(basename "$workflow_name")
-        agents::register "$agent_id" "$$" "execute_workflow $workflow_name" || log::debug "Failed to register agent"
-        
-        # Setup cleanup trap if function exists
-        if type -t comfyui::setup_agent_cleanup &>/dev/null; then
-            comfyui::setup_agent_cleanup "$agent_id" || log::debug "Failed to setup cleanup"
-        fi
-    fi
-    
     # Check prerequisites
     if ! common::check_ready; then
         return 1
@@ -199,20 +185,6 @@ workflows::monitor_workflow() {
 #######################################
 workflows::import_workflow() {
     log::header "📥 Importing Workflow"
-    
-    # Register agent for tracking if agents library is available
-    local agent_id=""
-    if type -t agents::generate_id &>/dev/null && type -t agents::register &>/dev/null; then
-        agent_id=$(agents::generate_id)
-        local workflow_name="${WORKFLOW_PATH:-unknown_workflow}"
-        workflow_name=$(basename "$workflow_name")
-        agents::register "$agent_id" "$$" "import_workflow $workflow_name" || log::debug "Failed to register agent"
-        
-        # Setup cleanup trap if function exists
-        if type -t comfyui::setup_agent_cleanup &>/dev/null; then
-            comfyui::setup_agent_cleanup "$agent_id" || log::debug "Failed to setup cleanup"
-        fi
-    fi
     
     if [[ -z "${WORKFLOW_PATH:-}" ]]; then
         log::error "No workflow specified. Use --workflow <path>"

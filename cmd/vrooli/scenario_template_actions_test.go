@@ -5,19 +5,21 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 func TestParseScenarioGenerateRequestRequiresTemplateName(t *testing.T) {
-	ctx := &commandContext{Root: "/repo", Stderr: &bytes.Buffer{}}
-	if _, err := parseScenarioGenerateRequest(ctx, nil); err == nil {
+	if _, err := scenariocli.ParseGenerateRequest(nil, &bytes.Buffer{}, func(name string) (scenariocli.TemplateInfo, error) {
+		return scenariocli.TemplateInfo{}, nil
+	}, scenariocli.ParseGenerateArgs); err == nil {
 		t.Fatal("expected missing template name error")
 	}
 }
 
 func TestRenderScenarioGenerateResponseDryRun(t *testing.T) {
 	var stdout bytes.Buffer
-	err := renderScenarioGenerateResponse(&stdout, cliout.FormatHuman, scenarioGenerateResult{
+	err := scenariocli.RenderGenerateResponse(&stdout, cliout.FormatHuman, scenariocli.GenerateResult{
 		TemplateName: "demo",
 		Destination:  "/tmp/alpha",
 		Values:       map[string]string{"SCENARIO_ID": "alpha"},

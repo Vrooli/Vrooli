@@ -3,42 +3,23 @@ package main
 import (
 	"fmt"
 	"io"
-	"strings"
 
+	contractapp "github.com/vrooli/vrooli/internal/app/contract"
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/contractcli"
 )
 
 type contractCommandHandler func(ctx *commandContext, args []string) error
 
-type contractCommandDescriptor struct {
-	Name    string
-	Summary string
-	Group   string
-	Handler contractCommandHandler
-}
-
-var contractCommandTable = []contractCommandDescriptor{
-	{Name: "validate", Summary: "Validate repo contract configuration and live drift", Group: "Repository Contract", Handler: runContractValidateCommand},
-	{Name: "show", Summary: "Show the effective repository contract", Group: "Repository Contract", Handler: runContractShowCommand},
-	{Name: "resolve", Summary: "Resolve contract-derived paths", Group: "Repository Contract", Handler: runContractResolveCommand},
-	{Name: "match-glob", Summary: "Test a contract glob against a path", Group: "Repository Contract", Handler: runContractMatchGlobCommand},
-}
-
-var contractResolveCommandTable = []contractCommandDescriptor{
-	{Name: "scenario", Summary: "Resolve contract paths for a scenario", Group: "Repository Contract", Handler: runContractResolveScenarioCommand},
-}
-
 var (
+	contractCommandTable           = buildContractCommandTable()
+	contractResolveCommandTable    = buildContractResolveCommandTable()
 	contractCommandHandlers        = buildContractCommandMap(contractCommandTable)
 	contractResolveCommandHandlers = buildContractCommandMap(contractResolveCommandTable)
 )
 
-func buildContractCommandMap(descriptors []contractCommandDescriptor) map[string]contractCommandHandler {
-	handlers := make(map[string]contractCommandHandler, len(descriptors))
-	for _, descriptor := range descriptors {
-		handlers[descriptor.Name] = descriptor.Handler
-	}
-	return handlers
+func buildContractCommandMap(descriptors []commandtree.Spec[contractCommandHandler]) map[string]contractCommandHandler {
+	return commandtree.BuildHandlerMap(descriptors)
 }
 
 func runContractCommandSet(ctx *commandContext, args []string, usage func(io.Writer), command string, handlers map[string]contractCommandHandler) error {
@@ -46,7 +27,7 @@ func runContractCommandSet(ctx *commandContext, args []string, usage func(io.Wri
 		usage(ctx.Stdout)
 		return nil
 	}
-	handler, ok := handlers[strings.ToLower(strings.TrimSpace(args[0]))]
+	handler, ok := handlers[commandtree.NormalizeName(args[0])]
 	if !ok {
 		return usageErrorf(command, "unknown %s command: %s", command, args[0])
 	}
@@ -58,23 +39,17 @@ func runContractCommandWithApp(_ *App, ctx *commandContext, args []string) error
 }
 
 func runContractValidateCommand(ctx *commandContext, args []string) error {
-	for _, arg := range args {
-		switch arg {
-		case "--help", "-h":
-			showContractValidateHelp(ctx.Stdout)
+	if _, err := contractcli.ParseValidateRequest(args); err != nil {
+		if _, ok := err.(interface{ HelpText() string }); ok {
+			contractcli.RenderValidateHelp(ctx.Stdout)
 			return nil
-		default:
-			return unknownOptionError("contract validate", arg)
 		}
+		return usageErrorf("contract validate", err.Error())
 	}
 
-	root, err := resolveContractRoot()
+	output, err := newContractCommandService().Validate()
 	if err != nil {
 		return contractRootError(err)
-	}
-	output, err := contractcli.Validate(root)
-	if err != nil {
-		return err
 	}
 
 	format, err := parseOutputFormat(ctx.Globals)
@@ -92,17 +67,15 @@ func runContractValidateCommand(ctx *commandContext, args []string) error {
 }
 
 func runContractShowCommand(ctx *commandContext, args []string) error {
-	for _, arg := range args {
-		switch arg {
-		case "--help", "-h":
-			showContractShowHelp(ctx.Stdout)
+	if _, err := contractcli.ParseShowRequest(args); err != nil {
+		if _, ok := err.(interface{ HelpText() string }); ok {
+			contractcli.RenderShowHelp(ctx.Stdout)
 			return nil
-		default:
-			return unknownOptionError("contract show", arg)
 		}
+		return usageErrorf("contract show", err.Error())
 	}
 
-	output, err := contractcli.LoadShowOutput()
+	output, err := newContractCommandService().Show()
 	if err != nil {
 		return contractRootError(err)
 	}
@@ -114,42 +87,25 @@ func runContractShowCommand(ctx *commandContext, args []string) error {
 }
 
 func runContractResolveCommand(ctx *commandContext, args []string) error {
-	return runContractCommandSet(ctx, args, showContractResolveHelp, "contract resolve", contractResolveCommandHandlers)
+	return runContractCommandSet(ctx, args, contractcli.RenderResolveHelp, "contract resolve", contractResolveCommandHandlers)
 }
 
 func runContractResolveScenarioCommand(ctx *commandContext, args []string) error {
-	if len(args) == 0 {
-		return usageErrorf("contract resolve scenario", "contract resolve scenario requires a scenario name")
-	}
-	scenarioName := strings.TrimSpace(args[0])
-	if scenarioName == "" {
-		return usageErrorf("contract resolve scenario", "contract resolve scenario requires a scenario name")
-	}
-
-	fileKey := ""
-	for i := 1; i < len(args); i++ {
-		switch args[i] {
-		case "--help", "-h":
-			showContractResolveScenarioHelp(ctx.Stdout)
+	req, err := contractcli.ParseResolveScenarioRequest(args)
+	if err != nil {
+		if _, ok := err.(interface{ HelpText() string }); ok {
+			contractcli.RenderResolveScenarioHelp(ctx.Stdout)
 			return nil
-		case "--file":
-			if i+1 >= len(args) {
-				return usageErrorf("contract resolve scenario", "missing value for --file")
-			}
-			fileKey = strings.TrimSpace(args[i+1])
-			i++
-		default:
-			return unknownOptionError("contract resolve scenario", args[i])
 		}
+		return usageErrorf("contract resolve scenario", err.Error())
 	}
 
-	root, err := resolveContractRoot()
+	output, err := newContractCommandService().ResolveScenario(contractapp.ResolveScenarioRequest{
+		ScenarioName: req.ScenarioName,
+		FileKey:      req.FileKey,
+	})
 	if err != nil {
 		return contractRootError(err)
-	}
-	output, err := contractcli.ResolveScenario(root, scenarioName, fileKey)
-	if err != nil {
-		return err
 	}
 
 	format, err := parseOutputFormat(ctx.Globals)
@@ -160,17 +116,16 @@ func runContractResolveScenarioCommand(ctx *commandContext, args []string) error
 }
 
 func runContractMatchGlobCommand(ctx *commandContext, args []string) error {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			showContractMatchGlobHelp(ctx.Stdout)
+	req, err := contractcli.ParseMatchGlobRequest(args)
+	if err != nil {
+		if _, ok := err.(interface{ HelpText() string }); ok {
+			contractcli.RenderMatchGlobHelp(ctx.Stdout)
 			return nil
 		}
-	}
-	if len(args) != 2 {
-		return usageErrorf("contract match-glob", "usage: vrooli contract match-glob <pattern> <path>")
+		return usageErrorf("contract match-glob", err.Error())
 	}
 
-	output, err := contractcli.MatchGlob(args[0], args[1])
+	output, err := newContractCommandService().MatchGlob(contractapp.MatchGlobRequest{Pattern: req.Pattern, Path: req.Path})
 	if err != nil {
 		return err
 	}
@@ -181,47 +136,75 @@ func runContractMatchGlobCommand(ctx *commandContext, args []string) error {
 	return contractcli.RenderMatchGlob(ctx.Stdout, format, output)
 }
 
-func resolveContractRoot() (string, error) {
-	return contractcli.ResolveRoot()
-}
-
 func contractRootError(err error) error {
 	return newErrorWithCategory(fmt.Errorf("resolve repo contract root: %w", err), errorCategoryEnvironment, "Run from a Vrooli repository descendant or set VROOLI_SOURCE_ROOT", nil)
 }
 
 func showContractHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "vrooli contract - Inspect and validate the repository contract")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Usage:")
-	_, _ = fmt.Fprintln(w, "  vrooli contract <subcommand> [options]")
-	_, _ = fmt.Fprintln(w)
-	entries := make([]commandDescriptor, 0, len(contractCommandTable))
-	for _, item := range contractCommandTable {
-		entries = append(entries, commandDescriptor{Name: item.Name, Group: item.Group, Summary: item.Summary})
-	}
-	renderCommandGroups(w, entries)
+	contractcli.RenderCommandHelp(w)
 }
 
 func showContractValidateHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli contract validate [--json]")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Runs schema validation plus in-process semantic and live drift checks.")
+	contractcli.RenderValidateHelp(w)
 }
 
 func showContractShowHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli contract show [--json]")
+	contractcli.RenderShowHelp(w)
 }
 
 func showContractResolveHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli contract resolve scenario <name> [--file <key>] [--json]")
+	contractcli.RenderResolveHelp(w)
 }
 
 func showContractResolveScenarioHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli contract resolve scenario <name> [--file <key>] [--json]")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Known keys: service, docs, requirements, api, ui, cli, initialization")
+	contractcli.RenderResolveScenarioHelp(w)
 }
 
 func showContractMatchGlobHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli contract match-glob <pattern> <path> [--json]")
+	contractcli.RenderMatchGlobHelp(w)
+}
+
+func buildContractCommandTable() []commandtree.Spec[contractCommandHandler] {
+	handlerMap := map[contractcli.CommandID]contractCommandHandler{
+		contractcli.CommandValidate:  runContractValidateCommand,
+		contractcli.CommandShow:      runContractShowCommand,
+		contractcli.CommandResolve:   runContractResolveCommand,
+		contractcli.CommandMatchGlob: runContractMatchGlobCommand,
+	}
+	source := contractcli.CommandSpecs()
+	specs := make([]commandtree.Spec[contractCommandHandler], 0, len(source))
+	for _, spec := range source {
+		handler, ok := handlerMap[spec.Handler]
+		if !ok {
+			continue
+		}
+		specs = append(specs, commandtree.Spec[contractCommandHandler]{
+			Name:    spec.Name,
+			Summary: spec.Summary,
+			Group:   spec.Group,
+			Handler: handler,
+		})
+	}
+	return specs
+}
+
+func buildContractResolveCommandTable() []commandtree.Spec[contractCommandHandler] {
+	handlerMap := map[contractcli.CommandID]contractCommandHandler{
+		contractcli.CommandResolveScenario: runContractResolveScenarioCommand,
+	}
+	source := contractcli.ResolveCommandSpecs()
+	specs := make([]commandtree.Spec[contractCommandHandler], 0, len(source))
+	for _, spec := range source {
+		handler, ok := handlerMap[spec.Handler]
+		if !ok {
+			continue
+		}
+		specs = append(specs, commandtree.Spec[contractCommandHandler]{
+			Name:    spec.Name,
+			Summary: spec.Summary,
+			Group:   spec.Group,
+			Handler: handler,
+		})
+	}
+	return specs
 }

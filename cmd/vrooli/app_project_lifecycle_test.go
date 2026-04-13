@@ -14,14 +14,6 @@ import (
 )
 
 var projectLifecyclePhaseBlocks = map[string]string{
-	"build": `    "build": {
-      "steps": [
-        {
-          "name": "capture-build",
-          "run": "mkdir -p build && printf 'build\n' > build/build.txt"
-        }
-      ]
-    },`,
 	"clean": `    "clean": {
       "steps": [
         {
@@ -43,14 +35,6 @@ var projectLifecyclePhaseBlocks = map[string]string{
         {
           "name": "capture-restore",
           "run": "mkdir -p build && printf 'restore\n' > build/restore.txt"
-        }
-      ]
-    },`,
-	"deploy": `    "deploy": {
-      "steps": [
-        {
-          "name": "capture-deploy",
-          "run": "mkdir -p build && printf 'deploy\n' > build/deploy.txt"
         }
       ]
     },`,
@@ -219,23 +203,30 @@ func TestSplitRunProjectBackupUsesNativePhaseRunner(t *testing.T) {
 	}
 }
 
-func TestSplitRunProjectBuildUsesNativePhaseRunner(t *testing.T) {
+func TestSplitRunProjectBuildUsesNativeProjectLifecycle(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeProjectLifecycleFixture(t, root)
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
+	calls := 0
+	app.runProjectBuild = func(capturedRoot, capturedHome string, args []string, stdout, stderr io.Writer) error {
+		calls++
+		if capturedRoot != root || capturedHome != home {
+			t.Fatalf("unexpected project context root=%q home=%q", capturedRoot, capturedHome)
+		}
+		if len(args) != 0 {
+			t.Fatalf("build args = %v", args)
+		}
+		return nil
+	}
+
 	code := app.Run([]string{"build"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
-	data, err := os.ReadFile(filepath.Join(root, "build", "build.txt"))
-	if err != nil {
-		t.Fatalf("read build file: %v", err)
-	}
-	if strings.TrimSpace(string(data)) != "build" {
-		t.Fatalf("build output = %q", string(data))
+	if calls != 1 {
+		t.Fatalf("build calls = %d, want 1", calls)
 	}
 }
 
@@ -256,26 +247,6 @@ func TestSplitRunProjectCleanUsesNativePhaseRunner(t *testing.T) {
 	}
 	if strings.TrimSpace(string(data)) != "clean" {
 		t.Fatalf("clean output = %q", string(data))
-	}
-}
-
-func TestSplitRunProjectDeployUsesNativePhaseRunner(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	writeProjectLifecycleFixture(t, root)
-
-	t.Setenv("HOME", home)
-	app := newTestApp(root)
-	code := app.Run([]string{"deploy"}, &bytes.Buffer{}, &bytes.Buffer{})
-	if code != 0 {
-		t.Fatalf("run exit code = %d", code)
-	}
-	data, err := os.ReadFile(filepath.Join(root, "build", "deploy.txt"))
-	if err != nil {
-		t.Fatalf("read deploy file: %v", err)
-	}
-	if strings.TrimSpace(string(data)) != "deploy" {
-		t.Fatalf("deploy output = %q", string(data))
 	}
 }
 
@@ -303,7 +274,7 @@ func TestSplitRunProjectLifecycleCommandsShowHelp(t *testing.T) {
 	root := t.TempDir()
 	app := newTestApp(root)
 
-	commands := []string{"backup", "build", "clean", "deploy", "restore"}
+	commands := []string{"backup", "build", "clean", "restore"}
 	for _, command := range commands {
 		var stdout bytes.Buffer
 		if code := app.Run([]string{command, "--help"}, &stdout, &bytes.Buffer{}); code != 0 {
@@ -320,15 +291,27 @@ func TestSplitRunProjectBackupErrorsWhenPhaseUndefined(t *testing.T) {
 }
 
 func TestSplitRunProjectBuildErrorsWhenPhaseUndefined(t *testing.T) {
-	assertProjectLifecycleCommandPhaseUndefined(t, "build")
+	root := t.TempDir()
+	home := t.TempDir()
+
+	t.Setenv("HOME", home)
+	app := newTestApp(root)
+	app.runProjectBuild = func(root, home string, args []string, stdout, stderr io.Writer) error {
+		return errors.New("build failed")
+	}
+
+	var stderr bytes.Buffer
+	code := app.Run([]string{"build"}, &bytes.Buffer{}, &stderr)
+	if code == 0 {
+		t.Fatal("build unexpectedly succeeded")
+	}
+	if !strings.Contains(stderr.String(), "build failed") {
+		t.Fatalf("build stderr = %q", stderr.String())
+	}
 }
 
 func TestSplitRunProjectCleanErrorsWhenPhaseUndefined(t *testing.T) {
 	assertProjectLifecycleCommandPhaseUndefined(t, "clean")
-}
-
-func TestSplitRunProjectDeployErrorsWhenPhaseUndefined(t *testing.T) {
-	assertProjectLifecycleCommandPhaseUndefined(t, "deploy")
 }
 
 func TestSplitRunProjectRestoreErrorsWhenPhaseUndefined(t *testing.T) {

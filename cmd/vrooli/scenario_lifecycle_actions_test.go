@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 )
 
 func TestParseScenarioRequirementsRequestTreatsHelpAsCommandHelp(t *testing.T) {
-	_, err := parseScenarioRequirementsRequest(globalOptions{}, []string{"--help"})
+	_, err := scenariocli.ParseRequirementsRequest([]string{"--help"})
 	if err == nil {
 		t.Fatal("expected help-only error")
 	}
@@ -21,7 +22,7 @@ func TestParseScenarioRequirementsRequestTreatsHelpAsCommandHelp(t *testing.T) {
 func TestParseScenarioHealFromSandboxRequestUsesEnvDefault(t *testing.T) {
 	t.Setenv("SANDBOX_MERGED_DIR", "/merged")
 
-	req, err := parseScenarioHealFromSandboxRequest(globalOptions{}, nil)
+	req, err := scenariocli.ParseHealFromSandboxRequest(strings.TrimSpace("/merged"), nil)
 	if err != nil {
 		t.Fatalf("parseScenarioHealFromSandboxRequest: %v", err)
 	}

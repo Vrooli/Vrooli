@@ -6,13 +6,21 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
+	"github.com/santhosh-tekuri/jsonschema/v5"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 const manifestRelPath = ".vrooli/package.json"
+
+var (
+	packageSchemaCacheMu sync.Mutex
+	packageSchemaCache   = make(map[string]*jsonschema.Schema)
+)
 
 func LoadAll(root string) ([]Package, []ValidationIssue, error) {
 	packagesDir, err := packageDir(root)
@@ -71,6 +79,10 @@ func LoadPackage(rootPath string) (Package, []ValidationIssue, error) {
 	if err != nil {
 		return Package{}, nil, fmt.Errorf("read manifest: %w", err)
 	}
+	repoRoot := filepath.Dir(filepath.Dir(filepath.Clean(rootPath)))
+	if err := validateManifestSchema(repoRoot, data); err != nil {
+		return Package{}, nil, err
+	}
 	var manifest Manifest
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
@@ -113,6 +125,85 @@ func packageDir(root string) (string, error) {
 		return "", err
 	}
 	return filepath.Clean(dir), nil
+}
+
+func validateManifestSchema(repoRoot string, data []byte) error {
+	schema, err := loadPackageManifestSchema(repoRoot)
+	if err != nil {
+		return fmt.Errorf("load manifest schema: %w", err)
+	}
+	var payload any
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return fmt.Errorf("decode manifest for schema validation: %w", err)
+	}
+	if err := schema.Validate(payload); err != nil {
+		return fmt.Errorf("schema validation failed: %w", err)
+	}
+	return nil
+}
+
+func loadPackageManifestSchema(repoRoot string) (*jsonschema.Schema, error) {
+	schemaDir, err := packageSchemaDir(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	key := filepath.Clean(schemaDir)
+
+	packageSchemaCacheMu.Lock()
+	if schema, ok := packageSchemaCache[key]; ok {
+		packageSchemaCacheMu.Unlock()
+		return schema, nil
+	}
+	packageSchemaCacheMu.Unlock()
+
+	commonBytes, err := os.ReadFile(filepath.Join(schemaDir, "common.schema.json"))
+	if err != nil {
+		return nil, fmt.Errorf("read common schema: %w", err)
+	}
+	packageBytes, err := os.ReadFile(filepath.Join(schemaDir, "package.schema.json"))
+	if err != nil {
+		return nil, fmt.Errorf("read package schema: %w", err)
+	}
+
+	compiler := jsonschema.NewCompiler()
+	if err := compiler.AddResource("common.schema.json", bytes.NewReader(commonBytes)); err != nil {
+		return nil, fmt.Errorf("add common schema resource: %w", err)
+	}
+	if err := compiler.AddResource("https://vrooli.com/schemas/common.schema.json", bytes.NewReader(commonBytes)); err != nil {
+		return nil, fmt.Errorf("add canonical common schema resource: %w", err)
+	}
+	if err := compiler.AddResource("package.schema.json", bytes.NewReader(packageBytes)); err != nil {
+		return nil, fmt.Errorf("add package schema resource: %w", err)
+	}
+	if err := compiler.AddResource("https://vrooli.com/schemas/package.schema.json", bytes.NewReader(packageBytes)); err != nil {
+		return nil, fmt.Errorf("add canonical package schema resource: %w", err)
+	}
+	schema, err := compiler.Compile("https://vrooli.com/schemas/package.schema.json")
+	if err != nil {
+		return nil, fmt.Errorf("compile package schema: %w", err)
+	}
+
+	packageSchemaCacheMu.Lock()
+	packageSchemaCache[key] = schema
+	packageSchemaCacheMu.Unlock()
+	return schema, nil
+}
+
+func packageSchemaDir(repoRoot string) (string, error) {
+	candidate := filepath.Join(filepath.Clean(repoRoot), ".vrooli", "schemas")
+	if _, err := os.Stat(filepath.Join(candidate, "package.schema.json")); err == nil {
+		return candidate, nil
+	}
+
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", fmt.Errorf("unable to determine package schema path")
+	}
+	fallback := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", ".vrooli", "schemas"))
+	if _, err := os.Stat(filepath.Join(fallback, "package.schema.json")); err != nil {
+		return "", fmt.Errorf("package schema not found in %s or %s", candidate, fallback)
+	}
+	return fallback, nil
 }
 
 func validateManifestSemantics(item Package) []ValidationIssue {

@@ -103,20 +103,10 @@ func TestApplyEnvironmentSetsDefaultsAndRestoresState(t *testing.T) {
 	}
 }
 
-func TestMarkCompleteWritesSetupAndResourceMarkers(t *testing.T) {
+func TestMarkCompleteWritesSetupMarker(t *testing.T) {
 	root := t.TempDir()
-	manifest := scenario.ServiceManifest{
-		Lifecycle: scenario.Lifecycle{
-			Setup: scenario.Phase{
-				Steps: []scenario.PhaseStep{
-					{Name: "install-cli"},
-					{Name: "add-data"},
-				},
-			},
-		},
-	}
 
-	if err := markComplete(root, manifest); err != nil {
+	if err := markComplete(root); err != nil {
 		t.Fatalf("markComplete: %v", err)
 	}
 
@@ -125,8 +115,8 @@ func TestMarkCompleteWritesSetupAndResourceMarkers(t *testing.T) {
 	if payload["setup_version"] != "2.0.0" {
 		t.Fatalf("setup_version = %v", payload["setup_version"])
 	}
-	if _, err := os.Stat(filepath.Join(root, "data", ".resources-populated")); err != nil {
-		t.Fatalf("expected resources marker: %v", err)
+	if _, err := os.Stat(filepath.Join(root, "data", ".resources-populated")); !os.IsNotExist(err) {
+		t.Fatalf("expected no resources marker, got %v", err)
 	}
 }
 
@@ -210,7 +200,7 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
 	markCompleteCalled := false
-	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error {
+	markCompleteFn = func(root string) error {
 		markCompleteCalled = true
 		return nil
 	}
@@ -265,7 +255,7 @@ func TestRunSetupDryRunUsesApplyPlanningAndSkipsMutations(t *testing.T) {
 	}
 
 	markCompleteCalled := false
-	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error {
+	markCompleteFn = func(root string) error {
 		markCompleteCalled = true
 		return nil
 	}
@@ -324,7 +314,7 @@ func TestRunSetupPassesScenarioSelectionToResolver(t *testing.T) {
 	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
-	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error { return nil }
+	markCompleteFn = func(root string) error { return nil }
 
 	if err := RunSetup(root, home, []string{"--scenarios", "alpha,beta", "--resources", "none", "--dry-run"}, io.Discard, io.Discard); err != nil {
 		t.Fatalf("RunSetup: %v", err)
@@ -430,7 +420,7 @@ func TestRunSetupPrintsPlanAndDryRunResult(t *testing.T) {
 			},
 		}, nil
 	}
-	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error { return nil }
+	markCompleteFn = func(root string) error { return nil }
 
 	stdout := &strings.Builder{}
 	if err := RunSetup(root, home, []string{"--resources", "none", "--scenarios", "alpha", "--dry-run"}, stdout, io.Discard); err != nil {
@@ -573,7 +563,7 @@ func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T)
 	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
-	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error { return nil }
+	markCompleteFn = func(root string) error { return nil }
 
 	type installCall struct {
 		name string
@@ -715,7 +705,7 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 	}
 
 	setupCalls := 0
-	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error {
+	markCompleteFn = func(root string) error {
 		setupCalls++
 		return os.WriteFile(filepath.Join(root, "data", ".setup-complete"), []byte("ok\n"), 0o644)
 	}
@@ -785,7 +775,7 @@ func TestRunDevelopExportsLegacyEnvironmentContractToAPILaunch(t *testing.T) {
 	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
-	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error {
+	markCompleteFn = func(root string) error {
 		return os.WriteFile(filepath.Join(root, "data", ".setup-complete"), []byte("ok\n"), 0o644)
 	}
 	loadDotEnvFn = func(path string) (map[string]string, error) {
@@ -884,7 +874,7 @@ func TestRunDevelopSkipsSetupWhenMarkerExists(t *testing.T) {
 	}
 
 	setupCalls := 0
-	markCompleteFn = func(root string, manifest scenario.ServiceManifest) error {
+	markCompleteFn = func(root string) error {
 		setupCalls++
 		return nil
 	}

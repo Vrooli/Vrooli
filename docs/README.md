@@ -10,6 +10,7 @@ Comprehensive development guide for the Vrooli platform. For quick reference, se
 - [Technology Stack](#technology-stack)
 - [Architecture Overview](ARCHITECTURE_OVERVIEW.md)
 - [Repository Contract](repo-contract.md)
+- [Package Governance](package-governance.md)
 - [Development Guidelines](#development-guidelines)
 - **[Testing Guide](#testing-guide)** → **[Complete Testing Documentation](TESTING.md)**
 - [Task Management System](#task-management-system)
@@ -92,6 +93,12 @@ See **[ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md)** for complete archit
 - Test a scenario: `vrooli scenario test <name>`
 - Direct execution: `vrooli scenario run <name>`
 
+### Shared Package Governance
+- Governed shared packages live under `packages/`
+- Package adoption and refresh are managed through `vrooli package ...`
+- Scenarios stay intentionally independent and must not rely on root-workspace dependency coupling
+- See [package-governance.md](package-governance.md) for manifests, adoption modes, refresh behavior, and validation
+
 ### Environment Variables
 - Development: `.vrooli/service.json` in each scenario/resource
 - Resource configuration: `~/.vrooli/service.json` (global)
@@ -172,6 +179,7 @@ You have no persistent memory between sessions. **After every memory reset, rely
 - **[roadmap.md](roadmap.md)** - Project milestones and future vision
 - **[tools.md](tools.md)** - Available commands and tools
 - **[repo-contract.md](repo-contract.md)** - Canonical future-state repository structure and exclusions for repo-aware tooling
+- **[package-governance.md](package-governance.md)** - Canonical shared-package adoption, refresh, and validation rules
 
 ### Scenario Management:
 - **[scenarios/](scenarios/)** - Business application scenarios and templates

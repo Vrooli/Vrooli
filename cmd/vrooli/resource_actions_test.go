@@ -45,3 +45,13 @@ func TestExecuteResourceCommandRendersHelpOnlyErrors(t *testing.T) {
 		t.Fatalf("help output missing usage text: %q", got)
 	}
 }
+
+func TestParseResourceValidateRequestAcceptsOptionalName(t *testing.T) {
+	req, err := parseResourceValidateRequest(globalOptions{}, []string{"redis"})
+	if err != nil {
+		t.Fatalf("parseResourceValidateRequest: %v", err)
+	}
+	if req.Name != "redis" {
+		t.Fatalf("name = %q, want redis", req.Name)
+	}
+}

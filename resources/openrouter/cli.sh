@@ -30,16 +30,11 @@ source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
-# Source agent management (load config and manager directly)
-if [[ -f "${APP_ROOT}/resources/openrouter/config/agents.conf" ]]; then
-    source "${APP_ROOT}/resources/openrouter/config/agents.conf"
-    source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
-fi
 # shellcheck disable=SC1091
 source "${OPENROUTER_CLI_DIR}/config/defaults.sh"
 
 # Source OpenRouter libraries
-for lib in core status install configure content test info models usage ratelimit benchmark agents routing cloudflare credentials; do
+for lib in core status install configure content test info models usage ratelimit benchmark routing cloudflare credentials; do
     lib_file="${OPENROUTER_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -107,20 +102,6 @@ cli::register_command "list-models" "List models by category" "openrouter::model
 
 # Add benchmark commands for performance testing
 cli::register_command "benchmark" "Run model performance benchmarks" "openrouter::benchmark::main"
-
-# Add agent management commands
-# Create wrapper for agents command that delegates to manager
-openrouter::agents::command() {
-    if type -t agent_manager::load_config &>/dev/null; then
-        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="openrouter" "$@"
-    else
-        log::error "Agent management not available"
-        return 1
-    fi
-}
-export -f openrouter::agents::command
-
-cli::register_command "agents" "Manage running openrouter agents" "openrouter::agents::command"
 
 # Add routing rules commands
 cli::register_command "routing" "Manage custom model routing rules" "openrouter::routing::cli"

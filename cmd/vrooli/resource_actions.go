@@ -3,9 +3,9 @@ package main
 import (
 	"io"
 
+	resourceapp "github.com/vrooli/vrooli/internal/app/resource"
 	"github.com/vrooli/vrooli/internal/cli/resourcecli"
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
@@ -15,19 +15,11 @@ type resourceCommandAction[Req any, Resp any] struct {
 	render func(w io.Writer, format cliout.Format, resp Resp) error
 }
 
-func executeResourceCommandWithApp[Req any, Resp any](app *App, ctx *commandContext, controller *resources.Controller, args []string, action boundCommandAction[*resources.Controller, Req, Resp]) error {
-	return executeBoundCommand(app, ctx, controller, args, action)
+func executeResourceCommandWithApp[Req any, Resp any](app *App, ctx *commandContext, controller *resources.Controller, args []string, action resourceCommandAction[Req, Resp]) error {
+	return bindResourceCommand(action.parse, action.run, action.render)(app, ctx, controller, args)
 }
 
 func executeResourceCommand[Req any, Resp any](controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer, action resourceCommandAction[Req, Resp]) error {
-	return runResourceBoundCommand(controller, globals, args, stdout, stderr, boundCommandAction[*resources.Controller, Req, Resp]{
-		parse:  action.parse,
-		run:    action.run,
-		render: action.render,
-	})
-}
-
-func runResourceBoundCommand[Req any, Resp any](controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer, action boundCommandAction[*resources.Controller, Req, Resp]) error {
 	app, ctx := newConfiguredCommandContext("", globals, stdout, stderr)
 	if controller != nil {
 		ctx.Root = controller.Root
@@ -36,22 +28,15 @@ func runResourceBoundCommand[Req any, Resp any](controller *resources.Controller
 }
 
 type (
-	resourceNoArgsRequest struct{}
-	resourceNameRequest   struct {
-		Name string
-	}
+	resourceNoArgsRequest = resourcecli.NoArgsRequest
+	resourceNameRequest   = resourcecli.NameRequest
 )
 
-type resourceStatusRequest struct {
-	Name string
-	Fast bool
-}
-type resourceArchiveSubcommandRequest struct {
-	Subcommand string
-}
-type resourceBlueprintSearchRequest struct {
-	Query string
-}
+type (
+	resourceStatusRequest          = resourcecli.StatusRequest
+	resourceValidateRequest        = resourcecli.ValidateRequest
+	resourceBlueprintSearchRequest = resourcecli.BlueprintSearchRequest
+)
 
 type resourceListResponse struct {
 	Items []resources.Resource
@@ -84,36 +69,15 @@ type resourceBlueprintSearchResponse struct {
 	Items []resources.Blueprint
 }
 
-func parseResourceNoArgs(help, command string, args []string) (resourceNoArgsRequest, error) {
-	if len(args) > 0 {
-		for _, arg := range args {
-			if arg == "--help" || arg == "-h" {
-				return resourceNoArgsRequest{}, commandHelpOnly(help)
-			}
-		}
-		return resourceNoArgsRequest{}, usageErrorf(command, "%s does not accept positional arguments", command)
-	}
-	return resourceNoArgsRequest{}, nil
-}
-
-func parseResourceSingleName(help, command string, args []string) (resourceNameRequest, error) {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			return resourceNameRequest{}, commandHelpOnly(help)
-		}
-	}
-	if len(args) != 1 {
-		return resourceNameRequest{}, usageErrorf(command, "%s requires exactly one resource name", command)
-	}
-	return resourceNameRequest{Name: args[0]}, nil
-}
-
 func parseResourceListRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
-	return parseResourceNoArgs("Usage: vrooli resource list", "resource list", args)
+	_ = globals
+	req, err := resourcecli.ParseListRequest(args)
+	return req, mapResourceParseError("resource list", err)
 }
 
 func runResourceListRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resourceListResponse, error) {
-	items, err := controller.Discover()
+	_ = req
+	items, err := newResourceCommandService(ctx, controller).List()
 	if err != nil {
 		return "", resourceListResponse{}, err
 	}
@@ -128,28 +92,55 @@ func renderResourceListResponse(w io.Writer, format cliout.Format, resp resource
 	return resourcecli.WriteList(w, format, resp.Items)
 }
 
-func parseResourceStatusRequest(globals globalOptions, args []string) (resourceStatusRequest, error) {
-	req := resourceStatusRequest{Fast: true}
-	filtered := make([]string, 0, len(args))
-	for _, arg := range args {
-		switch arg {
-		case "--help", "-h":
-			return resourceStatusRequest{}, commandHelpOnly("Usage: vrooli resource status [name] [--fast|--no-fast] [--json]")
-		case "--fast":
-			req.Fast = true
-		case "--no-fast":
-			req.Fast = false
-		default:
-			filtered = append(filtered, arg)
+func parseResourceValidateRequest(globals globalOptions, args []string) (resourceValidateRequest, error) {
+	_ = globals
+	req, err := resourcecli.ParseValidateRequest(args)
+	return req, mapResourceParseError("resource validate", err)
+}
+
+func runResourceValidateRequest(controller *resources.Controller, ctx *commandContext, req resourceValidateRequest) (cliout.Format, resources.ResourceValidationReport, error) {
+	report, err := newResourceCommandService(ctx, controller).Validate(req.Name)
+	if err != nil {
+		return "", resources.ResourceValidationReport{}, err
+	}
+	format, err := parseOutputFormat(ctx.Globals)
+	if err != nil {
+		return "", resources.ResourceValidationReport{}, err
+	}
+	return format, report, nil
+}
+
+func renderResourceValidateResponse(w io.Writer, format cliout.Format, report resources.ResourceValidationReport) error {
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(w, map[string]any{"success": report.Passed, "report": report})
+	}
+	status := "passed"
+	if !report.Passed {
+		status = "failed"
+	}
+	if _, err := io.WriteString(w, "Resource validation "+status+"\n"); err != nil {
+		return err
+	}
+	for _, item := range report.Items {
+		if len(item.Issues) == 0 {
+			continue
+		}
+		if _, err := io.WriteString(w, "- "+item.Name+"\n"); err != nil {
+			return err
+		}
+		for _, issue := range item.Issues {
+			if _, err := io.WriteString(w, "  ["+issue.Severity+"] "+issue.Message+"\n"); err != nil {
+				return err
+			}
 		}
 	}
-	if len(filtered) > 1 {
-		return resourceStatusRequest{}, usageErrorf("resource status", "resource status accepts at most one resource name")
-	}
-	if len(filtered) == 1 {
-		req.Name = filtered[0]
-	}
-	return req, nil
+	return nil
+}
+
+func parseResourceStatusRequest(globals globalOptions, args []string) (resourceStatusRequest, error) {
+	_ = globals
+	req, err := resourcecli.ParseStatusRequest(args)
+	return req, mapResourceParseError("resource status", err)
 }
 
 func runResourceStatusRequest(controller *resources.Controller, ctx *commandContext, req resourceStatusRequest) (cliout.Format, resourceStatusResponse, error) {
@@ -157,18 +148,14 @@ func runResourceStatusRequest(controller *resources.Controller, ctx *commandCont
 	if err != nil {
 		return "", resourceStatusResponse{}, err
 	}
-	if req.Name == "" {
-		items, err := controller.ListStatuses(req.Fast, false)
-		if err != nil {
-			return "", resourceStatusResponse{}, err
-		}
-		return format, resourceStatusResponse{Items: items}, nil
-	}
-	item, err := controller.Status(req.Name, req.Fast)
+	items, item, err := newResourceCommandService(ctx, controller).Status(req.Name, req.Fast)
 	if err != nil {
 		return "", resourceStatusResponse{}, err
 	}
-	return format, resourceStatusResponse{Item: &item}, nil
+	if item == nil {
+		return format, resourceStatusResponse{Items: items}, nil
+	}
+	return format, resourceStatusResponse{Item: item}, nil
 }
 
 func renderResourceStatusResponse(w io.Writer, format cliout.Format, resp resourceStatusResponse) error {
@@ -179,11 +166,13 @@ func renderResourceStatusResponse(w io.Writer, format cliout.Format, resp resour
 }
 
 func parseResourceInfoRequest(globals globalOptions, args []string) (resourceNameRequest, error) {
-	return parseResourceSingleName("Usage: vrooli resource info <name>", "resource info", args)
+	_ = globals
+	req, err := resourcecli.ParseInfoRequest(args)
+	return req, mapResourceParseError("resource info", err)
 }
 
 func runResourceInfoRequest(controller *resources.Controller, ctx *commandContext, req resourceNameRequest) (cliout.Format, resourceStatusResponse, error) {
-	item, err := controller.Status(req.Name, true)
+	item, err := newResourceCommandService(ctx, controller).Info(req.Name)
 	if err != nil {
 		return "", resourceStatusResponse{}, err
 	}
@@ -199,11 +188,13 @@ func renderResourceInfoResponse(w io.Writer, format cliout.Format, resp resource
 }
 
 func parseResourceDeprecateRequest(globals globalOptions, args []string) (resourceNameRequest, error) {
-	return parseResourceSingleName("Usage: vrooli resource deprecate <name>", "resource deprecate", args)
+	_ = globals
+	req, err := resourcecli.ParseDeprecateRequest(args)
+	return req, mapResourceParseError("resource deprecate", err)
 }
 
 func runResourceDeprecateRequest(controller *resources.Controller, ctx *commandContext, req resourceNameRequest) (cliout.Format, resources.DeprecationReport, error) {
-	report, err := controller.DeprecateResource(req.Name)
+	report, err := newResourceCommandService(ctx, controller).Deprecate(req.Name)
 	if err != nil {
 		return "", resources.DeprecationReport{}, err
 	}
@@ -219,11 +210,14 @@ func renderResourceDeprecateResponse(w io.Writer, format cliout.Format, report r
 }
 
 func parseResourceListDeprecatedRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
-	return parseResourceNoArgs("Usage: vrooli resource list-deprecated", "resource list-deprecated", args)
+	_ = globals
+	req, err := resourcecli.ParseListDeprecatedRequest(args)
+	return req, mapResourceParseError("resource list-deprecated", err)
 }
 
 func runResourceListDeprecatedRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, []resources.DeprecatedResource, error) {
-	items, err := controller.ListDeprecatedResources()
+	_ = req
+	items, err := newResourceCommandService(ctx, controller).ListDeprecated()
 	if err != nil {
 		return "", nil, err
 	}
@@ -239,11 +233,13 @@ func renderResourceListDeprecatedResponse(w io.Writer, format cliout.Format, ite
 }
 
 func parseResourceRestoreRequest(globals globalOptions, args []string) (resourceNameRequest, error) {
-	return parseResourceSingleName("Usage: vrooli resource restore <name>", "resource restore", args)
+	_ = globals
+	req, err := resourcecli.ParseRestoreRequest(args)
+	return req, mapResourceParseError("resource restore", err)
 }
 
 func runResourceRestoreRequest(controller *resources.Controller, ctx *commandContext, req resourceNameRequest) (cliout.Format, resources.RestoreReport, error) {
-	report, err := controller.RestoreDeprecatedResource(req.Name)
+	report, err := newResourceCommandService(ctx, controller).Restore(req.Name)
 	if err != nil {
 		return "", resources.RestoreReport{}, err
 	}
@@ -259,11 +255,13 @@ func renderResourceRestoreResponse(w io.Writer, format cliout.Format, report res
 }
 
 func parseResourceArchiveToBlueprintRequest(globals globalOptions, args []string) (resourceNameRequest, error) {
-	return parseResourceSingleName("Usage: vrooli resource archive-to-blueprint <name>", "resource archive-to-blueprint", args)
+	_ = globals
+	req, err := resourcecli.ParseArchiveToBlueprintRequest(args)
+	return req, mapResourceParseError("resource archive-to-blueprint", err)
 }
 
 func runResourceArchiveToBlueprintRequest(controller *resources.Controller, ctx *commandContext, req resourceNameRequest) (cliout.Format, resources.BlueprintArchiveReport, error) {
-	report, err := controller.ArchiveResourceToBlueprint(req.Name)
+	report, err := newResourceCommandService(ctx, controller).ArchiveToBlueprint(req.Name)
 	if err != nil {
 		return "", resources.BlueprintArchiveReport{}, err
 	}
@@ -279,11 +277,14 @@ func renderResourceArchiveToBlueprintResponse(w io.Writer, format cliout.Format,
 }
 
 func parseResourceListBlueprintArchivedRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
-	return parseResourceNoArgs("Usage: vrooli resource list-blueprint-archived", "resource list-blueprint-archived", args)
+	_ = globals
+	req, err := resourcecli.ParseListBlueprintArchivedRequest(args)
+	return req, mapResourceParseError("resource list-blueprint-archived", err)
 }
 
 func runResourceListBlueprintArchivedRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, []resources.BlueprintArchivedResource, error) {
-	items, err := controller.ListBlueprintArchivedResources()
+	_ = req
+	items, err := newResourceCommandService(ctx, controller).ListBlueprintArchived()
 	if err != nil {
 		return "", nil, err
 	}
@@ -299,11 +300,13 @@ func renderResourceListBlueprintArchivedResponse(w io.Writer, format cliout.Form
 }
 
 func parseResourceRestoreBlueprintRequest(globals globalOptions, args []string) (resourceNameRequest, error) {
-	return parseResourceSingleName("Usage: vrooli resource restore-blueprint <name>", "resource restore-blueprint", args)
+	_ = globals
+	req, err := resourcecli.ParseRestoreBlueprintRequest(args)
+	return req, mapResourceParseError("resource restore-blueprint", err)
 }
 
 func runResourceRestoreBlueprintRequest(controller *resources.Controller, ctx *commandContext, req resourceNameRequest) (cliout.Format, resources.BlueprintRestoreReport, error) {
-	report, err := controller.RestoreBlueprintArchivedResource(req.Name)
+	report, err := newResourceCommandService(ctx, controller).RestoreBlueprint(req.Name)
 	if err != nil {
 		return "", resources.BlueprintRestoreReport{}, err
 	}
@@ -319,7 +322,9 @@ func renderResourceRestoreBlueprintResponse(w io.Writer, format cliout.Format, r
 }
 
 func parseResourceArchiveGCRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
-	return parseResourceNoArgs("Usage: vrooli resource archive gc", "resource archive gc", args)
+	_ = globals
+	req, err := resourcecli.ParseArchiveGCRequest(args)
+	return req, mapResourceParseError("resource archive gc", err)
 }
 
 func runResourceArchiveGCRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resources.ArchiveGCReport, error) {
@@ -339,7 +344,9 @@ func renderResourceArchiveGCResponse(w io.Writer, format cliout.Format, report r
 }
 
 func parseResourceArchiveBlueprintGCRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
-	return parseResourceNoArgs("Usage: vrooli resource archive gc-blueprints", "resource archive gc-blueprints", args)
+	_ = globals
+	req, err := resourcecli.ParseArchiveBlueprintGCRequest(args)
+	return req, mapResourceParseError("resource archive gc-blueprints", err)
 }
 
 func runResourceArchiveBlueprintGCRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resources.ArchiveGCReport, error) {
@@ -359,11 +366,14 @@ func renderResourceArchiveBlueprintGCResponse(w io.Writer, format cliout.Format,
 }
 
 func parseResourceBlueprintListRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
-	return parseResourceNoArgs("Usage: vrooli resource blueprint list", "resource blueprint list", args)
+	_ = globals
+	req, err := resourcecli.ParseBlueprintListRequest(args)
+	return req, mapResourceParseError("resource blueprint list", err)
 }
 
 func runResourceBlueprintListRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resourceBlueprintsResponse, error) {
-	items, err := controller.ListBlueprints()
+	_ = req
+	items, err := newResourceCommandService(ctx, controller).BlueprintList()
 	if err != nil {
 		return "", resourceBlueprintsResponse{}, err
 	}
@@ -379,11 +389,13 @@ func renderResourceBlueprintListResponse(w io.Writer, format cliout.Format, resp
 }
 
 func parseResourceBlueprintInfoRequest(globals globalOptions, args []string) (resourceNameRequest, error) {
-	return parseResourceSingleName("Usage: vrooli resource blueprint info <name>", "resource blueprint info", args)
+	_ = globals
+	req, err := resourcecli.ParseBlueprintInfoRequest(args)
+	return req, mapResourceParseError("resource blueprint info", err)
 }
 
 func runResourceBlueprintInfoRequest(controller *resources.Controller, ctx *commandContext, req resourceNameRequest) (cliout.Format, resourceBlueprintResponse, error) {
-	item, err := controller.Blueprint(req.Name)
+	item, err := newResourceCommandService(ctx, controller).BlueprintInfo(req.Name)
 	if err != nil {
 		return "", resourceBlueprintResponse{}, err
 	}
@@ -399,19 +411,13 @@ func renderResourceBlueprintInfoResponse(w io.Writer, format cliout.Format, resp
 }
 
 func parseResourceBlueprintSearchRequest(globals globalOptions, args []string) (resourceBlueprintSearchRequest, error) {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			return resourceBlueprintSearchRequest{}, commandHelpOnly("Usage: vrooli resource blueprint search <query>")
-		}
-	}
-	if len(args) != 1 {
-		return resourceBlueprintSearchRequest{}, usageErrorf("resource blueprint", "resource blueprint search requires exactly one query")
-	}
-	return resourceBlueprintSearchRequest{Query: args[0]}, nil
+	_ = globals
+	req, err := resourcecli.ParseBlueprintSearchRequest(args)
+	return req, mapResourceParseError("resource blueprint search", err)
 }
 
 func runResourceBlueprintSearchRequest(controller *resources.Controller, ctx *commandContext, req resourceBlueprintSearchRequest) (cliout.Format, resourceBlueprintSearchResponse, error) {
-	items, err := controller.SearchBlueprints(req.Query)
+	items, err := newResourceCommandService(ctx, controller).BlueprintSearch(req.Query)
 	if err != nil {
 		return "", resourceBlueprintSearchResponse{}, err
 	}
@@ -427,11 +433,14 @@ func renderResourceBlueprintSearchResponse(w io.Writer, format cliout.Format, re
 }
 
 func parseResourceBlueprintValidateRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
-	return parseResourceNoArgs("Usage: vrooli resource blueprint validate", "resource blueprint validate", args)
+	_ = globals
+	req, err := resourcecli.ParseBlueprintValidateRequest(args)
+	return req, mapResourceParseError("resource blueprint validate", err)
 }
 
 func runResourceBlueprintValidateRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resources.BlueprintValidationReport, error) {
-	report, err := controller.ValidateBlueprints()
+	_ = req
+	report, err := newResourceCommandService(ctx, controller).BlueprintValidate()
 	if err != nil {
 		return "", resources.BlueprintValidationReport{}, err
 	}
@@ -447,47 +456,66 @@ func renderResourceBlueprintValidateResponse(w io.Writer, format cliout.Format, 
 }
 
 func parseResourceStartAllRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
-	return parseResourceNoArgs("Usage: vrooli resource start-all", "resource start-all", args)
+	_ = globals
+	req, err := resourcecli.ParseStartAllRequest(args)
+	return req, mapResourceParseError("resource start-all", err)
 }
 
-type resourceControlReportResponse struct {
-	Start *control.StartReport
-	Stop  *control.StopReport
-}
-
-func runResourceStartAllRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resourceControlReportResponse, error) {
-	report, err := controller.StartAll(ctx.Stdout, ctx.Stderr)
+func runResourceStartAllRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resourceapp.ControlReportResponse, error) {
+	_ = req
+	report, err := newResourceCommandService(ctx, controller).StartAll()
 	if err != nil {
-		return "", resourceControlReportResponse{}, err
+		return "", resourceapp.ControlReportResponse{}, err
 	}
 	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
-		return "", resourceControlReportResponse{}, err
+		return "", resourceapp.ControlReportResponse{}, err
 	}
-	return format, resourceControlReportResponse{Start: &report}, nil
+	return format, report, nil
 }
 
 func parseResourceStopAllRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
-	return parseResourceNoArgs("Usage: vrooli resource stop-all", "resource stop-all", args)
+	_ = globals
+	req, err := resourcecli.ParseStopAllRequest(args)
+	return req, mapResourceParseError("resource stop-all", err)
 }
 
-func runResourceStopAllRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resourceControlReportResponse, error) {
-	report, err := controller.StopAll(ctx.Stdout, ctx.Stderr)
+func runResourceStopAllRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resourceapp.ControlReportResponse, error) {
+	_ = req
+	report, err := newResourceCommandService(ctx, controller).StopAll()
 	if err != nil {
-		return "", resourceControlReportResponse{}, err
+		return "", resourceapp.ControlReportResponse{}, err
 	}
 	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
-		return "", resourceControlReportResponse{}, err
+		return "", resourceapp.ControlReportResponse{}, err
 	}
-	return format, resourceControlReportResponse{Stop: &report}, nil
+	return format, report, nil
 }
 
-func renderResourceControlReportResponse(w io.Writer, format cliout.Format, resp resourceControlReportResponse) error {
+func renderResourceControlReportResponse(w io.Writer, format cliout.Format, resp resourceapp.ControlReportResponse) error {
 	if resp.Start != nil {
 		report := *resp.Start
 		return resourcecli.WriteControlReport(w, format, "report", "Started", report, report.Started, report.Failed)
 	}
 	report := *resp.Stop
 	return resourcecli.WriteControlReport(w, format, "report", "Stopped", report, report.Stopped, report.Failed)
+}
+
+func newResourceCommandService(ctx *commandContext, controller *resources.Controller) resourceapp.Service {
+	return resourceapp.Service{
+		Resources: controller,
+		Stdout:    ctx.Stdout,
+		Stderr:    ctx.Stderr,
+	}
+}
+
+func mapResourceParseError(command string, err error) error {
+	if err == nil {
+		return nil
+	}
+	if helpErr, ok := err.(interface{ HelpText() string }); ok {
+		return commandHelpOnly(helpErr.HelpText())
+	}
+	return usageErrorf(command, err.Error())
 }

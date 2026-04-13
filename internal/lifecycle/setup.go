@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/shell"
 )
@@ -68,44 +71,121 @@ func (r *Runner) ensureScenarioDatabase(item scenario.Scenario, env map[string]s
 
 	r.infof(logWriter, "Ensuring database exists: %s", dbName)
 
-	script := fmt.Sprintf(`
-set -e
-export APP_ROOT=%s
-export VROOLI_ROOT=%s
-scenario_path=%s
-db_name=%s
-postgres_db_lib="$APP_ROOT/resources/postgres/lib/database.sh"
-postgres_common_lib="$APP_ROOT/resources/postgres/lib/common.sh"
-postgres_defaults="$APP_ROOT/resources/postgres/config/defaults.sh"
-if [[ ! -f "$postgres_db_lib" ]]; then
-  exit 0
-fi
-source "$postgres_defaults" >/dev/null 2>&1 || true
-source "$postgres_common_lib" >/dev/null 2>&1 || true
-source "$postgres_db_lib" >/dev/null 2>&1 || true
-if ! postgres::common::is_running "main" >/dev/null 2>&1; then
-  echo "Postgres not running, skipping database creation for: $db_name"
-  exit 0
-fi
-postgres::database::create "main" "$db_name" >/dev/null 2>&1 || true
-schema_file="$scenario_path/initialization/postgres/schema.sql"
-if [[ -f "$schema_file" ]]; then
-  postgres::database::execute_file "main" "$schema_file" "$db_name" >/dev/null 2>&1 || true
-fi
-migrations_dir="$scenario_path/initialization/postgres"
-if [[ -d "$migrations_dir" ]] && ls "$migrations_dir"/migration_*.sql >/dev/null 2>&1; then
-  postgres::database::migrate "main" "$migrations_dir" "$db_name" >/dev/null 2>&1 || true
-fi
-`, shellQuote(r.Root), shellQuote(r.Root), shellQuote(item.Path), shellQuote(dbName))
+	if err := r.ensurePostgresDatabaseExists(env, dbName, logWriter); err != nil {
+		r.warnf(logWriter, "Database creation encountered errors: %v", err)
+	}
 
-	cmd := shell.BashCommand(script, shell.Spec{
-		Dir:    item.Path,
-		Env:    mergeEnv(os.Environ(), env),
-		Stdout: logWriter,
-		Stderr: logWriter,
-	})
-	if err := cmd.Run(); err != nil {
-		r.warnf(logWriter, "Database bootstrap encountered errors: %v", err)
+	schemaFile := filepath.Join(item.Path, "initialization", "postgres", "schema.sql")
+	if _, err := os.Stat(schemaFile); err == nil {
+		if err := r.executePostgresFile(env, dbName, schemaFile, logWriter); err != nil {
+			r.warnf(logWriter, "Schema bootstrap encountered errors: %v", err)
+		}
+	}
+
+	migrationsDir := filepath.Join(item.Path, "initialization", "postgres")
+	pattern := filepath.Join(migrationsDir, "migration_*.sql")
+	migrationFiles, err := filepath.Glob(pattern)
+	if err != nil {
+		r.warnf(logWriter, "Migration discovery encountered errors: %v", err)
+		return nil
+	}
+	sort.Strings(migrationFiles)
+	for _, migrationFile := range migrationFiles {
+		if err := r.executePostgresFile(env, dbName, migrationFile, logWriter); err != nil {
+			r.warnf(logWriter, "Migration %s encountered errors: %v", filepath.Base(migrationFile), err)
+		}
 	}
 	return nil
+}
+
+func (r *Runner) ensurePostgresDatabaseExists(env map[string]string, dbName string, logWriter io.Writer) error {
+	sql := fmt.Sprintf("SELECT 1 FROM pg_database WHERE datname = %s;", quotePostgresLiteral(dbName))
+	output, err := r.runPostgresCommand(env, "postgres", []string{"-tA", "-c", sql}, logWriter)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(string(output)) == "1" {
+		return nil
+	}
+	createSQL := fmt.Sprintf("CREATE DATABASE %s;", quotePostgresIdentifier(dbName))
+	_, err = r.runPostgresCommand(env, "postgres", []string{"-c", createSQL}, logWriter)
+	return err
+}
+
+func (r *Runner) executePostgresFile(env map[string]string, dbName, filePath string, logWriter io.Writer) error {
+	_, err := r.runPostgresCommand(env, dbName, []string{"-f", filePath}, logWriter)
+	return err
+}
+
+func (r *Runner) runPostgresCommand(env map[string]string, database string, args []string, logWriter io.Writer) ([]byte, error) {
+	baseArgs := []string{
+		"-v", "ON_ERROR_STOP=1",
+		"-h", defaultEnv(env, "POSTGRES_HOST", "localhost"),
+		"-p", defaultEnv(env, "POSTGRES_PORT", "5433"),
+		"-U", defaultEnv(env, "POSTGRES_USER", "vrooli"),
+		"-d", database,
+	}
+	baseArgs = append(baseArgs, args...)
+	commandEnv := mergeEnv(os.Environ(), env)
+
+	if _, err := shell.LookPath("psql"); err == nil {
+		cmd := shell.Command(shell.Spec{
+			Name: "psql",
+			Args: baseArgs,
+			Dir:  r.Root,
+			Env:  commandEnv,
+		})
+		output, runErr := cmd.CombinedOutput()
+		if len(output) > 0 {
+			_, _ = logWriter.Write(output)
+		}
+		if runErr == nil {
+			return output, nil
+		}
+	}
+
+	containerName := postgresContainerName(r.Root)
+	if strings.TrimSpace(containerName) == "" {
+		containerName = "vrooli-postgres-main"
+	}
+	dockerArgs := []string{"exec", "-e", "PGPASSWORD=" + env["POSTGRES_PASSWORD"], containerName, "psql", "-v", "ON_ERROR_STOP=1", "-h", "localhost", "-p", "5432", "-U", defaultEnv(env, "POSTGRES_USER", "vrooli"), "-d", database}
+	dockerArgs = append(dockerArgs, args...)
+	cmd := shell.Command(shell.Spec{
+		Name: "docker",
+		Args: dockerArgs,
+		Dir:  r.Root,
+		Env:  commandEnv,
+	})
+	output, err := cmd.CombinedOutput()
+	if len(output) > 0 {
+		_, _ = logWriter.Write(output)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
+}
+
+func postgresContainerName(root string) string {
+	manifestPath := manifestpkg.DefaultPath(root, "postgres")
+	resourceManifest, err := manifestpkg.Load(manifestPath)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(resourceManifest.Runtime.ContainerName)
+}
+
+func quotePostgresIdentifier(value string) string {
+	return `"` + strings.ReplaceAll(value, `"`, `""`) + `"`
+}
+
+func quotePostgresLiteral(value string) string {
+	return `'` + strings.ReplaceAll(value, `'`, `''`) + `'`
+}
+
+func defaultEnv(env map[string]string, key, fallback string) string {
+	if value := strings.TrimSpace(env[key]); value != "" {
+		return value
+	}
+	return fallback
 }

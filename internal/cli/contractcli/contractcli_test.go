@@ -51,3 +51,9 @@ func TestRenderMatchGlobJSONIncludesMatchedField(t *testing.T) {
 		t.Fatalf("stdout = %s", output)
 	}
 }
+
+func TestRenderResolveScenarioHelpTextStaysDeclared(t *testing.T) {
+	if got := RenderResolveScenarioHelpText(); got != ResolveScenarioHelpText {
+		t.Fatalf("help = %q", got)
+	}
+}

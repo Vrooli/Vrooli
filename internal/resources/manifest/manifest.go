@@ -24,35 +24,38 @@ var AllowedDrivers = []string{
 	"legacy-adapter",
 }
 
-var AllowedPortabilityTiers = []string{"full", "partial", "platform-specific"}
-var AllowedPlatformSupportStates = []string{"supported", "partial", "unsupported"}
+var (
+	AllowedPortabilityTiers      = []string{"full", "partial", "platform-specific"}
+	AllowedPlatformSupportStates = []string{"supported", "partial", "unsupported"}
+)
 
 type ResourceManifest struct {
-	Schema          string                       `json:"$schema,omitempty"`
-	Name            string                       `json:"name"`
-	DisplayName     string                       `json:"display_name,omitempty"`
-	Description     string                       `json:"description,omitempty"`
-	Template        string                       `json:"template,omitempty"`
-	Driver          string                       `json:"driver"`
-	ComposeFile     string                       `json:"compose_file,omitempty"`
-	LegacyAdapter   ResourceLegacyAdapter        `json:"legacy_adapter,omitempty"`
-	Binary          string                       `json:"binary,omitempty"`
-	VersionArgs     []string                     `json:"version_args,omitempty"`
-	Endpoint        string                       `json:"endpoint,omitempty"`
-	Credentials     ResourceCredentials          `json:"credentials,omitempty"`
-	PortabilityTier string                       `json:"portability_tier,omitempty"`
-	Category        string                       `json:"category,omitempty"`
-	Platforms       ResourcePlatforms            `json:"platforms,omitempty"`
-	Dependencies    []string                     `json:"dependencies,omitempty"`
-	Ports           []ResourcePort               `json:"ports,omitempty"`
-	HealthChecks    []ResourceHealthCheck        `json:"health_checks,omitempty"`
-	Install         ResourceInstall              `json:"install,omitempty"`
-	Runtime         ResourceRuntime              `json:"runtime,omitempty"`
-	Lifecycle       ResourceLifecycle            `json:"lifecycle,omitempty"`
-	Capabilities    ResourceManifestCapabilities `json:"capabilities,omitempty"`
-	TemplateVersion string                       `json:"template_version,omitempty"`
-	HostTools       []hostreqspec.Declaration    `json:"hostTools,omitempty"`
-	HostSafeguards  []hostreqspec.Declaration    `json:"hostSafeguards,omitempty"`
+	Schema             string                       `json:"$schema,omitempty"`
+	Name               string                       `json:"name"`
+	DisplayName        string                       `json:"display_name,omitempty"`
+	Description        string                       `json:"description,omitempty"`
+	Template           string                       `json:"template,omitempty"`
+	Driver             string                       `json:"driver"`
+	ComposeFile        string                       `json:"compose_file,omitempty"`
+	LegacyAdapter      ResourceLegacyAdapter        `json:"legacy_adapter,omitempty"`
+	Binary             string                       `json:"binary,omitempty"`
+	VersionArgs        []string                     `json:"version_args,omitempty"`
+	Endpoint           string                       `json:"endpoint,omitempty"`
+	Credentials        ResourceCredentials          `json:"credentials,omitempty"`
+	PortabilityTier    string                       `json:"portability_tier,omitempty"`
+	Category           string                       `json:"category,omitempty"`
+	Platforms          ResourcePlatforms            `json:"platforms,omitempty"`
+	Dependencies       []string                     `json:"dependencies,omitempty"`
+	Ports              []ResourcePort               `json:"ports,omitempty"`
+	HealthChecks       []ResourceHealthCheck        `json:"health_checks,omitempty"`
+	Install            ResourceInstall              `json:"install,omitempty"`
+	Runtime            ResourceRuntime              `json:"runtime,omitempty"`
+	EnvironmentExports ResourceEnvironmentExports   `json:"environment_exports,omitempty"`
+	Lifecycle          ResourceLifecycle            `json:"lifecycle,omitempty"`
+	Capabilities       ResourceManifestCapabilities `json:"capabilities,omitempty"`
+	TemplateVersion    string                       `json:"template_version,omitempty"`
+	HostTools          []hostreqspec.Declaration    `json:"hostTools,omitempty"`
+	HostSafeguards     []hostreqspec.Declaration    `json:"hostSafeguards,omitempty"`
 }
 
 type ResourceLegacyAdapter struct {
@@ -102,6 +105,17 @@ type ResourceRuntime struct {
 	Volumes       []ResourceVolume  `json:"volumes,omitempty"`
 	Command       []string          `json:"command,omitempty"`
 	WorkingDir    string            `json:"working_dir,omitempty"`
+}
+
+type ResourceEnvironmentExports struct {
+	Static         map[string]string                  `json:"static,omitempty"`
+	FromPorts      map[string]string                  `json:"from_ports,omitempty"`
+	FromRuntimeEnv []string                           `json:"from_runtime_env,omitempty"`
+	Derived        map[string]ResourceDerivedTemplate `json:"derived,omitempty"`
+}
+
+type ResourceDerivedTemplate struct {
+	Template string `json:"template,omitempty"`
 }
 
 type ResourceVolume struct {
@@ -163,6 +177,9 @@ func Validate(manifest ResourceManifest) error {
 			return fmt.Errorf("ports must be non-negative")
 		}
 	}
+	if err := validateEnvironmentExports(manifest); err != nil {
+		return err
+	}
 	for _, check := range manifest.HealthChecks {
 		if err := validateHealthCheck(check); err != nil {
 			return err
@@ -195,6 +212,54 @@ func Validate(manifest ResourceManifest) error {
 		if strings.TrimSpace(manifest.Endpoint) == "" {
 			return fmt.Errorf("endpoint is required for cloud-api resources")
 		}
+	}
+	return nil
+}
+
+func validateEnvironmentExports(manifest ResourceManifest) error {
+	exported := map[string]string{}
+	for key := range manifest.EnvironmentExports.Static {
+		name := strings.TrimSpace(key)
+		if name == "" {
+			return fmt.Errorf("environment_exports.static contains an empty key")
+		}
+		exported[name] = "static"
+	}
+	for key, portName := range manifest.EnvironmentExports.FromPorts {
+		name := strings.TrimSpace(key)
+		if name == "" {
+			return fmt.Errorf("environment_exports.from_ports contains an empty key")
+		}
+		if previous, exists := exported[name]; exists {
+			return fmt.Errorf("environment_exports key %q is declared multiple times (%s and from_ports)", name, previous)
+		}
+		if strings.TrimSpace(portName) == "" {
+			return fmt.Errorf("environment_exports.from_ports[%q] must reference a port name", name)
+		}
+		exported[name] = "from_ports"
+	}
+	for _, key := range manifest.EnvironmentExports.FromRuntimeEnv {
+		name := strings.TrimSpace(key)
+		if name == "" {
+			return fmt.Errorf("environment_exports.from_runtime_env contains an empty key")
+		}
+		if previous, exists := exported[name]; exists {
+			return fmt.Errorf("environment_exports key %q is declared multiple times (%s and from_runtime_env)", name, previous)
+		}
+		exported[name] = "from_runtime_env"
+	}
+	for key, derived := range manifest.EnvironmentExports.Derived {
+		name := strings.TrimSpace(key)
+		if name == "" {
+			return fmt.Errorf("environment_exports.derived contains an empty key")
+		}
+		if previous, exists := exported[name]; exists {
+			return fmt.Errorf("environment_exports key %q is declared multiple times (%s and derived)", name, previous)
+		}
+		if strings.TrimSpace(derived.Template) == "" {
+			return fmt.Errorf("environment_exports.derived[%q].template is required", name)
+		}
+		exported[name] = "derived"
 	}
 	return nil
 }

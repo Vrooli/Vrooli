@@ -38,6 +38,20 @@
       }
     ]
   },
+  "environment_exports": {
+    "static": {
+      "{{RESOURCE_ENV_PREFIX}}_HOST": "localhost"
+    },
+    "from_ports": {
+      "{{RESOURCE_ENV_PREFIX}}_PORT": "service"
+    },
+    "from_runtime_env": [],
+    "derived": {
+      "{{RESOURCE_ENV_PREFIX}}_URL": {
+        "template": "http://${{RESOURCE_ENV_PREFIX}}_HOST:${{RESOURCE_ENV_PREFIX}}_PORT"
+      }
+    }
+  },
   "lifecycle": {
     "start_timeout_seconds": 30,
     "stop_timeout_seconds": 30,

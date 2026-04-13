@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -23,7 +22,7 @@ func (a *App) HandleLifecycle(w http.ResponseWriter, r *http.Request) {
 	action := mux.Vars(r)["action"]
 	if err := a.Project.RunProjectPhase(action, nil); err != nil {
 		a.logError("Project lifecycle request failed", err, logx.AttrAction, action)
-		respondError(w, newAPIError(http.StatusInternalServerError, "project_phase_failed", fmt.Sprintf("project lifecycle %s failed", action), err))
+		respondError(w, err)
 		return
 	}
 	a.logInfo("Project lifecycle request completed", logx.AttrAction, action)

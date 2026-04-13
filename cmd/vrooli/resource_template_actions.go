@@ -6,43 +6,26 @@ import (
 	"sort"
 	"strings"
 
+	resourceapp "github.com/vrooli/vrooli/internal/app/resource"
+	"github.com/vrooli/vrooli/internal/cli/resourcecli"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
 type (
-	resourceTemplateNoArgsRequest struct{}
-	resourceTemplateNameRequest   struct{ Name string }
+	resourceTemplateNoArgsRequest = resourcecli.NoArgsRequest
+	resourceTemplateNameRequest   = resourcecli.TemplateNameRequest
 )
 
-func parseResourceTemplateNoArgs(help, command string, args []string) (resourceTemplateNoArgsRequest, error) {
-	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		return resourceTemplateNoArgsRequest{}, commandHelpOnly(help)
-	}
-	if len(args) > 0 {
-		return resourceTemplateNoArgsRequest{}, usageErrorf(command, "%s does not accept positional arguments", command)
-	}
-	return resourceTemplateNoArgsRequest{}, nil
-}
-
-func parseResourceTemplateName(help, command string, args []string) (resourceTemplateNameRequest, error) {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			return resourceTemplateNameRequest{}, commandHelpOnly(help)
-		}
-	}
-	if len(args) != 1 {
-		return resourceTemplateNameRequest{}, usageErrorf(command, "%s requires exactly one template name", command)
-	}
-	return resourceTemplateNameRequest{Name: args[0]}, nil
-}
-
 func parseResourceTemplateListRequest(globals globalOptions, args []string) (resourceTemplateNoArgsRequest, error) {
-	return parseResourceTemplateNoArgs("Usage: vrooli resource template list", "resource template list", args)
+	_ = globals
+	req, err := resourcecli.ParseTemplateListRequest(args)
+	return req, mapResourceParseError("resource template list", err)
 }
 
 func runResourceTemplateListRequest(controller *resources.Controller, ctx *commandContext, req resourceTemplateNoArgsRequest) (cliout.Format, []resources.ResourceTemplateInfo, error) {
-	items, err := controller.ListResourceTemplates()
+	_ = req
+	items, err := newResourceTemplateCommandService(ctx, controller).TemplateList()
 	if err != nil {
 		return "", nil, err
 	}
@@ -55,7 +38,7 @@ func runResourceTemplateListRequest(controller *resources.Controller, ctx *comma
 
 func renderResourceTemplateListResponse(w io.Writer, format cliout.Format, items []resources.ResourceTemplateInfo) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{"success": true, "templates": items})
+		return cliout.WriteSuccessJSON(w, "templates", items)
 	}
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
@@ -75,11 +58,13 @@ func renderResourceTemplateListResponse(w io.Writer, format cliout.Format, items
 }
 
 func parseResourceTemplateShowRequest(globals globalOptions, args []string) (resourceTemplateNameRequest, error) {
-	return parseResourceTemplateName("Usage: vrooli resource template show <name>", "resource template show", args)
+	_ = globals
+	req, err := resourcecli.ParseTemplateShowRequest(args)
+	return req, mapResourceParseError("resource template show", err)
 }
 
 func runResourceTemplateShowRequest(controller *resources.Controller, ctx *commandContext, req resourceTemplateNameRequest) (cliout.Format, resources.ResourceTemplateInfo, error) {
-	info, err := controller.ResourceTemplate(req.Name)
+	info, err := newResourceTemplateCommandService(ctx, controller).TemplateShow(req.Name)
 	if err != nil {
 		return "", resources.ResourceTemplateInfo{}, err
 	}
@@ -92,7 +77,7 @@ func runResourceTemplateShowRequest(controller *resources.Controller, ctx *comma
 
 func renderResourceTemplateShowResponse(w io.Writer, format cliout.Format, info resources.ResourceTemplateInfo) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{"success": true, "template": info})
+		return cliout.WriteSuccessJSON(w, "template", info)
 	}
 	manifest := info.Manifest
 	rows := [][]string{
@@ -132,11 +117,14 @@ func renderResourceTemplateShowResponse(w io.Writer, format cliout.Format, info 
 }
 
 func parseResourceTemplateValidateRequest(globals globalOptions, args []string) (resourceTemplateNoArgsRequest, error) {
-	return parseResourceTemplateNoArgs("Usage: vrooli resource template validate", "resource template validate", args)
+	_ = globals
+	req, err := resourcecli.ParseTemplateValidateRequest(args)
+	return req, mapResourceParseError("resource template validate", err)
 }
 
 func runResourceTemplateValidateRequest(controller *resources.Controller, ctx *commandContext, req resourceTemplateNoArgsRequest) (cliout.Format, resources.ResourceTemplateValidationReport, error) {
-	report, err := controller.ValidateResourceTemplates()
+	_ = req
+	report, err := newResourceTemplateCommandService(ctx, controller).TemplateValidate()
 	if err != nil {
 		return "", resources.ResourceTemplateValidationReport{}, err
 	}
@@ -149,23 +137,25 @@ func runResourceTemplateValidateRequest(controller *resources.Controller, ctx *c
 
 func renderResourceTemplateValidateResponse(w io.Writer, format cliout.Format, report resources.ResourceTemplateValidationReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{"success": true, "report": report})
+		return cliout.WriteSuccessJSON(w, "report", report)
 	}
 	_, _ = fmt.Fprintf(w, "Validated %d resource templates\n", report.Count)
 	return nil
 }
 
-func parseResourceTemplateGenerateRequest(controller *resources.Controller, globals globalOptions, args []string, stderr io.Writer) (resourceTemplateGenerateOptions, error) {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			return resourceTemplateGenerateOptions{}, commandHelpOnly("Usage: vrooli resource template generate <template> [options]\n       vrooli resource template generate --from-blueprint <name> [options]")
-		}
+func parseResourceTemplateGenerateRequest(controller *resources.Controller, globals globalOptions, args []string, stderr io.Writer) (resourcecli.TemplateGenerateOptions, error) {
+	_ = globals
+	req, err := resourcecli.ParseTemplateGenerateRequest(args, stderr, func(req resources.ResourceTemplateGenerateRequest) (resources.ResourceTemplateInfo, error) {
+		return controller.ResolveTemplateGenerationRequest(req)
+	})
+	if err != nil {
+		return resourcecli.TemplateGenerateOptions{}, mapResourceParseError("resource template generate", err)
 	}
-	return parseResourceTemplateGenerateArgs(controller, args, stderr)
+	return req, nil
 }
 
-func runResourceTemplateGenerateRequest(controller *resources.Controller, ctx *commandContext, req resourceTemplateGenerateOptions) (cliout.Format, resources.ResourceTemplateGenerateReport, error) {
-	report, err := controller.GenerateResourceTemplate(resources.ResourceTemplateGenerateRequest{
+func runResourceTemplateGenerateRequest(controller *resources.Controller, ctx *commandContext, req resourcecli.TemplateGenerateOptions) (cliout.Format, resources.ResourceTemplateGenerateReport, error) {
+	report, err := newResourceTemplateCommandService(ctx, controller).TemplateGenerate(resources.ResourceTemplateGenerateRequest{
 		TemplateName:  req.TemplateName,
 		BlueprintName: req.BlueprintName,
 		Destination:   req.Destination,
@@ -183,9 +173,17 @@ func runResourceTemplateGenerateRequest(controller *resources.Controller, ctx *c
 	return format, report, nil
 }
 
+func newResourceTemplateCommandService(ctx *commandContext, controller *resources.Controller) resourceapp.Service {
+	return resourceapp.Service{
+		Resources: controller,
+		Stdout:    ctx.Stdout,
+		Stderr:    ctx.Stderr,
+	}
+}
+
 func renderResourceTemplateGenerateResponse(w io.Writer, format cliout.Format, report resources.ResourceTemplateGenerateReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{"success": true, "report": report})
+		return cliout.WriteSuccessJSON(w, "report", report)
 	}
 	if report.DryRun {
 		_, _ = fmt.Fprintf(w, "[DRY-RUN] Would generate resource template %s at %s\n", report.Template.Name, report.Destination)

@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
@@ -22,6 +23,7 @@ import (
 	"github.com/vrooli/vrooli/internal/resources"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
@@ -133,7 +135,39 @@ func RunSetup(root, home string, args []string, stdout, stderr io.Writer) error 
 	if err := maybeInstallResources(root, home, opts, stdout, stderr); err != nil {
 		return err
 	}
-	return markCompleteFn(root, projectScenario.Manifest)
+	return markCompleteFn(root)
+}
+
+func RunBuild(root, home string, args []string, stdout, stderr io.Writer) error {
+	for _, arg := range args {
+		switch arg {
+		case "--help", "-h":
+			showBuildHelp(stdout)
+			return nil
+		default:
+			return fmt.Errorf("unknown option for build: %s", arg)
+		}
+	}
+
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli", "build"), 0o755); err != nil {
+		return err
+	}
+
+	gitCommit := "unknown"
+	if output, err := shell.Output(shell.Spec{Dir: root, Name: "git", Args: []string{"rev-parse", "HEAD"}}); err == nil {
+		if value := strings.TrimSpace(string(output)); value != "" {
+			gitCommit = value
+		}
+	}
+	buildTime := time.Now().UTC().Format(time.RFC3339)
+
+	if err := buildProjectBinary(root, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "./cmd/vrooli-api", []string{"cmd/vrooli-api", "internal"}, gitCommit, buildTime, stdout, stderr); err != nil {
+		return err
+	}
+	if err := buildProjectBinary(root, filepath.Join(root, ".vrooli", "build", "vrooli"), "./cmd/vrooli", []string{"cmd/vrooli", "internal"}, gitCommit, buildTime, stdout, stderr); err != nil {
+		return err
+	}
+	return nil
 }
 
 func RunDevelop(root, home string, args []string, stdout, stderr io.Writer) error {
@@ -203,6 +237,41 @@ func RunDevelop(root, home string, args []string, stdout, stderr io.Writer) erro
 	}
 	_, _ = fmt.Fprintf(stdout, "🚀 Vrooli API healthy on port %d with native scenario management\n", apiPort)
 	return startOrchestratorFn(root, home, stdout, stderr)
+}
+
+func showBuildHelp(w io.Writer) {
+	_, _ = fmt.Fprintln(w, "Usage: vrooli build")
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Builds the project-level Go binaries into .vrooli/build.")
+}
+
+func buildProjectBinary(root, outputPath, target string, fingerprintPaths []string, gitCommit, buildTime string, stdout, stderr io.Writer) error {
+	fingerprint, err := buildinfo.ComputeSourceFingerprintForPaths(root, fingerprintPaths...)
+	if err != nil {
+		return err
+	}
+
+	ldflags := fmt.Sprintf(
+		"-s -w -X %s.GitCommit=%s -X %s.BuildTime=%s -X %s.Fingerprint=%s",
+		"github.com/vrooli/vrooli/internal/buildinfo",
+		gitCommit,
+		"github.com/vrooli/vrooli/internal/buildinfo",
+		buildTime,
+		"github.com/vrooli/vrooli/internal/buildinfo",
+		fingerprint,
+	)
+
+	env := append([]string(nil), os.Environ()...)
+	env = append(env, "CGO_ENABLED=0")
+	return shell.Run(shell.Spec{
+		Name:   "go",
+		Args:   []string{"build", "-trimpath", "-ldflags", ldflags, "-o", outputPath, target},
+		Dir:    root,
+		Env:    env,
+		Stdout: stdout,
+		Stderr: stderr,
+		Stdin:  os.Stdin,
+	})
 }
 
 func parseOptions(command string, args []string) (options, error) {
@@ -699,29 +768,15 @@ func forceSetupApplies(slug string) bool {
 	return target == "" || target == slug
 }
 
-func markComplete(root string, manifest scenario.ServiceManifest) error {
+func markComplete(root string) error {
 	dataDir := filepath.Join(root, "data")
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		return err
 	}
 
-	stepNames := make([]string, 0, len(manifest.Lifecycle.Setup.Steps))
-	resourceMarker := false
-	for _, step := range manifest.Lifecycle.Setup.Steps {
-		name := strings.TrimSpace(step.Name)
-		if name == "" {
-			name = "unnamed"
-		}
-		stepNames = append(stepNames, name)
-		if name == "populate-resources" || name == "add-data" {
-			resourceMarker = true
-		}
-	}
-
 	payload := map[string]any{
-		"setup_version":   "2.0.0",
-		"completed_at":    time.Now().Format(time.RFC3339),
-		"steps_completed": stepNames,
+		"setup_version": "2.0.0",
+		"completed_at":  time.Now().Format(time.RFC3339),
 	}
 	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
@@ -730,11 +785,6 @@ func markComplete(root string, manifest scenario.ServiceManifest) error {
 	data = append(data, '\n')
 	if err := os.WriteFile(filepath.Join(dataDir, ".setup-complete"), data, 0o644); err != nil {
 		return err
-	}
-	if resourceMarker {
-		if err := os.WriteFile(filepath.Join(dataDir, ".resources-populated"), []byte{}, 0o644); err != nil {
-			return err
-		}
 	}
 	return nil
 }

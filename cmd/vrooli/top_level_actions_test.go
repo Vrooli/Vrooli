@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/maintenance"
@@ -37,14 +38,14 @@ func TestExecuteTopLevelCommandRendersHelpOnlyErrors(t *testing.T) {
 }
 
 func TestParseTopLevelDiagnosePortRequestRejectsInvalidPort(t *testing.T) {
-	if _, err := parseTopLevelDiagnosePortRequest(globalOptions{}, []string{"bogus"}); err == nil {
+	if _, err := topcli.ParseDiagnosePortRequest([]string{"bogus"}); err == nil {
 		t.Fatal("expected invalid port error")
 	}
 }
 
 func TestRenderTopLevelLocksResponseHumanIncludesStaleStatus(t *testing.T) {
 	var stdout bytes.Buffer
-	err := renderTopLevelLocksResponse(&stdout, cliout.FormatHuman, topLevelLocksResponse{
+	err := topcli.RenderLocksResponse(&stdout, cliout.FormatHuman, topcli.LocksResponse{
 		List: []maintenance.LockInfo{{
 			Port:     21234,
 			Scenario: "alpha",
@@ -63,7 +64,7 @@ func TestRenderTopLevelLocksResponseHumanIncludesStaleStatus(t *testing.T) {
 
 func TestRenderTopLevelOrphansResponseHumanHandlesKillReport(t *testing.T) {
 	var stdout bytes.Buffer
-	err := renderTopLevelOrphansResponse(&stdout, cliout.FormatHuman, topLevelOrphansResponse{
+	err := topcli.RenderOrphansResponse(&stdout, cliout.FormatHuman, topcli.OrphansResponse{
 		KillReport: &control.StopReport{
 			Stopped: []control.ResultItem{control.Stopped("123", "sleep 30")},
 		},

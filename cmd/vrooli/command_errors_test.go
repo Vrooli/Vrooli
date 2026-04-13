@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=2 | LAST: 2026-04-11
@@ -49,7 +51,7 @@ func TestPrintErrorWithContextFormatsUnknownScenarioCommandSuggestions(t *testin
 
 func TestShowScenarioHelpIncludesWeek4CommandsFromRegistry(t *testing.T) {
 	var stdout bytes.Buffer
-	showScenarioHelp(&stdout)
+	scenariocli.RenderCommandHelp(&stdout)
 
 	output := stdout.String()
 	for _, command := range []string{"start-all", "stop-all", "generate", "heal-from-sandbox"} {

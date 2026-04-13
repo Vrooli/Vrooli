@@ -111,7 +111,8 @@ func scanSingleFile(path string) ([]ValidationIssue, error) {
 			Path:     path,
 		})
 	}
-	if strings.Contains(content, "workspace:*") &&
+	guidanceCandidate := isGovernanceGuidanceCandidate(slashPath)
+	if guidanceCandidate && strings.Contains(content, "workspace:*") &&
 		!strings.Contains(content, "must not use `workspace:*`") &&
 		!strings.Contains(content, "Do NOT use `\"workspace:*\"`") &&
 		!strings.Contains(content, "Do NOT use `workspace:*`") {
@@ -122,5 +123,46 @@ func scanSingleFile(path string) ([]ValidationIssue, error) {
 			Path:     path,
 		})
 	}
+	if guidanceCandidate && strings.Contains(content, "pnpm workspace") &&
+		!strings.Contains(content, "do not join the root pnpm workspace") &&
+		!strings.Contains(content, "do not join the pnpm workspace") &&
+		!strings.Contains(content, "do not use the pnpm workspace") &&
+		!strings.Contains(content, "must not use the pnpm workspace") {
+		issues = append(issues, ValidationIssue{
+			Severity: "error",
+			Code:     "pnpm-workspace-guidance",
+			Message:  "pnpm workspace guidance conflicts with scenario isolation policy",
+			Path:     path,
+		})
+	}
+	if guidanceCandidate && strings.Contains(content, "go.work") &&
+		!strings.Contains(content, "GOWORK=off") &&
+		!strings.Contains(content, "does not depend on a repo-wide `go.work`") &&
+		!strings.Contains(content, "must not depend on a repo-wide `go.work`") &&
+		!strings.Contains(content, "no dependency on repo-level go.work") {
+		issues = append(issues, ValidationIssue{
+			Severity: "error",
+			Code:     "go-work-guidance",
+			Message:  "go.work guidance conflicts with governed Go package adoption",
+			Path:     path,
+		})
+	}
 	return issues, nil
+}
+
+func isGovernanceGuidanceCandidate(path string) bool {
+	path = filepath.ToSlash(path)
+	if strings.HasPrefix(path, "docs/") || strings.Contains(path, "/docs/") && !strings.Contains(path, "/scenarios/") {
+		return true
+	}
+	if strings.HasPrefix(path, "packages/") || strings.Contains(path, "/packages/") {
+		return true
+	}
+	if strings.HasPrefix(path, "templates/") || strings.Contains(path, "/templates/") {
+		return true
+	}
+	if (strings.HasPrefix(path, "scenarios/") || strings.Contains(path, "/scenarios/")) && strings.HasSuffix(path, "/README.md") {
+		return true
+	}
+	return false
 }

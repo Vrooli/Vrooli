@@ -5,6 +5,9 @@ import (
 	"io"
 	"time"
 
+	resourceapp "github.com/vrooli/vrooli/internal/app/resource"
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
+	"github.com/vrooli/vrooli/internal/cli/resourcecli"
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
@@ -12,46 +15,16 @@ var timeNowForResourceGC = func() time.Time {
 	return time.Now().UTC()
 }
 
-type resourceCommandHandler func(app *App, ctx *commandContext, controller *resources.Controller, args []string) error
+var resourceCommandTable = buildResourceCommandTable()
 
-var resourceCommandTable = []resourceSubcommandDescriptor{
-	{Name: "list", Summary: "List discovered resources", Handler: bindResourceCommand(parseResourceListRequest, runResourceListRequest, renderResourceListResponse)},
-	{Name: "status", Summary: "Show resource status", Handler: bindResourceCommand(parseResourceStatusRequest, runResourceStatusRequest, renderResourceStatusResponse)},
-	{Name: "install", Summary: "Install a resource", Handler: runResourceInstallCommandWithApp},
-	{Name: "start", Summary: "Start a resource", Handler: runResourceStartCommandWithApp},
-	{Name: "start-all", Summary: "Start all enabled resources", Handler: runResourceStartAllCommandWithApp},
-	{Name: "stop", Summary: "Stop a resource", Handler: runResourceStopCommandWithApp},
-	{Name: "stop-all", Summary: "Stop all running resources", Handler: runResourceStopAllCommandWithApp},
-	{Name: "enable", Summary: "Enable a resource in configuration", Handler: runResourceEnableCommandWithApp},
-	{Name: "disable", Summary: "Disable a resource in configuration", Handler: runResourceDisableCommandWithApp},
-	{Name: "info", Summary: "Show resource metadata", Handler: bindResourceCommand(parseResourceInfoRequest, runResourceInfoRequest, renderResourceInfoResponse)},
-	{Name: "deprecate", Summary: "Deprecate a resource", Handler: bindResourceCommand(parseResourceDeprecateRequest, runResourceDeprecateRequest, renderResourceDeprecateResponse)},
-	{Name: "list-deprecated", Summary: "List deprecated resources", Handler: bindResourceCommand(parseResourceListDeprecatedRequest, runResourceListDeprecatedRequest, renderResourceListDeprecatedResponse)},
-	{Name: "archive-to-blueprint", Summary: "Archive a resource into blueprint-only state", Handler: bindResourceCommand(parseResourceArchiveToBlueprintRequest, runResourceArchiveToBlueprintRequest, renderResourceArchiveToBlueprintResponse)},
-	{Name: "list-blueprint-archived", Summary: "List blueprint-archived resources", Handler: bindResourceCommand(parseResourceListBlueprintArchivedRequest, runResourceListBlueprintArchivedRequest, renderResourceListBlueprintArchivedResponse)},
-	{Name: "restore", Summary: "Restore a deprecated resource", Handler: bindResourceCommand(parseResourceRestoreRequest, runResourceRestoreRequest, renderResourceRestoreResponse)},
-	{Name: "restore-blueprint", Summary: "Restore a blueprint-archived resource", Handler: bindResourceCommand(parseResourceRestoreBlueprintRequest, runResourceRestoreBlueprintRequest, renderResourceRestoreBlueprintResponse)},
-	{Name: "archive", Summary: "Manage resource archive maintenance", Handler: runResourceArchiveCommandWithApp},
-	{Name: "blueprint", Summary: "Inspect resource blueprints", Handler: runResourceBlueprintCommandWithApp},
-	{Name: "template", Summary: "Manage resource templates", Handler: runResourceTemplateCommandWithApp},
-}
+var resourceBlueprintCommandTable = buildResourceBlueprintCommandTable()
 
-var resourceBlueprintCommandTable = []resourceSubcommandDescriptor{
-	{Name: "list", Summary: "List resource blueprints", Handler: bindResourceCommand(parseResourceBlueprintListRequest, runResourceBlueprintListRequest, renderResourceBlueprintListResponse)},
-	{Name: "info", Summary: "Show a resource blueprint", Handler: bindResourceCommand(parseResourceBlueprintInfoRequest, runResourceBlueprintInfoRequest, renderResourceBlueprintInfoResponse)},
-	{Name: "search", Summary: "Search resource blueprints", Handler: bindResourceCommand(parseResourceBlueprintSearchRequest, runResourceBlueprintSearchRequest, renderResourceBlueprintSearchResponse)},
-	{Name: "validate", Summary: "Validate blueprint metadata", Handler: bindResourceCommand(parseResourceBlueprintValidateRequest, runResourceBlueprintValidateRequest, renderResourceBlueprintValidateResponse)},
-}
-
-var resourceArchiveCommandTable = []resourceSubcommandDescriptor{
-	{Name: "gc", Summary: "Purge expired deprecated-resource archives", Handler: bindResourceCommand(parseResourceArchiveGCRequest, runResourceArchiveGCRequest, renderResourceArchiveGCResponse)},
-	{Name: "gc-blueprints", Summary: "Purge expired blueprint-resource archives", Handler: bindResourceCommand(parseResourceArchiveBlueprintGCRequest, runResourceArchiveBlueprintGCRequest, renderResourceArchiveBlueprintGCResponse)},
-}
+var resourceArchiveCommandTable = buildResourceArchiveCommandTable()
 
 var (
-	resourceCommandHandlers          = buildResourceSubcommandMap(resourceCommandTable)
-	resourceBlueprintCommandHandlers = buildResourceSubcommandMap(resourceBlueprintCommandTable)
-	resourceArchiveCommandHandlers   = buildResourceSubcommandMap(resourceArchiveCommandTable)
+	resourceCommandHandlers          = commandtree.BuildHandlerMap(resourceCommandTable)
+	resourceBlueprintCommandHandlers = commandtree.BuildHandlerMap(resourceBlueprintCommandTable)
+	resourceArchiveCommandHandlers   = commandtree.BuildHandlerMap(resourceArchiveCommandTable)
 )
 
 func runResourceCommand(controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer) error {
@@ -68,18 +41,11 @@ func runResourceCommandWithApp(app *App, ctx *commandContext, controller *resour
 		return nil
 	}
 
-	name := normalizeSubcommand(args[0])
+	name := commandtree.NormalizeName(args[0])
 	if handler, ok := resourceCommandHandlers[name]; ok {
 		return handler(app, ctx, controller, args[1:])
 	}
-	return runLegacyResourceInvocationWithApp(ctx, controller, args)
-}
-
-func runLegacyResourceInvocationWithApp(ctx *commandContext, controller *resources.Controller, args []string) error {
-	if controller == nil {
-		return usageErrorf("resource", "unknown resource command: %s", args[0])
-	}
-	return controller.Run(args[0], args[1:], ctx.Stdout, ctx.Stderr)
+	return usageErrorf("resource", "unknown resource command: %s", args[0])
 }
 
 func runResourceBlueprintCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
@@ -107,7 +73,7 @@ func runResourceArchiveCommandWithApp(app *App, ctx *commandContext, controller 
 }
 
 func runResourceListCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
-	return runResourceBoundCommand(controller, globals, args, stdout, io.Discard, boundCommandAction[*resources.Controller, resourceNoArgsRequest, resourceListResponse]{
+	return executeResourceCommand(controller, globals, args, stdout, io.Discard, resourceCommandAction[resourceNoArgsRequest, resourceListResponse]{
 		parse:  parseResourceListRequest,
 		run:    runResourceListRequest,
 		render: renderResourceListResponse,
@@ -115,7 +81,7 @@ func runResourceListCommand(controller *resources.Controller, globals globalOpti
 }
 
 func runResourceStatusCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
-	return runResourceBoundCommand(controller, globals, args, stdout, io.Discard, boundCommandAction[*resources.Controller, resourceStatusRequest, resourceStatusResponse]{
+	return executeResourceCommand(controller, globals, args, stdout, io.Discard, resourceCommandAction[resourceStatusRequest, resourceStatusResponse]{
 		parse:  parseResourceStatusRequest,
 		run:    runResourceStatusRequest,
 		render: renderResourceStatusResponse,
@@ -142,7 +108,7 @@ func runResourceStopCommandWithApp(app *App, ctx *commandContext, controller *re
 }
 
 func runResourceStartAllCommand(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer) error {
-	return runResourceBoundCommand(controller, globals, nil, stdout, stderr, boundCommandAction[*resources.Controller, resourceNoArgsRequest, resourceControlReportResponse]{
+	return executeResourceCommand(controller, globals, nil, stdout, stderr, resourceCommandAction[resourceNoArgsRequest, resourceapp.ControlReportResponse]{
 		parse:  parseResourceStartAllRequest,
 		run:    runResourceStartAllRequest,
 		render: renderResourceControlReportResponse,
@@ -150,7 +116,7 @@ func runResourceStartAllCommand(controller *resources.Controller, globals global
 }
 
 func runResourceStopAllCommand(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer) error {
-	return runResourceBoundCommand(controller, globals, nil, stdout, stderr, boundCommandAction[*resources.Controller, resourceNoArgsRequest, resourceControlReportResponse]{
+	return executeResourceCommand(controller, globals, nil, stdout, stderr, resourceCommandAction[resourceNoArgsRequest, resourceapp.ControlReportResponse]{
 		parse:  parseResourceStopAllRequest,
 		run:    runResourceStopAllRequest,
 		render: renderResourceControlReportResponse,
@@ -189,7 +155,7 @@ func runResourceDisableCommandWithApp(app *App, ctx *commandContext, controller 
 }
 
 func runResourceInfoCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
-	return runResourceBoundCommand(controller, globals, args, stdout, io.Discard, boundCommandAction[*resources.Controller, resourceNameRequest, resourceStatusResponse]{
+	return executeResourceCommand(controller, globals, args, stdout, io.Discard, resourceCommandAction[resourceNameRequest, resourceStatusResponse]{
 		parse:  parseResourceInfoRequest,
 		run:    runResourceInfoRequest,
 		render: renderResourceInfoResponse,
@@ -197,7 +163,7 @@ func runResourceInfoCommand(controller *resources.Controller, globals globalOpti
 }
 
 func runResourceDeprecateCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
-	return runResourceBoundCommand(controller, globals, args, stdout, io.Discard, boundCommandAction[*resources.Controller, resourceNameRequest, resources.DeprecationReport]{
+	return executeResourceCommand(controller, globals, args, stdout, io.Discard, resourceCommandAction[resourceNameRequest, resources.DeprecationReport]{
 		parse:  parseResourceDeprecateRequest,
 		run:    runResourceDeprecateRequest,
 		render: renderResourceDeprecateResponse,
@@ -205,7 +171,7 @@ func runResourceDeprecateCommand(controller *resources.Controller, globals globa
 }
 
 func runResourceListDeprecatedCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
-	return runResourceBoundCommand(controller, globals, args, stdout, io.Discard, boundCommandAction[*resources.Controller, resourceNoArgsRequest, []resources.DeprecatedResource]{
+	return executeResourceCommand(controller, globals, args, stdout, io.Discard, resourceCommandAction[resourceNoArgsRequest, []resources.DeprecatedResource]{
 		parse:  parseResourceListDeprecatedRequest,
 		run:    runResourceListDeprecatedRequest,
 		render: renderResourceListDeprecatedResponse,
@@ -213,7 +179,7 @@ func runResourceListDeprecatedCommand(controller *resources.Controller, globals 
 }
 
 func runResourceRestoreCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
-	return runResourceBoundCommand(controller, globals, args, stdout, io.Discard, boundCommandAction[*resources.Controller, resourceNameRequest, resources.RestoreReport]{
+	return executeResourceCommand(controller, globals, args, stdout, io.Discard, resourceCommandAction[resourceNameRequest, resources.RestoreReport]{
 		parse:  parseResourceRestoreRequest,
 		run:    runResourceRestoreRequest,
 		render: renderResourceRestoreResponse,
@@ -257,21 +223,95 @@ func runResourceBlueprintValidateCommand(controller *resources.Controller, globa
 }
 
 func showResourceHelp(w io.Writer) {
-	renderResourceSubcommandHelp(w, "", "vrooli resource <subcommand> [options]", "Resource Management", resourceCommandTable)
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Resource names may still be invoked directly via `vrooli resource <name> <command> [options]`.")
+	resourcecli.RenderCommandHelp(w, "", "vrooli resource <subcommand> [options]", "Resource Management", resourceCommandTable)
 }
 
 func showResourceBlueprintHelp(w io.Writer) {
-	renderResourceSubcommandHelp(w, "", "vrooli resource blueprint <subcommand> [options]", "Resource Blueprints", resourceBlueprintCommandTable)
+	resourcecli.RenderCommandHelp(w, "", "vrooli resource blueprint <subcommand> [options]", "Resource Blueprints", resourceBlueprintCommandTable)
 }
 
 func showResourceArchiveHelp(w io.Writer) {
-	renderResourceSubcommandHelp(w, "", "vrooli resource archive <subcommand> [options]", "Resource Archive", resourceArchiveCommandTable)
+	resourcecli.RenderCommandHelp(w, "", "vrooli resource archive <subcommand> [options]", "Resource Archive", resourceArchiveCommandTable)
 }
 
-func writeResourceCommandHelp(w io.Writer, descriptors []resourceSubcommandDescriptor) {
-	for _, descriptor := range descriptors {
-		_, _ = fmt.Fprintf(w, "  %-22s %s\n", descriptor.Name, descriptor.Summary)
+func buildResourceCommandTable() []commandtree.Spec[resourceCommandHandler] {
+	handlerMap := map[resourcecli.CommandID]resourceCommandHandler{
+		resourcecli.CommandList:                  bindResourceCommand(parseResourceListRequest, runResourceListRequest, renderResourceListResponse),
+		resourcecli.CommandStatus:                bindResourceCommand(parseResourceStatusRequest, runResourceStatusRequest, renderResourceStatusResponse),
+		resourcecli.CommandValidate:              bindResourceCommand(parseResourceValidateRequest, runResourceValidateRequest, renderResourceValidateResponse),
+		resourcecli.CommandInstall:               runResourceInstallCommandWithApp,
+		resourcecli.CommandStart:                 runResourceStartCommandWithApp,
+		resourcecli.CommandStartAll:              bindResourceCommand(parseResourceStartAllRequest, runResourceStartAllRequest, renderResourceControlReportResponse),
+		resourcecli.CommandStop:                  runResourceStopCommandWithApp,
+		resourcecli.CommandStopAll:               bindResourceCommand(parseResourceStopAllRequest, runResourceStopAllRequest, renderResourceControlReportResponse),
+		resourcecli.CommandEnable:                runResourceEnableCommandWithApp,
+		resourcecli.CommandDisable:               runResourceDisableCommandWithApp,
+		resourcecli.CommandInfo:                  bindResourceCommand(parseResourceInfoRequest, runResourceInfoRequest, renderResourceInfoResponse),
+		resourcecli.CommandDeprecate:             bindResourceCommand(parseResourceDeprecateRequest, runResourceDeprecateRequest, renderResourceDeprecateResponse),
+		resourcecli.CommandListDeprecated:        bindResourceCommand(parseResourceListDeprecatedRequest, runResourceListDeprecatedRequest, renderResourceListDeprecatedResponse),
+		resourcecli.CommandArchiveToBlueprint:    bindResourceCommand(parseResourceArchiveToBlueprintRequest, runResourceArchiveToBlueprintRequest, renderResourceArchiveToBlueprintResponse),
+		resourcecli.CommandListBlueprintArchived: bindResourceCommand(parseResourceListBlueprintArchivedRequest, runResourceListBlueprintArchivedRequest, renderResourceListBlueprintArchivedResponse),
+		resourcecli.CommandRestore:               bindResourceCommand(parseResourceRestoreRequest, runResourceRestoreRequest, renderResourceRestoreResponse),
+		resourcecli.CommandRestoreBlueprint:      bindResourceCommand(parseResourceRestoreBlueprintRequest, runResourceRestoreBlueprintRequest, renderResourceRestoreBlueprintResponse),
+		resourcecli.CommandArchive:               runResourceArchiveCommandWithApp,
+		resourcecli.CommandBlueprint:             runResourceBlueprintCommandWithApp,
+		resourcecli.CommandTemplate:              runResourceTemplateCommandWithApp,
 	}
+
+	source := resourcecli.CommandSpecs()
+	specs := make([]commandtree.Spec[resourceCommandHandler], 0, len(source))
+	for _, spec := range source {
+		handler, ok := handlerMap[spec.Handler]
+		if !ok {
+			continue
+		}
+		specs = append(specs, commandtree.Spec[resourceCommandHandler]{
+			Name:        spec.Name,
+			Aliases:     append([]string(nil), spec.Aliases...),
+			Group:       spec.Group,
+			Summary:     spec.Summary,
+			Hidden:      spec.Hidden,
+			Suggestable: spec.Suggestable,
+			RootPolicy:  spec.RootPolicy,
+			Help:        spec.Help,
+			Handler:     handler,
+		})
+	}
+	return specs
+}
+
+func buildResourceBlueprintCommandTable() []commandtree.Spec[resourceCommandHandler] {
+	handlerMap := map[resourcecli.BlueprintCommandID]resourceCommandHandler{
+		resourcecli.BlueprintCommandList:     bindResourceCommand(parseResourceBlueprintListRequest, runResourceBlueprintListRequest, renderResourceBlueprintListResponse),
+		resourcecli.BlueprintCommandInfo:     bindResourceCommand(parseResourceBlueprintInfoRequest, runResourceBlueprintInfoRequest, renderResourceBlueprintInfoResponse),
+		resourcecli.BlueprintCommandSearch:   bindResourceCommand(parseResourceBlueprintSearchRequest, runResourceBlueprintSearchRequest, renderResourceBlueprintSearchResponse),
+		resourcecli.BlueprintCommandValidate: bindResourceCommand(parseResourceBlueprintValidateRequest, runResourceBlueprintValidateRequest, renderResourceBlueprintValidateResponse),
+	}
+	source := resourcecli.BlueprintCommandSpecs()
+	specs := make([]commandtree.Spec[resourceCommandHandler], 0, len(source))
+	for _, spec := range source {
+		handler, ok := handlerMap[spec.Handler]
+		if !ok {
+			continue
+		}
+		specs = append(specs, commandtree.Spec[resourceCommandHandler]{Name: spec.Name, Summary: spec.Summary, Handler: handler})
+	}
+	return specs
+}
+
+func buildResourceArchiveCommandTable() []commandtree.Spec[resourceCommandHandler] {
+	handlerMap := map[resourcecli.ArchiveCommandID]resourceCommandHandler{
+		resourcecli.ArchiveCommandGC:           bindResourceCommand(parseResourceArchiveGCRequest, runResourceArchiveGCRequest, renderResourceArchiveGCResponse),
+		resourcecli.ArchiveCommandGCBlueprints: bindResourceCommand(parseResourceArchiveBlueprintGCRequest, runResourceArchiveBlueprintGCRequest, renderResourceArchiveBlueprintGCResponse),
+	}
+	source := resourcecli.ArchiveCommandSpecs()
+	specs := make([]commandtree.Spec[resourceCommandHandler], 0, len(source))
+	for _, spec := range source {
+		handler, ok := handlerMap[spec.Handler]
+		if !ok {
+			continue
+		}
+		specs = append(specs, commandtree.Spec[resourceCommandHandler]{Name: spec.Name, Summary: spec.Summary, Handler: handler})
+	}
+	return specs
 }

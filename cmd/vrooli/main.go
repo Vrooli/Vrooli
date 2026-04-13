@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -131,7 +132,7 @@ func dispatch(app *App, ctx *commandContext, parsed parsedArgs) error {
 	case "version":
 		return app.runVersionCommand(ctx, parsed.args)
 	}
-	handler, ok := topLevelCommands[parsed.command]
+	handler, ok := topLevelCommands[commandtree.NormalizeName(parsed.command)]
 	if !ok {
 		return newUnknownCommandError(parsed.command)
 	}

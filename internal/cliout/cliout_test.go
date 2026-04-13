@@ -42,6 +42,28 @@ func TestWriteJSON(t *testing.T) {
 	}
 }
 
+func TestSuccessFieldsAddsSuccessKey(t *testing.T) {
+	payload := SuccessFields(map[string]any{"report": "ok"})
+	if payload[EnvelopeKeySuccess] != true {
+		t.Fatalf("success field = %#v", payload[EnvelopeKeySuccess])
+	}
+	if payload["report"] != "ok" {
+		t.Fatalf("report field = %#v", payload["report"])
+	}
+}
+
+func TestWriteSuccessJSON(t *testing.T) {
+	var buffer bytes.Buffer
+	if err := WriteSuccessJSON(&buffer, "report", map[string]string{"status": "ok"}); err != nil {
+		t.Fatalf("WriteSuccessJSON: %v", err)
+	}
+
+	output := buffer.String()
+	if !strings.Contains(output, "\"success\": true") || !strings.Contains(output, "\"report\":") {
+		t.Fatalf("expected success envelope, got %q", output)
+	}
+}
+
 func TestRenderTable(t *testing.T) {
 	var buffer bytes.Buffer
 	if err := RenderTable(&buffer, []string{"Name", "Status"}, [][]string{{"api", "healthy"}}); err != nil {

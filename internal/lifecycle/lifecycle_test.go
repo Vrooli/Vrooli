@@ -312,27 +312,42 @@ func TestEnsureScenarioDatabaseUsesPostgresResourceLibs(t *testing.T) {
 		t.Fatalf("write port_registry.json: %v", err)
 	}
 
-	if err := os.MkdirAll(filepath.Join(root, "resources", "postgres", "config"), 0o755); err != nil {
-		t.Fatalf("mkdir postgres config: %v", err)
+	if err := os.MkdirAll(filepath.Join(root, "resources", "postgres"), 0o755); err != nil {
+		t.Fatalf("mkdir postgres dir: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Join(root, "resources", "postgres", "lib"), 0o755); err != nil {
-		t.Fatalf("mkdir postgres lib: %v", err)
-	}
-
-	if err := os.WriteFile(filepath.Join(root, "resources", "postgres", "config", "defaults.sh"), []byte("#!/usr/bin/env bash\n"), 0o644); err != nil {
-		t.Fatalf("write defaults.sh: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "resources", "postgres", "lib", "common.sh"), []byte(`#!/usr/bin/env bash
-postgres::common::is_running() { return 0; }
+	if err := os.WriteFile(filepath.Join(root, "resources", "postgres", "resource.json"), []byte(`{
+  "name": "postgres",
+  "driver": "docker-service",
+  "portability_tier": "full",
+  "runtime": {
+    "image": "postgres:16-alpine",
+    "container_name": "vrooli-postgres-main"
+  }
+}
 `), 0o644); err != nil {
-		t.Fatalf("write common.sh: %v", err)
+		t.Fatalf("write resource.json: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "resources", "postgres", "lib", "database.sh"), []byte(`#!/usr/bin/env bash
-postgres::database::create() { printf '%s\n' "$2" > "$APP_ROOT/create.txt"; }
-postgres::database::execute_file() { printf '%s|%s\n' "$2" "$3" > "$APP_ROOT/schema.txt"; }
-postgres::database::migrate() { printf '%s|%s\n' "$2" "$3" > "$APP_ROOT/migrate.txt"; }
-`), 0o644); err != nil {
-		t.Fatalf("write database.sh: %v", err)
+	binDir := t.TempDir()
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	psqlScript := `#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "` + filepath.Join(root, "psql.log") + `"
+if [[ "$*" == *"SELECT 1 FROM pg_database"* ]]; then
+  exit 0
+fi
+for ((i=1; i<=$#; i++)); do
+  if [[ "${!i}" == "-c" ]]; then
+    next=$((i+1))
+    printf '%s\n' "${!next}" >> "` + filepath.Join(root, "create.txt") + `"
+  fi
+  if [[ "${!i}" == "-f" ]]; then
+    next=$((i+1))
+    printf '%s\n' "${!next}" >> "` + filepath.Join(root, "files.txt") + `"
+  fi
+done
+`
+	if err := os.WriteFile(filepath.Join(binDir, "psql"), []byte(psqlScript), 0o755); err != nil {
+		t.Fatalf("write fake psql: %v", err)
 	}
 
 	scenarioPath := filepath.Join(root, "scenarios", "alpha")
@@ -363,24 +378,16 @@ postgres::database::migrate() { printf '%s|%s\n' "$2" "$3" > "$APP_ROOT/migrate.
 	if err != nil {
 		t.Fatalf("read create.txt: %v", err)
 	}
-	if got := string(createData); got != "alpha_db\n" {
+	if got := string(createData); got != "CREATE DATABASE \"alpha_db\";\n" {
 		t.Fatalf("create.txt = %q", got)
 	}
 
-	schemaData, err := os.ReadFile(filepath.Join(root, "schema.txt"))
+	schemaData, err := os.ReadFile(filepath.Join(root, "files.txt"))
 	if err != nil {
-		t.Fatalf("read schema.txt: %v", err)
+		t.Fatalf("read files.txt: %v", err)
 	}
-	if got := string(schemaData); got != filepath.Join(scenarioPath, "initialization", "postgres", "schema.sql")+"|alpha_db\n" {
-		t.Fatalf("schema.txt = %q", got)
-	}
-
-	migrateData, err := os.ReadFile(filepath.Join(root, "migrate.txt"))
-	if err != nil {
-		t.Fatalf("read migrate.txt: %v", err)
-	}
-	if got := string(migrateData); got != filepath.Join(scenarioPath, "initialization", "postgres")+"|alpha_db\n" {
-		t.Fatalf("migrate.txt = %q", got)
+	if got := string(schemaData); got != filepath.Join(scenarioPath, "initialization", "postgres", "schema.sql")+"\n"+filepath.Join(scenarioPath, "initialization", "postgres", "migration_001.sql")+"\n" {
+		t.Fatalf("files.txt = %q", got)
 	}
 }
 

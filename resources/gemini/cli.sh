@@ -33,14 +33,8 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 # Source resource configuration
 source "${GEMINI_CLI_DIR}/config/defaults.sh"
 
-# Source agent management (load config and manager directly)
-if [[ -f "${APP_ROOT}/resources/gemini/config/agents.conf" ]]; then
-    source "${APP_ROOT}/resources/gemini/config/agents.conf"
-    source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
-fi
-
 # Source resource libraries (only what exists)
-for lib in core install status content inject test agents; do
+for lib in core install status content inject test; do
     lib_file="${GEMINI_CLI_DIR}/lib/${lib}.sh"
     [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
 done
@@ -90,24 +84,12 @@ CLI_COMMAND_HANDLERS["content::execute"]="gemini::content::execute"
 # ==============================================================================
 cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
 cli::register_command "logs" "Show resource logs (N/A for API service)" "cli::delegate_logs"
-# Create wrapper for agents command that delegates to manager
-gemini::agents::command() {
-    if type -t agent_manager::load_config &>/dev/null; then
-        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="gemini" "$@"
-    else
-        log::error "Agent management not available"
-        return 1
-    fi
-}
-export -f gemini::agents::command
-
-cli::register_command "agents" "Manage running gemini agents" "gemini::agents::command"
 
 # ==============================================================================
 # OPTIONAL RESOURCE-SPECIFIC COMMANDS
 # ==============================================================================
 cli::register_command "list-models" "List available Gemini models" "gemini::list_models"
-cli::register_command "generate" "Generate content using Gemini" "gemini::generate_cli"
+cli::register_command "generate" "Generate content using Gemini" "gemini::generate"
 cli::register_command "cache-stats" "Show cache statistics" "gemini::cache::stats"
 cli::register_command "cache-clear" "Clear all cached responses" "gemini::cache::clear_all"
 cli::register_command "token-stats" "Show token usage statistics" "gemini::tokens::get_stats"
@@ -133,65 +115,6 @@ gemini::docker::restart_noop() {
 gemini::logs_noop() {
     log::info "Gemini is an API service (no logs available)"
     return 0
-}
-
-#######################################
-# Setup agent cleanup trap for the current process
-# Arguments:
-#   $1 - Agent ID
-#######################################
-gemini::setup_agent_cleanup() {
-    local agent_id="$1"
-    
-    # Export the agent ID so trap can access it
-    export GEMINI_CURRENT_AGENT_ID="$agent_id"
-    
-    # Cleanup function that uses the exported variable
-    gemini::agent_cleanup() {
-        if [[ -n "${GEMINI_CURRENT_AGENT_ID:-}" ]] && type -t agent_manager::unregister &>/dev/null; then
-            agent_manager::unregister "${GEMINI_CURRENT_AGENT_ID}" >/dev/null 2>&1
-        fi
-        exit 0
-    }
-    
-    # Register cleanup for common signals
-    trap 'gemini::agent_cleanup' EXIT SIGTERM SIGINT
-}
-
-# CLI wrapper for generate command
-gemini::generate_cli() {
-    local prompt="${1:-}"
-    local model="${2:-}"
-    
-    if [[ -z "$prompt" ]]; then
-        log::error "Usage: resource-gemini generate <prompt> [model]"
-        return 1
-    fi
-    
-    # Register agent if tracking is available
-    local agent_id
-    if type -t agent_manager::register &>/dev/null; then
-        agent_id=$(agent_manager::generate_id)
-        local command_string="resource-gemini generate \"$prompt\" \"$model\""
-        if agent_manager::register "$agent_id" $$ "$command_string"; then
-            export GEMINI_CURRENT_AGENT_ID="$agent_id"
-            gemini::setup_agent_cleanup "$agent_id"
-        fi
-    fi
-    
-    # Execute the generation
-    local result
-    result=$(gemini::generate "$prompt" "$model")
-    local exit_code=$?
-    
-    # Clean up agent registration
-    if [[ -n "$agent_id" ]] && type -t agent_manager::unregister &>/dev/null; then
-        agent_manager::unregister "$agent_id" >/dev/null 2>&1
-    fi
-    
-    # Output result and return exit code
-    echo "$result"
-    return $exit_code
 }
 
 # Only execute if script is run directly

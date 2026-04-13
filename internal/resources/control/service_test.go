@@ -29,8 +29,7 @@ func TestStatusRejectsDeprecatedResource(t *testing.T) {
 	}
 }
 
-func TestRunManifestNativeFallsBackToLegacyWhenDriverUnavailable(t *testing.T) {
-	legacyCalled := false
+func TestRunManifestNativeReturnsDriverErrorWithoutFallback(t *testing.T) {
 	service := Service{
 		IsDeprecatedFn:    func(name string) (bool, error) { return false, nil },
 		IsBlueprintArchFn: func(name string) (bool, error) { return false, nil },
@@ -47,20 +46,19 @@ func TestRunManifestNativeFallsBackToLegacyWhenDriverUnavailable(t *testing.T) {
 		DriverRunFn: func(ctx context.Context, item catalogpkg.Resource, manifest manifestpkg.ResourceManifest, operation string, args []string, stdout, stderr io.Writer) error {
 			return &vroolierr.Error{Code: ErrorCodeCommandUnavailable, Category: "Driver", Message: "driver unavailable"}
 		},
-		RunLegacyFn: func(name, operation string, args []string, stdout, stderr io.Writer) error {
-			legacyCalled = true
-			if name != "redis" || operation != "start" {
-				t.Fatalf("legacy fallback called with %q %q", name, operation)
-			}
+		RunResourceCommandFn: func(name, operation string, args []string, stdout, stderr io.Writer) error {
+			t.Fatalf("unexpected fallback command path: %s %s", name, operation)
 			return nil
 		},
 	}
 
-	if err := service.Run("redis", []string{"start"}, io.Discard, io.Discard); err != nil {
-		t.Fatalf("Run: %v", err)
+	err := service.Run("redis", []string{"start"}, io.Discard, io.Discard)
+	var resourceErr *vroolierr.Error
+	if !errors.As(err, &resourceErr) {
+		t.Fatalf("expected *vroolierr.Error, got %T", err)
 	}
-	if !legacyCalled {
-		t.Fatal("expected legacy fallback")
+	if resourceErr.Code != ErrorCodeCommandUnavailable {
+		t.Fatalf("resourceErr.Code = %q", resourceErr.Code)
 	}
 }
 
@@ -100,7 +98,7 @@ func TestStartAllUsesBestEffortForDegradedStoppedResources(t *testing.T) {
 		DiscoverOneFn: func(name string) (*catalogpkg.Resource, error) {
 			return &catalogpkg.Resource{Name: name, HasScript: true}, nil
 		},
-		RunLegacyFn: func(name, operation string, args []string, stdout, stderr io.Writer) error {
+		RunResourceCommandFn: func(name, operation string, args []string, stdout, stderr io.Writer) error {
 			operations = append(operations, operation)
 			return nil
 		},

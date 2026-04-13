@@ -1,9 +1,11 @@
 package resources
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/secrets"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
@@ -36,20 +38,40 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 		"resource_ports":  map[string]int{"browserless": 4110, "postgres": 5433},
 		"reserved_ranges": map[string]string{},
 	})
-	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), map[string]any{
-		"definitions": map[string]any{
-			"resourceSchemas": map[string]any{
-				"browserless": map[string]any{
-					"properties": map[string]any{
-						"port": map[string]any{"default": 4110},
-						"logging": map[string]any{
-							"properties": map[string]any{
-								"level": map[string]any{"default": "info"},
-							},
-						},
-					},
-				},
-				"postgres": map[string]any{"properties": map[string]any{}},
+	writeEnvManifestFixture(t, root, "postgres", manifestpkg.ResourceManifest{
+		Name:            "postgres",
+		Driver:          "docker-service",
+		PortabilityTier: "full",
+		Ports:           []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
+		Runtime: manifestpkg.ResourceRuntime{
+			Image: "postgres:16-alpine",
+			Env: map[string]string{
+				"POSTGRES_DB":   "vrooli",
+				"POSTGRES_USER": "vrooli",
+			},
+		},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:         map[string]string{"POSTGRES_HOST": "localhost", "POSTGRES_SSLMODE": "disable"},
+			FromPorts:      map[string]string{"POSTGRES_PORT": "postgresql"},
+			FromRuntimeEnv: []string{"POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"POSTGRES_URL": {Template: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${POSTGRES_SSLMODE}"},
+				"DATABASE_URL": {Template: "${POSTGRES_URL}"},
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "browserless", manifestpkg.ResourceManifest{
+		Name:            "browserless",
+		Driver:          "docker-service",
+		PortabilityTier: "full",
+		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 3000, Host: 4110}},
+		Runtime:         manifestpkg.ResourceRuntime{Image: "browserless/chrome:stable"},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:    map[string]string{"BROWSERLESS_HOST": "localhost"},
+			FromPorts: map[string]string{"BROWSERLESS_PORT": "http"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"BROWSERLESS_URL":      {Template: "http://${BROWSERLESS_HOST}:${BROWSERLESS_PORT}"},
+				"BROWSERLESS_BASE_URL": {Template: "${BROWSERLESS_URL}"},
 			},
 		},
 	})
@@ -83,8 +105,8 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 	if got := browserlessEnv["BROWSERLESS_BASE_URL"]; got != "http://localhost:4110" {
 		t.Fatalf("BROWSERLESS_BASE_URL = %q", got)
 	}
-	if got := browserlessEnv["BROWSERLESS_LOGGING_LEVEL"]; got != "info" {
-		t.Fatalf("BROWSERLESS_LOGGING_LEVEL = %q, want info", got)
+	if got := browserlessEnv["BROWSERLESS_URL"]; got != "http://localhost:4110" {
+		t.Fatalf("BROWSERLESS_URL = %q, want http://localhost:4110", got)
 	}
 	if got := browserlessEnv["BROWSERLESS_TOKEN"]; got != "abc123" {
 		t.Fatalf("BROWSERLESS_TOKEN = %q, want abc123", got)
@@ -99,13 +121,7 @@ func TestLoadResourceEnvironmentUsesEncryptedSecrets(t *testing.T) {
 		"resource_ports":  map[string]int{"postgres": 5433},
 		"reserved_ranges": map[string]string{},
 	})
-	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), map[string]any{
-		"definitions": map[string]any{
-			"resourceSchemas": map[string]any{
-				"postgres": map[string]any{"properties": map[string]any{}},
-			},
-		},
-	})
+	writePostgresManifestFixture(t, root)
 
 	t.Setenv(secrets.KeyEnvVar, "resource-secret-key")
 	store := secrets.NewProjectStore(root)
@@ -128,6 +144,488 @@ func TestLoadResourceEnvironmentUsesEncryptedSecrets(t *testing.T) {
 	}
 }
 
+func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	testkitgo.WriteJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), map[string]any{
+		"resource_ports": map[string]int{
+			"comfyui":         8188,
+			"minio":           9000,
+			"redis":           6380,
+			"qdrant":          6333,
+			"questdb":         9009,
+			"ollama":          11434,
+			"vault":           8200,
+			"searxng":         8280,
+			"unstructured-io": 11450,
+		},
+		"reserved_ranges": map[string]string{},
+	})
+	writeEnvManifestFixture(t, root, "redis", manifestpkg.ResourceManifest{
+		Name:            "redis",
+		Driver:          "docker-service",
+		PortabilityTier: "full",
+		Ports:           []manifestpkg.ResourcePort{{Name: "redis", Container: 6379, Host: 6380}},
+		Runtime:         manifestpkg.ResourceRuntime{Image: "redis:7-alpine"},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:         map[string]string{"REDIS_HOST": "localhost", "REDIS_DB": "0"},
+			FromPorts:      map[string]string{"REDIS_PORT": "redis"},
+			FromRuntimeEnv: []string{"REDIS_PASSWORD"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"REDIS_URL":      {Template: "redis://${REDIS_HOST}:${REDIS_PORT}"},
+				"REDIS_BASE_URL": {Template: "${REDIS_URL}"},
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "qdrant", manifestpkg.ResourceManifest{
+		Name:            "qdrant",
+		Driver:          "docker-service",
+		PortabilityTier: "full",
+		Ports: []manifestpkg.ResourcePort{
+			{Name: "http", Container: 6333, Host: 6333},
+			{Name: "grpc", Container: 6334, Host: 6334},
+		},
+		Runtime: manifestpkg.ResourceRuntime{Image: "qdrant/qdrant:latest"},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:    map[string]string{"QDRANT_HOST": "localhost"},
+			FromPorts: map[string]string{"QDRANT_PORT": "http", "QDRANT_GRPC_PORT": "grpc"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"QDRANT_URL":      {Template: "http://${QDRANT_HOST}:${QDRANT_PORT}"},
+				"QDRANT_BASE_URL": {Template: "${QDRANT_URL}"},
+				"QDRANT_GRPC_URL": {Template: "grpc://${QDRANT_HOST}:${QDRANT_GRPC_PORT}"},
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "ollama", manifestpkg.ResourceManifest{
+		Name:            "ollama",
+		Driver:          "docker-service",
+		PortabilityTier: "partial",
+		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 11434, Host: 11434}},
+		Runtime:         manifestpkg.ResourceRuntime{Image: "ollama/ollama:latest"},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:    map[string]string{"OLLAMA_HOST": "localhost"},
+			FromPorts: map[string]string{"OLLAMA_PORT": "http"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"OLLAMA_URL":      {Template: "http://${OLLAMA_HOST}:${OLLAMA_PORT}"},
+				"OLLAMA_BASE_URL": {Template: "${OLLAMA_URL}"},
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "comfyui", manifestpkg.ResourceManifest{
+		Name:            "comfyui",
+		Driver:          "docker-service",
+		PortabilityTier: "partial",
+		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 8188, Host: 8188}},
+		Runtime:         manifestpkg.ResourceRuntime{Image: "zhangp365/comfyui:latest"},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:    map[string]string{"COMFYUI_HOST": "localhost"},
+			FromPorts: map[string]string{"COMFYUI_PORT": "http"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"COMFYUI_URL":      {Template: "http://${COMFYUI_HOST}:${COMFYUI_PORT}"},
+				"COMFYUI_BASE_URL": {Template: "${COMFYUI_URL}"},
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "minio", manifestpkg.ResourceManifest{
+		Name:            "minio",
+		Driver:          "docker-service",
+		PortabilityTier: "full",
+		Ports: []manifestpkg.ResourcePort{
+			{Name: "api", Container: 9000, Host: 9000},
+			{Name: "console", Container: 9001, Host: 9001},
+		},
+		Runtime: manifestpkg.ResourceRuntime{
+			Image: "minio/minio:latest",
+			Env: map[string]string{
+				"MINIO_ROOT_USER":     "minioadmin",
+				"MINIO_ROOT_PASSWORD": "minioadmin",
+			},
+		},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:         map[string]string{"MINIO_HOST": "localhost"},
+			FromPorts:      map[string]string{"MINIO_PORT": "api", "MINIO_CONSOLE_PORT": "console"},
+			FromRuntimeEnv: []string{"MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"MINIO_URL":         {Template: "http://${MINIO_HOST}:${MINIO_PORT}"},
+				"MINIO_ENDPOINT":    {Template: "${MINIO_HOST}:${MINIO_PORT}"},
+				"MINIO_ACCESS_KEY":  {Template: "${MINIO_ROOT_USER}"},
+				"MINIO_SECRET_KEY":  {Template: "${MINIO_ROOT_PASSWORD}"},
+				"MINIO_CONSOLE_URL": {Template: "http://${MINIO_HOST}:${MINIO_CONSOLE_PORT}"},
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "vault", manifestpkg.ResourceManifest{
+		Name:            "vault",
+		Driver:          "docker-service",
+		PortabilityTier: "full",
+		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 8200, Host: 8200}},
+		Runtime:         manifestpkg.ResourceRuntime{Image: "hashicorp/vault:1.17"},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:    map[string]string{"VAULT_HOST": "localhost", "VAULT_TOKEN": "myroot"},
+			FromPorts: map[string]string{"VAULT_PORT": "http"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"VAULT_URL":  {Template: "http://${VAULT_HOST}:${VAULT_PORT}"},
+				"VAULT_ADDR": {Template: "${VAULT_URL}"},
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "questdb", manifestpkg.ResourceManifest{
+		Name:            "questdb",
+		Driver:          "docker-service",
+		PortabilityTier: "full",
+		Ports: []manifestpkg.ResourcePort{
+			{Name: "http", Container: 9000, Host: 9009},
+			{Name: "postgresql", Container: 8812, Host: 8812},
+			{Name: "influxdb-line", Container: 9009, Host: 9011},
+		},
+		Runtime: manifestpkg.ResourceRuntime{
+			Image: "questdb/questdb:8.1.2",
+			Env: map[string]string{
+				"QDB_PG_USER":     "admin",
+				"QDB_PG_PASSWORD": "quest",
+			},
+		},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static: map[string]string{
+				"QUESTDB_HOST":        "localhost",
+				"QUESTDB_PG_USER":     "admin",
+				"QUESTDB_PG_PASSWORD": "quest",
+			},
+			FromPorts: map[string]string{
+				"QUESTDB_PORT":      "http",
+				"QUESTDB_HTTP_PORT": "http",
+				"QUESTDB_PG_PORT":   "postgresql",
+				"QUESTDB_ILP_PORT":  "influxdb-line",
+			},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"QUESTDB_URL":      {Template: "http://${QUESTDB_HOST}:${QUESTDB_HTTP_PORT}"},
+				"QUESTDB_BASE_URL": {Template: "${QUESTDB_URL}"},
+				"QUESTDB_PG_URL":   {Template: "postgresql://${QUESTDB_PG_USER}:${QUESTDB_PG_PASSWORD}@${QUESTDB_HOST}:${QUESTDB_PG_PORT}/qdb"},
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "searxng", manifestpkg.ResourceManifest{
+		Name:            "searxng",
+		Driver:          "docker-service",
+		PortabilityTier: "full",
+		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 8080, Host: 8280}},
+		Runtime:         manifestpkg.ResourceRuntime{Image: "searxng/searxng:latest"},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:    map[string]string{"SEARXNG_SERVICE_HOST": "localhost"},
+			FromPorts: map[string]string{"SEARXNG_PORT": "http"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"SEARXNG_URL":  {Template: "http://${SEARXNG_SERVICE_HOST}:${SEARXNG_PORT}"},
+				"SEARXNG_HOST": {Template: "${SEARXNG_URL}"},
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "unstructured-io", manifestpkg.ResourceManifest{
+		Name:            "unstructured-io",
+		Driver:          "docker-service",
+		PortabilityTier: "full",
+		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 8000, Host: 11450}},
+		Runtime:         manifestpkg.ResourceRuntime{Image: "downloads.unstructured.io/unstructured-api:latest"},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:    map[string]string{"UNSTRUCTURED_HOST": "localhost"},
+			FromPorts: map[string]string{"UNSTRUCTURED_PORT": "http"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"UNSTRUCTURED_URL":    {Template: "http://${UNSTRUCTURED_HOST}:${UNSTRUCTURED_PORT}"},
+				"UNSTRUCTURED_IO_URL": {Template: "${UNSTRUCTURED_URL}"},
+			},
+		},
+	})
+
+	redisEnv, err := LoadResourceEnvironment(root, home, "redis")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(redis): %v", err)
+	}
+	if got := redisEnv["REDIS_URL"]; got != "redis://localhost:6380" {
+		t.Fatalf("REDIS_URL = %q", got)
+	}
+	qdrantEnv, err := LoadResourceEnvironment(root, home, "qdrant")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(qdrant): %v", err)
+	}
+	if got := qdrantEnv["QDRANT_GRPC_URL"]; got != "grpc://localhost:6334" {
+		t.Fatalf("QDRANT_GRPC_URL = %q", got)
+	}
+	ollamaEnv, err := LoadResourceEnvironment(root, home, "ollama")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(ollama): %v", err)
+	}
+	if got := ollamaEnv["OLLAMA_URL"]; got != "http://localhost:11434" {
+		t.Fatalf("OLLAMA_URL = %q", got)
+	}
+	comfyuiEnv, err := LoadResourceEnvironment(root, home, "comfyui")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(comfyui): %v", err)
+	}
+	if got := comfyuiEnv["COMFYUI_BASE_URL"]; got != "http://localhost:8188" {
+		t.Fatalf("COMFYUI_BASE_URL = %q", got)
+	}
+	minioEnv, err := LoadResourceEnvironment(root, home, "minio")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(minio): %v", err)
+	}
+	if got := minioEnv["MINIO_ENDPOINT"]; got != "localhost:9000" {
+		t.Fatalf("MINIO_ENDPOINT = %q", got)
+	}
+	vaultEnv, err := LoadResourceEnvironment(root, home, "vault")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(vault): %v", err)
+	}
+	if got := vaultEnv["VAULT_ADDR"]; got != "http://localhost:8200" {
+		t.Fatalf("VAULT_ADDR = %q", got)
+	}
+	questdbEnv, err := LoadResourceEnvironment(root, home, "questdb")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(questdb): %v", err)
+	}
+	if got := questdbEnv["QUESTDB_URL"]; got != "http://localhost:9009" {
+		t.Fatalf("QUESTDB_URL = %q", got)
+	}
+	if got := questdbEnv["QUESTDB_PG_URL"]; got != "postgresql://admin:quest@localhost:8812/qdb" {
+		t.Fatalf("QUESTDB_PG_URL = %q", got)
+	}
+	searxngEnv, err := LoadResourceEnvironment(root, home, "searxng")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(searxng): %v", err)
+	}
+	if got := searxngEnv["SEARXNG_HOST"]; got != "http://localhost:8280" {
+		t.Fatalf("SEARXNG_HOST = %q", got)
+	}
+	unstructuredEnv, err := LoadResourceEnvironment(root, home, "unstructured-io")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(unstructured-io): %v", err)
+	}
+	if got := unstructuredEnv["UNSTRUCTURED_IO_URL"]; got != "http://localhost:11450" {
+		t.Fatalf("UNSTRUCTURED_IO_URL = %q", got)
+	}
+}
+
+func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	writeEnvManifestFixture(t, root, "sqlite", manifestpkg.ResourceManifest{
+		Name:            "sqlite",
+		Driver:          "external-cli",
+		Binary:          "resource-sqlite",
+		PortabilityTier: "full",
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static: map[string]string{
+				"SQLITE_CLI_PATH":     "resource-sqlite",
+				"SQLITE_JOURNAL_MODE": "WAL",
+			},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"SQLITE_DATABASE_PATH": {Template: "${VROOLI_DATA}/sqlite/databases"},
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "openrouter", manifestpkg.ResourceManifest{
+		Name:            "openrouter",
+		Driver:          "cloud-api",
+		Endpoint:        "https://openrouter.ai/api/v1/models",
+		PortabilityTier: "full",
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:         map[string]string{"OPENROUTER_API_BASE": "https://openrouter.ai/api/v1"},
+			FromRuntimeEnv: []string{"OPENROUTER_API_KEY"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"OPENROUTER_URL":          {Template: "${OPENROUTER_API_BASE}"},
+				"RESOURCE_OPENROUTER_URL": {Template: "${OPENROUTER_API_BASE}"},
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "home-assistant", manifestpkg.ResourceManifest{
+		Name:            "home-assistant",
+		Driver:          "compose-service",
+		ComposeFile:     "compose.yaml",
+		PortabilityTier: "partial",
+		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 8123, Host: 8123}},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:         map[string]string{"HOME_ASSISTANT_HOST": "localhost", "HOME_ASSISTANT_CONTAINER_NAME": "home-assistant"},
+			FromPorts:      map[string]string{"HOME_ASSISTANT_PORT": "http"},
+			FromRuntimeEnv: []string{"HOME_ASSISTANT_TOKEN"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"HOME_ASSISTANT_BASE_URL": {Template: "http://${HOME_ASSISTANT_HOST}:${HOME_ASSISTANT_PORT}"},
+				"HOME_ASSISTANT_URL":      {Template: "${HOME_ASSISTANT_BASE_URL}"},
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "whisper", manifestpkg.ResourceManifest{
+		Name:            "whisper",
+		Driver:          "compose-service",
+		ComposeFile:     "docker/docker-compose.yml",
+		PortabilityTier: "partial",
+		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 9000, Host: 8090}},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:    map[string]string{"WHISPER_HOST": "localhost"},
+			FromPorts: map[string]string{"WHISPER_PORT": "http"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"WHISPER_URL":      {Template: "http://${WHISPER_HOST}:${WHISPER_PORT}"},
+				"WHISPER_BASE_URL": {Template: "${WHISPER_URL}"},
+				"WHISPER_STT_URL":  {Template: "${WHISPER_URL}"},
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "kokoro", manifestpkg.ResourceManifest{
+		Name:            "kokoro",
+		Driver:          "compose-service",
+		ComposeFile:     "docker/docker-compose.yml",
+		PortabilityTier: "partial",
+		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 8880, Host: 8880}},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:    map[string]string{"KOKORO_HOST": "localhost"},
+			FromPorts: map[string]string{"KOKORO_PORT": "http"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"KOKORO_URL":      {Template: "http://${KOKORO_HOST}:${KOKORO_PORT}"},
+				"KOKORO_BASE_URL": {Template: "${KOKORO_URL}"},
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "judge0", manifestpkg.ResourceManifest{
+		Name:            "judge0",
+		Driver:          "compose-service",
+		ComposeFile:     "compose.yaml",
+		PortabilityTier: "full",
+		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 2358, Host: 2358}},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:         map[string]string{"JUDGE0_HOST": "localhost", "JUDGE0_API_PREFIX": "/api/v1"},
+			FromPorts:      map[string]string{"JUDGE0_PORT": "http"},
+			FromRuntimeEnv: []string{"JUDGE0_API_KEY"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"JUDGE0_BASE_URL": {Template: "http://${JUDGE0_HOST}:${JUDGE0_PORT}"},
+				"JUDGE0_URL":      {Template: "${JUDGE0_BASE_URL}"},
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "claude-code", manifestpkg.ResourceManifest{
+		Name:            "claude-code",
+		Driver:          "external-cli",
+		Binary:          "claude",
+		PortabilityTier: "partial",
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static: map[string]string{
+				"CLAUDE_CODE_PATH": "claude",
+				"CLAUDE_CODE_URL":  "http://localhost:8100",
+			},
+		},
+	})
+	writeEnvManifestFixture(t, root, "codex", manifestpkg.ResourceManifest{
+		Name:            "codex",
+		Driver:          "external-cli",
+		Binary:          "codex",
+		PortabilityTier: "partial",
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static: map[string]string{"CODEX_PATH": "codex"},
+		},
+	})
+	writeEnvManifestFixture(t, root, "opencode", manifestpkg.ResourceManifest{
+		Name:            "opencode",
+		Driver:          "external-cli",
+		Binary:          "opencode",
+		PortabilityTier: "partial",
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static: map[string]string{"OPENCODE_PATH": "opencode"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"OPENCODE_DATA_DIR":        {Template: "${VROOLI_DATA}/opencode"},
+				"OPENCODE_XDG_CONFIG_HOME": {Template: "${OPENCODE_DATA_DIR}/xdg-config"},
+				"OPENCODE_XDG_DATA_HOME":   {Template: "${OPENCODE_DATA_DIR}/xdg-data"},
+			},
+		},
+	})
+	testkitgo.WriteJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), map[string]string{
+		"OPENROUTER_API_KEY":   "sk-or-test",
+		"HOME_ASSISTANT_TOKEN": "ha-token",
+		"JUDGE0_API_KEY":       "judge0-token",
+	}, 0o600)
+
+	sqliteEnv, err := LoadResourceEnvironment(root, home, "sqlite")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(sqlite): %v", err)
+	}
+	if got := sqliteEnv["SQLITE_DATABASE_PATH"]; got != filepath.Join(home, ".vrooli", "data", "sqlite", "databases") {
+		t.Fatalf("SQLITE_DATABASE_PATH = %q", got)
+	}
+
+	openrouterEnv, err := LoadResourceEnvironment(root, home, "openrouter")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(openrouter): %v", err)
+	}
+	if got := openrouterEnv["RESOURCE_OPENROUTER_URL"]; got != "https://openrouter.ai/api/v1" {
+		t.Fatalf("RESOURCE_OPENROUTER_URL = %q", got)
+	}
+	if got := openrouterEnv["OPENROUTER_API_KEY"]; got != "sk-or-test" {
+		t.Fatalf("OPENROUTER_API_KEY = %q", got)
+	}
+
+	homeAssistantEnv, err := LoadResourceEnvironment(root, home, "home-assistant")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(home-assistant): %v", err)
+	}
+	if got := homeAssistantEnv["HOME_ASSISTANT_URL"]; got != "http://localhost:8123" {
+		t.Fatalf("HOME_ASSISTANT_URL = %q", got)
+	}
+	if got := homeAssistantEnv["HOME_ASSISTANT_CONTAINER_NAME"]; got != "home-assistant" {
+		t.Fatalf("HOME_ASSISTANT_CONTAINER_NAME = %q", got)
+	}
+
+	whisperEnv, err := LoadResourceEnvironment(root, home, "whisper")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(whisper): %v", err)
+	}
+	if got := whisperEnv["WHISPER_STT_URL"]; got != "http://localhost:8090" {
+		t.Fatalf("WHISPER_STT_URL = %q", got)
+	}
+
+	kokoroEnv, err := LoadResourceEnvironment(root, home, "kokoro")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(kokoro): %v", err)
+	}
+	if got := kokoroEnv["KOKORO_BASE_URL"]; got != "http://localhost:8880" {
+		t.Fatalf("KOKORO_BASE_URL = %q", got)
+	}
+
+	judge0Env, err := LoadResourceEnvironment(root, home, "judge0")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(judge0): %v", err)
+	}
+	if got := judge0Env["JUDGE0_URL"]; got != "http://localhost:2358" {
+		t.Fatalf("JUDGE0_URL = %q", got)
+	}
+	if got := judge0Env["JUDGE0_API_KEY"]; got != "judge0-token" {
+		t.Fatalf("JUDGE0_API_KEY = %q", got)
+	}
+
+	claudeEnv, err := LoadResourceEnvironment(root, home, "claude-code")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(claude-code): %v", err)
+	}
+	if got := claudeEnv["CLAUDE_CODE_PATH"]; got != "claude" {
+		t.Fatalf("CLAUDE_CODE_PATH = %q", got)
+	}
+
+	codexEnv, err := LoadResourceEnvironment(root, home, "codex")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(codex): %v", err)
+	}
+	if got := codexEnv["CODEX_PATH"]; got != "codex" {
+		t.Fatalf("CODEX_PATH = %q", got)
+	}
+
+	opencodeEnv, err := LoadResourceEnvironment(root, home, "opencode")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(opencode): %v", err)
+	}
+	if got := opencodeEnv["OPENCODE_DATA_DIR"]; got != filepath.Join(home, ".vrooli", "data", "opencode") {
+		t.Fatalf("OPENCODE_DATA_DIR = %q", got)
+	}
+	if got := opencodeEnv["OPENCODE_XDG_DATA_HOME"]; got != filepath.Join(home, ".vrooli", "data", "opencode", "xdg-data") {
+		t.Fatalf("OPENCODE_XDG_DATA_HOME = %q", got)
+	}
+}
+
 func TestLoadResourceEnvironmentFallsBackToLegacySecretsDuringMigration(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -136,13 +634,7 @@ func TestLoadResourceEnvironmentFallsBackToLegacySecretsDuringMigration(t *testi
 		"resource_ports":  map[string]int{"postgres": 5433},
 		"reserved_ranges": map[string]string{},
 	})
-	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), map[string]any{
-		"definitions": map[string]any{
-			"resourceSchemas": map[string]any{
-				"postgres": map[string]any{"properties": map[string]any{}},
-			},
-		},
-	})
+	writePostgresManifestFixture(t, root)
 	testkitgo.WriteJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), map[string]string{
 		"POSTGRES_PASSWORD": "legacy-secret",
 		"POSTGRES_USER":     "vrooli",
@@ -167,6 +659,41 @@ func TestLoadResourceEnvironmentFallsBackToLegacySecretsDuringMigration(t *testi
 	}
 }
 
+func TestLoadResourceEnvironmentDoesNotUseLegacyDefaultsForDockerServiceWithoutExports(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	testkitgo.WriteJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), map[string]any{
+		"resource_ports":  map[string]int{"redis": 6380},
+		"reserved_ranges": map[string]string{},
+	})
+	writeEnvManifestFixture(t, root, "redis", manifestpkg.ResourceManifest{
+		Name:            "redis",
+		Driver:          "docker-service",
+		PortabilityTier: "full",
+		Runtime:         manifestpkg.ResourceRuntime{Image: "redis:7-alpine"},
+	})
+	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), map[string]any{
+		"definitions": map[string]any{
+			"resourceSchemas": map[string]any{
+				"redis": map[string]any{
+					"properties": map[string]any{
+						"port": map[string]any{"default": 6380},
+					},
+				},
+			},
+		},
+	})
+
+	env, err := LoadResourceEnvironment(root, home, "redis")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(redis): %v", err)
+	}
+	if _, exists := env["REDIS_PORT"]; exists {
+		t.Fatalf("REDIS_PORT should not be inferred from legacy defaults for docker-service resources: %#v", env)
+	}
+}
+
 func TestLoadResourceEnvironmentFailsClosedWhenEncryptedSecretsAreInvalid(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -175,13 +702,7 @@ func TestLoadResourceEnvironmentFailsClosedWhenEncryptedSecretsAreInvalid(t *tes
 		"resource_ports":  map[string]int{"postgres": 5433},
 		"reserved_ranges": map[string]string{},
 	})
-	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), map[string]any{
-		"definitions": map[string]any{
-			"resourceSchemas": map[string]any{
-				"postgres": map[string]any{"properties": map[string]any{}},
-			},
-		},
-	})
+	writePostgresManifestFixture(t, root)
 	testkitgo.WriteJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), map[string]string{
 		"POSTGRES_PASSWORD": "legacy-secret",
 		"POSTGRES_USER":     "vrooli",
@@ -192,4 +713,149 @@ func TestLoadResourceEnvironmentFailsClosedWhenEncryptedSecretsAreInvalid(t *tes
 	if err == nil {
 		t.Fatal("expected invalid encrypted secrets to fail closed")
 	}
+}
+
+func TestActualDockerServiceResourceManifestsResolveNativeExports(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("resolve repo root: %v", err)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("resolve home: %v", err)
+	}
+
+	comfyuiEnv, err := LoadResourceEnvironment(root, home, "comfyui")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(comfyui): %v", err)
+	}
+	if got := comfyuiEnv["COMFYUI_URL"]; got != "http://localhost:8188" {
+		t.Fatalf("COMFYUI_URL = %q", got)
+	}
+
+	questdbEnv, err := LoadResourceEnvironment(root, home, "questdb")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(questdb): %v", err)
+	}
+	if got := questdbEnv["QUESTDB_URL"]; got != "http://localhost:9009" {
+		t.Fatalf("QUESTDB_URL = %q", got)
+	}
+	if got := questdbEnv["QUESTDB_PG_URL"]; got != "postgresql://admin:quest@localhost:8812/qdb" {
+		t.Fatalf("QUESTDB_PG_URL = %q", got)
+	}
+}
+
+func TestActualNonDockerResourceManifestsResolveNativeExports(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("resolve repo root: %v", err)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("resolve home: %v", err)
+	}
+
+	sqliteEnv, err := LoadResourceEnvironment(root, home, "sqlite")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(sqlite): %v", err)
+	}
+	if got := sqliteEnv["SQLITE_DATABASE_PATH"]; got != filepath.Join(home, ".vrooli", "data", "sqlite", "databases") {
+		t.Fatalf("SQLITE_DATABASE_PATH = %q", got)
+	}
+
+	openrouterEnv, err := LoadResourceEnvironment(root, home, "openrouter")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(openrouter): %v", err)
+	}
+	if got := openrouterEnv["RESOURCE_OPENROUTER_URL"]; got != "https://openrouter.ai/api/v1" {
+		t.Fatalf("RESOURCE_OPENROUTER_URL = %q", got)
+	}
+
+	homeAssistantEnv, err := LoadResourceEnvironment(root, home, "home-assistant")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(home-assistant): %v", err)
+	}
+	if got := homeAssistantEnv["HOME_ASSISTANT_BASE_URL"]; got != "http://localhost:8123" {
+		t.Fatalf("HOME_ASSISTANT_BASE_URL = %q", got)
+	}
+
+	whisperEnv, err := LoadResourceEnvironment(root, home, "whisper")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(whisper): %v", err)
+	}
+	if got := whisperEnv["WHISPER_URL"]; got != "http://localhost:8090" {
+		t.Fatalf("WHISPER_URL = %q", got)
+	}
+
+	kokoroEnv, err := LoadResourceEnvironment(root, home, "kokoro")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(kokoro): %v", err)
+	}
+	if got := kokoroEnv["KOKORO_URL"]; got != "http://localhost:8880" {
+		t.Fatalf("KOKORO_URL = %q", got)
+	}
+
+	judge0Env, err := LoadResourceEnvironment(root, home, "judge0")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(judge0): %v", err)
+	}
+	if got := judge0Env["JUDGE0_BASE_URL"]; got != "http://localhost:2358" {
+		t.Fatalf("JUDGE0_BASE_URL = %q", got)
+	}
+
+	claudeEnv, err := LoadResourceEnvironment(root, home, "claude-code")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(claude-code): %v", err)
+	}
+	if got := claudeEnv["CLAUDE_CODE_PATH"]; got != "claude" {
+		t.Fatalf("CLAUDE_CODE_PATH = %q", got)
+	}
+
+	codexEnv, err := LoadResourceEnvironment(root, home, "codex")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(codex): %v", err)
+	}
+	if got := codexEnv["CODEX_PATH"]; got != "codex" {
+		t.Fatalf("CODEX_PATH = %q", got)
+	}
+
+	opencodeEnv, err := LoadResourceEnvironment(root, home, "opencode")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(opencode): %v", err)
+	}
+	if got := opencodeEnv["OPENCODE_XDG_CONFIG_HOME"]; got != filepath.Join(home, ".vrooli", "data", "opencode", "xdg-config") {
+		t.Fatalf("OPENCODE_XDG_CONFIG_HOME = %q", got)
+	}
+}
+
+func writePostgresManifestFixture(t *testing.T, root string) {
+	t.Helper()
+	writeEnvManifestFixture(t, root, "postgres", manifestpkg.ResourceManifest{
+		Name:            "postgres",
+		Driver:          "docker-service",
+		PortabilityTier: "full",
+		Ports:           []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
+		Runtime: manifestpkg.ResourceRuntime{
+			Image: "postgres:16-alpine",
+			Env: map[string]string{
+				"POSTGRES_DB":   "vrooli",
+				"POSTGRES_USER": "vrooli",
+			},
+		},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:         map[string]string{"POSTGRES_HOST": "localhost", "POSTGRES_SSLMODE": "disable"},
+			FromPorts:      map[string]string{"POSTGRES_PORT": "postgresql"},
+			FromRuntimeEnv: []string{"POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"POSTGRES_URL": {Template: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${POSTGRES_SSLMODE}"},
+				"DATABASE_URL": {Template: "${POSTGRES_URL}"},
+			},
+		},
+	})
+}
+
+func writeEnvManifestFixture(t *testing.T, root, name string, manifest manifestpkg.ResourceManifest) {
+	t.Helper()
+	path := filepath.Join(root, "resources", name, "resource.json")
+	testkitgo.WriteJSON(t, path, manifest)
 }

@@ -53,8 +53,5 @@ func (app *App) newScenarioLifecycleRunnerForFormat(ctx *commandContext, forceJS
 }
 
 func writeSuccessData(w io.Writer, key string, value any) error {
-	return cliout.WriteJSON(w, map[string]any{
-		"success": true,
-		key:       value,
-	})
+	return cliout.WriteSuccessJSON(w, key, value)
 }

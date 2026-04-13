@@ -1223,6 +1223,25 @@ Current status:
 - `k6`, `opencode`, and `sqlite` now have native `external-cli` manifests and Go-native standard lifecycle/status handling.
 - `gemini` and `openrouter` now have native `cloud-api` manifests and Go-native status/configuration checks.
 - `twilio` and `cloudflare-ai-gateway` now have native `cloud-api` manifests and Go-native credential/status checks.
+- Scenario-facing env contracts are now explicit for the active non-docker resources with live repo consumers:
+  - `sqlite`
+  - `openrouter`
+  - `home-assistant`
+  - `whisper`
+  - `kokoro`
+  - `judge0`
+  - `claude-code`
+  - `codex`
+  - `opencode`
+- Those contracts are now resolved natively through `resource.json.environment_exports`, not by shell-era `defaults.sh` inference.
+- The current active non-docker resources intentionally left without scenario env contracts are:
+  - `cloudflare-ai-gateway`
+  - `gemini`
+  - `twilio`
+  - `k6`
+  - `mail-in-a-box`
+  - `postgis`
+- That omission is intentional for now: the repo audit did not find live scenario dependency consumers for those resources, so adding scenario-facing env exports today would be speculative contract surface rather than migration parity.
 - Resource-specific non-standard commands can still fall back to legacy shell entrypoints when the native driver does not own that subcommand yet.
 - Phase 5 validation now explicitly covers that the migrated core set uses the native driver path for standard commands even when a legacy `cli.sh` compatibility shim is present.
 - Migrated resource `cli.sh` entrypoints now delegate standard lifecycle, status, and logs commands back to `vrooli resource`, leaving only compatibility-only custom subcommands in shell where native ownership is intentionally incomplete.

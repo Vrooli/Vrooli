@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,19 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
-
-type scenarioLogOptions struct {
-	follow      bool
-	forceFollow bool
-	stepName    string
-	runtime     bool
-	lifecycle   bool
-	previous    bool
-	clean       bool
-}
 
 type scenarioStepLogInfo struct {
 	Phase string
@@ -31,15 +21,15 @@ type scenarioStepLogInfo struct {
 	Path  string
 }
 
-var errScenarioLogsUsage = errors.New("scenario logs requires a scenario name")
+var errScenarioLogsUsage = scenariocli.ErrScenarioLogsUsage
 
 func runScenarioLogsCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	name, opts, err := parseScenarioLogsArgs(args)
+	_ = app
+	name, opts, err := scenariocli.ParseLogsArgs(args)
 	if err != nil {
-		var usageErr *showScenarioLogsUsageError
-		if errors.As(err, &usageErr) {
-			showErr := showScenarioLogsUsage(ctx.Stdout)
-			if showErr != nil && !errors.Is(showErr, errScenarioLogsUsage) {
+		if err == scenariocli.ErrScenarioLogsUsage {
+			showErr := scenariocli.ShowLogsUsage(ctx.Stdout)
+			if showErr != nil && showErr != errScenarioLogsUsage {
 				return showErr
 			}
 			return nil
@@ -47,7 +37,11 @@ func runScenarioLogsCommandWithApp(app *App, ctx *commandContext, args []string)
 		return err
 	}
 	if name == "" {
-		return showScenarioLogsUsage(ctx.Stdout)
+		showErr := scenariocli.ShowLogsUsage(ctx.Stdout)
+		if showErr != nil && showErr != errScenarioLogsUsage {
+			return showErr
+		}
+		return nil
 	}
 
 	home, err := ctx.HomeDir()
@@ -55,109 +49,16 @@ func runScenarioLogsCommandWithApp(app *App, ctx *commandContext, args []string)
 		return err
 	}
 
-	if opts.clean {
+	if opts.Clean {
 		return cleanScenarioLogs(ctx.Root, home, name, ctx.Stdout)
 	}
-	if opts.runtime {
+	if opts.Runtime {
 		return showScenarioRuntimeLogs(home, name, opts, ctx.Stdout)
 	}
-	if opts.stepName != "" {
+	if opts.StepName != "" {
 		return showScenarioStepLog(home, name, opts, ctx.Stdout)
 	}
 	return showScenarioLifecycleLog(ctx.Root, home, name, opts, ctx.Stdout, ctx.Stderr)
-}
-
-func parseScenarioLogsArgs(args []string) (string, scenarioLogOptions, error) {
-	name := ""
-	opts := scenarioLogOptions{}
-
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch arg {
-		case "--follow", "-f":
-			opts.follow = true
-		case "--force-follow":
-			opts.follow = true
-			opts.forceFollow = true
-		case "--step":
-			if index+1 >= len(args) {
-				return "", scenarioLogOptions{}, usageErrorf("scenario logs", "scenario logs --step requires a step name")
-			}
-			index++
-			opts.stepName = args[index]
-		case "--runtime":
-			opts.runtime = true
-		case "--lifecycle":
-			opts.lifecycle = true
-		case "--previous":
-			opts.previous = true
-		case "--clean":
-			opts.clean = true
-		case "--help", "-h":
-			return "", scenarioLogOptions{}, &showScenarioLogsUsageError{}
-		default:
-			if strings.HasPrefix(arg, "-") {
-				return "", scenarioLogOptions{}, unknownOptionError("scenario logs", arg)
-			}
-			if name != "" {
-				return "", scenarioLogOptions{}, usageErrorf("scenario logs", "scenario logs accepts exactly one scenario name")
-			}
-			name = arg
-		}
-	}
-
-	return name, opts, nil
-}
-
-type showScenarioLogsUsageError struct{}
-
-func (*showScenarioLogsUsageError) Error() string { return "usage requested" }
-
-func showScenarioLogsUsage(w io.Writer) error {
-	home, _ := process.HomeDir()
-
-	_, _ = fmt.Fprintln(w, "Usage: vrooli scenario logs <name> [options]")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Options:")
-	_, _ = fmt.Fprintln(w, "  --follow, -f        Follow log output in real time")
-	_, _ = fmt.Fprintln(w, "  --step <name>       View a specific background step log")
-	_, _ = fmt.Fprintln(w, "  --runtime           View all background process logs")
-	_, _ = fmt.Fprintln(w, "  --lifecycle         View lifecycle log (default)")
-	_, _ = fmt.Fprintln(w, "  --previous          View the previous step log backup (.log.bak)")
-	_, _ = fmt.Fprintln(w, "  --force-follow      Stream even in non-interactive environments")
-	_, _ = fmt.Fprintln(w, "  --clean             Remove orphaned background logs")
-
-	if home == "" {
-		return errScenarioLogsUsage
-	}
-
-	logsRoot := filepath.Join(home, ".vrooli", "logs", "scenarios")
-	entries, err := os.ReadDir(logsRoot)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return errScenarioLogsUsage
-		}
-		return err
-	}
-
-	names := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() {
-			names = append(names, entry.Name())
-		}
-	}
-	sort.Strings(names)
-
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Available scenarios with logs:")
-	if len(names) == 0 {
-		_, _ = fmt.Fprintln(w, "  (none found)")
-	} else {
-		for _, name := range names {
-			_, _ = fmt.Fprintf(w, "  %s\n", name)
-		}
-	}
-	return errScenarioLogsUsage
 }
 
 func cleanScenarioLogs(root, home, name string, stdout io.Writer) error {
@@ -206,7 +107,7 @@ func cleanScenarioLogs(root, home, name string, stdout io.Writer) error {
 	return nil
 }
 
-func showScenarioRuntimeLogs(home, name string, opts scenarioLogOptions, stdout io.Writer) error {
+func showScenarioRuntimeLogs(home, name string, opts scenariocli.LogOptions, stdout io.Writer) error {
 	logsDir := process.ScenarioLogsDir(home, name)
 	paths, err := filepath.Glob(filepath.Join(logsDir, "*.log"))
 	if err != nil {
@@ -217,8 +118,8 @@ func showScenarioRuntimeLogs(home, name string, opts scenarioLogOptions, stdout 
 		return fmt.Errorf("no runtime log files found for scenario %q", name)
 	}
 
-	if opts.follow {
-		if !opts.forceFollow && !writerSupportsStreaming(stdout) {
+	if opts.Follow {
+		if !opts.ForceFollow && !writerSupportsStreaming(stdout) {
 			writeScenarioLogSnapshotNotice(stdout)
 			return writeScenarioLogTail(stdout, paths, 50)
 		}
@@ -230,41 +131,41 @@ func showScenarioRuntimeLogs(home, name string, opts scenarioLogOptions, stdout 
 	return writeScenarioLogTail(stdout, paths, 50)
 }
 
-func showScenarioStepLog(home, name string, opts scenarioLogOptions, stdout io.Writer) error {
+func showScenarioStepLog(home, name string, opts scenariocli.LogOptions, stdout io.Writer) error {
 	logsDir := process.ScenarioLogsDir(home, name)
 	suffix := ".log"
-	if opts.previous {
+	if opts.Previous {
 		suffix = ".log.bak"
 	}
 
-	pattern := filepath.Join(logsDir, "vrooli.*."+name+"."+opts.stepName+suffix)
+	pattern := filepath.Join(logsDir, "vrooli.*."+name+"."+opts.StepName+suffix)
 	paths, err := filepath.Glob(pattern)
 	if err != nil {
 		return err
 	}
 	sort.Strings(paths)
 	if len(paths) == 0 {
-		if opts.previous {
-			return fmt.Errorf("no previous log found for step %q", opts.stepName)
+		if opts.Previous {
+			return fmt.Errorf("no previous log found for step %q", opts.StepName)
 		}
-		return fmt.Errorf("no log found for step %q", opts.stepName)
+		return fmt.Errorf("no log found for step %q", opts.StepName)
 	}
 
 	path := paths[0]
-	if opts.follow {
-		if !opts.forceFollow && !writerSupportsStreaming(stdout) {
+	if opts.Follow {
+		if !opts.ForceFollow && !writerSupportsStreaming(stdout) {
 			writeScenarioLogSnapshotNotice(stdout)
 			return writeScenarioLogTail(stdout, []string{path}, 100)
 		}
-		_, _ = fmt.Fprintf(stdout, "Following log for step '%s' in scenario '%s'\n", opts.stepName, name)
+		_, _ = fmt.Fprintf(stdout, "Following log for step '%s' in scenario '%s'\n", opts.StepName, name)
 		return followScenarioLogFiles(stdout, []string{path}, 10)
 	}
 
-	_, _ = fmt.Fprintf(stdout, "Recent log for step '%s' in scenario '%s'\n\n", opts.stepName, name)
+	_, _ = fmt.Fprintf(stdout, "Recent log for step '%s' in scenario '%s'\n\n", opts.StepName, name)
 	return writeScenarioLogTail(stdout, []string{path}, 100)
 }
 
-func showScenarioLifecycleLog(root, home, name string, opts scenarioLogOptions, stdout, stderr io.Writer) error {
+func showScenarioLifecycleLog(root, home, name string, opts scenariocli.LogOptions, stdout, stderr io.Writer) error {
 	_ = stderr
 
 	path := process.ScenarioLifecycleLogPath(home, name)
@@ -275,8 +176,8 @@ func showScenarioLifecycleLog(root, home, name string, opts scenarioLogOptions, 
 		return err
 	}
 
-	if opts.follow {
-		if !opts.forceFollow && !writerSupportsStreaming(stdout) {
+	if opts.Follow {
+		if !opts.ForceFollow && !writerSupportsStreaming(stdout) {
 			writeScenarioLogSnapshotNotice(stdout)
 			if err := writeScenarioLogTail(stdout, []string{path}, 100); err != nil {
 				return err

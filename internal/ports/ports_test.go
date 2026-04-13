@@ -10,6 +10,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/resources"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
@@ -500,11 +501,33 @@ func writeSecrets(t *testing.T, root string, payload map[string]any) {
 
 func ensureTypedResourceMetadata(t *testing.T, root string) {
 	t.Helper()
-	path := filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json")
+	path := filepath.Join(root, "resources", "postgres", "resource.json")
 	if _, err := os.Stat(path); err == nil {
 		return
 	}
-	testfixture.WriteResourceDefinitionsMetadata(t, root)
+	testfixture.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
+		Name:            "postgres",
+		Driver:          "docker-service",
+		Template:        "docker-service",
+		PortabilityTier: "full",
+		Ports:           []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
+		Runtime: manifestpkg.ResourceRuntime{
+			Image: "postgres:16-alpine",
+			Env: map[string]string{
+				"POSTGRES_DB":   "vrooli",
+				"POSTGRES_USER": "vrooli",
+			},
+		},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:         map[string]string{"POSTGRES_HOST": "localhost", "POSTGRES_SSLMODE": "disable"},
+			FromPorts:      map[string]string{"POSTGRES_PORT": "postgresql"},
+			FromRuntimeEnv: []string{"POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"POSTGRES_URL": {Template: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${POSTGRES_SSLMODE}"},
+				"DATABASE_URL": {Template: "${POSTGRES_URL}"},
+			},
+		},
+	})
 }
 
 func intPtr(value int) *int {

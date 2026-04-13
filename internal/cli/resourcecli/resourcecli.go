@@ -12,24 +12,17 @@ import (
 
 func WriteList(w io.Writer, format cliout.Format, items []resources.Resource) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success":   true,
-			"resources": items,
-		})
+		return cliout.WriteSuccessJSON(w, "resources", items)
 	}
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
-		decision := ""
-		if item.ControlMode == "legacy-adapter" {
-			decision = item.LegacyAdapter.FinalDisposition
-		}
 		rows = append(rows, []string{
 			item.Name,
 			cliout.BoolLabel(item.Enabled),
 			item.ControlMode,
 			item.Driver,
 			item.PortabilityTier,
-			decision,
+			item.CommandAdapterDisposition(),
 			cliout.BoolLabel(item.Registered),
 		})
 	}
@@ -38,10 +31,7 @@ func WriteList(w io.Writer, format cliout.Format, items []resources.Resource) er
 
 func WriteStatuses(w io.Writer, format cliout.Format, items []resources.Status) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success":   true,
-			"resources": items,
-		})
+		return cliout.WriteSuccessJSON(w, "resources", items)
 	}
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
@@ -67,7 +57,7 @@ func WriteStatuses(w io.Writer, format cliout.Format, items []resources.Status) 
 
 func WriteStatus(w io.Writer, format cliout.Format, item resources.Status) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
+		return cliout.WriteSuccessFields(w, map[string]any{
 			"success":   true,
 			"name":      item.Resource.Name,
 			"installed": item.Installed,
@@ -93,15 +83,9 @@ func WriteStatus(w io.Writer, format cliout.Format, item resources.Status) error
 		rows = append(rows, []string{"Status Code", item.StatusCode})
 	}
 	rows = append(rows, []string{"Status", item.Message})
-	if item.Resource.ControlMode == "legacy-adapter" {
-		rows = append(rows,
-			[]string{"Adapter Owner", item.Resource.LegacyAdapter.Owner},
-			[]string{"Decision Deadline", item.Resource.LegacyAdapter.DecisionDeadline},
-			[]string{"Final Disposition", item.Resource.LegacyAdapter.FinalDisposition},
-			[]string{"Legacy CLI", item.Resource.LegacyAdapter.LegacyCLIPath},
-		)
-		if item.Resource.LegacyAdapter.Notes != "" {
-			rows = append(rows, []string{"Adapter Notes", item.Resource.LegacyAdapter.Notes})
+	if item.Resource.HasCommandAdapterDetails() {
+		for _, field := range item.Resource.CommandAdapterFields() {
+			rows = append(rows, []string{field[0], field[1]})
 		}
 	}
 	if item.ProbeError != "" {
@@ -112,20 +96,14 @@ func WriteStatus(w io.Writer, format cliout.Format, item resources.Status) error
 
 func WriteInfo(w io.Writer, format cliout.Format, item resources.Status) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success":  true,
-			"resource": item,
-		})
+		return cliout.WriteSuccessJSON(w, "resource", item)
 	}
 	return WriteStatus(w, format, item)
 }
 
 func WriteControlReport(w io.Writer, format cliout.Format, reportKey, verb string, report any, items, failed []control.ResultItem) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
-			reportKey: report,
-		})
+		return cliout.WriteSuccessJSON(w, reportKey, report)
 	}
 	for _, item := range items {
 		_, _ = fmt.Fprintf(w, "%s %s\n", verb, item.Name)
@@ -138,10 +116,7 @@ func WriteControlReport(w io.Writer, format cliout.Format, reportKey, verb strin
 
 func WriteDeprecationReport(w io.Writer, format cliout.Format, report resources.DeprecationReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
-			"report":  report,
-		})
+		return cliout.WriteSuccessJSON(w, "report", report)
 	}
 	_, _ = fmt.Fprintf(w, "Deprecated %s\n", report.Resource.Name)
 	if report.ArchiveDir != "" {
@@ -152,10 +127,7 @@ func WriteDeprecationReport(w io.Writer, format cliout.Format, report resources.
 
 func WriteRestoreReport(w io.Writer, format cliout.Format, report resources.RestoreReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
-			"report":  report,
-		})
+		return cliout.WriteSuccessJSON(w, "report", report)
 	}
 	_, _ = fmt.Fprintf(w, "Restored %s to %s\n", report.Resource.Name, report.RestoredPath)
 	return nil
@@ -163,10 +135,7 @@ func WriteRestoreReport(w io.Writer, format cliout.Format, report resources.Rest
 
 func WriteBlueprintArchiveReport(w io.Writer, format cliout.Format, report resources.BlueprintArchiveReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
-			"report":  report,
-		})
+		return cliout.WriteSuccessJSON(w, "report", report)
 	}
 	_, _ = fmt.Fprintf(w, "Archived %s to blueprint-only state\n", report.Resource.Name)
 	if report.ArchiveDir != "" {
@@ -177,10 +146,7 @@ func WriteBlueprintArchiveReport(w io.Writer, format cliout.Format, report resou
 
 func WriteBlueprintRestoreReport(w io.Writer, format cliout.Format, report resources.BlueprintRestoreReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
-			"report":  report,
-		})
+		return cliout.WriteSuccessJSON(w, "report", report)
 	}
 	_, _ = fmt.Fprintf(w, "Restored blueprint-archived %s to %s\n", report.Resource.Name, report.RestoredPath)
 	return nil
@@ -188,10 +154,7 @@ func WriteBlueprintRestoreReport(w io.Writer, format cliout.Format, report resou
 
 func WriteArchiveGCReport(w io.Writer, format cliout.Format, report resources.ArchiveGCReport, kind string) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
-			"report":  report,
-		})
+		return cliout.WriteSuccessJSON(w, "report", report)
 	}
 	_, _ = fmt.Fprintf(w, "Purged %d %s archives\n", len(report.Removed), kind)
 	return nil
@@ -199,10 +162,7 @@ func WriteArchiveGCReport(w io.Writer, format cliout.Format, report resources.Ar
 
 func WriteDeprecatedList(w io.Writer, format cliout.Format, items []resources.DeprecatedResource) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success":   true,
-			"resources": items,
-		})
+		return cliout.WriteSuccessJSON(w, "resources", items)
 	}
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
@@ -217,10 +177,7 @@ func WriteDeprecatedList(w io.Writer, format cliout.Format, items []resources.De
 
 func WriteBlueprintArchivedList(w io.Writer, format cliout.Format, items []resources.BlueprintArchivedResource) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success":   true,
-			"resources": items,
-		})
+		return cliout.WriteSuccessJSON(w, "resources", items)
 	}
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
@@ -235,10 +192,7 @@ func WriteBlueprintArchivedList(w io.Writer, format cliout.Format, items []resou
 
 func WriteBlueprintList(w io.Writer, format cliout.Format, items []resources.Blueprint) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success":    true,
-			"blueprints": items,
-		})
+		return cliout.WriteSuccessJSON(w, "blueprints", items)
 	}
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
@@ -249,10 +203,7 @@ func WriteBlueprintList(w io.Writer, format cliout.Format, items []resources.Blu
 
 func WriteBlueprintInfo(w io.Writer, format cliout.Format, item resources.Blueprint) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success":   true,
-			"blueprint": item,
-		})
+		return cliout.WriteSuccessJSON(w, "blueprint", item)
 	}
 	rows := [][]string{
 		{"Name", item.Name},
@@ -270,8 +221,7 @@ func WriteBlueprintInfo(w io.Writer, format cliout.Format, item resources.Bluepr
 
 func WriteBlueprintSearch(w io.Writer, format cliout.Format, query string, items []resources.Blueprint) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success":    true,
+		return cliout.WriteSuccessFields(w, map[string]any{
 			"query":      query,
 			"blueprints": items,
 		})
@@ -285,10 +235,7 @@ func WriteBlueprintSearch(w io.Writer, format cliout.Format, query string, items
 
 func WriteBlueprintValidationReport(w io.Writer, format cliout.Format, report resources.BlueprintValidationReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
-			"report":  report,
-		})
+		return cliout.WriteSuccessJSON(w, "report", report)
 	}
 	_, _ = fmt.Fprintf(w, "Validated %d resource blueprints\n", report.Count)
 	return nil

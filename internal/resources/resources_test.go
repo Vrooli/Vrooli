@@ -601,12 +601,11 @@ func TestStatusForManifestNativeExternalCLIResource(t *testing.T) {
 	}
 }
 
-func TestRunManifestNativeExternalCLIInstallAndFallback(t *testing.T) {
+func TestRunManifestNativeExternalCLIInstallRejectsUnsupportedAction(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writeResourceConfig(t, root, "fixture", true)
 	installMarker := filepath.Join(root, "install.marker")
-	customMarker := filepath.Join(root, "custom.marker")
 	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
 		"fixture",
 		testfixture.WithResourceDriver("external-cli"),
@@ -627,7 +626,6 @@ func TestRunManifestNativeExternalCLIInstallAndFallback(t *testing.T) {
 		}),
 	))
 	writeExecutableOnPath(t, "fixture-cli", "#!/usr/bin/env bash\necho 'fixture-cli 1.0.0'\n")
-	writeResourceScript(t, root, "fixture", "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"custom\" ]]; then\n  printf custom > "+shellQuote(customMarker)+"\n  exit 0\nfi\nexit 0\n")
 
 	controller := NewController(root, home)
 	if err := controller.Run("fixture", []string{"install"}, ioDiscard{}, ioDiscard{}); err != nil {
@@ -636,11 +634,8 @@ func TestRunManifestNativeExternalCLIInstallAndFallback(t *testing.T) {
 	if _, err := os.Stat(installMarker); err != nil {
 		t.Fatalf("expected install marker: %v", err)
 	}
-	if err := controller.Run("fixture", []string{"custom"}, ioDiscard{}, ioDiscard{}); err != nil {
-		t.Fatalf("Run(custom): %v", err)
-	}
-	if _, err := os.Stat(customMarker); err != nil {
-		t.Fatalf("expected custom fallback marker: %v", err)
+	if err := controller.Run("fixture", []string{"custom"}, ioDiscard{}, ioDiscard{}); err == nil || !strings.Contains(err.Error(), `action "custom" is not supported`) {
+		t.Fatalf("Run(custom) error = %v", err)
 	}
 }
 

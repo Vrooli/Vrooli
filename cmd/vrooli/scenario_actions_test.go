@@ -6,11 +6,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 func TestParseScenarioStartRequestRequiresSingleNameWhenPathProvided(t *testing.T) {
-	_, err := parseScenarioStartRequest(globalOptions{}, []string{"alpha", "beta", "--path", "/tmp/custom"})
+	_, err := scenariocli.ParseStartRequest(false, []string{"alpha", "beta", "--path", "/tmp/custom"})
 	if err == nil {
 		t.Fatal("expected path + multiple names to fail")
 	}
@@ -46,11 +47,11 @@ func TestExecuteScenarioCommandRendersHelpOnlyErrors(t *testing.T) {
 
 func TestRenderScenarioListResponseHumanIncludesPortsWhenPresent(t *testing.T) {
 	var stdout bytes.Buffer
-	err := renderScenarioListResponse(&stdout, cliout.FormatHuman, scenarioListResponse{
-		Items: []scenarioListItemOutput{{
+	err := renderScenarioListResponse(&stdout, cliout.FormatHuman, scenariocli.ListResponse{
+		Items: []scenariocli.ListItemOutput{{
 			Name:        "alpha",
 			Description: "demo",
-			Ports: []scenarioListPortOutput{{
+			Ports: []scenariocli.ListPortOutput{{
 				Key:  "API_PORT",
 				Port: 18080,
 			}},
@@ -66,7 +67,7 @@ func TestRenderScenarioListResponseHumanIncludesPortsWhenPresent(t *testing.T) {
 }
 
 func TestParseScenarioOpenRequestAcceptsJSONAndPrintURL(t *testing.T) {
-	req, err := parseScenarioOpenRequest(globalOptions{}, []string{"alpha", "--print-url", "--json"})
+	req, err := scenariocli.ParseOpenRequest(false, []string{"alpha", "--print-url", "--json"})
 	if err != nil {
 		t.Fatalf("parseScenarioOpenRequest: %v", err)
 	}
@@ -77,8 +78,8 @@ func TestParseScenarioOpenRequestAcceptsJSONAndPrintURL(t *testing.T) {
 
 func TestRenderScenarioPortResponseHumanSingleMatchesLegacyContract(t *testing.T) {
 	var stdout bytes.Buffer
-	err := renderScenarioPortResponse(&stdout, cliout.FormatHuman, scenarioPortResponse{
-		Single: &scenarioPortSingleOutput{
+	err := renderScenarioPortResponse(&stdout, cliout.FormatHuman, scenariocli.PortResponse{
+		Single: &scenariocli.PortSingleOutput{
 			Success:  true,
 			Scenario: "alpha",
 			PortName: "UI_PORT",
@@ -90,5 +91,15 @@ func TestRenderScenarioPortResponseHumanSingleMatchesLegacyContract(t *testing.T
 	}
 	if got := strings.TrimSpace(stdout.String()); got != "38080" {
 		t.Fatalf("stdout = %q", got)
+	}
+}
+
+func TestParseScenarioValidateEnvRequestAcceptsJSON(t *testing.T) {
+	req, err := scenariocli.ParseValidateEnvRequest(false, []string{"alpha", "--json"})
+	if err != nil {
+		t.Fatalf("parseScenarioValidateEnvRequest: %v", err)
+	}
+	if req.Name != "alpha" || !req.JSON {
+		t.Fatalf("request = %+v", req)
 	}
 }

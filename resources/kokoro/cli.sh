@@ -29,18 +29,13 @@ source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
-# Source agent management (load config and manager directly)
-if [[ -f "${APP_ROOT}/resources/kokoro/config/agents.conf" ]]; then
-    source "${APP_ROOT}/resources/kokoro/config/agents.conf"
-    source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
-fi
 # shellcheck disable=SC1091
 source "${KOKORO_CLI_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
 source "${KOKORO_CLI_DIR}/config/messages.sh" 2>/dev/null || true
 
 # Source Kokoro libraries
-for lib in common docker install status api agents; do
+for lib in common docker install status api; do
     lib_file="${KOKORO_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -83,18 +78,6 @@ cli::register_subcommand "content" "voices" "List available voices" "kokoro::lis
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "kokoro::native::status"
 cli::register_command "logs" "Show Kokoro logs" "kokoro::native::logs"
-# Create wrapper for agents command that delegates to manager
-kokoro::agents::command() {
-    if type -t agent_manager::load_config &>/dev/null; then
-        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="kokoro" "$@"
-    else
-        log::error "Agent management not available"
-        return 1
-    fi
-}
-export -f kokoro::agents::command
-
-cli::register_command "agents" "Manage running kokoro agents" "kokoro::agents::command"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

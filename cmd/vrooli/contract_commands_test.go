@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 func TestShowMainHelpIncludesContractCommand(t *testing.T) {
@@ -42,10 +44,10 @@ func TestRunContractShowJSON(t *testing.T) {
 	if !payload.Success || payload.Root != root {
 		t.Fatalf("payload = %+v", payload)
 	}
-	if payload.Version != "1.0.0" || payload.Schema != "schemas/repo-contract.schema.json" {
+	if payload.Version != repocontractmeta.DefaultContractVersion || payload.Schema != repocontractmeta.ContractSchemaRef {
 		t.Fatalf("payload = %+v", payload)
 	}
-	if !strings.HasSuffix(payload.ContractPath, ".vrooli/repo-contract.json") {
+	if !strings.HasSuffix(payload.ContractPath, filepath.Join(repocontractmeta.ProjectConfigDir, repocontractmeta.ContractFilename)) {
 		t.Fatalf("contract path = %q", payload.ContractPath)
 	}
 }
@@ -179,13 +181,13 @@ func copyRepoContractValidationFixtures(t *testing.T, dest string) {
 	t.Helper()
 	sourceRoot := repoRootFromCaller(t)
 	for _, rel := range []string{
-		filepath.Join(".vrooli", "repo-contract.json"),
-		filepath.Join(".vrooli", "repo-contract-adoption-exceptions.json"),
-		filepath.Join(".vrooli", "schemas", "repo-contract.schema.json"),
-		filepath.Join(".vrooli", "schemas", "common.schema.json"),
-		filepath.Join(".vrooli", "schemas", "validate-repo-contract.py"),
+		filepath.Join(repocontractmeta.ProjectConfigDir, repocontractmeta.ContractFilename),
+		filepath.Join(repocontractmeta.ProjectConfigDir, repocontractmeta.AdoptionExceptionsFilename),
+		filepath.Join(repocontractmeta.ProjectConfigDir, repocontractmeta.SchemaDir, repocontractmeta.SchemaFilename),
+		filepath.Join(repocontractmeta.ProjectConfigDir, repocontractmeta.SchemaDir, repocontractmeta.CommonSchemaFilename),
+		filepath.Join(repocontractmeta.ProjectConfigDir, repocontractmeta.SchemaDir, repocontractmeta.ValidationScriptFilename),
 		"AGENTS.md",
-		filepath.Join("docs", "repo-contract.md"),
+		repocontractmeta.DocsPath,
 		filepath.Join("docs", "CONTRIBUTING.md"),
 		filepath.Join("scenarios", "prompt-manager", "store", "skills", "packs", "core", "cross-platform-readiness", "SKILL.md"),
 	} {

@@ -232,32 +232,11 @@ gemini::content::execute() {
         return 1
     fi
     
-    # Register agent if tracking is available
-    local agent_id
-    if type -t agents::register &>/dev/null; then
-        agent_id=$(agents::generate_id)
-        local command_string="resource-gemini content execute \"$name\" \"$model\" $params"
-        if agents::register "$agent_id" $$ "$command_string"; then
-            export GEMINI_CURRENT_AGENT_ID="$agent_id"
-            # Setup cleanup trap if function exists
-            if type -t gemini::setup_agent_cleanup &>/dev/null; then
-                gemini::setup_agent_cleanup "$agent_id"
-            else
-                # Define inline cleanup if main function not available
-                trap 'if [[ -n "${GEMINI_CURRENT_AGENT_ID:-}" ]] && type -t agents::unregister &>/dev/null; then agents::unregister "${GEMINI_CURRENT_AGENT_ID}" >/dev/null 2>&1; fi' EXIT SIGTERM SIGINT
-            fi
-        fi
-    fi
-    
     # Get content
     local content
     content=$(gemini::content::get "$name")
     local get_exit_code=$?
     if [[ $get_exit_code -ne 0 ]]; then
-        # Clean up agent registration on error
-        if [[ -n "$agent_id" ]] && type -t agents::unregister &>/dev/null; then
-            agents::unregister "$agent_id" >/dev/null 2>&1
-        fi
         return $get_exit_code
     fi
     
@@ -290,11 +269,6 @@ gemini::content::execute() {
         # Execute as a simple prompt
         result=$(gemini::generate "$content" "$model")
         exit_code=$?
-    fi
-    
-    # Clean up agent registration
-    if [[ -n "$agent_id" ]] && type -t agents::unregister &>/dev/null; then
-        agents::unregister "$agent_id" >/dev/null 2>&1
     fi
     
     # Output result and return exit code

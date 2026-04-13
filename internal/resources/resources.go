@@ -3,15 +3,17 @@ package resources
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	internalcontrol "github.com/vrooli/vrooli/internal/control"
 	catalogpkg "github.com/vrooli/vrooli/internal/resources/catalog"
-	compatpkg "github.com/vrooli/vrooli/internal/resources/compat"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
@@ -80,11 +82,7 @@ func (c *Controller) discoverResource(name string) (*Resource, error) {
 	})
 }
 
-func (c *Controller) compatService() *compatpkg.Service {
-	return compatpkg.New(c.Root, c.Home, lookPathResourceFn)
-}
-
-func (c *Controller) runLegacyResourceCommand(name, operation string, args []string, stdout, stderr io.Writer) error {
+func (c *Controller) runResourceCommand(name, operation string, args []string, stdout, stderr io.Writer) error {
 	cmd, err := c.commandForResource(name, append([]string{operation}, args...)...)
 	if err != nil {
 		return err
@@ -174,8 +172,8 @@ func (c *Controller) resourceControl() *resourcecontrol.Service {
 		DriverRunFn: func(ctx context.Context, item catalogpkg.Resource, manifest ResourceManifest, operation string, args []string, stdout, stderr io.Writer) error {
 			return driverRun(ctx, c, item, manifest, operation, args, stdout, stderr)
 		},
-		RunLegacyFn: func(name, operation string, args []string, stdout, stderr io.Writer) error {
-			return c.runLegacyResourceCommand(name, operation, args, stdout, stderr)
+		RunResourceCommandFn: func(name, operation string, args []string, stdout, stderr io.Writer) error {
+			return c.runResourceCommand(name, operation, args, stdout, stderr)
 		},
 		CommandForResourceFn: c.commandForResource,
 		RunCommandFn: func(ctx context.Context, cmd *exec.Cmd) resourcecontrol.CommandResult {
@@ -206,19 +204,62 @@ func (c *Controller) StopAll(stdout, stderr io.Writer) (internalcontrol.StopRepo
 }
 
 func (c *Controller) resolveCLIPath(name string) (string, bool) {
-	return c.compatService().ResolveCLIPath(name)
+	if lookPathResourceFn == nil {
+		return "", false
+	}
+	if path, err := lookPathResourceFn("resource-" + name); err == nil {
+		return path, true
+	}
+	return "", false
 }
 
 func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd, error) {
-	return c.compatService().CommandForResource(name, args...)
+	if path, ok := c.resolveCLIPath(name); ok {
+		return shell.Command(shell.Spec{
+			Name: path,
+			Args: args,
+			Dir:  c.Root,
+			Env:  resourceEnv(c.Root, c.Home),
+		}), nil
+	}
+
+	scriptPath := filepath.Join(c.Root, "resources", name, "cli.sh")
+	if _, err := os.Stat(scriptPath); err == nil {
+		return shell.BashScript(scriptPath, args, shell.Spec{
+			Dir: c.Root,
+			Env: resourceEnv(c.Root, c.Home),
+		}), nil
+	}
+
+	return nil, &Error{
+		Code:      ErrorCodeCommandUnavailable,
+		Resource:  name,
+		Operation: "invoke",
+		Category:  "Environment",
+		Err:       fmt.Errorf("no installed CLI or cli.sh"),
+	}
 }
 
 func resourceEnv(root, home string) []string {
-	return compatpkg.ResourceEnv(root, home)
+	env := os.Environ()
+	env = setEnvValue(env, "VROOLI_ROOT", root)
+	env = setEnvValue(env, "APP_ROOT", root)
+	if strings.TrimSpace(home) != "" {
+		env = setEnvValue(env, "HOME", home)
+	}
+	return env
 }
 
 func setEnvValue(env []string, key, value string) []string {
-	return compatpkg.SetEnvValue(env, key, value)
+	prefix := key + "="
+	for i, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			updated := append([]string(nil), env...)
+			updated[i] = prefix + value
+			return updated
+		}
+	}
+	return append(append([]string(nil), env...), prefix+value)
 }
 
 func ensureObject(parent map[string]any, key string) map[string]any {
@@ -230,18 +271,6 @@ func ensureObject(parent map[string]any, key string) map[string]any {
 	created := map[string]any{}
 	parent[key] = created
 	return created
-}
-
-func extractJSONPayload(output []byte) (json.RawMessage, bool) {
-	return compatpkg.ExtractJSONPayload(output)
-}
-
-func boolValue(value any, fallback bool) bool {
-	return compatpkg.BoolValue(value, fallback)
-}
-
-func stringValue(value any) string {
-	return compatpkg.StringValue(value)
 }
 
 func (c *Controller) deprecatedNameSet() (map[string]struct{}, error) {

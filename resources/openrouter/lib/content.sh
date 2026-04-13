@@ -11,8 +11,6 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${OPENROUTER_LIB_DIR}/core.sh"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
-# Agent management is now handled via unified system (see cli.sh)
-
 # Content directory for storing prompts and configurations
 OPENROUTER_CONTENT_DIR="${var_ROOT_DIR}/data/resources/openrouter/content"
 
@@ -317,17 +315,6 @@ openrouter::content::execute() {
     if [[ -z "$name" ]]; then
         echo "Error: --name is required"
         return 1
-    fi
-    
-    # Register agent if agent tracking is available
-    local agent_id=""
-    if declare -f agents::generate_id >/dev/null 2>&1 && declare -f agents::register >/dev/null 2>&1; then
-        agent_id=$(agents::generate_id)
-        local command="content execute --name $name --model $model"
-        agents::register "$agent_id" "$$" "$command" || {
-            log::warn "Failed to register agent, continuing without tracking"
-        }
-        openrouter::setup_agent_cleanup "$agent_id" 2>/dev/null || true
     fi
     
     # Get the prompt content

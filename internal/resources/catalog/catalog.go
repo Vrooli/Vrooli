@@ -35,6 +35,38 @@ type Resource struct {
 	LegacyAdapter   manifestpkg.ResourceLegacyAdapter `json:"legacy_adapter,omitempty"`
 }
 
+func (r Resource) CommandAdapterDisposition() string {
+	return r.LegacyAdapter.FinalDisposition
+}
+
+func (r Resource) HasCommandAdapterDetails() bool {
+	return r.LegacyAdapter.Owner != "" ||
+		r.LegacyAdapter.DecisionDeadline != "" ||
+		r.LegacyAdapter.FinalDisposition != "" ||
+		r.LegacyAdapter.LegacyCLIPath != "" ||
+		r.LegacyAdapter.Notes != ""
+}
+
+func (r Resource) CommandAdapterFields() [][2]string {
+	fields := make([][2]string, 0, 5)
+	if r.LegacyAdapter.Owner != "" {
+		fields = append(fields, [2]string{"Adapter Owner", r.LegacyAdapter.Owner})
+	}
+	if r.LegacyAdapter.DecisionDeadline != "" {
+		fields = append(fields, [2]string{"Decision Deadline", r.LegacyAdapter.DecisionDeadline})
+	}
+	if r.LegacyAdapter.FinalDisposition != "" {
+		fields = append(fields, [2]string{"Final Disposition", r.LegacyAdapter.FinalDisposition})
+	}
+	if r.LegacyAdapter.LegacyCLIPath != "" {
+		fields = append(fields, [2]string{"Command Path", r.LegacyAdapter.LegacyCLIPath})
+	}
+	if r.LegacyAdapter.Notes != "" {
+		fields = append(fields, [2]string{"Adapter Notes", r.LegacyAdapter.Notes})
+	}
+	return fields
+}
+
 type DiscoverOptions struct {
 	DeprecatedNames map[string]struct{}
 	ResolveCLIPath  func(name string) (string, bool)

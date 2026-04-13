@@ -25,14 +25,33 @@ type DiscoveryReport struct {
 	Issues     []ValidationIssue `json:"issues"`
 }
 
+type consumerScope string
+
+const (
+	scopeScenario consumerScope = "scenario"
+	scopeTemplate consumerScope = "template"
+	scopeResource consumerScope = "resource"
+)
+
 func DiscoverDependents(root string, pkg Package) (DiscoveryReport, error) {
 	var report DiscoveryReport
 
-	scenarioRoot := repocontract.ScenarioRoot(root, "")
+	contract, err := repocontract.LoadDefault(root)
+	if err != nil {
+		return DiscoveryReport{}, err
+	}
+	scenarioRoot, err := contract.TopLevelDir(root, "scenarios")
+	if err != nil {
+		return DiscoveryReport{}, err
+	}
 	templateRoot := repocontract.ScenarioTemplateRoot(root)
+	resourceRoot, err := contract.TopLevelDir(root, "resources")
+	if err != nil {
+		return DiscoveryReport{}, err
+	}
 
 	if err := walkPackageJSONs(scenarioRoot, func(path string) error {
-		deps, issues, err := scanPackageJSON(root, pkg, path, true)
+		deps, issues, err := scanPackageJSON(root, pkg, path, scopeScenario)
 		if err != nil {
 			return err
 		}
@@ -43,7 +62,18 @@ func DiscoverDependents(root string, pkg Package) (DiscoveryReport, error) {
 		return DiscoveryReport{}, err
 	}
 	if err := walkPackageJSONs(templateRoot, func(path string) error {
-		deps, issues, err := scanPackageJSON(root, pkg, path, false)
+		deps, issues, err := scanPackageJSON(root, pkg, path, scopeTemplate)
+		if err != nil {
+			return err
+		}
+		report.Dependents = append(report.Dependents, deps...)
+		report.Issues = append(report.Issues, issues...)
+		return nil
+	}); err != nil {
+		return DiscoveryReport{}, err
+	}
+	if err := walkPackageJSONs(resourceRoot, func(path string) error {
+		deps, issues, err := scanPackageJSON(root, pkg, path, scopeResource)
 		if err != nil {
 			return err
 		}
@@ -55,21 +85,34 @@ func DiscoverDependents(root string, pkg Package) (DiscoveryReport, error) {
 	}
 
 	if err := walkGoMods(scenarioRoot, func(path string) error {
-		deps, err := scanGoMod(root, pkg, path, true)
+		deps, issues, err := scanGoMod(root, pkg, path, scopeScenario)
 		if err != nil {
 			return err
 		}
 		report.Dependents = append(report.Dependents, deps...)
+		report.Issues = append(report.Issues, issues...)
 		return nil
 	}); err != nil {
 		return DiscoveryReport{}, err
 	}
 	if err := walkGoMods(templateRoot, func(path string) error {
-		deps, err := scanGoMod(root, pkg, path, false)
+		deps, issues, err := scanGoMod(root, pkg, path, scopeTemplate)
 		if err != nil {
 			return err
 		}
 		report.Dependents = append(report.Dependents, deps...)
+		report.Issues = append(report.Issues, issues...)
+		return nil
+	}); err != nil {
+		return DiscoveryReport{}, err
+	}
+	if err := walkGoMods(resourceRoot, func(path string) error {
+		deps, issues, err := scanGoMod(root, pkg, path, scopeResource)
+		if err != nil {
+			return err
+		}
+		report.Dependents = append(report.Dependents, deps...)
+		report.Issues = append(report.Issues, issues...)
 		return nil
 	}); err != nil {
 		return DiscoveryReport{}, err
@@ -93,6 +136,12 @@ func walkPackageJSONs(root string, fn func(path string) error) error {
 	}
 	return filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
+			if os.IsPermission(err) {
+				if d != nil && d.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
 			return err
 		}
 		if d.IsDir() {
@@ -121,6 +170,12 @@ func walkGoMods(root string, fn func(path string) error) error {
 	}
 	return filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
+			if os.IsPermission(err) {
+				if d != nil && d.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
 			return err
 		}
 		if d.IsDir() {
@@ -139,7 +194,7 @@ func walkGoMods(root string, fn func(path string) error) error {
 	})
 }
 
-func scanPackageJSON(root string, pkg Package, path string, scenario bool) ([]Dependent, []ValidationIssue, error) {
+func scanPackageJSON(root string, pkg Package, path string, scope consumerScope) ([]Dependent, []ValidationIssue, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, nil, fmt.Errorf("read %s: %w", path, err)
@@ -150,7 +205,8 @@ func scanPackageJSON(root string, pkg Package, path string, scenario bool) ([]De
 	}
 
 	var deps []Dependent
-	for _, id := range pkg.Manifest.Package.ModuleIdentifiers {
+	identifiers := packageModuleIdentifiers(pkg)
+	for _, id := range identifiers {
 		for _, bucket := range []map[string]string{
 			manifest.Dependencies,
 			manifest.DevDependencies,
@@ -158,13 +214,13 @@ func scanPackageJSON(root string, pkg Package, path string, scenario bool) ([]De
 			manifest.OptionalDependencies,
 		} {
 			if version, ok := bucket[id]; ok {
-				name, class := classifyConsumer(root, path, scenario)
+				name, class := classifyConsumer(root, path, scope)
 				deps = append(deps, Dependent{
 					PackageName:      pkg.Name,
 					ConsumerName:     name,
-					ConsumerPath:     consumerRootFromFile(root, path, scenario),
+					ConsumerPath:     consumerRootFromFile(root, path, scope),
 					ConsumerClass:    class,
-					AdoptionMode:     classifyPackageJSONAdoption(version),
+					AdoptionMode:     classifyPackageJSONAdoption(pkg, id, version),
 					DependencyFile:   filepath.Clean(path),
 					DependencyTarget: id,
 					Version:          version,
@@ -174,9 +230,9 @@ func scanPackageJSON(root string, pkg Package, path string, scenario bool) ([]De
 	}
 
 	var issues []ValidationIssue
-	if scenario {
-		if hasWorkspaceDependency(manifest, pkg.Manifest.Package.ModuleIdentifiers) {
-			name, _ := classifyConsumer(root, path, scenario)
+	if scope == scopeScenario {
+		if hasWorkspaceDependency(manifest, identifiers) {
+			name, _ := classifyConsumer(root, path, scope)
 			issues = append(issues, ValidationIssue{
 				Severity:    "error",
 				Code:        "package-no-workspace-deps",
@@ -187,7 +243,7 @@ func scanPackageJSON(root string, pkg Package, path string, scenario bool) ([]De
 		}
 	}
 	if postinstallTouchesSharedPackages(manifest.Scripts["postinstall"]) {
-		name, _ := classifyConsumer(root, path, scenario)
+		name, _ := classifyConsumer(root, path, scope)
 		issues = append(issues, ValidationIssue{
 			Severity:    "error",
 			Code:        "package-no-unauthorized-postinstall",
@@ -200,24 +256,35 @@ func scanPackageJSON(root string, pkg Package, path string, scenario bool) ([]De
 	return deps, issues, nil
 }
 
-func scanGoMod(root string, pkg Package, path string, scenario bool) ([]Dependent, error) {
+func scanGoMod(root string, pkg Package, path string, scope consumerScope) ([]Dependent, []ValidationIssue, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
+		return nil, nil, fmt.Errorf("read %s: %w", path, err)
 	}
 	content := string(data)
 	mod := parseGoMod(content)
 	var deps []Dependent
-	for _, id := range pkg.Manifest.Package.ModuleIdentifiers {
-		dep, ok := mod.dependencyFor(path, root, id)
-		if !ok {
+	var issues []ValidationIssue
+	for _, id := range packageModuleIdentifiers(pkg) {
+		dep := mod.dependencyFor(path, root, id)
+		if !dep.Present {
 			continue
 		}
-		name, class := classifyGoConsumer(root, path, scenario)
+		name, class := classifyGoConsumer(root, path, scope)
+		if !dep.HasGovernedReplace {
+			issues = append(issues, ValidationIssue{
+				Severity:    "error",
+				Code:        "package-go-module-replace-required",
+				Message:     fmt.Sprintf("%s requires a governed local replace for %s", name, id),
+				Path:        filepath.Clean(path),
+				PackageName: pkg.Name,
+			})
+			continue
+		}
 		deps = append(deps, Dependent{
 			PackageName:      pkg.Name,
 			ConsumerName:     name,
-			ConsumerPath:     consumerRootFromFile(root, path, scenario),
+			ConsumerPath:     consumerRootFromFile(root, path, scope),
 			ConsumerClass:    class,
 			AdoptionMode:     ModeGoModuleReplace,
 			DependencyFile:   filepath.Clean(path),
@@ -225,11 +292,43 @@ func scanGoMod(root string, pkg Package, path string, scenario bool) ([]Dependen
 			Version:          dep.Version,
 		})
 	}
-	return deps, nil
+	return deps, issues, nil
 }
 
-func classifyPackageJSONAdoption(version string) AdoptionMode {
+func packageModuleIdentifiers(pkg Package) []string {
+	identifiers := make([]string, 0, len(pkg.Manifest.Package.ModuleIdentifiers))
+	seen := make(map[string]struct{}, len(pkg.Manifest.Package.ModuleIdentifiers))
+	appendUnique := func(id string) {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return
+		}
+		if _, ok := seen[id]; ok {
+			return
+		}
+		seen[id] = struct{}{}
+		identifiers = append(identifiers, id)
+	}
+	for _, id := range pkg.Manifest.Package.ModuleIdentifiers {
+		appendUnique(id)
+	}
+	for _, output := range pkg.Manifest.Package.GeneratedOutputs {
+		for _, id := range output.Identifiers {
+			appendUnique(id)
+		}
+	}
+	return identifiers
+}
+
+func classifyPackageJSONAdoption(pkg Package, target, version string) AdoptionMode {
 	version = strings.TrimSpace(version)
+	for _, output := range pkg.Manifest.Package.GeneratedOutputs {
+		for _, id := range output.Identifiers {
+			if strings.TrimSpace(id) == strings.TrimSpace(target) {
+				return ModeGeneratedArtifact
+			}
+		}
+	}
 	switch {
 	case strings.HasPrefix(version, "file:"):
 		return ModeFileDependency
@@ -264,11 +363,11 @@ func postinstallTouchesSharedPackages(script string) bool {
 	return strings.Contains(script, "node_modules/@vrooli") || strings.Contains(script, "packages/")
 }
 
-func classifyConsumer(root, path string, scenario bool) (string, ConsumerClass) {
+func classifyConsumer(root, path string, scope consumerScope) (string, ConsumerClass) {
 	rel, _ := filepath.Rel(root, path)
 	slash := filepath.ToSlash(rel)
 	parts := strings.Split(slash, "/")
-	if scenario && len(parts) >= 3 {
+	if scope == scopeScenario && len(parts) >= 3 {
 		name := parts[1]
 		component := parts[2]
 		switch {
@@ -280,23 +379,30 @@ func classifyConsumer(root, path string, scenario bool) (string, ConsumerClass) 
 			return name, ConsumerScenarioTest
 		}
 	}
-	if !scenario && len(parts) >= 3 {
+	if scope == scopeTemplate && len(parts) >= 3 {
 		name := parts[2]
 		switch {
 		case strings.Contains(slash, "/ui/"):
 			return name, ConsumerTemplateUI
+		case strings.Contains(slash, "/api/"):
+			return name, ConsumerTemplateAPI
+		case strings.Contains(slash, "/cli/"):
+			return name, ConsumerTemplateCLI
 		default:
 			return name, ConsumerTemplateUI
 		}
 	}
+	if scope == scopeResource && len(parts) >= 2 {
+		return parts[1], ConsumerResourceRuntime
+	}
 	return filepath.Base(filepath.Dir(path)), ConsumerInternalPlatform
 }
 
-func classifyGoConsumer(root, path string, scenario bool) (string, ConsumerClass) {
+func classifyGoConsumer(root, path string, scope consumerScope) (string, ConsumerClass) {
 	rel, _ := filepath.Rel(root, path)
 	slash := filepath.ToSlash(rel)
 	parts := strings.Split(slash, "/")
-	if scenario && len(parts) >= 3 {
+	if scope == scopeScenario && len(parts) >= 3 {
 		name := parts[1]
 		component := parts[2]
 		switch {
@@ -308,7 +414,7 @@ func classifyGoConsumer(root, path string, scenario bool) (string, ConsumerClass
 			return name, ConsumerScenarioAPI
 		}
 	}
-	if !scenario && len(parts) >= 3 {
+	if scope == scopeTemplate && len(parts) >= 3 {
 		name := parts[2]
 		switch {
 		case strings.Contains(slash, "/api/"):
@@ -319,17 +425,23 @@ func classifyGoConsumer(root, path string, scenario bool) (string, ConsumerClass
 			return name, ConsumerInternalPlatform
 		}
 	}
+	if scope == scopeResource && len(parts) >= 2 {
+		return parts[1], ConsumerResourceRuntime
+	}
 	return filepath.Base(filepath.Dir(path)), ConsumerInternalPlatform
 }
 
-func consumerRootFromFile(root, path string, scenario bool) string {
+func consumerRootFromFile(root, path string, scope consumerScope) string {
 	rel, _ := filepath.Rel(root, path)
 	parts := strings.Split(filepath.ToSlash(rel), "/")
-	if scenario && len(parts) >= 2 {
+	if scope == scopeScenario && len(parts) >= 2 {
 		return filepath.Join(root, parts[0], parts[1])
 	}
-	if !scenario && len(parts) >= 3 {
+	if scope == scopeTemplate && len(parts) >= 3 {
 		return filepath.Join(root, parts[0], parts[1], parts[2])
+	}
+	if scope == scopeResource && len(parts) >= 2 {
+		return filepath.Join(root, parts[0], parts[1])
 	}
 	return filepath.Dir(path)
 }
@@ -352,8 +464,10 @@ type parsedGoMod struct {
 }
 
 type goModDependency struct {
-	Target  string
-	Version string
+	Target             string
+	Version            string
+	Present            bool
+	HasGovernedReplace bool
 }
 
 var (
@@ -421,19 +535,19 @@ func parseGoReplaceLine(bucket map[string]string, line string) {
 	bucket[matches[1]] = matches[2]
 }
 
-func (m parsedGoMod) dependencyFor(goModPath, repoRoot, module string) (goModDependency, bool) {
+func (m parsedGoMod) dependencyFor(goModPath, repoRoot, module string) goModDependency {
 	version, hasRequire := m.requires[module]
 	replaceTarget, hasReplace := m.replaces[module]
 	if !hasRequire && !hasReplace {
-		return goModDependency{}, false
+		return goModDependency{}
 	}
 	if hasReplace {
 		if isGovernedReplaceTarget(goModPath, repoRoot, replaceTarget) {
-			return goModDependency{Target: module, Version: version}, true
+			return goModDependency{Target: module, Version: version, Present: true, HasGovernedReplace: true}
 		}
-		return goModDependency{Target: module, Version: version}, false
+		return goModDependency{Target: module, Version: version, Present: true}
 	}
-	return goModDependency{}, false
+	return goModDependency{Target: module, Version: version, Present: true}
 }
 
 func isGovernedReplaceTarget(goModPath, repoRoot, target string) bool {

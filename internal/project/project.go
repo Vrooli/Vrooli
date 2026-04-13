@@ -125,6 +125,17 @@ func NewWithDependencies(root, home string, stdout, stderr io.Writer, deps Depen
 }
 
 func (c *Controller) RunProjectPhase(phase string, args []string) error {
+	switch strings.TrimSpace(phase) {
+	case "setup", "develop", "build":
+		return &vroolierr.Error{
+			Code:       "project_phase_native_only",
+			Category:   "Usage",
+			HTTPStatus: 400,
+			Message:    fmt.Sprintf("project lifecycle phase %q is native-only and cannot run via the generic phase runner", phase),
+			Hint:       fmt.Sprintf("Use `vrooli %s` instead of the generic project lifecycle endpoint.", phase),
+		}
+	}
+
 	project, err := LoadProject(c.Root)
 	if err != nil {
 		return err
