@@ -23,8 +23,8 @@ func TestExecuteScenarioCommandRendersHelpOnlyErrors(t *testing.T) {
 	var stdout bytes.Buffer
 	ctx := &commandContext{Stdout: &stdout}
 
-	err := executeScenarioCommand(configuredApp(), ctx, nil, scenarioCommandAction[struct{}, struct{}]{
-		parse: func(globals globalOptions, args []string) (struct{}, error) {
+	err := executeCommandAction(configuredApp(), ctx, nil, commandAction[struct{}, struct{}]{
+		parse: func(ctx *commandContext, args []string) (struct{}, error) {
 			return struct{}{}, commandHelpOnly("Usage: vrooli scenario fake")
 		},
 		run: func(app *App, ctx *commandContext, req struct{}) (cliout.Format, struct{}, error) {
@@ -37,7 +37,7 @@ func TestExecuteScenarioCommandRendersHelpOnlyErrors(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("executeScenarioCommand: %v", err)
+		t.Fatalf("executeCommandAction: %v", err)
 	}
 	if got := stdout.String(); !strings.Contains(got, "Usage: vrooli scenario fake") {
 		t.Fatalf("help output missing usage text: %q", got)

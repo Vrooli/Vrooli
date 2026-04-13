@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -13,25 +12,24 @@ import (
 
 type resourceTemplateCommandAction[Req any, Resp any] struct {
 	parse  func(args []string) (Req, error)
-	run    func(controller *resources.Controller, globals globalOptions, stderr io.Writer, req Req) (cliout.Format, Resp, error)
+	run    func(controller *resources.Controller, ctx *commandContext, req Req) (cliout.Format, Resp, error)
 	render func(w io.Writer, format cliout.Format, resp Resp) error
 }
 
 func executeResourceTemplateCommand[Req any, Resp any](controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer, action resourceTemplateCommandAction[Req, Resp]) error {
-	req, err := action.parse(args)
-	if err != nil {
-		var helpErr commandHelpError
-		if errors.As(err, &helpErr) {
-			_, _ = fmt.Fprintln(stdout, helpErr.message)
-			return nil
-		}
-		return err
+	app, ctx := newConfiguredCommandContext("", globals, stdout, stderr)
+	if controller != nil {
+		ctx.Root = controller.Root
 	}
-	format, resp, err := action.run(controller, globals, stderr, req)
-	if err != nil {
-		return err
-	}
-	return action.render(stdout, format, resp)
+	return executeBoundCommand(app, ctx, controller, args, boundCommandAction[*resources.Controller, Req, Resp]{
+		parse: func(globals globalOptions, args []string) (Req, error) {
+			return action.parse(args)
+		},
+		run: func(controller *resources.Controller, ctx *commandContext, req Req) (cliout.Format, Resp, error) {
+			return action.run(controller, ctx, req)
+		},
+		render: action.render,
+	})
 }
 
 type (
@@ -65,12 +63,12 @@ func parseResourceTemplateListRequest(args []string) (resourceTemplateNoArgsRequ
 	return parseResourceTemplateNoArgs("Usage: vrooli resource template list", "resource template list", args)
 }
 
-func runResourceTemplateListRequest(controller *resources.Controller, globals globalOptions, stderr io.Writer, req resourceTemplateNoArgsRequest) (cliout.Format, []resources.ResourceTemplateInfo, error) {
+func runResourceTemplateListRequest(controller *resources.Controller, ctx *commandContext, req resourceTemplateNoArgsRequest) (cliout.Format, []resources.ResourceTemplateInfo, error) {
 	items, err := controller.ListResourceTemplates()
 	if err != nil {
 		return "", nil, err
 	}
-	format, err := formatFromJSON(globals.json)
+	format, err := formatFromJSON(ctx.Globals.json)
 	if err != nil {
 		return "", nil, err
 	}
@@ -102,12 +100,12 @@ func parseResourceTemplateShowRequest(args []string) (resourceTemplateNameReques
 	return parseResourceTemplateName("Usage: vrooli resource template show <name>", "resource template show", args)
 }
 
-func runResourceTemplateShowRequest(controller *resources.Controller, globals globalOptions, stderr io.Writer, req resourceTemplateNameRequest) (cliout.Format, resources.ResourceTemplateInfo, error) {
+func runResourceTemplateShowRequest(controller *resources.Controller, ctx *commandContext, req resourceTemplateNameRequest) (cliout.Format, resources.ResourceTemplateInfo, error) {
 	info, err := controller.ResourceTemplate(req.Name)
 	if err != nil {
 		return "", resources.ResourceTemplateInfo{}, err
 	}
-	format, err := formatFromJSON(globals.json)
+	format, err := formatFromJSON(ctx.Globals.json)
 	if err != nil {
 		return "", resources.ResourceTemplateInfo{}, err
 	}
@@ -159,12 +157,12 @@ func parseResourceTemplateValidateRequest(args []string) (resourceTemplateNoArgs
 	return parseResourceTemplateNoArgs("Usage: vrooli resource template validate", "resource template validate", args)
 }
 
-func runResourceTemplateValidateRequest(controller *resources.Controller, globals globalOptions, stderr io.Writer, req resourceTemplateNoArgsRequest) (cliout.Format, resources.ResourceTemplateValidationReport, error) {
+func runResourceTemplateValidateRequest(controller *resources.Controller, ctx *commandContext, req resourceTemplateNoArgsRequest) (cliout.Format, resources.ResourceTemplateValidationReport, error) {
 	report, err := controller.ValidateResourceTemplates()
 	if err != nil {
 		return "", resources.ResourceTemplateValidationReport{}, err
 	}
-	format, err := formatFromJSON(globals.json)
+	format, err := formatFromJSON(ctx.Globals.json)
 	if err != nil {
 		return "", resources.ResourceTemplateValidationReport{}, err
 	}
@@ -188,7 +186,7 @@ func parseResourceTemplateGenerateRequest(controller *resources.Controller, args
 	return parseResourceTemplateGenerateArgs(controller, args, stderr)
 }
 
-func runResourceTemplateGenerateRequest(controller *resources.Controller, globals globalOptions, stderr io.Writer, req resourceTemplateGenerateOptions) (cliout.Format, resources.ResourceTemplateGenerateReport, error) {
+func runResourceTemplateGenerateRequest(controller *resources.Controller, ctx *commandContext, req resourceTemplateGenerateOptions) (cliout.Format, resources.ResourceTemplateGenerateReport, error) {
 	report, err := controller.GenerateResourceTemplate(resources.ResourceTemplateGenerateRequest{
 		TemplateName:  req.TemplateName,
 		BlueprintName: req.BlueprintName,
@@ -200,7 +198,7 @@ func runResourceTemplateGenerateRequest(controller *resources.Controller, global
 	if err != nil {
 		return "", resources.ResourceTemplateGenerateReport{}, err
 	}
-	format, err := formatFromJSON(globals.json)
+	format, err := formatFromJSON(ctx.Globals.json)
 	if err != nil {
 		return "", resources.ResourceTemplateGenerateReport{}, err
 	}

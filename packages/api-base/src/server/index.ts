@@ -54,6 +54,10 @@ export {
   startScenarioServer,
 } from './template.js'
 
+export {
+  assertLifecycleManagedUI,
+} from './lifecycle.js'
+
 // Host scenario helpers
 export {
   createScenarioProxyHost,

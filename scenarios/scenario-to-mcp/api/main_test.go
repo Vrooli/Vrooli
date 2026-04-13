@@ -5,10 +5,12 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -352,8 +354,9 @@ func TestDocumentationEndpoints(t *testing.T) {
 	env := setupTestEnvironment(t)
 	defer env.Cleanup()
 
-	createTestDocFile(t, env.TempDir, filepath.Join("docs", "intro.md"), "# Intro\nScenario documentation sample")
-	createTestDocFile(t, env.TempDir, "README.md", "# Scenario Overview\nOverview details")
+	scenarioRoot := env.TempDir
+	createTestDocFile(t, scenarioRoot, filepath.Join("docs", "intro.md"), "# Intro\nScenario documentation sample")
+	createTestDocFile(t, scenarioRoot, "README.md", "# Scenario Overview\nOverview details")
 
 	ts := setupTestServer(t, nil, env.TempDir)
 
@@ -477,7 +480,6 @@ func TestServerInitialization(t *testing.T) {
 		config := &Config{
 			APIPort:       3290,
 			RegistryPort:  3292,
-			DatabaseURL:   "test-url",
 			ScenariosPath: "/tmp/scenarios",
 		}
 
@@ -532,6 +534,22 @@ func TestGetEnvHelpers(t *testing.T) {
 	})
 }
 
+func TestDefaultScenariosPathUsesContractRoot(t *testing.T) {
+	root := newScenarioToMCPContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "scenario-to-mcp", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+
+	t.Setenv("VROOLI_ROOT", nested)
+
+	got := defaultScenariosPath()
+	want := filepath.Join(root, "scenarios")
+	if got != want {
+		t.Fatalf("defaultScenariosPath() = %q, want %q", got, want)
+	}
+}
+
 // TestPerformance tests API performance
 func TestPerformance(t *testing.T) {
 	if testing.Short() {
@@ -568,6 +586,41 @@ func TestPerformance(t *testing.T) {
 		},
 		MaxDuration: 50 * time.Millisecond,
 	})
+}
+
+func newScenarioToMCPContractFixtureRepo(t *testing.T) string {
+	t.Helper()
+
+	root := t.TempDir()
+	repoRoot := scenarioToMCPRepoRoot(t)
+	contractData, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("read repo contract: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir .vrooli: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), contractData, 0o644); err != nil {
+		t.Fatalf("write repo contract: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/scenario-to-mcp-test\n\ngo 1.24.0\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	for _, dir := range []string{"scenarios", "resources", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	return root
+}
+
+func scenarioToMCPRepoRoot(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", ".."))
 }
 
 // TestIntegrationWorkflow tests complete MCP addition workflow
@@ -768,7 +821,6 @@ func TestDatabaseErrors(t *testing.T) {
 		// Try to create server with invalid database URL
 		config := &Config{
 			APIPort:       3290,
-			DatabaseURL:   "invalid://connection",
 			ScenariosPath: env.TempDir,
 		}
 

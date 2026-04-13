@@ -4,6 +4,8 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -379,6 +381,37 @@ func TestSummaryBuilder_BlockingDetailsSource(t *testing.T) {
 	}
 }
 
+func TestDefaultResourceResolverResolveScenarioResourcesUsesContractScenarioPath(t *testing.T) {
+	root := newContractFixtureRepo(t)
+	servicePath := filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
+		t.Fatalf("mkdir service dir: %v", err)
+	}
+	if err := os.WriteFile(servicePath, []byte(`{"service":{"dependencies":{"resources":{"postgres":{}}}}}`), 0o644); err != nil {
+		t.Fatalf("write service.json: %v", err)
+	}
+
+	t.Setenv("VROOLI_ROOT", filepath.Join(root, "scenarios", "secrets-manager", "api"))
+
+	resolver := &DefaultResourceResolver{}
+	got := resolver.resolveScenarioResources("alpha")
+	if len(got) != 1 || got[0] != "postgres" {
+		t.Fatalf("resolveScenarioResources() = %v, want [postgres]", got)
+	}
+}
+
+func TestHTTPAnalyzerClientReportPathUsesContractScenarioPath(t *testing.T) {
+	root := newContractFixtureRepo(t)
+	t.Setenv("VROOLI_ROOT", filepath.Join(root, "scenarios", "secrets-manager", "api"))
+
+	client := &HTTPAnalyzerClient{}
+	got := client.reportPath("alpha")
+	want := filepath.Join(root, "scenarios", "alpha", ".vrooli", "deployment", "deployment-report.json")
+	if got != want {
+		t.Fatalf("reportPath() = %q, want %q", got, want)
+	}
+}
+
 // -----------------------------------------------------------------------------
 // BundlePlanBuilder Tests
 // -----------------------------------------------------------------------------
@@ -674,7 +707,6 @@ func TestManifestBuilder_PersistError(t *testing.T) {
 
 	req := DeploymentManifestRequest{Scenario: "test", Tier: "desktop"}
 	_, err := builder.Build(context.Background(), req)
-
 	// Persist error may or may not fail the build depending on implementation
 	if err != nil {
 		t.Logf("Build with persist error returned: %v (implementation-dependent)", err)

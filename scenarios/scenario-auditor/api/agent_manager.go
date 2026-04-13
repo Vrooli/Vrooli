@@ -623,7 +623,7 @@ func getScenarioRoot() string {
 	return scenarioRootPath
 }
 
-func getVrooliRoot() string {
+func currentVrooliRoot() string {
 	vrooliRootOnce.Do(func() {
 		root, err := resolveRepoRoot()
 		if err == nil {

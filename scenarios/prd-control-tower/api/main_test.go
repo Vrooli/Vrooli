@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -64,28 +67,18 @@ func TestGetVrooliRoot(t *testing.T) {
 	tests := []struct {
 		name        string
 		vrooliRoot  string
-		home        string
 		expectError bool
 		expected    string
 	}{
 		{
-			name:        "VROOLI_ROOT is set",
-			vrooliRoot:  "/custom/vrooli",
-			home:        "/home/user",
+			name:        "VROOLI_ROOT is set to repo root",
+			vrooliRoot:  repoRootForTest(t),
 			expectError: false,
-			expected:    "/custom/vrooli",
+			expected:    repoRootForTest(t),
 		},
 		{
-			name:        "VROOLI_ROOT not set, HOME is set",
+			name:        "missing repo env returns error",
 			vrooliRoot:  "",
-			home:        "/home/user",
-			expectError: false,
-			expected:    "/home/user/Vrooli",
-		},
-		{
-			name:        "neither VROOLI_ROOT nor HOME is set",
-			vrooliRoot:  "",
-			home:        "",
 			expectError: true,
 			expected:    "",
 		},
@@ -93,32 +86,9 @@ func TestGetVrooliRoot(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save original environment
-			origVrooliRoot := getEnv("VROOLI_ROOT")
-			origHome := getEnv("HOME")
-
-			// Set test environment
-			if tt.vrooliRoot != "" {
-				t.Setenv("VROOLI_ROOT", tt.vrooliRoot)
-			} else {
-				t.Setenv("VROOLI_ROOT", "")
-			}
-
-			if tt.home != "" {
-				t.Setenv("HOME", tt.home)
-			} else {
-				t.Setenv("HOME", "")
-			}
+			t.Setenv("VROOLI_ROOT", tt.vrooliRoot)
 
 			result, err := getVrooliRoot()
-
-			// Restore original environment
-			if origVrooliRoot != "" {
-				t.Setenv("VROOLI_ROOT", origVrooliRoot)
-			}
-			if origHome != "" {
-				t.Setenv("HOME", origHome)
-			}
 
 			if tt.expectError {
 				if err == nil {
@@ -139,8 +109,33 @@ func TestGetVrooliRoot(t *testing.T) {
 	}
 }
 
-// Helper function to safely get environment variable
-func getEnv(key string) string {
-	// This is a test helper, actual implementation would use os.Getenv
-	return ""
+func repoRootForTest(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", ".."))
+}
+
+func newContractFixtureRepo(t *testing.T) string {
+	t.Helper()
+
+	root := t.TempDir()
+	for _, dir := range []string{".vrooli", "scenarios", "resources", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	data, err := os.ReadFile(filepath.Join(repoRootForTest(t), ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("read repo-contract.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), data, 0o644); err != nil {
+		t.Fatalf("write repo-contract.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/test\n\ngo 1.21\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	return root
 }

@@ -4,10 +4,10 @@
   "description": "React/Vite dashboard for the App Issue Tracker scenario",
   "type": "module",
   "scripts": {
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
+    "dev": "node ../../../packages/api-base/bin/vrooli-ui-run.js vite",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port ${UI_PORT:-4173}",
-    "start": "node server.js",
+    "start": "node ../../../packages/api-base/bin/vrooli-ui-run.js node server.js",
     "test": "vitest --run"
   },
   "dependencies": {

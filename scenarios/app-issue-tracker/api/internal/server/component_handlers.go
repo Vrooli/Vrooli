@@ -10,6 +10,7 @@ import (
 
 	"app-issue-tracker-api/internal/logging"
 	"app-issue-tracker-api/internal/server/handlers"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 type Component struct {
@@ -60,19 +61,23 @@ func (s *Server) getComponentsHandler(w http.ResponseWriter, r *http.Request) {
 
 // discoverComponents scans filesystem for scenarios and resources
 func (s *Server) discoverComponents() ([]Component, error) {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	vrooliRoot := ""
+	if s.config != nil {
+		vrooliRoot = strings.TrimSpace(s.config.VrooliRoot)
+	}
 	if vrooliRoot == "" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get home directory and VROOLI_ROOT not set: %w", err)
-		}
-		vrooliRoot = filepath.Join(homeDir, "Vrooli")
+		return nil, fmt.Errorf("failed to discover components: Vrooli root is not configured")
+	}
+	if resolved, err := repocontract.FindRepoRootFromPath(vrooliRoot); err == nil {
+		vrooliRoot = resolved
+	} else {
+		vrooliRoot = filepath.Clean(vrooliRoot)
 	}
 
 	components := make([]Component, 0)
 
 	// Discover scenarios
-	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
+	scenariosDir := resolveScenariosDir(vrooliRoot)
 	scenarios, err := s.discoverScenarios(scenariosDir)
 	if err != nil {
 		logging.LogWarn("Failed to discover scenarios", "error", err, "path", scenariosDir)
@@ -89,6 +94,16 @@ func (s *Server) discoverComponents() ([]Component, error) {
 	}
 
 	return components, nil
+}
+
+func resolveScenariosDir(repoRoot string) string {
+	contract, err := repocontract.LoadDefault(repoRoot)
+	if err == nil {
+		if dir, err := contract.TopLevelDir(repoRoot, "scenarios"); err == nil {
+			return dir
+		}
+	}
+	return filepath.Join(filepath.Clean(repoRoot), "scenarios")
 }
 
 func (s *Server) discoverScenarios(scenariosDir string) ([]Component, error) {

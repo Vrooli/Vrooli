@@ -3,49 +3,10 @@ package main
 import (
 	"fmt"
 	"io"
-	"os/exec"
-	"path/filepath"
-	"slices"
 	"strings"
 
-	repocontract "github.com/vrooli/repo-contract-go"
-	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/repocontractcheck"
+	"github.com/vrooli/vrooli/internal/cli/contractcli"
 )
-
-type contractValidateOutput struct {
-	Success bool                     `json:"success"`
-	Root    string                   `json:"root"`
-	Schema  contractValidationCheck  `json:"schema"`
-	Report  repocontractcheck.Report `json:"report"`
-}
-
-type contractValidationCheck struct {
-	Passed  bool   `json:"passed"`
-	Message string `json:"message"`
-}
-
-type contractShowOutput struct {
-	Success      bool                            `json:"success"`
-	Root         string                          `json:"root"`
-	ContractPath string                          `json:"contract_path"`
-	Schema       string                          `json:"schema"`
-	Version      string                          `json:"version"`
-	Platform     repocontract.Platform           `json:"platform"`
-	Markers      repocontract.RootMarkers        `json:"markers"`
-	Layout       repocontract.Layout             `json:"layout"`
-	Scenario     repocontract.ScenarioSpec       `json:"scenario"`
-	Resource     repocontract.ResourceSpec       `json:"resource"`
-	Globs        repocontract.GlobSpec           `json:"globs"`
-	Environment  map[string]string               `json:"environment"`
-	Sandbox      contractShowSandbox             `json:"sandbox"`
-	Profiles     map[string]repocontract.Profile `json:"profiles"`
-}
-
-type contractShowSandbox struct {
-	FullRepoScopes      []string `json:"full_repo_scopes"`
-	ScenarioScopePrefix string   `json:"scenario_scope_prefix"`
-}
 
 func (app *App) runContractCommand(ctx *commandContext, args []string) error {
 	return runContractCommandWithApp(app, ctx, args)
@@ -85,34 +46,17 @@ func runContractValidateCommand(ctx *commandContext, args []string) error {
 	if err != nil {
 		return contractRootError(err)
 	}
-	schemaMessage, schemaPassed := runContractSchemaValidation(root)
-	report, err := repocontractcheck.Run(root)
+	output, err := contractcli.Validate(root)
 	if err != nil {
-		return fmt.Errorf("run repo-contract checks: %w", err)
+		return err
 	}
 
 	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return err
 	}
-	output := contractValidateOutput{
-		Success: schemaPassed && report.Success,
-		Root:    root,
-		Schema: contractValidationCheck{
-			Passed:  schemaPassed,
-			Message: schemaMessage,
-		},
-		Report: report,
-	}
-
-	if format == cliout.FormatJSON {
-		if err := cliout.WriteJSON(ctx.Stdout, output); err != nil {
-			return err
-		}
-	} else {
-		if err := writeContractValidateHuman(ctx.Stdout, output); err != nil {
-			return err
-		}
+	if err := contractcli.RenderValidate(ctx.Stdout, format, output); err != nil {
+		return err
 	}
 
 	if output.Success {
@@ -132,38 +76,15 @@ func runContractShowCommand(ctx *commandContext, args []string) error {
 		}
 	}
 
-	contract, root, err := repocontract.LoadDefaultFromEnvOrCWD()
+	output, err := contractcli.LoadShowOutput()
 	if err != nil {
 		return contractRootError(err)
 	}
-	output := contractShowOutput{
-		Success:      true,
-		Root:         root,
-		ContractPath: filepath.Join(root, ".vrooli", "repo-contract.json"),
-		Schema:       contract.Schema(),
-		Version:      contract.Version(),
-		Platform:     contract.Platform(),
-		Markers:      contract.RootMarkers(),
-		Layout:       contract.Layout(),
-		Scenario:     contract.Scenario(),
-		Resource:     contract.Resource(),
-		Globs:        contract.Globs(),
-		Environment:  contract.EnvironmentVariables(),
-		Sandbox: contractShowSandbox{
-			FullRepoScopes:      contract.SandboxFullRepoScopes(),
-			ScenarioScopePrefix: contract.SandboxScenarioScopePrefix(),
-		},
-		Profiles: loadContractProfiles(contract),
-	}
-
 	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return err
 	}
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(ctx.Stdout, output)
-	}
-	return writeContractShowHuman(ctx.Stdout, output)
+	return contractcli.RenderShow(ctx.Stdout, format, output)
 }
 
 func runContractResolveCommand(ctx *commandContext, args []string) error {
@@ -209,12 +130,7 @@ func runContractResolveScenarioCommand(ctx *commandContext, args []string) error
 	if err != nil {
 		return contractRootError(err)
 	}
-	var resolved string
-	if fileKey == "" {
-		resolved, err = repocontract.ResolveScenarioPath(root, scenarioName)
-	} else {
-		resolved, err = repocontract.ResolveScenarioFile(root, scenarioName, fileKey)
-	}
+	output, err := contractcli.ResolveScenario(root, scenarioName, fileKey)
 	if err != nil {
 		return err
 	}
@@ -223,17 +139,7 @@ func runContractResolveScenarioCommand(ctx *commandContext, args []string) error
 	if err != nil {
 		return err
 	}
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(ctx.Stdout, map[string]any{
-			"success":  true,
-			"root":     root,
-			"scenario": scenarioName,
-			"file":     fileKey,
-			"path":     resolved,
-		})
-	}
-	_, _ = fmt.Fprintln(ctx.Stdout, resolved)
-	return nil
+	return contractcli.RenderResolveScenario(ctx.Stdout, format, output)
 }
 
 func runContractMatchGlobCommand(ctx *commandContext, args []string) error {
@@ -247,7 +153,7 @@ func runContractMatchGlobCommand(ctx *commandContext, args []string) error {
 		return usageErrorf("contract match-glob", "usage: vrooli contract match-glob <pattern> <path>")
 	}
 
-	matched, err := repocontract.MatchRepoGlob(args[0], args[1])
+	output, err := contractcli.MatchGlob(args[0], args[1])
 	if err != nil {
 		return err
 	}
@@ -255,136 +161,15 @@ func runContractMatchGlobCommand(ctx *commandContext, args []string) error {
 	if err != nil {
 		return err
 	}
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(ctx.Stdout, map[string]any{
-			"success": true,
-			"pattern": args[0],
-			"path":    args[1],
-			"matched": matched,
-		})
-	}
-	if matched {
-		_, _ = fmt.Fprintln(ctx.Stdout, "matched")
-		return nil
-	}
-	_, _ = fmt.Fprintln(ctx.Stdout, "not matched")
-	return nil
+	return contractcli.RenderMatchGlob(ctx.Stdout, format, output)
 }
 
 func resolveContractRoot() (string, error) {
-	return repocontract.FindRepoRootFromEnvOrCWD()
+	return contractcli.ResolveRoot()
 }
 
 func contractRootError(err error) error {
 	return newErrorWithCategory(fmt.Errorf("resolve repo contract root: %w", err), errorCategoryEnvironment, "Run from a Vrooli repository descendant or set VROOLI_SOURCE_ROOT", nil)
-}
-
-func runContractSchemaValidation(root string) (string, bool) {
-	cmd := exec.Command("python3", filepath.Join(root, ".vrooli", "schemas", "validate-repo-contract.py"))
-	cmd.Dir = root
-	output, err := cmd.CombinedOutput()
-	message := strings.TrimSpace(string(output))
-	if err != nil {
-		if message == "" {
-			message = err.Error()
-		}
-		return message, false
-	}
-	if message == "" {
-		message = "ok"
-	}
-	return message, true
-}
-
-func loadContractProfiles(contract *repocontract.Contract) map[string]repocontract.Profile {
-	names := []string{"mini_vrooli_bundle"}
-	profiles := make(map[string]repocontract.Profile, len(names))
-	for _, name := range names {
-		profile, err := contract.Profile(name)
-		if err == nil {
-			profiles[name] = profile
-		}
-	}
-	return profiles
-}
-
-func writeContractValidateHuman(w io.Writer, output contractValidateOutput) error {
-	status := "passed"
-	if !output.Success {
-		status = "failed"
-	}
-	if _, err := fmt.Fprintf(w, "Repo contract validation %s\n", status); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(w, "Root: %s\n", output.Root); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(w, "Schema: %s\n", renderCheckLine(output.Schema.Passed, output.Schema.Message)); err != nil {
-		return err
-	}
-	for _, check := range output.Report.Checks {
-		if _, err := fmt.Fprintf(w, "%s: %s\n", check.Name, renderCheckLine(check.Passed, check.Message)); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func writeContractShowHuman(w io.Writer, output contractShowOutput) error {
-	if _, err := fmt.Fprintln(w, "Repo contract"); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(w, "Root: %s\n", output.Root); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(w, "Contract: %s\n", output.ContractPath); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(w, "Version: %s\n", output.Version); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(w, "Platform mode: %s\n", output.Platform.Mode); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(w, "Markers: dirs=%s files=%s\n", strings.Join(output.Markers.RequiredDirs, ","), strings.Join(output.Markers.RequiredFiles, ",")); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(w, "Layout: scenarios=%s resources=%s packages=%s cmd=%s internal=%s docs=%s\n",
-		output.Layout.ScenarioDir, output.Layout.ResourceDir, output.Layout.PackageDir, output.Layout.CommandDir, output.Layout.InternalDir, output.Layout.DocsDir); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(w, "Scenario service path: %s\n", output.Scenario.WellKnownPaths["service"]); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(w, "Resource manifest path: %s\n", output.Resource.Manifest); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(w, "Glob policy: syntax=%s root_relative=%t case_sensitive=%t allow_absolute=%t path_format=%s\n",
-		output.Globs.Syntax, output.Globs.RootRelative, output.Globs.CaseSensitive, output.Globs.AllowAbsolute, output.Globs.PathFormat); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(w, "Sandbox scopes: %s prefix=%s\n", strings.Join(output.Sandbox.FullRepoScopes, ","), output.Sandbox.ScenarioScopePrefix); err != nil {
-		return err
-	}
-	profileNames := make([]string, 0, len(output.Profiles))
-	for name := range output.Profiles {
-		profileNames = append(profileNames, name)
-	}
-	slices.Sort(profileNames)
-	if _, err := fmt.Fprintf(w, "Profiles: %s\n", strings.Join(profileNames, ",")); err != nil {
-		return err
-	}
-	return nil
-}
-
-func renderCheckLine(passed bool, message string) string {
-	if strings.TrimSpace(message) == "" {
-		message = "ok"
-	}
-	if passed {
-		return "PASS (" + message + ")"
-	}
-	return "FAIL (" + message + ")"
 }
 
 func showContractHelp(w io.Writer) {

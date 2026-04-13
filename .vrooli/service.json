@@ -5,56 +5,113 @@
       "name": "git",
       "required": true,
       "reason": "Support repository bootstrap, source operations, and setup-time git configuration",
-      "when": ["setup", "develop"],
-      "environments": ["development", "production", "minimal"],
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
       "notes": "Root-owned core tool"
     },
     {
       "name": "curl",
       "required": true,
       "reason": "Support HTTP-based bootstrap, diagnostics, and resource helper flows",
-      "when": ["setup", "develop"],
-      "environments": ["development", "production", "minimal"],
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
       "notes": "Root-owned core tool"
     },
     {
       "name": "jq",
       "required": true,
-      "reason": "Support JSON parsing across setup, lifecycle, and shell-retained resource helpers",
-      "when": ["setup", "develop"],
-      "environments": ["development", "production", "minimal"],
+      "reason": "Support JSON parsing. Commonly used by coding agents and scripts",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
+      "notes": "Root-owned core tool"
+    },
+    {
+      "name": "yq",
+      "required": true,
+      "reason": "Support YAML parsing. Commonly used by coding agents and scripts",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
       "notes": "Root-owned core tool"
     },
     {
       "name": "docker",
       "required": true,
       "reason": "Run containerized resources across setup modes",
-      "when": ["setup", "develop"],
-      "environments": ["development", "production", "minimal"],
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ],
       "notes": "Root-owned core tool"
     },
     {
       "name": "go",
       "required": true,
       "reason": "Build and validate native Vrooli tooling during development setup",
-      "when": ["setup", "develop"],
-      "environments": ["development"],
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "environments": [
+        "development"
+      ],
       "notes": "Root-owned development toolchain"
     },
     {
       "name": "node",
       "required": true,
       "reason": "Build and run JavaScript-based workspace tooling during development setup",
-      "when": ["setup", "develop"],
-      "environments": ["development"],
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "environments": [
+        "development"
+      ],
       "notes": "Root-owned development toolchain"
     },
     {
       "name": "python",
       "required": true,
       "reason": "Support repo validation helpers and Python-based flows during development setup",
-      "when": ["setup"],
-      "environments": ["development"],
+      "when": [
+        "setup"
+      ],
+      "environments": [
+        "development"
+      ],
       "notes": "Root-owned development helper runtime"
     }
   ],
@@ -63,8 +120,12 @@
       "name": "remote_session_protection",
       "required": false,
       "reason": "Protect remote Linux GUI sessions when the deployment profile calls for it",
-      "when": ["setup"],
-      "platforms": ["linux"],
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux"
+      ],
       "notes": "Native runtime applies managed Linux sysctl and systemd protections for remote sessions"
     }
   ],

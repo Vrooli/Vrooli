@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"sort"
 	"strings"
 )
 
@@ -75,6 +77,23 @@ type Report struct {
 	Checks       []CheckResult `json:"checks"`
 }
 
+type adoptionExceptionDoc struct {
+	Version    string              `json:"version"`
+	Exceptions []adoptionException `json:"exceptions"`
+}
+
+type adoptionException struct {
+	Path   string `json:"path"`
+	Rule   string `json:"rule"`
+	Reason string `json:"reason"`
+}
+
+type adoptionRule struct {
+	Name        string
+	Description string
+	Pattern     *regexp.Regexp
+}
+
 func Run(root string) (Report, error) {
 	root = strings.TrimSpace(root)
 	if root == "" {
@@ -104,6 +123,7 @@ func Run(root string) (Report, error) {
 		{name: "profile_roots_within_canonical_layout", fn: checkProfileRootsWithinCanonicalLayout},
 		{name: "bundle_profile_policy", fn: checkBundleProfilePolicy},
 		{name: "docs_alignment", fn: checkDocsAlignment},
+		{name: "adoption_rules_alignment", fn: checkAdoptionRulesAlignment},
 	}
 
 	report := Report{
@@ -408,6 +428,236 @@ func checkDocsAlignment(doc contractDoc, root string, raw string) error {
 		return fmt.Errorf("docs/repo-contract.md still marks CLI tooling as deferred")
 	}
 	return nil
+}
+
+func checkAdoptionRulesAlignment(doc contractDoc, root string, raw string) error {
+	if err := checkGuidanceAlignment(root); err != nil {
+		return err
+	}
+
+	exceptions, err := loadAdoptionExceptions(root)
+	if err != nil {
+		return err
+	}
+
+	violations, err := scanAdoptionViolations(root, exceptions)
+	if err != nil {
+		return err
+	}
+	if len(violations) == 0 {
+		return nil
+	}
+
+	sort.Strings(violations)
+	return fmt.Errorf("repo-contract adoption violations: %s", strings.Join(violations, "; "))
+}
+
+func checkGuidanceAlignment(root string) error {
+	required := []struct {
+		path     string
+		snippets []string
+	}{
+		{
+			path: "docs/repo-contract.md",
+			snippets: []string{
+				"## Adoption Rules",
+				"## Grandfathered Debt and Exceptions",
+				"`.vrooli/repo-contract-adoption-exceptions.json`",
+				"future repo-aware work",
+				"`packages/repo-contract-go` directly",
+			},
+		},
+		{
+			path: "docs/CONTRIBUTING.md",
+			snippets: []string{
+				"**Repo Contract**",
+				"Do not add new repo-root heuristics",
+				"`make validate-repo-contract`",
+				"`vrooli contract show`",
+			},
+		},
+		{
+			path: "AGENTS.md",
+			snippets: []string{
+				"## Repo Contract Adoption",
+				"Do not add new independent repo-root detection logic",
+				"Do not add new hard-coded canonical scenario path assembly",
+				"Run `make validate-repo-contract`",
+			},
+		},
+		{
+			path: "scenarios/prompt-manager/store/skills/packs/core/cross-platform-readiness/SKILL.md",
+			snippets: []string{
+				"repo-contract-backed helpers",
+				"`packages/repo-contract-go`",
+			},
+		},
+	}
+
+	for _, file := range required {
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(file.path)))
+		if err != nil {
+			return fmt.Errorf("read %s: %w", file.path, err)
+		}
+		text := string(data)
+		for _, snippet := range file.snippets {
+			if !strings.Contains(text, snippet) {
+				return fmt.Errorf("%s missing required snippet %q", file.path, snippet)
+			}
+		}
+	}
+
+	skillBytes, err := os.ReadFile(filepath.Join(root, "scenarios", "prompt-manager", "store", "skills", "packs", "core", "cross-platform-readiness", "SKILL.md"))
+	if err != nil {
+		return fmt.Errorf("read cross-platform-readiness skill: %w", err)
+	}
+	if strings.Contains(string(skillBytes), `return filepath.Join(os.Getenv("VROOLI_ROOT"), "scenarios", "my-scenario", "config")`) {
+		return fmt.Errorf("cross-platform-readiness skill still teaches direct VROOLI_ROOT/scenarios joins")
+	}
+	return nil
+}
+
+func loadAdoptionExceptions(root string) (map[string]map[string]string, error) {
+	path := filepath.Join(root, ".vrooli", "repo-contract-adoption-exceptions.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read adoption exceptions: %w", err)
+	}
+
+	var doc adoptionExceptionDoc
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, fmt.Errorf("decode adoption exceptions: %w", err)
+	}
+	if strings.TrimSpace(doc.Version) == "" {
+		return nil, fmt.Errorf("adoption exceptions missing version")
+	}
+
+	allowed := make(map[string]map[string]string, len(doc.Exceptions))
+	for _, item := range doc.Exceptions {
+		pathKey := filepath.ToSlash(filepath.Clean(strings.TrimSpace(item.Path)))
+		ruleKey := strings.TrimSpace(item.Rule)
+		reason := strings.TrimSpace(item.Reason)
+		switch {
+		case pathKey == "" || pathKey == ".":
+			return nil, fmt.Errorf("adoption exception has empty path")
+		case ruleKey == "":
+			return nil, fmt.Errorf("adoption exception %q missing rule", item.Path)
+		case reason == "":
+			return nil, fmt.Errorf("adoption exception %q/%q missing reason", item.Path, item.Rule)
+		}
+		if _, ok := allowed[pathKey]; !ok {
+			allowed[pathKey] = map[string]string{}
+		}
+		allowed[pathKey][ruleKey] = reason
+	}
+	return allowed, nil
+}
+
+func scanAdoptionViolations(root string, exceptions map[string]map[string]string) ([]string, error) {
+	rules := []adoptionRule{
+		{
+			Name:        "ad_hoc_repo_root_detector",
+			Description: "local repo-root detector instead of shared contract helpers",
+			Pattern:     regexp.MustCompile(`(?m)^func (?:\([^)]*\) )?(?:findRepoRoot|getVrooliRoot|FindRepoRoot|DetectVrooliRoot)\(`),
+		},
+		{
+			Name:        "legacy_vrooli_home_fallback",
+			Description: "historical $HOME/Vrooli fallback in runtime Go code",
+			Pattern:     regexp.MustCompile(`\$HOME/Vrooli|filepath\.Join\([^,\n]+,\s*"Vrooli"(?:,\s*"scenarios")?`),
+		},
+		{
+			Name:        "canonical_service_manifest_join",
+			Description: "direct canonical service manifest join instead of shared contract helpers",
+			Pattern:     regexp.MustCompile(`filepath\.Join\([^,\n]+,\s*"scenarios",\s*[^,\n]+,\s*"\.vrooli",\s*"service\.json"\)`),
+		},
+		{
+			Name:        "app_root_repo_env",
+			Description: "APP_ROOT used as a repo-aware canonical input in Go code",
+			Pattern:     regexp.MustCompile(`os\.Getenv\("APP_ROOT"\)`),
+		},
+		{
+			Name:        "git_marker_repo_root",
+			Description: "direct .git marker probing used for repo-root detection",
+			Pattern:     regexp.MustCompile(`(?s)func (?:\([^)]*\) )?(?:findRepoRoot|FindRepoRoot|resolveRepoRoot|ResolveRepoRoot|detectRepoRoot)\([^)]*\).*?filepath\.Join\([^,\n]+,\s*"\.git"\)`),
+		},
+		{
+			Name:        "pnpm_workspace_repo_root",
+			Description: "direct pnpm workspace probing used for repo-root detection",
+			Pattern:     regexp.MustCompile(`(?s)func (?:\([^)]*\) )?(?:findRepoRoot|FindRepoRoot|resolveRepoRoot|ResolveRepoRoot|detectRepoRoot)\([^)]*\).*?filepath\.Join\([^,\n]+,\s*"pnpm-workspace\.yaml"\)`),
+		},
+	}
+
+	var violations []string
+	for _, topLevel := range []string{"cmd", "internal", "packages", "scenarios"} {
+		base := filepath.Join(root, topLevel)
+		err := filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				name := d.Name()
+				if name == ".git" || name == "node_modules" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+
+			if filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") {
+				return nil
+			}
+
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			rel = filepath.ToSlash(rel)
+			if shouldSkipAdoptionScan(rel) {
+				return nil
+			}
+
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			text := string(data)
+			for _, rule := range rules {
+				if !rule.Pattern.MatchString(text) {
+					continue
+				}
+				if rule.Name == "ad_hoc_repo_root_detector" && strings.Contains(text, "repocontract.") {
+					continue
+				}
+				if isAllowedAdoptionViolation(exceptions, rel, rule.Name) {
+					continue
+				}
+				violations = append(violations, fmt.Sprintf("%s (%s)", rel, rule.Name))
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("scan adoption violations: %w", err)
+		}
+	}
+	return violations, nil
+}
+
+func shouldSkipAdoptionScan(rel string) bool {
+	if strings.HasPrefix(rel, "internal/repocontract/") || strings.HasPrefix(rel, "internal/repocontractcheck/") {
+		return true
+	}
+	if strings.HasPrefix(rel, "packages/repo-contract-go/") {
+		return true
+	}
+	return false
+}
+
+func isAllowedAdoptionViolation(exceptions map[string]map[string]string, path string, rule string) bool {
+	rules, ok := exceptions[path]
+	if !ok {
+		return false
+	}
+	_, ok = rules[rule]
+	return ok
 }
 
 func manifestCount(root string, relManifest string) (int, error) {

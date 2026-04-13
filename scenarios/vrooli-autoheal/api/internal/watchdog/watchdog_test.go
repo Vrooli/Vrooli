@@ -7,6 +7,8 @@ import (
 	"io/fs"
 	"os"
 	"os/user"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -182,6 +184,46 @@ func detectorWithProbe(plat *platform.Capabilities, probe detectorProbe) *Detect
 	d := NewDetector(plat)
 	d.probe = probe
 	return d
+}
+
+func newWatchdogContractFixtureRepo(t *testing.T) string {
+	t.Helper()
+
+	root := t.TempDir()
+	repoRoot := watchdogRepoRoot(t)
+	contractData, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("read repo contract: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir .vrooli: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), contractData, 0o644); err != nil {
+		t.Fatalf("write repo contract: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/vrooli-autoheal-watchdog-test\n\ngo 1.24.0\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	for _, dir := range []string{"scenarios", "resources", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	return root
+}
+
+func watchdogRepoRoot(t *testing.T) string {
+	t.Helper()
+	return filepath.Clean(filepath.Join(filepath.Dir(testFilePath(t)), "..", "..", "..", "..", ".."))
+}
+
+func testFilePath(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filename
 }
 
 func TestNewDetector(t *testing.T) {

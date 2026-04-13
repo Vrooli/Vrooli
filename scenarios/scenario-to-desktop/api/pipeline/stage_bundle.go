@@ -8,6 +8,7 @@ import (
 
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/shared/errors"
+	sharedpath "scenario-to-desktop-api/shared/path"
 )
 
 // BundleStage implements the bundle packaging stage of the pipeline.
@@ -59,8 +60,10 @@ func NewBundleStage(opts ...BundleStageOption) *BundleStage {
 	}
 	// Default scenario root
 	if s.scenarioRoot == "" {
-		home, _ := os.UserHomeDir()
-		s.scenarioRoot = filepath.Join(home, "Vrooli", "scenarios")
+		s.scenarioRoot = sharedpath.DetectScenariosRoot()
+		if s.scenarioRoot == "" {
+			s.scenarioRoot = filepath.Clean("scenarios")
+		}
 	}
 	return s
 }

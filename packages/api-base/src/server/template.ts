@@ -17,6 +17,7 @@ import { createProxyMiddleware, proxyWebSocketUpgrade } from './proxy.js'
 import { injectProxyMetadata, injectScenarioConfig, injectBaseTag } from './inject.js'
 import { resolveProxyAgent } from './agent.js'
 import { createEmbeddedProxyRouter } from './embedded.js'
+import { assertLifecycleManagedUI } from './lifecycle.js'
 import { parsePort, isAssetRequest } from '../shared/utils.js'
 
 const IMMUTABLE_ASSET_EXTENSIONS = new Set([
@@ -356,6 +357,11 @@ function applyBodyParser(app: Express, setting: ServerTemplateOptions['bodyParse
 }
 
 export function createScenarioServer(options: ServerTemplateOptions): Express {
+  assertLifecycleManagedUI({
+    serviceName: options.serviceName,
+    disableLifecycleGuard: options.disableLifecycleGuard,
+  })
+
   const {
     uiPort,
     apiPort,

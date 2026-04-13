@@ -4,7 +4,7 @@
   "description": "Scalable App Cookbook Web Interface",
   "private": true,
   "scripts": {
-    "dev": "bash -c 'PORT=${UI_PORT:-3301}; exec ${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite --port ${PORT} --host'",
+    "dev": "bash -c 'PORT=${UI_PORT:-3301}; exec node ../../../packages/api-base/bin/vrooli-ui-run.js vite --port ${PORT} --host'",
     "build": "vite build",
     "preview": "bash -c 'PORT=${UI_PORT:-3301}; exec vite preview --port ${PORT} --host'"
   },

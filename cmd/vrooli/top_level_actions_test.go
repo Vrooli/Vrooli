@@ -15,8 +15,8 @@ func TestExecuteTopLevelCommandRendersHelpOnlyErrors(t *testing.T) {
 	var stdout bytes.Buffer
 	ctx := &commandContext{Stdout: &stdout}
 
-	err := executeTopLevelCommand(&App{}, ctx, nil, topLevelCommandAction[struct{}, struct{}]{
-		parse: func(globals globalOptions, args []string) (struct{}, error) {
+	err := executeCommandAction(&App{}, ctx, nil, commandAction[struct{}, struct{}]{
+		parse: func(ctx *commandContext, args []string) (struct{}, error) {
 			return struct{}{}, commandHelpOnly("Usage: vrooli status")
 		},
 		run: func(app *App, ctx *commandContext, req struct{}) (cliout.Format, struct{}, error) {
@@ -29,7 +29,7 @@ func TestExecuteTopLevelCommandRendersHelpOnlyErrors(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("executeTopLevelCommand returned error: %v", err)
+		t.Fatalf("executeCommandAction returned error: %v", err)
 	}
 	if got := stdout.String(); !strings.Contains(got, "Usage: vrooli status") {
 		t.Fatalf("stdout = %q", got)
@@ -44,8 +44,8 @@ func TestParseTopLevelDiagnosePortRequestRejectsInvalidPort(t *testing.T) {
 
 func TestRenderTopLevelLocksResponseHumanIncludesStaleStatus(t *testing.T) {
 	var stdout bytes.Buffer
-	err := renderTopLevelLocksResponse(&stdout, cliout.FormatHuman, topLevelLocksListResponse{
-		Items: []maintenance.LockInfo{{
+	err := renderTopLevelLocksResponse(&stdout, cliout.FormatHuman, topLevelLocksResponse{
+		List: []maintenance.LockInfo{{
 			Port:     21234,
 			Scenario: "alpha",
 			PID:      999,
@@ -63,8 +63,10 @@ func TestRenderTopLevelLocksResponseHumanIncludesStaleStatus(t *testing.T) {
 
 func TestRenderTopLevelOrphansResponseHumanHandlesKillReport(t *testing.T) {
 	var stdout bytes.Buffer
-	err := renderTopLevelOrphansResponse(&stdout, cliout.FormatHuman, control.StopReport{
-		Stopped: []control.ResultItem{control.Stopped("123", "sleep 30")},
+	err := renderTopLevelOrphansResponse(&stdout, cliout.FormatHuman, topLevelOrphansResponse{
+		KillReport: &control.StopReport{
+			Stopped: []control.ResultItem{control.Stopped("123", "sleep 30")},
+		},
 	})
 	if err != nil {
 		t.Fatalf("renderTopLevelOrphansResponse returned error: %v", err)

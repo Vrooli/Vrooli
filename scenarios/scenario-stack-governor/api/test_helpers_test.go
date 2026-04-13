@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -16,10 +17,12 @@ func setupTestServer(t *testing.T) (*Server, string) {
 
 	root := t.TempDir()
 
-	// Create repo-root markers that FindRepoRoot requires.
-	for _, dir := range []string{".vrooli", "scenarios", "resources"} {
+	// Create repo-root markers that the shared repo contract requires.
+	for _, dir := range []string{".vrooli", "scenarios", "resources", "packages", "cmd", "internal"} {
 		mkdirAll(t, filepath.Join(root, dir))
 	}
+	writeRepoContractFixture(t, root)
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.com/test\n\ngo 1.25.0\n")
 
 	// ConfigStore in a temp config dir.
 	configDir := filepath.Join(root, "config")
@@ -60,4 +63,25 @@ func mkdirAll(t *testing.T, path string) {
 	if err := os.MkdirAll(path, 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", path, err)
 	}
+}
+
+func writeTestFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func writeRepoContractFixture(t *testing.T, root string) {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", ".."))
+	data, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("read repo-contract fixture: %v", err)
+	}
+	writeTestFile(t, filepath.Join(root, ".vrooli", "repo-contract.json"), string(data))
 }

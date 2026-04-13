@@ -4,8 +4,8 @@
   "description": "SmartNotes - AI-powered note-taking application UI",
   "main": "server.js",
   "scripts": {
-    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "start": "node ../../../packages/api-base/bin/vrooli-ui-run.js node server.js",
+    "dev": "node ../../../packages/api-base/bin/vrooli-ui-run.js node server.js",
     "build": "bash -c 'rm -rf dist && mkdir -p dist && cp -R src/. dist/'"
   },
   "dependencies": {

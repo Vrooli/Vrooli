@@ -122,10 +122,12 @@ func resolveScenarioAssets() string {
 ```go
 // ❌ WRONG: Hard requirement on monorepo env vars
 func getConfig() string {
-    return filepath.Join(os.Getenv("VROOLI_ROOT"), "scenarios", "my-scenario", "config")
+    return requireEnv("VROOLI_ROOT")
 }
 // Crashes in desktop mode: VROOLI_ROOT is empty
 ```
+
+When code genuinely needs canonical monorepo layout semantics in a Go runtime, use repo-contract-backed helpers instead of joining `VROOLI_ROOT` with `scenarios/...` manually. The canonical Go adapter is `packages/repo-contract-go`.
 
 #### 2.3 Decision Tree: Environment Variable Usage
 

@@ -13,19 +13,8 @@ import (
 
 // [REQ:PCT-CATALOG-ENUMERATE] Catalog enumerates all scenarios and resources with PRD status
 func TestHandleScenarioExistence(t *testing.T) {
-	// Save original VROOLI_ROOT and restore after test
-	origRoot := os.Getenv("VROOLI_ROOT")
-	defer func() {
-		if origRoot != "" {
-			os.Setenv("VROOLI_ROOT", origRoot)
-		} else {
-			os.Unsetenv("VROOLI_ROOT")
-		}
-	}()
-
-	// Create temporary vrooli root
-	tmpRoot := t.TempDir()
-	os.Setenv("VROOLI_ROOT", tmpRoot)
+	tmpRoot := newContractFixtureRepo(t)
+	t.Setenv("VROOLI_ROOT", tmpRoot)
 
 	// Create a test scenario directory
 	scenariosDir := filepath.Join(tmpRoot, "scenarios")

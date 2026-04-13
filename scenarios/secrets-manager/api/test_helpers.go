@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -59,7 +60,7 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 	}
 
 	for _, dir := range testDirs {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			os.RemoveAll(tempDir)
 			t.Fatalf("Failed to create test directory %s: %v", dir, err)
 		}
@@ -215,7 +216,7 @@ func createTestVaultSecret(name string, required bool) VaultSecret {
 // createTestFile creates a test file with content
 func createTestFile(t *testing.T, dir, filename, content string) string {
 	filePath := filepath.Join(dir, filename)
-	if err := ioutil.WriteFile(filePath, []byte(content), 0644); err != nil {
+	if err := ioutil.WriteFile(filePath, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to create test file %s: %v", filePath, err)
 	}
 	return filePath
@@ -224,7 +225,7 @@ func createTestFile(t *testing.T, dir, filename, content string) string {
 // createTestResourceDir creates a test resource directory structure
 func createTestResourceDir(t *testing.T, baseDir, resourceName string, files map[string]string) string {
 	resourceDir := filepath.Join(baseDir, "resources", resourceName)
-	if err := os.MkdirAll(resourceDir, 0755); err != nil {
+	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
 		t.Fatalf("Failed to create resource directory %s: %v", resourceDir, err)
 	}
 
@@ -238,7 +239,7 @@ func createTestResourceDir(t *testing.T, baseDir, resourceName string, files map
 // createTestScenarioDir creates a test scenario directory structure
 func createTestScenarioDir(t *testing.T, baseDir, scenarioName string, files map[string]string) string {
 	scenarioDir := filepath.Join(baseDir, "scenarios", scenarioName)
-	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
 		t.Fatalf("Failed to create scenario directory %s: %v", scenarioDir, err)
 	}
 
@@ -293,4 +294,42 @@ func validateValidationStatus(status string) bool {
 		"error":   true,
 	}
 	return validStatuses[status]
+}
+
+func liveRepoRoot(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", ".."))
+}
+
+func newContractFixtureRepo(t *testing.T) string {
+	t.Helper()
+
+	root := t.TempDir()
+	repoRoot := liveRepoRoot(t)
+
+	contractData, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("read repo contract: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir .vrooli: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), contractData, 0o644); err != nil {
+		t.Fatalf("write repo contract: %v", err)
+	}
+
+	for _, dir := range []string{"scenarios", "resources", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/secrets-manager-test\n\ngo 1.21\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+
+	return root
 }

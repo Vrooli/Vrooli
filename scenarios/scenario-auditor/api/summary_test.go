@@ -94,7 +94,7 @@ func TestGetRootsUseRepoContractHelpers(t *testing.T) {
 	chdirForTest(t, filepath.Join(root, "scenarios", "scenario-auditor", "api"))
 	resetCachedRootsForTest()
 
-	if got := getVrooliRoot(); got != root {
+	if got := currentVrooliRoot(); got != root {
 		t.Fatalf("getVrooliRoot = %q, want %q", got, root)
 	}
 	if got := getScenarioRoot(); got != filepath.Join(root, "scenarios", "scenario-auditor") {

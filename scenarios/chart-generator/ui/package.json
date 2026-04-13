@@ -5,10 +5,10 @@
   "description": "React + Vite interface for the Professional Chart Generator scenario using shadcn/ui components.",
   "type": "module",
   "scripts": {
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
+    "dev": "node ../../../packages/api-base/bin/vrooli-ui-run.js vite",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port ${UI_PORT:-4173}",
-    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'"
+    "start": "node ../../../packages/api-base/bin/vrooli-ui-run.js node server.js"
   },
   "dependencies": {
     "@radix-ui/react-scroll-area": "^1.0.5",

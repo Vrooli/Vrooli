@@ -29,7 +29,7 @@ func TestExecuteResourceCommandRendersHelpOnlyErrors(t *testing.T) {
 		parse: func(globals globalOptions, args []string) (struct{}, error) {
 			return struct{}{}, commandHelpOnly("Usage: vrooli resource fake")
 		},
-		run: func(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req struct{}) (cliout.Format, struct{}, error) {
+		run: func(controller *resources.Controller, ctx *commandContext, req struct{}) (cliout.Format, struct{}, error) {
 			t.Fatal("run should not be called for help-only command")
 			return "", struct{}{}, nil
 		},

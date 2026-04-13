@@ -505,6 +505,44 @@ func TestGetLocalSecretsPath(t *testing.T) {
 	})
 }
 
+func TestGetVrooliRootCanonicalizesContractRoots(t *testing.T) {
+	root := newContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "secrets-manager", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+
+	t.Setenv("VROOLI_ROOT", nested)
+
+	if got := getVrooliRoot(); got != root {
+		t.Fatalf("getVrooliRoot() = %q, want %q", got, root)
+	}
+}
+
+func TestGetVrooliPathsCanonicalizesContractRoots(t *testing.T) {
+	root := newContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "secrets-manager", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+
+	t.Setenv("VROOLI_ROOT", nested)
+
+	paths, err := getVrooliPaths()
+	if err != nil {
+		t.Fatalf("getVrooliPaths() error = %v", err)
+	}
+	if paths.root != root {
+		t.Fatalf("paths.root = %q, want %q", paths.root, root)
+	}
+	if paths.scenarios != filepath.Join(root, "scenarios") {
+		t.Fatalf("paths.scenarios = %q", paths.scenarios)
+	}
+	if paths.resources != filepath.Join(root, "resources") {
+		t.Fatalf("paths.resources = %q", paths.resources)
+	}
+}
+
 // TestScanResourceDirectory is tested in scanner_test.go
 // [REQ:SEC-VLT-001] Repository secret manifest discovery
 
@@ -826,6 +864,33 @@ func TestFileContentHandler(t *testing.T) {
 		// May succeed or fail depending on security checks, both are valid
 		if status := rr.Code; status != http.StatusOK && status != http.StatusForbidden && status != http.StatusInternalServerError {
 			t.Logf("File content handler returned status: %v", status)
+		}
+	})
+
+	t.Run("RelativePathUsesCanonicalizedRoot", func(t *testing.T) {
+		root := newContractFixtureRepo(t)
+		nested := filepath.Join(root, "scenarios", "secrets-manager", "api")
+		if err := os.MkdirAll(nested, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		targetPath := filepath.Join(root, "notes.txt")
+		if err := os.WriteFile(targetPath, []byte("from repo root"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("VROOLI_ROOT", nested)
+
+		req, err := http.NewRequest("GET", "/api/v1/files/content?path=notes.txt", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("handler returned %d, want 200; body=%s", rr.Code, rr.Body.String())
+		}
+		if !strings.Contains(rr.Body.String(), "from repo root") {
+			t.Fatalf("response body did not include file content: %s", rr.Body.String())
 		}
 	})
 }

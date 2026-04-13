@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // PRDGenerateOutput is the structured output for prd generate.
@@ -546,34 +547,25 @@ func (a *App) prdFix(args []string) error {
 
 // detectEntityTypeFromRepo detects entity type based on repo structure.
 func detectEntityTypeFromRepo(name string) string {
-	root := findRepoRoot()
+	root := resolveRepoRootOrEmpty()
 	if root == "" {
 		return "scenario"
 	}
 	if statDir(filepath.Join(root, "resources", name)) {
 		return "resource"
 	}
-	if statDir(filepath.Join(root, "scenarios", name)) {
+	if scenarioPath, err := repocontract.ResolveScenarioPath(root, name); err == nil && statDir(scenarioPath) {
 		return "scenario"
 	}
 	return "scenario"
 }
 
-func findRepoRoot() string {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return ""
+func resolveRepoRootOrEmpty() string {
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
 	}
-	dir := cwd
-	for i := 0; i < 25; i++ {
-		if statDir(filepath.Join(dir, "scenarios")) && statDir(filepath.Join(dir, "resources")) {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
+	if cwd, err := os.Getwd(); err == nil {
+		return filepath.Clean(cwd)
 	}
 	return ""
 }

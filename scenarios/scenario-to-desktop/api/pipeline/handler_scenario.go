@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 	"scenario-to-desktop-api/shared/errors"
 	httputil "scenario-to-desktop-api/shared/http"
+	sharedpath "scenario-to-desktop-api/shared/path"
 )
 
 type bundleCleanRequest struct {
@@ -60,9 +61,7 @@ func (h *Handler) handleBundleClean(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Compute scenario path from conventional repo layout.
-	home, _ := os.UserHomeDir()
-	scenarioPath := filepath.Join(home, "Vrooli", "scenarios", scenarioName)
+	scenarioPath := sharedpath.ResolveScenarioRoot(scenarioName)
 
 	cfg := &Config{
 		ScenarioName:   scenarioName,

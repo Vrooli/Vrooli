@@ -13,19 +13,8 @@ import (
 
 // [REQ:PCT-CATALOG-ENUMERATE] Catalog enumerates all scenarios and resources with PRD status
 func TestHandleListScenarioTemplates(t *testing.T) {
-	// Save and restore original VROOLI_ROOT
-	origRoot := os.Getenv("VROOLI_ROOT")
-	defer func() {
-		if origRoot != "" {
-			os.Setenv("VROOLI_ROOT", origRoot)
-		} else {
-			os.Unsetenv("VROOLI_ROOT")
-		}
-	}()
-
-	// Create temporary vrooli root with templates
-	tmpRoot := t.TempDir()
-	os.Setenv("VROOLI_ROOT", tmpRoot)
+	tmpRoot := newContractFixtureRepo(t)
+	t.Setenv("VROOLI_ROOT", tmpRoot)
 
 	templatesDir := filepath.Join(tmpRoot, "scripts", "scenarios", "templates")
 	testTemplateDir := filepath.Join(templatesDir, "test-template")
@@ -102,19 +91,8 @@ func TestHandleListScenarioTemplates(t *testing.T) {
 
 // [REQ:PCT-CATALOG-ENUMERATE] Catalog enumerates all scenarios and resources with PRD status
 func TestHandleGetScenarioTemplate(t *testing.T) {
-	// Save and restore original VROOLI_ROOT
-	origRoot := os.Getenv("VROOLI_ROOT")
-	defer func() {
-		if origRoot != "" {
-			os.Setenv("VROOLI_ROOT", origRoot)
-		} else {
-			os.Unsetenv("VROOLI_ROOT")
-		}
-	}()
-
-	// Create temporary vrooli root with templates
-	tmpRoot := t.TempDir()
-	os.Setenv("VROOLI_ROOT", tmpRoot)
+	tmpRoot := newContractFixtureRepo(t)
+	t.Setenv("VROOLI_ROOT", tmpRoot)
 
 	templatesDir := filepath.Join(tmpRoot, "scripts", "scenarios", "templates")
 	testTemplateDir := filepath.Join(templatesDir, "minimal-template")
@@ -204,19 +182,8 @@ func TestHandleGetScenarioTemplate(t *testing.T) {
 
 // [REQ:PCT-CATALOG-ENUMERATE] Catalog enumerates all scenarios and resources with PRD status
 func TestLoadScenarioTemplateManifest(t *testing.T) {
-	// Save and restore original VROOLI_ROOT
-	origRoot := os.Getenv("VROOLI_ROOT")
-	defer func() {
-		if origRoot != "" {
-			os.Setenv("VROOLI_ROOT", origRoot)
-		} else {
-			os.Unsetenv("VROOLI_ROOT")
-		}
-	}()
-
-	// Create temporary vrooli root with templates
-	tmpRoot := t.TempDir()
-	os.Setenv("VROOLI_ROOT", tmpRoot)
+	tmpRoot := newContractFixtureRepo(t)
+	t.Setenv("VROOLI_ROOT", tmpRoot)
 
 	templatesDir := filepath.Join(tmpRoot, "scripts", "scenarios", "templates")
 	validTemplateDir := filepath.Join(templatesDir, "valid-template")

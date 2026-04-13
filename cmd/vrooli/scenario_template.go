@@ -17,7 +17,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/config"
 )
 
@@ -70,14 +69,14 @@ func runScenarioTemplateCommandWithApp(app *App, ctx *commandContext, args []str
 
 	switch action {
 	case "list":
-		return executeScenarioTemplateCommand(app, ctx, args, scenarioTemplateCommandAction[scenarioTemplateListRequest, []scenarioTemplateInfo]{
-			parse:  parseScenarioTemplateListRequest,
+		return executeCommandAction(app, ctx, args, commandAction[scenarioTemplateListRequest, []scenarioTemplateInfo]{
+			parse:  parseScenarioTemplateListRequestFromContext,
 			run:    runScenarioTemplateListRequest,
 			render: renderScenarioTemplateListResponse,
 		})
 	case "show":
-		return executeScenarioTemplateCommand(app, ctx, args, scenarioTemplateCommandAction[scenarioTemplateShowRequest, scenarioTemplateInfo]{
-			parse:  parseScenarioTemplateShowRequest,
+		return executeCommandAction(app, ctx, args, commandAction[scenarioTemplateShowRequest, scenarioTemplateInfo]{
+			parse:  parseScenarioTemplateShowRequestFromContext,
 			run:    runScenarioTemplateShowRequest,
 			render: renderScenarioTemplateShowResponse,
 		})
@@ -90,127 +89,11 @@ func runScenarioTemplateCommandWithApp(app *App, ctx *commandContext, args []str
 }
 
 func runScenarioGenerateCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeScenarioTemplateCommand(app, ctx, args, scenarioTemplateCommandAction[scenarioGenerateRequest, scenarioGenerateResult]{
-		parse:  parseScenarioGenerateRequest,
+	return executeCommandAction(app, ctx, args, commandAction[scenarioGenerateRequest, scenarioGenerateResult]{
+		parse:  parseScenarioGenerateRequestFromContext,
 		run:    runScenarioGenerateRequest,
 		render: renderScenarioGenerateResponse,
 	})
-}
-
-func runScenarioTemplateListCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
-	if len(args) > 0 {
-		for _, arg := range args {
-			if arg == "--help" || arg == "-h" {
-				showScenarioTemplateHelp(stdout)
-				return nil
-			}
-			return unknownOptionError("scenario template", arg)
-		}
-	}
-
-	templates, err := loadScenarioTemplates(root)
-	if err != nil {
-		return err
-	}
-
-	if globals.json {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success":   true,
-			"templates": templates,
-		})
-	}
-
-	rows := make([][]string, 0, len(templates))
-	for _, item := range templates {
-		required := formatScenarioTemplateRequiredVars(item.Manifest)
-		if item.Missing {
-			required = "?"
-		}
-		display := item.Manifest.DisplayName
-		if display == "" {
-			display = "(template.json missing)"
-		}
-		rows = append(rows, []string{item.Name, display, required})
-	}
-	_ = cliout.RenderTable(stdout, []string{"Name", "Display Name", "Required Vars"}, rows)
-	_, _ = fmt.Fprintln(stdout)
-	_, _ = fmt.Fprintln(stdout, "Tip: vrooli scenario template show <name>")
-	return nil
-}
-
-func runScenarioTemplateShowCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
-	_ = globals
-	if len(args) == 0 {
-		return usageErrorf("scenario template show", "scenario template show requires a template name")
-	}
-	if len(args) > 1 {
-		return usageErrorf("scenario template show", "scenario template show accepts exactly one template name")
-	}
-
-	info, err := loadScenarioTemplate(root, args[0])
-	if err != nil {
-		return err
-	}
-
-	manifest := info.Manifest
-	title := manifest.DisplayName
-	if title == "" {
-		title = info.Name
-	}
-
-	_, _ = fmt.Fprintf(stdout, "%s (%s)\n", title, info.Name)
-	if manifest.Description != "" {
-		_, _ = fmt.Fprintln(stdout, manifest.Description)
-	}
-	if len(manifest.Stack) > 0 {
-		_, _ = fmt.Fprintf(stdout, "Stack: %s\n", strings.Join(manifest.Stack, ", "))
-	}
-
-	writeScenarioTemplateVarTable(stdout, "Required Variables", manifest.RequiredVars)
-	writeScenarioTemplateVarTable(stdout, "Optional Variables", manifest.OptionalVars)
-
-	if len(manifest.PostHooks) > 0 {
-		_, _ = fmt.Fprintln(stdout)
-		_, _ = fmt.Fprintln(stdout, "Post Hooks:")
-		for _, hook := range manifest.PostHooks {
-			line := hook.Description
-			if line == "" {
-				line = hook.Cmd
-			}
-			_, _ = fmt.Fprintf(stdout, "  - %s\n", line)
-		}
-	}
-
-	if len(manifest.Docs) > 0 {
-		docKeys := make([]string, 0, len(manifest.Docs))
-		for key := range manifest.Docs {
-			docKeys = append(docKeys, key)
-		}
-		sort.Strings(docKeys)
-		_, _ = fmt.Fprintln(stdout)
-		_, _ = fmt.Fprintln(stdout, "Docs:")
-		for _, key := range docKeys {
-			_, _ = fmt.Fprintf(stdout, "  - %s: %s\n", key, manifest.Docs[key])
-		}
-	}
-
-	entries, err := os.ReadDir(info.Path)
-	if err == nil {
-		names := make([]string, 0, len(entries))
-		for _, entry := range entries {
-			names = append(names, entry.Name())
-		}
-		sort.Strings(names)
-		_, _ = fmt.Fprintln(stdout)
-		_, _ = fmt.Fprintln(stdout, "Files:")
-		for _, name := range names {
-			_, _ = fmt.Fprintf(stdout, "  - %s\n", name)
-		}
-	}
-
-	_, _ = fmt.Fprintln(stdout)
-	_, _ = fmt.Fprintf(stdout, "Tip: vrooli scenario generate %s%s\n", info.Name, formatScenarioTemplateRequiredFlags(manifest))
-	return nil
 }
 
 func showScenarioTemplateHelp(w io.Writer) {

@@ -65,7 +65,7 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 	mcpPath := filepath.Join(scenariosPath, "scenario-to-mcp")
 	libPath := filepath.Join(mcpPath, "lib")
 
-	if err := os.MkdirAll(libPath, 0755); err != nil {
+	if err := os.MkdirAll(libPath, 0o755); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create test structure: %v", err)
 	}
@@ -159,10 +159,13 @@ type TestServer struct {
 func setupTestServer(t *testing.T, db *sql.DB, scenariosPath string) *TestServer {
 	t.Helper()
 
+	if info, err := os.Stat(filepath.Join(scenariosPath, "scenarios")); err == nil && info.IsDir() {
+		scenariosPath = filepath.Join(scenariosPath, "scenarios")
+	}
+
 	config := &Config{
 		APIPort:       3290,
 		RegistryPort:  3292,
-		DatabaseURL:   "test-db-url",
 		ScenariosPath: scenariosPath,
 	}
 
@@ -274,11 +277,11 @@ func createTestDocFile(t *testing.T, scenariosRoot, relativePath, content string
 	t.Helper()
 
 	absolutePath := filepath.Join(scenariosRoot, "scenarios", scenarioName, filepath.FromSlash(relativePath))
-	if err := os.MkdirAll(filepath.Dir(absolutePath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(absolutePath), 0o755); err != nil {
 		t.Fatalf("Failed to create doc directory: %v", err)
 	}
 
-	if err := os.WriteFile(absolutePath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(absolutePath, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to write test doc file: %v", err)
 	}
 }
@@ -293,7 +296,6 @@ func createMockEndpoint(t *testing.T, db *sql.DB, scenarioName string, port int)
 		ON CONFLICT (scenario_name) DO UPDATE
 		SET mcp_port = $2, status = 'active', updated_at = NOW()
 	`, scenarioName, port)
-
 	if err != nil {
 		t.Fatalf("Failed to create mock endpoint: %v", err)
 	}
@@ -307,7 +309,6 @@ func createMockSession(t *testing.T, db *sql.DB, sessionID, scenarioName, status
 		INSERT INTO mcp.agent_sessions (id, scenario_name, agent_type, status, start_time)
 		VALUES ($1, $2, 'claude-code', $3, NOW())
 	`, sessionID, scenarioName, status)
-
 	if err != nil {
 		t.Fatalf("Failed to create mock session: %v", err)
 	}
@@ -341,7 +342,7 @@ if (command === 'scan') {
 `, output)
 
 	scriptPath := filepath.Join(libPath, "detector.js")
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0o755); err != nil {
 		t.Fatalf("Failed to create mock detector script: %v", err)
 	}
 }

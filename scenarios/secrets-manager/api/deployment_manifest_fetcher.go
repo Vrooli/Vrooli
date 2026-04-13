@@ -353,16 +353,15 @@ func (c *HTTPAnalyzerClient) persistReport(scenario string, report *analyzerDepl
 
 // reportPath returns the filesystem path for a scenario's analyzer report.
 func (c *HTTPAnalyzerClient) reportPath(scenario string) string {
-	root := os.Getenv("VROOLI_ROOT")
-	if root == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			root = "/tmp"
-		} else {
-			root = filepath.Join(home, "Vrooli")
+	scenarioRoot := resolveScenarioRoot(scenario)
+	if scenarioRoot == "" {
+		root := getVrooliRoot()
+		if root == "" {
+			root = "."
 		}
+		return filepath.Join(root, "scenarios", scenario, ".vrooli", "deployment", "deployment-report.json")
 	}
-	return filepath.Join(root, "scenarios", scenario, ".vrooli", "deployment", "deployment-report.json")
+	return filepath.Join(scenarioRoot, ".vrooli", "deployment", "deployment-report.json")
 }
 
 // fetchFromService makes an HTTP request to the analyzer service.

@@ -26,6 +26,7 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 type Config struct {
@@ -292,7 +293,6 @@ func (s *Server) handleAddMCP(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, 'claude-code', 'pending', NOW())
 		RETURNING id::text
 	`, req.ScenarioName).Scan(&sessionID)
-
 	if err != nil {
 		s.sendError(w, "Failed to create session", http.StatusInternalServerError)
 		return
@@ -319,7 +319,6 @@ func (s *Server) handleGetRegistry(w http.ResponseWriter, r *http.Request) {
 		WHERE status = 'active' AND mcp_port IS NOT NULL
 		ORDER BY scenario_name
 	`)
-
 	if err != nil {
 		s.sendError(w, "Failed to query registry", http.StatusInternalServerError)
 		return
@@ -391,7 +390,6 @@ func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 		WHERE id = $1
 	`, sessionID).Scan(&session.ID, &session.ScenarioName, &session.Status,
 		&session.StartTime, &session.EndTime, &session.Logs)
-
 	if err != nil {
 		s.sendError(w, "Session not found", http.StatusNotFound)
 		return
@@ -476,7 +474,6 @@ func (s *Server) simulateMCPAddition(sessionID, scenarioName string, config Agen
 	generatorPath := filepath.Join(s.config.ScenariosPath, "scenario-to-mcp", "lib", "code-generator.js")
 	cmd := exec.Command("node", generatorPath, "generate", scenarioName)
 	output, err := cmd.Output()
-
 	if err != nil {
 		s.db.Exec(`
 			UPDATE mcp.agent_sessions 
@@ -498,7 +495,6 @@ func (s *Server) simulateMCPAddition(sessionID, scenarioName string, config Agen
 		ON CONFLICT (scenario_name) 
 		DO UPDATE SET mcp_port = $3, status = 'pending', updated_at = NOW()
 	`, scenarioName, filepath.Join(s.config.ScenariosPath, scenarioName), port)
-
 	if err != nil {
 		s.db.Exec(`
 			UPDATE mcp.agent_sessions 
@@ -750,16 +746,10 @@ func main() {
 	flag.BoolVar(&registryMode, "registry-mode", false, "Run in registry mode")
 	flag.Parse()
 
-	// Get scenarios path - default to Vrooli root if not set
-	defaultScenariosPath := filepath.Join("..", "..")
-	if homeDir := os.Getenv("HOME"); homeDir != "" {
-		defaultScenariosPath = filepath.Join(homeDir, "Vrooli", "scenarios")
-	}
-
 	config := &Config{
 		APIPort:       getEnvInt("API_PORT", 3290),
 		RegistryPort:  getEnvInt("REGISTRY_PORT", 3292),
-		ScenariosPath: getEnvString("SCENARIOS_PATH", defaultScenariosPath),
+		ScenariosPath: getEnvString("SCENARIOS_PATH", defaultScenariosPath()),
 	}
 
 	srv := NewServer(config)
@@ -800,6 +790,17 @@ func getEnvString(key, defaultValue string) string {
 	return defaultValue
 }
 
+func defaultScenariosPath() string {
+	if repoRoot, err := repocontract.ResolveRepoRoot(); err == nil {
+		if contract, err := repocontract.LoadDefault(repoRoot); err == nil {
+			if scenariosDir, err := contract.TopLevelDir(repoRoot, "scenarios"); err == nil {
+				return scenariosDir
+			}
+		}
+	}
+	return filepath.Join("..", "..")
+}
+
 func getEnvInt(key string, defaultValue int) int {
 	if value := os.Getenv(key); value != "" {
 		if intValue, err := strconv.Atoi(value); err == nil {
@@ -808,4 +809,5 @@ func getEnvInt(key string, defaultValue int) int {
 	}
 	return defaultValue
 }
+
 // Test change

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,35 +11,13 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 )
 
-type scenarioTemplateCommandAction[Req any, Resp any] struct {
-	parse  func(root string, globals globalOptions, args []string, stderr io.Writer) (Req, error)
-	run    func(app *App, ctx *commandContext, req Req) (cliout.Format, Resp, error)
-	render func(w io.Writer, format cliout.Format, resp Resp) error
-}
-
-func executeScenarioTemplateCommand[Req any, Resp any](app *App, ctx *commandContext, args []string, action scenarioTemplateCommandAction[Req, Resp]) error {
-	req, err := action.parse(ctx.Root, ctx.Globals, args, ctx.Stderr)
-	if err != nil {
-		var helpErr commandHelpError
-		if errors.As(err, &helpErr) {
-			_, _ = fmt.Fprintln(ctx.Stdout, helpErr.message)
-			return nil
-		}
-		return err
-	}
-	format, resp, err := action.run(app, ctx, req)
-	if err != nil {
-		return err
-	}
-	return action.render(ctx.Stdout, format, resp)
-}
-
 type (
 	scenarioTemplateListRequest struct{}
 	scenarioTemplateShowRequest struct {
 		Name string
 	}
 )
+
 type scenarioGenerateRequest struct {
 	TemplateInfo scenarioTemplateInfo
 	Options      scenarioGenerateOptions
@@ -64,6 +41,10 @@ func parseScenarioTemplateListRequest(root string, globals globalOptions, args [
 		return scenarioTemplateListRequest{}, unknownOptionError("scenario template", args[0])
 	}
 	return scenarioTemplateListRequest{}, nil
+}
+
+func parseScenarioTemplateListRequestFromContext(ctx *commandContext, args []string) (scenarioTemplateListRequest, error) {
+	return parseScenarioTemplateListRequest(ctx.Root, ctx.Globals, args, ctx.Stderr)
 }
 
 func runScenarioTemplateListRequest(app *App, ctx *commandContext, req scenarioTemplateListRequest) (cliout.Format, []scenarioTemplateInfo, error) {
@@ -117,6 +98,10 @@ func parseScenarioTemplateShowRequest(root string, globals globalOptions, args [
 		return scenarioTemplateShowRequest{}, usageErrorf("scenario template show", "scenario template show accepts exactly one template name")
 	}
 	return scenarioTemplateShowRequest{Name: args[0]}, nil
+}
+
+func parseScenarioTemplateShowRequestFromContext(ctx *commandContext, args []string) (scenarioTemplateShowRequest, error) {
+	return parseScenarioTemplateShowRequest(ctx.Root, ctx.Globals, args, ctx.Stderr)
 }
 
 func runScenarioTemplateShowRequest(app *App, ctx *commandContext, req scenarioTemplateShowRequest) (cliout.Format, scenarioTemplateInfo, error) {
@@ -230,6 +215,10 @@ func parseScenarioGenerateRequest(root string, globals globalOptions, args []str
 	}
 
 	return scenarioGenerateRequest{TemplateInfo: info, Options: opts}, nil
+}
+
+func parseScenarioGenerateRequestFromContext(ctx *commandContext, args []string) (scenarioGenerateRequest, error) {
+	return parseScenarioGenerateRequest(ctx.Root, ctx.Globals, args, ctx.Stderr)
 }
 
 func runScenarioGenerateRequest(app *App, ctx *commandContext, req scenarioGenerateRequest) (cliout.Format, scenarioGenerateResult, error) {

@@ -6,11 +6,11 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 
 	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/generation"
+	sharedpath "scenario-to-desktop-api/shared/path"
 	"scenario-to-desktop-api/shared/validation"
 )
 
@@ -97,25 +97,12 @@ func NewOrchestrator(opts ...OrchestratorOption) *DefaultOrchestrator {
 
 	// Default scenario root
 	if o.scenarioRoot == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			// Fallback to current directory if home directory is unavailable
-			// This is a defensive fallback - in practice, home dir is almost always available
-			cwd, cwdErr := os.Getwd()
-			if cwdErr != nil {
-				// Last resort: use a relative path (will be resolved against cwd at runtime)
-				o.scenarioRoot = "scenarios"
-			} else {
-				o.scenarioRoot = filepath.Join(cwd, "scenarios")
-			}
+		o.scenarioRoot = sharedpath.DetectScenariosRoot()
+		if o.scenarioRoot == "" {
+			o.scenarioRoot = filepath.Clean("scenarios")
 			if o.logger != nil {
-				o.logger.Warn("UserHomeDir unavailable, using fallback",
-					"error", err.Error(),
-					"fallback_root", o.scenarioRoot,
-				)
+				o.logger.Warn("Scenario root unavailable from repo contract", "fallback_root", o.scenarioRoot)
 			}
-		} else {
-			o.scenarioRoot = filepath.Join(home, "Vrooli", "scenarios")
 		}
 	}
 

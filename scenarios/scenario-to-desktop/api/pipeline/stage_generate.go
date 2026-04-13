@@ -3,12 +3,12 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/shared/errors"
+	sharedpath "scenario-to-desktop-api/shared/path"
 )
 
 // GenerateStage implements the desktop wrapper generation stage of the pipeline.
@@ -68,8 +68,10 @@ func NewGenerateStage(opts ...GenerateStageOption) *GenerateStage {
 	}
 	// Default scenario root
 	if s.scenarioRoot == "" {
-		home, _ := os.UserHomeDir()
-		s.scenarioRoot = filepath.Join(home, "Vrooli", "scenarios")
+		s.scenarioRoot = sharedpath.DetectScenariosRoot()
+		if s.scenarioRoot == "" {
+			s.scenarioRoot = filepath.Clean("scenarios")
+		}
 	}
 	return s
 }

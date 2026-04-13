@@ -1,11 +1,9 @@
 package main
 
 import (
-	"errors"
-	"fmt"
 	"io"
-	"strings"
 
+	"github.com/vrooli/vrooli/internal/cli/resourcecli"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/resources"
@@ -13,31 +11,33 @@ import (
 
 type resourceCommandAction[Req any, Resp any] struct {
 	parse  func(globals globalOptions, args []string) (Req, error)
-	run    func(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req Req) (cliout.Format, Resp, error)
+	run    func(controller *resources.Controller, ctx *commandContext, req Req) (cliout.Format, Resp, error)
 	render func(w io.Writer, format cliout.Format, resp Resp) error
 }
 
 func executeResourceCommand[Req any, Resp any](controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer, action resourceCommandAction[Req, Resp]) error {
-	req, err := action.parse(globals, args)
-	if err != nil {
-		var helpErr commandHelpError
-		if errors.As(err, &helpErr) {
-			_, _ = fmt.Fprintln(stdout, helpErr.message)
-			return nil
-		}
-		return err
+	app, ctx := newConfiguredCommandContext("", globals, stdout, stderr)
+	if controller != nil {
+		ctx.Root = controller.Root
 	}
-	format, resp, err := action.run(controller, globals, stdout, stderr, req)
-	if err != nil {
-		return err
-	}
-	return action.render(stdout, format, resp)
+	return executeBoundCommand(app, ctx, controller, args, boundCommandAction[*resources.Controller, Req, Resp]{
+		parse: func(globals globalOptions, args []string) (Req, error) {
+			return action.parse(globals, args)
+		},
+		run: func(controller *resources.Controller, ctx *commandContext, req Req) (cliout.Format, Resp, error) {
+			return action.run(controller, ctx, req)
+		},
+		render: action.render,
+	})
 }
 
-type resourceNoArgsRequest struct{}
-type resourceNameRequest struct {
-	Name string
-}
+type (
+	resourceNoArgsRequest struct{}
+	resourceNameRequest   struct {
+		Name string
+	}
+)
+
 type resourceStatusRequest struct {
 	Name string
 	Fast bool
@@ -58,7 +58,8 @@ type resourceStatusesResponse struct {
 }
 
 type resourceStatusResponse struct {
-	Item resources.Status
+	Item  *resources.Status
+	Items []resources.Status
 }
 
 type resourceReportResponse struct {
@@ -107,12 +108,12 @@ func parseResourceListRequest(globals globalOptions, args []string) (resourceNoA
 	return parseResourceNoArgs("Usage: vrooli resource list", "resource list", args)
 }
 
-func runResourceListRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceNoArgsRequest) (cliout.Format, resourceListResponse, error) {
+func runResourceListRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resourceListResponse, error) {
 	items, err := controller.Discover()
 	if err != nil {
 		return "", resourceListResponse{}, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", resourceListResponse{}, err
 	}
@@ -120,7 +121,7 @@ func runResourceListRequest(controller *resources.Controller, globals globalOpti
 }
 
 func renderResourceListResponse(w io.Writer, format cliout.Format, resp resourceListResponse) error {
-	return writeResourceList(w, format, resp.Items)
+	return resourcecli.WriteList(w, format, resp.Items)
 }
 
 func parseResourceStatusRequest(globals globalOptions, args []string) (resourceStatusRequest, error) {
@@ -147,69 +148,62 @@ func parseResourceStatusRequest(globals globalOptions, args []string) (resourceS
 	return req, nil
 }
 
-func runResourceStatusRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceStatusRequest) (cliout.Format, any, error) {
-	format, err := parseOutputFormat(globals)
+func runResourceStatusRequest(controller *resources.Controller, ctx *commandContext, req resourceStatusRequest) (cliout.Format, resourceStatusResponse, error) {
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
-		return "", nil, err
+		return "", resourceStatusResponse{}, err
 	}
 	if req.Name == "" {
 		items, err := controller.ListStatuses(req.Fast, false)
 		if err != nil {
-			return "", nil, err
+			return "", resourceStatusResponse{}, err
 		}
-		return format, resourceStatusesResponse{Items: items}, nil
+		return format, resourceStatusResponse{Items: items}, nil
 	}
 	item, err := controller.Status(req.Name, req.Fast)
 	if err != nil {
-		return "", nil, err
+		return "", resourceStatusResponse{}, err
 	}
-	return format, resourceStatusResponse{Item: item}, nil
+	return format, resourceStatusResponse{Item: &item}, nil
 }
 
-func renderResourceStatusResponse(w io.Writer, format cliout.Format, resp any) error {
-	switch typed := resp.(type) {
-	case resourceStatusesResponse:
-		return writeResourceStatuses(w, format, typed.Items)
-	case resourceStatusResponse:
-		return writeResourceStatus(w, format, typed.Item)
-	default:
-		return fmt.Errorf("unexpected resource status response type %T", resp)
+func renderResourceStatusResponse(w io.Writer, format cliout.Format, resp resourceStatusResponse) error {
+	if resp.Item != nil {
+		return resourcecli.WriteStatus(w, format, *resp.Item)
 	}
+	return resourcecli.WriteStatuses(w, format, resp.Items)
 }
 
 func parseResourceInfoRequest(globals globalOptions, args []string) (resourceNameRequest, error) {
 	return parseResourceSingleName("Usage: vrooli resource info <name>", "resource info", args)
 }
 
-func runResourceInfoRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceNameRequest) (cliout.Format, resourceStatusResponse, error) {
+func runResourceInfoRequest(controller *resources.Controller, ctx *commandContext, req resourceNameRequest) (cliout.Format, resourceStatusResponse, error) {
 	item, err := controller.Status(req.Name, true)
 	if err != nil {
 		return "", resourceStatusResponse{}, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", resourceStatusResponse{}, err
 	}
-	return format, resourceStatusResponse{Item: item}, nil
+	return format, resourceStatusResponse{Item: &item}, nil
 }
 
 func renderResourceInfoResponse(w io.Writer, format cliout.Format, resp resourceStatusResponse) error {
-	if format == cliout.FormatJSON {
-		return writeSuccessData(w, "resource", resp.Item)
-	}
-	return writeResourceStatus(w, format, resp.Item)
+	return resourcecli.WriteInfo(w, format, *resp.Item)
 }
 
 func parseResourceDeprecateRequest(globals globalOptions, args []string) (resourceNameRequest, error) {
 	return parseResourceSingleName("Usage: vrooli resource deprecate <name>", "resource deprecate", args)
 }
 
-func runResourceDeprecateRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceNameRequest) (cliout.Format, resources.DeprecationReport, error) {
+func runResourceDeprecateRequest(controller *resources.Controller, ctx *commandContext, req resourceNameRequest) (cliout.Format, resources.DeprecationReport, error) {
 	report, err := controller.DeprecateResource(req.Name)
 	if err != nil {
 		return "", resources.DeprecationReport{}, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", resources.DeprecationReport{}, err
 	}
@@ -217,26 +211,19 @@ func runResourceDeprecateRequest(controller *resources.Controller, globals globa
 }
 
 func renderResourceDeprecateResponse(w io.Writer, format cliout.Format, report resources.DeprecationReport) error {
-	if format == cliout.FormatJSON {
-		return writeSuccessData(w, "report", report)
-	}
-	_, _ = fmt.Fprintf(w, "Deprecated %s\n", report.Resource.Name)
-	if report.ArchiveDir != "" {
-		_, _ = fmt.Fprintf(w, "Archive: %s\n", report.ArchiveDir)
-	}
-	return nil
+	return resourcecli.WriteDeprecationReport(w, format, report)
 }
 
 func parseResourceListDeprecatedRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
 	return parseResourceNoArgs("Usage: vrooli resource list-deprecated", "resource list-deprecated", args)
 }
 
-func runResourceListDeprecatedRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceNoArgsRequest) (cliout.Format, []resources.DeprecatedResource, error) {
+func runResourceListDeprecatedRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, []resources.DeprecatedResource, error) {
 	items, err := controller.ListDeprecatedResources()
 	if err != nil {
 		return "", nil, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", nil, err
 	}
@@ -244,30 +231,19 @@ func runResourceListDeprecatedRequest(controller *resources.Controller, globals 
 }
 
 func renderResourceListDeprecatedResponse(w io.Writer, format cliout.Format, items []resources.DeprecatedResource) error {
-	if format == cliout.FormatJSON {
-		return writeSuccessData(w, "resources", items)
-	}
-	rows := make([][]string, 0, len(items))
-	for _, item := range items {
-		state := "deprecated"
-		if strings.TrimSpace(item.PurgedAt) != "" {
-			state = "purged"
-		}
-		rows = append(rows, []string{item.Name, state, item.DeprecatedAt, item.PurgeAfter, item.Replacement})
-	}
-	return cliout.RenderTable(w, []string{"Name", "State", "Deprecated", "Purge After", "Replacement"}, rows)
+	return resourcecli.WriteDeprecatedList(w, format, items)
 }
 
 func parseResourceRestoreRequest(globals globalOptions, args []string) (resourceNameRequest, error) {
 	return parseResourceSingleName("Usage: vrooli resource restore <name>", "resource restore", args)
 }
 
-func runResourceRestoreRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceNameRequest) (cliout.Format, resources.RestoreReport, error) {
+func runResourceRestoreRequest(controller *resources.Controller, ctx *commandContext, req resourceNameRequest) (cliout.Format, resources.RestoreReport, error) {
 	report, err := controller.RestoreDeprecatedResource(req.Name)
 	if err != nil {
 		return "", resources.RestoreReport{}, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", resources.RestoreReport{}, err
 	}
@@ -275,23 +251,19 @@ func runResourceRestoreRequest(controller *resources.Controller, globals globalO
 }
 
 func renderResourceRestoreResponse(w io.Writer, format cliout.Format, report resources.RestoreReport) error {
-	if format == cliout.FormatJSON {
-		return writeSuccessData(w, "report", report)
-	}
-	_, _ = fmt.Fprintf(w, "Restored %s to %s\n", report.Resource.Name, report.RestoredPath)
-	return nil
+	return resourcecli.WriteRestoreReport(w, format, report)
 }
 
 func parseResourceArchiveToBlueprintRequest(globals globalOptions, args []string) (resourceNameRequest, error) {
 	return parseResourceSingleName("Usage: vrooli resource archive-to-blueprint <name>", "resource archive-to-blueprint", args)
 }
 
-func runResourceArchiveToBlueprintRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceNameRequest) (cliout.Format, resources.BlueprintArchiveReport, error) {
+func runResourceArchiveToBlueprintRequest(controller *resources.Controller, ctx *commandContext, req resourceNameRequest) (cliout.Format, resources.BlueprintArchiveReport, error) {
 	report, err := controller.ArchiveResourceToBlueprint(req.Name)
 	if err != nil {
 		return "", resources.BlueprintArchiveReport{}, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", resources.BlueprintArchiveReport{}, err
 	}
@@ -299,26 +271,19 @@ func runResourceArchiveToBlueprintRequest(controller *resources.Controller, glob
 }
 
 func renderResourceArchiveToBlueprintResponse(w io.Writer, format cliout.Format, report resources.BlueprintArchiveReport) error {
-	if format == cliout.FormatJSON {
-		return writeSuccessData(w, "report", report)
-	}
-	_, _ = fmt.Fprintf(w, "Archived %s to blueprint-only state\n", report.Resource.Name)
-	if report.ArchiveDir != "" {
-		_, _ = fmt.Fprintf(w, "Archive: %s\n", report.ArchiveDir)
-	}
-	return nil
+	return resourcecli.WriteBlueprintArchiveReport(w, format, report)
 }
 
 func parseResourceListBlueprintArchivedRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
 	return parseResourceNoArgs("Usage: vrooli resource list-blueprint-archived", "resource list-blueprint-archived", args)
 }
 
-func runResourceListBlueprintArchivedRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceNoArgsRequest) (cliout.Format, []resources.BlueprintArchivedResource, error) {
+func runResourceListBlueprintArchivedRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, []resources.BlueprintArchivedResource, error) {
 	items, err := controller.ListBlueprintArchivedResources()
 	if err != nil {
 		return "", nil, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", nil, err
 	}
@@ -326,30 +291,19 @@ func runResourceListBlueprintArchivedRequest(controller *resources.Controller, g
 }
 
 func renderResourceListBlueprintArchivedResponse(w io.Writer, format cliout.Format, items []resources.BlueprintArchivedResource) error {
-	if format == cliout.FormatJSON {
-		return writeSuccessData(w, "resources", items)
-	}
-	rows := make([][]string, 0, len(items))
-	for _, item := range items {
-		state := "blueprint-archived"
-		if strings.TrimSpace(item.PurgedAt) != "" {
-			state = "purged"
-		}
-		rows = append(rows, []string{item.Name, state, item.ArchivedAt, item.PurgeAfter, item.BlueprintName})
-	}
-	return cliout.RenderTable(w, []string{"Name", "State", "Archived", "Purge After", "Blueprint"}, rows)
+	return resourcecli.WriteBlueprintArchivedList(w, format, items)
 }
 
 func parseResourceRestoreBlueprintRequest(globals globalOptions, args []string) (resourceNameRequest, error) {
 	return parseResourceSingleName("Usage: vrooli resource restore-blueprint <name>", "resource restore-blueprint", args)
 }
 
-func runResourceRestoreBlueprintRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceNameRequest) (cliout.Format, resources.BlueprintRestoreReport, error) {
+func runResourceRestoreBlueprintRequest(controller *resources.Controller, ctx *commandContext, req resourceNameRequest) (cliout.Format, resources.BlueprintRestoreReport, error) {
 	report, err := controller.RestoreBlueprintArchivedResource(req.Name)
 	if err != nil {
 		return "", resources.BlueprintRestoreReport{}, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", resources.BlueprintRestoreReport{}, err
 	}
@@ -357,23 +311,19 @@ func runResourceRestoreBlueprintRequest(controller *resources.Controller, global
 }
 
 func renderResourceRestoreBlueprintResponse(w io.Writer, format cliout.Format, report resources.BlueprintRestoreReport) error {
-	if format == cliout.FormatJSON {
-		return writeSuccessData(w, "report", report)
-	}
-	_, _ = fmt.Fprintf(w, "Restored blueprint-archived %s to %s\n", report.Resource.Name, report.RestoredPath)
-	return nil
+	return resourcecli.WriteBlueprintRestoreReport(w, format, report)
 }
 
 func parseResourceArchiveGCRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
 	return parseResourceNoArgs("Usage: vrooli resource archive gc", "resource archive gc", args)
 }
 
-func runResourceArchiveGCRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceNoArgsRequest) (cliout.Format, resources.ArchiveGCReport, error) {
+func runResourceArchiveGCRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resources.ArchiveGCReport, error) {
 	report, err := controller.GarbageCollectDeprecatedArchives(timeNowForResourceGC())
 	if err != nil {
 		return "", resources.ArchiveGCReport{}, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", resources.ArchiveGCReport{}, err
 	}
@@ -381,23 +331,19 @@ func runResourceArchiveGCRequest(controller *resources.Controller, globals globa
 }
 
 func renderResourceArchiveGCResponse(w io.Writer, format cliout.Format, report resources.ArchiveGCReport) error {
-	if format == cliout.FormatJSON {
-		return writeSuccessData(w, "report", report)
-	}
-	_, _ = fmt.Fprintf(w, "Purged %d deprecated resource archives\n", len(report.Removed))
-	return nil
+	return resourcecli.WriteArchiveGCReport(w, format, report, "deprecated resource")
 }
 
 func parseResourceArchiveBlueprintGCRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
 	return parseResourceNoArgs("Usage: vrooli resource archive gc-blueprints", "resource archive gc-blueprints", args)
 }
 
-func runResourceArchiveBlueprintGCRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceNoArgsRequest) (cliout.Format, resources.ArchiveGCReport, error) {
+func runResourceArchiveBlueprintGCRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resources.ArchiveGCReport, error) {
 	report, err := controller.GarbageCollectBlueprintArchives(timeNowForResourceGC())
 	if err != nil {
 		return "", resources.ArchiveGCReport{}, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", resources.ArchiveGCReport{}, err
 	}
@@ -405,23 +351,19 @@ func runResourceArchiveBlueprintGCRequest(controller *resources.Controller, glob
 }
 
 func renderResourceArchiveBlueprintGCResponse(w io.Writer, format cliout.Format, report resources.ArchiveGCReport) error {
-	if format == cliout.FormatJSON {
-		return writeSuccessData(w, "report", report)
-	}
-	_, _ = fmt.Fprintf(w, "Purged %d blueprint resource archives\n", len(report.Removed))
-	return nil
+	return resourcecli.WriteArchiveGCReport(w, format, report, "blueprint resource")
 }
 
 func parseResourceBlueprintListRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
 	return parseResourceNoArgs("Usage: vrooli resource blueprint list", "resource blueprint list", args)
 }
 
-func runResourceBlueprintListRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceNoArgsRequest) (cliout.Format, resourceBlueprintsResponse, error) {
+func runResourceBlueprintListRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resourceBlueprintsResponse, error) {
 	items, err := controller.ListBlueprints()
 	if err != nil {
 		return "", resourceBlueprintsResponse{}, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", resourceBlueprintsResponse{}, err
 	}
@@ -429,26 +371,19 @@ func runResourceBlueprintListRequest(controller *resources.Controller, globals g
 }
 
 func renderResourceBlueprintListResponse(w io.Writer, format cliout.Format, resp resourceBlueprintsResponse) error {
-	if format == cliout.FormatJSON {
-		return writeSuccessData(w, "blueprints", resp.Items)
-	}
-	rows := make([][]string, 0, len(resp.Items))
-	for _, item := range resp.Items {
-		rows = append(rows, []string{item.Name, item.Category, item.Status, item.SuggestedTemplate, item.LastReviewed})
-	}
-	return cliout.RenderTable(w, []string{"Name", "Category", "Status", "Template", "Reviewed"}, rows)
+	return resourcecli.WriteBlueprintList(w, format, resp.Items)
 }
 
 func parseResourceBlueprintInfoRequest(globals globalOptions, args []string) (resourceNameRequest, error) {
 	return parseResourceSingleName("Usage: vrooli resource blueprint info <name>", "resource blueprint info", args)
 }
 
-func runResourceBlueprintInfoRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceNameRequest) (cliout.Format, resourceBlueprintResponse, error) {
+func runResourceBlueprintInfoRequest(controller *resources.Controller, ctx *commandContext, req resourceNameRequest) (cliout.Format, resourceBlueprintResponse, error) {
 	item, err := controller.Blueprint(req.Name)
 	if err != nil {
 		return "", resourceBlueprintResponse{}, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", resourceBlueprintResponse{}, err
 	}
@@ -456,21 +391,7 @@ func runResourceBlueprintInfoRequest(controller *resources.Controller, globals g
 }
 
 func renderResourceBlueprintInfoResponse(w io.Writer, format cliout.Format, resp resourceBlueprintResponse) error {
-	if format == cliout.FormatJSON {
-		return writeSuccessData(w, "blueprint", resp.Item)
-	}
-	rows := [][]string{
-		{"Name", resp.Item.Name},
-		{"Display Name", resp.Item.DisplayName},
-		{"Category", resp.Item.Category},
-		{"Status", resp.Item.Status},
-		{"Integration Kind", resp.Item.IntegrationKind},
-		{"Template", resp.Item.SuggestedTemplate},
-		{"Reviewed", resp.Item.LastReviewed},
-		{"Summary", resp.Item.Summary},
-		{"Why It Matters", resp.Item.WhyItMatters},
-	}
-	return cliout.RenderTable(w, []string{"Field", "Value"}, rows)
+	return resourcecli.WriteBlueprintInfo(w, format, resp.Item)
 }
 
 func parseResourceBlueprintSearchRequest(globals globalOptions, args []string) (resourceBlueprintSearchRequest, error) {
@@ -485,12 +406,12 @@ func parseResourceBlueprintSearchRequest(globals globalOptions, args []string) (
 	return resourceBlueprintSearchRequest{Query: args[0]}, nil
 }
 
-func runResourceBlueprintSearchRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceBlueprintSearchRequest) (cliout.Format, resourceBlueprintSearchResponse, error) {
+func runResourceBlueprintSearchRequest(controller *resources.Controller, ctx *commandContext, req resourceBlueprintSearchRequest) (cliout.Format, resourceBlueprintSearchResponse, error) {
 	items, err := controller.SearchBlueprints(req.Query)
 	if err != nil {
 		return "", resourceBlueprintSearchResponse{}, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", resourceBlueprintSearchResponse{}, err
 	}
@@ -498,30 +419,19 @@ func runResourceBlueprintSearchRequest(controller *resources.Controller, globals
 }
 
 func renderResourceBlueprintSearchResponse(w io.Writer, format cliout.Format, resp resourceBlueprintSearchResponse) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success":    true,
-			"query":      resp.Query,
-			"blueprints": resp.Items,
-		})
-	}
-	rows := make([][]string, 0, len(resp.Items))
-	for _, item := range resp.Items {
-		rows = append(rows, []string{item.Name, item.Category, item.Status, item.Summary})
-	}
-	return cliout.RenderTable(w, []string{"Name", "Category", "Status", "Summary"}, rows)
+	return resourcecli.WriteBlueprintSearch(w, format, resp.Query, resp.Items)
 }
 
 func parseResourceBlueprintValidateRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
 	return parseResourceNoArgs("Usage: vrooli resource blueprint validate", "resource blueprint validate", args)
 }
 
-func runResourceBlueprintValidateRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceNoArgsRequest) (cliout.Format, resources.BlueprintValidationReport, error) {
+func runResourceBlueprintValidateRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resources.BlueprintValidationReport, error) {
 	report, err := controller.ValidateBlueprints()
 	if err != nil {
 		return "", resources.BlueprintValidationReport{}, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
 		return "", resources.BlueprintValidationReport{}, err
 	}
@@ -529,52 +439,51 @@ func runResourceBlueprintValidateRequest(controller *resources.Controller, globa
 }
 
 func renderResourceBlueprintValidateResponse(w io.Writer, format cliout.Format, report resources.BlueprintValidationReport) error {
-	if format == cliout.FormatJSON {
-		return writeSuccessData(w, "report", report)
-	}
-	_, _ = fmt.Fprintf(w, "Validated %d resource blueprints\n", report.Count)
-	return nil
+	return resourcecli.WriteBlueprintValidationReport(w, format, report)
 }
 
 func parseResourceStartAllRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
 	return parseResourceNoArgs("Usage: vrooli resource start-all", "resource start-all", args)
 }
 
-func runResourceStartAllRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceNoArgsRequest) (cliout.Format, any, error) {
-	report, err := controller.StartAll(stdout, stderr)
+type resourceControlReportResponse struct {
+	Start *control.StartReport
+	Stop  *control.StopReport
+}
+
+func runResourceStartAllRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resourceControlReportResponse, error) {
+	report, err := controller.StartAll(ctx.Stdout, ctx.Stderr)
 	if err != nil {
-		return "", nil, err
+		return "", resourceControlReportResponse{}, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
-		return "", nil, err
+		return "", resourceControlReportResponse{}, err
 	}
-	return format, report, nil
+	return format, resourceControlReportResponse{Start: &report}, nil
 }
 
 func parseResourceStopAllRequest(globals globalOptions, args []string) (resourceNoArgsRequest, error) {
 	return parseResourceNoArgs("Usage: vrooli resource stop-all", "resource stop-all", args)
 }
 
-func runResourceStopAllRequest(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer, req resourceNoArgsRequest) (cliout.Format, any, error) {
-	report, err := controller.StopAll(stdout, stderr)
+func runResourceStopAllRequest(controller *resources.Controller, ctx *commandContext, req resourceNoArgsRequest) (cliout.Format, resourceControlReportResponse, error) {
+	report, err := controller.StopAll(ctx.Stdout, ctx.Stderr)
 	if err != nil {
-		return "", nil, err
+		return "", resourceControlReportResponse{}, err
 	}
-	format, err := parseOutputFormat(globals)
+	format, err := parseOutputFormat(ctx.Globals)
 	if err != nil {
-		return "", nil, err
+		return "", resourceControlReportResponse{}, err
 	}
-	return format, report, nil
+	return format, resourceControlReportResponse{Stop: &report}, nil
 }
 
-func renderResourceControlReportResponse(w io.Writer, format cliout.Format, resp any) error {
-	switch report := resp.(type) {
-	case control.StartReport:
-		return writeControlReport(w, format, "report", "Started", report, report.Started, report.Failed)
-	case control.StopReport:
-		return writeControlReport(w, format, "report", "Stopped", report, report.Stopped, report.Failed)
-	default:
-		return fmt.Errorf("unexpected control report type %T", resp)
+func renderResourceControlReportResponse(w io.Writer, format cliout.Format, resp resourceControlReportResponse) error {
+	if resp.Start != nil {
+		report := *resp.Start
+		return resourcecli.WriteControlReport(w, format, "report", "Started", report, report.Started, report.Failed)
 	}
+	report := *resp.Stop
+	return resourcecli.WriteControlReport(w, format, "report", "Stopped", report, report.Stopped, report.Failed)
 }

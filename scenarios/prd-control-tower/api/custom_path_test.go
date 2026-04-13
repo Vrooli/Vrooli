@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -44,24 +45,24 @@ func TestResolveEntityBaseDir(t *testing.T) {
 			entityType: "scenario",
 			entityName: "my-scenario",
 			customPath: "",
-			vrooliRoot: "/home/user/Vrooli",
-			want:       "/home/user/Vrooli/scenarios/my-scenario",
+			vrooliRoot: repoRootForContractFixture(t),
+			want:       filepath.Join(repoRootForContractFixture(t), "scenarios", "my-scenario"),
 		},
 		{
 			name:       "whitespace-only custom path falls back to scenario path",
 			entityType: "scenario",
 			entityName: "my-scenario",
 			customPath: "   ",
-			vrooliRoot: "/home/user/Vrooli",
-			want:       "/home/user/Vrooli/scenarios/my-scenario",
+			vrooliRoot: repoRootForContractFixture(t),
+			want:       filepath.Join(repoRootForContractFixture(t), "scenarios", "my-scenario"),
 		},
 		{
 			name:       "resource entity type uses resources directory",
 			entityType: "resource",
 			entityName: "my-resource",
 			customPath: "",
-			vrooliRoot: "/home/user/Vrooli",
-			want:       "/home/user/Vrooli/resources/my-resource",
+			vrooliRoot: repoRootForContractFixture(t),
+			want:       filepath.Join(repoRootForContractFixture(t), "resources", "my-resource"),
 		},
 		{
 			name:       "custom path ignores entity type entirely",
@@ -72,11 +73,11 @@ func TestResolveEntityBaseDir(t *testing.T) {
 			want:       "/some/arbitrary/dir",
 		},
 		{
-			name:       "no VROOLI_ROOT and no custom path errors",
+			name:       "no repo context and no custom path errors",
 			entityType: "scenario",
 			entityName: "my-scenario",
 			customPath: "",
-			vrooliRoot: "", // will also clear HOME
+			vrooliRoot: "",
 			wantErr:    true,
 		},
 		{
@@ -91,13 +92,17 @@ func TestResolveEntityBaseDir(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.vrooliRoot != "" {
-				t.Setenv("VROOLI_ROOT", tt.vrooliRoot)
-			} else {
-				t.Setenv("VROOLI_ROOT", "")
-				if tt.customPath == "" {
-					t.Setenv("HOME", "")
+			t.Setenv("VROOLI_ROOT", tt.vrooliRoot)
+			if tt.vrooliRoot == "" && tt.customPath == "" {
+				origWD, err := os.Getwd()
+				if err != nil {
+					t.Fatalf("getwd: %v", err)
 				}
+				temp := t.TempDir()
+				if err := os.Chdir(temp); err != nil {
+					t.Fatalf("chdir: %v", err)
+				}
+				t.Cleanup(func() { _ = os.Chdir(origWD) })
 			}
 
 			got, err := resolveEntityBaseDir(tt.entityType, tt.entityName, tt.customPath)
@@ -116,6 +121,15 @@ func TestResolveEntityBaseDir(t *testing.T) {
 			}
 		})
 	}
+}
+
+func repoRootForContractFixture(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", ".."))
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

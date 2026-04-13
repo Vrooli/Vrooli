@@ -2,6 +2,9 @@ package pipeline
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -125,6 +128,21 @@ func TestGenerateStage(t *testing.T) {
 			t.Error("expected CanSkip to return false")
 		}
 	})
+
+	t.Run("default scenario root uses contract", func(t *testing.T) {
+		root := newStageContractFixtureRepo(t)
+		nested := filepath.Join(root, "scenarios", "scenario-to-desktop", "api")
+		if err := os.MkdirAll(nested, 0o755); err != nil {
+			t.Fatalf("mkdir nested: %v", err)
+		}
+		t.Setenv("VROOLI_ROOT", nested)
+
+		stage := NewGenerateStage()
+		want := filepath.Join(root, "scenarios")
+		if stage.scenarioRoot != want {
+			t.Fatalf("scenarioRoot = %q, want %q", stage.scenarioRoot, want)
+		}
+	})
 }
 
 // TestPreflightStage tests the preflight stage.
@@ -177,6 +195,71 @@ func TestPreflightStage(t *testing.T) {
 			t.Error("expected CanSkip to return true in proxy mode")
 		}
 	})
+}
+
+func TestBundleStage_DefaultScenarioRootUsesContract(t *testing.T) {
+	root := newStageContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "scenario-to-desktop", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+	t.Setenv("VROOLI_ROOT", nested)
+
+	stage := NewBundleStage()
+	want := filepath.Join(root, "scenarios")
+	if stage.scenarioRoot != want {
+		t.Fatalf("scenarioRoot = %q, want %q", stage.scenarioRoot, want)
+	}
+}
+
+func TestOrchestrator_DefaultScenarioRootUsesContract(t *testing.T) {
+	root := newStageContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "scenario-to-desktop", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+	t.Setenv("VROOLI_ROOT", nested)
+
+	orchestrator := NewOrchestrator(WithStages(&mockStage{name: "test"}))
+	want := filepath.Join(root, "scenarios")
+	if orchestrator.scenarioRoot != want {
+		t.Fatalf("scenarioRoot = %q, want %q", orchestrator.scenarioRoot, want)
+	}
+}
+
+func newStageContractFixtureRepo(t *testing.T) string {
+	t.Helper()
+
+	root := t.TempDir()
+	repoRoot := stageRepoRoot(t)
+	contractData, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("read repo contract: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir .vrooli: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), contractData, 0o644); err != nil {
+		t.Fatalf("write repo contract: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/scenario-to-desktop-stage-test\n\ngo 1.24.0\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	for _, dir := range []string{"scenarios", "resources", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	return root
+}
+
+func stageRepoRoot(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", ".."))
 }
 
 // TestSmokeTestStage tests the smoke test stage.

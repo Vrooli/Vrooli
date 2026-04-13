@@ -1,4 +1,5 @@
 package services
+
 // DOC: docs/concepts/ARCHITECTURE.md#investigation-flow
 
 import (
@@ -8,13 +9,13 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"system-monitor-api/internal/agentmanager"
 	"system-monitor-api/internal/apierrors"
@@ -523,27 +524,18 @@ func resolveInvestigationWorkingDir() string {
 		}
 	}
 
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		if homeDir, err := os.UserHomeDir(); err == nil {
-			vrooliRoot = filepath.Join(homeDir, "Vrooli")
+	if scenarioRoot, err := resolveSystemMonitorScenarioRoot(); err == nil {
+		if info, statErr := os.Stat(scenarioRoot); statErr == nil && info.IsDir() {
+			return scenarioRoot
 		}
 	}
-
-	if vrooliRoot == "" {
-		if cwd, err := os.Getwd(); err == nil {
-			vrooliRoot = cwd
-		} else {
-			return "."
-		}
+	if repoRoot, err := repocontract.ResolveRepoRoot(); err == nil {
+		return repoRoot
 	}
-
-	scenarioPath := filepath.Join(vrooliRoot, "scenarios", "system-monitor")
-	if info, err := os.Stat(scenarioPath); err == nil && info.IsDir() {
-		return scenarioPath
+	if cwd, err := os.Getwd(); err == nil {
+		return cwd
 	}
-
-	return vrooliRoot
+	return "."
 }
 
 func truncateAgentLog(raw string, limit int) string {

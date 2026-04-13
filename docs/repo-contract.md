@@ -151,7 +151,7 @@ Common example: `vrooli contract resolve scenario <name> --file service`
 
 ## Adoption Rules
 
-For covered repo-aware work:
+For future repo-aware work:
 
 - do not add new independent repo-root detection logic
 - do not add new hard-coded canonical scenario path assembly
@@ -161,6 +161,29 @@ For covered repo-aware work:
 - add a new structural rule to the contract only if it is intentionally shared, future-state aligned, and stable enough to version
 
 Ordinary scenario runtime logic should usually consume higher-level shared packages. Repo-aware infrastructure code may consume `packages/repo-contract-go` directly when repository/layout semantics are part of the job.
+
+Preferred consumption order:
+
+- ordinary runtime logic should prefer `packages/api-core` or `packages/cli-core`
+- repo-aware infrastructure code may consume `packages/repo-contract-go` directly when layout semantics are central to its job
+- local fallbacks are acceptable only when they are explicitly documented as non-authoritative compatibility behavior
+
+## Grandfathered Debt and Exceptions
+
+Phase 6 does not claim that every historical repo-root helper or path join in the monorepo has already been migrated. It closes adoption by making future repo-aware work follow the contract and by enumerating the remaining debt explicitly.
+
+The current allowlist for grandfathered exceptions lives at:
+
+- `.vrooli/repo-contract-adoption-exceptions.json`
+- [repo-contract-adoption-exceptions.json](/home/matthalloran8/Vrooli/.vrooli/repo-contract-adoption-exceptions.json)
+
+Each exception must include:
+
+- the file path
+- the violated adoption rule
+- a short migration or compatibility rationale
+
+If a new repo-aware surface needs an exception, that should be treated as a temporary migration decision, not as new contract authority.
 
 ## Landed Consumer Migrations
 

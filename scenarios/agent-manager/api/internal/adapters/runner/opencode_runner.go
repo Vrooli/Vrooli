@@ -22,6 +22,7 @@ import (
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // OpenCodeResourceCommand is the Vrooli resource wrapper command
@@ -426,15 +427,44 @@ func openCodeLogDir() string {
 	if base := strings.TrimSpace(os.Getenv("OPENCODE_DATA_DIR")); base != "" {
 		return filepath.Join(base, "xdg-data", "opencode", "log")
 	}
-	root := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
+	root := resolveRepoRoot()
 	if root == "" {
-		home, _ := os.UserHomeDir()
-		if home == "" {
-			return ""
-		}
-		root = filepath.Join(home, "Vrooli")
+		return ""
 	}
 	return filepath.Join(root, "data", "opencode", "xdg-data", "opencode", "log")
+}
+
+func resolveRepoRoot() string {
+	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
+		if root := strings.TrimSpace(os.Getenv(key)); root != "" {
+			if resolved, ok := canonicalRepoRootFromOverride(root); ok {
+				return resolved
+			}
+			return filepath.Clean(root)
+		}
+	}
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
+	}
+	return ""
+}
+
+func canonicalRepoRootFromOverride(path string) (string, bool) {
+	current := filepath.Clean(strings.TrimSpace(path))
+	if current == "" || current == "." {
+		return "", false
+	}
+	for depth := 0; depth < 25; depth++ {
+		if resolved, err := repocontract.FindRepoRoot(current); err == nil {
+			return resolved, true
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return "", false
 }
 
 func newestFile(dir, pattern string) (string, error) {

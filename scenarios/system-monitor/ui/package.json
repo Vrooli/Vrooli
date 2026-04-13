@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "postinstall": "bash -c 'set -e; mkdir -p node_modules/@vrooli; rm -rf node_modules/@vrooli/proto-types; cp -a ../../../packages/proto/gen/typescript node_modules/@vrooli/proto-types'",
-    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite --host 0.0.0.0'",
-    "dev": "vite --host 0.0.0.0",
+    "start": "node ../../../packages/api-base/bin/vrooli-ui-run.js vite --host 0.0.0.0",
+    "dev": "node ../../../packages/api-base/bin/vrooli-ui-run.js vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "pnpm run test:unit",

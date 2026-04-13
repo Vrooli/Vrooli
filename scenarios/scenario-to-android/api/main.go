@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 type StatusResponse struct {
@@ -328,11 +328,7 @@ func executeBuild(buildID string, req BuildRequest) {
 
 	updateBuildState("building", 10, "Starting build process...")
 
-	// Get scenario root
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
-	}
+	vrooliRoot := resolveVrooliRoot()
 
 	// Find the convert script
 	convertScript := filepath.Join(vrooliRoot, "scenarios", "scenario-to-android", "cli", "convert.sh")
@@ -353,7 +349,7 @@ func executeBuild(buildID string, req BuildRequest) {
 
 	// Prepare output directory
 	outputDir := filepath.Join(os.TempDir(), "scenario-to-android-builds", buildID)
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		slog.Error("Failed to create output directory",
 			"build_id", buildID,
 			"output_dir", outputDir,
@@ -395,7 +391,6 @@ func executeBuild(buildID string, req BuildRequest) {
 		"working_dir", vrooliRoot)
 
 	output, err := cmd.CombinedOutput()
-
 	if err != nil {
 		slog.Error("Build failed",
 			"build_id", buildID,
@@ -499,6 +494,19 @@ func executeBuild(buildID string, req BuildRequest) {
 		}
 		buildsMutex.Unlock()
 	}
+}
+
+func resolveVrooliRoot() string {
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		if resolved, err := repocontract.FindRepoRootFromPath(root); err == nil {
+			return resolved
+		}
+		return filepath.Clean(root)
+	}
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
+	}
+	return filepath.Clean(".")
 }
 
 func statusHandler(w http.ResponseWriter, r *http.Request) {

@@ -3,6 +3,7 @@ package paths
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -54,30 +55,51 @@ func TestDetectVrooliRootStructure(t *testing.T) {
 }
 
 func TestDetectVrooliRootFromEnv(t *testing.T) {
-	// Test that VROOLI_ROOT environment variable is respected if set
-	originalEnv := os.Getenv("VROOLI_ROOT")
-	defer func() {
-		if originalEnv != "" {
-			os.Setenv("VROOLI_ROOT", originalEnv)
-		} else {
-			os.Unsetenv("VROOLI_ROOT")
-		}
-	}()
+	root := newEcosystemContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "ecosystem-manager", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
 
-	// Test with custom VROOLI_ROOT
-	testRoot := "/tmp/test-vrooli-root"
-	os.Setenv("VROOLI_ROOT", testRoot)
+	t.Setenv("VROOLI_ROOT", nested)
 
 	result := DetectVrooliRoot()
-
-	// The function should either use the env var or fall back to detection
-	// We can't assert exact behavior without reading the implementation,
-	// but we can verify it returns a valid path
-	if result == "" {
-		t.Error("DetectVrooliRoot() returned empty string with VROOLI_ROOT set")
+	if result != root {
+		t.Fatalf("DetectVrooliRoot() = %q, want %q", result, root)
 	}
+}
 
-	if !filepath.IsAbs(result) {
-		t.Errorf("DetectVrooliRoot() returned relative path: %v", result)
+func newEcosystemContractFixtureRepo(t *testing.T) string {
+	t.Helper()
+
+	root := t.TempDir()
+	repoRoot := ecosystemRepoRoot(t)
+	contractData, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("read repo contract: %v", err)
 	}
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir .vrooli: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), contractData, 0o644); err != nil {
+		t.Fatalf("write repo contract: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/ecosystem-paths-test\n\ngo 1.24.0\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	for _, dir := range []string{"scenarios", "resources", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	return root
+}
+
+func ecosystemRepoRoot(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", "..", ".."))
 }

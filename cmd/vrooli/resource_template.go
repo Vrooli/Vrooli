@@ -56,40 +56,6 @@ func runResourceTemplateCommand(controller *resources.Controller, globals global
 	}
 }
 
-func runResourceTemplateListCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
-	return executeResourceTemplateCommand(controller, globals, args, stdout, io.Discard, resourceTemplateCommandAction[resourceTemplateNoArgsRequest, []resources.ResourceTemplateInfo]{
-		parse:  parseResourceTemplateListRequest,
-		run:    runResourceTemplateListRequest,
-		render: renderResourceTemplateListResponse,
-	})
-}
-
-func runResourceTemplateShowCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
-	return executeResourceTemplateCommand(controller, globals, args, stdout, io.Discard, resourceTemplateCommandAction[resourceTemplateNameRequest, resources.ResourceTemplateInfo]{
-		parse:  parseResourceTemplateShowRequest,
-		run:    runResourceTemplateShowRequest,
-		render: renderResourceTemplateShowResponse,
-	})
-}
-
-func runResourceTemplateValidateCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
-	return executeResourceTemplateCommand(controller, globals, args, stdout, io.Discard, resourceTemplateCommandAction[resourceTemplateNoArgsRequest, resources.ResourceTemplateValidationReport]{
-		parse:  parseResourceTemplateValidateRequest,
-		run:    runResourceTemplateValidateRequest,
-		render: renderResourceTemplateValidateResponse,
-	})
-}
-
-func runResourceTemplateGenerateCommand(controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	return executeResourceTemplateCommand(controller, globals, args, stdout, stderr, resourceTemplateCommandAction[resourceTemplateGenerateOptions, resources.ResourceTemplateGenerateReport]{
-		parse: func(args []string) (resourceTemplateGenerateOptions, error) {
-			return parseResourceTemplateGenerateRequest(controller, args, stderr)
-		},
-		run:    runResourceTemplateGenerateRequest,
-		render: renderResourceTemplateGenerateResponse,
-	})
-}
-
 func parseResourceTemplateGenerateArgs(controller *resources.Controller, args []string, stderr io.Writer) (resourceTemplateGenerateOptions, error) {
 	opts := resourceTemplateGenerateOptions{Values: map[string]string{}}
 

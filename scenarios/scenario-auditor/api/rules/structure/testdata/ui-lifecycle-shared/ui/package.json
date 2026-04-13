@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "start": "node ../../../packages/api-base/bin/vrooli-ui-run.js node server.js"
+  }
+}

@@ -17,6 +17,7 @@ import (
 	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
+	repocontract "github.com/vrooli/repo-contract-go"
 	"gopkg.in/yaml.v3"
 )
 
@@ -68,31 +69,11 @@ type ResourceDetailResponse struct {
 }
 
 func findRepoRoot() (string, error) {
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		return root, nil
-	}
-	if root := os.Getenv("APP_ROOT"); root != "" {
-		return root, nil
-	}
-	wd, err := os.Getwd()
+	root, err := repocontract.ResolveRepoRoot()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("repository root not found: %w", err)
 	}
-	dir := wd
-	for {
-		if dir == "" || dir == string(filepath.Separator) {
-			break
-		}
-		if _, err := os.Stat(filepath.Join(dir, ".vrooli")); err == nil {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return "", fmt.Errorf("repository root not found from %s", wd)
+	return root, nil
 }
 
 func toRelativePath(root, target string) string {

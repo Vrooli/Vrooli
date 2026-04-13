@@ -37,18 +37,11 @@ type vrooliPaths struct {
 
 // getVrooliPaths resolves the VROOLI_ROOT and derived paths.
 func getVrooliPaths() (vrooliPaths, error) {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return vrooliPaths{}, fmt.Errorf("failed to get user home directory: %w", err)
-		}
-		vrooliRoot = filepath.Join(home, "Vrooli")
-	}
+	vrooliRoot := getVrooliRoot()
 	return vrooliPaths{
 		root:      vrooliRoot,
-		scenarios: filepath.Join(vrooliRoot, "scenarios"),
-		resources: filepath.Join(vrooliRoot, "resources"),
+		scenarios: resolveTopLevelDir("scenarios"),
+		resources: resolveTopLevelDir("resources"),
 	}, nil
 }
 
@@ -185,7 +178,6 @@ func walkAndScan(ctx context.Context, cfg scanWalkConfig) scanWalkResult {
 
 		return nil
 	})
-
 	if err != nil {
 		logger.Warning("failed to walk %s directory: %v", cfg.componentType, err)
 		result.errors = append(result.errors, fmt.Sprintf("Failed to walk %s directory: %v", cfg.componentType, err))

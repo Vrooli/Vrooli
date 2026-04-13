@@ -852,7 +852,7 @@ func scanScenarioForRule(scenarioName, ruleID string, ruleInfo RuleInfo) []rules
 		return nil
 	}
 
-	vrooliRoot := getVrooliRoot()
+	vrooliRoot := currentVrooliRoot()
 	if strings.TrimSpace(vrooliRoot) == "" {
 		logger.Warn("Unable to resolve Vrooli root while building violation artifact", nil)
 		return nil

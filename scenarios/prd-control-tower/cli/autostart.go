@@ -13,6 +13,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 var (
@@ -75,12 +76,12 @@ func canAutostartScenario(scenarioName string) bool {
 	if strings.TrimSpace(scenarioName) == "" {
 		return false
 	}
-	repoRoot := findRepoRoot()
+	repoRoot := resolveRepoRootOrEmpty()
 	if repoRoot == "" {
 		return false
 	}
-	scenarioPath := filepath.Join(repoRoot, "scenarios", scenarioName)
-	if !statDir(scenarioPath) {
+	scenarioPath, err := repocontract.ResolveScenarioPath(repoRoot, scenarioName)
+	if err != nil || !statDir(scenarioPath) {
 		return false
 	}
 

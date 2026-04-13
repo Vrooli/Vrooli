@@ -8,10 +8,17 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	healthpkg "github.com/vrooli/api-core/health"
 )
+
+type HealthResponse = healthpkg.Response
+
+var healthHandler = healthpkg.New("scenario-to-android").Version("1.0.0").Handler()
 
 func TestHealthHandler(t *testing.T) {
 	tests := []struct {
@@ -60,13 +67,16 @@ func TestHealthHandler(t *testing.T) {
 					t.Errorf("Expected version '1.0.0', got '%s'", response.Version)
 				}
 
-				if response.Timestamp.IsZero() {
-					t.Error("Expected non-zero timestamp")
+				if response.Timestamp == "" {
+					t.Error("Expected non-empty timestamp")
 				}
 
-				// Timestamp should be recent (within last 5 seconds)
-				if time.Since(response.Timestamp) > 5*time.Second {
-					t.Errorf("Timestamp too old: %v", response.Timestamp)
+				timestamp, err := time.Parse(time.RFC3339, response.Timestamp)
+				if err != nil {
+					t.Fatalf("Failed to parse timestamp %q: %v", response.Timestamp, err)
+				}
+				if time.Since(timestamp) > 5*time.Second {
+					t.Errorf("Timestamp too old: %v", timestamp)
 				}
 			}
 
@@ -175,6 +185,20 @@ func TestStatusHandler(t *testing.T) {
 				t.Errorf("Expected Content-Type 'application/json', got '%s'", contentType)
 			}
 		})
+	}
+}
+
+func TestResolveVrooliRootCanonicalizesContractDescendantOverride(t *testing.T) {
+	root := newScenarioToAndroidContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "scenario-to-android", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+
+	t.Setenv("VROOLI_ROOT", nested)
+
+	if got := resolveVrooliRoot(); got != root {
+		t.Fatalf("resolveVrooliRoot() = %q, want %q", got, root)
 	}
 }
 
@@ -931,14 +955,14 @@ func TestExecuteBuildMkdirFailure(t *testing.T) {
 	tmpDir := t.TempDir()
 	vrooliRoot := filepath.Join(tmpDir, "vrooli-readonly")
 	scenariosDir := filepath.Join(vrooliRoot, "scenarios", "scenario-to-android", "cli")
-	if err := os.MkdirAll(scenariosDir, 0755); err != nil {
+	if err := os.MkdirAll(scenariosDir, 0o755); err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
 	}
 
 	// Create the convert script
 	convertScript := filepath.Join(scenariosDir, "convert.sh")
 	scriptContent := "#!/bin/bash\necho 'test'\nexit 0\n"
-	if err := os.WriteFile(convertScript, []byte(scriptContent), 0755); err != nil {
+	if err := os.WriteFile(convertScript, []byte(scriptContent), 0o755); err != nil {
 		t.Fatalf("Failed to create test script: %v", err)
 	}
 
@@ -1073,6 +1097,41 @@ func TestMetricsHandler(t *testing.T) {
 	}
 }
 
+func newScenarioToAndroidContractFixtureRepo(t *testing.T) string {
+	t.Helper()
+
+	root := t.TempDir()
+	repoRoot := scenarioToAndroidRepoRoot(t)
+	contractData, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("read repo contract: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir .vrooli: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), contractData, 0o644); err != nil {
+		t.Fatalf("write repo contract: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/scenario-to-android-test\n\ngo 1.24.0\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	for _, dir := range []string{"scenarios", "resources", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	return root
+}
+
+func scenarioToAndroidRepoRoot(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", ".."))
+}
+
 func TestMetricsHandlerZeroBuilds(t *testing.T) {
 	// Test metrics with no completed builds
 	metricsMutex.Lock()
@@ -1176,12 +1235,12 @@ func TestHTTPMethodValidation(t *testing.T) {
 		needsBuildData bool
 	}{
 		{
-			name:        "Health POST not allowed",
+			name:        "Health POST allowed",
 			handler:     healthHandler,
 			path:        "/health",
 			method:      http.MethodPost,
-			wantStatus:  http.StatusMethodNotAllowed,
-			description: "Health endpoint should reject POST",
+			wantStatus:  http.StatusOK,
+			description: "Health endpoint should accept POST",
 		},
 		{
 			name:        "Health GET allowed",

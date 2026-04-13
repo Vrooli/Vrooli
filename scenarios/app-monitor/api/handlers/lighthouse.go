@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // LighthouseHandler handles Lighthouse audit requests
@@ -28,13 +29,26 @@ const (
 
 // NewLighthouseHandler creates a new Lighthouse handler
 func NewLighthouseHandler() *LighthouseHandler {
-	appRoot := os.Getenv("APP_ROOT")
-	if appRoot == "" {
-		appRoot = os.Getenv("HOME") + "/Vrooli"
-	}
 	return &LighthouseHandler{
-		appRoot: appRoot,
+		appRoot: resolveAppRoot(),
 	}
+}
+
+func resolveAppRoot() string {
+	if value, ok := os.LookupEnv("APP_ROOT"); ok {
+		root := strings.TrimSpace(value)
+		if root == "" {
+			return filepath.Clean(".")
+		}
+		if resolved, err := repocontract.FindRepoRootFromPath(root); err == nil {
+			return resolved
+		}
+		return filepath.Clean(root)
+	}
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
+	}
+	return filepath.Clean(".")
 }
 
 // LighthouseRunRequest represents a request to run Lighthouse audits

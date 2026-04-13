@@ -1,21 +1,21 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"app-issue-tracker-api/internal/logging"
 	serverpkg "app-issue-tracker-api/internal/server"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func loadConfig() *serverpkg.Config {
 	vrooliRoot := getVrooliRoot()
-	scenarioRoot := filepath.Join(vrooliRoot, "scenarios/app-issue-tracker")
+	scenarioRoot := resolveScenarioRoot(vrooliRoot)
 
 	defaultIssuesDir := filepath.Join(scenarioRoot, "data/issues")
 	if _, err := os.Stat("./data/issues"); err == nil {
@@ -71,7 +71,7 @@ func getVrooliRoot() string {
 			logging.LogError("APP_ISSUE_TRACKER_ROOT environment variable is set but empty")
 			os.Exit(1)
 		}
-		return trimmed
+		return canonicalRepoRootFromOverride(trimmed)
 	}
 
 	if root, ok := os.LookupEnv("VROOLI_ROOT"); ok {
@@ -80,16 +80,29 @@ func getVrooliRoot() string {
 			logging.LogError("VROOLI_ROOT environment variable is set but empty")
 			os.Exit(1)
 		}
-		return trimmed
+		return canonicalRepoRootFromOverride(trimmed)
 	}
 
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	if out, err := cmd.Output(); err == nil {
-		return strings.TrimSpace(string(out))
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		logging.LogErrorErr("Failed to resolve Vrooli root from repo contract", err)
+		os.Exit(1)
 	}
+	return root
+}
 
-	ex, _ := os.Executable()
-	return filepath.Dir(filepath.Dir(ex))
+func resolveScenarioRoot(repoRoot string) string {
+	if resolved, err := repocontract.ResolveScenarioPath(repoRoot, "app-issue-tracker"); err == nil {
+		return resolved
+	}
+	return filepath.Join(repoRoot, "scenarios", "app-issue-tracker")
+}
+
+func canonicalRepoRootFromOverride(root string) string {
+	if resolved, err := repocontract.FindRepoRootFromPath(root); err == nil {
+		return resolved
+	}
+	return filepath.Clean(root)
 }
 
 func main() {

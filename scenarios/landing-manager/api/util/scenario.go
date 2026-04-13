@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // executablePath is overridable in tests to control os.Executable behavior.
@@ -58,17 +60,20 @@ func (loc ScenarioLocation) RequiresPathArg() bool {
 //  2. Default: ~/Vrooli (standard installation location)
 func GetVrooliRoot() string {
 	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
-		return root
+		return canonicalRepoRootFromOverride(root)
 	}
 
 	if scenarioRoot, err := ResolveScenarioRoot(); err == nil {
+		if root, err := repocontract.FindRepoRootFromPath(scenarioRoot); err == nil {
+			return root
+		}
 		if candidate := strings.TrimSpace(GetVrooliRootFromScenario(scenarioRoot)); candidate != "" && candidate != string(filepath.Separator) {
 			return candidate
 		}
 	}
 
-	if home := strings.TrimSpace(os.Getenv("HOME")); home != "" {
-		return filepath.Join(home, "Vrooli")
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
 	}
 
 	if cwd, err := os.Getwd(); err == nil {
@@ -76,6 +81,13 @@ func GetVrooliRoot() string {
 	}
 
 	return "."
+}
+
+func canonicalRepoRootFromOverride(root string) string {
+	if resolved, err := repocontract.FindRepoRootFromPath(root); err == nil {
+		return resolved
+	}
+	return filepath.Clean(root)
 }
 
 // ResolveScenarioPath finds a scenario in staging or production.

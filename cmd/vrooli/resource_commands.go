@@ -130,7 +130,7 @@ func runResourceListCommand(controller *resources.Controller, globals globalOpti
 }
 
 func runResourceStatusCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
-	return executeResourceCommand(controller, globals, args, stdout, io.Discard, resourceCommandAction[resourceStatusRequest, any]{
+	return executeResourceCommand(controller, globals, args, stdout, io.Discard, resourceCommandAction[resourceStatusRequest, resourceStatusResponse]{
 		parse:  parseResourceStatusRequest,
 		run:    runResourceStatusRequest,
 		render: renderResourceStatusResponse,
@@ -148,7 +148,7 @@ func runSingleResourceControlCommand(controller *resources.Controller, action st
 }
 
 func runResourceStartAllCommand(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer) error {
-	return executeResourceCommand(controller, globals, nil, stdout, stderr, resourceCommandAction[resourceNoArgsRequest, any]{
+	return executeResourceCommand(controller, globals, nil, stdout, stderr, resourceCommandAction[resourceNoArgsRequest, resourceControlReportResponse]{
 		parse:  parseResourceStartAllRequest,
 		run:    runResourceStartAllRequest,
 		render: renderResourceControlReportResponse,
@@ -156,7 +156,7 @@ func runResourceStartAllCommand(controller *resources.Controller, globals global
 }
 
 func runResourceStopAllCommand(controller *resources.Controller, globals globalOptions, stdout, stderr io.Writer) error {
-	return executeResourceCommand(controller, globals, nil, stdout, stderr, resourceCommandAction[resourceNoArgsRequest, any]{
+	return executeResourceCommand(controller, globals, nil, stdout, stderr, resourceCommandAction[resourceNoArgsRequest, resourceControlReportResponse]{
 		parse:  parseResourceStopAllRequest,
 		run:    runResourceStopAllRequest,
 		render: renderResourceControlReportResponse,

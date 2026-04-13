@@ -4,8 +4,8 @@
   "private": true,
   "description": "Proxy-aware dashboard for orchestrating agent metareasoning workflows",
   "scripts": {
-    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "start": "node ../../../packages/api-base/bin/vrooli-ui-run.js node server.js",
+    "dev": "node ../../../packages/api-base/bin/vrooli-ui-run.js node server.js",
     "build": "node build.mjs"
   },
   "dependencies": {

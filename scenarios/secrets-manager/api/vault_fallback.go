@@ -158,7 +158,7 @@ func extractPromptInfo(init *InitializationConfig, secret SecretDefinition) (str
 
 // scanResourcesDirectly scans resources directory for secrets.yaml files
 func scanResourcesDirectly() ([]string, error) {
-	resourcesPath := filepath.Join(getVrooliRoot(), "resources")
+	resourcesPath := resolveTopLevelDir("resources")
 	logger.Info("🔍 Scanning resources directory: %s", resourcesPath)
 	var resourcesWithSecrets []string
 
@@ -188,7 +188,7 @@ func scanResourcesDirectly() ([]string, error) {
 
 // loadResourceSecrets loads secrets configuration for a specific resource
 func loadResourceSecrets(resourceName string) (*ResourceSecretsConfig, error) {
-	secretsPath := filepath.Join(getVrooliRoot(), "resources", resourceName, "config", "secrets.yaml")
+	secretsPath := filepath.Join(resolveTopLevelDir("resources"), resourceName, "config", "secrets.yaml")
 
 	data, err := os.ReadFile(secretsPath)
 	if err != nil {

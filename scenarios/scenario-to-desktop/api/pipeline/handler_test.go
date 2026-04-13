@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -142,12 +143,11 @@ func TestRegisterRoutes(t *testing.T) {
 }
 
 func TestHandleBundleClean_RemovesBundleDir(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
+	root := newPipelineContractFixtureRepo(t)
+	t.Setenv("VROOLI_ROOT", root)
 
-	// Create fake bundle output under the conventional path used by the handler.
 	scenario := "test-scenario"
-	bundleDir := filepath.Join(home, "Vrooli", "scenarios", scenario, "platforms", "electron", "bundle")
+	bundleDir := filepath.Join(root, "scenarios", scenario, "platforms", "electron", "bundle")
 	if err := os.MkdirAll(bundleDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -170,6 +170,41 @@ func TestHandleBundleClean_RemovesBundleDir(t *testing.T) {
 	if _, err := os.Stat(bundleDir); !os.IsNotExist(err) {
 		t.Fatalf("expected bundle dir removed; stat err=%v", err)
 	}
+}
+
+func newPipelineContractFixtureRepo(t *testing.T) string {
+	t.Helper()
+
+	root := t.TempDir()
+	repoRoot := pipelineRepoRoot(t)
+	contractData, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("read repo contract: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir .vrooli: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), contractData, 0o644); err != nil {
+		t.Fatalf("write repo contract: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/scenario-to-desktop-pipeline-test\n\ngo 1.24.0\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	for _, dir := range []string{"scenarios", "resources", "packages", "cmd", "internal"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	return root
+}
+
+func pipelineRepoRoot(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", ".."))
 }
 
 func TestHandleRun(t *testing.T) {

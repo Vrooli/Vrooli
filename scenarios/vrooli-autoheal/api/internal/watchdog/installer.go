@@ -68,11 +68,7 @@ func (d *Detector) Install(ctx context.Context, opts InstallOptions) *InstallRes
 
 // verifyLoopBinaryExists checks if the Go loop binary has been built
 func (d *Detector) verifyLoopBinaryExists() error {
-	vrooliRoot := d.probe.getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		homeDir, _ := d.probe.userHomeDir()
-		vrooliRoot = filepath.Join(homeDir, "Vrooli")
-	}
+	vrooliRoot := d.resolveVrooliRoot()
 
 	var binaryPath string
 	switch d.probe.goos() {

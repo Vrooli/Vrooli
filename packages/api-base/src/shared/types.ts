@@ -243,6 +243,11 @@ export interface ProxyOptions {
   agent?: Agent
 }
 
+export interface LifecycleGuardConfig {
+  /** Skip lifecycle guard checks. Intended for tests only. */
+  disableLifecycleGuard?: boolean
+}
+
 /**
  * Raw app metadata returned by host API for proxying
  */
@@ -413,7 +418,7 @@ export interface EmbeddedProxyOptions {
 /**
  * Options for creating scenario server
  */
-export interface ServerTemplateOptions {
+export interface ServerTemplateOptions extends LifecycleGuardConfig {
   /** UI server port */
   uiPort: number | string
   /** API server port */

@@ -10,39 +10,35 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/cli/scenariocli"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
-type scenarioPortSingleOutput struct {
-	Success  bool   `json:"success"`
-	Scenario string `json:"scenario"`
-	PortName string `json:"port_name"`
-	Step     string `json:"step,omitempty"`
-	Port     int    `json:"port,omitempty"`
-	Error    string `json:"error,omitempty"`
+type (
+	scenarioPortSingleOutput = scenariocli.PortSingleOutput
+	scenarioPortListOutput   = scenariocli.PortListOutput
+	scenarioOpenOutput       = scenariocli.OpenOutput
+	scenarioBatchFailure     = scenariocli.BatchFailure
+)
+
+type scenarioRequirementsRequest struct {
+	Snapshot bool
+	Args     []string
 }
 
-type scenarioPortListOutput struct {
-	Success  bool                     `json:"success"`
-	Scenario string                   `json:"scenario"`
-	Ports    []scenarioListPortOutput `json:"ports"`
-	Metadata map[string]int           `json:"metadata,omitempty"`
-	Error    string                   `json:"error,omitempty"`
+type scenarioHealFromSandboxRequest struct {
+	MergedPath string
+	DryRun     bool
 }
 
-type scenarioOpenOutput struct {
-	Success  bool   `json:"success"`
-	Scenario string `json:"scenario"`
-	PortName string `json:"port_name"`
-	Port     int    `json:"port"`
-	URL      string `json:"url"`
-}
-
-type scenarioBatchFailure struct {
-	Name  string `json:"name"`
-	Error string `json:"error"`
+type scenarioHealFromSandboxResponse struct {
+	Affected     []string
+	DryRun       bool
+	StoppedCount int
 }
 
 func runScenarioRunCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
@@ -51,48 +47,48 @@ func runScenarioRunCommand(root string, globals globalOptions, args []string, st
 }
 
 func runScenarioSetupCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioSetupRequest, lifecycle.PhaseResult]{
-		parse:  parseScenarioSetupRequest,
+	return executeCommandAction(app, ctx, args, commandAction[scenarioSetupRequest, lifecycle.PhaseResult]{
+		parse:  parseScenarioSetupRequestFromContext,
 		run:    runScenarioSetupRequest,
 		render: renderScenarioSetupResponse,
 	})
 }
 
 func runScenarioTestCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioTestRequest, struct{}]{
-		parse:  parseScenarioTestRequest,
+	return executeCommandAction(app, ctx, args, commandAction[scenarioTestRequest, struct{}]{
+		parse:  parseScenarioTestRequestFromContext,
 		run:    runScenarioTestRequest,
 		render: renderScenarioTestResponse,
 	})
 }
 
 func runScenarioStartAllCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioStartAllRequest, scenarioBatchResponse]{
-		parse:  parseScenarioStartAllRequest,
+	return executeCommandAction(app, ctx, args, commandAction[scenarioStartAllRequest, scenarioBatchResponse]{
+		parse:  parseScenarioStartAllRequestFromContext,
 		run:    runScenarioStartAllRequest,
 		render: renderScenarioBatchResponse,
 	})
 }
 
 func runScenarioStopAllCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioStopAllRequest, scenarioBatchResponse]{
-		parse:  parseScenarioStopAllRequest,
+	return executeCommandAction(app, ctx, args, commandAction[scenarioStopAllRequest, scenarioBatchResponse]{
+		parse:  parseScenarioStopAllRequestFromContext,
 		run:    runScenarioStopAllRequest,
 		render: renderScenarioBatchResponse,
 	})
 }
 
 func runScenarioPortCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioPortRequest, scenarioPortResponse]{
-		parse:  parseScenarioPortRequest,
+	return executeCommandAction(app, ctx, args, commandAction[scenarioPortRequest, scenarioPortResponse]{
+		parse:  parseScenarioPortRequestFromContext,
 		run:    runScenarioPortRequest,
 		render: renderScenarioPortResponse,
 	})
 }
 
 func runScenarioOpenCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeScenarioCommand(app, ctx, args, scenarioCommandAction[scenarioOpenRequest, scenarioOpenOutput]{
-		parse:  parseScenarioOpenRequest,
+	return executeCommandAction(app, ctx, args, commandAction[scenarioOpenRequest, scenarioOpenOutput]{
+		parse:  parseScenarioOpenRequestFromContext,
 		run:    runScenarioOpenRequest,
 		render: renderScenarioOpenResponse,
 	})
@@ -107,104 +103,110 @@ func runScenarioCompletenessCommandWithApp(app *App, ctx *commandContext, args [
 }
 
 func runScenarioRequirementsCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		showScenarioRequirementsHelp(ctx.Stdout)
-		return nil
-	}
-
-	if args[0] == "snapshot" {
-		return runScenarioRequirementsSnapshot(ctx.Root, args[1:], ctx.Stdout)
-	}
-
-	home, err := ctx.HomeDir()
-	if err != nil {
-		return err
-	}
-	cliPath, err := app.locateTestGenieCLI(ctx.Root, home)
-	if err != nil {
-		return err
-	}
-
-	commandArgs, workdir, err := translateScenarioRequirementsArgs(ctx.Root, ctx.Globals, args)
-	if err != nil {
-		return err
-	}
-	return app.runScenarioExternalCommand(ctx, scenarioExternalCommandSpec{
-		name: cliPath,
-		args: commandArgs,
-		dir:  workdir,
+	return executeCommandAction(app, ctx, args, commandAction[scenarioRequirementsRequest, struct{}]{
+		parse:  parseScenarioRequirementsRequestFromContext,
+		run:    runScenarioRequirementsRequest,
+		render: renderScenarioRequirementsResponse,
 	})
 }
 
 func runScenarioHealFromSandboxCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	mergedPath := strings.TrimSpace(os.Getenv("SANDBOX_MERGED_DIR"))
-	dryRun := false
+	return executeCommandAction(app, ctx, args, commandAction[scenarioHealFromSandboxRequest, scenarioHealFromSandboxResponse]{
+		parse:  parseScenarioHealFromSandboxRequestFromContext,
+		run:    runScenarioHealFromSandboxRequest,
+		render: renderScenarioHealFromSandboxResponse,
+	})
+}
 
-	for index := 0; index < len(args); index++ {
-		switch args[index] {
-		case "--merged-path":
-			if index+1 >= len(args) {
-				return usageErrorf("scenario heal-from-sandbox", "scenario heal-from-sandbox --merged-path requires a value")
-			}
-			index++
-			mergedPath = args[index]
-		case "--dry-run":
-			dryRun = true
-		case "--help", "-h":
-			_, _ = fmt.Fprintln(ctx.Stdout, "Usage: vrooli scenario heal-from-sandbox [--merged-path <path>] [--dry-run]")
-			return nil
-		default:
-			return unknownOptionError("scenario heal-from-sandbox", args[index])
-		}
+func parseScenarioRequirementsRequestFromContext(ctx *commandContext, args []string) (scenarioRequirementsRequest, error) {
+	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
+		return scenarioRequirementsRequest{}, commandHelpOnly(scenarioRequirementsHelpText())
 	}
+	req := scenarioRequirementsRequest{Args: append([]string(nil), args...)}
+	if args[0] == "snapshot" {
+		req.Snapshot = true
+	}
+	return req, nil
+}
 
-	if strings.TrimSpace(mergedPath) == "" {
-		return usageErrorf("scenario heal-from-sandbox", "heal-from-sandbox requires SANDBOX_MERGED_DIR or --merged-path")
+func runScenarioRequirementsRequest(app *App, ctx *commandContext, req scenarioRequirementsRequest) (cliout.Format, struct{}, error) {
+	if req.Snapshot {
+		return cliout.FormatHuman, struct{}{}, runScenarioRequirementsSnapshot(ctx.Root, req.Args[1:], ctx.Stdout)
 	}
 
 	home, err := ctx.HomeDir()
 	if err != nil {
-		return err
+		return "", struct{}{}, err
 	}
-	processRoot := filepath.Join(home, ".vrooli", "processes", "scenarios")
-	entries, err := os.ReadDir(processRoot)
+	cliPath, err := app.locateTestGenieCLI(ctx.Root, home)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
+		return "", struct{}{}, err
 	}
 
-	affected := []string{}
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		records, readErr := process.ReadScenarioRecords(home, name)
-		if readErr != nil {
-			return readErr
-		}
-		for _, record := range records {
-			if strings.HasPrefix(record.WorkingDir, mergedPath) {
-				affected = append(affected, name)
-				break
+	commandArgs, workdir, err := translateScenarioRequirementsArgs(ctx.Root, ctx.Globals, req.Args)
+	if err != nil {
+		return "", struct{}{}, err
+	}
+	if err := app.runScenarioExternalCommand(ctx, scenarioExternalCommandSpec{
+		name: cliPath,
+		args: commandArgs,
+		dir:  workdir,
+	}); err != nil {
+		return "", struct{}{}, err
+	}
+	return cliout.FormatHuman, struct{}{}, nil
+}
+
+func renderScenarioRequirementsResponse(w io.Writer, format cliout.Format, resp struct{}) error {
+	return nil
+}
+
+func parseScenarioHealFromSandboxRequestFromContext(ctx *commandContext, args []string) (scenarioHealFromSandboxRequest, error) {
+	req := scenarioHealFromSandboxRequest{
+		MergedPath: strings.TrimSpace(os.Getenv("SANDBOX_MERGED_DIR")),
+	}
+	for index := 0; index < len(args); index++ {
+		switch args[index] {
+		case "--merged-path":
+			if index+1 >= len(args) {
+				return scenarioHealFromSandboxRequest{}, usageErrorf("scenario heal-from-sandbox", "scenario heal-from-sandbox --merged-path requires a value")
 			}
+			index++
+			req.MergedPath = args[index]
+		case "--dry-run":
+			req.DryRun = true
+		case "--help", "-h":
+			return scenarioHealFromSandboxRequest{}, commandHelpOnly("Usage: vrooli scenario heal-from-sandbox [--merged-path <path>] [--dry-run]")
+		default:
+			return scenarioHealFromSandboxRequest{}, unknownOptionError("scenario heal-from-sandbox", args[index])
 		}
 	}
-	sort.Strings(affected)
-
-	if len(affected) == 0 {
-		return nil
+	if strings.TrimSpace(req.MergedPath) == "" {
+		return scenarioHealFromSandboxRequest{}, usageErrorf("scenario heal-from-sandbox", "heal-from-sandbox requires SANDBOX_MERGED_DIR or --merged-path")
 	}
-	if dryRun {
-		_, _ = fmt.Fprintf(ctx.Stdout, "heal-from-sandbox: dry-run mode, would stop and restart: %s\n", strings.Join(affected, ", "))
-		return nil
+	return req, nil
+}
+
+func runScenarioHealFromSandboxRequest(app *App, ctx *commandContext, req scenarioHealFromSandboxRequest) (cliout.Format, scenarioHealFromSandboxResponse, error) {
+	home, err := ctx.HomeDir()
+	if err != nil {
+		return "", scenarioHealFromSandboxResponse{}, err
+	}
+	affected, err := orchestrator.SandboxAffectedScenarios(home, req.MergedPath)
+	if err != nil {
+		return "", scenarioHealFromSandboxResponse{}, err
+	}
+	resp := scenarioHealFromSandboxResponse{
+		Affected: append([]string(nil), affected...),
+		DryRun:   req.DryRun,
+	}
+	if len(affected) == 0 || req.DryRun {
+		return cliout.FormatHuman, resp, nil
 	}
 
 	runner, err := app.newScenarioLifecycleRunner(ctx)
 	if err != nil {
-		return err
+		return "", scenarioHealFromSandboxResponse{}, err
 	}
 	for _, name := range affected {
 		if stopErr := runner.Stop(name, lifecycle.StopOptions{}); stopErr != nil {
@@ -214,25 +216,31 @@ func runScenarioHealFromSandboxCommandWithApp(app *App, ctx *commandContext, arg
 	time.Sleep(1 * time.Second)
 	for _, name := range affected {
 		if startErr := app.launchDetachedScenario(ctx.Root, ctx.Globals, "start", name); startErr != nil {
-			return startErr
+			return "", scenarioHealFromSandboxResponse{}, startErr
 		}
+		resp.StoppedCount++
 	}
-	_, _ = fmt.Fprintf(ctx.Stdout, "heal-from-sandbox: stopped and relaunched %d scenario(s)\n", len(affected))
+	return cliout.FormatHuman, resp, nil
+}
+
+func renderScenarioHealFromSandboxResponse(w io.Writer, format cliout.Format, resp scenarioHealFromSandboxResponse) error {
+	if len(resp.Affected) == 0 {
+		return nil
+	}
+	if resp.DryRun {
+		_, _ = fmt.Fprintf(w, "heal-from-sandbox: dry-run mode, would stop and restart: %s\n", strings.Join(resp.Affected, ", "))
+		return nil
+	}
+	_, _ = fmt.Fprintf(w, "heal-from-sandbox: stopped and relaunched %d scenario(s)\n", len(resp.Affected))
 	return nil
 }
 
 func showScenarioRequirementsHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli scenario requirements <subcommand> [options]")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Subcommands:")
-	_, _ = fmt.Fprintln(w, "  report <name> [options]          Generate requirement coverage summary")
-	_, _ = fmt.Fprintln(w, "  validate <name> [--quiet]        Validate requirement files")
-	_, _ = fmt.Fprintln(w, "  sync <name>                      Sync requirement statuses from local evidence")
-	_, _ = fmt.Fprintln(w, "  manual-log <name> <req> [opts]   Record manual validation evidence")
-	_, _ = fmt.Fprintln(w, "  snapshot <name>                  Show latest requirements sync snapshot")
-	_, _ = fmt.Fprintln(w, "  lint-prd <name> [--json]         Check PRD to requirements mapping")
-	_, _ = fmt.Fprintln(w, "  phase <name> --phase <phase>     Inspect validations for a single phase")
-	_, _ = fmt.Fprintln(w, "  init <name> [options]            Scaffold a requirements registry")
+	_, _ = fmt.Fprint(w, scenarioRequirementsHelpText())
+}
+
+func scenarioRequirementsHelpText() string {
+	return "Usage: vrooli scenario requirements <subcommand> [options]\n\nSubcommands:\n  report <name> [options]          Generate requirement coverage summary\n  validate <name> [--quiet]        Validate requirement files\n  sync <name>                      Sync requirement statuses from local evidence\n  manual-log <name> <req> [opts]   Record manual validation evidence\n  snapshot <name>                  Show latest requirements sync snapshot\n  lint-prd <name> [--json]         Check PRD to requirements mapping\n  phase <name> --phase <phase>     Inspect validations for a single phase\n  init <name> [options]            Scaffold a requirements registry\n"
 }
 
 func translateScenarioRequirementsArgs(root string, globals globalOptions, args []string) ([]string, string, error) {

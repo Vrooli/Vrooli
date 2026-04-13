@@ -88,7 +88,11 @@ func TestRunContractMatchGlobJSON(t *testing.T) {
 }
 
 func TestRunContractValidateJSON(t *testing.T) {
-	root := repoRootFromCaller(t)
+	root := t.TempDir()
+	copyRepoContractValidationFixtures(t, root)
+	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
+	writeTestFile(t, root, filepath.Join("scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha"}}`)
+	writeTestFile(t, root, filepath.Join("resources", "redis", "resource.json"), `{"name":"redis"}`)
 	t.Setenv("VROOLI_SOURCE_ROOT", root)
 
 	app := newTestApp("/unused")
@@ -176,9 +180,14 @@ func copyRepoContractValidationFixtures(t *testing.T, dest string) {
 	sourceRoot := repoRootFromCaller(t)
 	for _, rel := range []string{
 		filepath.Join(".vrooli", "repo-contract.json"),
+		filepath.Join(".vrooli", "repo-contract-adoption-exceptions.json"),
 		filepath.Join(".vrooli", "schemas", "repo-contract.schema.json"),
 		filepath.Join(".vrooli", "schemas", "common.schema.json"),
 		filepath.Join(".vrooli", "schemas", "validate-repo-contract.py"),
+		"AGENTS.md",
+		filepath.Join("docs", "repo-contract.md"),
+		filepath.Join("docs", "CONTRIBUTING.md"),
+		filepath.Join("scenarios", "prompt-manager", "store", "skills", "packs", "core", "cross-platform-readiness", "SKILL.md"),
 	} {
 		data, err := os.ReadFile(filepath.Join(sourceRoot, rel))
 		if err != nil {

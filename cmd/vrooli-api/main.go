@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -9,8 +8,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	apiserver "github.com/vrooli/api-core/server"
+	repocontract "github.com/vrooli/repo-contract-go"
 	vrooliapi "github.com/vrooli/vrooli/internal/api"
 	"github.com/vrooli/vrooli/internal/bootstrap"
 	"github.com/vrooli/vrooli/internal/buildinfo"
@@ -52,14 +53,21 @@ func apiHomeDir() string {
 }
 
 func getVrooliRoot() string {
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		return root
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		return canonicalRepoRootFromOverride(root)
 	}
-	if out, err := shell.Output(shell.Spec{Name: "git", Args: []string{"rev-parse", "--show-toplevel"}}); err == nil {
-		return string(bytes.TrimSpace(out))
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
 	}
 	ex, _ := os.Executable()
 	return filepath.Dir(filepath.Dir(ex))
+}
+
+func canonicalRepoRootFromOverride(root string) string {
+	if resolved, err := repocontract.FindRepoRootFromPath(root); err == nil {
+		return resolved
+	}
+	return filepath.Clean(root)
 }
 
 func buildApp(logger *slog.Logger) *vrooliapi.App {
@@ -83,6 +91,7 @@ func healthCheck(w http.ResponseWriter, r *http.Request) { buildApp(nil).HealthC
 func listScenariosNative(w http.ResponseWriter, r *http.Request) {
 	buildApp(nil).ListScenariosNative(w, r)
 }
+
 func getScenarioStatusNative(w http.ResponseWriter, r *http.Request) {
 	buildApp(nil).GetScenarioStatusNative(w, r)
 }
@@ -106,9 +115,11 @@ func restartApp(w http.ResponseWriter, r *http.Request)      { buildApp(nil).Res
 func startAllScenariosEndpoint(w http.ResponseWriter, r *http.Request) {
 	buildApp(nil).StartAllScenariosEndpoint(w, r)
 }
+
 func stopAllScenariosEndpoint(w http.ResponseWriter, r *http.Request) {
 	buildApp(nil).StopAllScenariosEndpoint(w, r)
 }
+
 func stopScenarioEndpoint(w http.ResponseWriter, r *http.Request) {
 	buildApp(nil).StopScenarioEndpoint(w, r)
 }

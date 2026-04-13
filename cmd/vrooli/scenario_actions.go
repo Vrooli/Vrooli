@@ -1,39 +1,16 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 )
-
-type scenarioCommandAction[Req any, Resp any] struct {
-	parse  func(globals globalOptions, args []string) (Req, error)
-	run    func(app *App, ctx *commandContext, req Req) (cliout.Format, Resp, error)
-	render func(w io.Writer, format cliout.Format, resp Resp) error
-}
-
-func executeScenarioCommand[Req any, Resp any](app *App, ctx *commandContext, args []string, action scenarioCommandAction[Req, Resp]) error {
-	req, err := action.parse(ctx.Globals, args)
-	if err != nil {
-		var helpErr commandHelpError
-		if errors.As(err, &helpErr) {
-			_, _ = fmt.Fprintln(ctx.Stdout, helpErr.message)
-			return nil
-		}
-		return err
-	}
-	format, resp, err := action.run(app, ctx, req)
-	if err != nil {
-		return err
-	}
-	return action.render(ctx.Stdout, format, resp)
-}
 
 type scenarioStartRequest struct {
 	Names     []string
@@ -101,6 +78,13 @@ type scenarioOpenRequest struct {
 	JSON         bool
 }
 
+type (
+	scenarioListResponse   = scenariocli.ListResponse
+	scenarioStatusResponse = scenariocli.StatusResponse
+	scenarioBatchResponse  = scenariocli.BatchResponse
+	scenarioPortResponse   = scenariocli.PortResponse
+)
+
 func parseScenarioStartRequest(globals globalOptions, args []string) (scenarioStartRequest, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
@@ -124,6 +108,10 @@ func parseScenarioStartRequest(globals globalOptions, args []string) (scenarioSt
 		JSON:      jsonFlag,
 		OpenAfter: openAfter,
 	}, nil
+}
+
+func parseScenarioStartRequestFromContext(ctx *commandContext, args []string) (scenarioStartRequest, error) {
+	return parseScenarioStartRequest(ctx.Globals, args)
 }
 
 func runScenarioStartRequest(app *App, ctx *commandContext, req scenarioStartRequest) (cliout.Format, []scenarioLifecycleItemOutput, error) {
@@ -173,6 +161,10 @@ func parseScenarioStopRequest(globals globalOptions, args []string) (scenarioSto
 	return scenarioStopRequest{Name: name, JSON: jsonFlag}, nil
 }
 
+func parseScenarioStopRequestFromContext(ctx *commandContext, args []string) (scenarioStopRequest, error) {
+	return parseScenarioStopRequest(ctx.Globals, args)
+}
+
 func runScenarioStopRequest(app *App, ctx *commandContext, req scenarioStopRequest) (cliout.Format, []scenarioLifecycleItemOutput, error) {
 	runner, format, err := app.newScenarioLifecycleRunnerForFormat(ctx, req.JSON)
 	if err != nil {
@@ -201,6 +193,10 @@ func parseScenarioRestartRequest(globals globalOptions, args []string) (scenario
 		JSON:      jsonFlag,
 		OpenAfter: openAfter,
 	}, nil
+}
+
+func parseScenarioRestartRequestFromContext(ctx *commandContext, args []string) (scenarioRestartRequest, error) {
+	return parseScenarioRestartRequest(ctx.Globals, args)
 }
 
 func runScenarioRestartRequest(app *App, ctx *commandContext, req scenarioRestartRequest) (cliout.Format, []scenarioLifecycleItemOutput, error) {
@@ -235,7 +231,7 @@ func runScenarioRestartRequest(app *App, ctx *commandContext, req scenarioRestar
 }
 
 func renderScenarioLifecycleResponse(w io.Writer, format cliout.Format, items []scenarioLifecycleItemOutput) error {
-	return writeScenarioLifecycleItems(w, format, items)
+	return scenariocli.WriteLifecycleItems(w, format, items)
 }
 
 func parseScenarioListRequest(globals globalOptions, args []string) (scenarioListRequest, error) {
@@ -255,9 +251,8 @@ func parseScenarioListRequest(globals globalOptions, args []string) (scenarioLis
 	return req, nil
 }
 
-type scenarioListResponse struct {
-	Items        []scenarioListItemOutput
-	RunningCount int
+func parseScenarioListRequestFromContext(ctx *commandContext, args []string) (scenarioListRequest, error) {
+	return parseScenarioListRequest(ctx.Globals, args)
 }
 
 func runScenarioListRequest(app *App, ctx *commandContext, req scenarioListRequest) (cliout.Format, scenarioListResponse, error) {
@@ -302,34 +297,7 @@ func runScenarioListRequest(app *App, ctx *commandContext, req scenarioListReque
 }
 
 func renderScenarioListResponse(w io.Writer, format cliout.Format, resp scenarioListResponse) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
-			"summary": map[string]int{
-				"total_scenarios": len(resp.Items),
-				"running":         resp.RunningCount,
-				"available":       len(resp.Items) - resp.RunningCount,
-			},
-			"scenarios": resp.Items,
-		})
-	}
-
-	_, _ = fmt.Fprintln(w, "[INFO]    Available scenarios:")
-	for _, item := range resp.Items {
-		line := "  • " + item.Name
-		if item.Description != "" {
-			line += " - " + item.Description
-		}
-		if len(item.Ports) > 0 {
-			portParts := make([]string, 0, len(item.Ports))
-			for _, port := range item.Ports {
-				portParts = append(portParts, fmt.Sprintf("%s=%d", port.Key, port.Port))
-			}
-			line += " (ports: " + strings.Join(portParts, ", ") + ")"
-		}
-		_, _ = fmt.Fprintln(w, line)
-	}
-	return nil
+	return scenariocli.RenderListResponse(w, format, resp)
 }
 
 func parseScenarioInfoRequest(globals globalOptions, args []string) (scenarioInfoRequest, error) {
@@ -343,6 +311,10 @@ func parseScenarioInfoRequest(globals globalOptions, args []string) (scenarioInf
 		return scenarioInfoRequest{}, err
 	}
 	return scenarioInfoRequest{Name: name, JSON: jsonFlag}, nil
+}
+
+func parseScenarioInfoRequestFromContext(ctx *commandContext, args []string) (scenarioInfoRequest, error) {
+	return parseScenarioInfoRequest(ctx.Globals, args)
 }
 
 func runScenarioInfoRequest(app *App, ctx *commandContext, req scenarioInfoRequest) (cliout.Format, scenarioInfoOutput, error) {
@@ -367,11 +339,7 @@ func runScenarioInfoRequest(app *App, ctx *commandContext, req scenarioInfoReque
 }
 
 func renderScenarioInfoResponse(w io.Writer, format cliout.Format, resp scenarioInfoOutput) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
-	}
-	writeScenarioInfoHuman(w, resp.Scenario, resp.Runtime)
-	return nil
+	return scenariocli.RenderInfoResponse(w, format, resp)
 }
 
 func parseScenarioStatusRequest(globals globalOptions, args []string) (scenarioStatusRequest, error) {
@@ -387,9 +355,8 @@ func parseScenarioStatusRequest(globals globalOptions, args []string) (scenarioS
 	return scenarioStatusRequest{Name: name, JSON: jsonFlag}, nil
 }
 
-type scenarioStatusResponse struct {
-	Single *scenarioStatusSingleOutput
-	List   []scenarioStatusItemOutput
+func parseScenarioStatusRequestFromContext(ctx *commandContext, args []string) (scenarioStatusRequest, error) {
+	return parseScenarioStatusRequest(ctx.Globals, args)
 }
 
 func runScenarioStatusRequest(app *App, ctx *commandContext, req scenarioStatusRequest) (cliout.Format, scenarioStatusResponse, error) {
@@ -428,33 +395,7 @@ func runScenarioStatusRequest(app *App, ctx *commandContext, req scenarioStatusR
 }
 
 func renderScenarioStatusResponse(w io.Writer, format cliout.Format, resp scenarioStatusResponse) error {
-	if resp.Single == nil {
-		if format == cliout.FormatJSON {
-			runningCount := 0
-			for _, item := range resp.List {
-				if item.Status == "running" {
-					runningCount++
-				}
-			}
-			return cliout.WriteJSON(w, map[string]any{
-				"success": true,
-				"summary": map[string]int{
-					"total_scenarios": len(resp.List),
-					"running":         runningCount,
-					"stopped":         len(resp.List) - runningCount,
-				},
-				"scenarios": resp.List,
-			})
-		}
-		writeScenarioStatusTable(w, resp.List)
-		return nil
-	}
-
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp.Single)
-	}
-	writeScenarioStatusHuman(w, *resp.Single)
-	return nil
+	return scenariocli.RenderStatusResponse(w, format, resp)
 }
 
 func (app *App) newQuietScenarioService(ctx *commandContext) (*orchestrator.Service, error) {
@@ -481,6 +422,10 @@ func parseScenarioSetupRequest(globals globalOptions, args []string) (scenarioSe
 	return scenarioSetupRequest{Name: name, Opts: opts, JSON: jsonFlag}, nil
 }
 
+func parseScenarioSetupRequestFromContext(ctx *commandContext, args []string) (scenarioSetupRequest, error) {
+	return parseScenarioSetupRequest(ctx.Globals, args)
+}
+
 func runScenarioSetupRequest(app *App, ctx *commandContext, req scenarioSetupRequest) (cliout.Format, lifecycle.PhaseResult, error) {
 	runner, format, err := app.newScenarioLifecycleRunnerForFormat(ctx, req.JSON)
 	if err != nil {
@@ -494,28 +439,7 @@ func runScenarioSetupRequest(app *App, ctx *commandContext, req scenarioSetupReq
 }
 
 func renderScenarioSetupResponse(w io.Writer, format cliout.Format, result lifecycle.PhaseResult) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{
-			"success": true,
-			"phase":   "setup",
-			"status":  result.Status,
-			"defined": result.Defined,
-			"steps": map[string]int{
-				"executed": result.ExecutedSteps,
-				"skipped":  result.SkippedSteps,
-			},
-		})
-	}
-
-	switch result.Status {
-	case lifecycle.PhaseExecutionCompleted:
-		_, _ = fmt.Fprintf(w, "Completed setup for scenario (%d executed, %d skipped)\n", result.ExecutedSteps, result.SkippedSteps)
-	case lifecycle.PhaseExecutionSkipped:
-		_, _ = fmt.Fprintf(w, "Setup phase ran no steps (%d skipped)\n", result.SkippedSteps)
-	default:
-		_, _ = fmt.Fprintln(w, "Scenario does not define a setup phase")
-	}
-	return nil
+	return scenariocli.RenderSetupResponse(w, format, result)
 }
 
 func parseScenarioTestRequest(globals globalOptions, args []string) (scenarioTestRequest, error) {
@@ -529,6 +453,10 @@ func parseScenarioTestRequest(globals globalOptions, args []string) (scenarioTes
 		return scenarioTestRequest{}, err
 	}
 	return scenarioTestRequest{Name: name, Opts: opts}, nil
+}
+
+func parseScenarioTestRequestFromContext(ctx *commandContext, args []string) (scenarioTestRequest, error) {
+	return parseScenarioTestRequest(ctx.Globals, args)
 }
 
 func runScenarioTestRequest(app *App, ctx *commandContext, req scenarioTestRequest) (cliout.Format, struct{}, error) {
@@ -558,11 +486,8 @@ func parseScenarioStartAllRequest(globals globalOptions, args []string) (scenari
 	return req, nil
 }
 
-type scenarioBatchResponse struct {
-	Verb    string
-	Started []scenarioLifecycleItemOutput
-	Stopped []string
-	Failed  []scenarioBatchFailure
+func parseScenarioStartAllRequestFromContext(ctx *commandContext, args []string) (scenarioStartAllRequest, error) {
+	return parseScenarioStartAllRequest(ctx.Globals, args)
 }
 
 func runScenarioStartAllRequest(app *App, ctx *commandContext, req scenarioStartAllRequest) (cliout.Format, scenarioBatchResponse, error) {
@@ -600,6 +525,10 @@ func parseScenarioStopAllRequest(globals globalOptions, args []string) (scenario
 	return req, nil
 }
 
+func parseScenarioStopAllRequestFromContext(ctx *commandContext, args []string) (scenarioStopAllRequest, error) {
+	return parseScenarioStopAllRequest(ctx.Globals, args)
+}
+
 func runScenarioStopAllRequest(app *App, ctx *commandContext, req scenarioStopAllRequest) (cliout.Format, scenarioBatchResponse, error) {
 	service, format, err := app.newScenarioServiceForFormat(ctx, req.JSON)
 	if err != nil {
@@ -621,7 +550,7 @@ func runScenarioStopAllRequest(app *App, ctx *commandContext, req scenarioStopAl
 }
 
 func renderScenarioBatchResponse(w io.Writer, format cliout.Format, resp scenarioBatchResponse) error {
-	return writeScenarioBatchReport(w, format, resp.Verb, resp.Started, resp.Stopped, resp.Failed)
+	return scenariocli.WriteBatchReport(w, format, resp)
 }
 
 func parseScenarioPortRequest(globals globalOptions, args []string) (scenarioPortRequest, error) {
@@ -648,9 +577,8 @@ func parseScenarioPortRequest(globals globalOptions, args []string) (scenarioPor
 	return req, nil
 }
 
-type scenarioPortResponse struct {
-	Single *scenarioPortSingleOutput
-	List   *scenarioPortListOutput
+func parseScenarioPortRequestFromContext(ctx *commandContext, args []string) (scenarioPortRequest, error) {
+	return parseScenarioPortRequest(ctx.Globals, args)
 }
 
 func runScenarioPortRequest(app *App, ctx *commandContext, req scenarioPortRequest) (cliout.Format, scenarioPortResponse, error) {
@@ -674,7 +602,7 @@ func runScenarioPortRequest(app *App, ctx *commandContext, req scenarioPortReque
 					Error:    "No running processes found for scenario",
 				}}, nil
 			}
-			return "", scenarioPortResponse{}, fmt.Errorf("no running processes found for scenario %q", req.ScenarioName)
+			return "", scenarioPortResponse{}, runtimeErrorf("Start the scenario before querying runtime ports", "no running processes found for scenario %q", req.ScenarioName)
 		}
 		if req.JSON {
 			return cliout.FormatJSON, scenarioPortResponse{List: &scenarioPortListOutput{
@@ -701,7 +629,7 @@ func runScenarioPortRequest(app *App, ctx *commandContext, req scenarioPortReque
 				Error:    fmt.Sprintf("No running port named %s for scenario", req.PortName),
 			}}, nil
 		}
-		return "", scenarioPortResponse{}, fmt.Errorf("no running port named %s for scenario %q", req.PortName, req.ScenarioName)
+		return "", scenarioPortResponse{}, runtimeErrorf("Inspect the scenario status or start the scenario first", "no running port named %s for scenario %q", req.PortName, req.ScenarioName)
 	}
 	format, err := formatFromJSON(req.JSON)
 	if err != nil {
@@ -717,29 +645,7 @@ func runScenarioPortRequest(app *App, ctx *commandContext, req scenarioPortReque
 }
 
 func renderScenarioPortResponse(w io.Writer, format cliout.Format, resp scenarioPortResponse) error {
-	if resp.List != nil {
-		if format == cliout.FormatJSON {
-			return cliout.WriteJSON(w, resp.List)
-		}
-		if !resp.List.Success {
-			return fmt.Errorf(resp.List.Error)
-		}
-		for _, port := range resp.List.Ports {
-			_, _ = fmt.Fprintf(w, "%s=%d\n", port.Key, port.Port)
-		}
-		return nil
-	}
-	if resp.Single == nil {
-		return nil
-	}
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp.Single)
-	}
-	if !resp.Single.Success {
-		return fmt.Errorf(resp.Single.Error)
-	}
-	_, _ = fmt.Fprintf(w, "%d\n", resp.Single.Port)
-	return nil
+	return scenariocli.RenderPortResponse(w, format, resp)
 }
 
 func parseScenarioOpenRequest(globals globalOptions, args []string) (scenarioOpenRequest, error) {
@@ -773,6 +679,10 @@ func parseScenarioOpenRequest(globals globalOptions, args []string) (scenarioOpe
 		return scenarioOpenRequest{}, usageErrorf("scenario open", "scenario open requires a scenario name")
 	}
 	return req, nil
+}
+
+func parseScenarioOpenRequestFromContext(ctx *commandContext, args []string) (scenarioOpenRequest, error) {
+	return parseScenarioOpenRequest(ctx.Globals, args)
 }
 
 func runScenarioOpenRequest(app *App, ctx *commandContext, req scenarioOpenRequest) (cliout.Format, scenarioOpenOutput, error) {
@@ -810,11 +720,7 @@ func runScenarioOpenRequest(app *App, ctx *commandContext, req scenarioOpenReque
 }
 
 func renderScenarioOpenResponse(w io.Writer, _ cliout.Format, resp scenarioOpenOutput) error {
-	if resp.URL == "" {
-		return nil
-	}
-	_, _ = fmt.Fprintln(w, resp.URL)
-	return nil
+	return scenariocli.RenderOpenResponse(w, resp)
 }
 
 type commandHelpError struct {

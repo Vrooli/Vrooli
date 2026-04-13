@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"agent-manager/internal/domain"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // OrchestrationSettingsStore provides thread-safe access to orchestration
@@ -110,13 +111,45 @@ func ResolveOrchestrationSettingsPath() string {
 	if path := strings.TrimSpace(os.Getenv("ORCHESTRATION_SETTINGS_PATH")); path != "" {
 		return path
 	}
-	root := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
+	root := resolveRepoRoot()
 	if root == "" {
-		home, _ := os.UserHomeDir()
-		if home == "" {
-			home = "."
-		}
-		root = filepath.Join(home, "Vrooli")
+		root = "."
+	}
+	if resolved, err := repocontract.ResolveScenarioPath(root, "agent-manager"); err == nil {
+		return filepath.Join(resolved, "config", "orchestration.json")
 	}
 	return filepath.Join(root, "scenarios", "agent-manager", "config", "orchestration.json")
+}
+
+func resolveRepoRoot() string {
+	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
+		if root := strings.TrimSpace(os.Getenv(key)); root != "" {
+			if resolved, ok := canonicalRepoRootFromOverride(root); ok {
+				return resolved
+			}
+			return filepath.Clean(root)
+		}
+	}
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
+	}
+	return ""
+}
+
+func canonicalRepoRootFromOverride(path string) (string, bool) {
+	current := filepath.Clean(strings.TrimSpace(path))
+	if current == "" || current == "." {
+		return "", false
+	}
+	for depth := 0; depth < 25; depth++ {
+		if resolved, err := repocontract.FindRepoRoot(current); err == nil {
+			return resolved, true
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return "", false
 }

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -18,6 +17,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 const (
@@ -128,56 +128,7 @@ func normalizeSlug(value string) string {
 }
 
 func resolveRepoRoot() (string, error) {
-	workingDir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	log.Printf("DEBUG: resolveRepoRoot - starting from working dir: %s", workingDir)
-
-	current := workingDir
-	for depth := 0; depth < 8; depth++ {
-		log.Printf("DEBUG: resolveRepoRoot - checking depth %d: %s", depth, current)
-
-		// Always prefer .git as the definitive marker of repo root
-		gitPath := filepath.Join(current, ".git")
-		if _, err := os.Stat(gitPath); err == nil {
-			log.Printf("DEBUG: resolveRepoRoot - found .git at: %s", current)
-			return current, nil
-		}
-
-		parent := filepath.Dir(current)
-		if parent == current {
-			log.Printf("DEBUG: resolveRepoRoot - reached filesystem root")
-			break
-		}
-		current = parent
-	}
-
-	// Fallback: if we didn't find .git, look for scenarios/ directory
-	// (this handles non-git installations)
-	current = workingDir
-	for depth := 0; depth < 8; depth++ {
-		scenariosPath := filepath.Join(current, "scenarios")
-		if info, err := os.Stat(scenariosPath); err == nil && info.IsDir() {
-			// Verify this looks like the root scenarios dir, not a subdirectory
-			// by checking if it contains multiple scenario directories
-			entries, readErr := os.ReadDir(scenariosPath)
-			if readErr == nil && len(entries) > 5 {
-				log.Printf("DEBUG: resolveRepoRoot - found scenarios/ with %d entries at: %s", len(entries), current)
-				return current, nil
-			}
-		}
-
-		parent := filepath.Dir(current)
-		if parent == current {
-			break
-		}
-		current = parent
-	}
-
-	log.Printf("DEBUG: resolveRepoRoot - failed to find repo root after 8 levels")
-	return "", fmt.Errorf("unable to resolve repository root from %s", workingDir)
+	return repocontract.ResolveRepoRoot()
 }
 
 func computeNextStageOrder(ctx context.Context, sectorID string) (int, error) {

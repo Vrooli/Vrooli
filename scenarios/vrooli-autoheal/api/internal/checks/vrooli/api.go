@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 )
@@ -289,22 +290,7 @@ func (c *APICheck) executeStart(ctx context.Context, start time.Time) checks.Act
 	outputBuilder.WriteString("=== Starting Vrooli API ===\n")
 
 	// Find the Vrooli root directory
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		// Try common locations based on user's home directory
-		homeDir, _ := os.UserHomeDir()
-		possiblePaths := []string{
-			filepath.Join(homeDir, "Vrooli"),
-			"/opt/vrooli",
-			"/usr/local/vrooli",
-		}
-		for _, path := range possiblePaths {
-			if _, err := os.Stat(path); err == nil {
-				vrooliRoot = path
-				break
-			}
-		}
-	}
+	vrooliRoot := resolveVrooliRoot()
 
 	if vrooliRoot == "" {
 		result.Duration = time.Since(start)
@@ -436,22 +422,7 @@ func (c *APICheck) executeRestart(ctx context.Context, start time.Time) checks.A
 	var outputBuilder strings.Builder
 
 	// Try to find the Vrooli root directory
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		// Try common locations based on user's home directory
-		homeDir, _ := os.UserHomeDir()
-		possiblePaths := []string{
-			filepath.Join(homeDir, "Vrooli"),
-			"/opt/vrooli",
-			"/usr/local/vrooli",
-		}
-		for _, path := range possiblePaths {
-			if _, err := os.Stat(path); err == nil {
-				vrooliRoot = path
-				break
-			}
-		}
-	}
+	vrooliRoot := resolveVrooliRoot()
 
 	// Step 1: Try to stop any running vrooli processes on the API port
 	outputBuilder.WriteString("=== Stopping API processes ===\n")
@@ -679,3 +650,44 @@ func (c *APICheck) executeDiagnose(ctx context.Context, start time.Time) checks.
 
 // Ensure APICheck implements HealableCheck
 var _ checks.HealableCheck = (*APICheck)(nil)
+
+func resolveVrooliRoot() string {
+	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
+		if root := strings.TrimSpace(os.Getenv(key)); root != "" {
+			if resolved, ok := canonicalRepoRootFromOverride(root); ok {
+				return resolved
+			}
+			return filepath.Clean(root)
+		}
+	}
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
+	}
+	for _, path := range []string{"/opt/vrooli", "/usr/local/vrooli"} {
+		if _, err := os.Stat(path); err == nil {
+			if resolved, ok := canonicalRepoRootFromOverride(path); ok {
+				return resolved
+			}
+			return filepath.Clean(path)
+		}
+	}
+	return ""
+}
+
+func canonicalRepoRootFromOverride(path string) (string, bool) {
+	current := filepath.Clean(strings.TrimSpace(path))
+	if current == "" || current == "." {
+		return "", false
+	}
+	for depth := 0; depth < 25; depth++ {
+		if resolved, err := repocontract.FindRepoRoot(current); err == nil {
+			return resolved, true
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return "", false
+}

@@ -24,6 +24,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // Config holds loop configuration
@@ -74,13 +76,9 @@ func main() {
 	}
 
 	// Detect VROOLI_ROOT
-	config.VrooliRoot = os.Getenv("VROOLI_ROOT")
+	config.VrooliRoot = resolveVrooliRoot()
 	if config.VrooliRoot == "" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			log.Fatalf("Failed to get home directory: %v", err)
-		}
-		config.VrooliRoot = filepath.Join(homeDir, "Vrooli")
+		log.Fatalf("Failed to resolve VROOLI_ROOT")
 	}
 
 	// Find vrooli command
@@ -222,6 +220,46 @@ func main() {
 			}
 		}
 	}
+}
+
+func resolveVrooliRoot() string {
+	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
+		if root := strings.TrimSpace(os.Getenv(key)); root != "" {
+			if resolved, ok := canonicalRepoRootFromOverride(root); ok {
+				return resolved
+			}
+			return filepath.Clean(root)
+		}
+	}
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
+	}
+	if homeDir, err := os.UserHomeDir(); err == nil && strings.TrimSpace(homeDir) != "" {
+		fallback := filepath.Clean(homeDir + string(os.PathSeparator) + "Vrooli")
+		if resolved, ok := canonicalRepoRootFromOverride(fallback); ok {
+			return resolved
+		}
+		return fallback
+	}
+	return ""
+}
+
+func canonicalRepoRootFromOverride(path string) (string, bool) {
+	current := filepath.Clean(strings.TrimSpace(path))
+	if current == "" || current == "." {
+		return "", false
+	}
+	for depth := 0; depth < 25; depth++ {
+		if resolved, err := repocontract.FindRepoRoot(current); err == nil {
+			return resolved, true
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return "", false
 }
 
 // findVrooliCommand locates the vrooli CLI

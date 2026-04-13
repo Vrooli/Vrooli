@@ -103,8 +103,16 @@ func newUsageError(message, helpTarget string) error {
 	return newErrorWithCategory(errors.New(message), errorCategoryUsage, usageHint(helpTarget), nil)
 }
 
+func newRuntimeError(message, hint string) error {
+	return newErrorWithCategory(errors.New(message), errorCategoryRuntime, hint, nil)
+}
+
 func usageErrorf(helpTarget, format string, args ...any) error {
 	return newUsageError(fmt.Sprintf(format, args...), helpTarget)
+}
+
+func runtimeErrorf(hint, format string, args ...any) error {
+	return newRuntimeError(fmt.Sprintf(format, args...), hint)
 }
 
 func unknownOptionError(command, option string) error {

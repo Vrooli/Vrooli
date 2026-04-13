@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 var db *sql.DB
@@ -229,15 +230,15 @@ func isValidEntityType(entityType string) bool {
 
 // getVrooliRoot returns the Vrooli root directory from environment or default
 func getVrooliRoot() (string, error) {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		home := os.Getenv("HOME")
-		if home == "" {
-			return "", fmt.Errorf("neither VROOLI_ROOT nor HOME environment variable is set")
+	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
+		if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+			if root, err := repocontract.FindRepoRoot(value); err == nil {
+				return root, nil
+			}
+			return filepath.Clean(value), nil
 		}
-		vrooliRoot = filepath.Join(home, "Vrooli")
 	}
-	return vrooliRoot, nil
+	return "", fmt.Errorf("neither VROOLI_SOURCE_ROOT nor VROOLI_ROOT points at a valid repo root")
 }
 
 // resolveEntityBaseDir returns the base directory for an entity's PRD and requirements.
@@ -251,11 +252,19 @@ func resolveEntityBaseDir(entityType, entityName, customPath string) (string, er
 	if err != nil {
 		return "", err
 	}
-	var entityDir string
 	if entityType == EntityTypeScenario {
-		entityDir = "scenarios"
-	} else {
-		entityDir = "resources"
+		if path, err := repocontract.ResolveScenarioPath(vrooliRoot, entityName); err == nil {
+			return path, nil
+		}
+		return filepath.Join(vrooliRoot, "scenarios", entityName), nil
 	}
-	return filepath.Join(vrooliRoot, entityDir, entityName), nil
+	contract, err := repocontract.LoadDefault(vrooliRoot)
+	if err != nil {
+		return filepath.Join(vrooliRoot, "resources", entityName), nil
+	}
+	resourcesDir, err := contract.TopLevelDir(vrooliRoot, "resources")
+	if err != nil {
+		return filepath.Join(vrooliRoot, "resources", entityName), nil
+	}
+	return filepath.Join(resourcesDir, entityName), nil
 }

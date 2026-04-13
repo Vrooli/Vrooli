@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/cli/projectcli"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/maintenance"
@@ -13,26 +14,32 @@ import (
 )
 
 func runTopLevelStatusCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeTopLevelCommand(app, ctx, args, topLevelCommandAction[topLevelStatusOptions, topLevelStatusResponse]{
-		parse: parseTopLevelStatusRequest,
+	return executeCommandAction(app, ctx, args, commandAction[topLevelStatusOptions, topLevelStatusResponse]{
+		parse: parseTopLevelStatusRequestFromContext,
 		run:   runTopLevelStatusRequest,
 		render: func(w io.Writer, format cliout.Format, resp topLevelStatusResponse) error {
-			return writeProjectStatusReport(w, format, resp.Report, resp.Options)
+			return projectcli.RenderStatusReport(w, format, projectcli.StatusResponse{
+				Options: projectcli.StatusOptions{
+					ResourcesOnly: resp.Options.ResourcesOnly,
+					ScenariosOnly: resp.Options.ScenariosOnly,
+				},
+				Report: resp.Report,
+			})
 		},
 	})
 }
 
 func runTopLevelDoctorCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeTopLevelCommand(app, ctx, args, topLevelCommandAction[topLevelNoArgsRequest, project.DoctorReport]{
-		parse:  parseTopLevelDoctorRequest,
+	return executeCommandAction(app, ctx, args, commandAction[topLevelNoArgsRequest, project.DoctorReport]{
+		parse:  parseTopLevelDoctorRequestFromContext,
 		run:    runTopLevelDoctorRequest,
 		render: renderTopLevelDoctorResponse,
 	})
 }
 
 func runTopLevelStopCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeTopLevelCommand(app, ctx, args, topLevelCommandAction[topLevelStopRequest, control.StopReport]{
-		parse:  parseTopLevelStopRequest,
+	return executeCommandAction(app, ctx, args, commandAction[topLevelStopRequest, control.StopReport]{
+		parse:  parseTopLevelStopRequestFromContext,
 		run:    runTopLevelStopRequest,
 		render: renderTopLevelStopResponse,
 	})
@@ -50,24 +57,24 @@ func runTopLevelResourceCommandWithApp(app *App, ctx *commandContext, args []str
 }
 
 func runTopLevelOrphansCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeTopLevelCommand(app, ctx, args, topLevelCommandAction[topLevelOrphansRequest, any]{
-		parse:  parseTopLevelOrphansRequest,
+	return executeCommandAction(app, ctx, args, commandAction[topLevelOrphansRequest, topLevelOrphansResponse]{
+		parse:  parseTopLevelOrphansRequestFromContext,
 		run:    runTopLevelOrphansRequest,
 		render: renderTopLevelOrphansResponse,
 	})
 }
 
 func runTopLevelLocksCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeTopLevelCommand(app, ctx, args, topLevelCommandAction[topLevelLocksRequest, any]{
-		parse:  parseTopLevelLocksRequest,
+	return executeCommandAction(app, ctx, args, commandAction[topLevelLocksRequest, topLevelLocksResponse]{
+		parse:  parseTopLevelLocksRequestFromContext,
 		run:    runTopLevelLocksRequest,
 		render: renderTopLevelLocksResponse,
 	})
 }
 
 func runTopLevelDiagnosePortCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeTopLevelCommand(app, ctx, args, topLevelCommandAction[topLevelDiagnosePortRequest, maintenance.PortDiagnostic]{
-		parse:  parseTopLevelDiagnosePortRequest,
+	return executeCommandAction(app, ctx, args, commandAction[topLevelDiagnosePortRequest, maintenance.PortDiagnostic]{
+		parse:  parseTopLevelDiagnosePortRequestFromContext,
 		run:    runTopLevelDiagnosePortRequest,
 		render: renderTopLevelDiagnosePortResponse,
 	})
@@ -118,6 +125,10 @@ func parseTopLevelStatusRequest(globals globalOptions, args []string) (topLevelS
 		return topLevelStatusOptions{}, commandHelpOnly("Usage: vrooli status [--resources|--scenarios] [--fast|--no-fast] [--json]")
 	}
 	return opts, nil
+}
+
+func parseTopLevelStatusRequestFromContext(ctx *commandContext, args []string) (topLevelStatusOptions, error) {
+	return parseTopLevelStatusRequest(ctx.Globals, args)
 }
 
 func runTopLevelStatusRequest(app *App, ctx *commandContext, opts topLevelStatusOptions) (cliout.Format, topLevelStatusResponse, error) {

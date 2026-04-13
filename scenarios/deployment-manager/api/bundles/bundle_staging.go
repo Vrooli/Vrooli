@@ -9,19 +9,60 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // resolveScenarioRoot returns the absolute scenario directory.
 func resolveScenarioRoot(scenario string) string {
+	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
 		return ""
 	}
-	root := os.Getenv("VROOLI_ROOT")
+	root := resolveRepoRoot()
 	if root == "" {
-		home, _ := os.UserHomeDir()
-		root = filepath.Join(home, "Vrooli")
+		return ""
+	}
+	if resolved, err := repocontract.ResolveScenarioPath(root, scenario); err == nil {
+		return resolved
 	}
 	return filepath.Join(root, "scenarios", scenario)
+}
+
+func resolveRepoRoot() string {
+	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
+		if root := strings.TrimSpace(os.Getenv(key)); root != "" {
+			if resolved, ok := canonicalRepoRootFromOverride(root); ok {
+				return resolved
+			}
+			return filepath.Clean(root)
+		}
+	}
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		return filepath.Clean(cwd)
+	}
+	return "."
+}
+
+func canonicalRepoRootFromOverride(path string) (string, bool) {
+	current := filepath.Clean(strings.TrimSpace(path))
+	if current == "" || current == "." {
+		return "", false
+	}
+	for depth := 0; depth < 25; depth++ {
+		if resolved, err := repocontract.FindRepoRoot(current); err == nil {
+			return resolved, true
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return "", false
 }
 
 // populateAssetMetadata fills in missing/pending asset hashes and sizes using files on disk.

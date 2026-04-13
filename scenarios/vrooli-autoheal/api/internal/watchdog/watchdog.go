@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"vrooli-autoheal/internal/platform"
 )
 
@@ -484,11 +485,7 @@ func (d *Detector) GetServiceTemplate() (string, error) {
 
 func (d *Detector) getSystemdTemplateForService(systemService bool) string {
 	// Resolve VROOLI_ROOT at runtime for a working template
-	vrooliRoot := d.probe.getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		homeDir, _ := d.probe.userHomeDir()
-		vrooliRoot = filepath.Join(homeDir, "Vrooli")
-	}
+	vrooliRoot := d.resolveVrooliRoot()
 
 	// Use the Go loop binary for cross-platform consistency
 	loopBinaryPath := filepath.Join(vrooliRoot, "scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop")
@@ -534,11 +531,7 @@ WantedBy=%s
 
 func (d *Detector) getLaunchdTemplate() string {
 	// Resolve paths at runtime for a working template
-	vrooliRoot := d.probe.getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		homeDir, _ := d.probe.userHomeDir()
-		vrooliRoot = filepath.Join(homeDir, "Vrooli")
-	}
+	vrooliRoot := d.resolveVrooliRoot()
 	homeDir, _ := d.probe.userHomeDir()
 
 	// Use the Go loop binary for cross-platform consistency
@@ -587,11 +580,7 @@ func (d *Detector) getLaunchdTemplate() string {
 func (d *Detector) getWindowsTaskTemplate() string {
 	// Resolve paths at runtime for a working template
 	// On Windows, VROOLI_ROOT would typically be in user's home directory
-	vrooliRoot := d.probe.getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		homeDir, _ := d.probe.userHomeDir()
-		vrooliRoot = filepath.Join(homeDir, "Vrooli")
-	}
+	vrooliRoot := d.resolveVrooliRoot()
 
 	// Use the Go loop binary - must have .exe extension on Windows
 	cliPath := filepath.Join(vrooliRoot, "scenarios", "vrooli-autoheal", "cli", "vrooli-autoheal-loop.exe")
@@ -654,4 +643,44 @@ func (d *Detector) getWindowsTaskTemplate() string {
   </Actions>
 </Task>
 `, username, cliPath, workDir)
+}
+
+func (d *Detector) resolveVrooliRoot() string {
+	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
+		if root := strings.TrimSpace(d.probe.getenv(key)); root != "" {
+			if resolved, ok := canonicalRepoRootFromOverride(root); ok {
+				return resolved
+			}
+			return filepath.Clean(root)
+		}
+	}
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
+	}
+	if homeDir, err := d.probe.userHomeDir(); err == nil && strings.TrimSpace(homeDir) != "" {
+		fallback := filepath.Clean(homeDir + string(os.PathSeparator) + "Vrooli")
+		if resolved, ok := canonicalRepoRootFromOverride(fallback); ok {
+			return resolved
+		}
+		return fallback
+	}
+	return ""
+}
+
+func canonicalRepoRootFromOverride(path string) (string, bool) {
+	current := filepath.Clean(strings.TrimSpace(path))
+	if current == "" || current == "." {
+		return "", false
+	}
+	for depth := 0; depth < 25; depth++ {
+		if resolved, err := repocontract.FindRepoRoot(current); err == nil {
+			return resolved, true
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return "", false
 }

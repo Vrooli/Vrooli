@@ -156,7 +156,7 @@ func (s *Server) loadTelemetryProxyHint(scenario string) *ProxyHint {
 }
 
 func (s *Server) buildLocalProxyHint(scenario string) *ProxyHint {
-	analyzer := generation.NewAnalyzer(s.getVrooliRoot())
+	analyzer := generation.NewAnalyzer(sharedpath.DetectVrooliRoot())
 	metadata, err := analyzer.AnalyzeScenario(scenario)
 	if err != nil {
 		return nil
@@ -235,17 +235,11 @@ func buildProxyURLFromHost(host, scenario string) string {
 	return normalized
 }
 
-func (s *Server) getVrooliRoot() string {
-	// Use the centralized path detection from shared/path
-	return sharedpath.DetectVrooliRoot()
-}
-
 func (s *Server) resolveScenarioRoot(scenario string) string {
 	if scenario == "" {
 		return ""
 	}
-	root := s.getVrooliRoot()
-	path := filepath.Join(root, "scenarios", scenario)
+	path := sharedpath.ResolveScenarioRoot(scenario)
 	if _, err := os.Stat(path); err != nil {
 		return ""
 	}
@@ -254,6 +248,6 @@ func (s *Server) resolveScenarioRoot(scenario string) string {
 
 // telemetryFilePath returns the path to the telemetry file for a scenario.
 func (s *Server) telemetryFilePath(scenario string) string {
-	vrooliRoot := s.getVrooliRoot()
+	vrooliRoot := sharedpath.DetectVrooliRoot()
 	return filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry", fmt.Sprintf("%s.jsonl", scenario))
 }

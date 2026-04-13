@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
+    "dev": "node ../../../packages/api-base/bin/vrooli-ui-run.js vite",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

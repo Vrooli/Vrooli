@@ -3,13 +3,10 @@ package resources
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
-	"time"
 
 	catalogpkg "github.com/vrooli/vrooli/internal/resources/catalog"
 	compatpkg "github.com/vrooli/vrooli/internal/resources/compat"
@@ -76,6 +73,10 @@ func (c *Controller) discoverResource(name string) (*Resource, error) {
 		DeprecatedNames: deprecated,
 		ResolveCLIPath:  c.resolveCLIPath,
 	})
+}
+
+func (c *Controller) compatService() *compatpkg.Service {
+	return compatpkg.New(c.Root, c.Home, lookPathResourceFn)
 }
 
 func (c *Controller) runLegacyResourceCommand(name, operation string, args []string, stdout, stderr io.Writer) error {
@@ -146,113 +147,15 @@ func (c *Controller) manifestNames() ([]string, error) {
 }
 
 func (c *Controller) statusForResource(item Resource, fast bool) (Status, error) {
-	if item.ManifestPath != "" && item.ControlMode == "manifest-native" {
-		manifest, err := c.loadResourceManifest(item.ManifestPath)
-		if err != nil {
-			return Status{}, err
-		}
-		driver, err := driverForManifest(manifest)
-		if err != nil {
-			return Status{}, err
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		return driver.Status(ctx, c, item, manifest, fast)
-	}
-	status := Status{
-		Resource:   item,
-		Installed:  item.Exists || item.HasCLI || item.HasScript,
-		Running:    false,
-		StatusCode: StatusCodeOK,
-		Message:    "not running",
-	}
-
-	cmd, err := c.commandForResource(item.Name, append([]string{"status", "--format", "json"}, fastArgs(fast)...)...)
-	if err != nil {
-		status.StatusCode = StatusCodeUnavailable
-		status.Message = "resource status command is unavailable"
-		status.ProbeError = err.Error()
-		return status, nil
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	cmd = exec.CommandContext(ctx, cmd.Path, cmd.Args[1:]...)
-	cmd.Dir = cmd.Dir
-	cmd.Env = cmd.Env
-
-	result := runCommandResource(ctx, cmd)
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(result.err, context.DeadlineExceeded) {
-		status.StatusCode = StatusCodeTimeout
-		status.Message = "resource status command timed out"
-		if ctx.Err() != nil {
-			status.ProbeError = ctx.Err().Error()
-		} else if result.err != nil {
-			status.ProbeError = result.err.Error()
-		}
-		return status, nil
-	}
-
-	rawJSON, ok := extractJSONPayload(result.output)
-	if !ok {
-		if result.err != nil {
-			status.StatusCode = StatusCodeCommandError
-			status.Message = "resource status command failed"
-			status.ProbeError = result.err.Error()
-			return status, nil
-		}
-		status.StatusCode = StatusCodeInvalidStatusPayload
-		status.Message = "resource status command did not emit valid JSON"
-		status.ProbeError = strings.TrimSpace(string(result.output))
-		return status, nil
-	}
-
-	status.Raw = rawJSON
-	var payload map[string]any
-	if err := json.Unmarshal(rawJSON, &payload); err != nil {
-		status.StatusCode = StatusCodeInvalidStatusPayload
-		status.Message = "resource status command emitted invalid JSON"
-		status.ProbeError = err.Error()
-		return status, nil
-	}
-
-	status.Installed = boolValue(payload["installed"], status.Installed)
-	status.Running = boolValue(payload["running"], false)
-	status.Message = stringValue(payload["message"])
-	if status.Message == "" {
-		status.Message = stringValue(payload["status"])
-	}
-	status.Health = stringValue(payload["health"])
-	if healthy, ok := payload["healthy"]; ok {
-		value := boolValue(healthy, false)
-		status.Healthy = &value
-	} else if status.Health != "" {
-		value := strings.EqualFold(status.Health, "healthy")
-		status.Healthy = &value
-	}
-	if status.Message == "" {
-		switch {
-		case status.Running && status.Healthy != nil && *status.Healthy:
-			status.Message = "healthy"
-		case status.Running:
-			status.Message = "running"
-		default:
-			status.Message = "stopped"
-		}
-	}
-	if result.err != nil {
-		status.ProbeError = result.err.Error()
-	}
-
-	return status, nil
+	return c.resourceControl().StatusForResource(item, fast)
 }
 
 func (c *Controller) resolveCLIPath(name string) (string, bool) {
-	return compatpkg.New(c.Root, c.Home, lookPathResourceFn).ResolveCLIPath(name)
+	return c.compatService().ResolveCLIPath(name)
 }
 
 func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd, error) {
-	return compatpkg.New(c.Root, c.Home, lookPathResourceFn).CommandForResource(name, args...)
+	return c.compatService().CommandForResource(name, args...)
 }
 
 func resourceEnv(root, home string) []string {
@@ -272,13 +175,6 @@ func ensureObject(parent map[string]any, key string) map[string]any {
 	created := map[string]any{}
 	parent[key] = created
 	return created
-}
-
-func fastArgs(fast bool) []string {
-	if fast {
-		return []string{"--fast"}
-	}
-	return nil
 }
 
 func extractJSONPayload(output []byte) (json.RawMessage, bool) {

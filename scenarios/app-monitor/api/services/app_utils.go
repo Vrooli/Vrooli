@@ -5,15 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"app-monitor-api/repository"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // =============================================================================
@@ -41,31 +40,7 @@ func (s *AppService) hasRepo() bool {
 
 // findRepoRoot locates the repository root directory
 func findRepoRoot() (string, error) {
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		return root, nil
-	}
-	if root := os.Getenv("APP_ROOT"); root != "" {
-		return root, nil
-	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	dir := wd
-	for {
-		if dir == "" || dir == string(filepath.Separator) {
-			break
-		}
-		if _, err := os.Stat(filepath.Join(dir, ".vrooli")); err == nil {
-			return dir, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return wd, nil
+	return repocontract.ResolveRepoRoot()
 }
 
 // =============================================================================

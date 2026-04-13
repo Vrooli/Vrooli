@@ -15,6 +15,7 @@ import (
 	"deployment-manager/bundles"
 	"deployment-manager/profiles"
 	"deployment-manager/shared"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // DeployDesktopRequest is the request for orchestrated desktop deployment.
@@ -97,10 +98,7 @@ func NewOrchestratorWithApprovals(profileRepo profiles.Repository, approvalsRepo
 
 // NewOrchestratorFull creates a new deployment orchestrator with all optional repositories.
 func NewOrchestratorFull(profileRepo profiles.Repository, approvalsRepo ApprovalsRepository, publishedVersionsRepo PublishedVersionsRepository, log func(string, map[string]interface{})) *Orchestrator {
-	vrooli := os.Getenv("VROOLI_ROOT")
-	if vrooli == "" {
-		vrooli = filepath.Join(os.Getenv("HOME"), "Vrooli")
-	}
+	vrooli := resolveRepoRoot()
 	return &Orchestrator{
 		profileRepo:           profileRepo,
 		approvalsRepo:         approvalsRepo,
@@ -150,7 +148,7 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 			Steps:     make([]OrchestrationStep, 0),
 		},
 		ctx:             ctx,
-		scenarioBaseDir: filepath.Join(o.vrooli, "scenarios"),
+		scenarioBaseDir: resolveTopLevelScenarioDir(o.vrooli),
 	}
 
 	ds.effectiveTimeout = time.Duration(req.TimeoutSeconds) * time.Second
@@ -369,7 +367,7 @@ func (o *Orchestrator) deployAssembleManifest(ds *deployState) int {
 	ds.manifest = manifest
 	ds.outputDir = ds.req.OutputDir
 	if ds.outputDir == "" {
-		ds.outputDir = filepath.Join(o.vrooli, "scenarios", ds.profile.Scenario)
+		ds.outputDir = resolveScenarioDir(o.vrooli, ds.profile.Scenario)
 	}
 
 	// Write manifest
@@ -433,7 +431,7 @@ func (o *Orchestrator) deployBuildBinaries(ds *deployState) int {
 		return 0
 	}
 
-	scenarioDir := filepath.Join(o.vrooli, "scenarios", ds.profile.Scenario)
+	scenarioDir := resolveScenarioDir(o.vrooli, ds.profile.Scenario)
 	builder := build.NewBuilder(scenarioDir, o.log)
 
 	if len(ds.buildPlatforms) == 0 {
@@ -691,7 +689,7 @@ func (o *Orchestrator) deployFinalizeAndPublish(ds *deployState) {
 			}
 		} else {
 			ds.response.NextSteps = []string{
-				fmt.Sprintf("cd %s", filepath.Join(o.vrooli, "scenarios", ds.profile.Scenario, "platforms", "electron")),
+				fmt.Sprintf("cd %s", filepath.Join(resolveScenarioDir(o.vrooli, ds.profile.Scenario), "platforms", "electron")),
 				"pnpm install",
 				"pnpm run dist:all  # Build installers for all platforms",
 			}
@@ -699,6 +697,58 @@ func (o *Orchestrator) deployFinalizeAndPublish(ds *deployState) {
 	} else {
 		ds.response.Status = "failed"
 	}
+}
+
+func resolveRepoRoot() string {
+	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
+		if root := strings.TrimSpace(os.Getenv(key)); root != "" {
+			if resolved, ok := canonicalRepoRootFromOverride(root); ok {
+				return resolved
+			}
+			return filepath.Clean(root)
+		}
+	}
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		return filepath.Clean(cwd)
+	}
+	return "."
+}
+
+func resolveTopLevelScenarioDir(repoRoot string) string {
+	if contract, err := repocontract.LoadDefault(repoRoot); err == nil {
+		if resolved, resolveErr := contract.TopLevelDir(repoRoot, "scenarios"); resolveErr == nil {
+			return resolved
+		}
+	}
+	return filepath.Join(repoRoot, "scenarios")
+}
+
+func resolveScenarioDir(repoRoot, scenario string) string {
+	if resolved, err := repocontract.ResolveScenarioPath(repoRoot, strings.TrimSpace(scenario)); err == nil {
+		return resolved
+	}
+	return filepath.Join(repoRoot, "scenarios", strings.TrimSpace(scenario))
+}
+
+func canonicalRepoRootFromOverride(path string) (string, bool) {
+	current := filepath.Clean(strings.TrimSpace(path))
+	if current == "" || current == "." {
+		return "", false
+	}
+	for depth := 0; depth < 25; depth++ {
+		if resolved, err := repocontract.FindRepoRoot(current); err == nil {
+			return resolved, true
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return "", false
 }
 
 // blockingDependencies lists dependencies that require swaps for desktop deployment.

@@ -7,6 +7,9 @@
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "vrooli-ui-run": "./bin/vrooli-ui-run.js"
+  },
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -22,6 +25,7 @@
     }
   },
   "files": [
+    "bin",
     "dist",
     "src",
     "docs",
