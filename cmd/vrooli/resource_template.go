@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
@@ -27,184 +26,68 @@ func runResourceTemplateCommand(controller *resources.Controller, globals global
 
 	switch normalizeResourceSubcommand(args[0]) {
 	case "list":
-		return runResourceTemplateListCommand(controller, globals, args[1:], stdout)
+		return executeResourceTemplateCommand(controller, globals, args[1:], stdout, stderr, resourceTemplateCommandAction[resourceTemplateNoArgsRequest, []resources.ResourceTemplateInfo]{
+			parse:  parseResourceTemplateListRequest,
+			run:    runResourceTemplateListRequest,
+			render: renderResourceTemplateListResponse,
+		})
 	case "show":
-		return runResourceTemplateShowCommand(controller, globals, args[1:], stdout)
+		return executeResourceTemplateCommand(controller, globals, args[1:], stdout, stderr, resourceTemplateCommandAction[resourceTemplateNameRequest, resources.ResourceTemplateInfo]{
+			parse:  parseResourceTemplateShowRequest,
+			run:    runResourceTemplateShowRequest,
+			render: renderResourceTemplateShowResponse,
+		})
 	case "validate":
-		return runResourceTemplateValidateCommand(controller, globals, args[1:], stdout)
+		return executeResourceTemplateCommand(controller, globals, args[1:], stdout, stderr, resourceTemplateCommandAction[resourceTemplateNoArgsRequest, resources.ResourceTemplateValidationReport]{
+			parse:  parseResourceTemplateValidateRequest,
+			run:    runResourceTemplateValidateRequest,
+			render: renderResourceTemplateValidateResponse,
+		})
 	case "generate":
-		return runResourceTemplateGenerateCommand(controller, globals, args[1:], stdout, stderr)
+		return executeResourceTemplateCommand(controller, globals, args[1:], stdout, stderr, resourceTemplateCommandAction[resourceTemplateGenerateOptions, resources.ResourceTemplateGenerateReport]{
+			parse: func(args []string) (resourceTemplateGenerateOptions, error) {
+				return parseResourceTemplateGenerateRequest(controller, args, stderr)
+			},
+			run:    runResourceTemplateGenerateRequest,
+			render: renderResourceTemplateGenerateResponse,
+		})
 	default:
 		return usageErrorf("resource template", "unknown resource template command: %s", args[0])
 	}
 }
 
 func runResourceTemplateListCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
-	if len(args) > 0 {
-		return usageErrorf("resource template list", "resource template list does not accept positional arguments")
-	}
-	items, err := controller.ListResourceTemplates()
-	if err != nil {
-		return err
-	}
-
-	format, err := cliout.ParseFormat("", globals.json)
-	if err != nil {
-		return err
-	}
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success":   true,
-			"templates": items,
-		})
-	}
-
-	rows := make([][]string, 0, len(items))
-	for _, item := range items {
-		rows = append(rows, []string{
-			item.Name,
-			item.Manifest.DisplayName,
-			item.Manifest.Driver,
-			formatResourceTemplateRequiredVars(item.Manifest.RequiredVars),
-		})
-	}
-	if err := cliout.RenderTable(stdout, []string{"Name", "Display Name", "Driver", "Required Vars"}, rows); err != nil {
-		return err
-	}
-	_, _ = fmt.Fprintln(stdout)
-	_, _ = fmt.Fprintln(stdout, "Tip: vrooli resource template show <name>")
-	return nil
+	return executeResourceTemplateCommand(controller, globals, args, stdout, io.Discard, resourceTemplateCommandAction[resourceTemplateNoArgsRequest, []resources.ResourceTemplateInfo]{
+		parse:  parseResourceTemplateListRequest,
+		run:    runResourceTemplateListRequest,
+		render: renderResourceTemplateListResponse,
+	})
 }
 
 func runResourceTemplateShowCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
-	if len(args) != 1 {
-		return usageErrorf("resource template show", "resource template show requires exactly one template name")
-	}
-	info, err := controller.ResourceTemplate(args[0])
-	if err != nil {
-		return err
-	}
-
-	format, err := cliout.ParseFormat("", globals.json)
-	if err != nil {
-		return err
-	}
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success":  true,
-			"template": info,
-		})
-	}
-
-	manifest := info.Manifest
-	rows := [][]string{
-		{"Name", info.Name},
-		{"Display Name", manifest.DisplayName},
-		{"Driver", manifest.Driver},
-		{"Transitional", boolLabel(manifest.Transitional)},
-		{"Description", manifest.Description},
-	}
-	if err := cliout.RenderTable(stdout, []string{"Field", "Value"}, rows); err != nil {
-		return err
-	}
-	writeResourceTemplateVarTable(stdout, "Required Variables", manifest.RequiredVars)
-	writeResourceTemplateVarTable(stdout, "Optional Variables", manifest.OptionalVars)
-	if len(manifest.PlatformExpectations) > 0 {
-		_, _ = fmt.Fprintln(stdout)
-		_, _ = fmt.Fprintln(stdout, "Platform Expectations:")
-		for _, line := range manifest.PlatformExpectations {
-			_, _ = fmt.Fprintf(stdout, "  - %s\n", line)
-		}
-	}
-	if len(manifest.Docs) > 0 {
-		keys := make([]string, 0, len(manifest.Docs))
-		for key := range manifest.Docs {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		_, _ = fmt.Fprintln(stdout)
-		_, _ = fmt.Fprintln(stdout, "Docs:")
-		for _, key := range keys {
-			_, _ = fmt.Fprintf(stdout, "  - %s: %s\n", key, manifest.Docs[key])
-		}
-	}
-	_, _ = fmt.Fprintln(stdout)
-	_, _ = fmt.Fprintf(stdout, "Tip: vrooli resource template generate %s%s\n", info.Name, formatResourceTemplateRequiredFlags(manifest.RequiredVars))
-	return nil
+	return executeResourceTemplateCommand(controller, globals, args, stdout, io.Discard, resourceTemplateCommandAction[resourceTemplateNameRequest, resources.ResourceTemplateInfo]{
+		parse:  parseResourceTemplateShowRequest,
+		run:    runResourceTemplateShowRequest,
+		render: renderResourceTemplateShowResponse,
+	})
 }
 
 func runResourceTemplateValidateCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
-	if len(args) > 0 {
-		return usageErrorf("resource template validate", "resource template validate does not accept positional arguments")
-	}
-	report, err := controller.ValidateResourceTemplates()
-	if err != nil {
-		return err
-	}
-	format, err := cliout.ParseFormat("", globals.json)
-	if err != nil {
-		return err
-	}
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success": true,
-			"report":  report,
-		})
-	}
-	_, _ = fmt.Fprintf(stdout, "Validated %d resource templates\n", report.Count)
-	return nil
+	return executeResourceTemplateCommand(controller, globals, args, stdout, io.Discard, resourceTemplateCommandAction[resourceTemplateNoArgsRequest, resources.ResourceTemplateValidationReport]{
+		parse:  parseResourceTemplateValidateRequest,
+		run:    runResourceTemplateValidateRequest,
+		render: renderResourceTemplateValidateResponse,
+	})
 }
 
 func runResourceTemplateGenerateCommand(controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			showResourceTemplateGenerateHelp(stdout)
-			return nil
-		}
-	}
-	opts, err := parseResourceTemplateGenerateArgs(controller, args, stderr)
-	if err != nil {
-		showResourceTemplateGenerateHelp(stdout)
-		return err
-	}
-	report, err := controller.GenerateResourceTemplate(resources.ResourceTemplateGenerateRequest{
-		TemplateName:  opts.TemplateName,
-		BlueprintName: opts.BlueprintName,
-		Destination:   opts.Destination,
-		Force:         opts.Force,
-		DryRun:        opts.DryRun,
-		Values:        opts.Values,
+	return executeResourceTemplateCommand(controller, globals, args, stdout, stderr, resourceTemplateCommandAction[resourceTemplateGenerateOptions, resources.ResourceTemplateGenerateReport]{
+		parse: func(args []string) (resourceTemplateGenerateOptions, error) {
+			return parseResourceTemplateGenerateRequest(controller, args, stderr)
+		},
+		run:    runResourceTemplateGenerateRequest,
+		render: renderResourceTemplateGenerateResponse,
 	})
-	if err != nil {
-		return err
-	}
-
-	format, err := cliout.ParseFormat("", globals.json)
-	if err != nil {
-		return err
-	}
-	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(stdout, map[string]any{
-			"success": true,
-			"report":  report,
-		})
-	}
-
-	if report.DryRun {
-		_, _ = fmt.Fprintf(stdout, "[DRY-RUN] Would generate resource template %s at %s\n", report.Template.Name, report.Destination)
-	} else {
-		_, _ = fmt.Fprintf(stdout, "Generated resource template %s at %s\n", report.Template.Name, report.Destination)
-	}
-	if strings.TrimSpace(report.BlueprintName) != "" {
-		_, _ = fmt.Fprintf(stdout, "Blueprint: %s\n", report.BlueprintName)
-	}
-	writeResourceTemplateValues(stdout, report.Values)
-	_, _ = fmt.Fprintln(stdout)
-	_, _ = fmt.Fprintln(stdout, "Files:")
-	for _, path := range report.Files {
-		_, _ = fmt.Fprintf(stdout, "  - %s\n", path)
-	}
-	return nil
 }
 
 func parseResourceTemplateGenerateArgs(controller *resources.Controller, args []string, stderr io.Writer) (resourceTemplateGenerateOptions, error) {

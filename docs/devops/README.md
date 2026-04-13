@@ -235,8 +235,8 @@ graph TD
 ```mermaid
 graph TD
     subgraph "Setup Phase"
-        SetupSh["setup.sh<br/>Called by all main scripts"]
-        SystemPrep["System Preparation<br/>• Updates & Dependencies<br/>• Docker Setup<br/>• JWT Key Generation"]
+        NativeSetup["vrooli setup<br/>Native CLI setup path"]
+        SystemPrep["System Preparation<br/>• Host requirement resolution<br/>• Tool installs & safeguards<br/>• CLI bootstrap"]
         EnvLoading["Environment Loading<br/>• .env-dev/.env-prod<br/>• Vault Integration<br/>• Secret Construction"]
     end
 
@@ -255,7 +255,7 @@ graph TD
         DockerAPI["API: http://localhost:5329"]
     end
 
-    SetupSh --> SystemPrep
+    NativeSetup --> SystemPrep
     SystemPrep --> EnvLoading
     
     EnvLoading --> LocalServices
@@ -273,14 +273,14 @@ graph TD
     classDef target fill:#e3f2fd
     classDef outcome fill:#e8f5e8
 
-    class SetupSh,SystemPrep,EnvLoading setup
+    class NativeSetup,SystemPrep,EnvLoading setup
     class LocalServices,K8sCluster,DockerDaemon target
     class LocalUI,LocalAPI,K8sUI,K8sAPI,DockerUI,DockerAPI outcome
 ```
 
 ### 3. Main Script Execution Flow
 
-This diagram shows how the primary scripts are typically invoked and how `setup.sh` acts as a common preparatory step.
+This diagram shows the current native workflow entrypoints. Project-level setup now runs through `vrooli setup`, not a shared `setup.sh` wrapper.
 
 ```mermaid
 graph TD
@@ -291,10 +291,10 @@ graph TD
 
     subgraph "Main Workflows"
         direction TB
-        A[Develop Workflow: `develop.sh`] --> S1[runs `setup.sh`]
-        B[Build Workflow: `build.sh`] --> S2[runs `setup.sh`]
-        C[Deploy Workflow: `deploy.sh`] --> S3[runs `setup.sh`]
-        D[Direct Setup: `setup.sh`]
+        A[Develop Workflow: `vrooli develop`]
+        B[Build Workflow: `vrooli build`]
+        C[Deploy Workflow: `vrooli deploy`]
+        D[Direct Setup: `vrooli setup`]
     end
 
     subgraph "Utility Scripts"
@@ -312,10 +312,10 @@ graph TD
     UserCI --> F
     UserCI --> G
     
-    S1 --> DevTarget["Execute Dev Target Logic (`helpers/develop/target/*.sh`)"]
-    S2 --> BuildArtifacts["Execute Build Logic (`helpers/build/*`)"]
-    S3 --> DeployArtifacts["Execute Deploy Logic (`helpers/deploy/*`)"]
-    D --> SetupTarget["Execute Setup Target Logic (`helpers/setup/target/*.sh`)"]
+    A --> DevTarget["Execute native develop orchestration"]
+    B --> BuildArtifacts["Execute native build orchestration"]
+    C --> DeployArtifacts["Execute native deploy orchestration"]
+    D --> SetupTarget["Execute native setup planning and runtime application"]
     
     S1 -.-> E_cond["May call `backup.sh` (prod)"]
 

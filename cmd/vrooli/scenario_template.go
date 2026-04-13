@@ -70,9 +70,17 @@ func runScenarioTemplateCommandWithApp(app *App, ctx *commandContext, args []str
 
 	switch action {
 	case "list":
-		return runScenarioTemplateListCommand(ctx.Root, ctx.Globals, args, ctx.Stdout)
+		return executeScenarioTemplateCommand(app, ctx, args, scenarioTemplateCommandAction[scenarioTemplateListRequest, []scenarioTemplateInfo]{
+			parse:  parseScenarioTemplateListRequest,
+			run:    runScenarioTemplateListRequest,
+			render: renderScenarioTemplateListResponse,
+		})
 	case "show":
-		return runScenarioTemplateShowCommand(ctx.Root, ctx.Globals, args, ctx.Stdout)
+		return executeScenarioTemplateCommand(app, ctx, args, scenarioTemplateCommandAction[scenarioTemplateShowRequest, scenarioTemplateInfo]{
+			parse:  parseScenarioTemplateShowRequest,
+			run:    runScenarioTemplateShowRequest,
+			render: renderScenarioTemplateShowResponse,
+		})
 	case "help", "--help", "-h":
 		showScenarioTemplateHelp(ctx.Stdout)
 		return nil
@@ -82,113 +90,11 @@ func runScenarioTemplateCommandWithApp(app *App, ctx *commandContext, args []str
 }
 
 func runScenarioGenerateCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	if len(args) == 0 {
-		showScenarioGenerateHelp(ctx.Stdout)
-		return usageErrorf("scenario generate", "scenario generate requires a template name")
-	}
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			showScenarioGenerateHelp(ctx.Stdout)
-			return nil
-		}
-	}
-
-	templateName := args[0]
-	info, err := loadScenarioTemplate(ctx.Root, templateName)
-	if err != nil {
-		return err
-	}
-
-	opts, err := parseScenarioGenerateArgs(args[1:], info.Manifest, ctx.Stderr)
-	if err != nil {
-		return err
-	}
-
-	if opts.Values["SCENARIO_ID"] == "" {
-		return usageErrorf("scenario generate", "missing required value: --id")
-	}
-
-	missing := make([]string, 0)
-	for key, variable := range info.Manifest.RequiredVars {
-		if strings.TrimSpace(opts.Values[key]) == "" {
-			name := "--" + variable.Flag
-			if variable.Flag == "" {
-				name = key
-			}
-			missing = append(missing, name)
-		}
-	}
-	sort.Strings(missing)
-	if len(missing) > 0 {
-		showScenarioGenerateHelp(ctx.Stdout)
-		return usageErrorf("scenario generate", "missing required values: %s", strings.Join(missing, ", "))
-	}
-
-	currentDate := currentDateUTC()
-	randomToken, err := randomTemplateToken()
-	if err != nil {
-		return err
-	}
-	values := copyStringMap(opts.Values)
-	values["CURRENT_DATE"] = currentDate
-	values["RANDOM_TOKEN"] = randomToken
-
-	optionalKeys := make([]string, 0, len(info.Manifest.OptionalVars))
-	for key := range info.Manifest.OptionalVars {
-		optionalKeys = append(optionalKeys, key)
-	}
-	sort.Strings(optionalKeys)
-	for _, key := range optionalKeys {
-		if strings.TrimSpace(values[key]) != "" {
-			continue
-		}
-		values[key] = renderScenarioTemplateString(info.Manifest.OptionalVars[key].Default, values)
-	}
-
-	destination := opts.Destination
-	if destination == "" {
-		destination = filepath.Join(ctx.Root, "scenarios", values["SCENARIO_ID"])
-	}
-	if !filepath.IsAbs(destination) {
-		destination = filepath.Join(ctx.Root, filepath.FromSlash(destination))
-	}
-	destination = filepath.Clean(destination)
-
-	if opts.DryRun {
-		_, _ = fmt.Fprintf(ctx.Stdout, "[DRY-RUN] Would generate template %s at %s\n", info.Name, destination)
-		writeScenarioTemplateValues(ctx.Stdout, values)
-		return nil
-	}
-
-	if stat, err := os.Stat(destination); err == nil && stat != nil {
-		if !opts.Force {
-			return fmt.Errorf("destination already exists: %s (use --force to overwrite)", destination)
-		}
-		if err := os.RemoveAll(destination); err != nil {
-			return err
-		}
-	}
-
-	if err := copyScenarioTemplate(info.Path, destination, values); err != nil {
-		return err
-	}
-	if err := verifyScenarioTemplate(destination); err != nil {
-		return err
-	}
-
-	_, _ = fmt.Fprintf(ctx.Stdout, "Created %s at %s\n", coalesce(values["SCENARIO_DISPLAY_NAME"], values["SCENARIO_ID"]), destination)
-	writeScenarioTemplateValues(ctx.Stdout, values)
-	writeScenarioTemplateNextSteps(ctx.Stdout, destination, info.Manifest)
-
-	if opts.RunHooks {
-		if err := runScenarioTemplateHooksWithApp(app, ctx.Root, ctx.Globals, destination, info.Manifest, ctx.Stdout, ctx.Stderr); err != nil {
-			return err
-		}
-	} else {
-		writeScenarioTemplateHooks(ctx.Stdout, info.Manifest)
-	}
-
-	return nil
+	return executeScenarioTemplateCommand(app, ctx, args, scenarioTemplateCommandAction[scenarioGenerateRequest, scenarioGenerateResult]{
+		parse:  parseScenarioGenerateRequest,
+		run:    runScenarioGenerateRequest,
+		render: renderScenarioGenerateResponse,
+	})
 }
 
 func runScenarioTemplateListCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {

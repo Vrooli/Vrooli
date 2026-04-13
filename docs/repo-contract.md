@@ -147,6 +147,8 @@ Use `--json` with each command for machine-readable output.
 - `vrooli contract resolve scenario <name> --file <key>` resolves canonical scenario paths from the contract
 - `vrooli contract match-glob <pattern> <path>` evaluates a path against the contract-defined root-relative glob semantics
 
+Common example: `vrooli contract resolve scenario <name> --file service`
+
 ## Adoption Rules
 
 For covered repo-aware work:

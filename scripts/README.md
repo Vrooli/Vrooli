@@ -27,7 +27,7 @@ The `scripts/` tree remains for shared shell helpers that are still consumed out
 - `scripts/scenarios/`
   Scenario scaffolds and scenario-specific tooling that has not moved into a native package yet.
 - `scripts/lib/`
-  Shared shell helpers still referenced by resources and scenarios. This is migration debt, not the canonical project orchestration path.
+  Shared shell helpers still referenced by resources and scenarios. Host setup is no longer owned here; this tree is migration debt, not the canonical project orchestration path.
 
 ## Cleanup Boundary
 
@@ -35,6 +35,7 @@ Do not treat everything under `scripts/` as dead.
 
 - Some files under `scripts/lib/` are still referenced by resource shells.
 - Some scenario package scripts still call helpers such as `scripts/lib/ui-guard.sh` and `scripts/lib/utils/cli-install.sh`.
+- Deleted host-setup surfaces under the old `scripts/lib` bootstrap path must not be reintroduced.
 - Project-level Bash entrypoints such as `scripts/manage.sh` are already deleted and should not be reintroduced.
 
 When cleaning this directory, prefer:

@@ -1,4 +1,4 @@
-.PHONY: help build install test clean setup dev develop deploy status scenarios resources lifecycle-build validate-repo-contract validate-live-develop-smoke validate-week0-week1 validate-week2 validate-week3 validate-week3-live validate-week4 validate-week5 validate-week5-cross validate-week6-slice validate-week6-secrets validate-week0-week2 validate-week0-week3 validate-week0-week4 validate-week0-week5 validate-week0-week6
+.PHONY: help build install test clean setup dev develop deploy status scenarios resources lifecycle-build validate-repo-contract validate-phase6-host-setup-cleanup validate-live-develop-smoke validate-week0-week1 validate-week2 validate-week3 validate-week3-live validate-week4 validate-week5 validate-week5-cross validate-week6-slice validate-week6-secrets validate-week0-week2 validate-week0-week3 validate-week0-week4 validate-week0-week5 validate-week0-week6
 
 .DEFAULT_GOAL := help
 
@@ -20,6 +20,7 @@ help: ## Show available project-level targets
 	@printf "  make install        Install project-level Go binaries into %s\n" "$(INSTALL_DIR)"
 	@printf "  make test           Run project-level Go tests\n"
 	@printf "  make validate-repo-contract Validate the repo contract schema, data, and drift checks\n"
+	@printf "  make validate-phase6-host-setup-cleanup Validate deleted host-setup surfaces stay deleted\n"
 	@printf "  make clean          Remove project-level Go build artifacts\n"
 	@printf "\nProject helpers\n"
 	@printf "  make setup          Bootstrap the Go CLI and run native setup\n"
@@ -52,6 +53,10 @@ test: ## Run project-level Go tests
 validate-repo-contract: ## Validate the repo contract schema, data, and drift checks
 	python3 .vrooli/schemas/validate-repo-contract.py
 	go test ./internal/repocontract
+
+validate-phase6-host-setup-cleanup: ## Validate deleted host-setup surfaces stay deleted
+	go test ./internal/setup -run TestRepoRemovesLegacyHostSetupSurfaces -count=1
+	! rg -n 'scripts/lib/setup\.sh|scripts/lib/setup-conditions|scripts/lib/deps/(ajv|ast-grep|bats|js-yaml|lychee|shellcheck)\.sh' internal/lifecycle/setup.go cmd .vrooli scripts/README.md docs/GETTING_STARTED.md docs/devops/README.md scenarios/scenario-to-cloud/api/bundling_rules_test.go
 
 validate-week0-week1: ## Run the repeatable Week 0/1 acceptance suite
 	$(MAKE) clean

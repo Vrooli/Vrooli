@@ -14,10 +14,10 @@ import (
 )
 
 type contractValidateOutput struct {
-	Success bool                         `json:"success"`
-	Root    string                       `json:"root"`
-	Schema  contractValidationCheck      `json:"schema"`
-	Report  repocontractcheck.Report     `json:"report"`
+	Success bool                     `json:"success"`
+	Root    string                   `json:"root"`
+	Schema  contractValidationCheck  `json:"schema"`
+	Report  repocontractcheck.Report `json:"report"`
 }
 
 type contractValidationCheck struct {
@@ -26,19 +26,19 @@ type contractValidationCheck struct {
 }
 
 type contractShowOutput struct {
-	Success      bool              `json:"success"`
-	Root         string            `json:"root"`
-	ContractPath string            `json:"contract_path"`
-	Schema       string            `json:"schema"`
-	Version      string            `json:"version"`
-	Platform     repocontract.Platform `json:"platform"`
-	Markers      repocontract.RootMarkers `json:"markers"`
-	Layout       repocontract.Layout `json:"layout"`
-	Scenario     repocontract.ScenarioSpec `json:"scenario"`
-	Resource     repocontract.ResourceSpec `json:"resource"`
-	Globs        repocontract.GlobSpec `json:"globs"`
-	Environment  map[string]string `json:"environment"`
-	Sandbox      contractShowSandbox `json:"sandbox"`
+	Success      bool                            `json:"success"`
+	Root         string                          `json:"root"`
+	ContractPath string                          `json:"contract_path"`
+	Schema       string                          `json:"schema"`
+	Version      string                          `json:"version"`
+	Platform     repocontract.Platform           `json:"platform"`
+	Markers      repocontract.RootMarkers        `json:"markers"`
+	Layout       repocontract.Layout             `json:"layout"`
+	Scenario     repocontract.ScenarioSpec       `json:"scenario"`
+	Resource     repocontract.ResourceSpec       `json:"resource"`
+	Globs        repocontract.GlobSpec           `json:"globs"`
+	Environment  map[string]string               `json:"environment"`
+	Sandbox      contractShowSandbox             `json:"sandbox"`
 	Profiles     map[string]repocontract.Profile `json:"profiles"`
 }
 
@@ -51,7 +51,7 @@ func (app *App) runContractCommand(ctx *commandContext, args []string) error {
 	return runContractCommandWithApp(app, ctx, args)
 }
 
-func runContractCommandWithApp(app *App, ctx *commandContext, args []string) error {
+func runContractCommandWithApp(_ *App, ctx *commandContext, args []string) error {
 	if len(args) == 0 || wantsCommandHelp(args) {
 		showContractHelp(ctx.Stdout)
 		return nil

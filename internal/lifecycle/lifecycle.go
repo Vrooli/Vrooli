@@ -20,7 +20,6 @@ import (
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/shell"
 )
 
 type Runner struct {
@@ -759,35 +758,6 @@ func directoriesNeedSetup(appRoot string, check scenario.ConditionCheck) bool {
 		}
 	}
 	return false
-}
-
-func runExternalSetupChecker(root, appRoot string, check scenario.ConditionCheck) (bool, error) {
-	checker := filepath.Join(root, "scripts", "lib", "setup-conditions", check.Type+"-check.sh")
-	if _, err := os.Stat(checker); err != nil {
-		return false, nil
-	}
-	payload, err := json.Marshal(check)
-	if err != nil {
-		return false, err
-	}
-
-	cmd := shell.BashScript(checker, []string{string(payload)}, shell.Spec{
-		Env: mergeEnv(os.Environ(), map[string]string{
-			"APP_ROOT":    appRoot,
-			"VROOLI_ROOT": root,
-		}),
-	})
-	if err := cmd.Run(); err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			if exitErr.ExitCode() == 1 {
-				return false, nil
-			}
-			return false, err
-		}
-		return false, err
-	}
-	return true, nil
 }
 
 func readScenarioRecords(home, name string) ([]process.Record, error) {

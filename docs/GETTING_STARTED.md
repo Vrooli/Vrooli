@@ -15,7 +15,7 @@ Vrooli is a **resource orchestration platform** that enables instant business ap
 # Clone and setup
 git clone https://github.com/Vrooli/Vrooli.git
 cd Vrooli
-./scripts/setup.sh  # or: vrooli setup
+make setup  # or: vrooli setup
 ```
 
 ### 2. Start Resources

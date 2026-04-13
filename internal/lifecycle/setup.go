@@ -56,14 +56,7 @@ func (r *Runner) evaluateSetupCheck(item scenario.Scenario, check scenario.Condi
 	case "directories":
 		return directoriesNeedSetup(item.Path, check), "Missing directories", nil
 	default:
-		needed, err := runExternalSetupChecker(r.Root, item.Path, check)
-		if err != nil {
-			return false, "", err
-		}
-		if needed {
-			return true, "Check failed: " + check.Type, nil
-		}
-		return false, "", nil
+		return false, "", fmt.Errorf("unsupported setup condition type %q: only native lifecycle setup checks are supported", check.Type)
 	}
 }
 

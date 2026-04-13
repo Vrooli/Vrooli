@@ -155,7 +155,7 @@ func TestWriteDeterministicTarGz_IsReproducibleAndRelative(t *testing.T) {
 }
 
 func TestMiniVrooliBundleSpec_GeneratesNativeMiniRootManifest(t *testing.T) {
-	// [REQ:STC-P0-002] mini-Vrooli bundle should emit a native root manifest without legacy setup wiring
+	// [REQ:STC-P0-002] mini-Vrooli bundle should emit a native root manifest without legacy host-setup wiring
 	repoRoot := t.TempDir()
 	writeRepoContractFixture(t, repoRoot)
 	writeFile(t, repoRoot, ".vrooli/service.json", `{
@@ -163,7 +163,8 @@ func TestMiniVrooliBundleSpec_GeneratesNativeMiniRootManifest(t *testing.T) {
   "lifecycle": {
     "setup": {
       "steps": [
-        { "name": "base-setup", "run": "bash scripts/lib/setup.sh" }
+        { "name": "install-cli", "run": "make install" },
+        { "name": "legacy-bootstrap", "run": "echo bootstrap" }
       ]
     }
   }
@@ -199,6 +200,7 @@ func TestMiniVrooliBundleSpec_GeneratesNativeMiniRootManifest(t *testing.T) {
 	if len(serviceBytes) == 0 {
 		t.Fatalf("expected .vrooli/service.json to be embedded/overridden")
 	}
+	deletedSetupPath := "scripts/lib/" + "setup.sh"
 
 	var doc map[string]interface{}
 	if err := json.Unmarshal(serviceBytes, &doc); err != nil {
@@ -244,8 +246,11 @@ func TestMiniVrooliBundleSpec_GeneratesNativeMiniRootManifest(t *testing.T) {
 	if _, exists := resources["redis"]; exists {
 		t.Fatalf("did not expect redis in generated mini manifest, got: %v", resources["redis"])
 	}
-	if strings.Contains(string(serviceBytes), "scripts/lib/setup.sh") {
-		t.Fatalf("did not expect legacy setup script reference in generated service.json: %s", string(serviceBytes))
+	if strings.Contains(string(serviceBytes), deletedSetupPath) {
+		t.Fatalf("did not expect deleted host setup script reference in generated service.json: %s", string(serviceBytes))
+	}
+	if strings.Contains(string(serviceBytes), "legacy-bootstrap") {
+		t.Fatalf("did not expect source setup steps to leak into generated service.json: %s", string(serviceBytes))
 	}
 	lifecycleAny, ok := doc["lifecycle"]
 	if !ok {

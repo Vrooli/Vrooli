@@ -763,40 +763,6 @@ func TestUIBundleNeedsSetupTracksBundleFreshness(t *testing.T) {
 	}
 }
 
-func TestRunExternalSetupCheckerUsesScriptExitCodes(t *testing.T) {
-	root := t.TempDir()
-	appRoot := t.TempDir()
-	checkerDir := filepath.Join(root, "scripts", "lib", "setup-conditions")
-	if err := os.MkdirAll(checkerDir, 0o755); err != nil {
-		t.Fatalf("mkdir checker dir: %v", err)
-	}
-
-	checkerPath := filepath.Join(checkerDir, "custom-check.sh")
-	if err := os.WriteFile(checkerPath, []byte("#!/usr/bin/env bash\nexit 0\n"), 0o755); err != nil {
-		t.Fatalf("write %s: %v", checkerPath, err)
-	}
-
-	needed, err := runExternalSetupChecker(root, appRoot, scenario.ConditionCheck{Type: "custom", Name: "fixture"})
-	if err != nil {
-		t.Fatalf("runExternalSetupChecker success: %v", err)
-	}
-	if !needed {
-		t.Fatalf("expected exit code 0 to require setup")
-	}
-
-	if err := os.WriteFile(checkerPath, []byte("#!/usr/bin/env bash\nexit 1\n"), 0o755); err != nil {
-		t.Fatalf("rewrite %s: %v", checkerPath, err)
-	}
-
-	needed, err = runExternalSetupChecker(root, appRoot, scenario.ConditionCheck{Type: "custom", Name: "fixture"})
-	if err != nil {
-		t.Fatalf("runExternalSetupChecker exit 1: %v", err)
-	}
-	if needed {
-		t.Fatalf("expected exit code 1 to mean setup not required")
-	}
-}
-
 func TestEvaluateSetupCheckSupportsFilesystemStateChecks(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -1238,18 +1204,10 @@ func TestExecutePhaseAppendsTestArgsAndWarnsOnStopFailure(t *testing.T) {
 	}
 }
 
-func TestEvaluateSetupCheckUsesExternalCheckerReason(t *testing.T) {
+func TestEvaluateSetupCheckRejectsUnknownCheckTypes(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writeLifecyclePortRegistry(t, root)
-
-	checker := filepath.Join(root, "scripts", "lib", "setup-conditions", "custom-check.sh")
-	if err := os.MkdirAll(filepath.Dir(checker), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(checker), err)
-	}
-	if err := os.WriteFile(checker, []byte("#!/usr/bin/env bash\nexit 0\n"), 0o755); err != nil {
-		t.Fatalf("write %s: %v", checker, err)
-	}
 
 	runner, err := NewRunner(root, home, io.Discard, io.Discard)
 	if err != nil {
@@ -1257,11 +1215,14 @@ func TestEvaluateSetupCheckUsesExternalCheckerReason(t *testing.T) {
 	}
 
 	needed, reason, err := runner.evaluateSetupCheck(scenario.Scenario{Slug: "alpha", Path: root}, scenario.ConditionCheck{Type: "custom"})
-	if err != nil {
-		t.Fatalf("evaluateSetupCheck(custom): %v", err)
+	if err == nil {
+		t.Fatal("expected unsupported check type to fail")
 	}
-	if !needed || reason != "Check failed: custom" {
+	if needed || reason != "" {
 		t.Fatalf("needed/reason = %v/%q", needed, reason)
+	}
+	if !strings.Contains(err.Error(), `unsupported setup condition type "custom"`) {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

@@ -106,7 +106,7 @@ func TestMarkCompleteWritesSetupAndResourceMarkers(t *testing.T) {
 		Lifecycle: scenario.Lifecycle{
 			Setup: scenario.Phase{
 				Steps: []scenario.PhaseStep{
-					{Name: "base-setup"},
+					{Name: "install-cli"},
 					{Name: "add-data"},
 				},
 			},
@@ -131,6 +131,61 @@ func TestMarkCompleteWritesSetupAndResourceMarkers(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "data", ".resources-populated")); err != nil {
 		t.Fatalf("expected resources marker: %v", err)
+	}
+}
+
+func TestRepoRemovesLegacyHostSetupSurfaces(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	repoRoot := filepath.Clean(filepath.Join(wd, "..", ".."))
+
+	for _, rel := range []string{
+		"scripts/lib/setup.sh",
+		"scripts/lib/setup-conditions/binaries-check.sh",
+		"scripts/lib/setup-conditions/cli-check.sh",
+		"scripts/lib/setup-conditions/data-check.sh",
+		"scripts/lib/setup-conditions/dependencies-check.sh",
+		"scripts/lib/setup-conditions/directories-check.sh",
+		"scripts/lib/setup-conditions/files-check.sh",
+		"scripts/lib/setup-conditions/resources-check.sh",
+		"scripts/lib/setup-conditions/ui-bundle-check.sh",
+		"scripts/lib/deps/ajv.sh",
+		"scripts/lib/deps/ast-grep.sh",
+		"scripts/lib/deps/bats.sh",
+		"scripts/lib/deps/js-yaml.sh",
+		"scripts/lib/deps/lychee.sh",
+		"scripts/lib/deps/shellcheck.sh",
+	} {
+		if _, err := os.Stat(filepath.Join(repoRoot, rel)); !os.IsNotExist(err) {
+			t.Fatalf("expected legacy host setup surface %s to be deleted, stat err=%v", rel, err)
+		}
+	}
+
+	for _, rel := range []string{
+		"docs/GETTING_STARTED.md",
+		"docs/devops/README.md",
+		"internal/lifecycle/setup.go",
+		"scenarios/scenario-to-cloud/api/bundling_rules_test.go",
+		"scripts/README.md",
+	} {
+		data, err := os.ReadFile(filepath.Join(repoRoot, rel))
+		if err != nil {
+			t.Fatalf("ReadFile(%s): %v", rel, err)
+		}
+		text := string(data)
+		for _, forbidden := range []string{
+			"scripts/lib/setup.sh",
+			"./scripts/setup.sh",
+			"scripts/lib/setup-conditions",
+			"setup.sh<br/>Called by all main scripts",
+			"runs `setup.sh`",
+		} {
+			if strings.Contains(text, forbidden) {
+				t.Fatalf("%s still contains forbidden legacy setup reference %q", rel, forbidden)
+			}
+		}
 	}
 }
 

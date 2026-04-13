@@ -1,6 +1,6 @@
 # Host Requirements Declaration And Runtime Redesign Plan
 
-**Status:** In Progress (`Phases 0-3` complete, `Phase 5` implemented, later cleanup/enforcement pending)
+**Status:** In Progress (`Phases 0-3` complete, `Phase 5` and `Phase 6` implemented, later cleanup/enforcement pending)
 
 **Last Updated:** 2026-04-12
 
@@ -642,20 +642,20 @@ The implementation work should not begin migrating large batches of tools until 
 
 ### Tasks
 
-- [ ] Remove stale root `base-setup` reference to `scripts/lib/setup.sh`.
-- [ ] Delete `scripts/lib/setup.sh` once no live path depends on it.
-- [ ] Delete obsolete `scripts/lib/deps/*` tool installers/helpers whose responsibilities moved native or were intentionally retired.
-- [ ] Delete obsolete safeguard shell scripts that were replaced natively or intentionally retired.
-- [ ] Replace `scripts/lib/setup-conditions/*` external setup checkers with native equivalents or explicit deprecation.
-- [ ] Remove or replace stale scenario/resource shell helpers that this redesign makes obsolete.
-- [ ] Remove tests, fixtures, and docs that anchor old shell setup behavior.
-- [ ] Update validation targets to fail on reintroduction of deleted setup surfaces.
+- [x] Remove stale root `base-setup` reference to `scripts/lib/setup.sh`.
+- [x] Delete `scripts/lib/setup.sh` once no live path depends on it.
+- [x] Delete obsolete `scripts/lib/deps/*` tool installers/helpers whose responsibilities moved native or were intentionally retired.
+- [x] Delete obsolete safeguard shell scripts that were replaced natively or intentionally retired.
+- [x] Replace `scripts/lib/setup-conditions/*` external setup checkers with native equivalents or explicit deprecation.
+- [x] Remove or replace stale scenario/resource shell helpers that this redesign makes obsolete.
+- [x] Remove tests, fixtures, and docs that anchor old shell setup behavior.
+- [x] Update validation targets to fail on reintroduction of deleted setup surfaces.
 
 ### Acceptance
 
-- [ ] No production setup path depends on `scripts/lib/setup.sh`.
-- [ ] No active host requirement depends on shell-era installer helpers.
-- [ ] Setup conditions no longer depend on shell check scripts for native-owned behavior.
+- [x] No production setup path depends on `scripts/lib/setup.sh`.
+- [x] No active host requirement depends on shell-era installer helpers.
+- [x] Setup conditions no longer depend on shell check scripts for native-owned behavior.
 
 ## Phase 7: Scenario And Resource Helper Cleanup
 
