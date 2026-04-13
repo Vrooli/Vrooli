@@ -382,3 +382,71 @@ go 1.25
 		}
 	}
 }
+
+func TestGoCliRule_DetectsMissingRepoContractReplaceForAPISharedPackageConsumer(t *testing.T) {
+	root := setupRuleGoCliTestRepo(t)
+	scenarioName := "api-shared-package"
+	apiDir := filepath.Join(root, "scenarios", scenarioName, "api")
+	mkdirAll(t, apiDir)
+
+	goMod := `module example.com/api-shared-package
+
+go 1.25
+
+require github.com/vrooli/api-core v0.0.0
+
+replace github.com/vrooli/api-core => ../../../packages/api-core
+`
+	if err := os.WriteFile(filepath.Join(apiDir, "go.mod"), []byte(goMod), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := RunGoCliWorkspaceIndependence(t.Context(), root, scenarioName)
+
+	found := false
+	for _, f := range result.Findings {
+		if f.Level == "error" && strings.Contains(f.Message, "repo-contract-go") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected finding about missing repo-contract-go replace for api-core consumer")
+	}
+}
+
+func TestGoCliRule_DetectsMissingProtoReplaceForScenarioRootModule(t *testing.T) {
+	root := setupRuleGoCliTestRepo(t)
+	scenarioName := "root-proto"
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	mkdirAll(t, scenarioDir)
+
+	goMod := `module example.com/root-proto
+
+go 1.25
+
+require github.com/vrooli/vrooli/packages/proto v0.0.0
+`
+	if err := os.WriteFile(filepath.Join(scenarioDir, "go.mod"), []byte(goMod), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := RunGoCliWorkspaceIndependence(t.Context(), root, scenarioName)
+
+	found := false
+	for _, f := range result.Findings {
+		if f.Level == "error" && strings.Contains(f.Message, "packages/proto") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected finding about missing proto replace for scenario root module")
+	}
+}

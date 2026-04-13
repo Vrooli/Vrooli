@@ -17,6 +17,8 @@ Add to your scenario's `api/go.mod`:
 require github.com/vrooli/api-core v0.0.0
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 ```
 
 Add preflight checks to your `main()`:
@@ -398,6 +400,7 @@ Changes to local dependencies via `replace` directives are detected. For each lo
 ```go
 // go.mod
 replace github.com/vrooli/api-core => ../../../packages/api-core
+replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 ```
 
 ```

@@ -43,9 +43,9 @@ func AllRules() []RuleEntry {
 		{
 			Definition: RuleDefinition{
 				ID:             "GO_CLI_WORKSPACE_INDEPENDENCE",
-				Title:          "Go CLI builds without workspace mode",
-				Summary:        "Ensures Go-based scenario CLIs build with `GOWORK=off` so they don't depend on a repo-level `go.work`.",
-				WhyImportant:   "A single bad `go.work` entry can break every `go` command in the repo. This rule enforces that CLIs are self-contained via their own `go.mod` plus required `replace` directives (e.g. for `packages/proto`) and explicit wiring when a CLI imports API internals.",
+				Title:          "Go scenario modules are workspace-independent",
+				Summary:        "Ensures Go-based scenario CLIs build with `GOWORK=off` and that scenario modules using shared Vrooli packages declare the non-transitive local `replace` directives they need.",
+				WhyImportant:   "A single bad `go.work` entry can break every `go` command in the repo. This rule enforces that scenario modules remain self-contained via their own `go.mod`, including explicit local wiring for dependencies like `packages/proto` and `packages/repo-contract-go`, plus local API wiring when a CLI imports scenario API packages.",
 				Category:       "go",
 				Severity:       "error",
 				DefaultEnabled: true,

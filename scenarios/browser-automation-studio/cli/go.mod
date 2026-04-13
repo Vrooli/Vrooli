@@ -17,6 +17,7 @@ require (
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jmoiron/sqlx v1.3.5 // indirect
@@ -36,6 +37,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/sony/gobreaker/v2 v2.3.0 // indirect
+	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
@@ -57,3 +59,5 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 replace github.com/vrooli/browser-automation-studio => ../api
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
+
+replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go

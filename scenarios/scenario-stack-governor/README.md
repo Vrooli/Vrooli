@@ -21,7 +21,7 @@ make start
 - `POST /api/v1/run`
 
 ## First rule (MVP)
-- `GO_CLI_WORKSPACE_INDEPENDENCE`: verifies Go-based scenario CLIs build with `GOWORK=off`, and flags missing `go.mod` wiring for common non-transitive `replace` pitfalls.
+- `GO_CLI_WORKSPACE_INDEPENDENCE`: verifies Go-based scenario CLIs build with `GOWORK=off`, and flags missing `go.mod` wiring for common non-transitive `replace` pitfalls across scenario modules that depend on shared Vrooli Go packages.
 
 ## Docs
 - `scenarios/scenario-stack-governor/PRD.md`

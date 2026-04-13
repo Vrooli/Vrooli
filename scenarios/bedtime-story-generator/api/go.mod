@@ -16,6 +16,11 @@ require (
 )
 
 require (
+	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+	github.com/vrooli/repo-contract-go v0.0.0 // indirect
+)
+
+require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/jung-kurt/gofpdf v1.16.2
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -23,3 +28,5 @@ require (
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go

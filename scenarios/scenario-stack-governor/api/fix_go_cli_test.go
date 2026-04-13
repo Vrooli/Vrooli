@@ -24,6 +24,9 @@ func setupGoCliTestDir(t *testing.T, scenarioName string) (repoRoot string) {
 	if err := os.MkdirAll(filepath.Join(root, "packages", "proto"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Join(root, "packages", "repo-contract-go"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	return root
 }
@@ -106,6 +109,74 @@ require (
 	text := string(content)
 	if !strings.Contains(text, "replace github.com/vrooli/vrooli/packages/proto =>") {
 		t.Error("expected replace directive for proto module")
+	}
+}
+
+func TestFixGoCli_AddsMissingRepoContractReplaceToAPI(t *testing.T) {
+	scenarioName := "test-api-core"
+	root := setupGoCliTestDir(t, scenarioName)
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+
+	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"), []byte(`module github.com/vrooli/test-api-core
+
+go 1.23
+
+require github.com/vrooli/api-core v0.0.0
+
+replace github.com/vrooli/api-core => ../../../packages/api-core
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	results := FixGoCliWorkspaceIndependence(t.Context(), root, scenarioName, false)
+
+	found := false
+	for _, result := range results {
+		if result.FilePath == filepath.Join(scenarioDir, "api", "go.mod") && result.Fixed {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("expected api/go.mod to be fixed")
+	}
+
+	content, _ := os.ReadFile(filepath.Join(scenarioDir, "api", "go.mod"))
+	if !strings.Contains(string(content), "replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go") {
+		t.Error("expected repo-contract-go replace directive in api/go.mod")
+	}
+}
+
+func TestFixGoCli_AddsMissingRepoContractReplaceToCLI(t *testing.T) {
+	scenarioName := "test-cli-core"
+	root := setupGoCliTestDir(t, scenarioName)
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+
+	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"), []byte(`module github.com/vrooli/test-cli-core/cli
+
+go 1.23
+
+require github.com/vrooli/cli-core v0.0.0
+
+replace github.com/vrooli/cli-core => ../../../packages/cli-core
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	results := FixGoCliWorkspaceIndependence(t.Context(), root, scenarioName, false)
+
+	found := false
+	for _, result := range results {
+		if result.FilePath == filepath.Join(scenarioDir, "cli", "go.mod") && result.Fixed {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("expected cli/go.mod to be fixed")
+	}
+
+	content, _ := os.ReadFile(filepath.Join(scenarioDir, "cli", "go.mod"))
+	if !strings.Contains(string(content), "replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go") {
+		t.Error("expected repo-contract-go replace directive in cli/go.mod")
 	}
 }
 
