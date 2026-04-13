@@ -48,10 +48,6 @@ func parseTopLevelDoctorRequest(globals globalOptions, args []string) (topLevelN
 	return topLevelNoArgsRequest{}, nil
 }
 
-func parseTopLevelDoctorRequestFromContext(ctx *commandContext, args []string) (topLevelNoArgsRequest, error) {
-	return parseTopLevelDoctorRequest(ctx.Globals, args)
-}
-
 func runTopLevelDoctorRequest(app *App, ctx *commandContext, _ topLevelNoArgsRequest) (cliout.Format, project.DoctorReport, error) {
 	controller, err := app.newProjectController(ctx)
 	if err != nil {
@@ -79,10 +75,6 @@ func parseTopLevelStopRequest(globals globalOptions, args []string) (topLevelSto
 		}
 	}
 	return topLevelStopRequest{Targets: append([]string(nil), args...)}, nil
-}
-
-func parseTopLevelStopRequestFromContext(ctx *commandContext, args []string) (topLevelStopRequest, error) {
-	return parseTopLevelStopRequest(ctx.Globals, args)
 }
 
 func runTopLevelStopRequest(app *App, ctx *commandContext, req topLevelStopRequest) (cliout.Format, control.StopReport, error) {
@@ -118,10 +110,6 @@ func parseTopLevelOrphansRequest(globals globalOptions, args []string) (topLevel
 		}
 	}
 	return req, nil
-}
-
-func parseTopLevelOrphansRequestFromContext(ctx *commandContext, args []string) (topLevelOrphansRequest, error) {
-	return parseTopLevelOrphansRequest(ctx.Globals, args)
 }
 
 func runTopLevelOrphansRequest(app *App, ctx *commandContext, req topLevelOrphansRequest) (cliout.Format, topLevelOrphansResponse, error) {
@@ -164,10 +152,6 @@ func parseTopLevelLocksRequest(globals globalOptions, args []string) (topLevelLo
 		}
 	}
 	return req, nil
-}
-
-func parseTopLevelLocksRequestFromContext(ctx *commandContext, args []string) (topLevelLocksRequest, error) {
-	return parseTopLevelLocksRequest(ctx.Globals, args)
 }
 
 func runTopLevelLocksRequest(app *App, ctx *commandContext, req topLevelLocksRequest) (cliout.Format, topLevelLocksResponse, error) {
@@ -214,10 +198,6 @@ func parseTopLevelDiagnosePortRequest(globals globalOptions, args []string) (top
 		req.ScenarioName = args[1]
 	}
 	return req, nil
-}
-
-func parseTopLevelDiagnosePortRequestFromContext(ctx *commandContext, args []string) (topLevelDiagnosePortRequest, error) {
-	return parseTopLevelDiagnosePortRequest(ctx.Globals, args)
 }
 
 func runTopLevelDiagnosePortRequest(app *App, ctx *commandContext, req topLevelDiagnosePortRequest) (cliout.Format, maintenance.PortDiagnostic, error) {

@@ -1,7 +1,6 @@
 package cliapp
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 func TestScenarioAppConfigureCommandSavesConfig(t *testing.T) {
@@ -234,97 +235,14 @@ func TestResolveScenarioLocalCLIContextUsesContractDefinedLayout(t *testing.T) {
 func writeScenarioRepoFixture(t *testing.T, scenarioDir string) string {
 	t.Helper()
 
-	root := t.TempDir()
-	doc := map[string]any{
-		"$schema": "schemas/repo-contract.schema.json",
-		"version": "1.0.0",
-		"platform": map[string]any{
-			"mode":                          "cross_platform_go_native",
-			"legacy_project_bash_supported": false,
-		},
-		"root": map[string]any{
-			"markers": map[string]any{
-				"required_dirs":  []string{".vrooli", scenarioDir, "resources", "packages", "cmd", "internal"},
-				"required_files": []string{"go.mod"},
-			},
-		},
-		"layout": map[string]any{
-			"project_config_dir": ".vrooli",
-			"scenario_dir":       scenarioDir,
-			"resource_dir":       "resources",
-			"package_dir":        "packages",
-			"command_dir":        "cmd",
-			"internal_dir":       "internal",
-			"docs_dir":           "docs",
-		},
-		"scenario": map[string]any{
-			"required_files": []string{".vrooli/service.json"},
-			"well_known_paths": map[string]string{
-				"service": ".vrooli/service.json",
-				"api":     "api",
-				"cli":     "cli",
-			},
-		},
-		"resource": map[string]any{
-			"manifest": "resource.json",
-		},
-		"globs": map[string]any{
-			"syntax":         "doublestar",
-			"root_relative":  true,
-			"case_sensitive": true,
-			"allow_absolute": false,
-			"path_format":    "slash_normalized",
-		},
-		"environment": map[string]any{
-			"variables": map[string]string{
-				"repo_root":      "VROOLI_ROOT",
-				"source_root":    "VROOLI_SOURCE_ROOT",
-				"sandbox_id":     "VROOLI_SANDBOX_ID",
-				"sandbox_merged": "VROOLI_SANDBOX_MERGED",
-				"sandbox_scope":  "VROOLI_SANDBOX_SCOPE",
-			},
-		},
-		"sandbox": map[string]any{
-			"full_repo_scopes":      []string{"", ".", "/"},
-			"scenario_scope_prefix": scenarioDir + "/",
-		},
-		"profiles": map[string]any{
-			"mini_vrooli_bundle": map[string]any{
-				"description": "test profile",
-				"parameters":  []string{"scenario"},
-				"include":     []string{scenarioDir + "/{scenario}"},
-			},
-		},
-	}
-
-	for _, dir := range []string{".vrooli", scenarioDir, "resources", "packages", "cmd", "internal"} {
-		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", dir, err)
-		}
-	}
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module fixture\n"), 0o644); err != nil {
-		t.Fatalf("write go.mod: %v", err)
-	}
+	fixture := testkitgo.NewRepoFixture(t, testkitgo.WithScenarioDir(scenarioDir))
+	fixture.WriteRepoContract(t)
 	for _, scenario := range []string{"swarm-manager", "scenario-to-desktop"} {
-		servicePath := filepath.Join(root, scenarioDir, scenario, ".vrooli", "service.json")
-		if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
-			t.Fatalf("mkdir service dir: %v", err)
-		}
-		if err := os.MkdirAll(filepath.Join(root, scenarioDir, scenario, "cli"), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Join(fixture.Root, scenarioDir, scenario, "cli"), 0o755); err != nil {
 			t.Fatalf("mkdir cli dir: %v", err)
 		}
-		if err := os.WriteFile(servicePath, []byte(`{"service":{"name":"`+scenario+`"}}`), 0o644); err != nil {
-			t.Fatalf("write service: %v", err)
-		}
+		testkitgo.WriteRelativeFile(t, fixture.Root, filepath.Join(scenarioDir, scenario, ".vrooli", "service.json"), `{"service":{"name":"`+scenario+`"}}`)
 	}
 
-	data, err := json.MarshalIndent(doc, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal contract: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), data, 0o644); err != nil {
-		t.Fatalf("write contract: %v", err)
-	}
-
-	return root
+	return fixture.Root
 }

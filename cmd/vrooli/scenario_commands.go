@@ -23,54 +23,6 @@ type (
 	scenarioLifecycleItemOutput = scenariocli.LifecycleItemOutput
 )
 
-func runScenarioStartCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[scenarioStartRequest, []scenarioLifecycleItemOutput]{
-		parse:  parseScenarioStartRequestFromContext,
-		run:    runScenarioStartRequest,
-		render: renderScenarioLifecycleResponse,
-	})
-}
-
-func runScenarioStopCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[scenarioStopRequest, []scenarioLifecycleItemOutput]{
-		parse:  parseScenarioStopRequestFromContext,
-		run:    runScenarioStopRequest,
-		render: renderScenarioLifecycleResponse,
-	})
-}
-
-func runScenarioRestartCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[scenarioRestartRequest, []scenarioLifecycleItemOutput]{
-		parse:  parseScenarioRestartRequestFromContext,
-		run:    runScenarioRestartRequest,
-		render: renderScenarioLifecycleResponse,
-	})
-}
-
-func runScenarioListCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[scenarioListRequest, scenarioListResponse]{
-		parse:  parseScenarioListRequestFromContext,
-		run:    runScenarioListRequest,
-		render: renderScenarioListResponse,
-	})
-}
-
-func runScenarioInfoCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[scenarioInfoRequest, scenarioInfoOutput]{
-		parse:  parseScenarioInfoRequestFromContext,
-		run:    runScenarioInfoRequest,
-		render: renderScenarioInfoResponse,
-	})
-}
-
-func runScenarioStatusCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[scenarioStatusRequest, scenarioStatusResponse]{
-		parse:  parseScenarioStatusRequestFromContext,
-		run:    runScenarioStatusRequest,
-		render: renderScenarioStatusResponse,
-	})
-}
-
 func buildScenarioStatusItem(item scenario.Scenario, runtime process.ScenarioRuntime) scenarioStatusItemOutput {
 	return scenariocli.BuildStatusItem(item, runtime)
 }
@@ -91,8 +43,7 @@ func runtimePortOutputs(bindings []scenario.RuntimePortBinding) []scenarioListPo
 	return scenariocli.RuntimePortOutputs(bindings)
 }
 
-// buildListPorts preserves the historical CLI output contract while the
-// underlying runtime/port logic lives in internal/scenario.
+// buildListPorts adapts scenario/runtime port data into the CLI output shape.
 func buildListPorts(manifest scenario.ServiceManifest, records []process.Record) ([]scenarioListPortOutput, map[string]int) {
 	return scenariocli.BuildListPorts(manifest, records)
 }

@@ -9,7 +9,7 @@
 
 **Purpose**: Landing Manager is a meta-scenario that **only** registers templates, generates landing-page scenarios, and orchestrates agent handoff. It is **not** a landing page and does **not** ship admin portals, A/B testing, analytics, or Stripe runtime; those live in the landing-page template payload that Landing Manager copies into generated scenarios. Legacy landing/admin UI code in this repo is reference-only; runtime ships from the template payload.
 
-**Canonical runtime spec**: All landing/runtime expectations are defined directly in the landing-page template PRD at `scripts/scenarios/templates/landing-page-react-vite/PRD.md`. That document drives the template’s API contract (landing config, subscription flows, downloads, credits, entitlements) and must stay in lockstep with generated scenarios. The factory’s job is to keep that spec accurate, reference it during CLI handoffs, and ensure every generated scenario inherits the runtime expectations automatically.
+**Canonical runtime spec**: All landing/runtime expectations are defined directly in the landing-page template PRD at `templates/scenarios/landing-page-react-vite/PRD.md`. That document drives the template’s API contract (landing config, subscription flows, downloads, credits, entitlements) and must stay in lockstep with generated scenarios. The factory’s job is to keep that spec accurate, reference it during CLI handoffs, and ensure every generated scenario inherits the runtime expectations automatically.
 
 **Primary users/verticals**:
 - SaaS founders launching products (Vrooli Pro, future bundles)
@@ -23,18 +23,18 @@
 - UI: Factory dashboard only (template links + generation guidance). No landing/admin runtime here.
 - Agent Integration: Triggers an agent to customize **generated** landing pages using template-safe APIs/files
 
-> Scope note: All landing runtime features (admin portal, A/B testing, metrics, Stripe, subscription verification) belong to the template at `scripts/scenarios/templates/landing-page-react-vite` and the scenarios generated from it. The factory's responsibility stops at generating and orchestrating.
+> Scope note: All landing runtime features (admin portal, A/B testing, metrics, Stripe, subscription verification) belong to the template at `templates/scenarios/landing-page-react-vite` and the scenarios generated from it. The factory's responsibility stops at generating and orchestrating.
 
 **Value promise**: Reduces landing page setup from weeks to minutes by shipping a factory + template bundle. Factory handles metadata and generation; templates provide the landing runtime once generated.
 
 ## 🎯 Operational Targets
-> Runtime landing/admin targets live in `scripts/scenarios/templates/landing-page-react-vite/PRD.md` and are validated in generated scenarios.
+> Runtime landing/admin targets live in `templates/scenarios/landing-page-react-vite/PRD.md` and are validated in generated scenarios.
 
 ### 🔴 P0 – Must ship for viability
 - [x] **OT-P0-001: Template Registry & Discovery** — Expose templates via CLI/API with metadata for listing, inspection, and selection (availability, metadata quality, multi-template support)
 - [x] **OT-P0-002: Scenario Generation Pipeline** — Generate runnable landing-page scenarios with single command, proper output structure, provenance stamping, and validation
 - [x] **OT-P0-003: Agent Integration & Customization** — Trigger agent-based customization with structured briefs and predefined personas
-- [x] **OT-P0-004: Template Runtime Alignment** — Keep `scripts/scenarios/templates/landing-page-react-vite/PRD.md` authoritative, surface it in CLI/UI handoffs, and verify that template PRD/requirements cover every runtime capability (landing config fallback, subscription APIs, credits, downloads, entitlements) before generating/scaffolding new scenarios; tracked via `TMPL-RUNTIME-ALIGNMENT` which ensures README, CLI help, and the template PRD stay in sync
+- [x] **OT-P0-004: Template Runtime Alignment** — Keep `templates/scenarios/landing-page-react-vite/PRD.md` authoritative, surface it in CLI/UI handoffs, and verify that template PRD/requirements cover every runtime capability (landing config fallback, subscription APIs, credits, downloads, entitlements) before generating/scaffolding new scenarios; tracked via `TMPL-RUNTIME-ALIGNMENT` which ensures README, CLI help, and the template PRD stay in sync
 
 ### 🟠 P1 – Should have post-launch
 - [x] **OT-P1-001: Generation Workflow Enhancements** — Add preview links, dry-run planning, generation diagnostics, UI-based lifecycle management (start/stop/logs/access generated scenarios without terminal), and UI-based promotion from staging to production

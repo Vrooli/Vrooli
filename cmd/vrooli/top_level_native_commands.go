@@ -7,76 +7,28 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cli/projectcli"
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/control"
-	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/project"
 )
 
-func runTopLevelStatusCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[topLevelStatusOptions, topLevelStatusResponse]{
-		parse: parseTopLevelStatusRequestFromContext,
-		run:   runTopLevelStatusRequest,
-		render: func(w io.Writer, format cliout.Format, resp topLevelStatusResponse) error {
-			return projectcli.RenderStatusReport(w, format, projectcli.StatusResponse{
-				Options: projectcli.StatusOptions{
-					ResourcesOnly: resp.Options.ResourcesOnly,
-					ScenariosOnly: resp.Options.ScenariosOnly,
-				},
-				Report: resp.Report,
-			})
+func renderTopLevelStatusResponse(w io.Writer, format cliout.Format, resp topLevelStatusResponse) error {
+	return projectcli.RenderStatusReport(w, format, projectcli.StatusResponse{
+		Options: projectcli.StatusOptions{
+			ResourcesOnly: resp.Options.ResourcesOnly,
+			ScenariosOnly: resp.Options.ScenariosOnly,
 		},
-	})
-}
-
-func runTopLevelDoctorCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[topLevelNoArgsRequest, project.DoctorReport]{
-		parse:  parseTopLevelDoctorRequestFromContext,
-		run:    runTopLevelDoctorRequest,
-		render: renderTopLevelDoctorResponse,
-	})
-}
-
-func runTopLevelStopCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[topLevelStopRequest, control.StopReport]{
-		parse:  parseTopLevelStopRequestFromContext,
-		run:    runTopLevelStopRequest,
-		render: renderTopLevelStopResponse,
+		Report: resp.Report,
 	})
 }
 
 func runTopLevelResourceCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	if len(args) == 0 || wantsCommandHelp(args) {
-		return runResourceCommand(nil, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
+		return runResourceCommandWithApp(app, ctx, nil, args)
 	}
 	controller, err := app.newResourceController(ctx)
 	if err != nil {
 		return err
 	}
-	return runResourceCommand(controller, ctx.Globals, args, ctx.Stdout, ctx.Stderr)
-}
-
-func runTopLevelOrphansCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[topLevelOrphansRequest, topLevelOrphansResponse]{
-		parse:  parseTopLevelOrphansRequestFromContext,
-		run:    runTopLevelOrphansRequest,
-		render: renderTopLevelOrphansResponse,
-	})
-}
-
-func runTopLevelLocksCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[topLevelLocksRequest, topLevelLocksResponse]{
-		parse:  parseTopLevelLocksRequestFromContext,
-		run:    runTopLevelLocksRequest,
-		render: renderTopLevelLocksResponse,
-	})
-}
-
-func runTopLevelDiagnosePortCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[topLevelDiagnosePortRequest, maintenance.PortDiagnostic]{
-		parse:  parseTopLevelDiagnosePortRequestFromContext,
-		run:    runTopLevelDiagnosePortRequest,
-		render: renderTopLevelDiagnosePortResponse,
-	})
+	return runResourceCommandWithApp(app, ctx, controller, args)
 }
 
 type topLevelStatusOptions struct {
@@ -124,10 +76,6 @@ func parseTopLevelStatusRequest(globals globalOptions, args []string) (topLevelS
 		return topLevelStatusOptions{}, commandHelpOnly("Usage: vrooli status [--resources|--scenarios] [--fast|--no-fast] [--json]")
 	}
 	return opts, nil
-}
-
-func parseTopLevelStatusRequestFromContext(ctx *commandContext, args []string) (topLevelStatusOptions, error) {
-	return parseTopLevelStatusRequest(ctx.Globals, args)
 }
 
 func runTopLevelStatusRequest(app *App, ctx *commandContext, opts topLevelStatusOptions) (cliout.Format, topLevelStatusResponse, error) {

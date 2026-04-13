@@ -25,32 +25,32 @@ var topLevelCommandTable = []commandDescriptor{
 	{Name: "build", Group: "Lifecycle Commands", Summary: "Build the project", Handler: runTopLevelBuildCommand, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 	{Name: "deploy", Group: "Lifecycle Commands", Summary: "Deploy to production", Handler: runTopLevelDeployCommand, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 	{Name: "clean", Group: "Lifecycle Commands", Summary: "Clean build artifacts", Handler: runTopLevelCleanCommand, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
-	{Name: "status", Group: "Lifecycle Commands", Summary: "Show system health and status overview", Handler: runTopLevelStatusCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
-	{Name: "stop", Group: "Lifecycle Commands", Summary: "Stop all or specific components", Handler: runTopLevelStopCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
+	{Name: "status", Group: "Lifecycle Commands", Summary: "Show system health and status overview", Handler: bindGlobalCommand(parseTopLevelStatusRequest, runTopLevelStatusRequest, renderTopLevelStatusResponse), Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
+	{Name: "stop", Group: "Lifecycle Commands", Summary: "Stop all or specific components", Handler: bindGlobalCommand(parseTopLevelStopRequest, runTopLevelStopRequest, renderTopLevelStopResponse), Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 	{Name: "backup", Group: "Lifecycle Commands", Summary: "Run the project backup lifecycle when defined", Handler: runTopLevelBackupCommand, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 	{Name: "restore", Group: "Lifecycle Commands", Summary: "Run the project restore lifecycle when defined", Handler: runTopLevelRestoreCommand, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 	{Name: "info", Group: "Context Commands", Summary: "Show consolidated project briefing", Handler: runInfoTopLevelCommand, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 	{Name: "scenario", Group: "Scenario Management", Summary: "Manage scenarios from their source locations", Handler: runScenarioRootCommand, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: scenarioCanRunWithoutRoot},
 	{Name: "resource", Group: "Resource Management", Summary: "Manage local resources and dependency services", Handler: runTopLevelResourceCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: listOrHelpWithoutRoot},
 	{Name: "cleanup", Group: "Maintenance Commands", Summary: "Clean up orphans and stale locks", Handler: runTopLevelCleanupCommand, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: listOrHelpWithoutRoot},
-	{Name: "doctor", Group: "Maintenance Commands", Summary: "Run environment and tool diagnostics", Handler: runTopLevelDoctorCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
-	{Name: "orphans", Group: "Maintenance Commands", Summary: "Inspect or clean orphaned Vrooli processes", Handler: runTopLevelOrphansCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
-	{Name: "locks", Group: "Maintenance Commands", Summary: "Inspect or clean stale port lock files", Handler: runTopLevelLocksCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
-	{Name: "diagnose-port", Group: "Maintenance Commands", Summary: "Diagnose port conflicts and stale lock ownership", Handler: runTopLevelDiagnosePortCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
+	{Name: "doctor", Group: "Maintenance Commands", Summary: "Run environment and tool diagnostics", Handler: bindGlobalCommand(parseTopLevelDoctorRequest, runTopLevelDoctorRequest, renderTopLevelDoctorResponse), Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
+	{Name: "orphans", Group: "Maintenance Commands", Summary: "Inspect or clean orphaned Vrooli processes", Handler: bindGlobalCommand(parseTopLevelOrphansRequest, runTopLevelOrphansRequest, renderTopLevelOrphansResponse), Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
+	{Name: "locks", Group: "Maintenance Commands", Summary: "Inspect or clean stale port lock files", Handler: bindGlobalCommand(parseTopLevelLocksRequest, runTopLevelLocksRequest, renderTopLevelLocksResponse), Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
+	{Name: "diagnose-port", Group: "Maintenance Commands", Summary: "Diagnose port conflicts and stale lock ownership", Handler: bindGlobalCommand(parseTopLevelDiagnosePortRequest, runTopLevelDiagnosePortRequest, renderTopLevelDiagnosePortResponse), Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 	{Name: "contract", Group: "Maintenance Commands", Summary: "Inspect and validate the repository contract", Handler: runContractCommandWithApp, Suggestable: true, RequiresRoot: false},
 	{Name: "lifecycle", Group: "Maintenance Commands", Summary: "Internal lifecycle command plumbing", Hidden: true, Handler: runTopLevelLifecycleCommandWithApp, Suggestable: false, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 }
 
 var scenarioCommandTable = []commandDescriptor{
-	{Name: "list", Group: "Read-only Commands", Summary: "List discovered scenarios", Handler: runScenarioListCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
-	{Name: "info", Group: "Read-only Commands", Summary: "Show scenario metadata and runtime summary", Handler: runScenarioInfoCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
-	{Name: "status", Group: "Read-only Commands", Summary: "Show scenario runtime status", Handler: runScenarioStatusCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
+	{Name: "list", Group: "Read-only Commands", Summary: "List discovered scenarios", Handler: bindGlobalCommand(parseScenarioListRequest, runScenarioListRequest, renderScenarioListResponse), Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
+	{Name: "info", Group: "Read-only Commands", Summary: "Show scenario metadata and runtime summary", Handler: bindGlobalCommand(parseScenarioInfoRequest, runScenarioInfoRequest, renderScenarioInfoResponse), Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
+	{Name: "status", Group: "Read-only Commands", Summary: "Show scenario runtime status", Handler: bindGlobalCommand(parseScenarioStatusRequest, runScenarioStatusRequest, renderScenarioStatusResponse), Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 	{Name: "run", Group: "Lifecycle and Utility Commands", Summary: "Run a scenario directly (alias of start)", Handler: runScenarioRunCommand, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
-	{Name: "start", Group: "Lifecycle and Utility Commands", Summary: "Start a scenario", Handler: runScenarioStartCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
+	{Name: "start", Group: "Lifecycle and Utility Commands", Summary: "Start a scenario", Handler: bindGlobalCommand(parseScenarioStartRequest, runScenarioStartRequest, renderScenarioLifecycleResponse), Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 	{Name: "start-all", Group: "Lifecycle and Utility Commands", Summary: "Start all available scenarios", Handler: runScenarioStartAllCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 	{Name: "setup", Group: "Lifecycle and Utility Commands", Summary: "Run the setup lifecycle", Handler: runScenarioSetupCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
-	{Name: "restart", Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: runScenarioRestartCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
-	{Name: "stop", Group: "Lifecycle and Utility Commands", Summary: "Stop a running scenario", Handler: runScenarioStopCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
+	{Name: "restart", Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: bindGlobalCommand(parseScenarioRestartRequest, runScenarioRestartRequest, renderScenarioLifecycleResponse), Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
+	{Name: "stop", Group: "Lifecycle and Utility Commands", Summary: "Stop a running scenario", Handler: bindGlobalCommand(parseScenarioStopRequest, runScenarioStopRequest, renderScenarioLifecycleResponse), Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 	{Name: "stop-all", Group: "Lifecycle and Utility Commands", Summary: "Stop all running scenarios", Handler: runScenarioStopAllCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 	{Name: "test", Group: "Lifecycle and Utility Commands", Summary: "Run scenario tests", Handler: runScenarioTestCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 	{Name: "logs", Group: "Lifecycle and Utility Commands", Summary: "View logs for a scenario", Handler: runScenarioLogsCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
@@ -64,10 +64,12 @@ var scenarioCommandTable = []commandDescriptor{
 	{Name: "heal-from-sandbox", Group: "Lifecycle and Utility Commands", Summary: "Relaunch sandbox-rooted scenario processes", Handler: runScenarioHealFromSandboxCommandWithApp, Suggestable: true, RequiresRoot: true, CanRunWithoutRoot: helpOnlyWithoutRoot},
 }
 
-var topLevelCommands = buildTopLevelCommandMap(topLevelCommandTable)
-var scenarioCommands = buildScenarioCommandMap(scenarioCommandTable)
-var topLevelCommandDescriptors = buildCommandDescriptorMap(topLevelCommandTable)
-var scenarioCommandDescriptors = buildCommandDescriptorMap(scenarioCommandTable)
+var (
+	topLevelCommands           = buildTopLevelCommandMap(topLevelCommandTable)
+	scenarioCommands           = buildScenarioCommandMap(scenarioCommandTable)
+	topLevelCommandDescriptors = buildCommandDescriptorMap(topLevelCommandTable)
+	scenarioCommandDescriptors = buildCommandDescriptorMap(scenarioCommandTable)
+)
 
 func buildTopLevelCommandMap(descriptors []commandDescriptor) map[string]appCommandHandler {
 	commands := make(map[string]appCommandHandler, len(descriptors))

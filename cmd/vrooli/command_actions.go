@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/resources"
 )
 
 type commandAction[Req any, Resp any] struct {
@@ -47,4 +48,48 @@ func executeBoundCommand[Deps any, Req any, Resp any](app *App, ctx *commandCont
 		},
 		render: action.render,
 	})
+}
+
+func bindGlobalCommand[Req any, Resp any](
+	parse func(globals globalOptions, args []string) (Req, error),
+	run func(app *App, ctx *commandContext, req Req) (cliout.Format, Resp, error),
+	render func(w io.Writer, format cliout.Format, resp Resp) error,
+) appCommandHandler {
+	return func(app *App, ctx *commandContext, args []string) error {
+		return executeCommandAction(app, ctx, args, commandAction[Req, Resp]{
+			parse: func(ctx *commandContext, args []string) (Req, error) {
+				return parse(ctx.Globals, args)
+			},
+			run:    run,
+			render: render,
+		})
+	}
+}
+
+func bindContextCommand[Req any, Resp any](
+	parse func(ctx *commandContext, args []string) (Req, error),
+	run func(app *App, ctx *commandContext, req Req) (cliout.Format, Resp, error),
+	render func(w io.Writer, format cliout.Format, resp Resp) error,
+) appCommandHandler {
+	return func(app *App, ctx *commandContext, args []string) error {
+		return executeCommandAction(app, ctx, args, commandAction[Req, Resp]{
+			parse:  parse,
+			run:    run,
+			render: render,
+		})
+	}
+}
+
+func bindResourceCommand[Req any, Resp any](
+	parse func(globals globalOptions, args []string) (Req, error),
+	run func(controller *resources.Controller, ctx *commandContext, req Req) (cliout.Format, Resp, error),
+	render func(w io.Writer, format cliout.Format, resp Resp) error,
+) resourceCommandHandler {
+	return func(app *App, ctx *commandContext, controller *resources.Controller, args []string) error {
+		return executeResourceCommandWithApp(app, ctx, controller, args, boundCommandAction[*resources.Controller, Req, Resp]{
+			parse:  parse,
+			run:    run,
+			render: render,
+		})
+	}
 }

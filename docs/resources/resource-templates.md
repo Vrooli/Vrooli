@@ -52,7 +52,7 @@ go run ./cmd/vrooli resource template generate --from-blueprint terraform --dry-
 
 ## Template Layout
 
-Each canonical template lives under `scripts/resources/templates/<template>/` and includes:
+Each canonical template lives under `templates/resources/<template>/` and includes:
 
 - `template.json`
 - `README.md`

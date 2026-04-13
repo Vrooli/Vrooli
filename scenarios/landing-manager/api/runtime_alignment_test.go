@@ -27,7 +27,7 @@ func TestTODOImplementationPlanReferenced(t *testing.T) {
 		},
 	}
 
-	const requiredSubstring = "scripts/scenarios/templates/landing-page-react-vite/PRD.md"
+	const requiredSubstring = "templates/scenarios/landing-page-react-vite/PRD.md"
 
 	for _, target := range targets {
 		t.Run(target.name, func(t *testing.T) {

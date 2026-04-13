@@ -116,7 +116,7 @@ All scenario CLIs must use `cli-core` from `packages/cli-core/`. This provides:
 ```
 Is there an existing CLI for {{TARGET}}?
 │
-├─ NO → Use template at scripts/scenarios/templates/react-vite/cli/
+├─ NO → Use template at templates/scenarios/react-vite/cli/
 │       └─ Copy template, update constants, register commands
 │
 └─ YES → Is it built on cli-core?
@@ -137,7 +137,7 @@ Is there an existing CLI for {{TARGET}}?
 
 ### 4. CLI Project Structure
 
-**Template location:** `scripts/scenarios/templates/react-vite/cli/`
+**Template location:** `templates/scenarios/react-vite/cli/`
 
 **Standard structure:**
 ```

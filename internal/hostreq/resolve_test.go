@@ -8,8 +8,8 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/testfixture"
-	"github.com/vrooli/vrooli/internal/testutil"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
 func TestResolveMergesRootScenarioAndResourceDeclarations(t *testing.T) {
@@ -175,10 +175,10 @@ func TestResolveRejectsUnknownExplicitSelections(t *testing.T) {
 }
 
 func TestSchemaFilesDeclareHostRequirementProperties(t *testing.T) {
-	root := testutil.ProjectRoot(t)
+	root := testkitgo.ProjectRoot(t)
 
-	serviceSchema := testutil.ReadJSONFile(t, filepath.Join(root, ".vrooli", "schemas", "service.schema.json"))
-	resourceSchema := testutil.ReadJSONFile(t, filepath.Join(root, ".vrooli", "schemas", "resource.schema.json"))
+	serviceSchema := testkitgo.ReadJSONFile(t, filepath.Join(root, ".vrooli", "schemas", "service.schema.json"))
+	resourceSchema := testkitgo.ReadJSONFile(t, filepath.Join(root, ".vrooli", "schemas", "resource.schema.json"))
 
 	assertSchemaHasHostRequirements(t, serviceSchema)
 	assertSchemaHasHostRequirements(t, resourceSchema)

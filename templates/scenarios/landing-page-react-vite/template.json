@@ -48,7 +48,7 @@
   "docs": {
     "generatorGuide": "docs/scenarios/getting-started.md",
     "requirementsGuide": "docs/testing/guides/requirement-tracking-quick-start.md",
-    "templateGuide": "scripts/scenarios/templates/landing-page-react-vite/README.md"
+    "templateGuide": "templates/scenarios/landing-page-react-vite/README.md"
   },
   "postHooks": [
     {
@@ -63,4 +63,3 @@
     }
   ]
 }
-

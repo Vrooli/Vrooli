@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/repocontractcheck"
-	"github.com/vrooli/vrooli/internal/testutil"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 type contractDoc struct {
@@ -30,6 +30,7 @@ type contractDoc struct {
 		ProjectConfigDir string `json:"project_config_dir"`
 		ScenarioDir      string `json:"scenario_dir"`
 		ResourceDir      string `json:"resource_dir"`
+		TemplateDir      string `json:"template_dir"`
 		PackageDir       string `json:"package_dir"`
 		CommandDir       string `json:"command_dir"`
 		InternalDir      string `json:"internal_dir"`
@@ -136,6 +137,7 @@ func TestRepoContractCanonicalMarkersAndPathsStayExact(t *testing.T) {
 
 	if got, want := doc.Root.Markers.RequiredDirs, []string{
 		".vrooli",
+		"templates",
 		"scenarios",
 		"resources",
 		"packages",
@@ -157,6 +159,9 @@ func TestRepoContractCanonicalMarkersAndPathsStayExact(t *testing.T) {
 	}
 	if got := doc.Layout.ResourceDir; got != "resources" {
 		t.Fatalf("layout.resource_dir = %q", got)
+	}
+	if got := doc.Layout.TemplateDir; got != "templates" {
+		t.Fatalf("layout.template_dir = %q", got)
 	}
 	if got := doc.Layout.PackageDir; got != "packages" {
 		t.Fatalf("layout.package_dir = %q", got)
@@ -463,7 +468,7 @@ func TestRepoContractDocsStayAlignedWithPhase1Contract(t *testing.T) {
 }
 
 func repoRoot(t *testing.T) string {
-	return testutil.ProjectRoot(t)
+	return testkitgo.ProjectRoot(t)
 }
 
 func loadContract(t *testing.T, root string) contractDoc {

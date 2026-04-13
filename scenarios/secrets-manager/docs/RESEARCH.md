@@ -321,7 +321,7 @@ fi
 - UI: Must include `status`, `api_connectivity`, `bundle_exists`
 
 ### PRD Structure Requirements
-**Reference**: `scripts/scenarios/templates/react-vite/PRD.md`
+**Reference**: `templates/scenarios/react-vite/PRD.md`
 
 **Required Sections**:
 - 🎯 Capability Definition

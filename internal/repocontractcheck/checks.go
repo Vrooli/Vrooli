@@ -28,6 +28,7 @@ type contractDoc struct {
 		ProjectConfigDir string `json:"project_config_dir"`
 		ScenarioDir      string `json:"scenario_dir"`
 		ResourceDir      string `json:"resource_dir"`
+		TemplateDir      string `json:"template_dir"`
 		PackageDir       string `json:"package_dir"`
 		CommandDir       string `json:"command_dir"`
 		InternalDir      string `json:"internal_dir"`
@@ -202,6 +203,7 @@ func checkPhase1Semantics(doc contractDoc, root string, raw string) error {
 func checkCanonicalMarkersAndPaths(doc contractDoc, root string, raw string) error {
 	if got, want := doc.Root.Markers.RequiredDirs, []string{
 		".vrooli",
+		"templates",
 		"scenarios",
 		"resources",
 		"packages",
@@ -234,6 +236,8 @@ func checkCanonicalMarkersAndPaths(doc contractDoc, root string, raw string) err
 		return fmt.Errorf("layout.scenario_dir = %q", doc.Layout.ScenarioDir)
 	case doc.Layout.ResourceDir != "resources":
 		return fmt.Errorf("layout.resource_dir = %q", doc.Layout.ResourceDir)
+	case doc.Layout.TemplateDir != "templates":
+		return fmt.Errorf("layout.template_dir = %q", doc.Layout.TemplateDir)
 	case doc.Layout.PackageDir != "packages":
 		return fmt.Errorf("layout.package_dir = %q", doc.Layout.PackageDir)
 	case doc.Layout.CommandDir != "cmd":

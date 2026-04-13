@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/testutil"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=6 | LAST: 2026-04-13
@@ -29,7 +29,7 @@ func TestSandboxEnvFromEnv(t *testing.T) {
 
 func TestScenarioInScope(t *testing.T) {
 	root := t.TempDir()
-	testutil.WriteRepoContract(t, root, "scenarios")
+	testkitgo.WriteRepoContract(t, root, "scenarios")
 
 	tests := []struct {
 		name     string
@@ -55,7 +55,7 @@ func TestScenarioInScope(t *testing.T) {
 
 func TestResolveMergedPath(t *testing.T) {
 	root := t.TempDir()
-	testutil.WriteRepoContract(t, root, "scenarios")
+	testkitgo.WriteRepoContract(t, root, "scenarios")
 
 	merged := "/tmp/sandbox/merged"
 	if got := ResolveMergedPath(root, "alpha", "scenarios/alpha", merged); got != merged {
@@ -71,7 +71,7 @@ func TestResolveMergedPath(t *testing.T) {
 
 func TestScenarioInScopeUsesContractDefinedScopePrefix(t *testing.T) {
 	root := t.TempDir()
-	testutil.WriteRepoContract(t, root, "apps")
+	testkitgo.WriteRepoContract(t, root, "apps")
 
 	if !ScenarioInScope(root, "alpha", "apps/alpha/api") {
 		t.Fatal("expected contract-defined app scope to match scenario")
@@ -83,7 +83,7 @@ func TestScenarioInScopeUsesContractDefinedScopePrefix(t *testing.T) {
 
 func TestResolveMergedPathUsesContractDefinedScenarioDir(t *testing.T) {
 	root := t.TempDir()
-	testutil.WriteRepoContract(t, root, "apps")
+	testkitgo.WriteRepoContract(t, root, "apps")
 
 	merged := "/tmp/sandbox/merged"
 	if got := ResolveMergedPath(root, "alpha", "", merged); got != filepath.Join(merged, "apps", "alpha") {
@@ -141,7 +141,7 @@ func TestLoadUsesSandboxScenarioWhenInScope(t *testing.T) {
 
 func TestLoadUsesContractDefinedScenarioLayout(t *testing.T) {
 	root := t.TempDir()
-	testutil.WriteRepoContract(t, root, "apps")
+	testkitgo.WriteRepoContract(t, root, "apps")
 	writeScenarioServiceUnderBase(t, filepath.Join(root, "apps"), "alpha", "Contract alpha")
 
 	loaded, err := Load(root, "alpha", SandboxEnv{})
@@ -183,7 +183,7 @@ func TestLoadMissingScenarioReturnsNotFound(t *testing.T) {
 func TestReadServiceParsesHostRequirements(t *testing.T) {
 	root := t.TempDir()
 	servicePath := filepath.Join(root, ".vrooli", "service.json")
-	testutil.WriteFile(t, servicePath, `{
+	testkitgo.WriteFile(t, servicePath, `{
   "service": {"name": "alpha"},
   "hostTools": [
     {"name": "docker", "required": true, "reason": "run containers", "when": ["setup"]}
@@ -208,7 +208,7 @@ func TestReadServiceParsesHostRequirements(t *testing.T) {
 func TestReadServiceRejectsDuplicateHostRequirements(t *testing.T) {
 	root := t.TempDir()
 	servicePath := filepath.Join(root, ".vrooli", "service.json")
-	testutil.WriteFile(t, servicePath, `{
+	testkitgo.WriteFile(t, servicePath, `{
   "service": {"name": "alpha"},
   "hostTools": [
     {"name": "docker", "required": true, "reason": "one"},
@@ -242,7 +242,7 @@ func TestResolveScenarioPathIgnoresOutOfScopeSandbox(t *testing.T) {
 
 func TestDiscoverUsesContractDefinedScenarioBase(t *testing.T) {
 	root := t.TempDir()
-	testutil.WriteRepoContract(t, root, "apps")
+	testkitgo.WriteRepoContract(t, root, "apps")
 	writeScenarioServiceUnderBase(t, filepath.Join(root, "apps"), "alpha", "Contract alpha")
 	writeScenarioServiceUnderBase(t, filepath.Join(root, "apps"), "beta", "Contract beta")
 
@@ -548,7 +548,7 @@ func TestPerformHealthCheckRejectsInvalidHTTPURL(t *testing.T) {
 
 func TestScanSandboxScenarioNamesRespectsScope(t *testing.T) {
 	root := t.TempDir()
-	testutil.WriteRepoContract(t, root, "scenarios")
+	testkitgo.WriteRepoContract(t, root, "scenarios")
 
 	merged := t.TempDir()
 	writeScenarioServiceAtPath(t, merged, "Scoped alpha")
@@ -572,7 +572,7 @@ func TestScanSandboxScenarioNamesRespectsScope(t *testing.T) {
 
 func TestScanSandboxScenarioNamesSupportsRepoRootScope(t *testing.T) {
 	root := t.TempDir()
-	testutil.WriteRepoContract(t, root, "scenarios")
+	testkitgo.WriteRepoContract(t, root, "scenarios")
 
 	merged := t.TempDir()
 	writeScenarioServiceAtPath(t, filepath.Join(merged, "scenarios", "alpha"), "Sandbox alpha")
@@ -588,7 +588,7 @@ func TestScanSandboxScenarioNamesSupportsRepoRootScope(t *testing.T) {
 
 func TestScanSandboxScenarioNamesUsesContractDefinedScenarioDir(t *testing.T) {
 	root := t.TempDir()
-	testutil.WriteRepoContract(t, root, "apps")
+	testkitgo.WriteRepoContract(t, root, "apps")
 
 	merged := t.TempDir()
 	writeScenarioServiceAtPath(t, filepath.Join(merged, "apps", "alpha"), "Sandbox alpha")
@@ -720,7 +720,7 @@ func writeScenarioServiceUnderBase(t *testing.T, baseDir, name, description stri
 func writeScenarioServiceAtPath(t *testing.T, scenarioPath, description string) {
 	t.Helper()
 	name := filepath.Base(scenarioPath)
-	testutil.WriteJSON(t, filepath.Join(scenarioPath, ".vrooli", "service.json"), ServiceManifest{
+	testkitgo.WriteJSON(t, filepath.Join(scenarioPath, ".vrooli", "service.json"), ServiceManifest{
 		Version: "1.0.0",
 		Service: ServiceMetadata{
 			Name:        name,

@@ -11,8 +11,8 @@ import (
 
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/testfixture"
-	"github.com/vrooli/vrooli/internal/testutil"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
 func newTestApp(root string) *App {
@@ -60,25 +60,12 @@ func loadScenarioDetailForTest(root, name string) (scenario.Scenario, process.Sc
 
 func writeTestFile(t *testing.T, root, rel, contents string) {
 	t.Helper()
-	path := filepath.Join(root, filepath.FromSlash(rel))
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", path, err)
-	}
-	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
+	testkitgo.WriteRelativeFile(t, root, rel, contents)
 }
 
 func writeFakeExecutable(t *testing.T, root, rel, contents string) string {
 	t.Helper()
-	path := filepath.Join(root, filepath.FromSlash(rel))
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, []byte(contents), 0o755); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
-	return path
+	return testkitgo.WriteRelativeExecutable(t, root, rel, contents)
 }
 
 func waitForTestFile(t *testing.T, path string) {
@@ -105,19 +92,19 @@ func reserveFreePort(t *testing.T) int {
 
 func repoRootFromCaller(t *testing.T) string {
 	t.Helper()
-	return testutil.ProjectRoot(t)
+	return testkitgo.ProjectRoot(t)
 }
 
 func writeTestScenarioService(t *testing.T, root, name, description string) {
 	t.Helper()
-	testfixture.WriteScenarioService(t, root, name, testfixture.ScenarioServiceManifest(
+	testkitvrooli.WriteScenarioService(t, root, name, testkitvrooli.ScenarioServiceManifest(
 		name,
-		testfixture.WithDisplayName(testfixture.DefaultDisplayName(name)),
-		testfixture.WithDescription(description),
-		testfixture.WithPorts(map[string]scenario.Port{
+		testkitvrooli.WithDisplayName(testkitvrooli.DefaultDisplayName(name)),
+		testkitvrooli.WithDescription(description),
+		testkitvrooli.WithPorts(map[string]scenario.Port{
 			"api": {EnvVar: "API_PORT", Range: "15000-19999"},
 		}),
-		testfixture.WithLifecycle(scenario.Lifecycle{
+		testkitvrooli.WithLifecycle(scenario.Lifecycle{
 			Version: "2.0.0",
 			Develop: scenario.Phase{
 				Description: "Run the scenario",
@@ -133,13 +120,13 @@ func writeTestScenarioService(t *testing.T, root, name, description string) {
 
 func writeProjectLifecycleFixture(t *testing.T, root string) {
 	t.Helper()
-	testfixture.WritePortRegistry(t, root, map[string]int{"vrooli-api": 8092})
-	testfixture.WriteProjectService(t, root, testfixture.ProjectServiceManifest(
-		testfixture.WithDescription("Project-level lifecycle fixture"),
-		testfixture.WithPorts(map[string]scenario.Port{
+	testkitvrooli.WritePortRegistry(t, root, map[string]int{"vrooli-api": 8092})
+	testkitvrooli.WriteProjectService(t, root, testkitvrooli.ProjectServiceManifest(
+		testkitvrooli.WithDescription("Project-level lifecycle fixture"),
+		testkitvrooli.WithPorts(map[string]scenario.Port{
 			"api": {EnvVar: "VROOLI_API_PORT", Port: intPtr(8092)},
 		}),
-		testfixture.WithLifecycle(scenario.Lifecycle{
+		testkitvrooli.WithLifecycle(scenario.Lifecycle{
 			Version: "2.0.0",
 			Setup: scenario.Phase{
 				Condition: &scenario.Condition{
@@ -162,27 +149,27 @@ func writeProjectLifecycleFixture(t *testing.T, root string) {
 
 func writeResourceStatusFixture(t *testing.T, root, name, statusJSON string) {
 	t.Helper()
-	testfixture.WriteProjectService(t, root, testfixture.ProjectServiceManifest(
-		testfixture.WithDependencies(scenario.Dependencies{
+	testkitvrooli.WriteProjectService(t, root, testkitvrooli.ProjectServiceManifest(
+		testkitvrooli.WithDependencies(scenario.Dependencies{
 			Resources: map[string]scenario.Dependency{name: {Enabled: true}},
 		}),
 	))
-	testfixture.WriteResourceManifest(t, root, name, testfixture.ResourceManifest(
+	testkitvrooli.WriteResourceManifest(t, root, name, testkitvrooli.ResourceManifest(
 		name,
-		testfixture.WithResourceDescription("Fixture resource"),
-		testfixture.WithLegacyCLIPath(filepath.Join("resources", name, "cli.sh")),
+		testkitvrooli.WithResourceDescription("Fixture resource"),
+		testkitvrooli.WithLegacyCLIPath(filepath.Join("resources", name, "cli.sh")),
 	))
 	script := "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"status\" ]]; then\n  printf '%s\\n' '" + statusJSON + "'\n  exit 0\nfi\nprintf '{\"message\":\"ok\"}\\n'\n"
-	testfixture.WriteResourceCLI(t, root, name, script)
+	testkitvrooli.WriteResourceCLI(t, root, name, script)
 }
 
 func writeScenarioSetupOnlyFixture(t *testing.T, root, name string) {
 	t.Helper()
-	testfixture.WriteScenarioService(t, root, name, testfixture.ScenarioServiceManifest(
+	testkitvrooli.WriteScenarioService(t, root, name, testkitvrooli.ScenarioServiceManifest(
 		name,
-		testfixture.WithDisplayName("Setup "+testfixture.DefaultDisplayName(name)),
-		testfixture.WithDescription("Setup validation scenario"),
-		testfixture.WithLifecycle(scenario.Lifecycle{
+		testkitvrooli.WithDisplayName("Setup "+testkitvrooli.DefaultDisplayName(name)),
+		testkitvrooli.WithDescription("Setup validation scenario"),
+		testkitvrooli.WithLifecycle(scenario.Lifecycle{
 			Version: "2.0.0",
 			Setup:   scenario.Phase{Steps: []scenario.PhaseStep{{Name: "write-file", Run: "mkdir -p build && printf 'ok\n' > build/setup.txt"}}},
 		}),
@@ -191,22 +178,22 @@ func writeScenarioSetupOnlyFixture(t *testing.T, root, name string) {
 
 func writeScenarioWithoutSetupFixture(t *testing.T, root, name string) {
 	t.Helper()
-	testfixture.WriteScenarioService(t, root, name, testfixture.ScenarioServiceManifest(
+	testkitvrooli.WriteScenarioService(t, root, name, testkitvrooli.ScenarioServiceManifest(
 		name,
-		testfixture.WithDisplayName("No Setup "+testfixture.DefaultDisplayName(name)),
-		testfixture.WithDescription("Scenario without setup phase"),
-		testfixture.WithLifecycle(scenario.Lifecycle{Version: "2.0.0"}),
+		testkitvrooli.WithDisplayName("No Setup "+testkitvrooli.DefaultDisplayName(name)),
+		testkitvrooli.WithDescription("Scenario without setup phase"),
+		testkitvrooli.WithLifecycle(scenario.Lifecycle{Version: "2.0.0"}),
 	))
 }
 
 func writeScenarioTestPhaseFixture(t *testing.T, root, name string) {
 	t.Helper()
 	writeFakeExecutable(t, root, filepath.Join("scenarios", name, "run-test.sh"), "#!/usr/bin/env bash\nset -e\nmkdir -p coverage\nprintf '%s\\n' \"$1\" > coverage/selector.txt\n")
-	testfixture.WriteScenarioService(t, root, name, testfixture.ScenarioServiceManifest(
+	testkitvrooli.WriteScenarioService(t, root, name, testkitvrooli.ScenarioServiceManifest(
 		name,
-		testfixture.WithDisplayName("Test "+testfixture.DefaultDisplayName(name)),
-		testfixture.WithDescription("Test validation scenario"),
-		testfixture.WithLifecycle(scenario.Lifecycle{
+		testkitvrooli.WithDisplayName("Test "+testkitvrooli.DefaultDisplayName(name)),
+		testkitvrooli.WithDescription("Test validation scenario"),
+		testkitvrooli.WithLifecycle(scenario.Lifecycle{
 			Version: "2.0.0",
 			Test:    scenario.Phase{Steps: []scenario.PhaseStep{{Name: "run-tests", Run: "./run-test.sh"}}},
 		}),
@@ -215,15 +202,15 @@ func writeScenarioTestPhaseFixture(t *testing.T, root, name string) {
 
 func writeScenarioServiceWithPorts(t *testing.T, root, name string) {
 	t.Helper()
-	testfixture.WriteScenarioService(t, root, name, testfixture.ScenarioServiceManifest(
+	testkitvrooli.WriteScenarioService(t, root, name, testkitvrooli.ScenarioServiceManifest(
 		name,
-		testfixture.WithDisplayName("Ports "+testfixture.DefaultDisplayName(name)),
-		testfixture.WithDescription("Port validation scenario"),
-		testfixture.WithPorts(map[string]scenario.Port{
+		testkitvrooli.WithDisplayName("Ports "+testkitvrooli.DefaultDisplayName(name)),
+		testkitvrooli.WithDescription("Port validation scenario"),
+		testkitvrooli.WithPorts(map[string]scenario.Port{
 			"api": {EnvVar: "API_PORT", Range: "15000-19999"},
 			"ui":  {EnvVar: "UI_PORT", Range: "35000-39999"},
 		}),
-		testfixture.WithLifecycle(scenario.Lifecycle{
+		testkitvrooli.WithLifecycle(scenario.Lifecycle{
 			Version: "2.0.0",
 			Develop: scenario.Phase{Steps: []scenario.PhaseStep{
 				{Name: "start-api", Run: "sleep 10", Background: true},
@@ -264,30 +251,30 @@ func writeScenarioTemplateFixture(t *testing.T, templateBase, name string) {
 func writeLifecycleScenarioService(t *testing.T, root, name string) {
 	t.Helper()
 	writeScenarioPortRegistryFixture(t, root)
-	testfixture.WriteScenarioService(t, root, name, lifecycleScenarioManifest(name, nil, ""))
+	testkitvrooli.WriteScenarioService(t, root, name, lifecycleScenarioManifest(name, nil, ""))
 }
 
 func writeLifecycleScenarioServiceAtPath(t *testing.T, root, scenarioPath, name string) {
 	t.Helper()
 	writeScenarioPortRegistryFixture(t, root)
-	testfixture.WriteScenarioServiceAtPath(t, scenarioPath, lifecycleScenarioManifest(name, nil, ""))
+	testkitvrooli.WriteScenarioServiceAtPath(t, scenarioPath, lifecycleScenarioManifest(name, nil, ""))
 }
 
 func writeFixedPortLifecycleScenarioService(t *testing.T, root, name string, port int) {
 	t.Helper()
 	writeScenarioPortRegistryFixture(t, root)
-	testfixture.WriteScenarioService(t, root, name, lifecycleScenarioManifest(name, intPtr(port), ""))
+	testkitvrooli.WriteScenarioService(t, root, name, lifecycleScenarioManifest(name, intPtr(port), ""))
 }
 
 func writeBestEffortLifecycleScenarioService(t *testing.T, root, name, dependency string) {
 	t.Helper()
 	writeScenarioPortRegistryFixture(t, root)
-	testfixture.WriteScenarioService(t, root, name, lifecycleScenarioManifest(name, nil, dependency))
+	testkitvrooli.WriteScenarioService(t, root, name, lifecycleScenarioManifest(name, nil, dependency))
 }
 
 func writeScenarioPortRegistryFixture(t *testing.T, root string) {
 	t.Helper()
-	testfixture.WritePortRegistry(t, root, nil)
+	testkitvrooli.WritePortRegistry(t, root, nil)
 }
 
 func writeScenarioProcessRecord(t *testing.T, home, name, step string, pid, port int, startedAt time.Time) {
@@ -297,7 +284,7 @@ func writeScenarioProcessRecord(t *testing.T, home, name, step string, pid, port
 
 func writeScenarioProcessRecordWithWorkingDir(t *testing.T, home, name, step string, pid, port int, startedAt time.Time, workingDir string) {
 	t.Helper()
-	testfixture.WriteScenarioProcessRecord(t, home, name, step, process.Record{
+	testkitvrooli.WriteScenarioProcessRecord(t, home, name, step, process.Record{
 		PID:        pid,
 		PGID:       pid,
 		ProcessID:  fmt.Sprintf("vrooli.develop.%s.%s", name, step),
@@ -321,12 +308,12 @@ func lifecycleScenarioManifest(name string, fixedPort *int, dependency string) s
 		ports["api"] = scenario.Port{EnvVar: "API_PORT", Port: fixedPort}
 	}
 
-	manifest := testfixture.ScenarioServiceManifest(
+	manifest := testkitvrooli.ScenarioServiceManifest(
 		name,
-		testfixture.WithDisplayName("Lifecycle "+testfixture.DefaultDisplayName(name)),
-		testfixture.WithDescription("Lifecycle validation scenario"),
-		testfixture.WithPorts(ports),
-		testfixture.WithLifecycle(scenario.Lifecycle{
+		testkitvrooli.WithDisplayName("Lifecycle "+testkitvrooli.DefaultDisplayName(name)),
+		testkitvrooli.WithDescription("Lifecycle validation scenario"),
+		testkitvrooli.WithPorts(ports),
+		testkitvrooli.WithLifecycle(scenario.Lifecycle{
 			Version: "2.0.0",
 			Health: &scenario.HealthConfig{
 				Checks: []scenario.HealthCheck{{

@@ -9,6 +9,7 @@
     "markers": {
       "required_dirs": [
         ".vrooli",
+        "templates",
         "scenarios",
         "resources",
         "packages",
@@ -24,6 +25,7 @@
     "project_config_dir": ".vrooli",
     "scenario_dir": "scenarios",
     "resource_dir": "resources",
+    "template_dir": "templates",
     "package_dir": "packages",
     "command_dir": "cmd",
     "internal_dir": "internal",

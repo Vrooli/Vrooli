@@ -467,10 +467,11 @@ func resolveFormat(opts Options) (Format, ConfigSource, []Warning) {
 	return format, ConfigSourceEnv, nil
 }
 
-// RedirectStandardLibrary routes log.Printf-style calls through slog so older
-// code can share one logger during the migration. The level controls the
-// severity assigned to redirected stdlib records; nil defaults to info. The
-// returned restore function reinstates the prior stdlib logger configuration.
+// RedirectStandardLibrary routes log.Printf-style calls through slog so
+// packages using the standard library logger share the configured handler. The
+// level controls the severity assigned to redirected stdlib records; nil
+// defaults to info. The returned restore function reinstates the prior stdlib
+// logger configuration.
 func RedirectStandardLibrary(logger *slog.Logger, level slog.Leveler) func() {
 	return redirectStandardLibraryWithState(logger, level, captureStandardLibraryState())
 }

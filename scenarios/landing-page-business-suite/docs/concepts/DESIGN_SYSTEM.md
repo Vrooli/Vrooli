@@ -24,7 +24,7 @@ The landing-page-react-vite template now ships with a **structured design system
 | `randomization` | Metadata for future “style randomizer” prompts (family name, allowed pairings, alternative fonts). |
 
 Validate every change with `yarn lint-styling` (coming soon) or manually run `jq` against the schema:\
-`node ./scripts/scenarios/templates/landing-page-react-vite/ui/scripts/generate-selector-manifest-helper.mjs --check-styling`
+`node ./templates/scenarios/landing-page-react-vite/ui/scripts/generate-selector-manifest-helper.mjs --check-styling`
 
 ## Clause-style case study (default)
 
@@ -51,8 +51,8 @@ When customizing:
   3. Copy the chosen pack into `.vrooli/styling.json` before handing off to the agent.
 - Until that automation lands, you can manually swap packs via:
   ```bash
-  cp scripts/scenarios/templates/landing-page-react-vite/.vrooli/style-packs/<pack>.json \
-     scripts/scenarios/templates/landing-page-react-vite/.vrooli/styling.json
+  cp templates/scenarios/landing-page-react-vite/.vrooli/style-packs/<pack>.json \
+     templates/scenarios/landing-page-react-vite/.vrooli/styling.json
   ```
 
 ## Guardrails for agents

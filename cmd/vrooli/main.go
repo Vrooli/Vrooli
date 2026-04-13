@@ -181,9 +181,9 @@ func runCleanupCommandWithApp(app *App, ctx *commandContext, parsed parsedArgs) 
 	rest := parsed.args[1:]
 	switch target {
 	case "orphans":
-		return runTopLevelOrphansCommandWithApp(app, ctx, append([]string{"kill"}, rest...))
+		return bindGlobalCommand(parseTopLevelOrphansRequest, runTopLevelOrphansRequest, renderTopLevelOrphansResponse)(app, ctx, append([]string{"kill"}, rest...))
 	case "locks":
-		return runTopLevelLocksCommandWithApp(app, ctx, append([]string{"clean"}, rest...))
+		return bindGlobalCommand(parseTopLevelLocksRequest, runTopLevelLocksRequest, renderTopLevelLocksResponse)(app, ctx, append([]string{"clean"}, rest...))
 	case "help", "--help", "-h":
 		showCleanupHelp(ctx.Stdout)
 		return nil

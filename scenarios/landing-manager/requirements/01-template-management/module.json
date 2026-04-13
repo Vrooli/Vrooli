@@ -262,7 +262,7 @@
         }
       ],
       "status": "complete",
-      "notes": "Covers README, CLI help, and factory PRD references to `scripts/scenarios/templates/landing-page-react-vite/PRD.md` so the runtime spec stays visible in every handoff."
+      "notes": "Covers README, CLI help, and factory PRD references to `templates/scenarios/landing-page-react-vite/PRD.md` so the runtime spec stays visible in every handoff."
     },
     {
       "id": "TMPL-LIFECYCLE",

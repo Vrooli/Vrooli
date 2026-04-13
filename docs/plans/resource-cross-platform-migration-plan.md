@@ -149,13 +149,13 @@ There are several categories of current resource behavior:
 
 Scenarios already have a strong template model:
 
-- `scripts/scenarios/templates/`
+- `templates/scenarios/`
 - template metadata files such as `template.json`
 - standard generation flow
 
 Resources currently do not. There is only:
 
-- `scripts/resources/templates/PRD.md`
+- `templates/resources/PRD.md`
 
 That is not sufficient for a maintainable future resource system.
 
@@ -278,7 +278,7 @@ Each resource concept can exist in one of these states:
   - metadata for deprecated resources
 - `resources/`
   - only active implemented resources
-- `scripts/resources/templates/`
+- `templates/resources/`
   - canonical resource templates and generation assets
 - `docs/resources/`
   - operator and contributor docs for the new system
@@ -664,10 +664,10 @@ These templates should match the driver model and minimize duplicated code.
 
 ### 9.2 Proposed template location
 
-- `scripts/resources/templates/README.md`
-- `scripts/resources/templates/<template-name>/template.json`
-- `scripts/resources/templates/<template-name>/README.md`
-- `scripts/resources/templates/<template-name>/...template files...`
+- `templates/resources/README.md`
+- `templates/resources/<template-name>/template.json`
+- `templates/resources/<template-name>/README.md`
+- `templates/resources/<template-name>/...template files...`
 
 This mirrors the scenario template layout.
 
@@ -1032,7 +1032,7 @@ The focused Phase 2 validation bundle is:
 
 **Goal:** Replace ad hoc resource creation with canonical templates.
 
-- [x] Create `scripts/resources/templates/<template>/` layout
+- [x] Create `templates/resources/<template>/` layout
 - [x] Add template metadata format mirroring scenario templates
 - [x] Implement canonical templates:
   - [x] `docker-service`
@@ -1051,7 +1051,7 @@ The focused Phase 2 validation bundle is:
 
 **Status update:** Phase 3 is implemented and validated as the canonical scaffold path for new resources.
 
-- `scripts/resources/templates/` now contains the full canonical template set with shared layout, metadata, docs, and test stubs
+- `templates/resources/` now contains the full canonical template set with shared layout, metadata, docs, and test stubs
 - `vrooli resource template list|show|validate|generate` is implemented in the native Go CLI
 - blueprints now enforce explicit `integration_kind -> suggested_template` recommendation rules instead of relying on convention
 - template validation now checks both manifest correctness and required asset/doc presence

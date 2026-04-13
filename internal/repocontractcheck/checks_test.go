@@ -1,12 +1,10 @@
 package repocontractcheck
 
 import (
-	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/testutil"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 func TestRunPassesAgainstLiveRepo(t *testing.T) {
@@ -30,7 +28,7 @@ func TestRunRequiresRoot(t *testing.T) {
 
 func TestRunFailsWhenAgentGuidanceMissing(t *testing.T) {
 	root := newValidationFixtureRepo(t)
-	writeFixtureFile(t, root, "AGENTS.md", "# AGENTS.md\n")
+	testkitgo.WriteRelativeFile(t, root, "AGENTS.md", "# AGENTS.md\n")
 
 	report, err := Run(root)
 	if err != nil {
@@ -46,7 +44,7 @@ func TestRunFailsWhenAgentGuidanceMissing(t *testing.T) {
 
 func TestRunFailsWhenUnexpectedAdoptionViolationAppears(t *testing.T) {
 	root := newValidationFixtureRepo(t)
-	writeFixtureFile(t, root, "scenarios/example/api/main.go", "package main\n\nimport \"path/filepath\"\n\nfunc getVrooliRoot() string {\n\thome := \"/tmp\"\n\treturn filepath.Join(home, \"Vrooli\")\n}\n")
+	testkitgo.WriteRelativeFile(t, root, "scenarios/example/api/main.go", "package main\n\nimport \"path/filepath\"\n\nfunc getVrooliRoot() string {\n\thome := \"/tmp\"\n\treturn filepath.Join(home, \"Vrooli\")\n}\n")
 
 	report, err := Run(root)
 	if err != nil {
@@ -62,7 +60,7 @@ func TestRunFailsWhenUnexpectedAdoptionViolationAppears(t *testing.T) {
 
 func TestRunFailsWhenGitMarkerRootProbeAppears(t *testing.T) {
 	root := newValidationFixtureRepo(t)
-	writeFixtureFile(t, root, "scenarios/example/api/main.go", "package main\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\n\nfunc resolveRepoRoot(path string) bool {\n\t_, err := os.Stat(filepath.Join(path, \".git\"))\n\treturn err == nil\n}\n")
+	testkitgo.WriteRelativeFile(t, root, "scenarios/example/api/main.go", "package main\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\n\nfunc resolveRepoRoot(path string) bool {\n\t_, err := os.Stat(filepath.Join(path, \".git\"))\n\treturn err == nil\n}\n")
 
 	report, err := Run(root)
 	if err != nil {
@@ -78,7 +76,7 @@ func TestRunFailsWhenGitMarkerRootProbeAppears(t *testing.T) {
 
 func TestRunFailsWhenPNPMWorkspaceRootProbeAppears(t *testing.T) {
 	root := newValidationFixtureRepo(t)
-	writeFixtureFile(t, root, "scenarios/example/api/main.go", "package main\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\n\nfunc resolveRepoRoot(path string) bool {\n\t_, err := os.Stat(filepath.Join(path, \"pnpm-workspace.yaml\"))\n\treturn err == nil\n}\n")
+	testkitgo.WriteRelativeFile(t, root, "scenarios/example/api/main.go", "package main\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\n\nfunc resolveRepoRoot(path string) bool {\n\t_, err := os.Stat(filepath.Join(path, \"pnpm-workspace.yaml\"))\n\treturn err == nil\n}\n")
 
 	report, err := Run(root)
 	if err != nil {
@@ -93,7 +91,7 @@ func TestRunFailsWhenPNPMWorkspaceRootProbeAppears(t *testing.T) {
 }
 
 func repoRoot(t *testing.T) string {
-	return testutil.ProjectRoot(t)
+	return testkitgo.ProjectRoot(t)
 }
 
 func hasFailedCheck(report Report, name string) bool {
@@ -108,23 +106,12 @@ func hasFailedCheck(report Report, name string) bool {
 func newValidationFixtureRepo(t *testing.T) string {
 	t.Helper()
 
-	root := t.TempDir()
-	testutil.WriteRepoContract(t, root, "scenarios")
-	testutil.WriteRepoContractExceptions(t, root)
-	testutil.WriteRepoSupportDocs(t, root, testutil.DefaultRepoSupportDocs())
-	writeFixtureFile(t, root, filepath.Join("scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha"}}`)
-	writeFixtureFile(t, root, filepath.Join("resources", "redis", "resource.json"), `{"name":"redis"}`)
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	fixture.WriteRepoContractExceptions(t)
+	fixture.WriteRepoSupportDocs(t, testkitgo.DefaultRepoSupportDocs())
+	testkitgo.WriteRelativeFile(t, fixture.Root, filepath.Join("scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha"}}`)
+	testkitgo.WriteRelativeFile(t, fixture.Root, filepath.Join("resources", "redis", "resource.json"), `{"name":"redis"}`)
 
-	return root
-}
-
-func writeFixtureFile(t *testing.T, root, rel, content string) {
-	t.Helper()
-	path := filepath.Join(root, rel)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", rel, err)
-	}
-	if err := os.WriteFile(path, []byte(strings.ReplaceAll(content, "\r\n", "\n")), 0o644); err != nil {
-		t.Fatalf("write %s: %v", rel, err)
-	}
+	return fixture.Root
 }

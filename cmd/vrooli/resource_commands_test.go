@@ -12,8 +12,8 @@ import (
 	"github.com/vrooli/vrooli/internal/resources"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/testfixture"
-	"github.com/vrooli/vrooli/internal/testutil"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
 func TestRunResourceBlueprintListCommandJSON(t *testing.T) {
@@ -545,42 +545,24 @@ func TestRunSingleResourceControlCommandUsesManifestNativeDockerLifecycle(t *tes
 
 func writeDeprecatedMetadataForCLI(t *testing.T, root string, item resources.DeprecatedResource) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("mkdir .vrooli: %v", err)
-	}
-	payload, err := json.MarshalIndent(map[string]any{
+	payload := map[string]any{
 		"resources": []resources.DeprecatedResource{item},
-	}, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal item: %v", err)
 	}
-	payload = append(payload, '\n')
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "deprecated-resources.json"), payload, 0o644); err != nil {
-		t.Fatalf("write deprecated metadata: %v", err)
-	}
+	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "deprecated-resources.json"), payload)
 }
 
 func writeBlueprintArchivedMetadataForCLI(t *testing.T, root string, item resources.BlueprintArchivedResource) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("mkdir .vrooli: %v", err)
-	}
-	payload, err := json.MarshalIndent(map[string]any{
+	payload := map[string]any{
 		"resources": []resources.BlueprintArchivedResource{item},
-	}, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal item: %v", err)
 	}
-	payload = append(payload, '\n')
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "blueprint-archived-resources.json"), payload, 0o644); err != nil {
-		t.Fatalf("write blueprint archived metadata: %v", err)
-	}
+	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "blueprint-archived-resources.json"), payload)
 }
 
 func writeResourceConfigForCLI(t *testing.T, root, name string, enabled bool) {
 	t.Helper()
-	testfixture.WriteProjectService(t, root, testfixture.ProjectServiceManifest(
-		testfixture.WithDependencies(scenario.Dependencies{
+	testkitvrooli.WriteProjectService(t, root, testkitvrooli.ProjectServiceManifest(
+		testkitvrooli.WithDependencies(scenario.Dependencies{
 			Resources: map[string]scenario.Dependency{name: {Enabled: enabled}},
 		}),
 	))
@@ -592,7 +574,7 @@ func writeResourceCLIForCLI(t *testing.T, root, name string) {
 
 func writeResourceScriptForCLI(t *testing.T, root, name, contents string) {
 	t.Helper()
-	testutil.WriteExecutable(t, filepath.Join(root, "resources", name, "cli.sh"), contents)
+	testkitgo.WriteExecutable(t, filepath.Join(root, "resources", name, "cli.sh"), contents)
 }
 
 func writeResourceManifestForCLI(t *testing.T, root, name, contents string) {
@@ -601,7 +583,7 @@ func writeResourceManifestForCLI(t *testing.T, root, name, contents string) {
 	if err := json.Unmarshal([]byte(contents), &manifest); err != nil {
 		t.Fatalf("unmarshal resource manifest fixture: %v\ncontents=%s", err, contents)
 	}
-	testfixture.WriteResourceManifest(t, root, name, manifest)
+	testkitvrooli.WriteResourceManifest(t, root, name, manifest)
 }
 
 func writeBlueprintFixtureForCLI(t *testing.T, root, name string) {
@@ -633,9 +615,7 @@ func writeBlueprintFixtureForCLI(t *testing.T, root, name string) {
   "references": [{"kind": "note", "value": "fixture"}],
   "last_reviewed": "2026-04-11"
 }`
-	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
+	testkitgo.WriteFile(t, path, contents)
 }
 
 func projectRootForCLI(t *testing.T) string {
@@ -698,9 +678,7 @@ esac
 
 exit 0
 `
-	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
-		t.Fatalf("write %s: %v", scriptPath, err)
-	}
+	testkitgo.WriteExecutable(t, scriptPath, script)
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("FAKE_DOCKER_STATE", stateFile)
 	return stateFile

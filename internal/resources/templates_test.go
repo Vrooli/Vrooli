@@ -220,7 +220,7 @@ func TestGenerateResourceTemplateRequiresForceToOverwrite(t *testing.T) {
 func TestValidateResourceTemplatesRejectsMissingRequiredFiles(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	templateDir := filepath.Join(root, "scripts", "resources", "templates", "docker-service")
+	templateDir := filepath.Join(root, "templates", "resources", "docker-service")
 	writeTestFile(t, filepath.Join(templateDir, "template.json"), `{
   "name": "docker-service",
   "displayName": "Docker Service",
@@ -249,7 +249,7 @@ func TestValidateResourceTemplatesRejectsMissingRequiredFiles(t *testing.T) {
 func TestValidateResourceTemplatesRejectsMissingDocReferences(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	templateDir := filepath.Join(root, "scripts", "resources", "templates", "docker-service")
+	templateDir := filepath.Join(root, "templates", "resources", "docker-service")
 	writeTestFile(t, filepath.Join(templateDir, "template.json"), `{
   "name": "docker-service",
   "displayName": "Docker Service",

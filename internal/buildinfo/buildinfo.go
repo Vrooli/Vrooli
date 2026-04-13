@@ -73,7 +73,7 @@ var skippedDirs = map[string]struct{}{
 }
 
 // FingerprintOptions controls how source fingerprint requests validate their
-// target set. The zero value preserves the lenient migration-era behavior.
+// target set. The zero value keeps fingerprint checks permissive by default.
 type FingerprintOptions struct {
 	RequireExistingTargets bool
 	RequireGoFiles         bool

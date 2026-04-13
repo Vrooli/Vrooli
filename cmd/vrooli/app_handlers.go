@@ -50,5 +50,5 @@ func runTopLevelCleanupCommand(app *App, ctx *commandContext, args []string) err
 }
 
 func runScenarioRunCommand(app *App, ctx *commandContext, args []string) error {
-	return runScenarioStartCommandWithApp(app, ctx, args)
+	return bindGlobalCommand(parseScenarioStartRequest, runScenarioStartRequest, renderScenarioLifecycleResponse)(app, ctx, args)
 }

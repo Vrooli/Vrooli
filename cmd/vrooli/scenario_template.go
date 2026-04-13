@@ -60,40 +60,45 @@ type scenarioGenerateOptions struct {
 
 var unresolvedTemplatePattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)
 
-func runScenarioTemplateCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	action := "list"
-	if len(args) > 0 {
-		action = args[0]
-		args = args[1:]
-	}
+type scenarioTemplateCommandDescriptor struct {
+	Name    string
+	Handler appCommandHandler
+}
 
-	switch action {
-	case "list":
-		return executeCommandAction(app, ctx, args, commandAction[scenarioTemplateListRequest, []scenarioTemplateInfo]{
-			parse:  parseScenarioTemplateListRequestFromContext,
-			run:    runScenarioTemplateListRequest,
-			render: renderScenarioTemplateListResponse,
-		})
-	case "show":
-		return executeCommandAction(app, ctx, args, commandAction[scenarioTemplateShowRequest, scenarioTemplateInfo]{
-			parse:  parseScenarioTemplateShowRequestFromContext,
-			run:    runScenarioTemplateShowRequest,
-			render: renderScenarioTemplateShowResponse,
-		})
+var scenarioTemplateCommandTable = []scenarioTemplateCommandDescriptor{
+	{Name: "list", Handler: bindContextCommand(parseScenarioTemplateListRequest, runScenarioTemplateListRequest, renderScenarioTemplateListResponse)},
+	{Name: "show", Handler: bindContextCommand(parseScenarioTemplateShowRequest, runScenarioTemplateShowRequest, renderScenarioTemplateShowResponse)},
+}
+
+var scenarioTemplateCommandHandlers = buildScenarioTemplateCommandMap(scenarioTemplateCommandTable)
+
+func buildScenarioTemplateCommandMap(descriptors []scenarioTemplateCommandDescriptor) map[string]appCommandHandler {
+	handlers := make(map[string]appCommandHandler, len(descriptors))
+	for _, descriptor := range descriptors {
+		handlers[descriptor.Name] = descriptor.Handler
+	}
+	return handlers
+}
+
+func runScenarioTemplateCommandWithApp(app *App, ctx *commandContext, args []string) error {
+	if len(args) == 0 {
+		return scenarioTemplateCommandHandlers["list"](app, ctx, nil)
+	}
+	name := strings.ToLower(strings.TrimSpace(args[0]))
+	switch name {
 	case "help", "--help", "-h":
 		showScenarioTemplateHelp(ctx.Stdout)
 		return nil
-	default:
-		return usageErrorf("scenario template", "unknown template command: %s", action)
 	}
+	handler, ok := scenarioTemplateCommandHandlers[name]
+	if !ok {
+		return usageErrorf("scenario template", "unknown template command: %s", args[0])
+	}
+	return handler(app, ctx, args[1:])
 }
 
 func runScenarioGenerateCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[scenarioGenerateRequest, scenarioGenerateResult]{
-		parse:  parseScenarioGenerateRequestFromContext,
-		run:    runScenarioGenerateRequest,
-		render: renderScenarioGenerateResponse,
-	})
+	return bindContextCommand(parseScenarioGenerateRequest, runScenarioGenerateRequest, renderScenarioGenerateResponse)(app, ctx, args)
 }
 
 func showScenarioTemplateHelp(w io.Writer) {

@@ -282,7 +282,7 @@ func writeTemplateMetadata(outputDir, templateID string, template *Template) err
 // scaffoldScenario determines where to copy the template payload from.
 // Decision Priority:
 //  1. TEMPLATE_PAYLOAD_DIR env var (explicit override for testing/CI)
-//  2. Standard template location: scripts/scenarios/templates/landing-page-react-vite
+//  2. Standard template location: templates/scenarios/landing-page-react-vite
 //  3. Fallback: Copy from landing-manager's own directory (legacy)
 func scaffoldScenario(outputDir string) error {
 	// Decision 1: Check for explicit override first (testing/CI use case)

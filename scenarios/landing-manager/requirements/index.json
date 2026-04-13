@@ -94,7 +94,7 @@
       "priority": "P0",
       "status": "complete",
       "prd_ref": "OT-P0-004",
-      "description": "Keep the landing-page template PRD at `scripts/scenarios/templates/landing-page-react-vite/PRD.md` authoritative, surface it in CLI/UI handoffs, and ensure template runtime documentation/reference coverage before generating new scenarios",
+      "description": "Keep the landing-page template PRD at `templates/scenarios/landing-page-react-vite/PRD.md` authoritative, surface it in CLI/UI handoffs, and ensure template runtime documentation/reference coverage before generating new scenarios",
       "linked_requirements": [
         "TMPL-RUNTIME-ALIGNMENT"
       ],
@@ -106,7 +106,7 @@
           "ref": "api/runtime_alignment_test.go"
         }
       ],
-      "notes": "README, CLI help, and the landing-page PRD all reference the template runtime spec at `scripts/scenarios/templates/landing-page-react-vite/PRD.md` so generated scenarios inherit a consistent brief."
+      "notes": "README, CLI help, and the landing-page PRD all reference the template runtime spec at `templates/scenarios/landing-page-react-vite/PRD.md` so generated scenarios inherit a consistent brief."
     },
     {
       "id": "OT-P1-001",

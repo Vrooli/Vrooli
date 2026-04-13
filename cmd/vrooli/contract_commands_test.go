@@ -195,7 +195,7 @@ func copyRepoContractValidationFixtures(t *testing.T, dest string) {
 		}
 		writeTestFile(t, dest, rel, string(data))
 	}
-	for _, dir := range []string{"packages", "cmd", "internal", "docs"} {
+	for _, dir := range []string{"templates", "packages", "cmd", "internal", "docs"} {
 		if err := os.MkdirAll(filepath.Join(dest, dir), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}

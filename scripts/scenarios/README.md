@@ -109,9 +109,9 @@ vrooli scenario run my-new-scenario
 **✅ All scenarios now use the unified template structure:**
 
 - **Before**: Conflicting templates scattered across different locations
-- **After**: Clean organization in `scripts/scenarios/templates/`
+- **After**: Clean organization in `templates/scenarios/`
 - **Migration**: All scenarios automatically upgraded to the React + Vite archetype  
-- **Current**: `templates/react-vite/` (React UI + Go API) — the only supported scenario template
+- **Current**: `templates/scenarios/react-vite/` (React UI + Go API) — the only supported scenario template
 
 **Benefits**:
 - 🎯 **Single source of truth** for all scenario creation
@@ -128,7 +128,7 @@ scenarios/
 │   ├── campaign-content-studio/   # Content creation
 │   ├── research-assistant/             # Knowledge management
 │   └── ... (8 more scenarios)
-├── scripts/scenarios/templates/   # Scenario templates (copy from here!)
+├── ../templates/scenarios/        # Scenario templates (copy from here!)
 │   └── react-vite/                # React + Vite + Go API archetype
 ├── tools/                    # Management tools (legacy bash retired; use test-genie)
 ├── injection/               # Resource injection system
@@ -147,7 +147,7 @@ scenarios/
 |---|---|---|
 | 📖 [Getting Started Guide](docs/getting-started.md) | 🏗️ [Core Concepts](docs/CONCEPTS.md) | 📋 [Injection System](injection/README.md) |
 | 🤖 [AI Generation Guide](docs/ai-generation-guide.md) | 🧪 [Validation Framework](docs/VALIDATION.md) | 🔧 [API Reference](injection/docs/api-reference.md) |
-| 📋 [Available Templates](templates/) | 🚀 [Deployment Guide](docs/DEPLOYMENT.md) | 🛠️ [Adapter Development](injection/docs/adapter-development.md) |
+| 📋 [Available Templates](../templates/scenarios/) | 🚀 [Deployment Guide](docs/DEPLOYMENT.md) | 🛠️ [Adapter Development](injection/docs/adapter-development.md) |
 
 | **Quick Reference** | **Examples & Support** |
 |---|---|

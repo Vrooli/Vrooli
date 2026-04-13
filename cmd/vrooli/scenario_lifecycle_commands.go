@@ -1,11 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -43,55 +41,31 @@ type scenarioHealFromSandboxResponse struct {
 
 func runScenarioRunCommandForRoot(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
 	app, ctx := newConfiguredCommandContext(root, globals, stdout, stderr)
-	return runScenarioStartCommandWithApp(app, ctx, args)
+	return bindGlobalCommand(parseScenarioStartRequest, runScenarioStartRequest, renderScenarioLifecycleResponse)(app, ctx, args)
 }
 
 func runScenarioSetupCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[scenarioSetupRequest, lifecycle.PhaseResult]{
-		parse:  parseScenarioSetupRequestFromContext,
-		run:    runScenarioSetupRequest,
-		render: renderScenarioSetupResponse,
-	})
+	return bindGlobalCommand(parseScenarioSetupRequest, runScenarioSetupRequest, renderScenarioSetupResponse)(app, ctx, args)
 }
 
 func runScenarioTestCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[scenarioTestRequest, struct{}]{
-		parse:  parseScenarioTestRequestFromContext,
-		run:    runScenarioTestRequest,
-		render: renderScenarioTestResponse,
-	})
+	return bindGlobalCommand(parseScenarioTestRequest, runScenarioTestRequest, renderScenarioTestResponse)(app, ctx, args)
 }
 
 func runScenarioStartAllCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[scenarioStartAllRequest, scenarioBatchResponse]{
-		parse:  parseScenarioStartAllRequestFromContext,
-		run:    runScenarioStartAllRequest,
-		render: renderScenarioBatchResponse,
-	})
+	return bindGlobalCommand(parseScenarioStartAllRequest, runScenarioStartAllRequest, renderScenarioBatchResponse)(app, ctx, args)
 }
 
 func runScenarioStopAllCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[scenarioStopAllRequest, scenarioBatchResponse]{
-		parse:  parseScenarioStopAllRequestFromContext,
-		run:    runScenarioStopAllRequest,
-		render: renderScenarioBatchResponse,
-	})
+	return bindGlobalCommand(parseScenarioStopAllRequest, runScenarioStopAllRequest, renderScenarioBatchResponse)(app, ctx, args)
 }
 
 func runScenarioPortCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[scenarioPortRequest, scenarioPortResponse]{
-		parse:  parseScenarioPortRequestFromContext,
-		run:    runScenarioPortRequest,
-		render: renderScenarioPortResponse,
-	})
+	return bindGlobalCommand(parseScenarioPortRequest, runScenarioPortRequest, renderScenarioPortResponse)(app, ctx, args)
 }
 
 func runScenarioOpenCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[scenarioOpenRequest, scenarioOpenOutput]{
-		parse:  parseScenarioOpenRequestFromContext,
-		run:    runScenarioOpenRequest,
-		render: renderScenarioOpenResponse,
-	})
+	return bindGlobalCommand(parseScenarioOpenRequest, runScenarioOpenRequest, renderScenarioOpenResponse)(app, ctx, args)
 }
 
 func runScenarioUISmokeCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -103,22 +77,14 @@ func runScenarioCompletenessCommandWithApp(app *App, ctx *commandContext, args [
 }
 
 func runScenarioRequirementsCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[scenarioRequirementsRequest, struct{}]{
-		parse:  parseScenarioRequirementsRequestFromContext,
-		run:    runScenarioRequirementsRequest,
-		render: renderScenarioRequirementsResponse,
-	})
+	return bindGlobalCommand(parseScenarioRequirementsRequest, runScenarioRequirementsRequest, renderScenarioRequirementsResponse)(app, ctx, args)
 }
 
 func runScenarioHealFromSandboxCommandWithApp(app *App, ctx *commandContext, args []string) error {
-	return executeCommandAction(app, ctx, args, commandAction[scenarioHealFromSandboxRequest, scenarioHealFromSandboxResponse]{
-		parse:  parseScenarioHealFromSandboxRequestFromContext,
-		run:    runScenarioHealFromSandboxRequest,
-		render: renderScenarioHealFromSandboxResponse,
-	})
+	return bindGlobalCommand(parseScenarioHealFromSandboxRequest, runScenarioHealFromSandboxRequest, renderScenarioHealFromSandboxResponse)(app, ctx, args)
 }
 
-func parseScenarioRequirementsRequestFromContext(ctx *commandContext, args []string) (scenarioRequirementsRequest, error) {
+func parseScenarioRequirementsRequest(globals globalOptions, args []string) (scenarioRequirementsRequest, error) {
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
 		return scenarioRequirementsRequest{}, commandHelpOnly(scenarioRequirementsHelpText())
 	}
@@ -161,7 +127,7 @@ func renderScenarioRequirementsResponse(w io.Writer, format cliout.Format, resp 
 	return nil
 }
 
-func parseScenarioHealFromSandboxRequestFromContext(ctx *commandContext, args []string) (scenarioHealFromSandboxRequest, error) {
+func parseScenarioHealFromSandboxRequest(globals globalOptions, args []string) (scenarioHealFromSandboxRequest, error) {
 	req := scenarioHealFromSandboxRequest{
 		MergedPath: strings.TrimSpace(os.Getenv("SANDBOX_MERGED_DIR")),
 	}
@@ -241,149 +207,6 @@ func showScenarioRequirementsHelp(w io.Writer) {
 
 func scenarioRequirementsHelpText() string {
 	return "Usage: vrooli scenario requirements <subcommand> [options]\n\nSubcommands:\n  report <name> [options]          Generate requirement coverage summary\n  validate <name> [--quiet]        Validate requirement files\n  sync <name>                      Sync requirement statuses from local evidence\n  manual-log <name> <req> [opts]   Record manual validation evidence\n  snapshot <name>                  Show latest requirements sync snapshot\n  lint-prd <name> [--json]         Check PRD to requirements mapping\n  phase <name> --phase <phase>     Inspect validations for a single phase\n  init <name> [options]            Scaffold a requirements registry\n"
-}
-
-func translateScenarioRequirementsArgs(root string, globals globalOptions, args []string) ([]string, string, error) {
-	known := map[string]struct{}{
-		"report": {}, "validate": {}, "sync": {}, "manual-log": {}, "lint-prd": {}, "phase": {}, "phase-inspect": {}, "init": {},
-	}
-
-	subcommand := args[0]
-	rest := args[1:]
-	if _, ok := known[subcommand]; !ok {
-		subcommand = "report"
-		rest = args
-	}
-
-	switch subcommand {
-	case "report":
-		return translateScenarioRequirementsSimple(root, globals, "report", rest, false, true)
-	case "validate":
-		return translateScenarioRequirementsSimple(root, globals, "validate", rest, true, true)
-	case "sync":
-		return translateScenarioRequirementsSimple(root, globals, "sync", rest, true, false)
-	case "lint-prd":
-		return translateScenarioRequirementsSimple(root, globals, "lint-prd", rest, true, false)
-	case "init":
-		return translateScenarioRequirementsSimple(root, globals, "init", rest, true, false)
-	case "phase", "phase-inspect":
-		return translateScenarioRequirementsSimple(root, globals, "phase", rest, true, false)
-	case "manual-log":
-		return translateScenarioRequirementsSimple(root, globals, "manual-log", rest, true, false)
-	default:
-		return nil, "", usageErrorf("scenario requirements", "unsupported requirements subcommand: %s", subcommand)
-	}
-}
-
-func translateScenarioRequirementsSimple(root string, globals globalOptions, subcommand string, args []string, includeScenario bool, includeJSON bool) ([]string, string, error) {
-	scenarioName := ""
-	translated := []string{"requirements", subcommand}
-
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch {
-		case arg == "--help" || arg == "-h":
-			translated = append(translated, arg)
-		case strings.HasPrefix(arg, "-"):
-			translated = append(translated, arg)
-			if requiresOptionValue(arg) && index+1 < len(args) {
-				index++
-				translated = append(translated, args[index])
-			}
-		case scenarioName == "":
-			scenarioName = arg
-		default:
-			translated = append(translated, arg)
-		}
-	}
-
-	if containsArg(translated, "--help") || containsArg(translated, "-h") {
-		return translated, root, nil
-	}
-	if scenarioName == "" {
-		return nil, "", usageErrorf("scenario requirements", "scenario requirements %s requires a scenario name", subcommand)
-	}
-
-	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
-	if info, err := os.Stat(scenarioDir); err != nil || !info.IsDir() {
-		return nil, "", usageErrorf("scenario requirements", "scenario directory not found: %s", scenarioDir)
-	}
-
-	if subcommand != "init" {
-		if info, err := os.Stat(filepath.Join(scenarioDir, "requirements")); err != nil || !info.IsDir() {
-			return nil, "", usageErrorf("scenario requirements", "scenario %s does not define requirements/", scenarioName)
-		}
-	}
-
-	translated = append(translated, "--dir", scenarioDir)
-	if includeScenario {
-		translated = append(translated, "--scenario", scenarioName)
-	}
-	if includeJSON && globals.json && !containsArg(translated, "--json") {
-		translated = append(translated, "--json")
-	}
-	return translated, scenarioDir, nil
-}
-
-func requiresOptionValue(flag string) bool {
-	switch flag {
-	case "--format", "--output", "--status", "--notes", "--artifact", "--validated-by", "--validated-at", "--expires-in", "--expires-at", "--manifest", "--phase", "--template", "--owner":
-		return true
-	default:
-		return false
-	}
-}
-
-func runScenarioRequirementsSnapshot(root string, args []string, stdout io.Writer) error {
-	scenarioName := ""
-	for _, arg := range args {
-		switch arg {
-		case "--help", "-h":
-			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario requirements snapshot <name>")
-			return nil
-		default:
-			if strings.HasPrefix(arg, "-") {
-				return unknownOptionError("scenario requirements snapshot", arg)
-			}
-			if scenarioName != "" {
-				return usageErrorf("scenario requirements snapshot", "scenario requirements snapshot accepts exactly one scenario name")
-			}
-			scenarioName = arg
-		}
-	}
-	if scenarioName == "" {
-		return usageErrorf("scenario requirements snapshot", "scenario requirements snapshot requires a scenario name")
-	}
-
-	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
-	snapshotPath := filepath.Join(scenarioDir, "coverage", "requirements-sync", "latest.json")
-	data, err := os.ReadFile(snapshotPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("snapshot not found: %s", snapshotPath)
-		}
-		return err
-	}
-
-	var payload map[string]any
-	if err := json.Unmarshal(data, &payload); err != nil {
-		return err
-	}
-
-	_, _ = fmt.Fprintf(stdout, "Requirements snapshot (%s)\n", scenarioName)
-	_, _ = fmt.Fprintf(stdout, "  File: %s\n", filepath.Join("coverage", "requirements-sync", "latest.json"))
-	if syncedAt, _ := payload["synced_at"].(string); syncedAt != "" {
-		_, _ = fmt.Fprintf(stdout, "  Synced at: %s\n", syncedAt)
-	}
-	if tests, ok := payload["tests_run"].([]any); ok && len(tests) > 0 {
-		_, _ = fmt.Fprintln(stdout, "  Tests run:")
-		for _, test := range tests {
-			if command, ok := test.(string); ok && strings.TrimSpace(command) != "" {
-				_, _ = fmt.Fprintf(stdout, "    - %s\n", command)
-			}
-		}
-	}
-	return nil
 }
 
 func parseScenarioPhaseArgs(command string, args []string) (string, lifecycle.PhaseOptions, error) {

@@ -268,7 +268,7 @@ func buildStylingAppendix(scenarioID string) string {
 		b.WriteString(item)
 		b.WriteString("\n")
 	}
-	b.WriteString("Reference docs: scripts/scenarios/templates/landing-page-react-vite/docs/DESIGN_SYSTEM.md\n")
+	b.WriteString("Reference docs: templates/scenarios/landing-page-react-vite/docs/DESIGN_SYSTEM.md\n")
 	return b.String()
 }
 

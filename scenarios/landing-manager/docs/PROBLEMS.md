@@ -49,7 +49,7 @@ audience: ["developers"]
 ### 🟡 Template validation drift
 - **What**: Template PRD and requirements were out of sync on P1 design/branding status; checkboxes now updated, but remaining targets (multi-template, advanced analytics, etc.) still lack validation.
 - **Impact**: Risk of over-reporting readiness if future edits don't land in the template payload.
-- **Next**: Keep runtime changes inside `scripts/scenarios/templates/landing-page-react-vite`; ensure requirement updates remain paired with PRD status changes.
+- **Next**: Keep runtime changes inside `templates/scenarios/landing-page-react-vite`; ensure requirement updates remain paired with PRD status changes.
 
 ### 🟢 Lighthouse NO_LCP Infrastructure Issue (RESOLVED)
 - **What**: Lighthouse performance phase was failing with 0% score due to NO_LCP error. This was a Lighthouse detection issue, not an actual performance problem.

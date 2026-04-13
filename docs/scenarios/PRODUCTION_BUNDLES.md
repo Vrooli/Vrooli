@@ -287,7 +287,7 @@ Well-configured scenarios using production bundles with `@vrooli/api-base/server
 - `landing-manager`: `/scenarios/landing-manager/.vrooli/service.json` and `ui/server.cjs`
 - `deployment-manager`: `/scenarios/deployment-manager/.vrooli/service.json` and `ui/server.cjs`
 - `tidiness-manager`: `/scenarios/tidiness-manager/.vrooli/service.json` and `ui/server.js`
-- Template: `/scripts/scenarios/templates/react-vite/` - reference implementation for new scenarios
+- Template: `/templates/scenarios/react-vite/` - reference implementation for new scenarios
 
 ## Related Documentation
 

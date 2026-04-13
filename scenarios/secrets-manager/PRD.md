@@ -129,4 +129,4 @@ All commands accept `--api-url` and `--format json|table` for automation.
 - Vault CLI: `/resources/vault/README.md`
 - Lifecycle System: `/docs/scenarios/LIFECYCLE.md`
 - Requirement Tracking: `/docs/testing/guides/requirement-tracking.md`
-- Template: `/scripts/scenarios/templates/react-vite/`
+- Template: `/templates/scenarios/react-vite/`

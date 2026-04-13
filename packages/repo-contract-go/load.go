@@ -68,6 +68,7 @@ func validateContractDoc(doc contractDoc) error {
 		"layout.project_config_dir": doc.Layout.ProjectConfigDir,
 		"layout.scenario_dir":       doc.Layout.ScenarioDir,
 		"layout.resource_dir":       doc.Layout.ResourceDir,
+		"layout.template_dir":       doc.Layout.TemplateDir,
 		"layout.package_dir":        doc.Layout.PackageDir,
 		"layout.command_dir":        doc.Layout.CommandDir,
 		"layout.internal_dir":       doc.Layout.InternalDir,

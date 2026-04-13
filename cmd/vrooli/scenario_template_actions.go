@@ -33,7 +33,7 @@ type scenarioGenerateResult struct {
 	RunHooks     bool
 }
 
-func parseScenarioTemplateListRequest(root string, globals globalOptions, args []string, stderr io.Writer) (scenarioTemplateListRequest, error) {
+func parseScenarioTemplateListRequest(ctx *commandContext, args []string) (scenarioTemplateListRequest, error) {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
 		return scenarioTemplateListRequest{}, commandHelpOnly("Scenario Template Commands:\n  vrooli scenario template list\n  vrooli scenario template show <template>\n  vrooli scenario generate <template> [options]")
 	}
@@ -41,10 +41,6 @@ func parseScenarioTemplateListRequest(root string, globals globalOptions, args [
 		return scenarioTemplateListRequest{}, unknownOptionError("scenario template", args[0])
 	}
 	return scenarioTemplateListRequest{}, nil
-}
-
-func parseScenarioTemplateListRequestFromContext(ctx *commandContext, args []string) (scenarioTemplateListRequest, error) {
-	return parseScenarioTemplateListRequest(ctx.Root, ctx.Globals, args, ctx.Stderr)
 }
 
 func runScenarioTemplateListRequest(app *App, ctx *commandContext, req scenarioTemplateListRequest) (cliout.Format, []scenarioTemplateInfo, error) {
@@ -85,7 +81,7 @@ func renderScenarioTemplateListResponse(w io.Writer, format cliout.Format, templ
 	return nil
 }
 
-func parseScenarioTemplateShowRequest(root string, globals globalOptions, args []string, stderr io.Writer) (scenarioTemplateShowRequest, error) {
+func parseScenarioTemplateShowRequest(ctx *commandContext, args []string) (scenarioTemplateShowRequest, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
 			return scenarioTemplateShowRequest{}, commandHelpOnly("Scenario Template Commands:\n  vrooli scenario template list\n  vrooli scenario template show <template>\n  vrooli scenario generate <template> [options]")
@@ -98,10 +94,6 @@ func parseScenarioTemplateShowRequest(root string, globals globalOptions, args [
 		return scenarioTemplateShowRequest{}, usageErrorf("scenario template show", "scenario template show accepts exactly one template name")
 	}
 	return scenarioTemplateShowRequest{Name: args[0]}, nil
-}
-
-func parseScenarioTemplateShowRequestFromContext(ctx *commandContext, args []string) (scenarioTemplateShowRequest, error) {
-	return parseScenarioTemplateShowRequest(ctx.Root, ctx.Globals, args, ctx.Stderr)
 }
 
 func runScenarioTemplateShowRequest(app *App, ctx *commandContext, req scenarioTemplateShowRequest) (cliout.Format, scenarioTemplateInfo, error) {
@@ -174,7 +166,7 @@ func renderScenarioTemplateShowResponse(w io.Writer, format cliout.Format, info 
 	return nil
 }
 
-func parseScenarioGenerateRequest(root string, globals globalOptions, args []string, stderr io.Writer) (scenarioGenerateRequest, error) {
+func parseScenarioGenerateRequest(ctx *commandContext, args []string) (scenarioGenerateRequest, error) {
 	if len(args) == 0 {
 		return scenarioGenerateRequest{}, usageErrorf("scenario generate", "scenario generate requires a template name")
 	}
@@ -185,12 +177,12 @@ func parseScenarioGenerateRequest(root string, globals globalOptions, args []str
 	}
 
 	templateName := args[0]
-	info, err := loadScenarioTemplate(root, templateName)
+	info, err := loadScenarioTemplate(ctx.Root, templateName)
 	if err != nil {
 		return scenarioGenerateRequest{}, err
 	}
 
-	opts, err := parseScenarioGenerateArgs(args[1:], info.Manifest, stderr)
+	opts, err := parseScenarioGenerateArgs(args[1:], info.Manifest, ctx.Stderr)
 	if err != nil {
 		return scenarioGenerateRequest{}, err
 	}
@@ -215,10 +207,6 @@ func parseScenarioGenerateRequest(root string, globals globalOptions, args []str
 	}
 
 	return scenarioGenerateRequest{TemplateInfo: info, Options: opts}, nil
-}
-
-func parseScenarioGenerateRequestFromContext(ctx *commandContext, args []string) (scenarioGenerateRequest, error) {
-	return parseScenarioGenerateRequest(ctx.Root, ctx.Globals, args, ctx.Stderr)
 }
 
 func runScenarioGenerateRequest(app *App, ctx *commandContext, req scenarioGenerateRequest) (cliout.Format, scenarioGenerateResult, error) {

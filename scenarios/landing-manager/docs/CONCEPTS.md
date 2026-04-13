@@ -62,7 +62,7 @@ Landing Manager uses a **meta-scenario pattern** with three distinct layers:
 | Layer | Location | Purpose | Contains |
 |-------|----------|---------|----------|
 | **Factory** | `scenarios/landing-manager/` | Management UI/API | Template list, generation, lifecycle control |
-| **Template** | `scripts/scenarios/templates/landing-page-react-vite/` | Blueprint | Source code, PRD, schemas, defaults |
+| **Template** | `templates/scenarios/landing-page-react-vite/` | Blueprint | Source code, PRD, schemas, defaults |
 | **Generated** | `scenarios/landing-manager/generated/<slug>/` (staging) or `scenarios/<slug>/` (production) | Your app | Complete runnable landing page |
 
 ### Key Insight

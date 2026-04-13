@@ -8,9 +8,8 @@ import (
 	"github.com/vrooli/vrooli/internal/orchestrator"
 )
 
-func TestParseScenarioRequirementsRequestFromContextTreatsHelpAsCommandHelp(t *testing.T) {
-	ctx := &commandContext{}
-	_, err := parseScenarioRequirementsRequestFromContext(ctx, []string{"--help"})
+func TestParseScenarioRequirementsRequestTreatsHelpAsCommandHelp(t *testing.T) {
+	_, err := parseScenarioRequirementsRequest(globalOptions{}, []string{"--help"})
 	if err == nil {
 		t.Fatal("expected help-only error")
 	}
@@ -19,13 +18,12 @@ func TestParseScenarioRequirementsRequestFromContextTreatsHelpAsCommandHelp(t *t
 	}
 }
 
-func TestParseScenarioHealFromSandboxRequestFromContextUsesEnvDefault(t *testing.T) {
+func TestParseScenarioHealFromSandboxRequestUsesEnvDefault(t *testing.T) {
 	t.Setenv("SANDBOX_MERGED_DIR", "/merged")
-	ctx := &commandContext{}
 
-	req, err := parseScenarioHealFromSandboxRequestFromContext(ctx, nil)
+	req, err := parseScenarioHealFromSandboxRequest(globalOptions{}, nil)
 	if err != nil {
-		t.Fatalf("parseScenarioHealFromSandboxRequestFromContext: %v", err)
+		t.Fatalf("parseScenarioHealFromSandboxRequest: %v", err)
 	}
 	if req.MergedPath != "/merged" || req.DryRun {
 		t.Fatalf("request = %+v", req)

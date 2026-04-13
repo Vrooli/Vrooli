@@ -15,7 +15,7 @@ import (
 	"unicode/utf8"
 )
 
-const resourceTemplateBasePath = "scripts/resources/templates"
+const resourceTemplateBasePath = "templates/resources"
 
 var (
 	unresolvedResourceTemplatePattern = regexp.MustCompile(`\{\{[A-Z0-9_]+\}\}`)

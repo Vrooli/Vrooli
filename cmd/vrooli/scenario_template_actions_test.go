@@ -9,7 +9,8 @@ import (
 )
 
 func TestParseScenarioGenerateRequestRequiresTemplateName(t *testing.T) {
-	if _, err := parseScenarioGenerateRequest("/repo", globalOptions{}, nil, &bytes.Buffer{}); err == nil {
+	ctx := &commandContext{Root: "/repo", Stderr: &bytes.Buffer{}}
+	if _, err := parseScenarioGenerateRequest(ctx, nil); err == nil {
 		t.Fatal("expected missing template name error")
 	}
 }

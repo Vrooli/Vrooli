@@ -216,7 +216,7 @@
 - **Resource claude-code**: `scripts/resources/resource-claude-code/`
 - **Lifecycle system**: `scripts/lib/lifecycle/`
 - **Testing architecture**: `docs/testing/architecture/PHASED_TESTING.md`
-- **Template system**: `scripts/scenarios/templates/`
+- **Template system**: `templates/scenarios/`
 
 ### Design Decisions
 

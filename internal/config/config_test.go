@@ -22,7 +22,7 @@ func TestHomeDirPrefersHOME(t *testing.T) {
 
 func TestTemplateBaseDirDefaultsToRepoTemplates(t *testing.T) {
 	root := "/repo"
-	if got := TemplateBaseDir(root); got != filepath.Join(root, "scripts", "scenarios", "templates") {
+	if got := TemplateBaseDir(root); got != filepath.Join(root, "templates", "scenarios") {
 		t.Fatalf("TemplateBaseDir = %q", got)
 	}
 }

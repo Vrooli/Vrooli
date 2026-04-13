@@ -10,26 +10,12 @@ import (
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
-type resourceTemplateCommandAction[Req any, Resp any] struct {
-	parse  func(args []string) (Req, error)
-	run    func(controller *resources.Controller, ctx *commandContext, req Req) (cliout.Format, Resp, error)
-	render func(w io.Writer, format cliout.Format, resp Resp) error
-}
-
-func executeResourceTemplateCommand[Req any, Resp any](controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer, action resourceTemplateCommandAction[Req, Resp]) error {
+func runResourceTemplateBoundCommand[Req any, Resp any](controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer, action boundCommandAction[*resources.Controller, Req, Resp]) error {
 	app, ctx := newConfiguredCommandContext("", globals, stdout, stderr)
 	if controller != nil {
 		ctx.Root = controller.Root
 	}
-	return executeBoundCommand(app, ctx, controller, args, boundCommandAction[*resources.Controller, Req, Resp]{
-		parse: func(globals globalOptions, args []string) (Req, error) {
-			return action.parse(args)
-		},
-		run: func(controller *resources.Controller, ctx *commandContext, req Req) (cliout.Format, Resp, error) {
-			return action.run(controller, ctx, req)
-		},
-		render: action.render,
-	})
+	return executeResourceCommandWithApp(app, ctx, controller, args, action)
 }
 
 type (
@@ -59,7 +45,7 @@ func parseResourceTemplateName(help, command string, args []string) (resourceTem
 	return resourceTemplateNameRequest{Name: args[0]}, nil
 }
 
-func parseResourceTemplateListRequest(args []string) (resourceTemplateNoArgsRequest, error) {
+func parseResourceTemplateListRequest(globals globalOptions, args []string) (resourceTemplateNoArgsRequest, error) {
 	return parseResourceTemplateNoArgs("Usage: vrooli resource template list", "resource template list", args)
 }
 
@@ -96,7 +82,7 @@ func renderResourceTemplateListResponse(w io.Writer, format cliout.Format, items
 	return nil
 }
 
-func parseResourceTemplateShowRequest(args []string) (resourceTemplateNameRequest, error) {
+func parseResourceTemplateShowRequest(globals globalOptions, args []string) (resourceTemplateNameRequest, error) {
 	return parseResourceTemplateName("Usage: vrooli resource template show <name>", "resource template show", args)
 }
 
@@ -153,7 +139,7 @@ func renderResourceTemplateShowResponse(w io.Writer, format cliout.Format, info 
 	return nil
 }
 
-func parseResourceTemplateValidateRequest(args []string) (resourceTemplateNoArgsRequest, error) {
+func parseResourceTemplateValidateRequest(globals globalOptions, args []string) (resourceTemplateNoArgsRequest, error) {
 	return parseResourceTemplateNoArgs("Usage: vrooli resource template validate", "resource template validate", args)
 }
 
@@ -177,7 +163,7 @@ func renderResourceTemplateValidateResponse(w io.Writer, format cliout.Format, r
 	return nil
 }
 
-func parseResourceTemplateGenerateRequest(controller *resources.Controller, args []string, stderr io.Writer) (resourceTemplateGenerateOptions, error) {
+func parseResourceTemplateGenerateRequest(controller *resources.Controller, globals globalOptions, args []string, stderr io.Writer) (resourceTemplateGenerateOptions, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
 			return resourceTemplateGenerateOptions{}, commandHelpOnly("Usage: vrooli resource template generate <template> [options]\n       vrooli resource template generate --from-blueprint <name> [options]")

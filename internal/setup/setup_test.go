@@ -14,8 +14,8 @@ import (
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/testfixture"
-	"github.com/vrooli/vrooli/internal/testutil"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-11
@@ -121,7 +121,7 @@ func TestMarkCompleteWritesSetupAndResourceMarkers(t *testing.T) {
 	}
 
 	setupMarker := filepath.Join(root, "data", ".setup-complete")
-	payload := testutil.ReadJSONFile(t, setupMarker)
+	payload := testkitgo.ReadJSONFile(t, setupMarker)
 	if payload["setup_version"] != "2.0.0" {
 		t.Fatalf("setup_version = %v", payload["setup_version"])
 	}
@@ -131,7 +131,7 @@ func TestMarkCompleteWritesSetupAndResourceMarkers(t *testing.T) {
 }
 
 func TestRepoRemovesLegacyHostSetupSurfaces(t *testing.T) {
-	repoRoot := testutil.ProjectRoot(t)
+	repoRoot := testkitgo.ProjectRoot(t)
 
 	for _, rel := range []string{
 		"scripts/lib/setup.sh",
@@ -459,8 +459,8 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 
 	root := t.TempDir()
 	home := t.TempDir()
-	projectManifest := testfixture.ProjectServiceManifest(
-		testfixture.WithDependencies(scenario.Dependencies{
+	projectManifest := testkitvrooli.ProjectServiceManifest(
+		testkitvrooli.WithDependencies(scenario.Dependencies{
 			Resources: map[string]scenario.Dependency{"redis": {Enabled: false}},
 		}),
 	)
@@ -469,9 +469,9 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 		{Name: "docker", Required: true, Reason: "container runtime"},
 	}
 	projectScenario := writeProjectFixtureWithServiceManifest(t, root, projectManifest)
-	testfixture.WriteScenarioService(t, root, "alpha", testfixture.ScenarioServiceManifest(
+	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
 		"alpha",
-		testfixture.WithLifecycle(scenario.Lifecycle{}),
+		testkitvrooli.WithLifecycle(scenario.Lifecycle{}),
 	))
 	alphaPath := scenario.ServicePath(root, "alpha")
 	alphaManifest, err := scenario.ReadService(alphaPath)
@@ -484,17 +484,17 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 	alphaManifest.HostSafeguards = []hostreqspec.Declaration{
 		{Name: "remote_session_protection", Required: true, Reason: "protect remote sessions"},
 	}
-	testutil.WriteJSON(t, alphaPath, alphaManifest)
-	testfixture.WriteResourceManifest(t, root, "redis", testfixture.ResourceManifest(
+	testkitgo.WriteJSON(t, alphaPath, alphaManifest)
+	testkitvrooli.WriteResourceManifest(t, root, "redis", testkitvrooli.ResourceManifest(
 		"redis",
-		testfixture.WithResourceDriver("external-cli"),
-		testfixture.WithResourceBinary("redis-server"),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testkitvrooli.WithResourceDriver("external-cli"),
+		testkitvrooli.WithResourceBinary("redis-server"),
+		testkitvrooli.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "partial",
 			Windows: "unsupported",
 		}),
-		testfixture.WithResourceHostTools(
+		testkitvrooli.WithResourceHostTools(
 			hostreqspec.Declaration{Name: "sqlite", Required: false, Reason: "resource cache introspection", Manual: true},
 		),
 	))
@@ -1032,15 +1032,15 @@ func stubSetupDeps(t *testing.T) func() {
 
 func writeProjectFixture(t *testing.T, root string) scenario.Scenario {
 	t.Helper()
-	manifest := testfixture.ProjectServiceManifest(
-		testfixture.WithPorts(map[string]scenario.Port{
+	manifest := testkitvrooli.ProjectServiceManifest(
+		testkitvrooli.WithPorts(map[string]scenario.Port{
 			"api": {EnvVar: "VROOLI_API_PORT", Port: intPtr(8092)},
 		}),
-		testfixture.WithDependencies(scenario.Dependencies{
+		testkitvrooli.WithDependencies(scenario.Dependencies{
 			Resources: map[string]scenario.Dependency{"redis": {Enabled: false}},
 		}),
 	)
-	testfixture.WriteProjectService(t, root, manifest)
+	testkitvrooli.WriteProjectService(t, root, manifest)
 	return scenario.Scenario{
 		Slug:        "project-alpha",
 		Path:        root,
@@ -1051,7 +1051,7 @@ func writeProjectFixture(t *testing.T, root string) scenario.Scenario {
 
 func writeProjectFixtureWithServiceManifest(t *testing.T, root string, manifest scenario.ServiceManifest) scenario.Scenario {
 	t.Helper()
-	testfixture.WriteProjectService(t, root, manifest)
+	testkitvrooli.WriteProjectService(t, root, manifest)
 	servicePath := scenario.ProjectServicePath(root)
 	if strings.TrimSpace(manifest.Service.Name) == "" {
 		manifest.Service.Name = filepath.Base(root)
@@ -1067,7 +1067,7 @@ func writeProjectFixtureWithServiceManifest(t *testing.T, root string, manifest 
 func writeProjectFixtureWithManifest(t *testing.T, root, manifest string) scenario.Scenario {
 	t.Helper()
 	servicePath := filepath.Join(root, ".vrooli", "service.json")
-	testutil.WriteRawJSON(t, servicePath, manifest, 0o644)
+	testkitgo.WriteRawJSON(t, servicePath, manifest, 0o644)
 	parsed, err := scenario.ReadService(servicePath)
 	if err != nil {
 		t.Fatalf("ReadService: %v", err)
@@ -1082,7 +1082,7 @@ func writeProjectFixtureWithManifest(t *testing.T, root, manifest string) scenar
 
 func writeSetupTestFile(t *testing.T, path, contents string) {
 	t.Helper()
-	testutil.WriteFile(t, path, contents)
+	testkitgo.WriteFile(t, path, contents)
 }
 
 func findResolvedRequirement(items []hostreq.ResolvedRequirement, name string) *hostreq.ResolvedRequirement {
@@ -1096,7 +1096,7 @@ func findResolvedRequirement(items []hostreq.ResolvedRequirement, name string) *
 
 func writePortRegistryFixture(t *testing.T, root string) {
 	t.Helper()
-	testfixture.WritePortRegistry(t, root, nil)
+	testkitvrooli.WritePortRegistry(t, root, nil)
 }
 
 func writeExecutableFile(t *testing.T, path, contents string) {

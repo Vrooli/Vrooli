@@ -15,20 +15,24 @@ type resourceCommandAction[Req any, Resp any] struct {
 	render func(w io.Writer, format cliout.Format, resp Resp) error
 }
 
+func executeResourceCommandWithApp[Req any, Resp any](app *App, ctx *commandContext, controller *resources.Controller, args []string, action boundCommandAction[*resources.Controller, Req, Resp]) error {
+	return executeBoundCommand(app, ctx, controller, args, action)
+}
+
 func executeResourceCommand[Req any, Resp any](controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer, action resourceCommandAction[Req, Resp]) error {
+	return runResourceBoundCommand(controller, globals, args, stdout, stderr, boundCommandAction[*resources.Controller, Req, Resp]{
+		parse:  action.parse,
+		run:    action.run,
+		render: action.render,
+	})
+}
+
+func runResourceBoundCommand[Req any, Resp any](controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer, action boundCommandAction[*resources.Controller, Req, Resp]) error {
 	app, ctx := newConfiguredCommandContext("", globals, stdout, stderr)
 	if controller != nil {
 		ctx.Root = controller.Root
 	}
-	return executeBoundCommand(app, ctx, controller, args, boundCommandAction[*resources.Controller, Req, Resp]{
-		parse: func(globals globalOptions, args []string) (Req, error) {
-			return action.parse(globals, args)
-		},
-		run: func(controller *resources.Controller, ctx *commandContext, req Req) (cliout.Format, Resp, error) {
-			return action.run(controller, ctx, req)
-		},
-		render: action.render,
-	})
+	return executeResourceCommandWithApp(app, ctx, controller, args, action)
 }
 
 type (

@@ -1,20 +1,16 @@
 package repocontract
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
+
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 func repoRoot(t *testing.T) string {
 	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
+	root := testkitgo.ProjectRoot(t)
 	if _, err := os.Stat(filepath.Join(root, ".vrooli", "repo-contract.json")); err != nil {
 		t.Fatalf("repo root missing live contract: %v", err)
 	}
@@ -33,16 +29,7 @@ func mustLoadDefault(t *testing.T, root string) *Contract {
 func writeContractFile(t *testing.T, dir string, doc contractDoc) string {
 	t.Helper()
 	path := filepath.Join(dir, ".vrooli", "repo-contract.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("MkdirAll(%q) error = %v", filepath.Dir(path), err)
-	}
-	data, err := json.MarshalIndent(doc, "", "  ")
-	if err != nil {
-		t.Fatalf("MarshalIndent() error = %v", err)
-	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		t.Fatalf("WriteFile(%q) error = %v", path, err)
-	}
+	testkitgo.WriteJSON(t, path, doc)
 	return path
 }
 
@@ -56,7 +43,7 @@ func validContractDoc() contractDoc {
 		},
 		Root: Root{
 			Markers: RootMarkers{
-				RequiredDirs:  []string{".vrooli", "scenarios", "resources", "packages", "cmd", "internal"},
+				RequiredDirs:  []string{".vrooli", "templates", "scenarios", "resources", "packages", "cmd", "internal"},
 				RequiredFiles: []string{"go.mod"},
 			},
 		},
@@ -64,6 +51,7 @@ func validContractDoc() contractDoc {
 			ProjectConfigDir: ".vrooli",
 			ScenarioDir:      "scenarios",
 			ResourceDir:      "resources",
+			TemplateDir:      "templates",
 			PackageDir:       "packages",
 			CommandDir:       "cmd",
 			InternalDir:      "internal",

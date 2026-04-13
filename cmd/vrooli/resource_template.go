@@ -18,42 +18,35 @@ type resourceTemplateGenerateOptions struct {
 	Values        map[string]string
 }
 
-func runResourceTemplateCommand(controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
-		showResourceTemplateHelp(stdout)
-		return nil
-	}
+var resourceTemplateCommandTable = []resourceCommandDescriptor{
+	{Name: "list", Summary: "List resource templates", Handler: bindResourceCommand(parseResourceTemplateListRequest, runResourceTemplateListRequest, renderResourceTemplateListResponse)},
+	{Name: "show", Summary: "Show template details", Handler: bindResourceCommand(parseResourceTemplateShowRequest, runResourceTemplateShowRequest, renderResourceTemplateShowResponse)},
+	{Name: "validate", Summary: "Validate template manifests", Handler: bindResourceCommand(parseResourceTemplateValidateRequest, runResourceTemplateValidateRequest, renderResourceTemplateValidateResponse)},
+	{Name: "generate", Summary: "Generate files from a template", Handler: runResourceTemplateGenerateCommandWithApp},
+}
 
-	switch normalizeResourceSubcommand(args[0]) {
-	case "list":
-		return executeResourceTemplateCommand(controller, globals, args[1:], stdout, stderr, resourceTemplateCommandAction[resourceTemplateNoArgsRequest, []resources.ResourceTemplateInfo]{
-			parse:  parseResourceTemplateListRequest,
-			run:    runResourceTemplateListRequest,
-			render: renderResourceTemplateListResponse,
-		})
-	case "show":
-		return executeResourceTemplateCommand(controller, globals, args[1:], stdout, stderr, resourceTemplateCommandAction[resourceTemplateNameRequest, resources.ResourceTemplateInfo]{
-			parse:  parseResourceTemplateShowRequest,
-			run:    runResourceTemplateShowRequest,
-			render: renderResourceTemplateShowResponse,
-		})
-	case "validate":
-		return executeResourceTemplateCommand(controller, globals, args[1:], stdout, stderr, resourceTemplateCommandAction[resourceTemplateNoArgsRequest, resources.ResourceTemplateValidationReport]{
-			parse:  parseResourceTemplateValidateRequest,
-			run:    runResourceTemplateValidateRequest,
-			render: renderResourceTemplateValidateResponse,
-		})
-	case "generate":
-		return executeResourceTemplateCommand(controller, globals, args[1:], stdout, stderr, resourceTemplateCommandAction[resourceTemplateGenerateOptions, resources.ResourceTemplateGenerateReport]{
-			parse: func(args []string) (resourceTemplateGenerateOptions, error) {
-				return parseResourceTemplateGenerateRequest(controller, args, stderr)
-			},
-			run:    runResourceTemplateGenerateRequest,
-			render: renderResourceTemplateGenerateResponse,
-		})
-	default:
-		return usageErrorf("resource template", "unknown resource template command: %s", args[0])
+var resourceTemplateCommandHandlers = buildResourceCommandMap(resourceTemplateCommandTable)
+
+func runResourceTemplateCommand(controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+	app, ctx := newConfiguredCommandContext("", globals, stdout, stderr)
+	if controller != nil {
+		ctx.Root = controller.Root
 	}
+	return runResourceTemplateCommandWithApp(app, ctx, controller, args)
+}
+
+func runResourceTemplateCommandWithApp(app *App, ctx *commandContext, controller *resources.Controller, args []string) error {
+	return runNestedResourceCommand(app, ctx, controller, args, showResourceTemplateHelp, "resource template", resourceTemplateCommandHandlers)
+}
+
+func runResourceTemplateGenerateCommandWithApp(app *App, ctx *commandContext, controller *resources.Controller, args []string) error {
+	return executeResourceCommandWithApp(app, ctx, controller, args, boundCommandAction[*resources.Controller, resourceTemplateGenerateOptions, resources.ResourceTemplateGenerateReport]{
+		parse: func(globals globalOptions, args []string) (resourceTemplateGenerateOptions, error) {
+			return parseResourceTemplateGenerateRequest(controller, globals, args, ctx.Stderr)
+		},
+		run:    runResourceTemplateGenerateRequest,
+		render: renderResourceTemplateGenerateResponse,
+	})
 }
 
 func parseResourceTemplateGenerateArgs(controller *resources.Controller, args []string, stderr io.Writer) (resourceTemplateGenerateOptions, error) {
@@ -163,7 +156,9 @@ func parseResourceTemplateGenerateArgs(controller *resources.Controller, args []
 }
 
 func showResourceTemplateHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli resource template <list|show|validate|generate> [...]")
+	_, _ = fmt.Fprintln(w, "Usage: vrooli resource template <subcommand> [options]")
+	_, _ = fmt.Fprintln(w)
+	writeResourceCommandHelp(w, resourceTemplateCommandTable)
 }
 
 func showResourceTemplateGenerateHelp(w io.Writer) {

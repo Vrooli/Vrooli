@@ -15,6 +15,26 @@ func ScenarioRoot(repoRoot, scenario string) string {
 	return filepath.Join(repoRoot, "scenarios", filepath.Clean(scenario))
 }
 
+func ScenarioTemplateRoot(repoRoot string) string {
+	repoRoot = filepath.Clean(repoRoot)
+	if contract, err := LoadDefault(repoRoot); err == nil {
+		if resolved, err := contract.TopLevelDir(repoRoot, "templates"); err == nil {
+			return filepath.Join(resolved, "scenarios")
+		}
+	}
+	return filepath.Join(repoRoot, "templates", "scenarios")
+}
+
+func ResourceTemplateRoot(repoRoot string) string {
+	repoRoot = filepath.Clean(repoRoot)
+	if contract, err := LoadDefault(repoRoot); err == nil {
+		if resolved, err := contract.TopLevelDir(repoRoot, "templates"); err == nil {
+			return filepath.Join(resolved, "resources")
+		}
+	}
+	return filepath.Join(repoRoot, "templates", "resources")
+}
+
 func (c *Contract) ScenarioFile(repoRoot, scenario, key string) (string, error) {
 	root, err := c.ScenarioRoot(repoRoot, scenario)
 	if err != nil {
@@ -51,6 +71,8 @@ func (c *Contract) TopLevelDir(repoRoot, key string) (string, error) {
 		rel = c.doc.Layout.ScenarioDir
 	case "resources":
 		rel = c.doc.Layout.ResourceDir
+	case "templates":
+		rel = c.doc.Layout.TemplateDir
 	case "packages":
 		rel = c.doc.Layout.PackageDir
 	case "cmd":

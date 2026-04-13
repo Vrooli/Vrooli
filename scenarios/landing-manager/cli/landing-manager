@@ -437,7 +437,7 @@ Commands:
     help                                Show this help message
 
 Spec references:
-    Template runtime spec: scripts/scenarios/templates/landing-page-react-vite/PRD.md
+    Template runtime spec: templates/scenarios/landing-page-react-vite/PRD.md
     Vrooli Ascension landing page: scenarios/browser-automation-studio
 EOF
 }

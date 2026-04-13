@@ -662,11 +662,12 @@ The implementation work should not begin migrating large batches of tools until 
 ### Goals
 
 - clean up adjacent shell helper surfaces that should not survive the redesign unchanged.
+- quarantine any intentionally retained legacy helper behind an explicit compatibility boundary.
 
 ### Tasks
 
 - [x] Replace or redesign `scripts/lib/ui-guard.sh`.
-- [ ] Replace or redesign `scripts/lib/utils/cli-install.sh`.
+- [~] Defer replacement of `scripts/lib/utils/cli-install.sh` as a temporary compatibility shim for legacy script-based scenario CLIs.
 - [x] Remove or modernize scenario package/CLI references to those helpers.
 - [x] Decide whether these become:
   - native CLI subcommands,
@@ -675,10 +676,13 @@ The implementation work should not begin migrating large batches of tools until 
   - or are deleted entirely.
 - [x] Update scaffolding/templates so new scenarios/resources do not reintroduce old helper patterns.
 
+`scripts/lib/utils/cli-install.sh` is no longer part of the preferred architecture. It remains temporarily for older non-Go scenario CLIs that still install repo-local shell entrypoints, while current scenario templates already use `packages/cli-core/install.sh` and therefore do not add new consumers.
+
 ### Acceptance
 
-- [ ] New scenarios/resources do not depend on old shared shell helper patterns.
+- [x] New scenarios/resources do not depend on old shared shell helper patterns.
 - [x] Existing `ui-guard.sh` consumers are migrated or intentionally quarantined behind explicit compatibility boundaries.
+- [x] `scripts/lib/utils/cli-install.sh` is explicitly documented as deferred compatibility debt rather than an active dependency of the redesigned host requirements architecture.
 
 ## Phase 8: Validation, Docs, And Enforcement
 

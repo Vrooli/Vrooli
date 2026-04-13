@@ -326,7 +326,7 @@ export function PRDValidationPanel({
         {/* Help Link */}
         <div className="pt-2 border-t">
           <a
-            href="https://github.com/Vrooli/vrooli/blob/main/scripts/scenarios/templates/react-vite/PRD.md"
+            href="https://github.com/Vrooli/vrooli/blob/main/templates/scenarios/react-vite/PRD.md"
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-primary hover:underline flex items-center gap-1"

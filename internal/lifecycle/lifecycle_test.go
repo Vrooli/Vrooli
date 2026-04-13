@@ -19,7 +19,7 @@ import (
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/testfixture"
+	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=8 | LAST: 2026-04-11

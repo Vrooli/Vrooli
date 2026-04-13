@@ -61,7 +61,7 @@ resource-postgres status  # Verify it's running
 ### Step 2: Build the API
 
 ```bash
-cd scripts/scenarios/templates/landing-page-react-vite/api
+cd templates/scenarios/landing-page-react-vite/api
 go build -o landing-api .
 ```
 
@@ -89,7 +89,7 @@ psql $DATABASE_URL -f initialization/postgres/seed.sql  # Optional demo data
 ### Step 6: Start the UI (new terminal)
 
 ```bash
-cd scripts/scenarios/templates/landing-page-react-vite/ui
+cd templates/scenarios/landing-page-react-vite/ui
 pnpm install
 pnpm run dev
 ```

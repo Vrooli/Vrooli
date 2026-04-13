@@ -21,8 +21,8 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/testfixture"
-	"github.com/vrooli/vrooli/internal/testutil"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-12
@@ -337,16 +337,16 @@ func decodeJSONMap(t *testing.T, rec *httptest.ResponseRecorder) map[string]any 
 
 func writeScenarioService(t *testing.T, root, name string) {
 	t.Helper()
-	testfixture.WriteScenarioService(t, root, name, testfixture.ScenarioServiceManifest(
+	testkitvrooli.WriteScenarioService(t, root, name, testkitvrooli.ScenarioServiceManifest(
 		name,
-		testfixture.WithDisplayName(name),
-		testfixture.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
+		testkitvrooli.WithDisplayName(name),
+		testkitvrooli.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
 	))
 }
 
 func writeScenarioProcess(t *testing.T, home, name string, port int) {
 	t.Helper()
-	testfixture.WriteScenarioProcessRecord(t, home, name, "start-api", process.Record{
+	testkitvrooli.WriteScenarioProcessRecord(t, home, name, "start-api", process.Record{
 		PID:       os.Getpid(),
 		PGID:      os.Getpid(),
 		Scenario:  name,
@@ -359,8 +359,8 @@ func writeScenarioProcess(t *testing.T, home, name string, port int) {
 
 func writeResourceServiceConfig(t *testing.T, root, name string, enabled bool) {
 	t.Helper()
-	testfixture.WriteProjectService(t, root, testfixture.ProjectServiceManifest(
-		testfixture.WithDependencies(scenario.Dependencies{
+	testkitvrooli.WriteProjectService(t, root, testkitvrooli.ProjectServiceManifest(
+		testkitvrooli.WithDependencies(scenario.Dependencies{
 			Resources: map[string]scenario.Dependency{name: {Enabled: enabled}},
 		}),
 	))
@@ -368,7 +368,7 @@ func writeResourceServiceConfig(t *testing.T, root, name string, enabled bool) {
 
 func writeResourceCLI(t *testing.T, root, name, statusJSON string) {
 	t.Helper()
-	testfixture.WriteResourceManifest(t, root, name, manifestpkg.ResourceManifest{
+	testkitvrooli.WriteResourceManifest(t, root, name, manifestpkg.ResourceManifest{
 		Name:            name,
 		DisplayName:     name,
 		Description:     "fixture resource",
@@ -384,7 +384,7 @@ func writeResourceCLI(t *testing.T, root, name, statusJSON string) {
 	})
 	scriptPath := filepath.Join(root, "resources", name, "cli.sh")
 	script := "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"status\" ]]; then\n  printf '%s\\n' '" + statusJSON + "'\n  exit 0\nfi\nprintf '{\"message\":\"ok\"}\\n'\nexit 0\n"
-	testutil.WriteExecutable(t, scriptPath, script)
+	testkitgo.WriteExecutable(t, scriptPath, script)
 }
 
 func osMkdirAll(path string) error {

@@ -76,7 +76,7 @@ vrooli scenario logs <your-scenario> --tail 50
 1. **Wait a few seconds** - templates load asynchronously
 2. **Check template exists**:
    ```bash
-   ls scripts/scenarios/templates/
+   ls templates/scenarios/
    ```
 3. **Restart Factory** if template was just added
 

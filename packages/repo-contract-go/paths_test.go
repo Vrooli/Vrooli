@@ -73,8 +73,22 @@ func TestTopLevelDirAndStandaloneScenarioRoot(t *testing.T) {
 		t.Fatalf("TopLevelDir() = %q", got)
 	}
 
+	templateDir, err := contract.TopLevelDir("/repo", "templates")
+	if err != nil {
+		t.Fatalf("TopLevelDir(templates) error = %v", err)
+	}
+	if templateDir != filepath.Join("/repo", "templates") {
+		t.Fatalf("TopLevelDir(templates) = %q", templateDir)
+	}
+
 	if got := ScenarioRoot("/repo", "demo"); got != filepath.Join("/repo", "scenarios", "demo") {
 		t.Fatalf("ScenarioRoot() = %q", got)
+	}
+	if got := ScenarioTemplateRoot("/repo"); got != filepath.Join("/repo", "templates", "scenarios") {
+		t.Fatalf("ScenarioTemplateRoot() = %q", got)
+	}
+	if got := ResourceTemplateRoot("/repo"); got != filepath.Join("/repo", "templates", "resources") {
+		t.Fatalf("ResourceTemplateRoot() = %q", got)
 	}
 }
 
@@ -85,7 +99,7 @@ func TestStandaloneScenarioRootUsesContractLayoutWhenAvailable(t *testing.T) {
 	doc.Layout.ScenarioDir = "apps"
 
 	writeContractFile(t, root, doc)
-	for _, dir := range []string{"apps", "resources", "packages", "cmd", "internal"} {
+	for _, dir := range []string{"apps", "resources", "templates", "packages", "cmd", "internal"} {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
 			t.Fatalf("MkdirAll(%q) error = %v", dir, err)
 		}

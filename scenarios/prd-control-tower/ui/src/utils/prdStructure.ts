@@ -1,6 +1,6 @@
 import type { PRDValidationResultV2 } from '../types'
 
-// PRD template structure validation aligned with scripts/scenarios/templates/react-vite/PRD.md
+// PRD template structure validation aligned with templates/scenarios/react-vite/PRD.md
 // This validation focuses on CORE required sections while making subsections optional/recommended
 
 // Note: 'heading' field refers to markdown heading text patterns

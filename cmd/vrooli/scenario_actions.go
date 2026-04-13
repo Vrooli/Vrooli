@@ -110,10 +110,6 @@ func parseScenarioStartRequest(globals globalOptions, args []string) (scenarioSt
 	}, nil
 }
 
-func parseScenarioStartRequestFromContext(ctx *commandContext, args []string) (scenarioStartRequest, error) {
-	return parseScenarioStartRequest(ctx.Globals, args)
-}
-
 func runScenarioStartRequest(app *App, ctx *commandContext, req scenarioStartRequest) (cliout.Format, []scenarioLifecycleItemOutput, error) {
 	service, format, err := app.newScenarioServiceForFormat(ctx, req.JSON)
 	if err != nil {
@@ -161,10 +157,6 @@ func parseScenarioStopRequest(globals globalOptions, args []string) (scenarioSto
 	return scenarioStopRequest{Name: name, JSON: jsonFlag}, nil
 }
 
-func parseScenarioStopRequestFromContext(ctx *commandContext, args []string) (scenarioStopRequest, error) {
-	return parseScenarioStopRequest(ctx.Globals, args)
-}
-
 func runScenarioStopRequest(app *App, ctx *commandContext, req scenarioStopRequest) (cliout.Format, []scenarioLifecycleItemOutput, error) {
 	runner, format, err := app.newScenarioLifecycleRunnerForFormat(ctx, req.JSON)
 	if err != nil {
@@ -193,10 +185,6 @@ func parseScenarioRestartRequest(globals globalOptions, args []string) (scenario
 		JSON:      jsonFlag,
 		OpenAfter: openAfter,
 	}, nil
-}
-
-func parseScenarioRestartRequestFromContext(ctx *commandContext, args []string) (scenarioRestartRequest, error) {
-	return parseScenarioRestartRequest(ctx.Globals, args)
 }
 
 func runScenarioRestartRequest(app *App, ctx *commandContext, req scenarioRestartRequest) (cliout.Format, []scenarioLifecycleItemOutput, error) {
@@ -249,10 +237,6 @@ func parseScenarioListRequest(globals globalOptions, args []string) (scenarioLis
 		}
 	}
 	return req, nil
-}
-
-func parseScenarioListRequestFromContext(ctx *commandContext, args []string) (scenarioListRequest, error) {
-	return parseScenarioListRequest(ctx.Globals, args)
 }
 
 func runScenarioListRequest(app *App, ctx *commandContext, req scenarioListRequest) (cliout.Format, scenarioListResponse, error) {
@@ -313,10 +297,6 @@ func parseScenarioInfoRequest(globals globalOptions, args []string) (scenarioInf
 	return scenarioInfoRequest{Name: name, JSON: jsonFlag}, nil
 }
 
-func parseScenarioInfoRequestFromContext(ctx *commandContext, args []string) (scenarioInfoRequest, error) {
-	return parseScenarioInfoRequest(ctx.Globals, args)
-}
-
 func runScenarioInfoRequest(app *App, ctx *commandContext, req scenarioInfoRequest) (cliout.Format, scenarioInfoOutput, error) {
 	format, err := ctx.outputFormat(req.JSON)
 	if err != nil {
@@ -353,10 +333,6 @@ func parseScenarioStatusRequest(globals globalOptions, args []string) (scenarioS
 		return scenarioStatusRequest{}, err
 	}
 	return scenarioStatusRequest{Name: name, JSON: jsonFlag}, nil
-}
-
-func parseScenarioStatusRequestFromContext(ctx *commandContext, args []string) (scenarioStatusRequest, error) {
-	return parseScenarioStatusRequest(ctx.Globals, args)
 }
 
 func runScenarioStatusRequest(app *App, ctx *commandContext, req scenarioStatusRequest) (cliout.Format, scenarioStatusResponse, error) {
@@ -422,10 +398,6 @@ func parseScenarioSetupRequest(globals globalOptions, args []string) (scenarioSe
 	return scenarioSetupRequest{Name: name, Opts: opts, JSON: jsonFlag}, nil
 }
 
-func parseScenarioSetupRequestFromContext(ctx *commandContext, args []string) (scenarioSetupRequest, error) {
-	return parseScenarioSetupRequest(ctx.Globals, args)
-}
-
 func runScenarioSetupRequest(app *App, ctx *commandContext, req scenarioSetupRequest) (cliout.Format, lifecycle.PhaseResult, error) {
 	runner, format, err := app.newScenarioLifecycleRunnerForFormat(ctx, req.JSON)
 	if err != nil {
@@ -455,10 +427,6 @@ func parseScenarioTestRequest(globals globalOptions, args []string) (scenarioTes
 	return scenarioTestRequest{Name: name, Opts: opts}, nil
 }
 
-func parseScenarioTestRequestFromContext(ctx *commandContext, args []string) (scenarioTestRequest, error) {
-	return parseScenarioTestRequest(ctx.Globals, args)
-}
-
 func runScenarioTestRequest(app *App, ctx *commandContext, req scenarioTestRequest) (cliout.Format, struct{}, error) {
 	runner, _, err := app.newScenarioLifecycleRunnerForFormat(ctx, false)
 	if err != nil {
@@ -484,10 +452,6 @@ func parseScenarioStartAllRequest(globals globalOptions, args []string) (scenari
 		}
 	}
 	return req, nil
-}
-
-func parseScenarioStartAllRequestFromContext(ctx *commandContext, args []string) (scenarioStartAllRequest, error) {
-	return parseScenarioStartAllRequest(ctx.Globals, args)
 }
 
 func runScenarioStartAllRequest(app *App, ctx *commandContext, req scenarioStartAllRequest) (cliout.Format, scenarioBatchResponse, error) {
@@ -523,10 +487,6 @@ func parseScenarioStopAllRequest(globals globalOptions, args []string) (scenario
 		}
 	}
 	return req, nil
-}
-
-func parseScenarioStopAllRequestFromContext(ctx *commandContext, args []string) (scenarioStopAllRequest, error) {
-	return parseScenarioStopAllRequest(ctx.Globals, args)
 }
 
 func runScenarioStopAllRequest(app *App, ctx *commandContext, req scenarioStopAllRequest) (cliout.Format, scenarioBatchResponse, error) {
@@ -575,10 +535,6 @@ func parseScenarioPortRequest(globals globalOptions, args []string) (scenarioPor
 		return scenarioPortRequest{}, usageErrorf("scenario port", "scenario port requires a scenario name")
 	}
 	return req, nil
-}
-
-func parseScenarioPortRequestFromContext(ctx *commandContext, args []string) (scenarioPortRequest, error) {
-	return parseScenarioPortRequest(ctx.Globals, args)
 }
 
 func runScenarioPortRequest(app *App, ctx *commandContext, req scenarioPortRequest) (cliout.Format, scenarioPortResponse, error) {
@@ -679,10 +635,6 @@ func parseScenarioOpenRequest(globals globalOptions, args []string) (scenarioOpe
 		return scenarioOpenRequest{}, usageErrorf("scenario open", "scenario open requires a scenario name")
 	}
 	return req, nil
-}
-
-func parseScenarioOpenRequestFromContext(ctx *commandContext, args []string) (scenarioOpenRequest, error) {
-	return parseScenarioOpenRequest(ctx.Globals, args)
 }
 
 func runScenarioOpenRequest(app *App, ctx *commandContext, req scenarioOpenRequest) (cliout.Format, scenarioOpenOutput, error) {

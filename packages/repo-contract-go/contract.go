@@ -52,6 +52,7 @@ type Layout struct {
 	ProjectConfigDir string `json:"project_config_dir"`
 	ScenarioDir      string `json:"scenario_dir"`
 	ResourceDir      string `json:"resource_dir"`
+	TemplateDir      string `json:"template_dir"`
 	PackageDir       string `json:"package_dir"`
 	CommandDir       string `json:"command_dir"`
 	InternalDir      string `json:"internal_dir"`

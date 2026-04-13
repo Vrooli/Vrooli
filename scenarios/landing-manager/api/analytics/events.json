@@ -113,7 +113,7 @@
     "scenario_id": "lifecycle-test",
     "is_dry_run": false,
     "success": false,
-    "error_reason": "failed to scaffold scenario: failed to copy /home/matthalloran8/Vrooli/scripts/scenarios/templates/saas-landing-page/payload/api: open /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/lifecycle-test/api/landing-manager-api: text file busy",
+    "error_reason": "failed to scaffold scenario: failed to copy /home/matthalloran8/Vrooli/templates/scenarios/saas-landing-page/payload/api: open /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/lifecycle-test/api/landing-manager-api: text file busy",
     "timestamp": "2025-11-28T09:50:43.31619064-05:00",
     "duration_ms": 0
   },
@@ -123,7 +123,7 @@
     "scenario_id": "lifecycle-test",
     "is_dry_run": false,
     "success": false,
-    "error_reason": "failed to scaffold scenario: failed to copy /home/matthalloran8/Vrooli/scripts/scenarios/templates/saas-landing-page/payload/api: open /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/lifecycle-test/api/landing-manager-api: text file busy",
+    "error_reason": "failed to scaffold scenario: failed to copy /home/matthalloran8/Vrooli/templates/scenarios/saas-landing-page/payload/api: open /home/matthalloran8/Vrooli/scenarios/landing-manager/generated/lifecycle-test/api/landing-manager-api: text file busy",
     "timestamp": "2025-11-28T09:50:43.32049083-05:00",
     "duration_ms": 0
   },

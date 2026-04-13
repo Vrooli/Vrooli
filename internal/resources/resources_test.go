@@ -17,7 +17,8 @@ import (
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/testfixture"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-11
@@ -1345,7 +1346,7 @@ exit 1
 
 func writeResourceFileFixture(t *testing.T, root, relPath, contents string) {
 	t.Helper()
-	testfixture.WriteRelativeFile(t, root, relPath, contents)
+	testkitgo.WriteRelativeFile(t, root, relPath, contents)
 }
 
 func projectRootForResourcesTest(t *testing.T) string {

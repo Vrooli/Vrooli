@@ -8,23 +8,51 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/contractcli"
 )
 
-func runContractCommandWithApp(_ *App, ctx *commandContext, args []string) error {
+type contractCommandHandler func(ctx *commandContext, args []string) error
+
+type contractCommandDescriptor struct {
+	Name    string
+	Handler contractCommandHandler
+}
+
+var contractCommandTable = []contractCommandDescriptor{
+	{Name: "validate", Handler: runContractValidateCommand},
+	{Name: "show", Handler: runContractShowCommand},
+	{Name: "resolve", Handler: runContractResolveCommand},
+	{Name: "match-glob", Handler: runContractMatchGlobCommand},
+}
+
+var contractResolveCommandTable = []contractCommandDescriptor{
+	{Name: "scenario", Handler: runContractResolveScenarioCommand},
+}
+
+var (
+	contractCommandHandlers        = buildContractCommandMap(contractCommandTable)
+	contractResolveCommandHandlers = buildContractCommandMap(contractResolveCommandTable)
+)
+
+func buildContractCommandMap(descriptors []contractCommandDescriptor) map[string]contractCommandHandler {
+	handlers := make(map[string]contractCommandHandler, len(descriptors))
+	for _, descriptor := range descriptors {
+		handlers[descriptor.Name] = descriptor.Handler
+	}
+	return handlers
+}
+
+func runContractCommandSet(ctx *commandContext, args []string, usage func(io.Writer), command string, handlers map[string]contractCommandHandler) error {
 	if len(args) == 0 || wantsCommandHelp(args) {
-		showContractHelp(ctx.Stdout)
+		usage(ctx.Stdout)
 		return nil
 	}
-	switch args[0] {
-	case "validate":
-		return runContractValidateCommand(ctx, args[1:])
-	case "show":
-		return runContractShowCommand(ctx, args[1:])
-	case "resolve":
-		return runContractResolveCommand(ctx, args[1:])
-	case "match-glob":
-		return runContractMatchGlobCommand(ctx, args[1:])
-	default:
-		return usageErrorf("contract", "unknown contract command: %s", args[0])
+	handler, ok := handlers[strings.ToLower(strings.TrimSpace(args[0]))]
+	if !ok {
+		return usageErrorf(command, "unknown %s command: %s", command, args[0])
 	}
+	return handler(ctx, args[1:])
+}
+
+func runContractCommandWithApp(_ *App, ctx *commandContext, args []string) error {
+	return runContractCommandSet(ctx, args, showContractHelp, "contract", contractCommandHandlers)
 }
 
 func runContractValidateCommand(ctx *commandContext, args []string) error {
@@ -84,16 +112,7 @@ func runContractShowCommand(ctx *commandContext, args []string) error {
 }
 
 func runContractResolveCommand(ctx *commandContext, args []string) error {
-	if len(args) == 0 || wantsCommandHelp(args) {
-		showContractResolveHelp(ctx.Stdout)
-		return nil
-	}
-	switch args[0] {
-	case "scenario":
-		return runContractResolveScenarioCommand(ctx, args[1:])
-	default:
-		return usageErrorf("contract resolve", "unknown resolve target: %s", args[0])
-	}
+	return runContractCommandSet(ctx, args, showContractResolveHelp, "contract resolve", contractResolveCommandHandlers)
 }
 
 func runContractResolveScenarioCommand(ctx *commandContext, args []string) error {

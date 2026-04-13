@@ -32,5 +32,5 @@ func TemplateBaseDir(root string) string {
 		}
 		return filepath.Clean(filepath.Join(root, filepath.FromSlash(override)))
 	}
-	return filepath.Join(root, "scripts", "scenarios", "templates")
+	return filepath.Join(root, "templates", "scenarios")
 }

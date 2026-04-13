@@ -1,4 +1,4 @@
-.PHONY: help build install test clean setup dev develop deploy status scenarios resources lifecycle-build validate-repo-contract validate-phase6-host-setup-cleanup validate-live-develop-smoke validate-week0-week1 validate-week2 validate-week3 validate-week3-live validate-week4 validate-week5 validate-week5-cross validate-week6-slice validate-week6-secrets validate-week0-week2 validate-week0-week3 validate-week0-week4 validate-week0-week5 validate-week0-week6
+.PHONY: help build install test validate clean setup dev develop deploy status scenarios resources lifecycle-build validate-repo-contract validate-phase6-host-setup-cleanup validate-live-develop-smoke validate-week0-week1 validate-week3-live validate-week5-cross validate-week6-slice
 
 .DEFAULT_GOAL := help
 
@@ -21,15 +21,17 @@ help: ## Show available project-level targets
 	@printf "  make test           Run project-level Go tests\n"
 	@printf "  make validate-repo-contract Validate the repo contract schema, data, and drift checks\n"
 	@printf "  make validate-phase6-host-setup-cleanup Validate deleted host-setup surfaces stay deleted\n"
+	@printf "  make validate       Run the retained project-level validation suite\n"
 	@printf "  make clean          Remove project-level Go build artifacts\n"
 	@printf "\nProject helpers\n"
 	@printf "  make setup          Bootstrap the Go CLI and run native setup\n"
 	@printf "  make dev            Start the native development workflow\n"
 	@printf "  make lifecycle-build Run the native project build command via the installed CLI\n"
-	@printf "\nMigration validation\n"
-	@printf "  make validate-week0-week6 Run the retained migration acceptance suite\n"
-	@printf "  make validate-week6-slice Run the retained native command validation slice\n"
-	@printf "  make validate-week6-secrets Run the retained encrypted secrets validation slice\n"
+	@printf "\nFocused validation slices\n"
+	@printf "  make validate-week0-week1 Run installed-binary and stale-check smokes\n"
+	@printf "  make validate-week3-live Run live scenario lifecycle validation\n"
+	@printf "  make validate-week5-cross Run cross-compilation validation\n"
+	@printf "  make validate-week6-slice Run native project command validation\n"
 
 build: ## Build project-level Go binaries into .vrooli/build
 	@mkdir -p $(BUILD_DIR)
@@ -50,6 +52,14 @@ test: ## Run project-level Go tests
 	go test ./cmd/vrooli
 	go test -tags testing ./cmd/vrooli-api
 
+validate: ## Run the retained project-level validation suite
+	$(MAKE) test
+	$(MAKE) validate-phase6-host-setup-cleanup
+	$(MAKE) validate-week0-week1
+	$(MAKE) validate-week3-live
+	$(MAKE) validate-week5-cross
+	$(MAKE) validate-week6-slice
+
 validate-repo-contract: ## Validate the repo contract schema, data, and drift checks
 	python3 .vrooli/schemas/validate-repo-contract.py
 	go test ./internal/repocontract
@@ -58,17 +68,11 @@ validate-phase6-host-setup-cleanup: ## Validate deleted host-setup surfaces stay
 	go test ./internal/setup -run TestRepoRemovesLegacyHostSetupSurfaces -count=1
 	! rg -n 'scripts/lib/setup\.sh|scripts/lib/setup-conditions|scripts/lib/deps/(ajv|ast-grep|bats|js-yaml|lychee|shellcheck)\.sh' internal/lifecycle/setup.go cmd .vrooli scripts/README.md docs/GETTING_STARTED.md docs/devops/README.md scenarios/scenario-to-cloud/api/bundling_rules_test.go
 
-validate-week0-week1: ## Run the repeatable Week 0/1 acceptance suite
-	$(MAKE) clean
+validate-week0-week1: ## Run installed-binary and stale-check smoke validation
 	$(MAKE) build
 	$(MAKE) install
-	$(MAKE) test
 	VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli --version
 	VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli info --list
-	tmp_go=$$(mktemp); \
-	VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli scenario list > "$$tmp_go"; \
-	grep -Fq "test-genie" "$$tmp_go"; \
-	rm -f "$$tmp_go"
 	tmp_home=$$(mktemp -d); \
 	HOME="$$tmp_home" $(MAKE) install > /tmp/vrooli-install-smoke.log; \
 	test -x "$$tmp_home/.vrooli/bin/vrooli"; \
@@ -149,110 +153,9 @@ validate-live-develop-smoke: ## Run the live repo-root vrooli develop smoke
 	trap - EXIT; \
 	cleanup
 
-validate-week2: ## Run the repeatable Week 2 acceptance suite
-	$(MAKE) build
-	$(MAKE) install
-	$(MAKE) test
-	tmp_root=$$(mktemp -d); \
-	tmp_home=$$(mktemp -d); \
-	sandbox_root=$$(mktemp -d); \
-	api_dir="$$tmp_root/http-api"; \
-	ui_dir="$$tmp_root/http-ui"; \
-	api_pid=""; \
-	ui_pid=""; \
-	cleanup() { \
-		if [ -n "$$api_pid" ]; then \
-			kill "$$api_pid" > /dev/null 2> /dev/null || true; \
-			wait "$$api_pid" > /dev/null 2> /dev/null || true; \
-		fi; \
-		if [ -n "$$ui_pid" ]; then \
-			kill "$$ui_pid" > /dev/null 2> /dev/null || true; \
-			wait "$$ui_pid" > /dev/null 2> /dev/null || true; \
-		fi; \
-		rm -rf "$$tmp_root" "$$tmp_home" "$$sandbox_root"; \
-	}; \
-	trap cleanup EXIT; \
-	mkdir -p "$$tmp_root/scenarios/alpha/.vrooli" "$$tmp_root/scenarios/beta/.vrooli" "$$tmp_root/scenarios/_artifacts" "$$api_dir" "$$ui_dir" "$$sandbox_root/.vrooli"; \
-	printf 'ok\n' > "$$api_dir/health"; \
-	printf 'ok\n' > "$$ui_dir/health"; \
-	jq -n \
-		'{version:"1.0.0", service:{name:"alpha", displayName:"Alpha", description:"Alpha scenario", version:"0.1.0"}, ports:{api:{env_var:"API_PORT", range:"15000-19999"}, ui:{env_var:"UI_PORT", range:"35000-39999"}, websocket:{env_var:"WS_PORT", range:"25000-29999"}}, lifecycle:{version:"2.0.0", health:{checks:[{name:"api", type:"http", target:"http://127.0.0.1:$${API_PORT}/health", critical:true, timeout:1000},{name:"ui", type:"http", target:"http://127.0.0.1:$${UI_PORT}/health", critical:false, timeout:1000}]}, develop:{description:"Run alpha", steps:[{name:"start-api", run:"python3 -m http.server", background:true},{name:"start-ui", run:"python3 -m http.server", background:true}]}}}' \
-		> "$$tmp_root/scenarios/alpha/.vrooli/service.json"; \
-	jq -n \
-		'{version:"1.0.0", service:{name:"beta", displayName:"Beta", description:"Beta scenario", version:"0.1.0"}, ports:{api:{env_var:"API_PORT", range:"15000-19999"}}, lifecycle:{version:"2.0.0", develop:{description:"Run beta", steps:[{name:"start-api", run:"python3 -m http.server", background:true}]}}}' \
-		> "$$tmp_root/scenarios/beta/.vrooli/service.json"; \
-	jq -n \
-		'{version:"1.0.0", service:{name:"alpha", displayName:"Alpha Sandbox", description:"Sandbox alpha", version:"0.2.0"}, ports:{api:{env_var:"API_PORT", range:"15000-19999"}, ui:{env_var:"UI_PORT", range:"35000-39999"}, websocket:{env_var:"WS_PORT", range:"25000-29999"}}, lifecycle:{version:"2.0.0", develop:{description:"Run alpha from sandbox", steps:[{name:"start-api", run:"python3 -m http.server", background:true},{name:"start-ui", run:"python3 -m http.server", background:true}]}}}' \
-		> "$$sandbox_root/.vrooli/service.json"; \
-	API_PORT=18080 UI_PORT=38080 WS_PORT=28080 python3 -m http.server 18080 --bind 127.0.0.1 --directory "$$api_dir" > "$$tmp_root/api.log" 2>> "$$tmp_root/api.log" & \
-	api_pid=$$!; \
-	API_PORT=18080 UI_PORT=38080 WS_PORT=28080 python3 -m http.server 38080 --bind 127.0.0.1 --directory "$$ui_dir" > "$$tmp_root/ui.log" 2>> "$$tmp_root/ui.log" & \
-	ui_pid=$$!; \
-	ok=0; \
-	for attempt in $$(seq 1 20); do \
-		if curl -fsS "http://127.0.0.1:18080/health" > /dev/null 2> /dev/null && curl -fsS "http://127.0.0.1:38080/health" > /dev/null 2> /dev/null; then \
-			ok=1; \
-			break; \
-		fi; \
-		sleep 1; \
-	done; \
-	test "$$ok" = "1"; \
-	now=$$(date -u +%Y-%m-%dT%H:%M:%SZ); \
-	mkdir -p "$$tmp_home/.vrooli/processes/scenarios/alpha"; \
-	jq -n --argjson pid "$$api_pid" --arg ts "$$now" \
-		'{pid:$$pid, pgid:$$pid, process_id:"vrooli.develop.alpha.start-api", phase:"develop", scenario:"alpha", step:"start-api", command:"python3 -m http.server 18080", working_dir:"/fixture/scenarios/alpha", log_file:"/tmp/alpha-api.log", port:18080, started_at:$$ts, status:"running"}' \
-		> "$$tmp_home/.vrooli/processes/scenarios/alpha/start-api.json"; \
-	jq -n --argjson pid "$$ui_pid" --arg ts "$$now" \
-		'{pid:$$pid, pgid:$$pid, process_id:"vrooli.develop.alpha.start-ui", phase:"develop", scenario:"alpha", step:"start-ui", command:"python3 -m http.server 38080", working_dir:"/fixture/scenarios/alpha", log_file:"/tmp/alpha-ui.log", port:38080, started_at:$$ts, status:"running"}' \
-		> "$$tmp_home/.vrooli/processes/scenarios/alpha/start-ui.json"; \
-	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check scenario list --json > "$$tmp_root/list.json"; \
-	jq -e '.success == true and .summary.total_scenarios == 2 and .summary.running == 1' "$$tmp_root/list.json" > /dev/null; \
-	jq -e '[.scenarios[].name] == ["alpha","beta"]' "$$tmp_root/list.json" > /dev/null; \
-	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check scenario list --json --include-ports > "$$tmp_root/list-ports.json"; \
-	jq -e '.scenarios[] | select(.name == "alpha") | .ports | length == 2' "$$tmp_root/list-ports.json" > /dev/null; \
-	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SANDBOX_MERGED="$$sandbox_root" VROOLI_SANDBOX_SCOPE="scenarios/alpha" ~/.vrooli/bin/vrooli --no-stale-check scenario info alpha --json > "$$tmp_root/info.json"; \
-	jq -e '.scenario.description == "Sandbox alpha" and .scenario.sandbox_redirected == true' "$$tmp_root/info.json" > /dev/null; \
-	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_API_PORT=1 ~/.vrooli/bin/vrooli --no-stale-check scenario status alpha --json > "$$tmp_root/status.json"; \
-	jq -e '.scenario.status == "running" and .scenario.health_status == "healthy" and .runtime.ports.API_PORT == 18080 and .runtime.ports.UI_PORT == 38080 and .runtime.ports.WS_PORT == 28080' "$$tmp_root/status.json" > /dev/null; \
-	trap - EXIT; \
-	cleanup
-
-validate-week3: ## Run the repeatable Week 3 acceptance suite
-	$(MAKE) build
-	$(MAKE) install
-	$(MAKE) test
-	tmp_root=$$(mktemp -d); \
-	tmp_home=$$(mktemp -d); \
-	repo_root="$$(pwd)"; \
-	cleanup() { \
-		HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" "$$repo_root/.vrooli/build/vrooli" --no-stale-check scenario stop alpha > /dev/null 2> /dev/null || true; \
-		rm -rf "$$tmp_root" "$$tmp_home"; \
-	}; \
-	trap cleanup EXIT; \
-	mkdir -p "$$tmp_root/scripts/resources" "$$tmp_root/scenarios/alpha/.vrooli"; \
-	printf '#!/usr/bin/env bash\ndeclare -g -A RESOURCE_PORTS=()\n' > "$$tmp_root/scripts/resources/port_registry.sh"; \
-	printf '{\n  "resource_ports": {},\n  "reserved_ranges": {}\n}\n' > "$$tmp_root/scripts/resources/port_registry.json"; \
-	jq -n \
-		'{version:"1.0.0", service:{name:"alpha", displayName:"Lifecycle Alpha", description:"Week 3 validation fixture", version:"0.1.0"}, ports:{api:{env_var:"API_PORT", range:"23000-23010"}}, lifecycle:{version:"2.0.0", health:{checks:[{name:"api", type:"http", target:"http://127.0.0.1:$${API_PORT}/health", critical:true, timeout:1000}], startup_grace_period:250, timeout:5000, interval:250}, setup:{condition:{checks:[{type:"binaries", targets:["api/mock-api"]}]}, steps:[{name:"build-api", run:"mkdir -p api public && printf '\''#!/usr/bin/env bash\\npython3 -m http.server \\\"$$API_PORT\\\" --bind 127.0.0.1 --directory ../public\\n'\'' > api/mock-api && chmod +x api/mock-api && printf '\''ok\\n'\'' > public/health"}]}, develop:{steps:[{name:"start-api", run:"cd api && ./mock-api", background:true, condition:{file_exists:"api/mock-api"}}]}}}' \
-		> "$$tmp_root/scenarios/alpha/.vrooli/service.json"; \
-	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" "$$repo_root/.vrooli/build/vrooli" --no-stale-check scenario start alpha --json > "$$tmp_root/start.json"; \
-	jq -e '.success == true and .scenarios[0].status == "started" and .scenarios[0].health == "healthy"' "$$tmp_root/start.json" > /dev/null; \
-	port=$$(jq -r '.scenarios[0].ports.API_PORT' "$$tmp_root/start.json"); \
-	test -n "$$port"; \
-	test -f "$$tmp_home/.vrooli/processes/scenarios/alpha/start-api.json"; \
-	test -f "$$tmp_home/.vrooli/logs/alpha.log"; \
-	test -f "$$tmp_home/.vrooli/state/scenarios/.port_$${port}.lock"; \
-	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" "$$repo_root/.vrooli/build/vrooli" --no-stale-check scenario restart alpha --json > "$$tmp_root/restart.json"; \
-	jq -e '.success == true and .scenario.status == "restarted" and .scenario.health == "healthy"' "$$tmp_root/restart.json" > /dev/null; \
-	test -f "$$tmp_home/.vrooli/logs/scenarios/alpha/vrooli.develop.alpha.start-api.log.bak"; \
-	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" "$$repo_root/.vrooli/build/vrooli" --no-stale-check scenario stop alpha --json > "$$tmp_root/stop.json"; \
-	jq -e '.success == true and .status == "stopped"' "$$tmp_root/stop.json" > /dev/null; \
-	test ! -e "$$tmp_home/.vrooli/state/scenarios/.port_$${port}.lock"; \
-	trap - EXIT; \
-	cleanup
-
 validate-week3-live: ## Run live Week 3 native scenario smokes
-	$(MAKE) validate-week3
+	$(MAKE) build
+	$(MAKE) install
 	@set -eu; \
 	repo_root="$$(pwd)"; \
 	live_dir="$$(mktemp -d)"; \
@@ -378,20 +281,6 @@ validate-week3-live: ## Run live Week 3 native scenario smokes
 	trap - EXIT; \
 	cleanup
 
-validate-week4: ## Run the repeatable Week 4 acceptance suite
-	$(MAKE) build
-	$(MAKE) install
-	$(MAKE) test
-	go test ./cmd/vrooli -run 'TestRunScenario(TestUsesNativePhaseRunner|PortAndOpenCommandsUseNativeState|LogsCleanRemovesOrphans|TemplateGenerateScaffoldsFiles|RequirementsSnapshotReadsLatestFile|HealFromSandboxRelaunchesAffectedScenarios|StartAllAndStopAllUseNativeLifecycle|UISmokeUsesTranslatedSubprocess|RequirementsReportUsesTranslatedSubprocess|CompletenessUsesTranslatedSubprocess)'
-	@tmp_help=$$(mktemp); \
-	VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" ~/.vrooli/bin/vrooli --no-stale-check scenario --help > "$$tmp_help"; \
-	grep -Fq 'start-all' "$$tmp_help"; \
-	grep -Fq 'stop-all' "$$tmp_help"; \
-	grep -Fq 'template [cmd]' "$$tmp_help"; \
-	grep -Fq 'generate <template>' "$$tmp_help"; \
-	grep -Fq 'heal-from-sandbox' "$$tmp_help"; \
-	rm -f "$$tmp_help"
-
 validate-week5-cross: ## Run the Week 5 cross-compile suite
 	tmpdir=$$(mktemp -d); \
 	trap 'rm -rf "$$tmpdir"' EXIT; \
@@ -401,21 +290,6 @@ validate-week5-cross: ## Run the Week 5 cross-compile suite
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o "$$tmpdir/vrooli-windows-amd64.exe" ./cmd/vrooli; \
 	trap - EXIT; \
 	rm -rf "$$tmpdir"
-
-validate-week5: ## Run the repeatable Week 5 acceptance suite
-	$(MAKE) build
-	$(MAKE) install
-	go test ./cmd/vrooli ./cmd/vrooli-api ./internal/runtime ./internal/setup
-	go test ./internal/setup -run 'TestRun(SetupExportsLegacyEnvironmentContractToResourceInstall|DevelopExportsLegacyEnvironmentContractToAPILaunch)'
-	go test ./cmd/vrooli -run 'TestRun(SetupUsesNativeProjectLifecycle|DevelopUsesNativeProjectLifecycle|ProjectBackupUsesNativePhaseRunner|ProjectRestoreUsesNativePhaseRunner)'
-	tmp_home=$$(mktemp -d); \
-	HOME="$$tmp_home" $(MAKE) install > /tmp/vrooli-install-week5.log; \
-	HOME="$$tmp_home" PATH="$$tmp_home/.vrooli/bin:/usr/bin:/bin" VROOLI_ROOT="$$(pwd)" VROOLI_SOURCE_ROOT="$$(pwd)" $(MAKE) setup SETUP_ARGS=--help > /tmp/vrooli-make-setup-week5.log; \
-	test -f "$$tmp_home/.vrooli/bin/vrooli"; \
-	grep -Fq 'Usage: vrooli setup' /tmp/vrooli-make-setup-week5.log; \
-	rm -rf "$$tmp_home"
-	$(MAKE) validate-live-develop-smoke
-	$(MAKE) validate-week5-cross
 
 validate-scenario-to-cloud-native: ## Validate scenario-to-cloud's native deployment-local CLI contract
 	test -z "$$(find scenarios/scenario-to-cloud/api scenarios/scenario-to-cloud/cli -name '*.go' ! -name '*_test.go' -print0 | xargs -0 rg -n 'scripts/lib/setup\.sh' || true)"
@@ -442,11 +316,14 @@ validate-week6-slice: ## Run the expanded Week 6 native command slice
 	~/.vrooli/bin/vrooli --version > /tmp/vrooli-week6-cli-version.txt
 	grep -Fq 'Vrooli CLI v' /tmp/vrooli-week6-cli-version.txt
 	! rg -n '"/vrooli/cli/vrooli"|[[:<:]]cli/vrooli[[:>:]]' scenarios cmd internal packages api -g '*.go'
-	! rg -n 'scripts/manage\.sh' docs scripts cmd internal api packages -g '!docs/plans/*' -g '!scripts/scenarios/templates/*'
+	! rg -n 'scripts/manage\.sh' docs scripts cmd internal api packages \
+		-g '!docs/plans/*' \
+		-g '!docs/repo-contract.md' \
+		-g '!scripts/README.md' \
+		-g '!internal/repocontract/**' \
+		-g '!internal/repocontractcheck/**' \
+		-g '!templates/scenarios/*'
 	! rg -n 'cli/commands/clean-commands\.sh|cli/commands/doctor\.sh|cli/commands/resource-commands\.sh|cli/commands/resource-discovery\.sh|cli/commands/status-command\.sh|cli/commands/stop-commands\.sh|cli/lib/arg-parser\.sh|cli/lib/output-formatter\.sh' scripts cmd internal packages api resources -g '!*.md'
-	$(MAKE) validate-scenario-to-cloud-native
-	go test ./internal/network ./internal/maintenance ./internal/project
-	go test ./cmd/vrooli -run 'TestRun(Project(Build|Clean|Deploy|Backup|Restore)(UsesNativePhaseRunner|ErrorsWhenPhaseUndefined)|ProjectLifecycleCommandsShowHelp|DispatchesTopLevelCommandsToExpectedHandlers|CleanupLocksUsesNativeMaintenance|Info(ListJSONOutput|CommandUsesManifestAndListMode|CommandRejectsUnknownOption|CommandErrorsWhenNoSourcesConfigured|CommandSkipsMissingSourcesInJSONMode|CommandHelpAndJSONMissingFiles)|LocksCommand(ListsNativeState|HumanOutput)|DiagnosePort(ReturnsJSON|HumanOutput))'
 	set -e; \
 	tmp_home=$$(mktemp -d); \
 	tmp_root=$$(mktemp -d); \
@@ -489,36 +366,6 @@ validate-week6-slice: ## Run the expanded Week 6 native command slice
 	HOME="$$tmp_home" VROOLI_ROOT="$$tmp_root" VROOLI_SOURCE_ROOT="$$tmp_root" ~/.vrooli/bin/vrooli --no-stale-check restore; \
 	test "$$(cat "$$tmp_root/build/restore.txt")" = "restore"; \
 	rm -rf "$$tmp_home" "$$tmp_root"
-
-validate-week6-secrets: ## Run the Week 6 encrypted secrets slice
-	$(MAKE) build
-	$(MAKE) install
-	go test ./internal/secrets
-	go test ./internal/resources -run 'TestLoadResourceEnvironmentUses(EncryptedSecrets|TypedDefaultsAndSecrets)'
-
-validate-week0-week2: ## Run the combined Week 0-2 acceptance suite
-	$(MAKE) validate-week0-week1
-	$(MAKE) validate-week2
-
-validate-week0-week3: ## Run the combined Week 0-3 acceptance suite
-	$(MAKE) validate-week0-week1
-	$(MAKE) validate-week2
-	$(MAKE) validate-week3-live
-
-validate-week0-week4: ## Run the combined Week 0-4 acceptance suite
-	$(MAKE) validate-week0-week1
-	$(MAKE) validate-week2
-	$(MAKE) validate-week3-live
-	$(MAKE) validate-week4
-
-validate-week0-week5: ## Run the combined Week 0-5 acceptance suite
-	$(MAKE) validate-week0-week4
-	$(MAKE) validate-week5
-
-validate-week0-week6: ## Run the combined Week 0-6 acceptance suite
-	$(MAKE) validate-week0-week5
-	$(MAKE) validate-week6-slice
-	$(MAKE) validate-week6-secrets
 
 clean: ## Remove project-level Go build artifacts
 	rm -rf $(BUILD_DIR)

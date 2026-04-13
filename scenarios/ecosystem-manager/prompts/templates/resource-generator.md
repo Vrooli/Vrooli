@@ -582,7 +582,7 @@ Based on research, choose approach:
 
 ```bash
 # Option A: Copy from the official scenario template
-cp -r {{PROJECT_PATH}}/scripts/scenarios/templates/react-vite/ {{PROJECT_PATH}}/scenarios/{{TARGET}}/
+cp -r {{PROJECT_PATH}}/templates/scenarios/react-vite/ {{PROJECT_PATH}}/scenarios/{{TARGET}}/
 
 # Option B: Copy from similar existing
 cp -r scenarios/[similar-scenario]/* scenarios/[new-name]/

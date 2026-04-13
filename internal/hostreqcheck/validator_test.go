@@ -9,8 +9,8 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/testfixture"
-	"github.com/vrooli/vrooli/internal/testutil"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
 func TestValidateReportsUndeclaredReferencesMissingHandlersAndRootOverreach(t *testing.T) {
@@ -30,7 +30,7 @@ func TestValidateReportsUndeclaredReferencesMissingHandlersAndRootOverreach(t *t
 			{Name: "x11vnc", Required: false, Reason: "desktop bridge"},
 		},
 	})
-	testutil.WriteFile(t, filepath.Join(root, "scenarios", "alpha", "api", "main.go"), `package main
+	testkitgo.WriteFile(t, filepath.Join(root, "scenarios", "alpha", "api", "main.go"), `package main
 
 import "os/exec"
 
@@ -43,7 +43,7 @@ func main() {
 		Binary:          "beta",
 		PortabilityTier: "full",
 	})
-	testutil.WriteFile(t, filepath.Join(root, "resources", "beta", "lib", "install.sh"), `#!/usr/bin/env bash
+	testkitgo.WriteFile(t, filepath.Join(root, "resources", "beta", "lib", "install.sh"), `#!/usr/bin/env bash
 echo ffmpeg`)
 
 	report, err := Validate(root, home)
@@ -57,7 +57,7 @@ echo ffmpeg`)
 }
 
 func TestCurrentRepoPhase4DeclarationsPresent(t *testing.T) {
-	root := testutil.ProjectRoot(t)
+	root := testkitgo.ProjectRoot(t)
 
 	assertManifestContainsTool(t, filepath.Join(root, ".vrooli", "service.json"), "git")
 	assertManifestContainsTool(t, filepath.Join(root, ".vrooli", "service.json"), "curl")
@@ -80,7 +80,7 @@ func TestCurrentRepoPhase4DeclarationsPresent(t *testing.T) {
 }
 
 func TestCurrentRepoPhase4ValidatorIsClean(t *testing.T) {
-	root := testutil.ProjectRoot(t)
+	root := testkitgo.ProjectRoot(t)
 	report, err := Validate(root, t.TempDir())
 	if err != nil {
 		t.Fatalf("Validate: %v", err)
@@ -123,7 +123,7 @@ func TestContainsCandidateReferenceIgnoresCommentsAndHyphenatedNames(t *testing.
 func assertManifestContainsTool(t *testing.T, path, name string) {
 	t.Helper()
 	names := manifestToolNames(t, path)
-	if !testutil.ContainsString(names, name) {
+	if !testkitgo.ContainsString(names, name) {
 		t.Fatalf("%s does not declare %q", path, name)
 	}
 }
@@ -131,7 +131,7 @@ func assertManifestContainsTool(t *testing.T, path, name string) {
 func assertManifestLacksTool(t *testing.T, path, name string) {
 	t.Helper()
 	names := manifestToolNames(t, path)
-	if testutil.ContainsString(names, name) {
+	if testkitgo.ContainsString(names, name) {
 		t.Fatalf("%s unexpectedly declares %q", path, name)
 	}
 }

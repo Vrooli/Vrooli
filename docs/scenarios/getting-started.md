@@ -102,7 +102,7 @@ test_scenario
 
 ### Choose Your Template
 
-Vrooli currently ships a single, production-ready template optimized for React + TypeScript + Vite + shadcn/ui + lucide (UI) with a Go API backend: `scripts/scenarios/templates/react-vite/`. Always start from an existing template rather than inventing a new one. We may add new ones in the future if the need arises.
+Vrooli currently ships a single, production-ready template optimized for React + TypeScript + Vite + shadcn/ui + lucide (UI) with a Go API backend: `templates/scenarios/react-vite/`. Always start from an existing template rather than inventing a new one. We may add new ones in the future if the need arises.
 
 ```bash
 # 1. Inspect the available templates

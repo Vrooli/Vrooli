@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/testutil"
 	"github.com/vrooli/vrooli/internal/vroolierr"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 func TestResolveCLIPathUsesInstalledResourceCommand(t *testing.T) {
@@ -28,7 +28,7 @@ func TestResolveCLIPathUsesInstalledResourceCommand(t *testing.T) {
 func TestCommandForResourceFallsBackToLocalScript(t *testing.T) {
 	root := t.TempDir()
 	scriptPath := filepath.Join(root, "resources", "redis", "cli.sh")
-	testutil.WriteExecutable(t, scriptPath, "#!/usr/bin/env bash\nexit 0\n")
+	testkitgo.WriteExecutable(t, scriptPath, "#!/usr/bin/env bash\nexit 0\n")
 
 	service := New(root, "/home/test", func(name string) (string, error) {
 		return "", os.ErrNotExist

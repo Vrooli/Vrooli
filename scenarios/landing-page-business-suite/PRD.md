@@ -207,7 +207,7 @@
 - **Resource postgres**: `scripts/resources/resource-postgres/`
 - **Lifecycle system**: `scripts/lib/lifecycle/`
 - **Testing architecture**: `docs/testing/architecture/PHASED_TESTING.md`
-- **Template system**: `scripts/scenarios/templates/`
+- **Template system**: `templates/scenarios/`
 
 ### Design Decisions
 

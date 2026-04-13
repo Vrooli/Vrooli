@@ -239,7 +239,7 @@ CREATE TABLE audit_results (
 ## 📚 Resources
 
 ### Internal
-- [PRD Template](/scripts/scenarios/templates/react-vite/PRD.md)
+- [PRD Template](/templates/scenarios/react-vite/PRD.md)
 - [Scenario Auditor](/scenarios/scenario-auditor/README.md)
 - [Ecosystem Manager](/scenarios/ecosystem-manager/README.md)
 
