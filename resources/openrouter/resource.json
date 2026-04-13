@@ -12,6 +12,23 @@
     ],
     "secret_ref": "secret/openrouter"
   },
+  "environment_exports": {
+    "static": {
+      "OPENROUTER_API_BASE": "https://openrouter.ai/api/v1",
+      "OPENROUTER_DEFAULT_MODEL": "openai/gpt-3.5-turbo"
+    },
+    "from_runtime_env": [
+      "OPENROUTER_API_KEY"
+    ],
+    "derived": {
+      "OPENROUTER_URL": {
+        "template": "${OPENROUTER_API_BASE}"
+      },
+      "RESOURCE_OPENROUTER_URL": {
+        "template": "${OPENROUTER_API_BASE}"
+      }
+    }
+  },
   "portability_tier": "full",
   "category": "hosted-service",
   "platforms": {

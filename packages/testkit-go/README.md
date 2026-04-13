@@ -84,6 +84,17 @@ testkitvrooli.WriteScenarioService(t, fixture.Root, "alpha", manifest)
 
 When a Go test needs a valid Vrooli repo fixture or valid manifest fixture, the default path should be `testkit-go`, not local handwritten JSON or duplicated repo setup.
 
+## Package Governance
+
+`testkit-go` is governed, but it is not a scenario-adoptable runtime package.
+
+- Scenario-adoptable: no
+- Allowed consumer classes: `internal_platform`
+- Supported adoption modes: none for governed external scenario/template/resource consumers
+- Refresh strategy: none
+
+This package exists for shared Go test infrastructure inside the platform and related governed packages. Scenarios should not adopt it directly. See [docs/package-governance.md](/home/matthalloran8/Vrooli/docs/package-governance.md:1) for the canonical policy.
+
 Raw JSON/string fixtures should remain only for:
 
 - negative tests validating malformed input handling

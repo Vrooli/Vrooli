@@ -43,7 +43,7 @@ importers:
         version: file:../../../packages/iframe-bridge
       '@vrooli/proto-types':
         specifier: file:../../../packages/proto/gen/typescript
-        version: file:../../../packages/proto/gen/typescript(@bufbuild/protobuf@2.10.2)
+        version: file:../../../packages/proto/gen/typescript
       class-variance-authority:
         specifier: ^0.7.0
         version: 0.7.1
@@ -1244,8 +1244,6 @@ packages:
   '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
     resolution: {directory: ../../../packages/proto/gen/typescript, type: directory}
     engines: {node: '>=18.0.0'}
-    peerDependencies:
-      '@bufbuild/protobuf': ^2.10.1
 
   accepts@1.3.8:
     resolution: {integrity: sha512-PYAthTa2m2VKxuvSD3DPC/Gy+U+sOA1LAuT8mkmRuvw+NACSaeXEQ+NHcVF7rONl6qcaxV3Uuemwawk+7+SJLw==}
@@ -4222,7 +4220,7 @@ snapshots:
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 
-  '@vrooli/proto-types@file:../../../packages/proto/gen/typescript(@bufbuild/protobuf@2.10.2)':
+  '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
     dependencies:
       '@bufbuild/protobuf': 2.10.2
 

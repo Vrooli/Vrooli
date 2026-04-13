@@ -61,6 +61,41 @@
       ":9001"
     ]
   },
+  "environment_exports": {
+    "static": {
+      "MINIO_HOST": "localhost"
+    },
+    "from_ports": {
+      "MINIO_PORT": "api",
+      "MINIO_CONSOLE_PORT": "console"
+    },
+    "from_runtime_env": [
+      "MINIO_ROOT_USER",
+      "MINIO_ROOT_PASSWORD",
+      "MINIO_BROWSER",
+      "MINIO_REGION"
+    ],
+    "derived": {
+      "MINIO_URL": {
+        "template": "http://${MINIO_HOST}:${MINIO_PORT}"
+      },
+      "MINIO_BASE_URL": {
+        "template": "${MINIO_URL}"
+      },
+      "MINIO_ENDPOINT": {
+        "template": "${MINIO_HOST}:${MINIO_PORT}"
+      },
+      "MINIO_CONSOLE_URL": {
+        "template": "http://${MINIO_HOST}:${MINIO_CONSOLE_PORT}"
+      },
+      "MINIO_ACCESS_KEY": {
+        "template": "${MINIO_ROOT_USER}"
+      },
+      "MINIO_SECRET_KEY": {
+        "template": "${MINIO_ROOT_PASSWORD}"
+      }
+    }
+  },
   "lifecycle": {
     "start_timeout_seconds": 60,
     "stop_timeout_seconds": 30,

@@ -37,6 +37,28 @@
       "UNSTRUCTURED_API_PORT": "8000"
     }
   },
+  "environment_exports": {
+    "static": {
+      "UNSTRUCTURED_HOST": "localhost"
+    },
+    "from_ports": {
+      "UNSTRUCTURED_PORT": "http"
+    },
+    "from_runtime_env": [
+      "UNSTRUCTURED_API_LOG_LEVEL",
+      "UNSTRUCTURED_API_MAX_REQUEST_SIZE",
+      "UNSTRUCTURED_API_WORKERS",
+      "UNSTRUCTURED_API_PORT"
+    ],
+    "derived": {
+      "UNSTRUCTURED_URL": {
+        "template": "http://${UNSTRUCTURED_HOST}:${UNSTRUCTURED_PORT}"
+      },
+      "UNSTRUCTURED_IO_URL": {
+        "template": "${UNSTRUCTURED_URL}"
+      }
+    }
+  },
   "lifecycle": {
     "start_timeout_seconds": 60,
     "stop_timeout_seconds": 30,

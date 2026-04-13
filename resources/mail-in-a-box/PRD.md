@@ -34,7 +34,7 @@
 
 - [x] **Webmail Access**: Roundcube interface accessible
   - Acceptance: Can login and use webmail
-  - Test: Browse to http://localhost:8880
+  - Test: Browse to http://localhost:8881
   - Status: ✅ Roundcube webmail added via docker-compose
 
 ### P1 Requirements (Should Have)
@@ -102,7 +102,7 @@
 - 993: IMAPS
 - 995: POP3S
 - 8543: Admin Panel (REST API)
-- 8880: Webmail (Roundcube)
+- 8881: Webmail (Roundcube)
 - 5232: CalDAV/CardDAV (Radicale)
 
 ## Success Metrics
@@ -186,7 +186,7 @@
 
 ### 2025-09-16: Infrastructure Improvements
 - ✅ Fixed docker-compose volume mount paths (changed from /var/lib to $HOME)
-- ✅ Resolved port conflicts (changed webmail from 8080 to 8880)
+- ✅ Resolved port conflicts (changed webmail from 8080 to 8881)
 - ✅ Fixed directory creation in installation script
 - ✅ Updated all documentation with correct ports
 - ✅ Verified all services are operational (mail, webmail, CalDAV)
@@ -197,7 +197,7 @@
 ### 2025-09-26: Test Suite and Container Health Improvements
 - ✅ Fixed Docker healthcheck configuration (changed from CMD to CMD-SHELL for proper pipe support)
 - ✅ Fixed integration test docker ps checks (improved container detection accuracy)
-- ✅ Corrected webmail test port from 8080 to 8880
+- ✅ Corrected webmail test port from 8080 to 8881
 - ✅ Fixed API list_accounts function name reference
 - ✅ All test suites now pass: Smoke (7/7), Unit (19/19), Integration (10/10)
 - Container health status: All containers (mail, webmail, caldav) report healthy
@@ -205,7 +205,7 @@
 - Progress: 100% → 100% (Improved reliability and test accuracy)
 
 ### 2025-09-26: Final Validation and Minor Fixes
-- ✅ Fixed monitoring script webmail port (8080 → 8880)
+- ✅ Fixed monitoring script webmail port (8080 → 8881)
 - ✅ Validated all P0 requirements functional (5/5)
 - ✅ Validated all P1 requirements functional (4/4)
 - ✅ Validated all P2 requirements functional (3/3)

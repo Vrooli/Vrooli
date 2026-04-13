@@ -322,35 +322,6 @@
       }
     }
   },
-  "deployment": {
-    "monitoring": {
-      "enabled": true,
-      "healthChecks": {
-        "application": {
-          "endpoint": "http://localhost:3000/api/health",
-          "interval": "30s",
-          "threshold": 3,
-          "timeout": "5s",
-          "type": "http"
-        },
-        "database": {
-          "interval": "30s",
-          "type": "tcp"
-        },
-        "redis": {
-          "interval": "30s",
-          "type": "tcp"
-        }
-      }
-    },
-    "strategy": "rolling-update",
-    "target": "docker",
-    "urls": {
-      "api": "http://localhost:3000/api",
-      "application": "http://localhost:3000",
-      "health": "http://localhost:3000/api/health"
-    }
-  },
   "lifecycle": {
     "build": {
       "description": "Prepare build environment",
@@ -387,50 +358,6 @@
         }
       ]
     },
-    "develop": {
-      "description": "Prepare development environment",
-      "steps": [
-        {
-          "description": "Load environment variables from .env if exists",
-          "name": "load-env",
-          "run": "if [[ -f .env ]]; then echo 'Loading .env file' \u0026\u0026 set -a \u0026\u0026 source .env \u0026\u0026 set +a; else echo 'No .env file found'; fi"
-        },
-        {
-          "description": "Start the Vrooli unified API server with built-in scenario management",
-          "name": "start-api",
-          "run": "if [[ -f api/start.sh ]]; then mkdir -p .vrooli/logs \u0026\u0026 log_file=.vrooli/logs/vrooli-api.log \u0026\u0026 (APP_ROOT=$(pwd) VROOLI_ROOT=$(pwd) VROOLI_API_PORT=${VROOLI_API_PORT:-8092} api/start.sh \u0026\u003e \"$log_file\" \u0026) \u0026\u0026 api_healthy=false \u0026\u0026 for attempt in $(seq 1 30); do if curl -fsS \"http://127.0.0.1:${VROOLI_API_PORT:-8092}/health\" \u003e/dev/null; then api_healthy=true; break; fi; sleep 1; done \u0026\u0026 if [[ \"$api_healthy\" == true ]]; then echo \"🚀 Vrooli API healthy on port ${VROOLI_API_PORT:-8092} with native scenario management\"; else echo \"❌ Vrooli API failed health check on port ${VROOLI_API_PORT:-8092}\"; tail -n 20 \"$log_file\"; exit 1; fi; else echo '⚠️  API not found'; exit 1; fi"
-        },
-        {
-          "background": false,
-          "description": "Start orchestrator after API is ready",
-          "name": "start-orchestrator",
-          "run": "sleep 5 \u0026\u0026 echo '🎬 Starting orchestrator...' \u0026\u0026 vrooli scenario start vrooli-orchestrator"
-        }
-      ]
-    },
-    "setup": {
-      "condition": {
-        "checks": [
-          {
-            "path": "data",
-            "type": "data"
-          }
-        ]
-      },
-      "description": "Initialize system for scenario development",
-      "steps": [
-        {
-          "description": "Install Vrooli CLI command",
-          "name": "install-cli",
-          "run": "if command -v make \u003e/dev/null 2\u003e\u00261 \u0026\u0026 [[ -f Makefile ]]; then make install; else echo '⚠️  make or Makefile not found, skipping CLI install'; fi"
-        },
-        {
-          "description": "Add app data to resources (skipped during setup)",
-          "name": "add-data",
-          "run": "echo '[INFO] Skipping resource population during setup - resources are ready for manual population when needed'"
-        }
-      ]
-    },
     "version": "2.0.2"
   },
   "ports": {
@@ -438,16 +365,6 @@
       "description": "Vrooli unified API server for orchestration and resource management",
       "env_var": "VROOLI_API_PORT",
       "port": 8092
-    },
-    "health": {
-      "description": "Health check and monitoring endpoint",
-      "env_var": "HEALTH_PORT",
-      "port": 3001
-    },
-    "orchestrator": {
-      "description": "Scenario orchestrator API for managing running scenarios",
-      "env_var": "ORCHESTRATOR_PORT",
-      "port": 9500
     }
   },
   "service": {

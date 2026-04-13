@@ -26,6 +26,22 @@
       "timeout_seconds": 15
     }
   ],
+  "environment_exports": {
+    "static": {
+      "OPENCODE_PATH": "opencode"
+    },
+    "derived": {
+      "OPENCODE_DATA_DIR": {
+        "template": "${VROOLI_DATA}/opencode"
+      },
+      "OPENCODE_XDG_CONFIG_HOME": {
+        "template": "${OPENCODE_DATA_DIR}/xdg-config"
+      },
+      "OPENCODE_XDG_DATA_HOME": {
+        "template": "${OPENCODE_DATA_DIR}/xdg-data"
+      }
+    }
+  },
   "install": {
     "platforms": {
       "linux": [

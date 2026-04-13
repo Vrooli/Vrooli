@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 type RepoFixture struct {
@@ -82,7 +84,7 @@ func ProjectRoot(t *testing.T) string {
 func WriteRepoContract(t *testing.T, root, scenarioDir string) {
 	t.Helper()
 	projectRoot := ProjectRoot(t)
-	contractPath := filepath.Join(projectRoot, ".vrooli", "repo-contract.json")
+	contractPath := repocontractmeta.ContractPath(projectRoot)
 	data, err := os.ReadFile(contractPath)
 	if err != nil {
 		t.Fatalf("read live repo contract: %v", err)
@@ -132,7 +134,7 @@ func WriteRepoContract(t *testing.T, root, scenarioDir string) {
 		}
 	}
 	WriteFile(t, filepath.Join(root, "go.mod"), "module test\n")
-	WriteJSON(t, filepath.Join(root, ".vrooli", "repo-contract.json"), doc)
+	WriteJSON(t, repocontractmeta.ContractPath(root), doc)
 }
 
 func DefaultRepoSupportDocs() RepoSupportDocs {
@@ -176,8 +178,8 @@ func DefaultRepoSupportDocs() RepoSupportDocs {
 
 func WriteRepoContractExceptions(t *testing.T, root string) {
 	t.Helper()
-	WriteJSON(t, filepath.Join(root, ".vrooli", "repo-contract-adoption-exceptions.json"), map[string]any{
-		"version":    "1.0.0",
+	WriteJSON(t, repocontractmeta.AdoptionExceptionsPath(root), map[string]any{
+		"version":    repocontractmeta.DefaultContractVersion,
 		"exceptions": []any{},
 	})
 }

@@ -47,6 +47,29 @@
       }
     ]
   },
+  "environment_exports": {
+    "static": {
+      "QDRANT_HOST": "localhost"
+    },
+    "from_ports": {
+      "QDRANT_PORT": "http",
+      "QDRANT_GRPC_PORT": "grpc"
+    },
+    "from_runtime_env": [
+      "QDRANT_API_KEY"
+    ],
+    "derived": {
+      "QDRANT_URL": {
+        "template": "http://${QDRANT_HOST}:${QDRANT_PORT}"
+      },
+      "QDRANT_BASE_URL": {
+        "template": "${QDRANT_URL}"
+      },
+      "QDRANT_GRPC_URL": {
+        "template": "grpc://${QDRANT_HOST}:${QDRANT_GRPC_PORT}"
+      }
+    }
+  },
   "lifecycle": {
     "start_timeout_seconds": 25,
     "stop_timeout_seconds": 30,

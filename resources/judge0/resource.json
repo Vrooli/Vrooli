@@ -20,6 +20,26 @@
       "host": 2358
     }
   ],
+  "environment_exports": {
+    "static": {
+      "JUDGE0_HOST": "localhost",
+      "JUDGE0_API_PREFIX": "/api/v1"
+    },
+    "from_ports": {
+      "JUDGE0_PORT": "http"
+    },
+    "from_runtime_env": [
+      "JUDGE0_API_KEY"
+    ],
+    "derived": {
+      "JUDGE0_BASE_URL": {
+        "template": "http://${JUDGE0_HOST}:${JUDGE0_PORT}"
+      },
+      "JUDGE0_URL": {
+        "template": "${JUDGE0_BASE_URL}"
+      }
+    }
+  },
   "health_checks": [
     {
       "type": "http",

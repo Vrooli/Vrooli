@@ -65,6 +65,22 @@
       }
     ]
   },
+  "environment_exports": {
+    "static": {
+      "COMFYUI_HOST": "localhost"
+    },
+    "from_ports": {
+      "COMFYUI_PORT": "http"
+    },
+    "derived": {
+      "COMFYUI_URL": {
+        "template": "http://${COMFYUI_HOST}:${COMFYUI_PORT}"
+      },
+      "COMFYUI_BASE_URL": {
+        "template": "${COMFYUI_URL}"
+      }
+    }
+  },
   "lifecycle": {
     "start_timeout_seconds": 120,
     "stop_timeout_seconds": 30,

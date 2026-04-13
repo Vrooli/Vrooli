@@ -5,7 +5,7 @@ All-in-one email server with webmail, contacts, calendar, and file storage capab
 ## Features
 
 - **Complete Email Server**: SMTP, IMAP, POP3 with TLS support
-- **Webmail Interface**: Roundcube for web-based email access (port 8880)
+- **Webmail Interface**: Roundcube for web-based email access (port 8881)
 - **Calendar & Contacts**: CalDAV and CardDAV support (port 5232)
 - **Spam Protection**: SpamAssassin, greylisting, and fail2ban
 - **Auto-configuration**: Automatic email client configuration

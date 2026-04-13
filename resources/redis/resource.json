@@ -60,6 +60,26 @@
       }
     ]
   },
+  "environment_exports": {
+    "static": {
+      "REDIS_HOST": "localhost",
+      "REDIS_DB": "0"
+    },
+    "from_ports": {
+      "REDIS_PORT": "redis"
+    },
+    "from_runtime_env": [
+      "REDIS_PASSWORD"
+    ],
+    "derived": {
+      "REDIS_URL": {
+        "template": "redis://${REDIS_HOST}:${REDIS_PORT}"
+      },
+      "REDIS_BASE_URL": {
+        "template": "${REDIS_URL}"
+      }
+    }
+  },
   "lifecycle": {
     "start_timeout_seconds": 15,
     "stop_timeout_seconds": 30,

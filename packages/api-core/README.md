@@ -42,6 +42,25 @@ server.Start()
 }
 ```
 
+## Package Governance
+
+`api-core` is a governed shared package.
+
+- Scenario-adoptable: yes
+- Allowed consumer classes: `scenario_api`, `scenario_cli`, `scenario_test`, `template_api`, `template_cli`
+- Supported adoption mode: `go_module_replace`
+- Refresh strategy: restart/rebuild assistance for affected running consumers rather than JS-style scenario setup propagation
+
+Use the native package-governance surface:
+
+```bash
+vrooli package info api-core
+vrooli package dependents api-core
+vrooli package refresh api-core all --no-restart
+```
+
+Scenarios adopting `api-core` must keep local `replace` directives explicit and must not rely on workspace coupling. See [docs/package-governance.md](/home/matthalloran8/Vrooli/docs/package-governance.md:1) for the canonical policy.
+
 ## Database Connections
 
 The `database` package provides database connections with automatic configuration from environment variables and retry with exponential backoff.

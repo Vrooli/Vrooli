@@ -32,7 +32,7 @@ services:
     depends_on:
       - mail
     ports:
-      - "127.0.0.1:8880:80"
+      - "127.0.0.1:8881:80"
     environment:
       - ROUNDCUBEMAIL_DEFAULT_HOST=ssl://mail
       - ROUNDCUBEMAIL_DEFAULT_PORT=993

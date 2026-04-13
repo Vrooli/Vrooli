@@ -52,6 +52,26 @@
       }
     ]
   },
+  "environment_exports": {
+    "static": {
+      "SEARXNG_SERVICE_HOST": "localhost"
+    },
+    "from_ports": {
+      "SEARXNG_PORT": "http"
+    },
+    "from_runtime_env": [
+      "SEARXNG_BASE_URL",
+      "SEARXNG_SECRET"
+    ],
+    "derived": {
+      "SEARXNG_URL": {
+        "template": "http://${SEARXNG_SERVICE_HOST}:${SEARXNG_PORT}"
+      },
+      "SEARXNG_HOST": {
+        "template": "${SEARXNG_URL}"
+      }
+    }
+  },
   "lifecycle": {
     "start_timeout_seconds": 60,
     "stop_timeout_seconds": 30,

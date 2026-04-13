@@ -26,6 +26,12 @@
       "timeout_seconds": 15
     }
   ],
+  "environment_exports": {
+    "static": {
+      "CLAUDE_CODE_PATH": "claude",
+      "CLAUDE_CODE_URL": "http://localhost:8100"
+    }
+  },
   "install": {
     "platforms": {
       "linux": [

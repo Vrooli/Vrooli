@@ -66,6 +66,23 @@
       "-dev-listen-address=0.0.0.0:8200"
     ]
   },
+  "environment_exports": {
+    "static": {
+      "VAULT_HOST": "localhost",
+      "VAULT_TOKEN": "myroot"
+    },
+    "from_ports": {
+      "VAULT_PORT": "http"
+    },
+    "derived": {
+      "VAULT_URL": {
+        "template": "http://${VAULT_HOST}:${VAULT_PORT}"
+      },
+      "VAULT_ADDR": {
+        "template": "${VAULT_URL}"
+      }
+    }
+  },
   "lifecycle": {
     "start_timeout_seconds": 60,
     "stop_timeout_seconds": 30,

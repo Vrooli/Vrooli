@@ -109,7 +109,7 @@
             "source_dir": "ui/src"
           },
           {
-            "type": "directory",
+            "type": "directories",
             "targets": [
               "queue/pending",
               "queue/in-progress",

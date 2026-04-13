@@ -151,7 +151,7 @@ test_webmail() {
     # Check if Roundcube container is running
     if docker ps --format "{{.Names}}" | grep -q "^mailinabox-webmail$"; then
         local response_code
-        response_code=$(timeout 5 curl -sk -o /dev/null -w "%{http_code}" "http://localhost:8880" 2>/dev/null || echo "000")
+        response_code=$(timeout 5 curl -sk -o /dev/null -w "%{http_code}" "http://localhost:8881" 2>/dev/null || echo "000")
         
         if [[ "$response_code" == "200" ]] || [[ "$response_code" == "302" ]]; then
             test_pass "Roundcube webmail accessible (HTTP $response_code)"

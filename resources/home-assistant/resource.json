@@ -20,6 +20,26 @@
       "host": 8123
     }
   ],
+  "environment_exports": {
+    "static": {
+      "HOME_ASSISTANT_HOST": "localhost",
+      "HOME_ASSISTANT_CONTAINER_NAME": "home-assistant"
+    },
+    "from_ports": {
+      "HOME_ASSISTANT_PORT": "http"
+    },
+    "from_runtime_env": [
+      "HOME_ASSISTANT_TOKEN"
+    ],
+    "derived": {
+      "HOME_ASSISTANT_BASE_URL": {
+        "template": "http://${HOME_ASSISTANT_HOST}:${HOME_ASSISTANT_PORT}"
+      },
+      "HOME_ASSISTANT_URL": {
+        "template": "${HOME_ASSISTANT_BASE_URL}"
+      }
+    }
+  },
   "health_checks": [
     {
       "type": "http",

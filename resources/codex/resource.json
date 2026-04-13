@@ -35,6 +35,11 @@
       "timeout_seconds": 15
     }
   ],
+  "environment_exports": {
+    "static": {
+      "CODEX_PATH": "codex"
+    }
+  },
   "install": {
     "platforms": {
       "linux": [

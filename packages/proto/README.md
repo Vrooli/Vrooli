@@ -81,11 +81,31 @@ parsed = json_format.ParseDict(
 )
 ```
 
-## Workspace usage
+## Adoption
 
-- Go: scenarios that import `github.com/vrooli/vrooli/packages/proto/gen/go/...` should add a `replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto` (path adjusted per module) so local proto iteration does not depend on a repo-wide `go.work`. Go package names mirror scenario slugs with underscores, e.g. `browser_automation_studio_v1` and `landing_page_react_vite_v1`.
-- TypeScript/JavaScript: `@vrooli/proto-types` is published from `gen/typescript` (ESM JS lives under `js/`) and linked via the pnpm workspace.
+- Go: scenarios that import `github.com/vrooli/vrooli/packages/proto/gen/go/...` must add a local `replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto` (path adjusted per module) so proto adoption stays explicit and workspace-independent. Go package names mirror scenario slugs with underscores, e.g. `browser_automation_studio_v1` and `landing_page_react_vite_v1`.
+- TypeScript/JavaScript: `@vrooli/proto-types` is published from `gen/typescript` (ESM JS lives under `js/`) and adopted by isolated consumers via governed local `file:` dependencies rather than a shared workspace.
 - Python: generated under `packages/proto/gen/python`; Tier 1 import support is not guaranteed yet (Protovalidate annotations require additional Python packaging), but you can install this directory in editable mode for local experiments.
+
+## Package Governance
+
+`proto` is a governed schema/contract package that owns its generated outputs, including `@vrooli/proto-types`.
+
+- Scenario-adoptable: yes
+- Allowed consumer classes: `scenario_ui`, `template_ui`, `scenario_test`, `scenario_api`, `scenario_cli`, `template_api`, `template_cli`
+- Supported adoption modes: `file_dependency`, `go_module_replace`, `generated_artifact`
+- Refresh strategy: generate first, then apply consumer-specific refresh behavior
+
+Canonical operator flow:
+
+```bash
+vrooli package info proto
+vrooli package generate proto
+vrooli package dependents proto
+vrooli package refresh proto all --no-restart
+```
+
+`make generate` remains useful when working directly inside `packages/proto`, but the governed repo-wide operator surface is `vrooli package generate/refresh`. See [docs/package-governance.md](/home/matthalloran8/Vrooli/docs/package-governance.md:1) for the canonical policy.
 
 ## Language support matrix
 
@@ -174,7 +194,7 @@ make check
 
 ### 5. Import in your scenario
 
-- **Go**: Add a `replace` directive or use `go.work` to point to local protos
+- **Go**: Add the required local `replace` directive to point at `packages/proto`
 - **TypeScript**: Import from `@vrooli/proto-types/<scenario-name>/v1/<file>_pb`
 - **Python**: Import from `<scenario_name>.v1.<file>_pb2`
 

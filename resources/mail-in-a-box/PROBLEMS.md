@@ -15,7 +15,7 @@ Successfully enhanced docker-mailserver with complementary features:
 ### Current Capabilities
 **Working Features**:
 - SMTP/IMAP/POP3 email services
-- Roundcube webmail interface (port 8880)
+- Roundcube webmail interface (port 8881)
 - REST API for account management
 - Email alias support
 - SpamAssassin filtering
@@ -70,12 +70,12 @@ Container was marked as unhealthy even though services were running correctly, c
 ## Test Suite Issues (RESOLVED 2025-09-26)
 
 ### Problems Found
-1. **Webmail port mismatch**: Integration tests checking port 8080 instead of 8880
+1. **Webmail port mismatch**: Integration tests checking port 8080 instead of 8881
 2. **Docker ps detection**: Tests using bare `grep mailinabox` which could match partial names
 3. **API function naming**: API wrapper calling `mailinabox_list_content` instead of `mailinabox_list_accounts`
 
 ### Solutions Applied
-1. Updated webmail test to use correct port 8880
+1. Updated webmail test to use correct port 8881
 2. Improved docker ps checks with `--format "{{.Names}}" | grep -q "^mailinabox$"` for exact matching
 3. Fixed function name in API wrapper
 

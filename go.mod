@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	github.com/gorilla/mux v1.8.1
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 )

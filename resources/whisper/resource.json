@@ -29,6 +29,25 @@
       "host": 8090
     }
   ],
+  "environment_exports": {
+    "static": {
+      "WHISPER_HOST": "localhost"
+    },
+    "from_ports": {
+      "WHISPER_PORT": "http"
+    },
+    "derived": {
+      "WHISPER_URL": {
+        "template": "http://${WHISPER_HOST}:${WHISPER_PORT}"
+      },
+      "WHISPER_BASE_URL": {
+        "template": "${WHISPER_URL}"
+      },
+      "WHISPER_STT_URL": {
+        "template": "${WHISPER_URL}"
+      }
+    }
+  },
   "health_checks": [
     {
       "type": "http",

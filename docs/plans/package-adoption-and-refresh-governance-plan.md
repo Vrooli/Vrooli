@@ -1,10 +1,18 @@
 # Package Adoption And Refresh Governance Plan
 
-**Status:** Proposed
+**Status:** Implemented and validated
 
 **Last Updated:** 2026-04-13
 
 ## Why This Plan Exists
+
+Implementation status:
+
+- the manifest-driven package governance model is now live in the native `vrooli package ...` command surface;
+- all current package roots under `packages/` declare `.vrooli/package.json` manifests;
+- package manifest schema validation, semantic validation, dependent discovery, refresh behavior, audit drift detection, and stack-governor/scenario-auditor integration are implemented;
+- legacy shell refresh helpers have been removed;
+- repo-level validation now runs through `make validate-package-governance`.
 
 Vrooli's shared package story is currently useful but not governed cleanly enough.
 

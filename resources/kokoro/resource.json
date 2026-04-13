@@ -20,6 +20,22 @@
       "host": 8880
     }
   ],
+  "environment_exports": {
+    "static": {
+      "KOKORO_HOST": "localhost"
+    },
+    "from_ports": {
+      "KOKORO_PORT": "http"
+    },
+    "derived": {
+      "KOKORO_URL": {
+        "template": "http://${KOKORO_HOST}:${KOKORO_PORT}"
+      },
+      "KOKORO_BASE_URL": {
+        "template": "${KOKORO_URL}"
+      }
+    }
+  },
   "health_checks": [
     {
       "type": "http",

@@ -59,6 +59,30 @@
       }
     ]
   },
+  "environment_exports": {
+    "static": {
+      "QUESTDB_HOST": "localhost",
+      "QUESTDB_PG_USER": "admin",
+      "QUESTDB_PG_PASSWORD": "quest"
+    },
+    "from_ports": {
+      "QUESTDB_PORT": "http",
+      "QUESTDB_HTTP_PORT": "http",
+      "QUESTDB_PG_PORT": "postgresql",
+      "QUESTDB_ILP_PORT": "influxdb-line"
+    },
+    "derived": {
+      "QUESTDB_URL": {
+        "template": "http://${QUESTDB_HOST}:${QUESTDB_HTTP_PORT}"
+      },
+      "QUESTDB_BASE_URL": {
+        "template": "${QUESTDB_URL}"
+      },
+      "QUESTDB_PG_URL": {
+        "template": "postgresql://${QUESTDB_PG_USER}:${QUESTDB_PG_PASSWORD}@${QUESTDB_HOST}:${QUESTDB_PG_PORT}/qdb"
+      }
+    }
+  },
   "lifecycle": {
     "start_timeout_seconds": 60,
     "stop_timeout_seconds": 30,

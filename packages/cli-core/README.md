@@ -44,6 +44,25 @@ Notes:
 - Default install dir: `~/.vrooli/bin` (override with `--install-dir`).
 - Canonical repo-root variables are `VROOLI_ROOT` and `VROOLI_SOURCE_ROOT`. Historical fallbacks are compatibility behavior, not part of the repo contract.
 
+## Package Governance
+
+`cli-core` is a governed shared package.
+
+- Scenario-adoptable: yes
+- Allowed consumer classes: `scenario_api`, `scenario_cli`, `template_api`, `template_cli`, `resource_runtime`
+- Supported adoption mode: `go_module_replace`
+- Refresh strategy: rebuild affected CLI-style consumers rather than JS-style scenario setup propagation
+
+Use the native package-governance surface:
+
+```bash
+vrooli package info cli-core
+vrooli package dependents cli-core
+vrooli package refresh cli-core all --no-restart
+```
+
+Consumers must keep local `replace` wiring explicit so scenario and resource modules remain workspace-independent. See [docs/package-governance.md](/home/matthalloran8/Vrooli/docs/package-governance.md:1) for the canonical policy.
+
 ## Scenario wiring checklist
 - Use `cliapp.StandardScenarioEnv("<scenario-name>", ...)` to derive API/config/source-root/timeout env vars (keeps names consistent across CLIs). Scenario-specific API port envs are checked before global `API_PORT`.
 - Build the core with `cliapp.NewScenarioApp`, pass your command groups, and use `ConfigureCommand` for a consistent config UX.

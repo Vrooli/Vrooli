@@ -44,6 +44,43 @@
       }
     ]
   },
+  "environment_exports": {
+    "static": {
+      "OLLAMA_HOST": "localhost"
+    },
+    "from_ports": {
+      "OLLAMA_PORT": "http"
+    },
+    "from_runtime_env": [
+      "OLLAMA_NUM_PARALLEL",
+      "OLLAMA_MAX_LOADED_MODELS",
+      "OLLAMA_FLASH_ATTENTION",
+      "OLLAMA_ORIGINS"
+    ],
+    "derived": {
+      "OLLAMA_URL": {
+        "template": "http://${OLLAMA_HOST}:${OLLAMA_PORT}"
+      },
+      "OLLAMA_BASE_URL": {
+        "template": "${OLLAMA_URL}"
+      },
+      "OLLAMA_API_TAGS": {
+        "template": "${OLLAMA_URL}/api/tags"
+      },
+      "OLLAMA_API_CHAT": {
+        "template": "${OLLAMA_URL}/api/chat"
+      },
+      "OLLAMA_API_GENERATE": {
+        "template": "${OLLAMA_URL}/api/generate"
+      },
+      "OLLAMA_API_PULL": {
+        "template": "${OLLAMA_URL}/api/pull"
+      },
+      "OLLAMA_API_SHOW": {
+        "template": "${OLLAMA_URL}/api/show"
+      }
+    }
+  },
   "lifecycle": {
     "start_timeout_seconds": 60,
     "stop_timeout_seconds": 30,

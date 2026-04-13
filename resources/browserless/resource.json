@@ -49,6 +49,22 @@
       }
     ]
   },
+  "environment_exports": {
+    "static": {
+      "BROWSERLESS_HOST": "localhost"
+    },
+    "from_ports": {
+      "BROWSERLESS_PORT": "http"
+    },
+    "derived": {
+      "BROWSERLESS_URL": {
+        "template": "http://${BROWSERLESS_HOST}:${BROWSERLESS_PORT}"
+      },
+      "BROWSERLESS_BASE_URL": {
+        "template": "${BROWSERLESS_URL}"
+      }
+    }
+  },
   "lifecycle": {
     "start_timeout_seconds": 30,
     "stop_timeout_seconds": 30,

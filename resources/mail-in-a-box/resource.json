@@ -37,7 +37,7 @@
     {
       "name": "webmail",
       "container": 80,
-      "host": 8880
+      "host": 8881
     },
     {
       "name": "caldav",
@@ -54,7 +54,7 @@
     },
     {
       "type": "http",
-      "target": "http://127.0.0.1:8880/",
+      "target": "http://127.0.0.1:8881/",
       "interval_seconds": 10,
       "timeout_seconds": 10
     }
