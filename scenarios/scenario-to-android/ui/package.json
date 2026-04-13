@@ -4,10 +4,11 @@
   "description": "UI for Scenario to Android builder",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "start": "vrooli lifecycle protect -- node server.js",
+    "dev": "vrooli lifecycle protect -- node server.js",
     "build": "echo 'No build step required for static HTML UI'"
   },
+  "dependencies": {},
   "keywords": ["android", "mobile", "vrooli"],
   "author": "Vrooli Platform",
   "license": "MIT"

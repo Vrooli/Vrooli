@@ -10,6 +10,10 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/resources"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/testfixture"
+	"github.com/vrooli/vrooli/internal/testutil"
 )
 
 func TestRunResourceBlueprintListCommandJSON(t *testing.T) {
@@ -575,24 +579,11 @@ func writeBlueprintArchivedMetadataForCLI(t *testing.T, root string, item resour
 
 func writeResourceConfigForCLI(t *testing.T, root, name string, enabled bool) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("mkdir .vrooli: %v", err)
-	}
-	payload := map[string]any{
-		"dependencies": map[string]any{
-			"resources": map[string]any{
-				name: map[string]any{"enabled": enabled},
-			},
-		},
-	}
-	data, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal service config: %v", err)
-	}
-	data = append(data, '\n')
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "service.json"), data, 0o644); err != nil {
-		t.Fatalf("write service.json: %v", err)
-	}
+	testfixture.WriteProjectService(t, root, testfixture.ProjectServiceManifest(
+		testfixture.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{name: {Enabled: enabled}},
+		}),
+	))
 }
 
 func writeResourceCLIForCLI(t *testing.T, root, name string) {
@@ -601,24 +592,16 @@ func writeResourceCLIForCLI(t *testing.T, root, name string) {
 
 func writeResourceScriptForCLI(t *testing.T, root, name, contents string) {
 	t.Helper()
-	path := filepath.Join(root, "resources", name, "cli.sh")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, []byte(contents), 0o755); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
+	testutil.WriteExecutable(t, filepath.Join(root, "resources", name, "cli.sh"), contents)
 }
 
 func writeResourceManifestForCLI(t *testing.T, root, name, contents string) {
 	t.Helper()
-	path := filepath.Join(root, "resources", name, "resource.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	var manifest manifestpkg.ResourceManifest
+	if err := json.Unmarshal([]byte(contents), &manifest); err != nil {
+		t.Fatalf("unmarshal resource manifest fixture: %v\ncontents=%s", err, contents)
 	}
-	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
+	testfixture.WriteResourceManifest(t, root, name, manifest)
 }
 
 func writeBlueprintFixtureForCLI(t *testing.T, root, name string) {

@@ -55,10 +55,6 @@ func TestRunScenarioTestUsesNativePhaseRunner(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("scenario test should not route to bash: %+v", spec)
-		return nil
-	}
 	app.rebuildAndReexec = func(args []string) error {
 		t.Fatalf("unexpected rebuild")
 		return nil
@@ -90,11 +86,6 @@ func TestRunNoStaleCheckBypassesFreshnessProbe(t *testing.T) {
 		t.Fatalf("stale check should be skipped when --no-stale-check is set")
 		return false
 	}
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("scenario setup should not route to bash: %+v", spec)
-		return nil
-	}
-
 	code := app.Run([]string{"--no-stale-check", "scenario", "setup", "alpha"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
@@ -112,11 +103,6 @@ func TestRunScenarioSetupReportsUndefinedPhase(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("scenario setup should not route to bash: %+v", spec)
-		return nil
-	}
-
 	var stdout bytes.Buffer
 	code := app.Run([]string{"scenario", "setup", "alpha", "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
@@ -139,11 +125,6 @@ func TestRunScenarioListJSONOutput(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("scenario list should not shell to bash")
-		return nil
-	}
-
 	var stdout bytes.Buffer
 	code := app.Run([]string{"scenario", "list", "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
@@ -216,11 +197,6 @@ func TestRunScenarioListHumanOutputIncludesPorts(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("scenario list should not shell to bash")
-		return nil
-	}
-
 	var stdout bytes.Buffer
 	code := app.Run([]string{"scenario", "list", "--include-ports"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
@@ -275,11 +251,6 @@ func TestRunScenarioStartStopRestartLifecycleCommands(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("week 3 lifecycle commands should not shell to bash: %#v", spec)
-		return nil
-	}
-
 	t.Cleanup(func() {
 		var stdout bytes.Buffer
 		_ = app.Run([]string{"scenario", "stop", "alpha"}, &stdout, &bytes.Buffer{})
@@ -367,11 +338,6 @@ func TestRunScenarioStartSupportsCustomPath(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("custom-path lifecycle start should not shell to bash: %#v", spec)
-		return nil
-	}
-
 	var stdout bytes.Buffer
 	code := app.Run([]string{"scenario", "start", "alpha", "--path", customPath, "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
@@ -501,11 +467,6 @@ func TestRunScenarioStartReportsAlreadyRunning(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("already-running lifecycle start should not shell to bash: %#v", spec)
-		return nil
-	}
-
 	t.Cleanup(func() {
 		var stdout bytes.Buffer
 		_ = app.Run([]string{"scenario", "stop", "alpha"}, &stdout, &bytes.Buffer{})
@@ -599,10 +560,6 @@ func TestRunTriggersRebuildBeforeDispatch(t *testing.T) {
 	var rebuiltArgs []string
 	app.rebuildAndReexec = func(args []string) error {
 		rebuiltArgs = append([]string(nil), args...)
-		return nil
-	}
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("dispatcher should not run when stale rebuild succeeds")
 		return nil
 	}
 
@@ -1024,7 +981,6 @@ func TestRunScenarioStartOpenUsesNativeURLLauncher(t *testing.T) {
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
 
-	app.execCommand = func(spec commandSpec) error { return nil }
 	var opened scenarioSubprocessSpec
 	app.lookPath = func(file string) (string, error) {
 		if file == "xdg-open" {
@@ -1065,7 +1021,6 @@ func TestRunScenarioRestartOpenUsesNativeURLLauncher(t *testing.T) {
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
 
-	app.execCommand = func(spec commandSpec) error { return nil }
 	var opened scenarioSubprocessSpec
 	app.lookPath = func(file string) (string, error) {
 		if file == "xdg-open" {
@@ -1109,11 +1064,6 @@ func TestRunScenarioPortAndOpenCommandsUseNativeState(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("scenario port/open should not route to bash: %+v", spec)
-		return nil
-	}
-
 	var portStdout bytes.Buffer
 	if code := app.Run([]string{"scenario", "port", "alpha", "UI_PORT"}, &portStdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario port exit code = %d", code)
@@ -1164,11 +1114,6 @@ func TestRunScenarioTemplateGenerateScaffoldsFiles(t *testing.T) {
 
 	t.Setenv(config.TemplateBaseDirEnvVar, templateBase)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("scenario generate should not route to bash: %+v", spec)
-		return nil
-	}
-
 	var listStdout bytes.Buffer
 	if code := app.Run([]string{"scenario", "template", "list"}, &listStdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario template list exit code = %d", code)
@@ -1649,7 +1594,7 @@ func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
 }
 
 func TestRunScenarioRunAliasesStartValidation(t *testing.T) {
-	err := runScenarioRunCommand("/repo", globalOptions{}, nil, &bytes.Buffer{}, &bytes.Buffer{})
+	err := runScenarioRunCommandForRoot("/repo", globalOptions{}, nil, &bytes.Buffer{}, &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "scenario start requires at least one scenario name") {
 		t.Fatalf("runScenarioRunCommand error = %v", err)
 	}
@@ -1853,18 +1798,7 @@ func TestResolveInfoPathAndPassthroughFlags(t *testing.T) {
 	}
 }
 
-func TestRunExternalCommandAndExitCodeError(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("shell-based smoke test uses sh")
-	}
-
-	if err := runExternalCommand(commandSpec{name: "sh", args: []string{"-c", "exit 0"}}); err != nil {
-		t.Fatalf("runExternalCommand success: %v", err)
-	}
-	if err := runExternalCommand(commandSpec{name: "sh", args: []string{"-c", "exit 7"}}); err == nil {
-		t.Fatalf("expected failing command to return an error")
-	}
-
+func TestExitCodeError(t *testing.T) {
 	if got := (exitCodeError{code: 7, message: "boom"}).Error(); got != "boom" {
 		t.Fatalf("exitCodeError message = %q", got)
 	}
@@ -1966,50 +1900,6 @@ func TestBuildScenarioStatusItemAndHumanWriters(t *testing.T) {
 	})
 	if !strings.Contains(statusOut.String(), "Health: running") || !strings.Contains(statusOut.String(), "Processes:") {
 		t.Fatalf("scenario status output = %s", statusOut.String())
-	}
-}
-
-func TestLoadScenarioDetailMissingScenario(t *testing.T) {
-	_, _, _, err := loadScenarioDetail(t.TempDir(), "missing")
-	if err == nil || !strings.Contains(err.Error(), `scenario "missing" not found`) {
-		t.Fatalf("loadScenarioDetail error = %v", err)
-	}
-}
-
-func TestLoadScenarioStateFiltersUnknownProcessDirectories(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	writeTestScenarioService(t, root, "alpha", "Alpha scenario")
-	writeScenarioProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
-	writeScenarioProcessRecord(t, home, "ghost", "start-api", os.Getpid(), 28080, time.Now().Add(-2*time.Minute))
-
-	t.Setenv("HOME", home)
-
-	scenarios, runtimes, err := loadScenarioState(root)
-	if err != nil {
-		t.Fatalf("loadScenarioState: %v", err)
-	}
-	if len(scenarios) != 1 || scenarios[0].Slug != "alpha" {
-		t.Fatalf("scenarios = %#v", scenarios)
-	}
-	if _, ok := runtimes["alpha"]; !ok {
-		t.Fatalf("expected alpha runtime, got %#v", runtimes)
-	}
-	if _, ok := runtimes["ghost"]; ok {
-		t.Fatalf("unexpected stale runtime for undiscovered scenario: %#v", runtimes)
-	}
-}
-
-func TestLoadScenarioDetailRejectsBrokenProcessMetadata(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	writeTestScenarioService(t, root, "alpha", "Alpha scenario")
-	writeTestFile(t, home, ".vrooli/processes/scenarios/alpha/broken.json", "{broken")
-
-	t.Setenv("HOME", home)
-
-	if _, _, _, err := loadScenarioDetail(root, "alpha"); err == nil {
-		t.Fatalf("expected invalid process metadata to fail scenario detail loading")
 	}
 }
 

@@ -4,7 +4,7 @@
   "private": true,
   "description": "Proxy-aware web console for the Network Tools scenario",
   "scripts": {
-    "start": "node server.js",
+    "start": "vrooli lifecycle protect -- node server.js",
     "build": "echo \"Static build step not required\""
   },
   "dependencies": {

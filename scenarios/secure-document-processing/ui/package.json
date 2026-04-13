@@ -4,8 +4,8 @@
   "description": "Enterprise-grade secure document processing UI with encryption and compliance features",
   "main": "server.js",
   "scripts": {
-    "start": "node ../../../packages/api-base/bin/vrooli-ui-run.js node server.js",
-    "dev": "node ../../../packages/api-base/bin/vrooli-ui-run.js nodemon server.js",
+    "start": "vrooli lifecycle protect -- node server.js",
+    "dev": "vrooli lifecycle protect -- nodemon server.js",
     "build": "echo 'No build step required for static HTML UI'"
   },
   "dependencies": {

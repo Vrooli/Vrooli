@@ -121,7 +121,7 @@ func renderResourceTemplateShowResponse(w io.Writer, format cliout.Format, info 
 		{"Name", info.Name},
 		{"Display Name", manifest.DisplayName},
 		{"Driver", manifest.Driver},
-		{"Transitional", boolLabel(manifest.Transitional)},
+		{"Transitional", cliout.BoolLabel(manifest.Transitional)},
 		{"Description", manifest.Description},
 	}
 	if err := cliout.RenderTable(w, []string{"Field", "Value"}, rows); err != nil {

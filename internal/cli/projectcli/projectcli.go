@@ -31,13 +31,6 @@ type LocksResponse struct {
 	List        []maintenance.LockInfo
 }
 
-func boolLabel(value bool) string {
-	if value {
-		return "yes"
-	}
-	return "no"
-}
-
 func RenderStatusReport(w io.Writer, format cliout.Format, resp StatusResponse) error {
 	if format == cliout.FormatJSON {
 		return cliout.WriteJSON(w, map[string]any{
@@ -60,8 +53,8 @@ func RenderStatusReport(w io.Writer, format cliout.Format, resp StatusResponse) 
 			}
 			rows = append(rows, []string{
 				item.Resource.Name,
-				boolLabel(item.Resource.Enabled),
-				boolLabel(item.Running),
+				cliout.BoolLabel(item.Resource.Enabled),
+				cliout.BoolLabel(item.Running),
 				healthy,
 				item.Message,
 			})

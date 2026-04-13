@@ -4,10 +4,10 @@
   "description": "Intelligent Home Automation Dashboard - Self-evolving home control with AI-generated automations",
   "main": "server.js",
   "scripts": {
-    "dev": "node ../../../packages/api-base/bin/vrooli-ui-run.js vite",
+    "dev": "vrooli lifecycle protect -- vite",
     "build": "rm -rf dist && mkdir -p dist && cp index.html dist/index.html && cp app.js dist/app.js && cp styles.css dist/styles.css",
     "preview": "vite preview",
-    "start": "node ../../../packages/api-base/bin/vrooli-ui-run.js node server.js"
+    "start": "vrooli lifecycle protect -- node server.js"
   },
   "keywords": [
     "home-automation",

@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package main
 
 import (
@@ -22,11 +25,6 @@ func TestSplitRunScenarioTemplateGenerateScaffoldsFiles(t *testing.T) {
 
 	t.Setenv(config.TemplateBaseDirEnvVar, templateBase)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("scenario generate should not route to bash: %+v", spec)
-		return nil
-	}
-
 	var listStdout bytes.Buffer
 	if code := app.Run([]string{"scenario", "template", "list"}, &listStdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario template list exit code = %d", code)
@@ -356,7 +354,7 @@ func TestSplitRunScenarioRequirementsHelpAndInitTranslation(t *testing.T) {
 }
 
 func TestSplitRunScenarioRunAliasesStartValidation(t *testing.T) {
-	err := runScenarioRunCommand("/repo", globalOptions{}, nil, &bytes.Buffer{}, &bytes.Buffer{})
+	err := runScenarioRunCommandForRoot("/repo", globalOptions{}, nil, &bytes.Buffer{}, &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "scenario start requires at least one scenario name") {
 		t.Fatalf("unexpected error: %v", err)
 	}

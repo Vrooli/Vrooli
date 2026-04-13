@@ -22,29 +22,93 @@ func NewHandlers(app *AppState) *Handlers {
 	return &Handlers{app: app}
 }
 
+func (h *Handlers) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	services := map[string]string{
+		"database": "unavailable",
+		"redis":    "unavailable",
+		"ollama":   "unavailable",
+	}
+
+	status := "healthy"
+
+	h.app.DBMutex.RLock()
+	db := h.app.DB
+	h.app.DBMutex.RUnlock()
+	if db != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := db.PingContext(ctx); err == nil {
+			services["database"] = "healthy"
+		} else {
+			status = "degraded"
+		}
+	} else {
+		status = "degraded"
+	}
+
+	if h.app.Redis != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := h.app.Redis.Ping(ctx).Err(); err == nil {
+			services["redis"] = "healthy"
+		} else {
+			status = "degraded"
+		}
+	} else {
+		status = "degraded"
+	}
+
+	if h.app.OllamaClient != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if _, err := h.app.OllamaClient.GetModels(ctx); err == nil {
+			services["ollama"] = "healthy"
+		} else {
+			status = "degraded"
+		}
+	} else {
+		status = "degraded"
+	}
+
+	response := HealthResponse{
+		Status:    status,
+		Timestamp: time.Now().UTC(),
+		Services:  services,
+		System:    getSystemMetrics(),
+		Version:   apiVersion,
+	}
+
+	writeJSONResponse(w, http.StatusOK, response)
+}
+
 func (h *Handlers) handleModelSelect(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
-	
+
 	var req ModelSelectRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErrorResponse(w, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
-	
+
 	if req.TaskType == "" {
 		writeErrorResponse(w, http.StatusBadRequest, "taskType is required")
 		return
 	}
-	
+
 	response, err := selectOptimalModel(req.TaskType, req.Requirements, h.app.OllamaClient, h.app.Logger)
 	if err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	
+
 	writeJSONResponse(w, http.StatusOK, response)
 }
 
@@ -53,41 +117,41 @@ func (h *Handlers) handleRouteRequest(w http.ResponseWriter, r *http.Request) {
 		writeErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
-	
+
 	var req RouteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErrorResponse(w, http.StatusBadRequest, "Invalid JSON payload")
 		return
 	}
-	
+
 	if req.TaskType == "" || req.Prompt == "" {
 		writeErrorResponse(w, http.StatusBadRequest, "taskType and prompt are required")
 		return
 	}
-	
+
 	// Get database with thread-safe access
 	h.app.DBMutex.RLock()
 	db := h.app.DB
 	h.app.DBMutex.RUnlock()
-	
+
 	response, err := routeAIRequest(&req, db, h.app.OllamaClient, h.app.Logger)
 	if err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	
+
 	writeJSONResponse(w, http.StatusOK, response)
 }
 
 func (h *Handlers) handleModelsStatus(w http.ResponseWriter, r *http.Request) {
 	var models []ModelMetric
 	healthyCount := 0
-	
+
 	// Get real model data from database with thread-safe access
 	h.app.DBMutex.RLock()
 	db := h.app.DB
 	h.app.DBMutex.RUnlock()
-	
+
 	if db != nil {
 		query := `
 			SELECT model_name, request_count, success_count, error_count, 
@@ -95,17 +159,17 @@ func (h *Handlers) handleModelsStatus(w http.ResponseWriter, r *http.Request) {
 				   healthy, last_used, created_at, updated_at
 			FROM model_metrics 
 			ORDER BY last_used DESC`
-		
+
 		rows, err := db.Query(query)
 		if err != nil {
 			h.app.Logger.Printf("⚠️  Failed to query model metrics: %v", err)
 		} else {
 			defer rows.Close()
-			
+
 			for rows.Next() {
 				var model ModelMetric
 				var lastUsed sql.NullTime
-				
+
 				err := rows.Scan(
 					&model.ModelName,
 					&model.RequestCount,
@@ -123,17 +187,17 @@ func (h *Handlers) handleModelsStatus(w http.ResponseWriter, r *http.Request) {
 					h.app.Logger.Printf("⚠️  Failed to scan model metric: %v", err)
 					continue
 				}
-				
+
 				model.ID = uuid.New()
 				if lastUsed.Valid {
 					model.LastUsed = &lastUsed.Time
 				}
-				
+
 				// Get model capabilities from Ollama or defaults
 				if h.app.OllamaClient != nil {
 					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					defer cancel()
-					
+
 					if ollamaModels, err := h.app.OllamaClient.GetModels(ctx); err == nil {
 						capabilities := convertOllamaModelsToCapabilities(ollamaModels.Models)
 						for _, cap := range capabilities {
@@ -148,7 +212,7 @@ func (h *Handlers) handleModelsStatus(w http.ResponseWriter, r *http.Request) {
 						}
 					}
 				}
-				
+
 				// Set defaults if not found
 				if len(model.Capabilities) == 0 {
 					model.Capabilities = []string{"completion", "reasoning"}
@@ -157,7 +221,7 @@ func (h *Handlers) handleModelsStatus(w http.ResponseWriter, r *http.Request) {
 					model.CostPer1KTokens = 0.005
 					model.RamRequiredGB = 4.0
 				}
-				
+
 				models = append(models, model)
 				if model.Healthy {
 					healthyCount++
@@ -165,69 +229,69 @@ func (h *Handlers) handleModelsStatus(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	
+
 	// If no models in database, get them from Ollama
 	if len(models) == 0 && h.app.OllamaClient != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		
+
 		if ollamaModels, err := h.app.OllamaClient.GetModels(ctx); err == nil {
 			capabilities := convertOllamaModelsToCapabilities(ollamaModels.Models)
 			for _, cap := range capabilities {
 				model := ModelMetric{
 					ID:                uuid.New(),
-					ModelName:        cap.ModelName,
-					RequestCount:     0,
-					SuccessCount:     0,
-					ErrorCount:       0,
+					ModelName:         cap.ModelName,
+					RequestCount:      0,
+					SuccessCount:      0,
+					ErrorCount:        0,
 					AvgResponseTimeMs: 0,
-					CurrentLoad:      0,
-					MemoryUsageMB:    cap.RamRequiredGB * 1024,
-					Healthy:          true,
-					Capabilities:     cap.Capabilities,
-					Speed:           cap.Speed,
-					QualityTier:     cap.QualityTier,
-					CostPer1KTokens: cap.CostPer1KTokens,
-					RamRequiredGB:   cap.RamRequiredGB,
-					CreatedAt:       time.Now(),
-					UpdatedAt:       time.Now(),
+					CurrentLoad:       0,
+					MemoryUsageMB:     cap.RamRequiredGB * 1024,
+					Healthy:           true,
+					Capabilities:      cap.Capabilities,
+					Speed:             cap.Speed,
+					QualityTier:       cap.QualityTier,
+					CostPer1KTokens:   cap.CostPer1KTokens,
+					RamRequiredGB:     cap.RamRequiredGB,
+					CreatedAt:         time.Now(),
+					UpdatedAt:         time.Now(),
 				}
 				models = append(models, model)
 				healthyCount++
 			}
 		}
 	}
-	
+
 	response := map[string]interface{}{
-		"models":       models,
-		"totalModels":  len(models),
+		"models":        models,
+		"totalModels":   len(models),
 		"healthyModels": healthyCount,
-		"systemHealth": getSystemMetrics(),
+		"systemHealth":  getSystemMetrics(),
 	}
-	
+
 	writeJSONResponse(w, http.StatusOK, response)
 }
 
 func (h *Handlers) handleResourceMetrics(w http.ResponseWriter, r *http.Request) {
 	hoursParam := r.URL.Query().Get("hours")
 	hours := 1 // Default to 1 hour
-	
+
 	if hoursParam != "" {
 		if h, err := strconv.Atoi(hoursParam); err == nil {
 			hours = h
 		}
 	}
-	
+
 	current := getSystemMetrics()
-	
+
 	// Get historical data from database
 	var history []map[string]interface{}
-	
+
 	// Get database with thread-safe access
 	h.app.DBMutex.RLock()
 	db := h.app.DB
 	h.app.DBMutex.RUnlock()
-	
+
 	if db != nil {
 		query := `
 			SELECT memory_available_gb, memory_free_gb, memory_total_gb, 
@@ -235,28 +299,28 @@ func (h *Handlers) handleResourceMetrics(w http.ResponseWriter, r *http.Request)
 			FROM system_resources 
 			WHERE recorded_at >= NOW() - INTERVAL '%d hours'
 			ORDER BY recorded_at DESC`
-		
+
 		rows, err := db.Query(fmt.Sprintf(query, hours))
 		if err != nil {
 			h.app.Logger.Printf("⚠️  Failed to query resource metrics: %v", err)
 		} else {
 			defer rows.Close()
-			
+
 			for rows.Next() {
 				var memAvailable, memFree, memTotal, cpuUsage, swapUsed float64
 				var recordedAt time.Time
-				
+
 				err := rows.Scan(&memAvailable, &memFree, &memTotal, &cpuUsage, &swapUsed, &recordedAt)
 				if err != nil {
 					h.app.Logger.Printf("⚠️  Failed to scan resource metric: %v", err)
 					continue
 				}
-				
+
 				memoryPressure := 0.0
 				if memTotal > 0 {
 					memoryPressure = 1.0 - (memAvailable / memTotal)
 				}
-				
+
 				historyPoint := map[string]interface{}{
 					"timestamp":         recordedAt,
 					"memoryPressure":    memoryPressure,
@@ -269,7 +333,7 @@ func (h *Handlers) handleResourceMetrics(w http.ResponseWriter, r *http.Request)
 			}
 		}
 	}
-	
+
 	// If no historical data, create a single point with current data
 	if len(history) == 0 {
 		historyPoint := map[string]interface{}{
@@ -282,13 +346,13 @@ func (h *Handlers) handleResourceMetrics(w http.ResponseWriter, r *http.Request)
 		}
 		history = []map[string]interface{}{historyPoint}
 	}
-	
+
 	response := map[string]interface{}{
 		"current":        current,
 		"history":        history,
 		"memoryPressure": current["memoryPressure"],
 	}
-	
+
 	writeJSONResponse(w, http.StatusOK, response)
 }
 

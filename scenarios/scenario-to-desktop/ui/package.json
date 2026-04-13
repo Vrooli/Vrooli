@@ -5,8 +5,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "vite",
+    "start": "vrooli lifecycle protect -- node server.js",
+    "dev": "vrooli lifecycle protect -- vite",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx",

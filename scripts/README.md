@@ -34,7 +34,7 @@ The `scripts/` tree remains for shared shell helpers that are still consumed out
 Do not treat everything under `scripts/` as dead.
 
 - Some files under `scripts/lib/` are still referenced by resource shells.
-- UI package scripts should use the shared `packages/api-base/bin/vrooli-ui-run.js` launcher instead of `scripts/lib/ui-guard.sh`; a few non-UI legacy callers may still exist until their own cleanup pass lands.
+- UI package scripts should use the hidden native `vrooli lifecycle protect -- ...` entrypoint; the legacy `scripts/lib/ui-guard.sh` helper and `vrooli-ui-run` package bin are retired.
 - Deleted host-setup surfaces under the old `scripts/lib` bootstrap path must not be reintroduced.
 - Project-level Bash entrypoints such as `scripts/manage.sh` are already deleted and should not be reintroduced.
 

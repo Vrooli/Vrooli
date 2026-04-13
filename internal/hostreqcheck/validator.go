@@ -53,6 +53,7 @@ var (
 		"jq":     {},
 		"node":   {},
 		"python": {},
+		"yq":     {},
 	}
 	referenceScanCandidates = []string{
 		"stripe",

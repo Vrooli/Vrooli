@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package main
 
 import (
@@ -18,11 +21,6 @@ func TestSplitRunStatusUsesNativeProjectController(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("status should not route through CLI bash shim: %+v", spec)
-		return nil
-	}
-
 	var stdout bytes.Buffer
 	code := app.Run([]string{"--json", "status", "--scenarios"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
@@ -48,11 +46,6 @@ func TestSplitRunStatusAcceptsTrailingGlobalJSONFlag(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("status should not route through CLI bash shim: %+v", spec)
-		return nil
-	}
-
 	var stdout bytes.Buffer
 	code := app.Run([]string{"status", "--scenarios", "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
@@ -70,11 +63,6 @@ func TestSplitRunDoctorAcceptsTrailingGlobalJSONFlag(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("doctor should not route through CLI bash shim: %+v", spec)
-		return nil
-	}
-
 	var stdout bytes.Buffer
 	code := app.Run([]string{"doctor", "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
@@ -95,11 +83,6 @@ func TestSplitRunStopAcceptsTrailingGlobalJSONFlag(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("stop should not route through CLI bash shim: %+v", spec)
-		return nil
-	}
-
 	var stdout bytes.Buffer
 	code := app.Run([]string{"stop", "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {

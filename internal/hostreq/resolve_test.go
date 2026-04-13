@@ -1,45 +1,53 @@
 package hostreq
 
 import (
-	"encoding/json"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/testfixture"
+	"github.com/vrooli/vrooli/internal/testutil"
 )
 
 func TestResolveMergesRootScenarioAndResourceDeclarations(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	writeFile(t, filepath.Join(root, ".vrooli", "service.json"), `{
-  "service": {"name": "vrooli"},
-  "dependencies": {"resources": {"alpha-resource": {"enabled": true}}},
-  "hostTools": [
-    {"name": "docker", "required": true, "reason": "root docker", "when": ["setup", "develop"], "environments": ["development"]},
-    {"name": "node", "required": true, "reason": "root node", "environments": ["development"]}
-  ],
-  "hostSafeguards": [
-    {"name": "remote_session_protection", "required": false, "reason": "root safeguard", "platforms": ["linux"]}
-  ]
-}`)
-	writeFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{
-  "service": {"name": "alpha"},
-  "hostTools": [
-    {"name": "node", "required": false, "reason": "scenario node", "when": ["develop"], "notes": "scenario note"},
-    {"name": "ffmpeg", "required": true, "reason": "scenario ffmpeg", "platforms": ["linux"]}
-  ]
-}`)
-	writeFile(t, filepath.Join(root, "resources", "alpha-resource", "resource.json"), `{
-  "name": "alpha-resource",
-  "driver": "external-cli",
-  "binary": "alpha",
-  "portability_tier": "full",
-  "hostTools": [
-    {"name": "docker", "required": false, "reason": "resource docker", "when": ["develop"]},
-    {"name": "sqlite", "required": true, "reason": "resource sqlite", "manual": true}
-  ]
-}`)
+	testfixture.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "vrooli"},
+		Dependencies: scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"alpha-resource": {Enabled: true},
+			},
+		},
+		HostTools: []hostreqspec.Declaration{
+			{Name: "docker", Required: true, Reason: "root docker", When: []string{"setup", "develop"}, Environments: []string{"development"}},
+			{Name: "node", Required: true, Reason: "root node", Environments: []string{"development"}},
+		},
+		HostSafeguards: []hostreqspec.Declaration{
+			{Name: "remote_session_protection", Required: false, Reason: "root safeguard", Platforms: []string{"linux"}},
+		},
+	})
+	testfixture.WriteScenarioService(t, root, "alpha", scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "alpha"},
+		HostTools: []hostreqspec.Declaration{
+			{Name: "node", Required: false, Reason: "scenario node", When: []string{"develop"}, Notes: "scenario note"},
+			{Name: "ffmpeg", Required: true, Reason: "scenario ffmpeg", Platforms: []string{"linux"}},
+		},
+	})
+	testfixture.WriteResourceManifest(t, root, "alpha-resource", manifestpkg.ResourceManifest{
+		Name:            "alpha-resource",
+		Driver:          "external-cli",
+		Binary:          "alpha",
+		PortabilityTier: "full",
+		HostTools: []hostreqspec.Declaration{
+			{Name: "docker", Required: false, Reason: "resource docker", When: []string{"develop"}},
+			{Name: "sqlite", Required: true, Reason: "resource sqlite", Manual: true},
+		},
+	})
 
 	resolution, err := Resolve(root, home, ResolveOptions{
 		Environment: "development",
@@ -90,36 +98,36 @@ func TestResolveHonorsSelectorsAndFilters(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	writeFile(t, filepath.Join(root, ".vrooli", "service.json"), `{
-  "service": {"name": "vrooli"},
-  "hostTools": [
-    {"name": "docker", "required": true, "reason": "root docker", "environments": ["development", "production"]},
-    {"name": "python", "required": true, "reason": "root python", "environments": ["development"]},
-    {"name": "openbox", "required": true, "reason": "linux only", "platforms": ["linux"]}
-  ]
-}`)
-	writeFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{
-  "service": {"name": "alpha"},
-  "hostTools": [{"name": "ffmpeg", "required": true, "reason": "alpha ffmpeg"}]
-}`)
-	writeFile(t, filepath.Join(root, "scenarios", "beta", ".vrooli", "service.json"), `{
-  "service": {"name": "beta"},
-  "hostTools": [{"name": "buf", "required": true, "reason": "beta buf"}]
-}`)
-	writeFile(t, filepath.Join(root, "resources", "alpha-resource", "resource.json"), `{
-  "name": "alpha-resource",
-  "driver": "external-cli",
-  "binary": "alpha",
-  "portability_tier": "full",
-  "hostTools": [{"name": "sqlite", "required": true, "reason": "alpha sqlite"}]
-}`)
-	writeFile(t, filepath.Join(root, "resources", "beta-resource", "resource.json"), `{
-  "name": "beta-resource",
-  "driver": "external-cli",
-  "binary": "beta",
-  "portability_tier": "full",
-  "hostTools": [{"name": "helm", "required": true, "reason": "beta helm"}]
-}`)
+	testfixture.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "vrooli"},
+		HostTools: []hostreqspec.Declaration{
+			{Name: "docker", Required: true, Reason: "root docker", Environments: []string{"development", "production"}},
+			{Name: "python", Required: true, Reason: "root python", Environments: []string{"development"}},
+			{Name: "openbox", Required: true, Reason: "linux only", Platforms: []string{"linux"}},
+		},
+	})
+	testfixture.WriteScenarioService(t, root, "alpha", scenario.ServiceManifest{
+		Service:   scenario.ServiceMetadata{Name: "alpha"},
+		HostTools: []hostreqspec.Declaration{{Name: "ffmpeg", Required: true, Reason: "alpha ffmpeg"}},
+	})
+	testfixture.WriteScenarioService(t, root, "beta", scenario.ServiceManifest{
+		Service:   scenario.ServiceMetadata{Name: "beta"},
+		HostTools: []hostreqspec.Declaration{{Name: "buf", Required: true, Reason: "beta buf"}},
+	})
+	testfixture.WriteResourceManifest(t, root, "alpha-resource", manifestpkg.ResourceManifest{
+		Name:            "alpha-resource",
+		Driver:          "external-cli",
+		Binary:          "alpha",
+		PortabilityTier: "full",
+		HostTools:       []hostreqspec.Declaration{{Name: "sqlite", Required: true, Reason: "alpha sqlite"}},
+	})
+	testfixture.WriteResourceManifest(t, root, "beta-resource", manifestpkg.ResourceManifest{
+		Name:            "beta-resource",
+		Driver:          "external-cli",
+		Binary:          "beta",
+		PortabilityTier: "full",
+		HostTools:       []hostreqspec.Declaration{{Name: "helm", Required: true, Reason: "beta helm"}},
+	})
 
 	resolution, err := Resolve(root, home, ResolveOptions{
 		Environment: "production",
@@ -154,7 +162,9 @@ func TestResolveHonorsSelectorsAndFilters(t *testing.T) {
 func TestResolveRejectsUnknownExplicitSelections(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeFile(t, filepath.Join(root, ".vrooli", "service.json"), `{"service":{"name":"vrooli"}}`)
+	testfixture.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "vrooli"},
+	})
 
 	if _, err := Resolve(root, home, ResolveOptions{Resources: "missing"}); err == nil || !strings.Contains(err.Error(), `resource "missing" not found`) {
 		t.Fatalf("resource error = %v", err)
@@ -165,10 +175,10 @@ func TestResolveRejectsUnknownExplicitSelections(t *testing.T) {
 }
 
 func TestSchemaFilesDeclareHostRequirementProperties(t *testing.T) {
-	root := projectRootForHostreqTest(t)
+	root := testutil.ProjectRoot(t)
 
-	serviceSchema := readJSONFile(t, filepath.Join(root, ".vrooli", "schemas", "service.schema.json"))
-	resourceSchema := readJSONFile(t, filepath.Join(root, ".vrooli", "schemas", "resource.schema.json"))
+	serviceSchema := testutil.ReadJSONFile(t, filepath.Join(root, ".vrooli", "schemas", "service.schema.json"))
+	resourceSchema := testutil.ReadJSONFile(t, filepath.Join(root, ".vrooli", "schemas", "resource.schema.json"))
 
 	assertSchemaHasHostRequirements(t, serviceSchema)
 	assertSchemaHasHostRequirements(t, resourceSchema)
@@ -226,36 +236,4 @@ func findOptionalRequirement(items []ResolvedRequirement, name string) *Resolved
 		}
 	}
 	return nil
-}
-
-func projectRootForHostreqTest(t *testing.T) string {
-	t.Helper()
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	return filepath.Clean(filepath.Join(wd, "..", ".."))
-}
-
-func readJSONFile(t *testing.T, path string) map[string]any {
-	t.Helper()
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("ReadFile(%s): %v", path, err)
-	}
-	var parsed map[string]any
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		t.Fatalf("Unmarshal(%s): %v", path, err)
-	}
-	return parsed
-}
-
-func writeFile(t *testing.T, path, contents string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("MkdirAll(%s): %v", path, err)
-	}
-	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
-		t.Fatalf("WriteFile(%s): %v", path, err)
-	}
 }

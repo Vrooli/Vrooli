@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/testfixture"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
@@ -174,31 +175,19 @@ func scenarioFixture(name, path string) scenario.Scenario {
 
 func writeScenarioService(t *testing.T, root, name, displayName, description string) {
 	t.Helper()
-	path := filepath.Join(root, "scenarios", name, ".vrooli", "service.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	data := `{
-  "service": {
-    "name": "` + name + `",
-    "displayName": "` + displayName + `",
-    "description": "` + description + `"
-  },
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "range": "18080-18090"
-    }
-  }
-}`
-	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
+	testfixture.WriteScenarioService(t, root, name, testfixture.ScenarioServiceManifest(
+		name,
+		testfixture.WithDisplayName(displayName),
+		testfixture.WithDescription(description),
+		testfixture.WithPorts(map[string]scenario.Port{
+			"api": {EnvVar: "API_PORT", Range: "18080-18090"},
+		}),
+	))
 }
 
 func writeProcessRecord(t *testing.T, home, scenarioName, step string, pid, port int, startedAt time.Time) {
 	t.Helper()
-	record := process.Record{
+	testfixture.WriteScenarioProcessRecord(t, home, scenarioName, step, process.Record{
 		PID:       pid,
 		PGID:      pid,
 		Scenario:  scenarioName,
@@ -206,8 +195,5 @@ func writeProcessRecord(t *testing.T, home, scenarioName, step string, pid, port
 		Port:      port,
 		StartedAt: startedAt.UTC(),
 		Status:    "running",
-	}
-	if err := process.WriteScenarioRecord(home, scenarioName, step, record); err != nil {
-		t.Fatalf("WriteScenarioRecord: %v", err)
-	}
+	})
 }

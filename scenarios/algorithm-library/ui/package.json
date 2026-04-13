@@ -4,7 +4,7 @@
   "description": "Algorithm Library Web Interface",
   "private": true,
   "scripts": {
-    "dev": "node ../../../packages/api-base/bin/vrooli-ui-run.js vite --port ${UI_PORT:-3252} --host",
+    "dev": "vrooli lifecycle protect -- vite --port ${UI_PORT:-3252} --host",
     "build": "vite build",
     "preview": "vite preview --port ${UI_PORT:-3252} --host"
   },

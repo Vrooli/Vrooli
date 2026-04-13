@@ -94,3 +94,11 @@ func RenderTable(w io.Writer, headers []string, rows [][]string) error {
 	}
 	return tw.Flush()
 }
+
+// BoolLabel keeps simple human-readable booleans consistent across CLI output.
+func BoolLabel(value bool) string {
+	if value {
+		return "yes"
+	}
+	return "no"
+}

@@ -1,22 +1,20 @@
 package resources
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/secrets"
+	"github.com/vrooli/vrooli/internal/testutil"
 )
 
 func TestLoadPortRegistryReadsTypedJSON(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "scripts", "resources", "port_registry.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, []byte("{\n  \"resource_ports\": {\"postgres\": 5433},\n  \"reserved_ranges\": {\"db\": \"5432-5499\"}\n}\n"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
+	testutil.WriteJSON(t, path, map[string]any{
+		"resource_ports":  map[string]int{"postgres": 5433},
+		"reserved_ranges": map[string]string{"db": "5432-5499"},
+	})
 
 	registry, err := LoadPortRegistry(root)
 	if err != nil {
@@ -34,37 +32,32 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	writeJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), `{
-  "resource_ports": {
-    "browserless": 4110,
-    "postgres": 5433
-  },
-  "reserved_ranges": {}
-}`)
-	writeJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), `{
-  "definitions": {
-    "resourceSchemas": {
-      "browserless": {
-        "properties": {
-          "port": { "default": 4110 },
-          "logging": {
-            "properties": {
-              "level": { "default": "info" }
-            }
-          }
-        }
-      },
-      "postgres": {
-        "properties": {}
-      }
-    }
-  }
-}`)
-	writeJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), `{
-  "POSTGRES_PASSWORD": "secret",
-  "POSTGRES_USER": "vrooli",
-  "BROWSERLESS_TOKEN": "abc123"
-}`, 0o600)
+	testutil.WriteJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), map[string]any{
+		"resource_ports":  map[string]int{"browserless": 4110, "postgres": 5433},
+		"reserved_ranges": map[string]string{},
+	})
+	testutil.WriteJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), map[string]any{
+		"definitions": map[string]any{
+			"resourceSchemas": map[string]any{
+				"browserless": map[string]any{
+					"properties": map[string]any{
+						"port": map[string]any{"default": 4110},
+						"logging": map[string]any{
+							"properties": map[string]any{
+								"level": map[string]any{"default": "info"},
+							},
+						},
+					},
+				},
+				"postgres": map[string]any{"properties": map[string]any{}},
+			},
+		},
+	})
+	testutil.WriteJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), map[string]string{
+		"POSTGRES_PASSWORD": "secret",
+		"POSTGRES_USER":     "vrooli",
+		"BROWSERLESS_TOKEN": "abc123",
+	}, 0o600)
 
 	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
 	if err != nil {
@@ -102,21 +95,17 @@ func TestLoadResourceEnvironmentUsesEncryptedSecrets(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	writeJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), `{
-  "resource_ports": {
-    "postgres": 5433
-  },
-  "reserved_ranges": {}
-}`)
-	writeJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), `{
-  "definitions": {
-    "resourceSchemas": {
-      "postgres": {
-        "properties": {}
-      }
-    }
-  }
-}`)
+	testutil.WriteJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), map[string]any{
+		"resource_ports":  map[string]int{"postgres": 5433},
+		"reserved_ranges": map[string]string{},
+	})
+	testutil.WriteJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), map[string]any{
+		"definitions": map[string]any{
+			"resourceSchemas": map[string]any{
+				"postgres": map[string]any{"properties": map[string]any{}},
+			},
+		},
+	})
 
 	t.Setenv(secrets.KeyEnvVar, "resource-secret-key")
 	store := secrets.NewProjectStore(root)
@@ -143,25 +132,21 @@ func TestLoadResourceEnvironmentFallsBackToLegacySecretsDuringMigration(t *testi
 	root := t.TempDir()
 	home := t.TempDir()
 
-	writeJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), `{
-  "resource_ports": {
-    "postgres": 5433
-  },
-  "reserved_ranges": {}
-}`)
-	writeJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), `{
-  "definitions": {
-    "resourceSchemas": {
-      "postgres": {
-        "properties": {}
-      }
-    }
-  }
-}`)
-	writeJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), `{
-  "POSTGRES_PASSWORD": "legacy-secret",
-  "POSTGRES_USER": "vrooli"
-}`, 0o600)
+	testutil.WriteJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), map[string]any{
+		"resource_ports":  map[string]int{"postgres": 5433},
+		"reserved_ranges": map[string]string{},
+	})
+	testutil.WriteJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), map[string]any{
+		"definitions": map[string]any{
+			"resourceSchemas": map[string]any{
+				"postgres": map[string]any{"properties": map[string]any{}},
+			},
+		},
+	})
+	testutil.WriteJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), map[string]string{
+		"POSTGRES_PASSWORD": "legacy-secret",
+		"POSTGRES_USER":     "vrooli",
+	}, 0o600)
 
 	t.Setenv(secrets.KeyEnvVar, "writer-secret-key")
 	store := secrets.NewProjectStore(root)
@@ -186,44 +171,25 @@ func TestLoadResourceEnvironmentFailsClosedWhenEncryptedSecretsAreInvalid(t *tes
 	root := t.TempDir()
 	home := t.TempDir()
 
-	writeJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), `{
-  "resource_ports": {
-    "postgres": 5433
-  },
-  "reserved_ranges": {}
-}`)
-	writeJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), `{
-  "definitions": {
-    "resourceSchemas": {
-      "postgres": {
-        "properties": {}
-      }
-    }
-  }
-}`)
-	writeJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), `{
-  "POSTGRES_PASSWORD": "legacy-secret",
-  "POSTGRES_USER": "vrooli"
-}`, 0o600)
-	writeJSONMode(t, filepath.Join(root, ".vrooli", "secrets.enc.json"), `{`, 0o600)
+	testutil.WriteJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), map[string]any{
+		"resource_ports":  map[string]int{"postgres": 5433},
+		"reserved_ranges": map[string]string{},
+	})
+	testutil.WriteJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), map[string]any{
+		"definitions": map[string]any{
+			"resourceSchemas": map[string]any{
+				"postgres": map[string]any{"properties": map[string]any{}},
+			},
+		},
+	})
+	testutil.WriteJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), map[string]string{
+		"POSTGRES_PASSWORD": "legacy-secret",
+		"POSTGRES_USER":     "vrooli",
+	}, 0o600)
+	testutil.WriteRawJSON(t, filepath.Join(root, ".vrooli", "secrets.enc.json"), `{`, 0o600)
 
 	_, err := LoadResourceEnvironment(root, home, "postgres")
 	if err == nil {
 		t.Fatal("expected invalid encrypted secrets to fail closed")
-	}
-}
-
-func writeJSON(t *testing.T, path, contents string) {
-	t.Helper()
-	writeJSONMode(t, path, contents, 0o644)
-}
-
-func writeJSONMode(t *testing.T, path, contents string, mode os.FileMode) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, []byte(contents+"\n"), mode); err != nil {
-		t.Fatalf("write %s: %v", path, err)
 	}
 }

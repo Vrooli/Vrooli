@@ -25,7 +25,6 @@ type App struct {
 	checkStaleness        func() (buildinfo.StaleCheck, error)
 	rebuildAndReexec      func([]string) error
 	lookPath              func(string) (string, error)
-	execCommand           func(commandSpec) error
 	newLogger             func(globalOptions, io.Writer) (*slog.Logger, func())
 	runProjectSetup       func(string, string, []string, io.Writer, io.Writer) error
 	runProjectDevelop     func(string, string, []string, io.Writer, io.Writer) error
@@ -56,7 +55,6 @@ func configuredApp() *App {
 		checkStaleness:        checkStalenessFn,
 		rebuildAndReexec:      rebuildAndReexecFn,
 		lookPath:              lookPathFn,
-		execCommand:           execCommandFn,
 		newLogger:             newLoggerFn,
 		runProjectSetup:       runProjectSetupFn,
 		runProjectDevelop:     runProjectDevelopFn,

@@ -4,16 +4,17 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 func repoRoot(t *testing.T) string {
 	t.Helper()
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd() error = %v", err)
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
 	}
-	root := filepath.Clean(filepath.Join(dir, "..", ".."))
+	root := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
 	if _, err := os.Stat(filepath.Join(root, ".vrooli", "repo-contract.json")); err != nil {
 		t.Fatalf("repo root missing live contract: %v", err)
 	}

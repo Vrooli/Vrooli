@@ -4,8 +4,8 @@
   "description": "UI for Palette Gen - AI Color Palette Generator",
   "main": "server.js",
   "scripts": {
-    "start": "node ../../../packages/api-base/bin/vrooli-ui-run.js node server.js",
-    "dev": "node ../../../packages/api-base/bin/vrooli-ui-run.js node server.js",
+    "start": "vrooli lifecycle protect -- node server.js",
+    "dev": "vrooli lifecycle protect -- node server.js",
     "build": "bash -c 'rm -rf dist && mkdir -p dist && cp -R src/. dist/'"
   },
   "dependencies": {

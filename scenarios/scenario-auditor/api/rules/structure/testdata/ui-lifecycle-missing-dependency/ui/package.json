@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "start": "vrooli-ui-run node server.js"
+  }
+}

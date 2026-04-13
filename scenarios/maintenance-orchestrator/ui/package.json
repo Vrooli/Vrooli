@@ -4,8 +4,8 @@
   "description": "Maintenance Orchestrator Dashboard - Mission Control for System Maintenance",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "vrooli lifecycle protect -- node server.js",
+    "dev": "vrooli lifecycle protect -- node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",

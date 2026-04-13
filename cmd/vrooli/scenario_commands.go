@@ -47,22 +47,12 @@ func runScenarioRestartCommandWithApp(app *App, ctx *commandContext, args []stri
 	})
 }
 
-func runScenarioListCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
-	app, ctx := newConfiguredCommandContext(root, globals, stdout, io.Discard)
-	return runScenarioListCommandWithApp(app, ctx, args)
-}
-
 func runScenarioListCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	return executeCommandAction(app, ctx, args, commandAction[scenarioListRequest, scenarioListResponse]{
 		parse:  parseScenarioListRequestFromContext,
 		run:    runScenarioListRequest,
 		render: renderScenarioListResponse,
 	})
-}
-
-func runScenarioInfoCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
-	app, ctx := newConfiguredCommandContext(root, globals, stdout, io.Discard)
-	return runScenarioInfoCommandWithApp(app, ctx, args)
 }
 
 func runScenarioInfoCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -73,52 +63,12 @@ func runScenarioInfoCommandWithApp(app *App, ctx *commandContext, args []string)
 	})
 }
 
-func runScenarioStatusCommand(root string, globals globalOptions, args []string, stdout io.Writer) error {
-	app, ctx := newConfiguredCommandContext(root, globals, stdout, io.Discard)
-	return runScenarioStatusCommandWithApp(app, ctx, args)
-}
-
 func runScenarioStatusCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	return executeCommandAction(app, ctx, args, commandAction[scenarioStatusRequest, scenarioStatusResponse]{
 		parse:  parseScenarioStatusRequestFromContext,
 		run:    runScenarioStatusRequest,
 		render: renderScenarioStatusResponse,
 	})
-}
-
-func loadScenarioState(root string) ([]scenario.Scenario, map[string]process.ScenarioRuntime, error) {
-	app, ctx := newConfiguredCommandContext(root, globalOptions{}, io.Discard, io.Discard)
-	service, err := app.newScenarioService(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	inventory, err := service.Inventory()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	items := make([]scenario.Scenario, 0, len(inventory))
-	runtimes := make(map[string]process.ScenarioRuntime, len(inventory))
-	for _, item := range inventory {
-		items = append(items, item.Scenario)
-		if item.Runtime.ProcessCount > 0 {
-			runtimes[item.Scenario.Slug] = item.Runtime
-		}
-	}
-	return items, runtimes, nil
-}
-
-func loadScenarioDetail(root, name string) (scenario.Scenario, process.ScenarioRuntime, string, error) {
-	app, ctx := newConfiguredCommandContext(root, globalOptions{}, io.Discard, io.Discard)
-	service, err := app.newScenarioService(ctx)
-	if err != nil {
-		return scenario.Scenario{}, process.ScenarioRuntime{}, "", err
-	}
-	detail, err := service.Detail(name)
-	if err != nil {
-		return scenario.Scenario{}, process.ScenarioRuntime{}, "", err
-	}
-	return detail.Scenario, detail.Runtime, detail.Details.Health, nil
 }
 
 func buildScenarioStatusItem(item scenario.Scenario, runtime process.ScenarioRuntime) scenarioStatusItemOutput {

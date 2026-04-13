@@ -19,6 +19,10 @@ import (
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/process"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/testfixture"
+	"github.com/vrooli/vrooli/internal/testutil"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-12
@@ -333,19 +337,16 @@ func decodeJSONMap(t *testing.T, rec *httptest.ResponseRecorder) map[string]any 
 
 func writeScenarioService(t *testing.T, root, name string) {
 	t.Helper()
-	servicePath := filepath.Join(root, "scenarios", name, ".vrooli", "service.json")
-	if err := osMkdirAll(filepath.Dir(servicePath)); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(servicePath), err)
-	}
-	data := `{"service":{"name":"` + name + `","displayName":"` + name + `"},"ports":{"api":{"env_var":"API_PORT"}}}`
-	if err := osWriteFileAll(servicePath, data); err != nil {
-		t.Fatalf("write service: %v", err)
-	}
+	testfixture.WriteScenarioService(t, root, name, testfixture.ScenarioServiceManifest(
+		name,
+		testfixture.WithDisplayName(name),
+		testfixture.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
+	))
 }
 
 func writeScenarioProcess(t *testing.T, home, name string, port int) {
 	t.Helper()
-	record := process.Record{
+	testfixture.WriteScenarioProcessRecord(t, home, name, "start-api", process.Record{
 		PID:       os.Getpid(),
 		PGID:      os.Getpid(),
 		Scenario:  name,
@@ -353,59 +354,37 @@ func writeScenarioProcess(t *testing.T, home, name string, port int) {
 		Port:      port,
 		StartedAt: time.Now().Add(-time.Minute).UTC(),
 		Status:    "running",
-	}
-	if err := process.WriteScenarioRecord(home, name, "start-api", record); err != nil {
-		t.Fatalf("WriteScenarioRecord: %v", err)
-	}
+	})
 }
 
 func writeResourceServiceConfig(t *testing.T, root, name string, enabled bool) {
 	t.Helper()
-	configPath := filepath.Join(root, ".vrooli", "service.json")
-	payload := map[string]any{
-		"dependencies": map[string]any{
-			"resources": map[string]any{
-				name: map[string]any{"enabled": enabled},
-			},
-		},
-	}
-	data, err := json.Marshal(payload)
-	if err != nil {
-		t.Fatalf("marshal config: %v", err)
-	}
-	if err := osWriteFileAll(configPath, string(data)+"\n"); err != nil {
-		t.Fatalf("write resource config: %v", err)
-	}
+	testfixture.WriteProjectService(t, root, testfixture.ProjectServiceManifest(
+		testfixture.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{name: {Enabled: enabled}},
+		}),
+	))
 }
 
 func writeResourceCLI(t *testing.T, root, name, statusJSON string) {
 	t.Helper()
-	manifestPath := filepath.Join(root, "resources", name, "resource.json")
-	manifest := `{
-  "name": "` + name + `",
-  "display_name": "` + name + `",
-  "description": "fixture resource",
-  "template": "legacy-adapter",
-  "driver": "legacy-adapter",
-  "legacy_adapter": {
-    "owner": "Matthew Halloran",
-    "decision_deadline": "2026-05-31",
-    "final_disposition": "migrate",
-    "legacy_cli_path": "resources/` + name + `/cli.sh"
-  },
-  "portability_tier": "partial"
-}`
-	if err := osWriteFileAll(manifestPath, manifest+"\n"); err != nil {
-		t.Fatalf("write resource manifest: %v", err)
-	}
+	testfixture.WriteResourceManifest(t, root, name, manifestpkg.ResourceManifest{
+		Name:            name,
+		DisplayName:     name,
+		Description:     "fixture resource",
+		Template:        "legacy-adapter",
+		Driver:          "legacy-adapter",
+		PortabilityTier: "partial",
+		LegacyAdapter: manifestpkg.ResourceLegacyAdapter{
+			Owner:            "Matthew Halloran",
+			DecisionDeadline: "2026-05-31",
+			FinalDisposition: "migrate",
+			LegacyCLIPath:    "resources/" + name + "/cli.sh",
+		},
+	})
 	scriptPath := filepath.Join(root, "resources", name, "cli.sh")
 	script := "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"status\" ]]; then\n  printf '%s\\n' '" + statusJSON + "'\n  exit 0\nfi\nprintf '{\"message\":\"ok\"}\\n'\nexit 0\n"
-	if err := osWriteFileAll(scriptPath, script); err != nil {
-		t.Fatalf("write resource cli: %v", err)
-	}
-	if err := os.Chmod(scriptPath, 0o755); err != nil {
-		t.Fatalf("chmod resource cli: %v", err)
-	}
+	testutil.WriteExecutable(t, scriptPath, script)
 }
 
 func osMkdirAll(path string) error {

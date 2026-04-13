@@ -11,6 +11,24 @@ import (
 	"time"
 )
 
+func withIsPIDRunningFn(t *testing.T, fn func(int) bool) {
+	t.Helper()
+	previous := isPIDRunningFn
+	isPIDRunningFn = fn
+	t.Cleanup(func() {
+		isPIDRunningFn = previous
+	})
+}
+
+func withReadProcessEnvironmentFn(t *testing.T, fn func(int) (map[string]string, error)) {
+	t.Helper()
+	previous := readProcessEnvironmentFn
+	readProcessEnvironmentFn = fn
+	t.Cleanup(func() {
+		readProcessEnvironmentFn = previous
+	})
+}
+
 func TestHomeDirPrefersEnv(t *testing.T) {
 	t.Setenv("HOME", "/tmp/vrooli-home")
 
@@ -27,6 +45,9 @@ func TestReadAndSummarizeScenarioRecords(t *testing.T) {
 	home := t.TempDir()
 	writeProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
 	writeProcessRecord(t, home, "alpha", "start-ui", 999999, 38080, time.Now().Add(-1*time.Minute))
+	withIsPIDRunningFn(t, func(pid int) bool {
+		return pid == os.Getpid()
+	})
 
 	records, err := ReadScenarioRecords(home, "alpha")
 	if err != nil {
@@ -79,6 +100,9 @@ func TestDiscoverRunningScenariosFiltersStopped(t *testing.T) {
 	home := t.TempDir()
 	writeProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
 	writeProcessRecord(t, home, "beta", "start-api", 999999, 18081, time.Now().Add(-1*time.Minute))
+	withIsPIDRunningFn(t, func(pid int) bool {
+		return pid == os.Getpid()
+	})
 
 	runtimes, err := DiscoverRunningScenarios(home, func(name string) bool { return name != "skip-me" })
 	if err != nil {
@@ -162,24 +186,13 @@ func TestDiscoverRunningScenariosPropagatesReadErrors(t *testing.T) {
 }
 
 func TestLiveRecordsSortsByStepThenPID(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("process liveness checks rely on signal 0 on linux")
-	}
-
-	cmd := exec.Command("sleep", "30")
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("start sleep: %v", err)
-	}
-	t.Cleanup(func() {
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
-		_ = cmd.Wait()
+	withIsPIDRunningFn(t, func(pid int) bool {
+		return pid > 0
 	})
 
 	records := LiveRecords([]Record{
-		{PID: cmd.Process.Pid, Step: "start-ui"},
-		{PID: os.Getpid(), Step: "start-api"},
+		{PID: 42, Step: "start-ui"},
+		{PID: 7, Step: "start-api"},
 	})
 	if len(records) != 2 {
 		t.Fatalf("live record count = %d, want 2", len(records))
@@ -189,7 +202,55 @@ func TestLiveRecordsSortsByStepThenPID(t *testing.T) {
 	}
 }
 
-func TestReadEnvironmentPortsFromLiveProcess(t *testing.T) {
+func TestReadEnvironmentPortsUsesInjectedEnvironmentReader(t *testing.T) {
+	withReadProcessEnvironmentFn(t, func(pid int) (map[string]string, error) {
+		switch pid {
+		case 11:
+			return map[string]string{
+				"API_PORT": "18080",
+				"UI_PORT":  "38080",
+			}, nil
+		case 99:
+			return map[string]string{
+				"API_PORT": "18081",
+			}, nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	})
+
+	ports := ReadEnvironmentPorts([]Record{{PID: 11}, {PID: 99}}, []string{"API_PORT", "UI_PORT", "WS_PORT"})
+
+	if ports["API_PORT"] != 18080 {
+		t.Fatalf("API_PORT = %d, want 18080", ports["API_PORT"])
+	}
+	if ports["UI_PORT"] != 38080 {
+		t.Fatalf("UI_PORT = %d, want 38080", ports["UI_PORT"])
+	}
+	if _, exists := ports["WS_PORT"]; exists {
+		t.Fatalf("unexpected WS_PORT entry: %#v", ports)
+	}
+}
+
+func TestReadEnvironmentPortsIgnoresInvalidValuesAndEmptyKeys(t *testing.T) {
+	withReadProcessEnvironmentFn(t, func(pid int) (map[string]string, error) {
+		return map[string]string{
+			"API_PORT": "not-a-number",
+			"UI_PORT":  "38080",
+		}, nil
+	})
+
+	ports := ReadEnvironmentPorts([]Record{{PID: 11}}, []string{"", "API_PORT", "UI_PORT"})
+
+	if _, exists := ports["API_PORT"]; exists {
+		t.Fatalf("expected invalid numeric value to be ignored, got %#v", ports)
+	}
+	if ports["UI_PORT"] != 38080 {
+		t.Fatalf("UI_PORT = %d, want 38080", ports["UI_PORT"])
+	}
+}
+
+func TestReadEnvironmentPortsFromLiveProcessSmoke(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("process environment inspection uses /proc on linux")
 	}
@@ -223,40 +284,6 @@ func TestReadEnvironmentPortsFromLiveProcess(t *testing.T) {
 	}
 	if _, exists := ports["WS_PORT"]; exists {
 		t.Fatalf("unexpected WS_PORT entry: %#v", ports)
-	}
-}
-
-func TestReadEnvironmentPortsIgnoresInvalidValuesAndEmptyKeys(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("process environment inspection uses /proc on linux")
-	}
-
-	cmd := exec.Command("sleep", "30")
-	cmd.Env = append(os.Environ(), "API_PORT=not-a-number", "UI_PORT=38080")
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("start sleep: %v", err)
-	}
-	t.Cleanup(func() {
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
-		_ = cmd.Wait()
-	})
-
-	var ports map[string]int
-	for attempt := 0; attempt < 20; attempt++ {
-		ports = ReadEnvironmentPorts([]Record{{PID: cmd.Process.Pid}}, []string{"", "API_PORT", "UI_PORT"})
-		if ports["UI_PORT"] == 38080 {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	if _, exists := ports["API_PORT"]; exists {
-		t.Fatalf("expected invalid numeric value to be ignored, got %#v", ports)
-	}
-	if ports["UI_PORT"] != 38080 {
-		t.Fatalf("UI_PORT = %d, want 38080", ports["UI_PORT"])
 	}
 }
 

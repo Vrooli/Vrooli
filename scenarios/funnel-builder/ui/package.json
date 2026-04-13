@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node ../../../packages/api-base/bin/vrooli-ui-run.js vite",
+    "dev": "vrooli lifecycle protect -- vite",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Simple test application",
   "scripts": {
-    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "start": "vrooli lifecycle protect -- node server.js",
     "build": "echo 'Building simple app...'",
     "test": "jest --coverage --coverageReporters=text --coverageReporters=json-summary",
     "test:watch": "jest --watch",

@@ -11,9 +11,9 @@ import (
 )
 
 /*
-Rule: UI Shared Lifecycle Launch
-Description: UI package scripts must use the shared api-base lifecycle launcher instead of legacy shell guards
-Reason: Shared lifecycle enforcement keeps UI startup policy centralized and prevents helper-script drift across scenarios
+Rule: UI Lifecycle Launch
+Description: UI package scripts must use the hidden native lifecycle protector instead of raw commands or legacy launchers
+Reason: Shared lifecycle enforcement belongs in the native vrooli CLI so package-manager differences cannot bypass or break it
 Category: structure
 Severity: high
 Targets: structure
@@ -32,8 +32,36 @@ Targets: structure
   <expected-message>Legacy UI guard helper is not allowed</expected-message>
 </test-case>
 
+<test-case id="raw-ui-command-fails" should-fail="true" path="testdata/ui-lifecycle-raw">
+  <description>Raw lifecycle-sensitive UI commands must go through the shared launcher</description>
+  <input language="json">
+{
+  "scenario": "demo",
+  "files": [
+    "ui/package.json"
+  ]
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>must use vrooli lifecycle protect</expected-message>
+</test-case>
+
+<test-case id="old-shared-launcher-fails" should-fail="true" path="testdata/ui-lifecycle-missing-dependency">
+  <description>The old package-bin launcher is no longer an approved UI entrypoint</description>
+  <input language="json">
+{
+  "scenario": "demo",
+  "files": [
+    "ui/package.json"
+  ]
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>must use vrooli lifecycle protect</expected-message>
+</test-case>
+
 <test-case id="shared-launcher-passes" should-fail="false" path="testdata/ui-lifecycle-shared">
-  <description>Shared api-base launcher is an approved UI lifecycle entrypoint</description>
+  <description>Hidden native lifecycle protector is an approved UI lifecycle entrypoint</description>
   <input language="json">
 {
   "scenario": "demo",
@@ -48,6 +76,38 @@ Targets: structure
 type uiLifecyclePayload struct {
 	Scenario string   `json:"scenario"`
 	Files    []string `json:"files"`
+}
+
+func usesApprovedUILauncher(run string) bool {
+	return strings.Contains(run, "vrooli lifecycle protect --")
+}
+
+func requiresLifecycleProtection(run string) bool {
+	lifecycleSensitiveMarkers := []string{
+		"scripts/lib/ui-guard.sh",
+		"vrooli-ui-run",
+		"vite",
+		"vite preview",
+		"npx vite",
+		"react-scripts start",
+		"node server.js",
+		"node server.cjs",
+		"node server.mjs",
+		"node api/server.js",
+		"node --watch server.js",
+		"nodemon server.js",
+		"electron .",
+		"node build.js --watch",
+		"ts-node template-generator.ts",
+	}
+
+	for _, marker := range lifecycleSensitiveMarkers {
+		if strings.Contains(run, marker) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func CheckUISharedLifecycleLaunch(content []byte, scenarioPath string, scenario string) ([]rules.Violation, error) {
@@ -85,13 +145,20 @@ func CheckUISharedLifecycleLaunch(content []byte, scenarioPath string, scenario 
 			continue
 		}
 
-		for _, scriptName := range []string{"start", "dev"} {
+		for _, scriptName := range []string{"start", "dev", "debug", "start:daemon"} {
 			run := strings.TrimSpace(manifest.Scripts[scriptName])
 			if run == "" {
 				continue
 			}
 			if strings.Contains(run, "scripts/lib/ui-guard.sh") {
-				violations = append(violations, newUIViolation(rel, fmt.Sprintf("Legacy UI guard helper is not allowed in %s; use the shared api-base launcher instead", scriptName), "high"))
+				violations = append(violations, newUIViolation(rel, fmt.Sprintf("Legacy UI guard helper is not allowed in %s; use vrooli lifecycle protect instead", scriptName), "high"))
+				continue
+			}
+			if !requiresLifecycleProtection(run) {
+				continue
+			}
+			if !usesApprovedUILauncher(run) {
+				violations = append(violations, newUIViolation(rel, fmt.Sprintf("%s must use vrooli lifecycle protect for lifecycle-sensitive UI commands", scriptName), "high"))
 			}
 		}
 	}

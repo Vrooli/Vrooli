@@ -1,7 +1,6 @@
 package setup
 
 import (
-	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -10,9 +9,13 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostreq"
+	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/resources"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/testfixture"
+	"github.com/vrooli/vrooli/internal/testutil"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-11
@@ -118,14 +121,7 @@ func TestMarkCompleteWritesSetupAndResourceMarkers(t *testing.T) {
 	}
 
 	setupMarker := filepath.Join(root, "data", ".setup-complete")
-	data, err := os.ReadFile(setupMarker)
-	if err != nil {
-		t.Fatalf("read setup marker: %v", err)
-	}
-	var payload map[string]any
-	if err := json.Unmarshal(data, &payload); err != nil {
-		t.Fatalf("unmarshal setup marker: %v", err)
-	}
+	payload := testutil.ReadJSONFile(t, setupMarker)
 	if payload["setup_version"] != "2.0.0" {
 		t.Fatalf("setup_version = %v", payload["setup_version"])
 	}
@@ -135,11 +131,7 @@ func TestMarkCompleteWritesSetupAndResourceMarkers(t *testing.T) {
 }
 
 func TestRepoRemovesLegacyHostSetupSurfaces(t *testing.T) {
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	repoRoot := filepath.Clean(filepath.Join(wd, "..", ".."))
+	repoRoot := testutil.ProjectRoot(t)
 
 	for _, rel := range []string{
 		"scripts/lib/setup.sh",
@@ -467,42 +459,45 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 
 	root := t.TempDir()
 	home := t.TempDir()
-	projectScenario := writeProjectFixtureWithManifest(t, root, `{
-  "version": "1.0.0",
-  "service": {
-    "name": "project-alpha",
-    "displayName": "Project Alpha",
-    "description": "Project-level fixture",
-    "version": "0.1.0"
-  },
-  "dependencies": {
-    "resources": {
-      "redis": { "enabled": false }
-    }
-  },
-  "hostTools": [
-    {"name": "git", "required": true, "reason": "repo operations"},
-    {"name": "docker", "required": true, "reason": "container runtime"}
-  ]
-}`)
-	writeSetupTestFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{
-  "service": {"name": "alpha"},
-  "hostTools": [
-    {"name": "tmux", "required": true, "reason": "scenario shell tooling"}
-  ],
-  "hostSafeguards": [
-    {"name": "remote_session_protection", "required": true, "reason": "protect remote sessions"}
-  ]
-}`)
-	writeSetupTestFile(t, filepath.Join(root, "resources", "redis", "resource.json"), `{
-  "name": "redis",
-  "driver": "external-cli",
-  "binary": "redis-server",
-  "portability_tier": "full",
-  "hostTools": [
-    {"name": "sqlite", "required": false, "reason": "resource cache introspection", "manual": true}
-  ]
-}`)
+	projectManifest := testfixture.ProjectServiceManifest(
+		testfixture.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{"redis": {Enabled: false}},
+		}),
+	)
+	projectManifest.HostTools = []hostreqspec.Declaration{
+		{Name: "git", Required: true, Reason: "repo operations"},
+		{Name: "docker", Required: true, Reason: "container runtime"},
+	}
+	projectScenario := writeProjectFixtureWithServiceManifest(t, root, projectManifest)
+	testfixture.WriteScenarioService(t, root, "alpha", testfixture.ScenarioServiceManifest(
+		"alpha",
+		testfixture.WithLifecycle(scenario.Lifecycle{}),
+	))
+	alphaPath := scenario.ServicePath(root, "alpha")
+	alphaManifest, err := scenario.ReadService(alphaPath)
+	if err != nil {
+		t.Fatalf("ReadService(%s): %v", alphaPath, err)
+	}
+	alphaManifest.HostTools = []hostreqspec.Declaration{
+		{Name: "tmux", Required: true, Reason: "scenario shell tooling"},
+	}
+	alphaManifest.HostSafeguards = []hostreqspec.Declaration{
+		{Name: "remote_session_protection", Required: true, Reason: "protect remote sessions"},
+	}
+	testutil.WriteJSON(t, alphaPath, alphaManifest)
+	testfixture.WriteResourceManifest(t, root, "redis", testfixture.ResourceManifest(
+		"redis",
+		testfixture.WithResourceDriver("external-cli"),
+		testfixture.WithResourceBinary("redis-server"),
+		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "partial",
+			Windows: "unsupported",
+		}),
+		testfixture.WithResourceHostTools(
+			hostreqspec.Declaration{Name: "sqlite", Required: false, Reason: "resource cache introspection", Manual: true},
+		),
+	))
 
 	currentHostFn = func() vrooliruntime.Host {
 		return vrooliruntime.Host{OS: "linux", PackageManager: "apt-get", SupportsSetup: true, SupportsDevelop: true}
@@ -1037,54 +1032,42 @@ func stubSetupDeps(t *testing.T) func() {
 
 func writeProjectFixture(t *testing.T, root string) scenario.Scenario {
 	t.Helper()
-	servicePath := filepath.Join(root, ".vrooli", "service.json")
-	if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
-		t.Fatalf("mkdir service dir: %v", err)
-	}
-	manifest := `{
-  "version": "1.0.0",
-  "service": {
-    "name": "project-alpha",
-    "displayName": "Project Alpha",
-    "description": "Project-level fixture",
-    "version": "0.1.0"
-  },
-  "ports": {
-    "api": {
-      "env_var": "VROOLI_API_PORT",
-      "port": 8092
-    }
-  },
-  "dependencies": {
-    "resources": {
-      "redis": { "enabled": false }
-    }
-  }
-}`
-	if err := os.WriteFile(servicePath, []byte(manifest), 0o644); err != nil {
-		t.Fatalf("write service manifest: %v", err)
-	}
-	parsed, err := scenario.ReadService(servicePath)
-	if err != nil {
-		t.Fatalf("ReadService: %v", err)
-	}
+	manifest := testfixture.ProjectServiceManifest(
+		testfixture.WithPorts(map[string]scenario.Port{
+			"api": {EnvVar: "VROOLI_API_PORT", Port: intPtr(8092)},
+		}),
+		testfixture.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{"redis": {Enabled: false}},
+		}),
+	)
+	testfixture.WriteProjectService(t, root, manifest)
 	return scenario.Scenario{
 		Slug:        "project-alpha",
 		Path:        root,
+		ServicePath: scenario.ProjectServicePath(root),
+		Manifest:    manifest,
+	}
+}
+
+func writeProjectFixtureWithServiceManifest(t *testing.T, root string, manifest scenario.ServiceManifest) scenario.Scenario {
+	t.Helper()
+	testfixture.WriteProjectService(t, root, manifest)
+	servicePath := scenario.ProjectServicePath(root)
+	if strings.TrimSpace(manifest.Service.Name) == "" {
+		manifest.Service.Name = filepath.Base(root)
+	}
+	return scenario.Scenario{
+		Slug:        manifest.Service.Name,
+		Path:        root,
 		ServicePath: servicePath,
-		Manifest:    parsed,
+		Manifest:    manifest,
 	}
 }
 
 func writeProjectFixtureWithManifest(t *testing.T, root, manifest string) scenario.Scenario {
 	t.Helper()
 	servicePath := filepath.Join(root, ".vrooli", "service.json")
-	if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
-		t.Fatalf("mkdir service dir: %v", err)
-	}
-	if err := os.WriteFile(servicePath, []byte(manifest), 0o644); err != nil {
-		t.Fatalf("write service manifest: %v", err)
-	}
+	testutil.WriteRawJSON(t, servicePath, manifest, 0o644)
 	parsed, err := scenario.ReadService(servicePath)
 	if err != nil {
 		t.Fatalf("ReadService: %v", err)
@@ -1099,12 +1082,7 @@ func writeProjectFixtureWithManifest(t *testing.T, root, manifest string) scenar
 
 func writeSetupTestFile(t *testing.T, path, contents string) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("MkdirAll(%s): %v", path, err)
-	}
-	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
-		t.Fatalf("WriteFile(%s): %v", path, err)
-	}
+	testutil.WriteFile(t, path, contents)
 }
 
 func findResolvedRequirement(items []hostreq.ResolvedRequirement, name string) *hostreq.ResolvedRequirement {
@@ -1118,13 +1096,7 @@ func findResolvedRequirement(items []hostreq.ResolvedRequirement, name string) *
 
 func writePortRegistryFixture(t *testing.T, root string) {
 	t.Helper()
-	path := filepath.Join(root, "scripts", "resources", "port_registry.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir port registry dir: %v", err)
-	}
-	if err := os.WriteFile(path, []byte("{\"resource_ports\":{},\"reserved_ranges\":{}}\n"), 0o644); err != nil {
-		t.Fatalf("write port registry: %v", err)
-	}
+	testfixture.WritePortRegistry(t, root, nil)
 }
 
 func writeExecutableFile(t *testing.T, path, contents string) {
@@ -1138,3 +1110,7 @@ func writeExecutableFile(t *testing.T, path, contents string) {
 }
 
 var _ resourceRunner = (*resources.Controller)(nil)
+
+func intPtr(value int) *int {
+	return &value
+}

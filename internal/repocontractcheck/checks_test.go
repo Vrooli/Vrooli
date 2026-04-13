@@ -3,9 +3,10 @@ package repocontractcheck
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/testutil"
 )
 
 func TestRunPassesAgainstLiveRepo(t *testing.T) {
@@ -92,12 +93,7 @@ func TestRunFailsWhenPNPMWorkspaceRootProbeAppears(t *testing.T) {
 }
 
 func repoRoot(t *testing.T) string {
-	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
+	return testutil.ProjectRoot(t)
 }
 
 func hasFailedCheck(report Report, name string) bool {
@@ -113,28 +109,9 @@ func newValidationFixtureRepo(t *testing.T) string {
 	t.Helper()
 
 	root := t.TempDir()
-	sourceRoot := repoRoot(t)
-	for _, rel := range []string{
-		filepath.Join(".vrooli", "repo-contract.json"),
-		filepath.Join(".vrooli", "repo-contract-adoption-exceptions.json"),
-		filepath.Join("docs", "repo-contract.md"),
-		filepath.Join("docs", "CONTRIBUTING.md"),
-		"AGENTS.md",
-		filepath.Join("scenarios", "prompt-manager", "store", "skills", "packs", "core", "cross-platform-readiness", "SKILL.md"),
-	} {
-		data, err := os.ReadFile(filepath.Join(sourceRoot, rel))
-		if err != nil {
-			t.Fatalf("read %s: %v", rel, err)
-		}
-		writeFixtureFile(t, root, rel, string(data))
-	}
-
-	writeFixtureFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
-	for _, dir := range []string{"packages", "cmd", "internal"} {
-		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", dir, err)
-		}
-	}
+	testutil.WriteRepoContract(t, root, "scenarios")
+	testutil.WriteRepoContractExceptions(t, root)
+	testutil.WriteRepoSupportDocs(t, root, testutil.DefaultRepoSupportDocs())
 	writeFixtureFile(t, root, filepath.Join("scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha"}}`)
 	writeFixtureFile(t, root, filepath.Join("resources", "redis", "resource.json"), `{"name":"redis"}`)
 

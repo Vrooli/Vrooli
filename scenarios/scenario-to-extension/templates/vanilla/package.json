@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "build": "node build.js",
-    "dev": "node ../../../../packages/api-base/bin/vrooli-ui-run.js node build.js --watch",
+    "dev": "vrooli lifecycle protect -- node build.js --watch",
     "clean": "rm -rf dist",
     "pack": "npm run build && cd dist && zip -r ../{{PACKAGE_NAME}}-v{{VERSION}}.zip *",
     "lint": "eslint *.js",

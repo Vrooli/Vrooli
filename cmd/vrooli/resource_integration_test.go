@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package main
 
 import (
@@ -13,11 +16,6 @@ func TestSplitRunResourceStatusUsesNativeController(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("resource status should not route through CLI bash shim: %+v", spec)
-		return nil
-	}
-
 	var stdout bytes.Buffer
 	code := app.Run([]string{"resource", "status", "fixture-resource"}, &stdout, &bytes.Buffer{})
 	if code != 0 {

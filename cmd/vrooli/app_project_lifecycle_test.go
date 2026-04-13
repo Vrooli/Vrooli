@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package main
 
 import (
@@ -62,10 +65,6 @@ func TestSplitRunSetupUsesNativeProjectLifecycle(t *testing.T) {
 	app.resolveSourceRoot = func() (string, error) { return root, nil }
 	app.isStale = func() bool { return false }
 	app.checkStaleness = nil
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("setup should not route to bash: %+v", spec)
-		return nil
-	}
 	capturedRoot := ""
 	capturedHome := ""
 	var capturedArgs []string
@@ -97,10 +96,6 @@ func TestSplitRunDevelopUsesNativeProjectLifecycle(t *testing.T) {
 	app.resolveSourceRoot = func() (string, error) { return root, nil }
 	app.isStale = func() bool { return false }
 	app.checkStaleness = nil
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("develop should not route to bash: %+v", spec)
-		return nil
-	}
 	calls := 0
 	app.runProjectDevelop = func(capturedRoot, capturedHome string, args []string, stdout, stderr io.Writer) error {
 		calls++
@@ -129,10 +124,6 @@ func TestSplitRunDevelopUsesProjectPortOverride(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("VROOLI_API_PORT", "18094")
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("develop should not route to bash: %+v", spec)
-		return nil
-	}
 	app.runProjectDevelop = func(capturedRoot, capturedHome string, args []string, stdout, stderr io.Writer) error {
 		if got := os.Getenv("VROOLI_API_PORT"); got != "18094" {
 			t.Fatalf("VROOLI_API_PORT = %q", got)
@@ -155,10 +146,6 @@ func TestSplitRunSetupPassesDryRunThroughProjectLifecycle(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("setup should not route to bash: %+v", spec)
-		return nil
-	}
 	app.runProjectSetup = func(root, home string, args []string, stdout, stderr io.Writer) error {
 		if got := strings.Join(args, "|"); got != "--dry-run" {
 			t.Fatalf("setup args = %q", got)
@@ -219,11 +206,6 @@ func TestSplitRunProjectBackupUsesNativePhaseRunner(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("backup should not route to bash: %+v", spec)
-		return nil
-	}
-
 	code := app.Run([]string{"backup"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
@@ -244,11 +226,6 @@ func TestSplitRunProjectBuildUsesNativePhaseRunner(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("build should not route to bash: %+v", spec)
-		return nil
-	}
-
 	code := app.Run([]string{"build"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
@@ -269,11 +246,6 @@ func TestSplitRunProjectCleanUsesNativePhaseRunner(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("clean should not route to bash: %+v", spec)
-		return nil
-	}
-
 	code := app.Run([]string{"clean"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
@@ -294,11 +266,6 @@ func TestSplitRunProjectDeployUsesNativePhaseRunner(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("deploy should not route to bash: %+v", spec)
-		return nil
-	}
-
 	code := app.Run([]string{"deploy"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
@@ -319,11 +286,6 @@ func TestSplitRunProjectRestoreUsesNativePhaseRunner(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("restore should not route to bash: %+v", spec)
-		return nil
-	}
-
 	code := app.Run([]string{"restore"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
@@ -381,11 +343,6 @@ func assertProjectLifecycleCommandPhaseUndefined(t *testing.T, command string) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.execCommand = func(spec commandSpec) error {
-		t.Fatalf("%s should not route to bash: %+v", command, spec)
-		return nil
-	}
-
 	var stderr bytes.Buffer
 	code := app.Run([]string{command}, &bytes.Buffer{}, &stderr)
 	if code == 0 {

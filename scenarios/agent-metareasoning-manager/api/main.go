@@ -24,24 +24,24 @@ import (
 
 const (
 	// API version
-	apiVersion = "2.0.0"
+	apiVersion  = "2.0.0"
 	serviceName = "agent-metareasoning-manager"
-	
+
 	// Defaults
 	defaultEmbeddingModel = "nomic-embed-text"
-	defaultWorkspace = "demo"
-	defaultPort = "8090"
-	
+	defaultWorkspace      = "demo"
+	defaultPort           = "8090"
+
 	// Timeouts
-	httpTimeout = 30 * time.Second
-	discoveryDelay = 5 * time.Second
+	httpTimeout         = 30 * time.Second
+	discoveryDelay      = 5 * time.Second
 	rediscoveryInterval = 5 * time.Minute
-	
+
 	// Database limits
-	maxDBConnections = 25
+	maxDBConnections   = 25
 	maxIdleConnections = 5
-	connMaxLifetime = 5 * time.Minute
-	
+	connMaxLifetime    = 5 * time.Minute
+
 	// Search
 	defaultSearchLimit = 10
 	minSimilarityScore = 0.3
@@ -75,16 +75,16 @@ func (l *Logger) Info(msg string) {
 func HTTPError(w http.ResponseWriter, message string, statusCode int, err error) {
 	logger := NewLogger()
 	logger.Error(fmt.Sprintf("HTTP %d: %s", statusCode, message), err)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	
+
 	errorResp := map[string]interface{}{
 		"error":     message,
 		"status":    statusCode,
 		"timestamp": time.Now().UTC(),
 	}
-	
+
 	json.NewEncoder(w).Encode(errorResp)
 }
 
@@ -122,20 +122,20 @@ func NewDiscoveryService(db *sql.DB, n8nURL, windmillURL, qdrantURL string) *Dis
 		httpClient: &http.Client{
 			Timeout: httpTimeout,
 		},
-		logger:      NewLogger(),
+		logger: NewLogger(),
 	}
 }
 
 // DiscoverAndRegister queries platforms and registers workflows
 func (d *DiscoveryService) DiscoverAndRegister() error {
 	d.logger.Info("Starting workflow discovery...")
-	
+
 	// Initialize Qdrant collection if needed
 	if err := d.initializeQdrantCollection(); err != nil {
 		d.logger.Error("Failed to initialize Qdrant collection", err)
 		// Continue anyway - semantic search will be disabled
 	}
-	
+
 	// Discover workflows from all platforms
 	platforms := []string{"n8n", "windmill"}
 	for _, platform := range platforms {
@@ -143,7 +143,7 @@ func (d *DiscoveryService) DiscoverAndRegister() error {
 			d.logger.Warn(fmt.Sprintf("Failed to discover %s workflows", platform), err)
 		}
 	}
-	
+
 	d.logger.Info("Workflow discovery completed")
 	return nil
 }
@@ -156,13 +156,13 @@ func (d *DiscoveryService) initializeQdrantCollection() error {
 		return fmt.Errorf("could not check Qdrant collection: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	// If collection exists, we're done
 	if resp.StatusCode == 200 {
 		d.logger.Info("Qdrant collection 'workflow_embeddings' already exists")
 		return nil
 	}
-	
+
 	// Get embedding dimensions from the model
 	// nomic-embed-text produces 768-dimensional embeddings
 	// mxbai-embed-large produces 1024-dimensional embeddings
@@ -171,7 +171,7 @@ func (d *DiscoveryService) initializeQdrantCollection() error {
 	if embeddingModel == "" {
 		embeddingModel = defaultEmbeddingModel
 	}
-	
+
 	embeddingSize := 384 // Default for most models (vector workflow uses 384)
 	switch embeddingModel {
 	case "mxbai-embed-large":
@@ -185,7 +185,7 @@ func (d *DiscoveryService) initializeQdrantCollection() error {
 	default:
 		// Try to detect by generating a test embedding via workflow
 		testMetadata := map[string]interface{}{
-			"point_id": "test_embedding_size_detection",
+			"point_id":     "test_embedding_size_detection",
 			"pattern_type": "test",
 			"pattern_name": "size detection",
 		}
@@ -193,7 +193,7 @@ func (d *DiscoveryService) initializeQdrantCollection() error {
 		if err == nil && testResp.EmbeddingDimension > 0 {
 			embeddingSize = testResp.EmbeddingDimension
 			d.logger.Info(fmt.Sprintf("Detected embedding size: %d for model %s via workflow", embeddingSize, embeddingModel))
-			
+
 			// Clean up test embedding
 			deleteURL := fmt.Sprintf("%s/collections/workflow_embeddings/points/%s", d.qdrantURL, testResp.PointID)
 			deleteReq, _ := http.NewRequest("DELETE", deleteURL, nil)
@@ -202,34 +202,34 @@ func (d *DiscoveryService) initializeQdrantCollection() error {
 			d.logger.Warn("Failed to detect embedding size via workflow, using default 384", err)
 		}
 	}
-	
+
 	// Create collection
 	collectionConfig := map[string]interface{}{
 		"vectors": map[string]interface{}{
-			"size": embeddingSize,  // Match actual embedding dimension
+			"size":     embeddingSize, // Match actual embedding dimension
 			"distance": "Cosine",
 		},
 	}
-	
+
 	configBody, err := json.Marshal(collectionConfig)
 	if err != nil {
 		return fmt.Errorf("failed to marshal collection config: %w", err)
 	}
-	
+
 	createReq, err := http.NewRequest("PUT",
 		fmt.Sprintf("%s/collections/workflow_embeddings", d.qdrantURL),
 		bytes.NewBuffer(configBody))
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request: %w", err)
 	}
-	
+
 	createReq.Header.Set("Content-Type", "application/json")
 	createResp, err := d.httpClient.Do(createReq)
 	if err != nil {
 		return fmt.Errorf("failed to create Qdrant collection: %w", err)
 	}
 	defer createResp.Body.Close()
-	
+
 	if createResp.StatusCode < 400 {
 		d.logger.Info("Created Qdrant collection 'workflow_embeddings'")
 		return nil
@@ -242,7 +242,7 @@ func (d *DiscoveryService) initializeQdrantCollection() error {
 func (d *DiscoveryService) discoverPlatformWorkflows(platform string) error {
 	var url string
 	var idField, nameField string
-	
+
 	switch platform {
 	case "n8n":
 		url = fmt.Sprintf("%s/rest/workflows", d.n8nBaseURL)
@@ -255,23 +255,23 @@ func (d *DiscoveryService) discoverPlatformWorkflows(platform string) error {
 	default:
 		return fmt.Errorf("unsupported platform: %s", platform)
 	}
-	
+
 	resp, err := d.httpClient.Get(url)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	
+
 	var items []map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
 		return err
 	}
-	
+
 	// Register metareasoning workflows
 	for _, item := range items {
 		id, _ := item[idField].(string)
 		name, _ := item[nameField].(string)
-		
+
 		// For n8n, also check the actual name field
 		if platform == "n8n" {
 			actualName, _ := item["name"].(string)
@@ -279,7 +279,7 @@ func (d *DiscoveryService) discoverPlatformWorkflows(platform string) error {
 				name = actualName
 			}
 		}
-		
+
 		if d.isMetareasoningWorkflow(name) {
 			tags := []string{}
 			if platform == "n8n" {
@@ -288,7 +288,7 @@ func (d *DiscoveryService) discoverPlatformWorkflows(platform string) error {
 			d.registerWorkflow(platform, id, name, tags)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -306,7 +306,7 @@ func (d *DiscoveryService) isMetareasoningWorkflow(name string) bool {
 func (d *DiscoveryService) registerWorkflow(platform, platformID, name string, tags []string) error {
 	// Generate a unique embedding ID for this workflow
 	embeddingID := fmt.Sprintf("%s_%s_%s", platform, platformID, uuid.New().String()[:8])
-	
+
 	// Insert workflow metadata into database
 	_, err := d.db.Exec(`
 		INSERT INTO workflow_registry (platform, platform_id, name, tags, embedding_id)
@@ -314,14 +314,13 @@ func (d *DiscoveryService) registerWorkflow(platform, platformID, name string, t
 		ON CONFLICT (platform, platform_id) 
 		DO UPDATE SET name = $3, embedding_id = $5, updated_at = CURRENT_TIMESTAMP`,
 		platform, platformID, name, tags, embeddingID)
-	
 	if err != nil {
 		return err
 	}
-	
+
 	// Create and store embedding in Qdrant (async to not block discovery)
 	go d.createAndStoreEmbedding(embeddingID, name, tags)
-	
+
 	return nil
 }
 
@@ -341,7 +340,7 @@ func extractTags(workflow map[string]interface{}) []string {
 func scanWorkflowRow(rows *sql.Rows, includeLast bool) (*WorkflowMetadata, error) {
 	var wf WorkflowMetadata
 	var tagsArray sql.NullString
-	
+
 	if includeLast {
 		err := rows.Scan(&wf.ID, &wf.Platform, &wf.PlatformID, &wf.Name,
 			&wf.Description, &wf.Category, &tagsArray, &wf.UsageCount, &wf.LastUsed)
@@ -355,12 +354,12 @@ func scanWorkflowRow(rows *sql.Rows, includeLast bool) (*WorkflowMetadata, error
 			return nil, err
 		}
 	}
-	
+
 	// Parse tags
 	if tagsArray.Valid {
 		wf.Tags = strings.Split(strings.Trim(tagsArray.String, "{}"), ",")
 	}
-	
+
 	return &wf, nil
 }
 
@@ -377,7 +376,7 @@ func (d *DiscoveryService) ListWorkflows(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	defer rows.Close()
-	
+
 	var workflows []WorkflowMetadata
 	for rows.Next() {
 		wf, err := scanWorkflowRow(rows, true)
@@ -386,7 +385,7 @@ func (d *DiscoveryService) ListWorkflows(w http.ResponseWriter, r *http.Request)
 		}
 		workflows = append(workflows, *wf)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(workflows)
 }
@@ -396,7 +395,7 @@ func (d *DiscoveryService) ExecuteWorkflow(w http.ResponseWriter, r *http.Reques
 	vars := mux.Vars(r)
 	platform := vars["platform"]
 	workflowID := vars["workflowId"]
-	
+
 	// Log execution start
 	execID := uuid.New()
 	_, err := d.db.Exec(`
@@ -408,22 +407,22 @@ func (d *DiscoveryService) ExecuteWorkflow(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		log.Printf("Failed to log execution start: %v", err)
 	}
-	
+
 	startTime := time.Now()
-	
+
 	// Proxy to appropriate platform
 	result, execErr := d.executePlatformWorkflow(platform, workflowID, r)
 	if execErr != nil && strings.Contains(execErr.Error(), "unsupported platform") {
 		HTTPError(w, "Unknown platform", http.StatusBadRequest, execErr)
 		return
 	}
-	
+
 	// Log execution completion
 	status := "success"
 	if execErr != nil {
 		status = "failed"
 	}
-	
+
 	executionTime := int(time.Since(startTime).Milliseconds())
 	_, err = d.db.Exec(`
 		UPDATE execution_log 
@@ -433,7 +432,7 @@ func (d *DiscoveryService) ExecuteWorkflow(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		log.Printf("Failed to log execution completion: %v", err)
 	}
-	
+
 	// Update workflow usage stats
 	_, err = d.db.Exec(`
 		UPDATE workflow_registry 
@@ -443,13 +442,13 @@ func (d *DiscoveryService) ExecuteWorkflow(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		d.logger.Error("Failed to update workflow usage stats", err)
 	}
-	
+
 	// Return result
 	if execErr != nil {
 		HTTPError(w, "Workflow execution failed", http.StatusInternalServerError, execErr)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
@@ -458,7 +457,7 @@ func (d *DiscoveryService) ExecuteWorkflow(w http.ResponseWriter, r *http.Reques
 func (d *DiscoveryService) executePlatformWorkflow(platform, workflowID string, r *http.Request) (map[string]interface{}, error) {
 	var targetURL string
 	var method string
-	
+
 	switch platform {
 	case "n8n":
 		targetURL = fmt.Sprintf("%s/webhook/%s", d.n8nBaseURL, workflowID)
@@ -469,26 +468,26 @@ func (d *DiscoveryService) executePlatformWorkflow(platform, workflowID string, 
 	default:
 		return nil, fmt.Errorf("unsupported platform: %s", platform)
 	}
-	
+
 	// Create proxy request
 	proxyReq, err := http.NewRequest(method, targetURL, r.Body)
 	if err != nil {
 		return nil, err
 	}
 	proxyReq.Header = r.Header
-	
+
 	// Execute
 	resp, err := d.httpClient.Do(proxyReq)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 	}
-	
+
 	return result, nil
 }
 
@@ -496,39 +495,39 @@ func (d *DiscoveryService) executePlatformWorkflow(platform, workflowID string, 
 func (d *DiscoveryService) createAndStoreEmbedding(embeddingID, text string, tags []string) {
 	// Create search text from name and tags
 	searchText := text + " " + strings.Join(tags, " ")
-	
+
 	// Prepare metadata for workflow_embeddings collection
 	metadata := map[string]interface{}{
-		"point_id": embeddingID,
-		"pattern_type": "discovered_workflow",
-		"pattern_name": text,
-		"description": searchText,
-		"tags": tags,
-		"usage_count": 0,
+		"point_id":            embeddingID,
+		"pattern_type":        "discovered_workflow",
+		"pattern_name":        text,
+		"description":         searchText,
+		"tags":                tags,
+		"usage_count":         0,
 		"effectiveness_score": 0.0,
-		"workflow_reference": embeddingID, // Reference to the workflow
+		"workflow_reference":  embeddingID, // Reference to the workflow
 	}
-	
+
 	// Delegate to vector conversion workflow
 	resp, err := d.generateEmbeddingWithWorkflow(searchText, "workflow_embeddings", metadata)
 	if err != nil {
 		d.logger.Error(fmt.Sprintf("Failed to generate embedding for %s via workflow", embeddingID), err)
 		return
 	}
-	
-	d.logger.Info(fmt.Sprintf("Successfully created and stored embedding for %s (ID: %s) in %dms", 
+
+	d.logger.Info(fmt.Sprintf("Successfully created and stored embedding for %s (ID: %s) in %dms",
 		text, resp.PointID, resp.ExecutionTimeMS))
 }
 
 // VectorWorkflowResponse represents the response from vector conversion workflow
 type VectorWorkflowResponse struct {
-	Status            string `json:"status"`
-	PointID           string `json:"point_id"`
-	Collection        string `json:"collection"`
-	EmbeddingDimension int   `json:"embedding_dimension"`
-	ExecutionTimeMS   int    `json:"execution_time_ms"`
-	ModelUsed         string `json:"model_used"`
-	Error            string `json:"error,omitempty"`
+	Status             string `json:"status"`
+	PointID            string `json:"point_id"`
+	Collection         string `json:"collection"`
+	EmbeddingDimension int    `json:"embedding_dimension"`
+	ExecutionTimeMS    int    `json:"execution_time_ms"`
+	ModelUsed          string `json:"model_used"`
+	Error              string `json:"error,omitempty"`
 }
 
 // generateEmbeddingWithWorkflow delegates embedding generation to vector conversion workflow
@@ -538,53 +537,53 @@ func (d *DiscoveryService) generateEmbeddingWithWorkflow(text string, collection
 	if embeddingModel == "" {
 		embeddingModel = defaultEmbeddingModel
 	}
-	
+
 	// Get n8n port for workflow delegation
 	n8nPort := getResourcePort("n8n")
 	workflowURL := fmt.Sprintf("http://localhost:%s/webhook/vector-conversion", n8nPort)
-	
+
 	// Prepare workflow request
 	workflowReq := map[string]interface{}{
-		"text":       text,
-		"collection": collection,
+		"text":            text,
+		"collection":      collection,
 		"embedding_model": embeddingModel,
 	}
-	
+
 	// Add metadata based on collection type
 	for key, value := range metadata {
 		workflowReq[key] = value
 	}
-	
+
 	reqBody, err := json.Marshal(workflowReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal workflow request: %w", err)
 	}
-	
+
 	// Call vector conversion workflow
 	resp, err := d.httpClient.Post(workflowURL, "application/json", bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to call vector conversion workflow: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("vector conversion workflow returned status %d", resp.StatusCode)
 	}
-	
+
 	// Parse workflow response
 	var workflowResp VectorWorkflowResponse
 	if err := json.NewDecoder(resp.Body).Decode(&workflowResp); err != nil {
 		return nil, fmt.Errorf("failed to decode workflow response: %w", err)
 	}
-	
+
 	// Check if workflow succeeded
 	if workflowResp.Status != "success" {
 		return nil, fmt.Errorf("vector conversion workflow failed: %s", workflowResp.Error)
 	}
-	
-	d.logger.Info(fmt.Sprintf("Generated %d-dimensional embedding via workflow in %dms", 
+
+	d.logger.Info(fmt.Sprintf("Generated %d-dimensional embedding via workflow in %dms",
 		workflowResp.EmbeddingDimension, workflowResp.ExecutionTimeMS))
-	
+
 	return &workflowResp, nil
 }
 
@@ -592,18 +591,17 @@ func (d *DiscoveryService) generateEmbeddingWithWorkflow(text string, collection
 func (d *DiscoveryService) generateEmbedding(text string) []float32 {
 	// This function maintained for backward compatibility with search functionality
 	// For new code, use generateEmbeddingWithWorkflow directly
-	
+
 	resp, err := d.generateEmbeddingWithWorkflow(text, "execution_embeddings", map[string]interface{}{
-		"execution_id": fmt.Sprintf("search_%d", time.Now().Unix()),
+		"execution_id":  fmt.Sprintf("search_%d", time.Now().Unix()),
 		"workflow_type": "search_query",
-		"status": "search",
+		"status":        "search",
 	})
-	
 	if err != nil {
 		d.logger.Error("Failed to generate embedding via workflow", err)
 		return nil
 	}
-	
+
 	// Note: We can't return the actual embedding vector from the workflow response
 	// because the workflow stores it directly in Qdrant. For search, we'll modify
 	// the search function to use the stored embedding directly.
@@ -613,7 +611,7 @@ func (d *DiscoveryService) generateEmbedding(text string) []float32 {
 		placeholder := make([]float32, resp.EmbeddingDimension)
 		return placeholder
 	}
-	
+
 	return nil
 }
 
@@ -632,26 +630,26 @@ func (d *DiscoveryService) AnalyzeWorkflow(w http.ResponseWriter, r *http.Reques
 		HTTPError(w, "Invalid JSON request body", http.StatusBadRequest, err)
 		return
 	}
-	
+
 	if req.Type == "" || req.Input == "" {
 		HTTPError(w, "Missing required fields: type and input", http.StatusBadRequest, nil)
 		return
 	}
-	
+
 	// Map analysis types to workflow IDs and platforms
 	workflowMapping := map[string]struct {
 		Platform   string
 		WorkflowID string
 	}{
 		"pros-cons":       {"n8n", "pros-cons-analyzer"},
-		"swot":           {"n8n", "swot-analysis"},
-		"risk":           {"n8n", "risk-assessment"},
+		"swot":            {"n8n", "swot-analysis"},
+		"risk":            {"n8n", "risk-assessment"},
 		"risk-assessment": {"n8n", "risk-assessment"},
-		"self-review":    {"n8n", "self-review"},
+		"self-review":     {"n8n", "self-review"},
 		"reasoning-chain": {"n8n", "reasoning-chain"},
-		"decision":       {"windmill", "decision-analyzer"},
+		"decision":        {"windmill", "decision-analyzer"},
 	}
-	
+
 	mapping, exists := workflowMapping[req.Type]
 	if !exists {
 		// Try to find workflow by name pattern matching
@@ -666,53 +664,53 @@ func (d *DiscoveryService) AnalyzeWorkflow(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		defer rows.Close()
-		
+
 		if !rows.Next() {
 			HTTPError(w, fmt.Sprintf("Unknown analysis type: %s", req.Type), http.StatusBadRequest, nil)
 			return
 		}
-		
+
 		if err := rows.Scan(&mapping.Platform, &mapping.WorkflowID); err != nil {
 			HTTPError(w, "Failed to resolve workflow mapping", http.StatusInternalServerError, err)
 			return
 		}
 	}
-	
+
 	// Build execution payload
 	payload := map[string]interface{}{
 		"input":   req.Input,
 		"context": req.Context,
 		"model":   req.Model,
 	}
-	
+
 	if req.Model == "" {
 		payload["model"] = "llama3.2" // Default model
 	}
-	
+
 	// Create a mock HTTP request for execution
 	payloadBytes, _ := json.Marshal(payload)
 	mockReq, _ := http.NewRequest("POST", "", bytes.NewReader(payloadBytes))
 	mockReq.Header.Set("Content-Type", "application/json")
-	
+
 	// Execute the workflow
 	result, err := d.executePlatformWorkflow(mapping.Platform, mapping.WorkflowID, mockReq)
 	if err != nil {
 		HTTPError(w, "Workflow execution failed", http.StatusInternalServerError, err)
 		return
 	}
-	
+
 	// Return enriched result with metadata
 	response := map[string]interface{}{
 		"analysis_type": req.Type,
-		"platform":     mapping.Platform,
-		"workflow_id":  mapping.WorkflowID,
-		"result":       result,
+		"platform":      mapping.Platform,
+		"workflow_id":   mapping.WorkflowID,
+		"result":        result,
 		"metadata": map[string]interface{}{
 			"model_used": req.Model,
-			"timestamp": time.Now().UTC(),
+			"timestamp":  time.Now().UTC(),
 		},
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -723,26 +721,26 @@ func (d *DiscoveryService) SearchWorkflows(w http.ResponseWriter, r *http.Reques
 		Query string `json:"query"`
 		Limit int    `json:"limit,omitempty"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&searchReq); err != nil {
 		HTTPError(w, "Invalid JSON request body", http.StatusBadRequest, err)
 		return
 	}
-	
+
 	if searchReq.Limit == 0 {
 		searchReq.Limit = defaultSearchLimit
 	}
-	
+
 	// Try semantic search first with Qdrant
 	semanticResults := d.semanticSearch(searchReq.Query, searchReq.Limit)
-	
+
 	// If semantic search returns results, use them
 	if len(semanticResults) > 0 {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(semanticResults)
 		return
 	}
-	
+
 	// Fallback to keyword search if Qdrant is unavailable or returns no results
 	query := "%" + strings.ToLower(searchReq.Query) + "%"
 	rows, err := d.db.Query(`
@@ -758,7 +756,7 @@ func (d *DiscoveryService) SearchWorkflows(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	defer rows.Close()
-	
+
 	var workflows []WorkflowMetadata
 	for rows.Next() {
 		wf, err := scanWorkflowRow(rows, false)
@@ -767,30 +765,30 @@ func (d *DiscoveryService) SearchWorkflows(w http.ResponseWriter, r *http.Reques
 		}
 		workflows = append(workflows, *wf)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(workflows)
 }
 
 // semanticSearchWithWorkflow performs vector similarity search using workflow delegation and Qdrant
 func (d *DiscoveryService) semanticSearchWithWorkflow(query string, limit int) []WorkflowMetadata {
-	// Generate query embedding using vector conversion workflow  
+	// Generate query embedding using vector conversion workflow
 	queryMetadata := map[string]interface{}{
-		"execution_id": fmt.Sprintf("search_%d", time.Now().Unix()),
+		"execution_id":  fmt.Sprintf("search_%d", time.Now().Unix()),
 		"workflow_type": "semantic_search",
-		"status": "search_query",
+		"status":        "search_query",
 	}
-	
+
 	// Store query embedding in execution_embeddings collection
 	queryResp, err := d.generateEmbeddingWithWorkflow(query, "execution_embeddings", queryMetadata)
 	if err != nil {
 		d.logger.Error("Failed to generate search embedding via workflow", err)
 		return nil
 	}
-	
-	d.logger.Info(fmt.Sprintf("Generated %d-dimensional search embedding in %dms", 
+
+	d.logger.Info(fmt.Sprintf("Generated %d-dimensional search embedding in %dms",
 		queryResp.EmbeddingDimension, queryResp.ExecutionTimeMS))
-	
+
 	// Now we need to retrieve the embedding from Qdrant to perform the search
 	// Get the stored embedding point
 	getPointURL := fmt.Sprintf("%s/collections/execution_embeddings/points/%s", d.qdrantURL, queryResp.PointID)
@@ -800,24 +798,24 @@ func (d *DiscoveryService) semanticSearchWithWorkflow(query string, limit int) [
 		return nil
 	}
 	defer pointResp.Body.Close()
-	
+
 	if pointResp.StatusCode >= 400 {
 		d.logger.Error("Failed to retrieve query embedding from Qdrant", fmt.Errorf("status: %d", pointResp.StatusCode))
 		return nil
 	}
-	
+
 	// Parse the embedding point response
 	var pointData struct {
 		Result struct {
 			Vector []float32 `json:"vector"`
 		} `json:"result"`
 	}
-	
+
 	if err := json.NewDecoder(pointResp.Body).Decode(&pointData); err != nil {
 		d.logger.Error("Failed to decode embedding point response", err)
 		return nil
 	}
-	
+
 	// Perform the actual search using the retrieved embedding
 	return d.performQdrantSearch(pointData.Result.Vector, limit)
 }
@@ -826,12 +824,12 @@ func (d *DiscoveryService) semanticSearchWithWorkflow(query string, limit int) [
 func (d *DiscoveryService) performQdrantSearch(queryEmbedding []float32, limit int) []WorkflowMetadata {
 	// Search in workflow_embeddings collection
 	searchPayload := map[string]interface{}{
-		"vector": queryEmbedding,
-		"limit": limit,
-		"with_payload": true,
+		"vector":          queryEmbedding,
+		"limit":           limit,
+		"with_payload":    true,
 		"score_threshold": minSimilarityScore,
 	}
-	
+
 	reqBody, _ := json.Marshal(searchPayload)
 	resp, err := d.httpClient.Post(
 		fmt.Sprintf("%s/collections/workflow_embeddings/points/search", d.qdrantURL),
@@ -843,37 +841,37 @@ func (d *DiscoveryService) performQdrantSearch(queryEmbedding []float32, limit i
 		return nil
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode >= 400 {
 		d.logger.Error("Qdrant search failed", fmt.Errorf("status: %d", resp.StatusCode))
 		return nil
 	}
-	
+
 	// Parse Qdrant response
 	var qdrantResp struct {
 		Result []struct {
 			ID      string                 `json:"id"`
-			Score   float32               `json:"score"`
+			Score   float32                `json:"score"`
 			Payload map[string]interface{} `json:"payload"`
 		} `json:"result"`
 	}
-	
+
 	if err := json.NewDecoder(resp.Body).Decode(&qdrantResp); err != nil {
 		d.logger.Error("Failed to decode Qdrant search response", err)
 		return nil
 	}
-	
+
 	// Fetch workflow details from database based on embedding IDs
 	if len(qdrantResp.Result) == 0 {
 		d.logger.Info("No similar workflows found")
 		return nil
 	}
-	
+
 	var embeddingIDs []string
 	for _, result := range qdrantResp.Result {
 		embeddingIDs = append(embeddingIDs, result.ID)
 	}
-	
+
 	// Build query with placeholders for IN clause
 	placeholders := make([]string, len(embeddingIDs))
 	args := make([]interface{}, len(embeddingIDs))
@@ -881,14 +879,14 @@ func (d *DiscoveryService) performQdrantSearch(queryEmbedding []float32, limit i
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = id
 	}
-	
+
 	sqlQuery := fmt.Sprintf(`
 		SELECT id, platform, platform_id, name, description, category, tags, usage_count
 		FROM workflow_registry
 		WHERE embedding_id IN (%s)
 		ORDER BY array_position(ARRAY[%s]::text[], embedding_id)
 	`, strings.Join(placeholders, ","), strings.Join(placeholders, ","))
-	
+
 	// Double the args for the two placeholders in the query
 	doubledArgs := append(args, args...)
 	rows, err := d.db.Query(sqlQuery, doubledArgs...)
@@ -897,7 +895,7 @@ func (d *DiscoveryService) performQdrantSearch(queryEmbedding []float32, limit i
 		return nil
 	}
 	defer rows.Close()
-	
+
 	var workflows []WorkflowMetadata
 	for rows.Next() {
 		wf, err := scanWorkflowRow(rows, false)
@@ -907,7 +905,7 @@ func (d *DiscoveryService) performQdrantSearch(queryEmbedding []float32, limit i
 		}
 		workflows = append(workflows, *wf)
 	}
-	
+
 	d.logger.Info(fmt.Sprintf("Found %d similar workflows", len(workflows)))
 	return workflows
 }
@@ -918,9 +916,15 @@ func (d *DiscoveryService) semanticSearch(query string, limit int) []WorkflowMet
 	return d.semanticSearchWithWorkflow(query, limit)
 }
 
-
 // getResourcePort queries the port registry for a resource's port
 func getResourcePort(resourceName string) string {
+	defaults := map[string]string{
+		"n8n":      "5678",
+		"windmill": "5681",
+		"postgres": "5433",
+		"qdrant":   "6333",
+	}
+
 	cmd := exec.Command("bash", "-c", fmt.Sprintf(
 		"source ${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh && ports::get_resource_port %s",
 		resourceName,
@@ -928,19 +932,21 @@ func getResourcePort(resourceName string) string {
 	output, err := cmd.Output()
 	if err != nil {
 		log.Printf("Warning: Failed to get port for %s, using default: %v", resourceName, err)
-		// Fallback to defaults
-		defaults := map[string]string{
-			"n8n": "5678",
-			"windmill": "5681",
-			"postgres": "5433",
-			"qdrant": "6333",
-		}
 		if port, ok := defaults[resourceName]; ok {
 			return port
 		}
 		return "8080" // Generic fallback
 	}
-	return strings.TrimSpace(string(output))
+
+	port := strings.TrimSpace(string(output))
+	if port != "" {
+		return port
+	}
+
+	if fallback, ok := defaults[resourceName]; ok {
+		return fallback
+	}
+	return "8080"
 }
 
 func main() {
@@ -958,23 +964,23 @@ func main() {
 	windmillPort := getResourcePort("windmill")
 	_ = getResourcePort("postgres") // postgresPort - unused but kept for reference
 	qdrantPort := getResourcePort("qdrant")
-	
+
 	// Optional service URLs (can be configured if needed)
 	n8nURL := os.Getenv("N8N_BASE_URL")
 	if n8nURL == "" && n8nPort != "" {
 		n8nURL = fmt.Sprintf("http://localhost:%s", n8nPort)
 	}
-	
+
 	windmillURL := os.Getenv("WINDMILL_BASE_URL")
 	if windmillURL == "" && windmillPort != "" {
 		windmillURL = fmt.Sprintf("http://localhost:%s", windmillPort)
 	}
-	
+
 	qdrantURL := os.Getenv("QDRANT_BASE_URL")
 	if qdrantURL == "" && qdrantPort != "" {
 		qdrantURL = fmt.Sprintf("http://localhost:%s", qdrantPort)
 	}
-	
+
 	// Connect to database
 	db, err := database.Connect(context.Background(), database.Config{
 		Driver:       database.DriverPostgres,
@@ -986,20 +992,20 @@ func main() {
 	}
 
 	logger.Info("Database connection pool established successfully!")
-	
+
 	// Initialize metareasoning engine
 	metareasoningEngine := NewMetareasoningEngine(db)
-	
+
 	// Initialize discovery service
 	discovery := NewDiscoveryService(db, n8nURL, windmillURL, qdrantURL)
-	
+
 	// Start discovery in background
 	go func() {
 		time.Sleep(discoveryDelay) // Let platforms initialize
 		if err := discovery.DiscoverAndRegister(); err != nil {
 			log.Printf("Discovery failed: %v", err)
 		}
-		
+
 		// Periodic re-discovery
 		ticker := time.NewTicker(rediscoveryInterval)
 		for range ticker.C {
@@ -1008,7 +1014,7 @@ func main() {
 			}
 		}
 	}()
-	
+
 	// Setup routes
 	r := mux.NewRouter()
 
@@ -1022,7 +1028,7 @@ func main() {
 	r.HandleFunc("/workflows/search", discovery.SearchWorkflows).Methods("POST")
 	r.HandleFunc("/analyze", discovery.AnalyzeWorkflow).Methods("POST")
 	r.HandleFunc("/execute/{platform}/{workflowId}", discovery.ExecuteWorkflow).Methods("POST")
-	
+
 	// Metareasoning endpoints (replacing n8n workflows)
 	r.HandleFunc("/reasoning", func(w http.ResponseWriter, r *http.Request) {
 		handleReasoningRequest(w, r, metareasoningEngine)
@@ -1051,7 +1057,7 @@ func main() {
 	r.HandleFunc("/reasoning/results/{id}", func(w http.ResponseWriter, r *http.Request) {
 		handleReasoningResult(w, r, db)
 	}).Methods("GET")
-	
+
 	// Start server with graceful shutdown
 	if err := server.Run(server.Config{
 		Handler: r,
@@ -1226,20 +1232,20 @@ func handleReasoningResults(w http.ResponseWriter, r *http.Request, db *sql.DB) 
 		var success bool
 		var createdAt time.Time
 
-		err := rows.Scan(&id, &resultType, &confidence, &model, &executionTime, 
-						&success, &errorMessage, &createdAt)
+		err := rows.Scan(&id, &resultType, &confidence, &model, &executionTime,
+			&success, &errorMessage, &createdAt)
 		if err != nil {
 			continue
 		}
 
 		result := map[string]interface{}{
-			"id":               id,
-			"type":             resultType,
-			"confidence":       confidence,
-			"model":            model,
+			"id":                id,
+			"type":              resultType,
+			"confidence":        confidence,
+			"model":             model,
 			"execution_time_ms": executionTime,
-			"success":          success,
-			"created_at":       createdAt,
+			"success":           success,
+			"created_at":        createdAt,
 		}
 
 		if errorMessage != "" {
@@ -1297,15 +1303,15 @@ func handleReasoningResult(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	json.Unmarshal(scoresJSON, &scores)
 
 	result := map[string]interface{}{
-		"id":               id,
-		"type":             resultType,
-		"analysis":         analysis,
-		"scores":           scores,
-		"confidence":       confidence,
-		"model":            model,
+		"id":                id,
+		"type":              resultType,
+		"analysis":          analysis,
+		"scores":            scores,
+		"confidence":        confidence,
+		"model":             model,
 		"execution_time_ms": executionTime,
-		"success":          success,
-		"created_at":       createdAt,
+		"success":           success,
+		"created_at":        createdAt,
 	}
 
 	if errorMessage != "" {

@@ -10,13 +10,6 @@ import (
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
-func boolLabel(value bool) string {
-	if value {
-		return "yes"
-	}
-	return "no"
-}
-
 func WriteList(w io.Writer, format cliout.Format, items []resources.Resource) error {
 	if format == cliout.FormatJSON {
 		return cliout.WriteJSON(w, map[string]any{
@@ -32,12 +25,12 @@ func WriteList(w io.Writer, format cliout.Format, items []resources.Resource) er
 		}
 		rows = append(rows, []string{
 			item.Name,
-			boolLabel(item.Enabled),
+			cliout.BoolLabel(item.Enabled),
 			item.ControlMode,
 			item.Driver,
 			item.PortabilityTier,
 			decision,
-			boolLabel(item.Registered),
+			cliout.BoolLabel(item.Registered),
 		})
 	}
 	return cliout.RenderTable(w, []string{"Name", "Enabled", "Control", "Driver", "Portability", "Decision", "Registered"}, rows)
@@ -62,9 +55,9 @@ func WriteStatuses(w io.Writer, format cliout.Format, items []resources.Status) 
 		}
 		rows = append(rows, []string{
 			item.Resource.Name,
-			boolLabel(item.Resource.Enabled),
+			cliout.BoolLabel(item.Resource.Enabled),
 			item.Resource.ControlMode,
-			boolLabel(item.Running),
+			cliout.BoolLabel(item.Running),
 			healthy,
 			item.Message,
 		})
@@ -86,15 +79,15 @@ func WriteStatus(w io.Writer, format cliout.Format, item resources.Status) error
 	}
 	rows := [][]string{
 		{"Name", item.Resource.Name},
-		{"Enabled", boolLabel(item.Resource.Enabled)},
+		{"Enabled", cliout.BoolLabel(item.Resource.Enabled)},
 		{"Control", item.Resource.ControlMode},
 		{"Driver", item.Resource.Driver},
 		{"Portability", item.Resource.PortabilityTier},
-		{"Installed", boolLabel(item.Installed)},
-		{"Running", boolLabel(item.Running)},
+		{"Installed", cliout.BoolLabel(item.Installed)},
+		{"Running", cliout.BoolLabel(item.Running)},
 	}
 	if item.Healthy != nil {
-		rows = append(rows, []string{"Healthy", boolLabel(*item.Healthy)})
+		rows = append(rows, []string{"Healthy", cliout.BoolLabel(*item.Healthy)})
 	}
 	if item.StatusCode != "" {
 		rows = append(rows, []string{"Status Code", item.StatusCode})

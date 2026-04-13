@@ -4,8 +4,8 @@
   "description": "Dashboard UI for Bookmark Intelligence Hub",
   "main": "server.js",
   "scripts": {
-    "start": "node ../../../packages/api-base/bin/vrooli-ui-run.js node server.js",
-    "dev": "node ../../../packages/api-base/bin/vrooli-ui-run.js nodemon server.js",
+    "start": "vrooli lifecycle protect -- node server.js",
+    "dev": "vrooli lifecycle protect -- nodemon server.js",
     "build": "bash -c 'set -euo pipefail; rm -rf dist && mkdir -p dist && if [ -f index.html ]; then cp index.html dist/index.html; fi && if [ -f styles.css ]; then cp styles.css dist/styles.css; fi && for asset in app.js script.js main.js; do if [ -f \"$asset\" ]; then cp \"$asset\" \"dist/$asset\"; fi; done'",
     "test": "echo 'UI tests not yet implemented'"
   },

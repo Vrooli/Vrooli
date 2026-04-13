@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "node ./scripts/build.mjs",
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "vrooli lifecycle protect -- node server.js",
+    "dev": "vrooli lifecycle protect -- node server.js"
   },
   "dependencies": {
     "@vrooli/api-base": "file:../../../packages/api-base",

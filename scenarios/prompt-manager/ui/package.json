@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "generate:selectors": "node ./scripts/generate-selector-manifest.mjs",
-    "dev": "vite",
+    "dev": "vrooli lifecycle protect -- vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint .",

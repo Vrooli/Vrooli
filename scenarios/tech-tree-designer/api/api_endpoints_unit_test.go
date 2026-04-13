@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	healthpkg "github.com/vrooli/api-core/health"
 )
 
 func TestAPIEndpointCoverage(t *testing.T) {
@@ -205,15 +207,15 @@ func TestAPIEndpointCoverage(t *testing.T) {
 	}
 
 	milestoneCreate := map[string]interface{}{
-		"name":                   "API Created Milestone",
-		"description":            "End-to-end milestone coverage",
-		"milestone_type":         "sector_complete",
-		"completion_percentage":  35.0,
-		"confidence_level":       0.7,
-		"business_value_estimate": 123456,
+		"name":                      "API Created Milestone",
+		"description":               "End-to-end milestone coverage",
+		"milestone_type":            "sector_complete",
+		"completion_percentage":     35.0,
+		"confidence_level":          0.7,
+		"business_value_estimate":   123456,
 		"estimated_completion_date": "2030-01-01",
-		"target_sector_ids":      []string{sectorID},
-		"target_stage_ids":       []string{stageID},
+		"target_sector_ids":         []string{sectorID},
+		"target_stage_ids":          []string{stageID},
 	}
 	createMilestoneResp := makeHTTPRequest(t, router, "POST", "/api/v1/milestones?tree_id="+treeID, milestoneCreate)
 	if createMilestoneResp.Code != http.StatusCreated {
@@ -224,15 +226,15 @@ func TestAPIEndpointCoverage(t *testing.T) {
 	newMilestoneID := createdMilestone["id"].(string)
 
 	milestoneUpdate := map[string]interface{}{
-		"name":                   "API Updated Milestone",
-		"description":            "Updated via API",
-		"milestone_type":         "cross_sector_integration",
-		"completion_percentage":  55.0,
-		"confidence_level":       0.65,
-		"business_value_estimate": 789000,
+		"name":                      "API Updated Milestone",
+		"description":               "Updated via API",
+		"milestone_type":            "cross_sector_integration",
+		"completion_percentage":     55.0,
+		"confidence_level":          0.65,
+		"business_value_estimate":   789000,
 		"estimated_completion_date": "2031-06-15",
-		"target_sector_ids":      []string{sectorID},
-		"target_stage_ids":       []string{stageID},
+		"target_sector_ids":         []string{sectorID},
+		"target_stage_ids":          []string{stageID},
 	}
 	if w := makeHTTPRequest(t, router, "PATCH", "/api/v1/milestones/"+newMilestoneID+"?tree_id="+treeID, milestoneUpdate); w.Code != http.StatusOK {
 		t.Fatalf("update milestone failed: %d %s", w.Code, w.Body.String())
@@ -312,12 +314,19 @@ func TestAPIEndpointCoverage(t *testing.T) {
 		t.Fatal("expected seeded dependencies from fetchDependencies")
 	}
 
-	health := buildHealthResponse(context.Background())
-	if _, ok := health["status"].(string); !ok {
+	healthHandler := healthpkg.New("tech-tree-designer").Version("1.0.0").Handler()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rr := httptest.NewRecorder()
+	healthHandler(rr, req)
+
+	var health healthpkg.Response
+	if err := json.NewDecoder(rr.Body).Decode(&health); err != nil {
+		t.Fatalf("decode health response: %v", err)
+	}
+	if health.Status == "" {
 		t.Fatal("expected health response to include status")
 	}
-
-	if version := getAppVersion(); version == "" {
-		t.Fatal("expected getAppVersion to return non-empty value")
+	if health.Version != "1.0.0" {
+		t.Fatalf("expected health version 1.0.0, got %q", health.Version)
 	}
 }

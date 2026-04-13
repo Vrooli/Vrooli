@@ -10,7 +10,6 @@ import (
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/project"
-	"github.com/vrooli/vrooli/internal/shell"
 )
 
 func runTopLevelStatusCommandWithApp(app *App, ctx *commandContext, args []string) error {
@@ -176,30 +175,6 @@ func wantsCommandHelp(args []string) bool {
 
 func showProjectLifecycleHelp(w io.Writer, phase string) {
 	_, _ = fmt.Fprintf(w, "Usage: vrooli %s\n", phase)
-}
-
-func showStatusHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli status [--resources|--scenarios] [--fast|--no-fast] [--json]")
-}
-
-func showDoctorHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli doctor [--json]")
-}
-
-func showStopHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli stop [all|scenarios|resources|scenario:<name>|resource:<name>|<name>...] [--json]")
-}
-
-func boolLabel(value bool) string {
-	if value {
-		return "yes"
-	}
-	return "no"
-}
-
-func installedCommand(name string) bool {
-	_, err := shell.LookPath(name)
-	return err == nil
 }
 
 func normalizeResourceSubcommand(name string) string {

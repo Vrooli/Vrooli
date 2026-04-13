@@ -21,6 +21,15 @@ var ErrNotFound = errors.New("scenario not found")
 
 const defaultScenarioServiceRelPath = ".vrooli/service.json"
 
+func ProjectServicePath(root string) string {
+	return filepath.Join(filepath.Clean(root), filepath.FromSlash(defaultScenarioServiceRelPath))
+}
+
+func ServicePath(root, name string) string {
+	scenarioPath := contractPaths.ScenarioRootPath(root, name)
+	return contractPaths.ScenarioServicePath(root, name, scenarioPath)
+}
+
 type SandboxEnv struct {
 	ID     string
 	Merged string

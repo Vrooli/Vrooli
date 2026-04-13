@@ -106,7 +106,7 @@ Relevant shell-era setup surfaces still present or still referenced:
 - `scripts/lib/setup.sh`
 - `scripts/lib/setup-conditions/*`
 - `scripts/lib/utils/setup.sh`
-- `scripts/lib/ui-guard.sh`
+- hidden native `vrooli lifecycle protect -- ...` now replaces the old `ui-guard.sh` behavior for lifecycle-managed UI entrypoints
 - `scripts/lib/utils/cli-install.sh`
 - various old `scripts/lib/deps/*` installers/helpers
 - historical safeguard scripts such as `remote_session_protect.sh`
@@ -115,7 +115,7 @@ Relevant stale or transitional references still in-tree:
 
 - root `.vrooli/service.json` still contains a shell `base-setup` step pointing at `scripts/lib/setup.sh`;
 - `internal/lifecycle` still shells out to `scripts/lib/setup-conditions/<type>-check.sh` for unknown setup condition types;
-- many scenario package scripts still reference `scripts/lib/ui-guard.sh`;
+- UI lifecycle entrypoints have been migrated to the hidden native `vrooli lifecycle protect -- ...` command, with `scenario-auditor` enforcement covering raw and legacy launch paths;
 - many scenario CLI install scripts still source `scripts/lib/utils/cli-install.sh`;
 - tests and fixtures still assert against old shell setup references.
 
@@ -665,20 +665,20 @@ The implementation work should not begin migrating large batches of tools until 
 
 ### Tasks
 
-- [ ] Replace or redesign `scripts/lib/ui-guard.sh`.
+- [x] Replace or redesign `scripts/lib/ui-guard.sh`.
 - [ ] Replace or redesign `scripts/lib/utils/cli-install.sh`.
-- [ ] Remove or modernize scenario package/CLI references to those helpers.
-- [ ] Decide whether these become:
+- [x] Remove or modernize scenario package/CLI references to those helpers.
+- [x] Decide whether these become:
   - native CLI subcommands,
   - manifest-driven setup/develop behavior,
   - scenario-local scripts,
   - or are deleted entirely.
-- [ ] Update scaffolding/templates so new scenarios/resources do not reintroduce old helper patterns.
+- [x] Update scaffolding/templates so new scenarios/resources do not reintroduce old helper patterns.
 
 ### Acceptance
 
 - [ ] New scenarios/resources do not depend on old shared shell helper patterns.
-- [ ] Existing consumers are migrated or intentionally quarantined behind explicit compatibility boundaries.
+- [x] Existing `ui-guard.sh` consumers are migrated or intentionally quarantined behind explicit compatibility boundaries.
 
 ## Phase 8: Validation, Docs, And Enforcement
 

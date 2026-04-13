@@ -5,39 +5,45 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/testfixture"
+	"github.com/vrooli/vrooli/internal/testutil"
 )
 
 func TestValidateReportsUndeclaredReferencesMissingHandlersAndRootOverreach(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	writeValidatorFile(t, filepath.Join(root, ".vrooli", "service.json"), `{
-  "service": {"name": "vrooli"},
-  "hostTools": [
-    {"name": "git", "required": true, "reason": "root git"},
-    {"name": "ffmpeg", "required": false, "reason": "should not be root"}
-  ]
-}`)
-	writeValidatorFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{
-  "service": {"name": "alpha"},
-  "hostTools": [
-    {"name": "x11vnc", "required": false, "reason": "desktop bridge"}
-  ]
-}`)
-	writeValidatorFile(t, filepath.Join(root, "scenarios", "alpha", "api", "main.go"), `package main
+	testfixture.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "vrooli"},
+		HostTools: []hostreqspec.Declaration{
+			{Name: "git", Required: true, Reason: "root git"},
+			{Name: "ffmpeg", Required: false, Reason: "should not be root"},
+		},
+	})
+	testfixture.WriteScenarioService(t, root, "alpha", scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "alpha"},
+		HostTools: []hostreqspec.Declaration{
+			{Name: "x11vnc", Required: false, Reason: "desktop bridge"},
+		},
+	})
+	testutil.WriteFile(t, filepath.Join(root, "scenarios", "alpha", "api", "main.go"), `package main
 
 import "os/exec"
 
 func main() {
 	_ = exec.Command("websockify", "--help")
 }`)
-	writeValidatorFile(t, filepath.Join(root, "resources", "beta", "resource.json"), `{
-  "name": "beta",
-  "driver": "external-cli",
-  "binary": "beta",
-  "portability_tier": "full"
-}`)
-	writeValidatorFile(t, filepath.Join(root, "resources", "beta", "lib", "install.sh"), `#!/usr/bin/env bash
+	testfixture.WriteResourceManifest(t, root, "beta", manifestpkg.ResourceManifest{
+		Name:            "beta",
+		Driver:          "external-cli",
+		Binary:          "beta",
+		PortabilityTier: "full",
+	})
+	testutil.WriteFile(t, filepath.Join(root, "resources", "beta", "lib", "install.sh"), `#!/usr/bin/env bash
 echo ffmpeg`)
 
 	report, err := Validate(root, home)
@@ -51,7 +57,7 @@ echo ffmpeg`)
 }
 
 func TestCurrentRepoPhase4DeclarationsPresent(t *testing.T) {
-	root := projectRootForValidatorTest(t)
+	root := testutil.ProjectRoot(t)
 
 	assertManifestContainsTool(t, filepath.Join(root, ".vrooli", "service.json"), "git")
 	assertManifestContainsTool(t, filepath.Join(root, ".vrooli", "service.json"), "curl")
@@ -74,7 +80,7 @@ func TestCurrentRepoPhase4DeclarationsPresent(t *testing.T) {
 }
 
 func TestCurrentRepoPhase4ValidatorIsClean(t *testing.T) {
-	root := projectRootForValidatorTest(t)
+	root := testutil.ProjectRoot(t)
 	report, err := Validate(root, t.TempDir())
 	if err != nil {
 		t.Fatalf("Validate: %v", err)
@@ -117,7 +123,7 @@ func TestContainsCandidateReferenceIgnoresCommentsAndHyphenatedNames(t *testing.
 func assertManifestContainsTool(t *testing.T, path, name string) {
 	t.Helper()
 	names := manifestToolNames(t, path)
-	if !containsString(names, name) {
+	if !testutil.ContainsString(names, name) {
 		t.Fatalf("%s does not declare %q", path, name)
 	}
 }
@@ -125,7 +131,7 @@ func assertManifestContainsTool(t *testing.T, path, name string) {
 func assertManifestLacksTool(t *testing.T, path, name string) {
 	t.Helper()
 	names := manifestToolNames(t, path)
-	if containsString(names, name) {
+	if testutil.ContainsString(names, name) {
 		t.Fatalf("%s unexpectedly declares %q", path, name)
 	}
 }
@@ -151,15 +157,6 @@ func manifestToolNames(t *testing.T, path string) []string {
 	return names
 }
 
-func containsString(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
-}
-
 func assertFinding(t *testing.T, report Report, code FindingCode, ownerKind, ownerName, requirement string) {
 	t.Helper()
 	for _, finding := range report.Findings {
@@ -171,23 +168,4 @@ func assertFinding(t *testing.T, report Report, code FindingCode, ownerKind, own
 		}
 	}
 	t.Fatalf("missing finding %s %s %s %s in %+v", code, ownerKind, ownerName, requirement, report.Findings)
-}
-
-func projectRootForValidatorTest(t *testing.T) string {
-	t.Helper()
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	return filepath.Clean(filepath.Join(wd, "..", ".."))
-}
-
-func writeValidatorFile(t *testing.T, path, content string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("MkdirAll(%s): %v", path, err)
-	}
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("WriteFile(%s): %v", path, err)
-	}
 }

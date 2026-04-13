@@ -49,7 +49,7 @@
   "private": true,
   "scripts": {
     "build": "vite build",
-    "dev": "vite",
+    "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint src --ext ts,tsx",
     "preview": "vite preview",
     "test": "vitest run",

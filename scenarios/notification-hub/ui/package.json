@@ -4,8 +4,8 @@
   "description": "Multi-tenant notification management dashboard",
   "main": "server.js",
   "scripts": {
-    "start": "node ../../../packages/api-base/bin/vrooli-ui-run.js node server.js",
-    "dev": "node ../../../packages/api-base/bin/vrooli-ui-run.js nodemon server.js",
+    "start": "vrooli lifecycle protect -- node server.js",
+    "dev": "vrooli lifecycle protect -- nodemon server.js",
     "build": "bash -c 'rm -rf dist && mkdir -p dist && cp -R src/. dist/'",
     "postinstall": "node -e \"const fs=require('fs');const path=require('path');const linkDir=path.join(__dirname,'node_modules','@vrooli');const link=path.join(linkDir,'iframe-bridge');const target=path.resolve(__dirname,'../../../packages/iframe-bridge');if(!fs.existsSync(target)){console.warn('[iframe-bridge] shared package not found at',target);process.exit(0);}fs.mkdirSync(linkDir,{recursive:true});fs.rmSync(link,{recursive:true,force:true});const type=process.platform==='win32'?'junction':'dir';fs.symlinkSync(target,link,type);\""
   },

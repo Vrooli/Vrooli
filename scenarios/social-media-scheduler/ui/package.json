@@ -4,7 +4,7 @@
   "description": "React-based UI for Social Media Scheduler with calendar interface and platform previews",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "vrooli lifecycle protect -- node server.js",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "nodemon server.js",
     "client": "react-scripts start",

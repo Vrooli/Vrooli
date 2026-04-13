@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "node ../../../../packages/api-base/bin/vrooli-ui-run.js ts-node template-generator.ts",
+    "dev": "vrooli lifecycle protect -- ts-node template-generator.ts",
     "test": "jest --passWithNoTests",
     "clean": "rimraf dist"
   },

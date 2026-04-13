@@ -5,10 +5,10 @@
   "description": "Strategic visualization interface for complete civilization technology roadmap",
   "main": "src/main.tsx",
   "scripts": {
-    "dev": "vite",
+    "dev": "vrooli lifecycle protect -- vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "node server.js",
+    "start": "vrooli lifecycle protect -- node server.js",
     "test": "echo 'Tests coming soon' && exit 0",
     "type-check": "tsc --noEmit"
   },

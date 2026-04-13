@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vrooli lifecycle protect -- vite",
     "selector:manifest": "node ./scripts/generate-selector-manifest.mjs",
     "prebuild": "pnpm run selector:manifest",
     "build": "vite build",

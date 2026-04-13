@@ -36,6 +36,13 @@ type ScenarioRuntime struct {
 	Runtime      string
 }
 
+var (
+	isPIDRunningFn           = IsPIDRunning
+	findProcessFn            = os.FindProcess
+	processIsAliveFn         = processIsAlive
+	readProcessEnvironmentFn = readProcessEnvironment
+)
+
 func HomeDir() (string, error) {
 	return config.HomeDir()
 }
@@ -142,7 +149,7 @@ func ReadScenarioRecords(home, name string) ([]Record, error) {
 func LiveRecords(records []Record) []Record {
 	live := make([]Record, 0, len(records))
 	for _, record := range records {
-		if IsPIDRunning(record.PID) {
+		if isPIDRunningFn(record.PID) {
 			live = append(live, record)
 		}
 	}
@@ -226,11 +233,11 @@ func IsPIDRunning(pid int) bool {
 		return false
 	}
 
-	process, err := os.FindProcess(pid)
+	process, err := findProcessFn(pid)
 	if err != nil {
 		return false
 	}
-	return processIsAlive(process)
+	return processIsAliveFn(process)
 }
 
 func ReadEnvironmentPorts(records []Record, keys []string) map[string]int {
@@ -249,7 +256,7 @@ func ReadEnvironmentPorts(records []Record, keys []string) map[string]int {
 		if record.PID <= 0 {
 			continue
 		}
-		values, err := readProcessEnvironment(record.PID)
+		values, err := readProcessEnvironmentFn(record.PID)
 		if err != nil {
 			continue
 		}

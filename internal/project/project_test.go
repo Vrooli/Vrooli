@@ -12,22 +12,24 @@ import (
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/process"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/testfixture"
+	"github.com/vrooli/vrooli/internal/testutil"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=2 | LAST: 2026-04-12
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-13
 
 func TestStatusAggregatesResourcesAndScenarios(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	writeProjectService(t, root, `{
-  "service": { "name": "project-alpha" },
-  "dependencies": {
-    "resources": {
-      "redis": { "enabled": true }
-    }
-  }
-}`)
+	testfixture.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "project-alpha"},
+		Dependencies: scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{"redis": {Enabled: true}},
+		},
+	})
 	writeScenarioService(t, root, "alpha")
 	writeResourceManifest(t, root, "redis")
 	writeResourceCLI(t, root, "redis", `{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)
@@ -69,14 +71,12 @@ func TestRunProjectPhaseRejectsUndefinedPhase(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	writeProjectService(t, root, `{
-  "service": { "name": "project-alpha" },
-  "lifecycle": {
-    "develop": {
-      "steps": [{ "name": "noop", "run": "true" }]
-    }
-  }
-}`)
+	testfixture.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "project-alpha"},
+		Lifecycle: scenario.Lifecycle{
+			Develop: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "noop", Run: "true"}}},
+		},
+	})
 
 	controller := New(root, home, io.Discard, io.Discard)
 	if err := controller.RunProjectPhase("deploy", nil); err == nil {
@@ -87,7 +87,9 @@ func TestRunProjectPhaseRejectsUndefinedPhase(t *testing.T) {
 func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeProjectService(t, root, `{"service":{"name":"project-alpha"}}`)
+	testfixture.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "project-alpha"},
+	})
 	t.Setenv("VROOLI_API_PORT", "18092")
 
 	controller := New(root, home, io.Discard, io.Discard)
@@ -144,7 +146,9 @@ func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 func TestStatusSupportsResourceAndScenarioFilters(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeProjectService(t, root, `{"service":{"name":"project-alpha"}}`)
+	testfixture.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "project-alpha"},
+	})
 	writeScenarioService(t, root, "alpha")
 	writeResourceManifest(t, root, "redis")
 	writeResourceCLI(t, root, "redis", `{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)
@@ -177,19 +181,14 @@ func TestStatusSupportsResourceAndScenarioFilters(t *testing.T) {
 func TestRunProjectPhaseExecutesDefinedLifecycle(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeProjectService(t, root, `{
-  "service": { "name": "project-alpha" },
-  "lifecycle": {
-    "build": {
-      "steps": [
-        {
-          "name": "write-build-file",
-          "run": "mkdir -p build && printf 'built\n' > build/build.txt"
-        }
-      ]
-    }
-  }
-}`)
+	testfixture.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "project-alpha"},
+		Lifecycle: scenario.Lifecycle{
+			Build: scenario.Phase{
+				Steps: []scenario.PhaseStep{{Name: "write-build-file", Run: "mkdir -p build && printf 'built\n' > build/build.txt"}},
+			},
+		},
+	})
 	writeProjectPortRegistry(t, root)
 
 	controller := New(root, home, io.Discard, io.Discard)
@@ -208,14 +207,12 @@ func TestRunProjectPhaseExecutesDefinedLifecycle(t *testing.T) {
 func TestRunProjectPhaseUsesInjectedPhaseRunner(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeProjectService(t, root, `{
-  "service": { "name": "project-alpha" },
-  "lifecycle": {
-    "build": {
-      "steps": [{ "name": "noop", "run": "true" }]
-    }
-  }
-}`)
+	testfixture.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "project-alpha"},
+		Lifecycle: scenario.Lifecycle{
+			Build: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "noop", Run: "true"}}},
+		},
+	})
 
 	controller := New(root, home, io.Discard, io.Discard)
 	called := false
@@ -242,7 +239,7 @@ func TestLoadProjectFallsBackToDirectoryNameWhenServiceNameMissing(t *testing.T)
 	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
 		t.Fatalf("mkdir root: %v", err)
 	}
-	writeProjectService(t, root, `{"service":{}}`)
+	testfixture.WriteProjectService(t, root, scenario.ServiceManifest{Service: scenario.ServiceMetadata{}})
 
 	projectScenario, err := LoadProject(root)
 	if err != nil {
@@ -250,17 +247,6 @@ func TestLoadProjectFallsBackToDirectoryNameWhenServiceNameMissing(t *testing.T)
 	}
 	if projectScenario.Slug != "project-alpha" {
 		t.Fatalf("project slug = %q, want project-alpha", projectScenario.Slug)
-	}
-}
-
-func writeProjectService(t *testing.T, root, contents string) {
-	t.Helper()
-	path := filepath.Join(root, ".vrooli", "service.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
 	}
 }
 
@@ -272,62 +258,38 @@ func (fn phaseRunnerFunc) RunPhase(name, phase string, opts lifecycle.PhaseOptio
 
 func writeScenarioService(t *testing.T, root, name string) {
 	t.Helper()
-	path := filepath.Join(root, "scenarios", name, ".vrooli", "service.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	data := `{
-  "service": { "name": "` + name + `", "displayName": "` + name + `" },
-  "ports": {
-    "api": { "env_var": "API_PORT", "range": "18080-18090" }
-  }
-}`
-	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
+	testfixture.WriteScenarioService(t, root, name, testfixture.ScenarioServiceManifest(
+		name,
+		testfixture.WithDisplayName(name),
+		testfixture.WithPorts(map[string]scenario.Port{
+			"api": {EnvVar: "API_PORT", Range: "18080-18090"},
+		}),
+	))
 }
 
 func writeResourceCLI(t *testing.T, root, name, statusJSON string) {
 	t.Helper()
-	path := filepath.Join(root, "resources", name, "cli.sh")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
 	script := "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"status\" ]]; then\n  printf '%s\\n' '" + statusJSON + "'\n  exit 0\nfi\nprintf '{\"message\":\"ok\"}\\n'\n"
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
+	testfixture.WriteResourceCLI(t, root, name, script)
 	installedPath := filepath.Join(root, "test-bin", "resource-"+name)
-	if err := os.MkdirAll(filepath.Dir(installedPath), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(installedPath), err)
-	}
-	if err := os.WriteFile(installedPath, []byte(script), 0o755); err != nil {
-		t.Fatalf("write %s: %v", installedPath, err)
-	}
+	testutil.WriteExecutable(t, installedPath, script)
 	t.Setenv("PATH", filepath.Dir(installedPath)+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
 func writeResourceManifest(t *testing.T, root, name string) {
 	t.Helper()
-	path := filepath.Join(root, "resources", name, "resource.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	data := `{
-  "name": "` + name + `",
-  "driver": "external-cli",
-  "binary": "resource-` + name + `",
-  "portability_tier": "full",
-  "platforms": { "linux": "supported" }
-}`
-	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
+	testfixture.WriteResourceManifest(t, root, name, manifestpkg.ResourceManifest{
+		Name:            name,
+		Driver:          "external-cli",
+		Binary:          "resource-" + name,
+		PortabilityTier: "full",
+		Platforms:       manifestpkg.ResourcePlatforms{Linux: "supported"},
+	})
 }
 
 func writeScenarioProcess(t *testing.T, home, name string, port int) {
 	t.Helper()
-	record := process.Record{
+	testfixture.WriteScenarioProcessRecord(t, home, name, "start-api", process.Record{
 		PID:       os.Getpid(),
 		PGID:      os.Getpid(),
 		Scenario:  name,
@@ -335,22 +297,10 @@ func writeScenarioProcess(t *testing.T, home, name string, port int) {
 		Port:      port,
 		StartedAt: time.Now().Add(-time.Minute).UTC(),
 		Status:    "running",
-	}
-	if err := process.WriteScenarioRecord(home, name, "start-api", record); err != nil {
-		t.Fatalf("WriteScenarioRecord: %v", err)
-	}
+	})
 }
 
 func writeProjectPortRegistry(t *testing.T, root string) {
 	t.Helper()
-	path := filepath.Join(root, "scripts", "resources")
-	if err := os.MkdirAll(path, 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", path, err)
-	}
-	if err := os.WriteFile(filepath.Join(path, "port_registry.sh"), []byte("#!/usr/bin/env bash\ndeclare -g -A RESOURCE_PORTS=()\n"), 0o644); err != nil {
-		t.Fatalf("write port_registry.sh: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(path, "port_registry.json"), []byte("{\n  \"resource_ports\": {},\n  \"reserved_ranges\": {}\n}\n"), 0o644); err != nil {
-		t.Fatalf("write port_registry.json: %v", err)
-	}
+	testfixture.WritePortRegistry(t, root, nil)
 }

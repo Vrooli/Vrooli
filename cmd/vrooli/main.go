@@ -26,7 +26,6 @@ var (
 	checkStalenessFn    = buildinfo.CheckStaleness
 	rebuildAndReexecFn  = buildinfo.RebuildAndReexec
 	lookPathFn          = shell.LookPath
-	execCommandFn       = runExternalCommand
 	newLoggerFn         = createCommandLogger
 )
 
@@ -56,13 +55,6 @@ type parsedArgs struct {
 	command string
 	args    []string
 	globals globalOptions
-}
-
-type commandSpec struct {
-	name string
-	args []string
-	dir  string
-	env  []string
 }
 
 type infoManifest struct {
@@ -172,18 +164,6 @@ func (app *App) runMainHelpCommand(ctx *commandContext, args []string) error {
 
 func (app *App) runVersionCommand(ctx *commandContext, args []string) error {
 	return showVersion(ctx.Stdout, ctx.Root, ctx.Globals)
-}
-
-func (app *App) runTopLevelCleanupCommand(ctx *commandContext, args []string) error {
-	return runCleanupCommandWithApp(app, ctx, parsedArgs{globals: ctx.Globals, args: args})
-}
-
-func (app *App) runTopLevelSetupCommand(ctx *commandContext, args []string) error {
-	return app.runTopLevelSetup(ctx, args)
-}
-
-func (app *App) runTopLevelDevelopCommand(ctx *commandContext, args []string) error {
-	return app.runTopLevelDevelop(ctx, args)
 }
 
 func runCleanupCommand(root string, parsed parsedArgs, stdout, stderr io.Writer) error {

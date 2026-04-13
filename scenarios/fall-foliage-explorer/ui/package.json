@@ -4,7 +4,7 @@
   "description": "Interactive autumn foliage tracking and prediction UI",
   "main": "server.js",
   "scripts": {
-    "start": "node ../../../packages/api-base/bin/vrooli-ui-run.js node server.js",
+    "start": "vrooli lifecycle protect -- node server.js",
     "build": "node ./scripts/build.js"
   },
   "dependencies": {

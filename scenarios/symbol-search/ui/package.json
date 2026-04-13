@@ -4,7 +4,7 @@
   "description": "High-performance Unicode and ASCII symbol search interface",
   "main": "index.html",
   "scripts": {
-    "dev": "vite",
+    "dev": "vrooli lifecycle protect -- vite",
     "build": "vite build",
     "preview": "vite preview",
     "serve": "node server.js"

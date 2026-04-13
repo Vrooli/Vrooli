@@ -2,7 +2,6 @@ package lifecycle
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -20,6 +19,7 @@ import (
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/testfixture"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=8 | LAST: 2026-04-11
@@ -1298,21 +1298,8 @@ func writeLifecycleFixtureManifest(t *testing.T, root string, manifest scenario.
 		t.Fatalf("fixture manifest is missing service name")
 	}
 
-	writeLifecyclePortRegistry(t, root)
-
-	scenarioDir := filepath.Join(root, "scenarios", manifest.Service.Name)
-	if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("mkdir scenario dir: %v", err)
-	}
-	servicePath := filepath.Join(scenarioDir, ".vrooli", "service.json")
-	data, err := json.MarshalIndent(manifest, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal fixture manifest: %v", err)
-	}
-	data = append(data, '\n')
-	if err := os.WriteFile(servicePath, data, 0o644); err != nil {
-		t.Fatalf("write %s: %v", servicePath, err)
-	}
+	testfixture.WritePortRegistry(t, root, nil)
+	testfixture.WriteScenarioService(t, root, manifest.Service.Name, manifest)
 }
 
 func lifecycleFixtureManifest(name string) scenario.ServiceManifest {

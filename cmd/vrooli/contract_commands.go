@@ -8,10 +8,6 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/contractcli"
 )
 
-func (app *App) runContractCommand(ctx *commandContext, args []string) error {
-	return runContractCommandWithApp(app, ctx, args)
-}
-
 func runContractCommandWithApp(_ *App, ctx *commandContext, args []string) error {
 	if len(args) == 0 || wantsCommandHelp(args) {
 		showContractHelp(ctx.Stdout)

@@ -1045,7 +1045,6 @@ packages:
 
   '@vrooli/api-base@file:../../../packages/api-base':
     resolution: {directory: ../../../packages/api-base, type: directory}
-    hasBin: true
     peerDependencies:
       express: ^4.18.2
       ws: ^8.16.0

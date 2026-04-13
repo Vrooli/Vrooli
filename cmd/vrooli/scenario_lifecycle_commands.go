@@ -41,7 +41,7 @@ type scenarioHealFromSandboxResponse struct {
 	StoppedCount int
 }
 
-func runScenarioRunCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
+func runScenarioRunCommandForRoot(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
 	app, ctx := newConfiguredCommandContext(root, globals, stdout, stderr)
 	return runScenarioStartCommandWithApp(app, ctx, args)
 }

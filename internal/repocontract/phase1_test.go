@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/repocontractcheck"
+	"github.com/vrooli/vrooli/internal/testutil"
 )
 
 type contractDoc struct {
@@ -462,16 +463,7 @@ func TestRepoContractDocsStayAlignedWithPhase1Contract(t *testing.T) {
 }
 
 func repoRoot(t *testing.T) string {
-	t.Helper()
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	root := filepath.Clean(filepath.Join(dir, "..", ".."))
-	if _, err := os.Stat(filepath.Join(root, "go.mod")); err != nil {
-		t.Fatalf("resolve repo root: %v", err)
-	}
-	return root
+	return testutil.ProjectRoot(t)
 }
 
 func loadContract(t *testing.T, root string) contractDoc {
