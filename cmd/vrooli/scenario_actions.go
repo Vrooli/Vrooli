@@ -264,7 +264,7 @@ func runScenarioListRequest(app *App, ctx *commandContext, req scenarioListReque
 
 		listPorts := []scenarioListPortOutput{}
 		if req.IncludePorts && item.Details.Status == "running" {
-			listPorts = runtimePortOutputs(item.Details.PortBindings)
+			listPorts = scenariocli.RuntimePortOutputs(item.Details.PortBindings)
 		}
 
 		resp.Items = append(resp.Items, scenarioListItemOutput{
@@ -272,7 +272,7 @@ func runScenarioListRequest(app *App, ctx *commandContext, req scenarioListReque
 			Description: item.Scenario.Manifest.Service.Description,
 			Version:     item.Scenario.Manifest.Service.Version,
 			Status:      status,
-			Tags:        copyStrings(item.Scenario.Manifest.Service.Tags),
+			Tags:        scenariocli.CopyStrings(item.Scenario.Manifest.Service.Tags),
 			Path:        item.Scenario.Path + string(os.PathSeparator),
 			Ports:       listPorts,
 		})
@@ -313,8 +313,8 @@ func runScenarioInfoRequest(app *App, ctx *commandContext, req scenarioInfoReque
 
 	return format, scenarioInfoOutput{
 		Success:  true,
-		Scenario: buildScenarioInfoData(detail.Scenario),
-		Runtime:  buildScenarioRuntimeData(detail.Scenario.Manifest, detail.Runtime),
+		Scenario: scenariocli.BuildInfoData(detail.Scenario),
+		Runtime:  scenariocli.BuildRuntimeData(detail.Scenario.Manifest, detail.Runtime),
 	}, nil
 }
 
@@ -352,7 +352,7 @@ func runScenarioStatusRequest(app *App, ctx *commandContext, req scenarioStatusR
 		}
 		items := make([]scenarioStatusItemOutput, 0, len(inventory))
 		for _, item := range inventory {
-			items = append(items, buildScenarioStatusDetail(item))
+			items = append(items, scenariocli.BuildStatusDetail(item))
 		}
 		return format, scenarioStatusResponse{List: items}, nil
 	}
@@ -363,9 +363,9 @@ func runScenarioStatusRequest(app *App, ctx *commandContext, req scenarioStatusR
 	}
 	output := scenarioStatusSingleOutput{
 		Success:  true,
-		Scenario: buildScenarioStatusDetail(detail),
-		Info:     buildScenarioInfoData(detail.Scenario),
-		Runtime:  buildScenarioRuntimeData(detail.Scenario.Manifest, detail.Runtime),
+		Scenario: scenariocli.BuildStatusDetail(detail),
+		Info:     scenariocli.BuildInfoData(detail.Scenario),
+		Runtime:  scenariocli.BuildRuntimeData(detail.Scenario.Manifest, detail.Runtime),
 	}
 	return format, scenarioStatusResponse{Single: &output}, nil
 }
@@ -546,7 +546,7 @@ func runScenarioPortRequest(app *App, ctx *commandContext, req scenarioPortReque
 	if err != nil {
 		return "", scenarioPortResponse{}, err
 	}
-	listPorts, portsMap := buildListPorts(detail.Scenario.Manifest, detail.Runtime.Records)
+	listPorts, portsMap := scenariocli.BuildListPorts(detail.Scenario.Manifest, detail.Runtime.Records)
 
 	if req.PortName == "" {
 		if detail.Runtime.ProcessCount == 0 || len(portsMap) == 0 {

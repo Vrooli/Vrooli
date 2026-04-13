@@ -5,10 +5,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 func TestFindRepoRoot(t *testing.T) {
-	root := repoRoot(t)
+	root := fixtureRoot(t)
 	start := filepath.Join(root, "packages", "repo-contract-go")
 
 	got, err := FindRepoRoot(start)
@@ -21,8 +23,9 @@ func TestFindRepoRoot(t *testing.T) {
 }
 
 func TestFindRepoRootWithFileStartPath(t *testing.T) {
-	root := repoRoot(t)
+	root := fixtureRoot(t)
 	start := filepath.Join(root, "packages", "repo-contract-go", "load.go")
+	testkitgo.WriteFile(t, start, "package repocontract\n")
 
 	got, err := FindRepoRoot(start)
 	if err != nil {

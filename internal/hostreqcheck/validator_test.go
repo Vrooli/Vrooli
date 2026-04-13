@@ -1,8 +1,6 @@
 package hostreqcheck
 
 import (
-	"encoding/json"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -69,7 +67,6 @@ func TestCurrentRepoPhase4DeclarationsPresent(t *testing.T) {
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "browser-automation-studio", ".vrooli", "service.json"), "ffmpeg")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "landing-manager", ".vrooli", "service.json"), "stripe")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "landing-page-business-suite", ".vrooli", "service.json"), "stripe")
-	assertManifestContainsTool(t, filepath.Join(root, "scripts", "scenarios", "templates", "landing-page-react-vite", ".vrooli", "service.json"), "stripe")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "scenario-to-desktop", ".vrooli", "service.json"), "Xvfb")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "scenario-to-desktop", ".vrooli", "service.json"), "websockify")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "ecosystem-manager", ".vrooli", "service.json"), "bats")
@@ -138,21 +135,26 @@ func assertManifestLacksTool(t *testing.T, path, name string) {
 
 func manifestToolNames(t *testing.T, path string) []string {
 	t.Helper()
-	content, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("ReadFile(%s): %v", path, err)
-	}
-	var manifest struct {
-		HostTools []struct {
-			Name string `json:"name"`
-		} `json:"hostTools"`
-	}
-	if err := json.Unmarshal(content, &manifest); err != nil {
-		t.Fatalf("Unmarshal(%s): %v", path, err)
-	}
-	names := make([]string, 0, len(manifest.HostTools))
-	for _, tool := range manifest.HostTools {
-		names = append(names, tool.Name)
+	names := []string{}
+	switch filepath.Base(path) {
+	case "service.json":
+		manifest, err := scenario.ReadService(path)
+		if err != nil {
+			t.Fatalf("ReadService(%s): %v", path, err)
+		}
+		for _, tool := range manifest.HostTools {
+			names = append(names, tool.Name)
+		}
+	case "resource.json":
+		manifest, err := manifestpkg.Load(path)
+		if err != nil {
+			t.Fatalf("manifest.Load(%s): %v", path, err)
+		}
+		for _, tool := range manifest.HostTools {
+			names = append(names, tool.Name)
+		}
+	default:
+		t.Fatalf("unsupported manifest path %s", path)
 	}
 	return names
 }

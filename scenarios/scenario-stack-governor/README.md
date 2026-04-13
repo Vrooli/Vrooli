@@ -23,6 +23,10 @@ make start
 ## First rule (MVP)
 - `GO_CLI_WORKSPACE_INDEPENDENCE`: verifies Go-based scenario CLIs build with `GOWORK=off`, and flags missing `go.mod` wiring for common non-transitive `replace` pitfalls across scenario modules that depend on shared Vrooli Go packages.
 
+## Package governance
+- `PACKAGE_GOVERNANCE_SCENARIO_ADOPTION`: delegates to `vrooli package audit --all` and turns scenario-scoped package governance issues into stack-governor findings.
+- This keeps package policy centralized in the native `vrooli package ...` command surface while still exposing enforcement through `scenario-auditor` external rules.
+
 ## Docs
 - `scenarios/scenario-stack-governor/PRD.md`
 - `scenarios/scenario-stack-governor/docs/PROGRESS.md`

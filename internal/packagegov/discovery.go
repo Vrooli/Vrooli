@@ -1,0 +1,458 @@
+package packagegov
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
+)
+
+type packageJSON struct {
+	Scripts              map[string]string `json:"scripts"`
+	Dependencies         map[string]string `json:"dependencies"`
+	DevDependencies      map[string]string `json:"devDependencies"`
+	PeerDependencies     map[string]string `json:"peerDependencies"`
+	OptionalDependencies map[string]string `json:"optionalDependencies"`
+}
+
+type DiscoveryReport struct {
+	Dependents []Dependent       `json:"dependents"`
+	Issues     []ValidationIssue `json:"issues"`
+}
+
+func DiscoverDependents(root string, pkg Package) (DiscoveryReport, error) {
+	var report DiscoveryReport
+
+	scenarioRoot := repocontract.ScenarioRoot(root, "")
+	templateRoot := repocontract.ScenarioTemplateRoot(root)
+
+	if err := walkPackageJSONs(scenarioRoot, func(path string) error {
+		deps, issues, err := scanPackageJSON(root, pkg, path, true)
+		if err != nil {
+			return err
+		}
+		report.Dependents = append(report.Dependents, deps...)
+		report.Issues = append(report.Issues, issues...)
+		return nil
+	}); err != nil {
+		return DiscoveryReport{}, err
+	}
+	if err := walkPackageJSONs(templateRoot, func(path string) error {
+		deps, issues, err := scanPackageJSON(root, pkg, path, false)
+		if err != nil {
+			return err
+		}
+		report.Dependents = append(report.Dependents, deps...)
+		report.Issues = append(report.Issues, issues...)
+		return nil
+	}); err != nil {
+		return DiscoveryReport{}, err
+	}
+
+	if err := walkGoMods(scenarioRoot, func(path string) error {
+		deps, err := scanGoMod(root, pkg, path, true)
+		if err != nil {
+			return err
+		}
+		report.Dependents = append(report.Dependents, deps...)
+		return nil
+	}); err != nil {
+		return DiscoveryReport{}, err
+	}
+	if err := walkGoMods(templateRoot, func(path string) error {
+		deps, err := scanGoMod(root, pkg, path, false)
+		if err != nil {
+			return err
+		}
+		report.Dependents = append(report.Dependents, deps...)
+		return nil
+	}); err != nil {
+		return DiscoveryReport{}, err
+	}
+
+	sort.Slice(report.Dependents, func(i, j int) bool {
+		if report.Dependents[i].ConsumerName == report.Dependents[j].ConsumerName {
+			return report.Dependents[i].DependencyFile < report.Dependents[j].DependencyFile
+		}
+		return report.Dependents[i].ConsumerName < report.Dependents[j].ConsumerName
+	})
+	return report, nil
+}
+
+func walkPackageJSONs(root string, fn func(path string) error) error {
+	if _, err := os.Stat(root); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	return filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			name := d.Name()
+			if shouldSkipDiscoveryDir(name) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !d.Type().IsRegular() {
+			return nil
+		}
+		if d.Name() != "package.json" {
+			return nil
+		}
+		return fn(path)
+	})
+}
+
+func walkGoMods(root string, fn func(path string) error) error {
+	if _, err := os.Stat(root); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	return filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if shouldSkipDiscoveryDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !d.Type().IsRegular() {
+			return nil
+		}
+		if d.Name() != "go.mod" {
+			return nil
+		}
+		return fn(path)
+	})
+}
+
+func scanPackageJSON(root string, pkg Package, path string, scenario bool) ([]Dependent, []ValidationIssue, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	var manifest packageJSON
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil, nil, fmt.Errorf("decode %s: %w", path, err)
+	}
+
+	var deps []Dependent
+	for _, id := range pkg.Manifest.Package.ModuleIdentifiers {
+		for _, bucket := range []map[string]string{
+			manifest.Dependencies,
+			manifest.DevDependencies,
+			manifest.PeerDependencies,
+			manifest.OptionalDependencies,
+		} {
+			if version, ok := bucket[id]; ok {
+				name, class := classifyConsumer(root, path, scenario)
+				deps = append(deps, Dependent{
+					PackageName:      pkg.Name,
+					ConsumerName:     name,
+					ConsumerPath:     consumerRootFromFile(root, path, scenario),
+					ConsumerClass:    class,
+					AdoptionMode:     classifyPackageJSONAdoption(version),
+					DependencyFile:   filepath.Clean(path),
+					DependencyTarget: id,
+					Version:          version,
+				})
+			}
+		}
+	}
+
+	var issues []ValidationIssue
+	if scenario {
+		if hasWorkspaceDependency(manifest, pkg.Manifest.Package.ModuleIdentifiers) {
+			name, _ := classifyConsumer(root, path, scenario)
+			issues = append(issues, ValidationIssue{
+				Severity:    "error",
+				Code:        "package-no-workspace-deps",
+				Message:     fmt.Sprintf("real scenario %q uses workspace:* for shared package adoption", name),
+				Path:        path,
+				PackageName: pkg.Name,
+			})
+		}
+	}
+	if postinstallTouchesSharedPackages(manifest.Scripts["postinstall"]) {
+		name, _ := classifyConsumer(root, path, scenario)
+		issues = append(issues, ValidationIssue{
+			Severity:    "error",
+			Code:        "package-no-unauthorized-postinstall",
+			Message:     fmt.Sprintf("consumer %q still uses postinstall shared-package propagation", name),
+			Path:        path,
+			PackageName: pkg.Name,
+		})
+	}
+
+	return deps, issues, nil
+}
+
+func scanGoMod(root string, pkg Package, path string, scenario bool) ([]Dependent, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	content := string(data)
+	mod := parseGoMod(content)
+	var deps []Dependent
+	for _, id := range pkg.Manifest.Package.ModuleIdentifiers {
+		dep, ok := mod.dependencyFor(path, root, id)
+		if !ok {
+			continue
+		}
+		name, class := classifyGoConsumer(root, path, scenario)
+		deps = append(deps, Dependent{
+			PackageName:      pkg.Name,
+			ConsumerName:     name,
+			ConsumerPath:     consumerRootFromFile(root, path, scenario),
+			ConsumerClass:    class,
+			AdoptionMode:     ModeGoModuleReplace,
+			DependencyFile:   filepath.Clean(path),
+			DependencyTarget: dep.Target,
+			Version:          dep.Version,
+		})
+	}
+	return deps, nil
+}
+
+func classifyPackageJSONAdoption(version string) AdoptionMode {
+	version = strings.TrimSpace(version)
+	switch {
+	case strings.HasPrefix(version, "file:"):
+		return ModeFileDependency
+	case version == "workspace:*":
+		return ModePublishedSemver
+	default:
+		return ModePublishedSemver
+	}
+}
+
+func hasWorkspaceDependency(pkg packageJSON, ids []string) bool {
+	for _, bucket := range []map[string]string{
+		pkg.Dependencies,
+		pkg.DevDependencies,
+		pkg.PeerDependencies,
+		pkg.OptionalDependencies,
+	} {
+		for _, id := range ids {
+			if strings.TrimSpace(bucket[id]) == "workspace:*" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func postinstallTouchesSharedPackages(script string) bool {
+	script = strings.TrimSpace(script)
+	if script == "" {
+		return false
+	}
+	return strings.Contains(script, "node_modules/@vrooli") || strings.Contains(script, "packages/")
+}
+
+func classifyConsumer(root, path string, scenario bool) (string, ConsumerClass) {
+	rel, _ := filepath.Rel(root, path)
+	slash := filepath.ToSlash(rel)
+	parts := strings.Split(slash, "/")
+	if scenario && len(parts) >= 3 {
+		name := parts[1]
+		component := parts[2]
+		switch {
+		case strings.HasPrefix(component, "ui"):
+			return name, ConsumerScenarioUI
+		case component == "playwright-driver":
+			return name, ConsumerScenarioTest
+		default:
+			return name, ConsumerScenarioTest
+		}
+	}
+	if !scenario && len(parts) >= 3 {
+		name := parts[2]
+		switch {
+		case strings.Contains(slash, "/ui/"):
+			return name, ConsumerTemplateUI
+		default:
+			return name, ConsumerTemplateUI
+		}
+	}
+	return filepath.Base(filepath.Dir(path)), ConsumerInternalPlatform
+}
+
+func classifyGoConsumer(root, path string, scenario bool) (string, ConsumerClass) {
+	rel, _ := filepath.Rel(root, path)
+	slash := filepath.ToSlash(rel)
+	parts := strings.Split(slash, "/")
+	if scenario && len(parts) >= 3 {
+		name := parts[1]
+		component := parts[2]
+		switch {
+		case component == "api" || component == "runtime":
+			return name, ConsumerScenarioAPI
+		case component == "cli":
+			return name, ConsumerScenarioCLI
+		default:
+			return name, ConsumerScenarioAPI
+		}
+	}
+	if !scenario && len(parts) >= 3 {
+		name := parts[2]
+		switch {
+		case strings.Contains(slash, "/api/"):
+			return name, ConsumerTemplateAPI
+		case strings.Contains(slash, "/cli/"):
+			return name, ConsumerTemplateCLI
+		default:
+			return name, ConsumerInternalPlatform
+		}
+	}
+	return filepath.Base(filepath.Dir(path)), ConsumerInternalPlatform
+}
+
+func consumerRootFromFile(root, path string, scenario bool) string {
+	rel, _ := filepath.Rel(root, path)
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	if scenario && len(parts) >= 2 {
+		return filepath.Join(root, parts[0], parts[1])
+	}
+	if !scenario && len(parts) >= 3 {
+		return filepath.Join(root, parts[0], parts[1], parts[2])
+	}
+	return filepath.Dir(path)
+}
+
+func shouldSkipDiscoveryDir(name string) bool {
+	name = strings.TrimSpace(name)
+	switch name {
+	case "node_modules", "dist", "build", "bundle", "bin", "coverage", ".turbo", ".vite", "generated", "testdata", "logs", "artifacts":
+		return true
+	}
+	if strings.HasPrefix(name, ".git") {
+		return true
+	}
+	return strings.Contains(strings.ToLower(name), "backup")
+}
+
+type parsedGoMod struct {
+	requires map[string]string
+	replaces map[string]string
+}
+
+type goModDependency struct {
+	Target  string
+	Version string
+}
+
+var (
+	goModRequireLinePattern = regexp.MustCompile(`^\s*([A-Za-z0-9._/\-]+)\s+([^\s]+)\s*(?://.*)?$`)
+	goModReplaceLinePattern = regexp.MustCompile(`^\s*([A-Za-z0-9._/\-]+)(?:\s+[^\s]+)?\s*=>\s*([^\s]+)(?:\s+[^\s]+)?\s*(?://.*)?$`)
+)
+
+func parseGoMod(content string) parsedGoMod {
+	mod := parsedGoMod{
+		requires: make(map[string]string),
+		replaces: make(map[string]string),
+	}
+
+	var inRequireBlock bool
+	var inReplaceBlock bool
+
+	for _, rawLine := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if line == "" || strings.HasPrefix(line, "//") {
+			continue
+		}
+		switch line {
+		case "require (":
+			inRequireBlock = true
+			inReplaceBlock = false
+			continue
+		case "replace (":
+			inReplaceBlock = true
+			inRequireBlock = false
+			continue
+		case ")":
+			inRequireBlock = false
+			inReplaceBlock = false
+			continue
+		}
+
+		switch {
+		case strings.HasPrefix(line, "require "):
+			parseGoRequireLine(mod.requires, strings.TrimSpace(strings.TrimPrefix(line, "require ")))
+		case strings.HasPrefix(line, "replace "):
+			parseGoReplaceLine(mod.replaces, strings.TrimSpace(strings.TrimPrefix(line, "replace ")))
+		case inRequireBlock:
+			parseGoRequireLine(mod.requires, line)
+		case inReplaceBlock:
+			parseGoReplaceLine(mod.replaces, line)
+		}
+	}
+
+	return mod
+}
+
+func parseGoRequireLine(bucket map[string]string, line string) {
+	matches := goModRequireLinePattern.FindStringSubmatch(line)
+	if len(matches) != 3 {
+		return
+	}
+	bucket[matches[1]] = matches[2]
+}
+
+func parseGoReplaceLine(bucket map[string]string, line string) {
+	matches := goModReplaceLinePattern.FindStringSubmatch(line)
+	if len(matches) != 3 {
+		return
+	}
+	bucket[matches[1]] = matches[2]
+}
+
+func (m parsedGoMod) dependencyFor(goModPath, repoRoot, module string) (goModDependency, bool) {
+	version, hasRequire := m.requires[module]
+	replaceTarget, hasReplace := m.replaces[module]
+	if !hasRequire && !hasReplace {
+		return goModDependency{}, false
+	}
+	if hasReplace {
+		if isGovernedReplaceTarget(goModPath, repoRoot, replaceTarget) {
+			return goModDependency{Target: module, Version: version}, true
+		}
+		return goModDependency{Target: module, Version: version}, false
+	}
+	return goModDependency{}, false
+}
+
+func isGovernedReplaceTarget(goModPath, repoRoot, target string) bool {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return false
+	}
+	if !(strings.HasPrefix(target, ".") || strings.HasPrefix(target, "/")) {
+		return false
+	}
+	resolved := target
+	if !filepath.IsAbs(resolved) {
+		resolved = filepath.Join(filepath.Dir(goModPath), resolved)
+	}
+	resolved = filepath.Clean(resolved)
+	packagesRoot := filepath.Clean(filepath.Join(repoRoot, "packages"))
+	rel, err := filepath.Rel(packagesRoot, resolved)
+	if err != nil {
+		return false
+	}
+	return rel != "." && !strings.HasPrefix(filepath.ToSlash(rel), "..")
+}

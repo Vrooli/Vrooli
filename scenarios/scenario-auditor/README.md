@@ -191,7 +191,7 @@ scenario-auditor scan agent-dashboard --rule service_json_ports --wait --timeout
 - ✅ Consistent naming conventions
 
 ### Iframe Bridge Integration
-- Add `@vrooli/iframe-bridge` to the UI package dependencies (workspace builds can use `workspace:*`, published scenarios should pin a semver range).
+- Add `@vrooli/iframe-bridge` to the UI package dependencies using a relative `file:` path.
 - In the UI entry file, import `initIframeBridgeChild` from the shared package, guard with `window.parent !== window`, and initialize it with an `appId` so orchestration can identify the UI.
 - Scenarios that previously vendored `iframeBridgeChild.ts` should remove the copy and rely on the shared package instead.
 

@@ -241,7 +241,7 @@ func writeScenarioRepoFixture(t *testing.T, scenarioDir string) string {
 		if err := os.MkdirAll(filepath.Join(fixture.Root, scenarioDir, scenario, "cli"), 0o755); err != nil {
 			t.Fatalf("mkdir cli dir: %v", err)
 		}
-		testkitgo.WriteRelativeFile(t, fixture.Root, filepath.Join(scenarioDir, scenario, ".vrooli", "service.json"), `{"service":{"name":"`+scenario+`"}}`)
+		fixture.WriteScenarioStub(t, scenario)
 	}
 
 	return fixture.Root

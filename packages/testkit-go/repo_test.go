@@ -53,3 +53,19 @@ func TestWriteRepoSupportDocsCreatesExpectedFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestRepoFixtureStubWritersCreateScenarioAndResourceFixtures(t *testing.T) {
+	fixture := NewRepoFixture(t, WithScenarioDir("apps"))
+	fixture.WriteRepoContract(t)
+	fixture.WriteScenarioStub(t, "alpha")
+	fixture.WriteResourceStub(t, "redis")
+
+	for _, rel := range []string{
+		"apps/alpha/.vrooli/service.json",
+		"resources/redis/resource.json",
+	} {
+		if _, err := os.Stat(filepath.Join(fixture.Root, filepath.FromSlash(rel))); err != nil {
+			t.Fatalf("expected %s: %v", rel, err)
+		}
+	}
+}

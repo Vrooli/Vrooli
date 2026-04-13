@@ -1,20 +1,22 @@
 package resources
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
 func TestDeprecateResourceArchivesAndRemovesActiveState(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writeResourceConfig(t, root, "fixture", true)
-	writeRegistryEntry(t, root, "fixture")
-	writeResourceCLI(t, root, "fixture")
+	testfixture.WriteResourceRegistryEntry(t, root, "fixture")
+	testfixture.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nexit 0\n")
 
 	controller := NewController(root, home)
 	report, err := controller.DeprecateResource("fixture")
@@ -53,7 +55,7 @@ func TestRestoreDeprecatedResourceWritesQuarantinedCopy(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writeResourceConfig(t, root, "fixture", true)
-	writeResourceCLI(t, root, "fixture")
+	testfixture.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nexit 0\n")
 
 	controller := NewController(root, home)
 	if _, err := controller.DeprecateResource("fixture"); err != nil {
@@ -82,31 +84,16 @@ func TestGarbageCollectDeprecatedArchivesPurgesExpiredEntries(t *testing.T) {
 	if err := os.MkdirAll(archiveDir, 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", archiveDir, err)
 	}
-	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("mkdir .vrooli: %v", err)
-	}
-	payload := DeprecatedResourceList{
-		Resources: []DeprecatedResource{
-			{
-				Name:                "fixture",
-				DeprecatedAt:        "2026-01-01",
-				Reason:              "test",
-				ArchivePath:         archiveDir,
-				ArchiveHash:         "abc",
-				RetentionPolicyDays: 90,
-				RestoreSupported:    true,
-				PurgeAfter:          "2026-01-02",
-			},
-		},
-	}
-	data, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal payload: %v", err)
-	}
-	data = append(data, '\n')
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "deprecated-resources.json"), data, 0o644); err != nil {
-		t.Fatalf("write deprecated metadata: %v", err)
-	}
+	writeDeprecatedMetadata(t, root, DeprecatedResource{
+		Name:                "fixture",
+		DeprecatedAt:        "2026-01-01",
+		Reason:              "test",
+		ArchivePath:         archiveDir,
+		ArchiveHash:         "abc",
+		RetentionPolicyDays: 90,
+		RestoreSupported:    true,
+		PurgeAfter:          "2026-01-02",
+	})
 
 	report, err := NewController(root, home).GarbageCollectDeprecatedArchives(time.Date(2026, 4, 11, 0, 0, 0, 0, time.UTC))
 	if err != nil {
@@ -132,49 +119,33 @@ func TestDiscoverExcludesDeprecatedResources(t *testing.T) {
 	home := t.TempDir()
 	writeResourceConfig(t, root, "active", true)
 	writeResourceConfig(t, root, "deprecated-fixture", false)
-	writeResourceManifest(t, root, "active", `{
-  "name": "active",
-  "display_name": "Active",
-  "description": "Active manifest-backed resource",
-  "template": "docker-service",
-  "driver": "docker-service",
-  "portability_tier": "partial",
-  "platforms": {
-    "linux": "supported",
-    "macos": "supported",
-    "windows": "partial"
-  },
-  "runtime": {
-    "image": "active:latest"
-  }
-}`)
-	writeResourceCLI(t, root, "active")
-	writeResourceCLI(t, root, "deprecated-fixture")
-	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("mkdir .vrooli: %v", err)
-	}
-	payload := DeprecatedResourceList{
-		Resources: []DeprecatedResource{
-			{
-				Name:                "deprecated-fixture",
-				DeprecatedAt:        "2026-04-11",
-				Reason:              "test",
-				ArchivePath:         filepath.Join(home, ".vrooli", "archive", "resources", "deprecated-fixture"),
-				ArchiveHash:         "abc",
-				RetentionPolicyDays: 90,
-				RestoreSupported:    true,
-				PurgeAfter:          "2026-07-10",
-			},
-		},
-	}
-	data, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal payload: %v", err)
-	}
-	data = append(data, '\n')
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "deprecated-resources.json"), data, 0o644); err != nil {
-		t.Fatalf("write deprecated metadata: %v", err)
-	}
+	writeResourceManifest(t, root, "active", testfixture.ResourceManifest(
+		"active",
+		testfixture.WithResourceDisplayName("Active"),
+		testfixture.WithResourceDescription("Active manifest-backed resource"),
+		testfixture.WithResourceDriver("docker-service"),
+		testfixture.WithResourceTemplate("docker-service"),
+		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "partial",
+		}),
+		testfixture.WithResourceRuntime(manifestpkg.ResourceRuntime{
+			Image: "active:latest",
+		}),
+	))
+	testfixture.WriteResourceCLI(t, root, "active", "#!/usr/bin/env bash\nexit 0\n")
+	testfixture.WriteResourceCLI(t, root, "deprecated-fixture", "#!/usr/bin/env bash\nexit 0\n")
+	writeDeprecatedMetadata(t, root, DeprecatedResource{
+		Name:                "deprecated-fixture",
+		DeprecatedAt:        "2026-04-11",
+		Reason:              "test",
+		ArchivePath:         filepath.Join(home, ".vrooli", "archive", "resources", "deprecated-fixture"),
+		ArchiveHash:         "abc",
+		RetentionPolicyDays: 90,
+		RestoreSupported:    true,
+		PurgeAfter:          "2026-07-10",
+	})
 
 	items, err := NewController(root, home).Discover()
 	if err != nil {
@@ -182,27 +153,5 @@ func TestDiscoverExcludesDeprecatedResources(t *testing.T) {
 	}
 	if len(items) != 1 || items[0].Name != "active" {
 		t.Fatalf("discover items = %#v", items)
-	}
-}
-
-func writeRegistryEntry(t *testing.T, root, name string) {
-	t.Helper()
-	path := filepath.Join(root, ".vrooli", "resource-registry", name+".json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, []byte("{\"name\":\""+name+"\"}\n"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
-}
-
-func writeResourceCLI(t *testing.T, root, name string) {
-	t.Helper()
-	path := filepath.Join(root, "resources", name, "cli.sh")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, []byte("#!/usr/bin/env bash\nexit 0\n"), 0o755); err != nil {
-		t.Fatalf("write %s: %v", path, err)
 	}
 }

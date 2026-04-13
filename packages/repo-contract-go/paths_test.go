@@ -7,7 +7,7 @@ import (
 )
 
 func TestScenarioAndResourcePaths(t *testing.T) {
-	root := repoRoot(t)
+	root := fixtureRoot(t)
 	contract := mustLoadDefault(t, root)
 
 	scenarioRoot, err := contract.ScenarioRoot(root, "test-genie")
@@ -114,7 +114,7 @@ func TestStandaloneScenarioRootUsesContractLayoutWhenAvailable(t *testing.T) {
 }
 
 func TestContractAccessorsAreDefensive(t *testing.T) {
-	contract := mustLoadDefault(t, repoRoot(t))
+	contract := mustLoadDefault(t, fixtureRoot(t))
 
 	env := contract.EnvironmentVariables()
 	env["repo_root"] = "BROKEN"

@@ -9,96 +9,33 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/repocontractcheck"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
-type contractDoc struct {
-	Schema   string `json:"$schema"`
-	Version  string `json:"version"`
-	Platform struct {
-		Mode                       string `json:"mode"`
-		LegacyProjectBashSupported bool   `json:"legacy_project_bash_supported"`
-	} `json:"platform"`
-	Root struct {
-		Markers struct {
-			RequiredDirs  []string `json:"required_dirs"`
-			RequiredFiles []string `json:"required_files"`
-		} `json:"markers"`
-	} `json:"root"`
-	Layout struct {
-		ProjectConfigDir string `json:"project_config_dir"`
-		ScenarioDir      string `json:"scenario_dir"`
-		ResourceDir      string `json:"resource_dir"`
-		TemplateDir      string `json:"template_dir"`
-		PackageDir       string `json:"package_dir"`
-		CommandDir       string `json:"command_dir"`
-		InternalDir      string `json:"internal_dir"`
-		DocsDir          string `json:"docs_dir"`
-	} `json:"layout"`
-	Scenario struct {
-		RequiredFiles  []string          `json:"required_files"`
-		WellKnownPaths map[string]string `json:"well_known_paths"`
-	} `json:"scenario"`
-	Resource struct {
-		Manifest       string            `json:"manifest"`
-		WellKnownPaths map[string]string `json:"well_known_paths"`
-	} `json:"resource"`
-	Globs struct {
-		Syntax        string `json:"syntax"`
-		RootRelative  bool   `json:"root_relative"`
-		CaseSensitive bool   `json:"case_sensitive"`
-		AllowAbsolute bool   `json:"allow_absolute"`
-		PathFormat    string `json:"path_format"`
-	} `json:"globs"`
-	Environment struct {
-		Variables map[string]string `json:"variables"`
-	} `json:"environment"`
-	Sandbox struct {
-		FullRepoScopes      []string `json:"full_repo_scopes"`
-		ScenarioScopePrefix string   `json:"scenario_scope_prefix"`
-	} `json:"sandbox"`
-	Profiles map[string]struct {
-		Description     string   `json:"description"`
-		Parameters      []string `json:"parameters"`
-		Include         []string `json:"include"`
-		OptionalInclude []string `json:"optional_include"`
-		Exclude         []string `json:"exclude"`
-	} `json:"profiles"`
-}
-
 func TestRepoContractJSONParsesAndMatchesPhase1Semantics(t *testing.T) {
-	root := repoRoot(t)
-	path := filepath.Join(root, ".vrooli", "repo-contract.json")
-	data := mustReadFile(t, path)
+	contract := loadContract(t, repoRoot(t))
 
-	var doc contractDoc
-	if err := json.Unmarshal(data, &doc); err != nil {
-		t.Fatalf("unmarshal repo contract: %v", err)
+	if contract.Schema() != "schemas/repo-contract.schema.json" {
+		t.Fatalf("schema = %q", contract.Schema())
 	}
-
-	if doc.Schema != "schemas/repo-contract.schema.json" {
-		t.Fatalf("schema = %q", doc.Schema)
+	if contract.Version() != "1.0.0" {
+		t.Fatalf("version = %q", contract.Version())
 	}
-	if doc.Version != "1.0.0" {
-		t.Fatalf("version = %q", doc.Version)
+	platform := contract.Platform()
+	if platform.Mode != "cross_platform_go_native" {
+		t.Fatalf("platform.mode = %q", platform.Mode)
 	}
-	if doc.Platform.Mode != "cross_platform_go_native" {
-		t.Fatalf("platform.mode = %q", doc.Platform.Mode)
-	}
-	if doc.Platform.LegacyProjectBashSupported {
+	if platform.LegacyProjectBashSupported {
 		t.Fatal("legacy_project_bash_supported must be false")
 	}
-	if got := doc.Resource.Manifest; got != "resource.json" {
-		t.Fatalf("resource.manifest = %q, want resource.json", got)
+
+	resource := contract.Resource()
+	if resource.Manifest != "resource.json" {
+		t.Fatalf("resource.manifest = %q, want resource.json", resource.Manifest)
 	}
-	if got := doc.Environment.Variables["repo_root"]; got != "VROOLI_ROOT" {
-		t.Fatalf("repo_root env = %q", got)
-	}
-	if got := doc.Environment.Variables["source_root"]; got != "VROOLI_SOURCE_ROOT" {
-		t.Fatalf("source_root env = %q", got)
-	}
-	if got, want := doc.Environment.Variables, map[string]string{
+	if got, want := contract.EnvironmentVariables(), map[string]string{
 		"repo_root":      "VROOLI_ROOT",
 		"source_root":    "VROOLI_SOURCE_ROOT",
 		"sandbox_id":     "VROOLI_SANDBOX_ID",
@@ -107,20 +44,22 @@ func TestRepoContractJSONParsesAndMatchesPhase1Semantics(t *testing.T) {
 	}; !mapsEqual(got, want) {
 		t.Fatalf("environment.variables = %#v, want %#v", got, want)
 	}
-	if got := doc.Globs.Syntax; got != "doublestar" {
-		t.Fatalf("globs.syntax = %q", got)
+
+	globs := contract.Globs()
+	if globs.Syntax != "doublestar" {
+		t.Fatalf("globs.syntax = %q", globs.Syntax)
 	}
-	if !doc.Globs.RootRelative || !doc.Globs.CaseSensitive || doc.Globs.AllowAbsolute {
-		t.Fatalf("unexpected glob policy: %+v", doc.Globs)
+	if !globs.RootRelative || !globs.CaseSensitive || globs.AllowAbsolute {
+		t.Fatalf("unexpected glob policy: %+v", globs)
 	}
-	if got := doc.Globs.PathFormat; got != "slash_normalized" {
-		t.Fatalf("globs.path_format = %q", got)
+	if globs.PathFormat != "slash_normalized" {
+		t.Fatalf("globs.path_format = %q", globs.PathFormat)
 	}
-	if got := doc.Sandbox.ScenarioScopePrefix; got != "scenarios/" {
+	if got := contract.SandboxScenarioScopePrefix(); got != "scenarios/" {
 		t.Fatalf("sandbox.scenario_scope_prefix = %q", got)
 	}
 
-	mini, ok := doc.Profiles["mini_vrooli_bundle"]
+	mini, ok := contract.Profiles()["mini_vrooli_bundle"]
 	if !ok {
 		t.Fatal("missing mini_vrooli_bundle profile")
 	}
@@ -133,9 +72,13 @@ func TestRepoContractJSONParsesAndMatchesPhase1Semantics(t *testing.T) {
 }
 
 func TestRepoContractCanonicalMarkersAndPathsStayExact(t *testing.T) {
-	doc := loadContract(t, repoRoot(t))
+	contract := loadContract(t, repoRoot(t))
+	rootMarkers := contract.RootMarkers()
+	layout := contract.Layout()
+	scenario := contract.Scenario()
+	resource := contract.Resource()
 
-	if got, want := doc.Root.Markers.RequiredDirs, []string{
+	if got, want := rootMarkers.RequiredDirs, []string{
 		".vrooli",
 		"templates",
 		"scenarios",
@@ -146,40 +89,32 @@ func TestRepoContractCanonicalMarkersAndPathsStayExact(t *testing.T) {
 	}; !slices.Equal(got, want) {
 		t.Fatalf("root.markers.required_dirs = %v, want %v", got, want)
 	}
-
-	if got, want := doc.Root.Markers.RequiredFiles, []string{"go.mod"}; !slices.Equal(got, want) {
+	if got, want := rootMarkers.RequiredFiles, []string{"go.mod"}; !slices.Equal(got, want) {
 		t.Fatalf("root.markers.required_files = %v, want %v", got, want)
 	}
 
-	if got := doc.Layout.ProjectConfigDir; got != ".vrooli" {
-		t.Fatalf("layout.project_config_dir = %q", got)
-	}
-	if got := doc.Layout.ScenarioDir; got != "scenarios" {
-		t.Fatalf("layout.scenario_dir = %q", got)
-	}
-	if got := doc.Layout.ResourceDir; got != "resources" {
-		t.Fatalf("layout.resource_dir = %q", got)
-	}
-	if got := doc.Layout.TemplateDir; got != "templates" {
-		t.Fatalf("layout.template_dir = %q", got)
-	}
-	if got := doc.Layout.PackageDir; got != "packages" {
-		t.Fatalf("layout.package_dir = %q", got)
-	}
-	if got := doc.Layout.CommandDir; got != "cmd" {
-		t.Fatalf("layout.command_dir = %q", got)
-	}
-	if got := doc.Layout.InternalDir; got != "internal" {
-		t.Fatalf("layout.internal_dir = %q", got)
-	}
-	if got := doc.Layout.DocsDir; got != "docs" {
-		t.Fatalf("layout.docs_dir = %q", got)
+	switch {
+	case layout.ProjectConfigDir != ".vrooli":
+		t.Fatalf("layout.project_config_dir = %q", layout.ProjectConfigDir)
+	case layout.ScenarioDir != "scenarios":
+		t.Fatalf("layout.scenario_dir = %q", layout.ScenarioDir)
+	case layout.ResourceDir != "resources":
+		t.Fatalf("layout.resource_dir = %q", layout.ResourceDir)
+	case layout.TemplateDir != "templates":
+		t.Fatalf("layout.template_dir = %q", layout.TemplateDir)
+	case layout.PackageDir != "packages":
+		t.Fatalf("layout.package_dir = %q", layout.PackageDir)
+	case layout.CommandDir != "cmd":
+		t.Fatalf("layout.command_dir = %q", layout.CommandDir)
+	case layout.InternalDir != "internal":
+		t.Fatalf("layout.internal_dir = %q", layout.InternalDir)
+	case layout.DocsDir != "docs":
+		t.Fatalf("layout.docs_dir = %q", layout.DocsDir)
 	}
 
-	if got, want := doc.Scenario.RequiredFiles, []string{".vrooli/service.json"}; !slices.Equal(got, want) {
+	if got, want := scenario.RequiredFiles, []string{".vrooli/service.json"}; !slices.Equal(got, want) {
 		t.Fatalf("scenario.required_files = %v, want %v", got, want)
 	}
-
 	expectedScenarioPaths := map[string]string{
 		"service":        ".vrooli/service.json",
 		"docs":           "docs",
@@ -189,19 +124,19 @@ func TestRepoContractCanonicalMarkersAndPathsStayExact(t *testing.T) {
 		"cli":            "cli",
 		"initialization": "initialization",
 	}
-	if !mapsEqual(doc.Scenario.WellKnownPaths, expectedScenarioPaths) {
-		t.Fatalf("scenario.well_known_paths = %#v, want %#v", doc.Scenario.WellKnownPaths, expectedScenarioPaths)
+	if !mapsEqual(scenario.WellKnownPaths, expectedScenarioPaths) {
+		t.Fatalf("scenario.well_known_paths = %#v, want %#v", scenario.WellKnownPaths, expectedScenarioPaths)
 	}
 
 	expectedResourcePaths := map[string]string{
 		"docs":           "docs",
 		"initialization": "initialization",
 	}
-	if doc.Resource.Manifest != "resource.json" {
-		t.Fatalf("resource.manifest = %q", doc.Resource.Manifest)
+	if resource.Manifest != "resource.json" {
+		t.Fatalf("resource.manifest = %q", resource.Manifest)
 	}
-	if !mapsEqual(doc.Resource.WellKnownPaths, expectedResourcePaths) {
-		t.Fatalf("resource.well_known_paths = %#v, want %#v", doc.Resource.WellKnownPaths, expectedResourcePaths)
+	if !mapsEqual(resource.WellKnownPaths, expectedResourcePaths) {
+		t.Fatalf("resource.well_known_paths = %#v, want %#v", resource.WellKnownPaths, expectedResourcePaths)
 	}
 }
 
@@ -247,9 +182,13 @@ func TestRepoContractValidatesAgainstSchema(t *testing.T) {
 
 func TestRepoContractMatchesLiveRepoStructure(t *testing.T) {
 	root := repoRoot(t)
-	doc := loadContract(t, root)
+	contract := loadContract(t, root)
+	rootMarkers := contract.RootMarkers()
+	layout := contract.Layout()
+	scenario := contract.Scenario()
+	resource := contract.Resource()
 
-	for _, dir := range doc.Root.Markers.RequiredDirs {
+	for _, dir := range rootMarkers.RequiredDirs {
 		path := filepath.Join(root, filepath.FromSlash(dir))
 		info, err := os.Stat(path)
 		if err != nil {
@@ -259,8 +198,7 @@ func TestRepoContractMatchesLiveRepoStructure(t *testing.T) {
 			t.Fatalf("required dir %s is not a directory", dir)
 		}
 	}
-
-	for _, file := range doc.Root.Markers.RequiredFiles {
+	for _, file := range rootMarkers.RequiredFiles {
 		path := filepath.Join(root, filepath.FromSlash(file))
 		info, err := os.Stat(path)
 		if err != nil {
@@ -271,41 +209,14 @@ func TestRepoContractMatchesLiveRepoStructure(t *testing.T) {
 		}
 	}
 
-	scenarioManifestCount := 0
-	scenariosDir := filepath.Join(root, filepath.FromSlash(doc.Layout.ScenarioDir))
-	entries, err := os.ReadDir(scenariosDir)
-	if err != nil {
-		t.Fatalf("read scenarios dir: %v", err)
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		manifestPath := filepath.Join(scenariosDir, entry.Name(), filepath.FromSlash(doc.Scenario.WellKnownPaths["service"]))
-		if _, err := os.Stat(manifestPath); err == nil {
-			scenarioManifestCount++
-		}
-	}
-	if scenarioManifestCount == 0 {
+	if count, err := manifestCount(filepath.Join(root, filepath.FromSlash(layout.ScenarioDir)), filepath.FromSlash(scenario.WellKnownPaths["service"])); err != nil {
+		t.Fatalf("count scenario manifests: %v", err)
+	} else if count == 0 {
 		t.Fatal("expected at least one scenario manifest matching the repo contract")
 	}
-
-	resourceManifestCount := 0
-	resourcesDir := filepath.Join(root, filepath.FromSlash(doc.Layout.ResourceDir))
-	resourceEntries, err := os.ReadDir(resourcesDir)
-	if err != nil {
-		t.Fatalf("read resources dir: %v", err)
-	}
-	for _, entry := range resourceEntries {
-		if !entry.IsDir() {
-			continue
-		}
-		manifestPath := filepath.Join(resourcesDir, entry.Name(), filepath.FromSlash(doc.Resource.Manifest))
-		if _, err := os.Stat(manifestPath); err == nil {
-			resourceManifestCount++
-		}
-	}
-	if resourceManifestCount == 0 {
+	if count, err := manifestCount(filepath.Join(root, filepath.FromSlash(layout.ResourceDir)), filepath.FromSlash(resource.Manifest)); err != nil {
+		t.Fatalf("count resource manifests: %v", err)
+	} else if count == 0 {
 		t.Fatal("expected at least one resource manifest matching the repo contract")
 	}
 }
@@ -314,22 +225,20 @@ func TestRepoContractExcludesLegacyRulesAndPaths(t *testing.T) {
 	root := repoRoot(t)
 	data := string(mustReadFile(t, filepath.Join(root, ".vrooli", "repo-contract.json")))
 
-	disallowed := []string{
+	for _, item := range []string{
 		".vrooli/resource.json",
 		".git\"",
 		"pnpm-workspace.yaml",
 		"$HOME/Vrooli",
 		"APP_ROOT",
 		".vrooli/metadata.json",
-	}
-	for _, item := range disallowed {
+	} {
 		if strings.Contains(data, item) {
 			t.Fatalf("repo contract unexpectedly contains legacy or deferred item %q", item)
 		}
 	}
 
-	doc := loadContract(t, root)
-	for _, path := range collectContractPaths(doc) {
+	for _, path := range collectContractPaths(loadContract(t, root)) {
 		if strings.Contains(path, "\\") {
 			t.Fatalf("contract path %q must be slash-normalized", path)
 		}
@@ -343,16 +252,17 @@ func TestRepoContractExcludesLegacyRulesAndPaths(t *testing.T) {
 }
 
 func TestRepoContractProfileRootsStayWithinCanonicalLayout(t *testing.T) {
-	doc := loadContract(t, repoRoot(t))
+	contract := loadContract(t, repoRoot(t))
+	layout := contract.Layout()
 
 	allowedPrefixes := []string{
-		doc.Layout.ProjectConfigDir,
-		doc.Layout.CommandDir,
-		doc.Layout.InternalDir,
-		doc.Layout.PackageDir,
-		doc.Layout.ScenarioDir + "/",
-		doc.Layout.ResourceDir + "/",
-		doc.Layout.DocsDir,
+		layout.ProjectConfigDir,
+		layout.CommandDir,
+		layout.InternalDir,
+		layout.PackageDir,
+		layout.ScenarioDir + "/",
+		layout.ResourceDir + "/",
+		layout.DocsDir,
 		"go.mod",
 		"go.sum",
 		"go.work",
@@ -362,7 +272,7 @@ func TestRepoContractProfileRootsStayWithinCanonicalLayout(t *testing.T) {
 		"LICENSE",
 	}
 
-	for profileName, profile := range doc.Profiles {
+	for profileName, profile := range contract.Profiles() {
 		for _, include := range append(append([]string{}, profile.Include...), profile.OptionalInclude...) {
 			if !hasAllowedPrefix(include, allowedPrefixes) {
 				t.Fatalf("profile %s contains non-canonical include root %q", profileName, include)
@@ -370,14 +280,13 @@ func TestRepoContractProfileRootsStayWithinCanonicalLayout(t *testing.T) {
 		}
 	}
 
-	if got, want := doc.Sandbox.FullRepoScopes, []string{"", ".", "/"}; !slices.Equal(got, want) {
+	if got, want := contract.SandboxFullRepoScopes(), []string{"", ".", "/"}; !slices.Equal(got, want) {
 		t.Fatalf("sandbox.full_repo_scopes = %v, want %v", got, want)
 	}
 }
 
 func TestRepoContractBundleProfileStaysWithinPhase1Policy(t *testing.T) {
-	doc := loadContract(t, repoRoot(t))
-	profile, ok := doc.Profiles["mini_vrooli_bundle"]
+	profile, ok := loadContract(t, repoRoot(t)).Profiles()["mini_vrooli_bundle"]
 	if !ok {
 		t.Fatal("missing mini_vrooli_bundle profile")
 	}
@@ -386,15 +295,14 @@ func TestRepoContractBundleProfileStaysWithinPhase1Policy(t *testing.T) {
 		t.Fatalf("profile.parameters = %v, want %v", got, want)
 	}
 
-	requiredIncludes := []string{
+	for _, include := range []string{
 		".vrooli",
 		"cmd",
 		"internal",
 		"packages",
 		"scenarios/{scenario}",
 		"resources/{resources[*]}",
-	}
-	for _, include := range requiredIncludes {
+	} {
 		if !contains(profile.Include, include) {
 			t.Fatalf("profile.include missing %q in %v", include, profile.Include)
 		}
@@ -449,7 +357,7 @@ func TestRepoContractDocsStayAlignedWithPhase1Contract(t *testing.T) {
 	root := repoRoot(t)
 	docs := string(mustReadFile(t, filepath.Join(root, "docs", "repo-contract.md")))
 
-	requiredSnippets := []string{
+	for _, snippet := range []string{
 		"`vrooli contract validate`",
 		"`vrooli contract show`",
 		"`vrooli contract resolve scenario <name> --file service`",
@@ -459,8 +367,7 @@ func TestRepoContractDocsStayAlignedWithPhase1Contract(t *testing.T) {
 		"`packages/repo-contract-go`",
 		"## Landed Consumer Migrations",
 		"`swarm-manager`",
-	}
-	for _, snippet := range requiredSnippets {
+	} {
 		if !strings.Contains(docs, snippet) {
 			t.Fatalf("docs/repo-contract.md missing required snippet %q", snippet)
 		}
@@ -471,13 +378,13 @@ func repoRoot(t *testing.T) string {
 	return testkitgo.ProjectRoot(t)
 }
 
-func loadContract(t *testing.T, root string) contractDoc {
+func loadContract(t *testing.T, root string) *repocontract.Contract {
 	t.Helper()
-	var doc contractDoc
-	if err := json.Unmarshal(mustReadFile(t, filepath.Join(root, ".vrooli", "repo-contract.json")), &doc); err != nil {
-		t.Fatalf("unmarshal repo contract: %v", err)
+	contract, err := repocontract.LoadDefault(root)
+	if err != nil {
+		t.Fatalf("LoadDefault(%s): %v", root, err)
 	}
-	return doc
+	return contract
 }
 
 func mustReadFile(t *testing.T, path string) []byte {
@@ -524,32 +431,54 @@ func hasAllowedPrefix(value string, allowed []string) bool {
 	return false
 }
 
-func collectContractPaths(doc contractDoc) []string {
+func collectContractPaths(contract *repocontract.Contract) []string {
+	layout := contract.Layout()
+	rootMarkers := contract.RootMarkers()
+	scenario := contract.Scenario()
+	resource := contract.Resource()
+
 	paths := []string{
-		doc.Schema,
-		doc.Layout.ProjectConfigDir,
-		doc.Layout.ScenarioDir,
-		doc.Layout.ResourceDir,
-		doc.Layout.PackageDir,
-		doc.Layout.CommandDir,
-		doc.Layout.InternalDir,
-		doc.Layout.DocsDir,
-		doc.Resource.Manifest,
-		doc.Sandbox.ScenarioScopePrefix,
+		contract.Schema(),
+		layout.ProjectConfigDir,
+		layout.ScenarioDir,
+		layout.ResourceDir,
+		layout.PackageDir,
+		layout.CommandDir,
+		layout.InternalDir,
+		layout.DocsDir,
+		resource.Manifest,
+		contract.SandboxScenarioScopePrefix(),
 	}
-	paths = append(paths, doc.Root.Markers.RequiredDirs...)
-	paths = append(paths, doc.Root.Markers.RequiredFiles...)
-	paths = append(paths, doc.Scenario.RequiredFiles...)
-	for _, value := range doc.Scenario.WellKnownPaths {
+	paths = append(paths, rootMarkers.RequiredDirs...)
+	paths = append(paths, rootMarkers.RequiredFiles...)
+	paths = append(paths, scenario.RequiredFiles...)
+	for _, value := range scenario.WellKnownPaths {
 		paths = append(paths, value)
 	}
-	for _, value := range doc.Resource.WellKnownPaths {
+	for _, value := range resource.WellKnownPaths {
 		paths = append(paths, value)
 	}
-	for _, profile := range doc.Profiles {
+	for _, profile := range contract.Profiles() {
 		paths = append(paths, profile.Include...)
 		paths = append(paths, profile.OptionalInclude...)
 		paths = append(paths, profile.Exclude...)
 	}
 	return paths
+}
+
+func manifestCount(root string, relManifest string) (int, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(root, entry.Name(), relManifest)); err == nil {
+			count++
+		}
+	}
+	return count, nil
 }

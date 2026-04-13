@@ -54,6 +54,32 @@ Its purpose is to centralize reusable Go test infrastructure so migrated project
 
 This split is intentional. Lower-level packages and external sibling modules such as `packages/repo-contract-go` can depend on the root package without importing Vrooli domain types and creating test-time import cycles.
 
+## Basic usage
+
+Cycle-safe repo and file helpers live in the root package:
+
+```go
+fixture := testkitgo.NewRepoFixture(t)
+testkitgo.WriteRepoContract(t, fixture.Root, "scenarios")
+testkitgo.WriteRepoContractExceptions(t, fixture.Root)
+testkitgo.WriteJSON(t, filepath.Join(fixture.Root, ".vrooli", "settings.json"), map[string]any{
+	"mode": "test",
+})
+```
+
+Vrooli-domain manifest fixtures live under `vrooli`:
+
+```go
+manifest := testkitvrooli.ScenarioServiceManifest(
+	"alpha",
+	testkitvrooli.WithDisplayName("Alpha"),
+	testkitvrooli.WithPorts(map[string]scenario.Port{
+		"api": {EnvVar: "API_PORT", Range: "18080-18090"},
+	}),
+)
+testkitvrooli.WriteScenarioService(t, fixture.Root, "alpha", manifest)
+```
+
 ## Adoption rule
 
 When a Go test needs a valid Vrooli repo fixture or valid manifest fixture, the default path should be `testkit-go`, not local handwritten JSON or duplicated repo setup.

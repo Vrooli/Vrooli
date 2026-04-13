@@ -68,6 +68,15 @@ func (p *stackGovernorProvider) Rules() []rulespkg.Rule {
 			Standard:    "stack-governance",
 		},
 		{
+			ID:          "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION",
+			Name:        "Scenario shared-package adoption follows package governance policy",
+			Description: "Ensures scenario shared-package adoption follows governed package manifests, avoids workspace-star drift, and removes package-propagation postinstall hacks.",
+			Category:    "packages",
+			Severity:    "high",
+			Enabled:     true,
+			Standard:    "stack-governance",
+		},
+		{
 			ID:          "MAKEFILE_STRUCTURE",
 			Name:        "Makefile follows canonical structure",
 			Description: "Enforces canonical Makefile structure with STRICT consistency for interoperability. All scenarios must follow identical structure.",

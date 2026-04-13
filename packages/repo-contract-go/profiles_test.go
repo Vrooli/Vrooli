@@ -3,7 +3,7 @@ package repocontract
 import "testing"
 
 func TestResolveProfile(t *testing.T) {
-	contract := mustLoadDefault(t, repoRoot(t))
+	contract := mustLoadDefault(t, fixtureRoot(t))
 
 	resolved, err := contract.ResolveProfile("mini_vrooli_bundle", ResolveParams{
 		Values: map[string]string{

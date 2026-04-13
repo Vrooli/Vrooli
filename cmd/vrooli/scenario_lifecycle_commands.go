@@ -39,11 +39,6 @@ type scenarioHealFromSandboxResponse struct {
 	StoppedCount int
 }
 
-func runScenarioRunCommandForRoot(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
-	app, ctx := newConfiguredCommandContext(root, globals, stdout, stderr)
-	return bindGlobalCommand(parseScenarioStartRequest, runScenarioStartRequest, renderScenarioLifecycleResponse)(app, ctx, args)
-}
-
 func runScenarioSetupCommandWithApp(app *App, ctx *commandContext, args []string) error {
 	return bindGlobalCommand(parseScenarioSetupRequest, runScenarioSetupRequest, renderScenarioSetupResponse)(app, ctx, args)
 }
@@ -315,7 +310,7 @@ func loadScenarioPorts(root, name string) (scenario.Scenario, process.ScenarioRu
 	}
 	item := detail.Scenario
 	runtimeState := detail.Runtime
-	listPorts, portsMap := buildListPorts(item.Manifest, runtimeState.Records)
+	listPorts, portsMap := scenariocli.BuildListPorts(item.Manifest, runtimeState.Records)
 	seen := make(map[string]struct{}, len(listPorts))
 	for _, item := range listPorts {
 		seen[item.Key] = struct{}{}

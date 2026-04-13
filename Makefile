@@ -1,4 +1,4 @@
-.PHONY: help build install test validate clean setup dev develop deploy status scenarios resources lifecycle-build validate-repo-contract validate-phase6-host-setup-cleanup validate-live-develop-smoke validate-week0-week1 validate-week3-live validate-week5-cross validate-week6-slice
+.PHONY: help build install test validate clean setup dev develop deploy status scenarios resources lifecycle-build validate-repo-contract validate-package-governance validate-phase6-host-setup-cleanup validate-live-develop-smoke validate-week0-week1 validate-week3-live validate-week5-cross validate-week6-slice
 
 .DEFAULT_GOAL := help
 
@@ -20,6 +20,7 @@ help: ## Show available project-level targets
 	@printf "  make install        Install project-level Go binaries into %s\n" "$(INSTALL_DIR)"
 	@printf "  make test           Run project-level Go tests\n"
 	@printf "  make validate-repo-contract Validate the repo contract schema, data, and drift checks\n"
+	@printf "  make validate-package-governance Validate package manifests, adoption policy, and drift\n"
 	@printf "  make validate-phase6-host-setup-cleanup Validate deleted host-setup surfaces stay deleted\n"
 	@printf "  make validate       Run the retained project-level validation suite\n"
 	@printf "  make clean          Remove project-level Go build artifacts\n"
@@ -47,6 +48,7 @@ install: build ## Install project-level Go binaries into ~/.vrooli/bin
 
 test: ## Run project-level Go tests
 	$(MAKE) validate-repo-contract
+	$(MAKE) validate-package-governance
 	go test ./internal/...
 	go test ./cmd/vrooli-buildmeta
 	go test ./cmd/vrooli
@@ -63,6 +65,13 @@ validate: ## Run the retained project-level validation suite
 validate-repo-contract: ## Validate the repo contract schema, data, and drift checks
 	python3 .vrooli/schemas/validate-repo-contract.py
 	go test ./internal/repocontract
+
+validate-package-governance: ## Validate package manifests, scenario adoption policy, and docs drift
+	go test ./internal/packagegov
+	go test ./cmd/vrooli -run 'TestPackage' -count=1
+	cd scenarios/scenario-stack-governor/api && go test ./... -count=1
+	go run ./cmd/vrooli --no-stale-check package validate --all
+	go run ./cmd/vrooli --no-stale-check package audit --all
 
 validate-phase6-host-setup-cleanup: ## Validate deleted host-setup surfaces stay deleted
 	go test ./internal/setup -run TestRepoRemovesLegacyHostSetupSurfaces -count=1

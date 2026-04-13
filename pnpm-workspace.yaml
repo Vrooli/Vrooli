@@ -1,8 +1,9 @@
 # Workspace configuration for shared packages only
 # IMPORTANT: Do NOT add scenarios/**/ui here!
 # Scenarios must remain completely isolated to prevent dependency conflicts.
-# Each scenario uses postinstall symlinks to access packages/* (e.g., @vrooli/iframe-bridge)
-# This ensures we can scale to thousands of independent scenarios.
+# Shared package adoption is governed by `vrooli package ...` plus
+# package manifests under packages/*/.vrooli/package.json.
+# This keeps scenarios isolated while preserving explicit reuse.
 packageManager: "pnpm@10.14.0"
 link-workspace-packages: false
 shared-workspace-lockfile: false

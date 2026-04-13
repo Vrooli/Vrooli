@@ -18,14 +18,14 @@ type resourceTemplateGenerateOptions struct {
 	Values        map[string]string
 }
 
-var resourceTemplateCommandTable = []resourceCommandDescriptor{
+var resourceTemplateCommandTable = []resourceSubcommandDescriptor{
 	{Name: "list", Summary: "List resource templates", Handler: bindResourceCommand(parseResourceTemplateListRequest, runResourceTemplateListRequest, renderResourceTemplateListResponse)},
 	{Name: "show", Summary: "Show template details", Handler: bindResourceCommand(parseResourceTemplateShowRequest, runResourceTemplateShowRequest, renderResourceTemplateShowResponse)},
 	{Name: "validate", Summary: "Validate template manifests", Handler: bindResourceCommand(parseResourceTemplateValidateRequest, runResourceTemplateValidateRequest, renderResourceTemplateValidateResponse)},
 	{Name: "generate", Summary: "Generate files from a template", Handler: runResourceTemplateGenerateCommandWithApp},
 }
 
-var resourceTemplateCommandHandlers = buildResourceCommandMap(resourceTemplateCommandTable)
+var resourceTemplateCommandHandlers = buildResourceSubcommandMap(resourceTemplateCommandTable)
 
 func runResourceTemplateCommand(controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer) error {
 	app, ctx := newConfiguredCommandContext("", globals, stdout, stderr)
@@ -36,7 +36,7 @@ func runResourceTemplateCommand(controller *resources.Controller, globals global
 }
 
 func runResourceTemplateCommandWithApp(app *App, ctx *commandContext, controller *resources.Controller, args []string) error {
-	return runNestedResourceCommand(app, ctx, controller, args, showResourceTemplateHelp, "resource template", resourceTemplateCommandHandlers)
+	return runResourceSubcommandSet(app, ctx, controller, args, showResourceTemplateHelp, "resource template", resourceTemplateCommandHandlers)
 }
 
 func runResourceTemplateGenerateCommandWithApp(app *App, ctx *commandContext, controller *resources.Controller, args []string) error {
@@ -156,9 +156,7 @@ func parseResourceTemplateGenerateArgs(controller *resources.Controller, args []
 }
 
 func showResourceTemplateHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli resource template <subcommand> [options]")
-	_, _ = fmt.Fprintln(w)
-	writeResourceCommandHelp(w, resourceTemplateCommandTable)
+	renderResourceSubcommandHelp(w, "", "vrooli resource template <subcommand> [options]", "Resource Templates", resourceTemplateCommandTable)
 }
 
 func showResourceTemplateGenerateHelp(w io.Writer) {

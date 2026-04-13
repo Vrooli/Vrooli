@@ -89,6 +89,34 @@ func TestIntegration_RunReturnsMAKEFILERules(t *testing.T) {
 	}
 }
 
+func TestIntegration_ListRulesIncludesPackageGovernanceRule(t *testing.T) {
+	srv, _ := setupTestServer(t)
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/v1/rules")
+	if err != nil {
+		t.Fatalf("GET /api/v1/rules: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var payload struct {
+		Rules []struct {
+			ID string `json:"id"`
+		} `json:"rules"`
+	}
+	decodeJSON(t, resp, &payload)
+
+	for _, rule := range payload.Rules {
+		if rule.ID == packageGovernanceRuleID {
+			return
+		}
+	}
+	t.Fatalf("expected %s in rule catalog", packageGovernanceRuleID)
+}
+
 // TestIntegration_RunDetectsViolations verifies that a broken Makefile produces findings.
 func TestIntegration_RunDetectsViolations(t *testing.T) {
 	srv, root := setupTestServer(t)

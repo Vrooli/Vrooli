@@ -3,6 +3,7 @@ package lifecycle
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -22,7 +23,43 @@ import (
 	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=8 | LAST: 2026-04-11
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=9 | LAST: 2026-04-13
+
+func withLifecycleSleepFn(t *testing.T, fn func(time.Duration)) {
+	t.Helper()
+	previous := sleepFn
+	sleepFn = fn
+	t.Cleanup(func() {
+		sleepFn = previous
+	})
+}
+
+func withLifecycleNowFn(t *testing.T, fn func() time.Time) {
+	t.Helper()
+	previous := timeNowFn
+	timeNowFn = fn
+	t.Cleanup(func() {
+		timeNowFn = previous
+	})
+}
+
+func withListeningPIDsFn(t *testing.T, fn func(int) ([]int, error)) {
+	t.Helper()
+	previous := listeningPIDsFn
+	listeningPIDsFn = fn
+	t.Cleanup(func() {
+		listeningPIDsFn = previous
+	})
+}
+
+func withSignalPIDFn(t *testing.T, fn func(int, bool) error) {
+	t.Helper()
+	previous := signalPIDFn
+	signalPIDFn = fn
+	t.Cleanup(func() {
+		signalPIDFn = previous
+	})
+}
 
 func TestRunnerStartStopRestart(t *testing.T) {
 	if runtime.GOOS != "linux" {
@@ -1087,6 +1124,88 @@ func TestWaitForHealthHonorsExplicitTimeoutAndDegradedState(t *testing.T) {
 	}
 }
 
+func TestWaitForHealthUsesInjectedClockAndSleep(t *testing.T) {
+	runner := &Runner{}
+	base := time.Date(2026, 4, 13, 12, 0, 0, 0, time.UTC)
+	now := base
+	sleepCalls := 0
+
+	withLifecycleNowFn(t, func() time.Time { return now })
+	withLifecycleSleepFn(t, func(duration time.Duration) {
+		sleepCalls++
+		now = now.Add(duration)
+	})
+
+	item := scenario.Scenario{
+		Slug: "delta",
+		Manifest: scenario.ServiceManifest{
+			Lifecycle: scenario.Lifecycle{
+				Health: &scenario.HealthConfig{
+					Checks: []scenario.HealthCheck{{
+						Name:     "api",
+						Type:     "unsupported",
+						Critical: true,
+					}},
+					StartupGracePeriod: 25,
+					Timeout:            50,
+					Interval:           10,
+				},
+			},
+		},
+	}
+
+	status, err := runner.WaitForHealth(item, nil)
+	if err == nil {
+		t.Fatal("expected unhealthy health checks to fail")
+	}
+	if status != "unhealthy" {
+		t.Fatalf("status = %q, want unhealthy", status)
+	}
+	if sleepCalls == 0 {
+		t.Fatal("expected WaitForHealth to use injected sleep")
+	}
+	if !now.After(base) {
+		t.Fatalf("expected injected clock to advance, now=%s base=%s", now, base)
+	}
+}
+
+func TestKillOrphansOnPortsUsesInjectedListenerAndSignalSeams(t *testing.T) {
+	runner := &Runner{}
+	listenCalls := 0
+	var signaled []string
+
+	withListeningPIDsFn(t, func(port int) ([]int, error) {
+		listenCalls++
+		switch listenCalls {
+		case 1:
+			return []int{101, 202}, nil
+		case 2:
+			return []int{303}, nil
+		default:
+			return nil, nil
+		}
+	})
+	withSignalPIDFn(t, func(pid int, force bool) error {
+		signaled = append(signaled, fmt.Sprintf("%d:%t", pid, force))
+		return nil
+	})
+	withLifecycleSleepFn(t, func(time.Duration) {})
+
+	if err := runner.killOrphansOnPorts(map[int]struct{}{18080: {}}); err != nil {
+		t.Fatalf("killOrphansOnPorts: %v", err)
+	}
+
+	want := []string{"101:false", "202:false", "303:true"}
+	if len(signaled) != len(want) {
+		t.Fatalf("signaled = %v, want %v", signaled, want)
+	}
+	for i := range want {
+		if signaled[i] != want[i] {
+			t.Fatalf("signaled[%d] = %q, want %q", i, signaled[i], want[i])
+		}
+	}
+}
+
 func TestRuntimePortsAndStrictHealthUseRecordedMetadata(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -1367,16 +1486,5 @@ func lifecycleFixtureManifest(name string) scenario.ServiceManifest {
 
 func writeLifecyclePortRegistry(t *testing.T, root string) {
 	t.Helper()
-
-	portRegistry := filepath.Join(root, "scripts", "resources", "port_registry.sh")
-	if err := os.MkdirAll(filepath.Dir(portRegistry), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(portRegistry), err)
-	}
-	if err := os.WriteFile(portRegistry, []byte("#!/usr/bin/env bash\ndeclare -g -A RESOURCE_PORTS=()\n"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", portRegistry, err)
-	}
-	portRegistryJSON := filepath.Join(root, "scripts", "resources", "port_registry.json")
-	if err := os.WriteFile(portRegistryJSON, []byte("{\n  \"resource_ports\": {},\n  \"reserved_ranges\": {}\n}\n"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", portRegistryJSON, err)
-	}
+	testfixture.WritePortRegistry(t, root, nil)
 }

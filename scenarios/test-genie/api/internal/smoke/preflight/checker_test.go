@@ -106,7 +106,7 @@ func TestChecker_CheckIframeBridge_DevDependency(t *testing.T) {
 	packageJSON := `{
 		"name": "test-ui",
 		"devDependencies": {
-			"@vrooli/iframe-bridge": "workspace:*"
+			"@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
 		}
 	}`
 
@@ -123,8 +123,8 @@ func TestChecker_CheckIframeBridge_DevDependency(t *testing.T) {
 	if !status.DependencyPresent {
 		t.Error("DependencyPresent should be true for devDependencies")
 	}
-	if status.Version != "workspace:*" {
-		t.Errorf("Version = %q, want %q", status.Version, "workspace:*")
+	if status.Version != "file:../../../packages/iframe-bridge" {
+		t.Errorf("Version = %q, want %q", status.Version, "file:../../../packages/iframe-bridge")
 	}
 }
 

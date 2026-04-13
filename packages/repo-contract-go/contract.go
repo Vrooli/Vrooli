@@ -167,6 +167,23 @@ func (c *Contract) Profile(name string) (Profile, error) {
 	}, nil
 }
 
+func (c *Contract) Profiles() map[string]Profile {
+	if len(c.doc.Profiles) == 0 {
+		return nil
+	}
+	profiles := make(map[string]Profile, len(c.doc.Profiles))
+	for name, profile := range c.doc.Profiles {
+		profiles[name] = Profile{
+			Description:     profile.Description,
+			Parameters:      slices.Clone(profile.Parameters),
+			Include:         slices.Clone(profile.Include),
+			OptionalInclude: slices.Clone(profile.OptionalInclude),
+			Exclude:         slices.Clone(profile.Exclude),
+		}
+	}
+	return profiles
+}
+
 func (c *Contract) ScenarioRoot(repoRoot, scenario string) (string, error) {
 	scenario, err := cleanIdentifier(scenario)
 	if err != nil {

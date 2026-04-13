@@ -271,9 +271,7 @@ func writeResourceCLI(t *testing.T, root, name, statusJSON string) {
 	t.Helper()
 	script := "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"status\" ]]; then\n  printf '%s\\n' '" + statusJSON + "'\n  exit 0\nfi\nprintf '{\"message\":\"ok\"}\\n'\n"
 	testkitvrooli.WriteResourceCLI(t, root, name, script)
-	installedPath := filepath.Join(root, "test-bin", "resource-"+name)
-	testkitgo.WriteExecutable(t, installedPath, script)
-	t.Setenv("PATH", filepath.Dir(installedPath)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	testkitgo.WriteExecutableOnPath(t, "resource-"+name, script)
 }
 
 func writeResourceManifest(t *testing.T, root, name string) {

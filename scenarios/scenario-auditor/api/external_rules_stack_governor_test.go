@@ -21,6 +21,9 @@ func TestExternalRules_StackGovernorRegistered(t *testing.T) {
 	if !isExternalRule("REACT_VITE_UI_INSTALLS_DEPENDENCIES") {
 		t.Fatalf("expected REACT_VITE_UI_INSTALLS_DEPENDENCIES to be registered as an external rule")
 	}
+	if !isExternalRule("PACKAGE_GOVERNANCE_SCENARIO_ADOPTION") {
+		t.Fatalf("expected PACKAGE_GOVERNANCE_SCENARIO_ADOPTION to be registered as an external rule")
+	}
 }
 
 func TestPathWithinDir(t *testing.T) {

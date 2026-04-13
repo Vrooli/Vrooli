@@ -73,7 +73,7 @@ window.__vrooliBridgeChildInstalled = true;
 		packageJSON := `{
   "name": "test-ui",
   "dependencies": {
-    "@vrooli/iframe-bridge": "workspace:*"
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   }
 }`
 		if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(packageJSON), 0644); err != nil {

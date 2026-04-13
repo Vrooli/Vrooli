@@ -6,8 +6,7 @@
   "scripts": {
     "start": "vrooli lifecycle protect -- node server.js",
     "dev": "vrooli lifecycle protect -- nodemon server.js",
-    "build": "bash -c 'rm -rf dist && mkdir -p dist && cp index.html dist/ && cp styles.css dist/ && cp script.js dist/'",
-    "postinstall": "bash -c 'mkdir -p node_modules/@vrooli && ln -snf ../../../../../packages/iframe-bridge node_modules/@vrooli/iframe-bridge'"
+    "build": "bash -c 'rm -rf dist && mkdir -p dist && cp index.html dist/ && cp styles.css dist/ && cp script.js dist/'"
   },
   "dependencies": {
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",

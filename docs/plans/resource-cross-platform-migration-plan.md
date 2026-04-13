@@ -1,10 +1,10 @@
 # Resource Cross-Platform Migration Plan
 
-**Status:** Proposed
+**Status:** In Progress
 **Owner:** Matthew Halloran
 **Scope:** Project-level resource system under `resources/`, `scripts/resources/`, `scripts/lib/resources/`, and the corresponding `vrooli resource` control surface
 **Out of Scope:** Scenario internals under `scenarios/*/`, except where scenario template/resource patterns provide precedent
-**Primary Goal:** Replace the current shell-first, speculative, high-maintenance resource system with a cross-platform, Go-native control plane built around a small validated resource set, first-class resource blueprints, and managed deprecation/archive workflows
+**Primary Goal:** Replace the current shell-first, high-maintenance resource system with a cross-platform, Go-native control plane built around the active retained resource set, first-class resource blueprints, and managed deprecation/archive workflows
 
 ---
 
@@ -14,14 +14,15 @@ If you are an agent resuming this work in a future session, read this section fi
 
 - **What this plan covers:** The full migration strategy for resources, including architecture, blueprints, deprecation, templates, shared code, phased execution, and cleanup.
 - **What this plan does not cover:** Scenario implementation internals. Scenario-level cross-platform work is already on its own track.
-- **What problem this is solving:** The current resource system contains many speculative or stale implementations. Migrating all of them to Go would waste effort and preserve low-quality abstractions. We need to separate capability knowledge from supported integrations.
+- **Important status update:** The blueprint cleanup pass has already happened. The speculative and stale implemented resources were already moved out of the active tree via blueprint/deprecation workflows. The resources still present under `resources/` should now be treated as intentionally retained and currently needed.
+- **What problem this is solving now:** The remaining problem is not broad triage. It is that the retained active resources are still largely implemented through shell-era CLIs and libraries, and need a clearer manifest-native, Go-owned architecture.
 - **What success looks like:** Vrooli ends up with:
-  - a small set of actively maintained, cross-platform-capable implemented resources
+  - the current active retained resource set managed through a cross-platform-capable control plane
   - a first-class `resource blueprint` catalog for future capabilities
   - a built-in `deprecate/archive/restore` lifecycle
   - a Go-native resource control plane with platform-aware drivers and templates
 - **How to resume work:** Find the first unchecked item in the phase checklist, re-read that phase, and execute only that bounded slice. This plan is intended to be completed piecemeal across multiple conversations.
-- **Important bias:** If a resource is speculative, stale, or unused, prefer converting it to a blueprint rather than migrating its code.
+- **Important bias:** Do not re-open broad resource triage unless requirements have changed. Assume the active `resources/` tree is already the curated set that should receive native migration work.
 
 ---
 
@@ -45,9 +46,9 @@ This is a real architectural problem, not just a language problem.
    - Resource discovery, installation, startup, status, and CLI registration still rely on shell entrypoints and shell frameworks.
    - The new Go resource controller currently shells back into resource CLIs rather than replacing their behavior.
 
-2. **Many resources were created speculatively.**
-   - The repo contains a large number of resource implementations that were never validated, never used in real scenarios, or were created under outdated assumptions.
-   - Treating all of them as first-class migration targets would create a lot of low-value work.
+2. **The retained resources still carry shell-era implementation weight.**
+   - The previous speculative/stale backlog was already cleaned up through blueprints, deprecation, and archive workflows.
+   - The resources that remain are still expensive to maintain because most of them preserve Bash CLIs, Bash libraries, and Bash-shaped contracts beside the new manifests.
 
 3. **The current contract couples capability knowledge to executable code.**
    - Today, the only durable way to remember a potentially useful resource is to keep a real implementation in the repo.
@@ -67,7 +68,7 @@ This is a real architectural problem, not just a language problem.
 
 Vrooli's resource layer is not just "integrations." It is part of the capability substrate that scenarios and future agents build on.
 
-If the resource system is noisy, stale, and Linux-coupled:
+If the resource system remains shell-heavy and Linux-coupled:
 
 - agents will discover bad integrations and stale patterns
 - migration work will be misprioritized toward dead code
@@ -88,24 +89,32 @@ This section documents the current architecture so later phases do not work from
 
 ### Current configuration sources
 
+Current reality after the blueprint/archive cleanup:
+
+- `resources/` should be read as the active retained resource set, not as an unfiltered backlog of ideas.
+- Blueprint preservation and deprecation/archive workflows are already real and should not be treated as future concepts.
+- The main migration question is now how to make the retained resources natively manageable, not which resources deserve to exist.
+
 - Project-level enablement lives in `.vrooli/service.json` under `dependencies.resources`
 - Resource registry metadata is stored in `.vrooli/resource-registry/*.json`
 - Running/installed status tracking currently uses `.vrooli/running-resources.json`
-- Each resource usually has:
+- Each active resource still usually has:
   - `resources/<name>/cli.sh`
   - `resources/<name>/config/defaults.sh`
   - `resources/<name>/config/runtime.json`
   - `resources/<name>/lib/*.sh`
   - `resources/<name>/test/*`
+  - `resources/<name>/resource.json`
 
 ### Current control surface
 
-The current model is:
+The current hybrid model is:
 
 1. project-level orchestration determines which resources are enabled
-2. shell orchestration invokes `resource-<name>` or `resources/<name>/cli.sh`
-3. each resource implements the v2 CLI contract through Bash handlers
-4. resource-specific libraries perform the real work
+2. the Go control plane discovers `resources/<name>/resource.json`
+3. manifest-native drivers handle supported lifecycle operations where implemented
+4. unsupported operations still fall back to `resource-<name>` or `resources/<name>/cli.sh`
+5. resource-specific shell libraries still perform much of the real work
 
 ### Current v2 resource contract
 
@@ -141,9 +150,9 @@ There are several categories of current resource behavior:
    - Examples: KiCad-class, OBS-class, hardware-oriented tools
    - Many of these will never be fully equal across Linux/macOS/Windows.
 
-5. **Speculative or stale resources**
-   - Created but not validated, not used, or superseded by better approaches
-   - These should mostly become blueprints rather than migration targets
+5. **Platform-specific or shell-heavy holdouts**
+   - Some retained resources will still need manual, desktop, or explicit legacy-adapter treatment rather than a fake "fully native everywhere" story
+   - These should be classified honestly instead of hidden behind Bash compatibility forever
 
 ### Current template state
 
@@ -153,11 +162,9 @@ Scenarios already have a strong template model:
 - template metadata files such as `template.json`
 - standard generation flow
 
-Resources currently do not. There is only:
+Resources now do have a canonical template catalog under `templates/resources/`, plus a leftover `templates/resources/PRD.md` historical seed.
 
-- `templates/resources/PRD.md`
-
-That is not sufficient for a maintainable future resource system.
+That closes the old "no resource templates exist" gap, but it does not yet mean resources are fully native. The remaining gap is that the templates are still primarily scaffold + manifest assets, while much operational behavior in active resources still lives in shell compatibility surfaces.
 
 ---
 
@@ -171,7 +178,7 @@ We will introduce **resource blueprints** as the canonical way to preserve resou
 
 Blueprints are not brainstorm scraps. They are structured, reusable implementation seeds.
 
-### Decision 2: Only a small validated resource set remains implemented
+### Decision 2: Only the curated retained resource set remains implemented
 
 The active `resources/` tree should contain only:
 
@@ -179,7 +186,9 @@ The active `resources/` tree should contain only:
 - resources used by active scenarios
 - resources with clear strategic value and recent validation
 
-Everything else should either:
+This cleanup has already happened for the previous speculative/stale backlog.
+
+Anything removed from this retained set should either:
 
 - become a blueprint, or
 - be deprecated and archived
@@ -351,7 +360,7 @@ This metadata stays in repo. The code does not.
 
 ## 5. Resource classification and triage approach
 
-Before implementing templates or drivers, we need a rigorous way to decide what remains active.
+This section is now primarily historical context plus a guardrail for future additions. The main triage pass already happened; the remaining active resources are assumed to be intentionally retained.
 
 ### 5.1 Evaluation dimensions
 
@@ -408,17 +417,15 @@ To reduce guesswork, triage should check:
 - evidence of recent runtime validation
 - evidence of duplicate capability elsewhere
 
-### 5.4 Expected result of triage
+### 5.4 Result of triage
 
-The expected result is that the current large resource tree shrinks substantially.
+The resource tree has already been reduced to the retained active set.
 
-Likely surviving active implementations will cluster around:
+The practical implication for the remaining work is:
 
-- core containerized infrastructure
-- actively used AI/dev tooling
-- a few proven external-tool wrappers
-
-Most speculative resources should become blueprints or deprecated archives.
+- assume current active resources should migrate forward unless a new explicit decision says otherwise
+- use blueprint/deprecation/archive workflows only for future removals or newly discovered mistakes
+- spend migration effort on native architecture, driver ownership, and template quality rather than repeating broad keep/blueprint/deprecate review
 
 ---
 
@@ -698,7 +705,8 @@ Generated structure should include:
 
 - `resource.json`
 - `README.md`
-- `config/runtime.json` only if transitional compatibility is needed
+- zero Bash files in the template itself
+- explicit native environment export model
 - health config
 - data dirs / volumes
 - driver settings
@@ -712,6 +720,7 @@ Expected setup:
 - volume mappings
 - HTTP/TCP/command health checks
 - platform note that Docker is prerequisite
+- explicit extension points for custom native commands when the standard driver surface is insufficient
 
 #### Template 2: `compose-service`
 
@@ -852,6 +861,8 @@ Just like scenarios:
 - start from an approved template
 - do not create ad hoc template folders casually
 - improve canonical templates instead of multiplying variants without discipline
+- canonical resource templates must be Bash-free and cross-platform by default
+- any compatibility surface must live outside the template archetype contract and be explicitly marked transitional
 
 ---
 
@@ -881,8 +892,56 @@ resources/<name>/
 Notes:
 
 - `cli.sh` should not be required in the target architecture
-- shell files may temporarily exist only for transitional `legacy-adapter` resources
+- canonical templates should not generate any Bash files
+- shell files may temporarily exist only in explicit compatibility or `legacy-adapter` paths during migration
 - the Go control plane should interpret `resource.json` plus driver data
+
+### 10.1.1 Native environment contract
+
+One of the old shell-era responsibilities that must be replaced deliberately is environment injection for dependent scenarios.
+
+Historically this was often handled through `config/exports.sh`, sometimes with additional values derived from:
+
+- port registry state
+- shell defaults
+- secrets resolution
+- computed URLs such as `POSTGRES_URL`, `DATABASE_URL`, `REDIS_URL`, `QDRANT_URL`, `OLLAMA_URL`
+- ad hoc resource-specific special cases
+
+The target architecture must replace that with a native Go contract. For active resources, environment injection should come from:
+
+- `resource.json`
+  - canonical runtime ports, env, credentials references, and resource metadata
+- a typed native environment export model
+  - explicitly describing which scenario-facing environment variables the resource provides
+- native secrets loading
+- native computed-value generation
+  - for example derived URLs built from host, port, database name, and credentials
+
+This native environment model should be treated as part of the resource contract, not as hidden implementation detail.
+
+### 10.1.2 File-by-file audit rule
+
+Before porting any shell-era resource file into the native model, classify it:
+
+- `still-authoritative`
+  - live behavior depends on it today and that behavior must migrate
+- `replace-with-native-structure`
+  - behavior is still needed, but the file format or location should change
+- `compatibility-only`
+  - temporary bridge that should move into an isolated compatibility layer
+- `delete`
+  - historical baggage with no justified future role
+
+This applies especially to:
+
+- `config/exports.sh`
+- `config/defaults.sh`
+- `config/runtime.json`
+- `config/schema.json`
+- `config/capabilities.yaml`
+- `config/messages.sh`
+- resource-local `lib/*.sh`
 
 ### 10.2 Transitional compatibility layout
 
@@ -892,17 +951,22 @@ During migration, some resources may still need:
 resources/<name>/
 ├── README.md
 ├── resource.json
-├── cli.sh
-├── config/
-│   ├── defaults.sh
-│   ├── runtime.json
-│   └── schema.json
-├── lib/
-│   └── *.sh
+├── compat/
+│   ├── README.md
+│   ├── bridge.json
+│   └── shell/
+│       ├── cli.sh
+│       ├── config/
+│       └── lib/
 └── test/
 ```
 
-These must be explicitly tagged as `legacy-adapter` resources and scheduled either for migration or deprecation.
+Rules:
+
+- compatibility code must be quarantined under an explicit compatibility area instead of blending with the native resource shape
+- the native manifest and native control plane remain authoritative
+- compatibility behavior must be documented as temporary, removable, and outside the canonical template contract
+- resources using compatibility code must carry an explicit migration/removal plan
 
 ### 10.3 Shared code vs resource-local code
 
@@ -920,6 +984,13 @@ Keep resource-local code only for:
 - true product-specific behavior
 - product-specific content operations
 - product-specific configuration quirks
+
+Keep compatibility-only code only for:
+
+- shell-era behavior that is still live and not yet migrated
+- short-lived bridges with explicit ownership and removal criteria
+
+Do not let compatibility files become the de facto contract again.
 
 Anything repeated across 2+ resources should be considered for shared extraction.
 
@@ -1271,26 +1342,25 @@ Focused validation:
 
 ---
 
-## 12. Concrete checklist for the first triage pass
+## 12. Concrete checklist for the remaining active resource migration pass
 
-This is the first real workstream after this plan lands.
+This replaces the old first-triage checklist. It assumes the active `resources/` tree is already the curated keep-set.
 
-For every current resource:
+For every current active resource:
 
-- [ ] record whether it is enabled in `.vrooli/service.json`
-- [ ] record whether any scenario references it
-- [ ] record whether any current project workflow uses it
-- [ ] record whether there is evidence of recent successful use
-- [ ] classify integration kind
-- [ ] classify portability tier
-- [ ] estimate maintenance cost
-- [ ] choose target state:
-  - [ ] keep implemented
-  - [ ] convert to blueprint
-  - [ ] deprecate
-- [ ] if kept, assign canonical template
-- [ ] if blueprinted, record suggested template
-- [ ] if deprecated, record archive plan and replacement blueprint if applicable
+- [ ] confirm the manifest driver/archetype is correct
+- [ ] confirm portability tier is honest
+- [ ] identify which standard commands are already owned by Go
+- [ ] identify which commands still fall back to shell compatibility
+- [ ] decide whether the remaining shell surface should be:
+  - [ ] migrated into a shared driver
+  - [ ] migrated into resource-local native code
+  - [ ] kept as an explicit compatibility-only custom surface
+  - [ ] removed because it is no longer justified
+- [ ] remove duplicated shell lifecycle/status/log logic once native ownership exists
+- [ ] tighten tests around native driver ownership
+- [ ] ensure the resource still maps cleanly to one canonical template
+- [ ] capture any repeated pattern that should improve the canonical template rather than staying bespoke
 
 ---
 

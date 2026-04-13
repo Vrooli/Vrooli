@@ -1,0 +1,23 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "testkit-go",
+    "display_name": "github.com/vrooli/vrooli/packages/testkit-go",
+    "description": "Internal Go test fixture helpers for repo-contract-aware unit tests.",
+    "kind": "go_testkit",
+    "language": "go",
+    "module_identifiers": ["github.com/vrooli/vrooli/packages/testkit-go"],
+    "adoption": {
+      "scenario_adoptable": false,
+      "allowed_consumers": ["internal_platform"],
+      "adoption_modes": []
+    },
+    "lifecycle": {},
+    "refresh": {
+      "strategy": "none",
+      "restart_running_consumers": false
+    },
+    "docs": ["packages/testkit-go/README.md", "docs/package-governance.md"]
+  }
+}

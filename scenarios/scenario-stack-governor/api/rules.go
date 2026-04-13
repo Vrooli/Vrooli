@@ -70,6 +70,19 @@ func AllRules() []RuleEntry {
 		},
 		{
 			Definition: RuleDefinition{
+				ID:             "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION",
+				Title:          "Scenario shared-package adoption follows package governance policy",
+				Summary:        "Ensures scenario package adoption follows governed package manifests, avoids unsupported workspace semantics, and removes package-propagation postinstall hacks.",
+				WhyImportant:   "Scenario independence only works when shared-package adoption remains explicit, isolated, and centrally governed. This rule delegates to `vrooli package audit` so stack governance stays aligned with the canonical package-governance engine rather than drifting into duplicate policy logic.",
+				Category:       "packages",
+				Severity:       "error",
+				DefaultEnabled: true,
+				Fixable:        false,
+			},
+			Runner: RunPackageGovernanceScenarioAdoption,
+		},
+		{
+			Definition: RuleDefinition{
 				ID:             "MAKEFILE_STRUCTURE",
 				Title:          "Makefile follows canonical structure",
 				Summary:        "Enforces canonical Makefile structure with STRICT consistency for interoperability. All scenarios must follow identical structure including fmt-go/lint-go/fmt-ui/lint-ui targets.",

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -769,11 +770,11 @@ func TestBuildListPortsFallsBackToLiveEnvironment(t *testing.T) {
 	}
 
 	var (
-		listPorts []scenarioListPortOutput
+		listPorts []scenariocli.ListPortOutput
 		ports     map[string]int
 	)
 	for attempt := 0; attempt < 20; attempt++ {
-		listPorts, ports = buildListPorts(manifest, []process.Record{{PID: cmd.Process.Pid, Step: "start-api"}})
+		listPorts, ports = scenariocli.BuildListPorts(manifest, []process.Record{{PID: cmd.Process.Pid, Step: "start-api"}})
 		if ports["API_PORT"] == 18080 {
 			break
 		}
@@ -861,7 +862,7 @@ func TestInferPortEnvVarUsesStepPrefixesAndManifestNames(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.step, func(t *testing.T) {
-			if got := inferPortEnvVar(manifest, tc.step); got != tc.want {
+			if got := scenario.InferPortEnvVar(manifest, tc.step); got != tc.want {
 				t.Fatalf("inferPortEnvVar(%q) = %q, want %q", tc.step, got, tc.want)
 			}
 		})
@@ -880,7 +881,7 @@ func TestBuildListPortsSortsAndMapsRecords(t *testing.T) {
 		},
 	}
 
-	listPorts, ports := buildListPorts(manifest, []process.Record{
+	listPorts, ports := scenariocli.BuildListPorts(manifest, []process.Record{
 		{Step: "start-ui", Port: 38080},
 		{Step: "start-api", Port: 18080},
 	})
@@ -905,7 +906,7 @@ func TestBuildListPortsKeepsFirstExplicitRecordPerPort(t *testing.T) {
 		},
 	}
 
-	listPorts, ports := buildListPorts(manifest, []process.Record{
+	listPorts, ports := scenariocli.BuildListPorts(manifest, []process.Record{
 		{Step: "start-api", Port: 18080},
 		{Step: "run-api", Port: 19090},
 	})
@@ -1594,7 +1595,8 @@ func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
 }
 
 func TestRunScenarioRunAliasesStartValidation(t *testing.T) {
-	err := runScenarioRunCommandForRoot("/repo", globalOptions{}, nil, &bytes.Buffer{}, &bytes.Buffer{})
+	app, ctx := newConfiguredCommandContext("/repo", globalOptions{}, &bytes.Buffer{}, &bytes.Buffer{})
+	err := runScenarioRunCommand(app, ctx, nil)
 	if err == nil || !strings.Contains(err.Error(), "scenario start requires at least one scenario name") {
 		t.Fatalf("runScenarioRunCommand error = %v", err)
 	}
@@ -1603,7 +1605,7 @@ func TestRunScenarioRunAliasesStartValidation(t *testing.T) {
 func TestScenarioTemplateHelpAndManualHooksOutput(t *testing.T) {
 	var templateHelp bytes.Buffer
 	showScenarioTemplateHelp(&templateHelp)
-	if !strings.Contains(templateHelp.String(), "vrooli scenario template show <template>") {
+	if !strings.Contains(templateHelp.String(), "show               Show scenario template details") {
 		t.Fatalf("template help = %q", templateHelp.String())
 	}
 
@@ -1867,13 +1869,13 @@ func TestBuildScenarioStatusItemAndHumanWriters(t *testing.T) {
 		},
 	}
 
-	status := buildScenarioStatusItem(item, runtimeState)
+	status := scenariocli.BuildStatusItem(item, runtimeState)
 	if status.Status != "running" || status.Health != "running" {
 		t.Fatalf("status item = %+v", status)
 	}
 
 	var infoOut bytes.Buffer
-	writeScenarioInfoHuman(&infoOut, buildScenarioInfoData(item), buildScenarioRuntimeData(item.Manifest, runtimeState))
+	scenariocli.WriteInfoHuman(&infoOut, scenariocli.BuildInfoData(item), scenariocli.BuildRuntimeData(item.Manifest, runtimeState))
 	if !strings.Contains(infoOut.String(), "Configured ports:") ||
 		!strings.Contains(infoOut.String(), "API_PORT (api)") ||
 		!strings.Contains(infoOut.String(), "DB_PORT (db) fixed=5432") ||
@@ -1887,16 +1889,16 @@ func TestBuildScenarioStatusItemAndHumanWriters(t *testing.T) {
 	}
 
 	var tableOut bytes.Buffer
-	writeScenarioStatusTable(&tableOut, []scenarioStatusItemOutput{status})
+	scenariocli.WriteStatusTable(&tableOut, []scenariocli.StatusItemOutput{status})
 	if !strings.Contains(tableOut.String(), "Name") || !strings.Contains(tableOut.String(), "alpha") {
 		t.Fatalf("scenario table output = %s", tableOut.String())
 	}
 
 	var statusOut bytes.Buffer
-	writeScenarioStatusHuman(&statusOut, scenarioStatusSingleOutput{
+	scenariocli.WriteStatusHuman(&statusOut, scenariocli.StatusSingleOutput{
 		Scenario: status,
-		Info:     buildScenarioInfoData(item),
-		Runtime:  buildScenarioRuntimeData(item.Manifest, runtimeState),
+		Info:     scenariocli.BuildInfoData(item),
+		Runtime:  scenariocli.BuildRuntimeData(item.Manifest, runtimeState),
 	})
 	if !strings.Contains(statusOut.String(), "Health: running") || !strings.Contains(statusOut.String(), "Processes:") {
 		t.Fatalf("scenario status output = %s", statusOut.String())
@@ -1931,10 +1933,10 @@ func TestBuildListPortsFallsBackToEnvironment(t *testing.T) {
 		},
 	}
 
-	var listPorts []scenarioListPortOutput
+	var listPorts []scenariocli.ListPortOutput
 	var ports map[string]int
 	for attempt := 0; attempt < 20; attempt++ {
-		listPorts, ports = buildListPorts(manifest, []process.Record{{
+		listPorts, ports = scenariocli.BuildListPorts(manifest, []process.Record{{
 			PID:  cmd.Process.Pid,
 			Step: "start-api",
 			Port: 18080,
@@ -1956,9 +1958,9 @@ func TestBuildListPortsFallsBackToEnvironment(t *testing.T) {
 func TestCopyHelpersReturnIndependentSlices(t *testing.T) {
 	originalStrings := []string{"alpha"}
 	originalRecords := []process.Record{{PID: 1234}}
-	copiedStrings := copyStrings(originalStrings)
-	copiedRecords := copyProcessRecords(originalRecords)
-	if len(copyStrings(nil)) != 0 || len(copyProcessRecords(nil)) != 0 {
+	copiedStrings := scenariocli.CopyStrings(originalStrings)
+	copiedRecords := scenariocli.CopyProcessRecords(originalRecords)
+	if len(scenariocli.CopyStrings(nil)) != 0 || len(scenariocli.CopyProcessRecords(nil)) != 0 {
 		t.Fatalf("expected nil inputs to return empty slices")
 	}
 

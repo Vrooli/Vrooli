@@ -3,6 +3,7 @@ package testkitgo
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -32,6 +33,19 @@ func TestWriteRawJSONNormalizesMissingTrailingNewline(t *testing.T) {
 	}
 }
 
+func TestWriteMalformedJSONPersistsInvalidPayload(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fixture.json")
+	WriteMalformedJSON(t, path, `{`, 0o600)
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	if string(data) != "{\n" {
+		t.Fatalf("malformed json = %q", string(data))
+	}
+}
+
 func TestWriteExecutableUsesExecutableMode(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "script.sh")
 	WriteExecutable(t, path, "#!/usr/bin/env bash\nexit 0\n")
@@ -42,5 +56,30 @@ func TestWriteExecutableUsesExecutableMode(t *testing.T) {
 	}
 	if info.Mode().Perm() != 0o755 {
 		t.Fatalf("mode = %o, want 755", info.Mode().Perm())
+	}
+}
+
+func TestWriteExecutableOnPathInstallsBinaryAndUpdatesPATH(t *testing.T) {
+	t.Setenv("PATH", "")
+	path := WriteExecutableOnPath(t, "fixture-cli", "#!/usr/bin/env bash\nexit 0\n")
+
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("stat %s: %v", path, err)
+	}
+	if got := os.Getenv("PATH"); !strings.HasPrefix(got, filepath.Dir(path)) {
+		t.Fatalf("PATH = %q, want prefix %q", got, filepath.Dir(path))
+	}
+}
+
+func TestWriteRelativeMalformedJSONUsesRelativePath(t *testing.T) {
+	root := t.TempDir()
+	WriteRelativeMalformedJSON(t, root, "nested/fixture.json", `{`, 0o644)
+
+	data, err := os.ReadFile(filepath.Join(root, "nested", "fixture.json"))
+	if err != nil {
+		t.Fatalf("read relative malformed json: %v", err)
+	}
+	if string(data) != "{\n" {
+		t.Fatalf("relative malformed json = %q", string(data))
 	}
 }

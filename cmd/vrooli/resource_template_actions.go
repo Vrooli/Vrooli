@@ -10,14 +10,6 @@ import (
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
-func runResourceTemplateBoundCommand[Req any, Resp any](controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer, action boundCommandAction[*resources.Controller, Req, Resp]) error {
-	app, ctx := newConfiguredCommandContext("", globals, stdout, stderr)
-	if controller != nil {
-		ctx.Root = controller.Root
-	}
-	return executeResourceCommandWithApp(app, ctx, controller, args, action)
-}
-
 type (
 	resourceTemplateNoArgsRequest struct{}
 	resourceTemplateNameRequest   struct{ Name string }

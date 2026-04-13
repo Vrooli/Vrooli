@@ -14,13 +14,7 @@ var timeNowForResourceGC = func() time.Time {
 
 type resourceCommandHandler func(app *App, ctx *commandContext, controller *resources.Controller, args []string) error
 
-type resourceCommandDescriptor struct {
-	Name    string
-	Summary string
-	Handler resourceCommandHandler
-}
-
-var resourceCommandTable = []resourceCommandDescriptor{
+var resourceCommandTable = []resourceSubcommandDescriptor{
 	{Name: "list", Summary: "List discovered resources", Handler: bindResourceCommand(parseResourceListRequest, runResourceListRequest, renderResourceListResponse)},
 	{Name: "status", Summary: "Show resource status", Handler: bindResourceCommand(parseResourceStatusRequest, runResourceStatusRequest, renderResourceStatusResponse)},
 	{Name: "install", Summary: "Install a resource", Handler: runResourceInstallCommandWithApp},
@@ -42,31 +36,23 @@ var resourceCommandTable = []resourceCommandDescriptor{
 	{Name: "template", Summary: "Manage resource templates", Handler: runResourceTemplateCommandWithApp},
 }
 
-var resourceBlueprintCommandTable = []resourceCommandDescriptor{
+var resourceBlueprintCommandTable = []resourceSubcommandDescriptor{
 	{Name: "list", Summary: "List resource blueprints", Handler: bindResourceCommand(parseResourceBlueprintListRequest, runResourceBlueprintListRequest, renderResourceBlueprintListResponse)},
 	{Name: "info", Summary: "Show a resource blueprint", Handler: bindResourceCommand(parseResourceBlueprintInfoRequest, runResourceBlueprintInfoRequest, renderResourceBlueprintInfoResponse)},
 	{Name: "search", Summary: "Search resource blueprints", Handler: bindResourceCommand(parseResourceBlueprintSearchRequest, runResourceBlueprintSearchRequest, renderResourceBlueprintSearchResponse)},
 	{Name: "validate", Summary: "Validate blueprint metadata", Handler: bindResourceCommand(parseResourceBlueprintValidateRequest, runResourceBlueprintValidateRequest, renderResourceBlueprintValidateResponse)},
 }
 
-var resourceArchiveCommandTable = []resourceCommandDescriptor{
+var resourceArchiveCommandTable = []resourceSubcommandDescriptor{
 	{Name: "gc", Summary: "Purge expired deprecated-resource archives", Handler: bindResourceCommand(parseResourceArchiveGCRequest, runResourceArchiveGCRequest, renderResourceArchiveGCResponse)},
 	{Name: "gc-blueprints", Summary: "Purge expired blueprint-resource archives", Handler: bindResourceCommand(parseResourceArchiveBlueprintGCRequest, runResourceArchiveBlueprintGCRequest, renderResourceArchiveBlueprintGCResponse)},
 }
 
 var (
-	resourceCommandHandlers          = buildResourceCommandMap(resourceCommandTable)
-	resourceBlueprintCommandHandlers = buildResourceCommandMap(resourceBlueprintCommandTable)
-	resourceArchiveCommandHandlers   = buildResourceCommandMap(resourceArchiveCommandTable)
+	resourceCommandHandlers          = buildResourceSubcommandMap(resourceCommandTable)
+	resourceBlueprintCommandHandlers = buildResourceSubcommandMap(resourceBlueprintCommandTable)
+	resourceArchiveCommandHandlers   = buildResourceSubcommandMap(resourceArchiveCommandTable)
 )
-
-func buildResourceCommandMap(descriptors []resourceCommandDescriptor) map[string]resourceCommandHandler {
-	items := make(map[string]resourceCommandHandler, len(descriptors))
-	for _, descriptor := range descriptors {
-		items[descriptor.Name] = descriptor.Handler
-	}
-	return items
-}
 
 func runResourceCommand(controller *resources.Controller, globals globalOptions, args []string, stdout, stderr io.Writer) error {
 	app, ctx := newConfiguredCommandContext("", globals, stdout, stderr)
@@ -82,26 +68,18 @@ func runResourceCommandWithApp(app *App, ctx *commandContext, controller *resour
 		return nil
 	}
 
-	name := normalizeResourceSubcommand(args[0])
+	name := normalizeSubcommand(args[0])
 	if handler, ok := resourceCommandHandlers[name]; ok {
 		return handler(app, ctx, controller, args[1:])
 	}
+	return runLegacyResourceInvocationWithApp(ctx, controller, args)
+}
+
+func runLegacyResourceInvocationWithApp(ctx *commandContext, controller *resources.Controller, args []string) error {
 	if controller == nil {
 		return usageErrorf("resource", "unknown resource command: %s", args[0])
 	}
 	return controller.Run(args[0], args[1:], ctx.Stdout, ctx.Stderr)
-}
-
-func runNestedResourceCommand(app *App, ctx *commandContext, controller *resources.Controller, args []string, usage func(io.Writer), command string, handlers map[string]resourceCommandHandler) error {
-	if len(args) == 0 || wantsCommandHelp(args) {
-		usage(ctx.Stdout)
-		return nil
-	}
-	handler, ok := handlers[normalizeResourceSubcommand(args[0])]
-	if !ok {
-		return usageErrorf(command, "unknown %s command: %s", command, args[0])
-	}
-	return handler(app, ctx, controller, args[1:])
 }
 
 func runResourceBlueprintCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
@@ -113,7 +91,7 @@ func runResourceBlueprintCommand(controller *resources.Controller, globals globa
 }
 
 func runResourceBlueprintCommandWithApp(app *App, ctx *commandContext, controller *resources.Controller, args []string) error {
-	return runNestedResourceCommand(app, ctx, controller, args, showResourceBlueprintHelp, "resource blueprint", resourceBlueprintCommandHandlers)
+	return runResourceSubcommandSet(app, ctx, controller, args, showResourceBlueprintHelp, "resource blueprint", resourceBlueprintCommandHandlers)
 }
 
 func runResourceArchiveCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
@@ -125,7 +103,7 @@ func runResourceArchiveCommand(controller *resources.Controller, globals globalO
 }
 
 func runResourceArchiveCommandWithApp(app *App, ctx *commandContext, controller *resources.Controller, args []string) error {
-	return runNestedResourceCommand(app, ctx, controller, args, showResourceArchiveHelp, "resource archive", resourceArchiveCommandHandlers)
+	return runResourceSubcommandSet(app, ctx, controller, args, showResourceArchiveHelp, "resource archive", resourceArchiveCommandHandlers)
 }
 
 func runResourceListCommand(controller *resources.Controller, globals globalOptions, args []string, stdout io.Writer) error {
@@ -279,26 +257,20 @@ func runResourceBlueprintValidateCommand(controller *resources.Controller, globa
 }
 
 func showResourceHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli resource <subcommand> [options]")
-	_, _ = fmt.Fprintln(w)
-	writeResourceCommandHelp(w, resourceCommandTable)
+	renderResourceSubcommandHelp(w, "", "vrooli resource <subcommand> [options]", "Resource Management", resourceCommandTable)
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, "Resource names may still be invoked directly via `vrooli resource <name> <command> [options]`.")
 }
 
 func showResourceBlueprintHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli resource blueprint <subcommand> [options]")
-	_, _ = fmt.Fprintln(w)
-	writeResourceCommandHelp(w, resourceBlueprintCommandTable)
+	renderResourceSubcommandHelp(w, "", "vrooli resource blueprint <subcommand> [options]", "Resource Blueprints", resourceBlueprintCommandTable)
 }
 
 func showResourceArchiveHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli resource archive <subcommand> [options]")
-	_, _ = fmt.Fprintln(w)
-	writeResourceCommandHelp(w, resourceArchiveCommandTable)
+	renderResourceSubcommandHelp(w, "", "vrooli resource archive <subcommand> [options]", "Resource Archive", resourceArchiveCommandTable)
 }
 
-func writeResourceCommandHelp(w io.Writer, descriptors []resourceCommandDescriptor) {
+func writeResourceCommandHelp(w io.Writer, descriptors []resourceSubcommandDescriptor) {
 	for _, descriptor := range descriptors {
 		_, _ = fmt.Fprintf(w, "  %-22s %s\n", descriptor.Name, descriptor.Summary)
 	}

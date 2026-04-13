@@ -1,11 +1,9 @@
 package ports
 
 import (
-	"encoding/json"
 	"net"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -13,9 +11,11 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenario"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=2 | LAST: 2026-04-11
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=4 | LAST: 2026-04-13
 
 func TestBuildEnvironmentHonorsRealTestGenieContract(t *testing.T) {
 	root := repoRoot(t)
@@ -83,7 +83,7 @@ func TestBuildEnvironmentHonorsRealSimpleTestPostgresContract(t *testing.T) {
 func TestBuildEnvironmentAllocatesPortsAndExpandsScenarioEnv(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writePortRegistry(t, root, `declare -g -A RESOURCE_PORTS=(["postgres"]="5433")`)
+	writePortRegistry(t, root, map[string]int{"postgres": 5433})
 	writeSecrets(t, root, map[string]any{
 		"POSTGRES_USER":     "tester",
 		"POSTGRES_PASSWORD": "secret",
@@ -153,7 +153,7 @@ func TestBuildEnvironmentAllocatesPortsAndExpandsScenarioEnv(t *testing.T) {
 func TestCleanStaleLocksRemovesDeadOwners(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
+	writePortRegistry(t, root, nil)
 
 	manager, err := NewManager(root, home)
 	if err != nil {
@@ -174,7 +174,7 @@ func TestCleanStaleLocksRemovesDeadOwners(t *testing.T) {
 func TestCleanStaleLocksPreservesLiveOwners(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
+	writePortRegistry(t, root, nil)
 
 	manager, err := NewManager(root, home)
 	if err != nil {
@@ -195,7 +195,7 @@ func TestCleanStaleLocksPreservesLiveOwners(t *testing.T) {
 func TestRemoveScenarioLocksOnlyRemovesMatchingScenario(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
+	writePortRegistry(t, root, nil)
 
 	manager, err := NewManager(root, home)
 	if err != nil {
@@ -238,7 +238,7 @@ func TestRemoveScenarioLocksOnlyRemovesMatchingScenario(t *testing.T) {
 func TestEnsurePortClaimedRejectsRecentForeignStaleLock(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
+	writePortRegistry(t, root, nil)
 
 	manager, err := NewManager(root, home)
 	if err != nil {
@@ -261,7 +261,7 @@ func TestEnsurePortClaimedRejectsRecentForeignStaleLock(t *testing.T) {
 func TestEnsurePortClaimedRejectsLiveForeignLock(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
+	writePortRegistry(t, root, nil)
 
 	manager, err := NewManager(root, home)
 	if err != nil {
@@ -281,7 +281,7 @@ func TestEnsurePortClaimedRejectsLiveForeignLock(t *testing.T) {
 func TestBuildEnvironmentUsesTypedResourceMetadataAndSecrets(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writePortRegistry(t, root, `declare -g -A RESOURCE_PORTS=(["postgres"]="5433")`)
+	writePortRegistry(t, root, map[string]int{"postgres": 5433})
 	writeSecrets(t, root, map[string]any{
 		"POSTGRES_USER":     "legacy",
 		"POSTGRES_PASSWORD": "secret",
@@ -322,7 +322,7 @@ func TestBuildEnvironmentUsesTypedResourceMetadataAndSecrets(t *testing.T) {
 func TestClaimLockAllowsSameScenarioAndRejectsForeignOwner(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
+	writePortRegistry(t, root, nil)
 
 	manager, err := NewManager(root, home)
 	if err != nil {
@@ -362,7 +362,7 @@ func TestClaimLockAllowsSameScenarioAndRejectsForeignOwner(t *testing.T) {
 func TestRemoveLockIfMatchesPreservesReplacedOwner(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
+	writePortRegistry(t, root, nil)
 
 	manager, err := NewManager(root, home)
 	if err != nil {
@@ -402,7 +402,7 @@ func TestRemoveLockIfMatchesPreservesReplacedOwner(t *testing.T) {
 func TestEnsurePortClaimedPrefersRuntimeOwnerAndRejectsReservedPorts(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writePortRegistry(t, root, `declare -g -A RESOURCE_PORTS=(["postgres"]="5433")`)
+	writePortRegistry(t, root, map[string]int{"postgres": 5433})
 
 	manager, err := NewManager(root, home)
 	if err != nil {
@@ -475,7 +475,7 @@ func TestParseRangeAndIsTCPPortInUse(t *testing.T) {
 func TestLoadResourceEnvironmentReturnsEmptyWhenMetadataMissing(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writePortRegistry(t, root, "declare -g -A RESOURCE_PORTS=()")
+	writePortRegistry(t, root, nil)
 
 	exports, err := resources.LoadResourceEnvironment(root, home, "redis")
 	if err != nil {
@@ -486,44 +486,16 @@ func TestLoadResourceEnvironmentReturnsEmptyWhenMetadataMissing(t *testing.T) {
 	}
 }
 
-func writePortRegistry(t *testing.T, root, contents string) {
+func writePortRegistry(t *testing.T, root string, ports map[string]int) {
 	t.Helper()
 	ensureTypedResourceMetadata(t, root)
-
-	path := filepath.Join(root, "scripts", "resources", "port_registry.sh")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	data := "#!/usr/bin/env bash\n" + contents + "\n"
-	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
-
-	portMatches := regexp.MustCompile(`\["([^"]+)"\]="([0-9]+)"`).FindAllStringSubmatch(contents, -1)
-	registry := map[string]any{
-		"resource_ports":  map[string]int{},
-		"reserved_ranges": map[string]string{},
-	}
-	resourcePorts := registry["resource_ports"].(map[string]int)
-	for _, match := range portMatches {
-		resourcePorts[match[1]] = mustAtoi(t, match[2])
-	}
-	jsonPath := filepath.Join(root, "scripts", "resources", "port_registry.json")
-	if err := os.WriteFile(jsonPath, mustJSON(t, registry), 0o644); err != nil {
-		t.Fatalf("write %s: %v", jsonPath, err)
-	}
+	testfixture.WritePortRegistry(t, root, ports)
 }
 
 func writeSecrets(t *testing.T, root string, payload map[string]any) {
 	t.Helper()
 	ensureTypedResourceMetadata(t, root)
-	path := filepath.Join(root, ".vrooli", "secrets.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, mustJSON(t, payload), 0o600); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
+	testkitgo.WriteJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), payload, 0o600)
 }
 
 func ensureTypedResourceMetadata(t *testing.T, root string) {
@@ -532,35 +504,7 @@ func ensureTypedResourceMetadata(t *testing.T, root string) {
 	if _, err := os.Stat(path); err == nil {
 		return
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	payload := map[string]any{
-		"definitions": map[string]any{
-			"resourceSchemas": map[string]any{},
-		},
-	}
-	if err := os.WriteFile(path, mustJSON(t, payload), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
-}
-
-func mustJSON(t *testing.T, value any) []byte {
-	t.Helper()
-	data, err := json.MarshalIndent(value, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal json: %v", err)
-	}
-	return append(data, '\n')
-}
-
-func mustAtoi(t *testing.T, value string) int {
-	t.Helper()
-	result := 0
-	for _, ch := range value {
-		result = result*10 + int(ch-'0')
-	}
-	return result
+	testfixture.WriteResourceDefinitionsMetadata(t, root)
 }
 
 func intPtr(value int) *int {

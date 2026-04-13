@@ -5,7 +5,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "postinstall": "bash -c 'set -e; mkdir -p node_modules/@vrooli; rm -rf node_modules/@vrooli/proto-types; cp -a ../../../packages/proto/gen/typescript node_modules/@vrooli/proto-types'",
     "start": "vrooli lifecycle protect -- vite --host 0.0.0.0",
     "dev": "vrooli lifecycle protect -- vite --host 0.0.0.0",
     "build": "tsc -b && vite build",

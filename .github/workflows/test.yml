@@ -35,6 +35,9 @@ jobs:
         with:
           go-version: "1.21.x"
 
+      - name: Run Package Governance Validation
+        run: make validate-package-governance
+
       - name: Run scenario-to-desktop runtime tests
         run: go test ./scenarios/scenario-to-desktop/runtime -count=1
 

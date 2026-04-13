@@ -12,18 +12,20 @@ type contractCommandHandler func(ctx *commandContext, args []string) error
 
 type contractCommandDescriptor struct {
 	Name    string
+	Summary string
+	Group   string
 	Handler contractCommandHandler
 }
 
 var contractCommandTable = []contractCommandDescriptor{
-	{Name: "validate", Handler: runContractValidateCommand},
-	{Name: "show", Handler: runContractShowCommand},
-	{Name: "resolve", Handler: runContractResolveCommand},
-	{Name: "match-glob", Handler: runContractMatchGlobCommand},
+	{Name: "validate", Summary: "Validate repo contract configuration and live drift", Group: "Repository Contract", Handler: runContractValidateCommand},
+	{Name: "show", Summary: "Show the effective repository contract", Group: "Repository Contract", Handler: runContractShowCommand},
+	{Name: "resolve", Summary: "Resolve contract-derived paths", Group: "Repository Contract", Handler: runContractResolveCommand},
+	{Name: "match-glob", Summary: "Test a contract glob against a path", Group: "Repository Contract", Handler: runContractMatchGlobCommand},
 }
 
 var contractResolveCommandTable = []contractCommandDescriptor{
-	{Name: "scenario", Handler: runContractResolveScenarioCommand},
+	{Name: "scenario", Summary: "Resolve contract paths for a scenario", Group: "Repository Contract", Handler: runContractResolveScenarioCommand},
 }
 
 var (
@@ -191,10 +193,13 @@ func showContractHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "vrooli contract - Inspect and validate the repository contract")
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, "Usage:")
-	_, _ = fmt.Fprintln(w, "  vrooli contract validate")
-	_, _ = fmt.Fprintln(w, "  vrooli contract show")
-	_, _ = fmt.Fprintln(w, "  vrooli contract resolve scenario <name> [--file <key>]")
-	_, _ = fmt.Fprintln(w, "  vrooli contract match-glob <pattern> <path>")
+	_, _ = fmt.Fprintln(w, "  vrooli contract <subcommand> [options]")
+	_, _ = fmt.Fprintln(w)
+	entries := make([]commandDescriptor, 0, len(contractCommandTable))
+	for _, item := range contractCommandTable {
+		entries = append(entries, commandDescriptor{Name: item.Name, Group: item.Group, Summary: item.Summary})
+	}
+	renderCommandGroups(w, entries)
 }
 
 func showContractValidateHelp(w io.Writer) {

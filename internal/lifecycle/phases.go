@@ -324,7 +324,7 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 		}
 	}
 
-	time.Sleep(200 * time.Millisecond)
+	sleepFn(200 * time.Millisecond)
 	if err := cmd.Process.Signal(syscall.Signal(0)); err != nil {
 		record.Status = "failed"
 		_ = process.WriteScenarioRecord(r.Home, item.Slug, step.Name, record)

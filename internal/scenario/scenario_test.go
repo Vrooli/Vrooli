@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
@@ -183,15 +184,22 @@ func TestLoadMissingScenarioReturnsNotFound(t *testing.T) {
 func TestReadServiceParsesHostRequirements(t *testing.T) {
 	root := t.TempDir()
 	servicePath := filepath.Join(root, ".vrooli", "service.json")
-	testkitgo.WriteFile(t, servicePath, `{
-  "service": {"name": "alpha"},
-  "hostTools": [
-    {"name": "docker", "required": true, "reason": "run containers", "when": ["setup"]}
-  ],
-  "hostSafeguards": [
-    {"name": "remote_session_protection", "required": false, "reason": "protect sessions", "platforms": ["linux"]}
-  ]
-}`)
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		HostTools: []hostreqspec.Declaration{{
+			Name:     "docker",
+			Required: true,
+			Reason:   "run containers",
+			When:     []string{"setup"},
+		}},
+		HostSafeguards: []hostreqspec.Declaration{{
+			Name:      "remote_session_protection",
+			Required:  false,
+			Reason:    "protect sessions",
+			Platforms: []string{"linux"},
+		}},
+	})
 
 	manifest, err := ReadService(servicePath)
 	if err != nil {
@@ -208,13 +216,14 @@ func TestReadServiceParsesHostRequirements(t *testing.T) {
 func TestReadServiceRejectsDuplicateHostRequirements(t *testing.T) {
 	root := t.TempDir()
 	servicePath := filepath.Join(root, ".vrooli", "service.json")
-	testkitgo.WriteFile(t, servicePath, `{
-  "service": {"name": "alpha"},
-  "hostTools": [
-    {"name": "docker", "required": true, "reason": "one"},
-    {"name": "docker", "required": false, "reason": "two"}
-  ]
-}`)
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		HostTools: []hostreqspec.Declaration{
+			hostreqspec.Declaration{Name: "docker", Required: true, Reason: "one"},
+			hostreqspec.Declaration{Name: "docker", Required: false, Reason: "two"},
+		},
+	})
 
 	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), `duplicate tool declaration "docker"`) {
 		t.Fatalf("ReadService error = %v", err)
@@ -379,9 +388,7 @@ func TestHealthConfigFallsBackToTopLevelHealth(t *testing.T) {
 func TestReadServiceRejectsInvalidJSON(t *testing.T) {
 	root := t.TempDir()
 	servicePath := filepath.Join(root, "service.json")
-	if err := os.WriteFile(servicePath, []byte(`{"service":`), 0o644); err != nil {
-		t.Fatalf("write %s: %v", servicePath, err)
-	}
+	testkitgo.WriteMalformedJSON(t, servicePath, `{"service":`, 0o644)
 
 	if _, err := ReadService(servicePath); err == nil {
 		t.Fatalf("expected malformed service json to fail")
@@ -724,7 +731,7 @@ func writeScenarioServiceAtPath(t *testing.T, scenarioPath, description string) 
 		Version: "1.0.0",
 		Service: ServiceMetadata{
 			Name:        name,
-			DisplayName: testScenarioDisplayName(name),
+			DisplayName: strings.ToUpper(name[:1]) + name[1:],
 			Description: description,
 			Version:     "0.1.0",
 		},

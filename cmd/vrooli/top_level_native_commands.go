@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/vrooli/vrooli/internal/cli/projectcli"
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -123,8 +122,4 @@ func wantsCommandHelp(args []string) bool {
 
 func showProjectLifecycleHelp(w io.Writer, phase string) {
 	_, _ = fmt.Fprintf(w, "Usage: vrooli %s\n", phase)
-}
-
-func normalizeResourceSubcommand(name string) string {
-	return strings.ToLower(strings.TrimSpace(name))
 }

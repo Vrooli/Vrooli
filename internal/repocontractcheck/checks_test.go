@@ -1,7 +1,6 @@
 package repocontractcheck
 
 import (
-	"path/filepath"
 	"testing"
 
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
@@ -110,8 +109,8 @@ func newValidationFixtureRepo(t *testing.T) string {
 	fixture.WriteRepoContract(t)
 	fixture.WriteRepoContractExceptions(t)
 	fixture.WriteRepoSupportDocs(t, testkitgo.DefaultRepoSupportDocs())
-	testkitgo.WriteRelativeFile(t, fixture.Root, filepath.Join("scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha"}}`)
-	testkitgo.WriteRelativeFile(t, fixture.Root, filepath.Join("resources", "redis", "resource.json"), `{"name":"redis"}`)
+	fixture.WriteScenarioStub(t, "alpha")
+	fixture.WriteResourceStub(t, "redis")
 
 	return fixture.Root
 }

@@ -2,6 +2,6 @@
   "name": "react-success-ui",
   "version": "1.0.0",
   "dependencies": {
-    "@vrooli/iframe-bridge": "workspace:*"
+    "@vrooli/iframe-bridge": "file:../../../../../../../packages/iframe-bridge"
   }
 }

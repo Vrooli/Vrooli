@@ -25,7 +25,7 @@ import (
 	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-12
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=4 | LAST: 2026-04-13
 
 func TestStartAllScenariosEndpointReturnsTypedReport(t *testing.T) {
 	app := New(t.TempDir(), t.TempDir())
@@ -265,9 +265,7 @@ func TestListResourcesReturnsTypedStatusPayload(t *testing.T) {
 func TestHandleLifecycleReturnsProjectError(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	if err := osWriteFileAll(filepath.Join(root, ".vrooli", "service.json"), `{"service":{"name":"project-alpha"}}`); err != nil {
-		t.Fatalf("write project service: %v", err)
-	}
+	testkitvrooli.WriteProjectService(t, root, testkitvrooli.ProjectServiceManifest())
 
 	app := New(root, home)
 	rec := httptest.NewRecorder()
@@ -359,11 +357,7 @@ func writeScenarioProcess(t *testing.T, home, name string, port int) {
 
 func writeResourceServiceConfig(t *testing.T, root, name string, enabled bool) {
 	t.Helper()
-	testkitvrooli.WriteProjectService(t, root, testkitvrooli.ProjectServiceManifest(
-		testkitvrooli.WithDependencies(scenario.Dependencies{
-			Resources: map[string]scenario.Dependency{name: {Enabled: enabled}},
-		}),
-	))
+	testkitvrooli.WriteProjectResourceConfig(t, root, name, enabled)
 }
 
 func writeResourceCLI(t *testing.T, root, name, statusJSON string) {

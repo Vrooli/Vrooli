@@ -60,6 +60,16 @@ func (fixture RepoFixture) WriteRepoSupportDocs(t *testing.T, docs RepoSupportDo
 	WriteRepoSupportDocs(t, fixture.Root, docs)
 }
 
+func (fixture RepoFixture) WriteScenarioStub(t *testing.T, name string) {
+	t.Helper()
+	WriteScenarioStub(t, fixture.Root, fixture.ScenarioDir, name)
+}
+
+func (fixture RepoFixture) WriteResourceStub(t *testing.T, name string) {
+	t.Helper()
+	WriteResourceStub(t, fixture.Root, name)
+}
+
 func ProjectRoot(t *testing.T) string {
 	t.Helper()
 	_, filename, _, ok := runtime.Caller(0)
@@ -186,6 +196,22 @@ func WriteRepoSupportDocs(t *testing.T, root string, docs RepoSupportDocs) {
 	if len(docs.SkillDoc) > 0 {
 		WriteFile(t, filepath.Join(root, "scenarios", "prompt-manager", "store", "skills", "packs", "core", "cross-platform-readiness", "SKILL.md"), strings.Join(docs.SkillDoc, "\n")+"\n")
 	}
+}
+
+func WriteScenarioStub(t *testing.T, root, scenarioDir, name string) {
+	t.Helper()
+	WriteJSON(t, filepath.Join(root, scenarioDir, name, ".vrooli", "service.json"), map[string]any{
+		"service": map[string]any{
+			"name": name,
+		},
+	})
+}
+
+func WriteResourceStub(t *testing.T, root, name string) {
+	t.Helper()
+	WriteJSON(t, filepath.Join(root, "resources", name, "resource.json"), map[string]any{
+		"name": name,
+	})
 }
 
 func ContainsString(values []string, target string) bool {

@@ -159,7 +159,7 @@ Goal: establish `testkit-go` as a documented package with a clear scope.
 - [x] Create `packages/testkit-go/`
 - [x] Add package README with scope, non-goals, and adoption intent
 - [x] Add this implementation plan with phased checklist
-- [ ] Decide whether the first version is one package or a few focused subpackages
+- [x] Decide whether the first version is one package or a few focused subpackages
 - [x] Add package-level Go files so `go test ./packages/testkit-go/...` is meaningful
 
 Acceptance criteria:
@@ -192,7 +192,7 @@ Goal: centralize valid project/scenario/resource manifest construction.
 - [x] Support project manifests
 - [x] Support scenario manifests with lifecycle, ports, dependencies
 - [x] Support resource manifests with portability, runtime, legacy adapter fields
-- [ ] Add explicit malformed manifest helpers for negative tests
+- [x] Add explicit malformed manifest helpers for negative tests
 - [x] Add unit tests for the manifest builders
 
 Acceptance criteria:
@@ -208,7 +208,7 @@ Goal: eliminate duplicated write helpers across migrated Go test suites.
 - [x] Add shared executable writer
 - [x] Add shared JSON writer with stable formatting and trailing newline
 - [x] Add shared raw JSON writer
-- [ ] Add shared malformed JSON writer helpers
+- [x] Add shared malformed JSON writer helpers
 - [x] Add tests for newline, permissions, and malformed-output behavior
 
 Acceptance criteria:
@@ -234,13 +234,13 @@ Acceptance criteria:
 
 Goal: migrate the highest-value consumers onto `testkit-go`.
 
-- [ ] Migrate `cmd/vrooli/test_helpers_test.go`
+- [x] Migrate `cmd/vrooli/test_helpers_test.go`
 - [x] Migrate `cmd/vrooli-api/main_test.go`
 - [x] Migrate `internal/repocontractcheck/checks_test.go`
 - [x] Migrate `internal/scenario/scenario_test.go`
 - [x] Migrate `packages/cli-core/cliapp/scenario_app_test.go`
 - [x] Migrate `packages/repo-contract-go/*_test.go`
-- [ ] Remove duplicated local helpers made obsolete by the migration
+- [x] Remove duplicated local helpers made obsolete by the migration
 
 Acceptance criteria:
 
@@ -251,12 +251,12 @@ Acceptance criteria:
 
 Goal: migrate the larger controller/lifecycle/resource suites.
 
-- [ ] Migrate `internal/project/project_test.go`
-- [ ] Migrate `internal/api/app_test.go`
-- [ ] Migrate `internal/setup/setup_test.go`
-- [ ] Migrate `internal/resources/resources_test.go`
-- [ ] Migrate `internal/lifecycle/lifecycle_test.go`
-- [ ] Remove now-obsolete local helper code
+- [x] Migrate `internal/project/project_test.go`
+- [x] Migrate `internal/api/app_test.go`
+- [x] Migrate `internal/setup/setup_test.go`
+- [x] Migrate `internal/resources/resources_test.go`
+- [x] Migrate `internal/lifecycle/lifecycle_test.go`
+- [x] Remove now-obsolete local helper code
 
 Acceptance criteria:
 
@@ -298,8 +298,8 @@ Acceptance criteria:
 
 Goal: make the new testing architecture legible and durable.
 
-- [ ] Expand `packages/testkit-go/README.md` with real usage examples
-- [ ] Add Go testing guidance to `docs/CONTRIBUTING.md`
+- [x] Expand `packages/testkit-go/README.md` with real usage examples
+- [x] Add Go testing guidance to `docs/CONTRIBUTING.md`
 - [ ] Document when raw JSON is acceptable
 - [ ] Document when helpers should stay package-local
 - [ ] Document the seam-vs-smoke testing strategy
@@ -312,11 +312,27 @@ Acceptance criteria:
 
 Goal: prevent regression into duplicated fixture infrastructure.
 
-- [ ] Add a lightweight check or hygiene test for duplicated canonical fixture builders outside approved locations
-- [ ] Remove dead code left behind in old helper files
-- [ ] Delete temporary migration wrappers if any remain
-- [ ] Run the full validation suite
+- [x] Add a lightweight check or hygiene test for duplicated canonical fixture builders outside approved locations
+- [x] Remove dead code left behind in old helper files
+- [x] Delete temporary migration wrappers if any remain
+- [x] Run the full validation suite
 - [ ] Review the resulting diff for lingering duplicated helper patterns
+
+## Current status
+
+As of 2026-04-13:
+
+- Root-module and package-module migrated tests under `internal/`, `cmd/`, and `packages/` no longer import `internal/testfixture` or `internal/testutil` directly.
+- `packages/testkit-go` and `packages/testkit-go/vrooli` have direct tests and are the canonical path for shared Go fixture setup.
+- Explicit malformed JSON and malformed manifest helpers now exist for negative-path tests, with direct package coverage and initial consumer adoption.
+- The legacy `internal/testfixture` and `internal/testutil` compatibility wrappers have been removed from the repo.
+- Broad validation has passed for:
+  - `go test ./packages/testkit-go ./packages/testkit-go/vrooli`
+  - `go test ./internal/scenario ./internal/process ./internal/lifecycle ./internal/setup ./internal/resources ./internal/api ./internal/project ./internal/repocontractcheck ./internal/repocontract ./internal/orchestrator ./internal/hostreq ./internal/hostreqcheck ./cmd/vrooli-api`
+  - `(cd packages/repo-contract-go && go test ./...)`
+  - `(cd packages/cli-core && go test ./cliapp)`
+  - `make validate-repo-contract`
+- The highest-value remaining work is now seam hardening and retirement of the compatibility wrapper packages, not additional first-party test adoption.
 
 Acceptance criteria:
 

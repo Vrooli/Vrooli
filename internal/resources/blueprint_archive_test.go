@@ -1,12 +1,13 @@
 package resources
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 func TestArchiveResourceToBlueprintArchivesAndRemovesActiveState(t *testing.T) {
@@ -233,12 +234,8 @@ func TestArchiveResourceToBlueprintHandlesUnreadableRuntimeDirectory(t *testing.
 
 func writeBlueprintArchiveFixture(t *testing.T, root, name string) {
 	t.Helper()
-	path := filepath.Join(root, ".vrooli", "resource-blueprints", name+".json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	contents := `{
-  "name": "` + name + `",
+	testkitgo.WriteRawJSON(t, filepath.Join(root, ".vrooli", "resource-blueprints", name+".json"), `{
+  "name": "`+name+`",
   "display_name": "Fixture",
   "category": "testing",
   "summary": "Fixture resource",
@@ -259,51 +256,5 @@ func writeBlueprintArchiveFixture(t *testing.T, root, name string) {
   "status": "candidate",
   "references": [{"kind": "note", "value": "fixture"}],
   "last_reviewed": "2026-04-11"
-}`
-	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
-}
-
-func writeScenarioResourceManifest(t *testing.T, root, scenarioName, resourceName string) {
-	t.Helper()
-	path := filepath.Join(root, "scenarios", scenarioName, ".vrooli", "service.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	payload := map[string]any{
-		"dependencies": map[string]any{
-			"resources": map[string]any{
-				resourceName: map[string]any{
-					"enabled":  true,
-					"required": true,
-				},
-			},
-		},
-	}
-	data, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal scenario manifest: %v", err)
-	}
-	data = append(data, '\n')
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
-}
-
-func writeBlueprintArchivedMetadata(t *testing.T, root string, item BlueprintArchivedResource) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("mkdir .vrooli: %v", err)
-	}
-	payload, err := json.MarshalIndent(map[string]any{
-		"resources": []BlueprintArchivedResource{item},
-	}, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal item: %v", err)
-	}
-	payload = append(payload, '\n')
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "blueprint-archived-resources.json"), payload, 0o644); err != nil {
-		t.Fatalf("write blueprint archived metadata: %v", err)
-	}
+}`, 0o644)
 }

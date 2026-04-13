@@ -4,7 +4,6 @@
   "description": "Type-safe Playwright driver for browser automation",
   "main": "dist/server.js",
   "scripts": {
-    "postinstall": "bash -c 'set -e; mkdir -p node_modules/@vrooli; rm -rf node_modules/@vrooli/proto-types; cp -a ../../../packages/proto/gen/typescript node_modules/@vrooli/proto-types'",
     "build": "esbuild src/server.ts --bundle --platform=node --target=node18 --outfile=dist/server.js --external:rebrowser-playwright --external:winston --external:prom-client --external:uuid --external:zod --external:@bufbuild/protobuf --external:@bufbuild/protobuf/* --external:ws && mkdir -p dist/browser-scripts && cp -r src/recording/capture/browser-scripts/*.js dist/browser-scripts/",
     "build:types": "tsc -p tsconfig.build.json --emitDeclarationOnly",
     "dev": "ts-node src/server.ts",

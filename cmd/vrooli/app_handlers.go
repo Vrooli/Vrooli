@@ -33,12 +33,15 @@ func runInfoTopLevelCommand(app *App, ctx *commandContext, args []string) error 
 }
 
 func runScenarioRootCommand(app *App, ctx *commandContext, args []string) error {
-	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
+	if len(args) == 0 {
 		showScenarioHelp(ctx.Stdout)
 		return nil
 	}
-
-	handler, ok := scenarioCommands[args[0]]
+	if wantsCommandHelp(args) {
+		showScenarioHelp(ctx.Stdout)
+		return nil
+	}
+	handler, ok := scenarioCommands[normalizeSubcommand(args[0])]
 	if !ok {
 		return newUnknownScenarioCommandError(args[0])
 	}

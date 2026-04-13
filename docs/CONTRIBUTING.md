@@ -143,6 +143,7 @@ Do not start new resource work by cloning an old `resources/<name>/` directory o
 7. **Repo Contract Inspection**: Use `vrooli contract show`, `vrooli contract resolve ...`, and `vrooli contract match-glob ...` for local inspection instead of adding ad hoc repo-layout probes.
 8. **Repo Contract Adoption**: Do not add new repo-root heuristics, new `filepath.Join(root, "scenarios", ...)` helpers for canonical paths, or new repo-glob semantics in covered repo-aware code. If the shared helpers do not fit, document the gap first instead of inventing a parallel convention.
 9. **Repo Contract Validation**: Run `make validate-repo-contract` for changes to repo-aware guidance, contract-backed helpers, or new repo-aware tooling so docs, validation, and adoption rules stay aligned.
+10. **Package Governance Validation**: Run `make validate-package-governance` for changes to `packages/`, shared package adoption, package refresh behavior, or package-governance docs/rules so the native CLI and stack-governor enforcement stay aligned.
 
 ## Testing Requirements
 
@@ -166,6 +167,14 @@ describe('Component/Function Name', () => {
   });
 });
 ```
+
+For Go tests in the migrated project-level CLI/control-plane code:
+
+- Prefer `packages/testkit-go` for reusable repo fixtures, file writers, and repo-contract-backed setup.
+- Prefer `packages/testkit-go/vrooli` for valid project/scenario/resource manifest fixtures and compatibility fixtures.
+- Do not hand-write valid `service.json`, `resource.json`, or repo-contract fixture JSON when a shared builder already exists.
+- Keep raw JSON or raw shell fixture text for negative tests and explicit compatibility coverage only.
+- Prefer seam-based unit tests for logic and keep real subprocess/platform behavior in narrow smoke tests.
 
 ### Running Tests
 

@@ -56,10 +56,10 @@ pnpm --filter @vrooli/iframe-bridge build
 
 ## Propagating Package Updates
 
-After editing this package, refresh the scenarios that depend on it so they reinstall the new build:
+After editing this package, use the native refresh command:
 
 ```bash
-./scripts/scenarios/tools/refresh-shared-package.sh iframe-bridge <scenario|all> [--no-restart]
+vrooli package refresh iframe-bridge all
 ```
 
-The helper rebuilds `@vrooli/iframe-bridge`, filters to scenarios that declare this dependency, runs `vrooli scenario setup`, and restarts only the scenarios that were already running (use `--no-restart` to opt out and restart manually later).
+That rebuilds `@vrooli/iframe-bridge`, discovers governed dependents, runs `vrooli scenario setup`, and restarts only consumers that were already running.

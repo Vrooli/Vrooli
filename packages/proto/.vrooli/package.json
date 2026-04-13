@@ -1,0 +1,40 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "proto",
+    "display_name": "github.com/vrooli/vrooli/packages/proto",
+    "description": "Canonical protobuf contract package governing generated Go and TypeScript outputs.",
+    "kind": "schema_or_contract",
+    "language": "proto",
+    "module_identifiers": [
+      "github.com/vrooli/vrooli/packages/proto",
+      "@vrooli/proto-types"
+    ],
+    "generated_outputs": [
+      {
+        "name": "proto-types",
+        "identifiers": ["@vrooli/proto-types"],
+        "consumers": ["scenario_ui", "template_ui", "scenario_test"]
+      }
+    ],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": ["scenario_ui", "template_ui", "scenario_test", "scenario_api", "scenario_cli", "template_api", "template_cli"],
+      "adoption_modes": ["file_dependency", "go_module_replace", "generated_artifact"]
+    },
+    "lifecycle": {
+      "generate": [
+        {
+          "name": "generate",
+          "run": ["make", "generate"]
+        }
+      ]
+    },
+    "refresh": {
+      "strategy": "generate_then_setup",
+      "restart_running_consumers": true
+    },
+    "docs": ["packages/proto/README.md", "docs/package-governance.md"]
+  }
+}

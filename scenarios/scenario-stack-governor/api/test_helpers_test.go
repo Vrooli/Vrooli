@@ -18,7 +18,7 @@ func setupTestServer(t *testing.T) (*Server, string) {
 	root := t.TempDir()
 
 	// Create repo-root markers that the shared repo contract requires.
-	for _, dir := range []string{".vrooli", "scenarios", "resources", "packages", "cmd", "internal"} {
+	for _, dir := range []string{".vrooli", "templates", "scenarios", "resources", "packages", "cmd", "internal"} {
 		mkdirAll(t, filepath.Join(root, dir))
 	}
 	writeRepoContractFixture(t, root)
@@ -35,11 +35,12 @@ func setupTestServer(t *testing.T) (*Server, string) {
 	cfg := RulesConfig{
 		Version: "1.0.0",
 		EnabledRules: map[string]bool{
-			"GO_CLI_WORKSPACE_INDEPENDENCE":       false,
-			"REACT_VITE_UI_INSTALLS_DEPENDENCIES": false,
-			"MAKEFILE_STRUCTURE":                  true,
-			"MAKEFILE_LIFECYCLE":                  true,
-			"MAKEFILE_QUALITY":                    true,
+			"GO_CLI_WORKSPACE_INDEPENDENCE":        false,
+			"PACKAGE_GOVERNANCE_SCENARIO_ADOPTION": false,
+			"REACT_VITE_UI_INSTALLS_DEPENDENCIES":  false,
+			"MAKEFILE_STRUCTURE":                   true,
+			"MAKEFILE_LIFECYCLE":                   true,
+			"MAKEFILE_QUALITY":                     true,
 		},
 	}
 	if err := cs.Save(t.Context(), cfg); err != nil {

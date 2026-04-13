@@ -1067,7 +1067,7 @@ func writeProjectFixtureWithServiceManifest(t *testing.T, root string, manifest 
 func writeProjectFixtureWithManifest(t *testing.T, root, manifest string) scenario.Scenario {
 	t.Helper()
 	servicePath := filepath.Join(root, ".vrooli", "service.json")
-	testkitgo.WriteRawJSON(t, servicePath, manifest, 0o644)
+	testkitvrooli.WriteMalformedProjectService(t, root, manifest)
 	parsed, err := scenario.ReadService(servicePath)
 	if err != nil {
 		t.Fatalf("ReadService: %v", err)
@@ -1101,12 +1101,7 @@ func writePortRegistryFixture(t *testing.T, root string) {
 
 func writeExecutableFile(t *testing.T, path, contents string) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, []byte(contents), 0o755); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
+	testkitgo.WriteExecutable(t, path, contents)
 }
 
 var _ resourceRunner = (*resources.Controller)(nil)

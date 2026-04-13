@@ -16,12 +16,11 @@ import (
 
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
-	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-11
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=5 | LAST: 2026-04-13
 
 func TestStatusForResourceReportsUnavailableCommand(t *testing.T) {
 	root := t.TempDir()
@@ -1167,36 +1166,21 @@ func (ioDiscard) Write(p []byte) (int, error) { return len(p), nil }
 
 func writeResourceConfig(t *testing.T, root, name string, enabled bool) {
 	t.Helper()
-	testfixture.WriteProjectService(t, root, testfixture.ProjectServiceManifest(
-		testfixture.WithDependencies(scenario.Dependencies{
-			Resources: map[string]scenario.Dependency{name: {Enabled: enabled}},
-		}),
-	))
+	testfixture.WriteProjectResourceConfig(t, root, name, enabled)
 }
 
 func shellQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 
-func writeResourceManifestFixture(t *testing.T, root string, manifest any) {
+func writeResourceManifestFixture(t *testing.T, root string, manifest manifestpkg.ResourceManifest) {
 	t.Helper()
 	writeResourceManifest(t, root, "fixture", manifest)
 }
 
-func writeResourceManifest(t *testing.T, root, name string, manifest any) {
+func writeResourceManifest(t *testing.T, root, name string, manifest manifestpkg.ResourceManifest) {
 	t.Helper()
-	switch value := manifest.(type) {
-	case manifestpkg.ResourceManifest:
-		testfixture.WriteResourceManifest(t, root, name, value)
-	case string:
-		var parsed manifestpkg.ResourceManifest
-		if err := json.Unmarshal([]byte(value), &parsed); err != nil {
-			t.Fatalf("unmarshal resource fixture manifest: %v\ncontents=%s", err, value)
-		}
-		testfixture.WriteResourceManifest(t, root, name, parsed)
-	default:
-		t.Fatalf("unsupported manifest fixture type %T", manifest)
-	}
+	testfixture.WriteResourceManifest(t, root, name, manifest)
 }
 
 func writeResourceScript(t *testing.T, root, name, contents string) {
@@ -1206,141 +1190,15 @@ func writeResourceScript(t *testing.T, root, name, contents string) {
 
 func writeExecutableOnPath(t *testing.T, name, contents string) string {
 	t.Helper()
-	dir := t.TempDir()
-	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(contents), 0o755); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
-	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	originalLookPath := lookPathCommandFn
-	lookPathCommandFn = exec.LookPath
-	t.Cleanup(func() {
-		lookPathCommandFn = originalLookPath
-	})
+	path := testkitgo.WriteExecutableOnPath(t, name, contents)
+	testfixture.UseSystemLookPath(t, &lookPathCommandFn)
 	return path
 }
 
 func writeFakeDocker(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	stateFile := filepath.Join(dir, "docker-state.txt")
-	scriptPath := filepath.Join(dir, "docker")
-	script := `#!/usr/bin/env bash
-set -e
-state_file="${FAKE_DOCKER_STATE}"
-cmd="${1:-}"
-shift || true
-
-case "$cmd" in
-  compose)
-    while [[ $# -gt 0 ]]; do
-      case "$1" in
-        -f|--project-name)
-          shift 2
-          ;;
-        *)
-          break
-          ;;
-      esac
-    done
-    subcmd="${1:-}"
-    shift || true
-    case "$subcmd" in
-      ps)
-        if [[ "${1:-}" == "-a" ]]; then
-          shift
-        fi
-        if [[ "${1:-}" == "--format" ]]; then
-          shift 2
-        fi
-        if [[ -f "$state_file" ]]; then
-          state="$(tr -d '\n' < "$state_file")"
-          if [[ "$state" == "running" ]]; then
-            printf '[{"Service":"app","State":"running","Health":"healthy"}]'
-          else
-            printf '[{"Service":"app","State":"exited","Health":""}]'
-          fi
-        else
-          printf '[]'
-        fi
-        exit 0
-        ;;
-      pull|up)
-        printf 'running\n' > "$state_file"
-        exit 0
-        ;;
-      stop)
-        printf 'stopped\n' > "$state_file"
-        exit 0
-        ;;
-      down)
-        rm -f "$state_file"
-        exit 0
-        ;;
-      logs)
-        echo "fixture logs"
-        exit 0
-        ;;
-    esac
-    ;;
-  image)
-    if [[ "${1:-}" == "inspect" ]]; then
-      exit 0
-    fi
-    ;;
-  inspect)
-    if [[ -f "$state_file" ]]; then
-      state="$(tr -d '\n' < "$state_file")"
-      if [[ "$state" == "running" ]]; then
-        printf '{"Running":true}'
-      else
-        printf '{"Running":false}'
-      fi
-      exit 0
-    fi
-    echo "Error: No such object" >&2
-    exit 1
-    ;;
-  run)
-    printf 'running\n' > "$state_file"
-    echo "container-id"
-    exit 0
-    ;;
-  start)
-    printf 'running\n' > "$state_file"
-    exit 0
-    ;;
-  stop)
-    printf 'stopped\n' > "$state_file"
-    exit 0
-    ;;
-  restart)
-    printf 'running\n' > "$state_file"
-    exit 0
-    ;;
-  rm)
-    rm -f "$state_file"
-    exit 0
-    ;;
-  logs)
-    echo "fixture logs"
-    exit 0
-    ;;
-esac
-
-echo "unexpected docker invocation: $cmd $*" >&2
-exit 1
-`
-	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
-		t.Fatalf("write %s: %v", scriptPath, err)
-	}
-	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("FAKE_DOCKER_STATE", stateFile)
-	originalLookPath := lookPathCommandFn
-	lookPathCommandFn = exec.LookPath
-	t.Cleanup(func() {
-		lookPathCommandFn = originalLookPath
-	})
+	stateFile := testfixture.WriteFakeDocker(t)
+	testfixture.UseSystemLookPath(t, &lookPathCommandFn)
 	return stateFile
 }
 

@@ -29,6 +29,15 @@ func WriteExecutable(t *testing.T, path, contents string) string {
 	return path
 }
 
+func WriteExecutableOnPath(t *testing.T, name, contents string) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, name)
+	WriteExecutable(t, path, contents)
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	return path
+}
+
 func WriteJSON(t *testing.T, path string, value any) {
 	t.Helper()
 	WriteJSONMode(t, path, value, 0o644)
@@ -59,6 +68,11 @@ func WriteRawJSON(t *testing.T, path, raw string, mode os.FileMode) {
 	}
 }
 
+func WriteMalformedJSON(t *testing.T, path, raw string, mode os.FileMode) {
+	t.Helper()
+	WriteRawJSON(t, path, raw, mode)
+}
+
 func ReadJSONFile(t *testing.T, path string) map[string]any {
 	t.Helper()
 	data, err := os.ReadFile(path)
@@ -66,6 +80,19 @@ func ReadJSONFile(t *testing.T, path string) map[string]any {
 		t.Fatalf("read %s: %v", path, err)
 	}
 	var parsed map[string]any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("unmarshal %s: %v", path, err)
+	}
+	return parsed
+}
+
+func ReadJSONFileInto[T any](t *testing.T, path string) T {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	var parsed T
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		t.Fatalf("unmarshal %s: %v", path, err)
 	}
@@ -80,6 +107,11 @@ func WriteRelativeFile(t *testing.T, root, relPath, contents string) {
 func WriteRelativeExecutable(t *testing.T, root, relPath, contents string) string {
 	t.Helper()
 	return WriteExecutable(t, filepath.Join(root, filepath.FromSlash(relPath)), contents)
+}
+
+func WriteRelativeMalformedJSON(t *testing.T, root, relPath, raw string, mode os.FileMode) {
+	t.Helper()
+	WriteMalformedJSON(t, filepath.Join(root, filepath.FromSlash(relPath)), raw, mode)
 }
 
 func normalizeTrailingNewline(contents string, force bool) string {

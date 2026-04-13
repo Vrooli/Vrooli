@@ -5,7 +5,7 @@ Custom Vitest reporter for tracking requirement coverage in Vrooli scenarios.
 ## Installation
 
 ```bash
-pnpm add @vrooli/vitest-requirement-reporter@workspace:*
+pnpm add @vrooli/vitest-requirement-reporter@file:../../../packages/vitest-requirement-reporter
 ```
 
 ## Quick Setup
@@ -44,6 +44,12 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
 For complete documentation including configuration options, concise mode, tag inheritance, troubleshooting, and integration with the phased testing system, see:
 
 **[Test Genie Vitest Requirement Reporter Reference](../../scenarios/test-genie/docs/reference/vitest-requirement-reporter.md)**
+
+## Refreshing Scenario Consumers
+
+```bash
+vrooli package refresh vitest-requirement-reporter all --no-restart
+```
 
 ## Related
 

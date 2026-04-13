@@ -7,9 +7,6 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/lifecycle"
-	"github.com/vrooli/vrooli/internal/orchestrator"
-	"github.com/vrooli/vrooli/internal/process"
-	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 type (
@@ -22,39 +19,6 @@ type (
 	scenarioStatusSingleOutput  = scenariocli.StatusSingleOutput
 	scenarioLifecycleItemOutput = scenariocli.LifecycleItemOutput
 )
-
-func buildScenarioStatusItem(item scenario.Scenario, runtime process.ScenarioRuntime) scenarioStatusItemOutput {
-	return scenariocli.BuildStatusItem(item, runtime)
-}
-
-func buildScenarioStatusDetail(detail orchestrator.Detail) scenarioStatusItemOutput {
-	return scenariocli.BuildStatusDetail(detail)
-}
-
-func buildScenarioInfoData(item scenario.Scenario) scenarioInfoScenarioData {
-	return scenariocli.BuildInfoData(item)
-}
-
-func buildScenarioRuntimeData(manifest scenario.ServiceManifest, runtime process.ScenarioRuntime) scenarioInfoRuntimeData {
-	return scenariocli.BuildRuntimeData(manifest, runtime)
-}
-
-func runtimePortOutputs(bindings []scenario.RuntimePortBinding) []scenarioListPortOutput {
-	return scenariocli.RuntimePortOutputs(bindings)
-}
-
-// buildListPorts adapts scenario/runtime port data into the CLI output shape.
-func buildListPorts(manifest scenario.ServiceManifest, records []process.Record) ([]scenarioListPortOutput, map[string]int) {
-	return scenariocli.BuildListPorts(manifest, records)
-}
-
-func inferPortEnvVar(manifest scenario.ServiceManifest, step string) string {
-	return scenario.InferPortEnvVar(manifest, step)
-}
-
-func copyIntMap(src map[string]int) map[string]int {
-	return scenariocli.CopyIntMap(src)
-}
 
 func parseScenarioNameAndJSON(command string, defaultJSON bool, args []string) (string, bool, error) {
 	name, jsonFlag, err := parseOptionalScenarioNameAndJSON(command, defaultJSON, args)
@@ -145,28 +109,4 @@ func showScenarioHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  vrooli scenario <subcommand> [options]")
 	_, _ = fmt.Fprintln(w)
 	renderCommandGroups(w, groupedScenarioCommands())
-}
-
-func writeScenarioInfoHuman(w io.Writer, info scenarioInfoScenarioData, runtime scenarioInfoRuntimeData) {
-	scenariocli.WriteInfoHuman(w, info, runtime)
-}
-
-func writeScenarioStatusTable(w io.Writer, items []scenarioStatusItemOutput) {
-	scenariocli.WriteStatusTable(w, items)
-}
-
-func writeScenarioStatusHuman(w io.Writer, output scenarioStatusSingleOutput) {
-	scenariocli.WriteStatusHuman(w, output)
-}
-
-func formatPortMap(ports map[string]int) string {
-	return scenariocli.FormatPortMap(ports)
-}
-
-func copyStrings(values []string) []string {
-	return scenariocli.CopyStrings(values)
-}
-
-func copyProcessRecords(values []process.Record) []process.Record {
-	return scenariocli.CopyProcessRecords(values)
 }

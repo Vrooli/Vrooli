@@ -32,6 +32,7 @@ type Server struct {
 
 // Handlers holds all handler instances
 type Handlers struct {
+	health        gin.HandlerFunc
 	app           *handlers.AppHandler
 	system        *handlers.SystemHandler
 	docker        *handlers.DockerHandler
@@ -112,7 +113,9 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	})
 
 	// Create handlers
+	healthHandler := gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler())
 	handlers := &Handlers{
+		health:        healthHandler,
 		app:           handlers.NewAppHandler(appService),
 		system:        handlers.NewSystemHandler(metricsService),
 		docker:        handlers.NewDockerHandler(docker),
@@ -163,9 +166,8 @@ func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 	}
 
 	// Health endpoints (no auth required)
-	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler()
-	r.GET("/health", gin.WrapF(healthHandler))
-	r.GET("/api/health", gin.WrapF(healthHandler))
+	r.GET("/health", h.health)
+	r.GET("/api/health", h.health)
 
 	// API v1 routes
 	v1 := r.Group("/api/v1")

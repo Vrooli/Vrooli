@@ -31,6 +31,14 @@ type Runner struct {
 	Logger *slog.Logger
 }
 
+var (
+	sleepFn              = time.Sleep
+	timeNowFn            = time.Now
+	signalProcessGroupFn = signalProcessGroup
+	signalPIDFn          = signalPID
+	listeningPIDsFn      = listeningPIDs
+)
+
 type StartOptions struct {
 	CustomPath         string
 	CleanStale         bool
@@ -154,7 +162,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		if err := r.Stop(item.Slug, StopOptions{}); err != nil {
 			return Result{}, err
 		}
-		time.Sleep(1 * time.Second)
+		sleepFn(1 * time.Second)
 	}
 
 	env, err := r.Ports.BuildEnvironment(item, nil)
@@ -241,16 +249,16 @@ func (r *Runner) Stop(name string, opts StopOptions) error {
 	}
 
 	for pgid := range groups {
-		_ = signalProcessGroup(pgid, false)
+		_ = signalProcessGroupFn(pgid, false)
 	}
 	if len(groups) > 0 {
-		time.Sleep(2 * time.Second)
+		sleepFn(2 * time.Second)
 		for pgid := range groups {
 			if process.IsPIDRunning(pgid) {
-				_ = signalProcessGroup(pgid, true)
+				_ = signalProcessGroupFn(pgid, true)
 			}
 		}
-		time.Sleep(500 * time.Millisecond)
+		sleepFn(500 * time.Millisecond)
 	}
 
 	for _, stepFile := range stepFiles {
@@ -296,7 +304,7 @@ func (r *Runner) Restart(name string, opts StartOptions) (Result, error) {
 		r.logError("Scenario restart failed during stop", err, logx.AttrScenario, name)
 		return Result{}, err
 	}
-	time.Sleep(1 * time.Second)
+	sleepFn(1 * time.Second)
 	opts.ForceSetup = true
 	opts.ForceSetupScenario = name
 	result, err := r.Start(name, opts)
@@ -341,7 +349,7 @@ func (r *Runner) writeDegradedState(name string, failedDeps []string) error {
 		"status":              "degraded",
 		"reason":              "best-effort startup with failed dependencies",
 		"failed_dependencies": failedDeps,
-		"timestamp":           time.Now().UTC().Format(time.RFC3339),
+		"timestamp":           timeNowFn().UTC().Format(time.RFC3339),
 	}
 	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
@@ -353,24 +361,24 @@ func (r *Runner) writeDegradedState(name string, failedDeps []string) error {
 
 func (r *Runner) killOrphansOnPorts(portsToCheck map[int]struct{}) error {
 	for port := range portsToCheck {
-		pids, err := listeningPIDs(port)
+		pids, err := listeningPIDsFn(port)
 		if err != nil {
 			return err
 		}
 		for _, pid := range pids {
-			_ = signalPID(pid, false)
+			_ = signalPIDFn(pid, false)
 		}
 	}
 
-	time.Sleep(500 * time.Millisecond)
+	sleepFn(500 * time.Millisecond)
 
 	for port := range portsToCheck {
-		pids, err := listeningPIDs(port)
+		pids, err := listeningPIDsFn(port)
 		if err != nil {
 			return err
 		}
 		for _, pid := range pids {
-			_ = signalPID(pid, true)
+			_ = signalPIDFn(pid, true)
 		}
 	}
 	return nil

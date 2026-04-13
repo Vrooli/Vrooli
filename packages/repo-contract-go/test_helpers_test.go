@@ -17,6 +17,17 @@ func repoRoot(t *testing.T) string {
 	return root
 }
 
+func fixtureRoot(t *testing.T, opts ...testkitgo.RepoFixtureOption) string {
+	t.Helper()
+	fixture := testkitgo.NewRepoFixture(t, opts...)
+	fixture.WriteRepoContract(t)
+	fixture.WriteScenarioStub(t, "test-genie")
+	fixture.WriteResourceStub(t, "postgres")
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "repo-contract-go", "load.go"), "package repocontract\n")
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "cmd", "vrooli", "main.go"), "package main\n")
+	return fixture.Root
+}
+
 func mustLoadDefault(t *testing.T, root string) *Contract {
 	t.Helper()
 	contract, err := LoadDefault(root)

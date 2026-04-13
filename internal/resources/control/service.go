@@ -85,27 +85,8 @@ func (s *Service) ListStatuses(fast bool, onlyEnabled bool) ([]Status, error) {
 }
 
 func (s *Service) Status(name string, fast bool) (Status, error) {
-	if deprecated, err := s.IsDeprecatedFn(name); err != nil {
+	if err := s.validateActiveResource(name, true); err != nil {
 		return Status{}, err
-	} else if deprecated {
-		return Status{}, &vroolierr.Error{
-			Code:       "resource_deprecated",
-			Resource:   name,
-			Category:   "Usage",
-			HTTPStatus: 409,
-			Message:    fmt.Sprintf("resource %q is deprecated; use `vrooli resource list-deprecated` or `vrooli resource restore %s`", name, name),
-		}
-	}
-	if archived, err := s.IsBlueprintArchFn(name); err != nil {
-		return Status{}, err
-	} else if archived {
-		return Status{}, &vroolierr.Error{
-			Code:       "resource_blueprint_archived",
-			Resource:   name,
-			Category:   "Usage",
-			HTTPStatus: 409,
-			Message:    fmt.Sprintf("resource %q is blueprint-archived; use `vrooli resource list-blueprint-archived` or `vrooli resource restore-blueprint %s`", name, name),
-		}
 	}
 	item, err := s.DiscoverOneFn(name)
 	if err != nil {
@@ -124,27 +105,8 @@ func (s *Service) Status(name string, fast bool) (Status, error) {
 }
 
 func (s *Service) Run(name string, args []string, stdout, stderr io.Writer) error {
-	if deprecated, err := s.IsDeprecatedFn(name); err != nil {
+	if err := s.validateActiveResource(name, false); err != nil {
 		return err
-	} else if deprecated {
-		return &vroolierr.Error{
-			Code:       "resource_deprecated",
-			Resource:   name,
-			Category:   "Usage",
-			HTTPStatus: 409,
-			Message:    fmt.Sprintf("resource %q is deprecated and cannot be run from the active control surface", name),
-		}
-	}
-	if archived, err := s.IsBlueprintArchFn(name); err != nil {
-		return err
-	} else if archived {
-		return &vroolierr.Error{
-			Code:       "resource_blueprint_archived",
-			Resource:   name,
-			Category:   "Usage",
-			HTTPStatus: 409,
-			Message:    fmt.Sprintf("resource %q is blueprint-archived and cannot be run from the active control surface", name),
-		}
 	}
 	operation := "invoke"
 	if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
@@ -154,32 +116,78 @@ func (s *Service) Run(name string, args []string, stdout, stderr io.Writer) erro
 	if err != nil {
 		return err
 	}
-	if item != nil && item.ManifestPath != "" && item.ControlMode == "manifest-native" {
-		manifest, err := s.LoadManifestFn(item.ManifestPath)
-		if err != nil {
+	if s.useManifestNativeControl(item) {
+		return s.runNativeResourceCommand(*item, operation, args[1:], stdout, stderr)
+	}
+	return s.runLegacyResourceCommand(name, operation, args[1:], stdout, stderr)
+}
+
+func (s *Service) validateActiveResource(name string, forStatus bool) error {
+	if deprecated, err := s.IsDeprecatedFn(name); err != nil {
+		return err
+	} else if deprecated {
+		message := fmt.Sprintf("resource %q is deprecated and cannot be run from the active control surface", name)
+		if forStatus {
+			message = fmt.Sprintf("resource %q is deprecated; use `vrooli resource list-deprecated` or `vrooli resource restore %s`", name, name)
+		}
+		return &vroolierr.Error{
+			Code:       "resource_deprecated",
+			Resource:   name,
+			Category:   "Usage",
+			HTTPStatus: 409,
+			Message:    message,
+		}
+	}
+	if archived, err := s.IsBlueprintArchFn(name); err != nil {
+		return err
+	} else if archived {
+		message := fmt.Sprintf("resource %q is blueprint-archived and cannot be run from the active control surface", name)
+		if forStatus {
+			message = fmt.Sprintf("resource %q is blueprint-archived; use `vrooli resource list-blueprint-archived` or `vrooli resource restore-blueprint %s`", name, name)
+		}
+		return &vroolierr.Error{
+			Code:       "resource_blueprint_archived",
+			Resource:   name,
+			Category:   "Usage",
+			HTTPStatus: 409,
+			Message:    message,
+		}
+	}
+	return nil
+}
+
+func (s *Service) useManifestNativeControl(item *catalog.Resource) bool {
+	return item != nil && item.ManifestPath != "" && item.ControlMode == "manifest-native"
+}
+
+func (s *Service) runNativeResourceCommand(item catalog.Resource, operation string, args []string, stdout, stderr io.Writer) error {
+	manifest, err := s.LoadManifestFn(item.ManifestPath)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	if err := s.DriverRunFn(ctx, item, manifest, operation, args, stdout, stderr); err != nil {
+		if shouldFallbackToLegacyResourceCommand(err) {
+			return s.runLegacyResourceCommand(item.Name, operation, args, stdout, stderr)
+		}
+		var resourceErr *vroolierr.Error
+		if errors.As(err, &resourceErr) {
 			return err
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		defer cancel()
-		if err := s.DriverRunFn(ctx, *item, manifest, operation, args[1:], stdout, stderr); err != nil {
-			if shouldFallbackToLegacyResourceCommand(err) {
-				return s.RunLegacyFn(name, operation, args[1:], stdout, stderr)
-			}
-			var resourceErr *vroolierr.Error
-			if errors.As(err, &resourceErr) {
-				return err
-			}
-			return &vroolierr.Error{
-				Code:      ErrorCodeOperationFailed,
-				Resource:  name,
-				Operation: operation,
-				Category:  "Runtime",
-				Err:       err,
-			}
+		return &vroolierr.Error{
+			Code:      ErrorCodeOperationFailed,
+			Resource:  item.Name,
+			Operation: operation,
+			Category:  "Runtime",
+			Err:       err,
 		}
-		return nil
 	}
-	return s.RunLegacyFn(name, operation, args[1:], stdout, stderr)
+	return nil
+}
+
+func (s *Service) runLegacyResourceCommand(name, operation string, args []string, stdout, stderr io.Writer) error {
+	return s.RunLegacyFn(name, operation, args, stdout, stderr)
 }
 
 func (s *Service) StartAll(stdout, stderr io.Writer) (batchcontrol.StartReport, error) {

@@ -4,11 +4,15 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 func TestFindRepoRootFromPathAlias(t *testing.T) {
-	root := repoRoot(t)
-	got, err := FindRepoRootFromPath(filepath.Join(root, "packages", "repo-contract-go"))
+	root := fixtureRoot(t)
+	start := filepath.Join(root, "packages", "repo-contract-go")
+	testkitgo.WriteFile(t, filepath.Join(start, "load.go"), "package repocontract\n")
+	got, err := FindRepoRootFromPath(start)
 	if err != nil {
 		t.Fatalf("FindRepoRootFromPath() error = %v", err)
 	}
@@ -18,7 +22,8 @@ func TestFindRepoRootFromPathAlias(t *testing.T) {
 }
 
 func TestFindRepoRootFromCWD(t *testing.T) {
-	root := repoRoot(t)
+	root := fixtureRoot(t)
+	testkitgo.WriteFile(t, filepath.Join(root, "packages", "repo-contract-go", "load.go"), "package repocontract\n")
 	oldGetwd := getwdPath
 	getwdPath = func() (string, error) {
 		return filepath.Join(root, "packages", "repo-contract-go"), nil
@@ -35,7 +40,7 @@ func TestFindRepoRootFromCWD(t *testing.T) {
 }
 
 func TestFindRepoRootFromEnvOrCWD(t *testing.T) {
-	root := repoRoot(t)
+	root := fixtureRoot(t)
 	t.Setenv(defaultSourceRootEnvVar, filepath.Join(root, "cmd"))
 	t.Setenv(defaultRepoRootEnvVar, "")
 
@@ -49,7 +54,7 @@ func TestFindRepoRootFromEnvOrCWD(t *testing.T) {
 }
 
 func TestFindRepoRootFromEnvOrCWDFallsBackToExecutable(t *testing.T) {
-	root := repoRoot(t)
+	root := fixtureRoot(t)
 	t.Setenv(defaultSourceRootEnvVar, "")
 	t.Setenv(defaultRepoRootEnvVar, "")
 
@@ -76,7 +81,7 @@ func TestFindRepoRootFromEnvOrCWDFallsBackToExecutable(t *testing.T) {
 }
 
 func TestLoadDefaultFromEnvOrCWD(t *testing.T) {
-	root := repoRoot(t)
+	root := fixtureRoot(t)
 	t.Setenv(defaultRepoRootEnvVar, root)
 	t.Setenv(defaultSourceRootEnvVar, "")
 
@@ -93,7 +98,7 @@ func TestLoadDefaultFromEnvOrCWD(t *testing.T) {
 }
 
 func TestResolveRepoRoot(t *testing.T) {
-	root := repoRoot(t)
+	root := fixtureRoot(t)
 	t.Setenv(defaultRepoRootEnvVar, root)
 	t.Setenv(defaultSourceRootEnvVar, "")
 
@@ -107,7 +112,7 @@ func TestResolveRepoRoot(t *testing.T) {
 }
 
 func TestResolveScenarioPathAndFile(t *testing.T) {
-	root := repoRoot(t)
+	root := fixtureRoot(t)
 
 	scenarioPath, err := ResolveScenarioPath(root, "test-genie")
 	if err != nil {
@@ -129,7 +134,7 @@ func TestResolveScenarioPathAndFile(t *testing.T) {
 }
 
 func TestScenarioExists(t *testing.T) {
-	root := repoRoot(t)
+	root := fixtureRoot(t)
 
 	ok, err := ScenarioExists(root, "test-genie")
 	if err != nil {
@@ -149,7 +154,8 @@ func TestScenarioExists(t *testing.T) {
 }
 
 func TestFileMatchCount(t *testing.T) {
-	root := repoRoot(t)
+	root := fixtureRoot(t)
+	testkitgo.WriteFile(t, filepath.Join(root, "packages", "repo-contract-go", "contract.go"), "package repocontract\n")
 
 	count, err := FileMatchCount(root, "packages/repo-contract-go/*.go")
 	if err != nil {

@@ -137,7 +137,7 @@ Your UI must have `@vrooli/iframe-bridge` as a dependency in `ui/package.json`:
 ```json
 {
   "dependencies": {
-    "@vrooli/iframe-bridge": "workspace:*"
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   }
 }
 ```
