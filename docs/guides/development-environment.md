@@ -81,5 +81,5 @@ vrooli doctor
 
 - [../QUICKSTART.md](../QUICKSTART.md)
 - [../reference/cli-commands.md](../reference/cli-commands.md)
-- [troubleshooting.md](troubleshooting.md)
-- [environment-management.md](environment-management.md)
+- [../operations/troubleshooting.md](../operations/troubleshooting.md)
+- [../reference/environment-management.md](../reference/environment-management.md)

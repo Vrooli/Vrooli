@@ -235,4 +235,4 @@ cd ./scenarios/research-assistant && ./test.sh
 
 ---
 
-**Need help?** Check the [troubleshooting guide](docs/TROUBLESHOOTING.md) or explore [performance tuning](docs/PERFORMANCE.md).
+**Need help?** Check the project troubleshooting and environment docs under [`/docs/operations/`](../../docs/operations/README.md) and [`/docs/reference/`](../../docs/reference/environment-management.md).

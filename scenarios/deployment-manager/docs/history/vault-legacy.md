@@ -239,7 +239,7 @@ vault kv put secret/vrooli-prod/dockerhub/pull-credentials \
 
 ## 5. Update Helm Values
 
-Ensure your `k8s/chart/values-prod.yaml` points to the correct Vault paths:
+Ensure your archived `scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/values-prod.yaml` points to the correct Vault paths:
 
 ```yaml
 vso:
@@ -265,8 +265,8 @@ vso:
 
 ### 6.1 Using Kubernetes Authentication
 ```bash
-helm install vrooli k8s/chart/ \
-    --values k8s/chart/values-prod.yaml \
+helm install vrooli scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/ \
+    --values scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/values-prod.yaml \
     --set vaultAddr="http://vault.vault.svc.cluster.local:8200" \
     --set productionDomain="yourproductiondomain.com" \
     --set vso.k8sAuthMount="kubernetes-prod" \
@@ -279,8 +279,8 @@ helm install vrooli k8s/chart/ \
 ROLE_ID=$(vault read -field=role_id auth/approle/role/vso-role/role-id)
 
 # Deploy with AppRole configuration
-helm install vrooli k8s/chart/ \
-    --values k8s/chart/values-prod.yaml \
+helm install vrooli scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/ \
+    --values scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/values-prod.yaml \
     --set vaultAddr="http://vault.vault.svc.cluster.local:8200" \
     --set productionDomain="yourproductiondomain.com" \
     --set vso.appRoleId="$ROLE_ID" \

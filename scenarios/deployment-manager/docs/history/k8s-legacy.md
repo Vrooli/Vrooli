@@ -1,6 +1,6 @@
 # Legacy: Kubernetes Deployment Readiness Summary
 
-> **Status:** Historical reference for the unfinished Kubernetes pipeline. Treat this as background reading only; the actual deployment roadmap lives in the [Deployment Hub](../README.md).
+> **Status:** Historical reference for the unfinished Kubernetes pipeline. Treat this as background reading only; the actual deployment roadmap lives in the [Deployment Hub](../README.md). The archived chart, manifests, and retired workflow now live under `scenarios/deployment-manager/examples/legacy/k8s-full-stack/`.
 
 ## ✅ Phase 1 Complete: Critical Fixes Implemented
 
@@ -32,7 +32,7 @@ CMD ["serve", "-s", "packages/ui/dist", "-l", "3000"]
   - Created dedicated K8s deployment workflow
 - **Files**:
   - Updated: `.github/workflows/dev.yml` and `master.yml`
-  - Created: `.github/workflows/k8s-deploy.yml`
+  - Created: `.github/workflows/k8s-deploy.yml` (now archived at `scenarios/deployment-manager/examples/legacy/k8s-full-stack/github-workflows/k8s-deploy.yml`)
 - **Result**: Automated K8s deployment now available
 
 #### 3. **Production Vault Setup** ✅ FIXED
@@ -47,8 +47,8 @@ CMD ["serve", "-s", "packages/ui/dist", "-l", "3000"]
 - **Issue**: Hardcoded values in production configuration
 - **Solution**: Made domain, Vault address, and TLS secrets configurable
 - **Files**:
-  - Updated: `k8s/chart/values.yaml`, `values-prod.yaml`, `templates/ingress.yaml`, `templates/vso-connection.yaml`
-  - Created: `k8s/deploy-examples/production-deployment.sh`
+  - Updated: `scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/values.yaml`, `values-prod.yaml`, `templates/ingress.yaml`, `templates/vso-connection.yaml`
+  - Created: `scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/deploy-examples/production-deployment.sh`
 - **Result**: Flexible production deployment for any environment
 
 ## 🚀 Deployment Options
@@ -56,7 +56,7 @@ CMD ["serve", "-s", "packages/ui/dist", "-l", "3000"]
 ### Option 1: Manual Deployment Script
 ```bash
 # Customize and run the production deployment script
-cd k8s/deploy-examples/
+cd scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/deploy-examples/
 cp production-deployment.sh my-production-deploy.sh
 # Edit my-production-deploy.sh with your values
 ./my-production-deploy.sh --domain myapp.com --vault-addr https://vault.mycompany.com
@@ -65,10 +65,10 @@ cp production-deployment.sh my-production-deploy.sh
 ### Option 2: Direct Helm Deployment
 ```bash
 # Deploy with Helm directly
-helm upgrade --install vrooli-prod k8s/chart/ \
+helm upgrade --install vrooli-prod scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/ \
   --namespace production \
   --create-namespace \
-  -f k8s/chart/values-prod.yaml \
+  -f scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/values-prod.yaml \
   --set productionDomain=myapp.com \
   --set vaultAddr=https://vault.mycompany.com \
   --set tlsSecretName=myapp-tls-secret
@@ -77,8 +77,8 @@ helm upgrade --install vrooli-prod k8s/chart/ \
 ### Option 3: GitHub Actions K8s Workflow
 ```bash
 # Use the new K8s GitHub Actions workflow
-# Go to Actions tab in GitHub → "Kubernetes Deployment" 
-# Set inputs: environment=prod, domain, vault address, etc.
+# Historical only:
+# scenarios/deployment-manager/examples/legacy/k8s-full-stack/github-workflows/k8s-deploy.yml
 ```
 
 ## 📋 Pre-Deployment Checklist
@@ -130,11 +130,11 @@ kubectl run vault-test --rm -i --tty --image=alpine/curl -- \
 ### Test Helm Chart
 ```bash
 # Validate chart syntax
-helm lint k8s/chart/
+helm lint scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/
 
 # Test template rendering
-helm template vrooli-prod k8s/chart/ \
-  -f k8s/chart/values-prod.yaml \
+helm template vrooli-prod scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/ \
+  -f scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/values-prod.yaml \
   --set productionDomain=test.example.com \
   --set vaultAddr=https://test-vault.com
 ```
@@ -188,7 +188,7 @@ Internet → Ingress → UI/Server Pods → Redis/PostgreSQL (via Operators)
 ## 📞 Support Resources
 
 - **Vault Setup**: `docs/deployment/history/vault-legacy.md`
-- **K8s Architecture**: `docs/devops/kubernetes.md` 
+- **Deployment Hub**: `docs/deployment/README.md`
 - **Troubleshooting**: See troubleshooting sections in documentation
 - **Scripts**: All automation in `scripts/helpers/setup/` and `scripts/helpers/deploy/`
 

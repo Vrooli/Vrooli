@@ -40,4 +40,4 @@ For current operational guidance, use:
 
 - [../deployment/README.md](../deployment/README.md)
 - [../operations/production-guide.md](../operations/production-guide.md)
-- [server-deployment.md](server-deployment.md)
+- [../deployment/reference/server-deployment.md](../deployment/reference/server-deployment.md)

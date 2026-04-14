@@ -17,14 +17,14 @@
 #
 # Prerequisites:
 #   - Helm CLI installed and in PATH.
-#   - Script must be run from the chart's root directory (e.g., k8s/chart/)
+#   - Script must be run from the chart's root directory.
 #     or adjust paths accordingly.
 
 set -e # Exit immediately if a command exits with a non-zero status.
 
 # Source trash module for safe cleanup
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-K8S_CHART_TESTS_DIR="${APP_ROOT}/k8s/chart/tests"
+K8S_CHART_TESTS_DIR="${APP_ROOT}/scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/tests"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091

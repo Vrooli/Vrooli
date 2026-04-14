@@ -8,7 +8,7 @@ At the project level, Vrooli does have real build and validation steps.
 
 - `make build` builds the project-level Go binaries
 - `make install` installs them into `~/.vrooli/bin`
-- `make test` runs the retained project-level validation suite
+- `make test` runs the project-level Go test surface
 - `vrooli build` is the root CLI build command
 
 This is distinct from older documentation that described the entire platform as having “no build step.”
@@ -40,12 +40,14 @@ These are the project-level Go entrypoints under `cmd/`.
 
 ## What `make test` Does
 
-The project-level test target runs retained validation around:
+The project-level test target is the canonical project test entrypoint.
 
-- repo contract validation
-- package governance validation
-- internal Go tests
-- command-level tests
+It covers project-level Go test surfaces. Validation that has its own dedicated policy target should still be run explicitly when your change touches that area.
+
+Use these dedicated validation targets when relevant:
+
+- `make validate-repo-contract`
+- `make validate-package-governance`
 
 For scenario-level testing, use:
 

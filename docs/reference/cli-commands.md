@@ -27,6 +27,8 @@ vrooli resource
 vrooli scenario
 ```
 
+These root commands are confirmed by the current CLI help surface.
+
 ## Orientation
 
 ```bash
@@ -67,11 +69,23 @@ Common commands:
 vrooli scenario list
 vrooli scenario info <name>
 vrooli scenario status <name>
+vrooli scenario validate-env <name>
 vrooli scenario start <name>
+vrooli scenario start-all
 vrooli scenario run <name>
+vrooli scenario setup <name>
+vrooli scenario restart <name>
+vrooli scenario stop <name>
+vrooli scenario stop-all
 vrooli scenario test <name>
 vrooli scenario logs <name>
 vrooli scenario open <name>
+vrooli scenario port <name>
+vrooli scenario ui-smoke <name>
+vrooli scenario requirements
+vrooli scenario template
+vrooli scenario generate <template> --id <slug> --display-name <name> --description <text>
+vrooli scenario completeness <name>
 ```
 
 Notes:
@@ -93,16 +107,30 @@ Common commands:
 vrooli resource list
 vrooli resource info <name>
 vrooli resource status
+vrooli resource validate
+vrooli resource install <name>
+vrooli resource uninstall <name>
 vrooli resource start <name>
+vrooli resource restart <name>
 vrooli resource start-all
 vrooli resource stop <name>
 vrooli resource stop-all
 vrooli resource logs <name>
 vrooli resource enable <name>
 vrooli resource disable <name>
+vrooli resource deprecate <name>
+vrooli resource list-deprecated
+vrooli resource archive-to-blueprint <name>
+vrooli resource list-blueprint-archived
+vrooli resource restore <name>
+vrooli resource restore-blueprint <name>
+vrooli resource archive
+vrooli resource blueprint
+vrooli resource template
+vrooli resource schema
 ```
 
-Additional resource administration commands exist for validation, deprecation, blueprints, templates, archive maintenance, and schema artifacts.
+These commands are part of the current CLI help surface, though some of them are more administrative than day-to-day.
 
 ## Package Governance
 
@@ -119,6 +147,8 @@ vrooli package list
 vrooli package info <name>
 vrooli package dependents <name>
 vrooli package validate
+vrooli package build <name>
+vrooli package generate <name>
 vrooli package refresh <name>
 vrooli package audit
 ```
@@ -164,6 +194,8 @@ make test
 make validate-repo-contract
 make validate-package-governance
 ```
+
+These targets are confirmed in the current root `Makefile`.
 
 For individual scenarios, the preferred lifecycle remains:
 

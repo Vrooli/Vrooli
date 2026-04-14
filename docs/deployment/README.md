@@ -1,87 +1,101 @@
 # Deployment Hub
 
-Vrooli deployment is no longer a single script that pushes containers. Every scenario has to be evaluated for *where* it will live, *which* resources must travel with it, and *how* secrets are provisioned. This hub replaces the legacy "package-and-ship" docs with a tiered model that matches reality today and the system we are building next.
+This section is the canonical entrypoint for project-level deployment guidance.
 
-## Why a Tiered Model?
+Vrooli does not currently have one uniform deployment story across every target. Deployment guidance has to distinguish clearly between:
 
-We validated during `scenario-to-desktop` that "build an Electron app" is useless unless the UI, API, resources, and CLI dependencies all come along for the ride. That failure exposed three immovable facts:
+- what is supported now
+- what is reference material
+- what is active planning or longer-range direction
 
-1. **The current local stack *is* a deployment tier.** Cloudflare tunnels + app-monitor already let us access every running scenario from anywhere.
-2. **Portability demands intelligence.** We have to understand dependency graphs, fitness for each platform, and offer swap suggestions before packaging.
-3. **Secrets behave differently per tier.** Infrastructure credentials cannot leave the mothership, whereas per-install service secrets must be generated anew.
+## Current Truth
 
-The hub orchestrates these ideas so future automation (deployment-manager) has a clear target.
+The current production-ready path is the Tier 1 local stack.
+
+That means:
+
+- a full Vrooli installation on infrastructure you control
+- scenario and resource lifecycle managed through the current `vrooli` CLI and scenario-local Makefiles
+- operator-controlled access patterns such as app-monitor and related remote-access surfaces where appropriate
+- local or dev-server style operation as the real current baseline
+
+For active operations on that path, use:
+
+- [../operations/production-guide.md](../operations/production-guide.md)
+- [../operations/logging.md](../operations/logging.md)
+- [../operations/troubleshooting.md](../operations/troubleshooting.md)
+
+## Why A Tiered Model Exists
+
+Vrooli needs a tiered deployment model because different targets have materially different constraints:
+
+- local stack deployments can rely on the full platform
+- portable bundles need dependency fitness, packaging, and runtime ownership
+- cloud or hosted installs need clearer server assumptions and secret handling
+- appliance-style deployments belong to strategy until they become real maintained offerings
+
+The tier model prevents project docs from pretending that every target is equally mature.
 
 ## Deployment Tiers
 
-| Tier | Description | Current Viability | Doc |
-|------|-------------|-------------------|-----|
-| 1 | Full Vrooli stack running locally or on a dev server, proxied through app-monitor + Cloudflare tunnel | ✅ Production ready for us today | [Production Operations Guide](../operations/production-guide.md) |
-| 2 | Portable desktop bundles (Windows/macOS/Linux) where UI + API + dependencies ship together | ⚠️ Thin client only today | [Desktop Bundle Readiness Plan](../plans/desktop-bundle-health-readiness-plan.md) |
-| 3 | Mobile packages (iOS/Android) | 🚧 Not started | [Roadmap](../strategy/roadmap.md) |
-| 4 | SaaS / Cloud installs (DigitalOcean, AWS, bare metal) | ⚠️ Requires dependency fitness + secret prep | [Kubernetes Infrastructure Reference](../devops/kubernetes.md) |
-| 5 | Enterprise / Hardware appliance deployments | 🧭 Vision stage | [Business Solutions](../strategy/business-solutions.md) |
-
-Each tier page captures **current state → gaps → roadmap** so we can coordinate scenario updates.
-
-## Scenario Orchestration Loop
-
-Deployment is a scenario in its own right:
-
-1. `deployment-manager` (future) drives the workflow.
-2. It queries `scenario-dependency-analyzer` to pull the full dependency DAG (resources *and* other scenarios) plus their metadata.
-3. It scores fitness for the requested tier, highlighting blockers and suggesting swaps.
-4. It coordinates with `secrets-manager` to classify/create secrets per tier.
-5. It triggers the appropriate `scenario-to-*` packager (desktop/mobile/cloud) to generate installers or remote bundles.
-6. When manual work is required (e.g., swapping Postgres → SQLite), it files `app-issue-tracker` tasks.
-
-That loop builds on the current scenario and operations docs:
-
-- [../scenarios/README.md](../scenarios/README.md)
-- [../operations/production-guide.md](../operations/production-guide.md)
+| Tier | Meaning | Status | Where To Read |
+|------|---------|--------|---------------|
+| 1 | Full local stack on a local machine or operator-controlled server | Canonical current path | [../operations/production-guide.md](../operations/production-guide.md) |
+| 2 | Portable desktop bundles carrying scenario runtime pieces together | Active planning; not general production canon | [../plans/desktop-bundle-health-readiness-plan.md](../plans/desktop-bundle-health-readiness-plan.md) |
+| 3 | Mobile delivery targets | Directional roadmap only | [../strategy/roadmap.md](../strategy/roadmap.md) |
+| 4 | Server-hosted or SaaS-style installs | Reference and planning, not a fully standardized project-wide path | [reference/server-deployment.md](reference/server-deployment.md) |
+| 5 | Enterprise or hardware-appliance style deployments | Strategic framing only | [../strategy/business-solutions.md](../strategy/business-solutions.md) |
 
 ## Current Deployment References
 
-- [../operations/production-guide.md](../operations/production-guide.md) — current operational baseline for Tier 1 environments
-- [reference/server-deployment.md](reference/server-deployment.md) — current server-oriented deployment guidance
-- [../devops/kubernetes.md](../devops/kubernetes.md) — historical and future-facing Kubernetes context
-- [storage.md](storage.md) — specialized bundle storage guidance for deployment-oriented scenarios
-- [../plans/desktop-bundle-health-readiness-plan.md](../plans/desktop-bundle-health-readiness-plan.md) — current desktop portability planning
-- [../plans/resource-cross-platform-migration-plan.md](../plans/resource-cross-platform-migration-plan.md) — cross-platform resource migration planning
+Use these according to their role:
 
-## Provider And Infrastructure Notes
+- [../operations/production-guide.md](../operations/production-guide.md): canonical Tier 1 operating baseline
+- [reference/server-deployment.md](reference/server-deployment.md): server-oriented deployment reference
+- [storage.md](storage.md): specialized bundle-storage reference
+- [../strategy/personal-ai-server.md](../strategy/personal-ai-server.md): exploratory infrastructure and appliance-style thinking
+- [../plans/desktop-bundle-health-readiness-plan.md](../plans/desktop-bundle-health-readiness-plan.md): active desktop portability planning
+- [../plans/resource-cross-platform-migration-plan.md](../plans/resource-cross-platform-migration-plan.md): active cross-platform resource migration planning
 
-Provider-specific deployment documentation has not yet been rebuilt into a canonical leaf set.
+## Deployment Intelligence Direction
 
-For now, use:
+The long-term deployment direction is still important, but it is not current operational truth.
 
-- [reference/server-deployment.md](reference/server-deployment.md) for current server assumptions
-- [../strategy/personal-ai-server.md](../strategy/personal-ai-server.md) for exploratory appliance-style thinking
-- [../strategy/business-solutions.md](../strategy/business-solutions.md) for the enterprise and appliance framing
+The intended future shape is:
 
-## Examples
+1. A deployment-aware scenario or control surface evaluates a target tier.
+2. It resolves the scenario dependency graph, including resources and other scenarios.
+3. It scores dependency fitness for the requested target.
+4. It determines what must be bundled, swapped, regenerated, or kept remote.
+5. It produces or drives the target-specific packaging or server rollout path.
 
-The deployment examples layer has not been rebuilt yet. Until it exists again, use live scenario docs plus the planning docs above rather than relying on missing case-study pages.
+That direction explains the planning docs, but it should not be read as a finished current deployment system.
 
-## Bundled Runtime Expectations (Desktop/Mobile/Cloud)
+## Bundles And Portability
 
-- Bundles must be manifest-driven: deployment-manager + scenario-dependency-analyzer emit a `bundle.json` encoding the full DAG, dependency swaps, per-OS binaries/assets, env templates, port ranges, health/readiness, data dirs, and secrets strategy (generate/prompt/remote).
-- A cross-platform runtime executable owns lifecycle, ports, health, logs, telemetry, and shutdown. UI shells (Electron, mobile bridges, cloud runners) only start the runtime and talk to it over a local control channel.
-- Heavy/shared resources must be swapped to bundleable equivalents (e.g., Postgres→SQLite/duckdb, Redis→in-process cache, browserless→bundled Playwright driver/Chromium, Ollama→packaged models) before inclusion.
-- Bundles carry migrations/seed data for swapped stores, keep data/logs under OS app data roots, and include a minimal `vrooli`-compatible shim for essentials like `scenario status/port`.
-- No infrastructure secrets ship in bundles; first-run UX collects or generates only what the manifest flags as local.
+For desktop, mobile, or cloud-oriented bundle work, keep these rules explicit:
 
-## Historical Docs
+- bundles are not the default deployment model today
+- heavy resources may need target-specific substitutions before packaging
+- secrets handling changes by deployment tier
+- runtime ownership, logs, data directories, and health checks must be defined by the target packaging flow rather than assumed
 
-Older package-and-ship material should be treated as historical reference only. It should not override the current tiered model or the current operational docs listed above.
+## Provider Notes
 
-## Roadmap Snapshot
+Provider-specific deployment guidance is still thin at the canonical layer.
 
-1. Document current truth (this hub + spokes). ✅
-2. Extend `service.json` with `deployment.platforms` metadata (fitness, requirements, alternatives). 🔄
-3. Upgrade `scenario-dependency-analyzer` to compute resource tallies and cascade fitness scores. 🔄
-4. Build the `deployment-manager` scenario UI (dependency visualization, swap tool, secret prep). 🔜
-5. Teach `scenario-to-desktop/mobile/cloud` to read deployment bundles produced by deployment-manager. 🔜
-6. Close the loop with app-issue-tracker automation for required swaps/migrations. 🔜
+If you need server-oriented assumptions today, start with:
 
-Until the automation exists, the docs act as the contract for how deployment *should* work, preventing another scenario-to-desktop surprise.
+- [reference/server-deployment.md](reference/server-deployment.md)
+- [../operations/production-guide.md](../operations/production-guide.md)
+
+Do not treat older package-and-ship or removed Kubernetes material as authoritative unless it is rebuilt into this section intentionally.
+
+## Historical And Planning Material
+
+Deployment docs elsewhere in the repository may still be useful, but they fall into two non-canonical classes:
+
+- reference material that helps reason about one deployment shape
+- planning material that describes target future behavior
+
+Those docs are valuable only when they are read with their status in mind.

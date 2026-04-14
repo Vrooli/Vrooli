@@ -170,6 +170,6 @@ Treat shared packages under `packages/` as governed assets with explicit adoptio
 
 ## Notes
 
-- Use [repo-contract.md](repo-contract.md) for structural rules.
-- Use [package-governance.md](package-governance.md) for shared-package policy.
+- Use [../repo-contract.md](../repo-contract.md) for structural rules.
+- Use [../package-governance.md](../package-governance.md) for shared-package policy.
 - Use [roadmap.md](roadmap.md) for current strategic direction.

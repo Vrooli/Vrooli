@@ -162,8 +162,8 @@ deploy_to_kubernetes() {
     deploy_version=$(get_version)
     
     local release_name="vrooli-$ENVIRONMENT"
-    local chart_path="k8s/chart"
-    local values_file="k8s/chart/values-${ENVIRONMENT}.yaml"
+    local chart_path="scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart"
+    local values_file="scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/values-${ENVIRONMENT}.yaml"
     
     echo "🚀 Deploying Vrooli to Kubernetes"
     echo "   Environment: $ENVIRONMENT"

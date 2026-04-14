@@ -50,4 +50,4 @@ These are the primary surfaces for resource-specific troubleshooting.
 ## Related
 
 - [troubleshooting.md](troubleshooting.md)
-- [development-environment.md](development-environment.md)
+- [../guides/development-environment.md](../guides/development-environment.md)

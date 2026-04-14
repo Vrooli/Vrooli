@@ -401,7 +401,7 @@ Vrooli is designed around local sovereignty, but deployment strategy depends on 
 See:
 
 - [docs/deployment/README.md](docs/deployment/README.md)
-- [docs/business-solutions.md](docs/business-solutions.md)
+- [docs/strategy/business-solutions.md](docs/strategy/business-solutions.md)
 
 ## License
 

@@ -1,5 +1,7 @@
 # Vrooli Helm Chart
 
+> **Status:** Historical reference only. This chart belongs to the retired full-stack Kubernetes deployment experiment and is not part of the current supported deployment workflow.
+
 This Helm chart deploys the Vrooli application stack to Kubernetes, including all microservices, databases, and supporting infrastructure.
 
 ## Prerequisites
@@ -35,8 +37,8 @@ Follow the [Legacy Vault Setup Guide](/docs/deployment/history/vault-legacy.md) 
 
 #### Development Deployment
 ```bash
-helm install vrooli k8s/chart/ \
-  --values k8s/chart/values-dev.yaml
+helm install vrooli scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/ \
+  --values scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/values-dev.yaml
 ```
 
 #### Production Deployment with AppRole Auth
@@ -45,8 +47,8 @@ helm install vrooli k8s/chart/ \
 ROLE_ID=$(vault read -field=role_id auth/approle/role/vso-role/role-id)
 
 # Deploy
-helm install vrooli k8s/chart/ \
-  --values k8s/chart/values-prod.yaml \
+helm install vrooli scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/ \
+  --values scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/values-prod.yaml \
   --set vaultAddr="http://vault.vault.svc.cluster.local:8200" \
   --set productionDomain="yourproductiondomain.com" \
   --set vso.appRoleId="$ROLE_ID" \
@@ -55,8 +57,8 @@ helm install vrooli k8s/chart/ \
 
 #### Production Deployment with Kubernetes Auth
 ```bash
-helm install vrooli k8s/chart/ \
-  --values k8s/chart/values-prod.yaml \
+helm install vrooli scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/ \
+  --values scenarios/deployment-manager/examples/legacy/k8s-full-stack/k8s/chart/values-prod.yaml \
   --set vaultAddr="http://vault.vault.svc.cluster.local:8200" \
   --set productionDomain="yourproductiondomain.com" \
   --set vso.k8sAuthMount="kubernetes-prod" \
@@ -161,5 +163,5 @@ kubectl delete pvc -l app.kubernetes.io/instance=vrooli
 
 - [Legacy Vault Setup Guide](/docs/deployment/history/vault-legacy.md)
 - [Complete Vault Setup Guide](/docs/scratch/vault-setup-complete-guide.md)
-- [Kubernetes Deployment Guide](/docs/devops/kubernetes.md)
-- [Environment Management](/docs/devops/environment-management.md)
+- [Deployment Hub](/docs/deployment/README.md)
+- [Environment Management](/docs/reference/environment-management.md)

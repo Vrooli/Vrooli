@@ -6,7 +6,7 @@ This page is reference-oriented.
 
 Use the Deployment Hub as the canonical source of deployment truth:
 
-- [../deployment/README.md](../deployment/README.md)
+- [../README.md](../README.md)
 
 This file should be read as supporting material for:
 
@@ -15,11 +15,14 @@ This file should be read as supporting material for:
 - hardening checklists
 - provider comparison notes
 
-It should not be treated as the canonical operational path unless the Deployment Hub points back here for a specific purpose.
+It should not be treated as the canonical operational path for Vrooli as a whole.
 
 ## Current Recommendation
 
-For current real deployments, think in terms of deployment tiers, with Tier 1 as the mature path today.
+For current real deployments, think in terms of deployment tiers:
+
+- Tier 1 is the mature path today
+- server-hosted and SaaS-style installs still need target-specific reasoning and should not be generalized too aggressively
 
 If you need:
 
@@ -39,4 +42,4 @@ There is still useful information here for:
 - infrastructure planning
 - operational background research
 
-But older package-and-ship assumptions should not be revived from this file.
+But older package-and-ship assumptions should not be revived from this file, and this page should not overrule the Deployment Hub or the Tier 1 operations docs.

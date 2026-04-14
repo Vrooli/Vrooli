@@ -29,6 +29,10 @@ These docs may still be useful for:
 - Migrating old deployments to new system
 - Reference when adding SaaS/enterprise tiers
 
+Related legacy implementation artifacts now live under:
+
+- `scenarios/deployment-manager/examples/legacy/k8s-full-stack/`
+
 ## Current Approach
 
 See the main [documentation hub](../README.md) for the current deployment system.

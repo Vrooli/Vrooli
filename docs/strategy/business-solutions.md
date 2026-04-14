@@ -71,7 +71,7 @@ Use this file for strategic framing only.
 
 For current implementation truth, use:
 
-- [README.md](README.md)
-- [QUICKSTART.md](QUICKSTART.md)
-- [concepts/ARCHITECTURE.md](concepts/ARCHITECTURE.md)
-- [deployment/README.md](deployment/README.md)
+- [../README.md](../README.md)
+- [../QUICKSTART.md](../QUICKSTART.md)
+- [../concepts/ARCHITECTURE.md](../concepts/ARCHITECTURE.md)
+- [../deployment/README.md](../deployment/README.md)

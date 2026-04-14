@@ -34,6 +34,7 @@ When bundle storage matters:
 - distinguish local cache paths from remote target paths
 - make retention rules explicit
 - avoid implying that bundle-based deployment is the universal default across tiers
+- keep Tier 1 operational storage assumptions separate from bundle-export storage assumptions
 
 For broader deployment guidance, start with:
 

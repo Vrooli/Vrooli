@@ -82,6 +82,6 @@ These are the preferred first-line tools for stale lock files, orphaned processe
 
 ## Related
 
-- [development-environment.md](development-environment.md)
+- [../guides/development-environment.md](../guides/development-environment.md)
 - [logging.md](logging.md)
 - [../deployment/README.md](../deployment/README.md)
