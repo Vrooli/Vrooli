@@ -135,21 +135,11 @@ postgis_install() {
     create_sample_data_standalone
     
     # Register CLI with Vrooli
-    local resource_dir="${APP_ROOT}/resources/postgis"
-    if [ -f "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh" ]; then
-        "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh" "${resource_dir}" 2>/dev/null || true
-    fi
-    
     # Verify installation
     local version
     version=$(docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -t -c "SELECT PostGIS_Version();" 2>/dev/null | xargs)
 
     if [ -n "$version" ]; then
-        # Register PostGIS CLI with vrooli
-        if [ -n "${var_SCRIPTS_RESOURCES_LIB_DIR:-}" ] && [ -f "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" ]; then
-            "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/postgis" 2>/dev/null || true
-        fi
-        
         # Start health server
         if [[ -f "${POSTGIS_INSTALL_LIB_DIR}/health.sh" ]]; then
             source "${POSTGIS_INSTALL_LIB_DIR}/health.sh"

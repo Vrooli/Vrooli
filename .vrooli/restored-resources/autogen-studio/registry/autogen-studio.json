@@ -1,9 +1,0 @@
-{
-  "name": "autogen-studio",
-  "command": "resource-autogen-studio",
-  "category": "resources",
-  "description": "Resource: autogen-studio",
-  "version": "1.0.0",
-  "path": "resources/autogen-studio/cli.sh",
-  "installed": "2025-08-25T18:01:05Z"
-}

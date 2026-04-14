@@ -204,23 +204,6 @@
         "startup_policy": "try_start",
         "purpose": "Store generated files for retrieval",
         "degraded_behavior": "Falls back to temporary filesystem storage"
-      },
-      "system-setup": {
-        "type": "custom",
-        "enabled": true,
-        "required": false,
-        "startup_policy": "ignore",
-        "description": "System dependencies and initialization scripts",
-        "initialization": [
-          {
-            "file": "initialization/startup.sh",
-            "type": "script"
-          },
-          {
-            "file": "initialization/dependencies.json",
-            "type": "config"
-          }
-        ]
       }
     }
   },

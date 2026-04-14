@@ -54,10 +54,6 @@ questdb::install::run() {
     # Show success message
     questdb::install::show_success
     
-    # Auto-install CLI if available
-    # shellcheck disable=SC1091
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/questdb" 2>/dev/null || true
-    
     return 0
 }
 

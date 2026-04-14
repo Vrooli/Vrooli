@@ -1,5 +1,0 @@
-{
-  "binary": "{{RESOURCE_NAME}}",
-  "version_command": "{{RESOURCE_NAME}} --version",
-  "config_dir": "~/.config/{{RESOURCE_NAME}}"
-}

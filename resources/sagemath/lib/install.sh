@@ -38,10 +38,6 @@ sagemath::install::execute() {
             sage -n jupyter --no-browser --ip='0.0.0.0' --port=8888
     fi
     
-    # Register CLI
-    echo "Registering SageMath CLI..."
-    "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh" "${APP_ROOT}/resources/sagemath" 2>/dev/null || true
-    
     # Create initial test script
     cat > "$SAGEMATH_SCRIPTS_DIR/test.sage" << 'EOF'
 # Test SageMath functionality
@@ -92,10 +88,6 @@ sagemath::install::uninstall() {
         echo "Removing SageMath container..."
         docker rm -f "$SAGEMATH_CONTAINER_NAME"
     fi
-    
-    # Unregister CLI
-    echo "Unregistering SageMath CLI..."
-    "${APP_ROOT}/scripts/lib/resources/uninstall-resource-cli.sh" sagemath
     
     echo "SageMath uninstallation complete"
     return 0

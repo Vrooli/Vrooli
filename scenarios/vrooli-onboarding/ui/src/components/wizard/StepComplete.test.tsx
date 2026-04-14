@@ -31,6 +31,35 @@ describe("StepComplete", () => {
     expect(screen.getByText(/configuration ready/i)).toBeInTheDocument();
   });
 
+  it("marks onboarding complete after config generation succeeds", async () => {
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(MOCK_CONFIG),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ status: "ok" }),
+      });
+
+    renderComponent(new Set(["postgres"]));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("config-output")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining("/api/v1/complete"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ user_id: "default" }),
+        }),
+      );
+    });
+  });
+
   it("shows error on API failure with alert role and message", async () => {
     mockFetchError();
     renderComponent(new Set(["postgres"]));

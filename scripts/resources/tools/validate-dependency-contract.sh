@@ -5,7 +5,6 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCENARIOS_DIR="${APP_ROOT}/scenarios"
 RESOURCES_DIR="${APP_ROOT}/resources"
-REGISTRY_DIR="${APP_ROOT}/.vrooli/resource-registry"
 
 failures=0
 
@@ -55,19 +54,6 @@ for file in "${scenario_files[@]}"; do
         fi
     done < <(jq -r '(.dependencies.resources // {} | keys[]?)' "${file}")
 done
-
-for resource in "${canonical_resources[@]}"; do
-    if [[ ! -f "${REGISTRY_DIR}/${resource}.json" ]]; then
-        info "resource '${resource}' exists under resources/ without a matching registry entry (registry is transitional metadata)"
-    fi
-done
-
-while IFS= read -r registry_file; do
-    registry_name="$(basename "${registry_file}" .json)"
-    if ! contains_exact "${registry_name}" "${canonical_resources[@]}"; then
-        info "registry entry '${registry_name}' exists without a matching resources/ directory (registry is transitional metadata)"
-    fi
-done < <(find "${REGISTRY_DIR}" -mindepth 1 -maxdepth 1 -name '*.json' | sort)
 
 if (( failures > 0 )); then
     printf 'Dependency contract validation failed with %d error(s).\n' "${failures}"

@@ -11,11 +11,9 @@
 
 </h1>
 
-# Your Personal Software Development Server
+# Your Personal AGI Server
 
-**Imagine having your own AI development team that works entirely on your hardware.**
-
-Vrooli is the first platform that lets you generate complete applications locally - UI, API, database, CLI - without sending your data to the cloud or depending on external services. Tell it what you want to build, and it creates working software in hours using 30+ local services running on your machine.
+Vrooli is a local, cross-platform, fully customizable, self-improving app ecosystem. Use AI agents to automatically build, test, and deploy entire app ecosystems from any device. Comes installed with a full development suite, including voice-assisted terminal, skills and teams management, project management, app templates, comprehensive tests suites, and much more.
 
 **🔒 Your Code. Your Data. Your Hardware. Your Control.**
 
@@ -23,8 +21,10 @@ Vrooli is the first platform that lets you generate complete applications locall
 
 ## 🚀 Quick Start
 
+> NOTE: While not necessary, it is recommended to run this on dedicated hardware
+
 ```bash
-# First time setup (installs CLI, configures resources)
+# First time setup
 make setup
 
 # Start development environment

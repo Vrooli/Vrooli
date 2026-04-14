@@ -207,21 +207,6 @@
   },
   "dependencies": {
     "resources": {
-      "windmill": {
-        "type": "windmill",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/metareasoning-orchestrator.json",
-            "type": "app"
-          },
-          {
-            "file": "initialization/automation/windmill/prompt-tester.json",
-            "type": "app"
-          }
-        ]
-      },
       "ollama": {
         "type": "ollama",
         "enabled": true,
@@ -254,12 +239,6 @@
         "enabled": true,
         "required": false,
         "purpose": "Vector database for semantic search of reasoning patterns, workflow templates, and decision history - enables AI-powered similarity matching and recommendation of relevant metareasoning strategies"
-      },
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
       }
     },
     "scenarios": {}

@@ -290,7 +290,7 @@ func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 		phaseTimeout:  defaultPhaseTimeout,
 		catalog:       phases.NewDefaultCatalog(defaultPhaseTimeout),
 		requirements:  requirements.NewNodeSyncer(filepath.Dir(absRoot)),
-		phaseToggles:  newPhaseToggleStore(filepath.Dir(absRoot)),
+		phaseToggles:  newPhaseToggleStore(),
 	}, nil
 }
 

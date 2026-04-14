@@ -1,5 +1,0 @@
-{
-  "base_url": "https://api.example.com",
-  "auth_strategy": "api-key",
-  "secret_ref": "replace/me"
-}

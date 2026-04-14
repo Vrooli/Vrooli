@@ -11,6 +11,7 @@ import {
   fetchResources,
   fetchProgress,
   updateProgress,
+  completeOnboarding,
   generateConfig,
   validateConfig,
   fetchResourceHealth,
@@ -180,6 +181,23 @@ describe("api", () => {
         expect.objectContaining({
           method: "PUT",
           body: JSON.stringify({ user_id: "default", current_step: 3, completed_steps: [0, 1, 2], config_data: { key: "val" } }),
+        }),
+      );
+    });
+  });
+
+  describe("completeOnboarding", () => {
+    it("sends POST with default user_id", async () => {
+      const completed = { status: "ok", user_id: "default", completed_at: "2026-04-14T15:04:05Z", config_path: "/tmp/config.json" };
+      mockFetch(completed);
+
+      const result = await completeOnboarding();
+      expect(result).toEqual(completed);
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "http://localhost:9999/api/v1/complete",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ user_id: "default" }),
         }),
       );
     });

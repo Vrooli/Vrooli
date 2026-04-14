@@ -47,6 +47,14 @@ export function updateProgress(data: {
   });
 }
 
+export function completeOnboarding() {
+  const url = buildApiUrl("/complete", { baseUrl: API_BASE });
+  return typedFetch<{ status: string; user_id: string; completed_at: string; config_path: string }>(url, {
+    method: "POST",
+    body: JSON.stringify({ user_id: "default" }),
+  });
+}
+
 export function generateConfig(resources: string[]) {
   const url = buildApiUrl("/config/generate", { baseUrl: API_BASE });
   return typedFetch<Record<string, unknown>>(url, {

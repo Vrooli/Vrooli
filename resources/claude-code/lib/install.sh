@@ -77,13 +77,6 @@ claude_code::install() {
             log::warn "⚠️  Failed to update resource configuration"
         fi
         
-        # Install CLI command
-        if "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${CLAUDE_CODE_SCRIPT_DIR:-${APP_ROOT}/resources/claude-code}" 2>/dev/null; then
-            log::success "✓ CLI command 'resource-claude-code' installed"
-        else
-            log::warn "⚠️  CLI installation failed (non-critical)"
-        fi
-        
         # Show next steps
         claude_code::install_next_steps
         

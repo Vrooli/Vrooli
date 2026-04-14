@@ -35,8 +35,8 @@ resource-ollama list-models
 - **Installation/Start/Stop/Status (CLI)**: `vrooli resource <install|start|stop|status> <name>`
 - **Resource-specific CLIs**: `resource-<name> <command>` (e.g., `resource-ollama list-models`)
 - **Configuration**: `~/.vrooli/service.json`
-- **Validation**: Three-layer testing system (`./tools/validate-interfaces.sh`)
-- **Compliance**: Auto-fix interface issues (`./tools/fix-interface-compliance.sh`)
+- **Validation**: Universal contract validation (`./tools/validate-universal-contract.sh`)
+- **Dependency Contract Audit**: Scenario/resource dependency validation (`./tools/validate-dependency-contract.sh`)
 
 > **Note on CLI Installation**: Resource-specific CLIs (like `resource-ollama`) are automatically installed to `~/.local/bin/` when resources are set up. These provide direct access to resource functionality alongside the main `vrooli resource` commands.
 

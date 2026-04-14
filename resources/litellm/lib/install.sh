@@ -7,8 +7,6 @@ LITELLM_INSTALL_DIR="${APP_ROOT}/resources/litellm/lib"
 # Source dependencies
 source "${LITELLM_INSTALL_DIR}/core.sh"
 source "${LITELLM_INSTALL_DIR}/docker.sh"
-source "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh"
-
 # Install LiteLLM resource - wrapper for CLI v2.0 contract
 litellm::install::execute() {
     litellm::install "$@"
@@ -47,13 +45,6 @@ litellm::install() {
         log::error "Failed to pull LiteLLM Docker image"
         return 1
     fi
-    
-    # Install CLI
-    [[ "$verbose" == "true" ]] && log::info "Installing LiteLLM CLI"
-    install_resource_cli "litellm" "${LITELLM_RESOURCE_DIR}/cli.sh" || {
-        log::error "Failed to install LiteLLM CLI"
-        return 1
-    }
     
     # Start the service
     [[ "$verbose" == "true" ]] && log::info "Starting LiteLLM service"
@@ -101,10 +92,6 @@ litellm::uninstall() {
         [[ "$verbose" == "true" ]] && log::info "Removing data directories"
         rm -rf "$LITELLM_CONFIG_DIR" "$LITELLM_LOG_DIR" "$LITELLM_DATA_DIR"
     fi
-    
-    # Remove CLI
-    [[ "$verbose" == "true" ]] && log::info "Removing LiteLLM CLI"
-    uninstall_resource_cli "litellm" || true
     
     [[ "$verbose" == "true" ]] && log::info "LiteLLM uninstalled successfully"
     return 0

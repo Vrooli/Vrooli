@@ -1,7 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, CheckCircle2, AlertCircle, Copy, Check, Download, RotateCcw } from "lucide-react";
-import { generateConfig } from "../../lib/api";
+import { completeOnboarding, generateConfig } from "../../lib/api";
 import { formatQueryError } from "../../lib/formatQueryError";
 import { useConfirmAction } from "../../hooks/useConfirmAction";
 import { Button } from "../ui/button";
@@ -13,6 +13,7 @@ interface StepCompleteProps {
 
 export function StepComplete({ selected, onStartOver }: StepCompleteProps) {
   const [copied, setCopied] = useState(false);
+  const completionHandshakeSentRef = useRef(false);
   const { confirming: confirmingStartOver, requestConfirm, confirm: confirmStartOver, cancel: cancelStartOver } =
     useConfirmAction(onStartOver ?? (() => {}));
 
@@ -27,6 +28,16 @@ export function StepComplete({ selected, onStartOver }: StepCompleteProps) {
   const error = formatQueryError(queryError, "Failed to generate config");
 
   const configText = useMemo(() => config ? JSON.stringify(config, null, 2) : "", [config]);
+
+  useEffect(() => {
+    if (completionHandshakeSentRef.current || loading || error || !config || resourcesList.length === 0) {
+      return;
+    }
+    completionHandshakeSentRef.current = true;
+    completeOnboarding().catch(() => {
+      // Completion syncing is best-effort; keep the happy path UI unblocked.
+    });
+  }, [config, error, loading, resourcesList.length]);
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(configText).then(() => {

@@ -243,21 +243,6 @@
         "enabled": true,
         "required": false,
         "purpose": "Vector database for semantic similarity of injection techniques - enables clustering and discovery of related attack patterns"
-      },
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/security-sandbox.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/injection-tester.json",
-            "type": "workflow"
-          }
-        ]
       }
     }
   }

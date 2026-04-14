@@ -18,12 +18,6 @@ openrouter::install() {
     # OpenRouter is an API service, no local installation needed
     # Just ensure configuration is set up
     
-    # Register CLI (v2.0 contract)
-    local cli_installer="${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh"
-    if [[ -f "$cli_installer" ]]; then
-        "$cli_installer" "${APP_ROOT}/resources/openrouter"
-    fi
-    
     # Try to get API key from user if not already configured
     if [[ -z "$OPENROUTER_API_KEY" ]]; then
         # Check Vault first
@@ -62,23 +56,6 @@ openrouter::install() {
     if [[ "$OPENROUTER_API_KEY" == "sk-placeholder-key" ]]; then
         [[ "$verbose" == "true" ]] && log::info "OpenRouter configured with placeholder key"
         
-        # Register the resource as configured (not fully running)
-        local registry_file="${var_ROOT_DIR}/.vrooli/resource-registry/openrouter.json"
-        mkdir -p "${registry_file%/*}"
-        
-        cat > "$registry_file" <<EOF
-{
-    "name": "openrouter",
-    "category": "ai",
-    "type": "api",
-    "enabled": true,
-    "status": "configured",
-    "api_base": "$OPENROUTER_API_BASE",
-    "note": "Placeholder key installed - replace with real API key for full functionality",
-    "installed_at": "$(date -Iseconds)"
-}
-EOF
-        
         # Also create/update the credentials file for consistency
         local creds_file="${var_ROOT_DIR}/data/credentials/openrouter-credentials.json"
         cat > "$creds_file" <<EOF
@@ -99,22 +76,6 @@ EOF
     # Test the connection for real keys
     if openrouter::test_connection; then
         [[ "$verbose" == "true" ]] && log::success "OpenRouter API is accessible"
-        
-        # Register the resource as running
-        local registry_file="${var_ROOT_DIR}/.vrooli/resource-registry/openrouter.json"
-        mkdir -p "${registry_file%/*}"
-        
-        cat > "$registry_file" <<EOF
-{
-    "name": "openrouter",
-    "category": "ai",
-    "type": "api",
-    "enabled": true,
-    "status": "running",
-    "api_base": "$OPENROUTER_API_BASE",
-    "installed_at": "$(date -Iseconds)"
-}
-EOF
         
         # Also create/update the credentials file
         local creds_file="${var_ROOT_DIR}/data/credentials/openrouter-credentials.json"
@@ -141,9 +102,6 @@ openrouter::uninstall() {
     local verbose="${1:-false}"
     
     [[ "$verbose" == "true" ]] && log::info "Uninstalling OpenRouter resource..."
-    
-    # Remove registry entry
-    rm -f "${var_ROOT_DIR}/.vrooli/resource-registry/openrouter.json"
     
     # Note: We don't remove the API key from Vault as it might be used elsewhere
     

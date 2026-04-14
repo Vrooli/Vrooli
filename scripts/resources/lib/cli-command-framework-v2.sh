@@ -761,8 +761,8 @@ cli::_handle_info() {
         esac
     done
     
-    # Load runtime configuration from config/runtime.json
-    local runtime_json="${APP_ROOT}/resources/${CLI_RESOURCE_NAME}/config/runtime.json"
+    # Load orchestration metadata from resource.json
+    local manifest_json="${APP_ROOT}/resources/${CLI_RESOURCE_NAME}/resource.json"
     local startup_order=500  # default
     local startup_time="unknown"
     local startup_timeout=30
@@ -770,20 +770,19 @@ cli::_handle_info() {
     local priority="medium"
     local dependencies=()
     
-    if [[ -f "$runtime_json" ]]; then
-        # Extract values from runtime.json
-        startup_order=$(jq -r '.startup_order // 500' "$runtime_json" 2>/dev/null || echo "500")
-        startup_time=$(jq -r '.startup_time_estimate // "unknown"' "$runtime_json" 2>/dev/null || echo "unknown")
-        startup_timeout=$(jq -r '.startup_timeout // 30' "$runtime_json" 2>/dev/null || echo "30")
-        recovery_attempts=$(jq -r '.recovery_attempts // 2' "$runtime_json" 2>/dev/null || echo "2")
-        priority=$(jq -r '.priority // "medium"' "$runtime_json" 2>/dev/null || echo "medium")
+    if [[ -f "$manifest_json" ]]; then
+        startup_order=$(jq -r '.orchestration.startup_order // 500' "$manifest_json" 2>/dev/null || echo "500")
+        startup_time=$(jq -r '.orchestration.startup_time_estimate // "unknown"' "$manifest_json" 2>/dev/null || echo "unknown")
+        startup_timeout=$(jq -r '.orchestration.startup_timeout_seconds // 30' "$manifest_json" 2>/dev/null || echo "30")
+        recovery_attempts=$(jq -r '.orchestration.recovery_attempts // 2' "$manifest_json" 2>/dev/null || echo "2")
+        priority=$(jq -r '.orchestration.priority // "medium"' "$manifest_json" 2>/dev/null || echo "medium")
         
         # Extract dependencies array
-        if [[ -f "$runtime_json" ]] && jq -e '.dependencies' "$runtime_json" >/dev/null 2>&1; then
-            readarray -t dependencies < <(jq -r '.dependencies[]' "$runtime_json" 2>/dev/null)
+        if jq -e '.orchestration.dependencies' "$manifest_json" >/dev/null 2>&1; then
+            readarray -t dependencies < <(jq -r '.orchestration.dependencies[]' "$manifest_json" 2>/dev/null)
         fi
     else
-        log::debug "No runtime.json found at $runtime_json, using defaults"
+        log::debug "No resource.json found at $manifest_json, using defaults"
     fi
     
     if [[ "$output_format" == "json" ]]; then

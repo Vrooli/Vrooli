@@ -38,6 +38,12 @@
       }
     ]
   },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific dependency settings for {{RESOURCE_NAME}}.",
+    "properties": {},
+    "additionalProperties": false
+  },
   "environment_exports": {
     "static": {
       "{{RESOURCE_ENV_PREFIX}}_HOST": "localhost"
@@ -52,9 +58,18 @@
       }
     }
   },
+  "orchestration": {
+    "startup_order": 500,
+    "startup_timeout_seconds": 30,
+    "startup_time_estimate": "5-15s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
   "lifecycle": {
     "start_timeout_seconds": 30,
     "stop_timeout_seconds": 30,
     "retries": 2
-  }
+  },
+  "template_version": "2"
 }

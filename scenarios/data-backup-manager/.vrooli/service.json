@@ -189,29 +189,6 @@
           }
         ]
       },
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/backup-orchestrator.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/backup-scheduler.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/backup-validator.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/backup-monitor.json",
-            "type": "workflow"
-          }
-        ]
-      },
       "minio": {
         "type": "minio",
         "enabled": true,

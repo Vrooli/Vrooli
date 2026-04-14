@@ -134,10 +134,6 @@ searxng::install() {
         log::warn "WARNING: Instance is accessible from all network interfaces"
     fi
     
-    # Auto-install CLI if available
-    # shellcheck disable=SC1091
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/searxng" 2>/dev/null || true
-    
     return 0
 }
 

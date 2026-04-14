@@ -10,17 +10,9 @@ RESOURCE_NAME="cloudflare-ai-gateway"
 
 # Source utilities
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
-source "${APP_ROOT}/scripts/lib/utils/install-resource-cli.sh"
-
 # Install the resource
 install_cloudflare_ai_gateway() {
     echo "Installing Cloudflare AI Gateway resource..."
-    
-    # Register CLI
-    if ! install_resource_cli "${RESOURCE_NAME}" "${RESOURCE_DIR}/cli.sh"; then
-        echo "Error: Failed to register CLI" >&2
-        return 1
-    fi
     
     # Initialize data directory
     local data_dir="${var_DATA_DIR}/resources/cloudflare-ai-gateway"
@@ -83,9 +75,6 @@ install_cloudflare_ai_gateway() {
 # Uninstall the resource
 uninstall_cloudflare_ai_gateway() {
     echo "Uninstalling Cloudflare AI Gateway resource..."
-    
-    # Unregister CLI
-    uninstall_resource_cli "${RESOURCE_NAME}"
     
     echo "✓ Cloudflare AI Gateway resource uninstalled"
     echo "Note: Data directory preserved at: ${var_DATA_DIR}/resources/cloudflare-ai-gateway"

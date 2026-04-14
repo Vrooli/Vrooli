@@ -293,9 +293,6 @@ qdrant::display_connection_info() {
     echo "   Data Dir:  $QDRANT_DATA_DIR"
     echo
     
-    # Auto-install CLI if available
-    # shellcheck disable=SC1091
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/qdrant" 2>/dev/null || true
 }
 
 #######################################
@@ -1188,4 +1185,3 @@ qdrant::install::reset_configuration() {
         return 1
     fi
 }
-

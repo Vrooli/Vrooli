@@ -217,54 +217,6 @@
   },
   "dependencies": {
     "resources": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "shared_workflows": [
-          "ollama",
-          "embedding-generator",
-          "semantic-search",
-          "structured-data-extractor",
-          "chain-of-thought-orchestrator",
-          "react-loop-engine",
-          "smart-semantic-search"
-        ],
-        "initialization": [
-          {
-            "file": "initialization/n8n/note-processor.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/smart-tagging.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/note-search.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/daily-summary.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/smart-suggestions.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/intelligent-note-analyzer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/intelligent-note-linker.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/note-to-mindmap.json",
-            "type": "workflow"
-          }
-        ]
-      },
       "postgres": {
         "type": "postgres",
         "enabled": true,

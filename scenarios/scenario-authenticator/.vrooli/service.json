@@ -267,13 +267,6 @@
             "type": "script"
           }
         ]
-      },
-      "mailpit": {
-        "type": "mailpit",
-        "enabled": false,
-        "required": false,
-        "purpose": "Email sending for password reset and verification",
-        "fallback": "Log email content to console"
       }
     }
   }

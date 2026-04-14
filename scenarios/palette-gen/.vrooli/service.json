@@ -61,8 +61,13 @@
       "name": "bats",
       "required": false,
       "reason": "Execute CLI smoke tests from the retained palette-gen shell test harness",
-      "when": ["setup", "test"],
-      "environments": ["development"],
+      "when": [
+        "setup",
+        "test"
+      ],
+      "environments": [
+        "development"
+      ],
       "notes": "CLI test harnesses are skipped cleanly when bats is unavailable"
     }
   ],
@@ -224,25 +229,6 @@
   },
   "dependencies": {
     "resources": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/palette-generator.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/color-harmony-analyzer.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/accessibility-checker.json",
-            "type": "workflow"
-          }
-        ]
-      },
       "ollama": {
         "type": "ollama",
         "enabled": true,

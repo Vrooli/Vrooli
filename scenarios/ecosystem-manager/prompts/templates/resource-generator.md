@@ -688,19 +688,17 @@ Proper task completion transforms your scaffolding work into permanent ecosystem
 - `credentials` - Display integration credentials (optional)
 
 ### Required Files
-- `cli.sh` - Primary CLI entrypoint
-- `lib/core.sh` - Core functionality
-- `lib/test.sh` - Test implementations  
-- `config/defaults.sh` - Default configuration
-- `config/schema.json` - Configuration schema
-- `config/runtime.json` - Runtime behavior and dependencies
+- `resource.json` - Canonical manifest for runtime, dependency schema, orchestration, and env exports
+- `cli.sh` - Compatibility CLI entrypoint when shell support is still required
+- `lib/core.sh` - Compatibility shell functionality
+- `lib/test.sh` - Test implementations
 - `test/run-tests.sh` - Main test runner
 - `test/phases/test-smoke.sh` - Quick health validation
 - `test/phases/test-integration.sh` - End-to-end functionality
 - `test/phases/test-unit.sh` - Library function validation
 
 ### Critical Requirements
-1. **Runtime Configuration** - Must define startup_order, dependencies, timeouts
+1. **Manifest Configuration** - `resource.json.orchestration` must define startup_order, dependencies, and timeouts
 2. **Health Validation** - Smoke tests must complete in <30s
 3. **Standard Exit Codes** - 0=success, 1=error, 2=not-applicable
 4. **Timeout Handling** - All operations must have timeout limits
@@ -711,9 +709,9 @@ Proper task completion transforms your scaffolding work into permanent ecosystem
 
 ## Common Compliance Issues
 
-### ❌ Missing Runtime Config
+### ❌ Missing Orchestration Metadata
 ```bash
-# Must exist: config/runtime.json
+# Must exist in: resource.json.orchestration
 {
   "startup_order": 500,
   "dependencies": ["postgres"],

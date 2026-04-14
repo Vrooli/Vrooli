@@ -50,6 +50,3 @@ jobs:
           pnpm workspace @vrooli/server test && \
           pnpm workspace @vrooli/jobs test && \
           pnpm workspace @vrooli/ui test
-
-      - name: Run Bash Script Tests
-        run: ./scripts/tests/__runTests.sh

@@ -707,64 +707,104 @@ _load_resource_environment() {
     while IFS= read -r resource_name; do
         [[ -z "$resource_name" ]] && continue
 
-        # Try exports.sh first (new v2.0 format), fallback to defaults.sh (legacy format)
-        local exports_file="${APP_ROOT}/resources/${resource_name}/config/exports.sh"
-        if [[ ! -f "$exports_file" ]]; then
-            exports_file="${APP_ROOT}/resources/${resource_name}/config/defaults.sh"
-        fi
+        local manifest_file="${APP_ROOT}/resources/${resource_name}/resource.json"
+        local defaults_file="${APP_ROOT}/resources/${resource_name}/config/defaults.sh"
+        local resource_env="{}"
 
-        if [[ -f "$exports_file" ]]; then
-            # Source the exports file in subshell and capture environment
-            local resource_env
+        if [[ -f "$manifest_file" ]] && jq -e '
+            (.environment_exports.static // {} | length) > 0 or
+            (.environment_exports.from_ports // {} | length) > 0 or
+            (.environment_exports.from_runtime_env // [] | length) > 0 or
+            (.environment_exports.derived // {} | length) > 0
+        ' "$manifest_file" >/dev/null 2>&1; then
             resource_env=$(
-                # Temporarily suppress debug output
                 export DEBUG="${DEBUG:-false}"
-
-                # Source the exports file in clean environment
+                export APP_ROOT="${APP_ROOT}"
+                export VROOLI_DATA="${VROOLI_DATA:-${APP_ROOT}/.vrooli}"
                 (
-                    # Source secrets management library if available (needed for defaults.sh files)
+                    declare -A exported_keys=()
+
                     if [[ -f "${APP_ROOT}/scripts/lib/service/secrets.sh" ]]; then
                         source "${APP_ROOT}/scripts/lib/service/secrets.sh" 2>/dev/null || true
                     fi
 
-                    # For defaults.sh files, pre-load secrets before sourcing
-                    # This ensures variables like OPENROUTER_API_KEY get their values from secrets.json
-                    if [[ "$exports_file" == */defaults.sh ]]; then
-                        # Load common secret patterns for this resource
-                        local resource_upper=$(echo "$resource_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
-                        if declare -f secrets::resolve &>/dev/null; then
-                            # Try to resolve API key (common pattern)
-                            local api_key_var="${resource_upper}_API_KEY"
-                            local api_key_value
-                            api_key_value=$(secrets::resolve "${api_key_var}" 2>/dev/null || echo "")
-                            if [[ -n "$api_key_value" ]]; then
-                                export "${api_key_var}=${api_key_value}"
-                            fi
+                    resource_upper=$(echo "$resource_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+                    if declare -f secrets::resolve &>/dev/null; then
+                        api_key_var="${resource_upper}_API_KEY"
+                        api_key_value=$(secrets::resolve "${api_key_var}" 2>/dev/null || echo "")
+                        if [[ -n "$api_key_value" ]]; then
+                            export "${api_key_var}=${api_key_value}"
                         fi
                     fi
 
-                    # Source the exports file
-                    source "$exports_file" 2>/dev/null || exit 1
+                    while IFS=$'\t' read -r key value; do
+                        [[ -z "$key" ]] && continue
+                        export "${key}=${value}"
+                        exported_keys["$key"]=1
+                    done < <(jq -r '.environment_exports.static // {} | to_entries[] | [.key, (.value | tostring)] | @tsv' "$manifest_file")
 
-                    # Export all variables that match common patterns
-                    env | grep -E "^(${resource_name^^}_|$(echo "$resource_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')_)" | while IFS='=' read -r key value; do
-                        # Escape value for JSON (handle empty values correctly)
-                        # Note: Cannot use 'local' here - we're in a subshell, not a function
-                        escaped_value=""
-                        if [[ -z "$value" ]]; then
-                            escaped_value='""'  # Empty string in JSON
-                        else
-                            escaped_value=$(printf '%s' "$value" | jq -R .)
+                    while IFS=$'\t' read -r key port_name; do
+                        [[ -z "$key" || -z "$port_name" ]] && continue
+                        host_port=$(jq -r --arg name "$port_name" '.ports[]? | select(.name == $name) | (.host // .container // empty)' "$manifest_file" | head -1)
+                        [[ -z "$host_port" || "$host_port" == "null" ]] && continue
+                        export "${key}=${host_port}"
+                        exported_keys["$key"]=1
+                    done < <(jq -r '.environment_exports.from_ports // {} | to_entries[] | [.key, .value] | @tsv' "$manifest_file")
+
+                    while IFS= read -r key; do
+                        [[ -z "$key" ]] && continue
+                        current_value="${!key-}"
+                        if [[ -z "$current_value" ]]; then
+                            current_value=$(jq -r --arg key "$key" '.runtime.env[$key] // empty' "$manifest_file")
                         fi
-                        printf '"%s": %s,' "$key" "$escaped_value"
+                        export "${key}=${current_value}"
+                        exported_keys["$key"]=1
+                    done < <(jq -r '.environment_exports.from_runtime_env // [] | .[]' "$manifest_file")
+
+                    while IFS=$'\t' read -r key template; do
+                        [[ -z "$key" ]] && continue
+                        resolved=$(eval "printf '%s' \"$template\"")
+                        export "${key}=${resolved}"
+                        exported_keys["$key"]=1
+                    done < <(jq -r '.environment_exports.derived // {} | to_entries[] | [.key, (.value.template // "")] | @tsv' "$manifest_file")
+
+                    json="{}"
+                    for key in "${!exported_keys[@]}"; do
+                        json=$(printf '%s' "$json" | jq --arg key "$key" --arg value "${!key-}" '. + {($key): $value}')
                     done
-                ) 2>/dev/null | sed '$ s/,$//'  # Remove last comma
+                    printf '%s' "$json"
+                ) 2>/dev/null
             )
-            
-            if [[ -n "$resource_env" ]]; then
-                # Merge into combined environment
-                combined_env=$(echo "$combined_env" | jq ". + {$resource_env}")
-            fi
+        elif [[ -f "$defaults_file" ]]; then
+            resource_env=$(
+                export DEBUG="${DEBUG:-false}"
+                (
+                    if [[ -f "${APP_ROOT}/scripts/lib/service/secrets.sh" ]]; then
+                        source "${APP_ROOT}/scripts/lib/service/secrets.sh" 2>/dev/null || true
+                    fi
+
+                    resource_upper=$(echo "$resource_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+                    if declare -f secrets::resolve &>/dev/null; then
+                        api_key_var="${resource_upper}_API_KEY"
+                        api_key_value=$(secrets::resolve "${api_key_var}" 2>/dev/null || echo "")
+                        if [[ -n "$api_key_value" ]]; then
+                            export "${api_key_var}=${api_key_value}"
+                        fi
+                    fi
+
+                    source "$defaults_file" 2>/dev/null || exit 1
+
+                    json="{}"
+                    while IFS='=' read -r key value; do
+                        json=$(printf '%s' "$json" | jq --arg key "$key" --arg value "$value" '. + {($key): $value}')
+                    done < <(env | grep -E "^(${resource_name^^}_|$(echo "$resource_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')_)")
+                    printf '%s' "$json"
+                ) 2>/dev/null
+            )
+        fi
+
+        if [[ -n "$resource_env" && "$resource_env" != "{}" ]]; then
+            combined_env=$(echo "$combined_env" | jq ". + $resource_env")
         fi
         
     done <<< "$enabled_resources"

@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -184,6 +186,7 @@ func newRouterForTest(srv *Server) *mux.Router {
 	r := mux.NewRouter()
 	r.HandleFunc("/api/v1/progress", srv.handleGetProgress).Methods("GET")
 	r.HandleFunc("/api/v1/progress", srv.handleUpdateProgress).Methods("PUT")
+	r.HandleFunc("/api/v1/complete", srv.handleCompleteOnboarding).Methods("POST")
 	return r
 }
 
@@ -367,5 +370,110 @@ func TestProgressUpsertOverwrite(t *testing.T) {
 	}
 	if getResp.CurrentStep != 5 {
 		t.Errorf("GET CurrentStep = %d, want 5", getResp.CurrentStep)
+	}
+}
+
+func TestCompleteOnboardingMarksSharedConfig(t *testing.T) {
+	originalHomeDirFn := userHomeDirFn
+	originalCompleteNowFn := completeNowFn
+	defer func() {
+		userHomeDirFn = originalHomeDirFn
+		completeNowFn = originalCompleteNowFn
+	}()
+
+	home := t.TempDir()
+	userHomeDirFn = func() (string, error) { return home, nil }
+	completeNowFn = func() time.Time { return time.Date(2026, 4, 14, 15, 4, 5, 0, time.UTC) }
+
+	srv := &Server{}
+	router := newRouterForTest(srv)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/complete", strings.NewReader(`{"user_id":"default"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("POST status = %d, want %d; body: %s", w.Code, http.StatusOK, w.Body.String())
+	}
+
+	path := filepath.Join(home, ".vrooli", "config.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	var cfg onboardingConfigState
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal config: %v", err)
+	}
+	if !cfg.Onboarding.Completed {
+		t.Fatal("expected onboarding.completed to be true")
+	}
+	if cfg.Onboarding.PromptedAt != "2026-04-14T15:04:05Z" {
+		t.Fatalf("PromptedAt = %q", cfg.Onboarding.PromptedAt)
+	}
+	if cfg.Onboarding.Skipped {
+		t.Fatal("expected onboarding.skipped to be false")
+	}
+}
+
+func TestCompleteOnboardingPreservesExistingAutoOpenState(t *testing.T) {
+	originalHomeDirFn := userHomeDirFn
+	originalCompleteNowFn := completeNowFn
+	defer func() {
+		userHomeDirFn = originalHomeDirFn
+		completeNowFn = originalCompleteNowFn
+	}()
+
+	home := t.TempDir()
+	userHomeDirFn = func() (string, error) { return home, nil }
+	completeNowFn = func() time.Time { return time.Date(2026, 4, 14, 15, 4, 5, 0, time.UTC) }
+
+	autoOpen := false
+	configPath := filepath.Join(home, ".vrooli", "config.json")
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+		t.Fatalf("mkdir config dir: %v", err)
+	}
+	initial, err := json.Marshal(onboardingConfigState{
+		Onboarding: onboardingLifecycleState{
+			AutoOpen:   &autoOpen,
+			PromptedAt: "2026-04-10T01:02:03Z",
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal initial config: %v", err)
+	}
+	if err := os.WriteFile(configPath, initial, 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	srv := &Server{}
+	router := newRouterForTest(srv)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/complete", strings.NewReader(`{"user_id":"default"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("POST status = %d, want %d; body: %s", w.Code, http.StatusOK, w.Body.String())
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	var cfg onboardingConfigState
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal config: %v", err)
+	}
+	if cfg.Onboarding.AutoOpen == nil || *cfg.Onboarding.AutoOpen {
+		t.Fatalf("AutoOpen = %#v, want false", cfg.Onboarding.AutoOpen)
+	}
+	if cfg.Onboarding.PromptedAt != "2026-04-10T01:02:03Z" {
+		t.Fatalf("PromptedAt = %q", cfg.Onboarding.PromptedAt)
+	}
+	if !cfg.Onboarding.Completed {
+		t.Fatal("expected onboarding.completed to be true")
 	}
 }

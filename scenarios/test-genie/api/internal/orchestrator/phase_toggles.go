@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // PhaseToggle represents a global toggle state for a phase, applied across all scenarios.
@@ -26,14 +27,35 @@ type PhaseToggleConfig struct {
 }
 
 type phaseToggleStore struct {
-	path string
-	mu   sync.Mutex
+	resolver *storage.Resolver
+	mu       sync.Mutex
 }
 
-func newPhaseToggleStore(projectRoot string) *phaseToggleStore {
-	return &phaseToggleStore{
-		path: filepath.Join(projectRoot, ".vrooli", "test-genie-phase-toggles.json"),
+const (
+	phaseToggleScenarioID = "test-genie"
+	phaseToggleFilename   = "phase-toggles.json"
+)
+
+func newPhaseToggleStore() *phaseToggleStore {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return nil
 	}
+	return &phaseToggleStore{resolver: resolver}
+}
+
+func (s *phaseToggleStore) path() (string, error) {
+	if s == nil || s.resolver == nil {
+		return "", nil
+	}
+	return s.resolver.Path(
+		storage.Options{ScenarioID: phaseToggleScenarioID},
+		storage.ClassConfig,
+		phaseToggleFilename,
+	)
 }
 
 func (s *phaseToggleStore) Load() (PhaseToggleConfig, error) {
@@ -45,7 +67,11 @@ func (s *phaseToggleStore) Load() (PhaseToggleConfig, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	data, err := os.ReadFile(s.path)
+	path, err := s.path()
+	if err != nil {
+		return cfg, fmt.Errorf("resolve phase toggle path: %w", err)
+	}
+	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return cfg, nil
@@ -69,15 +95,16 @@ func (s *phaseToggleStore) Save(cfg PhaseToggleConfig) (PhaseToggleConfig, error
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
-		return cfg, fmt.Errorf("prepare phase toggle directory: %w", err)
-	}
-
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return cfg, fmt.Errorf("encode phase toggle file: %w", err)
 	}
-	if err := os.WriteFile(s.path, data, 0o644); err != nil {
+
+	path, err := s.path()
+	if err != nil {
+		return cfg, fmt.Errorf("resolve phase toggle path: %w", err)
+	}
+	if err := storage.WriteFileAtomic(path, data, storage.DefaultFilePerm); err != nil {
 		return cfg, fmt.Errorf("write phase toggle file: %w", err)
 	}
 	return cfg, nil

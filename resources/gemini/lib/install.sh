@@ -49,9 +49,6 @@ EOF
         fi
     fi
     
-    # Register CLI using standard helper
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/resources/install-resource-cli.sh" "${APP_ROOT}/resources/gemini" 2>/dev/null || true
-    
     # Verify installation
     if gemini::test_connection 2>/dev/null; then
         log::success "Gemini installed and API accessible"

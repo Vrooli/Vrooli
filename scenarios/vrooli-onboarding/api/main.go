@@ -51,11 +51,11 @@ func (s *Server) setupRoutes() {
 	// Onboarding progress endpoints
 	s.router.HandleFunc("/api/v1/progress", s.handleGetProgress).Methods("GET")
 	s.router.HandleFunc("/api/v1/progress", s.handleUpdateProgress).Methods("PUT")
+	s.router.HandleFunc("/api/v1/complete", s.handleCompleteOnboarding).Methods("POST")
 
 	// Config endpoints
 	s.router.HandleFunc("/api/v1/config/generate", s.handleConfigGenerate).Methods("POST")
 	s.router.HandleFunc("/api/v1/config/validate", s.handleConfigValidate).Methods("POST")
-	s.router.HandleFunc("/api/v1/config/export", s.handleConfigExport).Methods("POST")
 
 	// Setup order endpoint
 	s.router.HandleFunc("/api/v1/setup-order", s.handleSetupOrder).Methods("GET")

@@ -9,6 +9,20 @@
   "category": "{{RESOURCE_CATEGORY}}",
   "dependencies": [],
   "compose_file": "compose.yaml",
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific dependency settings for {{RESOURCE_NAME}}.",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "orchestration": {
+    "startup_order": 500,
+    "startup_timeout_seconds": 30,
+    "startup_time_estimate": "5-15s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
   "health_checks": [
     {
       "type": "command",
@@ -20,5 +34,6 @@
         "running"
       ]
     }
-  ]
+  ],
+  "template_version": "2"
 }

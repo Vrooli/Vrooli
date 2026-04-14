@@ -34,16 +34,6 @@ function install_browserless() {
         return 1
     fi
     
-    # Register CLI with install-resource-cli.sh
-    log::info "Registering Browserless CLI..."
-    if "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh" \
-        --name browserless \
-        --cli-path "$BROWSERLESS_LIB_DIR/../cli.sh"; then
-        log::success "CLI registered successfully"
-    else
-        log::warning "Failed to register CLI"
-    fi
-    
     # Start the service
     log::info "Starting Browserless..."
     source "$BROWSERLESS_LIB_DIR/start.sh"

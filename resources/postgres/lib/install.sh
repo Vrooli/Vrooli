@@ -93,9 +93,6 @@ postgres::install() {
     log::info "Port range available: ${POSTGRES_INSTANCE_PORT_RANGE_START}-${POSTGRES_INSTANCE_PORT_RANGE_END}"
     log::info "Maximum instances: ${POSTGRES_MAX_INSTANCES}"
     
-    # Auto-install CLI if available
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/postgres"
-    
     return 0
 }
 

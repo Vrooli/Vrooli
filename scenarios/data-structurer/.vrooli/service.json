@@ -234,22 +234,6 @@
         "required": true,
         "purpose": "Extract raw content from PDFs, images, documents, and various file formats"
       },
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "purpose": "Workflow orchestration for processing pipeline",
-        "initialization": [
-          {
-            "file": "initialization/n8n/data-processing-pipeline.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/n8n/schema-validation.json",
-            "type": "workflow"
-          }
-        ]
-      },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,

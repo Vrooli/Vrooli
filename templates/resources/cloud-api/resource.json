@@ -14,6 +14,20 @@
     ],
     "secret_ref": "replace/me"
   },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific dependency settings for {{RESOURCE_NAME}}.",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "orchestration": {
+    "startup_order": 500,
+    "startup_timeout_seconds": 15,
+    "startup_time_estimate": "3-8s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
   "health_checks": [
     {
       "type": "http",
@@ -25,5 +39,6 @@
         403
       ]
     }
-  ]
+  ],
+  "template_version": "2"
 }

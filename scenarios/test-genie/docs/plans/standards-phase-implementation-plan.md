@@ -160,7 +160,7 @@ Because this is opt-out, it will surface pre-existing violations immediately.
 
 - [ ] Decide if initial gating should be `critical` only for a short grace period.
 - [ ] Provide a bulk opt-out recipe for legacy scenarios (documentation only; avoid mass-edit scripts unless explicitly requested).
-- [ ] Consider a global phase toggle entry in `.vrooli/test-genie-phase-toggles.json` as an emergency brake (optional; depends on desired governance posture).
+- [ ] Consider a global phase toggle persisted through Test Genie's local config storage as an emergency brake (optional; depends on desired governance posture).
 
 ## Validation Commands (Post-Implementation)
 

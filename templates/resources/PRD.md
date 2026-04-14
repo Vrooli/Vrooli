@@ -90,9 +90,9 @@ resource_category: [storage|ai|automation|search|execution|agents]
 
 standard_interfaces:
   management:
-    - cli: cli.sh (using CLI framework)
-    - actions: [help, install, uninstall, start, stop, restart, status, validate, test, content]
-    - configuration: config/defaults.sh
+    - cli: resource-[name] Go binary built from resources/[name]/cli/
+    - actions: [info, install, uninstall, start, stop, restart, status, logs]
+    - control_plane: vrooli resource [verb] [name]
     - documentation: README.md + docs/
     
   networking:
@@ -223,7 +223,7 @@ resource_specific_actions:
 ### Management Standards
 ```yaml
 implementation_requirements:
-  - cli_location: cli.sh (uses CLI framework)
+  - cli_location: resources/[name]/cli/ Go module
   - configuration: config/defaults.sh
   - dependencies: lib/ directory with modular functions
   - error_handling: Exit codes (0=success, 1=error, 2=config error)
@@ -389,7 +389,7 @@ test_specification:
   
   lifecycle_tests:
     - name: "Resource Installation"
-      command: resource-[name] install (or ./cli.sh install if the CLI isn't registered yet)
+      command: resource-[name] install
       expect:
         exit_code: 0
         service_running: true
@@ -444,12 +444,12 @@ test_specification:
 ### Vrooli Integration Standards
 ```yaml
 resource_discovery:
-  registry_entry:
+  manifest_entry:
     name: [resource-name]
     category: [storage|ai|automation|search|execution|agents]
     capabilities: [list of key capabilities]
     interfaces:
-      - cli: resource-[name] (installed via install-resource-cli.sh)
+      - cli: resource-[name] (installed into ~/.vrooli/bin by vrooli setup / ensure-install)
       - api: [API endpoint if applicable] 
       - health: [health check endpoint]
       
@@ -461,7 +461,7 @@ resource_discovery:
 
 resource_framework_compliance:
   - Standard directory structure (/config, /lib, /docs, /test, etc.)
-  - CLI framework integration (cli.sh as thin wrapper over lib/ functions)
+  - Go-native CLI integration via resources/[name]/cli/
   - Port registry integration
   - Docker network integration  
   - Health monitoring integration

@@ -338,9 +338,6 @@ browserless::post_install_setup() {
     echo "  $0 --action usage"
     echo
     
-    # Auto-install CLI if available
-    # shellcheck disable=SC1091
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "$BROWSERLESS_SCRIPT_DIR" 2>/dev/null || true
 }
 
 #######################################

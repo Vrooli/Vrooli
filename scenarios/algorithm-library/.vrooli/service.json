@@ -258,12 +258,6 @@
           "codellama",
           "mistral"
         ]
-      },
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
       }
     },
     "scenarios": {}

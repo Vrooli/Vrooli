@@ -186,12 +186,6 @@
   },
   "dependencies": {
     "resources": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": false,
-        "required": false,
-        "purpose": "Execute maintenance workflows when scenarios are activated"
-      },
       "postgres": {
         "type": "postgres",
         "enabled": false,

@@ -68,7 +68,10 @@
       "name": "ffmpeg",
       "required": false,
       "reason": "Render replay exports and media conversions for browser automation playback artifacts",
-      "when": ["setup", "develop"],
+      "when": [
+        "setup",
+        "develop"
+      ],
       "notes": "Replay export features degrade when ffmpeg is unavailable"
     }
   ],
@@ -188,7 +191,7 @@
       "steps": [
         {
           "name": "start-playwright-driver",
-          "run": "echo 'ℹ️  Playwright driver lifecycle managed by API sidecar supervisor'",
+          "run": "echo '\u2139\ufe0f  Playwright driver lifecycle managed by API sidecar supervisor'",
           "description": "Skipped - API manages playwright driver lifecycle via sidecar supervisor. Set BAS_SIDECAR_ENABLED=false or PLAYWRIGHT_DRIVER_URL to use external driver."
         },
         {
@@ -255,12 +258,6 @@
         "required": true,
         "description": "Workflow definitions and execution history storage",
         "schema": "browser_automation_studio"
-      },
-      "playwright": {
-        "type": "playwright",
-        "enabled": true,
-        "required": true,
-        "description": "Core browser automation engine for workflow execution (scenario-managed driver)"
       },
       "minio": {
         "type": "minio",

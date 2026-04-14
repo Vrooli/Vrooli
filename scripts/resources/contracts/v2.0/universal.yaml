@@ -43,7 +43,7 @@ commands:
         - "Default configuration"
     
   info:
-    description: "Show structured resource information from runtime.json"
+    description: "Show structured resource information from resource.json orchestration metadata"
     required: true
     subcommands: []
     flags:
@@ -60,7 +60,7 @@ commands:
         - "startup_timeout"
         - "recovery_attempts"
         - "priority"
-    implementation_note: "Reads from config/runtime.json file"
+    implementation_note: "Reads from resource.json.orchestration in the manifest-native contract"
     
   # ==================== Management Commands ====================
   manage:
@@ -341,10 +341,10 @@ commands:
       1: "Error retrieving credentials"
       2: "No credentials configured"
 
-# Runtime configuration requirements (v2.0)
+# Runtime/orchestration requirements (v2.0 compatibility contract)
 runtime_configuration:
   description: "Resource runtime behavior and dependencies"
-  file_path: "config/runtime.json"
+  file_path: "resource.json.orchestration"
   required: true
   schema:
     startup_order:
@@ -396,23 +396,24 @@ runtime_configuration:
 # File structure requirements
 file_structure:
   required:
+    resource.json:
+      description: "Canonical manifest and single source of truth"
+      must_support:
+        - "Runtime metadata"
+        - "Dependency schema"
+        - "Orchestration hints"
+        - "Environment exports"
     cli.sh:
-      description: "Primary CLI entrypoint"
+      description: "Primary CLI entrypoint for compatibility resources"
       must_support:
         - "Command routing"
         - "Help display"
         - "Error handling"
     lib/:
-      description: "Library functions directory"
+      description: "Library functions directory for compatibility resources"
       required_files:
         - "core.sh"      # Core functionality
         - "test.sh"      # Test implementations
-    config/:
-      description: "Configuration directory"
-      required_files:
-        - "defaults.sh"  # Default configuration
-        - "schema.json"  # Resource configuration schema
-        - "runtime.json" # Runtime behavior and dependencies (v2.0 required)
   
   optional:
     lib/:
@@ -567,15 +568,15 @@ deprecated_patterns:
       detection: "^main\(\)\s*{"
     "::info::startup_order":
       description: "Legacy info function for startup order"
-      replacement: "config/runtime.json"
+      replacement: "resource.json.orchestration"
       detection: "::info::startup_order"
     "::info::dependencies":
       description: "Legacy info function for dependencies"
-      replacement: "config/runtime.json"
+      replacement: "resource.json.orchestration"
       detection: "::info::dependencies"
     "::info::startup_time":
       description: "Legacy info function for startup time"
-      replacement: "config/runtime.json"
+      replacement: "resource.json.orchestration"
       detection: "::info::startup_time"
   
   environment_variables:

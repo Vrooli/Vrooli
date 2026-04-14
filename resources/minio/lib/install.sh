@@ -85,9 +85,6 @@ minio::install() {
     fi
     
     # Auto-install CLI if available
-    # shellcheck disable=SC1091
-    "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${var_ROOT_DIR}/resources/minio" 2>/dev/null || true
-    
     return 0
 }
 

@@ -43,10 +43,6 @@ vault::install() {
             vault::message "info" "MSG_VAULT_DEV_UNSEAL_INFO"
         fi
         
-        # Auto-install CLI if available
-        # shellcheck disable=SC1091
-        "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/vault" 2>/dev/null || true
-        
         return 0
     else
         vault::message "error" "MSG_VAULT_INSTALL_FAILED"

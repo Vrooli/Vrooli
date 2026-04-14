@@ -1,0 +1,58 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "node-red",
+  "display_name": "Node-RED",
+  "category": "automation",
+  "summary": "Flow-based automation builder for wiring APIs, services, and event-driven logic through a visual editor.",
+  "why_it_matters": "Node-RED remains useful capability knowledge for low-code automation and rapid workflow prototyping, but current Vrooli usage is historical and should not be represented as an actively supported resource.",
+  "when_to_use": [
+    "A future scenario needs visual automation editing for non-developers.",
+    "You need quick API orchestration with minimal custom code.",
+    "The workflow benefits from a visual flow editor rather than a typed code-first service."
+  ],
+  "example_scenarios": [
+    "Operations automations",
+    "IoT device orchestration",
+    "Webhook and notification routing"
+  ],
+  "integration_kind": "docker-service",
+  "platform_support": {
+    "portability_tier": "partial",
+    "notes": "Containerized execution is portable, but plugin lifecycle, persistence, and scenario integration patterns need deliberate design before support is claimed.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Docker or other container runtime",
+    "Persistent volume strategy for flows and credentials",
+    "Defined boundary between Node-RED workflows and scenario-owned logic"
+  ],
+  "dependencies": [],
+  "suggested_template": "docker-service",
+  "implementation_notes": [
+    "Treat old Node-RED artifacts as historical prototypes only.",
+    "Any future implementation should define export/import conventions for flows.",
+    "Keep credentials and secret handling aligned with Vrooli secret conventions."
+  ],
+  "operational_notes": [
+    "Flow persistence and backup behavior matter more than initial startup.",
+    "Health checks should validate the editor/API endpoint.",
+    "Plugin installation needs a controlled model to avoid drift."
+  ],
+  "risks": [
+    "Low-code tools drift quickly when plugin state is unmanaged.",
+    "Old references can create the false impression that the resource is still supported."
+  ],
+  "status": "validated",
+  "replacement_for": [
+    "node-red"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/resources/resource-phase0-inventory.md"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

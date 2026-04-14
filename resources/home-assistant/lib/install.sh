@@ -76,13 +76,6 @@ home_assistant::install() {
         log::success "Home Assistant installed successfully"
         log::info "Access Home Assistant at: $HOME_ASSISTANT_BASE_URL"
         
-        # Register with Vrooli CLI
-        local install_cli_script="${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh"
-        if [[ -f "$install_cli_script" ]]; then
-            log::info "Registering Home Assistant CLI..."
-            bash "$install_cli_script" "home-assistant" "${HOME_ASSISTANT_INSTALL_DIR}/../cli.sh"
-        fi
-        
         return 0
     else
         log::error "Home Assistant installed but not healthy"
