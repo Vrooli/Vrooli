@@ -1,8 +1,6 @@
 <div align="center">
 
-[
-    <img alt="Vrooli logo with motto" src="./assets/readme-display.png" width="500px"/>
-][website]
+[<img alt="Vrooli logo with motto" src="./assets/readme-display.png" width="500px"/>][website]
 
 
 <h1>
