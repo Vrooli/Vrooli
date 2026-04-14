@@ -10,6 +10,7 @@ Scenarios are one of Vrooli's core primitives. They are how the platform turns r
 - [CONCEPTS.md](CONCEPTS.md) for the scenario mental model
 - [VALIDATION.md](VALIDATION.md) for testing and validation expectations
 - [DEPLOYMENT.md](DEPLOYMENT.md) for scenario deployment framing
+- [PRODUCTION_BUNDLES.md](PRODUCTION_BUNDLES.md) for UI-bundle lifecycle expectations
 
 ## Current Truth
 
@@ -60,3 +61,5 @@ This folder documents the scenario system as a whole.
 - project-level docs explain the platform
 - this folder explains how scenarios work across the platform
 - each scenario's own docs explain that specific scenario
+
+Keep this folder focused on canonical cross-scenario guidance. If a document only applies to one scenario, move it into that scenario instead of expanding this layer.

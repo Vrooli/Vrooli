@@ -11,6 +11,7 @@ Resources are one of Vrooli's core primitives. They provide the raw capabilities
 - [integration-cookbook.md](integration-cookbook.md) for practical integration guidance
 - [resource-blueprints.md](resource-blueprints.md) for blueprint-backed future capability records
 - [resource-templates.md](resource-templates.md) for canonical scaffolding
+- [resource-deprecation.md](resource-deprecation.md) for leaving the active surface safely
 
 ## Current Truth
 
@@ -75,3 +76,5 @@ This folder documents the resource system as a whole.
 - project-level docs explain the platform
 - this folder explains how resources work across the platform
 - individual resource docs under `resources/<name>/README.md` explain the specific resource
+
+Keep this folder focused on canonical cross-resource guidance. Migration notes or one-off resource design detail should live with the resource or the owning plan.

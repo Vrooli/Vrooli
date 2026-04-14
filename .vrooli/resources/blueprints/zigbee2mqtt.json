@@ -53,7 +53,7 @@
   "references": [
     {
       "kind": "doc",
-      "value": "docs/resources/resource-phase0-inventory.md"
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
     },
     {
       "kind": "resource",

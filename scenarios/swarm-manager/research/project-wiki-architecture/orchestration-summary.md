@@ -49,7 +49,7 @@ Multiple teams feed the same sections. Scenario wiki pages capture business cont
 ### Existing System Context
 - Knowledge Observatory: Fully built semantic search + doc validation. Has embedding pipeline (Ollama → Qdrant), 15 doc-type schema enforcement, deep search via agents, project-level search. All 44 Qdrant collections currently empty. It's an observer/indexer, not a content author.
 - Prompt Manager team knowledge: Simple JSONL append-only stores scoped to individual teams. No cross-team sharing. Max 100 entries with 180-day pruning. This is operational working memory.
-- Existing docs/: Well-structured hub-and-spoke (VISION.md, docs/roadmap.md, docs/context.md, etc.). No living state dashboard, no unified glossary, no scenario inventory with business context.
+- Existing docs/: Well-structured hub-and-spoke (README.md, VISION.md, docs/roadmap.md, etc.). No living state dashboard, no unified glossary, no scenario inventory with business context.
 
 ## Dependency Notes
 - This research depends on research/team-schema-v2-design (needs to know the contributions field structure)

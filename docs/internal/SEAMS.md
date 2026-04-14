@@ -12,6 +12,15 @@ Project-level docs should explain:
 - how scenarios and resources relate
 - what deployment maturity looks like at a high level
 
+They now primarily live under:
+
+- `docs/concepts/`
+- `docs/guides/`
+- `docs/reference/`
+- `docs/operations/`
+- `docs/deployment/`
+- `docs/strategy/`
+
 ## Scenario-System Docs
 
 `docs/scenarios/` should explain:

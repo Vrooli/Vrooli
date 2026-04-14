@@ -56,8 +56,8 @@ When promoting changes into a real environment:
 
 Start with:
 
-- [../devops/logging.md](../devops/logging.md)
-- [../devops/troubleshooting.md](../devops/troubleshooting.md)
+- [logging.md](logging.md)
+- [troubleshooting.md](troubleshooting.md)
 
 Prefer current CLI diagnostics over legacy script procedures.
 

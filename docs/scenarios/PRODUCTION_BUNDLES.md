@@ -1,20 +1,39 @@
 # Production Bundles
 
-This page is reference-oriented.
+This page describes the current production-bundle expectations for UI-bearing scenarios.
 
-## Status
+Use it when you are defining or validating scenario lifecycle steps that produce deployable UI assets.
 
-Bundle and packaging truth should now be read primarily through:
+## Core Rule
+
+Scenarios with a front-end should build production assets during setup and serve the built output during lifecycle-managed runs. Do not treat ad hoc dev servers as the canonical runtime path.
+
+## Why This Exists
+
+Production bundles matter because they make scenario behavior predictable across:
+
+- lifecycle restarts
+- cache-busting and stale-asset detection
+- iframe loading and embedded UI surfaces
+- deployment-oriented packaging flows
+- scenario-auditor rules and auto-fix guidance
+
+## Expected Pattern
+
+For a typical UI scenario:
+
+1. install front-end dependencies in an explicit `install-ui-deps` step
+2. build the UI in an explicit `build-ui` step
+3. serve the built output rather than a long-running dev server in normal lifecycle operation
+
+The exact commands can vary by toolchain, but the lifecycle intent should remain stable:
+
+- install dependencies first
+- build `ui/dist` or the equivalent production artifact
+- make the runtime use the built artifact
+
+## Related Docs
 
 - [../deployment/README.md](../deployment/README.md)
-
-This file remains useful as supporting material when working on:
-
-- production-parity local runtime behavior
-- UI bundle expectations for specific scenario types
-- scenario-to-desktop or broader packaging-related work
-
-## Guidance
-
-- do not treat this file as the canonical source for overall deployment maturity
-- use it only when the scenario or packaging work you are doing explicitly depends on these bundle concerns
+- [VALIDATION.md](VALIDATION.md)
+- [../operations/production-guide.md](../operations/production-guide.md)

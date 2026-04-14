@@ -34,7 +34,7 @@ Useful values:
 - `try_start`
 - `ignore`
 
-For the normalization details, see [dependency-contract-audit.md](dependency-contract-audit.md).
+The normalization work described by older audit docs has been folded into the current resource configuration and migration guidance.
 
 ## Validate Configuration
 

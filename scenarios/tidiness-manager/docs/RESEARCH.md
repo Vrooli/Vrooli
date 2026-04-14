@@ -145,5 +145,5 @@ tidiness-manager is unique because it:
 - visited-tracker PRD: `/scenarios/visited-tracker/PRD.md`
 - scenario-auditor README: `/scenarios/scenario-auditor/README.md`
 - code-smell PRD: `/scenarios/code-smell/PRD.md`
-- Vrooli context: `/docs/context.md`
+- Vrooli context: `/README.md` and `/VISION.md`
 - Template documentation: `vrooli scenario template show react-vite`

@@ -18,9 +18,9 @@ The hub orchestrates these ideas so future automation (deployment-manager) has a
 |------|-------------|-------------------|-----|
 | 1 | Full Vrooli stack running locally or on a dev server, proxied through app-monitor + Cloudflare tunnel | ✅ Production ready for us today | [Production Operations Guide](../operations/production-guide.md) |
 | 2 | Portable desktop bundles (Windows/macOS/Linux) where UI + API + dependencies ship together | ⚠️ Thin client only today | [Desktop Bundle Readiness Plan](../plans/desktop-bundle-health-readiness-plan.md) |
-| 3 | Mobile packages (iOS/Android) | 🚧 Not started | [Roadmap](../roadmap.md) |
+| 3 | Mobile packages (iOS/Android) | 🚧 Not started | [Roadmap](../strategy/roadmap.md) |
 | 4 | SaaS / Cloud installs (DigitalOcean, AWS, bare metal) | ⚠️ Requires dependency fitness + secret prep | [Kubernetes Infrastructure Reference](../devops/kubernetes.md) |
-| 5 | Enterprise / Hardware appliance deployments | 🧭 Vision stage | [Business Solutions](../business-solutions.md) |
+| 5 | Enterprise / Hardware appliance deployments | 🧭 Vision stage | [Business Solutions](../strategy/business-solutions.md) |
 
 Each tier page captures **current state → gaps → roadmap** so we can coordinate scenario updates.
 
@@ -43,7 +43,7 @@ That loop builds on the current scenario and operations docs:
 ## Current Deployment References
 
 - [../operations/production-guide.md](../operations/production-guide.md) — current operational baseline for Tier 1 environments
-- [../devops/server-deployment.md](../devops/server-deployment.md) — current server-oriented deployment guidance
+- [reference/server-deployment.md](reference/server-deployment.md) — current server-oriented deployment guidance
 - [../devops/kubernetes.md](../devops/kubernetes.md) — historical and future-facing Kubernetes context
 - [storage.md](storage.md) — specialized bundle storage guidance for deployment-oriented scenarios
 - [../plans/desktop-bundle-health-readiness-plan.md](../plans/desktop-bundle-health-readiness-plan.md) — current desktop portability planning
@@ -55,9 +55,9 @@ Provider-specific deployment documentation has not yet been rebuilt into a canon
 
 For now, use:
 
-- [../devops/server-deployment.md](../devops/server-deployment.md) for current server assumptions
-- [../devops/personal-ai-server.md](../devops/personal-ai-server.md) for exploratory appliance-style thinking
-- [../business-solutions.md](../business-solutions.md) for the enterprise and appliance framing
+- [reference/server-deployment.md](reference/server-deployment.md) for current server assumptions
+- [../strategy/personal-ai-server.md](../strategy/personal-ai-server.md) for exploratory appliance-style thinking
+- [../strategy/business-solutions.md](../strategy/business-solutions.md) for the enterprise and appliance framing
 
 ## Examples
 

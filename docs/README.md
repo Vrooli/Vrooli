@@ -11,37 +11,31 @@ Vrooli is a local, cross-platform, Go-native control plane for orchestrating res
 - [concepts/GLOSSARY.md](concepts/GLOSSARY.md) for shared vocabulary
 - [reference/cli-commands.md](reference/cli-commands.md) for the current CLI surface
 
-## Strategic Context
+## Canonical Areas
 
-These files are the durable project-level memory and strategy layer:
-
-- [context.md](context.md)
-- [decisions.md](decisions.md)
-- [risks.md](risks.md)
-- [roadmap.md](roadmap.md)
-- [../VISION.md](../VISION.md)
-
-## System Areas
-
-- [scenarios/README.md](scenarios/README.md) explains the scenario ecosystem
-- [resources/README.md](resources/README.md) explains the resource system
-- [deployment/README.md](deployment/README.md) explains deployment tiers and current portability reality
-- [TESTING.md](TESTING.md) points to the Test Genie documentation surface
-- [repo-contract.md](repo-contract.md) defines repo-aware structural rules
-- [package-governance.md](package-governance.md) defines shared-package policy
+- [guides/README.md](guides/README.md) for contributor and operator workflows
+- [reference/cli-commands.md](reference/cli-commands.md) for CLI and control-plane reference
+- [operations/README.md](operations/README.md) for live operational guidance
+- [deployment/README.md](deployment/README.md) for deployment tiers and maturity
+- [scenarios/README.md](scenarios/README.md) for the scenario ecosystem
+- [resources/README.md](resources/README.md) for the resource ecosystem
+- [strategy/README.md](strategy/README.md) for project framing, decisions, risks, and roadmap
 
 ## Structure
 
-This documentation tree is being standardized around a clearer taxonomy:
+The project-level docs are organized around a stable taxonomy:
 
 - `QUICKSTART.md` for first-touch onboarding
 - `concepts/` for architecture and vocabulary
 - `guides/` for task-oriented workflows
-- `reference/` for CLI, config, and contracts
-- `internal/` for documentation maintenance state and migration notes
+- `reference/` for CLI, contracts, and shared policy
+- `operations/` for live operational guidance
+- `deployment/` for tier and target deployment guidance
+- `scenarios/` for the scenario system
+- `resources/` for the resource system
+- `strategy/` for durable project framing and direction
+- `internal/` for docs-maintenance notes
 - `plans/` for proposals and implementation plans
-
-Older top-level docs remain in place where needed for compatibility, but the files above are the first-pass canonical entry layer.
 
 ## Current Priorities
 
@@ -58,4 +52,5 @@ The current docs rewrite is focused on:
 - Prefer updating canonical docs over adding parallel explanations elsewhere.
 - If a doc primarily describes one scenario, move or rewrite it under that scenario instead of expanding project-level docs.
 - If a doc primarily describes one resource, move or rewrite it under `docs/resources/` or the resource itself.
+- If a doc is historical but still useful, fold the important parts into a maintained canonical doc or keep it only when it still has real maintenance value.
 - If a plan is no longer active, keep it under `plans/` and make sure canonical docs do not present it as current truth.

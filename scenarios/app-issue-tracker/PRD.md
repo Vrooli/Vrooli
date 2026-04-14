@@ -151,6 +151,6 @@
 
 ### References
 - docs/SECURITY_SETUP.md – hardening checklist and env var matrix
-- docs/context.md – platform overview and recursive intelligence vision
+- README.md and VISION.md – platform overview and recursive intelligence vision
 - scenarios/app-issue-tracker/api/README.md – API endpoints and testing instructions
 - scenarios/app-issue-tracker/ui/README.md – UI development workflow and tooling

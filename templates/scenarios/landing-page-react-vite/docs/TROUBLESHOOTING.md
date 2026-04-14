@@ -342,9 +342,6 @@ curl -X POST https://landing.yourdomain.com/api/v1/webhooks/stripe
 ### Collecting Debug Information
 
 ```bash
-# System info
-vrooli info
-
 # Scenario status
 vrooli scenario status <name>
 

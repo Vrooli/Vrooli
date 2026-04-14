@@ -428,9 +428,6 @@ Variant B: 20/100 = 20%
 ### Collecting Debug Information
 
 ```bash
-# System info
-vrooli info
-
 # Scenario status
 vrooli scenario status <name>
 

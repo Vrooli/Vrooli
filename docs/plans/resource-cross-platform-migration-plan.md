@@ -1014,8 +1014,7 @@ This work is intentionally broken into phases so it can be executed over many co
 
 Supporting artifacts produced during Phase 0:
 
-- [Resource Phase 0 Inventory](/home/matthalloran8/Vrooli/docs/resources/resource-phase0-inventory.md)
-- [Dependency Contract Audit](/home/matthalloran8/Vrooli/docs/resources/dependency-contract-audit.md)
+- this plan's Phase 0 section, which now serves as the retained historical record
 - `docs/resources/resource-registry-reconciliation.md` (historical note; file no longer present)
 - [Dependency Contract Validator](/home/matthalloran8/Vrooli/scripts/resources/tools/validate-dependency-contract.sh)
 
@@ -1053,7 +1052,7 @@ Important decisions made during Phase 0:
 **Status update:** Phase 1 is now inventory-complete rather than seed-only.
 
 - `.vrooli/resources/blueprints/` now covers the full current Phase 0 `blueprint` set
-- the Go test suite validates drift between `docs/resources/resource-phase0-inventory.md` and the blueprint store
+- the Go test suite validates drift between the retained Phase 0 classification and the blueprint store
 - operator guidance documents blueprint inspection and validation as a supported workflow
 - the Phase 1 closeout validation bundle is:
   - `vrooli resource blueprint validate`

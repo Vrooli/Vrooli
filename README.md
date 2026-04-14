@@ -353,8 +353,8 @@ This repository is organized around the platform control plane and the scenario/
 Start here:
 
 - [docs/README.md](docs/README.md)
-- [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
-- [docs/ARCHITECTURE_OVERVIEW.md](docs/ARCHITECTURE_OVERVIEW.md)
+- [docs/QUICKSTART.md](docs/QUICKSTART.md)
+- [docs/concepts/ARCHITECTURE.md](docs/concepts/ARCHITECTURE.md)
 - [VISION.md](VISION.md)
 
 ## Roadmap Direction

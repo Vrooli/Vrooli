@@ -12,7 +12,7 @@ This file tracks project-level documentation debt that still needs follow-up aft
 
 ## Highest-Priority Second Pass
 
-- rewrite `docs/devops/README.md` and associated devops pages to match current supported flows
-- rewrite `docs/roadmap.md`, `docs/risks.md`, and `docs/decisions.md` for current strategic truth
-- audit `docs/scenarios/` and `docs/resources/` for the same taxonomy and stale examples
-- mark historical plans and historical docs more explicitly where they are still useful but no longer canonical
+- continue curating `docs/scenarios/` and `docs/resources/` so they stay small, canonical, and cross-cutting
+- decide which compatibility wrappers can be removed after inbound links are updated
+- decide whether any remaining archive material should be deleted rather than preserved
+- keep `docs/manifest.json` aligned with the actual canonical tree

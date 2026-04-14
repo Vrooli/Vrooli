@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": "Vrooli Documentation",
   "description": "Project-level documentation for the Vrooli platform",
   "defaultDocument": "QUICKSTART.md",
@@ -19,6 +19,11 @@
           "path": "README.md",
           "title": "Docs Hub",
           "description": "Project-level documentation navigation"
+        },
+        {
+          "path": "CONTRIBUTING.md",
+          "title": "Contributing",
+          "description": "Current contributor workflow and expectations"
         }
       ]
     },
@@ -36,11 +41,33 @@
           "path": "concepts/GLOSSARY.md",
           "title": "Glossary",
           "description": "Shared vocabulary for the platform"
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "map",
+      "documents": [
+        {
+          "path": "guides/README.md",
+          "title": "Guides Hub",
+          "description": "Task-oriented contributor and operator guides"
         },
         {
-          "path": "context.md",
-          "title": "Context",
-          "description": "Project purpose and current framing"
+          "path": "guides/development-environment.md",
+          "title": "Development Environment",
+          "description": "Current project-level development environment flow"
+        },
+        {
+          "path": "guides/development-workflows.md",
+          "title": "Development Workflows",
+          "description": "Preferred project and scenario workflows"
+        },
+        {
+          "path": "TESTING.md",
+          "title": "Testing",
+          "description": "Testing entrypoint and handoff to Test Genie"
         }
       ]
     },
@@ -55,9 +82,14 @@
           "description": "Current project-level CLI reference"
         },
         {
-          "path": "TESTING.md",
-          "title": "Testing",
-          "description": "Testing entrypoint and handoff to Test Genie"
+          "path": "reference/build-and-validation.md",
+          "title": "Build And Validation",
+          "description": "Project-level build and validation surfaces"
+        },
+        {
+          "path": "reference/environment-management.md",
+          "title": "Environment Management",
+          "description": "Current project-level environment and secrets posture"
         },
         {
           "path": "repo-contract.md",
@@ -68,6 +100,38 @@
           "path": "package-governance.md",
           "title": "Package Governance",
           "description": "Shared package policy and validation"
+        }
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "Operations",
+      "icon": "activity",
+      "documents": [
+        {
+          "path": "operations/README.md",
+          "title": "Operations Hub",
+          "description": "Operational guidance and diagnostics"
+        },
+        {
+          "path": "operations/production-guide.md",
+          "title": "Production Guide",
+          "description": "Current Tier 1 operations guidance"
+        },
+        {
+          "path": "operations/logging.md",
+          "title": "Logging",
+          "description": "Diagnostics and logging surfaces"
+        },
+        {
+          "path": "operations/troubleshooting.md",
+          "title": "Troubleshooting",
+          "description": "First-line troubleshooting workflow"
+        },
+        {
+          "path": "operations/ci-cd.md",
+          "title": "CI/CD",
+          "description": "Current CI and automation posture"
         }
       ]
     },
@@ -90,11 +154,6 @@
           "path": "deployment/README.md",
           "title": "Deployment",
           "description": "Deployment tiers, maturity, and portability"
-        },
-        {
-          "path": "devops/README.md",
-          "title": "DevOps",
-          "description": "Project-level development and operations workflows"
         }
       ]
     },
@@ -104,19 +163,34 @@
       "icon": "flag",
       "documents": [
         {
-          "path": "decisions.md",
+          "path": "strategy/README.md",
+          "title": "Strategy Hub",
+          "description": "Project framing and direction"
+        },
+        {
+          "path": "strategy/context.md",
+          "title": "Context",
+          "description": "Project purpose and current framing"
+        },
+        {
+          "path": "strategy/decisions.md",
           "title": "Decisions",
           "description": "Architectural decision record"
         },
         {
-          "path": "risks.md",
+          "path": "strategy/risks.md",
           "title": "Risks",
           "description": "Project-level risks and mitigations"
         },
         {
-          "path": "roadmap.md",
+          "path": "strategy/roadmap.md",
           "title": "Roadmap",
           "description": "Roadmap and strategic direction"
+        },
+        {
+          "path": "strategy/business-solutions.md",
+          "title": "Business Solutions",
+          "description": "Commercial and positioning framing"
         }
       ]
     },
@@ -143,12 +217,18 @@
           "title": "Seams",
           "description": "Boundaries between project docs and scenario/resource docs",
           "internal": true
+        },
+        {
+          "path": "internal/DOCS_AUDIT.md",
+          "title": "Docs Audit",
+          "description": "Audit and target structure for the project docs tree",
+          "internal": true
         }
       ]
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "reference", "systems", "strategy"],
+    "primary": ["getting-started", "concepts", "guides", "reference", "operations", "systems", "strategy"],
     "secondary": ["internal"]
   }
 }
