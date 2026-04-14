@@ -824,20 +824,28 @@ Objective:
 
 Checklist:
 
-- [ ] Reduce `cmd/vrooli` tests to smoke/integration coverage only.
-- [ ] Move parser tests into `internal/cli/*`.
-- [ ] Move renderer tests into `internal/cli/*` or `internal/cliout`.
-- [ ] Move use-case tests into `internal/app/*`.
-- [ ] Promote repeated repo/fixture helpers into `packages/testkit-go/vrooli`.
-- [ ] Delete or rename compatibility-oriented testkit helpers such as `packages/testkit-go/vrooli/compat.go` if they no longer match the target architecture.
-- [ ] Replace large binary-package fixtures with shared testkit builders.
-- [ ] Split or delete oversized `cmd/vrooli/*_test.go` files that are validating lower-layer behavior.
+- [x] Reduce `cmd/vrooli` tests to smoke/integration coverage only.
+- [x] Move parser tests into `internal/cli/*`.
+- [x] Move renderer tests into `internal/cli/*` or `internal/cliout`.
+- [x] Move use-case tests into `internal/app/*`.
+- [x] Promote repeated repo/fixture helpers into `packages/testkit-go/vrooli`.
+- [x] Delete or rename compatibility-oriented testkit helpers such as `packages/testkit-go/vrooli/compat.go` if they no longer match the target architecture.
+- [x] Replace large binary-package fixtures with shared testkit builders.
+- [x] Split or delete oversized `cmd/vrooli/*_test.go` files that are validating lower-layer behavior.
 
 Validation:
 
-- [ ] `cmd/vrooli` test LOC is materially smaller than current baseline.
-- [ ] internal CLI/app tests materially increase relative to current baseline.
-- [ ] `go test ./cmd/vrooli/... ./internal/...`
+- [x] `cmd/vrooli` test LOC is materially smaller than current baseline.
+- [x] internal CLI/app tests materially increase relative to current baseline.
+- [x] `go test ./cmd/vrooli/... ./internal/...`
+
+Completion notes:
+
+- Deleted lower-layer `cmd/vrooli` test files for root parsing, top-level render helpers, scenario parser/render helpers, package command behavior, and resource CLI compatibility coverage after migrating that coverage below the binary package.
+- Added or expanded coverage in `internal/cli/rootcli`, `internal/cli/topcli`, `internal/cli/projectcli`, `internal/cli/scenariocli`, `internal/cli/scenariohandlers`, `internal/app/package`, `internal/orchestrator`, `internal/setup`, and `internal/resources`.
+- Promoted generic polling and port-allocation helpers into `packages/testkit-go`, renamed `packages/testkit-go/vrooli/compat.go` to `runtime_helpers.go`, and removed remaining `cmd/vrooli` wrappers for those helpers.
+- Removed the dead `templates/resources/legacy-adapter/` scaffold so the repo matches the intended no-legacy template set and `internal/resources` validation runs green.
+- `cmd/vrooli` test LOC dropped from `5,275` to `3,444` while correctness coverage moved into internal seams.
 
 Definition of done:
 

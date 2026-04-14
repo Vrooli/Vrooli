@@ -1,4 +1,4 @@
-package main
+package resources_test
 
 import (
 	"os"
@@ -6,10 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 func TestMigratedResourceCLIsDelegateStandardCommandsToNativeControlPlane(t *testing.T) {
-	root := projectRootForCLI(t)
+	root := testkitgo.ProjectRoot(t)
 	fakeBin := t.TempDir()
 	logFile := filepath.Join(fakeBin, "vrooli.log")
 	fakeVrooli := filepath.Join(fakeBin, "vrooli")
@@ -65,8 +67,7 @@ func TestMigratedResourceCLIsDelegateStandardCommandsToNativeControlPlane(t *tes
 			if err != nil {
 				t.Fatalf("read delegated command: %v", err)
 			}
-			got := strings.TrimSpace(string(data))
-			if got != tc.want {
+			if got := strings.TrimSpace(string(data)); got != tc.want {
 				t.Fatalf("delegated command = %q, want %q", got, tc.want)
 			}
 		})

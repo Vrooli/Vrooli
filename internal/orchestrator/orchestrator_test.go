@@ -101,6 +101,43 @@ func TestResolvePortRejectsStoppedScenario(t *testing.T) {
 	}
 }
 
+func TestInventoryIgnoresRuntimeRecordsForUnknownScenarios(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	writeScenarioService(t, root, "alpha", "Alpha", "running")
+	writeProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
+	writeProcessRecord(t, home, "ghost", "start-api", os.Getpid(), 28080, time.Now().Add(-2*time.Minute))
+
+	service := New(root, home, io.Discard, io.Discard)
+	inventory, err := service.Inventory()
+	if err != nil {
+		t.Fatalf("Inventory: %v", err)
+	}
+	if len(inventory) != 1 || inventory[0].Scenario.Slug != "alpha" {
+		t.Fatalf("inventory = %#v", inventory)
+	}
+}
+
+func TestDetailRejectsBrokenProcessMetadata(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	writeScenarioService(t, root, "alpha", "Alpha", "running")
+	brokenPath := filepath.Join(home, ".vrooli", "processes", "scenarios", "alpha", "broken.json")
+	if err := os.MkdirAll(filepath.Dir(brokenPath), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(brokenPath), err)
+	}
+	if err := os.WriteFile(brokenPath, []byte("{broken\n"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", brokenPath, err)
+	}
+
+	service := New(root, home, io.Discard, io.Discard)
+	if _, err := service.Detail("alpha"); err == nil {
+		t.Fatal("expected invalid process metadata to fail detail loading")
+	}
+}
+
 func TestStartDetailedUsesInjectedRunnerFactory(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()

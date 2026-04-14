@@ -57,13 +57,13 @@ Each canonical template lives under `templates/resources/<template>/` and includ
 - `template.json`
 - `README.md`
 - `resource.json`
-- `config/defaults.json`
-- `config/schema.json`
 - `test/smoke.json`
 - `test/integration.json`
 - `docs/OPERATIONS.md`
 
 Some templates also include archetype-specific files such as `compose.yaml`, credential notes, or migration notes.
+
+`resource.json` is the single manifest authority for canonical templates. Resource-specific dependency authoring schema now lives in `resource.json.dependency_schema`, and lifecycle/orchestration hints live in `resource.json.orchestration`.
 
 ## Template Policy
 

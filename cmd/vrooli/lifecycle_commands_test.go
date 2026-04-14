@@ -18,11 +18,11 @@ func TestLifecycleCommandIsHiddenFromMainHelpButSupportsDirectHelp(t *testing.T)
 	}
 
 	app := configuredApp()
-	app.resolveSourceRoot = func() (string, error) {
+	app.ResolveSourceRootFn = func() (string, error) {
 		t.Fatal("root resolution should be skipped for lifecycle help")
 		return "", nil
 	}
-	app.checkStaleness = nil
+	app.CheckStalenessFn = nil
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -113,7 +113,7 @@ func TestLifecycleProtectRequiresProtectedCommandAfterDoubleDash(t *testing.T) {
 }
 
 func TestLifecycleCommandIsNotSuggestedForUnknownCommands(t *testing.T) {
-	suggestions := newTestApp(t.TempDir()).registry.SuggestTopLevel("lifecycl")
+	suggestions := newTestApp(t.TempDir()).Registry().SuggestTopLevel("lifecycl")
 	for _, suggestion := range suggestions {
 		if suggestion == "lifecycle" {
 			t.Fatalf("hidden lifecycle command should not be suggested: %v", suggestions)

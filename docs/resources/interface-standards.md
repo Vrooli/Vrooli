@@ -1,6 +1,6 @@
 # Resource Interface Standards v2.0
 
-> Historical/transitional document. This contract captures the shell-era universal CLI shape and remains relevant only for explicit compatibility surfaces. It is not the default starting point for new resources after the manifest-native migration. Use the blueprint/template workflow in [README.md](README.md) for new resource work.
+> Historical/transitional document. This contract captures the shell-era universal CLI shape and remains relevant only for explicit compatibility surfaces. It is not the default starting point for new resources after the manifest-native migration. Use the blueprint/template workflow in [README.md](README.md) for new resource work. Canonical resources are now manifest-native and use `resource.json` as the single source of truth.
 
 This document defines the v2.0 Universal CLI Contract that all Vrooli resources must implement.
 
@@ -95,18 +95,18 @@ resource-postgres status --format json # Monitoring
 ### Test Structure Requirements
 ```
 resources/<name>/
-├── cli.sh                    # Primary CLI entry point (REQUIRED)
-├── lib/core.sh              # Core functionality (REQUIRED)
+├── resource.json            # Canonical manifest (REQUIRED for native resources)
+├── cli.sh                   # Compatibility CLI entry point
+├── lib/core.sh              # Compatibility shell functionality
 ├── test/
 │   ├── run-tests.sh         # Main test runner (REQUIRED)
 │   └── phases/
 │       ├── test-smoke.sh    # Quick health check (REQUIRED)
 │       ├── test-integration.sh # Full functionality (REQUIRED)
 │       └── test-unit.sh     # Library validation (REQUIRED)
-└── config/
-    ├── defaults.sh          # Default configuration (REQUIRED)
-    └── exports.sh           # Environment variable exports (OPTIONAL)
 ```
+
+For native resources, runtime configuration, dependency authoring schema, and environment exports belong in `resource.json`, not `config/runtime.json`, `config/schema.json`, or `config/exports.sh`.
 
 ## 📊 Performance Requirements
 
@@ -130,11 +130,11 @@ resources/<name>/
 
 ## 🚀 Implementation Guide
 
-1. **Create CLI Entry Point**: Implement `cli.sh` with v2.0 command structure
-2. **Add Core Library**: Implement required functions in `lib/core.sh`
+1. **Start with a canonical template**: Scaffold a resource from `templates/resources/<archetype>/`
+2. **Define the native manifest**: Put runtime, dependency schema, orchestration, and environment exports in `resource.json`
 3. **Implement Tests**: Create required test phases in `test/phases/`
 4. **Validate Compliance**: Run contract validation tools
-5. **Remove Deprecated**: Delete old `manage.sh` and deprecated patterns
+5. **Use shell only as explicit compatibility code**: Do not introduce new canonical `config/runtime.json` or `config/schema.json` files
 
 ## 📖 Related Documentation
 

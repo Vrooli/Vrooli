@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	portRegistryJSONPath        = "scripts/resources/port_registry.json"
-	resourceDefinitionsJSONPath = ".vrooli/schemas/resource-definitions.json"
+	portRegistryJSONPath = "scripts/resources/port_registry.json"
 )
 
 var templatePattern = regexp.MustCompile(`\$\{([A-Z0-9_]+)\}`)
@@ -43,21 +42,6 @@ type ScenarioResolution struct {
 	Values    map[string]string `json:"values"`
 	Resources []ResourceReport  `json:"resources,omitempty"`
 	Warnings  []string          `json:"warnings,omitempty"`
-}
-
-type resourceDefinitionsFile struct {
-	Definitions struct {
-		ResourceSchemas map[string]resourceSchema `json:"resourceSchemas"`
-	} `json:"definitions"`
-}
-
-type resourceSchema struct {
-	Properties map[string]schemaProperty `json:"properties"`
-}
-
-type schemaProperty struct {
-	Default    any                       `json:"default"`
-	Properties map[string]schemaProperty `json:"properties"`
 }
 
 func ResolveScenario(root, home, scenarioName string, manifest scenario.ServiceManifest) (ScenarioResolution, error) {
@@ -183,18 +167,7 @@ func resolveFromManifest(root, home string, resourceManifest manifestpkg.Resourc
 		len(resourceManifest.EnvironmentExports.FromPorts) == 0 &&
 		len(resourceManifest.EnvironmentExports.FromRuntimeEnv) == 0 &&
 		len(resourceManifest.EnvironmentExports.Derived) == 0 {
-		if strings.TrimSpace(resourceManifest.Driver) == "docker-service" {
-			return values, warnings, nil
-		}
-		legacyValues, err := loadLegacyDefaults(root, home, resourceManifest.Name)
-		if err != nil {
-			return nil, nil, err
-		}
-		for key, value := range legacyValues {
-			if _, exists := values[key]; !exists {
-				values[key] = value
-			}
-		}
+		return values, warnings, nil
 	} else {
 		for key, derived := range resourceManifest.EnvironmentExports.Derived {
 			values[key] = expandTemplateWithContext(derived.Template, values, templateContext)
@@ -353,139 +326,6 @@ func loadSecrets(root string) (map[string]string, error) {
 	return values, nil
 }
 
-func loadLegacyDefaults(root, home, resourceName string) (map[string]string, error) {
-	definitions, err := loadResourceDefinitions(root)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return map[string]string{}, nil
-		}
-		return nil, err
-	}
-
-	env := map[string]string{}
-	prefix := resourceEnvPrefix(resourceName)
-	if schema, ok := definitions.Definitions.ResourceSchemas[resourceName]; ok {
-		collectSchemaDefaults(prefix, nil, schema.Properties, home, env)
-	}
-	applyLegacySpecialCases(resourceName, env)
-	return env, nil
-}
-
-func loadResourceDefinitions(root string) (resourceDefinitionsFile, error) {
-	path := filepath.Join(root, filepath.FromSlash(resourceDefinitionsJSONPath))
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return resourceDefinitionsFile{}, err
-	}
-
-	var definitions resourceDefinitionsFile
-	if err := json.Unmarshal(data, &definitions); err != nil {
-		return resourceDefinitionsFile{}, fmt.Errorf("parse %s: %w", path, err)
-	}
-	if definitions.Definitions.ResourceSchemas == nil {
-		definitions.Definitions.ResourceSchemas = map[string]resourceSchema{}
-	}
-	return definitions, nil
-}
-
-func collectSchemaDefaults(prefix string, path []string, properties map[string]schemaProperty, home string, out map[string]string) {
-	for name, property := range properties {
-		currentPath := append(append([]string(nil), path...), name)
-		if len(property.Properties) > 0 {
-			collectSchemaDefaults(prefix, currentPath, property.Properties, home, out)
-		}
-		if property.Default == nil {
-			continue
-		}
-		rendered, ok := stringifySchemaDefault(property.Default, home)
-		if !ok {
-			continue
-		}
-		for _, key := range candidateEnvKeys(prefix, currentPath) {
-			if strings.TrimSpace(key) == "" {
-				continue
-			}
-			if _, exists := out[key]; !exists {
-				out[key] = rendered
-			}
-		}
-	}
-}
-
-func candidateEnvKeys(prefix string, path []string) []string {
-	if len(path) == 0 || prefix == "" {
-		return nil
-	}
-	if len(path) == 1 {
-		name := path[0]
-		if isExplicitEnvVar(name) {
-			return []string{name}
-		}
-		if strings.EqualFold(name, "port") {
-			return []string{prefix + "_PORT"}
-		}
-		return []string{prefix + "_" + normalizeEnvSegment(name)}
-	}
-	if len(path) == 2 && strings.EqualFold(path[0], "ports") {
-		leaf := normalizeEnvSegment(path[1])
-		keys := []string{prefix + "_" + leaf + "_PORT"}
-		if leaf == "API" {
-			keys = append([]string{prefix + "_PORT"}, keys...)
-		}
-		return keys
-	}
-	name := path[len(path)-1]
-	if isExplicitEnvVar(name) {
-		return []string{name}
-	}
-	segments := make([]string, 0, len(path))
-	for _, segment := range path {
-		if strings.EqualFold(segment, "ports") {
-			continue
-		}
-		segments = append(segments, normalizeEnvSegment(segment))
-	}
-	if len(segments) == 0 {
-		return nil
-	}
-	return []string{prefix + "_" + strings.Join(segments, "_")}
-}
-
-func stringifySchemaDefault(value any, home string) (string, bool) {
-	switch typed := value.(type) {
-	case string:
-		if home != "" && strings.HasPrefix(typed, "~/") {
-			return filepath.Join(home, strings.TrimPrefix(typed, "~/")), true
-		}
-		return typed, true
-	case bool:
-		if typed {
-			return "true", true
-		}
-		return "false", true
-	case float64:
-		if typed == float64(int64(typed)) {
-			return strconv.FormatInt(int64(typed), 10), true
-		}
-		return strconv.FormatFloat(typed, 'f', -1, 64), true
-	case int:
-		return strconv.Itoa(typed), true
-	case int64:
-		return strconv.FormatInt(typed, 10), true
-	case []any:
-		values := make([]string, 0, len(typed))
-		for _, item := range typed {
-			rendered, ok := stringifySchemaDefault(item, home)
-			if ok {
-				values = append(values, rendered)
-			}
-		}
-		return strings.Join(values, ","), true
-	default:
-		return "", false
-	}
-}
-
 func resourceEnvPrefix(resourceName string) string {
 	return normalizeEnvSegment(strings.ReplaceAll(resourceName, "-", "_"))
 }
@@ -504,28 +344,6 @@ func isExplicitEnvVar(value string) bool {
 		return false
 	}
 	return value == strings.ToUpper(value) && strings.ContainsAny(value, "_ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-}
-
-func applyLegacySpecialCases(resourceName string, env map[string]string) {
-	switch resourceName {
-	case "postgres":
-		if strings.TrimSpace(env["POSTGRES_HOST"]) == "" {
-			env["POSTGRES_HOST"] = "localhost"
-		}
-		if strings.TrimSpace(env["POSTGRES_USER"]) == "" {
-			env["POSTGRES_USER"] = "vrooli"
-		}
-		if strings.TrimSpace(env["POSTGRES_SSLMODE"]) == "" {
-			env["POSTGRES_SSLMODE"] = "disable"
-		}
-	case "minio":
-		if port := strings.TrimSpace(env["MINIO_PORT"]); port != "" && strings.TrimSpace(env["MINIO_BASE_URL"]) == "" {
-			env["MINIO_BASE_URL"] = "http://localhost:" + port
-		}
-		if consolePort := strings.TrimSpace(env["MINIO_CONSOLE_PORT"]); consolePort != "" && strings.TrimSpace(env["MINIO_CONSOLE_URL"]) == "" {
-			env["MINIO_CONSOLE_URL"] = "http://localhost:" + consolePort
-		}
-	}
 }
 
 func applyFallbackDefaults(resourceName string, values map[string]string, hostPorts map[string]int) {

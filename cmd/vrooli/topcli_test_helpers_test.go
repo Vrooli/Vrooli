@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/vrooli/vrooli/internal/cli/topcli"
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 func runInfoCommand(root string, globals globalOptions, args []string, stdout, stderr io.Writer) error {
@@ -18,7 +19,7 @@ func runInfoCommand(root string, globals globalOptions, args []string, stdout, s
 		}
 		return err
 	}
-	format, err := formatFromJSON(globals.JSON)
+	format, err := cliout.ParseFormat("", globals.JSON)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -97,6 +98,55 @@ func TestMarkCompleteWritesSetupMarker(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "data", ".resources-populated")); !os.IsNotExist(err) {
 		t.Fatalf("expected no resources marker, got %v", err)
+	}
+}
+
+func TestRepoMaintainsCanonicalInstallContract(t *testing.T) {
+	repoRoot := testkitgo.ProjectRoot(t)
+
+	serviceData, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "service.json"))
+	if err != nil {
+		t.Fatalf("read service.json: %v", err)
+	}
+
+	var service struct {
+		Lifecycle struct {
+			Setup struct {
+				Steps []struct {
+					Name string `json:"name"`
+					Run  string `json:"run"`
+				} `json:"steps"`
+			} `json:"setup"`
+		} `json:"lifecycle"`
+	}
+	if err := json.Unmarshal(serviceData, &service); err != nil {
+		t.Fatalf("unmarshal service.json: %v", err)
+	}
+
+	var installStep string
+	for _, step := range service.Lifecycle.Setup.Steps {
+		if step.Name == "install-cli" {
+			installStep = step.Run
+			break
+		}
+	}
+	if installStep == "" {
+		t.Fatal("expected install-cli setup step")
+	}
+	if !strings.Contains(installStep, "make install") {
+		t.Fatalf("install step = %q", installStep)
+	}
+
+	makefileData, err := os.ReadFile(filepath.Join(repoRoot, "Makefile"))
+	if err != nil {
+		t.Fatalf("read Makefile: %v", err)
+	}
+	makefileContents := string(makefileData)
+	if !strings.Contains(makefileContents, "install: build") {
+		t.Fatalf("Makefile missing install target contract")
+	}
+	if !strings.Contains(makefileContents, "INSTALL_DIR = $(HOME)/.vrooli/bin") {
+		t.Fatalf("Makefile missing canonical install dir")
 	}
 }
 

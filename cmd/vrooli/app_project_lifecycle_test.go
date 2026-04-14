@@ -51,14 +51,14 @@ func TestSplitRunSetupUsesNativeProjectLifecycle(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := configuredApp()
-	app.resolveSourceRoot = func() (string, error) { return root, nil }
-	app.checkStaleness = func() (buildinfo.StaleCheck, error) {
+	app.ResolveSourceRootFn = func() (string, error) { return root, nil }
+	app.CheckStalenessFn = func() (buildinfo.StaleCheck, error) {
 		return buildinfo.StaleCheck{Stale: false}, nil
 	}
 	capturedRoot := ""
 	capturedHome := ""
 	var capturedOpts projectsetup.Options
-	app.runProjectSetup = func(root, home string, opts projectsetup.Options, stdout, stderr io.Writer) error {
+	app.RunProjectSetupFn = func(root, home string, opts projectsetup.Options, stdout, stderr io.Writer) error {
 		capturedRoot = root
 		capturedHome = home
 		capturedOpts = opts
@@ -83,12 +83,12 @@ func TestSplitRunDevelopUsesNativeProjectLifecycle(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := configuredApp()
-	app.resolveSourceRoot = func() (string, error) { return root, nil }
-	app.checkStaleness = func() (buildinfo.StaleCheck, error) {
+	app.ResolveSourceRootFn = func() (string, error) { return root, nil }
+	app.CheckStalenessFn = func() (buildinfo.StaleCheck, error) {
 		return buildinfo.StaleCheck{Stale: false}, nil
 	}
 	calls := 0
-	app.runProjectDevelop = func(capturedRoot, capturedHome string, opts projectsetup.Options, stdout, stderr io.Writer) error {
+	app.RunProjectDevelopFn = func(capturedRoot, capturedHome string, opts projectsetup.Options, stdout, stderr io.Writer) error {
 		calls++
 		if capturedRoot != root || capturedHome != home {
 			t.Fatalf("unexpected project context root=%q home=%q", capturedRoot, capturedHome)
@@ -115,7 +115,7 @@ func TestSplitRunDevelopUsesProjectPortOverride(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("VROOLI_API_PORT", "18094")
 	app := newTestApp(root)
-	app.runProjectDevelop = func(capturedRoot, capturedHome string, opts projectsetup.Options, stdout, stderr io.Writer) error {
+	app.RunProjectDevelopFn = func(capturedRoot, capturedHome string, opts projectsetup.Options, stdout, stderr io.Writer) error {
 		if got := os.Getenv("VROOLI_API_PORT"); got != "18094" {
 			t.Fatalf("VROOLI_API_PORT = %q", got)
 		}
@@ -140,7 +140,7 @@ func TestSplitRunSetupPassesDryRunThroughProjectLifecycle(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.runProjectSetup = func(root, home string, opts projectsetup.Options, stdout, stderr io.Writer) error {
+	app.RunProjectSetupFn = func(root, home string, opts projectsetup.Options, stdout, stderr io.Writer) error {
 		if !opts.DryRun {
 			t.Fatalf("setup options = %+v", opts)
 		}
@@ -159,7 +159,7 @@ func TestSplitRunSetupReportsUnsupportedHostAtCLILevel(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.runProjectSetup = func(root, home string, opts projectsetup.Options, stdout, stderr io.Writer) error {
+	app.RunProjectSetupFn = func(root, home string, opts projectsetup.Options, stdout, stderr io.Writer) error {
 		return errors.New("unsupported platform: vrooli setup is not supported on darwin (project-level setup/develop still depend on Linux-oriented shell steps)")
 	}
 
@@ -179,7 +179,7 @@ func TestSplitRunDevelopReportsUnsupportedHostAtCLILevel(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.runProjectDevelop = func(root, home string, opts projectsetup.Options, stdout, stderr io.Writer) error {
+	app.RunProjectDevelopFn = func(root, home string, opts projectsetup.Options, stdout, stderr io.Writer) error {
 		return errors.New("unsupported platform: vrooli develop is not supported on windows (project-level setup/develop still execute bash-defined lifecycle steps)")
 	}
 
@@ -220,7 +220,7 @@ func TestSplitRunProjectBuildUsesNativeProjectLifecycle(t *testing.T) {
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
 	calls := 0
-	app.runProjectBuild = func(capturedRoot, capturedHome string, stdout, stderr io.Writer) error {
+	app.RunProjectBuildFn = func(capturedRoot, capturedHome string, stdout, stderr io.Writer) error {
 		calls++
 		if capturedRoot != root || capturedHome != home {
 			t.Fatalf("unexpected project context root=%q home=%q", capturedRoot, capturedHome)
@@ -303,7 +303,7 @@ func TestSplitRunProjectBuildErrorsWhenPhaseUndefined(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.runProjectBuild = func(root, home string, stdout, stderr io.Writer) error {
+	app.RunProjectBuildFn = func(root, home string, stdout, stderr io.Writer) error {
 		return errors.New("build failed")
 	}
 

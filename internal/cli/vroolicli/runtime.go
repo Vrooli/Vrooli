@@ -1,0 +1,605 @@
+package vroolicli
+
+import (
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	contractapp "github.com/vrooli/vrooli/internal/app/contract"
+	packageapp "github.com/vrooli/vrooli/internal/app/package"
+	projectapp "github.com/vrooli/vrooli/internal/app/project"
+	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
+	"github.com/vrooli/vrooli/internal/bootstrap"
+	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/cli/contracthandlers"
+	"github.com/vrooli/vrooli/internal/cli/packagehandlers"
+	"github.com/vrooli/vrooli/internal/cli/projectcli"
+	"github.com/vrooli/vrooli/internal/cli/resourcehandlers"
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	"github.com/vrooli/vrooli/internal/cli/scenariocli"
+	"github.com/vrooli/vrooli/internal/cli/scenariohandlers"
+	"github.com/vrooli/vrooli/internal/cli/topcli"
+	"github.com/vrooli/vrooli/internal/cliout"
+	configpkg "github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/maintenance"
+	"github.com/vrooli/vrooli/internal/orchestrator"
+	"github.com/vrooli/vrooli/internal/project"
+	"github.com/vrooli/vrooli/internal/resources"
+	"github.com/vrooli/vrooli/internal/scenarioexec"
+	projectsetup "github.com/vrooli/vrooli/internal/setup"
+)
+
+type VersionInfo struct {
+	CLIVersion      string
+	PlatformVersion string
+}
+
+type Config struct {
+	VersionInfo           VersionInfo
+	ResolveSourceRootFn   func() (string, error)
+	HomeDirFn             func() (string, error)
+	CheckStalenessFn      func() (buildinfo.StaleCheck, error)
+	RebuildAndReexecFn    func([]string) error
+	LookPathFn            func(string) (string, error)
+	NewLoggerFn           func(rootcli.GlobalOptions, io.Writer) (*slog.Logger, func())
+	DebugLogFn            func(*slog.Logger, string, ...any)
+	RunProjectBuildFn     func(string, string, io.Writer, io.Writer) error
+	RunProjectSetupFn     func(string, string, projectsetup.Options, io.Writer, io.Writer) error
+	RunProjectDevelopFn   func(string, string, projectsetup.Options, io.Writer, io.Writer) error
+	RunScenarioSubprocess func(scenarioexec.SubprocessSpec) error
+	ScenarioExecutableFn  func() (string, error)
+}
+
+type App struct {
+	VersionInfo           VersionInfo
+	ResolveSourceRootFn   func() (string, error)
+	HomeDirFn             func() (string, error)
+	CheckStalenessFn      func() (buildinfo.StaleCheck, error)
+	RebuildAndReexecFn    func([]string) error
+	LookPathFn            func(string) (string, error)
+	NewLoggerFn           func(rootcli.GlobalOptions, io.Writer) (*slog.Logger, func())
+	DebugLogFn            func(*slog.Logger, string, ...any)
+	RunProjectBuildFn     func(string, string, io.Writer, io.Writer) error
+	RunProjectSetupFn     func(string, string, projectsetup.Options, io.Writer, io.Writer) error
+	RunProjectDevelopFn   func(string, string, projectsetup.Options, io.Writer, io.Writer) error
+	RunScenarioSubprocess func(scenarioexec.SubprocessSpec) error
+	ScenarioExecutableFn  func() (string, error)
+
+	registry *rootcli.Registry[*CommandContext]
+}
+
+type CommandContext struct {
+	Root         string
+	Globals      rootcli.GlobalOptions
+	Stdout       io.Writer
+	Stderr       io.Writer
+	Logger       *slog.Logger
+	app          *App
+	home         string
+	homeErr      error
+	homeSeen     bool
+	services     *bootstrap.Services
+	servicesErr  error
+	servicesSeen bool
+}
+
+type versionOutput struct {
+	CLIVersion      string `json:"cli_version"`
+	PlatformVersion string `json:"platform_version"`
+	Root            string `json:"root"`
+}
+
+func New(config Config) *App {
+	app := &App{
+		VersionInfo:           config.VersionInfo,
+		ResolveSourceRootFn:   config.ResolveSourceRootFn,
+		HomeDirFn:             config.HomeDirFn,
+		CheckStalenessFn:      config.CheckStalenessFn,
+		RebuildAndReexecFn:    config.RebuildAndReexecFn,
+		LookPathFn:            config.LookPathFn,
+		NewLoggerFn:           config.NewLoggerFn,
+		DebugLogFn:            config.DebugLogFn,
+		RunProjectBuildFn:     config.RunProjectBuildFn,
+		RunProjectSetupFn:     config.RunProjectSetupFn,
+		RunProjectDevelopFn:   config.RunProjectDevelopFn,
+		RunScenarioSubprocess: config.RunScenarioSubprocess,
+		ScenarioExecutableFn:  config.ScenarioExecutableFn,
+	}
+	if app.HomeDirFn == nil {
+		app.HomeDirFn = config.HomeDirFn
+	}
+	if app.HomeDirFn == nil {
+		app.HomeDirFn = configpkg.HomeDir
+	}
+	if app.LookPathFn == nil {
+		app.LookPathFn = exec.LookPath
+	}
+	if app.RunScenarioSubprocess == nil {
+		app.RunScenarioSubprocess = scenarioexec.RunSubprocess
+	}
+	if app.ScenarioExecutableFn == nil {
+		app.ScenarioExecutableFn = os.Executable
+	}
+	app.registry = rootcli.NewRegistry(app.buildTopLevelHandlerMap(), app.buildScenarioHandlerMap())
+	return app
+}
+
+func (app *App) Registry() *rootcli.Registry[*CommandContext] {
+	if app.registry == nil {
+		app.registry = rootcli.NewRegistry(app.buildTopLevelHandlerMap(), app.buildScenarioHandlerMap())
+	}
+	return app.registry
+}
+
+func (app *App) Runner() *rootcli.Runner[*CommandContext] {
+	return rootcli.NewRunner(rootcli.RunnerConfig[*CommandContext]{
+		Registry:         app.Registry(),
+		NewLogger:        app.NewLoggerFn,
+		ResolveRoot:      app.resolveRoot,
+		PrimeRootEnv:     primeRootEnv,
+		ShouldRebuild:    app.shouldRebuild,
+		RebuildAndReexec: app.RebuildAndReexecFn,
+		NewContext: func(globals rootcli.GlobalOptions, stdout, stderr io.Writer, logger *slog.Logger) *CommandContext {
+			return &CommandContext{
+				Globals: globals,
+				Stdout:  stdout,
+				Stderr:  stderr,
+				Logger:  logger,
+				app:     app,
+			}
+		},
+		SetRoot: func(ctx *CommandContext, root string) {
+			ctx.Root = root
+		},
+		ShowMainHelp: func(ctx *CommandContext) {
+			topcli.RenderMainHelp(ctx.Stdout, topcli.CommandSpecs())
+		},
+		ShowVersion: func(ctx *CommandContext) error {
+			return WriteVersion(ctx.Stdout, ctx.Root, ctx.Globals, app.VersionInfo)
+		},
+		DebugLog: app.DebugLogFn,
+	})
+}
+
+func (app *App) Run(args []string, stdout, stderr io.Writer) int {
+	return app.Runner().Run(args, stdout, stderr)
+}
+
+func (app *App) NewCommandContext(root string, globals rootcli.GlobalOptions, stdout, stderr io.Writer) *CommandContext {
+	return &CommandContext{
+		Root:    root,
+		Globals: globals,
+		Stdout:  stdout,
+		Stderr:  stderr,
+		app:     app,
+	}
+}
+
+func WriteVersion(w io.Writer, root string, globals rootcli.GlobalOptions, info VersionInfo) error {
+	format, err := cliout.ParseFormat("", globals.JSON)
+	if err != nil {
+		return err
+	}
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(w, versionOutput{
+			CLIVersion:      info.CLIVersion,
+			PlatformVersion: info.PlatformVersion,
+			Root:            root,
+		})
+	}
+	_, _ = fmt.Fprintf(w, "Vrooli CLI v%s\n", info.CLIVersion)
+	_, _ = fmt.Fprintf(w, "Vrooli Platform v%s\n", info.PlatformVersion)
+	_, _ = fmt.Fprintf(w, "Root: %s\n", root)
+	return nil
+}
+
+func (app *App) resolveRoot() (string, error) {
+	root, err := app.ResolveSourceRootFn()
+	if err != nil {
+		return "", fmt.Errorf("resolve Vrooli root: %w", err)
+	}
+	return filepath.Clean(root), nil
+}
+
+func (app *App) shouldRebuild() (bool, error) {
+	if app.CheckStalenessFn == nil {
+		return false, nil
+	}
+	status, err := app.CheckStalenessFn()
+	if err != nil {
+		return false, err
+	}
+	return status.Stale, nil
+}
+
+func (ctx *CommandContext) HomeDir() (string, error) {
+	if ctx.homeSeen {
+		return ctx.home, ctx.homeErr
+	}
+	ctx.homeSeen = true
+	ctx.home, ctx.homeErr = ctx.app.HomeDirFn()
+	return ctx.home, ctx.homeErr
+}
+
+func (ctx *CommandContext) Services() (*bootstrap.Services, error) {
+	if ctx.servicesSeen {
+		return ctx.services, ctx.servicesErr
+	}
+	ctx.servicesSeen = true
+	home, err := ctx.HomeDir()
+	if err != nil {
+		ctx.servicesErr = err
+		return nil, err
+	}
+	stdout := ctx.Stdout
+	if ctx.Globals.JSON {
+		stdout = ctx.Stderr
+	}
+	ctx.services = bootstrap.New(ctx.Root, home, stdout, ctx.Stderr, ctx.Logger)
+	return ctx.services, nil
+}
+
+func (app *App) CommandEnv(root string, globals rootcli.GlobalOptions) []string {
+	env := os.Environ()
+	env = setEnvValue(env, "VROOLI_ROOT", root)
+	if strings.TrimSpace(os.Getenv(buildinfo.SourceRootEnvVar)) == "" {
+		env = setEnvValue(env, buildinfo.SourceRootEnvVar, root)
+	}
+	if globals.NoColor {
+		env = setEnvValue(env, "NO_COLOR", "1")
+	}
+	return env
+}
+
+func (app *App) newScenarioLifecycleRunner(ctx *CommandContext) (*lifecycle.Runner, error) {
+	services, err := ctx.Services()
+	if err != nil {
+		return nil, err
+	}
+	return services.LifecycleRunner()
+}
+
+func (app *App) newScenarioService(ctx *CommandContext) (*orchestrator.Service, error) {
+	services, err := ctx.Services()
+	if err != nil {
+		return nil, err
+	}
+	return services.Orchestrator(), nil
+}
+
+func (app *App) NewScenarioService(ctx *CommandContext) (*orchestrator.Service, error) {
+	return app.newScenarioService(ctx)
+}
+
+func (app *App) newResourceController(ctx *CommandContext) (*resources.Controller, error) {
+	services, err := ctx.Services()
+	if err != nil {
+		return nil, err
+	}
+	return services.Resources(), nil
+}
+
+func (app *App) newProjectController(ctx *CommandContext) (*project.Controller, error) {
+	services, err := ctx.Services()
+	if err != nil {
+		return nil, err
+	}
+	return services.Project(), nil
+}
+
+func (app *App) newMaintenanceController(ctx *CommandContext) (*maintenance.Controller, error) {
+	services, err := ctx.Services()
+	if err != nil {
+		return nil, err
+	}
+	return services.Maintenance(), nil
+}
+
+func (app *App) newProjectCommandService(ctx *CommandContext) (projectapp.Service, error) {
+	projectController, err := app.newProjectController(ctx)
+	if err != nil {
+		return projectapp.Service{}, err
+	}
+	maintenanceController, err := app.newMaintenanceController(ctx)
+	if err != nil {
+		return projectapp.Service{}, err
+	}
+	return projectapp.Service{
+		Project:     projectController,
+		Maintenance: maintenanceController,
+	}, nil
+}
+
+func (app *App) runTopLevelSetup(ctx *CommandContext, opts projectsetup.Options) error {
+	home, err := ctx.HomeDir()
+	if err != nil {
+		return err
+	}
+	return app.RunProjectSetupFn(ctx.Root, home, opts, ctx.Stdout, ctx.Stderr)
+}
+
+func (app *App) runTopLevelBuild(ctx *CommandContext) error {
+	home, err := ctx.HomeDir()
+	if err != nil {
+		return err
+	}
+	return app.RunProjectBuildFn(ctx.Root, home, ctx.Stdout, ctx.Stderr)
+}
+
+func (app *App) runTopLevelDevelop(ctx *CommandContext, opts projectsetup.Options) error {
+	home, err := ctx.HomeDir()
+	if err != nil {
+		return err
+	}
+	return app.RunProjectDevelopFn(ctx.Root, home, opts, ctx.Stdout, ctx.Stderr)
+}
+
+func (app *App) locateTestGenieCLI(root, home string) (string, error) {
+	return scenarioexec.LocateTestGenieCLI(app.LookPathFn, root, home)
+}
+
+func (app *App) LocateTestGenieCLI(root, home string) (string, error) {
+	return app.locateTestGenieCLI(root, home)
+}
+
+func (app *App) locateScenarioCompletenessCLI(root string) (string, error) {
+	return scenarioexec.LocateScenarioCompletenessCLI(app.LookPathFn, root)
+}
+
+func (app *App) openScenarioURL(url string) error {
+	return scenarioexec.OpenURL(app.LookPathFn, app.RunScenarioSubprocess, url)
+}
+
+func (app *App) OpenScenarioURL(url string) error {
+	return app.openScenarioURL(url)
+}
+
+func (app *App) launchDetachedScenario(root string, globals rootcli.GlobalOptions, args ...string) error {
+	executable, err := app.ScenarioExecutableFn()
+	if err != nil {
+		return err
+	}
+	return scenarioexec.LaunchDetachedScenario(executable, root, globals, app.CommandEnv(root, globals), args...)
+}
+
+func (app *App) LaunchDetachedScenario(root string, globals rootcli.GlobalOptions, args ...string) error {
+	return app.launchDetachedScenario(root, globals, args...)
+}
+
+func commandStdout(ctx *CommandContext) io.Writer {
+	return ctx.Stdout
+}
+
+func projectOutputFormat(ctx *CommandContext) (cliout.Format, error) {
+	return cliout.ParseFormat("", ctx.Globals.JSON)
+}
+
+func runProjectPhaseFromContext(ctx *CommandContext, phase string, args []string) error {
+	controller, err := ctx.app.newProjectController(ctx)
+	if err != nil {
+		return err
+	}
+	return controller.RunProjectPhase(phase, args)
+}
+
+func (app *App) runInfoTopLevelCommand(ctx *CommandContext, args []string) error {
+	req, err := topcli.ParseInfoRequest(args)
+	if err != nil {
+		if helpErr, ok := err.(interface{ HelpText() string }); ok {
+			_, _ = io.WriteString(ctx.Stdout, helpErr.HelpText())
+			if text := helpErr.HelpText(); text == "" || text[len(text)-1] != '\n' {
+				_, _ = io.WriteString(ctx.Stdout, "\n")
+			}
+			return nil
+		}
+		return err
+	}
+	format, err := cliout.ParseFormat("", ctx.Globals.JSON)
+	if err != nil {
+		return err
+	}
+	return topcli.RunInfo(ctx.Root, format, req, ctx.Stdout, ctx.Stderr)
+}
+
+func (app *App) runLifecycleProtectCommand(ctx *CommandContext, args []string) error {
+	commandArgs, err := projectcli.ParseLifecycleProtectArgs(args)
+	if err != nil {
+		return err
+	}
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		return rootcli.ExitCodeError{Code: 1, Message: projectcli.LifecycleProtectErrorMessage()}
+	}
+
+	if err := app.RunScenarioSubprocess(scenarioexec.SubprocessSpec{
+		Name:   commandArgs[0],
+		Args:   commandArgs[1:],
+		Dir:    ".",
+		Env:    os.Environ(),
+		Stdin:  os.Stdin,
+		Stdout: ctx.Stdout,
+		Stderr: ctx.Stderr,
+	}); err != nil {
+		var exitErr *exec.ExitError
+		if ok := errorAs(err, &exitErr); ok {
+			return rootcli.ExitCodeError{Code: exitErr.ExitCode(), Silent_: true}
+		}
+		return err
+	}
+	return nil
+}
+
+func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*CommandContext] {
+	handlers := map[topcli.CommandID]rootcli.Handler[*CommandContext]{
+		topcli.CommandSetup: projectcli.SetupHandler(commandStdout, func(ctx *CommandContext, opts projectsetup.Options) error { return ctx.app.runTopLevelSetup(ctx, opts) }),
+		topcli.CommandDevelop: projectcli.DevelopHandler(commandStdout, func(ctx *CommandContext, opts projectsetup.Options) error {
+			return ctx.app.runTopLevelDevelop(ctx, opts)
+		}),
+		topcli.CommandBuild: projectcli.BuildHandler(commandStdout, func(ctx *CommandContext) error { return ctx.app.runTopLevelBuild(ctx) }),
+		topcli.CommandClean: projectcli.ProjectPhaseHandler(commandStdout, "clean", func(ctx *CommandContext, args []string) error { return runProjectPhaseFromContext(ctx, "clean", args) }),
+		topcli.CommandStatus: projectcli.StatusHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.StatusRequest) (project.StatusReport, error) {
+			command, err := ctx.app.newProjectCommandService(ctx)
+			if err != nil {
+				return project.StatusReport{}, err
+			}
+			return command.Status(projectapp.StatusRequest{ResourcesOnly: req.ResourcesOnly, ScenariosOnly: req.ScenariosOnly, Fast: req.Fast})
+		}),
+		topcli.CommandStop: projectcli.StopHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.StopRequest) (control.StopReport, error) {
+			command, err := ctx.app.newProjectCommandService(ctx)
+			if err != nil {
+				return control.StopReport{}, err
+			}
+			return command.Stop(projectapp.StopRequest{Targets: req.Targets})
+		}),
+		topcli.CommandBackup: projectcli.ProjectPhaseHandler(commandStdout, "backup", func(ctx *CommandContext, args []string) error { return runProjectPhaseFromContext(ctx, "backup", args) }),
+		topcli.CommandRestore: projectcli.ProjectPhaseHandler(commandStdout, "restore", func(ctx *CommandContext, args []string) error {
+			return runProjectPhaseFromContext(ctx, "restore", args)
+		}),
+		topcli.CommandInfo: func(ctx *CommandContext, args []string) error {
+			return ctx.app.runInfoTopLevelCommand(ctx, args)
+		},
+		topcli.CommandScenario: func(ctx *CommandContext, args []string) error {
+			return scenariohandlers.RootHandler(commandStdout, ctx.app.Registry().ScenarioHandler, ctx.app.Registry().SuggestScenario)(ctx, args)
+		},
+		topcli.CommandPackage: packagehandlers.RootHandler(packagehandlers.HandlerDeps[*CommandContext]{
+			Stdout:       commandStdout,
+			Stderr:       func(ctx *CommandContext) io.Writer { return ctx.Stderr },
+			Root:         func(ctx *CommandContext) string { return ctx.Root },
+			OutputFormat: projectOutputFormat,
+			ScenarioOperations: func(ctx *CommandContext) (packageapp.ScenarioRuntime, error) {
+				return ctx.app.newScenarioService(ctx)
+			},
+			LifecycleRunner: func(ctx *CommandContext) (packageapp.ScenarioPhaseRunner, error) {
+				return ctx.app.newScenarioLifecycleRunner(ctx)
+			},
+		}),
+		topcli.CommandResource: resourcehandlers.RootHandler(resourcehandlers.HandlerDeps[*CommandContext]{
+			Stdout:       commandStdout,
+			Stderr:       func(ctx *CommandContext) io.Writer { return ctx.Stderr },
+			Globals:      func(ctx *CommandContext) rootcli.GlobalOptions { return ctx.Globals },
+			OutputFormat: projectOutputFormat,
+			ResourceController: func(ctx *CommandContext) (*resources.Controller, error) {
+				return ctx.app.newResourceController(ctx)
+			},
+		}),
+		topcli.CommandDoctor: projectcli.DoctorHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext) (project.DoctorReport, error) {
+			command, err := ctx.app.newProjectCommandService(ctx)
+			if err != nil {
+				return project.DoctorReport{}, err
+			}
+			return command.Doctor()
+		}),
+		topcli.CommandOrphans: projectcli.OrphansHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.OrphansRequest) (projectcli.OrphansResponse, error) {
+			command, err := ctx.app.newProjectCommandService(ctx)
+			if err != nil {
+				return projectcli.OrphansResponse{}, err
+			}
+			resp, err := command.Orphans(projectapp.OrphansRequest{Kill: req.Kill})
+			if err != nil {
+				return projectcli.OrphansResponse{}, err
+			}
+			return projectcli.OrphansResponse{List: resp.List, KillReport: resp.KillReport}, nil
+		}),
+		topcli.CommandLocks: projectcli.LocksHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.LocksRequest) (projectcli.LocksResponse, error) {
+			command, err := ctx.app.newProjectCommandService(ctx)
+			if err != nil {
+				return projectcli.LocksResponse{}, err
+			}
+			resp, err := command.Locks(projectapp.LocksRequest{Clean: req.Clean})
+			if err != nil {
+				return projectcli.LocksResponse{}, err
+			}
+			return projectcli.LocksResponse{List: resp.List, CleanReport: resp.CleanReport}, nil
+		}),
+		topcli.CommandDiagnosePort: projectcli.DiagnosePortHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.DiagnosePortRequest) (maintenance.PortDiagnostic, error) {
+			command, err := ctx.app.newProjectCommandService(ctx)
+			if err != nil {
+				return maintenance.PortDiagnostic{}, err
+			}
+			return command.DiagnosePort(projectapp.DiagnosePortRequest{Port: req.Port, ScenarioName: req.ScenarioName})
+		}),
+		topcli.CommandContract: contracthandlers.RootHandler(contracthandlers.HandlerDeps[*CommandContext]{
+			Stdout:       commandStdout,
+			OutputFormat: projectOutputFormat,
+			Service: func(ctx *CommandContext) contractapp.Service {
+				return contractapp.NewDefaultService()
+			},
+		}),
+		topcli.CommandLifecycle: projectcli.LifecycleHandler(commandStdout, func(ctx *CommandContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
+	}
+	handlers[topcli.CommandCleanup] = projectcli.CleanupHandler(commandStdout, handlers[topcli.CommandOrphans], handlers[topcli.CommandLocks])
+	return handlers
+}
+
+func (app *App) buildScenarioHandlerMap() map[scenariocli.CommandID]rootcli.Handler[*CommandContext] {
+	return scenariohandlers.BuildHandlers(scenariohandlers.HandlerDeps[*CommandContext]{
+		Stdout:       commandStdout,
+		Stderr:       func(ctx *CommandContext) io.Writer { return ctx.Stderr },
+		Root:         func(ctx *CommandContext) string { return ctx.Root },
+		Globals:      func(ctx *CommandContext) rootcli.GlobalOptions { return ctx.Globals },
+		OutputFormat: projectOutputFormat,
+		HomeDir:      func(ctx *CommandContext) (string, error) { return ctx.HomeDir() },
+		ScenarioOperations: func(ctx *CommandContext) (scenarioapp.ScenarioOperations, error) {
+			return ctx.app.newScenarioService(ctx)
+		},
+		LifecycleRunner: func(ctx *CommandContext) (scenarioapp.PhaseRunner, error) {
+			return ctx.app.newScenarioLifecycleRunner(ctx)
+		},
+		EnvValidator: func(ctx *CommandContext) (scenarioapp.EnvironmentValidator, error) {
+			services, err := ctx.Services()
+			if err != nil {
+				return nil, err
+			}
+			return services.Resources(), nil
+		},
+		OpenURL: func(ctx *CommandContext, url string) error {
+			return ctx.app.openScenarioURL(url)
+		},
+		LaunchDetached: func(ctx *CommandContext, args ...string) error {
+			return ctx.app.launchDetachedScenario(ctx.Root, ctx.Globals, args...)
+		},
+		RunSubprocess: func(ctx *CommandContext, spec scenarioexec.SubprocessSpec) error {
+			return ctx.app.RunScenarioSubprocess(spec)
+		},
+		LocateTestGenieCLI: func(ctx *CommandContext) (string, error) {
+			home, err := ctx.HomeDir()
+			if err != nil {
+				return "", err
+			}
+			return ctx.app.locateTestGenieCLI(ctx.Root, home)
+		},
+		LocateCompleteCLI: func(ctx *CommandContext) (string, error) {
+			return ctx.app.locateScenarioCompletenessCLI(ctx.Root)
+		},
+		CommandEnv: func(ctx *CommandContext) []string {
+			return ctx.app.CommandEnv(ctx.Root, ctx.Globals)
+		},
+	})
+}
+
+func primeRootEnv(root string) {
+	_ = os.Setenv("VROOLI_ROOT", root)
+	if strings.TrimSpace(os.Getenv(buildinfo.SourceRootEnvVar)) == "" {
+		_ = os.Setenv(buildinfo.SourceRootEnvVar, root)
+	}
+}
+
+func setEnvValue(env []string, key, value string) []string {
+	prefix := key + "="
+	for i, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			updated := append([]string(nil), env...)
+			updated[i] = prefix + value
+			return updated
+		}
+	}
+	return append(append([]string(nil), env...), prefix+value)
+}
+
+func errorAs(err error, target any) bool { return errors.As(err, target) }

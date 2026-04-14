@@ -83,14 +83,14 @@ func TestSplitRunScenarioHealFromSandboxRelaunchesAffectedScenarios(t *testing.T
 	app := newTestApp(root)
 
 	relaunchLog := filepath.Join(root, "relaunch.log")
-	app.scenarioExecutable = func() (string, error) {
+	app.ScenarioExecutableFn = func() (string, error) {
 		return writeFakeExecutable(t, root, "bin/fake-vrooli", fmt.Sprintf("#!/usr/bin/env bash\nprintf '%%s\\n' \"$@\" >> %q\n", relaunchLog)), nil
 	}
 
 	if code := app.Run([]string{"scenario", "heal-from-sandbox", "--merged-path", "/merged"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario heal-from-sandbox exit code = %d", code)
 	}
-	waitForTestFile(t, relaunchLog)
+	testkitgo.WaitForFile(t, relaunchLog)
 	data, err := os.ReadFile(relaunchLog)
 	if err != nil {
 		t.Fatalf("read relaunch log: %v", err)
@@ -111,8 +111,8 @@ func TestSplitRunScenarioStartAllAndStopAllUseNativeLifecycle(t *testing.T) {
 
 	root := t.TempDir()
 	home := t.TempDir()
-	alphaPort := reserveFreePort(t)
-	betaPort := reserveFreePort(t)
+	alphaPort := testkitgo.ReserveFreePort(t)
+	betaPort := testkitgo.ReserveFreePort(t)
 	writeFixedPortLifecycleScenarioService(t, root, "alpha", alphaPort)
 	writeFixedPortLifecycleScenarioService(t, root, "beta", betaPort)
 
@@ -149,7 +149,7 @@ func TestSplitRunScenarioStartAllAndStopAllUseNativeLifecycle(t *testing.T) {
 	}
 
 	for _, name := range []string{"alpha", "beta"} {
-		waitForTestFile(t, filepath.Join(home, ".vrooli", "processes", "scenarios", name, "start-api.json"))
+		testkitgo.WaitForFile(t, filepath.Join(home, ".vrooli", "processes", "scenarios", name, "start-api.json"))
 	}
 
 	var stopStdout bytes.Buffer
@@ -195,7 +195,7 @@ func TestSplitRunScenarioUISmokeUsesTranslatedSubprocess(t *testing.T) {
 	app := newTestApp(root)
 
 	var captured scenarioSubprocessSpec
-	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
+	app.RunScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
 		captured = spec
 		return nil
 	}
@@ -203,11 +203,11 @@ func TestSplitRunScenarioUISmokeUsesTranslatedSubprocess(t *testing.T) {
 	if code := app.Run([]string{"scenario", "ui-smoke", "alpha", "--json"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario ui-smoke exit code = %d", code)
 	}
-	if captured.name != fakeCLI {
-		t.Fatalf("subprocess name = %q", captured.name)
+	if captured.Name != fakeCLI {
+		t.Fatalf("subprocess name = %q", captured.Name)
 	}
-	if strings.Join(captured.args, "|") != "ui-smoke|alpha|--json" {
-		t.Fatalf("subprocess args = %v", captured.args)
+	if strings.Join(captured.Args, "|") != "ui-smoke|alpha|--json" {
+		t.Fatalf("subprocess args = %v", captured.Args)
 	}
 }
 
@@ -276,7 +276,7 @@ func TestSplitRunScenarioRequirementsReportUsesTranslatedSubprocess(t *testing.T
 	app := newTestApp(root)
 
 	var captured scenarioSubprocessSpec
-	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
+	app.RunScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
 		captured = spec
 		return nil
 	}
@@ -284,12 +284,12 @@ func TestSplitRunScenarioRequirementsReportUsesTranslatedSubprocess(t *testing.T
 	if code := app.Run([]string{"scenario", "requirements", "report", "alpha", "--json"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario requirements report exit code = %d", code)
 	}
-	if captured.name != fakeCLI {
-		t.Fatalf("subprocess name = %q", captured.name)
+	if captured.Name != fakeCLI {
+		t.Fatalf("subprocess name = %q", captured.Name)
 	}
-	args := strings.Join(captured.args, "|")
+	args := strings.Join(captured.Args, "|")
 	if !strings.Contains(args, "requirements|report") || !strings.Contains(args, "--dir|"+filepath.Join(root, "scenarios", "alpha")) || !strings.Contains(args, "--json") {
-		t.Fatalf("subprocess args = %v", captured.args)
+		t.Fatalf("subprocess args = %v", captured.Args)
 	}
 }
 
@@ -298,12 +298,12 @@ func TestSplitRunScenarioCompletenessUsesTranslatedSubprocess(t *testing.T) {
 	cliPath := writeFakeExecutable(t, root, "scenarios/scenario-completeness-scoring/cli/scenario-completeness-scoring", "#!/usr/bin/env bash\nexit 0\n")
 
 	app := newTestApp(root)
-	app.lookPath = func(file string) (string, error) {
+	app.LookPathFn = func(file string) (string, error) {
 		return "", exec.ErrNotFound
 	}
 
 	var captured scenarioSubprocessSpec
-	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
+	app.RunScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
 		captured = spec
 		return nil
 	}
@@ -311,10 +311,10 @@ func TestSplitRunScenarioCompletenessUsesTranslatedSubprocess(t *testing.T) {
 	if code := app.Run([]string{"scenario", "completeness", "alpha", "--format", "json"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario completeness exit code = %d", code)
 	}
-	if captured.name != cliPath {
-		t.Fatalf("subprocess name = %q", captured.name)
+	if captured.Name != cliPath {
+		t.Fatalf("subprocess name = %q", captured.Name)
 	}
-	if got := strings.Join(captured.args, "|"); got != "alpha|--format|json" {
+	if got := strings.Join(captured.Args, "|"); got != "alpha|--format|json" {
 		t.Fatalf("subprocess args = %q", got)
 	}
 }
@@ -337,7 +337,7 @@ func TestSplitRunScenarioRequirementsHelpAndInitTranslation(t *testing.T) {
 	}
 
 	var captured scenarioSubprocessSpec
-	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
+	app.RunScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
 		captured = spec
 		return nil
 	}
@@ -345,10 +345,10 @@ func TestSplitRunScenarioRequirementsHelpAndInitTranslation(t *testing.T) {
 	if code := app.Run([]string{"scenario", "requirements", "init", "alpha"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario requirements init exit code = %d", code)
 	}
-	if captured.name != fakeCLI {
-		t.Fatalf("subprocess name = %q", captured.name)
+	if captured.Name != fakeCLI {
+		t.Fatalf("subprocess name = %q", captured.Name)
 	}
-	if got := strings.Join(captured.args, "|"); !strings.Contains(got, "requirements|init") || !strings.Contains(got, "--dir|"+filepath.Join(root, "scenarios", "alpha")) {
+	if got := strings.Join(captured.Args, "|"); !strings.Contains(got, "requirements|init") || !strings.Contains(got, "--dir|"+filepath.Join(root, "scenarios", "alpha")) {
 		t.Fatalf("subprocess args = %q", got)
 	}
 }

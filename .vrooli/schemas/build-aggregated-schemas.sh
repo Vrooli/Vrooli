@@ -1,6 +1,5 @@
 #!/bin/bash
-# Build Aggregated Resource Schemas for IDE Support
-# Scans all resource schema.json files and creates combined schemas for auto-completion
+# Build aggregated scenario dependency schemas from resource manifests.
 
 set -euo pipefail
 
@@ -19,46 +18,23 @@ get_resource_name() {
     basename "$1"
 }
 
-# Function to validate JSON schema
-validate_schema() {
-    local schema_file="$1"
-    
-    # Basic JSON validation
-    if ! jq empty "$schema_file" >/dev/null 2>&1; then
-        return 1
-    fi
-    
-    # Check for required fields
-    local id title
-    id=$(jq -r '."$id" // empty' "$schema_file")
-    title=$(jq -r '.title // empty' "$schema_file")
-    
-    if [[ -z "$id" || -z "$title" ]]; then
-        return 1
-    fi
-    
-    return 0
-}
+validate_manifest() {
+    local manifest_file="$1"
 
-# Function to extract schema properties for a resource
-extract_resource_schema() {
-    local schema_file="$1"
-    local resource_name="$2"
-    
-    # Create the resource schema with proper references
-    jq --arg resource_name "$resource_name" '{
-        type: "object",
-        properties: .properties,
-        examples: .examples,
-        description: .description,
-        title: .title,
-        resourceName: $resource_name
-    }' "$schema_file"
+    if ! jq empty "$manifest_file" >/dev/null 2>&1; then
+        return 1
+    fi
+
+    local name driver portability
+    name=$(jq -r '.name // empty' "$manifest_file")
+    driver=$(jq -r '.driver // empty' "$manifest_file")
+    portability=$(jq -r '.portability_tier // empty' "$manifest_file")
+    [[ -n "$name" && -n "$driver" && -n "$portability" ]]
 }
 
 # Main function to build aggregated schema
 build_aggregated_schema() {
-    log "Building aggregated resource schemas..."
+    log "Building aggregated resource dependency schemas from resource manifests..."
 
     local valid_resources=()
     local resource_count=0
@@ -68,19 +44,19 @@ build_aggregated_schema() {
 
         local resource_name
         resource_name=$(get_resource_name "$resource_dir")
-        local schema_file="$resource_dir/config/schema.json"
+        local manifest_file="$resource_dir/resource.json"
 
-        if [[ ! -f "$schema_file" ]]; then
-            log "⚠️  Schema not found for resource: $resource_name"
+        if [[ ! -f "$manifest_file" ]]; then
+            log "⚠️  Manifest not found for resource: $resource_name"
             continue
         fi
 
-        if ! validate_schema "$schema_file"; then
-            log "❌ Invalid schema for resource: $resource_name"
+        if ! validate_manifest "$manifest_file"; then
+            log "❌ Invalid manifest for resource: $resource_name"
             continue
         fi
 
-        log "✓ Processing schema for: $resource_name"
+        log "✓ Processing manifest for: $resource_name"
         valid_resources+=("$resource_name")
         ((resource_count++))
     done
@@ -108,18 +84,26 @@ with list_file.open() as fh:
 
 definitions = {}
 for name in resource_names:
-    schema_path = resources_dir / name / 'config' / 'schema.json'
-    with schema_path.open() as schema_file:
-        schema_data = json.load(schema_file)
+    manifest_path = resources_dir / name / 'resource.json'
+    with manifest_path.open() as manifest_file:
+        manifest_data = json.load(manifest_file)
 
-    definitions[name] = {
-        "type": "object",
-        "properties": schema_data.get("properties", {}),
-        "examples": schema_data.get("examples"),
-        "description": schema_data.get("description"),
-        "title": schema_data.get("title"),
-        "resourceName": name
-    }
+    schema_data = manifest_data.get("dependency_schema") or {}
+    definition = {"type": "object"}
+    if isinstance(schema_data, dict):
+        definition.update(schema_data)
+    if "type" not in definition:
+        definition["type"] = "object"
+    if "properties" not in definition:
+        definition["properties"] = {}
+    if "additionalProperties" not in definition:
+        definition["additionalProperties"] = True
+    if not definition.get("title"):
+        definition["title"] = manifest_data.get("display_name") or manifest_data.get("name") or name
+    if not definition.get("description"):
+        definition["description"] = manifest_data.get("description", "")
+    definition["resourceName"] = name
+    definitions[name] = definition
 
 catalog_properties = {}
 for name in resource_names:
@@ -134,7 +118,7 @@ document = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://vrooli.com/schemas/resource-definitions.json",
     "title": "Resource Definitions for IDE Support",
-    "description": "Auto-generated aggregated schemas for all available resources",
+    "description": "Auto-generated aggregated dependency schemas for all available resources",
     "definitions": {
         "resourceSchemas": definitions
     },
@@ -195,9 +179,9 @@ create_resource_catalog() {
         
         local resource_name
         resource_name=$(get_resource_name "$resource_dir")
-        local schema_file="$resource_dir/config/schema.json"
-        
-        if [[ ! -f "$schema_file" ]] || ! validate_schema "$schema_file"; then
+        local manifest_file="$resource_dir/resource.json"
+
+        if [[ ! -f "$manifest_file" ]] || ! validate_manifest "$manifest_file"; then
             continue
         fi
         
@@ -207,13 +191,15 @@ create_resource_catalog() {
             echo "," >> "$catalog_file"
         fi
         
-        # Extract resource metadata
+        # Extract resource metadata from the manifest-native dependency schema.
         jq --arg name "$resource_name" '{
             name: $name,
-            title: .title,
-            description: .description,
-            examples: (.examples | length)
-        }' "$schema_file" >> "$catalog_file"
+            title: (.display_name // .name // $name),
+            description: (.description // ""),
+            template: (.template // ""),
+            driver: (.driver // ""),
+            examples: ((.dependency_schema.examples // []) | length)
+        }' "$manifest_file" >> "$catalog_file"
     done
     
     echo '
@@ -292,7 +278,7 @@ main() {
         
         # Show summary
         local total_resources
-        total_resources=$( (find "$RESOURCES_DIR" -path '*/config/schema.json' 2>/dev/null || true) | wc -l )
+        total_resources=$( (find "$RESOURCES_DIR" -path '*/resource.json' 2>/dev/null || true) | wc -l )
         local processed_resources
         processed_resources=$(jq '.definitions.resourceSchemas | length' "$OUTPUT_FILE")
         
@@ -306,7 +292,7 @@ main() {
         echo "     - $SCRIPT_DIR/resource-catalog.json"
         echo ""
         echo "🎯 Next steps:"
-        echo "   - IDEs can now use these schemas for auto-completion"
+        echo "   - IDEs can now use these manifest-derived schemas for auto-completion"
         echo "   - Use 'vrooli resource catalog' to explore resources"
         echo "   - Reference schemas with \$schema in your service.json files"
         

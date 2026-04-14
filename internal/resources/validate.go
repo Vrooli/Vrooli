@@ -2,6 +2,8 @@ package resources
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -68,6 +70,22 @@ func (c *Controller) ValidateResources(name string) (ResourceValidationReport, e
 		for _, issue := range resourceenv.ValidateResourceManifest(c.Root, manifest) {
 			entry.Issues = append(entry.Issues, ValidationIssue{Severity: "error", Message: issue})
 		}
+		if usesSingleManifestContract(manifest) {
+			for _, relPath := range []string{
+				"config/schema.json",
+				"config/runtime.json",
+				"config/defaults.json",
+				"config/exports.sh",
+			} {
+				path := filepath.Join(c.Root, "resources", item.Name, filepath.FromSlash(relPath))
+				if _, err := os.Stat(path); err == nil {
+					entry.Issues = append(entry.Issues, ValidationIssue{
+						Severity: "error",
+						Message:  fmt.Sprintf("deprecated file retained for single-manifest resource: %s", relPath),
+					})
+				}
+			}
+		}
 		for _, port := range manifest.Ports {
 			hostPort := port.Host
 			if hostPort <= 0 {
@@ -96,6 +114,11 @@ func (c *Controller) ValidateResources(name string) (ResourceValidationReport, e
 		return ResourceValidationReport{}, fmt.Errorf("resource %s not found", name)
 	}
 	return report, nil
+}
+
+func usesSingleManifestContract(manifest ResourceManifest) bool {
+	version := strings.TrimSpace(manifest.TemplateVersion)
+	return version != "" && version != "1"
 }
 
 type ScenarioEnvValidationReport struct {

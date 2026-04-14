@@ -13,6 +13,7 @@ type (
 	ResourceCredentials          = manifestpkg.ResourceCredentials
 	ResourceRuntime              = manifestpkg.ResourceRuntime
 	ResourceEnvironmentExports   = manifestpkg.ResourceEnvironmentExports
+	ResourceOrchestration        = manifestpkg.ResourceOrchestration
 	ResourceDerivedTemplate      = manifestpkg.ResourceDerivedTemplate
 	ResourceVolume               = manifestpkg.ResourceVolume
 	ResourceLifecycle            = manifestpkg.ResourceLifecycle

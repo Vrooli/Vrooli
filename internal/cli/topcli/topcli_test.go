@@ -68,3 +68,19 @@ func TestCollectInfoSourcesDetailedFallsBackOnInvalidManifest(t *testing.T) {
 		t.Fatalf("warnings = %#v", warnings)
 	}
 }
+
+func TestRenderMainHelpUsesPlainLabelsAndIncludesContract(t *testing.T) {
+	var stdout bytes.Buffer
+	RenderMainHelp(&stdout, CommandSpecs())
+
+	output := stdout.String()
+	if strings.Contains(output, "🚀") || strings.Contains(output, "📋") {
+		t.Fatalf("output = %q", output)
+	}
+	if !strings.Contains(output, "Vrooli CLI - AI Platform Management Tool") {
+		t.Fatalf("output = %q", output)
+	}
+	if !strings.Contains(output, "contract") {
+		t.Fatalf("output = %q", output)
+	}
+}

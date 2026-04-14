@@ -1469,12 +1469,355 @@ If platform support is not explicit, users will assume more portability than exi
 
 ## 15. Open questions to settle during implementation
 
-- What exact schema format should `resource.json` use relative to current `runtime.json` and `schema.json` conventions?
 - Should the blueprint store be JSON-only, or allow Markdown companions for richer human notes?
 - Should archive export include git metadata and diff context, or just files plus metadata JSON?
 - Which current resources are definitely part of the long-term active core set?
 - How much of the old `content` command surface should be driver-native vs resource-local?
 - Should template generation live under `vrooli resource generate`, `vrooli resource template`, or blueprint promotion only?
+
+### Resolved direction: single-manifest resources
+
+Status update:
+
+- `resource.json` is now the single manifest authority for migrated resources.
+- `.vrooli/schemas/resource-definitions.json` is now generated from `resource.json`, not `config/schema.json`.
+- `internal/resources/env/resolver.go` no longer falls back to `resource-definitions.json` for env inference.
+- `config/runtime.json` and `config/schema.json` have been removed from active resources.
+- canonical templates no longer scaffold `config/defaults.json` or `config/schema.json`.
+- repo validation now rejects deprecated sidecar files for single-manifest resources.
+- stale scenario manifests still reference removed resources such as `n8n`, `windmill`, `mailpit`, `playwright`, and `system-setup`; those are now visible cleanup work on the scenario side rather than something the resource catalog should mask.
+
+Current repo findings support a stricter direction:
+
+- `resource.json` is already the runtime authority for native lifecycle, driver selection, env exports, ports, install metadata, and health checks.
+- `.vrooli/schemas/resource-definitions.json` remains a generated compatibility artifact for scenario authoring and IDE autocomplete, but it is now sourced from `resource.json`.
+- the old env fallback and sidecar runtime/schema files have been removed from the active resource set.
+
+The correct path is now Option B:
+
+- `resource.json` becomes the single canonical manifest for both runtime behavior and scenario dependency authoring.
+- `config/schema.json` is replaced by a manifest-native `dependency_schema` section.
+- `config/runtime.json` is replaced by explicit manifest-native lifecycle and orchestration fields.
+- `.vrooli/schemas/resource-definitions.json` stops being authored from `config/schema.json` and is instead generated from `resource.json`, or removed entirely if `service.schema.json` can be generated directly.
+- canonical templates stop scaffolding `config/defaults.json` and `config/schema.json`.
+
+### Proposed single-manifest contract
+
+Each resource manifest should converge on a shape like:
+
+```json
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "postgres",
+  "display_name": "PostgreSQL Database",
+  "description": "Managed PostgreSQL service for project and scenario storage.",
+  "template": "docker-service",
+  "driver": "docker-service",
+  "portability_tier": "full",
+  "category": "storage",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "orchestration": {
+    "startup_order": 1000,
+    "startup_timeout_seconds": 60,
+    "startup_time_estimate": "10-30s",
+    "recovery_attempts": 5,
+    "health_check_retries": 10,
+    "health_check_delay_seconds": 3,
+    "priority": "critical",
+    "dependencies": []
+  },
+  "dependency_schema": {
+    "type": "object",
+    "properties": {
+      "database": {
+        "type": "string",
+        "description": "Scenario-specific database name override"
+      }
+    },
+    "additionalProperties": false,
+    "examples": [
+      {
+        "enabled": true,
+        "required": true,
+        "database": "my_scenario"
+      }
+    ]
+  },
+  "ports": [],
+  "health_checks": [],
+  "runtime": {},
+  "environment_exports": {},
+  "lifecycle": {},
+  "capabilities": {}
+}
+```
+
+This splits the jobs cleanly:
+
+- `dependency_schema`: what scenarios are allowed to declare under `dependencies.resources.<name>`
+- `orchestration`: startup ordering and lifecycle hints previously stored in `config/runtime.json`
+- `runtime`, `ports`, `health_checks`, `environment_exports`, `install`, `capabilities`: native control-plane behavior
+
+### What moves where
+
+#### `config/schema.json`
+
+Current role:
+
+- scenario dependency authoring schema
+- aggregate input for `resource-definitions.json`
+- accidental runtime-default source in old env fallback
+
+Target:
+
+- replace with `resource.json.dependency_schema`
+
+Notes:
+
+- many current schemas are mostly baggage and should collapse to small schema fragments or disappear entirely
+- only resource-specific scenario knobs should survive
+- generic dependency fields such as `enabled`, `required`, `purpose`, `startup_policy`, and `description` should remain owned by `.vrooli/schemas/resources.schema.json`
+
+#### `config/runtime.json`
+
+Current role:
+
+- shell CLI `info` output metadata
+- startup ordering and retry hints
+
+Target:
+
+- replace with `resource.json.orchestration`
+- continue using `resource.json.lifecycle` for driver-executed timeouts and retries
+
+Notes:
+
+- `orchestration` should carry repo-level scheduling semantics
+- `lifecycle` should carry driver execution semantics
+
+#### `config/defaults.sh`
+
+Current role:
+
+- shell implementation defaults
+- sometimes hidden source of runtime env and path values
+
+Target:
+
+- values that matter to native runtime move into:
+  - `runtime.env`
+  - `ports`
+  - `install`
+  - `environment_exports`
+  - `orchestration`
+  - `dependency_schema` defaults where they are scenario-facing
+- shell-only values either:
+  - move into retained shell compatibility code while migration is active, or
+  - are deleted if no longer used
+
+Notes:
+
+- canonical templates should not include any defaults file
+- compatibility-only shell code should use a clearly marked compatibility path, not `config/defaults.sh` as a canonical contract
+
+#### `config/exports.sh`
+
+Current role:
+
+- shell-era scenario env export path
+
+Target:
+
+- fully replaced by `resource.json.environment_exports`
+- deleted once the native resolver covers all live scenario consumers
+
+#### `config/messages.sh`
+
+Current role:
+
+- shell CLI message text
+
+Target:
+
+- remove from canonical templates
+- migrate any still-useful messages into Go/native command rendering or keep them only inside explicit compatibility code
+
+#### `config/capabilities.yaml`
+
+Current role:
+
+- shell-era feature flags and affordance metadata
+
+Target:
+
+- migrate useful data into `resource.json.capabilities`
+- delete the YAML files once no consumer remains
+
+#### `config/defaults.json`
+
+Current role:
+
+- template-only scaffold, not used operationally
+
+Target:
+
+- remove from canonical templates and template validation once the single-manifest contract lands
+
+### Generator and schema changes
+
+To make Option B real, the repo must stop generating dependency definitions from `config/schema.json`.
+
+Required changes:
+
+1. Extend `.vrooli/schemas/resource.schema.json` with:
+   - `dependency_schema`
+   - `orchestration`
+2. Extend `internal/resources/manifest/manifest.go` with typed structs for those sections.
+3. Replace `.vrooli/schemas/build-aggregated-schemas.sh` with a manifest-native generator that:
+   - scans `resources/*/resource.json`
+   - reads `dependency_schema`
+   - merges it with `.vrooli/schemas/resources.schema.json#/definitions/resourceConfig`
+   - emits the dependency catalog consumed by `.vrooli/schemas/service.schema.json`
+4. Keep the output filename either:
+   - as `resource-definitions.json` for compatibility, but generated from `resource.json`, or
+   - rename it and update `service.schema.json` accordingly
+
+The first option is lower-risk:
+
+```text
+same filename
+new source of truth
+```
+
+### Validation requirements
+
+This migration should not be considered complete unless validation is first-class.
+
+#### Manifest validation
+
+Add validation for:
+
+- malformed `dependency_schema`
+- duplicate property names already owned by base `resourceConfig`
+- invalid `orchestration` values
+- explicit `environment_exports` collisions and missing references
+
+#### Generated schema validation
+
+Validate that:
+
+- every generated dependency schema compiles
+- `service.schema.json` still validates scenario manifests
+- no resource with `dependency_schema` causes invalid aggregate output
+
+#### Repo cleanup validation
+
+Add checks so canonical resources/templates fail validation if they retain deprecated files after migration:
+
+- `config/schema.json`
+- `config/runtime.json`
+- `config/defaults.json`
+- `config/exports.sh`
+
+This should be strict for canonical templates first, then rolled out to resources by migration phase.
+
+### Cleanup sequence
+
+The cleanup should happen in this order.
+
+1. Add `dependency_schema` and `orchestration` to `resource.json` and schema/types.
+2. Implement manifest-native dependency catalog generation.
+3. Update `.vrooli/schemas/service.schema.json` to consume the manifest-native aggregate.
+4. Remove legacy env fallback to `.vrooli/schemas/resource-definitions.json` from `internal/resources/env/resolver.go`.
+5. Update resource templates to a single-manifest layout.
+6. Remove `config/defaults.json` and `config/schema.json` from template validation.
+7. Migrate active resources:
+   - move useful `config/runtime.json` fields into `resource.json.orchestration`
+   - move useful `config/schema.json` fields into `resource.json.dependency_schema`
+   - migrate or delete shell config files
+8. Add repo checks that reject deprecated config files for migrated resources.
+9. Delete obsolete generator paths and documentation that still describe `config/schema.json` as canonical.
+
+### Template target state
+
+Canonical templates should converge on:
+
+```text
+templates/resources/<template>/
+  template.json
+  README.md
+  resource.json
+  docs/OPERATIONS.md
+  test/smoke.json
+  test/integration.json
+  optional archetype assets
+```
+
+No canonical template should include:
+
+- `config/defaults.json`
+- `config/schema.json`
+- any Bash file
+
+### Documentation cleanup required
+
+These docs are currently stale and should be updated as part of the migration:
+
+- `docs/resources/interface-standards.md`
+- `docs/resources/resource-templates.md`
+- `.vrooli/schemas/README.md`
+- any shell-era resource docs that still describe `defaults.sh`, `messages.sh`, or `runtime.json` as canonical contract
+
+### Recommended migration waves
+
+#### Wave 1: contract and generator
+
+- extend `resource.schema.json`
+- extend `manifest.go`
+- implement manifest-native dependency catalog generator
+- update `service.schema.json`
+- keep output filename stable if possible
+
+#### Wave 2: templates and validation
+
+- update `templates/resources/*`
+- update `internal/resources/templates.go`
+- update template tests
+- add validator checks for deprecated files
+
+#### Wave 3: active resource manifests
+
+Migrate the resources whose `config/schema.json` still has meaningful resource-specific knobs:
+
+- `browserless`
+- `codex`
+- `gemini`
+- `home-assistant`
+- `judge0`
+- `mail-in-a-box`
+- `minio`
+- `neo4j`
+- `ollama`
+- `openrouter`
+- `postgis`
+- `sagemath`
+- `unstructured-io`
+
+Resources whose current schema files only restate generic fields should either:
+
+- get a very small `dependency_schema`, or
+- drop the section entirely
+
+#### Wave 4: compatibility cleanup
+
+- remove legacy env fallback
+- remove `resource-definitions.json` as a `config/schema.json` aggregate
+- remove deprecated template files
+- begin removing retained shell config files where resource-specific migration is complete
 
 These are implementation questions, not blockers for starting the phased work.
 
@@ -1484,12 +1827,14 @@ These are implementation questions, not blockers for starting the phased work.
 
 The recommended next slice after this plan is:
 
-1. perform the full resource inventory and triage
-2. agree on the initial active/core resource set
-3. define the blueprint schema and storage location
-4. implement the first blueprint/deprecation lifecycle slice before migrating resource code
+1. extend `resource.schema.json` and `manifest.go` with `dependency_schema` and `orchestration`
+2. replace `config/schema.json` aggregation with a manifest-native dependency catalog generator
+3. update `service.schema.json` to consume the manifest-native aggregate
+4. remove legacy runtime/env dependence on `resource-definitions.json`
+5. update canonical templates and template validation to a zero-Bash, single-manifest shape
+6. migrate active resources in waves and then delete deprecated config files
 
-This order is intentional. The platform should decide what deserves migration before writing migration code.
+This order is intentional. The contract and generator need to be right before template cleanup and per-resource migration begin.
 
 ---
 
@@ -1504,6 +1849,7 @@ The correct path is:
 3. introduce first-class blueprints
 4. introduce first-class deprecation/archive/restore
 5. standardize resource generation around a small template set
-6. migrate the surviving active resource set onto a Go-native driver-based control plane
+6. consolidate the surviving active resource set onto a single-manifest resource contract
+7. migrate the surviving active resource set onto a Go-native driver-based control plane
 
 If this plan is followed, Vrooli will end up with a cleaner, more honest, and more extensible resource system that is actually worth making cross-platform.

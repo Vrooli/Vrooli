@@ -42,6 +42,12 @@ func TestParseCleanupRequestRejectsUnknownTarget(t *testing.T) {
 	}
 }
 
+func TestParseDiagnosePortRequestRejectsInvalidPort(t *testing.T) {
+	if _, err := ParseDiagnosePortRequest([]string{"bogus"}); err == nil {
+		t.Fatal("expected invalid port error")
+	}
+}
+
 func TestRenderOrphansResponseHumanEmpty(t *testing.T) {
 	var stdout bytes.Buffer
 	if err := RenderOrphansResponse(&stdout, cliout.FormatHuman, OrphansResponse{}); err != nil {
@@ -68,6 +74,21 @@ func TestRenderLocksResponseHumanIncludesStaleStatus(t *testing.T) {
 	output := stdout.String()
 	if !strings.Contains(output, "21234") || !strings.Contains(output, "stale") {
 		t.Fatalf("stdout = %q", output)
+	}
+}
+
+func TestRenderOrphansResponseHumanHandlesKillReport(t *testing.T) {
+	var stdout bytes.Buffer
+	err := RenderOrphansResponse(&stdout, cliout.FormatHuman, OrphansResponse{
+		KillReport: &control.StopReport{
+			Stopped: []control.ResultItem{control.Stopped("123", "sleep 30")},
+		},
+	})
+	if err != nil {
+		t.Fatalf("RenderOrphansResponse: %v", err)
+	}
+	if got := stdout.String(); !strings.Contains(got, "Stopped orphan PID 123") {
+		t.Fatalf("stdout = %q", got)
 	}
 }
 

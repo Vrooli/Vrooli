@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 func TestRunScenarioTestUsesNativePhaseRunner(t *testing.T) {
@@ -29,7 +30,7 @@ func TestRunScenarioTestUsesNativePhaseRunner(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.rebuildAndReexec = func(args []string) error {
+	app.RebuildAndReexecFn = func(args []string) error {
 		t.Fatalf("unexpected rebuild")
 		return nil
 	}
@@ -56,7 +57,7 @@ func TestRunNoStaleCheckBypassesFreshnessProbe(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.checkStaleness = func() (buildinfo.StaleCheck, error) {
+	app.CheckStalenessFn = func() (buildinfo.StaleCheck, error) {
 		t.Fatalf("stale check should be skipped when --no-stale-check is set")
 		return buildinfo.StaleCheck{}, nil
 	}
@@ -344,7 +345,7 @@ func TestRunScenarioStartCleanStaleRemovesDeadLock(t *testing.T) {
 
 	root := t.TempDir()
 	home := t.TempDir()
-	port := reserveFreePort(t)
+	port := testkitgo.ReserveFreePort(t)
 	writeFixedPortLifecycleScenarioService(t, root, "alpha", port)
 
 	stateDir := filepath.Join(home, ".vrooli", "state", "scenarios")
@@ -766,13 +767,13 @@ func TestRunScenarioStartOpenUsesNativeURLLauncher(t *testing.T) {
 	app := newTestApp(root)
 
 	var opened scenarioSubprocessSpec
-	app.lookPath = func(file string) (string, error) {
+	app.LookPathFn = func(file string) (string, error) {
 		if file == "xdg-open" {
 			return "/usr/bin/xdg-open", nil
 		}
 		return "", exec.ErrNotFound
 	}
-	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
+	app.RunScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
 		opened = spec
 		return nil
 	}
@@ -788,7 +789,7 @@ func TestRunScenarioStartOpenUsesNativeURLLauncher(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("start --open exit code = %d, stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
-	if opened.name != "/usr/bin/xdg-open" || len(opened.args) != 1 || !strings.HasPrefix(opened.args[0], "http://localhost:") {
+	if opened.Name != "/usr/bin/xdg-open" || len(opened.Args) != 1 || !strings.HasPrefix(opened.Args[0], "http://localhost:") {
 		t.Fatalf("opened = %+v", opened)
 	}
 }
@@ -806,13 +807,13 @@ func TestRunScenarioRestartOpenUsesNativeURLLauncher(t *testing.T) {
 	app := newTestApp(root)
 
 	var opened scenarioSubprocessSpec
-	app.lookPath = func(file string) (string, error) {
+	app.LookPathFn = func(file string) (string, error) {
 		if file == "xdg-open" {
 			return "/usr/bin/xdg-open", nil
 		}
 		return "", exec.ErrNotFound
 	}
-	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
+	app.RunScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
 		opened = spec
 		return nil
 	}
@@ -834,7 +835,7 @@ func TestRunScenarioRestartOpenUsesNativeURLLauncher(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("restart --open exit code = %d, stdout=%s stderr=%s", code, stdout.String(), stderr.String())
 	}
-	if opened.name != "/usr/bin/xdg-open" || len(opened.args) != 1 || !strings.HasPrefix(opened.args[0], "http://localhost:") {
+	if opened.Name != "/usr/bin/xdg-open" || len(opened.Args) != 1 || !strings.HasPrefix(opened.Args[0], "http://localhost:") {
 		t.Fatalf("opened = %+v", opened)
 	}
 }
@@ -850,14 +851,14 @@ func TestRunScenarioHealFromSandboxRelaunchesAffectedScenarios(t *testing.T) {
 	app := newTestApp(root)
 
 	relaunchLog := filepath.Join(root, "relaunch.log")
-	app.scenarioExecutable = func() (string, error) {
+	app.ScenarioExecutableFn = func() (string, error) {
 		return writeFakeExecutable(t, root, "bin/fake-vrooli", fmt.Sprintf("#!/usr/bin/env bash\nprintf '%%s\\n' \"$@\" >> %q\n", relaunchLog)), nil
 	}
 
 	if code := app.Run([]string{"scenario", "heal-from-sandbox", "--merged-path", "/merged"}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario heal-from-sandbox exit code = %d", code)
 	}
-	waitForTestFile(t, relaunchLog)
+	testkitgo.WaitForFile(t, relaunchLog)
 	data, err := os.ReadFile(relaunchLog)
 	if err != nil {
 		t.Fatalf("read relaunch log: %v", err)
@@ -920,8 +921,8 @@ func TestRunScenarioStartAllAndStopAllUseNativeLifecycle(t *testing.T) {
 
 	root := t.TempDir()
 	home := t.TempDir()
-	alphaPort := reserveFreePort(t)
-	betaPort := reserveFreePort(t)
+	alphaPort := testkitgo.ReserveFreePort(t)
+	betaPort := testkitgo.ReserveFreePort(t)
 	writeFixedPortLifecycleScenarioService(t, root, "alpha", alphaPort)
 	writeFixedPortLifecycleScenarioService(t, root, "beta", betaPort)
 
@@ -958,7 +959,7 @@ func TestRunScenarioStartAllAndStopAllUseNativeLifecycle(t *testing.T) {
 	}
 
 	for _, name := range []string{"alpha", "beta"} {
-		waitForTestFile(t, filepath.Join(home, ".vrooli", "processes", "scenarios", name, "start-api.json"))
+		testkitgo.WaitForFile(t, filepath.Join(home, ".vrooli", "processes", "scenarios", name, "start-api.json"))
 	}
 
 	var stopStdout bytes.Buffer
@@ -1039,7 +1040,7 @@ func TestRunScenarioTemplateShowAndHooks(t *testing.T) {
 	}
 
 	var captured scenarioSubprocessSpec
-	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
+	app.RunScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
 		captured = spec
 		return nil
 	}
@@ -1054,14 +1055,14 @@ func TestRunScenarioTemplateShowAndHooks(t *testing.T) {
 	}, &generateStdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario generate --run-hooks exit code = %d", code)
 	}
-	if captured.name != "bash" {
+	if captured.Name != "bash" {
 		t.Fatalf("hook subprocess = %+v", captured)
 	}
-	if strings.Join(captured.args, "|") != "-lc|echo hook-ran" {
-		t.Fatalf("hook args = %v", captured.args)
+	if strings.Join(captured.Args, "|") != "-lc|echo hook-ran" {
+		t.Fatalf("hook args = %v", captured.Args)
 	}
-	if captured.dir != filepath.Join(root, "scenarios", "alpha") {
-		t.Fatalf("hook dir = %q", captured.dir)
+	if captured.Dir != filepath.Join(root, "scenarios", "alpha") {
+		t.Fatalf("hook dir = %q", captured.Dir)
 	}
 	if !strings.Contains(generateStdout.String(), "[Hook 1] Echo hook") {
 		t.Fatalf("generate output = %q", generateStdout.String())
@@ -1121,7 +1122,7 @@ func TestScenarioHelperCLIResolution(t *testing.T) {
 	overrideCLI := writeFakeExecutable(t, root, "override/test-genie", "#!/usr/bin/env bash\nexit 0\n")
 	t.Setenv("VROOLI_TEST_GENIE_CLI", overrideCLI)
 
-	path, err := app.locateTestGenieCLI(root, home)
+	path, err := app.LocateTestGenieCLI(root, home)
 	if err != nil {
 		t.Fatalf("locateTestGenieCLI override: %v", err)
 	}
@@ -1131,8 +1132,8 @@ func TestScenarioHelperCLIResolution(t *testing.T) {
 
 	t.Setenv("VROOLI_TEST_GENIE_CLI", "")
 	homeCLI := writeFakeExecutable(t, home, ".vrooli/bin/test-genie", "#!/usr/bin/env bash\nexit 0\n")
-	app.lookPath = func(file string) (string, error) { return "", exec.ErrNotFound }
-	path, err = app.locateTestGenieCLI(root, home)
+	app.LookPathFn = func(file string) (string, error) { return "", exec.ErrNotFound }
+	path, err = app.LocateTestGenieCLI(root, home)
 	if err != nil {
 		t.Fatalf("locateTestGenieCLI home: %v", err)
 	}
@@ -1144,8 +1145,8 @@ func TestScenarioHelperCLIResolution(t *testing.T) {
 	}
 
 	pathCLI := writeFakeExecutable(t, root, "bin/test-genie", "#!/usr/bin/env bash\nexit 0\n")
-	app.lookPath = func(file string) (string, error) { return pathCLI, nil }
-	path, err = app.locateTestGenieCLI(root, home)
+	app.LookPathFn = func(file string) (string, error) { return pathCLI, nil }
+	path, err = app.LocateTestGenieCLI(root, home)
 	if err != nil {
 		t.Fatalf("locateTestGenieCLI PATH: %v", err)
 	}
@@ -1162,11 +1163,11 @@ func TestScenarioHelperProcessUtilities(t *testing.T) {
 	app := newTestApp(t.TempDir())
 	url := "http://localhost:1234"
 	var opened scenarioSubprocessSpec
-	app.runScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
+	app.RunScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
 		opened = spec
 		return nil
 	}
-	app.lookPath = func(file string) (string, error) {
+	app.LookPathFn = func(file string) (string, error) {
 		switch runtime.GOOS {
 		case "linux":
 			if file == "xdg-open" {
@@ -1177,20 +1178,20 @@ func TestScenarioHelperProcessUtilities(t *testing.T) {
 		}
 		return "", exec.ErrNotFound
 	}
-	if err := app.openScenarioURL(url); err != nil {
+	if err := app.OpenScenarioURL(url); err != nil {
 		t.Fatalf("openScenarioURL: %v", err)
 	}
 	switch runtime.GOOS {
 	case "linux":
-		if opened.name != "/usr/bin/xdg-open" || strings.Join(opened.args, "|") != url {
+		if opened.Name != "/usr/bin/xdg-open" || strings.Join(opened.Args, "|") != url {
 			t.Fatalf("open spec = %+v", opened)
 		}
 	case "darwin":
-		if opened.name != "open" || strings.Join(opened.args, "|") != url {
+		if opened.Name != "open" || strings.Join(opened.Args, "|") != url {
 			t.Fatalf("open spec = %+v", opened)
 		}
 	case "windows":
-		if opened.name != "cmd" || strings.Join(opened.args, "|") != "/c|start||"+url {
+		if opened.Name != "cmd" || strings.Join(opened.Args, "|") != "/c|start||"+url {
 			t.Fatalf("open spec = %+v", opened)
 		}
 	}
@@ -1206,7 +1207,7 @@ func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
 	argsPath := filepath.Join(root, "args.txt")
 	envPath := filepath.Join(root, "env.txt")
 	executable := writeFakeExecutable(t, root, "bin/fake-vrooli", fmt.Sprintf("#!/usr/bin/env bash\nprintf '%%s\\n' \"$@\" > %q\nenv | sort > %q\n", argsPath, envPath))
-	app.scenarioExecutable = func() (string, error) { return executable, nil }
+	app.ScenarioExecutableFn = func() (string, error) { return executable, nil }
 
 	t.Setenv("VROOLI_SANDBOX_ID", "sandbox-123")
 	t.Setenv("VROOLI_SANDBOX_MERGED", "/merged")
@@ -1214,12 +1215,12 @@ func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
 	t.Setenv("SANDBOX_MERGED_DIR", "/merged")
 	t.Setenv("VROOLI_SOURCE_ROOT", "/source-root")
 
-	if err := app.launchDetachedScenario(root, globalOptions{JSON: true, Verbose: true, NoColor: true}, "start", "alpha"); err != nil {
+	if err := app.LaunchDetachedScenario(root, globalOptions{JSON: true, Verbose: true, NoColor: true}, "start", "alpha"); err != nil {
 		t.Fatalf("launchDetachedScenario: %v", err)
 	}
 
-	waitForTestFile(t, argsPath)
-	waitForTestFile(t, envPath)
+	testkitgo.WaitForFile(t, argsPath)
+	testkitgo.WaitForFile(t, envPath)
 
 	argsData, err := os.ReadFile(argsPath)
 	if err != nil {
@@ -1252,7 +1253,11 @@ func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
 
 func TestRunScenarioRunAliasesStartValidation(t *testing.T) {
 	_, ctx := newConfiguredCommandContext("/repo", globalOptions{}, &bytes.Buffer{}, &bytes.Buffer{})
-	err := buildScenarioHandlerMap()[scenariocli.CommandRun](ctx, nil)
+	handler, ok := configuredApp().Registry().ScenarioHandler(string(scenariocli.CommandRun))
+	if !ok {
+		t.Fatal("missing scenario run handler")
+	}
+	err := handler(ctx, nil)
 	if err == nil || !strings.Contains(err.Error(), "scenario start requires at least one scenario name") {
 		t.Fatalf("scenario run handler error = %v", err)
 	}

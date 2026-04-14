@@ -39,6 +39,16 @@ Defines resource dependencies and lifecycle:
 - **Monitoring**: Prometheus, Grafana, DataDog
 - **External**: Third-party APIs and services
 
+### Resource Dependency Catalog
+
+Scenario resource dependency authoring is backed by the generated `resource-definitions.json` catalog, but that catalog is now derived from each active resource's `resource.json` manifest rather than `resources/*/config/schema.json`.
+
+The manifest-native split is:
+- `resource.json`: canonical runtime and dependency contract
+- `resource.json.dependency_schema`: scenario-facing dependency authoring schema
+- `resource.json.orchestration`: lifecycle ordering and startup hints
+- `resource-definitions.json`: generated editor/schema artifact
+
 ### 4. `execution.schema.json` (Execution Environment)
 Manages code execution, sandboxing, and security:
 - **Sandboxing**: Process, container, VM, WASM isolation

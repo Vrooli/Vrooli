@@ -233,6 +233,11 @@
         }
       }
     },
+    "dependency_schema": {
+      "type": "object",
+      "description": "Resource-specific schema fragment for scenario dependency declarations under dependencies.resources.<name>.",
+      "additionalProperties": true
+    },
     "environment_exports": {
       "type": "object",
       "properties": {
@@ -266,6 +271,61 @@
           }
         }
       }
+    },
+    "orchestration": {
+      "type": "object",
+      "properties": {
+        "startup_order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "startup_timeout_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "startup_time_estimate": {
+          "type": "string"
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "optional_dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "recovery_attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recovery_strategy": {
+          "type": "string"
+        },
+        "recovery_wait_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recovery_delay_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "health_check_retries": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "health_check_delay_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "priority": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
     },
     "lifecycle": {
       "type": "object"

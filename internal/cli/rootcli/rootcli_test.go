@@ -75,6 +75,52 @@ func TestPrintErrorWithContextUnknownCommandIncludesSuggestions(t *testing.T) {
 	}
 }
 
+func TestPrintErrorWithContextUnknownScenarioCommandIncludesSuggestions(t *testing.T) {
+	err := NewUnknownScenarioCommandError("statsu", []string{"status"})
+	var stderr bytes.Buffer
+	PrintErrorWithContext(&stderr, err)
+
+	output := stderr.String()
+	if !strings.Contains(output, clipolicy.UnknownScenarioCommandLabel+": statsu") {
+		t.Fatalf("output = %q", output)
+	}
+	if !strings.Contains(output, "status") {
+		t.Fatalf("output = %q", output)
+	}
+}
+
+func TestPrintErrorWithContextCategorizedRuntimeError(t *testing.T) {
+	err := NewErrorWithCategory(
+		errors.New("pipeline failed"),
+		ErrorCategoryRuntime,
+		"Check the command inputs and try again.",
+		[]string{"setup", "status"},
+	)
+
+	var stderr bytes.Buffer
+	PrintErrorWithContext(&stderr, err)
+
+	output := stderr.String()
+	if !strings.Contains(output, "Runtime error: pipeline failed") {
+		t.Fatalf("output = %q", output)
+	}
+	if !strings.Contains(output, "Check the command inputs and try again.") {
+		t.Fatalf("output = %q", output)
+	}
+	if !strings.Contains(output, "Did you mean one of these?") {
+		t.Fatalf("output = %q", output)
+	}
+}
+
+func TestPrintErrorWithContextPreservesPlainErrors(t *testing.T) {
+	var stderr bytes.Buffer
+	PrintErrorWithContext(&stderr, errors.New("plain failure"))
+
+	if got := strings.TrimSpace(stderr.String()); got != "plain failure" {
+		t.Fatalf("output = %q", got)
+	}
+}
+
 func TestExitCodePrefersTypedExitCodes(t *testing.T) {
 	if code := ExitCode(nil); code != 0 {
 		t.Fatalf("ExitCode(nil) = %d", code)
@@ -84,5 +130,12 @@ func TestExitCodePrefersTypedExitCodes(t *testing.T) {
 	}
 	if code := ExitCode(errors.New("boom")); code != 1 {
 		t.Fatalf("ExitCode(default) = %d", code)
+	}
+}
+
+func TestNewErrorWithCategoryPreservesExitCode(t *testing.T) {
+	err := NewErrorWithCategory(ExitCodeError{Code: 23, Message: "wrapped"}, ErrorCategoryRuntime, "", nil)
+	if got := ExitCode(err); got != 23 {
+		t.Fatalf("ExitCode(err) = %d, want 23", got)
 	}
 }

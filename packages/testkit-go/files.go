@@ -2,10 +2,12 @@ package testkitgo
 
 import (
 	"encoding/json"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func WriteFile(t *testing.T, path, contents string) {
@@ -112,6 +114,28 @@ func WriteRelativeExecutable(t *testing.T, root, relPath, contents string) strin
 func WriteRelativeMalformedJSON(t *testing.T, root, relPath, raw string, mode os.FileMode) {
 	t.Helper()
 	WriteMalformedJSON(t, filepath.Join(root, filepath.FromSlash(relPath)), raw, mode)
+}
+
+func WaitForFile(t *testing.T, path string) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(path); err == nil {
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for %s", path)
+}
+
+func ReserveFreePort(t *testing.T) int {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve free port: %v", err)
+	}
+	defer listener.Close()
+	return listener.Addr().(*net.TCPAddr).Port
 }
 
 func normalizeTrailingNewline(contents string, force bool) string {

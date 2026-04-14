@@ -659,41 +659,6 @@ func TestLoadResourceEnvironmentFallsBackToLegacySecretsDuringMigration(t *testi
 	}
 }
 
-func TestLoadResourceEnvironmentDoesNotUseLegacyDefaultsForDockerServiceWithoutExports(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-
-	testkitgo.WriteJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), map[string]any{
-		"resource_ports":  map[string]int{"redis": 6380},
-		"reserved_ranges": map[string]string{},
-	})
-	writeEnvManifestFixture(t, root, "redis", manifestpkg.ResourceManifest{
-		Name:            "redis",
-		Driver:          "docker-service",
-		PortabilityTier: "full",
-		Runtime:         manifestpkg.ResourceRuntime{Image: "redis:7-alpine"},
-	})
-	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"), map[string]any{
-		"definitions": map[string]any{
-			"resourceSchemas": map[string]any{
-				"redis": map[string]any{
-					"properties": map[string]any{
-						"port": map[string]any{"default": 6380},
-					},
-				},
-			},
-		},
-	})
-
-	env, err := LoadResourceEnvironment(root, home, "redis")
-	if err != nil {
-		t.Fatalf("LoadResourceEnvironment(redis): %v", err)
-	}
-	if _, exists := env["REDIS_PORT"]; exists {
-		t.Fatalf("REDIS_PORT should not be inferred from legacy defaults for docker-service resources: %#v", env)
-	}
-}
-
 func TestLoadResourceEnvironmentFailsClosedWhenEncryptedSecretsAreInvalid(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()

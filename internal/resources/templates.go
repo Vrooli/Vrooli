@@ -32,8 +32,6 @@ var (
 var resourceTemplateRequiredFiles = []string{
 	"README.md",
 	"resource.json",
-	"config/defaults.json",
-	"config/schema.json",
 	"test/smoke.json",
 	"test/integration.json",
 	"docs/OPERATIONS.md",
@@ -360,6 +358,31 @@ func (c *Controller) validateResourceTemplateAssets(templateDir string, manifest
 		if info.IsDir() {
 			return fmt.Errorf("docs entry %q points to a directory: %s", key, relPath)
 		}
+	}
+	for _, relPath := range []string{"config/defaults.json", "config/schema.json"} {
+		path := filepath.Join(templateDir, filepath.FromSlash(relPath))
+		if _, err := os.Stat(path); err == nil {
+			return fmt.Errorf("deprecated template file retained: %s", relPath)
+		}
+	}
+	err := filepath.WalkDir(templateDir, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(strings.ToLower(entry.Name()), ".sh") {
+			relPath, relErr := filepath.Rel(templateDir, path)
+			if relErr != nil {
+				return relErr
+			}
+			return fmt.Errorf("canonical templates must not include bash files: %s", filepath.ToSlash(relPath))
+		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 	return nil
 }

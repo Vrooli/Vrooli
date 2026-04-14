@@ -13,6 +13,14 @@ This proposal is based on the live repo state, not just the migration plan. It f
 
 ## Executive Summary
 
+Status update:
+
+- the native env export contract is now implemented
+- `config/runtime.json` and `config/schema.json` have been removed from active resources
+- `config/exports.sh` has been removed from the migrated docker-service resources that used to require it
+- `.vrooli/schemas/resource-definitions.json` is now generated from `resource.json`
+- remaining shell surfaces are compatibility code, not runtime authority
+
 The correct target for `docker-service` is:
 
 ```text
@@ -34,8 +42,6 @@ What already exists:
 
 What is still shell-era and live:
 
-- `config/exports.sh` for some resources
-- direct scenario sourcing of `exports.sh`
 - shell-based database bootstrap for Postgres
 - many resource-local custom commands living in `cli.sh` + `lib/*.sh`
 - shell-era config/test/docs assumptions around `defaults.sh`, `runtime.json`, `messages.sh`, and `capabilities.yaml`
@@ -140,28 +146,23 @@ This behavior is still live in at least four resources:
 - `qdrant`
 - `redis`
 
-References:
-
-- [resources/ollama/config/exports.sh](/home/matthalloran8/Vrooli/resources/ollama/config/exports.sh)
-- [resources/postgres/config/exports.sh](/home/matthalloran8/Vrooli/resources/postgres/config/exports.sh)
-- [resources/qdrant/config/exports.sh](/home/matthalloran8/Vrooli/resources/qdrant/config/exports.sh)
-- [resources/redis/config/exports.sh](/home/matthalloran8/Vrooli/resources/redis/config/exports.sh)
+Those shell export files were part of the migration input and have now been removed in favor of manifest-native `environment_exports`.
 
 There is already a partial native replacement:
 
 - [metadata.go](/home/matthalloran8/Vrooli/internal/resources/metadata.go)
 - [ports.go](/home/matthalloran8/Vrooli/internal/ports/ports.go:600)
 
-The native path currently derives env from:
+The native path previously derived env from:
 
 - `scripts/resources/port_registry.json`
 - `.vrooli/schemas/resource-definitions.json`
 - secrets store
 - hard-coded special cases
 
-This is real and in use, but incomplete relative to the old shell export surface.
+That path was real and in use, but incomplete relative to the old shell export surface. The implemented target is now explicit `resource.json.environment_exports`, with legacy fallback removed.
 
-Known parity gaps:
+Former parity gaps that required native replacement:
 
 - `POSTGRES_URL` and `DATABASE_URL` are handled natively through `applyPostgresOverride`, but this logic is special-cased in `internal/ports`
 - `REDIS_URL` is still a shell-era concept not reproduced natively in the current generic path

@@ -48,7 +48,9 @@ type ResourceManifest struct {
 	HealthChecks       []ResourceHealthCheck        `json:"health_checks,omitempty"`
 	Install            ResourceInstall              `json:"install,omitempty"`
 	Runtime            ResourceRuntime              `json:"runtime,omitempty"`
+	DependencySchema   json.RawMessage              `json:"dependency_schema,omitempty"`
 	EnvironmentExports ResourceEnvironmentExports   `json:"environment_exports,omitempty"`
+	Orchestration      ResourceOrchestration        `json:"orchestration,omitempty"`
 	Lifecycle          ResourceLifecycle            `json:"lifecycle,omitempty"`
 	Capabilities       ResourceManifestCapabilities `json:"capabilities,omitempty"`
 	TemplateVersion    string                       `json:"template_version,omitempty"`
@@ -102,6 +104,21 @@ type ResourceEnvironmentExports struct {
 	FromPorts      map[string]string                  `json:"from_ports,omitempty"`
 	FromRuntimeEnv []string                           `json:"from_runtime_env,omitempty"`
 	Derived        map[string]ResourceDerivedTemplate `json:"derived,omitempty"`
+}
+
+type ResourceOrchestration struct {
+	StartupOrder            int      `json:"startup_order,omitempty"`
+	StartupTimeoutSeconds   int      `json:"startup_timeout_seconds,omitempty"`
+	StartupTimeEstimate     string   `json:"startup_time_estimate,omitempty"`
+	Dependencies            []string `json:"dependencies,omitempty"`
+	OptionalDependencies    []string `json:"optional_dependencies,omitempty"`
+	RecoveryAttempts        int      `json:"recovery_attempts,omitempty"`
+	RecoveryStrategy        string   `json:"recovery_strategy,omitempty"`
+	RecoveryWaitSeconds     int      `json:"recovery_wait_seconds,omitempty"`
+	RecoveryDelaySeconds    int      `json:"recovery_delay_seconds,omitempty"`
+	HealthCheckRetries      int      `json:"health_check_retries,omitempty"`
+	HealthCheckDelaySeconds int      `json:"health_check_delay_seconds,omitempty"`
+	Priority                string   `json:"priority,omitempty"`
 }
 
 type ResourceDerivedTemplate struct {
@@ -167,6 +184,12 @@ func Validate(manifest ResourceManifest) error {
 			return fmt.Errorf("ports must be non-negative")
 		}
 	}
+	if err := validateDependencySchema(manifest.DependencySchema); err != nil {
+		return err
+	}
+	if err := validateOrchestration(manifest.Orchestration); err != nil {
+		return err
+	}
 	if err := validateEnvironmentExports(manifest); err != nil {
 		return err
 	}
@@ -198,6 +221,70 @@ func Validate(manifest ResourceManifest) error {
 		if strings.TrimSpace(manifest.Endpoint) == "" {
 			return fmt.Errorf("endpoint is required for cloud-api resources")
 		}
+	}
+	return nil
+}
+
+func validateDependencySchema(raw json.RawMessage) error {
+	if len(raw) == 0 {
+		return nil
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return fmt.Errorf("dependency_schema must be valid JSON: %w", err)
+	}
+	if len(payload) == 0 {
+		return nil
+	}
+	if got, _ := payload["type"].(string); strings.TrimSpace(got) != "" && got != "object" {
+		return fmt.Errorf("dependency_schema.type must be \"object\" when specified")
+	}
+	properties, ok := payload["properties"]
+	if !ok {
+		return nil
+	}
+	propertyMap, ok := properties.(map[string]any)
+	if !ok {
+		return fmt.Errorf("dependency_schema.properties must be an object")
+	}
+	baseKeys := map[string]struct{}{
+		"$schema":           {},
+		"$profile":          {},
+		"type":              {},
+		"enabled":           {},
+		"required":          {},
+		"startup_policy":    {},
+		"version":           {},
+		"purpose":           {},
+		"description":       {},
+		"degraded_behavior": {},
+		"startup_order":     {},
+		"initialization":    {},
+		"baseUrl":           {},
+		"apiKey":            {},
+		"healthCheck":       {},
+		"connection":        {},
+		"security":          {},
+		"labels":            {},
+		"annotations":       {},
+	}
+	for key := range propertyMap {
+		if _, exists := baseKeys[key]; exists {
+			return fmt.Errorf("dependency_schema.properties[%q] duplicates a base resource dependency key", key)
+		}
+	}
+	return nil
+}
+
+func validateOrchestration(orchestration ResourceOrchestration) error {
+	if orchestration.StartupOrder < 0 ||
+		orchestration.StartupTimeoutSeconds < 0 ||
+		orchestration.RecoveryAttempts < 0 ||
+		orchestration.RecoveryWaitSeconds < 0 ||
+		orchestration.RecoveryDelaySeconds < 0 ||
+		orchestration.HealthCheckRetries < 0 ||
+		orchestration.HealthCheckDelaySeconds < 0 {
+		return fmt.Errorf("orchestration values must be non-negative")
 	}
 	return nil
 }

@@ -2,33 +2,51 @@ package main
 
 import (
 	"io"
-	"net"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/cli/vroolicli"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioexec"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
+type App = vroolicli.App
+type commandContext = vroolicli.CommandContext
+type scenarioSubprocessSpec = scenarioexec.SubprocessSpec
+
 func newTestApp(root string) *App {
 	app := configuredApp()
-	app.registry = rootcli.NewRegistry(buildTopLevelHandlerMap(), buildScenarioHandlerMap())
-	app.resolveSourceRoot = func() (string, error) { return root, nil }
-	app.checkStaleness = func() (buildinfo.StaleCheck, error) {
+	app.ResolveSourceRootFn = func() (string, error) { return root, nil }
+	app.CheckStalenessFn = func() (buildinfo.StaleCheck, error) {
 		return buildinfo.StaleCheck{Stale: false}, nil
 	}
 	return app
 }
 
+func newConfiguredCommandContext(root string, globals globalOptions, stdout, stderr io.Writer) (*App, *commandContext) {
+	app := configuredApp()
+	return app, app.NewCommandContext(root, globals, stdout, stderr)
+}
+
+func runCleanupCommand(root string, parsed parsedArgs, stdout, stderr io.Writer) error {
+	app := newTestApp(root)
+	ctx := app.NewCommandContext(root, parsed.Globals, stdout, stderr)
+	handler, ok := app.Registry().TopLevelHandler("cleanup")
+	if !ok {
+		return rootcli.NewUnknownCommandError("cleanup", nil)
+	}
+	return handler(ctx, parsed.Args)
+}
+
 func loadScenarioStateForTest(root string) ([]scenario.Scenario, map[string]process.ScenarioRuntime, error) {
 	app, ctx := newConfiguredCommandContext(root, globalOptions{}, io.Discard, io.Discard)
-	service, err := app.newScenarioService(ctx)
+	service, err := app.NewScenarioService(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -50,7 +68,7 @@ func loadScenarioStateForTest(root string) ([]scenario.Scenario, map[string]proc
 
 func loadScenarioDetailForTest(root, name string) (scenario.Scenario, process.ScenarioRuntime, string, error) {
 	app, ctx := newConfiguredCommandContext(root, globalOptions{}, io.Discard, io.Discard)
-	service, err := app.newScenarioService(ctx)
+	service, err := app.NewScenarioService(ctx)
 	if err != nil {
 		return scenario.Scenario{}, process.ScenarioRuntime{}, "", err
 	}
@@ -69,38 +87,6 @@ func writeTestFile(t *testing.T, root, rel, contents string) {
 func writeFakeExecutable(t *testing.T, root, rel, contents string) string {
 	t.Helper()
 	return testkitgo.WriteRelativeExecutable(t, root, rel, contents)
-}
-
-func waitForTestFile(t *testing.T, path string) {
-	t.Helper()
-	deadline := time.Now().Add(3 * time.Second)
-	for time.Now().Before(deadline) {
-		if _, err := os.Stat(path); err == nil {
-			return
-		}
-		time.Sleep(25 * time.Millisecond)
-	}
-	t.Fatalf("timed out waiting for %s", path)
-}
-
-func reserveFreePort(t *testing.T) int {
-	t.Helper()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("reserve free port: %v", err)
-	}
-	defer listener.Close()
-	return listener.Addr().(*net.TCPAddr).Port
-}
-
-func repoRootFromCaller(t *testing.T) string {
-	t.Helper()
-	return testkitgo.ProjectRoot(t)
-}
-
-func projectRootForCLI(t *testing.T) string {
-	t.Helper()
-	return repoRootFromCaller(t)
 }
 
 func writeTestScenarioService(t *testing.T, root, name, description string) {
@@ -224,7 +210,7 @@ func writeScenarioProcessRecord(t *testing.T, home, name, step string, pid, port
 
 func writeScenarioProcessRecordWithWorkingDir(t *testing.T, home, name, step string, pid, port int, startedAt time.Time, workingDir string) {
 	t.Helper()
-	testkitvrooli.WriteScenarioProcessRecordCompat(t, home, name, step, pid, port, startedAt, workingDir)
+	testkitvrooli.WriteScenarioProcessRecordWithWorkingDir(t, home, name, step, pid, port, startedAt, workingDir)
 }
 
 func intPtr(value int) *int {

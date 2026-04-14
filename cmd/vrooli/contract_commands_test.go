@@ -10,6 +10,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 func TestShowMainHelpIncludesContractCommand(t *testing.T) {
@@ -22,7 +23,7 @@ func TestShowMainHelpIncludesContractCommand(t *testing.T) {
 }
 
 func TestRunContractShowJSON(t *testing.T) {
-	root := repoRootFromCaller(t)
+	root := testkitgo.ProjectRoot(t)
 	t.Setenv("VROOLI_SOURCE_ROOT", root)
 
 	app := newTestApp("/unused")
@@ -54,7 +55,7 @@ func TestRunContractShowJSON(t *testing.T) {
 }
 
 func TestRunContractResolveScenarioServicePath(t *testing.T) {
-	root := repoRootFromCaller(t)
+	root := testkitgo.ProjectRoot(t)
 	t.Setenv("VROOLI_SOURCE_ROOT", root)
 
 	app := newTestApp("/unused")
@@ -180,7 +181,7 @@ func TestRunContractValidateReturnsSilentNonZeroOnCheckFailure(t *testing.T) {
 
 func copyRepoContractValidationFixtures(t *testing.T, dest string) {
 	t.Helper()
-	sourceRoot := repoRootFromCaller(t)
+	sourceRoot := testkitgo.ProjectRoot(t)
 	for _, rel := range []string{
 		filepath.Join(repocontractmeta.ProjectConfigDir, repocontractmeta.ContractFilename),
 		filepath.Join(repocontractmeta.ProjectConfigDir, repocontractmeta.SchemaDir, repocontractmeta.SchemaFilename),

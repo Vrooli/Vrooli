@@ -93,8 +93,6 @@ func TestGenerateResourceTemplateFromBlueprint(t *testing.T) {
 	}
 
 	assertJSONFile(t, filepath.Join(dest, "resource.json"))
-	assertJSONFile(t, filepath.Join(dest, "config", "defaults.json"))
-	assertJSONFile(t, filepath.Join(dest, "config", "schema.json"))
 	assertJSONFile(t, filepath.Join(dest, "test", "smoke.json"))
 	assertJSONFile(t, filepath.Join(dest, "test", "integration.json"))
 
@@ -235,8 +233,6 @@ func TestValidateResourceTemplatesRejectsMissingRequiredFiles(t *testing.T) {
 }`)
 	writeTestFile(t, filepath.Join(templateDir, "README.md"), "# Fixture\n")
 	writeTestFile(t, filepath.Join(templateDir, "resource.json"), "{}\n")
-	writeTestFile(t, filepath.Join(templateDir, "config", "defaults.json"), "{}\n")
-	writeTestFile(t, filepath.Join(templateDir, "config", "schema.json"), "{}\n")
 	writeTestFile(t, filepath.Join(templateDir, "test", "smoke.json"), "{}\n")
 	writeTestFile(t, filepath.Join(root, "docs", "plans", "resource-cross-platform-migration-plan.md"), "# Plan\n")
 
@@ -264,8 +260,6 @@ func TestValidateResourceTemplatesRejectsMissingDocReferences(t *testing.T) {
 }`)
 	writeTestFile(t, filepath.Join(templateDir, "README.md"), "# Fixture\n")
 	writeTestFile(t, filepath.Join(templateDir, "resource.json"), "{}\n")
-	writeTestFile(t, filepath.Join(templateDir, "config", "defaults.json"), "{}\n")
-	writeTestFile(t, filepath.Join(templateDir, "config", "schema.json"), "{}\n")
 	writeTestFile(t, filepath.Join(templateDir, "test", "smoke.json"), "{}\n")
 	writeTestFile(t, filepath.Join(templateDir, "test", "integration.json"), "{}\n")
 	writeTestFile(t, filepath.Join(templateDir, "docs", "OPERATIONS.md"), "# Operations\n")
@@ -302,8 +296,6 @@ func assertGeneratedTemplateLayout(t *testing.T, dest string) {
 	requiredFiles := []string{
 		"README.md",
 		"resource.json",
-		"config/defaults.json",
-		"config/schema.json",
 		"test/smoke.json",
 		"test/integration.json",
 		"docs/OPERATIONS.md",

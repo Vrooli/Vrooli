@@ -10,6 +10,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
+	"github.com/vrooli/vrooli/internal/cli/vroolicli"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
@@ -17,12 +18,12 @@ import (
 
 func TestRunTriggersRebuildBeforeDispatch(t *testing.T) {
 	app := newTestApp("/repo")
-	app.checkStaleness = func() (buildinfo.StaleCheck, error) {
+	app.CheckStalenessFn = func() (buildinfo.StaleCheck, error) {
 		return buildinfo.StaleCheck{Stale: true}, nil
 	}
 
 	var rebuiltArgs []string
-	app.rebuildAndReexec = func(args []string) error {
+	app.RebuildAndReexecFn = func(args []string) error {
 		rebuiltArgs = append([]string(nil), args...)
 		return nil
 	}
@@ -38,7 +39,7 @@ func TestRunTriggersRebuildBeforeDispatch(t *testing.T) {
 
 func TestRunReportsStaleCheckFailure(t *testing.T) {
 	app := newTestApp("/repo")
-	app.checkStaleness = func() (buildinfo.StaleCheck, error) {
+	app.CheckStalenessFn = func() (buildinfo.StaleCheck, error) {
 		return buildinfo.StaleCheck{}, errors.New("fingerprint targets drifted")
 	}
 
@@ -106,8 +107,8 @@ func TestRunInfoCommandErrorsWhenNoSourcesConfigured(t *testing.T) {
 
 func TestRunVersionJSONOutput(t *testing.T) {
 	app := configuredApp()
-	app.resolveSourceRoot = func() (string, error) { return "/repo", nil }
-	app.checkStaleness = func() (buildinfo.StaleCheck, error) {
+	app.ResolveSourceRootFn = func() (string, error) { return "/repo", nil }
+	app.CheckStalenessFn = func() (buildinfo.StaleCheck, error) {
 		return buildinfo.StaleCheck{Stale: false}, nil
 	}
 
@@ -264,7 +265,7 @@ func TestRunUnknownCommandSuggestsNearestMatch(t *testing.T) {
 
 func TestShowVersionAndHelpOutput(t *testing.T) {
 	var version bytes.Buffer
-	if err := showVersion(&version, "/repo", globalOptions{}); err != nil {
+	if err := vroolicli.WriteVersion(&version, "/repo", globalOptions{}, vroolicli.VersionInfo{CLIVersion: cliVersion, PlatformVersion: vrooliVersion}); err != nil {
 		t.Fatalf("showVersion: %v", err)
 	}
 	if !strings.Contains(version.String(), "Vrooli CLI v"+cliVersion) {
@@ -280,8 +281,8 @@ func TestShowVersionAndHelpOutput(t *testing.T) {
 
 func TestRunVersionDoesNotRequireRootResolution(t *testing.T) {
 	app := configuredApp()
-	app.resolveSourceRoot = func() (string, error) { return "", errors.New("boom") }
-	app.checkStaleness = nil
+	app.ResolveSourceRootFn = func() (string, error) { return "", errors.New("boom") }
+	app.CheckStalenessFn = nil
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -299,11 +300,11 @@ func TestRunVersionDoesNotRequireRootResolution(t *testing.T) {
 
 func TestRunMainHelpAndUnknownCommandDoNotRequireRootResolution(t *testing.T) {
 	app := configuredApp()
-	app.resolveSourceRoot = func() (string, error) {
+	app.ResolveSourceRootFn = func() (string, error) {
 		t.Fatal("root resolution should be skipped")
 		return "", nil
 	}
-	app.checkStaleness = nil
+	app.CheckStalenessFn = nil
 
 	var help bytes.Buffer
 	if code := app.Run([]string{"--help"}, &help, &bytes.Buffer{}); code != 0 {
@@ -328,7 +329,7 @@ func TestCommandEnvPreservesExistingSourceRootAndNoColor(t *testing.T) {
 	t.Setenv("LANG", "C")
 	t.Setenv("VROOLI_SOURCE_ROOT", "/custom/source")
 
-	env := configuredApp().commandEnv("/repo", globalOptions{NoColor: true})
+	env := configuredApp().CommandEnv("/repo", globalOptions{NoColor: true})
 	got := strings.Join(env, "\n")
 	if !strings.Contains(got, "VROOLI_ROOT=/repo") {
 		t.Fatalf("env missing VROOLI_ROOT: %v", env)
